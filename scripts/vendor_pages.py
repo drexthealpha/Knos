@@ -39,7 +39,7 @@ REPO = agent_pr_board.REPO
 SITE = "https://drexthealpha.github.io/Knos"
 REPLY_TEMPLATE = "vendor-reply.yml"
 MAX_REPLY = 1200
-INSTALL = "uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.21"
+INSTALL = "uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.22"
 NOT = [
     "It is not a rating of defect-free work: a merged pull request with no failed check can still be wrong.",
     "It is not a rating of the code or of the vendor: it counts what GitHub recorded against what a description said.",

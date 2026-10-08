@@ -119,3 +119,39 @@ def test_measure_pay_write_keeps_the_cluster_run_and_the_page_prints_it_with_its
     assert rate_claims.check(page) == []
     with pytest.raises(SystemExit):
         load.main(["measure", "--pay", "--relays", "2", "--orders", "2", "--simulate", "--write"])      # a simulated run is never written
+
+
+def test_the_simulator_spreads_one_owners_orders_over_the_relays_and_each_fee_reaches_its_orders_account():
+    """0.3.22: a pay token's lane is its order, and each order's fee goes to one of K token accounts of FEE_OWNER."""
+    pytest.importorskip("solders.litesvm")
+    got = load_pay.simulate(4, 16, fee_accounts=4)
+    assert got["ok"] and all(got["checks"].values()), got["checks"]
+    assert (got["owners"], got["lanes"], got["fee_accounts"], got["paid"]) == (1, "order", 4, 16)
+    assert sum(1 for r in got["per_relay"] if r["attempted"]) > 1 and got["fee_accounts_used"] > 1
+
+
+def test_on_a_cluster_k_fee_accounts_are_named_to_the_relays_for_the_run_and_the_record_says_so(monkeypatch):
+    import base64
+    monkeypatch.delenv("KNOS_FEE_SHARDS", raising=False)
+    wallet = Keypair.from_seed(bytes(32))
+    seen = []
+
+    def send(ledger, key, kind, jwt):
+        import os
+        seen.append((os.environ.get("KNOS_FEE_SHARDS"), os.environ.get("KNOS_FEE_BASE")))
+        return {"ok": True}
+    body = base64.urlsafe_b64encode(json.dumps({"aud": "x", "repository_owner_id": "77"}).encode()).decode().rstrip("=")
+    tokens = [{"kind": "pay", "jwt": f"h.{body}.s"} for _ in range(3)]
+    got = load_pay.on_cluster(None, wallet, 2, tokens, relay_one=send, lend=lambda k: True, sweep=lambda k: None, fee_accounts=4)
+    assert set(seen) == {("4", str(wallet.pubkey()))} and (got["fee_accounts"], got["lanes"], got["owners"]) == (4, "order", 1)
+    import os
+    assert "KNOS_FEE_SHARDS" not in os.environ                      # put back as it was
+
+
+def test_the_one_relay_run_of_8_october_stays_on_the_page_as_measured_and_the_new_path_as_not_measured():
+    doc = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))
+    run = [m for m in doc["measured"] if m.get("kind") == "pay" and m.get("date") == "2026-10-08"]
+    assert len(run) == 1 and (run[0]["relays"], run[0]["paid"], run[0]["attempted"], run[0]["paid_per_s"], run[0]["seconds"]) == (1, 40, 40, 0.097, 412.74)
+    page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
+    assert "2026-10-08: end-to-end PayOrder: token verification, then the payment; 1 relay, 40 payments attempted" in page
+    assert "ONE relay carried all of them" in page and "**Not measured: payments by order over several relays and K fee accounts.**" in page

@@ -246,6 +246,68 @@ def create_ata_ix(payer: Pubkey, owner: Pubkey, mint: Pubkey, token_program: Pub
                                               AccountMeta(SYSTEM, False, False), AccountMeta(token_program, False, False)])
 
 
+# -- the fee accounts: K token accounts of FEE_OWNER per mint, so payments do not all write one account ----------------
+# The program takes ANY token account of the order's (or job's) mint that FEE_OWNER owns as the fee account
+# (`is_owned(fee_tok, token, mint, FEE_OWNER)` in order_pay.rs, order_terms.rs and pay.rs): it never asks for the
+# associated one. So the fee account is chosen here, by the order: account 0 is FEE_OWNER's associated token account,
+# accounts 1..K-1 are plain token accounts at `Pubkey.create_with_seed(base, fee_seed(mint, i), TOKEN)`, made once by
+# `knos relay fee-accounts` (InitializeAccount3 names the owner; it needs no signature of FEE_OWNER's). Only FEE_OWNER
+# can move what they hold. K and the base come from KNOS_FEE_SHARDS and KNOS_FEE_BASE, else from the pinned ids
+# ("fee_shards", "fee_base"); with neither, K is 1 and every fee goes to the associated account, as before 0.3.22.
+TOKEN_ACCOUNT_LEN, MAX_FEE_SHARDS = 165, 64
+
+
+def fee_seed(mint: Pubkey, i: int) -> str:
+    """The seed of fee account i of a mint: 32 hex characters (the most create_with_seed takes) of sha256("knos-fee" || mint || i)."""
+    return hashlib.sha256(b"knos-fee" + bytes(mint) + i.to_bytes(2, "little")).hexdigest()[:32]
+
+
+def fee_shards() -> tuple[int, Pubkey | None]:
+    """(K, base) as configured: KNOS_FEE_SHARDS / KNOS_FEE_BASE, else the pinned ids, else (1, None). K without a base is 1."""
+    import os
+    raw_k, raw_base = os.environ.get("KNOS_FEE_SHARDS") or IDS.get("fee_shards"), os.environ.get("KNOS_FEE_BASE") or IDS.get("fee_base")
+    try:
+        k = max(1, min(MAX_FEE_SHARDS, int(raw_k or 1)))
+        base = Pubkey.from_string(str(raw_base)) if raw_base else None
+    except ValueError:
+        return 1, None
+    return (k, base) if base is not None else (1, None)
+
+
+def fee_accounts(mint: Pubkey, token_program: Pubkey = TOKEN, k: int | None = None, base: Pubkey | None = None) -> list[Pubkey]:
+    """Every fee account of a mint: FEE_OWNER's associated one, then the K-1 seeded ones. A Token-2022 mint has the
+    associated one alone (its extensions can need a larger account than the 165 bytes the command makes)."""
+    if k is None:
+        k, base = fee_shards()
+    home = ata(FEE_OWNER, mint, token_program)
+    if base is None or k <= 1 or token_program != TOKEN:
+        return [home]
+    return [home, *(Pubkey.create_with_seed(base, fee_seed(mint, i), TOKEN) for i in range(1, k))]
+
+
+def fee_index(order: Pubkey, k: int) -> int:
+    """Which of K fee accounts an order's payments use: sha256 of the order's address, modulo K. The same in every relay."""
+    return int.from_bytes(hashlib.sha256(bytes(order)).digest()[:8], "big") % max(1, k)
+
+
+def fee_account_for(order: Pubkey, mint: Pubkey, token_program: Pubkey = TOKEN, k: int | None = None, base: Pubkey | None = None) -> Pubkey:
+    """The fee account an order's PayOrder, SettleOrder and Release name (see fee_accounts). A relay that finds it
+    missing on chain names the associated one instead: any account FEE_OWNER owns is taken."""
+    every = fee_accounts(mint, token_program, k, base)
+    return every[fee_index(order, len(every))]
+
+
+def create_fee_account_ixs(payer: Pubkey, base: Pubkey, mint: Pubkey, i: int, lamports: int) -> list[Instruction]:
+    """Makes fee account i (1..K-1) of an SPL Token mint: CreateAccountWithSeed (`base` signs; `payer` pays the rent)
+    owned by the token program, then InitializeAccount3 with FEE_OWNER as its owner."""
+    from solders.system_program import CreateAccountWithSeedParams, create_account_with_seed
+    seed = fee_seed(mint, i)
+    address = Pubkey.create_with_seed(base, seed, TOKEN)
+    return [create_account_with_seed(CreateAccountWithSeedParams(from_pubkey=payer, to_pubkey=address, base=base, seed=seed, lamports=lamports,
+                                                                 space=TOKEN_ACCOUNT_LEN, owner=TOKEN)),
+            Instruction(TOKEN, b"\x12" + bytes(FEE_OWNER), [AccountMeta(address, False, True), AccountMeta(mint, False, False)])]
+
+
 # -- audiences: what the workflows ask GitHub to sign ------------------------------------------------------------------
 def fund_audience(issue: int, amount: int, mode: int, terms: bytes, balance: Pubkey, work_s: int = 14 * 86_400) -> str:
     """`terms` is terms_hash(...) (32 bytes). `balance` is the Balance this comment spends: the funder's workflow
@@ -776,11 +838,12 @@ def fund_order_balance_ix(relayer: Pubkey, fund_token: Pubkey, key: Pubkey, bala
                         AccountMeta(SYSTEM, False, False), AccountMeta(pause_pda(program), False, False)])
 
 
-def _order_common(relayer: Pubkey, order: Pubkey, o: Order, tip_token: Pubkey | None, program: Pubkey) -> list[AccountMeta]:
+def _order_common(relayer: Pubkey, order: Pubkey, o: Order, tip_token: Pubkey | None, program: Pubkey, fee_token: Pubkey | None = None) -> list[AccountMeta]:
     tp = o.token_program
     return [AccountMeta(order, False, True), AccountMeta(ov_pda(order, program), False, True),
             AccountMeta(tip_token if tip_token is not None else ata(relayer, o.mint, tp), False, True),
-            AccountMeta(ata(FEE_OWNER, o.mint, tp), False, True), AccountMeta(auth_pda(program), False, False), AccountMeta(o.rent_to, False, True),
+            AccountMeta(fee_token if fee_token is not None else ata(FEE_OWNER, o.mint, tp), False, True), AccountMeta(auth_pda(program), False, False),
+            AccountMeta(o.rent_to, False, True),
             AccountMeta(o.mint, False, False), AccountMeta(tp, False, False), AccountMeta(SYSTEM, False, False), AccountMeta(ATA_PROGRAM, False, False)]
 
 
@@ -799,7 +862,7 @@ def order_destination(bind: Bind | None, address: Pubkey | None) -> Pubkey | Non
 
 
 def pay_order_ix(relayer: Pubkey, pay_token: Pubkey, key: Pubkey, order: Pubkey, o: Order, payees, tip_token: Pubkey | None = None,
-                 program: Pubkey = PAY_ID, pr: int = 0, *, used: Pubkey | str | bytes | None = None) -> Instruction:
+                 program: Pubkey = PAY_ID, pr: int = 0, *, used: Pubkey | str | bytes | None = None, fee_token: Pubkey | None = None) -> Instruction:
     """`o` is read_order of `order`. `payees`: for each payee of the audience, in its order, (GitHub id, wallet) or
     (GitHub id, wallet, dest_token); `wallet` is order_destination(read_bind(...), the address the audience carries).
     The program pays each a token account of its wallet (default: its associated token account, which the program
@@ -807,17 +870,19 @@ def pay_order_ix(relayer: Pubkey, pay_token: Pubkey, key: Pubkey, order: Pubkey,
     relayer for the tip (default: its associated token account; it must exist, as FEE_OWNER's must).
     -- order terms: a payee who assigned this order's payment is paid at its assignee: pass `payee_wallet(...)` as
     its wallet. `pr`: the pull request the audience names (a STANDING order marks it). `used`: the token's marker, as
-    `marked` takes it: a pay token (or a ruling) pays, or holds, once; it comes before the payees' accounts."""
+    `marked` takes it: a pay token (or a ruling) pays, or holds, once; it comes before the payees' accounts.
+    `fee_token`: a token account of FEE_OWNER of the mint (default: its associated one; see fee_account_for)."""
     per = [m for p in payees for m in _payee_accounts(o, p[0], p[1], p[2] if len(p) > 2 else None, program)]
     return marked(Instruction(program, b"\x11", [AccountMeta(relayer, True, True), AccountMeta(pay_token, False, False), AccountMeta(key, False, False),
-                                                 *_order_common(relayer, order, o, tip_token, program), *per,
+                                                 *_order_common(relayer, order, o, tip_token, program, fee_token), *per,
                                                  *_terms_accounts(order, o, [p[0] for p in payees], pr, program)]), used, program)     # order terms
 
 
 def settle_order_ix(relayer: Pubkey, order: Pubkey, o: Order, wallet: Pubkey, dest_token: Pubkey | None = None, tip_token: Pubkey | None = None,
-                    program: Pubkey = PAY_ID) -> Instruction:
-    """Pays a held order once its payee has bound a wallet: `wallet` is read_bind(bind_pda(o.payee_id)).wallet."""
-    return Instruction(program, b"\x1a", [AccountMeta(relayer, True, True), *_order_common(relayer, order, o, tip_token, program),
+                    program: Pubkey = PAY_ID, fee_token: Pubkey | None = None) -> Instruction:
+    """Pays a held order once its payee has bound a wallet: `wallet` is read_bind(bind_pda(o.payee_id)).wallet.
+    `fee_token`: as pay_order_ix takes it."""
+    return Instruction(program, b"\x1a", [AccountMeta(relayer, True, True), *_order_common(relayer, order, o, tip_token, program, fee_token),
                                           *_payee_accounts(o, o.payee_id, wallet, dest_token, program),
                                           AccountMeta(assign_pda(order, o.payee_id, program), False, False)])           # order terms
 
@@ -1009,11 +1074,12 @@ def _terms_accounts(order: Pubkey, o: Order, payee_ids, pr: int, program: Pubkey
     return out
 
 
-def release_ix(relayer: Pubkey, order: Pubkey, o: Order, hb: Holdback, tip_token: Pubkey | None = None, program: Pubkey = PAY_ID) -> Instruction:
+def release_ix(relayer: Pubkey, order: Pubkey, o: Order, hb: Holdback, tip_token: Pubkey | None = None, program: Pubkey = PAY_ID,
+               fee_token: Pubkey | None = None) -> Instruction:
     """After the warranty, anyone: the holdback to the recorded wallets (their associated token accounts, created
     when missing), the tip to the relayer, the rest of the fee to FEE_OWNER. `hb`: read_holdback of hb_pda(order)."""
     per = [m for _, w, _ in hb.payees for m in (AccountMeta(w, False, False), AccountMeta(ata(w, o.mint, o.token_program), False, True))]
-    c = _order_common(relayer, order, o, tip_token, program)     # order ov tip fee auth rent_to mint token_program system ata_program
+    c = _order_common(relayer, order, o, tip_token, program, fee_token)     # order ov tip fee auth rent_to mint token_program system ata_program
     return Instruction(program, b"\x12", [AccountMeta(relayer, True, True), c[0], c[1], AccountMeta(hb_pda(order, program), False, True), c[2], c[3], c[4],
                                           c[5], AccountMeta(hb.payer, False, True), *c[6:], *per])
 

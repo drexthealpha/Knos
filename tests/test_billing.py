@@ -505,3 +505,36 @@ def test_market_says_defending_the_rate_matters_more_and_that_nothing_defends_it
     for kind in ("recoveries", "avoided labour", "financing benefit"):
         assert kind in flat and kind in " ".join((ROOT / "docs" / "PILOT.md").read_text(encoding="utf-8").split())
     assert "costs the second customer's account 12,000 USD a year; its whole direct cost is 16,208.36" in flat
+
+
+# ---- 0.3.22: the budget today against what the price book requires; the gross fee against the cash Knos keeps -------------
+
+def test_the_budget_today_against_what_the_price_book_requires_each_with_its_design():
+    rows = {r["unit"]: r for r in b.gaps(b.unit_costs(COSTS))}
+    assert list(rows) == ["evaluation", "accepted_deliverable", "record_lookup", "control_business", "control_team", "release_at_floor"]
+    assert [(rows[k]["budget"], rows[k]["required"], rows[k]["gap"]) for k in rows] == [
+        ("0.00005", "0.0000893", "none"), ("0.10", "0.02", "0.08"), ("0.01", "0.005", "0.005"), ("15,000", "5,000", "10,000"),
+        ("not budgeted", "1,250", "unknown"), ("0.0072", "0.0025", "0.0047")]
+    assert (D(900_000) * D("0.002") * D("0.05") - 5 * D("0.1393")) / 1_000_000 >= D("0.0000893")       # the evaluation's required cost, by hand
+    assert D("133.34") * D("0.003") * D("0.05") >= D("0.02") > D("133.33") * D("0.003") * D("0.05")     # the least deliverable 0.02 keeps 95% on
+    assert "666.67" in rows["accepted_deliverable"]["how"] and "200.00 at 0.20%" in rows["accepted_deliverable"]["how"]
+    assert all(r["design"] for r in rows.values()) and rows["evaluation"]["meets"] and not rows["control_business"]["meets"]
+    text = "\n".join(b.margin_lines(b.margin(worked_month(), COSTS)))
+    assert "The budget today against what the price book requires for 95% gross" in text and "control_business" in text and "15,000        5,000" in text
+
+
+def test_the_gross_fee_is_not_the_cash_knos_keeps():
+    c = b.cash_kept("300.00", "7.50", "29.25", "3.00", "0.20")
+    assert (c["cash_kept"], c["channel"], c["fee_counter_is_cash"]) == ("208.20", "52.05", False)
+    assert D("300.00") - D("7.50") - D("29.25") - D("3.00") - D("52.05") == D("208.20") and D("260.25") * D("0.20") == D("52.05")
+    assert "not company cash" in c["rule"] and c["devnet"] == b.RULES["devnet"]
+    assert b.cash_kept("3.00")["cash_kept"] == "3.00"                                   # a relayer Knos runs takes no tip; nothing given back
+    loss = b.cash_kept("0.05", "0.05", "0", "0.10", "0.20")
+    assert loss["cash_kept"] == "-0.10" and loss["channel"] == "0.00"                   # below zero is shown, never floored
+    for bad in (("1.00", "2.00"), ("1.00", "0", "-1.00"), ("1.00", "0", "0", "0", "1.5"), ("1.00", "0", "0", "0", 0.2)):
+        with pytest.raises(b.BillingError):
+            b.cash_kept(*bad)
+    e = b.cash_example(b.unit_costs(COSTS))                                             # 100 releases of 1,000 under 2.2: 3.00 each; tips 90 x 0.05 + 10 x 0.30
+    assert (e["gross_fee"], e["relayer_tips"], e["discounts"], e["cash_kept"]) == ("300.00", "7.50", "29.25", "208.20")
+    text = "\n".join(b.margin_lines(b.margin(worked_month(), COSTS)))
+    assert "cash kept 208.20" in text and b.CASH_RULE in text

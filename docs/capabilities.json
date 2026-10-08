@@ -3839,6 +3839,54 @@
     }
    },
    "note": "Worked customers, not sales: nothing has been sold, and on devnet every fee is test money and zero revenue."
+  },
+  {
+   "id": "fee_accounts_sharded",
+   "what": "The relay pays each order's fee into one of K token accounts of Knos's fee owner, chosen by the order, and shares pay work out by order, with no program change.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/pay.py",
+     "names": "def fee_account_for(order: Pubkey, mint: Pubkey"
+    },
+    "tested": {
+     "test": "tests/test_fee_shards.py",
+     "names": "test_pay_order_and_settle_order_take_a_seeded_token_account_of_the_fee_owner_and_nothing_else"
+    }
+   },
+   "note": "knos_pay takes any token account the fee owner holds for the mint; `knos relay fee-accounts --k N` plans the accounts and `--execute` makes them. Tested in the simulator against the compiled programs. On devnet six seeded fee accounts exist since 8 Oct 2026 (K = 4 for devnet USDC and the faucet's test USDC, owned by the fee owner, made by the project's own relayer key; docs/RELAY.md lists them); the public worker runs with K = 1, so no payment has used them, and the one-relay rate measured on 8 Oct (0.097 a second) is the only measured rate."
+  },
+  {
+   "id": "memory_changes_decisions",
+   "what": "Recalled history changes what Knos recommends: preflight names the protection a remembered ending calls for, and the approver's queue ranks and labels repeated endings.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/history.py",
+     "names": "def protections_recalled(store, repo, terms: str"
+    },
+    "tested": {
+     "test": "tests/test_preflight.py",
+     "names": "test_memory_changes_what_preflight_recommends_and_without_it_nothing_is_recommended"
+    }
+   },
+   "note": "With no memory, neither does (both tests check it); also tests/test_recall.py, test_the_queue_is_ranked_and_labelled_from_memory_and_without_it_nothing_is. Recalled from the memory engine on this machine; nothing is shared between buyers."
+  },
+  {
+   "id": "fee_neutrality",
+   "what": "Knos's fee account only receives fees and may lower a rate: no program line lets it sign a verdict, pick a payee or move an order, the modules that make verdicts know no fee, and the fee reads the amount and the rate only.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "programs-v2/knos_pay/src/order_pay.rs",
+     "names": "is_owned(a.fee_tok, a.token.key, &o.mint, &FEE_OWNER)"
+    },
+    "tested": {
+     "test": "tests/test_neutrality.py",
+     "names": "test_knos_fee_account_only_receives_fees_and_lowers_a_rate"
+    }
+   },
+   "note": "A check of the source, not an outside review: it shows what the code allows, and docs/DISPUTES.md says how verdicts and appeals stay with the parties' judges and arbiters."
   }
  ],
  "public_round": {

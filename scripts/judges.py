@@ -4,7 +4,7 @@
     python scripts/judges.py            write docs/judges.json from docs/JUDGES.md
     python scripts/judges.py --check    fail when the file differs from the page, or the page breaks its own rules
 
-The page is typed by hand and is the source. Its rules: the one sentence, then the pitch line, then the one number;
+The page is typed by hand and is the source. Its rules: the one sentence, then the winning claim, then the one number;
 at most 350 words outside the table; thirteen rows (the six criteria in the rules, then the seven factors Colosseum's
 hackathon page lists), each one sentence and one link; a definition of days to approve that gives no figure; five
 lines under "What is not real yet". The shape of the file, which the site's "For judges" page (web/judges.js) reads
@@ -36,8 +36,8 @@ CRITERIA = ["How well it works", "Potential impact", "Novelty", "User experience
 FACTORS = ["Founder and market fit", "Insight", "Product and execution", "Potential market size", "Founder communication",
            "Viability", "Traction"]
 JUDGED = CRITERIA + FACTORS
-PITCH = ("Buyers and suppliers verify what AI work earned payment, then carry that evidence from authorisation through "
-         "invoice approval to settlement.")
+PITCH = ("Knos lets buyers and suppliers agree what AI work earned payment, and independently prove that agreement "
+         "later.")
 DAYS = ("Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person "
         "with authority approves it.")
 WHY_SOLANA = "Money is released with no custodian, and the count is anchored where neither side can alter it."

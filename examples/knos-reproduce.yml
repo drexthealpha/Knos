@@ -55,7 +55,7 @@ jobs:
           enable-cache: false
           ignore-empty-workdir: true
       - name: install knos, the released wheel
-        run: uv tool install --no-config "knos==0.3.21"
+        run: uv tool install --no-config "knos==0.3.22"
       - name: knos reproduce
         id: report
         env:

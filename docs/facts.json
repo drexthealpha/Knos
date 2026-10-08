@@ -1029,12 +1029,21 @@
   },
   {
    "say": [
-    "3,746"
+    "92",
+    "126.9"
    ],
-   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37757036121 on drexthealpha/knos-rc 13220bbf7862e5784909424bce58a6f50ecf061c, the staging tree of this release: 3746 passed, 55 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37757036121",
+   "what": "Sibyl Labs hackathon: first of 92 teams, 126.9 points",
+   "source": "https://hack.sibyllabs.org/leaderboard",
+   "read": "2026-10-08"
+  },
+  {
+   "say": [
+    "3,788"
+   ],
+   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37826726338 on drexthealpha/knos-rc 9577c0014edff31d4c72b0c77e60be81c4c7b086, the staging tree of this release: 3788 passed, 55 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37826726338",
    "json": "docs/bench.json",
    "path": "release.tests_passing.value",
-   "equals": 3746
+   "equals": 3788
   }
  ]
 }

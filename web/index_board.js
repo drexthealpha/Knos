@@ -152,6 +152,7 @@ export function indexBoardHtml(weekly, week, feed) {
   const shown = weeks.includes(week) ? week : (weeks.includes(weekly.latest_week) ? weekly.latest_week : weeks[0]);
   if (!shown) return `<div class="index-board"><p class="fine">Holds no week yet.</p></div>`;
   const board = withFeed(boardOf(weekly, shown), feed), least = board.min_claims_to_rank;
+  const says = feed && feed.basis && typeof feed.basis.says === "string" ? feed.basis.says : "";   // index.json: which basis these shares are
   const verified = board.rows.reduce((n, r) => n + r.verified, 0), open = board.rows.filter((r) => r.disputed.length).length;
   const pick = weeks.length > 1 ? `<p class="ib-pick"><label for="ib-week">Week of</label>
       <select id="ib-week" aria-controls="ib-table">${weeks.map((w) => `<option value="${esc(w)}"${w === shown ? " selected" : ""}>${esc(w)}</option>`).join("")}</select></p>` : "";
@@ -172,6 +173,7 @@ export function indexBoardHtml(weekly, week, feed) {
       <li id="ib-quality">Rates no defect-free work, code or vendor.</li>
     </ul>
     <p class="fine" id="ib-verified"><strong>Verified: ${esc(verified)} this week.</strong> Counts claims Knos also paid on a black-box check.</p>
+    ${says ? `<details class="k-more" id="ib-basis"><summary>Which pull requests these shares count</summary><p class="fine">${esc(says)}</p></details>` : ""}
   </div>`;
 }
 

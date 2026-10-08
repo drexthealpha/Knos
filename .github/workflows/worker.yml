@@ -414,6 +414,10 @@ jobs:
           version: "0.8.20"
           python-version: "3.12"
           enable-cache: false
+      # A release commit reaches main before PyPI lists the knos it pins: wait for that exact file (standard library
+      # only, growing pauses, at most 10 minutes) instead of failing the install.
+      - name: wait until PyPI lists the knos file requirements/sign.txt pins
+        run: python3 -I scripts/pypi_wait.py requirements/sign.txt --package knos --most 600
       - name: install what the check needs, each by its hash, and nothing else
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"

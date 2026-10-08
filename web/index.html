@@ -29,7 +29,7 @@
 <link rel="alternate" type="application/atom+xml" title="Knos: upgrade proposals of the programs" href="upgrades.xml">
 <link rel="alternate" type="application/atom+xml" href="index.atom" title="Agent PR Index">
 <!-- 0.3.19: under the sentence, one line: what a customer gets; the number follows it. Here, not in app.css, whose budget is spent. From 900 px the top margin is 36 px, so the upgrade line sits 4 px down and 24 px tall, clear of the sentence. -->
-<style>.hero .hero-fact { text-wrap: pretty; } .hero .hero-outcome { font-size: var(--s2); line-height: 1.35; font-weight: 500; color: var(--ink); max-width: 26em; margin: 0 0 8px; text-wrap: balance; } .hero .hero-fact { margin-bottom: 12px; } .hero .hero-board { margin-top: 12px; } .hero h1 { margin-bottom: 12px; } .hero .hero-fact .k-num { color: var(--ink); font-weight: 600; } @media (min-width: 900px) { .hero { padding-top: 36px; } .hero-upgrades { top: 4px; } .hero-upgrades > summary { padding-block: 2px; } }</style>
+<style>.hero .hero-fact { text-wrap: pretty; } .hero .hero-outcome { font-size: var(--s2); line-height: 1.35; font-weight: 500; color: var(--ink); max-width: 26em; margin: 0 0 8px; text-wrap: balance; } .hero .hero-fact { margin-bottom: 12px; } .hero .hero-board { margin-top: 12px; } .hero h1 { margin-bottom: 12px; } .hero .hero-fact .k-num { color: var(--ink); font-weight: 600; } #how-it-works { margin-top: 64px; scroll-margin-top: 80px; } @media (min-width: 900px) { .hero { padding-top: 36px; } .hero-upgrades { top: 4px; } .hero-upgrades > summary { padding-block: 2px; } }</style>
 </head>
 <body>
 <a class="k-skip" href="#fd-in">Skip to the invoice box</a>
@@ -108,6 +108,62 @@
       <div id="front-result" hidden></div>
       <a class="hero-cue" id="hero-cue" href="#demo" aria-label="The demo, below"></a>
     </div>
+    <!-- HOW IT WORKS, under the first screen: three steps, the same three everywhere. What the advanced terms mean
+         (versioned terms, the receipt's five parts, holdbacks, reserves, netting, exits) waits behind one fold each, under the
+         step it belongs to. tests/web/site.mjs holds the three, the promise and the six folds. -->
+    <h2 id="how-it-works">How it works</h2>
+    <p class="devnet">Solana devnet. The money is test USDC.</p>
+    <details class="k-more" id="why-solana"><summary>Why Solana?</summary>
+<p class="fine">Money is released with no custodian, and the count is anchored where neither side can alter it.</p>
+<p class="fine">A receipt verifies with no chain. The chain is for the money and for the root.</p>
+</details>
+    <ol class="how" aria-label="How it works">
+      <li><h3>Agree the terms</h3>
+        <p>Name the checks before the work starts. <a href="#fund">Fund a task</a></p>
+        <div class="show"><pre>/knos fund 20 checks: test</pre></div>
+        <div class="adv">
+          <details class="k-more"><summary>Versioned terms: the whole contract</summary>
+<p class="fine">A versioned document of ten fields: what one deliverable is, who judges, who hears an appeal, who may change
+  the terms. An order cites one version. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/TERMS.md#knos-terms-3">The terms document</a>.</p>
+</details>
+          <details class="k-more"><summary>Holdbacks: a share kept for a warranty</summary>
+<p class="fine">A share of the payment stays in the order for the warranty. A signed revert inside it returns that share
+  to the funder. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/DISPUTES.md">Disputes and warranties</a>.</p>
+</details>
+        </div></li>
+      <li><h3>A third party signs the result</h3>
+        <p>GitHub signs which workflow ran, and where. <a href="#protect">Protect a repository</a></p>
+        <div class="show receipt"><span>GitHub signs:</span> <code>repository</code> <code>sha</code> <code>job_workflow_ref</code></div>
+        <div class="adv">
+          <details class="k-more"><summary>Five parts of a receipt</summary>
+<p class="fine">Every receipt reads as identity, execution, acceptance, consequence and assurance: who signed, what ran,
+  which test passed, what became payable, and what stayed trusted. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/RECEIPT.md#the-five-parts-of-a-receipt">The five parts</a>.</p>
+</details>
+        </div></li>
+      <li><h3>Both sides get the same bill, and the money moves</h3>
+        <p>Rebuild one bill from the signed evidence. <a href="#claim">Get paid</a></p>
+        <div class="show receipt"><span>Paid on devnet, as a demonstration:</span>
+          <a href="https://explorer.solana.com/tx/4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt?cluster=devnet" target="_blank" rel="noopener" title="4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt"><code>4PovnMjD…2zcDxt</code></a></div>
+        <div class="adv">
+          <details class="k-more"><summary>Netting: small tickets, one release</summary>
+<p class="fine">Small outcomes add up off chain and are paid as one release per supplier per period.
+  <a href="https://github.com/drexthealpha/Knos/blob/main/docs/NETTING.md">Netting</a>.</p>
+</details>
+          <details class="k-more"><summary>Reserves: money locked before the work</summary>
+<p class="fine">A buyer locks money for one supplier before the work; netted work draws on it.
+  <a href="https://github.com/drexthealpha/Knos/blob/main/docs/NETTING.md">Reserves</a>.</p>
+</details>
+          <details class="k-more"><summary>Exits: leave before an upgrade</summary>
+<p class="fine">An upgrade of the programs waits two days in public. <code>knos exit --before-upgrade</code> lists what
+  you hold and its way out. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/GOVERNANCE.md">Governance</a>.</p>
+</details>
+        </div></li>
+    </ol>
+    <figure class="sides" aria-label="The same bill, on each side">
+      <p><span class="k-kicker">Buyer</span> <span>same bill</span></p>
+      <p><span class="k-kicker">Supplier</span> <span>same bill</span></p>
+      <figcaption class="promise">Buyers can defend the bill; suppliers can defend what they are owed.</figcaption>
+    </figure>
     <section id="demo" class="mount" aria-label="Demo" hidden></section>
 
     <h2 id="check-a-pull-request">Check a pull request</h2>
@@ -132,25 +188,6 @@
   It adds a Stop hook (when the agent says tests pass, Knos runs the check before the agent may stop) and an MCP server,
   <code>knos mcp</code>. It holds no key and no wallet. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/INSTALL.md">Every way to install it</a>.</p>
 </details>
-
-    <h2 id="how-a-task-is-paid">Pay on a signed run</h2>
-    <p class="devnet">Solana devnet. The money is test USDC.</p>
-    <details class="k-more" id="why-solana"><summary>Why Solana?</summary>
-<p class="fine">Money is released with no custodian, and the count is anchored where neither side can alter it.</p>
-<p class="fine">A receipt verifies with no chain. The chain is for the money and for the root.</p>
-</details>
-    <ol class="how" aria-label="How a task is paid">
-      <li><h3>Fund a task by comment</h3>
-        <p>Name the checks. They are the terms. <a href="#fund">Fund a task</a></p>
-        <div class="show"><pre>/knos fund 20 checks: test</pre></div></li>
-      <li><h3>Let GitHub sign the run</h3>
-        <p>Merge. GitHub signs which workflow ran, and where. <a href="#protect">Protect a repository</a></p>
-        <div class="show receipt"><span>GitHub signs:</span> <code>repository</code> <code>sha</code> <code>job_workflow_ref</code></div></li>
-      <li><h3>Watch a Solana program pay</h3>
-        <p>The program checks the signature, then pays. <a href="#claim">Get paid</a></p>
-        <div class="show receipt"><span>Paid on devnet, as a demonstration:</span>
-          <a href="https://explorer.solana.com/tx/4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt?cluster=devnet" target="_blank" rel="noopener" title="4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt"><code>4PovnMjD…2zcDxt</code></a></div></li>
-    </ol>
     <figure id="film" class="film" hidden>
       <video id="demo-video" controls preload="metadata" playsinline></video>
       <figcaption class="fine">Watch one task, from funding to payment.</figcaption>
@@ -169,6 +206,7 @@
         says whether the terms were met, and a Solana program checks that signature itself before it pays. No person holds
         the money in between.</p>
     </details>
+
   </section>
 
   <!-- PAGES OTHER MODULES FILL: web/buyer.js fills #buy and web/capabilities.js fills #capabilities (from

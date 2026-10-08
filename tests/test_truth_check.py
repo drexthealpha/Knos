@@ -239,3 +239,77 @@ def test_the_readme_today_table_is_generated_from_the_manifest_and_cannot_drift(
     for name, said, _where in bd.stage_rows(caps):
         assert f"| {name} | {said} |" in readme, name
     assert sum(int(said.split(" of ")[0]) for _n, said, _w in bd.stage_rows(caps)) == len(caps)
+
+
+def test_the_sdk_readme_and_registry_descriptions_are_held_to_the_price_book_too(tmp_path):
+    """The SDK's README (npm shows it) and the descriptions in server.json and sdk/*/package.json escaped the checker."""
+    root = _tree(tmp_path)
+    (root / "sdk" / "settle").mkdir(parents=True)
+    (root / "sdk" / "settle" / "README.md").write_text("# knos-settle\n\nA Record lookup costs 0.25 USD a lookup.\n\n"
+                                                       "This release (0.3.20) adds a reader.\n", encoding="utf-8")
+    (root / "sdk" / "settle" / "package.json").write_text('{\n  "name": "knos-settle",\n  "description": "A client. Meter: 100,000 evaluations '
+                                                          'a month free, then 0.05 USD."\n}\n', encoding="utf-8")
+    (root / "server.json").write_text('{"description": "The neutral meter. Record: 0.10 USD a lookup."}', encoding="utf-8")
+    found = _found(root)
+    assert found == [("price", "sdk/settle/README.md", 3), ("release", "sdk/settle/README.md", 5), ("price", "sdk/settle/package.json", 3)]
+
+
+def test_words_no_document_uses_are_found_and_a_sourced_figure_about_another_company_is_not(tmp_path):
+    root = _tree(tmp_path, market="# Market\n\nKnos is trustless.\n\nKnos reaches 1 billion USD of ARR.\n\n"
+                                  "| company | revenue | free cash flow | source |\n|---|---|---|---|\n"
+                                  "| Acme | 2 billion USD | 0.4 billion USD | [Acme, 2025](https://example.com/acme) |\n",
+                 compose="# Programs\n\nThe second deployment is immutable.\n\nThe first deployment is immutable.\n\n"
+                         "Delivery has zero latency.\n")
+    found = [(p.file, p.line) for p in _tool().problems(root) if p.rule == "word"]
+    assert found == [("docs/COMPOSE.md", 3), ("docs/COMPOSE.md", 7), ("docs/MARKET.md", 3), ("docs/MARKET.md", 5)]
+
+
+def test_the_sdk_readme_claims_no_attestation_but_may_name_the_attest_command(tmp_path):
+    """npm's page claimed "a GitHub-signed run attests": the word rule bans the claim, not `knos attest` or attest.yml."""
+    root = _tree(tmp_path)
+    (root / "sdk" / "settle").mkdir(parents=True)
+    (root / "sdk" / "settle" / "README.md").write_text(
+        "# knos-settle\n\nRun `knos attest` (the workflow `.github/workflows/attest.yml` runs it).\n\n"
+        "A run of `attest.yml` with the kind `eval` (`knos attest --kind eval`) makes the token.\n\n"
+        "A GitHub-signed run attests that the terms were met.\n", encoding="utf-8")
+    found = [(p.file, p.line) for p in _tool().problems(root) if p.rule == "word"]
+    assert found == [("sdk/settle/README.md", 7)]
+
+
+def _script(name: str):
+    import importlib.util as iu
+    import sys
+    spec = iu.spec_from_file_location(f"{name}_tool", ROOT / "scripts" / f"{name}.py")
+    mod = iu.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_the_readme_names_this_release_from_pyproject_and_the_changelog_and_refuses_when_they_differ(tmp_path):
+    """A reader served an old cached copy reads which release it is in the README's generated table."""
+    bd = _script("bench_docs")
+    what, said, where = bd.release_row()
+    version = bd.re.search(r'(?m)^version = "([\d.]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
+    assert what == "This copy" and said.startswith(f"Release {version}, ") and "CHANGELOG.md" in where
+    assert f"| {what} | {said} | {where} |" in (ROOT / "README.md").read_text(encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.3.99"\n', encoding="utf-8")
+    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n## 0.3.98 (October 2026)\n", encoding="utf-8")
+    try:
+        bd.release_row(tmp_path)
+    except SystemExit as e:
+        assert "0.3.99" in str(e) and "0.3.98" in str(e)
+    else:
+        raise AssertionError("a README naming a release the changelog has no entry for")
+
+
+def test_every_index_figure_names_its_basis():
+    """The Index has two bases: every claiming pull request, and the first one per repository. Each place says which."""
+    index = (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8")
+    assert "Basis: every merged pull request that claimed passing tests" in index and "first such pull request per repository" in index
+    assert json.loads((ROOT / "docs" / "index.json").read_text(encoding="utf-8"))["basis"]["counts"] == "every_merged_claiming_pr"
+    assert "(not one per repository)" in (ROOT / "docs" / "index.atom").read_text(encoding="utf-8")
+    bench = (ROOT / "docs" / "BENCH.md").read_text(encoding="utf-8")
+    assert bench.count("first claiming PR per repository: any check failed") == 2 and "every claiming PR: any check failed" in bench
+    head = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("\n## ", 1)[0]
+    assert "superseded" in head and "docs/MARKET.md" in head

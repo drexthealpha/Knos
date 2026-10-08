@@ -362,3 +362,55 @@ def test_the_suppliers_page_and_guide_show_the_same_four_rows():
         assert f'{{ id: "{key}", title: "{title}", enforced: "{how}", line: "{line}" }}' in page, key
         assert f"| {title} | {line} | {how} |" in guide or (key, how) == ("predictable_payment", "advisory") and f"| {title}, netted work | {line} | {how} |" in guide, key
     assert preflight.NO_DEADLINE.split(": ")[1] in page          # "the buyer can wait forever", in the page's words too
+
+
+def _remember_what_went_wrong(st, thash: str) -> None:
+    """Work under `thash` in `repo` that went wrong three ways: a dispute, a rejection won on appeal, and an acceptance
+    that came eleven days late. Each is a memory in the engine, under the terms' hash."""
+    t0, day = 1_790_000_000.0, 86400.0
+    history.exception_resolved(st, thash, "disputed", "dana", "inv_0001", "refused", ["evl_0001"], opened_at=t0, at=t0 + day)
+    history.appeal_outcome(st, "repo", "ap-7", "accepted", "dana", 7, "the suite was flaky", "", thash, at=t0 + 2 * day)
+    history.exception_resolved(st, thash, "insufficient_evidence", "eve", "inv_0002", "corrected_and_passed", ["dlv_0002"],
+                               opened_at=t0, at=t0 + 11 * day)
+
+
+def test_memory_changes_what_preflight_recommends_and_without_it_nothing_is_recommended(knos_home, work, tmp_path):
+    """Delete the memory layer and the answer changes: the same terms, the same change, the same history. With the
+    engine, a remembered dispute, appeal won and late acceptance each recommend the protection that covers it (a
+    reserve, an arbiter, a deadline), with why and the recalled evidence ids. With no memory (NullStore, or
+    --no-memory) the report recommends nothing: it cannot know."""
+    thash = terms.terms_hash(MERGE)
+    _remember_what_went_wrong(history.SibylStore.for_repo(work), thash)
+    (work / "src").mkdir(exist_ok=True)
+    (work / "src" / "auth.py").write_text("def login():\n    return 2\n", encoding="utf-8")
+    report = preflight.check(work, _terms_file(tmp_path, MERGE), supplier="dana")
+    got = {r["because"]: r for r in report["recommend"]}
+    assert set(got) == {"dispute", "appeal_won", "late_acceptance"}
+    assert (got["dispute"]["ask"], got["appeal_won"]["ask"], got["late_acceptance"]["ask"]) == ("reserve", "arbiter", "deadline")
+    assert got["dispute"]["id"] == "predictable_payment" and "inv_0001" in got["dispute"]["evidence"] and "evl_0001" in got["dispute"]["evidence"]
+    assert got["appeal_won"]["id"] == "appeal" and got["appeal_won"]["evidence"][:2] == ["appeal ap-7", "pull request #7"]
+    assert got["late_acceptance"]["id"] == "acceptance_deadline" and got["late_acceptance"]["evidence"] == ["inv_0002", "dlv_0002"]
+    assert got["appeal_won"]["said"].startswith("Work here was rejected and then won on appeal 1 time before (appeal ap-7).")
+    assert all(r["held"] is not True for r in report["recommend"]) and report["recommend"][0]["held"] is False   # what the terms lack comes first
+    rows = {p["id"]: p for p in report["protections"]}
+    assert rows["appeal"]["recalled"] == got["appeal_won"]["evidence"]
+    text = preflight.words(report)
+    assert "Recommended from memory: No arbitrary rejection. Work here was rejected and then won on appeal 1 time before" in text
+    tool = preflight.mcp({"path": str(work), "terms": str(_terms_file(tmp_path, MERGE)), "supplier": "dana"})   # the MCP tool says the same lines
+    assert tool["recommended"] == preflight.recommended(report) and any(x.startswith("Recommended from memory: No arbitrary rejection.") for x in tool["recommended"])
+    # the same terms, the same change, the same history, and no memory: nothing is recommended
+    for no_memory in (preflight.check(work, _terms_file(tmp_path, MERGE), supplier="dana", use_memory=False),
+                      preflight.run(preflight.read_terms(terms.canonical(MERGE).decode("ascii")), [("M", "src/auth.py")], store=history.NullStore(),
+                                    repo="repo", supplier="dana", memory={"on": True, "said": ""})):
+        assert no_memory["recommend"] == [] and "Recommended from memory" not in preflight.words(no_memory)
+        assert [p["held"] for p in no_memory["protections"]] == [p["held"] for p in report["protections"]]   # the rules alone are unchanged
+    assert history.protections_recalled(history.NullStore(), "repo", thash, "dana") == []
+
+
+def test_a_supplier_s_own_history_under_other_terms_is_recalled_and_another_s_is_not(knos_home, work, tmp_path):
+    st = history.SibylStore.for_repo(work)
+    other = terms.terms_hash(TESTS)
+    history.exception_resolved(st, other, "disputed", "dana", "inv_0009", "refused", ["evl_0009"], opened_at=1.0, at=2.0)
+    mine = history.protections_recalled(st, "repo", terms.terms_hash(MERGE), "Dana")
+    assert [r["because"] for r in mine] == ["dispute"] and mine[0]["evidence"] == ["inv_0009", "evl_0009"]
+    assert history.protections_recalled(st, "repo", terms.terms_hash(MERGE), "eve") == []

@@ -51,7 +51,9 @@ for payment. On devnet every fee the program takes is test money: 0 revenue.
     knos bill estimate --plan business --evaluations 110000 --accepted 10000000
     knos bill explain month.json
     knos bill margin month.json docs/unit_costs.json      (GROSS margin; the three leaks; who earns what at the floor;
-                                                           what netting saves; the second worked customer)
+                                                           what netting saves; the second worked customer; the budget
+                                                           today against what the price book requires; gross fee
+                                                           against cash kept)
     knos bill margin --sensitivity docs/unit_costs.json   (the worked customers at a realised Acceptance rate of 30, 20,
                                                            10 and 5 bps)
 
@@ -631,7 +633,7 @@ def margin(month: dict, costs: Any) -> dict:
             "free_tier_year": show(12 * (METER_FREE * unit["evaluation"] + pairs * unit["pair_month"])),
             "floor": floor_split(unit["payee_account"]), "netting": netting_example(), "remedy": floor_remedy(),
             "kind": "gross", "operating": "not computed: no operating cost is known", "gross_note": GROSS,
-            "leaks": leaks(by, pairs, unit, measured), "second": second_customer(unit),
+            "leaks": leaks(by, pairs, unit, measured), "second": second_customer(unit), "gaps": gaps(unit), "cash": cash_example(unit),
             "note": ("Revenue is the lines before credits, the commitment and anything agreed separately. Direct cost is the unit-cost file's, and "
                      "a cost it marks as a budget is a budget, not a measurement. Nothing has been sold.")}
 
@@ -856,6 +858,114 @@ def netting_example(value: Decimal = NET_EXAMPLE[0], count: int = NET_EXAMPLE[1]
             "on_chain_least": show(Decimal(5)), "floor": show(ACCEPT_FLOOR)}
 
 
+# ---- 0.3.22: the budget today against what the price book requires; the gross fee against the cash Knos keeps ----------------
+DELIVERABLE_TARGET = Decimal("0.02")     # what one accepted deliverable may cost to deliver: a target nobody has reached
+GAP_DESIGN = {
+    "evaluation": "one anchored batch a supplier a month (`knos meter batch`); each side reconciles itself (`knos meter reconcile`); no person in the routine path",
+    "accepted_deliverable": "exceptions are self-service: a difference is a named line the two parties settle (`knos statement verify`); "
+                            "outcomes under 20 USD are netted into one release; a person deciding a dispute is a separate service at a separate price",
+    "record_lookup": "anyone runs `knos record serve`; Knos hosts none, so Knos carries no cost and books no revenue",
+    "control_business": "self-service onboarding: one pinned workflow file, `knos shadow` on the first invoice, `knos preflight` for suppliers; support is pooled",
+    "control_team": "the same self-service path; a Team account gets no named person",
+    "release_at_floor": "netting: one release a payee a period; an outside relayer pays the chain fees out of its tip",
+}
+
+
+def _smallest(price_rate: Decimal, cost: Decimal, target: Decimal = TARGET) -> str:
+    """The least deliverable (USD, to the cent, rounded up) whose Acceptance fee at `price_rate` leaves `target` gross over `cost`."""
+    least = cost / (price_rate * (1 - target))
+    return show(least.quantize(CENT, rounding="ROUND_CEILING"))
+
+
+def _plain(d: Decimal) -> str:
+    """15000 -> "15,000"; 0.1 -> "0.10"; 0.0000893 -> "0.0000893"."""
+    if d == d.to_integral_value():
+        return f"{int(d):,}"
+    text = f"{d.normalize():f}"
+    return text if len(text.split(".")[1]) >= 2 else f"{d:.2f}"
+
+
+def gaps(unit: dict[str, Decimal], target: Decimal = TARGET) -> list[dict]:
+    """Each unit's cost to deliver: what the unit-cost file budgets TODAY against what the price book REQUIRES for `target`
+    gross, the gap between them and the design that closes it. `required` is arithmetic on the price book, except an
+    accepted deliverable's, which is a target (DELIVERABLE_TARGET): its row says from what deliverable each cost keeps
+    `target`. Every budget is a budget, not a measurement; nothing has been sold."""
+    keep = 1 - target
+    second = SECOND["evaluations"]
+    billable = second - METER_FREE
+    per_eval = (billable * METER_PRICE * keep - SECOND["suppliers"] * unit["pair_month"]) / second
+    floor_fee = ACCEPT_FLOOR
+    rows = [
+        ("evaluation", "one evaluation delivered, free ones included, at 1,000,000 a month and five suppliers (the second worked customer)",
+         unit["evaluation"], per_eval.quantize(Decimal("0.0000001"), rounding=ROUND_DOWN),
+         "0.002 × 900,000 billable × 5%, less five monthly batches, over 1,000,000 delivered"),
+        ("accepted_deliverable", "one accepted deliverable reconciled off chain", unit["accepted_deliverable"], DELIVERABLE_TARGET,
+         f"a target: at {DELIVERABLE_TARGET} a deliverable keeps {target * 100:.0f}% gross from {_smallest(ACCEPT_RATE, DELIVERABLE_TARGET, target)} at 0.30% "
+         f"({_smallest(ACCEPT_TIERS[-1][1], DELIVERABLE_TARGET, target)} at 0.20%); at {_plain(unit['accepted_deliverable'])} only from "
+         f"{_smallest(ACCEPT_RATE, unit['accepted_deliverable'], target)} ({_smallest(ACCEPT_TIERS[-1][1], unit['accepted_deliverable'], target)})"),
+        ("record_lookup", "one record lookup", unit["record_lookup"], RECORD_PRICE * keep, "0.10 × 5%"),
+        ("control_business", "Control, Business, a year of onboarding and support", unit["control_year"], CONTROL["business"] * keep, "100,000 × 5%"),
+        ("control_team", "Control, Team, a year of onboarding and support", None, CONTROL["team"] * keep, "25,000 × 5%"),
+        ("release_at_floor", "the chain fees of one release at the 0.05 floor, when Knos relays", unit["release_chain"], floor_fee * keep, "0.05 × 5%"),
+    ]
+    out = []
+    for key, what, budget, need, how in rows:
+        need = need.normalize()
+        gap = None if budget is None else budget - need
+        out.append({"unit": key, "what": what, "budget": "not budgeted" if budget is None else _plain(budget), "required": _plain(need), "how": how,
+                    "gap": "unknown" if gap is None else ("none" if gap <= 0 else _plain(gap)),
+                    "meets": None if gap is None else gap <= 0, "kind": "budget, not measured" if key not in ("release_at_floor",) else "measured in the simulator",
+                    "design": GAP_DESIGN[key]})
+    return out
+
+
+CASH_RULE = ("The gross protocol fee is not the cash Knos keeps. Cash kept = the gross fee - the tips outside relayers take out of it - discounts "
+             "and volume rebates - credits for disputed, reversed or failed work - channel commissions on what is left. "
+             "A fee counter on chain counts the gross fee in the fee owner's token accounts: it is not company cash, and on devnet it is test money, 0 revenue.")
+CASH_EXAMPLE: dict[str, Any] = {"releases": 100, "amount": 1_000, "first_payments": 10, "discount": "0.10", "credits": "3.00", "channel": "0.20"}
+#   an example, not a customer: 100 releases of 1,000 test USDC by outside relayers, 10 of them a payee's first payment; a 10% discount
+#   [assumption]; 3.00 credited for one reversed release [assumption]; a channel partner taking 20% of what is left [assumption]
+
+
+def cash_kept(gross: Any, tips: Any = "0", discounts: Any = "0", credits: Any = "0", channel_rate: Any = "0") -> dict:
+    """From the gross protocol fee to the cash Knos keeps, step by step (CASH_RULE). `tips`: what outside relayers took
+    out of the fee (a relayer Knos runs takes none); `discounts`: discounts and volume rebates given back; `credits`:
+    credits for disputed, reversed or failed work; `channel_rate`: the share of what is left a reseller or partner is
+    paid. What is left may be below zero, and is shown so: it is never floored to make the line look earned."""
+    g, t, d, c = (money(v, w) for v, w in ((gross, "the gross fee"), (tips, "tips"), (discounts, "discounts"), (credits, "credits")))
+    if min(g, t, d, c) < 0:
+        raise BillingError("the fee, tips, discounts and credits: 0 or more")
+    if isinstance(channel_rate, (bool, float)):
+        raise BillingError("channel_rate: write it as a string like \"0.20\"")
+    try:
+        r = Decimal(str(channel_rate))
+    except InvalidOperation:
+        raise BillingError(f"channel_rate: {channel_rate!r} is not a share") from None
+    if not (r.is_finite() and ZERO <= r <= 1):
+        raise BillingError("channel_rate: a share from 0 to 1")
+    if t > g:
+        raise BillingError("tips: never more than the fee they come out of")
+    net = g - t - d - c
+    channel = cents(net * r) if net > 0 else ZERO
+    kept = net - channel
+    return {"gross_fee": show(g), "relayer_tips": show(t), "discounts": show(d), "credits": show(c), "channel": show(channel),
+            "cash_kept": show(kept), "kept_share": share(kept, g) if g > 0 else "none: no fee", "fee_counter_is_cash": False, "rule": CASH_RULE,
+            "devnet": RULES["devnet"]}
+
+
+def cash_example(unit: dict[str, Decimal] | None = None) -> dict:
+    """CASH_EXAMPLE worked: the gross fee and the tips from `release_split` (knos_pay 2.2, outside relayers), then the
+    discount, the credit and the channel's share. Every input after the fee is an assumption."""
+    e = CASH_EXAMPLE
+    plain = release_split(e["amount"] * 1_000_000, "outside", False, unit)
+    first = release_split(e["amount"] * 1_000_000, "outside", True, unit)
+    n, k = e["releases"], e["first_payments"]
+    fee = money(plain["fee"]) * n
+    tips = money(plain["tip"]) * (n - k) + money(first["tip"]) * k
+    discount = cents((fee - tips) * Decimal(e["discount"]))
+    return {**cash_kept(fee, tips, discount, e["credits"], e["channel"]), "example": e, "build": plain["build"]}
+
+
 def margin_lines(g: dict) -> list[str]:
     out = [f"Gross margin of month {g['month']} of the contract year. Plan: {g['plan']}. USD.", g["gross_note"],
            f"  {'line':<22} {'units':>14} {'revenue':>14} {'direct cost':>14} {'gross':>14}  gross margin"]
@@ -892,6 +1002,16 @@ def margin_lines(g: dict) -> list[str]:
             f"  Control {w['control']} + Acceptance {w['acceptance']} + Meter {w['meter']} = {w['total']} a year.",
             f"  Direct cost {w['direct_cost']}: {w['gross_margin']} gross; with Control at its target, {w['direct_cost_at_control_target']}: {w['gross_margin_at_control_target']} gross.",
             f"  Three to one is {w['hurdle']} a year of benefit: {w['hurdle_is']}."]
+    out += ["", f"The budget today against what the price book requires for {g['leaks']['target']} gross, unit by unit. Budgets, not measurements, but for the chain fees (counted in the simulator).",
+            f"  {'unit':<22} {'budget today':>14} {'required':>12} {'gap':>10}  how required is reached; the design that closes the gap"]
+    for r in g["gaps"]:
+        out.append(f"  {r['unit']:<22} {r['budget']:>14} {r['required']:>12} {r['gap']:>10}  {r['how']}. Design: {r['design']}.")
+    c = g["cash"]
+    e = c["example"]
+    out += ["", f"Gross fee against cash kept (knos_pay {c['build']}; an example, its inputs after the fee assumed): {e['releases']} releases of "
+            f"{e['amount']:,} by outside relayers, {e['first_payments']} of them a payee's first payment.",
+            f"  gross fee {c['gross_fee']} - relayer tips {c['relayer_tips']} - discounts {c['discounts']} - credits {c['credits']} - channel {c['channel']} "
+            f"= cash kept {c['cash_kept']} ({c['kept_share']} of the gross fee).", f"  {c['rule']}"]
     return out
 
 

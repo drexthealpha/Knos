@@ -138,6 +138,22 @@ store's file has the same effect, and a second process recalls nothing
 (`tests/test_sibyl_is_load_bearing.py`): the check a false "done" made required, the tamper lessons, the refusals a
 preflight warns about.
 
+## The delete-the-memory test
+
+Sibyl Labs states the test for memory that carries weight: "Delete the memory layer. If your project still does what
+it claims, it is a wrapper and does not qualify. If the core function breaks, memory is load-bearing."
+([hack.sibyllabs.org](https://hack.sibyllabs.org), read 8 October 2026). Answers coming back empty is half of it.
+The other half is a decision that changes. Two do, and each test runs the same input with and without the memory:
+
+| decision | with memory | with no memory (`NullStore`, `--no-memory`) | test |
+|---|---|---|---|
+| what `knos preflight` recommends a supplier ask for before starting | work under these terms, or by this supplier, that ended in a dispute, was won on appeal or was accepted late recommends a reserve, an arbiter or an acceptance deadline, says why, and names the recalled evidence ids (`history.protections_recalled`, the report's `recommend`) | nothing is recommended from history; the four protections read from the terms alone are unchanged | `tests/test_preflight.py::test_memory_changes_what_preflight_recommends_and_without_it_nothing_is_recommended` |
+| the order of the approver's exception queue | an exception whose same reason under the same terms ended one way in most cases, at least twice, is ranked first and labelled ("ended accepted on appeal 3 of 4 times before"); `knos recall queue` and the approver's page (`web/recall.js`, `web/approver.js`) rank the same way | no label, and the queue keeps the order the exceptions opened in | `tests/test_recall.py::test_the_queue_is_ranked_and_labelled_from_memory_and_without_it_nothing_is`, `tests/web/approver.mjs` ("memory ranks the queue") |
+
+A protection the terms already hold is still named when memory calls for it, and says so; one the terms lack comes
+first. Nothing here decides a verdict or a payment: memory changes advice and order, and the evidence ids let the
+reader check each one.
+
 ## Its limits, measured here
 
 - The engine's free tier holds 5,242,880 bytes for one account (`free_tier_status()` at 0.8.1). An empty store is

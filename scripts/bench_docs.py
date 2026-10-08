@@ -325,10 +325,25 @@ TODAY_LAST = [
 ]
 
 
-def today(src: dict, repo: dict, caps: list[dict] | None = None) -> str:
-    """README.md's table (the block `today`): how far each capability has got (stage_rows, from docs/capabilities.json),
-    and what nobody outside has used, the last from the same sources as outside_use()."""
-    rows = [*stage_rows(capabilities() if caps is None else caps),
+def release_row(root: Path = ROOT) -> tuple[str, str, str]:
+    """The table's first row: which release this copy is, from pyproject.toml and the top entry of CHANGELOG.md, so a
+    reader served an older copy (a cache, a registry, a fork) can tell. The two must name the same release. A tree
+    that lacks either file (a test's copy of a few documents) reads it from this repository."""
+    read = lambda rel: ((root / rel) if (root / rel).is_file() else ROOT / rel).read_text(encoding="utf-8")  # noqa: E731
+    py = re.search(r'(?m)^version = "([\d.]+)"', read("pyproject.toml"))
+    top = re.search(r"(?m)^## (\d+\.\d+\.\d+) \(([^)]*)\)", read("CHANGELOG.md"))
+    if not py or not top or py.group(1) != top.group(1):
+        raise SystemExit(f"pyproject.toml says {py and py.group(1)} and CHANGELOG.md's top entry says {top and top.group(1)}: "
+                         "write the entry first")
+    return ("This copy", f"Release {top.group(1)}, {top.group(2)}. A copy naming an older release, or another product, is out of date",
+            "[CHANGELOG.md](CHANGELOG.md); the newest: [PyPI](https://pypi.org/project/knos/)")
+
+
+def today(src: dict, repo: dict, caps: list[dict] | None = None, root: Path = ROOT) -> str:
+    """README.md's table (the block `today`): which release this is (release_row), how far each capability has got
+    (stage_rows, from docs/capabilities.json), and what nobody outside has used, the last from the same sources as
+    outside_use()."""
+    rows = [release_row(root), *stage_rows(capabilities() if caps is None else caps),
             *((what.split(":")[0], (_said(value) if _number(value) else "not measured") + TODAY_NOTES.get(i, ""), NUMBERS_DOC + f", row {i}")
               for i, (what, value, _where) in enumerate(outside_rows(src, repo), 1)),
             *TODAY_LAST]
@@ -386,7 +401,7 @@ def market_index(ix: dict) -> str:
              f"The list is published as `index.json` on the Pages site. A new scan is scheduled every 6 hours "
              f"(`.github/workflows/index.yml`) and replaces the published list only when it has finished, so the date "
              f"above says which scan these numbers are from.", "",
-             "| agent | repositories | first claiming PR: any check failed | 95% interval | all claiming PRs | any check failed |",
+             "| agent | repositories | first claiming PR per repository: any check failed | 95% interval | every claiming PR | every claiming PR: any check failed |",
              "|---|---|---|---|---|---|"]
     for label, a in ix["agents"]:
         if a["prs"]:
@@ -414,7 +429,7 @@ def market_tests(ix: dict) -> str:
              f"tests pass while a check failed\" is {_share(f, n)} of repositories, and \"while a test or build "
              f"check failed\" is {_share(t, n)}; names decide the second, so read it as the cautious figure, not an "
              f"exact one.", "",
-             "| agent | repositories | any check failed | a test or build check failed | 95% interval | all claiming PRs | a test or build check failed |",
+             "| agent | repositories | first claiming PR per repository: any check failed | first claiming PR per repository: a test or build check failed | 95% interval | every claiming PR | every claiming PR: a test or build check failed |",
              "|---|---|---|---|---|---|---|"]
     rows = [(label, a) for label, a in ix["agents"] if a["prs"]] + [("**all**", o)]
     for label, a in rows:
@@ -803,7 +818,7 @@ def main(check: bool = False, root: Path = ROOT) -> int:
     src = json.loads((root / "docs" / "bench.json").read_text(encoding="utf-8"))
     gen = blocks(src, json.loads((root / "docs" / "backtest.json").read_text(encoding="utf-8")))
     gen["outside-use"] = outside_use(src, repo_numbers(root))
-    gen["today"] = today(src, repo_numbers(root), capabilities(root))
+    gen["today"] = today(src, repo_numbers(root), capabilities(root), root)
     drift = []
     for d in DOCS:
         p = root / d

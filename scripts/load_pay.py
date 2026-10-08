@@ -8,17 +8,22 @@ nothing of a payment's whole path. This does. One payment is what a relay does f
 on chain, verify GitHub's signature (knos_oidc, several transactions), then PayOrder (knos_pay). Each relay has a
 fee payer of its own, and a payment always goes to the relay of its part (`knos.settle.v2.relayq.part_of` of the
 token's lane, the same partition the relay's workers use): two relays never carry one order, and no two relays pay
-from one fee account.
+from one fee payer. Since 0.3.22 a pay token's lane is its ORDER (`knos.settle.v2.relay.lane`), so the orders of ONE
+owner spread over the relays (the run of 8 Oct had one owner's 40 tokens in one lane, so one relay: 0.097 paid a
+second), and `--fee-accounts K` has each order's fee go to one of K token accounts of FEE_OWNER
+(`knos.settle.v2.pay.fee_account_for`), so the payments do not all write one account.
 
 What is recorded, for every run: payments ATTEMPTED (the denominator), paid, refused (with the program's words),
 never completed (no answer before the end), transactions sent, fee payers used; per relay the same. A rate is never
 printed without its denominator and its failures, and p50, p95 and p99 are given apart, never merged.
 
 --simulate   The committed test builds of knos_oidc and knos_pay in LiteSVM through the tests' own harness
-             (tests/_order.py): M orders funded from one Balance, then paid by N relays in turns, each relay with its
-             own key and tip account. It checks that every order is paid exactly once, that each relay paid only its
-             own part and that no transaction of one relay was paid for by another's key; it counts transactions and
-             compute units per payment. The simulator has no leader, no block limit and no other traffic: it gives NO
+             (tests/_order.py): M orders of ONE owner funded from one Balance, then paid by N relays in turns, each
+             relay with its own key and tip account, each order's fee to its one of K fee accounts (made first, as
+             `knos relay fee-accounts --execute` makes them). It checks that every order is paid exactly once, that
+             each relay paid only its own part, that no transaction of one relay was paid for by another's key, that
+             the one owner's orders went to more than one relay, and that each fee reached the account its order
+             names; it counts transactions and compute units per payment. The simulator has no leader, no block limit and no other traffic: it gives NO
              rate and no seconds, and its result says so.
 --tokens     On a cluster. GitHub alone signs a pay token (knos_pay takes no other signer for an order funded by
              GitHub's token), so the release run collects the pay tokens of orders it funded through the public
@@ -27,6 +32,9 @@ printed without its denominator and its failures, and p50, p95 and p99 are given
              for fees, and swept back at the end. Each payment goes through `knos.proof.ghrelay.relay_one`, the code the
              worker runs. Recorded: seconds from a payment's first submission to its answer, per payment, p50/p95/p99;
              payments confirmed per second over the run (first submission to last answer).
+--fee-accounts K   fee accounts per mint (default 1: the associated one alone). On a cluster the wallet is their base:
+             make them first with `KNOS_RELAY_KEY=<the wallet> knos relay fee-accounts --k K --execute`; a relay that
+             finds one missing names the associated one, and the run's record says how many it used.
 """
 from __future__ import annotations
 
@@ -73,12 +81,12 @@ def counted(rows: list[dict], relays: int) -> dict:
 
 
 # == the simulator =====================================================================================================
-def simulate(relays: int, orders: int, seed: int = SEED) -> dict:
+def simulate(relays: int, orders: int, seed: int = SEED, fee_accounts: int = 1) -> dict:
     """See the module's words on --simulate."""
     import random
 
     import load
-    from _order import USDC, OrderChain, issue, user
+    from _order import OWNER, USDC, OrderChain, issue, user
     from solders.pubkey import Pubkey
 
     from knos.settle.v2 import pay
@@ -91,16 +99,22 @@ def simulate(relays: int, orders: int, seed: int = SEED) -> dict:
     for k in keys:
         c.svm.airdrop(k.pubkey(), 10_000_000_000)
         c.token_account(k.pubkey(), c.usdc)         # where the relay's tip arrives
-    # -- fund: M orders on M repositories from one Balance, by the harness's own relayer (not measured). Each order's
-    #    repository has an owner of its own (its pay token says so), so the orders spread over the relays' parts ------
+    base = home.pubkey()                            # the K fee accounts, as `knos relay fee-accounts --execute` makes them
+    rent = c.svm.minimum_balance_for_rent_exemption(pay.TOKEN_ACCOUNT_LEN)
+    for i in range(1, fee_accounts):
+        assert c.send(pay.create_fee_account_ixs(base, base, c.usdc, i, rent)), c.err
+    every_fee = pay.fee_accounts(c.usdc, pay.TOKEN, fee_accounts, base)
+    # -- fund: M orders on M repositories of ONE owner from one Balance, by the harness's own relayer (not measured).
+    #    A pay token's lane is its order, so one owner's orders still spread over the relays' parts -------------------
     funded = []
     for i in range(orders):
         meter.phase, meter.order = "fund", i
-        repo, num, amount = 900_000 + i, issue(), (5 + rng.randrange(40)) * USDC
+        repo, num, amount = 900_000 + i, issue(), (20 + rng.randrange(40)) * USDC     # over 16.67: the fee (0.30%) is more than the 0.05 tip
         tok = c.fund_token(num, amount, repository_id=repo)
         assert c.send([c.fund_balance_ix(tok, num, repo=repo)]), f"order {i} was not funded: {c.err}"
         address = pay.order_pda(pay.scope_of(repo, num), c.bal)
-        funded.append({"i": i, "address": address, "o": c.order(address), "lane": str(7_000 + i)})
+        funded.append({"i": i, "address": address, "o": c.order(address), "lane": f"order:{address}",
+                       "fee": pay.fee_account_for(address, c.usdc, pay.TOKEN, fee_accounts, base)})
     # -- pay: each order by the relay of its part, the relays in turns (one payment of each in flight at a time) -----
     queues: list[list[dict]] = [[] for _ in range(relays)]
     for x in funded:
@@ -111,13 +125,17 @@ def simulate(relays: int, orders: int, seed: int = SEED) -> dict:
             if not q:
                 continue
             x = q.pop(0)
-            c.payer = keys[r]                       # this relay's key writes, verifies and pays: its fee account alone
+            wallet = Keypair().pubkey()
+            c.payer = home
+            c.token_account(wallet, c.usdc)         # the payee's account exists: the tip is 0.05 and the rest of the fee is FEE_OWNER's
+            c.payer = keys[r]                       # this relay's key writes, verifies and pays: its fee payer alone
             meter.phase, meter.order = f"pay:{r}", x["i"]
             before = len(meter.rows)
-            wallet = Keypair().pubkey()
             payees = [(user(), 10_000, wallet)]
-            tok = c.pay_token(x["address"], payees, o=x["o"], repository_owner_id=int(x["lane"]))     # the lane a relay reads from the token
-            ok = tok is not None and c.send([c.pay_ix(x["address"], tok, payees, o=x["o"])])
+            tok = c.pay_token(x["address"], payees, o=x["o"], repository_owner_id=OWNER)        # one owner, many orders
+            had = c.balance(x["fee"])
+            ok = tok is not None and c.send([c.pay_ix(x["address"], tok, payees, o=x["o"], fee_token=x["fee"])])
+            x["fee_in"] = c.balance(x["fee"]) - had
             mine = meter.rows[before:]
             got = c.balance(pay.ata(wallet, c.usdc))
             rows.append({"relay": r, "order": x["i"], "state": "paid" if ok and got == x["o"].amount else "refused", "why": None if ok else str(c.err)[:200],
@@ -127,7 +145,7 @@ def simulate(relays: int, orders: int, seed: int = SEED) -> dict:
            "date": datetime.date.today().isoformat(), "seed": seed, "relays": relays, "orders": orders,
            "fixtures": load.fixtures(), "rate": None, "seconds": None,
            "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing",
-           "fee_payers": [str(k.pubkey()) for k in keys], **counted(rows, relays)}
+           "fee_payers": [str(k.pubkey()) for k in keys], "lanes": "order", "owners": 1, "fee_accounts": fee_accounts, **counted(rows, relays)}
     paid = [r for r in rows if r["state"] == "paid"]
     out["transactions_per_payment"] = spread([float(r["transactions"]) for r in paid])
     out["cu_per_payment"] = spread([float(r["cu"]) for r in paid])
@@ -136,7 +154,10 @@ def simulate(relays: int, orders: int, seed: int = SEED) -> dict:
         "paid_exactly_once": sum(1 for x in funded if c.order(x["address"]) is None) == len(paid) == orders,
         "each_relay_paid_only_its_part": all(relayq.part_of(funded[r["order"]]["lane"], relays) == r["relay"] for r in rows),
         "no_relay_paid_with_anothers_key": all(r["payers"] == [own[r["relay"]]] for r in rows),
-        "fee_payers_distinct": len(set(own)) == relays and str(Pubkey.default()) not in own}
+        "fee_payers_distinct": len(set(own)) == relays and str(Pubkey.default()) not in own,
+        "one_owner_spread_over_relays": relays == 1 or orders < 2 * relays or len({r["relay"] for r in rows}) > 1,
+        "each_fee_in_its_orders_account": all(x.get("fee_in", 0) > 0 for x in funded) and all(x["fee"] in every_fee for x in funded)}
+    out["fee_accounts_used"] = len({str(x["fee"]) for x in funded})
     out["ok"] = all(out["checks"].values())
     return out
 
@@ -149,8 +170,36 @@ def _programs(which: str) -> dict:
 
 # == a cluster =========================================================================================================
 def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time.monotonic, ledger=None, relay_one=None,
-               lend=None, sweep=None) -> dict:
-    """See the module's words on --tokens. `ledger`, `relay_one`, `lend(key)`, `sweep(key)`: the tests' stand-ins."""
+               lend=None, sweep=None, fee_accounts: int = 1) -> dict:
+    """See the module's words on --tokens and --fee-accounts. `ledger`, `relay_one`, `lend(key)`, `sweep(key)`: the
+    tests' stand-ins. With K > 1 the relays read KNOS_FEE_SHARDS=K and KNOS_FEE_BASE=<wallet> for the run."""
+    import os
+    keep = {n: os.environ.get(n) for n in ("KNOS_FEE_SHARDS", "KNOS_FEE_BASE")}
+    if fee_accounts > 1:
+        os.environ.update(KNOS_FEE_SHARDS=str(fee_accounts), KNOS_FEE_BASE=str(wallet.pubkey()))
+    try:
+        got = _on_cluster(rpc, wallet, relays, tokens, clock, ledger, relay_one, lend, sweep)
+    finally:
+        for n, v in keep.items():
+            if v is None:
+                os.environ.pop(n, None)
+            else:
+                os.environ[n] = v
+    got.update(fee_accounts=fee_accounts, lanes="order", owners=len({_owner(str(t["jwt"])) for t in tokens}))
+    return got
+
+
+def _owner(jwt: str) -> str:
+    """The repository owner a token names (unverified), for the record: how many owners the run's tokens came from."""
+    import base64
+    try:
+        body = jwt.split(".")[1]
+        return str(json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))).get("repository_owner_id"))
+    except (IndexError, ValueError, AttributeError):
+        return "unknown"
+
+
+def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, ledger, relay_one, lend, sweep) -> dict:
     import load
 
     from knos.proof import ghrelay
@@ -219,14 +268,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--simulate", action="store_true", help="the committed test builds in LiteSVM: the path and its counts, no rate")
     ap.add_argument("--tokens", type=Path, help="a cluster: a JSON list of pay tokens GitHub signed ({kind, jwt} each)")
     ap.add_argument("--wallet", type=Path, help="a cluster: the keypair that lends the relays their SOL")
+    ap.add_argument("--fee-accounts", type=int, default=1, metavar="K", help="fee accounts per mint, each order's fee to one (default 1)")
     ap.add_argument("--out", type=Path, help="write the result here as JSON (default: print it)")
     a = ap.parse_args(argv)
     if a.relays < 1:
         ap.error("--relays is at least 1")
+    if not 1 <= a.fee_accounts <= 64:
+        ap.error("--fee-accounts is 1..64")
     if a.simulate:
         if a.orders < 1:
             ap.error("--simulate needs --orders M (at least 1)")
-        got = simulate(a.relays, a.orders)
+        got = simulate(a.relays, a.orders, fee_accounts=a.fee_accounts)
     else:
         if not (a.tokens and a.wallet):
             ap.error("give --simulate, or --tokens FILE and --wallet KEYPAIR for a cluster")
@@ -236,7 +288,7 @@ def main(argv: list[str] | None = None) -> int:
         if not (isinstance(tokens, list) and all(isinstance(t, dict) and isinstance(t.get("jwt"), str) for t in tokens)):
             ap.error("--tokens is a JSON list of {\"kind\": \"pay\", \"jwt\": ...}")
         wallet = Keypair.from_bytes(bytes(json.loads(a.wallet.read_text(encoding="utf-8"))))
-        got = on_cluster(load.Rpc(chain.ledger().url), wallet, a.relays, tokens, ledger=chain.ledger())
+        got = on_cluster(load.Rpc(chain.ledger().url), wallet, a.relays, tokens, ledger=chain.ledger(), fee_accounts=a.fee_accounts)
     text = json.dumps(got, indent=1, sort_keys=True)
     if a.out:
         a.out.write_text(text + "\n", encoding="utf-8")

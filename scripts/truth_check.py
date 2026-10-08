@@ -3,8 +3,10 @@
     python scripts/truth_check.py            # print every contradiction as file:line, exit 1 when there is one
     python scripts/truth_check.py --json     # the same, as JSON
 
-What is read (`DOCS`): README.md, every docs/*.md, docs/submission/*.md, the site's web/*.js and web/*.html, and the
-notes of docs/capabilities.json. What they are held
+What is read (`DOCS`): README.md, every docs/*.md, docs/submission/*.md, the site's web/*.js and web/*.html, the README
+of each SDK (sdk/*/README.md: npm shows it), the notes of docs/capabilities.json, and the `description` of every
+manifest a registry shows (`DESCRIBED`: sdk/*/package.json, server.json, gemini-extension.json, the plugin manifests).
+What they are held
 against: docs/capabilities.json (the stage of each capability, the version each public id runs), src/knos (who calls
 what), src/knos/billing.py (the price book) and src/knos/fees.py with settle/v2/pay.py (the two fee rules).
 
@@ -22,6 +24,9 @@ The rules, each with a planted contradiction in tests/test_truth_check.py:
               "as Knos 0.3.14 has it")
     live      a statement says the public knos_pay charges a fee, or has a quorum fix, that the build docs/capabilities.json
               records at its public id does not have ("today ... 0.30%" while 2.1 runs; "the quorum is fixed" before 2.2)
+    word      a word no Knos document uses: "bulletproof", "trustless", "zero latency" anywhere; "immutable" of the second
+              deployment; "attest(s/ed)" in an SDK README except the command names `knos attest` and attest.yml; "billion", "ARR", "FCF" or "free cash flow" unless the statement, one of the four before it in
+              the same file, or (for a table row) a row below it links its source: a sourced figure about another company
     published a statement says a package Knos has published (PUBLISHED: the two interface crates on crates.io, the JS
               client on npm) is "not published", "unpublished", "none published", "neither has been published" or
               "not on crates.io / npm"
@@ -42,7 +47,9 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ("README.md", "docs/*.md", "docs/submission/*.md", "web/*.js", "web/*.html")
+DOCS = ("README.md", "docs/*.md", "docs/submission/*.md", "web/*.js", "web/*.html", "sdk/*/README.md")
+DESCRIBED = ("sdk/*/package.json", "server.json", "gemini-extension.json", "plugin/.claude-plugin/plugin.json",
+             "plugin/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json")
 MANIFEST = "docs/capabilities.json"
 STAGES = ("implemented", "tested", "deployed", "exercised", "reproduced")
 
@@ -155,6 +162,15 @@ def statements(root: Path = ROOT, docs: Iterable[str] = DOCS) -> list[Statement]
     out: list[Statement] = []
     for rel in files(root, docs):
         out += statements_of(rel, (root / rel).read_text(encoding="utf-8", errors="replace"))
+    for rel in files(root, DESCRIBED):                      # what a registry lists: a description is a public statement
+        raw = (root / rel).read_text(encoding="utf-8", errors="replace")
+        try:
+            said = json.loads(raw).get("description")
+        except (ValueError, AttributeError):
+            continue
+        if isinstance(said, str) and said.strip():
+            line = raw.count("\n", 0, max(raw.find('"description"'), 0)) + 1
+            out += [Statement(rel, line, s.text) for s in statements_of(rel + ".md", said)]
     data = load(root)
     raw = (root / MANIFEST).read_text(encoding="utf-8") if (root / MANIFEST).is_file() else ""
     for c in data.get("capabilities", []):
@@ -504,11 +520,42 @@ def published_problems(stmts: list[Statement]) -> list[Problem]:
     return out
 
 
+# ---- word
+
+
+ALWAYS = re.compile(r"\b(bulletproof|trustless|zero[- ]latency)\b", re.I)
+MONEY_WORDS = re.compile(r"\b(billions?|free cash flow)\b", re.I)
+MONEY_ABBR = re.compile(r"\b(ARR|FCF)\b")
+SOURCED = re.compile(r"https?://")
+ATTEST = re.compile(r"\battest(?:s|ed|ing|ation)?\b", re.I)    # the SDK README (npm's page) claims nothing is attested
+COMMAND = re.compile(r"`?knos attest\b[^`]*`?|`?(?:\.github/workflows/)?attest\.yml`?")   # the command's own names are not a claim
+IMMUTABLE = re.compile(r"\bimmutable\b", re.I)
+SECOND = re.compile(r"\b(second deployment|knos\.v2|programs-v2|multisig|upgradeable|knos_(?:oidc|pay|meter|passkey) 2\.\d)\b", re.I)
+
+
+def word_problems(stmts: list[Statement]) -> list[Problem]:
+    out: list[Problem] = []
+    for i, s in enumerate(stmts):
+        if m := ALWAYS.search(s.text):
+            out.append(Problem("word", s.file, s.line, s.text, f'no Knos document says "{m.group(0)}"'))
+        m = MONEY_WORDS.search(s.text) or MONEY_ABBR.search(s.text)
+        near = [x.text for x in stmts[max(0, i - 4):i + 1] if x.file == s.file]   # the sources a sentence follows
+        if s.text.startswith("|"):                           # a table row: any row of its table may carry the link
+            near += [x.text for x in stmts[i + 1:i + 9] if x.file == s.file and x.text.startswith("|")]
+        if m and not any(SOURCED.search(x) for x in near):
+            out.append(Problem("word", s.file, s.line, s.text, f'"{m.group(0)}" appears only in a sourced figure about another company, with its link'))
+        if s.file.startswith("sdk/") and (m := ATTEST.search(COMMAND.sub("", s.text))):
+            out.append(Problem("word", s.file, s.line, s.text, f'the SDK README says "{m.group(0)}": only the command names `knos attest` and attest.yml may appear'))
+        if IMMUTABLE.search(s.text) and SECOND.search(s.text) and not re.search(r"\bfirst deployment\b", s.text, re.I):
+            out.append(Problem("word", s.file, s.line, s.text, "the second deployment is upgradeable through a multisig, and this calls it immutable"))
+    return out
+
+
 def problems(root: Path = ROOT, docs: Iterable[str] = DOCS) -> list[Problem]:
     stmts, data = statements(root, docs), load(root)
     found = (stage_problems(stmts, data) + call_problems(stmts, root) + price_problems(stmts, price_book(root), fee_rates(root))
              + version_problems(stmts, data) + count_problems(stmts, data) + release_problems(stmts, current_release(root))
-             + live_problems(stmts, data) + published_problems(stmts))
+             + live_problems(stmts, data) + published_problems(stmts) + word_problems(stmts))
     return sorted(set(found), key=lambda p: (p.file, p.line, p.rule, p.against))
 
 

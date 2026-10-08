@@ -203,7 +203,7 @@ def run_local(n: int, seed: int = SEED) -> dict:
              c.bal: {"role": "the funder's Balance", "one_per": "funder"},
              pay.baltok_pda(c.bal): {"role": "the Balance's token account", "one_per": "funder"},
              pay.balx_pda(c.bal): {"role": "the Balance's side account", "one_per": "funder"},
-             c.fee: {"role": "the fee account (FEE_OWNER's token account of the mint)", "one_per": "mint, for every relayer and funder"}}
+             c.fee: {"role": "the fee account (a token account of the mint that FEE_OWNER owns; one of K since 0.3.22)", "one_per": "fee account of the mint (one by default), for every relayer and funder"}}
     baltok = pay.baltok_pda(c.bal)
     start = {"balance": c.balance(baltok), "fee": c.balance(c.fee), "tip": c.balance(c.tip)}
 
@@ -527,7 +527,14 @@ REDUCES = [
                                              "does not write the fee account at all."),
     ("A fee account per mint", "exists by construction: the fee account is the fee owner's token account OF THE ORDER'S MINT, so orders in two mints do not "
                                "share it. Every order Knos has funded is in one mint, so this has not been used."),
-    ("Several fee accounts for one mint", "does NOT exist and needs a program change: the release instruction takes the one account. Not in this release."),
+    ("Several fee accounts for one mint", "exists since 0.3.22, with no program change: PayOrder, SettleOrder and Release take any token account of "
+                                          "the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`). "
+                                          "`knos relay fee-accounts --k K` makes K-1 beside the associated one, and each order's payments use one "
+                                          "of K, chosen by the order. Shown in the simulator on the 2.1 and 2.2 builds (tests/test_fee_shards.py); "
+                                          "not measured on a cluster."),
+    ("Pay work partitioned by order", "exists since 0.3.22: a token that pays an order travels in that order's lane, so one owner's orders "
+                                      "spread over N relays. Before, one owner's tokens were one lane and so one relay (the 0.097 a second "
+                                      "measured on 8 Oct). Not measured on a cluster."),
 ]
 
 
@@ -678,6 +685,12 @@ def render_measured(doc: dict) -> list[str]:
         out += ["", f"The contention seen: the shared account's rate was {c.get('rate_shared_over_apart')} of the rate apart, with {c.get('retries_more')} more "
                 f"retries and {c.get('failures_more')} more failures. It cost {m.get('sol_spent')} SOL in fees and rent not recovered. Wallet `{m['wallet']}`, "
                 f"mint `{m.get('mint')}`, shared account `{m.get('shared_account')}`." + (f" Stopped: {m['stopped']}." if m.get("stopped") else ""), ""]
+    if any(m.get("kind") == "pay" for m in runs) and not any(m.get("kind") == "pay" and m.get("lanes") == "order" and m.get("relays", 1) > 1 for m in runs):
+        out += ["**Not measured: payments by order over several relays and K fee accounts.** Since 0.3.22 one owner's orders spread over N "
+                "relays and each order's fee goes to one of K accounts (shown in the simulator: `python scripts/load_pay.py --relays 4 "
+                "--orders 40 --simulate --fee-accounts 4`, which gives no rate). No cluster run of it is recorded; the command that will "
+                "record one: `python scripts/load.py measure --pay --relays 4 --fee-accounts 4 --tokens <pay tokens GitHub signed> "
+                "--wallet <keypair> --write`, after `knos relay fee-accounts --k 4 --execute` with that wallet as the relay key.", ""]
     if not any(m.get("kind") == "pay" for m in runs):
         out += ["**Not measured: end-to-end PayOrder capacity.** Every rate above is of funding (FundOrderWallet) alone. No run has sent "
                 "PayOrder, the transaction that writes the fee account of the mint, side by side on a cluster, so how many payments a second "
@@ -689,7 +702,7 @@ def render_measured(doc: dict) -> list[str]:
         d = doc["local"]["derived"]
         out += ["**Derived bound (not measured).** Section 3's arithmetic from the simulator's compute units and Solana's published limits: "
                 f"{d['one_relayer_orders_per_second']} orders a second per fee payer (verification included), {d['fee_account_orders_per_second']} "
-                f"payments a second through the one fee account of a mint, {d['one_balance_orders_per_second']} fundings a second from one Balance. "
+                f"payments a second through one fee account (K accounts: K times that, up to the block), {d['one_balance_orders_per_second']} fundings a second from one Balance. "
                 "These are ceilings in an otherwise empty block. A measured rate above is of devnet on the day, with its own traffic, through one "
                 "public endpoint, and each relay waits for a confirmation before it sends again: the two are different quantities, and neither "
                 "is used in place of the other.", ""]
@@ -716,15 +729,24 @@ def paid_rows(m: dict, kind: str) -> list[str]:
     progs = {k: v for k, v in (m.get("programs") or {}).items() if k != "ids"}
     c = m.get("payment_s") or {}
     p99 = c.get("p99") if m.get("paid", 0) >= 100 else "none: fewer than 100 payments"
-    out = [f"#### Measured on devnet, {ids_of(progs)}, {m['date']}: {kind}; {m['relays']} relays, {m.get('attempted', 0):,} payments attempted"
+    out = [f"#### Measured on devnet, {ids_of(progs)}, {m['date']}: {kind}; {m['relays']} relay{'' if m['relays'] == 1 else 's'}, {m.get('attempted', 0):,} payments attempted"
            + ("" if m.get("ok") else " (did not complete cleanly)"), "",
            "| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |",
            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
            f"| {m.get('attempted', 0):,} | {m.get('paid', 0):,} of {m.get('attempted', 0):,} | {m.get('already', 0)} | {m.get('refused', 0)} | "
            f"{m.get('never_completed', 0)} | {m.get('seconds')} | {m.get('paid_per_s')} | {c.get('p50')} | {c.get('p95')} | {p99} | {c.get('max')} |", ""]
-    said = (f"A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then "
-            f"PayOrder. Each relay paid from a fee payer of its own ({', '.join(f'`{k}`' for k in m.get('fee_payers') or [])}), lent its SOL by "
-            f"wallet `{m.get('wallet')}` and swept back.")
+    said = ("A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then "
+            "PayOrder. " + (f"Each relay paid from a fee payer of its own ({', '.join(f'`{k}`' for k in m['fee_payers'])}), lent its SOL by "
+                            f"wallet `{m.get('wallet')}` and swept back." if m.get("fee_payers") else "The fee payers were not kept in the record."))
+    k, owners = m.get("fee_accounts", 1), m.get("owners")
+    if m.get("lanes") == "order":
+        said += (f" A pay token's lane was its order, so the tokens{f' of {owners} owner(s)' if owners else ''} spread over the relays; "
+                 f"{k} fee account(s) of the mint, each order's fee to one.")
+    else:
+        said += (" A lane was then the repository's owner, and every token came from one owner: one lane, so ONE relay carried all of "
+                 "them, through one fee account. This is a one-relay figure, not a ceiling of the program.")
+    if m.get("source"):
+        said += f" Source: {m['source']}."
     if m.get("first_refusals"):
         said += " The first refusals: " + "; ".join(m["first_refusals"]) + "."
     if m.get("stopped"):
@@ -825,8 +847,10 @@ def render(doc: dict) -> str:
                 f"1. **A relayer's own account.** Everything a relayer sends writes the account that pays its fees, so one relayer fits "
                 f"{L['account_cu'] // 10 ** 6}M units in a block: **{d['one_relayer_orders_per_second']} orders a second**, verification included. "
                 "Verification is nearly all of it, and it is the only stage more relayers speed up.",
-                f"2. **The fee account.** Every PayOrder of a mint writes the one fee account, whoever relays it: at most "
-                f"**{d['fee_account_orders_per_second']} payments a second** in that mint, however many relayers there are.",
+                f"2. **The fee account.** Every PayOrder of a mint writes the fee account it names: at most "
+                f"**{d['fee_account_orders_per_second']} payments a second** through one fee account, however many relayers there are. "
+                "The program takes any token account of the mint that FEE_OWNER owns, so K fee accounts (`knos relay fee-accounts`) "
+                "lift this K times, up to the block's own limit (derived, not measured).",
                 f"3. **A Balance.** Every order funded from one Balance writes it: at most {d['one_balance_orders_per_second']} fundings a second "
                 "per Balance. Orders funded from different Balances, or by wallets, do not share it.", "",
                 f"Time for {d['orders']:,} orders submitted at once, all from one Balance, if the block held nothing else and was packed perfectly:", "",
@@ -1064,8 +1088,8 @@ def render_workflow(w: dict, runs: list) -> list[str]:
             "are what uses up a repository's hourly requests first, and its own two limits are shared by every repository it serves. A "
             "customer past them relays in its own job with its own fee key, which removes the token comment, the polling and both "
             "shared limits at once. After that the limits are GitHub's, per repository and per account, long before they are Solana's. "
-            "The one bound here that configuration cannot move is the fee account of the mint; of all of them only a single Balance's "
-            "is further away.", "",
+            "The fee account of the mint is moved by configuration too: K fee accounts, each order using one (no program change). "
+            "Of all the bounds a single Balance's is the furthest away.", "",
             "### Measured, recorded, derived", "",
             "| What | How it is known |", "| --- | --- |",
             "| Compute units, transactions and bytes of an order; paid once, none lost | measured in the local simulator, 1,000 orders (sections 1 and 2) |"]

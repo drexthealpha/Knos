@@ -25,4 +25,4 @@ jobs:
       contents: read
       checks: read
       pull-requests: write
-    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.21
+    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.22

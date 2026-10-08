@@ -13,6 +13,8 @@
 //                                 workflow or advisory), and what these terms give of each: `knos preflight` says the same
 //                                 four (knos.preflight.PROTECTIONS; tests/test_preflight.py compares the rows)
 //   search(rows, words)           the refusal rows that hold every word
+//   recommended(report)           a pasted `knos preflight --json` report's (or ctx.preflight's) "Recommended from memory: ..."
+//                                 lines, shown under the four protections (knos.preflight.recommended)
 //   and, under the four protections, the finance lead's view of a funded order: web/supplier_finance.js
 //
 // The refusal table is refusals.json, written from knos.ghwords.REFUSALS (scripts/supplier_docs.py), so the page, the
@@ -65,6 +67,18 @@ function owedHtml(rows) {
     <tbody>${PROTECTIONS.map(row).join("")}<tr data-owed="netted"><th scope="row">${esc(NETTED.title)}, netted</th><td>${esc(NETTED.line)}</td>
     <td>Enforced by ${esc(ENFORCED[NETTED.enforced])}.</td><td>Ask: is a reserve bound?</td></tr></tbody></table>`;
 }
+
+/** What `knos preflight` (and its MCP tool) recommends from memory, beside the protections: a report's `recommend` rows as
+ *  "Recommended from memory: ..." lines (knos.preflight.recommended). Empty with no report, or with no memory. They are
+ *  the answer to what was pasted, so the site never folds them (data-keep: web/front.js foldProse). */
+export function recommended(report) {
+  return (Array.isArray(report?.recommend) ? report.recommend : []).filter((r) => r && r.title && r.said)
+    .map((r) => `Recommended from memory: ${r.title}. ${r.said}${r.held ? " These terms hold it." : ""}`);
+}
+export const recommendHtml = (report) => {
+  const lines = recommended(report);
+  return lines.length ? `<ul class="fine sp-recommend" data-not-prose data-keep>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : "";
+};
 
 /** A terms glob as knos.terms.matches reads it. */
 export function matches(path, glob) {
@@ -213,6 +227,10 @@ export function renderSupplier(el, ctx = {}) {
     </div>
     <h3>What you are owed before you start</h3>
     <div class="k-table sp-owed" data-sp="owed">${owedHtml(null)}</div>
+    <div data-sp="recommend">${recommendHtml(ctx.preflight)}</div>
+    <p class="fine promise" id="sp-promise">Buyers can defend the bill; suppliers can defend what they are owed.</p>
+    <details class="k-more" id="sp-reserve"><summary>Reserves: money locked before the work</summary><p class="fine">A buyer locks money for one supplier before the work; netted work draws on it.
+      <a href="https://github.com/drexthealpha/Knos/blob/main/docs/NETTING.md" target="_blank" rel="noopener">Reserves</a>.</p></details>
     <p class="fine">Check all four: <code>knos preflight --strict</code></p>
     <div class="sp-finance" data-sp="finance"></div>
     <h3>Every refusal, in plain words</h3>
@@ -254,6 +272,12 @@ export function renderSupplier(el, ctx = {}) {
     const text = box.value.trim(), link = termsLink(text);
     if (!text) return fail("Paste terms, or pick a sample.");
     if (link) return load(link);
+    let report = null;
+    try { report = JSON.parse(text); } catch { /* terms, or not JSON: readTerms says which */ }
+    if (report && report.kind === "knos-preflight") {          // `knos preflight --json`: what memory recommends, beside the four
+      $("recommend").innerHTML = recommendHtml(report);
+      return fail(recommended(report).length ? "Read a preflight report." : "Read a preflight report: memory recommends nothing.");
+    }
     try { return show(readTerms(text), "Read from what you pasted."); } catch (e) { return fail(e.message); }
   };
   const sampleButtons = (list) => {

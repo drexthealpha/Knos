@@ -179,13 +179,15 @@ is a size for Knos's market.
 
 Counting what an agent does and moving money for it are both sold already, by companies far larger than Knos.
 Each row was read on the vendor's own page on 7 Oct 2026, and every price in it was the same as on the earlier
-reading.
+reading. The rows for Amazon Web Services, Stripe and Coinbase were read again on 8 Oct 2026, with the same prices.
 
 | who | what it sells | source |
 |---|---|---|
-| Amazon Web Services, Bedrock AgentCore, Evaluations | a custom evaluation at 1.50 USD per 1,000, "model usage billed separately"; built-in evaluators at 0.0024 USD per 1,000 input tokens and 0.012 per 1,000 output tokens | **[vendor page]** [pricing](https://aws.amazon.com/bedrock/agentcore/pricing/), read 6 Oct 2026 and again 7 Oct 2026 |
-| The same, Policy | an authorization request at 0.000025 USD; writing a policy from plain language at 0.13 USD per 1,000 input tokens | the same page, read 7 Oct 2026 |
-| Stripe, Billing | subscription and usage billing at 0.7% of billing volume; its Meters API is part of that price, "with up to 100M events per month included" | **[vendor page]** [pricing](https://stripe.com/billing/pricing), read 5 Oct 2026 and again 7 Oct 2026 |
+| Amazon Web Services, Bedrock AgentCore, Evaluations | a custom evaluation at 1.50 USD per 1,000, "model usage billed separately"; built-in evaluators at 0.0024 USD per 1,000 input tokens and 0.012 per 1,000 output tokens | **[vendor page]** [pricing](https://aws.amazon.com/bedrock/agentcore/pricing/), read 6 Oct 2026, again 7 Oct 2026 and again 8 Oct 2026 |
+| The same, Policy | an authorization request at 0.000025 USD; writing a policy from plain language at 0.13 USD per 1,000 input tokens | the same page, read 7 Oct 2026 and again 8 Oct 2026 |
+| Stripe, Billing | subscription and usage billing at 0.7% of billing volume; its Meters API is part of that price, "with up to 100M events per month included". On 8 Oct 2026 its usage-based row said "Contact Metronome", and the page calls Metronome "a Stripe product" | **[vendor page]** [pricing](https://stripe.com/billing/pricing), read 5 Oct 2026, again 7 Oct 2026 and again 8 Oct 2026 |
+| Stripe and Metronome | Stripe "has completed its acquisition of Metronome", a usage-billing company, announced 14 Jan 2026 | **[company-reported]** [Stripe newsroom](https://stripe.com/newsroom/news/stripe-completes-metronome-acquisition), read 8 Oct 2026 |
+| Coinbase, x402 facilitator | verifies and settles x402 payments: "The first 1,000 onchain Facilitator transactions each month are free", then 0.001 USD each; a payment request that does not reach the chain is not charged | **[vendor page]** [facilitator](https://docs.cdp.coinbase.com/x402/seller/facilitator), read 8 Oct 2026 |
 | Stripe, agentic commerce | sellers offer products through agents and take machine payments for API calls (it names the x402 protocol); an agent pays from a wallet its user controls. The page states no separate price | **[vendor page]** [documentation](https://docs.stripe.com/agentic-commerce), read 7 Oct 2026 |
 | MergePay | payment on merge with "No platform fee": a relayer fee the funder sets, 0.03 USD an award by default, against about 0.016 USD of gas | **[vendor page]** [mergepay.fun](https://mergepay.fun), read 6 Oct 2026 and again 7 Oct 2026 |
 
@@ -197,6 +199,14 @@ that side's vendor.
 decision at 0.000025; a billing company includes a hundred million metered events a month in its percentage; a
 payment on merge is sold with no platform fee. The Meter's 0.002 is a third more than the cloud's evaluation
 call and will not hold as a price for counting alone. Knos does not plan on it holding.
+
+What Knos sells beyond each, one line each:
+
+| who | what it already does | what Knos sells beyond it |
+|---|---|---|
+| Stripe with Metronome | bills the usage its customer, the seller, reports | a count the buyer and the supplier each recompute, and an acceptance either can check without the other |
+| Amazon Web Services, AgentCore | evaluates and authorizes agents that run on its cloud, at 0.0015 and 0.000025 USD | acceptance and reconciliation across clouds and vendors, with the money consequence agreed before the work |
+| Coinbase's x402 facilitator | verifies and settles a payment for 0.001 USD past 1,000 a month | whether the work earned the payment, and a verdict anyone can rerun or appeal |
 
 What Knos is that they are not, in three lines:
 
@@ -451,6 +461,33 @@ What is and is not revenue:
 - Metered evaluations are consumption: revenue when invoiced, not recurring revenue. There is none.
 - Customer money in escrow, prepaid credits not yet used, rent that returns, money a financier advances and the
   payments a customer makes to its suppliers are never Knos's revenue.
+
+### The bottom-up formula, input by input
+
+The Acceptance line, the one that grows with value, is built from the bottom:
+
+**customers × eligible purchased work per customer × adopted share × realised fee.**
+
+"Eligible" means all of: the outcome can be defined before the work, the evidence can be reached, both
+counterparties accept the process, and the value is large enough to carry what it costs to deliver
+([UNIT_COSTS.md](UNIT_COSTS.md): at the 0.02 target a reconciled deliverable keeps a gross margin of 95% from
+133.34 USD; smaller outcomes are netted).
+
+| input | what it is | value today | label and source |
+|---|---|---|---|
+| Customers | organisations meeting the four conditions above | 0 asked, 0 qualified | **[measured]**: nobody has been asked ([PILOT.md](PILOT.md)) |
+| Eligible purchased work per customer | value a year bought per outcome from outside suppliers that is eligible | not known for any organisation; the worked customers assume 10 million and 120 million USD a year | **[assumption]**: the worked customers of section 6 and [UNIT_COSTS.md](UNIT_COSTS.md) are examples, not accounts |
+| Adopted share | the part of that work a customer runs through Knos | not known | **[assumption]**: a Pilot covers two suppliers, not all of them; the share is what expansion by supplier measures |
+| Realised fee | what is left of the 0.30% list rate after the 0.20% contract rate, credits and discounts, as cash Knos keeps | list 0.30%; realised not known | **[assumption]**; section 6 works 30, 20, 10 and 5 bps, and [UNIT_COSTS.md](UNIT_COSTS.md), "The gross fee is not the cash Knos keeps", the steps from fee to cash |
+
+One account, as arithmetic and not as a forecast: 1 customer × 10,000,000 USD eligible × 100% adopted × 0.30% =
+30,000 USD a year, the first worked customer's Acceptance line. At 50% adopted and 0.20% realised it is 10,000.
+No input is measured, so this page multiplies no count of customers.
+
+**Context, not the market.** Menlo Ventures, an investor, estimated enterprise spend on generative AI at 37
+billion USD in 2025, 4.0 billion of it on coding ([Menlo Ventures, 9 Dec 2025](https://menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise/),
+read again 8 Oct 2026). That is spend on the tools and models, mostly by the seat and the token, not purchased
+work accepted per outcome: none of it is eligible work until a buyer pays a supplier per outcome for it.
 
 ## 6. One customer, worked; how one customer expands; the first steps
 

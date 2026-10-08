@@ -15,9 +15,10 @@ key). The steps:
     sol       devnet SOL for that key's transaction fees (by hand: https://faucet.solana.com)
     faucet    20 test USDC from the playground's faucet issue, to that address
     budget    a balance for your account's repositories, filled with 10 of them (knos balance open, deposit)
-    terms     an issue with its acceptance pairs committed, funded with `/knos fund 5 tests`: the terms are fixed then
-    fail      a pull request whose work is wrong; the check refuses it and says why
-    pass      the corrected work on the same pull request; the check passes, GitHub signs, the escrow pays
+    terms     an issue, its black-box acceptance checks committed (`knos.accept.bundle`: blackbox.py and cases.json),
+              funded with `/knos fund 5 checks: none auto`: the terms are fixed then, and the checks alone pay
+    fail      a pull request whose work is wrong; the judge job of the `knos review` run refuses it and says why
+    pass      the corrected work on the same pull request; the judge passes, GitHub signs, the escrow pays, no merge
     replay    `/knos settle` again on the paid pull request: nothing more is paid
     buyer     the buyer's statement, from the chain alone (knos audit export, events, statement)
     supplier  the supplier's statement, made again from a second export: the same payable, the same hash
@@ -25,7 +26,7 @@ key). The steps:
     record    witness.json committed to your repository: each step's public link
 
 The record is what the playground's `witness` task asks for (tasks/outside/witness.json). Each step is a function of
-(state, shell): tests/test_witnessed.py runs the whole sequence against a simulated GitHub and chain, and runs the
+(state, shell): tests/test_task_witnessed.py runs the whole sequence against a simulated GitHub and chain, and runs the
 statement, archive and verifier steps for real.
 """
 from __future__ import annotations
@@ -39,12 +40,16 @@ import sys
 import time
 import zipfile
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 TEMPLATE = "drexthealpha/knos-task"
 PLAYGROUND = "drexthealpha/knos-playground"
 NAME = "knos-witness"
 FUND, BUDGET = "5", "10"
+# The funding line as knos.commands reads it: `checks: none` names no CI check (the template has none to name; the
+# acceptance checks are the test), and `auto` pays the first pull request those black-box checks pass, with no merge.
+FUND_LINE = f"/knos fund {FUND} checks: none auto"
+TASK, RUN = "words.py", ["python3", "words.py"]                     # what the judge runs in the pull request's tree
 TX = re.compile(r"explorer\.solana\.com/tx/([1-9A-HJ-NP-Za-km-z]{64,90})")
 WRONG = "import sys\nfor line in sys.stdin:\n    print(line.rstrip('\\n'))\n"                      # prints the line unchanged
 RIGHT = "import sys\nfor line in sys.stdin:\n    print(' '.join(reversed(line.split())))\n"        # the words in reverse order
@@ -67,7 +72,7 @@ class Shell:
         got = subprocess.run(argv, cwd=cwd, input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=300)  # noqa: S603 - a fixed argv, no shell
         return got.returncode, (got.stdout or "") + (got.stderr or "")
 
-    def wait(self, what: str, got: Callable[[], object]):
+    def wait(self, what: str, got: Callable[[], Any]) -> Any:
         for _ in range(self.tries):
             found = got()
             if found is not None:
@@ -90,10 +95,13 @@ def _json(shell: Shell, path: str):
     return json.loads(_ok(shell, ["gh", "api", path]))
 
 
-def _reply(shell: Shell, repo: str, issue: int, after: int, pattern: re.Pattern) -> Callable[[], dict | None]:
-    """The first comment on `repo#issue` newer than comment id `after` that matches `pattern`."""
+def _reply(shell: Shell, repo: str, issue: int, after: int, pattern: re.Pattern, other_than: str = "") -> Callable[[], dict | None]:
+    """The first comment on `repo#issue` newer than comment id `after` that matches `pattern` (and, given `other_than`,
+    was not written by that login: the answer to one's own comment, whatever it says)."""
     def got():
         for c in _json(shell, f"repos/{repo}/issues/{issue}/comments?per_page=100"):
+            if other_than and str((c.get("user") or {}).get("login") or "").lower() == other_than.lower():
+                continue
             if int(c.get("id") or 0) > after and pattern.search(str(c.get("body") or "")):
                 return {"url": c.get("html_url"), "body": c.get("body"), "id": c.get("id")}
         return None
@@ -158,52 +166,74 @@ def terms(s: dict, sh: Shell) -> dict:
     made = json.loads(_ok(sh, ["gh", "api", f"repos/{s['repo']}/issues", "-f", "title=Reverse the words of a line", "-f", f"body={body}"]))
     n = int(made["number"])
     work = s["dir"] / NAME
-    for i, (given, want) in enumerate(PAIRS, 1):
-        folder = work / ".knos" / "acceptance" / str(n)
-        folder.mkdir(parents=True, exist_ok=True)
-        (folder / f"{i}.in").write_text(given + "\n", encoding="utf-8")
-        (folder / f"{i}.out").write_text(want + "\n", encoding="utf-8")
+    # Black-box checks, or `auto` is refused at funding: bare input and output files are not a judge. The bundle `knos
+    # accept init` writes (blackbox.py runs the pull request's words.py through $KNOS_RUN and compares what it prints).
+    from knos import accept         # knos is installed for this script (`pip install knos`)
+    folder = work / ".knos" / "acceptance" / str(n)
+    folder.mkdir(parents=True, exist_ok=True)
+    for rel, data in accept.bundle(n, RUN, [{"input": given, "output": want} for given, want in PAIRS], "text", None).items():
+        (folder / rel).write_bytes(data)
     for argv in (["git", "add", ".knos"], ["git", "commit", "-qm", f"Acceptance pairs for #{n}"], ["git", "push", "-q", "origin", "HEAD"]):
         _ok(sh, argv, work)
-    mine = _comment(sh, s["repo"], n, f"/knos fund {FUND} tests")
-    said = sh.wait("the funding's reply", _reply(sh, s["repo"], n, mine, TX))
+    mine = _comment(sh, s["repo"], n, FUND_LINE)
+    said = sh.wait("the funding's reply", _reply(sh, s["repo"], n, mine, re.compile(r"\S"), other_than=s["login"]))
+    if not TX.search(str(said["body"])):
+        raise Stop(f"nothing was funded: {' '.join(str(said['body']).split())[:300]} ({said['url']})")
     return {"issue": n, "funded_reply": said["url"], "funded_tx": _tx(said["body"])}
 
 
 def _checks(sh: Shell, s: dict) -> Callable[[], str | None]:
+    """When every check run on the head has finished: when the last one did (the review starts after "knos check")."""
     def got():
         runs = _json(sh, f"repos/{s['repo']}/commits/{s['head']}/check-runs")["check_runs"]
         done = [r for r in runs if r.get("status") == "completed"]
-        return None if not runs or len(done) < len(runs) else ("success" if all(r.get("conclusion") == "success" for r in done) else done[0]["html_url"])
+        return None if not runs or len(done) < len(runs) else max(str(r.get("completed_at") or "") for r in done)
+    return got
+
+
+def _judged(sh: Shell, s: dict, after: str) -> Callable[[], tuple[str, str] | None]:
+    """(conclusion, link) of the judge job that ran on this head. "knos check" on the pull request runs none of its code
+    and passes wrong work too; the acceptance checks run in the judge job of the `knos review` run that its end starts
+    (event workflow_run, so GitHub files that run under the default branch's commit, not the pull request's)."""
+    def got():
+        runs = _json(sh, f"repos/{s['repo']}/actions/runs?event=workflow_run&per_page=30")["workflow_runs"]
+        for r in sorted(runs, key=lambda r: str(r.get("created_at") or "")):
+            if str(r.get("created_at") or "") < after or r.get("status") != "completed":
+                continue
+            for job in _json(sh, f"repos/{s['repo']}/actions/runs/{r['id']}/jobs")["jobs"]:
+                if str(job.get("name") or "").endswith("judge") and job.get("conclusion") in ("success", "failure"):
+                    return str(job["conclusion"]), str(job.get("html_url") or r.get("html_url"))
+        return None
     return got
 
 
 def fail(s: dict, sh: Shell) -> dict:
     work = s["dir"] / NAME
-    (work / "words.py").write_text(WRONG, encoding="utf-8")
+    (work / TASK).write_text(WRONG, encoding="utf-8")
     for argv in (["git", "checkout", "-qb", "witness-work"], ["git", "add", "words.py"], ["git", "commit", "-qm", "Words, first try"],
                  ["git", "push", "-q", "-u", "origin", "witness-work"]):
         _ok(sh, argv, work)
     url = _ok(sh, ["gh", "pr", "create", "--repo", s["repo"], "--head", "witness-work", "--title", "Reverse the words",
                    "--body", f"Closes #{s['issue']}"], work).split()[-1]
     s["pull"], s["head"] = int(url.rstrip("/").rsplit("/", 1)[1]), _ok(sh, ["git", "rev-parse", "HEAD"], work).strip()
-    got = sh.wait("the check on the wrong work", _checks(sh, s))
+    got, link = sh.wait("the judge on the wrong work", _judged(sh, s, sh.wait("the checks on the wrong work", _checks(sh, s))))
     if got == "success":
-        raise Stop("the check passed work that is wrong: that is a finding, not a witnessed refusal. File it under the tamper task.")
-    return {"pull_url": url, "failed_run": got}
+        raise Stop(f"the judge passed work that is wrong: that is a finding, not a witnessed refusal. File it under the tamper task ({link}).")
+    return {"pull_url": url, "failed_run": link}
 
 
 def pass_(s: dict, sh: Shell) -> dict:
     work = s["dir"] / NAME
     mine = _comment(sh, s["repo"], s["pull"], f"/knos address {s['address']}")      # where the payment goes, said before it can be paid
-    (work / "words.py").write_text(RIGHT, encoding="utf-8")
+    (work / TASK).write_text(RIGHT, encoding="utf-8")
     for argv in (["git", "add", "words.py"], ["git", "commit", "-qm", "Words, corrected"], ["git", "push", "-q"]):
         _ok(sh, argv, work)
     s["head"] = _ok(sh, ["git", "rev-parse", "HEAD"], work).strip()
-    if sh.wait("the check on the corrected work", _checks(sh, s)) != "success":
-        raise Stop("the check refused the corrected work: read its run, fix words.py, and run again with --from pass")
+    got, link = sh.wait("the judge on the corrected work", _judged(sh, s, sh.wait("the checks on the corrected work", _checks(sh, s))))
+    if got != "success":
+        raise Stop(f"the judge refused the corrected work: read {link}, fix words.py, and run again with --from pass")
     said = sh.wait("the payment", _reply(sh, s["repo"], s["pull"], mine, re.compile(r"paid[\s\S]*" + TX.pattern, re.I)))
-    return {"passed_head": s["head"], "paid_reply": said["url"], "paid_tx": _tx(said["body"])}
+    return {"passed_head": s["head"], "passed_run": link, "paid_reply": said["url"], "paid_tx": _tx(said["body"])}
 
 
 def replay(s: dict, sh: Shell) -> dict:
@@ -259,7 +289,7 @@ def payments(s: dict) -> int:
 
 def record(s: dict, sh: Shell) -> dict:
     keep = ("actor_id", "repository", "repository_owner_id", "address", "faucet_reply", "faucet_tx", "budget_tx", "issue", "funded_reply", "funded_tx",
-            "pull_url", "failed_run", "passed_head", "paid_reply", "paid_tx", "replay_refused", "buyer_statement", "supplier_statement", "statements_agree",
+            "pull_url", "failed_run", "passed_head", "passed_run", "paid_reply", "paid_tx", "replay_refused", "buyer_statement", "supplier_statement", "statements_agree",
             "archive", "verified")
     doc = {"v": 1, "note": "Test USDC, no monetary value.", **{k: s[k] for k in keep if k in s}, "payments": payments(s)}
     work = s["dir"] / NAME
@@ -274,7 +304,7 @@ STEPS: list[tuple[str, Callable[[dict, Shell], dict], str]] = [
     ("repo", repo, "your repository, made from the public template"), ("key", key, "a key made here; its address is public from the next step"),
     ("sol", sol, "devnet SOL for fees, by hand"), ("faucet", faucet, "the faucet's reply on the playground, with its transaction"),
     ("budget", budget, "the deposit's transaction"), ("terms", terms, "the issue, its acceptance pairs, and the funding's reply with its transaction"),
-    ("fail", fail, "the pull request and the check run that refused it"), ("pass", pass_, "the passing run and the payment's reply with its transaction"),
+    ("fail", fail, "the pull request and the judge job that refused it"), ("pass", pass_, "the passing judge job and the payment's reply with its transaction"),
     ("replay", replay, "the answer to a second /knos settle: no new payment"), ("buyer", buyer, "the buyer's statement and its hash"),
     ("supplier", supplier, "the supplier's statement: the same hash"), ("archive", archive, "the archive and what its own verifier said"),
     ("record", record, "witness.json in your repository"),

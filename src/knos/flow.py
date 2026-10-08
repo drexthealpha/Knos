@@ -4744,9 +4744,13 @@ def main(argv: list[str] | None = None) -> int:
     """`python -m knos.flow <command|settle|review|check|attest|canary> ...`, and what the `knos` console script runs for those
     words. Whatever is wrong with the command line is one line, never a traceback; the exit status is the job's."""
     import sys
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args[:2] == ["relay", "fee-accounts"]:       # its own options: the K fee accounts of FEE_OWNER (settle.v2.fee_accounts)
+        from .settle.v2 import fee_accounts
+        return fee_accounts.main(args[2:])
     parser, sub = _parser()
     try:
-        got = _dispatch(parser.parse_args(list(sys.argv[1:] if argv is None else argv)), sub)
+        got = _dispatch(parser.parse_args(args), sub)
     except SystemExit as stop:      # argparse: --help (0), or a usage line already printed (2)
         return int(stop.code or 0)
     except KeyboardInterrupt:

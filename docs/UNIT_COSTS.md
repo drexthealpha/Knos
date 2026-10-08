@@ -106,6 +106,52 @@ The largest direct cost a unit may carry at its price: 10% of the price for a gr
 | Control, Team, a year | 25,000 | 2,500 | 1,250 | not budgeted |
 | Control, Business, a year | 100,000 | 10,000 | 5,000 | 15,000 of onboarding and support **[budget, not measured]**: a gross margin of 85%, under both. The target is 7,000: 93% gross (leak 3) |
 
+## The budget today against what the price book requires
+
+Each unit's cost to deliver: what [`unit_costs.json`](unit_costs.json) budgets today, what the price book allows it
+to cost if the line is to keep a gross margin of 95%, and the design that has to close the gap. `knos bill margin`
+prints this table under the leaks, from `knos.billing.gaps`; `tests/test_billing.py` holds it to these figures.
+Every figure but the chain fees is **[budget, not measured]**; nothing has been sold.
+
+| unit | budget today | what the price book requires | how the requirement is reached | gap | the design that closes it |
+|---|---|---|---|---|---|
+| One evaluation delivered, free ones included | 0.00005 | 0.0000893 | the second worked customer: 0.002 × 900,000 billable × 5%, less five monthly batches of 0.1393, over 1,000,000 delivered | none at that volume; at the first worked customer's 110,000 a month the requirement is 0.0000091 (leak 1) | one anchored batch a supplier a month (`knos meter batch`); each side reconciles itself (`knos meter reconcile`); no person in the routine path |
+| One accepted deliverable, reconciled off chain | 0.10 | 0.02, a target | at 0.02 a deliverable keeps 95% from 133.34 at 0.30% (200.00 at 0.20%); at 0.10 only from 666.67 (1,000.00) | 0.08 | exceptions are self-service: a difference is a named line the two parties settle (`knos statement verify`); outcomes under 20 USD are netted into one release; a person deciding a dispute is a separate service at a separate price |
+| One record lookup | 0.01 | 0.005 | 0.10 × 5% | 0.005 | anyone runs `knos record serve`; Knos hosts none, so Knos carries no cost and books no revenue ([RECORD.md](RECORD.md)) |
+| Control, Business, a year of onboarding and support | 15,000 | 5,000 | 100,000 × 5% | 10,000; the target of 7,000 leaves 2,000 (leak 3) | self-service onboarding: one pinned workflow file, `knos shadow` on the first invoice, `knos preflight` for suppliers; support is pooled |
+| Control, Team, a year of onboarding and support | not budgeted | 1,250 | 25,000 × 5% | unknown | the same self-service path; a Team account gets no named person |
+| The chain fees of one release at the 0.05 floor, when Knos relays | 0.0072 **[measured in the simulator]** | 0.0025 | 0.05 × 5% | 0.0047 (leak 2) | netting: one release a payee a period; an outside relayer pays the chain fees out of its tip |
+
+The largest gaps are people, not machines: 10,000 USD a year on a Business account, and 0.08 on each accepted
+deliverable. Both close only if routine onboarding and routine exceptions need no person from Knos. Neither has
+been tried with a customer; the first Pilot is where both are counted ([PILOT.md](PILOT.md)).
+
+## The gross fee is not the cash Knos keeps
+
+What knos_pay takes at release is the **gross protocol fee**. The cash Knos keeps is smaller, and the steps
+between them are a rule, `knos.billing.cash_kept`, held by a test:
+
+**cash kept = gross fee − the tips outside relayers take out of it − discounts and volume rebates − credits for
+disputed, reversed or failed work − channel commissions on what is left.**
+
+What is left can be below zero, and is shown so. **A fee counter on chain is not company cash:** it counts the
+gross fee in the fee owner's token accounts, before any of those steps, and on devnet it is test money, 0 revenue.
+
+An example, not a customer: 100 releases of 1,000 test USDC by outside relayers under knos_pay 2.2, ten of them a
+payee's first payment. The discount (10%), the credit (one reversed release, 3.00) and the channel's share (20% of
+what is left) are **[assumption]**.
+
+| step | USD |
+|---|---|
+| Gross fee: 100 × 3.00 | 300.00 |
+| Relayer tips: 90 × 0.05 + 10 × 0.30 | −7.50 |
+| Discount: 10% of 292.50 | −29.25 |
+| Credit for a reversed release | −3.00 |
+| Channel: 20% of 260.25 | −52.05 |
+| **Cash kept** | **208.20, 69.40% of the gross fee** |
+
+`knos bill margin` prints this example under the table above.
+
 ## The leaks
 
 Three lines earn less than a gross margin of 95%. Each is fixed by design here, or stated with its number and the
@@ -306,9 +352,9 @@ On devnet all of it is test money: 0 revenue.
 
 | who | unit | price | source |
 |---|---|---|---|
-| Amazon Web Services, Bedrock AgentCore | a custom evaluation | 1.50 USD per 1,000: 0.0015 each, "model usage billed separately" | **[vendor page]** [pricing](https://aws.amazon.com/bedrock/agentcore/pricing/), read 6 Oct 2026 |
+| Amazon Web Services, Bedrock AgentCore | a custom evaluation | 1.50 USD per 1,000: 0.0015 each, "model usage billed separately" | **[vendor page]** [pricing](https://aws.amazon.com/bedrock/agentcore/pricing/), read 6 Oct 2026 and again 8 Oct 2026 |
 | The same, built-in evaluators | tokens | 0.0024 USD per 1,000 input tokens, 0.012 per 1,000 output tokens | the same page |
-| The same, Policy | an authorization request | 0.000025 USD | the same page, read 7 Oct 2026 |
+| The same, Policy | an authorization request | 0.000025 USD | the same page, read 7 Oct 2026 and again 8 Oct 2026 |
 | Knos, Meter | an evaluation past 100,000 a month | 0.002 USD | [MARKET.md](MARKET.md), section 3; proposed, nobody has paid it |
 
 The Meter costs a third more than the cloud's evaluation call. What it adds that an evaluation call does not:

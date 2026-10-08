@@ -222,3 +222,65 @@ def test_the_site_module_draws_the_same_row(tmp_path):
     assert out["took"] == [recall.took(x) for x in (40, 720, 18000, 259200)]
     assert out["html"].count('class="k-card rc-row"') == 2 and 'data-seen="3"' in out["html"] and 'data-seen="0"' in out["html"]
     assert "evl_0002" in out["html"] and "median <strong>3 days</strong>" in out["html"] and "No memory of this exception." in out["none"]
+
+
+def _open_now(st) -> list[dict]:
+    """Three exceptions open now, in the order they opened: a duplicate never seen before, a dispute of orbit (seen
+    once), and a dispute of nimbus (with _fill and one more, accepted on appeal 3 of 4 times before)."""
+    rows = [("inv_0101", "duplicate", "nimbus"), ("inv_0102", "disputed", "orbit"), ("inv_0103", "disputed", "nimbus")]
+    return [{"id": i, "terms": TERMS, "reason": r, "supplier": s, "at": T0 + 20 * DAY + n, "evidence": [f"evl_{i[-4:]}"]}
+            for n, (i, r, s) in enumerate(rows)]
+
+
+def test_the_queue_is_ranked_and_labelled_from_memory_and_without_it_nothing_is(tmp_path):
+    """Delete the memory layer and the approver's queue changes: with memory, an exception whose history shows one
+    ending most times comes first, labelled ("ended accepted on appeal 3 of 4 times before"); with no memory the same
+    open exceptions keep the order they opened in and carry no label."""
+    st = _open(tmp_path)
+    _fill(st)
+    history.exception_resolved(st, TERMS, "disputed", "nimbus", "inv_0005", "accepted_on_appeal", ["evl_0005"], opened_at=T0, at=T0 + DAY)
+    open_now = _open_now(st)
+    got = recall.queue(st, open_now)
+    assert [r["id"] for r in got] == ["inv_0103", "inv_0101", "inv_0102"] and [r["rank"] for r in got] == [1, 2, 3]
+    assert got[0]["label"] == "ended accepted on appeal 3 of 4 times before"
+    assert got[0]["pattern"] == {"ending": "accepted_on_appeal", "times": 3, "of": 4, "label": got[0]["label"]}
+    assert got[1]["label"] == "" and got[2]["label"] == "" and got[2]["seen"] == 1      # once is no pattern
+    null = recall.queue(history.NullStore(), open_now)
+    assert [r["id"] for r in null] == ["inv_0101", "inv_0102", "inv_0103"] and all(r["label"] == "" and r["pattern"] is None for r in null)
+    # a split history is no pattern: 3 accepted on appeal and 3 refused
+    for eid in ("inv_0006", "inv_0007"):
+        history.exception_resolved(st, TERMS, "disputed", "nimbus", eid, "refused", [], opened_at=T0, at=T0 + DAY)
+    assert recall.queue(st, open_now)[0]["id"] == "inv_0101" and all(not r["label"] for r in recall.queue(st, open_now))
+
+
+def test_the_command_prints_the_label_first(tmp_path):
+    from typer.testing import CliRunner
+
+    from knos.cli import app, load
+    load()
+    st = _open(tmp_path)
+    _fill(st)
+    history.exception_resolved(st, TERMS, "disputed", "nimbus", "inv_0005", "accepted_on_appeal", ["evl_0005"], opened_at=T0, at=T0 + DAY)
+    del st
+    out = CliRunner().invoke(app, ["recall", "queue", "--buyer", "Acme Corp", "--memory", str(tmp_path / "memory")]).output
+    assert out.startswith("1. inv_0004 (disputed, nimbus): Ended accepted on appeal 3 of 4 times before. Seen 4 times"), out
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="needs node")
+def test_the_site_ranks_and_labels_the_same_way(tmp_path):
+    st = _open(tmp_path)
+    _fill(st)
+    history.exception_resolved(st, TERMS, "disputed", "nimbus", "inv_0005", "accepted_on_appeal", ["evl_0005"], opened_at=T0, at=T0 + DAY)
+    rows, null = recall.queue(st, _open_now(st)), recall.queue(history.NullStore(), _open_now(st))
+    script = ("import { ranked, patternOf, labelFor, recallHtml } from " + json.dumps((ROOT / "web" / "recall.js").as_uri()) + ";"
+              "const [rows, nul] = JSON.parse(process.argv[1]); const rev = [...rows].reverse();"
+              "console.log(JSON.stringify({ order: ranked(rev).map((r) => r.id), labels: rows.map((r) => (patternOf(r) || {}).label || ''),"
+              " nul: ranked(nul).map((r) => r.id), nulLabels: nul.map((r) => patternOf(r)), html: recallHtml(rev),"
+              " byReason: labelFor(rows, 'disputed', 'Nimbus'), other: labelFor(rows, 'disputed', 'orbit'), none: labelFor(nul, 'disputed') }));")
+    got = subprocess.run([shutil.which("node"), "--input-type=module", "-e", script, json.dumps([rows, null])], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert got.returncode == 0, got.stderr
+    out = json.loads(got.stdout)
+    assert out["order"] == [r["id"] for r in rows] and out["labels"] == [r["label"] for r in rows]
+    assert out["nul"] == [r["id"] for r in null] and out["nulLabels"] == [None, None, None]
+    assert out["html"].index("inv_0103") < out["html"].index("inv_0101") and "Ended accepted on appeal 3 of 4 times before." in out["html"]
+    assert out["byReason"] == rows[0]["label"] and out["other"] == "" and out["none"] == ""

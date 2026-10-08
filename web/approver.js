@@ -355,6 +355,7 @@ export function renderApprover(el, ctx = {}) {
       ${held.length ? `<ol>${held.map((row) => `<li data-line="${row.line}" data-kind="${row.kind}"><p><span class="k-num">Line ${row.line}</span> · <b>${esc(cap(WORDS[row.kind]))}.</b> <span data-ap="reason" data-not-prose>${esc(row.reason)}</span>${row.amount ? ` <span class="k-num">${esc(group(row.amount))}</span>` : ""}</p>
         <p class="actions"><button type="button" class="k-btn quiet" data-ap="open">Open line ${row.line}</button> <button type="button" class="k-btn quiet" data-ap="message" aria-expanded="false">Message the supplier</button></p>
         <div class="ap-msg" data-ap="msg" hidden></div></li>`).join("")}</ol>` : `<p>No exception on this invoice.</p>`}`;
+    if (state.recall) drawRecall();            // a redrawn queue keeps what memory says of it
     const files = $("files"); files.hidden = !st;
     if (st) {
       const approvedNow = agreed.some((r) => r.approved);
@@ -440,6 +441,19 @@ export function renderApprover(el, ctx = {}) {
     if (!state.recall || !box) return;
     const mod = ctx.recall !== undefined ? ctx.recall : await import("./recall.js").catch(() => null);
     if (mod && typeof mod.renderRecall === "function") { box.hidden = false; mod.renderRecall(box, state.recall); }
+    // what memory says of each exception in the queue: one that ended the same way most times before is labelled and
+    // moved up; with no memory nothing is labelled and nothing moves (web/recall.js labelFor)
+    const list = $("queue").querySelector("ol");
+    if (!mod || typeof mod.labelFor !== "function" || !list) return;
+    const items = [...list.children], byLine = new Map(state.rows.map((r) => [String(r.line), r]));
+    for (const li of items) {
+      li.querySelector("[data-ap=pattern]")?.remove();
+      const row = byLine.get(li.dataset.line), label = mod.labelFor(state.recall, li.dataset.kind, row && row.supplier);
+      if (!label) continue;
+      li.dataset.pattern = "yes";
+      li.querySelector("p").insertAdjacentHTML("afterend", `<p data-ap="pattern">${esc(label[0].toUpperCase() + label.slice(1))}.</p>`);
+    }
+    list.append(...items.filter((li) => li.dataset.pattern), ...items.filter((li) => !li.dataset.pattern));
   }
   function reset() { Object.assign(state, { st: null, status: null, pending: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, recall: null, record: null, checks: [] }); $("check").hidden = true; }
   async function sample() {

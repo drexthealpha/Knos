@@ -19,15 +19,30 @@ from .. import oidc, pay
 from .pins import JWKS_TTL, _DIGEST_INFO
 
 
+# the audiences that name one order and write no Balance's state: their lane is the order, so one owner's orders
+# spread over relays while one order's tokens (take, cancel, pay, revert, ...) still leave in the order they came
+ORDER_LANES = ("knos3:pay:", "knos3:auto:", "knos3:rule:", "knos3:take:", "knos3:cancel:", "knos3:revert:")
+
+
 def lane(jwt: str) -> str:
     """The lane a token travels in when several are carried at once (knos.settle.v2.relayq): two tokens of one lane
-    may write the same account (a funder's Balance, an order, a job), so they are sent one after the other, in the
-    order they came. It is the account that owns the repository the token was signed for (`repository_owner_id`),
-    which is wider than any one of those accounts: tokens of different owners share none of them. A token that names
-    no owner travels alone. Read from the token as it says it, unverified: a wrong lane costs speed, never money."""
+    may write the same account, so they are sent one after the other, in the order they came.
+    A token that pays, rules on, reserves, cancels or reverts a work order (ORDER_LANES) writes that order, its
+    payees' records, a fee account or (a revert) the token account its money goes back to, never a Balance's own
+    account, which fundings write in the order GitHub issued them: its lane is the ORDER (`order:<address>`), so one
+    owner's many orders go to many relays at once while one order's tokens still leave one at a time. Any other
+    token (a funding from a Balance, a job of the first generation) writes accounts its owner's other tokens write
+    too: its lane is the account that owns the repository it was signed for (`repository_owner_id`). A token that names neither travels alone. Read from the token as it says it,
+    unverified: a wrong lane costs speed, never money (the chain takes a token once)."""
     try:
         body = jwt.split(".")[1]
         claims = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
+        aud = claims.get("aud")
+        aud = aud[0] if isinstance(aud, list) and aud else aud
+        if isinstance(aud, str) and aud.startswith(ORDER_LANES):
+            order = aud.split(":")[2]
+            if 32 <= len(order) <= 44:
+                return f"order:{order}"
         owner = claims.get("repository_owner_id") or claims.get("namespace_id") or claims.get("sub")
     except (IndexError, ValueError, AttributeError):
         owner = None

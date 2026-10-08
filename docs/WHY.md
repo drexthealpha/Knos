@@ -18,6 +18,10 @@ measured. An invoice priced per merged change has the same shape: the seller's w
 count. [MARKET.md](MARKET.md) has the buyers, the prices and one customer worked through, and [PILOT.md](PILOT.md)
 has the one offer for money. Nobody has bought anything, and no buyer has been asked.
 
+The promise is two-sided. Buyers can defend the bill; suppliers can defend what they are owed. Each side keeps its
+own ledger, computes the same statement from evidence neither side signed, and can prove it later without the other
+and without Knos ([DISPUTES.md](DISPUTES.md) has how Knos stays out of the verdict).
+
 The argument, with its sources. Every outside source was read on 2 or 3 Oct 2026; a date beside a link is the
 source's own date. "Secondary" marks a number read in coverage of the original, not in the original.
 

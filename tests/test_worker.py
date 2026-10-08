@@ -422,7 +422,12 @@ def test_an_orders_tokens_travel_under_their_own_markers_and_an_issuers_url_besi
         gh.comment("octo/widgets", n, ghrelay.token_comment(marker, token, beside))
     assert ghrelay.token_comment("key", "eyJ.a.b", url).startswith(f"knos-issuer: {url}\nknos-key: eyJ.a.b\n")
     lines = passes(t0)
-    assert relays.calls == posted and [ln.split()[1] for ln in lines] == [m for m, _t, _b in posted] and all(" ok " in ln for ln in lines), lines
+    # since 0.3.22 an order's tokens travel in the order's lane, the bind in its owner's and the key in its own: each lane
+    # keeps the order GitHub issued them in, and lanes may interleave
+    same_order = [x for x in posted if x[0] in ("take", "cancel", "revert", "rule")]
+    assert sorted(relays.calls) == sorted(posted) and [x for x in relays.calls if x in same_order] == same_order, relays.calls
+    assert sorted(ln.split()[1] for ln in lines) == sorted(m for m, _t, _b in posted) and all(" ok " in ln for ln in lines), lines
+    assert [m for m in (ln.split()[1] for ln in lines) if m in ("take", "cancel", "revert", "rule")] == ["take", "cancel", "revert", "rule"], lines
     # a copy under another marker, or with another issuer's URL beside it (or none), says nothing about the token
     wrong = {("take", posted[1][1], None): "posted as knos-take, but its audience is a cancel token's",
              ("proof", posted[3][1], None): "posted as knos-proof, but its audience is a rule token's",

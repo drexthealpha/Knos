@@ -27,7 +27,9 @@ Half. The motivation is first-hand: the founder works with coding agents every d
 passing tests that had not passed. He measured that on public data before building for it
 ([BENCH.md](../BENCH.md)), shipped everything here in public with a dated history
 ([DISCLOSURE.md](../DISCLOSURE.md)), and found and disclosed a double-payment defect in his own build during its
-upgrade delay, before it ran ([SECURITY.md](../SECURITY.md), section 15). That is fit with the supplier's side of
+upgrade delay, before it ran ([SECURITY.md](../SECURITY.md), section 15). Before this window, his earlier product,
+on the memory engine Knos still uses, took first place of 92 teams at the Sibyl Labs hackathon (Sep 2026, 126.9
+points, [leaderboard](https://hack.sibyllabs.org/leaderboard)). That is fit with the supplier's side of
 this market and with the engineering. The buyer is the person who approves a supplier's invoice, and with that
 person there is no fit yet: he has never sold to one, has not spoken to one about this, has not worked in
 procurement or finance, has run no service for a customer, and is pseudonymous, which a procurement process may

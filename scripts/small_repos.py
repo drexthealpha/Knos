@@ -78,7 +78,7 @@ For a task:
 
 1. You open an issue that says what you want built, and add the acceptance files the form made
    (`.knos/acceptance/<issue>/`): pairs of an input and the answer it must get.
-2. You fund the issue with a comment, `/knos fund <amount> tests`. The money goes into an escrow on Solana, and the
+2. You fund the issue with a comment, `/knos fund <amount> checks: none auto`. The money goes into an escrow on Solana, and the
    terms are fixed at that moment.
 3. Anyone opens a pull request that solves it. Knos runs the solution on every recorded input in a sandbox. When every
    answer matches, GitHub signs that it did, and the escrow pays the author. No merge and no decision of yours is

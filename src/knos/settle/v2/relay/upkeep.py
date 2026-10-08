@@ -17,7 +17,7 @@ from .build import version
 from .tokens import _exp, _jwks
 from .reads import _data, _read, keys, orders
 from .jobs import _payout
-from .workorders import _routed, _tip_accounts
+from .workorders import _fee_account, _routed, _tip_accounts
 
 
 # -- what needs no token: anyone's to send ------------------------------------------------------------------------------
@@ -89,12 +89,13 @@ def settle_orders_held(ledger, payer: Keypair) -> list[str]:
     me, now = payer.pubkey(), int(ledger.now())
     held = [(addr, o) for addr, o in orders(ledger, 3) if now <= o.hold_until]
     got = _read(ledger, [k for a, o in held for k in (pay.bind_pda(o.payee_id), pay.assign_pda(a, o.payee_id), pay.ata(me, o.mint, o.token_program),
-                                                      pay.ata(pay.FEE_OWNER, o.mint, o.token_program))])
+                                                      pay.ata(pay.FEE_OWNER, o.mint, o.token_program), pay.fee_account_for(a, o.mint, o.token_program))])
     txs = []
     for addr, o in held:
         wallet = _routed(got, addr, o, o.payee_id, None)        # the bound wallet, or the one the payee assigned this order's payment to
         if wallet is not None:
-            txs.append([*_tip_accounts(me, o, got)[0], pay.settle_order_ix(me, addr, o, wallet)])
+            fee = _fee_account(addr, o, got)
+            txs.append([*_tip_accounts(me, o, got, fee)[0], pay.settle_order_ix(me, addr, o, wallet, fee_token=fee)])
     return _each(ledger, payer, txs)
 
 
@@ -105,12 +106,14 @@ def release_orders_due(ledger, payer: Keypair, now: int) -> list[str]:
         return []
     me = payer.pubkey()
     due = [(addr, o) for addr, o in orders(ledger, 4) if now > o.hold_until]
-    got = _read(ledger, [k for a, o in due for k in (pay.hb_pda(a), pay.ata(me, o.mint, o.token_program), pay.ata(pay.FEE_OWNER, o.mint, o.token_program))])
+    got = _read(ledger, [k for a, o in due for k in (pay.hb_pda(a), pay.ata(me, o.mint, o.token_program), pay.ata(pay.FEE_OWNER, o.mint, o.token_program),
+                                                     pay.fee_account_for(a, o.mint, o.token_program))])
     txs = []
     for addr, o in due:
         hb = pay.read_holdback(_data(got, pay.hb_pda(addr)))
         if hb is not None:
-            txs.append([*_tip_accounts(me, o, got)[0], pay.release_ix(me, addr, o, hb)])
+            fee = _fee_account(addr, o, got)
+            txs.append([*_tip_accounts(me, o, got, fee)[0], pay.release_ix(me, addr, o, hb, fee_token=fee)])
     return _each(ledger, payer, txs)
 
 

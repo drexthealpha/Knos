@@ -22,7 +22,9 @@ side file, no cache. Each buyer organisation has a tenant of its own (knos.store
 
     exception(store, terms, reason, supplier)   the answer, as the row the approver's exception queue draws
                                                 (web/recall.js `renderRecall(el, rows)`): SCHEMA below
-    queue(store)                                one row for every exception open now, each with its recall
+    queue(store, open_rows)                     one row for every exception open now, each with its recall, ranked:
+                                                one that ended the same way most times before first, with its label
+    pattern(row)                                that label: "ended accepted on appeal 3 of 3 times before", or None
     words(row)                                  the row in one plain sentence
 
     appeal_moved(store, appeal)                 the hooks: what knos.appeal, knos.statement and knos.ledger call when
@@ -80,11 +82,41 @@ def words(row: dict) -> str:
     return said
 
 
-def queue(store) -> list[dict]:
-    """Every exception open now (the live queue), oldest first, each with what memory says of the same one before:
-    [{"id", "opened_at", "evidence", ...the recall row}]. This is what the approver's exception queue draws."""
-    return [{**exception(store, r["terms"], r["reason"], r["supplier"]), "id": r["id"], "opened_at": r["at"], "open_evidence": r["evidence"]}
-            for r in history.exception_queue(store)]
+PATTERN_MIN = 2         # an ending seen fewer times than this, or not in most of the cases, is no pattern
+
+
+def pattern(row: dict) -> dict | None:
+    """The ending memory says this exception keeps coming to, or None: {"ending", "times", "of", "label"} when one
+    ending was seen at least PATTERN_MIN times and in more than half the cases ("ended accepted on appeal 3 of 3 times
+    before"). None with no memory (a row whose `memory` is False) and for an exception not seen before."""
+    seen, most = int(row.get("seen") or 0), str(row.get("most_often") or "")
+    if not row.get("memory") or not seen or most not in ENDING_WORDS:
+        return None
+    n = int((row.get("endings") or {}).get(most) or 0)
+    if n < PATTERN_MIN or 2 * n <= seen:
+        return None
+    return {"ending": most, "times": n, "of": seen, "label": f"ended {ENDING_WORDS[most]} {n} of {seen} times before"}
+
+
+def queue(store, open_rows: list[dict] | None = None) -> list[dict]:
+    """Every exception open now, each with what memory says of the same one before: [{"id", "opened_at",
+    "open_evidence", ...the recall row, "pattern", "label", "rank"}]. `open_rows`: the open exceptions ({"id", "terms",
+    "reason", "supplier", "at", "evidence"}); default: the live queue memory holds. This is what the approver's
+    exception queue draws, in this order: an exception whose history shows one ending (pattern) first, the surest
+    first (the larger share of cases, then the more cases), then the rest oldest first. With no memory no row has a
+    label and the order is the order they were opened: the ranking IS the memory."""
+    rows = []
+    for r in history.exception_queue(store) if open_rows is None else open_rows:
+        row = {**exception(store, r["terms"], r["reason"], r.get("supplier")), "id": r["id"], "opened_at": r["at"],
+               "open_evidence": list(r.get("evidence") or [])}
+        row["pattern"] = pattern(row)
+        row["label"] = row["pattern"]["label"] if row["pattern"] else ""
+        rows.append(row)
+    rows.sort(key=lambda x: (x["pattern"] is None, -(x["pattern"]["times"] / x["pattern"]["of"]) if x["pattern"] else 0,
+                             -(x["pattern"]["times"] if x["pattern"] else 0), x["opened_at"], x["id"]))
+    for n, row in enumerate(rows, 1):
+        row["rank"] = n
+    return rows
 
 
 # ---- the hooks: one call where an exception opens or ends --------------------------------------------------------------
@@ -312,7 +344,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
     def queue_(buyer: str = typer.Option(..., "--buyer", metavar="ORG", help="the buyer organisation whose memory answers"),
                memory: Path = typer.Option(None, "--memory", metavar="DIR", help="the directory of the memory store"),
                as_json: bool = typer.Option(False, "--json", help="the rows the approver's exception queue reads")) -> None:
-        """Every exception open now, each with how the same one ended before."""
+        """Every exception open now, each with how the same one ended before; the ones that keep ending the same way first."""
         rows = queue(_open(buyer, memory))
         if as_json:
             typer.echo(json.dumps(rows, indent=1, sort_keys=True))
@@ -320,7 +352,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
         if not rows:
             typer.echo("No exception is open.")
         for r in rows:
-            typer.echo(f"{r['id']} ({r['reason']}, {r['supplier']}): {r['words']}")
+            typer.echo(f"{r['rank']}. {r['id']} ({r['reason']}, {r['supplier']}): " + (f"{r['label'][0].upper()}{r['label'][1:]}. " if r["label"] else "") + r["words"])
 
     def _json_file(path: Path, what: str):
         from . import cli

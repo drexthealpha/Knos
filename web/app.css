@@ -193,14 +193,16 @@ details { margin: 8px 0; } summary { cursor: pointer; font-weight: 500; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 40px; }
 .actions a.button, .actions [type=submit] { margin: 0; }
 .how, .lead-with { list-style: none; padding: 0; margin: 0; }
-.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; counter-reset: how; margin-bottom: 12px; }
-.how > li { counter-increment: how; margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; counter-reset: how; margin: 16px 0 12px; }
+.how > li { counter-increment: how; margin: 0; padding: 20px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .how > li::before { content: counter(how, decimal-leading-zero); font: 500 var(--s-1) var(--code); color: var(--accent); }
 .how h3 { margin: 0; font-size: var(--s2); }
 .how p { margin: 0; color: var(--muted); font-size: 15px; }
-.how .show { margin-top: auto; font-size: var(--s-1); }
+.how .show { font-size: var(--s-1); } .how .adv { margin-top: auto; }
+.how .adv > .k-more { margin: 0; }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 720px; margin: 24px 0; } .sides p { margin: 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); }
+.sides .k-kicker { display: block; } .sides .promise { grid-column: 1/-1; font-weight: 500; }
 .how > li > p { margin-bottom: 8px; }
-#check-a-pull-request { margin-top: 48px; }
 .how pre { margin: 0; }
 .receipt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); min-width: 0; }
 .receipt a { min-width: 0; } .receipt code { background: none; padding: 0; }
@@ -428,7 +430,7 @@ textarea:focus-visible, input:focus-visible, select:focus-visible { box-shadow: 
 #view-check { padding-top: 0; }
 /* the hero is as tall as the window under the bar, so the first screen is the hero and nothing else: what follows
    (the demo first) starts at the fold */
-.hero { display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; align-items: center; gap: 8px 48px; padding: 24px 0 32px; position: relative; min-height: min(calc(100svh - 65px), 900px); }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; align-items: center; gap: 8px 48px; padding: 24px 0 32px; position: relative; min-height: min(calc(100svh - 65px), 1200px); }
 .hero::before { content: ""; position: absolute; z-index: -1; inset: -64px -16px 0; pointer-events: none;
   background: radial-gradient(closest-side at 50% 36%, color-mix(in srgb, var(--accent) 20%, transparent), transparent); }
 h1 { font-size: clamp(36px, 5.6vw, 72px); line-height: 1.02; font-weight: 600; letter-spacing: -.04em; margin: 0 0 24px; max-width: 12.5em; }
@@ -455,10 +457,6 @@ h1 { font-size: clamp(36px, 5.6vw, 72px); line-height: 1.02; font-weight: 600; l
 #demo.mount[hidden] { display: none; }
 .film { margin: 16px 0; max-width: 800px; } .film video { width: 100%; max-height: 60vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); box-shadow: var(--depth-2); }
 #check-a-pull-request { margin-top: 24px; scroll-margin-top: 80px; }
-.how { gap: 16px; margin: 32px 0 12px; }
-.how > li { padding: 20px; box-shadow: var(--depth-1); }
-.how > li::before { color: var(--accent); }
-.how h3 { font-size: var(--s2); }
 .lead-with { margin-bottom: 16px; } .lead-with > li { font-size: var(--s1); }
 
 /* "More": a longer explanation, one press away. The page shows the thing; the words wait here */

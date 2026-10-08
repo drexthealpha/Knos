@@ -89,9 +89,12 @@ def test_the_answer_names_the_first_limit_on_the_work_and_lists_what_the_volume_
     assert "the meter's statement, recomputed from the logs" not in at(cap.bounds(without, 1, 10))
 
 
-def test_only_the_fee_account_needs_a_program_change_and_every_other_limit_says_what_lifts_it():
+def test_no_limit_needs_a_program_change_and_every_limit_says_what_lifts_it():
+    """The fee account was the one that did, until 0.3.22: the program takes any token account of the mint that FEE_OWNER
+    owns, so K of them spread its writes (tests/test_fee_shards.py)."""
     rows = cap.bounds(FIXED, 1, 10) + cap.bounds(FIXED, 1, 10, way=cap.PUBLIC)
-    assert {r["limit"] for r in rows if "PROGRAM CHANGE" in r["lift"]} == {"the fee account of the mint"}
+    assert not [r["limit"] for r in rows if "NEEDS A PROGRAM CHANGE" in r["lift"].upper()]
+    assert {r["limit"] for r in rows if "knos relay fee-accounts" in r["lift"]} == {"the fee account of the mint"}
     assert all(r["lift"] and r["from"] and r["scope"] for r in rows)
     lift = {r["limit"]: r["lift"] for r in rows}
     assert "one Balance per team" in lift["the Balance, one writable account"] and "batching the meter" in lift["the meter's statement, recomputed from the logs"]
@@ -125,4 +128,4 @@ def test_the_committed_section_is_what_the_script_computes_and_is_about_the_comm
     assert [(a["repositories"], a["per_day"], a["way"]) for a in w["customers"]] == [(r, n, way) for r, n in cap.SIZES for way in ("own", "public")]
     assert all(u.startswith("https://") for u in w["sources"].values())
     text = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
-    assert "## 5. The whole workflow" in text and "NEEDS A PROGRAM CHANGE" in text and all(u in text for u in w["sources"].values())
+    assert "## 5. The whole workflow" in text and "NEEDS A PROGRAM CHANGE" not in text and "K fee accounts, no program change" in text and all(u in text for u in w["sources"].values())

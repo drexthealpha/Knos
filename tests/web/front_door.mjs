@@ -152,7 +152,7 @@ async function page() {
     ok(`${width}px: the first screen says 40 words at most`, first.length <= 40 && first.length >= 15, [first.length, first.join(" ")]);
     const hero = await p.evaluate(() => ({ h1: document.querySelector("h1").textContent.trim(), fact: document.getElementById("hero-fact").textContent.trim(),
       controls: [...document.querySelectorAll(".hero input, .hero textarea, .hero select, .hero button, .hero-words a:not(.k-num):not(#hero-board a)")].map((e) => e.dataset.fd || e.id),
-      below: document.getElementById("demo").previousElementSibling.classList.contains("hero"), boxTop: document.querySelector("#front-door [data-fd=run]").getBoundingClientRect().bottom, fold: innerHeight }));
+      below: Boolean(document.querySelector(".hero ~ #how-it-works ~ #demo")), boxTop: document.querySelector("#front-door [data-fd=run]").getBoundingClientRect().bottom, fold: innerHeight }));
     ok(`${width}px: the sentence, then the number`, hero.h1 === "The neutral meter for AI agent work: neither side keeps the count." && hero.fact === "241 merged agent “tests pass” pull requests: 30 had a failed check." && words(hero.fact) <= 12, hero);
     // under the sentence, one line: what a customer gets; then the number. An orphan: a last line of one word.
     const outcome = await p.evaluate(() => { const o = document.getElementById("hero-outcome"), h = document.querySelector("h1"), f = document.getElementById("hero-fact");

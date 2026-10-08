@@ -12,8 +12,13 @@ The source is `sentence` in docs/facts.json. The places (`FACES`):
     web/index.html                          <title>, meta description, og:title, og:description  the title; begins with it
     README.md                               the first line of text                               the sentence, in bold
     action.yml, the SDK, the crates         a description of a PART (the check, a client)        names no older product
+    sdk/*/README.md                         what npm shows on the client's page                  names no older product
 
-A place that describes a part of Knos keeps its own words, and may not carry a sentence of an older product (`STALE`).
+A place that describes a part of Knos keeps its own words, and may not carry a sentence of an older product (`STALE`),
+nor a word no Knos document uses (scripts/truth_check.py `ALWAYS`, `MONEY_WORDS`, `MONEY_ABBR`). Every `version` a
+manifest gives a registry (server.json twice, gemini-extension.json, the plugin manifests, sdk/*/package.json) is
+pyproject.toml's, and an SDK README that names a release to install names that one (`v0.3.21`, `knos-settle-0.3.21`):
+a registry or a cached page that shows an older number is an old copy. The crates are left out: they stay at 0.3.14.
 `--remote` reads the repository's About (description, homepage, topics), PyPI's summary of `knos` and of the old
 package `knos-hermes`, the MCP registry and glama.ai, and prints the command or the step that corrects each one. It
 changes nothing: it has no credentials and asks for none.
@@ -22,7 +27,10 @@ changes nothing: it has no credentials and asks for none.
 from __future__ import annotations
 
 import argparse
+import functools
+import glob
 import html as _html
+import importlib.util
 import json
 import re
 import sys
@@ -55,6 +63,52 @@ _YAML = re.compile(r"(?m)^description: (.*)$")
 _JSON = re.compile(r'(?m)^(\s*"description": )"((?:[^"\\]|\\.)*)"')
 
 
+@functools.lru_cache(maxsize=1)
+def _truth() -> Any:
+    """scripts/truth_check.py, for its list of words no document uses."""
+    spec = importlib.util.spec_from_file_location("truth_check_words", Path(__file__).resolve().parent / "truth_check.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod                             # its dataclasses look the module up by name
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def banned(text: str) -> str | None:
+    """The first word in `text` that no Knos description may use, or None."""
+    tc = _truth()
+    m = tc.ALWAYS.search(text) or tc.MONEY_WORDS.search(text) or tc.MONEY_ABBR.search(text)
+    return m.group(0) if m else None
+
+
+def release(root: Path = ROOT) -> str | None:
+    m = re.search(r'(?m)^version = "([\d.]+)"', (root / "pyproject.toml").read_text(encoding="utf-8")) if (root / "pyproject.toml").is_file() else None
+    return m.group(1) if m else None
+
+
+def version_problems(root: Path = ROOT) -> list[str]:
+    """A manifest's version, or a version an SDK README installs, that is not pyproject.toml's."""
+    want, out = release(root), list[str]()
+    if not want:
+        return out
+    for rel, _rule in JSON_FACES:
+        path = root / rel
+        if not path.is_file():
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        got = [("version", data.get("version"))] + [(f"packages[{i}].version", p.get("version")) for i, p in enumerate(data.get("packages") or [])]
+        out += [f"{rel}: {key} is {v}, and pyproject.toml is {want}" for key, v in got if v is not None and v != want]
+    for rel in _readmes(root):
+        for m in re.finditer(r"(?:/v|@v|knos-settle-)(\d+\.\d+\.\d+)\b", (root / rel).read_text(encoding="utf-8")):
+            if m.group(1) != want:
+                out.append(f"{rel}: installs {m.group(0)}, and pyproject.toml is {want}")
+    return out
+
+
+def _readmes(root: Path) -> list[str]:
+    return sorted(Path(p).relative_to(root).as_posix() for p in glob.glob(str(root / "sdk" / "*" / "README.md")))
+
+
 def sentence(root: Path = ROOT) -> str:
     path = root / SOURCE
     got = json.loads(path.read_text(encoding="utf-8")).get(KEY) if path.is_file() else None
@@ -74,6 +128,8 @@ def _judge(where: str, got: str | None, rule: str, said: str) -> list[str]:
     stale = [s for s in STALE if s.lower() in got.lower()]
     if stale:
         return [f'{where}: describes an older product ("{stale[0]}"): {got[:90]}']
+    if word := banned(got):
+        return [f'{where}: uses "{word}", which no Knos description uses: {got[:90]}']
     if rule == EXACT and got != said:
         return [f"{where}: is not the sentence: {got[:90]}"]
     if rule == BEGINS and not got.startswith(said):
@@ -109,6 +165,9 @@ def problems(root: Path = ROOT) -> list[str]:
             got = _meta(html, attr, name)
             if got is not None or name != "twitter:description":
                 out += _judge(f"web/index.html {name}", got, BEGINS, said)
+    for rel in _readmes(root):
+        out += _judge(rel, (root / rel).read_text(encoding="utf-8"), PART, said)
+    out += version_problems(root)
     readme = root / "README.md"
     if readme.is_file():
         first = next((line.strip() for line in _prose(readme.read_text(encoding="utf-8"))), "")

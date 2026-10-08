@@ -464,6 +464,14 @@ await reset();
   await page.$eval("#what-is-here", (d) => { d.open = true; });
   check("  the flow is three steps, and the last links the payment on devnet that the third example reads", (await page.$$eval("#view-check .how > li", (l) => l.length)) === 3
     && (await page.getAttribute("#view-check .how a[href*=explorer]", "href")) === `https://explorer.solana.com/tx/${(await import(pathToFileURL(join(root, "config.js")).href)).CONFIG.examples.find((e) => e.id === "paid").input}?cluster=devnet`);
+  // HOW IT WORKS: three steps in plain words; each advanced term behind one fold of its own, shut; the promise of both sides under the split
+  const how = { steps: (await page.$$eval("#view-check .how > li > h3", (l) => l.map((h) => h.textContent))).join("|"),
+    folds: (await page.$$eval("#view-check .how .adv > details.k-more", (l) => l.map((d) => d.querySelector("summary").textContent.split(":")[0]))).join("|"),
+    sides: (await page.$$eval("#view-check .sides .k-kicker", (l) => l.map((k) => k.textContent))).join(), promise: await text(page, "#view-check .sides .promise") };
+  check("  How it works: the three steps, in order, the advanced terms each behind one fold, the promise under the buyer and the supplier",
+    how.steps === "Agree the terms|A third party signs the result|Both sides get the same bill, and the money moves"
+    && how.folds === "Versioned terms|Holdbacks|Five parts of a receipt|Netting|Reserves|Exits"
+    && how.sides === "Buyer,Supplier" && how.promise === "Buyers can defend the bill; suppliers can defend what they are owed.", how);
   check("  five things to lead with, one line each at a laptop's width", await page.$$eval("#view-check .lead-with > li", (l) => l.length === 5 && l.every((x) => x.getBoundingClientRect().height < 60)));
   await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go");                  // the round is mounted (web/demo.js); a build without it leaves the mount empty, as here
   await page.evaluate(() => { document.getElementById("demo").innerHTML = ""; });
@@ -472,7 +480,8 @@ await reset();
   check("  Demo, while the demo's mount is empty, puts the cursor in the box that checks a pull request", await page.evaluate(() => document.activeElement.id === "pr-url") && await page.isHidden("#demo"));
   await page.evaluate(() => { document.activeElement.blur(); document.getElementById("demo").innerHTML = "<p>Filled</p>"; });
   await page.waitForSelector("#demo", { state: "visible" });
-  check("  the demo's mount, once filled, is shown in the first screen under the front door, and Demo goes to it", await page.isVisible("#view-check") && await page.$eval("#demo", (d) => d.parentElement.id === "view-check" && d.previousElementSibling.classList.contains("hero")));
+  check("  the demo's mount, once filled, is shown under the front door and How it works, and Demo goes to it", await page.isVisible("#view-check") && await page.$eval("#demo", (d) => d.parentElement.id === "view-check" && d.previousElementSibling.classList.contains("sides")
+    && d.parentElement.querySelector(".hero ~ #how-it-works ~ .how ~ #demo") === d));
   await page.click('#nav > a[href="#demo"]');
   check("    and the cursor stays out of the box", await page.evaluate(() => document.activeElement.id !== "pr-url" && location.hash === "#demo"));
   await page.evaluate(() => { document.getElementById("demo").replaceChildren(); });

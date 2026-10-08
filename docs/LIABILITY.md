@@ -62,6 +62,10 @@ Stated without softening, by case:
 - A defect in a program: **whoever's money it moved** bears it.
 - In no case does Knos, or any person behind it, bear it. There is nobody to claim against.
 
+Knos's fee follows accepted value, so Knos gains from an acceptance, wrong or right. It cannot cause one: no key of
+Knos's signs a verdict, and its fee account can only receive fees and lower a rate. [DISPUTES.md](DISPUTES.md),
+"Knos is paid on acceptance, and does not decide it", has the five rules and the test that checks them.
+
 ## What an accountable operator would have to sign for
 
 None of this exists. It is the list a buyer's legal and finance teams would ask of whoever runs the meter for real

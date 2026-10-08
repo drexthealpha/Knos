@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SENTENCE = "The neutral meter for AI agent work: neither side keeps the count."
 FACES = ("docs/facts.json", "pyproject.toml", "server.json", "gemini-extension.json", "plugin/.claude-plugin/plugin.json",
-         "plugin/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json", "sdk/settle/package.json", "action.yml", "web/index.html", "README.md")
+         "plugin/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json", "sdk/settle/package.json", "sdk/settle/README.md", "action.yml", "web/index.html", "README.md")
 
 
 def _tool():
@@ -158,3 +158,25 @@ def test_glama_is_read_from_its_page_logged_out_because_its_api_asks_for_a_key()
     said: list[str] = []
     assert pf.main(["--remote"], say=said.append, fetch=_fetch({"https://glama.ai/mcp/servers/drexthealpha/Knos": {"_html": page}})) == 1
     assert f"STALE  glama.ai: {old}" in said and "glama.ai: nothing" not in "\n".join(said)
+
+
+def test_a_stale_version_or_a_banned_word_in_a_manifest_or_the_sdk_readme_fails_the_check(tmp_path):
+    """A registry shows a manifest's version and description, and npm shows the SDK's README: an older release named
+    there, or a word no Knos document uses, is what a reader is served."""
+    pf, root = _tool(), _copy(tmp_path)
+    want = pf.release(root)
+    assert pf.problems(root) == [] and want
+    server = json.loads((root / "server.json").read_text(encoding="utf-8"))
+    server["packages"][0]["version"] = "0.3.9"
+    (root / "server.json").write_text(json.dumps(server, indent=1), encoding="utf-8")
+    _sub(root / "gemini-extension.json", f'"version": "{want}"', '"version": "0.3.20"')
+    _sub(root / "sdk" / "settle" / "package.json", "JavaScript client", "Trustless JavaScript client")
+    readme = root / "sdk" / "settle" / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8") + "\nInstall `knos-settle-0.3.19.tgz` from /v0.3.19/; it scales to a billion payments.\n", encoding="utf-8")
+    found = pf.problems(root)
+    assert any(f.startswith("server.json: packages[0].version is 0.3.9") for f in found)
+    assert any(f.startswith("gemini-extension.json: version is 0.3.20") for f in found)
+    assert any(f.startswith('sdk/settle/package.json: uses "Trustless"') for f in found)
+    assert any(f.startswith('sdk/settle/README.md: uses "billion"') for f in found)
+    assert [f for f in found if "installs" in f] == [f"sdk/settle/README.md: installs knos-settle-0.3.19, and pyproject.toml is {want}",
+                                                     f"sdk/settle/README.md: installs /v0.3.19, and pyproject.toml is {want}"]

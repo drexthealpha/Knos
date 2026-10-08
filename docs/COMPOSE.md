@@ -105,7 +105,7 @@ knos-pay-interface = "0.3.14"
 ```
 
 ```bash
-npm install knos-settle@0.3.20
+npm install knos-settle@0.3.21
 ```
 
 `python scripts/release.py registry-plan` prints what would be published where and checks, with no network, that

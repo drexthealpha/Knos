@@ -96,12 +96,28 @@ SINCE 0.3.21, THE EVENT IS RECORDED FIRST, AND WORKERS ARE PARTITIONED BY ORDER.
                        written only to the event runner's own folder, which the sweep's runner never sees.
     partitions         `part_of(lane, n)`: sha256 of the lane, modulo n, the same in every process. A lane is the owner
                        of the repository a token was signed for (`relay.lane`), and every order has one owner.
+                       (Since 0.3.22 a token that names an order has the ORDER as its lane: see below.)
                        `work(..., partition=True)`: worker i of n takes only the lanes of part i, so an order's tokens
                        always go to one worker. `Queue(..., part=(i, n))` (or KNOS_RELAY_PARTITION="i/n"): a whole
                        runner takes only part i, so runners that share no file never take the same order; the sweep,
                        which takes every part, is the backstop for a part whose runner is gone. Two workers never hold
                        one lane at once in any case (a lane leaves one entry at a time); a partition makes that hold
                        across runners and keeps an order on one worker for its whole life.
+
+SINCE 0.3.22, PAY WORK IS PARTITIONED BY ORDER, AND THE FEE ACCOUNT IS ONE OF K.
+
+    order lanes        a token that pays, rules on, reserves, cancels or reverts a work order (knos3:pay, auto, rule,
+                       take, cancel, revert) writes that order and accounts of its own payees, fee or refund, never a
+                       Balance's own account: its lane is `order:<address>`. One owner's orders now spread over N
+                       relays (part_of of each order), and one order's tokens still leave one at a time, on one
+                       relay. A funding from a Balance keeps the owner's lane: the Balance takes its fundings in the
+                       order GitHub issued them. Measured on 8 Oct, before this: 40 orders of ONE owner, one relay, 0.097 paid a
+                       second; nothing has been measured with order lanes yet.
+    K fee accounts     the program takes any token account of the mint that FEE_OWNER owns as the fee account
+                       (`is_owned(fee_tok, token, mint, FEE_OWNER)`). `pay.fee_account_for(order, ...)` picks one of K
+                       (sha256 of the order, modulo K): account 0 is FEE_OWNER's associated one, 1..K-1 are seeded
+                       accounts `knos relay fee-accounts --k K` makes. A relay that finds the chosen one missing names
+                       the associated one. So payments of different orders no longer all write one account.
 """
 from __future__ import annotations
 
@@ -512,7 +528,7 @@ class Slow(RuntimeError):
 
 
 def part_of(lane: str, n: int) -> int:
-    """The partition of `lane` (the owner an order belongs to: `relay.lane`) among `n`: sha256 of the lane, modulo n. The same in every process
+    """The partition of `lane` (an order, or the owner a funding belongs to: `relay.lane`) among `n`: sha256 of the lane, modulo n. The same in every process
     and every run, so an order's tokens always go to the same worker (and pay from the same key: `Payers.index`)."""
     return int.from_bytes(hashlib.sha256(str(lane).encode()).digest()[:8], "big") % max(1, n)
 

@@ -41,4 +41,4 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@096e25faf6caef823e27b52219f674ff1c664fc4
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@b6d4df883e87d25afa28e5496402e95a8c272076

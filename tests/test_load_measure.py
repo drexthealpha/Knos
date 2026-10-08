@@ -61,7 +61,7 @@ def test_the_page_keeps_measured_and_derived_apart_and_says_when_nothing_is_meas
     assert "**Measured on devnet: nothing yet.**" in text and "gives no rate" in text and "Derived bound" not in text
     for way, _state in load.REDUCES:
         assert f"| {way} |" in text
-    assert "needs a program change" in text
+    assert "needs a program change" not in text and "Several fee accounts for one mint | exists since 0.3.22, with no program change" in text
     got, _sim = run(2, 4)
     sim_only = "\n".join(load.render_measured({**doc, "measured": [got]}))
     assert "**Measured on devnet: nothing yet.**" in sim_only                                     # a simulated run is never shown as measured

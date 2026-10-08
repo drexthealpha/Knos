@@ -498,3 +498,34 @@ def test_market_shows_where_the_count_applies_next_and_the_competitors_reread_to
                  "https://stripe.com/billing/pricing", "https://mergepay.fun"):
         line = next(row for row in raw.splitlines() if link in row and row.startswith("|"))
         assert "7 Oct 2026" in line, link
+
+
+def test_unit_costs_sets_the_budget_against_the_requirement_and_the_gross_fee_against_cash_kept():
+    import knos.billing as billing
+    raw, page = read("docs/UNIT_COSTS.md"), flat("docs/UNIT_COSTS.md")
+    table = raw.split("## The budget today against what the price book requires")[1].split("## The gross fee is not the cash Knos keeps")[0]
+    rows = [r for r in table.splitlines() if r.startswith("| ") and not r.startswith("| unit")]
+    gaps = billing.gaps(billing.unit_costs(json.loads(read("docs/unit_costs.json"))))
+    assert len(rows) == len(gaps)
+    for row, g in zip(rows, gaps):                                       # the page and `knos bill margin` say the same budget and requirement
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        assert cells[1].startswith(g["budget"]) and cells[2].startswith(g["required"]), (row, g)
+    assert "cash kept = gross fee − the tips outside relayers take out of it" in page and "A fee counter on chain is not company cash:" in page
+    assert "| **Cash kept** | **208.20, 69.40% of the gross fee** |" in raw and billing.cash_example()["cash_kept"] == "208.20"
+
+
+def test_market_builds_acceptance_bottom_up_and_reconfirms_the_three_competitors():
+    raw, market = read("docs/MARKET.md"), flat("docs/MARKET.md")
+    assert "customers × eligible purchased work per customer × adopted share × realised fee." in market
+    table = raw.split("### The bottom-up formula, input by input")[1].split("## 6.")[0]
+    inputs = [r for r in table.splitlines() if r.startswith("| ") and not r.startswith("| input")]
+    assert [r.split(" | ")[0].strip("| ") for r in inputs] == ["Customers", "Eligible purchased work per customer", "Adopted share", "Realised fee"]
+    assert all("**[assumption]**" in r or "**[measured]**" in r for r in inputs) and "Context, not the market." in market
+    assert 10_000_000 * 30 // 10_000 == 30_000 and 10_000_000 // 2 * 20 // 10_000 == 10_000
+    for link, says in (("https://stripe.com/newsroom/news/stripe-completes-metronome-acquisition", "14 Jan 2026"),
+                       ("https://docs.cdp.coinbase.com/x402/seller/facilitator", "0.001 USD each"),
+                       ("https://aws.amazon.com/bedrock/agentcore/pricing/", "1.50 USD per 1,000")):
+        line = next(row for row in raw.splitlines() if link in row and row.startswith("|"))
+        assert says in line and "8 Oct 2026" in line, link
+    beyond = raw.split("What Knos sells beyond each, one line each:")[1].split("What Knos is that they are not")[0]
+    assert len([r for r in beyond.splitlines() if r.startswith("| ") and not r.startswith("| who")]) == 3

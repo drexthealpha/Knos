@@ -6,7 +6,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const { readTerms, termsLink, termsInComments, classify, rules, tree, search, matches, SAMPLES, LABELS, PROTECTIONS, NETTED, ENFORCED, owed, CLASSES, PROGRAMS } =
+const { readTerms, termsLink, termsInComments, classify, rules, tree, search, matches, SAMPLES, LABELS, PROTECTIONS, NETTED, ENFORCED, owed, CLASSES, PROGRAMS, recommended, recommendHtml } =
   await import(pathToFileURL(join(here, "../../web/supplier.js")).href);
 const fin = await import(pathToFileURL(join(here, "../../web/supplier_finance.js")).href);
 const fixtures = JSON.parse(readFileSync(join(here, "../../sdk/settle/fixtures.json"), "utf8")).second["order accounts"];
@@ -17,6 +17,15 @@ const refusals = JSON.parse(readFileSync(join(here, "../../web/refusals.json"), 
 
 let failed = 0;
 const same = (what, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) failed++; console.log(`${ok ? "ok  " : "FAIL"} ${what}${ok ? "" : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`); };
+
+// what memory recommends, as knos.preflight.recommended prints it (the same report shape `knos preflight --json` writes)
+const report = { kind: "knos-preflight", recommend: [
+  { id: "appeal", title: "No arbitrary rejection", held: false, said: "Work here was rejected and then won on appeal 1 time before (appeal ap-7). Ask for an arbiter." },
+  { id: "acceptance_deadline", title: "Acceptance deadline", held: true, said: "Work here was accepted late 1 time before (inv_0002)." }] };
+same("a preflight report's recommendations read as knos preflight prints them", recommended(report),
+  ["Recommended from memory: No arbitrary rejection. Work here was rejected and then won on appeal 1 time before (appeal ap-7). Ask for an arbiter.",
+   "Recommended from memory: Acceptance deadline. Work here was accepted late 1 time before (inv_0002). These terms hold it."]);
+same("no memory, no recommendation", [recommended({ kind: "knos-preflight", recommend: [] }), recommendHtml(null)], [[], ""]);
 
 for (const c of cases) {
   const t = readTerms(c.terms);
@@ -188,6 +197,14 @@ async function page() {
     ok(`${width}px: what is not terms is said`, (await p.innerText("[data-sp=said]")) === "That is not JSON.");
     ok(`${width}px: every statement is twelve words at most`, wordy(await statements(p)).length === 0, wordy(await statements(p)));
     ok(`${width}px: the filled page does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
+    // a pasted `knos preflight --json` report: what memory recommends is the answer, under the four protections; the site
+    // folds longer prose on every page it draws (web/front.js foldProse), and that must never shut the answer in a fold
+    await p.fill("#sp-in", JSON.stringify(report)); await p.click("[data-sp=run]");
+    await p.evaluate(async () => (await import("./front.js")).foldProse(document.querySelector(".supplier")));
+    const shown = await p.$$eval("[data-sp=recommend] li", (x) => x.filter((e) => e.checkVisibility() && !e.closest("details")).map((e) => e.textContent));
+    ok(`${width}px: a pasted preflight report's recommendations from memory are shown, not folded away`, (await p.innerText("[data-sp=said]")) === "Read a preflight report."
+      && JSON.stringify(shown) === JSON.stringify(recommended(report)), await p.innerHTML("[data-sp=recommend]"));
+    ok(`${width}px: with them, the page does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
     ok(`${width}px: nobody but this page, api.github.com and devnet is asked`, strangers.length === 0, strangers);
     ok(`${width}px: no error on the page`, errors.length === 0, errors);
     await ctx.close();

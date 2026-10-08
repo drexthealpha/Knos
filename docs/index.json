@@ -3,6 +3,11 @@
  "name": "Agent PR Index",
  "latest_week": "2026-09-28",
  "read": "2026-10-07",
+ "basis": {
+  "counts": "every_merged_claiming_pr",
+  "says": "Basis: every merged pull request that claimed passing tests, so a busy repository counts many times. docs/BENCH.md counts the first such pull request per repository instead; the two shares differ.",
+  "other": "docs/BENCH.md and docs/bench.json `first_pr_per_repo`: the first claiming pull request per repository"
+ },
  "min_claims_to_rank": 30,
  "rule": "An agent vendor never pays for a row and cannot pay to change one.",
  "measure": {

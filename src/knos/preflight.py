@@ -21,7 +21,11 @@ the report names that command for a tests-mode order), and it cannot know whethe
 
 Memory (knos.proof.history, the memory engine; no side file): before answering it recalls what was refused before
 under the SAME terms hash in this repository ("3 earlier submissions were refused for touching tests/conftest.py"),
-and it remembers each preflight's result. With the engine absent it works the same and says memory is off.
+and it remembers each preflight's result. Memory also changes what it recommends: when the store recalls that work
+under these terms, or by this supplier, ended in a dispute, was won on appeal or was accepted late, the report's
+`recommend` names the protection that covers it (a reserve, an arbiter, a deadline), why, and the recalled evidence
+ids (history.protections_recalled). With the engine absent it works the same, says memory is off and recommends
+nothing from history: delete the memory layer and this answer changes (docs/submission/DEPENDENCY.md).
 
 `knos keep <order or transaction> --out DIR` writes the supplier's own copy of everything about a deliverable: the
 evidence bundle (`knos bundle make`, called as it is), and what memory holds of their preflights, refusals and appeals.
@@ -30,6 +34,8 @@ evidence bundle (`knos bundle make`, called as it is), and what memory holds of 
     changes_from_git(tree, base)       [(status, path)] of the change against the base branch, untracked files included
     run(terms, changes, ...)           the report (a dict; `words(report)` prints it)
     protections(read, ...)             the four supplier protections under these terms: held, lacked, or not checked
+    recommend(owed, taught)            the protections memory calls for, from history.protections_recalled
+    recommended(report)                those as "Recommended from memory: ..." lines (the command, the MCP tool, the site)
     MCP_TOOL, mcp(args)                the same as a tool an agent calls (knos.mcp registers it)
 """
 
@@ -183,6 +189,28 @@ def protections(read: dict, *, auto: bool | None = None, arbiter: str = "", nett
     else:
         row(3, None, "Not checked: a terms file is not an order. An order holds its whole price from funding; read a funded one with --issue owner/repo#number.")
     return out
+
+
+def recommend(owed: list[dict], taught: list[dict]) -> list[dict]:
+    """What memory changes in the answer: each protection history.protections_recalled says a remembered ending calls
+    for, with the row it is in `owed` ({"id", "title", "held", "ask", "because", "count", "evidence", "said"}). A
+    recalled row also marks its protection (`recalled`: the evidence ids), and a protection these terms lack that
+    memory calls for is said first. Empty with no memory: there is nothing to recall it from."""
+    out = []
+    for t in taught:
+        row = next((p for p in owed if p["id"] == t["protection"]), None)
+        if row is None:
+            continue
+        row["recalled"] = list(t["evidence"])
+        out.append({"id": row["id"], "title": row["title"], "held": row["held"], "ask": t["ask"], "because": t["because"],
+                    "count": t["count"], "evidence": list(t["evidence"]), "said": t["said"]})
+    return sorted(out, key=lambda r: (r["held"] is not False, -r["count"], r["id"]))
+
+
+def recommended(report: dict) -> list[str]:
+    """`recommend` as the lines `knos preflight`, the MCP tool and the site's supplier page print beside the protections."""
+    return [f"Recommended from memory: {r['title']}. {r['said']}" + (" These terms hold it." if r["held"] else "")
+            for r in report.get("recommend") or []]
 
 
 def lacked(report: dict) -> list[dict]:
@@ -369,12 +397,12 @@ def run(read: dict, changes: list[tuple[str, str]] | None, *, tree: Path | None 
     ready = not fixes
     refused_rows = [r for r in rows if r["class"] == "refused"]
     memory = dict(memory or {"on": False, "said": "Memory is off: nothing is recalled or remembered."})
-    warnings, record = [], None
+    warnings, record, taught = [], None, []
     if store is not None and memory.get("on"):
         name = repo or (tree.resolve().name if tree is not None else "")
         held = getattr(store, "held", None)
 
-        def recall_and_remember() -> tuple[list, dict | None]:
+        def recall_and_remember() -> tuple[list, dict | None, list]:
             found, mine = [], None
             with held() if held is not None else contextlib.nullcontext(store):      # the recall and the remembering on one connection
                 touched = {r["path"] for r in rows}
@@ -388,10 +416,11 @@ def run(read: dict, changes: list[tuple[str, str]] | None, *, tree: Path | None 
                 history.preflight_seen(store, name, thash, ready, [(r["code"], r["path"]) for r in refused_rows], supplier, tree_id, now)
                 if supplier:
                     mine = history.supplier_record(store, name, supplier)
-            return found, mine
+                learned = history.protections_recalled(store, name, thash, supplier)
+            return found, mine, learned
 
         try:
-            warnings, record = bounded(recall_and_remember, store)
+            warnings, record, taught = bounded(recall_and_remember, store)
             memory["remembered"] = True
         except Slow as why:
             memory = {"on": False, "said": str(why)}
@@ -399,6 +428,7 @@ def run(read: dict, changes: list[tuple[str, str]] | None, *, tree: Path | None 
             memory = {"on": False, "said": f"Memory is off: the memory engine did not answer ({ghwords.first_line(why, 80)})."}
     protected = [{"pattern": g, "says": _cite(read, "deny", g)} for g in terms["deny"]] + \
                 [{"pattern": p, "says": _judge_cite(p, cfg, cfg_text, read)} for p in patterns if p not in terms["deny"]]
+    owed = protections(read, auto=auto, arbiter=arbiter, netted=netted, reserve=reserve, funded=funded)
     nxt = []
     if tests:
         nxt.append(f"Run the acceptance checks yourself: knos proof judge --base <a checkout of the default branch> --pr . --issue {issue or '<issue>'}")
@@ -410,7 +440,7 @@ def run(read: dict, changes: list[tuple[str, str]] | None, *, tree: Path | None 
             "paths": list(terms["paths"]), "protected": protected,
             "allowed_not_counted": "A test file you add." if tests else "Nothing: this order is paid on a merge, and every allowed file counts.",
             "changes": rows, "fixes": fixes, "memory": {**memory, "warnings": warnings, **({"record": record} if record else {})},
-            "protections": protections(read, auto=auto, arbiter=arbiter, netted=netted, reserve=reserve, funded=funded),
+            "protections": owed, "recommend": recommend(owed, taught),
             "next": nxt, "at": int(now if now is not None else time.time())}
 
 
@@ -437,6 +467,7 @@ def words(report: dict) -> str:
         out.append(f"Your record here: {record['accepted']} accepted, {record['rejected']} rejected, {record['appealed']} appealed, {record['overturned']} overturned.")
     out += [report["memory"]["said"], ""]
     out += ["Ready: nothing in this change would be refused by the terms."] if report["ready"] else ["Not ready. Fix:", *(f"  - {f}" for f in report["fixes"])]
+    out += recommended(report)
     owed = report.get("protections") or []
     if owed:
         mark3 = {True: "held       ", False: "LACKED     ", None: "not checked"}
@@ -569,7 +600,8 @@ MCP_TOOL = {
     "name": "knos_preflight", "title": "Preflight a change against an order's terms",
     "description": "Before you open a pull request: which paths the order protects, which checks it names, which of your changed "
                    "files would be refused (with the exact line of the terms that says so and what to do), what is allowed and not "
-                   "counted (a test file you add), what was refused before under the same terms, and `ready` or the list of fixes. "
+                   "counted (a test file you add), what was refused before under the same terms, the protections memory recommends from how work here ended before "
+                   "(`recommended`: \"Recommended from memory: ...\"), and `ready` or the list of fixes. "
                    "Reads your checkout and a terms file; with `terms` it asks the network for nothing.",
     "properties": {"path": {"type": "string", "description": "your checkout of the repository, a folder on this machine"},
                    "terms": {"type": "string", "description": "a terms file on this machine: the JSON of the order's `knos-terms:` line, or a file from terms/"},
@@ -583,8 +615,9 @@ MCP_TOOL = {
 def mcp(args: dict, get=None) -> dict:
     """The tool's answer: the report, or {"ready": false, "fixes": [one sentence]} when the terms cannot be read."""
     try:
-        return check(Path(str(args["path"])).expanduser(), Path(str(args["terms"])).expanduser() if args.get("terms") else None,
-                     str(args.get("issue") or ""), str(args.get("base") or ""), None, str(args.get("supplier") or ""), get)
+        report = check(Path(str(args["path"])).expanduser(), Path(str(args["terms"])).expanduser() if args.get("terms") else None,
+                       str(args.get("issue") or ""), str(args.get("base") or ""), None, str(args.get("supplier") or ""), get)
+        return {**report, "recommended": recommended(report)}
     except Unreadable as why:
         return {"kind": KIND, "v": VERSION, "ready": False, "fixes": [str(why)]}
 

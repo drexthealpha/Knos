@@ -1,5 +1,95 @@
 # Changelog
 
+Prices and figures in older entries are superseded; the current price book is [docs/MARKET.md](docs/MARKET.md), section "The price book", and each GitHub release's notes are its entry here.
+
+## 0.3.22 (October 2026)
+
+**Seven answers to three outside readings: a fee account that is not a bottleneck, a witnessed script that finishes,
+facts that stay current, the economics side by side, a fee kept out of the verdict, a site with one "How it works",
+and memory that changes a decision.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md): none of it has run at the public program ids or been used by a person
+outside this repository, and each line below says its own limit. **No program changes in this release:** nothing
+under `programs-v2/knos_*`, `programs/`, `idl/` or `tests/fixtures/*.so` moved by a byte. The interface crates stay
+at 0.3.14 on crates.io and the JavaScript client is on npm (`npm install knos-settle`, 0.3.21, published by trusted
+publishing with provenance).
+
+### Capacity
+
+- **The fee account is not a protocol bottleneck.** knos_pay takes any token account of the order's mint that its
+  fee owner holds, so the relay now pays each order's fee into one of K such accounts, picked by the order, with no
+  program change. `knos relay fee-accounts --k N` prints the plan and sends nothing; `--execute` makes the missing
+  accounts. The fees stay the fee owner's in every account; moving them into one is a transfer the Squads vault
+  signs ([`docs/RELAY.md`](docs/RELAY.md)). Six seeded fee accounts exist on devnet since 8 October 2026: K = 4 for
+  Circle's devnet USDC and for the faucet's test USDC, owned by the fee owner, made by the project's own relayer key
+  (addresses and transactions in [`docs/RELAY.md`](docs/RELAY.md)). The public worker still runs with K = 1, so no
+  payment has used them.
+- **Pay work by order, not by owner.** A token that pays, rules on, cancels or reverts an order travels in that
+  order's lane, so one owner's orders spread over several relays; a funding from a Balance keeps its owner's lane.
+  `tests/test_fee_shards.py` pays into a seeded account on the 2.1 and 2.2 builds and spreads one owner's 40 orders
+  over 4 relays with none taken twice. The only measured rate is still one relay's: 40 of 40 paid in 412.74 s, 0.097
+  a second, at the public ids on 8 Oct; the several-relay rate is not measured ([`docs/LOAD.md`](docs/LOAD.md)).
+
+### Witnessed
+
+- **The witnessed script finishes.** `examples/witnessed/witness.py` writes its funding as the command grammar
+  reads it (`/knos fund 5 checks: none auto`), and its test drives the script's own comments through the parser and
+  the flow fakes. The playground's task page says the same line.
+- **The worker's claims job waits for PyPI.** It installs the release only once that version can be installed from
+  the index, retrying with backoff (`scripts/pypi_wait.py`).
+- **npm's page says npm.** The client's README and [`docs/INSTALL.md`](docs/INSTALL.md) say `npm install
+  knos-settle`, with the release tarball as the fallback, and claim no attestation.
+
+### True
+
+- **The checkers read what registries show.** `scripts/truth_check.py` and `scripts/public_face.py` also read each
+  SDK README and the descriptions in `package.json`, `server.json` and the plugin manifests; a stale price, an older
+  release named as current or a word no Knos document uses fails there too.
+- **The Index names its basis.** Every place that prints a share says whether it counts every claiming pull request
+  or the first one per repository, and the site shows the basis under the board.
+- **A cached copy says which release it is.** The README's generated table has a "This copy" row from
+  `pyproject.toml` and this file, and a note above this history says older prices are superseded.
+
+### Economics
+
+- **Budget against requirement.** [`docs/UNIT_COSTS.md`](docs/UNIT_COSTS.md) sets each unit's cost today beside
+  what the price book requires and the design that closes the gap; `knos bill margin` prints it. Every figure but
+  the chain fees is a budget, not a measurement.
+- **Gross fee against cash kept.** `knos.billing` separates the protocol fee from what Knos would keep after relayer
+  tips, discounts, credits and channel commissions, and says that fee counters on chain are not company cash.
+- **The market from the bottom.** [`docs/MARKET.md`](docs/MARKET.md) builds the Acceptance line as customers ×
+  eligible work × adopted share × realised fee, each input sourced or labelled an assumption; no input is measured.
+  Stripe, Amazon Web Services and Coinbase were read again on 8 Oct, with what Knos sells beyond each.
+
+### Neutral
+
+- **Knos is paid on acceptance and does not decide it.** [`docs/DISPUTES.md`](docs/DISPUTES.md) says what keeps Knos
+  out of the verdict, and `tests/test_neutrality.py` checks it on the source: the fee account only receives fees and
+  lowers a rate, the modules that make verdicts know no fee, and the fee reads the amount and the rate only. The
+  founder still writes the pinned judge and holds every upgrade key; the separation is in the code and in public.
+- **The founder's record, the claim and the checklist.** [`docs/TEAM.md`](docs/TEAM.md) states the founder's first
+  place at the Sibyl Labs hackathon with Knos's earlier memory product, and
+  [`docs/submission/SUBMISSION.md`](docs/submission/SUBMISSION.md) says what predates the window.
+
+### Memory that changes a decision
+
+- **Preflight recommends from memory.** When the memory engine recalls that work under these terms, or by this
+  supplier, ended in a dispute, was won on appeal or was accepted late, `knos preflight`, its MCP tool and the
+  supplier's page say "Recommended from memory: ..." with the protection that covers it and the recalled evidence.
+  With no memory it recommends nothing ([`docs/submission/DEPENDENCY.md`](docs/submission/DEPENDENCY.md)).
+- **The approver's queue is ranked from memory.** An exception that ended the same way before is ranked first and
+  labelled ("ended accepted on appeal 3 of 3 times before"); with no memory, no label.
+
+### Site
+
+- **One "How it works", three steps.** Agree the terms; a third party signs the result; both sides get the same bill
+  and the money moves. Versioned terms, holdbacks, the five parts of a receipt, netting, reserves and exits each sit
+  behind one fold, on the first page and on the Buy, Supplier and upgrade views.
+- **The two-sided promise** stands under the buyer and supplier split: buyers can defend the bill; suppliers can
+  defend what they are owed.
+
 ## 0.3.21 (October 2026)
 
 **What exists made true, enforceable and usable by strangers: a checker that catches the contradictions it missed,

@@ -1,6 +1,9 @@
 """examples/witnessed/witness.py: the independently witnessed transaction, step by step, against a simulated GitHub and
-chain. The check runs the submitted file for real on the acceptance pairs; the statements, the archive and the
-stand-alone verifier inside it run for real (`python -m knos`, `python -I verify.py`). No network, no clock, no sleep."""
+chain. Every comment the script posts is read by knos.commands.parse, as the workflow reads it, and the simulated
+funding asks what knos.flow asks of an `auto` order (black-box acceptance checks). "knos check" on the pull request
+passes any work, as the real one does (it runs none of the pull request's code); the judge job runs the committed
+blackbox.py for real on the submitted file. The statements, the archive and the stand-alone verifier inside it run for
+real (`python -m knos`, `python -I verify.py`). No network, no clock, no sleep."""
 from __future__ import annotations
 
 import importlib.util
@@ -12,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from knos import audit, tasks
+from knos import audit, commands, judge, tasks
 from test_audit import DAY, T0, U, funded, line, paid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,7 +46,10 @@ class World(W.Shell):
         self.folder, self.replay_pays = folder, replay_pays
         self.comments: dict[tuple[str, int], list[dict]] = {}
         self.ids, self.commits, self.issues = 100, 0, 0
-        self.runs: dict[str, list[dict]] = {}
+        self.runs: dict[str, list[dict]] = {}            # check runs by commit: only "knos check", which passes any work
+        self.reviews: list[dict] = []                      # the `knos review` runs (event workflow_run), each with its jobs
+        self.parsed: list[object] = []                     # what knos.commands made of each comment the stranger posted
+        self.clock = 0
         self.chain = [line("balance", T0, "B1", owner=ME, authority="W" * 44, mint="M")]
         self.said: list[list[str]] = []
 
@@ -53,13 +59,29 @@ class World(W.Shell):
         self.comments.setdefault((repo, issue), []).append(c)
         return c
 
+    def _at(self) -> str:
+        self.clock += 1
+        return f"2026-09-02T00:{self.clock // 60:02d}:{self.clock % 60:02d}Z"
+
     def _bot(self, repo: str, issue: int, body: str) -> None:
-        if body.startswith("/knos faucet "):
+        cmd = commands.parse(body, on_pull=None if repo == W.PLAYGROUND else issue == 2)
+        self.parsed.append(cmd)
+        if isinstance(cmd, commands.Error):
+            self._post(repo, issue, cmd.reply, "knos-bot")
+            return
+        if isinstance(cmd, commands.Fund):        # what knos.flow asks of an `auto` order: black-box checks on the default branch
+            folder = self.folder / W.NAME / ".knos" / "acceptance" / str(issue)
+            files = {f.name: f.read_bytes() for f in folder.iterdir()} if folder.is_dir() else {}
+            if not cmd.auto or cmd.checks != () or not files or judge.black_box(files):
+                self._post(repo, issue, "Knos: nothing was funded. `auto` pays the first pull request that passes the acceptance checks, "
+                                        "without a merge, so those checks must be black-box.", "knos-bot")
+                return
+        if isinstance(cmd, commands.Faucet):
             self._post(repo, issue, f"Knos: 20 test USDC sent to `{body.split()[-1]}`.\n\nTransaction: {tx(FAUCET)}", "knos-bot")
-        elif body.startswith("/knos fund "):
+        elif isinstance(cmd, commands.Fund):
             self.chain += funded("OrdW", T0 + DAY + 60, FUNDED, 5 * U, by=ME, issue=issue)
             self._post(repo, issue, f"Funded 5 test USDC for this issue under the terms fixed now. {tx(FUNDED)}", "knos-bot")
-        elif body == "/knos settle":
+        elif isinstance(cmd, commands.Settle):
             if self.replay_pays:
                 self.chain += paid("OrdW", T0 + DAY + 600, "Q" * 64, [(ME, 5 * U)], 5 * U, 5 * U, 0, pr=2)
                 self._post(repo, issue, f"Paid again. {tx('Q' * 64)}", "knos-bot")
@@ -67,12 +89,23 @@ class World(W.Shell):
                 self._post(repo, issue, "This order is already paid; nothing more is paid.", "knos-bot")
 
     def _check(self, head: str) -> None:
+        """"knos check" passes (it runs no code); then the review's judge job runs the committed blackbox.py on words.py."""
         work = self.folder / W.NAME
-        ok = True
-        for i, (given, want) in enumerate(W.PAIRS, 1):
-            got = subprocess.run([sys.executable, "-I", str(work / "words.py")], input=given + "\n", capture_output=True, text=True, encoding="utf-8", timeout=60)
-            ok = ok and got.stdout.strip() == want and (work / ".knos" / "acceptance" / "1" / f"{i}.out").read_text(encoding="utf-8").strip() == want
-        self.runs[head] = [{"status": "completed", "conclusion": "success" if ok else "failure", "html_url": f"https://github.com/run/{head}"}]
+        self.runs[head] = [{"name": "check / claims", "status": "completed", "conclusion": "success", "completed_at": self._at(),
+                            "html_url": f"https://github.com/check/{head}"}]
+        spec = importlib.util.spec_from_file_location("blackbox_" + head, work / ".knos" / "acceptance" / "1" / "blackbox.py")
+        box = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(box)
+
+        def ask(argv, stdin):           # $KNOS_RUN python3 words.py, in the pull request's tree
+            assert argv == W.RUN
+            got = subprocess.run([sys.executable, "-I", *argv[1:]], cwd=work, input=stdin, capture_output=True, timeout=60)
+            return got.returncode, got.stdout, got.stderr
+        ok = box.check(ask) is None
+        n = len(self.reviews) + 1
+        self.reviews.append({"id": n, "status": "completed", "created_at": self._at(), "html_url": f"https://github.com/run/{n}",
+                             "jobs": [{"name": "review / knos review", "conclusion": "success", "html_url": f"https://github.com/run/{n}/review"},
+                                      {"name": "review / judge", "conclusion": "success" if ok else "failure", "html_url": f"https://github.com/run/{head}"}]})
         if ok:
             self.chain += paid("OrdW", T0 + DAY + 300, PAID, [(ME, 5 * U)], 5 * U, 5 * U, 0, pr=2)
             self._post(f"{LOGIN}/{W.NAME}", 2, f"Paid 5 test USDC to @{LOGIN}. {tx(PAID)}", "knos-bot")
@@ -100,6 +133,11 @@ class World(W.Shell):
             m = re.fullmatch(r"repos/(.+)/issues/(\d+)/comments\?per_page=100", path)
             if m:
                 return 0, json.dumps(self.comments.get((m.group(1), int(m.group(2))), []))
+            if path == f"repos/{LOGIN}/{W.NAME}/actions/runs?event=workflow_run&per_page=30":
+                return 0, json.dumps({"workflow_runs": [{k: v for k, v in r.items() if k != "jobs"} for r in self.reviews]})
+            m = re.fullmatch(rf"repos/{LOGIN}/{W.NAME}/actions/runs/(\d+)/jobs", path)
+            if m:
+                return 0, json.dumps({"jobs": self.reviews[int(m.group(1)) - 1]["jobs"]})
             m = re.fullmatch(r"repos/.+/commits/(\w+)/check-runs", path)
             if m:
                 return 0, json.dumps({"check_runs": self.runs.get(m.group(1), [])})
@@ -146,7 +184,7 @@ def test_the_whole_sequence_runs_in_order_leaves_a_link_for_each_step_and_the_re
     s = W.run(LOGIN, tmp_path, world, state={"day": DAYS})
     assert s["done"] == [n for n, _f, _w in W.STEPS]
     assert (s["funded_tx"], s["paid_tx"], s["faucet_tx"], s["budget_tx"]) == (FUNDED, PAID, FAUCET, DEPOSIT)
-    assert s["failed_run"].startswith("https://github.com/run/") and s["statements_agree"] is True and s["payments"] == 1
+    assert s["statements_agree"] is True and s["payments"] == 1
     assert s["buyer_statement"] == s["supplier_statement"] and len(s["buyer_statement"]) == 64
     record = json.loads((tmp_path / W.NAME / "witness.json").read_text(encoding="utf-8"))
     assert record["note"] == "Test USDC, no monetary value." and record["repository"] == f"https://github.com/{LOGIN}/{W.NAME}"
@@ -154,7 +192,12 @@ def test_the_whole_sequence_runs_in_order_leaves_a_link_for_each_step_and_the_re
     # the order of what reached the world: the wrong work was refused before the right work was pushed, and the replay came after the payment
     bodies = [c["body"] for cs in world.comments.values() for c in cs]
     assert bodies.index("/knos settle") > bodies.index(f"Paid 5 test USDC to @{LOGIN}. {tx(PAID)}")
-    assert [r[0]["conclusion"] for r in world.runs.values()] == ["failure", "success"]
+    assert [j["conclusion"] for r in world.reviews for j in r["jobs"] if j["name"].endswith("judge")] == ["failure", "success"]
+    assert [r[0]["conclusion"] for r in world.runs.values()] == ["success", "success"]        # "knos check" passed the wrong work too
+    assert s["failed_run"] == "https://github.com/run/c2" and s["passed_run"] == "https://github.com/run/c3"
+    # every comment the stranger posted is a command as knos.commands reads it, in the place it belongs
+    assert [type(c).__name__ for c in world.parsed] == ["Faucet", "Fund", "Address", "Settle"]
+    assert world.parsed[1] == commands.Fund(units=5_000_000, checks=(), auto=True)
     assert ["git", "push", "-q", "origin", "main"] == world.said[-1]                  # the record is the last thing published
     assert not any("drexthealpha/Knos" in " ".join(a) for a in world.said)               # nothing is opened on Knos's repository
     assert "passed" in s["verified"] or s["verified"]
@@ -178,3 +221,32 @@ def test_plan_sends_nothing_and_names_every_step(capsys):
     assert W.main(["plan", "--login", LOGIN]) == 0
     out = capsys.readouterr().out
     assert out.startswith("Test USDC, no monetary value.") and all(f" {name} " in out for name, _f, _w in W.STEPS)
+
+
+def test_the_line_0_3_21_posted_is_refused_by_the_grammar_and_the_run_stops_on_the_reply(tmp_path, monkeypatch):
+    world = World(tmp_path)
+    _key({}, tmp_path)
+    monkeypatch.setattr(W, "FUND_LINE", "/knos fund 5 tests")
+    with pytest.raises(W.Stop, match="nothing was funded: .*`tests` is not something this command takes"):
+        W.run(LOGIN, tmp_path, world, state={"day": DAYS})
+    assert isinstance(world.parsed[-1], commands.Error) and FUNDED not in json.dumps(world.chain)
+
+
+def test_bare_input_and_output_files_are_not_a_judge_so_auto_is_refused(tmp_path, monkeypatch):
+    """What 0.3.21 committed: N.in and N.out. Not black-box, so an `auto` order cannot be funded on them."""
+    from knos import accept
+    world = World(tmp_path)
+    _key({}, tmp_path)
+    monkeypatch.setattr(accept, "bundle", lambda *_a: {"1.in": b"one two three\n", "1.out": b"three two one\n"})
+    with pytest.raises(W.Stop, match="nothing was funded: .*black-box"):
+        W.run(LOGIN, tmp_path, world, state={"day": DAYS})
+
+
+def test_the_bundle_the_script_commits_is_black_box_and_tells_the_right_answer_from_an_echo(tmp_path):
+    from knos import accept
+    files = accept.bundle(1, W.RUN, [{"input": a, "output": b} for a, b in W.PAIRS], "text", None)
+    assert judge.black_box(files) == "" and set(files) == {"blackbox.py", "cases.json", "README.md"}
+    for rel, data in files.items():
+        (tmp_path / rel).write_bytes(data)
+    (tmp_path / "words.py").write_text(W.RIGHT, encoding="utf-8")
+    accept.verify(files, [sys.executable, "-I", "words.py"], tmp_path, tmp_path)      # the right file passes; an echo does not

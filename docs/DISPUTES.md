@@ -8,6 +8,39 @@ instructions of `knos_pay`), and where the code does less than the terms say, it
 Money on devnet is test USDC. This page describes mechanisms. It is not a contract and not legal advice
 ([LIABILITY.md](LIABILITY.md)).
 
+## Knos is paid on acceptance, and does not decide it
+
+Knos's fee is a share of the value released against a signed acceptance, and nothing when no value is released.
+So Knos has an interest in more work being accepted: a wrongly accepted order pays its fee account, and a wrongly
+rejected one that runs to its deadline pays it nothing, because the refund returns the amount and the fee. "The
+buyer funds it" does not make that interest go away. What keeps Knos out of the verdict:
+
+1. **Knos never evaluates or adjudicates.** A verdict comes from the checks the terms fixed and hashed before the
+   work, run by the buyer's own repository, by the neutral judge in a repository whose owner is neither party, or
+   by an independent host's judge, and the forge signs that run ([ATTESTOR.md](ATTESTOR.md) says what that
+   signature covers). No key of Knos's signs a verdict.
+2. **Knos's account cannot accept anything.** In the programs, `FEE_OWNER` (Knos's fee account) can do two
+   things: receive fees, and sign `SetPlan`, which lowers one repository owner's rate and never raises it. It is
+   never a judge, never a signer of a verdict, and never chooses a payee. The relay only carries a token; the
+   payee comes from the signed token and the order, and the program refuses any other.
+3. **The verdict reads no price, and the fee reads no verdict but "accepted".** The modules that make verdicts
+   (`knos.judge`, `knos.accept`, `knos.policy`, `knos.verdict_gate`, `knos.host_judge`) import nothing that knows a
+   fee, and the fee function takes the amount and the rate only. Every accepted dollar pays the same rate whoever
+   accepted it, and a supplier is never charged.
+4. **Verdicts are reproducible.** `knos judge rerun` runs a verdict again from its file or evidence bundle, and
+   anyone can start the neutral judge from a repository of their own when the order allows it.
+5. **Appeals go to whoever the terms name.** The evaluator or arbiter in the terms' `dispute` field rules, and
+   there is no default: Knos is never named unless the parties name it.
+
+`tests/test_neutrality.py` checks points 2 and 3 on every build: each line of the programs that names `FEE_OWNER`,
+each import of the verdict modules, and the fee function's arguments.
+
+What is still not separate: the founder writes the pinned judge workflow and holds every upgrade key. A new judge
+is a new pinned commit, which binds only orders funded under it; a program change waits through a public 48-hour
+delay ([GOVERNANCE.md](GOVERNANCE.md)). Knos has no commercial staff to keep apart from adjudication, because one
+person is the whole team; until outside key holders exist, the separation is in the code and in public, not
+between people.
+
 ## Before the work: what the terms give the supplier
 
 A dispute is cheaper to avoid than to win. `knos preflight --terms FILE --strict` reads a set of terms before the

@@ -530,8 +530,9 @@ upgradesP.then(({ upgrades, ms, now, failed }) => {
   const state = approved.length === upgrades.length ? `The multisig has approved all of them; the first can be run from ${when(first)}${now !== null && now < first ? `, in ${inWords(first, now)}` : ""}.`
     : `${approved.length} of them ${approved.length === 1 ? "is" : "are"} approved${first !== null ? `, the first to run from ${when(first)}` : ""}; the others are short of votes or not yet put to the vote.`;
   $("upgrade-banner").innerHTML = (upgrades.length > 2 ? `<details id="upgrade-all"><summary><strong>${upgrades.length} upgrades of Knos's programs are pending</strong> (${esc(names)}). ${esc(state)}</summary>${each}</details>` : each)
-    + `<p class="fine">A program's upgrade can change what it does, and the delay is there so that it can be seen coming: the proposal and the new bytes are on chain for anyone to read.
-      What it protects and what it does not: <a id="upgrade-security" href="${SECURITY}" target="_blank" rel="noopener">docs/SECURITY.md</a>, section 7.</p>` + feedLine;
+    + `<details class="k-more" id="upgrade-exit"><summary>Exits: why an upgrade waits, and how to leave</summary><p class="fine">A program's upgrade can change what it does, and the delay is there so that it can be seen coming: the proposal and the new bytes are on chain for anyone to read.
+      <code>knos exit --before-upgrade</code> lists what you hold and how to take it out before then.
+      What it protects and what it does not: <a id="upgrade-security" href="${SECURITY}" target="_blank" rel="noopener">docs/SECURITY.md</a>, section 7.</p></details>` + feedLine;
   $("upgrade-banner").hidden = false;
 });
 

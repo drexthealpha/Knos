@@ -1,4 +1,4 @@
-# Release manifest: Knos 0.3.21
+# Release manifest: Knos 0.3.22
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -8,7 +8,7 @@ limits still open. `python scripts/release_manifest.py` writes it from the files
 
 ## Source
 
-- Release: Knos 0.3.21 (`pyproject.toml`). Tag: [`v0.3.21`](https://github.com/drexthealpha/Knos/tree/v0.3.21); `git rev-list -n 1 v0.3.21` prints its commit. A file
+- Release: Knos 0.3.22 (`pyproject.toml`). Tag: [`v0.3.22`](https://github.com/drexthealpha/Knos/tree/v0.3.22); `git rev-list -n 1 v0.3.22` prints its commit. A file
   cannot hold the hash of the commit that holds it.
 - Cluster: Solana devnet. The money is test USDC. Mainnet is not touched.
 
@@ -272,6 +272,9 @@ capability is in [CAPABILITIES.md](CAPABILITIES.md).
 | `task_witnessed` | tested locally | [`examples/witnessed/witness.py`](../examples/witnessed/witness.py): `def _comment` | [`tests/test_task_witnessed.py`](../tests/test_task_witnessed.py): `test_the_whole_sequence_runs_in_order_leaves_a_link_for_each_step_and_the_record_meets_the_witness_task` | none | none | none |
 | `memory_approval_defence` | tested locally | [`src/knos/proof/history.py`](../src/knos/proof/history.py): `def approval_recalled` | [`tests/test_history_defence.py`](../tests/test_history_defence.py): `test_the_approval_is_answered_after_a_restart_from_the_store_only` | none | none | none |
 | `billing_sensitivity` | tested locally | [`src/knos/billing.py`](../src/knos/billing.py): `def sensitivity` | [`tests/test_billing.py`](../tests/test_billing.py): `test_sensitivity_prints_the_worked_customers_at_30_20_10_and_5_bps_realised` | none | none | none |
+| `fee_accounts_sharded` | tested locally | [`src/knos/settle/v2/pay.py`](../src/knos/settle/v2/pay.py): `def fee_account_for(order: Pubkey, mint: Pubkey` | [`tests/test_fee_shards.py`](../tests/test_fee_shards.py): `test_pay_order_and_settle_order_take_a_seeded_token_account_of_the_fee_owner_and_nothing_else` | none | none | none |
+| `memory_changes_decisions` | tested locally | [`src/knos/proof/history.py`](../src/knos/proof/history.py): `def protections_recalled(store, repo, terms: str` | [`tests/test_preflight.py`](../tests/test_preflight.py): `test_memory_changes_what_preflight_recommends_and_without_it_nothing_is_recommended` | none | none | none |
+| `fee_neutrality` | tested locally | [`programs-v2/knos_pay/src/order_pay.rs`](../programs-v2/knos_pay/src/order_pay.rs): `is_owned(a.fee_tok, a.token.key, &o.mint, &FEE_OWNER)` | [`tests/test_neutrality.py`](../tests/test_neutrality.py): `test_knos_fee_account_only_receives_fees_and_lowers_a_rate` | none | none | none |
 
 ## Outstanding limits
 

@@ -247,7 +247,8 @@ CASES = {
                              "rate": pay2.rate_pda(REPO), "used": pay2.used_pda(bytes(32))}]),
     },
 }
-NOT_THE_PROGRAMS = {"create_ata_ix"}   # an instruction of the associated token account program, not of knos-pay
+NOT_THE_PROGRAMS = {"create_ata_ix",    # an instruction of the associated token account program, not of knos-pay
+                    "create_fee_account_ixs"}   # the System and Token programs: a seeded token account of FEE_OWNER (0.3.22)
 # ES256 (programs-v2/knos_oidc/src/es256.rs, tags 10 to 15) is not in the IDL: the IDL is the instructions lib.rs's header
 # lists, and no file under idl/ changes in a release that changes no program. Its client (0.3.19) is held to the BUILT
 # program instead, by tests/test_es256_client.py; `secp256r1_ix` is the precompile's instruction, not knos_oidc's.

@@ -12,7 +12,7 @@ its source differ.
 <!-- bench:market -->
 **Agent PR Index, 2026-10-02:** in 826 repositories, the first pull request by an AI coding agent whose description said tests or CI pass had **a failed check of any kind in 147 (17.8%)** (95% Wilson interval 15.3%–20.6%). Counting every such pull request instead of one per repository, it is 660 of 2,431 (27.1%); that figure leans on a few busy repositories, so the per-repository one is the one to quote. Pull requests created 2026-06-04 – 2026-10-01 whose CI had finished at the head commit; 9,207 on repositories owned by the pull request's author or the person who assigned the agent were left out. A failed check is GitHub's record, not a judgment of why it failed. The list is published as `index.json` on the Pages site. A new scan is scheduled every 6 hours (`.github/workflows/index.yml`) and replaces the published list only when it has finished, so the date above says which scan these numbers are from.
 
-| agent | repositories | first claiming PR: any check failed | 95% interval | all claiming PRs | any check failed |
+| agent | repositories | first claiming PR per repository: any check failed | 95% interval | every claiming PR | every claiming PR: any check failed |
 |---|---|---|---|---|---|
 | GitHub Copilot coding agent | 341 | 85 (24.9%) | 20.6%–29.8% | 787 | 194 (24.7%) |
 | Devin | 78 | 13 (16.7%) | 10.0%–26.5% | 520 | 270 (51.9%) |
@@ -25,7 +25,7 @@ its source differ.
 <!-- bench:market-tests -->
 **Counting only failed tests and builds:** a failed check is not always a failed test. In **80 of the 826 repositories (9.7%)** (95% Wilson interval 7.9%–11.9%) one of the failed checks was, by its name, a test, build, lint or type-check job. In the other 67 of the 147 no failed check had such a name: deploy previews, title and label gates, review bots, coverage thresholds, security scanners, and jobs whose names do not say what they run (`check`, `validate`). Over every pull request it is 440 of 2,431 (18.1%). So "said tests pass while a check failed" is 17.8% of repositories, and "while a test or build check failed" is 9.7%; names decide the second, so read it as the cautious figure, not an exact one.
 
-| agent | repositories | any check failed | a test or build check failed | 95% interval | all claiming PRs | a test or build check failed |
+| agent | repositories | first claiming PR per repository: any check failed | first claiming PR per repository: a test or build check failed | 95% interval | every claiming PR | every claiming PR: a test or build check failed |
 |---|---|---|---|---|---|---|
 | GitHub Copilot coding agent | 341 | 85 (24.9%) | 46 (13.5%) | 10.3%–17.5% | 787 | 98 (12.5%) |
 | Devin | 78 | 13 (16.7%) | 8 (10.3%) | 5.3%–19.0% | 520 | 229 (44.0%) |

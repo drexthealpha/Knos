@@ -21,6 +21,18 @@ Each line is said once here, with what would change it.
 The commits are written with coding agents; he reviews and commits each one and is responsible for it
 ([DISCLOSURE.md](DISCLOSURE.md), "How the code is written").
 
+### Track record before Knos
+
+From 1 to 10 Sep 2026, before this hackathon's window opened on 14 Sep, the founder built Knos's earlier product:
+a shared memory for coding agents, on Sibyl Labs' memory engine. It took first place of 92 teams in the Sibyl Labs
+hackathon, with 126.9 points ([the leaderboard](https://hack.sibyllabs.org/leaderboard)). That hackathon's gate was
+that the memory must be load-bearing: remove it and the product must behave differently.
+
+The same engine is load-bearing in Knos today. `knos.proof.history` keeps, in a Sibyl store and nowhere else, every
+verdict the judge gave, the checks a caught tamper makes required on every later proof for that repository or
+agent, the refusals a preflight recalls before it answers, and a supplier's record across statements. That earlier
+product is not what is entered here; [DISCLOSURE.md](DISCLOSURE.md) says what of it remains.
+
 ### What he has shipped
 
 Dates are the release commits' dates in UTC (`git log`) and the dates [CHANGELOG.md](../CHANGELOG.md) prints.
@@ -87,9 +99,10 @@ First 90 days, this person would own:
 
 ## Founder and market: what fits, and what does not
 
-For: he works with coding agents every day, and the problem is his own, since his agents reported passing tests
-that had not passed. He measured it on public data before building for it ([BENCH.md](BENCH.md)). He ships, in
-public, and writes down what is not done.
+For: he has won before with the memory engine Knos still runs on (first of 92 at the Sibyl Labs hackathon, above).
+He works with coding agents every day, and the problem is his own, since his agents reported passing tests that had
+not passed. He measured it on public data before building for it ([BENCH.md](BENCH.md)). He ships, in public, and
+writes down what is not done.
 
 Against: the buyer is the person who approves a supplier's invoice, and he has never sold to that person, has
 not spoken to one about this, and has never worked in procurement or finance. A procurement process may refuse

@@ -254,9 +254,10 @@ def bounds(c: dict, repos: int, per_day: int, way: str = OWN, plan: str = "Free"
         {"limit": "the fee account of the mint", "scope": "every customer, every relayer",
          "at": ch["fee_account_orders_per_second"] * DAY / peak,
          "from": f"{ch['fee_account_orders_per_second']} payments a second in one mint (derived by scripts/load.py)",
-         "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to "
-                 "take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept "
-                 "to the same owner; nothing off chain can spread it"},
+         "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that "
+                 "FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes "
+                 "K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the "
+                 "simulator on the 2.1 and 2.2 builds, not yet measured on a cluster"},
     ]
     if way == PUBLIC:
         tokens = ch["tokens_per_order"]

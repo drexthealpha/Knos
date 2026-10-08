@@ -12,9 +12,9 @@ pull request a person merges.
 ## The leaderboard
 
 <!-- board:begin (written by scripts/agent_pr_index.py board; do not edit by hand) -->
-**Agent PR Index, week of 2026-09-28.** Read 2026-10-07. Every week read up to this one, added up. An agent with fewer than 30 merged pull requests in its row is "too few to rank".
+**Agent PR Index, week of 2026-09-28.** Read 2026-10-07. Every week read up to this one, added up. Basis: every merged pull request that claimed passing tests, so a busy repository counts many times. [BENCH.md](BENCH.md) counts the first such pull request per repository instead; the two shares differ. An agent with fewer than 30 merged pull requests in its row is "too few to rank".
 
-| Place | Agent | Claimed passing tests | Failed check at merge, of merged | Rate | 95% interval | Row |
+| Place | Agent | Claimed passing tests | Failed check at merge, of every merged one | Rate | 95% interval | Row |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | claude-bot | 195 | 10 of 165 | 6.1% | 3.3% to 10.8% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-09-28&agent=claude-bot&week=2026-09-28) |
 | 2 (overlaps) | codex | 52 | 3 of 44 | 6.8% | 2.4% to 18.2% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-09-28&agent=codex&week=2026-09-28) |

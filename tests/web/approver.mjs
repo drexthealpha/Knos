@@ -318,6 +318,13 @@ async function page() {
       ok("a recall row dropped on the page is drawn in the queue's place for it", (await p.$$eval("[data-ap=recall] .rc-row", (x) => x.length)) === 1 && seen.errors.length === 0, seen.errors);
       await dropFiles(p, [["queue.json", JSON.stringify([row, { ...row, reason: "duplicate" }])]]); await p.waitForFunction(() => document.querySelectorAll("[data-ap=recall] .rc-row").length === 2);
       ok("a list of them (`knos recall queue --json`) is drawn row by row", true);
+      // the queue itself: an exception whose history shows one ending most times is labelled and moved up; no memory, no label, no move
+      const queueNow = () => p.$$eval(".ap-queue li", (x) => x.map((li) => `${li.dataset.line}${li.dataset.pattern ? "*" : ""}`).join(" "));
+      await dropFiles(p, [["dup.json", JSON.stringify([{ ...row, reason: "duplicate" }])]]); await p.waitForFunction(() => document.querySelector(".ap-queue li")?.dataset.line === "4");
+      ok("memory ranks the queue: the duplicates that ended the same way 2 of 3 times come first, labelled", (await queueNow()) === "4* 6* 2 3 7"
+        && (await p.innerText(".ap-queue li[data-line='4'] [data-ap=pattern]")) === "Ended accepted on appeal 2 of 3 times before.", await queueNow());
+      await dropFiles(p, [["none.json", JSON.stringify([{ ...row, reason: "duplicate", memory: false }])]]); await p.waitForFunction(() => document.querySelector(".ap-queue li")?.dataset.line === "2");
+      ok("with no memory the same rows label nothing and move nothing", (await queueNow()) === "2 3 4 6 7" && seen.errors.length === 0, [await queueNow(), seen.errors]);
     }
     if (!existsSync(join(web, "rails.js"))) {
       await p.waitForFunction(() => performance.getEntriesByType("resource").some((r) => r.name.endsWith("/rails.js")));

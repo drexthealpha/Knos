@@ -14,7 +14,7 @@ One section for each agent the [Agent PR Index](INDEX.md) counts, week of 2026-0
 
 **Earn the supplier badge.** The badge is the vendor's own record ([RECORD.md](RECORD.md)), apart from its index row.
 
-1. **Run the free check on your own pull requests.** One line in your repository's workflow: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.21` (docs/RECORD.md, section 3). Gives a check receipt for each pull request; the badge stays grey.
+1. **Run the free check on your own pull requests.** One line in your repository's workflow: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.22` (docs/RECORD.md, section 3). Gives a check receipt for each pull request; the badge stays grey.
 2. **Deliver accepted work under a funded order.** A buyer funds an order; the work passes the terms fixed at funding and is paid on a token the forge signed. Gives an acceptance receipt for each delivery (docs/RECEIPT.md); the badge turns green, with its sample.
 
 ## claude-bot

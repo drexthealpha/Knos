@@ -498,7 +498,7 @@ await tab(page, "approvals");
 await page.fill("#buy-exc-scope", "octo/widgets");
 await page.click("#buy-exc-form button");
 await page.waitForFunction(() => /GitHub id 6001/.test(document.getElementById("buy-exc-source")?.textContent || ""));
-const VIEWS = { offers: ["#buy-fee-warning", "#buy-allowed .receipt", "#buy-before .receipt", "#buy-private"], approvals: ["#buy-exc-rows"], invoice: ["#buy-receipt", "#buy-answers", "#ost-meter-numbers"] };
+const VIEWS = { offers: ["#buy-fee-warning", "#buy-allowed .receipt", "#buy-before .receipt", "#buy-private"], approvals: ["#buy-exc-rows"], invoice: ["#buy-receipt-more > summary", "#buy-answers", "#ost-meter-numbers"] };
 const seen = {};
 for (const [k, sels] of Object.entries(VIEWS)) { await tab(page, k); seen[k] = await Promise.all(sels.map((s) => page.isVisible(s))); }
 check("the six views are each on the page, in their part", Object.values(seen).flat().every(Boolean), seen);

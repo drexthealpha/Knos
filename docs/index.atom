@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Agent PR Index</title>
-  <subtitle>Of merged agent pull requests that claimed passing tests, how many had a failed check. By agent, by week, with sample sizes and 95% intervals.</subtitle>
+  <subtitle>Of every merged agent pull request that claimed passing tests (not one per repository), how many had a failed check. By agent, by week, with sample sizes and 95% intervals.</subtitle>
   <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.atom</id>
   <link rel="self" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.atom"/>
   <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/INDEX.md"/>

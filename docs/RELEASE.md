@@ -528,14 +528,14 @@ Two rules, each learned from a release that broke it:
 export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
 python scripts/release.py publish                 # uploads THAT wheel and the sdist, then asks PyPI for the hash and its index for the file
 git push origin main                              # the ONE push, only after `publish` said "Next: git push"
-git tag v0.3.21 && git push origin v0.3.21        # starts release.yml
+git tag v0.3.22 && git push origin v0.3.22        # starts release.yml
 ```
 
 `publish` refuses unless `dist/` holds the locked wheel, the tree is committed and the commit holds the lock. A file
 on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a new version.
 
 The wheel goes up before the push because the moment the commit is public, the workflows it pins install
-`knos==0.3.21` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
+`knos==0.3.22` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
 
 **Push only after `publish` printed "Next: git push".** PyPI answers from two places: the page of a version shows an
 upload at once, and the index an installer resolves from (`https://pypi.org/simple/knos/`) is a cached page that

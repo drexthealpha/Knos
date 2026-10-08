@@ -942,6 +942,63 @@ def exceptions_before(store, terms: str, reason: str, supplier: str | None = Non
                         and (not who or r.get("supplier") == who))}
 
 
+# What a remembered ending teaches a supplier who is about to start under the same terms, or with the same buyer: the
+# protection that would have covered it (knos.preflight PROTECTIONS ids) and what to ask for.
+LATE_SECONDS = 7 * 86400.0      # an exception that took longer than this to end in acceptance was a late acceptance
+TAUGHT = {"dispute": ("predictable_payment", "reserve"), "appeal_won": ("appeal", "arbiter"),
+          "late_acceptance": ("acceptance_deadline", "deadline")}
+_TAUGHT_WORDS = {"dispute": ("ended in a dispute", "Ask the buyer to bind the work to a funded reserve."),
+                 "appeal_won": ("was rejected and then won on appeal", "Ask for an arbiter named at funding."),
+                 "late_acceptance": ("was accepted late", "Ask for an acceptance deadline: an order paid on a suite and funded with `auto`.")}
+
+
+def protections_recalled(store, repo, terms: str, supplier: str = "") -> list[dict]:
+    """What memory says a supplier should ask for before starting under the terms with hash `terms` in `repo`: each
+    remembered dispute, appeal won and late acceptance of THESE terms, or of THIS supplier under any terms, becomes the
+    protection that covers it. [{"because": dispute | appeal_won | late_acceptance, "protection": a knos.preflight
+    PROTECTIONS id, "ask": reserve | arbiter | deadline, "count", "evidence": [ids, newest first], "said"}], in TAUGHT's
+    order, only those seen. Read from three kinds of memory: appeals (an appeal that ended accepted), the
+    supplier-and-terms exception entities (a `disputed` case; an ending other than refused after more than
+    LATE_SECONDS) and the repository's orders (one that ended disputed). Empty with no memory: a plain hook learns
+    nothing here, so a preflight without the engine recommends nothing from history."""
+    terms, repo_k, who = str(terms), repo_key(repo), _agent_key(supplier)[:64]
+    seen: dict[str, dict[str, tuple[float, list[str]]]] = {k: {} for k in TAUGHT}
+
+    def add(kind: str, at: float, case: str, *evidence) -> None:
+        seen[kind][case] = (float(at), [case, *(str(x) for x in evidence if x)])
+
+    for a in appeals(store, repo):
+        if a["state"] == "accepted" and ((terms and a["terms"] == terms) or (who and a["supplier"] == who)):
+            add("appeal_won", a["at"], f"appeal {a['id']}", f"pull request #{a['pull']}")
+    names = {n: b for q in {terms, who} - {""} for n, b in _rows(store, "exception", q)}
+    for name, b in names.items():
+        if not _exception_row(b) or name != _id("exception", b["supplier"], b["terms"]) \
+                or not (b["terms"] == terms or (who and b["supplier"] == who)):
+            continue                # a row that does not say what its name says is not a memory of an exception
+        for c in b["cases"]:
+            if c["reason"] == "disputed":
+                add("dispute", c["at"], c["id"], *c["evidence"][:2])
+            if c["ending"] == "accepted_on_appeal":
+                add("appeal_won", c["at"], c["id"], *c["evidence"][:2])
+            if c["ending"] != "refused" and c["seconds"] is not None and c["seconds"] > LATE_SECONDS:
+                add("late_acceptance", c["at"], c["id"], *c["evidence"][:2])
+    for o in orders(store, repo_k) if repo_k else ():
+        if o["outcome"] == "disputed":
+            add("dispute", float(o["seq"]), f"order {o['order']}")
+    out = []
+    for kind, (protection, ask) in TAUGHT.items():
+        if not seen[kind]:
+            continue
+        ids: list[str] = []
+        for _case, (_at, got) in sorted(seen[kind].items(), key=lambda kv: (-kv[1][0], kv[0])):
+            ids += [x for x in got if x not in ids]
+        n, (what, do) = len(seen[kind]), _TAUGHT_WORDS[kind]
+        newest = sorted(seen[kind], key=lambda c: (-seen[kind][c][0], c))[:3]
+        out.append({"because": kind, "protection": protection, "ask": ask, "count": n, "evidence": ids[:8],
+                    "said": f"Work here {what} {n} time{'s' if n != 1 else ''} before ({', '.join(newest)}). {do}"})
+    return out
+
+
 def terms_text(store, terms: str, text: str | None = None) -> str:
     """The text of the terms with hash `terms`, kept as a reference document (the REFERENCE tier). With `text` it is
     stored; a text is never replaced under the same hash by a different one (ValueError). Returns the text held, or

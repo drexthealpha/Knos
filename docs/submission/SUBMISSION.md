@@ -9,8 +9,8 @@ Of first agent pull requests that claimed passing tests, 17.8% had a failed chec
 - Story: [../STORY.md](../STORY.md), the number, one task in seven steps with its evidence, and what the project needs next
 - This release on one page: [../MANIFEST.md](../MANIFEST.md), the source, the build live at each public program id, every capability's stage, the limits
 - Site: [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)
-- Code: [github.com/drexthealpha/Knos](https://github.com/drexthealpha/Knos) (MIT)
-- Network: Solana devnet. The money is test USDC. Track: Solana.
+- Code: [github.com/drexthealpha/Knos](https://github.com/drexthealpha/Knos) (MIT); in the form, the link is the release tag
+- Network: Solana devnet. The money is test USDC. Entered for: the Solana ecosystem track and the Public Good Prize.
 
 What is in this folder:
 
@@ -44,7 +44,23 @@ each says so, and the founder confirms it before pasting.
 ## Checklist for the day of submission
 
 - [ ] **Confirm the Solana ecosystem track is selected in the form.** A submission with no track selected is not
-      in that track.
+      in that track. Its prizes are awarded in addition to the overall awards
+      ([colosseum.com/worldsfair](https://colosseum.com/worldsfair), read 8 Oct 2026).
+- [ ] **Confirm the Public Good Prize is entered in the form,** on the case that the verifier is a
+      separate MIT program any Solana program can call ([../COMPOSE.md](../COMPOSE.md)) and the conformance kit lets
+      anyone check an implementation. If the form has no place to enter it, the founder asks Colosseum before the
+      deadline how to be considered, and says so here.
+- [ ] **The repository link in the form is the release tag, not the moving branch:**
+      `https://github.com/drexthealpha/Knos/tree/v<the version pyproject.toml names>` (the tag `release.yml` builds
+      from), and beside it the site, [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/). Open both
+      signed out.
+- [ ] **What predates the window is stated in the form** (`repoContext` below). The window is 14 Sep to
+      12 Oct 2026 ([colosseum.com/worldsfair](https://colosseum.com/worldsfair)). Before it: Knos 0.1, a different
+      product (shared memory for coding agents on Sibyl Labs' memory engine), released 1 to 7 Sep 2026 and worked on
+      until 12 Sep; it took first place at the Sibyl Labs hackathon (first of 92 teams, 126.9 points), whose build window was 1 to 10 Sep
+      ([leaderboard](https://hack.sibyllabs.org/leaderboard)). That result is the founder's track record, not part
+      of this entry. Its memory engine is used by Knos today (`knos.proof.history`); 1.1% of the lines at 0.3.11
+      date from before the window ([../DISCLOSURE.md](../DISCLOSURE.md)).
 - [ ] **The founder enters the disclosure in the submission form itself, not only in this repository.**
       Colosseum's page asks teams to "disclose all relevant past development work in the submission form"
       ([colosseum.com/hackathon](https://colosseum.com/hackathon)). The field `repoContext` below is that text: the
@@ -96,7 +112,8 @@ count that neither side owns. On Solana, checking that RSA signature takes two t
 
 The hackathon began on 14 Sep 2026. The public repository's history starts on 1 Sep 2026. Of its 209 commits up to
 Knos 0.3.11, 83 predate the hackathon: Knos 0.1 (1 to 7 Sep 2026), more work on it until 12 Sep, and daily
-automatic commits. Knos 0.1 was a different product, shared memory for coding agents built on Sibyl. By
+automatic commits. Knos 0.1 was a different product, shared memory for coding agents built on Sibyl; it took
+first place at the Sibyl Labs hackathon. By
 `git blame` at the 0.3.11 commit, 1.1% of the lines are older than the hackathon: the changelog entries for
 Knos 0.1, the licence, package metadata and scaffolding. The other 98.9% were last changed between 30 Sep and
 2 Oct 2026, and every release since was built after that. Work on two experiments that never shipped began on
@@ -123,7 +140,7 @@ USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one
 Knos funded itself, and the rest to Knos's own accounts. When the release ran, 46 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
 their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 42
-payments. 3,746 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
+payments. 3,788 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
 sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
 source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 
@@ -153,7 +170,8 @@ no legal entity to invoice from, and on devnet every fee is test money. No token
 
 ## teamCommitment
 
-One person, full time, under the handle drexthealpha, which is a pseudonym. I work with coding agents every day,
+One person, full time, under the handle drexthealpha, which is a pseudonym. In Sep 2026 my earlier product took
+first place at the Sibyl Labs hackathon. I work with coding agents every day,
 and this repository was built with them; I review and commit every change. I built it because my own agents told
 me the tests passed when they had not. What I have not done: sold to the person who approves a supplier's
 invoice, run a security review, or kept a service running for a customer. docs/TEAM.md names the three roles the

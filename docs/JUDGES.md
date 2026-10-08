@@ -2,7 +2,7 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Buyers and suppliers verify what AI work earned payment, then carry that evidence from authorisation through invoice approval to settlement.
+Knos lets buyers and suppliers agree what AI work earned payment, and independently prove that agreement later.
 
 Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.
 
@@ -23,9 +23,9 @@ Six criteria from the rules, then the seven factors on [Colosseum's page](https:
 | User experience | A buyer pastes an invoice on the first screen and gets the count, with no install and no sign-up. | [the site](https://drexthealpha.github.io/Knos/) |
 | Open source and composition | The code is MIT, and the verifier is a separate program that other Solana programs call. | [how to call it](COMPOSE.md) |
 | Business plan | Knos earns one fee, on value released against a signed acceptance, and the supplier never pays. | [the price book and its costs](MARKET.md) |
-| Founder and market fit | The founder builds with coding agents daily and has never sold to the person who approves an invoice. | [the team, for and against](TEAM.md) |
+| Founder and market fit | The founder placed first of 92 teams at Sibyl Labs in Sep 2026, and has never sold to an invoice approver. | [the team, for and against](TEAM.md) |
 | Insight | Every vendor counts its own outcomes, while the forge already signs a record that neither buyer nor supplier owns. | [why a neutral count](WHY.md) |
-| Product and execution | One page ties each public program id to the build it runs and each capability to its evidence. | [the release manifest](MANIFEST.md) |
+| Product and execution | Sibyl's memory engine, which the founder's first-place Sibyl Labs product ran on, holds Knos's history; each capability has evidence. | [the release manifest](MANIFEST.md) |
 | Potential market size | Not counted: the market is built from qualified organisations, and none has been asked yet. | [the addressable market](MARKET.md) |
 | Founder communication | The presentation fits in three minutes and ends on its limits in one sentence. | [the presentation](submission/pitch_script.md) |
 | Viability | Each customer's delivery cost is budgeted line by line, only the monthly batch is measured, and nothing has been sold. | [the unit costs](UNIT_COSTS.md) |

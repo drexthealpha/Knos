@@ -557,7 +557,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
       "load": 0.0,
       "binds": false
      },
@@ -641,7 +641,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
       "load": 0.0,
       "binds": false
      },
@@ -716,7 +716,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
       "load": 0.0001,
       "binds": false
      },
@@ -800,7 +800,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
       "load": 0.0001,
       "binds": false
      },
@@ -879,7 +879,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
       "load": 0.007,
       "binds": false
      },
@@ -969,7 +969,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "NEEDS A PROGRAM CHANGE: PayOrder writes FEE_OWNER's one token account of the mint. The change would be for PayOrder to take any of K fee accounts (a seed of the fee-owner authority and an index, the index chosen by the relayer), all swept to the same owner; nothing off chain can spread it",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
       "load": 0.007,
       "binds": false
      },
@@ -1235,6 +1235,39 @@
    "swept": 4,
    "sol_spent": 0.009084,
    "ok": true
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-08",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 1,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "seconds": 412.74,
+   "paid_per_s": 0.097,
+   "payment_s": {
+    "n": 40,
+    "p50": 9.44,
+    "p95": 13.58,
+    "p99": null,
+    "max": 17.35
+   },
+   "ok": true,
+   "lanes": "owner",
+   "owners": 1,
+   "fee_accounts": 1,
+   "fee_payers": [],
+   "wallet": null,
+   "source": "the operator's release run of 0.3.21 on 8 Oct 2026 with its own wallets; the 40 pay tokens were signed in GitHub Actions run 37763004447; recorded from the run's report, which kept no fee payers"
   }
  ]
 }

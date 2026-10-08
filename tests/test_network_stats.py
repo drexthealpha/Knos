@@ -753,6 +753,9 @@ def test_the_load_runs_fee_payers_fund_as_knos_never_as_outside_funders():
     import outsiders as rules
     listed = set(json.loads((ROOT / "scripts" / "own_github_ids.json").read_text(encoding="utf-8"))["wallets"])
     for run in json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8")).get("measured", []):
+        if run["wallet"] is None:       # recorded from an operator's report, not by `load.py measure`: it names no wallet, and says so
+            assert run["fee_payers"] == [] and "kept no fee payers" in run["source"], run.get("source")
+            continue
         assert {run["wallet"], *run["fee_payers"]} <= listed, run.get("run")
     for payer in ("8yDmQNFynGvC6vnxBKn2jBTHXvQ2229nditAQayWFcve", "CaA4rWEF77JT8XCYSB3U8jcj3dGETDNBk5eyXgurNJAp",
                   "DEzBx5xkBbuEfzoRgJGTDdrfhnodXX8djdgBknYW5Jd", "56QGy4NsYspMUVfqfVbC2JcjLgFprbu1RZS7GcbGywvK"):      # the 0.3.20 run's

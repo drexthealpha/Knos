@@ -1,7 +1,7 @@
 {
  "title": "For judges: one page",
  "sentence": "The neutral meter for AI agent work: neither side keeps the count.",
- "pitch": "Buyers and suppliers verify what AI work earned payment, then carry that evidence from authorisation through invoice approval to settlement.",
+ "pitch": "Knos lets buyers and suppliers agree what AI work earned payment, and independently prove that agreement later.",
  "number": "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.",
  "claim": "two parties who distrust each other compute the same bill from evidence a third party signed, and the program releases the money on that signature.",
  "why_solana": "Money is released with no custodian, and the count is anchored where neither side can alter it.",
@@ -57,7 +57,7 @@
   {
    "id": "founder_and_market_fit",
    "thing": "Founder and market fit",
-   "sentence": "The founder builds with coding agents daily and has never sold to the person who approves an invoice.",
+   "sentence": "The founder placed first of 92 teams at Sibyl Labs in Sep 2026, and has never sold to an invoice approver.",
    "link": "https://github.com/drexthealpha/Knos/blob/main/docs/TEAM.md",
    "label": "the team, for and against"
   },
@@ -71,7 +71,7 @@
   {
    "id": "product_and_execution",
    "thing": "Product and execution",
-   "sentence": "One page ties each public program id to the build it runs and each capability to its evidence.",
+   "sentence": "Sibyl's memory engine, which the founder's first-place Sibyl Labs product ran on, holds Knos's history; each capability has evidence.",
    "link": "https://github.com/drexthealpha/Knos/blob/main/docs/MANIFEST.md",
    "label": "the release manifest"
   },

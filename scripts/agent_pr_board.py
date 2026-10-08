@@ -45,6 +45,10 @@ TEMPLATE = "dispute-index-row.yml"
 TOO_FEW = agent_pr_index.TOO_FEW
 STATUSES = ("open", "resolved", "rejected")
 NO_PAY = "An agent vendor never pays for a row and cannot pay to change one."
+# Which pull requests a row counts. The Index publishes two bases, and a share means nothing without its own:
+# every merged claiming pull request here; the first claiming pull request per repository in docs/BENCH.md.
+BASIS = ("Basis: every merged pull request that claimed passing tests, so a busy repository counts many times. "
+         "[BENCH.md](BENCH.md) counts the first such pull request per repository instead; the two shares differ.")
 BEGIN = "<!-- board:begin (written by scripts/agent_pr_index.py board; do not edit by hand) -->"
 END = "<!-- board:end -->"
 
@@ -176,6 +180,8 @@ def feed(series: dict[str, Any], disputes: Any = ()) -> dict[str, Any]:
     least = series.get("min_claims_to_rank", agent_pr_index.MIN_CLAIMS_TO_RANK)
     canon = json.dumps(series, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
     return {"schema": SCHEMA, "name": series.get("name", agent_pr_index.NAME), "latest_week": weeks_of(series)[0], "read": series["read"],
+            "basis": {"counts": "every_merged_claiming_pr", "says": BASIS.replace("[BENCH.md](BENCH.md)", "docs/BENCH.md"),
+                      "other": "docs/BENCH.md and docs/bench.json `first_pr_per_repo`: the first claiming pull request per repository"},
             "min_claims_to_rank": least, "rule": NO_PAY, "measure": MEASURE, "method": [m.format(least=least) for m in METHOD], "limits": LIMITS,
             "agents_told_by": series.get("agents_told_by", {}), "claim_search": series.get("claim_search"),
             "source": {"file": "docs/agent_weekly.json", "sha256_of_canonical_json": hashlib.sha256(canon).hexdigest(),
@@ -205,7 +211,7 @@ def atom(doc: dict[str, Any]) -> str:
     stamp = lambda day: f"{day}T00:00:00Z"  # noqa: E731
     out = ['<?xml version="1.0" encoding="utf-8"?>', '<feed xmlns="http://www.w3.org/2005/Atom">',
            f"  <title>{escape(doc['name'])}</title>",
-           "  <subtitle>Of merged agent pull requests that claimed passing tests, how many had a failed check. By agent, by week, with sample sizes and 95% intervals.</subtitle>",
+           "  <subtitle>Of every merged agent pull request that claimed passing tests (not one per repository), how many had a failed check. By agent, by week, with sample sizes and 95% intervals.</subtitle>",
            f"  <id>{doc['links']['atom']}</id>", f'  <link rel="self" href="{doc["links"]["atom"]}"/>',
            f'  <link rel="alternate" href="{doc["links"]["page"]}"/>', f"  <updated>{stamp(doc['read'])}</updated>",
            "  <author><name>Knos</name></author>"]
@@ -225,8 +231,9 @@ def table(doc: dict[str, Any], week: str | None = None) -> str:
     w = next(x for x in doc["weeks"] if x["week"] == (week or doc["latest_week"]))
     cell = lambda r: "not read" if r["merged"] is None else "0 of 0" if not r["merged"] else f"{r['failed_at_merge']} of {r['merged']}"  # noqa: E731
     lines = [f"**{doc['name']}, week of {w['week']}.** Read {w['read']}. Every week read up to this one, added up. "
+             f"{BASIS} "
              f"An agent with fewer than {w['min_claims_to_rank']} merged pull requests in its row is \"{TOO_FEW}\".", "",
-             "| Place | Agent | Claimed passing tests | Failed check at merge, of merged | Rate | 95% interval | Row |",
+             "| Place | Agent | Claimed passing tests | Failed check at merge, of every merged one | Rate | 95% interval | Row |",
              "| --- | --- | --- | --- | --- | --- | --- |"]
     for r in w["rows"]:
         place = TOO_FEW if r["status"] == TOO_FEW else r["status"] if r["rank"] is None else f"{r['rank']}{' (overlaps)' if r['overlaps_above'] else ''}"

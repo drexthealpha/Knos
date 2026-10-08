@@ -272,6 +272,7 @@ export function renderBuyer(el, env = {}) {
     <section class="card" id="buy-statement" style="scroll-margin-top:80px"><h3>The month's statement, and each order as four records</h3>
       <p>One month of orders. Each order: authorisation, acceptance, commercial record, settlement status.</p>
       <div id="buy-statement-box"></div>
+      <p class="fine promise" id="buy-promise">Buyers can defend the bill; suppliers can defend what they are owed.</p>
     </section>
     </div>`;
 
@@ -629,8 +630,8 @@ export function renderBuyer(el, env = {}) {
         kill: (e) => `a kill fee of ${show(Number(e.amount))} to the person who had reserved it`, topup: (e) => `topped up by ${show(Number(e.add))}`, assigned: () => "its payment was assigned" };
       const paid = events.filter((e) => e.event === "paid");
       const t = template(), accepted = paid.length || events.some((e) => e.event === "held");
-      const receipt = accepted ? `<h4>Accepted: the receipt, in its five parts</h4><dl class="parts" id="buy-receipt">
-          ${con.receiptParts(o, events, tx, t ? t.trusted.slice(1) : null).map(([head, line]) => `<dt>${esc(head)}</dt><dd>${line}</dd>`).join("")}</dl>
+      const receipt = accepted ? `<h4>Accepted: the receipt</h4><details class="k-more" id="buy-receipt-more"><summary>The receipt, in its five parts</summary><dl class="parts" id="buy-receipt">
+          ${con.receiptParts(o, events, tx, t ? t.trusted.slice(1) : null).map(([head, line]) => `<dt>${esc(head)}</dt><dd>${line}</dd>`).join("")}</dl></details>
           <p class="fine">${paid.length ? `Paid ${esc(show(paid.reduce((n, e) => n + Number(e.amount), 0)))} test USDC to ${paid.length === 1 ? "one person" : `${paid.length} people`}. ` : ""}Each line is what the chain's log holds. The receipt as a file with every claim is specified in docs/RECEIPT.md.</p>` : "";
       const answers = `<h4>Who answers if this fails</h4><p id="buy-answers">${esc(con.ANSWERS)}</p>`;
       out.innerHTML = `<p class="verdict ${st.state === "none" ? "" : "ok"}" id="buy-state" data-state="${esc(st.state)}">${esc(st.state === "none" ? "No order yet" : st.state[0].toUpperCase() + st.state.slice(1))}</p>

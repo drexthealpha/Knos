@@ -70,7 +70,8 @@ def test_the_first_screen_says_forty_words_at_most() -> None:
     page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     bar = page[page.index('<header class="bar">'):page.index("</header>")]
     bar = re.sub(r'<div class="more-list".*?</div>', "", bar, flags=re.S)                 # what More holds is one press away
-    hero = page[page.index('<div class="hero'):page.index('<section id="demo"')]
+    # the first screen ends where "How it works" begins (since 0.3.22 it stands under the hero, before the demo's mount)
+    hero = page[page.index('<div class="hero'):min(page.index('<section id="demo"'), page.index('<h2 id="how-it-works">'))]
     assert f'<h1 id="check">{ONE}</h1>' in hero
     assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 6      # six links in the bar: Check, Demo, Console, Leaderboard, Pricing, Docs
     fact = re.search(r'<p class="hero-fact"[^>]*>(.*?)</p>', hero, re.S)

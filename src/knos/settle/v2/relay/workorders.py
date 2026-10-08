@@ -209,12 +209,23 @@ def _order_paid(ledger, order: Pubkey, pr: int, since: int) -> list[dict]:
     return out
 
 
-def _tip_accounts(me: Pubkey, o: pay.Order, got: dict) -> tuple[list[Instruction], int]:
+def _tip_accounts(me: Pubkey, o: pay.Order, got: dict, fee: Pubkey | None = None) -> tuple[list[Instruction], int]:
     """An order's payment sends the relayer its tip and FEE_OWNER the rest of the fee: their token accounts of the
-    order's mint must exist, so each is made the first time it is needed. (`got`: a read that asked for both.)"""
+    order's mint must exist, so each is made the first time it is needed. (`got`: a read that asked for both.)
+    `fee`: the fee account the payment names (`_fee_account`); a seeded one exists already, so only the associated
+    one is ever made here."""
     tp = o.token_program
-    ixs = [pay.create_ata_ix(me, owner, o.mint, tp) for owner in (me, pay.FEE_OWNER) if _data(got, pay.ata(owner, o.mint, tp)) is None]
+    home = pay.ata(pay.FEE_OWNER, o.mint, tp)
+    owners = (me, pay.FEE_OWNER) if fee in (None, home) else (me,)
+    ixs = [pay.create_ata_ix(me, owner, o.mint, tp) for owner in owners if _data(got, pay.ata(owner, o.mint, tp)) is None]
     return ixs, _CU["ata"] * len(ixs)
+
+
+def _fee_account(order: Pubkey, o: pay.Order, got: dict) -> Pubkey:
+    """The fee account this order's payment names: its own of the K (pay.fee_account_for), or FEE_OWNER's associated
+    one when that one is not on chain yet (`got`: a read that asked for it). The program takes either."""
+    chosen, home = pay.fee_account_for(order, o.mint, o.token_program), pay.ata(pay.FEE_OWNER, o.mint, o.token_program)
+    return chosen if chosen == home or _data(got, chosen) is not None else home
 
 
 def _number(v) -> int | None:
@@ -357,7 +368,8 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
     standing, left = bool(o.flags & pay.F_STANDING), o.amount - o.paid
     tp = o.token_program
     got = _read(ledger, [*(k for i, _b, _w in payees for k in (pay.bind_pda(i), pay.assign_pda(order, i))), pay.ata(me, o.mint, tp),
-                         pay.ata(pay.FEE_OWNER, o.mint, tp), pay.done_pda(order, pr)])
+                         pay.ata(pay.FEE_OWNER, o.mint, tp), pay.fee_account_for(order, o.mint, tp), pay.done_pda(order, pr)])
+    fee = _fee_account(order, o, got)
     if o.state != "open" or (standing and _data(got, pay.done_pda(order, pr)) is not None):
         if rows := before():        # paid by this token already: what it holds back waits for its warranty, or (standing) it stays open for the next
             raise already(rows)
@@ -404,8 +416,8 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
         have = order_auto.passed21(said, o, t.aud, mine)
     waits = have < need
     fresh = a.v >= fees.NEW_VERSION and o.inc != 0 and (need or standing)   # 2.2 writes and counts no marker in the slot of the funding (83)
-    first, cu = ([], 0) if held or waits else _tip_accounts(me, o, got)
-    ix = order_auto.with_quorum(pay.pay_order_ix(me, t.account, t.key, order, o, wallets, pr=pr, used=t.jwt), order, o)
+    first, cu = ([], 0) if held or waits else _tip_accounts(me, o, got, fee)
+    ix = order_auto.with_quorum(pay.pay_order_ix(me, t.account, t.key, order, o, wallets, pr=pr, used=t.jwt, fee_token=fee), order, o)
 
     def done(sigs: list[str]) -> dict:
         after = pay.read_order(ledger.account(order))
