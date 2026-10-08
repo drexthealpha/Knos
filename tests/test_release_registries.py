@@ -73,4 +73,5 @@ def test_the_release_page_says_what_signed_in_means_and_gives_the_commands_in_or
     for registry, name in release.PACKAGES:
         assert release.FIRST[registry].format(name=name).replace("&& (cd crates", "&&  (cd crates") in part.replace("  ", " ").replace("&& (cd crates", "&&  (cd crates"), name
     assert part.index("knos-oidc-interface && cargo publish --dry-run") < part.index("knos-pay-interface  && cargo publish --dry-run") < part.index("npm publish --dry-run")
-    assert "no `cargo login`, no\n`npm login`, no account" in part and "Neither has been published" in part
+    assert "no `cargo login`, no\n`npm login`, no account" in part and "Neither has been published" not in part
+    assert "the first versions went up by hand on\n8 October 2026" in part

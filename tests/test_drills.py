@@ -213,11 +213,13 @@ def test_the_committed_table_has_a_row_for_every_drill_and_none_of_them_failed()
 def test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took():
     said: list[str] = []
     rows = drills.dependency_rows(said.append)
-    assert [r.name for r in rows] == [name for name, _f in drills.DEPENDENCIES] and len(rows) == 7
-    assert [r.result for r in rows] == ["pass"] * 7, [(r.name, r.result) for r in rows]
+    assert [r.name for r in rows] == [name for name, _f in drills.DEPENDENCIES] and len(rows) == 8
+    assert [r.result for r in rows] == ["pass"] * 8, [(r.name, r.result) for r in rows]
     assert all(r.broken and r.sees and r.recovers and " s" in r.seconds for r in rows)
     assert said == [f"when {r.name}: {r.seconds}: pass" for r in rows]
-    github, key, killed, rpc, evidence, reset, restored = rows
+    github, key, killed, rpc, evidence, reset, restored, rotated = rows
+    assert rotated.seconds == "A: paid 86400 s after the new key was published (86400 s of it the program's own wait). B: never paid; refunded in full after the deadline"
+    assert "only an upgrade of the verifier (48 hours) admits a key" in rotated.recovers and "new kid" in rotated.broken
     assert "1 of 1 bundle restored byte for byte from the export alone" in restored.seconds and "knos vault restore" in restored.recovers
     assert "all 3 paid on the first pass after GitHub answered, 3 s later (603 s after their comments); none paid twice" in github.seconds and "502 for 600 s" in github.broken
     assert "(no transaction was sent)" in key.sees and "this signing key expired" in key.sees and key.seconds.startswith("paid 121 s after the key expired")
@@ -234,9 +236,9 @@ def test_the_dependency_section_is_in_the_page_replaced_alone_and_a_row_that_fai
     doc = out.read_text(encoding="utf-8")
     section = drills.dependency_section(drills.dependency_rows(lambda _line: None))
     assert section in doc and doc.index("## The drills") < doc.index(drills.HEADING) < doc.index("## Reproduce") < doc.index("## Recovery a funder can run")
-    assert "7 of 7 rows passed, 0 failed, 0 were not run." in section and "6 of 15 rows passed, 0 failed, 9 were not run." in doc     # the two counts stay apart
+    assert "8 of 8 rows passed, 0 failed, 0 were not run." in section and "6 of 15 rows passed, 0 failed, 9 were not run." in doc     # the two counts stay apart
     assert "| Failure | What was broken | What the customer sees | How it recovers | Measured recovery, simulated seconds | Result |" in section
-    assert said[-2] == "when a dependency fails: 7 passed, 0 failed, 0 not run"
+    assert said[-2] == "when a dependency fails: 8 passed, 0 failed, 0 not run"
     # alone: no cluster is read, and the page is the same; a page that has no such section yet gets it before "Reproduce"
     assert drills.main(["--out", str(out), "--dependencies-only"], None, said.append) == 0 and out.read_text(encoding="utf-8") == doc
     start, end = doc.index(drills.HEADING), doc.index("## Reproduce")

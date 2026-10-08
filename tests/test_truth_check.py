@@ -24,11 +24,13 @@ CAPS = {
         {"id": "approval_chains", "stage": "tested", "evidence": {}, "note": "`knos approve`."},
         {"id": "record_lookup_paid", "stage": "tested", "evidence": {}},
         {"id": "order_pay", "stage": "exercised", "evidence": {}},
+        {"id": "work_orders", "stage": "exercised", "evidence": {}},
         {"id": "private_work", "stage": "tested", "evidence": {}},
         {"id": "sketch", "stage": "implemented", "evidence": {}},
     ],
 }
-BILLING = '''METER_PRICE = Decimal("0.002")
+BILLING = '''METER_FREE = 100_000
+METER_PRICE = Decimal("0.002")
 ACCEPT_RATE = Decimal("0.0030")
 ACCEPT_TIERS = ((Decimal(0), ACCEPT_RATE), (Decimal(1_000_000), Decimal("0.0020")))
 RECORD_PRICE = Decimal("0.10")
@@ -42,9 +44,10 @@ def _tree(tmp_path: Path, **docs: str) -> Path:
     files = {"docs/capabilities.json": json.dumps(CAPS, indent=1), "src/knos/billing.py": BILLING, "src/knos/fees.py": FEES,
              "src/knos/settle/v2/pay.py": "FEE_BPS = 30\n", "src/knos/approvals.py": "def gate():\n    return True\n",
              "src/knos/flow.py": "from knos import approvals\n\nok = approvals.gate()\n",
-             "README.md": "**Knos.**\n\nFour programs on Solana devnet.\n"}
+             "README.md": "**Knos.**\n\nFour programs on Solana devnet.\n", "pyproject.toml": '[project]\nname = "knos"\nversion = "0.3.21"\n'}
     names = {"readme": "README.md", "market": "docs/MARKET.md", "controls": "docs/CONTROLS.md", "disclosure": "docs/DISCLOSURE.md",
-             "pitch": "docs/submission/pitch_script.md", "page": "web/index.html", "script": "web/price.js", "caps": "docs/capabilities.json"}
+             "pitch": "docs/submission/pitch_script.md", "page": "web/index.html", "script": "web/price.js", "caps": "docs/capabilities.json",
+             "compare": "docs/COMPARE.md", "compose": "docs/COMPOSE.md", "assurance": "docs/ASSURANCE.md"}
     files.update({names[k]: v for k, v in docs.items()})
     for rel, text in files.items():
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -59,9 +62,12 @@ def _found(root: Path) -> list[tuple[str, str, int]]:
 def test_a_tree_that_agrees_with_itself_has_no_contradiction(tmp_path):
     tc = _tool()
     root = _tree(tmp_path, market="# Prices\n\n| Record | 0.10 USD a lookup |\n| Control | Team 25,000; Business 100,000; Enterprise from 400,000 |\n\n"
-                                  "Acceptance: 0.30%; by contract 0.20% above 1M. The fee is 0.30% of the amount.\n\nThe public id runs knos_pay 2.1.\n",
+                                  "Acceptance: 0.30%; by contract 0.20% above 1M. The fee is 0.30% of the amount.\n\nThe public id runs knos_pay 2.1.\n\n"
+                                  "Meter: 100,000 evaluations a month free per organisation, then 0.002 USD.\n",
+                 compose="Install `knos-settle` from npm: `npm install knos-settle@0.3.20`.\n\nThis release (0.3.21) adds a check.\n\n"
+                         "Until knos_pay 2.2 executes, the public program charges the 0.3.14 fee; the quorum fixes are in 2.2.\n",
                  controls="`knos.approvals.gate` is asked by the funding workflow for a standing offer.\n",
-                 readme="**Knos.**\n\n**Exercised on devnet:** `order_pay`. Four programs on Solana devnet. The manifest has 5 capabilities.\n")
+                 readme="**Knos.**\n\n**Exercised on devnet:** `order_pay`. Four programs on Solana devnet. The manifest has 6 capabilities.\n")
     assert tc.problems(root) == []
     said: list[str] = []
     assert tc.main([], say=said.append, root=root) == 0 and said[-1].startswith("no contradiction in ")
@@ -131,7 +137,7 @@ def test_two_documents_that_count_differently_are_found_and_a_count_of_capabilit
     found = tc.problems(root)
     assert [(p.rule, p.file, p.line) for p in found] == [("count", "docs/MARKET.md", 3), ("count", "docs/submission/pitch_script.md", 1),
                                                          ("count", "docs/submission/pitch_script.md", 3)]
-    assert "has 5 capabilities, and this says 9" in found[0].against and "README.md:3 counts 4 programs" in found[1].against
+    assert "has 6 capabilities, and this says 9" in found[0].against and "README.md:3 counts 4 programs" in found[1].against
     assert "docs/MARKET.md:1 counts 3412 tests passed" in found[2].against
     said: list[str] = []
     assert tc.main(["--json"], say=said.append, root=root) == 1 and len(json.loads(said[0])) == 3
@@ -151,4 +157,85 @@ def test_the_checker_reads_this_tree_and_every_file_it_names_exists():
     book = tc.price_book()
     assert book["record"] == "0.10" and book["meter"] == "0.002" and book["team"] == "25000" and book["pilot"] == "2500" and book["acceptance"] == "0.20,0.30"
     for p in tc.problems():                                               # whatever it finds, it points at a real line
-        assert (ROOT / p.file).is_file() and p.line >= 1 and p.rule in {"stage", "calls", "price", "fee", "version", "count"}
+        assert (ROOT / p.file).is_file() and p.line >= 1 and p.rule in {"stage", "calls", "price", "fee", "version", "count", "release", "live", "published"}
+
+
+def test_a_capability_named_in_plain_words_as_tested_only_is_held_to_its_stage(tmp_path):
+    """The README "today" table said work orders were tested here only while the manifest had them exercised."""
+    root = _tree(tmp_path, readme="**Knos.**\n\n| What | Today |\n|---|---|\n| Tested here only | work orders, the ledger, and every other capability |\n"
+                                  "| Exercised | top-ups |\n")
+    found = _tool().problems(root)
+    assert [(p.rule, p.file, p.line) for p in found] == [("stage", "README.md", 5)] and "`work_orders` is at stage \"exercised\"" in found[0].against
+
+
+def test_a_page_that_names_an_older_release_as_the_current_one_is_found(tmp_path):
+    root = _tree(tmp_path, assurance="This page is about the programs as Knos 0.3.14 has it.\n\nThe 0.3.14 fee was 2.5%.\n",
+                 pitch="What this release (0.3.18) changes: a price book.\n\nWhat this release (0.3.21) changes: a checker.\n")
+    found = [p for p in _tool().problems(root) if p.rule == "release"]
+    assert [(p.file, p.line) for p in found] == [("docs/ASSURANCE.md", 1), ("docs/submission/pitch_script.md", 1)]
+    assert "the current release is 0.3.21, and this names 0.3.14" in found[0].against
+
+
+def test_a_fee_or_a_quorum_fix_said_to_hold_today_is_held_to_the_build_at_the_public_id(tmp_path):
+    page = ("Today the public program charges 0.30% of the amount, at least 0.05.\n\nThe two quorum findings are fixed in the escrow.\n\n"
+            "Once knos_pay 2.2 executes, the fee is 0.30%, at least 0.05, and the quorum is fixed.\n\n"
+            "Today a 5 USDC order pays the 0.3.14 fee, at least 0.40.\n\nThe quorum defects are still live on the public ids.\n")
+    tc = _tool()
+    root = _tree(tmp_path, compare=page)
+    assert [(p.rule, p.line) for p in tc.problems(root) if p.rule == "live"] == [("live", 1), ("live", 3)]   # 2.1 runs
+    caps = json.loads(json.dumps(CAPS))
+    caps["programs"]["knos_pay"]["on_chain"] = "2.2"
+    (root / "docs" / "capabilities.json").write_text(json.dumps(caps), encoding="utf-8")
+    found = [p for p in tc.problems(root) if p.rule == "live"]
+    assert [p.line for p in found] == [7, 9] and "runs 2.2" in found[0].against                             # after the upgrade
+
+
+def test_a_package_knos_published_said_to_be_unpublished_is_found_with_its_install_link(tmp_path):
+    caps = json.loads(json.dumps(CAPS))
+    caps["capabilities"][0]["note"] = "The interface crates and the JS SDK are not published yet."
+    root = _tree(tmp_path, compose="**Not published yet.** Neither interface crate is on crates.io.\n\n`knos-settle` is not on npm.\n\n"
+                                   "The deploy fee payer is not published.\n\nBefore 8 Oct the crates were not on crates.io.\n",
+                 caps=json.dumps(caps, indent=1))
+    found = [p for p in _tool().problems(root) if p.rule == "published"]
+    assert [p.file for p in found] == ["docs/COMPOSE.md", "docs/COMPOSE.md", "docs/capabilities.json"]
+    assert "https://www.npmjs.com/package/knos-settle" in found[1].against and "crates.io/crates/knos-oidc-interface" not in found[1].against
+    assert "knos-oidc-interface 0.3.14 is on crates.io" in found[0].against
+
+
+def test_none_published_and_neither_has_been_published_are_found_too(tmp_path):
+    """docs/RELEASE.md said "Three packages, none published yet" and "Neither has been published" after all three were
+    on their registries (8 Oct 2026): the words slipped past "not published". A sentence about the past still passes."""
+    root = _tree(tmp_path, compose="Three packages, none published yet: the crates and `knos-settle`.\n\n"
+                                   "The crates and the npm client: neither has been published.\n\n"
+                                   "Each crate is published on crates.io.\n\nOn 4 October none was published on npm, before the first publish.\n")
+    found = [p for p in _tool().problems(root) if p.rule == "published"]
+    assert [(p.file, p.line) for p in found] == [("docs/COMPOSE.md", 1), ("docs/COMPOSE.md", 3)]
+    assert "knos-settle 0.3.20 is on npm" in found[0].against and 'this says "none published"' in found[0].against
+
+
+def test_an_old_meter_price_in_a_comparison_table_is_found_cell_by_cell(tmp_path):
+    """COMPARE.md printed the earlier price book in one cell of a row whose other cell said "before the work"."""
+    root = _tree(tmp_path, compare="| | terms | fee |\n|---|---|---|\n| **Knos** | hashed before the work | 10,000 evaluations a month free, then 0.05 USD; "
+                                   "or 0.5% of the reconciled accepted invoice value, capped at 250 USD per deliverable |\n"
+                                   "| Margin | Acceptance 99.8% gross margin | |\n")
+    found = [p for p in _tool().problems(root) if p.rule == "price"]
+    assert [p.line for p in found] == [3, 3, 3, 3]
+    said = " ".join(p.against for p in found)
+    assert "is 0.002 USD, and this says 0.05" in said and "is 100000, and this says 10,000" in said and "this says 0.5%" in said and "no cap" in said
+
+
+def test_the_readme_today_table_is_generated_from_the_manifest_and_cannot_drift():
+    import importlib.util as iu
+    import sys
+    spec = iu.spec_from_file_location("bench_docs_tool", ROOT / "scripts" / "bench_docs.py")
+    bd = iu.module_from_spec(spec)
+    sys.modules[spec.name] = bd
+    spec.loader.exec_module(bd)
+    rows = dict((a, b) for a, b, _c in bd.stage_rows(CAPS["capabilities"]))
+    assert rows["Exercised at the public devnet program ids"] == "2 of 6: an order paying up to four payees, work orders"
+    assert rows["Tested here only"] == "3 of 6, each with the test its row names" and rows["Reproduced by someone else"] == "0 of 6"
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    caps = bd.capabilities()
+    for name, said, _where in bd.stage_rows(caps):
+        assert f"| {name} | {said} |" in readme, name
+    assert sum(int(said.split(" of ")[0]) for _n, said, _w in bd.stage_rows(caps)) == len(caps)

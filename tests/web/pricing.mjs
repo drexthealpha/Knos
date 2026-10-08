@@ -148,7 +148,7 @@ for (const [v, width] of [[1, 1280], [2, 1280], [1, 320], [2, 320]]) {
     ok("Version 1 (knos_pay 2.1 is live): the facts say the fee today and, in a second row, the fee after the next upgrade", JSON.stringify(rows) === JSON.stringify([["DT", "now", "Fee on devnet today"], ["DD", "now", OLD], ["DT", "next", "After the next upgrade"], ["DD", "next", NEW]]), rows);
     ok("  the book's on-chain cell says today's rule first and the next upgrade's second", said === `knos_pay at release (on chain today: ${OLD}; after the next upgrade: 0.30% and the floor; volume rates are a rebate by contract, off chain)` && fee === "0.3.14" && live === "1", said);
     ok("  what the program takes is today's: 5 pays 0.40 (8.00%), 100 pays 2.50, 100,000 pays 765", JSON.stringify(effective.map((r) => [r[0], r[1], r[2]]).filter((r) => ["5", "100,000"].includes(r[0]))) === JSON.stringify([["5", "0.40", "8.00%"], ["100,000", "765", "0.77%"]]) && worked[0][2] === "2.50", [effective, worked]);
-    ok("  and the sentence under the book names the build that charges it", (await p.textContent("#price-honest-now")).startsWith("Until knos_pay 2.2 is live the program charges the 0.3.14 fee"));
+    ok("  and the sentence under the book names the build that charges it", (await p.textContent("#price-honest-now")).startsWith("Until knos_pay 2.2 is live the program charges the fee it charges before the upgrade"));
   } else {
     ok("Version 2 (knos_pay 2.2 is live): one row, the one rule, and no row for an upgrade", JSON.stringify(rows) === JSON.stringify([["DT", "now", "Fee on devnet today"], ["DD", "now", NEW]]), rows);
     ok("  the book's on-chain cell is the book's own, word for word", said === vectors.lines[2][4] && fee === "0.3.18" && live === "1", said);

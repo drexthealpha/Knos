@@ -95,23 +95,23 @@ bytes that upgrade deployed. No fee, no agreement, no contact first.
 
 ## Install from a registry
 
-**Not published yet.** Neither interface crate is on crates.io and the JavaScript client is not on npm; today both
-are taken from the repository by tag, as the sections above show. The lines below are what an install will be once
-a release run publishes them and records the versions here.
+Both interface crates are on crates.io at 0.3.14 ([knos-oidc-interface](https://crates.io/crates/knos-oidc-interface),
+[knos-pay-interface](https://crates.io/crates/knos-pay-interface)), and the JavaScript client is on npm at 0.3.20
+([knos-settle](https://www.npmjs.com/package/knos-settle)). The git and tarball lines above still work.
 
 ```toml
-knos-oidc-interface = "0.3.14"    # not published yet
-knos-pay-interface = "0.3.14"     # not published yet
+knos-oidc-interface = "0.3.14"
+knos-pay-interface = "0.3.14"
 ```
 
 ```bash
-npm install knos-settle           # not published yet
+npm install knos-settle@0.3.20
 ```
 
 `python scripts/release.py registry-plan` prints what would be published where and checks, with no network, that
 each package packs and that its README has no link that works only inside the repository. It publishes nothing.
 The release run adds `--online` (is each name free, or which versions does the registry hold), then
-`cargo owner --list <crate>` and `npm owner ls knos-settle` once a name exists. The interface crates stay at 0.3.14
+`cargo owner --list <crate>` and `npm owner ls knos-settle`. The interface crates stay at 0.3.14
 while the programs that link them do; the JavaScript client moves with each release.
 
 To rebuild the example programs and re-pin their test binaries: `bash scripts/build_programs_v2.sh examples`.

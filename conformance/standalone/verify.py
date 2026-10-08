@@ -3,7 +3,7 @@
 
     python verify.py                  the folder this file is in (an unpacked archive)
     python verify.py ARCHIVE.zip      an archive, packed
-    python verify.py FOLDER --strict  also fail on a note marked INCOMPLETE (a missing number) or UNSIGNED (a root or a log nobody signed)
+    python verify.py FOLDER --strict  also fail on a note marked INCOMPLETE (a missing number), UNSIGNED (a root or a log nobody signed) or OPEN (a month not closed)
 
 This file is the whole verifier. It imports the Python standard library and nothing else, it opens no connection, and
 it needs neither Knos, nor its website, nor a Solana node. Python 3.8 or later. It is written to be read: every check
@@ -22,7 +22,11 @@ What it checks again, from the archived bytes alone:
   7. every signed token: its signature against the archived keys, and what it was signed for (a batch of an archived
      ledger, a file of the archive, a head of the log);
   8. every statement for accounts payable: its own hash, and every total from its lines;
-  9. the terms: each file's bytes hash to the name it is kept under.
+  9. the terms: each file's bytes hash to the name it is kept under;
+ 10. each party's acknowledgement of a month (Ed25519, RFC 8032): the key is the one its terms name, the signature is
+     over that month's last line, head and root, the log still holds every acknowledged line, and a month is closed
+     only by both acknowledgements or by a closure after the silence the terms allow. A line missing or changed after an
+     acknowledgement, or a counted event added after a month closed, is a named discrepancy.
 
 What it cannot check, and says so in its report: that the archived keys are the issuer's (compare their SHA-256 with a
 copy another holder kept, or with the issuer's own document); that nothing was left out before the first archive was
@@ -32,6 +36,7 @@ checked by hash; its judge's token is checked when the token itself is in the ar
 Exit code 0 when every check holds, 1 otherwise.
 """
 import base64
+import datetime
 import hashlib
 import json
 import os
@@ -185,6 +190,222 @@ def read_token(token, jwks):
     if alg not in ("RS256", "ES256"):
         return head, claims, "its algorithm %r is not one this file checks (RS256, ES256)" % (alg,)
     return head, claims, "it does not carry the signature of the archived key %r: the token or the keys were changed" % (kid,)
+
+
+# -- counterpart acknowledgements of a month: Ed25519 -----------------------------------------------------------------------
+ED_P = 2 ** 255 - 19                                                    # Ed25519 (RFC 8032, 5.1): the field, the curve constant, the group order
+ED_D = -121665 * pow(121666, ED_P - 2, ED_P) % ED_P
+ED_Q = 2 ** 252 + 27742317777372353535851937790883648493
+ED_I = pow(2, (ED_P - 1) // 4, ED_P)
+B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+ROLES = ("buyer", "supplier")
+ACK_KIND, CLOSE_KIND = "knos-period-ack", "knos-period-close"
+ACK_KEYS = ["day", "events", "head", "key", "kind", "last", "month", "role", "root", "signature", "terms", "v"]
+CLOSE_KEYS = sorted(ACK_KEYS + ["acknowledged", "silence_days"])
+MISSING_AFTER_ACK, CHANGED_AFTER_ACK, AFTER_CLOSE = "missing-after-ack", "changed-after-ack", "event-after-close"
+NOT_COUNTED = ("correction", "acknowledgement")                         # what may still arrive for a closed month
+
+
+def ed_recover_x(y, sign):
+    if y >= ED_P:
+        return None
+    x2 = (y * y - 1) * pow(ED_D * y * y + 1, ED_P - 2, ED_P)
+    if x2 % ED_P == 0:
+        return None if sign else 0
+    x = pow(x2, (ED_P + 3) // 8, ED_P)
+    if (x * x - x2) % ED_P:
+        x = x * ED_I % ED_P
+    if (x * x - x2) % ED_P:
+        return None
+    return ED_P - x if (x & 1) != sign else x
+
+
+ED_G = (lambda y: (ed_recover_x(y, 0), y, 1, ed_recover_x(y, 0) * y % ED_P))(4 * pow(5, ED_P - 2, ED_P) % ED_P)
+
+
+def ed_add(a, b):
+    p = ED_P
+    aa, bb = (a[1] - a[0]) * (b[1] - b[0]) % p, (a[1] + a[0]) * (b[1] + b[0]) % p
+    c, d = 2 * a[3] * b[3] * ED_D % p, 2 * a[2] * b[2] % p
+    e, f, g, h = bb - aa, d - c, d + c, bb + aa
+    return (e * f, g * h, f * g, e * h)
+
+
+def ed_mul(s, point):
+    out = (0, 1, 1, 0)
+    while s > 0:
+        if s & 1:
+            out = ed_add(out, point)
+        point, s = ed_add(point, point), s >> 1
+    return out
+
+
+def ed_point(raw):
+    y = int.from_bytes(raw, "little")
+    x = ed_recover_x(y & ((1 << 255) - 1), y >> 255)
+    return None if x is None else (x, y & ((1 << 255) - 1), 1, x * (y & ((1 << 255) - 1)) % ED_P)
+
+
+def ed25519(public, message, sig):
+    """Ed25519 verification as RFC 8032 section 6 writes it (the key 32 bytes, the signature 64)."""
+    if len(public) != 32 or len(sig) != 64:
+        return False
+    a, r = ed_point(public), ed_point(sig[:32])
+    s = int.from_bytes(sig[32:], "little")
+    if a is None or r is None or s >= ED_Q:
+        return False
+    h = int.from_bytes(hashlib.sha512(sig[:32] + public + message).digest(), "little") % ED_Q
+    left, right = ed_mul(s, ED_G), ed_add(r, ed_mul(h, a))
+    return (left[0] * right[2] - right[0] * left[2]) % ED_P == 0 and (left[1] * right[2] - right[1] * left[2]) % ED_P == 0
+
+
+def b58(text):
+    """A base-58 address (the alphabet Bitcoin and Solana use) as bytes."""
+    n = 0
+    for ch in text:
+        n = n * 58 + B58.index(ch)
+    return b"\x00" * (len(text) - len(text.lstrip("1"))) + n.to_bytes((n.bit_length() + 7) // 8, "big")
+
+
+def period_root(hashes, months, month, last):
+    """(root, count) of one month up to line `last`: SHA-256 over a tag, the month and the hash of every line of that
+    month at or before `last`, in order. With the head of line `last` it names exactly what a party signs."""
+    mine = [bytes.fromhex(hashes[n]) for n in range(min(last + 1, len(hashes))) if months[n] == month]
+    return hashlib.sha256(b"knos.period-root.v1\x00" + str(month).encode() + b"\x00" + b"".join(mine)).hexdigest(), len(mine)
+
+
+def period_text(o):
+    """The bytes a party signs: an acknowledgement of a month, or a closure by the terms' deadline. One field a line, as
+    a transparency log's signed note puts one fact a line."""
+    lines = ["%s/v1" % o["kind"], "role %s" % o["role"], "month %d" % o["month"], "last %d" % o["last"], "head %s" % o["head"],
+             "root %s" % o["root"], "events %d" % o["events"], "terms %s" % o["terms"], "day %s" % o["day"]]
+    if o["kind"] == CLOSE_KIND:
+        lines += ["acknowledged %s" % o["acknowledged"], "silence_days %d" % o["silence_days"]]
+    return ("\n".join(lines) + "\n").encode()
+
+
+def period_shape(o):
+    """None when `o` is an acknowledgement or a closure in form, else why not."""
+    if not isinstance(o, dict) or o.get("kind") not in (ACK_KIND, CLOSE_KIND):
+        return "not an acknowledgement or a closure of a month"
+    if sorted(o) != (ACK_KEYS if o["kind"] == ACK_KIND else CLOSE_KEYS) or o.get("v") != 1:
+        return "its fields are not the fields of a %s, version 1" % o["kind"]
+    ok = (o["role"] in ROLES and all(type(o[k]) is int and o[k] >= 0 for k in ("month", "last", "events"))
+          and all(isinstance(o[k], str) and len(o[k]) == 64 and set(o[k]) <= HEX for k in ("head", "root", "terms"))
+          and isinstance(o["day"], str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", o["day"]) is not None)
+    if ok and o["kind"] == CLOSE_KIND:
+        ok = (type(o["silence_days"]) is int and isinstance(o["acknowledged"], str)
+              and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", o["acknowledged"]) is not None)
+    try:
+        ok = ok and all(day_number(o[k]) > 0 for k in ("day", "acknowledged") if k in o)
+    except ValueError:
+        ok = False
+    return None if ok else "a field holds a value of the wrong kind"
+
+
+def signed_by(o):
+    """Whether the signature is the named key's over `period_text`."""
+    try:
+        return ed25519(b58(o["key"]), period_text(o), bytes.fromhex(o["signature"]))
+    except (ValueError, TypeError):
+        return False
+
+
+def terms_rule(name, raw):
+    """{hash: the terms' `window.period_close`} for one archived terms file, under the hash of its bytes and the hash of
+    its canonical JSON (keys sorted, no spaces, ASCII): the second is the hash Knos Terms 3 cites, whatever the spacing
+    of the file."""
+    try:
+        doc = json.loads(raw)
+        rule = (doc.get("window") or {}).get("period_close")
+    except (ValueError, AttributeError, UnicodeDecodeError):
+        return {}
+    if not isinstance(rule, dict):
+        return {}
+    return {name.split("/", 1)[1].split(".")[0]: rule, hexsha(canon(doc).encode()): rule}
+
+
+def day_number(text):
+    return datetime.date.fromisoformat(text).toordinal()
+
+
+def periods(hashes, months, kinds, records, rules):
+    """Every month that a counterpart acknowledged or closed, checked against the log: {month: {"closed", "how", "at",
+    "said", "problems"}}. `hashes`, `months`, `kinds`: the log's lines. `records`: acknowledgements and closures.
+    `rules`: terms sha256 -> the terms' `window.period_close` ({buyer_key, supplier_key, silence_days}) or None.
+
+    A month CLOSES when the buyer and the supplier each signed the same last line and root with the key the terms name,
+    or when one of them signed, the terms allow closure after `silence_days` without an answer, and that party signed a
+    closure that many days or more after its acknowledgement. Named discrepancies (each a problem):
+        missing-after-ack    lines a party acknowledged are not in the log any more
+        changed-after-ack    the acknowledged line has another hash now: the range was rewritten
+        event-after-close    a counted event of a closed month was added after the line it closed at"""
+    out = {}
+    for o in records:
+        m = out.setdefault(o.get("month") if isinstance(o, dict) and type(o.get("month")) is int else -1,
+                           {"closed": False, "how": "", "at": None, "said": [], "problems": [], "acks": {}, "closes": []})
+        why = period_shape(o)
+        if why:
+            m["problems"].append(why)
+            continue
+        who = "the %s's %s of %d" % (o["role"], "acknowledgement" if o["kind"] == ACK_KIND else "closure", o["month"])
+        rule = rules.get(o["terms"])
+        if rule is None:
+            m["problems"].append("%s names terms %s..., which the archive does not hold or which name no keys to close a month" % (who, o["terms"][:16]))
+            continue
+        if o["key"] != rule.get(o["role"] + "_key"):
+            m["problems"].append("%s is signed by %s, not by the key the terms name for the %s" % (who, o["key"], o["role"]))
+            continue
+        if not signed_by(o):
+            m["problems"].append("%s: the signature is not that key's over what it says" % who)
+            continue
+        if o["last"] >= len(hashes):
+            m["problems"].append("%s: %s acknowledged lines 0 to %d and the log ends at line %d: %d acknowledged lines are missing" % (
+                MISSING_AFTER_ACK, who, o["last"], len(hashes) - 1, o["last"] + 1 - len(hashes)))
+            continue
+        if hashes[o["last"]] != o["head"] or period_root(hashes, months, o["month"], o["last"]) != (o["root"], o["events"]):
+            m["problems"].append("%s: %s signed line %d with head %s... and %d events of the month; the log now gives %s... and %d" % (
+                CHANGED_AFTER_ACK, who, o["last"], o["head"][:16], o["events"], hashes[o["last"]][:16], period_root(hashes, months, o["month"], o["last"])[1]))
+            continue
+        if o["kind"] == ACK_KIND:
+            was = m["acks"].get(o["role"])
+            if was is None or o["last"] > was["last"]:
+                m["acks"][o["role"]] = o
+        else:
+            m["closes"].append((o, rule))
+    for month, m in out.items():
+        a, b = m["acks"].get("buyer"), m["acks"].get("supplier")
+        if a and b and (a["last"], a["root"]) == (b["last"], b["root"]):
+            m["closed"], m["how"], m["at"] = True, "both parties signed line %d" % a["last"], a["last"]
+        elif a and b:
+            m["said"].append("OPEN: the buyer signed up to line %d and the supplier up to line %d: one of them signs the other's head to close %d" % (
+                a["last"], b["last"], month))
+        for c, rule in m["closes"]:
+            mine, other = m["acks"].get(c["role"]), m["acks"].get("supplier" if c["role"] == "buyer" else "buyer")
+            silence = rule.get("silence_days") or 0
+            if m["closed"]:
+                break
+            if not silence:
+                m["problems"].append("the %s's closure of %d: the terms allow no closure without both acknowledgements" % (c["role"], month))
+            elif mine is None or (mine["last"], mine["root"], mine["day"]) != (c["last"], c["root"], c["acknowledged"]):
+                m["problems"].append("the %s's closure of %d names an acknowledgement of its own that is not here" % (c["role"], month))
+            elif other is not None and other["last"] >= c["last"]:
+                m["problems"].append("the %s's closure of %d: the other party answered, so the month closes by both signatures or not at all" % (c["role"], month))
+            elif c["silence_days"] != silence or day_number(c["day"]) < day_number(c["acknowledged"]) + silence:
+                m["problems"].append("the %s's closure of %d is dated %s: the terms let it close %d days after %s" % (c["role"], month, c["day"], silence, c["acknowledged"]))
+            else:
+                m["closed"], m["at"] = True, c["last"]
+                m["how"] = "the %s signed line %d on %s and closed it on %s after %d days without an answer, as the terms allow" % (
+                    c["role"], c["last"], c["acknowledged"], c["day"], silence)
+        if m["closed"]:
+            late = [n for n in range(m["at"] + 1, len(hashes)) if months[n] == month and kinds[n] not in NOT_COUNTED]
+            if late:
+                m["problems"].append("%s: line %s belongs to %d, which was closed at line %d: it was added after the month closed" % (
+                    AFTER_CLOSE, ", ".join(str(n) for n in late[:5]), month, m["at"]))
+        elif not m["said"] and month != -1:
+            m["said"].append("OPEN: %d has %s and no closure the terms allow" % (month, " and ".join(
+                "the %s's acknowledgement" % r for r in sorted(m["acks"])) or "no valid acknowledgement"))
+    return out
 
 
 # -- the log of events ----------------------------------------------------------------------------------------------------
@@ -663,7 +884,7 @@ def check(files):
             if acked:
                 done.append("acknowledged with the issuer's signature, checked against the archived keys: " +
                             ", ".join("owner %s up to line %d" % (p, n) for p, n in sorted(acked.items())))
-            else:
+            elif not any(n.startswith("acks/") for n in files):
                 notes.append("UNSIGNED: nobody has acknowledged the log: until a second party signs a head, it is one party's file")
         missing = gaps(log)
         for stream, number, line, who in missing:
@@ -779,6 +1000,26 @@ def check(files):
             bad("%s: its bytes do not hash to the name it is kept under." % name)
     if terms and not any(p.startswith("terms/") for p in problems):
         done.append("%d terms files hash to the names they are kept under" % len(terms))
+    # each party's acknowledgement of a month (Ed25519), and a closure the terms allow
+    ack_names = sorted(n for n in files if n.startswith("acks/"))
+    if ack_names:
+        rules = {}
+        for name in terms:
+            rules.update(terms_rule(name, files[name]))
+        records = [r for r in (json_of(n) for n in ack_names) if r is not None]
+        if log is None:
+            bad("The archive holds acknowledgements of a month and no log of events to hold them against.")
+        else:
+            before = len(problems)
+            got = periods(log.hashes, [e["month"] for e in log.events], [e["kind"] for e in log.events], records, rules)
+            for month, m in sorted(got.items()):
+                for p in m["problems"]:
+                    bad("acknowledgements: %s." % p)
+                if m["closed"]:
+                    done.append("%d is closed: %s, each signature (Ed25519) by the key its terms name" % (month, m["how"]))
+                notes.extend(m["said"])
+            if len(problems) == before:
+                done.append("%d acknowledgements and closures of a month hold against the log" % len(records))
     for name in sorted(n for n in files if n.startswith(("other/", "closes/")) and n not in signed_files):
         notes.append("%s is checked by hash only" % name)
     return done, notes, problems
@@ -818,7 +1059,7 @@ def main(argv):
         print("note: " + line + ".")
     for line in problems:
         print("DOES NOT HOLD: " + line)
-    weak = [x for x in notes if x.startswith(("INCOMPLETE", "UNSIGNED"))] if "--strict" in argv else []
+    weak = [x for x in notes if x.startswith(("INCOMPLETE", "UNSIGNED", "OPEN"))] if "--strict" in argv else []
     failed = bool(problems) or bool(weak)
     print(("NOT VERIFIED: %d problems" % len(problems) + (", %d notes marked INCOMPLETE or UNSIGNED (--strict)" % len(weak) if "--strict" in argv else "")) if failed
           else "VERIFIED: %d checks hold, %d notes. No network, no Knos." % (len(done), len(notes)))

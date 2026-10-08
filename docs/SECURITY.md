@@ -361,7 +361,7 @@ orders whose deadline falls inside it.
 
 ## 8. Versions, and what is live when
 
-| | first deployment ([`programs`](../programs)) | second deployment, 2.0 (0.3.12) | second deployment, 2.1 (this release) |
+| | first deployment ([`programs`](../programs)) | second deployment, 2.0 (0.3.12) | second deployment, 2.1 (live at the public ids today) |
 |---|---|---|---|
 | can it be changed | no: neither program has an upgrade authority | through the multisig, after 48 hours | the same |
 | the unit | a bounty | a bounty | a work order; 2.0 bounties finish as they were funded |
@@ -524,6 +524,12 @@ submission runs ([`src/knos/judge.py`](../src/knos/judge.py)). That is a separat
 not a virtual machine. A flaw in the runner's kernel or image that lets one user become another would let a pull
 request write its own verdict. The dependency install does have the network. The hermetic option (section 13)
 fixes the judge's image by digest; it does not turn the user boundary into a machine boundary.
+
+Since 0.3.21 the host sandbox on Linux also enforces limits: a fork bomb stops at the process limit, the
+submission's view outside its work folder is read-only, CPU time, memory and file size are capped, and the time
+limit kills every process the run started (a PID namespace). The hermetic container is the default judge where the
+runner has one, and the host sandbox is the fallback the verdict names. [ATTESTOR.md](ATTESTOR.md) has the table of
+each limit and what macOS and Windows runners can and cannot enforce; `tests/test_judge_box.py` runs each attack.
 
 ## 15. Tokens: public, bound to one action, used once
 
@@ -755,7 +761,7 @@ and is tested against stand-ins for GitHub and the chain; none of it has run on 
   submission with no id-token, and the attest job, which checks nothing out and runs none of that code, asks
   GitHub for one token. `knos settle --tests` chooses its audience: `knos3:auto` when the order has the flag and
   the pull request is open, `knos3:pay` otherwise. The token is posted for the relay as a pay token is, and the
-  relay carries it (`src/knos/settle/v2/relay.py`).
+  relay carries it (`src/knos/settle/v2/relay/`, the package).
 - Who is paid. On an `auto` order an open pull request pays its author, and that author may be an agent's own
   GitHub account (type Bot); such an account may also reserve the order with `/knos take`. Everywhere else a bot's
   pull request still pays a person, by a maintainer's assignment or `/knos pay`, and `/knos take` is refused to a

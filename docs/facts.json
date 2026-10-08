@@ -1029,12 +1029,12 @@
   },
   {
    "say": [
-    "3,596"
+    "3,746"
    ],
-   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37708079863 on drexthealpha/knos-rc 7c453b8e08d1ed9a3ab11484e0853d10f7635d92, the staging tree of this release: 3596 passed, 53 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37708079863",
+   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 37757036121 on drexthealpha/knos-rc 13220bbf7862e5784909424bce58a6f50ecf061c, the staging tree of this release: 3746 passed, 55 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37757036121",
    "json": "docs/bench.json",
    "path": "release.tests_passing.value",
-   "equals": 3596
+   "equals": 3746
   }
  ]
 }

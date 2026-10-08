@@ -1,5 +1,90 @@
 # Changelog
 
+## 0.3.21 (October 2026)
+
+**What exists made true, enforceable and usable by strangers: a checker that catches the contradictions it missed,
+every rate with its denominator, a spending boundary a program enforces for an organisation's money, a reserve by
+comment, a way out before every upgrade, a judge that holds a fork bomb, and a relay that counts a run alive only by
+its heartbeat.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md): none of it has run at the public program ids or been used by a person
+outside this repository, and each line below says its own limit. **No program changes in this release:** nothing
+under `programs-v2/knos_*`, `programs/`, `idl/` or `tests/fixtures/*.so` moved by a byte. The interface crates are on
+crates.io (knos-oidc-interface 0.3.14, knos-pay-interface 0.3.14) and the JavaScript client on npm
+(`npm install knos-settle`, 0.3.20).
+
+### True
+
+- **The checker catches more.** `scripts/truth_check.py` now fails on a page that names an older release as the
+  current one, states a fee, a quorum rule or a devnet result that disagrees with the capability list, the source or
+  the price book, or says the crates or the npm client are not published. The README's "today" table is generated
+  from `docs/capabilities.json`, so it cannot drift from it. The pages it found are fixed.
+- **Every rate with its denominator.** `scripts/rate_claims.py` fails on a latency or throughput figure printed
+  without its sample size, its program ids (public or staging) and its date. Of 53 pay attempts on devnet the
+  failures and the attempts that never completed are printed beside the waits, with p50, p95, p99 and the worst
+  apart; the 200-order load run says it used staging ids ([`docs/LOAD.md`](docs/LOAD.md),
+  [`docs/BENCH.md`](docs/BENCH.md)).
+- **End-to-end PayOrder capacity has a command and no number.** `python scripts/load.py measure --pay` pays orders
+  with N relays, each with its own fee payer; on the simulator it proves the path and gives no rate. It has not
+  been measured on devnet.
+
+### Enforced
+
+- **An organisation's money in a Squads v4 vault.** `knos boundary plan` turns an approval policy into the vault's
+  members, threshold, time lock and a separate config authority; an approval binds one commitment (terms hash,
+  policy version, amount, payee, expiry), and the funding workflow refuses it for another order, after its expiry,
+  under a changed policy or for another payee; a budget is reserved atomically before work starts. Squads v4 is
+  Squads Labs' deployed program, not Knos's; no buyer has set up such a vault ([`docs/BOUNDARY.md`](docs/BOUNDARY.md),
+  [`docs/ENFORCEMENT.md`](docs/ENFORCEMENT.md)).
+- **The five parts everywhere a receipt leaves Knos.** Every export carries a parts file beside it, the paid record
+  answer and every statement line carry identity, execution, acceptance, consequence and assurance, and Knos Terms 3
+  can require a minimum assurance level for payment (`checks.min_assurance`). A month closes only with both parties'
+  signed acknowledgements, or one and the silence the terms allow (`window.period_close`)
+  ([`docs/RECEIPT.md`](docs/RECEIPT.md), [`docs/EVENTS.md`](docs/EVENTS.md), [`docs/TERMS.md`](docs/TERMS.md)).
+- **The judge holds a fork bomb.** On Linux the host sandbox now caps processes, CPU time, memory and file size,
+  keeps everything outside the work folder read-only and kills the whole tree at the time limit. The hermetic
+  container is the default judge where the runner has one; the host sandbox is the fallback and the verdict says so
+  ([`docs/ATTESTOR.md`](docs/ATTESTOR.md)). `docs/TAMPER.md` was measured again with this judge: the results are
+  unchanged, and every cheat in it was still written by the people who wrote the judge. The `tamper` task pays 5 test
+  USDC to an outsider whose cheat the judge accepts; none has.
+
+### Usable by strangers
+
+- **A reserve by comment.** `/knos reserve <amount> for @supplier until <date>` locks a reserve through the pinned
+  funding workflow and says its id, amount, deadline and how the supplier checks it. It works once the pinned
+  workflows are republished at 0.3.21 ([`docs/NETTING.md`](docs/NETTING.md)).
+- **A way out before every upgrade.** `knos exit --before-upgrade` lists every order and Balance an owner holds, the
+  instruction that takes the money out and whether it lands before a pending upgrade can run; the upgrade feed and
+  banner say "N hours to leave". Held and warranty money cannot leave before an upgrade, and it says so.
+  `python scripts/provenance.py verify-proposal N` compares a proposal's bytes with the verified build, and a drill
+  rotates GitHub's signing key mid-period ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md), [`docs/DRILLS.md`](docs/DRILLS.md)).
+- **The approver's question on one row.** Ordinary lines resolve in one action; approving writes an approval record
+  (policy version, who, when, why, the evidence's hashes) that the page checks again later, and the buyer's memory
+  answers `knos recall approval` from the store alone. A supplier's finance lead sees what is funded, the acceptance
+  countdown, appeal rights and the payment date with no wallet ([`docs/CONSOLE.md`](docs/CONSOLE.md),
+  [`docs/FINANCE.md`](docs/FINANCE.md)).
+- **Vendors get a page.** Each agent the Agent PR Index rates has a page with its sample, a right of reply, its
+  disputes and how to earn the supplier badge; supplier reuse is counted (0 today) ([`docs/VENDORS.md`](docs/VENDORS.md)).
+  The upgrade gate is one pull request for a Solana program team ([`docs/GATE.md`](docs/GATE.md)).
+- **Tasks a stranger can complete.** Five more kinds: `compose`, `gate`, `keyholder`, `tamper` and `witness`, the
+  last an independently witnessed transaction a stranger runs end to end from a fork (`examples/witnessed`).
+  Completed by an outside account: 0.
+
+### Operations and accounting
+
+- **The relay counts a run alive by its heartbeat.** The watchdog also runs when a worker run ends, cancels and
+  replaces a run stuck in its install wait, and two watchdogs never start two chains; an event is recorded in the
+  relay log by its own run before anything reads it, and workers are partitioned by order
+  ([`docs/RELAY.md`](docs/RELAY.md)). Tested with fake runs; not yet observed at the public ids.
+- **The relay is a package.** `knos.settle.v2.relay` is split by responsibility with no change of behaviour, and all
+  of it is under mypy.
+- **Pricing power, accounted honestly.** `knos bill margin --sensitivity` prints revenue and gross margin at a
+  realised Acceptance rate of 30, 20, 10 and 5 basis points; a commitment is credited against usage, never counted
+  twice; reserves, rent and principal are never revenue ([`docs/MARKET.md`](docs/MARKET.md),
+  [`docs/UNIT_COSTS.md`](docs/UNIT_COSTS.md)). Nothing has been sold.
+
 ## 0.3.20 (October 2026)
 
 **One enterprise transaction, followed to its end: what was authorised, what was delivered, what was accepted, what
@@ -61,7 +146,8 @@ nothing under `programs-v2/knos_*`, `programs/` or `idl/` moved by a byte.
   gave that never arrived is named, and a month is not closed over it. One run on this repository's samples is
   recorded; they carry no signed token, and the verifier says so. One run on a real period is recorded too: the
   founder's own account on both sides, its batches anchored at the public knos_meter; its log of events starts at
-  number 1 and nobody else acknowledged it, so the strict check fails on it. No outside party holds an archive
+  number 1, so the strict check fails on it, and both acknowledgements that close its month are signed by keys the
+  founder holds. No outside party holds an archive
   ([`docs/RETENTION.md`](docs/RETENTION.md), [`docs/EVENTS.md`](docs/EVENTS.md)).
 - **The paid record answer is worth more than the free file.** The server signs each answer with an expiry, adds a
   summary, and gives the history a supplier granted to one reader. Its revenue is budgeted at zero and Knos hosts

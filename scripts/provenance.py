@@ -6,6 +6,9 @@
     python scripts/provenance.py --rpc [URL]     # also read the cluster: the hash each program runs, each proposal's
                                                  # state, the build record of upgrade_gate, the execution transaction
     python scripts/provenance.py --rpc --record  # and keep what was read in docs/provenance.json (the release does)
+    python scripts/provenance.py verify-proposal N [--so FILE | --hash HEX] [--rpc URL]
+                                                 # one upgrade proposal, checked by anyone: the bytes it would deploy
+                                                 # against the verified build's record and against a build of your own
 
 The chain, per program:
 
@@ -395,7 +398,105 @@ def live(data: dict, url: str) -> tuple[dict, list[str]]:
     return seen, lines
 
 
+# ---- one proposal, checked by anyone ------------------------------------------------------------------------------------
+
+IMAGE = "solanafoundation/solana-verifiable-build:2.3.11"       # the pinned image of program.yml's verified-build job (docs/ASSURANCE.md)
+
+
+def rebuild_commands(program: str, commit: str | None, index: int) -> list[str]:
+    """What a stranger runs to make the build themselves, from the commit the gate recorded (docs/ASSURANCE.md)."""
+    return [f"git clone https://github.com/{REPO} knos && cd knos && git checkout {commit or '<the proposed commit>'}",
+            f"rm -f programs-v2/target/deploy/{program}.so",
+            f'solana-verify build "$PWD" --workspace-path "$PWD/programs-v2" --library-name {program} --base-image {IMAGE}',
+            f"python scripts/provenance.py verify-proposal {index} --so programs-v2/target/deploy/{program}.so"]
+
+
+def verify_proposal(account: Callable[[str], Any], ids: dict, index: int, mine: str | None = None,
+                    feed: dict | None = None) -> tuple[bool, list[str]]:
+    """(the proposal's bytes are the ones vouched for, lines for a reader). `account(address) -> (owner, data) | None`
+    reads the cluster. The bytes are read from the proposal's buffer (or, once it has run and the loader closed the
+    buffer, from the program, if the program still runs them). They are held to: upgrade_gate's record of a
+    verified-build run for exactly that hash; the hash web/upgrades.json printed (`feed`); and `mine`, the hash of a
+    build the reader made. Vouched for: a gate record exists, and `mine` (when given) is equal."""
+    sys.path.insert(0, str(ROOT / "src"))
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import upgrade_feed as uf
+    from knos import mainnet_check as mc
+    from solders.pubkey import Pubkey
+
+    squads, multisig = ids["squads_program"], ids["upgrade_multisig"]
+    ms, why = mc.multisig_at(account, multisig, squads)
+    if ms is None:
+        return False, [f"stopped: the upgrade multisig could not be read ({why})"]
+    ms_key, squads_key = Pubkey.from_string(multisig), Pubkey.from_string(squads)
+    got = account(str(mc.proposal_address(ms_key, index, squads_key)))
+    p = mc.read_proposal(got[1]) if got and str(got[0]) == squads else None
+    if p is None:
+        return False, [f"proposal {index}: no such proposal of the upgrade multisig {multisig}"]
+    tx = account(str(mc.transaction_address(ms_key, index, squads_key)))
+    kind, program, buffer = mc.read_transaction(tx[1] if tx and str(tx[0]) == squads else None)
+    names = {ids[n]: n for n in PROGRAMS if n in ids}
+    if kind != "upgrade" or program not in names:
+        return False, [f"proposal {index} ({p.status}): not an upgrade of a Knos program ({kind}{' of ' + str(program) if program else ''})"]
+    name = names[program]
+    lines = [f"proposal {index}: {p.status}, {p.approved} of {ms.threshold} approvals; it would replace {name} ({program}) with the bytes in buffer {buffer}"]
+    h, where = uf.buffer_hash(account, buffer), "the buffer"
+    if h is None:
+        h, where = uf.program_hash(account, program), "the program (the buffer is closed: the loader closes it when the upgrade runs)"
+        if p.status != "Executed":
+            return False, lines + [f"the buffer {buffer} holds no program: these bytes cannot be checked, and must not be voted for"]
+    lines.append(f"the bytes, read from {where}: {h}")
+    rec = uf.gate_record(account, program, h)
+    lines.append(f"upgrade_gate: GitHub's runner built exactly these bytes from commit {rec.sha} in run {rec.run_id} of {REPO}'s program.yml"
+                 if rec else "upgrade_gate holds NO record of a verified-build run for these bytes: nobody but the members vouches for them")
+    shown = next((e for e in (feed or {}).get("entries", []) if e.get("index") == index), None)
+    if shown and shown.get("build_hash"):
+        lines.append("web/upgrades.json printed the same hash" if shown["build_hash"] == h else
+                     f"web/upgrades.json printed ANOTHER hash: {shown['build_hash']}")
+    ok = rec is not None and (not shown or not shown.get("build_hash") or shown["build_hash"] == h)
+    if mine:
+        same = mine.lower() == h
+        lines.append(f"your build: {mine.lower()}: " + ("the SAME bytes" if same else "DIFFERENT bytes: do not vote for this proposal"))
+        ok = ok and same
+    else:
+        lines.append("no build of yours was given. To check the bytes without trusting the gate's record, build them yourself:")
+        lines += [f"    {c}" for c in rebuild_commands(name, rec.sha if rec else None, index)]
+    lines.append(f"proposal {index}: " + ("VERIFIED" if ok else "NOT VERIFIED") + (" against your own build" if mine and ok else ""))
+    return ok, lines
+
+
+def verify_main(argv: list[str], say: Callable[[str], None] = print, account: Callable[[str], Any] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="provenance.py verify-proposal", description="Check one upgrade proposal's bytes against the verified build and your own.")
+    ap.add_argument("index", type=int, help="the proposal's number (web/upgrades.json `index`)")
+    ap.add_argument("--rpc", default=DEVNET, help="the cluster (default: devnet's public endpoint)")
+    mine = ap.add_mutually_exclusive_group()
+    mine.add_argument("--so", type=Path, metavar="FILE", help="your own build of the program (solana-verify build): hashed here without its trailing zeros")
+    mine.add_argument("--hash", metavar="HEX", help="the hash `solana-verify get-executable-hash` printed for your own build")
+    a = ap.parse_args(argv)
+    if a.hash is not None and not _HEX64.fullmatch(a.hash.lower()):
+        say("stopped: --hash takes the 64 hex characters solana-verify get-executable-hash prints")
+        return 2
+    import hashlib
+    theirs = hashlib.sha256(a.so.read_bytes().rstrip(b"\x00")).hexdigest() if a.so else a.hash
+    data = load()
+    if account is None:
+        sys.path.insert(0, str(ROOT / "src"))
+        from knos import mainnet_check as mc
+        account = mc._rpc(a.rpc)
+    try:
+        ok, lines = verify_proposal(account, data["ids"], a.index, theirs, data["upgrades"])
+    except Exception as why:  # noqa: BLE001 - no network is not a verdict
+        say(f"stopped: {a.rpc} could not be read ({type(why).__name__}: {why}). Nothing was decided.")
+        return 2
+    for line in lines:
+        say(line)
+    return 0 if ok else 1
+
+
 def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["verify-proposal"]:
+        return verify_main(argv[1:], say)
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--write", action="store_true", help="rewrite the block of docs/PROVENANCE.md")
     ap.add_argument("--check", action="store_true", help="exit 1 when docs/PROVENANCE.md is not what the records give")

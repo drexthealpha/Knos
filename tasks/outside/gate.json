@@ -1,0 +1,20 @@
+{
+ "kind": "gate",
+ "v": 1,
+ "title": "Put a program of yours behind the upgrade gate",
+ "statement": "Test USDC, no monetary value.\n\nMake your gate with `examples/upgrade_gate/adopt.py init`, deploy it to devnet, give your program's upgrade authority to a Squads multisig, and let your build workflow record one build.",
+ "evidence": "a devnet transaction in which your gate wrote the record [\"build\", program, executable hash] on a token from a workflow of a repository your account owns, and `adopt.py check` on the program exiting 0",
+ "counter": "gates",
+ "needs": [
+  "actor_id",
+  "repository_owner_id",
+  "program_id",
+  "gate_id",
+  "record_tx",
+  "checked"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "docs/GATE.md"
+}

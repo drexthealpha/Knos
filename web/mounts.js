@@ -23,7 +23,8 @@
 // web/front.js then makes its <section id="name" class="mount">, its link in the menu and its lazy mount; the module
 // is fetched when the page is first opened, and grey bars stand there until it has drawn.
 //     file   the module, beside this one
-//     draw   the function it exports: draw(el, ctx), ctx = { esc, go, EXPLORER, data }; it fills el, once
+//     draw   the function it exports: draw(el, ctx), ctx = { esc, go, EXPLORER, data, arg }; it fills el, once
+//            (arg: what follows "=" in the hash it was opened at, #vendor=<agent>; a later arrival is the module's to read)
 //     nav    the words of its link (three at most)
 //     bar    true: the link stands in the bar itself; otherwise under "More"
 //     json   a file of the build the page cannot be drawn without: read first and handed over as ctx.data

@@ -2,13 +2,15 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
+Buyers and suppliers verify what AI work earned payment, then carry that evidence from authorisation through invoice approval to settlement.
+
 The presentation: the buyer, the problem, the insight, the evidence, the team, the business, and the limits in one
 sentence. The technical demonstration is a separate page ([demo_script.md](demo_script.md)): one transaction in
 seven beats, from the agreement through a refused submission to a verifier that needs nothing from Knos. What is on
 screen here is cut from those beats, in their order, and a clip keeps its captions. A judge's one page is
 [JUDGES.md](../JUDGES.md).
 
-The spoken words are the lines that start with `>`: about 400 words, under three minutes read aloud at an even pace
+The spoken words are the lines that start with `>`: about 420 words, under three minutes read aloud at an even pace
 (`tests/test_site_scripts.py` counts them). The time in each heading is where the beat starts.
 
 A spoken number is in `docs/facts.json` with its source, and `python scripts/claims_check.py` checks it. Beat four
@@ -23,9 +25,11 @@ are one sentence, the last one, and no number is read out as a list; every limit
 *On screen: the number; then an invoice for agent work, seven lines, and the person who approves it.*
 
 > Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. Each was merged anyway.
-> Our buyer is the person who approves a supplier's invoice for agent work, and answers for it.
+> Our buyer is the person who approves a supplier's invoice for agent work, and answers for it. With Knos,
+> buyers and suppliers verify what AI work earned payment, then carry that evidence from authorisation through
+> invoice approval to settlement.
 
-## 2. The problem (0:20)
+## 2. The problem (0:28)
 
 *On screen: two counts of the same month, side by side, that differ.*
 
@@ -79,4 +83,6 @@ the refused replay; the verifier with the network off; then the Numbers page.*
 > The limits, in one sentence: Solana devnet, test money, one person holds every key, no outside review, and
 > nobody has paid.
 
-*Closing card:* The neutral meter for AI agent work: neither side keeps the count.
+*Closing card:* The neutral meter for AI agent work: neither side keeps the count. Below it, the second line:
+buyers and suppliers verify what AI work earned payment, then carry that evidence from authorisation through
+invoice approval to settlement.

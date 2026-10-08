@@ -1,0 +1,48 @@
+name: relay watchdog
+
+# The relay's watchdog, on the events GitHub's timer cannot be trusted with (0.3.21). worker.yml's own job `watchdog`
+# runs on the 5-minute timer and on every event worker.yml takes; in the 0.3.20 release run that timer fired twice in
+# four hours. This file runs the SAME command:
+#   workflow_run, completed      a run of the always-on worker ended, whatever its conclusion: when no run holds the
+#                                chain with a heartbeat, one is started. It is a file of its own so that its own runs
+#                                ending start nothing: listed in worker.yml's `workflow_run`, each watchdog run that
+#                                ended would start another. GitHub sends this only for a run a person (or another
+#                                token) started, never for one the workflow's own token started, which is every run of
+#                                the chain after the first (staging, 8 Oct 2026). A chain run whose relay did not
+#                                succeed runs the same watchdog itself instead (worker.yml, job `rewatch`).
+#   repository_dispatch, knos-watch   the release step, after the push (docs/OPERATIONS.md), or anyone who may write here
+#   workflow_dispatch            by hand
+# No secret, no install, no cache: the runner's own Python with nothing but the standard library on its path (`-I`)
+# reads src/knos/proof/chain.py and asks GitHub which runs of worker.yml are alive. A run counts as alive by its
+# HEARTBEAT, not by existing; a run with none in time is cancelled and one is started in its place. Watchdogs run one at
+# a time: the concurrency group is the one worker.yml's job uses, and a group holds across the workflows of a repository.
+run-name: ${{ github.event_name == 'workflow_run' && 'watch after a worker run' || 'watch' }}
+on:
+  workflow_run:
+    workflows: [always-on worker]
+    types: [completed]
+  repository_dispatch:
+    types: [knos-watch]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write        # it lists the runs, reads their steps, cancels a stuck one and starts one
+    concurrency:
+      group: knos-relay-watchdog
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: start a chain of runs when none holds it with a heartbeat
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I src/knos/proof/chain.py watch

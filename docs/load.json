@@ -345,7 +345,7 @@
     },
     "settle": {
      "word": "settle (on the merge)",
-     "reads": 14,
+     "reads": 15,
      "writes": 5,
      "comments": 2,
      "tokens_signed": 1,
@@ -354,7 +354,7 @@
     },
     "attest_pay": {
      "word": "attest (pay)",
-     "reads": 12,
+     "reads": 13,
      "writes": 0,
      "comments": 0,
      "tokens_signed": 1,
@@ -383,7 +383,7 @@
     },
     "settle": {
      "word": "settle (on the merge)",
-     "reads": 14,
+     "reads": 15,
      "writes": 6,
      "comments": 3,
      "tokens_signed": 1,
@@ -438,7 +438,7 @@
   },
   "budget": {
    "own": {
-    "reads": 25,
+    "reads": 26,
     "writes": 6,
     "comments": 3,
     "tokens_signed": 2,
@@ -450,9 +450,9 @@
      "timeout": 0
     },
     "token_requests": {
-     "median": 31,
-     "p95": 31,
-     "timeout": 31
+     "median": 32,
+     "p95": 32,
+     "timeout": 32
     },
     "relay_log_comments": 0,
     "transactions": 12,
@@ -460,7 +460,7 @@
     "cu": 3546061
    },
    "public": {
-    "reads": 25,
+    "reads": 26,
     "writes": 8,
     "comments": 5,
     "tokens_signed": 2,
@@ -472,9 +472,9 @@
      "timeout": 404
     },
     "token_requests": {
-     "median": 53,
-     "p95": 75,
-     "timeout": 437
+     "median": 54,
+     "p95": 76,
+     "timeout": 438
     },
     "relay_log_comments": 2,
     "transactions": 12,
@@ -502,17 +502,17 @@
     "per_day": 10,
     "way": "own",
     "first": "GITHUB_TOKEN requests an hour",
-    "at": 774,
+    "at": 750,
     "fits": true,
     "binding": [],
     "bounds": [
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 774,
-      "from": "31 requests a deliverable (25 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
+      "at": 750,
+      "from": "32 requests a deliverable (26 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
       "lift": "more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 0.0129,
+      "load": 0.0133,
       "binds": false
      },
      {
@@ -577,17 +577,17 @@
     "per_day": 10,
     "way": "public",
     "first": "GITHUB_TOKEN requests an hour",
-    "at": 320,
+    "at": 315,
     "fits": true,
     "binding": [],
     "bounds": [
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 320,
-      "from": "75 requests a deliverable (25 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "at": 315,
+      "from": "76 requests a deliverable (26 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
       "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 0.0312,
+      "load": 0.0317,
       "binds": false
      },
      {
@@ -661,7 +661,7 @@
     "per_day": 1000,
     "way": "own",
     "first": "GITHUB_TOKEN requests an hour",
-    "at": 7741,
+    "at": 7500,
     "fits": true,
     "binding": [],
     "bounds": [
@@ -678,10 +678,10 @@
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 7741,
-      "from": "31 requests a deliverable (25 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
+      "at": 7500,
+      "from": "32 requests a deliverable (26 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
       "lift": "more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 0.1292,
+      "load": 0.1333,
       "binds": false
      },
      {
@@ -752,10 +752,10 @@
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 3200,
-      "from": "75 requests a deliverable (25 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "at": 3157,
+      "from": "76 requests a deliverable (26 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
       "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 0.3125,
+      "load": 0.3168,
       "binds": false
      },
      {
@@ -850,10 +850,10 @@
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 77419,
-      "from": "31 requests a deliverable (25 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
+      "at": 75000,
+      "from": "32 requests a deliverable (26 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
       "lift": "more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 1.2917,
+      "load": 1.3333,
       "binds": true
      },
      {
@@ -949,10 +949,10 @@
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 32000,
-      "from": "75 requests a deliverable (25 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "at": 31578,
+      "from": "76 requests a deliverable (26 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
       "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 3.125,
+      "load": 3.1668,
       "binds": true
      },
      {

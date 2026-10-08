@@ -23,8 +23,21 @@ Three judges see each one:
 | Ruby, minitest | 21 | 19 | 2 | 0 |
 | **all** | **63** | **56** | **7** | **0** |
 
+<!-- authors:begin -->
+## Who wrote the cheats
+
+| written by | cheating submissions | accepted by Knos, black box (the tables on this page) |
+|---|---|---|
+| the people who wrote the judge | 204 | 0 |
+| outsiders, through the `tamper` task | 0 | 0 |
+
+Every cheat counted in the first row was written by the people who wrote the judge. An outsider can change that: the `tamper` task (tasks/outside/tamper.json) pays 5 test USDC for a submission the judge ACCEPTS on a funded task although it does not do what the task asks; a refused one pays nothing. So every outside cheat was accepted by the judge it was written against; the second row says how many this tree's judge still accepts. An accepted cheat joins tests/bench_tamper/outside/cases.py with its author's account id and pull request, is judged again by every later judge (`python scripts/tamper_bench.py --authors`), and is counted by scripts/outsiders.py as `outside_cheats` only when the account is not one of Knos's own.
+
+No outsider has submitted a cheat yet: the outside row is 0 of 0, not a rate.
+<!-- authors:end -->
+
 <!-- measured:begin -->
-Measured with the judge as it is in this tree (src/knos/judge.py, SHA-256 c217674c3d7a...): the 63 attacks on slugify, the attacks on the six real tasks, the tasks that are not code, the cheats aimed at what a pull request may add, the honest submissions and the escapes. Nothing on this page is carried over from an earlier judge. The whole page in one run: `python scripts/tamper_bench.py` (longer than three minutes on a shared machine); part by part: `--slug`, `--real`, `--accept`, `--allowed`, `--honest`, `--escape`.
+Measured with the judge as it is in this tree (src/knos/judge.py, SHA-256 6fa7a9bb64f6...): the 63 attacks on slugify, the attacks on the six real tasks, the tasks that are not code, the cheats aimed at what a pull request may add, the honest submissions and the escapes. Nothing on this page is carried over from an earlier judge. The whole page in one run: `python scripts/tamper_bench.py` (longer than three minutes on a shared machine); part by part: `--slug`, `--real`, `--accept`, `--allowed`, `--honest`, `--escape`.
 <!-- measured:end -->
 
 <!-- honest:begin -->
@@ -104,7 +117,7 @@ A file outside every protected path is the pull request's source and is in the t
 
 ## Python, pytest
 
-tests/bench_tamper/sample, attacked by tests/bench_tamper/attacks.py. Measured with Python 3.12.3 and pytest 9.1.1.
+tests/bench_tamper/sample, attacked by tests/bench_tamper/attacks.py. Measured with Python 3.11.15 and pytest 9.1.1.
 
 **CI green fooled 17/21. Knos, tests: fooled 2/21. Knos, black box: fooled 0/21.**
 
@@ -136,7 +149,7 @@ Control (the honest fix): CI green passes, Knos, tests passes, Knos, black box p
 
 ## JavaScript, node:test
 
-tests/bench_tamper/sample_node, attacked by tests/bench_tamper/attacks_node.py. Measured with Node 22.23.3 and npm 10.9.9.
+tests/bench_tamper/sample_node, attacked by tests/bench_tamper/attacks_node.py. Measured with Node 22.22.2 and npm 10.9.7.
 
 **CI green fooled 20/21. Knos, tests: fooled 3/21. Knos, black box: fooled 0/21.**
 
@@ -176,7 +189,7 @@ What plain CI lets through depends on the version of node: on Node 20.20.2, atta
 
 ## Ruby, minitest
 
-tests/bench_tamper/sample_ruby, attacked by tests/bench_tamper/attacks_ruby.py. Measured with Ruby 3.2.3 and minitest 5.16.3.
+tests/bench_tamper/sample_ruby, attacked by tests/bench_tamper/attacks_ruby.py. Measured with Ruby 3.3.6 and minitest 5.20.0.
 
 **CI green fooled 19/21. Knos, tests: fooled 2/21. Knos, black box: fooled 0/21.**
 
@@ -221,7 +234,7 @@ mode, which pays on a maintainer's merge.
 <!-- real:begin -->
 ## Real open-source behaviour, six tasks
 
-Six tasks taken from behaviour that real open-source code defines, with none of that code copied: urllib.parse.urljoin, packaging.version, csv.Sniffer, configparser, datetime.fromisoformat, fnmatch.fnmatchcase. The sample repository of each (tests/bench_tamper/real_tasks.py) has a function that is naive: it passes the easy examples and fails the rest, so its CI is red. The black-box check calls the pull request's code once through the judge's sandbox and compares every answer with the real code's, on a few fixed inputs and 150 to 250 generated ones (new on every run). Each task is attacked with the 17 ideas below (the ideas of the first table that apply to a repository like this one, plus a constant-returning stub, a stub that returns the visible examples' answers, a timeout and a write into the judge's base checkout), judged by CI green and by Knos's black box. Measured with Python 3.12.3 and pytest 9.1.1.
+Six tasks taken from behaviour that real open-source code defines, with none of that code copied: urllib.parse.urljoin, packaging.version, csv.Sniffer, configparser, datetime.fromisoformat, fnmatch.fnmatchcase. The sample repository of each (tests/bench_tamper/real_tasks.py) has a function that is naive: it passes the easy examples and fails the rest, so its CI is red. The black-box check calls the pull request's code once through the judge's sandbox and compares every answer with the real code's, on a few fixed inputs and 150 to 250 generated ones (new on every run). Each task is attacked with the 17 ideas below (the ideas of the first table that apply to a repository like this one, plus a constant-returning stub, a stub that returns the visible examples' answers, a timeout and a write into the judge's base checkout), judged by CI green and by Knos's black box. Measured with Python 3.11.15 and pytest 9.1.1.
 
 A judge is *fooled* when it passes a submission that did not fix the issue. A *false refusal* is the honest fix refused.
 
@@ -312,16 +325,16 @@ What these bundles rely on, measured and not assumed. The answers are not on dis
 <!-- escape:begin -->
 ## Escapes: what a submission can do to the machine that judges it
 
-These five are not ways to pass without doing the work, so they are not among the 63. Each is something a submission tries on the judge's machine while it runs; it is tried in each place a submission can run, by the same call the judge uses to run a submission's command (`python scripts/tamper_bench.py --escape`; tests/test_tamper_bench.py runs it). **host, no sandbox**: tests mode or black-box on a machine that has no sandbox and was not told `--sandbox require` (prove.yml passes `require`). **host sandbox**: tests mode and black-box as prove.yml runs them: another user, an empty environment, no network. **hermetic**: black-box with an `image` in the terms; the probe ran in `docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71`.
+These five are not ways to pass without doing the work, so they are not among the 63. Each is something a submission tries on the judge's machine while it runs; it is tried in each place a submission can run, by the same call the judge uses to run a submission's command (`python scripts/tamper_bench.py --escape`; tests/test_tamper_bench.py runs it). **host, no sandbox**: tests mode or black-box on a machine that has no sandbox and was not told `--sandbox require` (prove.yml passes `require`). **host sandbox**: tests mode and black-box as prove.yml runs them: another user, an empty environment, no network, the machine read-only but for the run's folder, and process, CPU, memory and file size limits (docs/ATTESTOR.md). **hermetic**: black-box with an `image` in the terms, or with none under `--sandbox hermetic` on a machine that runs containers; the probe ran in `docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71` (judge.DEFAULT_IMAGE).
 
 What is expected, from how each place is built:
 
 | escape | host, no sandbox | host sandbox | hermetic (image) | why |
 |---|---|---|---|---|
 | open a connection out (how a hidden test set or a secret would leave) | escapes | held | held | the sandbox and the container both run the submission with no network |
-| write a file outside the work directory | escapes | escapes | held | the sandbox user can write wherever any user of the machine can (/tmp and the like); the container has a read-only root and sees no host directory but the tree, read-only |
+| write a file outside the work directory | escapes | held | held | the sandbox runs in a mount namespace where every mount but its own folder is read-only (/tmp and the like included); the container has a read-only root and sees no host directory but the tree, read-only |
 | read the judge's environment variables | escapes | held | held | without a sandbox the submission inherits the judge's environment, less CI's own variables; the sandbox starts it with an empty one and another user; the container starts with the image's |
-| start 400 threads at once (a fork bomb, held still) | escapes | escapes | held | the host puts no limit on the sandbox user's processes; the container has --pids-limit |
+| start 400 threads at once (a fork bomb, held still) | escapes | held | held | the sandbox user may run 256 processes and threads (RLIMIT_NPROC, judge.HostLimits); the container has --pids-limit |
 | hold the right to set the machine's clock | escapes if the judge is root | held | held | setting the clock needs CAP_SYS_TIME: the judge's own user has it only when that user is root, the sandbox user and the container never |
 
 What was measured on the machine that wrote this page:
@@ -329,14 +342,14 @@ What was measured on the machine that wrote this page:
 | escape | host, no sandbox | host sandbox | hermetic (image) |
 |---|---|---|---|
 | open a connection out (how a hidden test set or a secret would leave) | ESCAPES | held | not run here |
-| write a file outside the work directory | ESCAPES | ESCAPES | not run here |
+| write a file outside the work directory | ESCAPES | held | not run here |
 | read the judge's environment variables | ESCAPES | held | not run here |
-| start 400 threads at once (a fork bomb, held still) | ESCAPES | ESCAPES | not run here |
-| hold the right to set the machine's clock | held | held | not run here |
+| start 400 threads at once (a fork bomb, held still) | ESCAPES | held | not run here |
+| hold the right to set the machine's clock | ESCAPES | held | not run here |
 
-**hermetic (image): not run here** (no container runtime on this machine). No number is claimed for it: its column above is what the command line is built to do (tests/test_judge_hermetic.py checks that command line argument by argument), not a measurement.
+**hermetic (image): not run here** (docker is installed and its daemon does not answer). No number is claimed for it: its column above is what the command line is built to do (tests/test_judge_hermetic.py checks that command line argument by argument), not a measurement.
 
-In the places that were run (host, no sandbox and host sandbox), 10 of 10 outcomes were the expected one (the judge ran as an ordinary user).
+In the places that were run (host, no sandbox and host sandbox), 10 of 10 outcomes were the expected one (the judge ran as root).
 
-What this says and does not: the host sandbox stops a submission from calling out and from reading the judge's environment, and leaves it able to write where any user can and to exhaust the machine. The container is built to close those too. Five probes are five probes: a kernel or runtime bug that lets a process out of a container is outside what this page measures.
+What this says and does not: the host sandbox stops a submission from calling out, from reading the judge's environment, from writing outside its folder and from starting more processes than its limit; its memory limit is per process, where a container's is per container. Five probes are five probes: a kernel or runtime bug that lets a process out of a namespace or a container is outside what this page measures.
 <!-- escape:end -->

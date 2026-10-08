@@ -37,6 +37,7 @@ to a gross margin of 95% here because a lower one leaves no room for the costs t
 | Object storage | 0.015 USD a GB a month; a write 0.0000045 USD; egress free | **[vendor page]** [Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/), read 6 Oct 2026 |
 | Retention | 7 years | **[assumption]** no contract sets it |
 | A support hour | 75 USD; ten minutes a ticket, so 12.50 USD a ticket | **[assumption]** nobody is employed |
+| A support hour, from public wages | 43.20 USD: a median wage of 30.24 USD an hour over wages' 70.0% share of what an employer pays | **[public statistics]** [BLS, computer support specialists](https://www.bls.gov/ooh/computer-and-information-technology/computer-support-specialists.htm) (median, May 2025) and [BLS, employer costs for employee compensation](https://www.bls.gov/news.release/ecec.nr0.htm) (private industry, June 2026), read 8 Oct 2026. A floor: no management, tools or office |
 
 ## 1. Chain fees
 
@@ -98,6 +99,7 @@ The largest direct cost a unit may carry at its price: 10% of the price for a gr
 |---|---|---|---|---|
 | One evaluation past the free ones | 0.002 | 0.0002 | 0.0001 | 0.00005 in all **[budget, not measured]**, of which storage 0.00000047 **[measured]**; and 0.1393 a month for each supplier's batch **[measured]** |
 | Acceptance on a deliverable of 20,000, the worked customer's | 60.00 | 6.00 | 3.00 | reconciled off chain: storage **[measured]**, and 0.10 for exceptions **[budget, not measured]** |
+| Acceptance on 10,000 settled at 0.20%, by contract above the month's first million | 20.00 | 2.00 | 1.00 | reconciled off chain: 0.10 for exceptions **[budget, not measured]** on each deliverable, and storage **[measured]** |
 | Acceptance on a release of 1,000 on chain | 3.00 | 0.30 | 0.15 | 0.0072 of chain fees **[measured in the simulator]**, the relayer's tip, and 0.10 for exceptions **[budget, not measured]** |
 | Acceptance at the floor: a release of 16.66 or less | 0.05 | 0.005 | 0.0025 | the relayer's tip is the whole fee: the fee owner earns nothing |
 | One record lookup | 0.10 | 0.010 | 0.005 | 0.01 **[budget, not measured]**: at the 90% ceiling, over the 95% one. `knos record serve` is the server; anyone runs it and Knos hosts none, so Knos carries no cost and budgets no revenue ([RECORD.md](RECORD.md)) |
@@ -235,6 +237,19 @@ replace the hours is self-service onboarding, and each part of it exists as a co
 Nobody has onboarded a customer with them, so the 7,000 is **[budget, not measured]** like the 15,000. The first
 Pilot is where the hours get counted.
 
+**What 5,000 USD a year buys.** It is what a 100,000 USD Control account may cost to deliver and keep a gross margin
+of 95%. In hours of a person, before any tool, chain fee or storage:
+
+| an hour of support | hours a year | hours a month |
+|---|---|---|
+| 75 USD, the assumption above | 66.7 | 5.6 |
+| 43.20 USD, from public wages (the inputs) | 115.7 | 9.6 |
+
+A first installation, a first invoice walked through and a quarterly review use that up. **Automated onboarding
+is therefore an economic requirement, not a convenience:** every routine step a person takes for a customer has
+to become a command the customer runs. `knos bill margin --sensitivity docs/unit_costs.json` and
+`knos.billing.support_hours` print these figures.
+
 The worked customer's first month, at these costs: revenue 10,753.33, direct cost 1,260.20, gross margin 88.3%
 (Control 85.0%, Meter 69.0%, Acceptance 99.8%). `tests/test_billing.py` holds the command to those figures.
 
@@ -262,6 +277,30 @@ measured in a pilot, not a claim: nothing shows that any buyer gets it, and no b
 
 `knos bill estimate --plan business --evaluations 1000000 --accepted 120000000` prints the lines, and
 `tests/test_billing.py` holds the year, its twelve months and the gross margin to these figures.
+
+## Counted once: three accounting rules
+
+Each is a test in `tests/test_billing.py`.
+
+1. **An annual commitment is drawn down by use.** A month's Meter, Acceptance and Record charges come out of it;
+   only what it does not cover is charged on top. It is never a second revenue line beside the use it pays for:
+   a year of 1,300 USD a month of use under a 24,000 USD commitment is 24,000 USD, not 39,600.
+2. **The relayer's tip and the chain costs it pays are the relayer's.** On a release on chain the funder pays the
+   fee on top; the relayer takes its tip out of it and pays the transactions. With an outside relayer Knos counts
+   the rest of the fee as revenue and none of the chain costs; when Knos relays, it counts the whole fee and the
+   chain costs. Never the fee as revenue and the tip as a cost as well. `knos.billing.release_split`, knos_pay 2.2:
+
+| a release of 1,000 | fee | tip | Knos's revenue | Knos's direct cost | the relayer's revenue | the relayer's cost |
+|---|---|---|---|---|---|---|
+| an outside relayer | 3.00 | 0.05 | 2.95 | 0.0000 | 0.05 | 0.0072 |
+| an outside relayer, a payee's first payment | 3.00 | 0.30 | 2.70 | 0.0000 | 0.30 | 0.1872 |
+| Knos relays | 3.00 | 0.05 | 3.00 | 0.0072 | 0.00 | 0.0000 |
+| Knos relays, a payee's first payment | 3.00 | 0.30 | 3.00 | 0.1872 | 0.00 | 0.0000 |
+
+3. **Money held or passed on is never revenue.** A reserve the customer funds, rent that returns and a supplier's
+   principal are listed apart on an invoice (`held`), in no line and not in the total.
+
+On devnet all of it is test money: 0 revenue.
 
 ## The comparison a buyer will make
 

@@ -121,8 +121,8 @@ facts and one plain line under `says`.
 | --- | --- | --- |
 | `deliverable` | What is one deliverable? | its `kind` (`pull-request`, `batch`, `resolution`) and what there is one of it for; the line says how a retry is told from a new deliverable |
 | `evidence` | Whose signature counts? | `sources`: each an `issuer` and a `workflow` |
-| `checks` | What decides? | `mode`, the `deciding` checks, the acceptance suite's hash, and `authority`: where the authoritative copy lives |
-| `window` | How long can it be reopened? | `warranty_days` and `holdback_percent`; both zero, or both not |
+| `checks` | What decides? | `mode`, the `deciding` checks, the acceptance suite's hash, and `authority`: where the authoritative copy lives. Optional (0.3.21): `min_assurance`, one of `reported`, `rerun`, `agreed`: nothing is paid on a receipt below that level ([RECEIPT.md](RECEIPT.md), assurance), and the funding workflow sends no payment its evaluator cannot reach it with. Terms without the key keep the hash they had |
+| `window` | How long can it be reopened? | `warranty_days` and `holdback_percent`; both zero, or both not. Optional (0.3.21): `period_close`, with `buyer_key` and `supplier_key` (two different Ed25519 keys, in base 58) and `silence_days`: a month closes when both keys signed its last line, or one did and closed it alone after that many days of silence ([EVENTS.md](EVENTS.md)). Terms without the key keep the hash they had |
 | `changes` | What may change? | `paths` allowed, `protected` paths, and `may_add`: what a contributor may add without asking |
 | `dispute` | Who may appeal, and to whom? | `who` (the supplier), the `evaluator` (one of `evaluators.list`, or `arbiter`), `within_days`, where the `money` stays, and what happens with `no_answer` |
 | `evaluators` | Who may judge? | `quorum`, and a `list`: each a `name`, an `issuer`, a `repository`, a `workflow` and an `owner`. Optional: `related`, the accounts the parties declare to be one party, as groups of numeric account ids (`[[7001, 8002]]`); two evaluators declared related never count as two ([RECEIPT.md](RECEIPT.md), assurance). Terms without the key keep the hash they had |

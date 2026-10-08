@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.3.20"
+version = "0.3.21"
 description = "The neutral meter for AI agent work: neither side keeps the count."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -89,11 +89,8 @@ files = ["src/knos"]
 python_version = "3.10"
 ignore_missing_imports = true                   # the memory engine ships no types, and PyYAML's are a package of their own
 follow_imports = "silent"
-# What is not checked: one module, knos.settle.v2.relay (16 when the check was added, with 122 errors between them:
-# Optional values used without a test, untyped dictionaries). It is 2,300 lines and is being changed in this release, so
-# it comes out by itself in 0.3.18. Everything else under src/knos, the payment path (knos.flow, knos.who, knos.terms,
-# knos.chain, knos.settle.relay, knos.proof.ghrelay) included, and every new module, is checked in full. Untyped function
+# Everything under src/knos is checked in full: the payment path (knos.flow, knos.who, knos.terms, knos.chain,
+# knos.settle.relay, knos.proof.ghrelay, and the package knos.settle.v2.relay, one module until 0.3.21 and the last
+# one left out) included, and every new module. Where a value the code has already tested cannot be seen as tested
+# by mypy, the line says so in a `type: ignore[...]` with its reason. Untyped function
 # bodies are not checked (mypy's default); tests/ and scripts/ are not type-checked.
-[[tool.mypy.overrides]]
-module = ["knos.settle.v2.relay"]              # 2,300 lines, changed in this release: out in 0.3.18
-ignore_errors = true

@@ -890,6 +890,9 @@ def register(app, help_lines: list | None = None) -> None:
             text = write(scope, rows, head, fmt)
         if to_file:
             to_file.write_text(text, encoding="utf-8", newline="")
+            if fmt in exports.FORMATS:      # the five parts of every bill, in a file beside it that names this export by its sha256
+                exports.parts_path(to_file).write_text(exports.parts_file(exports.parts_rows(scope, rows, head, mine), exports.sha_of(text)),
+                                                       encoding="utf-8", newline="")
         else:
             sys.stdout.write(text)
         cli.err.print(f"{len(rows)} line(s) for GitHub id {scope['owner_id']}. Head: {head}" + (" (partial: not a head to compare)" if short else ""), markup=False)

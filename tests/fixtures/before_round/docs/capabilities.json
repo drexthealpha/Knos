@@ -802,7 +802,7 @@
    "stage": "tested",
    "evidence": {
     "implemented": {
-     "path": "src/knos/settle/v2/relay.py",
+     "path": "src/knos/settle/v2/relay/wallets.py",
      "names": "def passkey_fund("
     },
     "tested": {
@@ -862,7 +862,7 @@
    "stage": "tested",
    "evidence": {
     "implemented": {
-     "path": "src/knos/settle/v2/relay.py",
+     "path": "src/knos/settle/v2/relay/kinds.py",
      "names": "def kind_of"
     },
     "tested": {

@@ -37,10 +37,10 @@ def test_six_latencies_each_with_its_own_sample_and_none_filled_in_from_another(
     by = {(r["latency"], r["part"].split(":")[0]): r for r in rows}
     assert by[("evidence arrival", "workflow scheduling")]["n"] == 5 and by[("evidence arrival", "relay pickup")]["n"] == 4       # two samples, two rows
     assert by[("evidence arrival", "relay pickup")]["whose"].startswith("Knos's own") and by[("evidence arrival", "workflow scheduling")]["whose"].startswith("the forge's")
-    assert by[("evaluation", "evaluation")]["where"] == "devnet, 5 of 41 payments"
+    assert by[("evaluation", "evaluation")]["where"] == "devnet, public program ids, 5 of 41 payments"
     warm, cold, chain = [r for r in rows if r["latency"] == "decision"]
     assert (warm["n"], warm["p50"], warm["p95"], warm["unit"]) == (40, 0.7, 2.8, "ms") and "a test machine" in warm["where"] and "no network" in warm["where"]
-    assert (cold["n"], cold["p50"], cold["p95"], cold["p95_note"]) == (24, 356, None, ls.FEW) and cold["where"] == "devnet, 2026-10-07: 24 real tokens"
+    assert (cold["n"], cold["p50"], cold["p95"], cold["p95_note"]) == (24, 356, None, ls.FEW) and cold["where"] == "devnet, 2026-10-07, program ids not recorded: 24 real tokens"
     assert (chain["n"], chain["p50"]) == (23, 854)
     final = by[("finality, at `finalized`", "finality")]
     assert final["n"] == 0 and final["p50"] is None and final["where"] == ls.NOT_RECORDED
@@ -48,7 +48,7 @@ def test_six_latencies_each_with_its_own_sample_and_none_filled_in_from_another(
     assert pay["where"] == ls.NO_GAP and bank["where"] == ls.NO_BANK and pay["n"] == bank["n"] == 0
     table = ls.separate_table(rows)
     assert len(table) == 2 + len(rows) and table[0].startswith("| latency | what is timed | measured | n | p50 | p95 |")
-    assert "| 24 | 356 ms | none: fewer than 30 samples |" in table[6] and table[-1].count("| - ") == 3 and "not recorded | not recorded | not recorded" in table[-3]
+    assert "| 24 | 356 ms | none: fewer than 30 samples |" in table[6] and table[-1].count("| - ") == 5 and "not recorded | not recorded | not recorded" in table[-3]
     # nothing measured: every row says so, and no figure appears
     none = ls.separate([], None)
     assert all(r["n"] == 0 and r["p50"] is None for r in none) and [r["where"] for r in none if r["latency"] == "decision"][0] == "not measured"
@@ -65,8 +65,30 @@ def test_the_document_holds_what_the_record_says_and_names_the_one_command_of_th
     held = doc.split(ls.SEP_OPEN)[1].split(ls.SEP_CLOSE)[0].strip("\n").split("\n")
     assert held == ls.separate_block(kept)                                      # written by the script, not by hand
     assert ls.RELEASE_COMMAND in held[-1] and "--separate" in ls.RELEASE_COMMAND and "--write" in ls.RELEASE_COMMAND
-    assert "it is not the sum of the rows above" in held[-2]
+    assert any("it is not the sum of the rows above" in line for line in held)
     said: list[str] = []
     assert ls.main(["--separate", "--recorded"], say=said.append) == 0 and said == held       # no network asked
     load = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))["relay"]["decision"]
     assert "offline, warm" in load["rows"]                                      # docs/LOAD.md's decision clock is the same run
+
+
+def test_every_rate_has_its_denominator_and_its_failures_and_the_tail_is_apart():
+    """A wait printed only for the payments that worked hides the ones that did not: the block prints every payment
+    asked for, the failed lines and the ones that never completed, each over its denominator, and p99 and the worst
+    apart from p95 (below 100 samples a p99 is the worst one, so it is not printed as a band)."""
+    ls = _script("latency_stages")
+    kept = ls.recorded()
+    held = "\n".join(ls.separate_block(kept))
+    a = ls.attempts_of(kept)
+    assert a["asked"] == a["completed"] + a["never"]
+    assert f"| completed | {a['completed']} of {a['asked']} (" in held and f"| never completed | {a['never']} of {a['asked']} (" in held
+    assert f"| log lines that failed | {a['failed']} of {a['lines']} (" in held
+    assert "| p50 | p95 | p99 | worst |" in held and ls.FEW99 in held
+    assert "public program ids" in held
+    # a reading that kept its reasons prints them; one that did not says so
+    with_reasons = {**kept, "stages": {**kept["stages"], "attempts": {"asked": 3, "completed": 2, "lines": 4, "failed": 2, "retried": 0,
+                                                                     "after_failure": 1, "never": 1, "reasons": {"precheck: order is closed": 2}}}}
+    got = "\n".join(ls.attempts_block(with_reasons))
+    assert "| precheck: order is closed | 2 |" in got and "| never completed | 1 of 3 (33.3%) |" in got
+    assert "kept the counts and not the reasons" in held
+    assert ls.tail({"n": 150, "p99": 9, "unit": "s"}, "p99") == "9 s" and ls.tail({"n": 150, "unit": "s"}, "max") == ls.NOT_KEPT

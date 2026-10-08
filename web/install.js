@@ -18,13 +18,13 @@ jobs:
     name: knos command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/knos') || contains(github.event.comment.body, fromJSON('"\\n/knos"')))) || (github.event_name == 'issues' && (contains(github.event.issue.body, '/knos fund') || contains(github.event.issue.body, '/knos bounty')))
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@096e25faf6caef823e27b52219f674ff1c664fc4
   settle:
     name: knos settle
     needs: command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: github.event_name != 'issues' && !cancelled() && (github.event_name != 'issue_comment' || needs.command.outputs.settle != '') && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@096e25faf6caef823e27b52219f674ff1c664fc4
 `;
 export const ATTESTOR_WORKFLOW = `# .github/workflows/knos-attestor.yml, without its comments: read them in examples/knos-attestor.yml of drexthealpha/Knos
 name: knos attestor
@@ -60,7 +60,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@096e25faf6caef823e27b52219f674ff1c664fc4
     secrets:
       KNOS_READ_TOKEN: \${{ secrets.KNOS_READ_TOKEN }}
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
@@ -77,7 +77,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@096e25faf6caef823e27b52219f674ff1c664fc4
     secrets:
       KNOS_READ_TOKEN: \${{ secrets.KNOS_READ_TOKEN }}
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above

@@ -343,7 +343,7 @@ escrows' own logs, with Knos's own accounts kept apart from everyone else's.
 ### First deployment
 
 <!-- bench:devnet1 -->
-Read from the escrow's own logs on devnet on 3 Oct 2026: 23 transactions in all, the last at 14:19 UTC on 2 Oct 2026. 11 bounties funded, 6 paid, 1 vetoed, 2 claims, 0 refunded, 5 still open. Every one of the 6 payments was Knos's own account paying itself to prove the path; 0 went to anyone else. The median from the funding transaction to the paying one was 159 seconds. 3 of the open bounties are the ones another account's pull requests answer (issues #29, #30 and #31 of this repository, 25, 10 and 15 test USDC; pull requests #32, #33 and #34); they had not been merged when this was read.
+Read from the escrow's own logs on devnet on 3 Oct 2026: 23 transactions in all, the last at 14:19 UTC on 2 Oct 2026. 11 bounties funded, 6 paid, 1 vetoed, 2 claims, 0 refunded, 5 still open. Every one of the 6 payments was Knos's own account paying itself to prove the path; 0 went to anyone else. The median from the funding transaction to the paying one was 159 seconds over those 6 payments (the first deployment's public program ids, knos_pay `9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi` and knos_oidc `vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE`, programs/program_ids.json; read 3 Oct 2026). 3 of the open bounties are the ones another account's pull requests answer (issues #29, #30 and #31 of this repository, 25, 10 and 15 test USDC; pull requests #32, #33 and #34); they had not been merged when this was read.
 <!-- /bench:devnet1 -->
 
 That block is the reading before the three pull requests were merged. They were merged later on 3 Oct 2026 and the
@@ -405,7 +405,7 @@ Real tokens (a file of `scripts/replay_tokens.py --capture`, each with the key s
 
 **On devnet, the 0.3.19 command** ([RELAY.md](RELAY.md), "Measuring the 0.3.18 path on devnet", step 4: `KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --out provisional.json`, then the same with `--full`), run on 2026-10-07 between 13:19 and 14:07 UTC on the operator's machine (WSL, 2 CPUs, over the shared public RPC `api.devnet.solana.com`), once on each of 24 real GitHub-signed tokens of that day, every one at most an hour old: 11 of the release run's own rounds and 13 that other steps of the same run posted in drexthealpha's repositories. The figures are the command's own (`decided in N ms (offline A ms, chain check B ms in 1 request)`); the interpreter's start is not in them. Fewer than 30 tokens, so the samples are given as they are, not as a distribution.
 
-What that 356 ms was: a new process for each token, so the offline figure (A) held the loading of the rules (the relay's module and the Solana types under it) as well as the decision. Since 0.3.20 the command prints the two apart (`rules loaded in L ms, offline A ms`), and `knos decide --stream` is one process that stays up and decides on each line of its input: the block above has both, measured on the machine it names. Neither has been timed on devnet yet. The release run does it with `python scripts/replay_tokens.py --capture drexthealpha/knos-e2e --out tokens.jsonl` and `python scripts/decide_bench.py --tokens tokens.jsonl --write` (real tokens, decided warm on the operator's machine), and step 4 of [RELAY.md](RELAY.md) again for the new process and the chain check.
+What that 356 ms was (24 tokens, 2026-10-07; program ids not recorded by that run: the command reads the pinned public ids unless `KNOS_PROGRAM_IDS` names a staging deployment): a new process for each token, so the offline figure (A) held the loading of the rules (the relay's module and the Solana types under it) as well as the decision. Since 0.3.20 the command prints the two apart (`rules loaded in L ms, offline A ms`), and `knos decide --stream` is one process that stays up and decides on each line of its input: the block above has both, measured on the machine it names. Neither has been timed on devnet yet. The release run does it with `python scripts/replay_tokens.py --capture drexthealpha/knos-e2e --out tokens.jsonl` and `python scripts/decide_bench.py --tokens tokens.jsonl --write` (real tokens, decided warm on the operator's machine), and step 4 of [RELAY.md](RELAY.md) again for the new process and the chain check.
 
 | half | n | fastest | median | slowest |
 | --- | --- | --- | --- | --- |
@@ -449,20 +449,36 @@ No single number says how fast a payment is. Six waits, each with its own sample
 <!-- latency:separate -->
 Stages: `python scripts/latency_stages.py --separate --rpc https://api.devnet.solana.com --write`, run on 2026-10-07 22:42 UTC against the relay log of drexthealpha/Knos: 47 payments of 2026-10-02 to 2026-10-07. Decision, here: `python scripts/decide_bench.py --write`, run on 2026-10-07: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network). Decision, on devnet: `KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --out provisional.json` of 0.3.19, once on each of 24 real GitHub-signed tokens, a new process for each, on the operator's machine (WSL, 2 CPUs) over api.devnet.solana.com on 2026-10-07 between 13:19 and 14:07 UTC; the figures are the command's own, and in 0.3.19 its offline figure held the loading of the rules (the table of 24 below).
 
-| latency | what is timed | measured | n | p50 | p95 | whose wait |
-| --- | --- | --- | --- | --- | --- | --- |
-| evidence arrival | workflow scheduling: the merge to the start of the workflow run | devnet, 11 of 47 payments | 11 | 2 s | 1184 s | the forge's: starting a runner |
-| evidence arrival | relay pickup: the token's comment to a relay taking it up | devnet, 11 of 47 payments | 11 | 3 s | 28 s | Knos's own: a relay finding the token |
-| evaluation | evaluation: the start of the run to the token's comment | devnet, 11 of 47 payments | 11 | 18 s | 33 s | the forge's runner: the judging job, then the forge signs what it found |
-| decision | warm: the token in hand to the provisional receipt, the rules loaded before it arrived (`knos decide --stream`) | here, on one machine, no network (Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz, 4 CPUs, Linux x86_64, Python 3.12.3; load average 2.4 when it began (other work shared the machine when that is near or above its CPUs, and every figure is then slower than on an idle one)) | 40 | 1.6 ms | 2.3 ms | Knos's own, all of it |
-| decision | a new process for each token: the rules loaded, then the offline decision | devnet, 2026-10-07: 24 real tokens | 24 | 356 ms | none: fewer than 30 samples | Knos's own, all of it |
-| decision | the chain check after it: one request, left behind after 2 s | devnet, 2026-10-07: 23 real tokens | 23 | 854 ms | none: fewer than 30 samples | Knos's own, all of it |
-| chain confirmation, at `confirmed` | submission: pickup to the block of the first transaction | devnet, 11 of 47 payments | 11 | 2 s | 6 s | the cluster's, and the relay's sends |
-| chain confirmation, at `confirmed` | confirmation: that block to the block of the paying transaction | devnet, 11 of 47 payments | 11 | 2 s | 8 s | the cluster's, and the relay's sends |
-| finality, at `finalized` | finality: the last confirmation to the cluster finalizing it | not recorded | not recorded | not recorded | not recorded | the cluster's; no relay waits for it |
-| payout | the paying transaction's block to test USDC in the payee's token account | not a wait: the paying transaction is the payout | - | - | - | nobody's |
-| payout | to a bank account | not applicable: no bank route | - | - | - | nobody's |
+| latency | what is timed | measured | n | p50 | p95 | p99 | worst | whose wait |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| evidence arrival | workflow scheduling: the merge to the start of the workflow run | devnet, public program ids, 11 of 47 payments | 11 | 2 s | 1184 s | none: fewer than 100 samples | not kept | the forge's: starting a runner |
+| evidence arrival | relay pickup: the token's comment to a relay taking it up | devnet, public program ids, 11 of 47 payments | 11 | 3 s | 28 s | none: fewer than 100 samples | not kept | Knos's own: a relay finding the token |
+| evaluation | evaluation: the start of the run to the token's comment | devnet, public program ids, 11 of 47 payments | 11 | 18 s | 33 s | none: fewer than 100 samples | not kept | the forge's runner: the judging job, then the forge signs what it found |
+| decision | warm: the token in hand to the provisional receipt, the rules loaded before it arrived (`knos decide --stream`) | here, on one machine, no network (Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz, 4 CPUs, Linux x86_64, Python 3.12.3; load average 2.4 when it began (other work shared the machine when that is near or above its CPUs, and every figure is then slower than on an idle one)) | 40 | 1.6 ms | 2.3 ms | none: fewer than 100 samples | 2.7 ms | Knos's own, all of it |
+| decision | a new process for each token: the rules loaded, then the offline decision | devnet, 2026-10-07, program ids not recorded: 24 real tokens | 24 | 356 ms | none: fewer than 30 samples | none: fewer than 100 samples | 863 ms | Knos's own, all of it |
+| decision | the chain check after it: one request, left behind after 2 s | devnet, 2026-10-07, program ids not recorded: 23 real tokens | 23 | 854 ms | none: fewer than 30 samples | none: fewer than 100 samples | 1801 ms | Knos's own, all of it |
+| chain confirmation, at `confirmed` | submission: pickup to the block of the first transaction | devnet, public program ids, 11 of 47 payments | 11 | 2 s | 6 s | none: fewer than 100 samples | not kept | the cluster's, and the relay's sends |
+| chain confirmation, at `confirmed` | confirmation: that block to the block of the paying transaction | devnet, public program ids, 11 of 47 payments | 11 | 2 s | 8 s | none: fewer than 100 samples | not kept | the cluster's, and the relay's sends |
+| finality, at `finalized` | finality: the last confirmation to the cluster finalizing it | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | the cluster's; no relay waits for it |
+| payout | the paying transaction's block to test USDC in the payee's token account | not a wait: the paying transaction is the payout | - | - | - | - | - | nobody's |
+| payout | to a bank account | not applicable: no bank route | - | - | - | - | - | nobody's |
 
-The one number a person feels, the merge to the payment, was p50 25 s and p95 65 s over 47 payments; it is not the sum of the rows above, which are different samples (a stage is timed only where the relay's log line carries it).
+The one number a person feels, the merge to the payment, on the public program ids (2026-10-07 reading): p50 25 s, p95 65 s, p99 none: fewer than 100 samples, worst not kept, over the 47 payments that completed and could be timed; it is not the sum of the rows above, which are different samples (a stage is timed only where the relay's log line carries it). The payments that failed or never completed are in the next table, not in these percentiles.
+
+Every payment asked for, on the public program ids, the failed and the unfinished counted (scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC):
+
+| pay attempts | count | what is counted |
+| --- | --- | --- |
+| asked for | 53 | pull requests whose payment the public relay log has a line for |
+| completed | 44 of 53 (83.0%) | a line says ok |
+| never completed | 9 of 53 (17.0%) | no line says ok: no wait is timed for them, and no percentile counts them |
+| completed only after a failed line | 1 | asked again with a fresh token, then ok |
+| log lines that failed | 13 of 57 (22.8%) | one line per token a relay answered for |
+| ok lines that took more than one try | 0 | |
+
+Why they failed: that reading kept the counts and not the reasons. The release run's command keeps each line's reason (`stages.attempts.reasons` in docs/bench.json) and prints it here.
+
+The same reading timed 41 of the 44 completed payments from the merge: p50 25 s, p95 58 s, p99 none: fewer than 100 samples, worst 1220 s.
+
 The release run measures every row with a sample again, on the live relay log and devnet, and rewrites this block: `python scripts/latency_stages.py --separate --rpc https://api.devnet.solana.com --write` (GH_TOKEN for GitHub's rate limit), then `python scripts/decide_bench.py --write` for the decision here. `python scripts/latency_stages.py --separate --recorded` prints this table from docs/bench.json with no network.
 <!-- /latency:separate -->

@@ -8,7 +8,7 @@
                                                            the same two things made ready; with --send, `gh` opens the pull
                                                            request and posts the comment as you
     knos task why OWNER/REPO#N [--pull M]                  one sentence: why a merged pull request was not paid, and what fixes it
-    knos task kinds [--json]                               the five tasks that are not code puzzles, each with its evidence
+    knos task kinds [--json]                               the tasks that are not code puzzles, each with its evidence
 
 REF is a task's issue number on the board, its slug, or owner/repo#number.
 
@@ -26,8 +26,10 @@ copy) names that copy: the public worker's run is signed for the public workflow
 task board therefore funds only where the repository calls the public pinned workflows (`scripts/task_board.py`,
 `unpinned`), and `explain` says so when it finds an order that names another.
 
-FIVE TASKS THAT ARE NOT CODE PUZZLES (KINDS; tasks/outside/<kind>.json holds the same text). Each has evidence a
-machine checks (`accepts`) and one counter it can move. A counter moves only when the account that did it is not one
+TASKS THAT ARE NOT CODE PUZZLES (KINDS; tasks/outside/<kind>.json holds the same text). Each has evidence a
+machine checks (`accepts`) and one counter it can move. `keyholder` counts an OFFER of a key, never a holder: a key
+is held only once the multisig seats it (docs/KEYHOLDER.md). `witness` is the whole transaction, end to end, in a
+repository of the stranger's own (examples/witnessed). A counter moves only when the account that did it is not one
 of Knos's own (scripts/own_github_ids.json; scripts/outsiders.py `task_counts` counts, never this module). Every one is
 paid in test USDC from a task Knos funded itself, and every count that comes from them carries that label. None is an
 offer of work or of money: test USDC cannot be exchanged for anything.
@@ -285,7 +287,7 @@ def why(where: str, pull: int | None = None, server: Any = None) -> dict:
     return explain(facts(where, found, now, pull=page if isinstance(page, dict) else None, uses=uses, logins=logins))
 
 
-# ---- five tasks that are not code puzzles ---------------------------------------------------------------------------------
+# ---- tasks that are not code puzzles ---------------------------------------------------------------------------------
 def _kind(title: str, do: str, evidence: str, counter: str, needs: tuple[str, ...], doc: str) -> dict:
     return {"v": 1, "title": title, "statement": f"{FIRST}\n\n{do}", "evidence": evidence, "counter": counter, "needs": list(needs),
             "counted_when": f"the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"{LABEL}\"",
@@ -313,8 +315,41 @@ KINDS: dict[str, dict] = {
                    "Make a repository from the host-a-judge template (examples/host_a_judge) and let it judge one order: GitHub signs your run, not Knos's.",
                    "one GitHub-signed attestation run in a repository your account owns, of the workflow the template installs (.github/workflows/knos-attest.yml, a copy of examples/knos-attest.yml)",
                    "judges", ("actor_id", "repository_owner_id", "workflow", "signed_run"), "examples/host_a_judge"),
+    "compose": _kind("Read the verifier from a program of your own",
+                     "Build a Solana program on the published crate `knos-oidc-interface = \"0.3.14\"` (examples/reader_template is a "
+                     "complete one), deploy it to devnet, and send one transaction in which it reads a token knos-oidc verified.",
+                     "one devnet transaction of a program your account deployed whose accounts include a token account owned by knos-oidc "
+                     "(FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W), and the program's source naming knos-oidc-interface 0.3.14",
+                     "programs", ("actor_id", "program_id", "tx", "reads_verifier", "crate", "source"), "examples/reader_template"),
+    "gate": _kind("Put a program of yours behind the upgrade gate",
+                  "Make your gate with `examples/upgrade_gate/adopt.py init`, deploy it to devnet, give your program's upgrade "
+                  "authority to a Squads multisig, and let your build workflow record one build.",
+                  "a devnet transaction in which your gate wrote the record [\"build\", program, executable hash] on a token "
+                  "from a workflow of a repository your account owns, and `adopt.py check` on the program exiting 0",
+                  "gates", ("actor_id", "repository_owner_id", "program_id", "gate_id", "record_tx", "checked"), "docs/GATE.md"),
+    "keyholder": _kind("Offer to hold one key of the upgrade multisig",
+                       "Open the Key holder request issue (.github/ISSUE_TEMPLATE/key_holder.md) on drexthealpha/Knos with your public "
+                       "key, a name or handle, and how to reach you. An offer is counted as an offer; a key is held only once it is seated.",
+                       "an issue your account opened on drexthealpha/Knos from the key holder template, naming a Solana public key",
+                       "key_offers", ("actor_id", "issue", "public_key", "contact"), "docs/KEYHOLDER.md"),
+    "tamper": _kind("Fool the judge on a task",
+                    "Write a submission meant to make the judge accept work that does not do what the task asks. If the judge "
+                    "accepts it, the cheat joins the tamper set as a case written outside Knos. If the judge refuses it, nothing is paid.",
+                    "a pull request of yours on a funded task whose judge verdict was accepted, and a maintainer's note that the "
+                    "accepted work does not do what the task asks (docs/TAMPER.md)",
+                    "outside_cheats", ("actor_id", "task", "submission", "verdict", "why_wrong"), "docs/TAMPER.md"),
+    "witness": _kind("Witness one transaction from start to end",
+                     "In a repository of your own, run examples/witnessed/witness.py: fix terms and a budget with faucet test USDC, "
+                     "submit failing work, then passing work, make the buyer's and the supplier's statements, try a replay, get paid, "
+                     "and check the archive with the stand-alone verifier.",
+                     "the public record witness.py writes (witness.json): each step's link, the payment's transaction, the replay "
+                     "refused, both statements with one hash, and the verifier's result",
+                     "witnessed", ("actor_id", "repository_owner_id", "funded_tx", "failed_run", "paid_tx", "replay_refused",
+                                   "statements_agree", "verified"), "examples/witnessed"),
 }
 COUNTERS = {k: v["counter"] for k, v in KINDS.items()}
+OIDC_PROGRAM = "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W"      # knos-oidc on devnet (knos_oidc_interface::ID)
+CRATE = "knos-oidc-interface 0.3.14"                                # the published crate a `compose` program builds on
 
 
 def accepts(kind: str, e: dict) -> tuple[bool, str]:
@@ -333,6 +368,18 @@ def accepts(kind: str, e: dict) -> tuple[bool, str]:
         return False, "the repository is not the account's own"
     if kind == "reproduce" and not re.fullmatch(r"reproductions/[\w.-]+\.json", str(e["file"])):
         return False, "the report is one file directly under reproductions/"
+    if kind in ("compose", "gate") and not is_address(str(e["program_id"])) or kind == "gate" and not is_address(str(e["gate_id"])):
+        return False, "a program is named by its Solana address"
+    if kind == "compose" and (str(e["program_id"]) == OIDC_PROGRAM or " ".join(str(e["crate"]).replace("=", " ").replace('"', " ").split()) != CRATE):
+        return False, f"the program is your own and builds on the published crate {CRATE}"
+    if kind == "keyholder" and not is_address(str(e["public_key"])):
+        return False, "the public key is a Solana address (32 bytes in base58)"
+    if kind == "keyholder" and e.get("seated"):
+        return False, "a seated key is counted by the multisig, not as an offer"
+    if kind == "tamper" and e["verdict"] != "accepted":
+        return False, "the judge refused it: only a cheat the judge accepted is paid"
+    if kind == "witness" and e.get("payments", 1) != 1:
+        return False, "the replay made a second payment: the record shows more than one"
     if kind == "judge" and not str(e["workflow"]).endswith("knos-attest.yml"):       # knos.host_judge.WORKFLOW_PATH (tests/test_tasks.py holds the two together)
         return False, "the run is not the template's attest workflow"
     return True, ""
@@ -402,7 +449,7 @@ def register(app, help_lines: list | None = None) -> None:
 
     @sub.command("kinds")
     def _kinds(as_json: bool = typer.Option(False, "--json")) -> None:
-        """The five tasks that are not code puzzles."""
+        """The tasks that are not code puzzles."""
         show_(KINDS, as_json, [FIRST] + [f"{k}: {v['title']}. Evidence: {v['evidence']}. Counter: {v['counter']} ({LABEL})." for k, v in KINDS.items()])
 
     if help_lines is not None:

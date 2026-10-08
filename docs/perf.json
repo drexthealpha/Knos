@@ -5,45 +5,45 @@
  "interactions": {
   "open a view": {
    "runs": 20,
-   "p50_ms": 37.7,
-   "p95_ms": 50.6,
-   "max_ms": 61.1
+   "p50_ms": 63,
+   "p95_ms": 79,
+   "max_ms": 258.5
   },
   "open a view: the new page drawn": {
    "runs": 20,
-   "p50_ms": 34.9,
-   "p95_ms": 56.4,
-   "max_ms": 56.6
+   "p50_ms": 54.2,
+   "p95_ms": 70.3,
+   "max_ms": 84.9
   },
   "open a page for the first time": {
    "runs": 20,
-   "p50_ms": 34.1,
-   "p95_ms": 74.5,
-   "max_ms": 137.1,
+   "p50_ms": 53.6,
+   "p95_ms": 103.2,
+   "max_ms": 197.7,
    "limit_ms": 200
   },
   "run the sample invoice": {
    "runs": 20,
-   "p50_ms": 61.2,
-   "p95_ms": 107.4,
-   "max_ms": 168.5
+   "p50_ms": 72.3,
+   "p95_ms": 178.3,
+   "max_ms": 338.6
   },
   "open the palette": {
    "runs": 20,
-   "p50_ms": 33.2,
-   "p95_ms": 54.2,
-   "max_ms": 55.7
+   "p50_ms": 52.2,
+   "p95_ms": 93.5,
+   "max_ms": 104.7
   },
   "switch light and dark": {
    "runs": 20,
-   "p50_ms": 48.4,
-   "p95_ms": 52.7,
-   "max_ms": 52.8
+   "p50_ms": 71.1,
+   "p95_ms": 88.3,
+   "max_ms": 133.1
   }
  },
  "first_screen_bytes": {
-  "js": 168905,
-  "css": 59914,
+  "js": 169497,
+  "css": 59938,
   "budget": {
    "js": 183000,
    "css": 60000
@@ -53,7 +53,7 @@
  "layout_shift": {
   "limit": 0.05,
   "at_1280": 0.0049,
-  "at_390": 0.007
+  "at_390": 0.006
  },
  "widths_without_sideways_scroll": [
   320,

@@ -85,6 +85,23 @@ durable store, beside the folder:
     said on the page   an event run that finds a token and sends nothing for it says so on its run's page, naming the
                        runner the notes say holds or answered it and the relay-log comment that says so (`passed_over`).
 Only lines the log repository's own workflow account wrote on the log issue count: anyone can comment on a public issue.
+
+SINCE 0.3.21, THE EVENT IS RECORDED FIRST, AND WORKERS ARE PARTITIONED BY ORDER.
+
+    durable ingestion  an event run's first write, before it reads or carries anything, is one line in the relay log:
+                       `knos-inbox 1 <runner> {"repo": ..., "n": [...], "t": ...}` (`LogStore.record`). The sweep reads
+                       the log's comments on every pass anyway; a repository an inbox line names is read from that pass
+                       on (`Notes.repos`). So an event run that dies after its first step loses nothing: the sweep's
+                       polling is the backstop, not the transport. Before 0.3.21 the repository an event named was
+                       written only to the event runner's own folder, which the sweep's runner never sees.
+    partitions         `part_of(lane, n)`: sha256 of the lane, modulo n, the same in every process. A lane is the owner
+                       of the repository a token was signed for (`relay.lane`), and every order has one owner.
+                       `work(..., partition=True)`: worker i of n takes only the lanes of part i, so an order's tokens
+                       always go to one worker. `Queue(..., part=(i, n))` (or KNOS_RELAY_PARTITION="i/n"): a whole
+                       runner takes only part i, so runners that share no file never take the same order; the sweep,
+                       which takes every part, is the backstop for a part whose runner is gone. Two workers never hold
+                       one lane at once in any case (a lane leaves one entry at a time); a partition makes that hold
+                       across runners and keeps an order on one worker for its whole life.
 """
 from __future__ import annotations
 
@@ -128,6 +145,7 @@ NOTES_KEEP = 3 * 3600   # a runner's notes file is dropped this long after its l
 FEED_EVERY = 3.0        # seconds between two reads for new entries while a worker is still carrying (the sweep's own pace)
 _RUNNER = re.compile(r"[^A-Za-z0-9_.-]")
 NOTE_MARK = "knos-note 1 "                              # a note's line in the relay log: the mark, the runner, one JSON object
+INBOX_MARK = "knos-inbox 1 "                            # an event's line in the relay log, written before the event is read
 FORGE_STATES = ("sending", "confirmed", "refused")      # the changes another runner must know: one comment each, and no other
 LOG_LABEL, LOG_BOT = "knos-relay", "github-actions[bot]"    # knos.proof.ghrelay's: the log issue's label, and who writes in it
 
@@ -147,6 +165,7 @@ class LogStore:
         self.repo, self._get, self._send, self._issue, self.bot = repo, get, send, issue, bot
         self._say = say or (lambda words: print(words, file=sys.stderr))
         self.lines: dict[str, dict[str, dict[str, Any]]] = {}
+        self.inbox: dict[str, dict[str, dict[str, Any]]] = {}   # runner -> repository -> its newest inbox line, with `at`
         self.failed: str | None = None
         self.wrote = self.asked = 0             # comments written, and reads this store made on its own
         self._lock = threading.Lock()
@@ -183,6 +202,9 @@ class LogStore:
                 if (c.get("user") or {}).get("login") != self.bot or not str(c.get("issue_url") or "").endswith(f"/issues/{number}"):
                     continue
                 for text in str(c.get("body") or "").splitlines():
+                    if text.startswith(INBOX_MARK):
+                        new += self._inbox(text[len(INBOX_MARK):], int(c["id"]))
+                        continue
                     if not text.startswith(NOTE_MARK):
                         continue
                     runner, _, raw = text[len(NOTE_MARK):].partition(" ")
@@ -197,6 +219,42 @@ class LogStore:
                         self.lines[runner][ln["k"]] = {**ln, "at": int(c["id"])}
                         new += 1
         return new
+
+    def _inbox(self, text: str, at: int) -> int:
+        runner, _, raw = text.partition(" ")
+        try:
+            ln = json.loads(raw)
+        except ValueError:
+            return 0
+        if not (isinstance(ln, dict) and isinstance(ln.get("repo"), str) and _REPO.fullmatch(ln["repo"]) and runner and _RUNNER.sub("-", runner) == runner):
+            return 0
+        had = self.inbox.setdefault(runner, {}).get(ln["repo"])
+        if had is not None and int(had["at"]) >= at:
+            return 0
+        numbers = [int(n) for n in ln.get("n") or [] if isinstance(n, int) and n > 0][:50]
+        self.inbox[runner][ln["repo"]] = {"repo": ln["repo"], "n": numbers, "t": ln.get("t"), "at": at}
+        return 1
+
+    def record(self, runner: str, repo: str, numbers: list[int], t: float) -> int | None:
+        """The event, written down before it is read: one `knos-inbox` comment. Returns its id; None (and `failed`
+        says why) when GitHub did not take it: the sweep then finds the token by polling, as before 0.3.21."""
+        if not _REPO.fullmatch(repo):
+            raise ValueError(f"no repository: {repo[:60]!r}")
+        line = {"repo": repo, "n": sorted({int(n) for n in numbers if int(n) > 0})[:50], "t": t}
+        try:
+            number = self._issue()
+            if number is None:
+                raise RuntimeError("the relay log has no open issue yet")
+            got = self._send(f"repos/{self.repo}/issues/{number}/comments", {"body": INBOX_MARK + runner + " " + json.dumps(line, separators=(",", ":"))})
+            at = int(got["id"])
+        except Exception as why:  # noqa: BLE001 - GitHub said no or did not answer: the sweep's polling still finds it
+            self._fail(why)
+            return None
+        self.wrote += 1
+        self._well()
+        with self._lock:
+            self.inbox.setdefault(runner, {})[repo] = {**line, "at": at}
+        return at
 
     def read(self) -> bool:
         """Asks GitHub for the newest comments now (a lease does, after its own line). False when it did not answer."""
@@ -279,6 +337,9 @@ class Notes:
             self._read[f.name] = (done + len(whole), last, repos)
             out[f.stem] = (last, repos)
         if self.store is not None:              # what the relay log holds: a runner's newer word for a key stands over its older one
+            for runner, named in list(self.store.inbox.items()):       # where an event run was told to read: swept from now on
+                last, repos = out.get(runner, ({}, set()))
+                out[runner] = (last, repos | set(named))
             for runner, lines in list(self.store.lines.items()):
                 last, repos = out.get(runner, ({}, set()))
                 both = dict(last)
@@ -450,6 +511,23 @@ class Slow(RuntimeError):
         self.retry_after = wait
 
 
+def part_of(lane: str, n: int) -> int:
+    """The partition of `lane` (the owner an order belongs to: `relay.lane`) among `n`: sha256 of the lane, modulo n. The same in every process
+    and every run, so an order's tokens always go to the same worker (and pay from the same key: `Payers.index`)."""
+    return int.from_bytes(hashlib.sha256(str(lane).encode()).digest()[:8], "big") % max(1, n)
+
+
+def partition(env: Mapping[str, str] | None = None) -> tuple[int, int] | None:
+    """KNOS_RELAY_PARTITION="i/n": this runner takes only part i of n (0 <= i < n). None: every part (the sweep)."""
+    text = ((os.environ if env is None else env).get("KNOS_RELAY_PARTITION") or "").strip()
+    if not text:
+        return None
+    m = re.fullmatch(r"(\d+)/(\d+)", text)
+    if not m or not 0 <= int(m[1]) < int(m[2]):
+        raise ValueError(f"KNOS_RELAY_PARTITION is i/n with 0 <= i < n (got {text[:20]!r})")
+    return int(m[1]), int(m[2])
+
+
 def backoff(tries: int) -> int:
     """Seconds an entry is left alone after its `tries`-th failed try: 0, 0, 10, 20, ... up to BACKOFF_MOST."""
     return min(BACKOFF_MOST, max(0, tries - 2) * 10)
@@ -461,16 +539,17 @@ class Queue:
 
     def __init__(self, path: Path, clock: Callable[[], float] = time.time, limit: int = LIMIT, lease: float = LEASE,
                  workers: int = WORKERS, key: str = "journal", max_tries: int | None = MAX_TRIES, strict: bool = True,
-                 notes: Notes | None = None) -> None:
+                 notes: Notes | None = None, part: tuple[int, int] | None = None) -> None:
         """`max_tries`: takes after which an entry is given up here; None when whoever carries it decides that (the
         sweep does: it tries a token for as long as the chain would take it). `strict`: an entry that waits to be
         tried again holds its lane, so nothing later of it leaves first. Without it only an entry in flight holds its
         lane: two of one lane are still never in flight together and still start in the order they came, but one
         that waits (up to an hour, in the sweep) does not keep its owner's later tokens waiting with it. `notes`: what
         several runners share (`Notes`); this journal is then this runner's alone, and what another runner confirmed,
-        refused or holds is read from the merge before a token is queued or leased."""
+        refused or holds is read from the merge before a token is queued or leased. `part`: (i, n), this queue takes
+        only the lanes of part i of n (`part_of`); None, every lane."""
         self.path, self.clock, self.limit, self.lease, self.workers, self.key = Path(path), clock, limit, lease, max(1, workers), key
-        self.max_tries, self.strict, self.shared = max_tries, strict, notes
+        self.max_tries, self.strict, self.shared, self.part = max_tries, strict, notes, part
         self._lock = threading.Lock()
 
     # -- the file ----------------------------------------------------------------------------------------------------
@@ -574,13 +653,17 @@ class Queue:
             self.shared.append(key, state, **about)
 
     # -- out ---------------------------------------------------------------------------------------------------------
-    def take(self, worker: str, skip: Any = (), leave: Any = ()) -> dict[str, Any] | None:
+    def _mine(self, lane: str, part: tuple[int, int] | None) -> bool:
+        return all(p is None or part_of(lane, p[1]) == p[0] for p in (self.part, part))
+
+    def take(self, worker: str, skip: Any = (), leave: Any = (), part: tuple[int, int] | None = None) -> dict[str, Any] | None:
         """The oldest entry a worker may carry now, leased to `worker`; None when there is none. An entry may be
         carried when it is the first open one of its lane and it is queued with its wait over, or leased with its
         lease expired (its worker stopped without an answer). One taken `max_tries` times already is closed as dead.
         `skip`: keys not to take now (they still hold their lane: nothing later of it leaves first). `leave`: kinds
         this caller does not carry (lanes of their own). An open entry with no token (older notes) is nobody's to
-        carry until its comment is read again (`put`)."""
+        carry until its comment is read again (`put`). `part`: (i, n), only lanes of part i of n (a worker's own, in
+        `work(..., partition=True)`), beside the queue's own `part`."""
         with self._lock:
             state = self._read()
             journal: dict[str, dict[str, Any]] = state[self.key]
@@ -588,6 +671,8 @@ class Queue:
             for key, e in sorted(journal.items(), key=lambda kv: int(kv[1].get("seq", 0))):
                 if e.get("state") not in OPEN or "item" not in e or e.get("kind") in leave or e.get("lane", key) in heads:
                     continue
+                if not self._mine(str(e.get("lane", key)), part):
+                    continue                                # another worker's (or runner's) order: never taken here
                 other = self.shared.theirs(key) if self.shared is not None else None
                 if other is not None and other["state"] != "waiting":
                     if other["state"] == "sending":
@@ -681,16 +766,17 @@ class Queue:
             got[str(e.get("state"))] = got.get(str(e.get("state")), 0) + 1
         return got
 
-    def pending(self, leave: Any = ()) -> int:
-        """Open entries a worker here could still carry: with their token, and of a kind not in `leave`."""
-        return sum(1 for e in self.entries().values() if e.get("state") in OPEN and "item" in e and e.get("kind") not in leave)
+    def pending(self, leave: Any = (), part: tuple[int, int] | None = None) -> int:
+        """Open entries a worker here could still carry: with their token, of a kind not in `leave`, of its part."""
+        return sum(1 for k, e in self.entries().items() if e.get("state") in OPEN and "item" in e and e.get("kind") not in leave
+                   and self._mine(str(e.get("lane", k)), part))
 
 
 def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], workers: int = WORKERS,
          idle: Callable[[], None] | None = None, after: Callable[[dict[str, Any], Mapping[str, Any], str], None] | None = None,
          drain: bool = True, owner: str = "", leave: Any = (), stop: Callable[[], bool] | None = None,
          note: Callable[[dict[str, Any]], None] | None = None, feed: Callable[[], int] | None = None,
-         feed_every: float = FEED_EVERY) -> dict[str, int]:
+         feed_every: float = FEED_EVERY, partition: bool = False) -> dict[str, int]:
     """`workers` threads carry the queue's entries until none is open. `handle(entry)` answers as a relay does; what
     it raises is a failure that may clear (the entry is tried again). A worker that stops without answering (the
     process is killed, or `handle` raises something that is not an Exception) leaves its lease to expire. `idle()` is
@@ -706,20 +792,29 @@ def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], wo
     `feed()`: asked every `feed_every` seconds for as long as a worker is still carrying; it queues what is new and
     returns how many entries it queued. Workers that have ended are started again for them, so what arrives while
     one confirmation is awaited is carried by a free worker and not after it. What `feed` raises is its own failure:
-    it is asked again."""
+    it is asked again.
+
+    `partition`: worker i of N takes only the lanes of part i (`part_of`), so an order's tokens always go to the same
+    worker; a worker whose part holds nothing ends (drain) when its part is empty."""
     wait = idle or (lambda: time.sleep(0.2))
     stopped = 0
     guard = threading.Lock()
     tried: set[str] = set()             # one pass: the keys taken in it
 
-    def run(name: str) -> None:
+    n = max(1, workers)
+
+    def run(name: str, i: int) -> None:
         nonlocal stopped
+        mine = (i, n) if partition else None
         try:
             while not (stop is not None and stop()):
                 # (the set itself, not a copy: a key is in it before its entry is answered, so no take after the answer misses it)
-                entry = queue.take(name, skip=() if drain else tried, leave=leave) if leave or not drain else queue.take(name)
+                if mine is not None:
+                    entry = queue.take(name, skip=() if drain else tried, leave=leave, part=mine)
+                else:
+                    entry = queue.take(name, skip=() if drain else tried, leave=leave) if leave or not drain else queue.take(name)
                 if entry is None:
-                    if not drain or not queue.pending(leave):
+                    if not drain or not (queue.pending(leave, mine) if mine is not None else queue.pending(leave)):
                         return
                     wait()
                     continue
@@ -742,7 +837,7 @@ def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], wo
     def start(i: int) -> threading.Thread:
         def body() -> None:
             try:
-                run(f"{mark}w{i + 1}")
+                run(f"{mark}w{i + 1}", i)
             finally:
                 with ended:
                     ended.notify_all()
@@ -750,7 +845,7 @@ def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], wo
         t.start()
         return t
 
-    threads = [start(i) for i in range(max(1, workers))]
+    threads = [start(i) for i in range(n)]
     while feed is not None:
         until = time.monotonic() + max(0.0, feed_every)
         with ended:                         # until the time is up, or no worker is left (each says when it ends)
@@ -929,14 +1024,24 @@ def carrier(ledger: Any, payer: Any, clock: Callable[[], float] = time.time) -> 
 
 def serve_event(event_name: str, event: Mapping[str, Any], ledger: Any, payer: Any, path: Path, workers: int = WORKERS,
                 get: Callable[[str], Any] | None = None, post: Callable[[list[str]], None] | None = None,
-                clock: Callable[[], float] = time.time, say: Callable[[str], None] = print, notes: Notes | None = None) -> int:
+                clock: Callable[[], float] = time.time, say: Callable[[str], None] = print, notes: Notes | None = None,
+                part: tuple[int, int] | None = None) -> int:
     """One event, start to end: queue what it names, carry it with `workers` workers, write the log's lines. A token
     the chain already showed done gets no line from here (whoever carried it writes its own). Returns the number of
     tokens that reached the chain here. `notes`: the notes this run shares with others (`Notes`); `path` is then this
-    run's own journal, and what the sweep holds or has answered is left to the sweep. `payer`: one key or `Payers`."""
+    run's own journal, and what the sweep holds or has answered is left to the sweep. `payer`: one key or `Payers`.
+    With `notes` that have a relay log, the event is recorded there first (`LogStore.record`). Workers are partitioned
+    by order (`work(..., partition=True)`); `part`: this runner's own part of the orders (KNOS_RELAY_PARTITION)."""
     from ...proof import ghrelay
-    queue = Queue(path, clock, workers=workers, notes=notes)
+    queue = Queue(path, clock, workers=workers, notes=notes, part=part)
     passed: list = []
+    if notes is not None and notes.store is not None:     # written down before it is read: the sweep's backstop (module text, 0.3.21)
+        try:
+            where, numbers = named(event_name, event)
+            if notes.store.record(notes.runner, where, numbers, clock()) is None:
+                say("relay: the event was not recorded in the relay log; the sweep finds its token by reading the comments.")
+        except ValueError:
+            pass
     try:
         mine = ingest(queue, event_name, event, get or Forge(clock=clock).get, clock(), passed=passed)
     except (Full, Slow, ValueError) as why:
@@ -967,7 +1072,7 @@ def serve_event(event_name: str, event: Mapping[str, Any], ledger: Any, payer: A
             notes.repo(repo)
     except ValueError:
         pass
-    work(queue, carrier(ledger, payer, clock), workers, after=after, leave=LEFT_TO_SWEEP)
+    work(queue, carrier(ledger, payer, clock), workers, after=after, leave=LEFT_TO_SWEEP, partition=True)
     entries = queue.entries()
     for key in mine:                    # queued here, then closed by another runner's answer (`Queue.take`): said, as above
         e = entries.get(key) or {}
@@ -994,7 +1099,8 @@ def main(argv: list[str] | None = None) -> int:
     if store is not None:
         store.read()                    # one read: what the sweep holds or has answered, before anything is queued
     shared = Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or home.with_name(f"{home.stem}-notes")), me, store=store)
-    carried = serve_event(a.event_name, event, chain.ledger(), payers(chain.key()), home.with_name(f"ghrelay.{me}.json"), max(1, a.workers), notes=shared)
+    carried = serve_event(a.event_name, event, chain.ledger(), payers(chain.key()), home.with_name(f"ghrelay.{me}.json"), max(1, a.workers), notes=shared,
+                          part=partition())
     print(f"relay: {carried} token{'' if carried == 1 else 's'} carried for this event", file=sys.stderr)
     return 0
 

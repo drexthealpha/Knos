@@ -27,7 +27,7 @@ name: knos prove
 #            runs, and what was learned as comments on the issue labelled knos-memory. No id-token and no secret.
 #            It checks out nothing; what it reads of the repository it reads through GitHub's API.
 #   judge    after review, when the pull request closes an issue funded with acceptance checks
-#            (.knos/acceptance/<issue>/ on the default branch):   knos proof judge ... --sandbox require
+#            (.knos/acceptance/<issue>/ on the default branch):   knos proof judge ... --sandbox hermetic
 #            The only job that runs pull request code. So it has no id-token and no secret, its token can only read
 #            the repository's contents and is not given to the step that runs that code, and it neither restores
 #            nor saves a cache. The default branch and the pull request's head are laid side by side; the acceptance checks
@@ -185,7 +185,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.20"
+        run: uv tool install --no-config "knos==0.3.21"
       - name: knos review
         id: review
         env:
@@ -256,7 +256,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.20"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.21"
       # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
       # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
       # sandbox cannot be made here, the job ends now.
@@ -288,7 +288,7 @@ jobs:
       - name: knos proof judge, in the sandbox
         env:
           ISSUE: ${{ needs.review.outputs.tests }}
-        run: knos proof judge --base base --pr pr --issue "$ISSUE" --changed changed.txt --sandbox require
+        run: knos proof judge --base base --pr pr --issue "$ISSUE" --changed changed.txt --sandbox hermetic
       # Only after the suite passed. One line: which run, pull request, issue and commits, the hash of the acceptance
       # checks that ran, a hash of the changed paths. Nothing in it is free text.
       - name: the verdict, one line of fixed fields (the job that signs checks every one)

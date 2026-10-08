@@ -8,6 +8,7 @@
     "record_lookup": {"usd": "0.01", "kind": "budget, not measured"},
     "control_year": {"usd": "15000", "kind": "budget, not measured"},
     "control_year_target": {"usd": "7000", "kind": "budget, not measured", "what": "a year of onboarding and support for one Business customer once onboarding is self-service: a target nobody has reached"},
+    "release_chain": {"usd": "0.0072", "kind": "measured", "what": "the chain fees of one order funded and paid: 12 transactions, 60,000 lamports, counted in the simulator (docs/LOAD.md); whoever relays pays them"},
     "payee_account": {"usd": "0.18", "kind": "measured", "what": "rent of a payee's first token account, 1,488,440 lamports; whoever relays puts it up"}
   }
 }

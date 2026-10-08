@@ -73,11 +73,14 @@ def _kid(token: str) -> object:
 
 def files_of(events: bytes | None = None, ledgers: dict[str, bytes] | None = None, statements: dict[str, bytes] | None = None, tokens: list[str] | tuple = (),
              receipts: dict[str, bytes] | None = None, terms: list[bytes] | tuple = (), closes: dict[str, bytes] | None = None, others: dict[str, bytes] | None = None,
-             jwks: dict | None = None, keys_read: str = "", keys_from: str = "", sealed: str = "") -> dict[str, bytes]:
+             jwks: dict | None = None, keys_read: str = "", keys_from: str = "", sealed: str = "", acks: list[bytes] | tuple = ()) -> dict[str, bytes]:
     """Every file of an archive, by name. `events`: the log's bytes. `ledgers`, `statements`, `receipts`, `closes`,
     `others`: file name -> bytes. `tokens`: signed tokens. `terms`: each terms file's bytes, kept under their SHA-256.
     `jwks`: the issuer's keys; the ones a token of the archive names are kept, with `keys_read` (the day they were
-    read, YYYY-MM-DD) and `keys_from` (where from). `sealed`: the day the archive is made, for a retention policy."""
+    read, YYYY-MM-DD) and `keys_from` (where from). `sealed`: the day the archive is made, for a retention policy.
+    `acks`: each party's signed acknowledgement or closure of a month (knos.period), kept under its SHA-256; the terms
+    that name their keys go in `terms` (the stand-alone verifier finds them by the hash of their canonical JSON, the hash
+    Knos Terms 3 cites)."""
     from . import events as E
     for day, what in ((sealed, "the day the archive is sealed"), (keys_read, "the day the keys were read")):
         if day:
@@ -101,16 +104,17 @@ def files_of(events: bytes | None = None, ledgers: dict[str, bytes] | None = Non
         head = log.head
         for m in sorted(log.by_month):
             files[f"statements/events-{m}.json"] = (canon(E.statement(log, m)) + "\n").encode()
-        acks = [(log.events[n].ack or {})["token"] for n in log.acks]
+        ack_tokens = [(log.events[n].ack or {})["token"] for n in log.acks]
     else:
-        acks = []
+        ack_tokens = []
     if any(name.startswith("events-") for name in statements or {}):
         raise Bad("a statement named events-... is one the archive makes itself from the log: give yours another name")
     for folder, given in (("ledgers", ledgers), ("statements", statements), ("receipts", receipts), ("closes", closes), ("other", others)):
         files.update(_named(folder, given or {}))
     files.update({f"tokens/{_sha(t.encode())}.jwt": (t + "\n").encode() for t in kept})
     files.update({f"terms/{_sha(raw)}.json": raw for raw in terms})
-    kids = {_kid(t) for t in (*kept, *acks)}
+    files.update({f"acks/{_sha(raw)}.json": raw for raw in acks})
+    kids = {_kid(t) for t in (*kept, *ack_tokens)}
     used = sorted((k for k in (jwks or {}).get("keys", []) if isinstance(k, dict) and k.get("kid") in kids), key=canon)
     keys = None
     if used:
@@ -209,9 +213,13 @@ def holds(files: dict[str, bytes]) -> list[str]:
     if "events/log.jsonl" in files:
         jwks = json.loads(files["keys/jwks.json"]) if "keys/jwks.json" in files else None
         log, _wrong = E.read(files["events/log.jsonl"].decode("utf-8"), jwks)
+        signed = _periods(files, log)
         for m in sorted(log.by_month):
             st = E.statement(log, m)
-            if len(st["acknowledged"]["covers_month"]) < PARTIES_TO_CLOSE:
+            if m in signed:
+                if not signed[m]["closed"]:
+                    said.append(f"{m} is open: " + (signed[m]["said"] or ["no closure the terms allow"])[0])
+            elif len(st["acknowledged"]["covers_month"]) < PARTIES_TO_CLOSE:
                 said.append(f"{m} is open: {len(st['acknowledged']['covers_month'])} of {PARTIES_TO_CLOSE} parties have acknowledged a head that covers it")
             if st["line_states"]["disputed"]:
                 said.append(f"{m} has {st['line_states']['disputed']} invoice lines in dispute")
@@ -226,6 +234,17 @@ def holds(files: dict[str, bytes]) -> list[str]:
         except ValueError:
             pass
     return said
+
+
+def _periods(files: dict[str, bytes], log) -> dict[int, dict]:
+    """The months the archive's signed acknowledgements and closures (acks/) speak of, checked as `verify.py` checks them."""
+    names = sorted(n for n in files if n.startswith("acks/"))
+    if not names:
+        return {}
+    rules: dict = {}
+    for name in (n for n in files if n.startswith("terms/")):
+        rules.update(V.terms_rule(name, files[name]))
+    return V.periods(list(log.hashes), [e.month for e in log.events], [e.kind for e in log.events], [json.loads(files[n]) for n in names], rules)
 
 
 def policy(rules: dict, archives: dict[str, dict[str, bytes]], today: str) -> list[dict]:
@@ -290,6 +309,7 @@ def register(app, help_lines: list | None = None) -> None:
               terms: list[Path] = typer.Option(None, "--terms", help="a terms file, kept under its hash (repeat)"),
               close: list[Path] = typer.Option(None, "--close", help="a close record (knos meter close) (repeat)"),
               other: list[Path] = typer.Option(None, "--other", help="anything else to keep, checked by hash only (repeat)"),
+              ack: list[Path] = typer.Option(None, "--ack", help="a party's signed acknowledgement or closure of a month (knos events sign) (repeat)"),
               keys: Path = typer.Option(None, "--keys", help="the issuer's keys (a JWKS file); default: <events log>.jwks.json"),
               keys_read: str = typer.Option("", "--keys-read", metavar="YYYY-MM-DD", help="the day those keys were read from the issuer"),
               keys_from: str = typer.Option("", "--keys-from", help="where they were read from (the issuer's JWKS address)"),
@@ -304,7 +324,7 @@ def register(app, help_lines: list | None = None) -> None:
                 jwks = json.loads(jwks_path.read_text(encoding="utf-8"))
             blob = make(events=events.read_bytes() if events is not None else None, ledgers=by_name(ledger), statements=by_name(statement),
                         tokens=[p.read_text(encoding="ascii") for p in token or []], receipts=by_name(receipt), terms=[p.read_bytes() for p in terms or []],
-                        closes=by_name(close), others=by_name(other), jwks=jwks, keys_read=keys_read, keys_from=keys_from,
+                        closes=by_name(close), others=by_name(other), jwks=jwks, keys_read=keys_read, keys_from=keys_from, acks=[p.read_bytes() for p in ack or []],
                         sealed=sealed or datetime.date.today().isoformat())
         except (OSError, ValueError) as why:
             raise stop(str(why)) from None

@@ -72,12 +72,12 @@ All of it goes through `src/knos/proof/history.py` (`SibylStore`), and that clas
 | the engine's tier | the client's call | what Knos keeps there |
 |---|---|---|
 | HOT, state documents | `set_state`, `get_state` | the running count of claims and refusals in a repository; the buyer's live exception queue |
-| WARM, entities | `set_entity`, `list_entities`, `search_entities(category=...)` | proof rules, tamper lessons, how each order ended, refusals under given terms, appeals, a supplier's record, and one entity per supplier-and-terms holding how their exceptions ended |
-| COLD, journal | `write_event`, `read_events` | every verdict of the Stop hook; every resolution of an exception. Appended, never rewritten |
+| WARM, entities | `set_entity`, `get_entity`, `list_entities`, `search_entities(category=...)` | proof rules, tamper lessons, how each order ended, refusals under given terms, appeals, a supplier's record, one entity per supplier-and-terms holding how their exceptions ended, one entity per commitment holding every approval record given for it, and in a supplier's tenant the results each buyer granted and each buyer's onboarding times |
+| COLD, journal | `write_event`, `read_events` | every verdict of the Stop hook; every resolution of an exception; every approval record, which the entity of its commitment is checked against; every granted result. Appended, never rewritten |
 | REFERENCE | `set_reference`, `get_reference` | the text of the terms an exception was judged under, by its hash |
-| ARCHIVE | `archive_entity` | a closed statement period: what its exceptions came to |
+| ARCHIVE | `archive_entity` | a closed statement period: what its exceptions came to; a grant its buyer withdrew |
 | all tiers | `search` | finding a past refusal by its words |
-| tenants | `MemoryClient.local(..., tenant_id=...)`, `set_tenant` | one tenant per repository for the hook and the judge; one per buyer organisation for exceptions (`knos.store.buyer_tenant`) |
+| tenants | `MemoryClient.local(..., tenant_id=...)`, `set_tenant` | one tenant per repository for the hook and the judge; one per buyer organisation for exceptions and approvals (`knos.store.buyer_tenant`); one per supplier for what buyers granted it (`knos.store.supplier_tenant`) |
 
 Two things the client does not offer at 0.8.1 and Knos works around in the open: it has no call that lists the
 archive, so `SibylStore.archived` reads the engine's own `archived_entities` table through the client's storage
@@ -105,11 +105,34 @@ only where the job has the memory engine installed. A statement and a meter ledg
 `--terms HASH` their exceptions are kept under a hash of the two parties' names, so a recall is of the same buyer
 and supplier and of no other pair. No buyer has used any of this.
 
+## The approver's defence, six months later
+
+`knos recall keep-approval FILE --buyer ORG` keeps one approval record (who, the commitment, the amount, the purchase
+order, the beneficiary, the policy version, when, until when, why, and the sha256 of the evidence the approver saw)
+in the buyer's tenant. `knos recall approval COMMITMENT --buyer ORG [--evidence FILE]` answers from the store alone,
+in a process started later: who approved it, what amount, under which policy version, whether the record still
+agrees word for word with the journal, and whether the evidence as it stands now still hashes to what was approved.
+An entity rewritten after the fact is caught: the journal still holds the record as it was kept
+(`tests/test_history_defence.py`). The evidence hash is sha256 over the evidence object written as JSON with sorted
+keys and no spaces (`history.evidence_hash`).
+
+## Supplier reuse
+
+A supplier has its own tenant. `knos recall grant --supplier ID --buyer ORG --terms HASH --outcome accepted --ref DLV`
+is the only way a result enters it: a buyer grants that one result may be shown to the supplier's other buyers. A
+grant withdrawn goes to the archive and stops showing. `knos recall supplier ID --buyer ORG` answers what the supplier
+brings from its other buyers (never the asking buyer's own results), and the onboarding counter: each buyer's time
+from first order to first payment, kept as a hash of the buyer's name, and what the second buyer saved against the
+first. The times are written by `knos.recall.order_funded` and `order_paid`; no workflow calls them yet, so the
+counter is 0 until one does. No supplier and no buyer has used any of this.
+
 ## What stops working without it
 
 `history.NullStore` is the same code with no memory. Swapped in, these answers come back empty
 (`tests/test_recall.py::test_with_no_memory_every_answer_disappears`): how the exception ended before, how long it
-took, the evidence ids, the journal's line, the live queue, the text of the terms, the closed periods. Deleting the
+took, the evidence ids, the journal's line, the live queue, the text of the terms, the closed periods, who approved
+a commitment and whether its evidence matches, and what a supplier brings from its other buyers
+(`tests/test_history_defence.py::test_with_no_memory_both_answers_disappear`). Deleting the
 store's file has the same effect, and a second process recalls nothing
 (`test_a_recall_survives_a_restart_and_the_store_is_the_only_place_it_is_kept`). The older answers go the same way
 (`tests/test_sibyl_is_load_bearing.py`): the check a false "done" made required, the tamper lessons, the refusals a
@@ -126,5 +149,11 @@ preflight warns about.
 - Memory is local to the machine that holds the file. Two approvers on two machines do not share it; nothing
   replicates it. The judge's lessons travel between runs as issue comments (`knos.proof.memory`); exceptions do not
   travel yet.
+- An approval is checked against the newest 100,000 journal events of the buyer's tenant; one older than that reads
+  as not matching the journal.
+- Sibyl's newest version on PyPI is 0.8.1, published 7 September 2026
+  ([PyPI](https://pypi.org/project/sibyl-memory-client/), read 8 October 2026). Its documentation describes the
+  same five tiers, FTS5 search and tenants used here, and no vector index
+  ([docs](https://docs.sibyllabs.org/memory)).
 - The engine is another party's code under an MIT licence. If it were withdrawn, the pinned version still installs
   from any mirror that has it, and the file is plain SQLite.

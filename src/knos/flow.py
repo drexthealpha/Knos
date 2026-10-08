@@ -1298,6 +1298,8 @@ def _act(run: Run, cmd, said: dict, on: dict, on_pull: bool) -> str:
         return _order_word(run, cmd, said, on)
     if name == "offer":
         return _fund(run, cmd, said, on, None)
+    if name == "reserve":
+        return _reserve_order(run, cmd, said, on)
     if name == "appeal":
         return _appeal(run, cmd, said, on)
     if name in ("take", "release"):        # the issue is in the event; its bounty, and who assigned whom, are not
@@ -1592,6 +1594,13 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
                 "those checks must be black-box. " + (f"{' '.join(told)} Do that, or leave out `auto`; then {again}." if told else
                 f"Issue #{number} has none: add `.knos/acceptance/{number}/` on the default branch with a `blackbox.sh` that runs the pull "
                 f"request's code through `$KNOS_RUN` and compares its output, or leave out `auto`; then {again}."))
+    if plan is not None and att is None:      # an approval bound to this one commitment, when the buyer keeps approval requests
+        payee_ = cmd.vendor if offer else next((str(a.get("login") or "") for a in (on or {}).get("assignees") or [] if isinstance(a, dict)), "")
+        refused = _bound(run, rp, {"repo_id": rp["id"], "issue": number, "seq": plan["seq"], "funder": str(commenter.get("login") or ""),
+                                   "terms_sha256": pay.terms_hash(data).hex(), "amount": cmd.units, "beneficiary": payee_},
+                         str(commenter.get("login") or ""), again, "Knos: nothing was funded. ")
+        if refused:
+            return refused
     hidden = order = None
     if att is not None:     # the audience is public: it names issue 0 and sha256(scope || terms hash), and the salt stays on the private issue
         salt = run.salt()
@@ -1765,7 +1774,16 @@ def _terms3_signer(run: Run, c: "Case", jwt: str, pull: dict) -> bool:
     issuer, where, workflow = str(got.get("iss") or terms3.GITHUB), str(got.get("repository") or ""), str(got.get("job_workflow_ref") or "")
     parties = (run.repo.split("/")[0], str((pull.get("user") or {}).get("login") or ""), *(str(p[3] or "") for p in c.payees))
     if terms3.evaluator_allowed(doc, issuer, where, workflow, tuple(p for p in parties if p)) is not None:
-        return True
+        # terms that require a minimum assurance level (`checks.min_assurance`): the most the receipt of this payment can
+        # reach (knos.receipt.assurance_of) is "reported" for an evaluator a party owns, "agreed" under a quorum of
+        # evaluators with different owners, else "rerun"; below the floor nothing is sent
+        own = where.split("/")[0].lower() in {p.lower() for p in parties if p}
+        level = "reported" if own else "agreed" if int(doc["evaluators"].get("quorum") or 1) > 1 else "rerun"
+        refused = terms3.payment_refusal(doc, level)
+        if refused is None:
+            return True
+        c.why.append(f"its terms (Knos Terms 3: {doc['name']} version {doc['version']}) require more assurance than this payment can carry. {refused}")
+        return False
     names = ", ".join(f"`{e['name']}`" for e in doc["evaluators"]["list"]) or "none"
     c.why.append(f"its terms (Knos Terms 3: {doc['name']} version {doc['version']}) name who may judge it ({names}), and this run is none of "
                  f"them: it ran `{_plain(workflow.split('@')[0]) or 'no workflow GitHub named'}` in {_plain(where) or 'a repository GitHub did not name'}")
@@ -1777,6 +1795,19 @@ PROCUREMENT = ".knos/procurement"         # knos.controls.PROCUREMENT: the buyer
 
 
 def _procurement(run: Run, rp: dict) -> dict[str, str]:
+    """`_procurement_read`, asked of GitHub once per run: the gate, the bound approval and the payee check read the same
+    files (a dict per repository id, kept on the run)."""
+    kept = getattr(run, "_procurement_kept", None)
+    if kept is None:
+        kept = {}
+        setattr(run, "_procurement_kept", kept)
+    key = rp.get("id")
+    if key not in kept:
+        kept[key] = _procurement_read(run, rp)
+    return dict(kept[key])
+
+
+def _procurement_read(run: Run, rp: dict) -> dict[str, str]:
     """{path: text} of every file under .knos/procurement/ on the default branch, one folder deep (the policy and the
     approvals log, and the rate cards, offers and envelopes in their folders); {} for a repository that has none.
     Raises OSError when GitHub says the folder is there and does not give a file of it: a gate nobody could read is
@@ -1836,6 +1867,29 @@ def _gated(run: Run, rp: dict, cmd, commenter: dict, number: int, again: str, st
         how = (f" An approver comments `{approvals.comment_line(subject)}`, and `knos approve record --subject {subject} --requester "
                f"{_plain(commenter.get('login'))} --amount {commands.amount(cmd.units)}` adds it to `{PROCUREMENT}/{approvals.LOG}`.")
     return "" if ok else stop + f"{said} The files under `{PROCUREMENT}/` on the default branch decide this; once they allow it, {again}.{how}"
+
+
+def _requested(files: dict[str, str]) -> bool:
+    """Whether the buyer keeps approval requests (`knos boundary bind`) under .knos/procurement/requests/."""
+    return any(p.startswith(f"{PROCUREMENT}/requests/") and p.endswith(".json") for p in files)
+
+
+def _bound(run: Run, rp: dict, order: dict, requester: str, again: str, stop: str) -> str:
+    """The approval bound to ONE commitment (knos.boundary.gate_bound), asked when the buyer keeps approval requests
+    under .knos/procurement/requests/: "" when this order is the one an approval names (terms, amount, payee, policy
+    version, expiry), else the reply. No procurement files, or no requests: nothing more is asked."""
+    try:
+        files = _procurement(run, rp)
+    except OSError as why:
+        run.failed = True
+        return stop + f"This repository has procurement files, and they could not be read from GitHub ({_short(why)}). {again.capitalize()}."
+    if not files or not _requested(files):
+        return ""
+    from . import boundary
+    repo_, today = run.repo, time.strftime("%Y-%m-%d", time.gmtime(run.clock()))
+    fetch = lambda cid: _read(run, f"repos/{repo_}/issues/comments/{int(cid)}") if cid else None  # noqa: E731
+    ok, said = boundary.gate_bound(files, order=order, requester=requester, on=today, fetch=fetch)
+    return "" if ok else stop + f"{said} The files under `{PROCUREMENT}/` on the default branch decide this; once they allow it, {again}."
 
 
 def _judge_repo(run: Run, rp: dict, name: str, commenter: dict, on: dict | None, again: str) -> tuple[str, int] | str:
@@ -1972,6 +2026,8 @@ def _funded_order(run: Run, cmd, rp: dict, number: int, balance, mint_, faucet: 
     """The reply to a funding that opened a work order: what is in escrow and the fee its funder pays on top, the
     terms, the warranty and the arbiter, the deadline, how to earn it, and who can have it paid after a merge."""
     order = _link(run, "order on Solana", "address", r.get("order") or pay.order_pda(pay.scope_of(rp["id"], number), balance, plan["seq"]))
+    if plan.get("vendor"):
+        _onboarded(run, run.repo.split("/")[0], str(getattr(cmd, "vendor", "") or plan["vendor"]))
     fee, source = _amount(r.get("fee") or plan["fee"]), "the devnet faucet" if faucet else f"the balance `{balance}`"
     told, deadline = _told(built), who.when(r.get("deadline") or run.now() + work)
     if plan["from_policy"]:
@@ -2010,6 +2066,128 @@ def _funded_order(run: Run, cmd, rp: dict, number: int, balance, mint_, faucet: 
         f"To earn it: open a pull request whose description says `Fixes #{number}`. {told[-1]} For the money to reach you when it "
         "is paid, comment `/knos address <your Solana address>` on your pull request; without an address it waits for you "
         f"until you bind a wallet ({HOLD_DAYS} days at most). {neutral}"))
+
+
+def reserve_plan(cmd: commands.Reserve, buyer: int, seller: int, balance, issue: int, seq: int, now: float) -> dict:
+    """What `/knos reserve` asks GitHub to sign: knos.netting.reserve_fund of the pair (the repository's owner and the
+    supplier), with the work seconds that end the lock at the close of `until` (UTC), the tranche (a tenth of the
+    amount, in whole cents, when the comment names none) and the period, if named, in the terms. Adds `deadline`
+    (the end of `until`; the chain's own clock fixes it to the second) and `period_start`. Raises knos.ledger.Bad, in
+    words, for a reserve the escrow would refuse. The exercise round `net-reserve` calls this too, so the round and
+    the comment sign the same audience."""
+    import calendar
+    from . import netting
+    end = calendar.timegm(time.strptime(cmd.until, "%Y-%m-%d")) + 86_400
+    work = end - int(now)
+    if work < pay.MIN_WORK:
+        raise netting.Bad(f"{cmd.until} has passed: a reserve is locked until a day still to come")
+    if work > pay.MAX_WORK:
+        raise netting.Bad(f"a reserve is locked for at most {pay.MAX_WORK // 86_400} days (an order's longest deadline), and {cmd.until} is further away")
+    start = 0
+    if cmd.period is not None:
+        start = calendar.timegm((cmd.period // 100, cmd.period % 100, 1, 0, 0, 0))
+        if end <= start:
+            raise netting.Bad(f"the reserve ends on {cmd.until}, before period {cmd.period // 100}-{cmd.period % 100:02d} begins: nothing could be drawn")
+    tranche = cmd.tranche or max(10_000, cmd.units // 10 // 10_000 * 10_000)
+    f = netting.reserve_fund(buyer, seller, cmd.units, tranche, balance, issue, work, seq=seq, period=cmd.period)
+    return {**f, "deadline": end, "period_start": start}
+
+
+def _reserve_order(run: Run, cmd: commands.Reserve, said: dict, on: dict) -> str:
+    """`/knos reserve <amount> for @supplier until <date>`: lock money for ONE supplier before the work, through this
+    same workflow and the same checks as any funding comment (who may write, the policy, the procurement gate, the
+    pause, the Balance), as a standing order on the reserve terms of the pair (`reserve_plan`). The reply names the
+    reserve (the order's address), the amount, the deadline and how the supplier checks it."""
+    from . import netting
+    number, commenter = int(on["number"]), said.get("user") or {}
+    stop, again = "Knos: nothing was reserved. ", "post the comment again"
+    since = who._ts(said.get("created_at")) or run.began
+    rp = _repo(run)
+    if rp is None:
+        run.failed = True
+        return stop + "GitHub did not answer for this repository. Post the comment again."
+    may = _can_write(run, rp, commenter)
+    if may is None:
+        run.failed = True
+        return stop + f"GitHub did not answer whether @{_plain(commenter.get('login'))} can write to this repository. Post the comment again."
+    if not may:
+        return commands.reply("not_allowed", cmd, who=WRITERS)
+    if str(run.env.get("GITHUB_RUN_ATTEMPT") or "1") != "1":
+        return stop + "This is a re-run, and money moves only on the first run of a comment. Post the comment again."
+    if on.get("state") == "closed":
+        return stop + f"Issue #{number} is closed. Reopen it and {again}."
+    if not run.version():
+        return stop + "A reserve is a standing work order, and the escrow on this cluster does not hold work orders yet (knos_pay 2.1 is not live here)."
+    supplier = _read(run, f"users/{cmd.supplier}")
+    if not (isinstance(supplier, dict) and supplier.get("id")):
+        return stop + f"GitHub gave no account named @{_plain(cmd.supplier)} (the supplier). Check the name, then {again}."
+    seller, login = int(supplier["id"]), str(supplier.get("login") or cmd.supplier)
+    if seller == int(rp["owner"]):
+        return stop + f"@{_plain(login)} owns this repository: a reserve is money the buyer locks for another account. Name the supplier."
+    rules, unusable = _policy(run, rp)
+    if unusable:
+        return stop + f"{unusable[0].upper()}{unusable[1:]}, and funding stops until it can be. Fix `{policy.PATH}` on the default branch, then {again}."
+    if rules is not None:
+        try:
+            spent = run.spent(rp["owner"]) if rules.monthly_budget is not None else 0
+        except Exception as why:  # noqa: BLE001 - a budget nobody could check is not a budget that holds
+            run.failed = True
+            return stop + f"`{policy.PATH}` sets a monthly budget, and what was funded this month could not be read from Solana ({_short(why)}). Post the comment again."
+        ok, refusal = policy.allows(rules, commenter.get("id"), Decimal(cmd.units) / 10 ** 6, spent, str(commenter.get("login") or ""))
+        if not ok:
+            return stop + f"{refusal} Someone who can write to this repository changes that file on its default branch."
+    refused = _gated(run, rp, cmd, commenter, number, again, stop)       # the procurement gate, as for every funding comment
+    if refused:
+        return refused
+    try:
+        paused = pay.read_pause(run.ledger.account(pay.pause_pda()))
+        if paused > run.now():
+            return stop + f"New funding is paused on Solana until {who.when(paused)}; payments, refunds and withdrawals go on. Post the comment again after that."
+        rule = fees.rule(run.version())
+        fee = rule.order(cmd.units, rule.plan_bps(pay.read_plan(run.ledger.account(pay.plan_pda(rp["owner"]))), run.now()))
+        balance, mint_, faucet, no = _balance(run, rp, commenter, cmd, number, again, fee, True)
+        if balance is None:
+            return no
+        seq = max([o.seq + 1 for _a, o in _orders(run, rp["id"], number) if str(o.source) == str(balance)], default=0)
+    except Exception as why:  # noqa: BLE001 - the chain did not answer
+        run.failed = True
+        return stop + f"Solana could not be read just now ({_short(why)}). Post the comment again."
+    try:
+        f = reserve_plan(cmd, int(rp["owner"]), seller, balance, number, seq, run.now())
+    except netting.Bad as why:
+        return stop + f"{_short(why).rstrip('. ')}. Type it like this: `{commands.FORMS['reserve']}`."
+    refused = _bound(run, rp, {"repo_id": rp["id"], "issue": number, "seq": seq, "funder": str(commenter.get("login") or ""),
+                               "terms_sha256": f["terms_hash"], "amount": cmd.units, "beneficiary": login},
+                     str(commenter.get("login") or ""), again, stop)       # an approval bound to this one commitment, when the buyer keeps requests
+    if refused:
+        return refused
+    try:
+        jwt = run.mint(f["fund_audience"])
+    except Exception as why:  # noqa: BLE001
+        run.failed = True
+        return stop + f"GitHub did not sign the request ({_short(why)}). Post the comment again."
+    r = deliver("fund", jwt, number, f["terms"].encode(), run=run, since=since)
+    if not r["ok"]:
+        run.failed = True
+        if r.get("timeout"):
+            return (f"Knos: not confirmed yet. GitHub signed the request (it is posted above) and no relayer carried it to Solana within "
+                    f"{RELAY_WAIT // 60} minutes. If one carries it within the hour, the reserve is locked and `/knos status` shows it. Otherwise {again}.")
+        return stop + f"GitHub signed the request and Solana did not take it: {r['why'].rstrip('. ')}. To try again, {again}."
+    order = str(r.get("order") or pay.order_pda(pay.scope_of(rp["id"], number), balance, seq))
+    _onboarded(run, run.repo.split("/")[0], login)
+    money, fee_paid = f"{_amount(r.get('amount') or cmd.units)} {_money(run, mint_)}", _amount(r.get("fee") or fee)
+    deadline = who.when(r.get("deadline") or f["deadline"])
+    source = "the devnet faucet" if r.get("faucet", faucet) else f"the balance `{balance}`"
+    month = cmd.period or int(time.strftime("%Y%m", time.gmtime(run.now())))
+    period = f"period {month // 100}-{month % 100:02d} only" if cmd.period else f"any netted period of @{_plain(login)}'s until {deadline}"
+    return "\n\n".join((
+        f"Knos: a reserve of {money} for @{_plain(login)} is locked on issue #{number} ({_link(run, 'order on Solana', 'address', order)}), "
+        f"{r['seconds']} s after the comment. The funder pays Knos's fee of {fee_paid} on top.",
+        f"Reserve id: `{order}`. Amount: {_amount(f['amount'])}. Deadline: {deadline}. It secures {period}, and pays @{_plain(login)} "
+        f"{_amount(f['tranche'])} for each draw this repository's workflow signs. Nobody takes it back before the deadline; after it, "
+        f"RefundOrder returns what no draw took to {source}. This repository signs the draws, so it can withhold one: the money then comes back here.",
+        f"The supplier checks it: `knos net open BOOK --buyer {rp['owner']} --seller {seller} --month {month // 100}-{month % 100:02d} --cap "
+        f"{commands.amount(f['amount'])} --reserve {order}` reads the order on Solana and refuses it unless it secures this pair."))
 
 
 def _order_word(run: Run, cmd, said: dict, on: dict) -> str:
@@ -2808,6 +2986,8 @@ def _cleared(run: Run, rp: dict, pull: dict, cases: list[Case]) -> None:
             if c.order:
                 _shares(run, pull, c)
             people = c.payees or [(int(c.paid["id"]), 10_000, None, c.paid.get("login"), c.where.get("address"))]
+            if c.order:
+                _bound_payees(run, rp, c, people)
             vendor = (c.terms or {}).get("vendor")
             for pid, _bps, _named, login, to in people:
                 ok, why = policy.payee_allowed(rules, pid, login or "") if rules is not None else (True, "")
@@ -2825,6 +3005,27 @@ def _cleared(run: Run, rp: dict, pull: dict, cases: list[Case]) -> None:
                         c.said.append(f"`{to}` was {_short(said).rstrip('.')}.")
         except Exception as why:  # noqa: BLE001 - one case's trouble is its own
             c.unread.append(f"Knos stopped while clearing this payout ({type(why).__name__}: {_short(why)})")
+
+
+def _bound_payees(run: Run, rp: dict, c: Case, people: list) -> None:
+    """At payment, for an order an approval was bound to (knos.boundary.payee_allowed): every payee must be the
+    beneficiary that approval names. No procurement files, or no approval requests: nothing more is asked."""
+    try:
+        files = _procurement(run, rp)
+    except OSError as why:
+        c.unread.append(f"this repository's procurement files could not be read from GitHub ({_short(why)})")
+        return
+    if not files or not _requested(files):
+        return
+    from . import boundary
+    _a, o = c.jobs[0]
+    funder = _read(run, f"user/{int(o.funder_id)}")
+    order = {"repo_id": o.repo_id, "issue": o.issue, "seq": o.seq, "funder": str(funder.get("login") or "") if isinstance(funder, dict) else "",
+             "terms_sha256": bytes(o.terms).hex()}
+    for _pid, _bps, _named, login, _to in people:
+        ok, said = boundary.payee_allowed(files, order=order, payee=str(login or ""))
+        if not ok:
+            c.why.append(_short(said).rstrip("."))
 
 
 def _shares(run: Run, pull: dict, c: Case) -> None:
@@ -3225,6 +3426,7 @@ def _learn_supplier(run: Run, store, pull: dict, orders: list[Case]) -> None:
             if c.result is not None and c.result.get("ok"):
                 if supplier:
                     history.supplier_event(store, run.repo, supplier, number, "accepted", thash, run.clock())
+                    _onboarded(run, run.repo.split("/")[0], supplier, paid=True)
             elif thash and c.verdict() == "no":
                 for said in [str(p) for p in c.scope][:12]:
                     history.refused(store, run.repo, thash, number, ghwords.code_of_reason(said) or "terms.out-of-scope", "", supplier, run.clock())
@@ -3234,6 +3436,17 @@ def _learn_supplier(run: Run, store, pull: dict, orders: list[Case]) -> None:
                     history.refused(store, run.repo, thash, number, ghwords.code_of_reason(str(r)) or "unknown", "", supplier, run.clock())
     except Exception as why:  # noqa: BLE001
         run.note(f"Knos: what this settlement showed of the supplier could not be kept ({_short(why)}).")
+
+
+def _onboarded(run: Run, buyer: str, supplier: str, paid: bool = False) -> None:
+    """The supplier's memory of when this buyer first ordered from it (funded) or first paid it (knos.recall.order_funded,
+    order_paid: what `knos recall supplier` and the network loop's reuse counter read). In this job's own store; the
+    engine missing or anything failing loses nothing else."""
+    try:
+        from . import recall
+        (recall.order_paid if paid else recall.order_funded)(buyer, supplier, run.clock(), run.scratch() / "memory")
+    except Exception:  # noqa: BLE001 - memory is a note, never a reason to fail a funding or a payment
+        pass
 
 
 def _published(raw: bytes | None = None):
@@ -3455,7 +3668,8 @@ def _rerun_verdict(plan: dict | None, env, judged: dict | None = None, why: str 
             "assurance": str((judged or {}).get("assurance") or ""),
             "image": {"ref": str(image.get("ref") or ""), "digest": str(image.get("digest") or "")} if image else {},
             "artifact": {k: str(v) for k, v in (ev.get("artifact") or {}).items() if k in ("base", "pr")},
-            "environment": _environment(env), "reasons": reasons}
+            "environment": {**_environment(env), **({"judged_in": _plain((judged or {})["judged_in"])[:120]} if (judged or {}).get("judged_in") else {})},
+            "reasons": reasons}
 
 
 def _rerun_read(text: str) -> dict | str:
@@ -3521,7 +3735,7 @@ def _rerun_holds(v: dict, plan: dict) -> str:
     return ""
 
 
-def _rerun_judge(plan: dict, folder: Path, env, judge_fn=None, sandbox: str = "require") -> dict:
+def _rerun_judge(plan: dict, folder: Path, env, judge_fn=None, sandbox: str = "hermetic") -> dict:
     """Run the pinned acceptance suite on `folder`/base and `folder`/pr (plain files of the plan's two commits) and
     return the verdict. The bundle is the base's and must hash to what the terms were funded with; the image is the
     terms'. The pull request's code runs where the judge always runs it: the sandbox (required), or a container of the

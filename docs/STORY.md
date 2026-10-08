@@ -14,8 +14,9 @@ Why Solana: Money is released with no custodian, and the count is anchored where
 A receipt verifies with no chain; the chain is for the money and for the root.
 
 Days to approve, not seconds to pay: from merge to paid took 25 seconds at the median, over 42 payments on devnet,
-and a buyer does not wait for that. A buyer waits for a person to approve the invoice. Knos has not measured that
-wait with any buyer, so no figure for it is given. A judge's one page: [JUDGES.md](JUDGES.md).
+and a buyer does not wait for that. A buyer waits for a person to approve the invoice: days to approve, from the
+day the invoice is received to the day it is approved. Knos has not measured that wait with any buyer, so no figure
+for it is given. A judge's one page: [JUDGES.md](JUDGES.md).
 
 ## The seven steps
 

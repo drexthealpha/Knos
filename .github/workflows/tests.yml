@@ -78,6 +78,11 @@ jobs:
       # under a release.
       - run: uv pip install --system -e ".[dev]" pytest-xdist==3.8.0
       - run: git config --global user.email ci@example.invalid && git config --global user.name ci
+      # Squads Labs' deployed v4 program, read from devnet and checked against its pinned sha256, for the boundary tests
+      # (tests/test_boundary.py). It needs the network: when devnet does not answer, those tests skip and say so.
+      - name: the Squads v4 program for the boundary tests
+        continue-on-error: true
+        run: python scripts/squads_program.py fetch
       - name: pytest, this shard
         shell: bash
         run: |
@@ -166,7 +171,7 @@ jobs:
       # Chromium for Playwright, kept between runs. Playwright's own advice is that restoring a cache takes about as long
       # as the download and that, if one is kept, its key is the Playwright version (https://playwright.dev/docs/ci#caching-browsers,
       # read 6 Oct 2026): so the key is the version installed below, and a run that finds the browser still installs the
-      # system packages it needs, which no cache holds (https://playwright.dev/docs/browsers#install-system-dependencies).
+      # system packages it needs, which that cache does not hold (https://playwright.dev/docs/browsers#install-system-dependencies).
       # The folder is named, not the default under the home: the Python tests give every test a home of its own.
       - run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers" >> "$GITHUB_ENV"
       - run: npm install --no-save --no-audit --no-fund playwright@1.56.0
@@ -175,6 +180,21 @@ jobs:
         with:
           path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
           key: playwright-${{ runner.os }}-${{ runner.arch }}-1.56.0-chromium
+      # The system packages Chromium needs, kept between runs too. In two runs of 8 Oct 2026 apt took 4 min 7 s and then
+      # 3 min 48 s to fetch them (32.5 MB at 131 kB/s from the runner's mirror; runs 37753574748, 37755285286) and the
+      # job went over its 5 minutes, where it takes 12 to 20 s on other runs. apt keeps what it fetches in a folder of
+      # this job's (one apt.conf.d line), and the folder is kept between runs, keyed by the runner's image (its packages
+      # change with it); apt still asks the mirror which versions are current and fetches only what the folder lacks.
+      - id: apt
+        run: |
+          mkdir -p "$RUNNER_TEMP/apt-archives/partial"
+          echo "Dir::Cache::Archives \"$RUNNER_TEMP/apt-archives\";" | sudo tee /etc/apt/apt.conf.d/99knos-archives
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/apt-archives/*.deb
+          key: playwright-deps-${{ runner.arch }}-${{ steps.apt.outputs.image }}-1.56.0-chromium
+          restore-keys: playwright-deps-${{ runner.arch }}-
       - if: steps.browsers.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
       - if: steps.browsers.outputs.cache-hit == 'true'
@@ -272,7 +292,7 @@ jobs:
       # Chromium for Playwright, kept between runs. Playwright's own advice is that restoring a cache takes about as long
       # as the download and that, if one is kept, its key is the Playwright version (https://playwright.dev/docs/ci#caching-browsers,
       # read 6 Oct 2026): so the key is the version installed below, and a run that finds the browser still installs the
-      # system packages it needs, which no cache holds (https://playwright.dev/docs/browsers#install-system-dependencies).
+      # system packages it needs, which that cache does not hold (https://playwright.dev/docs/browsers#install-system-dependencies).
       # The folder is named, not the default under the home: the Python tests give every test a home of its own.
       - run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers" >> "$GITHUB_ENV"
       - run: npm install --no-save --no-audit --no-fund playwright@1.56.0
@@ -281,6 +301,21 @@ jobs:
         with:
           path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
           key: playwright-${{ runner.os }}-${{ runner.arch }}-1.56.0-chromium
+      # The system packages Chromium needs, kept between runs too. In two runs of 8 Oct 2026 apt took 4 min 7 s and then
+      # 3 min 48 s to fetch them (32.5 MB at 131 kB/s from the runner's mirror; runs 37753574748, 37755285286) and the
+      # job went over its 5 minutes, where it takes 12 to 20 s on other runs. apt keeps what it fetches in a folder of
+      # this job's (one apt.conf.d line), and the folder is kept between runs, keyed by the runner's image (its packages
+      # change with it); apt still asks the mirror which versions are current and fetches only what the folder lacks.
+      - id: apt
+        run: |
+          mkdir -p "$RUNNER_TEMP/apt-archives/partial"
+          echo "Dir::Cache::Archives \"$RUNNER_TEMP/apt-archives\";" | sudo tee /etc/apt/apt.conf.d/99knos-archives
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/apt-archives/*.deb
+          key: playwright-deps-${{ runner.arch }}-${{ steps.apt.outputs.image }}-1.56.0-chromium
+          restore-keys: playwright-deps-${{ runner.arch }}-
       - if: steps.browsers.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
       - if: steps.browsers.outputs.cache-hit == 'true'
@@ -342,6 +377,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - run: python scripts/doc_claims.py
       - run: python scripts/truth_check.py
+      - run: python scripts/rate_claims.py
       - run: python scripts/public_face.py --check
       - run: python scripts/judges.py --check
       - run: python -m knos.enforce --check

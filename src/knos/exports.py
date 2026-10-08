@@ -29,6 +29,12 @@ says what of it was seen in a vendor's published sample and what was not). There
 evidence, is never a bill. Its memo carries the line's state, its payment status and the four ids (knos.ids), so the
 record in the accounting system leads back to the line. The generic file lists every line with its state.
 
+Every file of every format has a PARTS FILE beside it (`<file>.parts.csv`, `parts_file`): one row per row of the file,
+keyed by its bill number, with the five parts of the acceptance behind it (knos.receipt.FIVE: identity, execution,
+acceptance, consequence, assurance), each one line, and the sha256 of the receipt they were read from when one was. No
+product's import has a column for them, so they are not squeezed into the memo; `parts_check` refuses a file whose
+parts file leaves a row or a part out.
+
 Every file here is LABEL, "file export, not an integration", until somebody has imported it into the product and
 reconciled the result: IMPORTED is the list of formats that happened for, and it is empty.
 
@@ -42,6 +48,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 
 from . import audit, records
 
@@ -159,7 +166,7 @@ def bills(scope: dict, rows: list[dict], head: str, refs: dict | None = None) ->
                 "billed_before": int(m["billed_before"]), "dispute": m["dispute"] or "",
                 "correction": f"{m['correction']['kind']} {m['correction']['units']}" if m["correction"] else "",
                 "terms_hash": c["policy"]["terms_hash"] or "", "terms_version": c["policy"]["version"] or "",
-                "evaluator": ";".join(e["kind"] for e in c["evaluators"]), "authorised_by": f"{a['approved_by']['funder']} ({a['approved_by']['role']})",
+                "evaluator": ";".join(e["kind"] for e in c["evaluators"]), "evaluators": [dict(e) for e in c["evaluators"]], "verdict": c["verdict"], "authorised_by": f"{a['approved_by']['funder']} ({a['approved_by']['role']})",
                 "receipt": audit.EXPLORER.format(tx) if tx else "", "transaction": tx, "statement_head": head,
                 "description": f"Accepted deliverable: {where}" + (f", {c['artifact']}" if c["artifact"] else ""),
                 "memo": " | ".join(x for x in ("TEST MONEY (devnet test USDC): not a payable" if test else "", s["status"], f"Knos statement sha256:{head}",
@@ -273,6 +280,79 @@ def write_statement(fmt: str, st: dict, status: dict | None = None, options: dic
         return _csv([QUICKBOOKS, *([b["bill_no"], b["supplier"], when(b), when(b), o["account"], b["description"], b["amount"], o["tax_code"], b["memo"]]
                                    for b in bills_)])
     return _csv([[TYPE, "version", VERSION, "statement", LABEL], STATEMENT_GENERIC, *([b[c] for c in STATEMENT_GENERIC] for b in found)])
+
+
+# ---- the five parts beside every file ---------------------------------------------------------------------------------------
+PARTS = ("bill_no", "line", "deliverable", "identity", "execution", "acceptance", "consequence", "assurance", "receipt_sha256")
+PARTS_KIND = "parts"
+NO_RECEIPT = ("reported: no receipt was read for this row, so nothing shows that an evaluator outside the supplier's control ran the checks "
+              "again. `knos receipt explain` on the paying transaction's receipt gives the level.")
+
+
+def parts_path(path):
+    """Where the parts file of an export written to `path` goes: beside it, `<name>.parts.csv`."""
+    from pathlib import Path
+    p = Path(path)
+    return p.with_name(p.name + ".parts.csv")
+
+
+def _bill_parts(b: dict, receipt: dict | None) -> dict:
+    """The five parts of one bill of `bills`: from its receipt when one is given, else from the statement's own row."""
+    from . import receipt as rc
+    paid = (receipt or {}).get("transaction") if isinstance(receipt, dict) else None
+    if receipt is not None and isinstance(paid, dict) and paid.get("signature") == b["transaction"] and not rc.check(receipt) and receipt["version"] >= 3:
+        return rc.five_cells(receipt)       # only a receipt that checks and is of this bill's own payment
+    who = "; ".join(f"{e['kind']}: " + (e.get("rule") or f"repository {e.get('repository_id')}, owner {e.get('owner_id')}, started by {e.get('actor_id')}")
+                    for e in b["evaluators"]) or "no evaluator is recorded"
+    return {"receipt_sha256": None,
+            "identity": f"Evidence from {who}. The issuer's token is not in this file: the paying transaction's receipt carries it.",
+            "execution": f"Artifact {b['artifact'] or 'not named'}, evaluated by {b['evaluator'] or 'nobody recorded'}.",
+            "acceptance": f"{audit._text(b['verdict']).capitalize()} under terms {b['terms_hash'] or 'not public (a private order)'}, version {b['terms_version'] or 'unknown'}.",
+            "consequence": f"{b['amount']} {b['currency']} to {b['supplier']}: {b['status']}" + (f", transaction {b['transaction']}" if b["transaction"] else "") + ".",
+            "assurance": NO_RECEIPT}
+
+
+def parts_rows(scope: dict, rows: list[dict], head: str, refs: dict | None = None, receipts: dict | None = None) -> list[dict]:
+    """One row per bill of `bills`, in its order: the bill number, the deliverable and the five parts. `receipts`:
+    {paying transaction: receipt}, when the caller has them; a bill without one says what it rests on instead."""
+    rows = [{k: audit._text(v) for k, v in r.items()} for r in rows]
+    return [{"bill_no": b["bill_no"], "line": "", "deliverable": b["deliverable"], **_bill_parts(b, (receipts or {}).get(b["transaction"]))}
+            for b in bills(scope, rows, head, refs)]
+
+
+def statement_parts_rows(st: dict, status: dict | None = None) -> list[dict]:
+    """One row per line of a statement: the five parts the line links (knos.statement.line_parts)."""
+    from . import statement
+    return [{"bill_no": bill_number(ln["deliverable"], ln["supplier"]), "line": ln["line"], "deliverable": ln["deliverable"], **ln["parts"]}
+            for ln in statement.lines_now(st, status)]
+
+
+def parts_file(found: list[dict], of: str) -> str:
+    """The parts file of one export (`of`: the file's sha256): a first line naming it, the columns, one row each."""
+    for row in found:
+        from . import receipt as rc
+        if rc.five_missing(row):
+            raise audit.Refused(f"Row {row['bill_no']} says nothing of {', '.join(rc.five_missing(row))}: a receipt leaves Knos with its five parts or not at all.")
+    return _csv([[TYPE, "version", VERSION, PARTS_KIND, of], PARTS, *([r[c] if r[c] is not None else "" for c in PARTS] for r in found)])
+
+
+def sha_of(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def parts_check(export_text: str, parts_text: str) -> list[str]:
+    """What is wrong with a parts file for an export, in words; [] when every bill of the export has a row with all five
+    parts and the parts file names this export by its sha256."""
+    got = list(csv.reader(io.StringIO(parts_text)))
+    if len(got) < 2 or got[0][:4] != [TYPE, "version", str(VERSION), PARTS_KIND] or tuple(got[1]) != PARTS:
+        return ["This is not a parts file of this version."]
+    said = [] if got[0][4:] == [sha_of(export_text)] else ["The parts file names another export than this one (its sha256 differs)."]
+    rows = {r[0]: dict(zip(PARTS, r)) for r in got[2:]}
+    bills_ = set(re.findall(r"KNOS-[0-9A-F]{11}", export_text))
+    said += [f"{b} has no row in the parts file." for b in sorted(bills_ - set(rows))]
+    from . import receipt as rc
+    said += [f"{b} leaves out {', '.join(rc.five_missing(r))}." for b, r in sorted(rows.items()) if rc.five_missing(r)]
+    return said
 
 
 # ---- the purchase-order match, and the invoice as cXML ---------------------------------------------------------------------

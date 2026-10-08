@@ -202,7 +202,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@096e25faf6caef823e27b52219f674ff1c664fc4
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -223,7 +223,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@096e25faf6caef823e27b52219f674ff1c664fc4
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -243,7 +243,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@096e25faf6caef823e27b52219f674ff1c664fc4
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -292,7 +292,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@43c8605d155e418beffb9bae907f5f39825b911a
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@096e25faf6caef823e27b52219f674ff1c664fc4
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -544,7 +544,9 @@ export const PAGES = {
 for (const [name, a] of Object.entries(ADDED)) PAGES[name] = { files: [a.file], draw: async (el) => {
   const [m, data] = await Promise.all([import(a.file), a.json ? fetch(a.json).then((r) => (r.ok ? r.json() : null)).catch(() => null) : undefined]);
   if (a.json && !data) return;
-  await m[a.draw]?.(el, { esc, go, EXPLORER, data });
+  // arg: what follows "=" in the hash the page was first opened at (#vendor=<agent>); later arrivals are the module's (hashchange)
+  const [, ...rest] = location.hash.replace(/^#/, "").split("="), arg = rest.length ? decodeURIComponent(rest.join("=")) : "";
+  await m[a.draw]?.(el, { esc, go, EXPLORER, data, arg });
 } };
 function initAdded() {
   const main = document.querySelector("main"), nav = $("nav"), list = $("more-list");

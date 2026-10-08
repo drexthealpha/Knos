@@ -100,3 +100,48 @@ def test_what_cannot_be_an_order_is_refused_in_words():
     assert bad.returncode == 1 and bad.stderr.startswith("refused: ") and "--help" in bad.stderr
     bad = _run(*ARGS, "--send", terms=TERMS.decode())
     assert bad.returncode == 1 and "--member FILE is needed" in bad.stderr            # nothing is sent without a member's key
+
+
+def test_the_funding_the_dry_run_prints_is_refused_by_squads_without_the_threshold_and_by_the_vault_over_what_it_holds(tmp_path):
+    """The dry run's instruction for a multisig made in the simulator, proposed through the deployed Squads v4 build
+    (tests/_squads.py): one vote of two executes nothing; an amount over what the vault holds is refused when it
+    executes; within it, two votes fund the order from the vault."""
+    pytest.importorskip("solders.litesvm")
+    sys.path.insert(0, str(ROOT / "tests"))
+    import _squads as sq
+    from _order import USDC
+    from solders.instruction import AccountMeta, Instruction
+    from solders.keypair import Keypair
+    if not sq.available():
+        pytest.skip("needs the Squads v4 program: python scripts/squads_program.py fetch")
+    c = sq.SquadsChain()
+    req, a1, a2, cfg = Keypair(), Keypair(), Keypair(), Keypair()
+    for k in (req, a1, a2):
+        c.svm.airdrop(k.pubkey(), 10 ** 9)
+    ms = c.create([(req, sq.INITIATE), (a1, sq.VOTE | sq.EXECUTE), (a2, sq.VOTE | sq.EXECUTE)], 2, cfg.pubkey())
+    vault = sq.vault_pda(ms)
+    c.svm.airdrop(vault, 10 ** 9)
+    c.mint_to(c.usdc, c.token_account(vault, c.usdc), 30 * USDC)
+
+    def printed(amount: int, issue: int) -> Instruction:
+        args = [a if i % 2 == 0 else {"--multisig": str(ms), "--mint": str(c.usdc), "--amount": str(amount), "--issue": str(issue)}.get(ARGS[i - 1], a)
+                for i, a in enumerate(ARGS)]
+        done = _run(*args, terms=TERMS.decode())
+        assert done.returncode == 0, done.stderr
+        out = json.loads(done.stdout)
+        assert out["vault"] == str(vault)
+        i = out["instruction"]
+        return Instruction(Pubkey.from_string(i["program"]), bytes.fromhex(i["data"]),
+                           [AccountMeta(Pubkey.from_string(a["pubkey"]), a["signer"], a["writable"]) for a in i["accounts"]])
+
+    over = printed(40 * USDC, 78)
+    n = c.propose(ms, req, [over])
+    assert n is not None and c.approve(ms, n, a1), c.err
+    assert not c.execute(ms, n, a1) and c.said_error() == "InvalidProposalStatus"            # one vote of two
+    assert c.approve(ms, n, a2) and not c.execute(ms, n, a1)                                   # two votes, but over what the vault holds
+    assert c.order(over.accounts[1].pubkey) is None
+    fits = printed(20 * USDC, 79)
+    n = c.propose(ms, req, [fits])
+    assert n is not None and c.approve(ms, n, a1) and c.approve(ms, n, a2) and c.execute(ms, n, a2), c.err
+    o = c.order(fits.accounts[1].pubkey)
+    assert o is not None and o.source == vault and o.amount == 20 * USDC

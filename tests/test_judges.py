@@ -1,7 +1,8 @@
 """docs/JUDGES.md is the one page a judge reads, and docs/judges.json is the same page as data (scripts/judges.py).
 
-At most 350 words and one table; the six judged things, each one sentence and one link; five lines of what is not
-real yet, with the numbers docs/submission/NUMBERS.md prints; no fee printed, because the public program ids charge
+The one sentence, then the pitch line, then the number; at most 350 words and one table; the six criteria in the
+rules and the seven factors Colosseum's page lists, each one sentence and one link; days to approve defined and not
+measured; five lines of what is not real yet, with the numbers docs/submission/NUMBERS.md prints; no fee printed, because the public program ids charge
 what the live build charges. README, STORY, WHY and the presentation say why Solana in the same words.
 """
 
@@ -32,16 +33,17 @@ def flat(rel: str) -> str:
     return " ".join(read(rel).split())
 
 
-def test_the_page_is_one_page_six_rows_five_zeros_and_the_file_is_the_page():
+def test_the_page_is_one_page_thirteen_rows_five_zeros_and_the_file_is_the_page():
     j = _judges()
     assert j.problems() == []
     page, data = read("docs/JUDGES.md"), json.loads(read("docs/judges.json"))
     assert len(j.WORD.findall(j.prose(page))) <= 350 and page.count("\n|---") == 1
     lines = [line for line in page.splitlines() if line.strip()]
     assert lines[1] == "**The neutral meter for AI agent work: neither side keeps the count.**"
-    assert lines[2] == "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check."
-    assert [r["thing"] for r in data["rows"]] == j.JUDGED and len(data["rows"]) == 6
-    assert set(data) == {"title", "sentence", "number", "claim", "why_solana", "source", "columns", "rows", "wait", "not_real", "page"}
+    assert lines[2] == j.PITCH == data["pitch"]                                          # the pitch line is the second line
+    assert lines[3] == "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check."
+    assert [r["thing"] for r in data["rows"]] == j.JUDGED and len(data["rows"]) == 13
+    assert set(data) == {"title", "sentence", "pitch", "number", "claim", "why_solana", "source", "columns", "rows", "wait", "not_real", "page"}
     for row in data["rows"]:
         assert set(row) == {"id", "thing", "sentence", "link", "label"}             # the shape web/judges.js reads
         assert row["link"].startswith("https://") and len(j.WORD.findall(row["sentence"])) <= 22, row["thing"]
@@ -92,7 +94,9 @@ def test_why_solana_is_said_in_the_same_words_and_the_first_customer_is_explicit
 def test_the_check_fails_when_the_page_and_the_file_part(tmp_path):
     j = _judges()
     (tmp_path / "docs").mkdir()
-    for name in ("JUDGES.md", "judges.json", "BENCH.md", "TAMPER.md", "COMPOSE.md", "MARKET.md"):
+    (tmp_path / "docs" / "submission").mkdir()
+    for name in ("JUDGES.md", "judges.json", "BENCH.md", "TAMPER.md", "COMPOSE.md", "MARKET.md", "TEAM.md", "WHY.md", "MANIFEST.md",
+                 "UNIT_COSTS.md", "submission/NUMBERS.md", "submission/pitch_script.md"):
         shutil.copy(ROOT / "docs" / name, tmp_path / "docs" / name)
     assert j.problems(tmp_path) == []
     page = tmp_path / "docs" / "JUDGES.md"
@@ -103,3 +107,22 @@ def test_the_check_fails_when_the_page_and_the_file_part(tmp_path):
     assert any("the rows are" in line for line in j.problems(tmp_path))
     page.write_text(text.replace("5. Neutrality:", "Neutrality:"), encoding="utf-8")
     assert any("4 lines under" in line for line in j.problems(tmp_path))
+    page.write_text(text.replace("Not measured. ", "It took 3 days. "), encoding="utf-8")
+    assert any("days to approve" in line for line in j.problems(tmp_path))
+    page.write_text(text.replace("| Traction |", "| Demand |"), encoding="utf-8")
+    assert any("the rows are" in line for line in j.problems(tmp_path))
+
+
+def test_the_seven_factors_are_colosseums_and_traction_says_the_zeros():
+    j = _judges()
+    data = json.loads(read("docs/judges.json"))
+    factors = {r["thing"]: r for r in data["rows"][6:]}
+    assert list(factors) == j.FACTORS
+    assert "https://colosseum.com/hackathon" in read("docs/JUDGES.md")
+    traction = factors["Traction"]["sentence"]
+    for zero in ("Outside funders 0", "outside repositories 0", "interviews 0", "revenue 0"):
+        assert zero in traction, zero
+    assert factors["Traction"]["link"].endswith("docs/submission/NUMBERS.md")
+    assert factors["Potential market size"]["sentence"].startswith("Not counted")
+    wait = data["wait"]
+    assert j.DAYS in wait and "Not measured." in wait and not re.search(r"\d+(\.\d+)? days", wait)

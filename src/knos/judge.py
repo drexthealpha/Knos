@@ -709,8 +709,74 @@ def overlay(base: Path, pr: Path, work: Path, test_dirs, runner: str = "python")
 
 # ---- the sandbox: where pull request code runs ---------------------------------------------------------------------
 
+@dataclass(frozen=True)
+class HostLimits:
+    """What a command of the pull request may use on the judge's own machine (the host sandbox). Each is a resource
+    limit the kernel enforces on every process the command starts (prlimit; man 2 getrlimit):
+
+      nproc    processes and threads of the sandbox user at once: a fork bomb meets "Resource temporarily
+               unavailable" at this many (RLIMIT_NPROC counts every task of uid 65534 on the machine)
+      cpu      seconds of CPU per process, then SIGXCPU and SIGKILL (RLIMIT_CPU)
+      data     bytes of heap and private writable memory per process (RLIMIT_DATA, which counts mmap since Linux 4.7;
+               a container's memory limit is per container, this one is per process)
+      fsize    the largest file a process may write, then SIGXFSZ (RLIMIT_FSIZE)
+
+    The time limit is the run's own: the whole process tree is killed with it (a PID namespace whose first process
+    dies takes every other one with it)."""
+    nproc: int = 256
+    cpu: int = 600
+    data: int = 4 << 30
+    fsize: int = 1 << 30
+
+    def prlimit(self) -> list[str]:
+        return ["prlimit", f"--nproc={self.nproc}", f"--cpu={self.cpu}", f"--data={self.data}", f"--fsize={self.fsize}", "--"]
+
+
+HOST_LIMITS = HostLimits()
+
+# Run as root inside a fresh mount namespace, before the command drops to the sandbox user: the box's own folder stays
+# writable, every other mount of the machine is remounted read-only in this namespace only (nothing outside it sees a
+# change), /dev/shm becomes an empty tmpfs of its own, and the script refuses to go on when / or /tmp is still writable.
+# The working directory is entered again after the bind: the one inherited still points into the read-only mount. The
+# command runs as a child of this shell, not in its place: the shell is the namespace's first process, and when it
+# exits every process the command left behind is killed.
+_ISOLATE = r"""root=$1; shift
+here=$(pwd -P)
+ip link set lo up 2>/dev/null
+mount --bind "$root" "$root" || { echo "knos sandbox: cannot bind $root" >&2; exit 125; }
+cd "$here" || exit 125
+for mp in $(cut -d' ' -f2 /proc/self/mounts); do
+  mp=$(printf '%b' "$mp")
+  case "$mp" in "$root"|"$root"/*|/proc|/proc/*|/sys|/sys/*|/dev|/dev/*) continue;; esac
+  mount -o remount,bind,ro "$mp" 2>/dev/null
+done
+mount -t tmpfs -o size=64m,mode=1777,nosuid,nodev tmpfs /dev/shm 2>/dev/null
+for d in / /tmp /var/tmp; do
+  if [ -d "$d" ] && touch "$d/.knos-rw-$$" 2>/dev/null; then
+    rm -f "$d/.knos-rw-$$"; echo "knos sandbox: $d is still writable; not running pull request code" >&2; exit 125
+  fi
+done
+"$@"
+exit $?
+"""
+
+
+def _posix_limits(limits: HostLimits):
+    """For a machine with no sandbox (macOS, a Linux runner without root): the limits setrlimit can put on the command
+    itself in the child before it starts. Not the process count: RLIMIT_NPROC counts every process of the judge's own
+    user there, the judge's included."""
+    def apply() -> None:
+        import resource
+        for which, value in ((resource.RLIMIT_CPU, limits.cpu), (resource.RLIMIT_FSIZE, limits.fsize)):
+            try:
+                resource.setrlimit(which, (value, value))
+            except (ValueError, OSError):
+                pass
+    return apply
+
+
 def sandbox_available() -> bool:
-    if not sys.platform.startswith("linux") or not shutil.which("setpriv") or not shutil.which("unshare"):
+    if not sys.platform.startswith("linux") or not all(shutil.which(t) for t in ("setpriv", "unshare", "prlimit", "timeout")):
         return False
     if os.geteuid() == 0:
         return True
@@ -757,6 +823,7 @@ class Box:
     out: Path = field(init=False)
     env: dict = field(default_factory=dict)
     python: str | None = None       # a venv's interpreter, when the tree's dependencies were installed into one
+    limits: HostLimits = HOST_LIMITS
 
     def __post_init__(self) -> None:
         self.root = Path(self.root)
@@ -788,34 +855,54 @@ class Box:
         env.update(extra or {})
         return env
 
-    def wrap(self, argv: list, net: bool = False, env: dict | None = None) -> tuple[list, dict | None]:
+    def wrap(self, argv: list, net: bool = False, env: dict | None = None,
+             seconds: float | None = None) -> tuple[list, dict | None]:
         """The argv (and environment) that runs `argv` in the sandbox: another user, an empty environment, no network
-        unless `net`. Without a sandbox on this machine: the same argv, with CI's variables removed."""
+        unless `net`, the machine read-only but for this box's folder (`_ISOLATE`), a /dev/shm of its own, the resource
+        limits of `self.limits`, and a PID namespace: when the run ends or is killed after `seconds`, every process it
+        started dies with it. Without a sandbox on this machine: the same argv, with CI's variables removed."""
         full = self._env(env)
         if not self.sandboxed:
             return list(argv), full
-        drop = ["setpriv", f"--reuid={SANDBOX_UID}", f"--regid={SANDBOX_UID}", "--clear-groups", "--",
-                "env", "-i", *[f"{k}={v}" for k, v in full.items()], *argv]
-        if not net:
-            drop = ["unshare", "-n", "--", "sh", "-c", 'ip link set lo up 2>/dev/null; exec "$@"', "sh", *drop]
-        return ([] if os.geteuid() == 0 else ["sudo", "-n"]) + drop, None
+        drop = [*self.limits.prlimit(), "setpriv", f"--reuid={SANDBOX_UID}", f"--regid={SANDBOX_UID}", "--clear-groups",
+                "--", "env", "-i", *[f"{k}={v}" for k, v in full.items()], *argv]
+        ns = ["unshare", "--mount", "--pid", "--fork", "--kill-child", *([] if net else ["--net"]), "--",
+              "sh", "-c", _ISOLATE, "sh", str(self.root), *drop]
+        if seconds:
+            ns = ["timeout", "-s", "KILL", str(max(1, int(seconds))), *ns]
+        return ([] if os.geteuid() == 0 else ["sudo", "-n"]) + ns, None
 
     def run(self, cmd, net: bool = False, env: dict | None = None, timeout: float = 600,
             cwd: Path | None = None) -> tuple[int, str]:
-        """Run `cmd` (argv, or a shell string) in the tree. Returns (exit code, combined output); 124 on a timeout."""
+        """Run `cmd` (argv, or a shell string) in the tree. Returns (exit code, combined output); 124 on a timeout,
+        125 when the sandbox would not start it. With no sandbox, on POSIX, the command gets the CPU and file size
+        limits (`_posix_limits`) and a session of its own that is killed whole on the timeout."""
         argv = ["sh", "-c", cmd] if isinstance(cmd, str) and os.name != "nt" else cmd
         shell = isinstance(argv, str)
         full: dict | None = self._env(env)
         if not shell:
-            argv, full = self.wrap(argv, net, env)
+            argv, full = self.wrap(argv, net, env, seconds=timeout)     # `timeout` kills the namespace, and all in it
+        posix = os.name == "posix" and not self.sandboxed
         try:
-            got = subprocess.run(argv, cwd=str(cwd or self.work), env=full, capture_output=True, timeout=timeout,
-                                 shell=shell, stdin=subprocess.DEVNULL)   # a test that reads stdin must not wait on ours
-        except subprocess.TimeoutExpired:
-            return 124, "timed out"
+            proc = subprocess.Popen(argv, cwd=str(cwd or self.work), env=full, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, shell=shell, stdin=subprocess.DEVNULL,   # a test that reads stdin must not wait on ours
+                                    start_new_session=posix, preexec_fn=_posix_limits(self.limits) if posix else None)
         except OSError as why:
             return 127, str(why)
-        return got.returncode, (got.stdout + got.stderr).decode("utf-8", "replace")
+        try:
+            out, err = proc.communicate(timeout=timeout + 10 if self.sandboxed else timeout)
+        except subprocess.TimeoutExpired:
+            if posix:
+                try:
+                    os.killpg(proc.pid, 9)
+                except OSError:
+                    pass
+            proc.kill()
+            proc.communicate()
+            return 124, "timed out"
+        if self.sandboxed and proc.returncode in (124, -9):     # `timeout -s KILL` ends by killing its own group, itself too
+            return 124, "timed out"
+        return proc.returncode, (out + err).decode("utf-8", "replace")
 
     def clean(self) -> None:
         if self.sandboxed:   # files the sandbox user made are not ours to delete
@@ -827,8 +914,9 @@ class Box:
 # ---- the hermetic judge: the submission in a container pinned by digest ---------------------------------------------
 #
 # What the host sandbox above leaves open, and a container closes: the sandbox user still sees the machine's files
-# that anyone may read, can write wherever anyone may write (/tmp, /dev/shm), and has no limit on memory or processes.
-# In the container the submission sees the image, its own tree (read-only) and an empty tmpfs, and nothing else.
+# that anyone may read, shares the machine's kernel-wide process count for uid 65534, and its memory limit is per
+# process. In the container the submission sees the image, its own tree (read-only) and an empty tmpfs, and nothing
+# else, under one memory limit for the whole container.
 
 RUNTIMES = ("docker", "podman")
 SUBMISSION, WORK, SUITE = "/submission", "/work", "/suite"     # where the container sees the tree, its scratch, the public suite
@@ -1004,6 +1092,35 @@ def image_of(cfg: dict | None) -> str:
     cfg = cfg if isinstance(cfg, dict) else {}
     section = named_ if isinstance(named_ := cfg.get("judge"), dict) else {}
     return str(cfg.get("image") or section.get("image") or "")
+
+
+# The image a black-box judgment runs in when its terms name none and the judge is asked for `--sandbox hermetic`: Python
+# 3.12 on Alpine, as Docker Hub's registry named it on 2026-10-04 (https://hub.docker.com/_/python, tag 3.12-alpine;
+# scripts/tamper_bench.py ESCAPE_IMAGE is the same). It holds Python only, so a tree of another language is judged on
+# the host sandbox instead, and the verdict says so.
+DEFAULT_IMAGE = "docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71"
+OTHER_LANGUAGES = ("package.json", "go.mod", "Cargo.toml", "Gemfile", "pom.xml", "build.gradle", "composer.json", "mix.exs")
+HOST_FALLBACK = "host sandbox"
+
+
+def default_image(runner: str, trees, platform: str | None = None, ready=None) -> tuple[str, str]:
+    """(the image, "") when a judgment whose terms name no image runs in the default container; ("", why not) when it
+    runs on the host sandbox instead. Containers run on Linux machines only (GitHub's container jobs and service
+    containers need a Linux runner: docs.github.com, "Use Docker service containers"); only a black-box check reaches
+    the submission through "$KNOS_RUN", so only it can put the submission in a container; and the default image holds
+    Python only. `ready()`: whether a container runtime answers here (default: container_runtime and runtime_ready)."""
+    platform = sys.platform if platform is None else platform
+    if not platform.startswith("linux"):
+        return "", f"containers run on Linux runners only, and this machine is {platform}"
+    if runner != "blackbox":
+        return "", f"the {runner} runner loads the pull request's code into the test runner; only a black-box check runs it in a container"
+    for tree in trees:
+        other = sorted(n for n in OTHER_LANGUAGES if (Path(tree) / n).is_file())
+        if other:
+            return "", f"the default image holds Python only, and this tree has {other[0]}; name an image in the terms to judge it in a container"
+    if not (ready() if ready else runtime_ready(container_runtime())):
+        return "", "no container runtime answers on this machine"
+    return DEFAULT_IMAGE, ""
 
 
 def assurance_of(runner: str, image) -> str:
@@ -1554,7 +1671,7 @@ def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run
     elif os.name == "nt":
         runner = _windows_runner(box.root / "knos-run", box.work)
     else:
-        argv, env = box.wrap(["sh", "-c", 'exec "$@"', "sh"], net=False)
+        argv, env = box.wrap(["sh", "-c", 'exec "$@"', "sh"], net=False, seconds=timeout)
         runner = private / "knos-run"
         runner.write_text("#!/bin/sh\n" + f"cd {shlex.quote(str(box.work))} || exit 126\n"
                           + "exec " + " ".join(shlex.quote(a) for a in argv) + ' "$@"\n', "utf-8")
@@ -1668,7 +1785,9 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
     cfg: the base's .knos/proof.toml plus "issue". `changed`: the pull request's changed paths (default: the tree
     diff). `cache` (a dict) reuses the base side's run across pull requests against the same base tree, as the
     benchmark does. `setup`: a shell command that installs a tree's dependencies. `sandbox`: auto (use it when this
-    machine can), require (refuse to judge without it), off."""
+    machine can), require (refuse to judge without it), off, or hermetic: a black-box check whose terms name no image
+    runs in DEFAULT_IMAGE where this machine runs containers (`default_image`), and otherwise as `require`, with the
+    reason in the verdict's `judged_in`."""
     base, pr = Path(base_dir), Path(pr_dir)
     issue = str(cfg.get("issue", "")).strip()
     timeout = float(cfg.get("timeout", 600))
@@ -1684,6 +1803,8 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
         if ev.get("runner"):             # how much this verdict can carry, said with it wherever it goes
             level = assurance_of(ev["runner"], "image" in ev)      # hermetic only when a container of the image ran
             out.update({"assurance": level, "assurance_means": ASSURANCE[level]})
+        if ev.get("judged_in"):          # where the pull request's code ran, and why not in a container when it was not
+            out["judged_in"] = ev["judged_in"] + (f" (fallback: {ev['fallback']})" if ev.get("fallback") else "")
         return out
 
     section = named_ if isinstance(named_ := cfg.get("judge"), dict) else {}
@@ -1715,9 +1836,21 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
         notes.append(f"test configuration: {n} file{'' if n == 1 else 's'} changed, not counted (the suite ran from the base's copy)")
     ev["artifact"] = {"base": tree_hash(base), "pr": tree_hash(pr)}     # what was judged: `knos judge rerun` checks it has the same
     held = None
+    fallback = ""
+    if sandbox == "hermetic":
+        # The container is the default where the machine has one; the host sandbox, required, is the fallback, and
+        # the verdict says which ran and why (`judged_in`, `fallback`).
+        if not image:
+            image, fallback = default_image(runner, (base, pr))
+            if image:
+                try:
+                    held = _hold(image, runner, setup, cfg.get("limits") or section.get("limits"))
+                except ValueError as why:
+                    image, fallback = "", f"the default image could not be used: {why}"
+        sandbox = "require"
     if image:
         try:
-            held = _hold(image, runner, setup, cfg.get("limits") or section.get("limits"))
+            held = held or _hold(image, runner, setup, cfg.get("limits") or section.get("limits"))
         except ValueError as why:
             return verdict(h, [str(why)], True)
         cfg = {**cfg, "_container": held}
@@ -1737,6 +1870,11 @@ def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: 
     ev["sandbox"] = {"user": SANDBOX_UID, "network": "setup only" if setup else "none"} if boxed else None
     if held:
         ev["sandbox"] = {"user": SANDBOX_UID, "network": "none", "container": held["pulled"]["digest"]}
+    elif boxed:
+        ev["sandbox"].update(limits=vars(HOST_LIMITS), outside_work="read-only", shm="private", processes="killed with the run")
+    ev["judged_in"] = "container" if held else HOST_FALLBACK if boxed else "host"
+    if fallback:
+        ev["fallback"] = fallback
     reasons: list[str] = []
     key = (json.dumps(_files(base), sort_keys=True), issue, tuple(test_dirs), runner, setup or "", image)
     boxes = []

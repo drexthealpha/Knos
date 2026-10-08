@@ -447,7 +447,7 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
                   issue: str = typer.Option(..., "--issue", help="the acceptance bundle: .knos/acceptance/<issue>/"),
                   changed: Path = typer.Option(None, "--changed", help="file listing the PR's changed paths"),
                   setup: str = typer.Option("", "--setup", help="shell command that installs a tree's dependencies"),
-                  sandbox: str = typer.Option("auto", "--sandbox", help="auto, require or off"),
+                  sandbox: str = typer.Option("auto", "--sandbox", help="auto, require, off or hermetic"),
                   diff: Path = common["diff"], evidence: Path = common["evidence"], store: Path = common["store"],
                   repo_name: str = common["repo_name"], agent: str = common["agent"],
                   body_file: Path = common["body_file"], checks_file: Path = common["checks_file"],

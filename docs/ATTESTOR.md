@@ -88,6 +88,45 @@ write the hostile input rather than reuse ours.
 6. *The shape itself.* Read each published file at the commit an order records and confirm by eye what
    `tests/test_workflows2.py` asserts: no job has both `id-token: write` and a checkout, a fetch or a download.
 
+## Where the pull request's code runs: a container first, the host sandbox second
+
+`knos proof judge --sandbox hermetic` (src/knos/judge.py `judge`, `default_image`) runs a black-box check whose terms
+name no image in `DEFAULT_IMAGE` (Python 3.12 on Alpine, pinned by digest) when the machine runs containers: no
+network, a read-only root, the tree read-only, another user, no capabilities, memory, CPU, process and time limits
+(`container_argv`). Terms that name an image always run in that image, or not at all. Everywhere else the host
+sandbox judges, the verdict's `judged_in` says `host sandbox (fallback: <why>)`, and its `assurance` stays
+`black-box`, never `hermetic`. The fallbacks: a machine that is not Linux, an in-process runner (pytest, node:test, go
+test, cargo test, minitest load the pull request's code into the runner, so only a black-box check can put it in a
+container), a tree with another language's manifest (package.json, go.mod, Cargo.toml, ...: the default image holds
+Python only), and no runtime that answers.
+
+The host sandbox (`Box.wrap`), on Linux with `setpriv`, `unshare`, `prlimit` and root or passwordless sudo:
+
+| What the submission tries | What stops it |
+|---|---|
+| a fork bomb | RLIMIT_NPROC 256 for the sandbox user (uid 65534): `fork` fails with "Resource temporarily unavailable" |
+| leaving processes behind | a PID namespace: when the run ends or its time limit kills it, every process it started is killed |
+| writing outside its folder (/tmp, /var/tmp, any folder any user may write) | a mount namespace in which every mount but the box's own folder is read-only; /dev/shm is an empty tmpfs of its own. The run is refused (exit 125) if / or /tmp is still writable |
+| burning CPU | RLIMIT_CPU 600 seconds per process, then SIGKILL |
+| filling memory | RLIMIT_DATA 4 GiB per process (heap and private writable mappings; a container's limit is per container) |
+| filling the disk | RLIMIT_FSIZE 1 GiB per file, then "File too large" |
+| calling out | a network namespace with only a loopback (the dependency install alone has the network) |
+| reading the judge's secrets | another user, an empty environment |
+
+tests/test_judge_box.py runs a fork bomb, an outside write, a file past the size limit, a CPU loop and a run past
+its time limit, and checks each is stopped and nothing outlives the run; the escape table in [TAMPER.md](TAMPER.md)
+measures the same places.
+
+What other runners can enforce. GitHub runs container jobs and service containers on Linux runners only
+([Use Docker service containers](https://docs.github.com/en/actions/tutorials/use-containerized-services/use-docker-service-containers)),
+so on macOS and Windows the judge is never hermetic. On **macOS** without the sandbox the command gets the CPU and file
+size limits (`setrlimit`, which POSIX defines) and a session that is killed whole on the time limit; there is no
+mount or network namespace, so it can write wherever the judge's user can and can call out, and a process count limit
+is not set because RLIMIT_NPROC there counts every process of the judge's own user. On **Windows** the judge sets
+none of these: a job object could limit processes, memory and CPU, and Knos does not create one yet; writes are
+bounded only by the account's file permissions. `--sandbox require`, and `hermetic`, which falls back to it, refuse
+to judge on either.
+
 ## The ladder
 
 | Rung | Closes | Still trusted | Today |

@@ -25,7 +25,8 @@ Agent PR Index scan the docs quote, the programs' compute units, what was measur
 A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in README.md or docs/BENCH.md:
 
     headline      the index's two named figures, and the merged pull requests
-    today         README: what runs on the public program ids, what is tested only, and the outside-use numbers of
+    today         README: how many capabilities are at each stage, and which ones reached the public program ids (all
+                  read from docs/capabilities.json, so the table cannot disagree with it), and the outside-use numbers of
                   NUMBERS.md, zeros included, from the same sources
     outside-use   docs/submission/NUMBERS.md: nine numbers about use by anyone who is not Knos, each from where it is kept
     market        the index: a failed check of any kind, per agent
@@ -267,15 +268,53 @@ def outside_use(src: dict, repo: dict) -> str:
     return "\n".join(lines)
 
 
-# README.md's one table, "What is real today": the rows no number decides (TODAY_FIRST, TODAY_LAST) around the nine
-# numbers of NUMBERS.md, so the front page prints every zero that page prints and can print no other value.
+# README.md's one table, "What is real today": the stage rows (stage_rows), the nine
+# numbers of NUMBERS.md and the rows no number decides (TODAY_LAST), so the front page prints every zero that page prints and can print no other value.
 NUMBERS_DOC = "[docs/submission/NUMBERS.md](docs/submission/NUMBERS.md)"
-TODAY_FIRST = [
-    ("Runs on the public devnet program ids", "token verification; a bounty funded by one comment, paid on merge, refunded at "
-     "its deadline; one counted evaluation; a payee's passkey wallet", "[docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows above \"tested locally\""),
-    ("Tested here only", "work orders, the ledger and its statements, the invoice check, the console, the exports, and every "
-     "other capability", "[docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows \"tested locally\""),
-]
+CAPS_DOC = "[docs/CAPABILITIES.md](docs/CAPABILITIES.md)"
+# The plain name of each capability the stage rows print; a capability with none is printed by its id. The stage of each
+# is read from docs/capabilities.json every time, so the front page cannot say a capability is lower or higher than that.
+PLAIN = {
+    "verify_github": "GitHub token verification", "verify_gitlab": "GitLab token verification", "key_guardian": "the key guardian",
+    "fund_by_comment": "funding by one comment", "fund_from_wallet": "funding from a wallet", "pay_on_merge": "pay on merge",
+    "hold_and_bind": "holding pay for a payee with no wallet", "refund": "refund at the deadline", "pause": "pause",
+    "work_orders": "work orders", "order_pay": "an order paying up to four payees", "tests_mode": "orders judged by hidden tests",
+    "order_auto_accept": "auto-accepted orders", "top_up": "top-ups", "single_use_tokens": "single-use tokens",
+    "meter_single": "one counted evaluation", "meter_batch": "a counted batch of evaluations", "meter_seller_claim": "the seller's own count",
+    "passkey_payee_wallet": "a payee's passkey wallet", "passkey_funder": "a passkey funder", "passkey_fund_relay": "the passkey relay",
+    "buyer_page": "the site's Buy page", "x402_knos_order": "an x402 order", "upgrade_gate": "the upgrade gate",
+    "outcome_not_code": "an outcome that is not code",
+}
+STAGE_ROWS = (   # (stage, the row's name, what the row adds after the names, the label docs/CAPABILITIES.md gives the stage)
+    ("reproduced", "Reproduced by someone else", "", "reproduced by someone else"),
+    ("exercised", "Exercised at the public devnet program ids", "", "exercised on devnet"),
+    ("deployed", "Deployed at the public devnet program ids, no transaction recorded", "", "deployed on devnet"),
+    ("tested", "Tested here only", ", each with the test its row names", "tested locally"),
+    ("implemented", "Written, not tested", "", "implemented"),
+)
+
+
+def capabilities(root: Path = ROOT) -> list[dict]:
+    """docs/capabilities.json's rows; a tree that has no manifest of its own (a test's copy) reads this repository's."""
+    path = root / "docs" / "capabilities.json"
+    if not path.is_file():
+        path = ROOT / "docs" / "capabilities.json"
+    return json.loads(path.read_text(encoding="utf-8")).get("capabilities", []) if path.is_file() else []
+
+
+def stage_rows(caps: list[dict]) -> list[tuple[str, str, str]]:
+    """The rows of README's table that say how far each capability has got, one row a stage, every one from
+    docs/capabilities.json: the count of the stage, then the names of what reached the public ids."""
+    rows = []
+    for stage, name, tail, label in STAGE_ROWS:
+        ids = [c["id"] for c in caps if c.get("stage") == stage]
+        said = f"{len(ids)} of {len(caps)}"
+        if ids and stage in ("reproduced", "exercised", "deployed"):
+            said += ": " + ", ".join(PLAIN.get(i, f"`{i}`") for i in ids)
+        rows.append((name, said + (tail if ids else ""), f"{CAPS_DOC}, the rows \"{label}\""))
+    return rows
+
+
 TODAY_NOTES = {3: ", on tasks Knos funded itself", 4: ", on tasks Knos funded itself"}     # by row of NUMBERS.md
 TODAY_LAST = [
     ("Paying customers", "0", "[docs/DISCLOSURE.md](docs/DISCLOSURE.md)"),
@@ -286,10 +325,10 @@ TODAY_LAST = [
 ]
 
 
-def today(src: dict, repo: dict) -> str:
-    """README.md's table (the block `today`): what runs at the public program ids, what is tested only, and what nobody
-    outside has used, the last from the same sources as outside_use()."""
-    rows = [*TODAY_FIRST,
+def today(src: dict, repo: dict, caps: list[dict] | None = None) -> str:
+    """README.md's table (the block `today`): how far each capability has got (stage_rows, from docs/capabilities.json),
+    and what nobody outside has used, the last from the same sources as outside_use()."""
+    rows = [*stage_rows(capabilities() if caps is None else caps),
             *((what.split(":")[0], (_said(value) if _number(value) else "not measured") + TODAY_NOTES.get(i, ""), NUMBERS_DOC + f", row {i}")
               for i, (what, value, _where) in enumerate(outside_rows(src, repo), 1)),
             *TODAY_LAST]
@@ -542,13 +581,20 @@ def devnet(d: dict) -> str:
     return "\n".join(lines)
 
 
+def _first_ids() -> dict:
+    """The first deployment's public program ids, as programs/program_ids.json records them."""
+    return json.loads((ROOT / "programs" / "program_ids.json").read_text(encoding="utf-8"))
+
+
 def devnet_first(f: dict) -> str:
     """The first deployment's record on devnet, as read from the chain (docs/bench.json, devnet.first)."""
     return (f"Read from the escrow's own logs on devnet on {f['read']}: {f['transactions']} transactions in all, the last "
             f"at {f['last']}. {f['funded']:,} bounties funded, {f['paid']:,} paid, {f['vetoed']:,} vetoed, {f['claimed']:,} "
             f"claims, {f['refunded']:,} refunded, {f['open']:,} still open. Every one of the {f['paid']:,} payments was Knos's "
             f"own account paying itself to prove the path; {f['outside_paid']:,} went to anyone else. The median from the "
-            f"funding transaction to the paying one was {f['median_seconds_fund_to_paid']:,} seconds. "
+            f"funding transaction to the paying one was {f['median_seconds_fund_to_paid']:,} seconds over those {f['paid']:,} payments "
+            f"(the first deployment's public program ids, knos_pay `{_first_ids()['knos_pay']}` and knos_oidc `{_first_ids()['knos_oidc']}`, "
+            f"programs/program_ids.json; read {f['read']}). "
             f"{f['open_for_outside']:,} of the open bounties are the ones another account's pull requests answer "
             f"({f['outside_prs']}); they had not been merged when this was read.")
 
@@ -757,7 +803,7 @@ def main(check: bool = False, root: Path = ROOT) -> int:
     src = json.loads((root / "docs" / "bench.json").read_text(encoding="utf-8"))
     gen = blocks(src, json.loads((root / "docs" / "backtest.json").read_text(encoding="utf-8")))
     gen["outside-use"] = outside_use(src, repo_numbers(root))
-    gen["today"] = today(src, repo_numbers(root))
+    gen["today"] = today(src, repo_numbers(root), capabilities(root))
     drift = []
     for d in DOCS:
         p = root / d

@@ -92,7 +92,10 @@ Both lines are hurdles to be measured in a Pilot, not claims: neither says a buy
 For the Pilot alone the same line is 2,500 × 3 = 7,500 USD of benefit found in the 30 days. The benefit is the sum of
 what the four measures above are worth to the buyer: hours no longer spent, lines no longer paid twice or paid for
 work that did not meet its terms, days no longer waited. An hour saved counts only when it lowers what the buyer
-spends or lets it not hire. The price is not the buyer's whole cost either: its own compute, the integration and the
+spends or lets it not hire. The findings report three kinds apart and never add one into another: **recoveries**
+(money not paid, or paid back, for lines that were duplicated or did not meet their terms), **avoided labour**
+(hours, as above) and **financing benefit** (days of payment brought forward, valued at the supplier's own cost of
+money). A disputed dollar is not a saved dollar, and a faster payment is not new profit. The price is not the buyer's whole cost either: its own compute, the integration and the
 exceptions its people still handle are beside it ([UNIT_COSTS.md](UNIT_COSTS.md)). `knos bill estimate` prints the price and the benefit to
 demand for any plan and volume. **Knos has not shown this benefit for anyone.** Nobody has measured it, and a Pilot
 that finds less will say how much less, and that the buyer should not buy.

@@ -2,7 +2,7 @@ name: release
 
 # Everything a release publishes, behind one gate. docs/RELEASE.md has the whole order; this is its last part.
 #
-# A release starts by pushing its tag, and only that way:  git tag v0.3.20 && git push origin v0.3.20
+# A release starts by pushing its tag, and only that way:  git tag v0.3.21 && git push origin v0.3.21
 # By then the tagged commit holds the lock (the last line of requirements/sign.txt: the knos wheel by its sha256) and
 # PyPI holds that very wheel: it was built once, before the commit, and uploaded before the push (scripts/release.py).
 #

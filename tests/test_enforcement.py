@@ -73,13 +73,19 @@ def cells():
 
 def test_the_table_is_whole_and_every_cell_is_one_class():
     assert enforce.problems() == []
-    assert [r for r, _n, _h in enforce.ROUTES] == list(enforce.CELLS) and len(enforce.ROUTES) == 11 and len(enforce.RESTRICTIONS) == 9
+    assert [r for r, _n, _h in enforce.ROUTES] == list(enforce.CELLS) and len(enforce.ROUTES) == 14 and len(enforce.RESTRICTIONS) == 9
     assert all(list(row) == [x for x, _n in enforce.RESTRICTIONS] for row in enforce.CELLS.values())
     n = enforce.counts()
-    assert sum(n.values()) == 99 and all(n[c] for c in enforce.CLASSES), n
+    assert sum(n.values()) == 126 and all(n[c] for c in enforce.CLASSES), n
     assert all(c.test for _r, _x, c in cells() if c.cls != "outside")
     # the brief's own routes are all there
     assert {"wallet", "comment", "offer", "topup", "private", "balance", "netted", "advance", "passkey", "direct"} <= set(enforce.CELLS)
+    # the enterprise route set: money in a Squads vault, its Balance, and an allowance
+    assert {"vault", "vault_balance", "allowance"} <= set(enforce.CELLS)
+    # and the page draws those three under the group's row, as the note "Enterprise-controlled funds" names them
+    grouped = [r["name"] for r in enforce.as_json()["routes"] if r.get("group") == "enterprise"]
+    assert grouped == ["Enterprise vault, by vote", "Enterprise vault's Balance", "A Squads allowance"]
+    assert all(f"{name}" in next(n for n in enforce.NOTES if n.startswith("Enterprise-controlled funds.")) for name in grouped)
 
 
 def test_every_test_a_cell_names_exists():
@@ -109,9 +115,16 @@ def test_a_program_cell_names_instructions_the_program_dispatches_and_errors_it_
             assert all(int(e) in pay.ERRORS for e in found if e), t
     for route, x, c in cells():
         if c.cls == "program":
-            assert re.search(r"knos_pay|knos_passkey", c.by) and (re.search(r"\(\d+\)", c.by) or "knos_passkey" in c.by), (route, x)
+            assert re.search(r"knos_pay|knos_passkey|Squads v4", c.by) and (re.search(r"\(\d+\)", c.by) or re.search("knos_passkey|Squads v4", c.by)), (route, x)
         else:       # nothing but a `program` cell opens by naming a program
-            assert not c.by.startswith(("knos_pay", "knos_passkey")), (route, x)
+            assert not c.by.startswith(("knos_pay", "knos_passkey", "Squads v4")), (route, x)
+    # every Squads v4 instruction a cell names is one tests/_squads.py sends to the deployed Squads build
+    harness = (ROOT / "tests/_squads.py").read_text(encoding="utf-8")
+    squads = {name for t in texts for name in re.findall(r"Squads v4 (?:\w+ )?([A-Z][a-z]+(?:[A-Z][a-z]+)+)", t)} | \
+             {name for t in texts if "Squads v4" in t for name in re.findall(r"\b(ProposalApprove|VaultTransaction\w+|SpendingLimitUse)\b", t)}
+    assert {"VaultTransactionExecute", "ProposalApprove", "SpendingLimitUse", "VaultTransactionCreate"} <= squads, squads
+    for name in squads:
+        assert f'"global", "{snake(name)}"' in harness, name
 
 
 def test_a_workflow_cell_names_a_job_of_a_workflow_and_every_function_named_anywhere_exists():
@@ -146,7 +159,7 @@ def test_the_controls_page_says_what_the_source_does_about_the_gate():
         assert false not in text, false
     assert "ENFORCEMENT.md" in text and "approvals.gate_order" in text and "flow._gated" in text
     source = (ROOT / "src/knos/flow.py").read_text(encoding="utf-8")
-    assert source.count("_gated(run, rp, cmd, commenter") == 2 and "approvals.gate(" in source and "approvals.gate_order(" in source
+    assert source.count("_gated(run, rp, cmd, commenter") == 3 and "approvals.gate(" in source and "approvals.gate_order(" in source
 
 
 def test_knos_controls_matrix_prints_the_table():

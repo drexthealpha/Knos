@@ -11,6 +11,8 @@
                                                  # that file, which a full --honest run replaces
     python scripts/tamper_bench.py --slug        # only the 63 attacks on the three slugify repositories: rewrites their tables
     python scripts/tamper_bench.py --allowed     # only the cheats aimed at what a pull request may add (attacks_allowed.py), same
+    python scripts/tamper_bench.py --authors     # who wrote the cheats: Knos's authors, or outsiders through the `tamper` task
+                                                 # (tests/bench_tamper/outside/cases.py, judged again here); rewrites that block
 
 The samples (tests/bench_tamper/) are the same small project with the same bug, in Python (pytest), JavaScript
 (node:test) and Ruby (minitest), and each has its own 21 attacks: the same 21 ideas, each as that language's tools
@@ -784,16 +786,17 @@ ESCAPES = (
            {"none": True, "host": False, "hermetic": False},
            "the sandbox and the container both run the submission with no network"),
     Escape("write", "write a file outside the work directory",
-           {"none": True, "host": True, "hermetic": False},
-           "the sandbox user can write wherever any user of the machine can (/tmp and the like); the container has a "
-           "read-only root and sees no host directory but the tree, read-only"),
+           {"none": True, "host": False, "hermetic": False},
+           "the sandbox runs in a mount namespace where every mount but its own folder is read-only (/tmp and the "
+           "like included); the container has a read-only root and sees no host directory but the tree, read-only"),
     Escape("env", "read the judge's environment variables",
            {"none": True, "host": False, "hermetic": False},
            "without a sandbox the submission inherits the judge's environment, less CI's own variables; the sandbox "
            "starts it with an empty one and another user; the container starts with the image's"),
     Escape("procs", f"start {THREADS} threads at once (a fork bomb, held still)",
-           {"none": True, "host": True, "hermetic": False},
-           "the host puts no limit on the sandbox user's processes; the container has --pids-limit"),
+           {"none": True, "host": False, "hermetic": False},
+           "the sandbox user may run 256 processes and threads (RLIMIT_NPROC, judge.HostLimits); the container has "
+           "--pids-limit"),
     Escape("clock", "hold the right to set the machine's clock",
            {"none": "root", "host": False, "hermetic": False},
            "setting the clock needs CAP_SYS_TIME: the judge's own user has it only when that user is root, the sandbox "
@@ -983,8 +986,10 @@ def escape_section(results: dict) -> list[str]:
            "same call the judge uses to run a submission's command (`python scripts/tamper_bench.py --escape`; "
            "tests/test_tamper_bench.py runs it). **host, no sandbox**: tests mode or black-box on a machine that has no "
            "sandbox and was not told `--sandbox require` (prove.yml passes `require`). **host sandbox**: tests mode and "
-           "black-box as prove.yml runs them: another user, an empty environment, no network. **hermetic**: black-box with "
-           f"an `image` in the terms; the probe ran in `{ESCAPE_IMAGE}`.", "",
+           "black-box as prove.yml runs them: another user, an empty environment, no network, the machine read-only but for "
+           "the run's folder, and process, CPU, memory and file size limits (docs/ATTESTOR.md). **hermetic**: black-box "
+           f"with an `image` in the terms, or with none under `--sandbox hermetic` on a machine that runs containers; the "
+           f"probe ran in `{ESCAPE_IMAGE}` (judge.DEFAULT_IMAGE).", "",
            "What is expected, from how each place is built:", "",
            "| escape | " + " | ".join(t for _, t in PLACES) + " | why |", "|---|---|---|---|---|"]
     out += [f"| {e.title} | " + " | ".join(exp[e.expect[p]] for p, _ in PLACES) + f" | {e.why} |" for e in ESCAPES]
@@ -1002,11 +1007,69 @@ def escape_section(results: dict) -> list[str]:
         hits = sum(rows[e.key][p] == expected(e, p) for e in ESCAPES for p in ran)
         out.append(f"In the places that were run ({_and([t for p, t in PLACES if p in ran])}), {hits} of {len(ESCAPES) * len(ran)} "
                    "outcomes were the expected one" + (f" (the judge ran as {'root' if expected(ESCAPES[-1], 'none') else 'an ordinary user'})." if "none" in ran else "."))
-    out += ["", "What this says and does not: the host sandbox stops a submission from calling out and from reading the "
-            "judge's environment, and leaves it able to write where any user can and to exhaust the machine. The "
-            "container is built to close those too. Five probes are five probes: a kernel or runtime bug that lets a "
-            "process out of a container is outside what this page measures.", "<!-- escape:end -->"]
+    out += ["", "What this says and does not: the host sandbox stops a submission from calling out, from reading the "
+            "judge's environment, from writing outside its folder and from starting more processes than its limit; its "
+            "memory limit is per process, where a container's is per container. Five probes are five probes: a kernel "
+            "or runtime bug that lets a process out of a namespace or a container is outside what this page measures.",
+            "<!-- escape:end -->"]
     return out
+
+
+# ---- who wrote the cheats -------------------------------------------------------------------------------------------
+
+def outside_cases() -> list:
+    """The cheats outsiders wrote that the judge accepted (tests/bench_tamper/outside/cases.py CASES)."""
+    spec = importlib.util.spec_from_file_location("tamper_outside_cases", BENCH / "outside" / "cases.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return list(mod.CASES)
+
+
+def run_outside(cases: list | None = None) -> list[dict]:
+    """Each outside case judged again by this tree's judge on its sample, as `one` judges the authors' attacks."""
+    rows = []
+    for i, (name, author, pull, key, fn) in enumerate(outside_cases() if cases is None else cases):
+        sample = SAMPLES[key]
+        with tempfile.TemporaryDirectory(prefix="knos-outside-") as t:
+            tmp = Path(t)
+            base = tmp / "base"
+            shutil.copytree(BENCH / sample.folder, base, ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+            rows.append({**one(sample, base, tmp, i, name, fn, {}), "author": int(author), "pull": pull, "sample": key})
+    return rows
+
+
+def authors_section(cheats: list[tuple[int, int]], rows: list[dict]) -> list[str]:
+    """The block of docs/TAMPER.md that says who wrote the cheats: `cheats` from cheat_totals (the authors'), `rows`
+    from run_outside (the outsiders')."""
+    mine, took = sum(b for _, b in cheats), sum(a for a, _ in cheats)
+    now = sum(bool(r["box"]) or bool(r["knos"]) for r in rows)
+    out = ["<!-- authors:begin -->", "## Who wrote the cheats", "",
+           "| written by | cheating submissions | accepted by Knos, black box (the tables on this page) |",
+           "|---|---|---|",
+           f"| the people who wrote the judge | {mine} | {took} |",
+           f"| outsiders, through the `tamper` task | {len(rows)} | {now} |", "",
+           "Every cheat counted in the first row was written by the people who wrote the judge. An outsider can change that: "
+           "the `tamper` task (tasks/outside/tamper.json) pays 5 test USDC for a submission the judge ACCEPTS on a funded "
+           "task although it does not do what the task asks; a refused one pays nothing. So every outside cheat was "
+           "accepted by the judge it was written against; the second row says how many this tree's judge still accepts. "
+           "An accepted cheat joins "
+           "tests/bench_tamper/outside/cases.py with its author's account id and pull request, is judged again by every "
+           "later judge (`python scripts/tamper_bench.py --authors`), and is counted by scripts/outsiders.py as "
+           "`outside_cheats` only when the account is not one of Knos's own."]
+    if rows:
+        out += ["", "| case | author (GitHub id) | pull request | sample | Knos, tests | Knos, black box |", "|---|---|---|---|---|---|"]
+        out += [f"| {r['name']} | {r['author']} | {r['pull']} | {r['sample']} | {'accepted' if r['knos'] else 'refused'} | "
+                f"{'n/a' if r['box'] is None else 'accepted' if r['box'] else 'refused'} |" for r in rows]
+    else:
+        out += ["", "No outsider has submitted a cheat yet: the outside row is 0 of 0, not a rate."]
+    return [*out, "<!-- authors:end -->"]
+
+
+def place_authors(doc: str, lines: list[str]) -> str:
+    if "<!-- authors:begin -->" in doc:
+        return update_block(doc, "authors", lines)
+    head, sep, tail = doc.partition("<!-- honest:begin -->")
+    return head + "\n".join(lines) + "\n\n" + sep + tail
 
 
 def update_block(doc: str, name: str, lines: list[str]) -> str:
@@ -1031,8 +1094,9 @@ def main(argv=None) -> int:
     ap.add_argument("--task", action="append", default=[], help="with --honest --group: only this task of the part (repeatable)")
     ap.add_argument("--allowed", action="store_true", help="run the cheats aimed at what a pull request may add and rewrite their block of --out")
     ap.add_argument("--slug", action="store_true", help="run the attacks on the three slugify repositories and rewrite their tables of --out")
+    ap.add_argument("--authors", action="store_true", help="judge the outsiders' cheats again and rewrite the block that says who wrote the cheats")
     a = ap.parse_args(argv)
-    if a.real or a.accept or a.escape or a.honest or a.allowed or a.slug:
+    if a.real or a.accept or a.escape or a.honest or a.allowed or a.slug or a.authors:
         path = Path(a.out)
         doc = path.read_text(encoding="utf-8")
         if a.slug:
@@ -1057,6 +1121,8 @@ def main(argv=None) -> int:
         if a.honest:
             rows, ruled, whole = honest_rows(path, a.group, tuple(a.task))
             doc = place_honest(doc, honest_section(rows, cheat_totals(doc), ruled, whole))
+        if a.authors or a.slug or a.real or a.accept or a.allowed:     # the totals it reads may have changed
+            doc = place_authors(doc, authors_section(cheat_totals(doc), run_outside()))
         whole_part = not (a.honest and a.group)         # one part of the honest set is not the honest set
         ran = [n for n, _ in BLOCKS if getattr(a, n) and (n != "honest" or whole_part)]
         doc = place_measured(doc, measured(path, ran))
@@ -1077,6 +1143,7 @@ def main(argv=None) -> int:
     rows, ruled, whole = honest_rows(Path(a.out))
     text = place_honest(text, honest_section(rows, cheat_totals(text + "\n".join(added)), ruled, whole))
     text = place_allowed(text, added)
+    text = place_authors(text, authors_section(cheat_totals(text), run_outside()))
     text = place_measured(text, measured(Path(a.out), [n for n, _ in BLOCKS]))
     Path(a.out).write_text(text, encoding="utf-8")
     print(text)

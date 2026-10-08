@@ -3,8 +3,8 @@
     python scripts/truth_check.py            # print every contradiction as file:line, exit 1 when there is one
     python scripts/truth_check.py --json     # the same, as JSON
 
-What is read (`DOCS`): README.md, docs/CAPABILITIES.md, docs/MARKET.md, docs/CONTROLS.md, docs/DISCLOSURE.md,
-docs/submission/*.md, the site's web/*.js and web/*.html, and the notes of docs/capabilities.json. What they are held
+What is read (`DOCS`): README.md, every docs/*.md, docs/submission/*.md, the site's web/*.js and web/*.html, and the
+notes of docs/capabilities.json. What they are held
 against: docs/capabilities.json (the stage of each capability, the version each public id runs), src/knos (who calls
 what), src/knos/billing.py (the price book) and src/knos/fees.py with settle/v2/pay.py (the two fee rules).
 
@@ -18,6 +18,13 @@ The rules, each with a planted contradiction in tests/test_truth_check.py:
     version   a version said to be live at a public id that is not the one docs/capabilities.json records
     count     two documents count the same thing (programs, capabilities, tests passed) differently, or a count of
               capabilities is not the number of rows
+    release   a page names a release older than pyproject.toml's version as the current one ("this release (0.3.18)",
+              "as Knos 0.3.14 has it")
+    live      a statement says the public knos_pay charges a fee, or has a quorum fix, that the build docs/capabilities.json
+              records at its public id does not have ("today ... 0.30%" while 2.1 runs; "the quorum is fixed" before 2.2)
+    published a statement says a package Knos has published (PUBLISHED: the two interface crates on crates.io, the JS
+              client on npm) is "not published", "unpublished", "none published", "neither has been published" or
+              "not on crates.io / npm"
 
 A statement is one sentence of a paragraph, one table row or one list item. A statement about the past ("was",
 "until", "withdrawn", "0.3.14") is not held to today's price. The checker reads; it changes nothing.
@@ -35,8 +42,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ("README.md", "docs/CAPABILITIES.md", "docs/MARKET.md", "docs/CONTROLS.md", "docs/DISCLOSURE.md", "docs/submission/*.md",
-        "web/*.js", "web/*.html")
+DOCS = ("README.md", "docs/*.md", "docs/submission/*.md", "web/*.js", "web/*.html")
 MANIFEST = "docs/capabilities.json"
 STAGES = ("implemented", "tested", "deployed", "exercised", "reproduced")
 
@@ -44,10 +50,11 @@ STAGES = ("implemented", "tested", "deployed", "exercised", "reproduced")
 SUBJECTS: dict[str, str] = {
     "record_lookup_paid": r"\bRecord\b[^.]*\b(API|hosted lookup|lookup server)\b|\b(hosted lookup|machine-priced API)\b|\bAPI (\(|that is )not built",
     "approval_chains": r"\bapprovals?\.gate\b|\bthe approval gate\b",
+    "work_orders": r"\bwork orders\b",
 }
 
 NOT_BUILT = re.compile(r"\b(not built|not wired|nothing calls it|not implemented|is planned|planned, not|not written yet)\b", re.I)
-NOT_DEPLOYED = re.compile(r"\b(not deployed|never deployed|not on devnet)\b", re.I)
+NOT_DEPLOYED = re.compile(r"\b(not deployed|never deployed|not on devnet|tested here only|tested locally only|only tested (?:here|locally)|local only)\b", re.I)
 NOT_CALLED = re.compile(r"\b(nothing calls (it|this)|no(thing| code| workflow)? calls (it|this)|does not (ask|call) (it|the gate)( yet)?|is not called)\b", re.I)
 SAYS = {"deployed": re.compile(r"\*\*Deployed on devnet:?\*\*:?|\b(is|are) deployed (on devnet|at (its|the) public)", re.I),
         "exercised": re.compile(r"\*\*Exercised on devnet:?\*\*:?|\b(is|are|was|were) exercised (on devnet|at (its|the) public)", re.I),
@@ -57,6 +64,7 @@ NOT_LIVE_YET = re.compile(r"\b(propos\w*|pending|would|will|once|after|until|nex
                           r"later|then|new|simulat\w*|rehears\w*|verified build)\b", re.I)
 LIVE = re.compile(r"\b(LIVE|is live|are live|live at|live on|runs|run|running)\b")
 MONEY = r"(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)"
+THOUSANDS = r"(\d{1,3}(?:,\d{3})+|\d{4,})"                 # a yearly price: never a count of jobs or seats
 WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 
 
@@ -264,7 +272,7 @@ def price_book(root: Path = ROOT) -> dict[str, str]:
     if not path.is_file():
         return {}
     text = path.read_text(encoding="utf-8")
-    book = {k: v for k, v in (("meter", _constant(text, "METER_PRICE")), ("record", _constant(text, "RECORD_PRICE")), ("pilot", _constant(text, "PILOT"))) if v}
+    book = {k: v for k, v in (("meter", _constant(text, "METER_PRICE")), ("meter_free", _constant(text, "METER_FREE")), ("record", _constant(text, "RECORD_PRICE")), ("pilot", _constant(text, "PILOT"))) if v}
     for tier in ("team", "business", "enterprise"):
         if m := re.search(rf'"{tier}": Decimal\(([\d_]+)\)', text):
             book[tier] = m.group(1).replace("_", "")
@@ -294,14 +302,16 @@ def fee_rates(root: Path = ROOT) -> set[str]:
 
 PRICES: tuple[tuple[str, str, str], ...] = (
     ("record", rf"{MONEY} USD (?:a|per) lookup", "a Record lookup"),
-    ("meter", rf"{MONEY} USD (?:an|per) evaluation|free per organisation, then {MONEY} USD", "a Meter evaluation"),
-    ("team", rf"\bTeam:? {MONEY}(?! evaluations)\b", "Control, Team, a year"),
-    ("business", rf"\bBusiness:? {MONEY}\b", "Control, Business, a year"),
-    ("enterprise", rf"\bEnterprise:? from {MONEY}\b", "Control, Enterprise, a year"),
+    ("meter", rf"{MONEY} USD (?:an|per) evaluation|free per organisation, then {MONEY} USD|evaluations a month free, then {MONEY} USD", "a Meter evaluation"),
+    ("meter_free", rf"\b{MONEY} evaluations a month free\b|\b{MONEY} (?:evaluations )?a month free per organisation", "the Meter's free evaluations a month"),
+    ("team", rf"\bTeam:? {THOUSANDS}(?! evaluations)\b", "Control, Team, a year"),
+    ("business", rf"\bBusiness:? {THOUSANDS}\b", "Control, Business, a year"),
+    ("enterprise", rf"\bEnterprise:? from {THOUSANDS}\b", "Control, Enterprise, a year"),
     ("pilot", rf"{MONEY} USD, credited against year one", "a Pilot"),
 )
 
 
+CAPPED = re.compile(r"\bcapped at\b", re.I)
 COST = re.compile(r"\b(cost|costs|margin|budget|leaves|deliver it|compute)\b", re.I)
 FIRST_DEPLOYMENT = re.compile(r"\b(immutable|first deployment|0\.3\.[0-9]\b)", re.I)
 
@@ -310,28 +320,42 @@ def _number(text: str) -> str:
     return text.replace(",", "").rstrip("0").rstrip(".") if "." in text else text.replace(",", "")
 
 
+def _cell(text: str, at: int) -> str:
+    """The table cell of a row that holds position `at`, or the whole statement when it is not a table row."""
+    if not text.startswith("|"):
+        return text
+    return text[text.rfind("|", 0, at) + 1:(text.find("|", at) + 1 or len(text) + 1) - 1]
+
+
 def price_problems(stmts: list[Statement], book: dict[str, str], rates: set[str]) -> list[Problem]:
     out: list[Problem] = []
     allowed = {_number(r) for r in rates}
     accept = {_number(r) for r in book.get("acceptance", "").split(",") if r}
     for s in stmts:
-        if PAST.search(s.text):
-            continue
         for key, rx, what in PRICES:
             if key not in book:
                 continue
-            if key == "meter" and COST.search(s.text):
-                continue                                     # what an evaluation costs to deliver is not its price
             for m in re.finditer(rx, s.text):
+                said = _cell(s.text, m.start())              # a table row is held cell by cell: one cell's past is not another's
+                if PAST.search(said) or (key.startswith("meter") and COST.search(said)):
+                    continue                                 # a past price, or what an evaluation costs to deliver
                 got = next(g for g in m.groups() if g)
                 if _number(got) != _number(book[key]):
-                    out.append(Problem("price", s.file, s.line, s.text, f"src/knos/billing.py: {what} is {book[key]} USD, and this says {got}"))
+                    out.append(Problem("price", s.file, s.line, s.text, f"src/knos/billing.py: {what} is {book[key]}{'' if key == 'meter_free' else ' USD'}, and this says {got}"))
         if accept:
-            for m in re.finditer(r"\bAcceptance\b[^|;:]{0,60}?[|;:]?\s*(\d+(?:\.\d+)?)%", s.text):
-                if _number(m.group(1)) not in accept:
+            for m in re.finditer(r"\bAcceptance\b[^|;:]{0,60}?[|;:]?\s*(\d+(?:\.\d+)?)%|\b(\d+(?:\.\d+)?)% of the reconciled accepted\b", s.text):
+                got, said = m.group(1) or m.group(2), _cell(s.text, m.end() - 1)
+                if PAST.search(said) or COST.search(said):     # a past rate, or a margin of the Acceptance line
+                    continue
+                if _number(got) not in accept:
                     out.append(Problem("price", s.file, s.line, s.text,
-                                       f"src/knos/billing.py: the Acceptance rate is {' or '.join(sorted(accept))}%, and this says {m.group(1)}%"))
-        if allowed:
+                                       f"src/knos/billing.py: the Acceptance rate is {' or '.join(sorted(accept))}%, and this says {got}%"))
+            for m in CAPPED.finditer(s.text):
+                said = _cell(s.text, m.start())
+                if PAST.search(said) or not re.search(r"\b(Acceptance|accepted (invoice )?value)\b", said):
+                    continue
+                out.append(Problem("price", s.file, s.line, s.text, "src/knos/billing.py: the Acceptance line has no cap (ACCEPT_FLOOR), and this says it is capped"))
+        if allowed and not PAST.search(s.text):
             for m in re.finditer(r"\bfee\b[^.|;%]{0,40}?\b(\d+(?:\.\d+)?)%|\b(\d+(?:\.\d+)?)% fee\b", s.text):
                 got = m.group(1) or m.group(2)
                 if _number(got) not in allowed | accept:
@@ -390,10 +414,101 @@ def count_problems(stmts: list[Statement], data: dict) -> list[Problem]:
     return out
 
 
+# ---- release
+
+
+def current_release(root: Path = ROOT) -> str | None:
+    path = root / "pyproject.toml"
+    m = re.search(r'(?m)^version = "([\d.]+)"', path.read_text(encoding="utf-8")) if path.is_file() else None
+    return m.group(1) if m else None
+
+
+_V3 = r"v?(\d+\.\d+\.\d+)"
+CURRENT = (rf"\b(?:this|the current|the latest) (?:release|version)\b,? \(?(?:Knos )?{_V3}",
+           rf"\b(?:Knos )?{_V3},? \((?:this|the current|the latest) (?:release|version)\)",
+           rf"\bas Knos {_V3} has it\b", rf"\bKnos {_V3} is the (?:current|latest)\b", rf"\bcurrent (?:release|version)(?: is|:)? (?:Knos )?{_V3}")
+
+
+def release_problems(stmts: list[Statement], version: str | None) -> list[Problem]:
+    out: list[Problem] = []
+    if not version:
+        return out
+    for s in stmts:
+        for rx in CURRENT:
+            for m in re.finditer(rx, s.text, re.I):
+                if m.group(1) != version:
+                    out.append(Problem("release", s.file, s.line, s.text, f"pyproject.toml: the current release is {version}, and this names {m.group(1)} as the current one"))
+    return out
+
+
+# ---- live: the fee and the quorum of the build at the public id
+
+
+def _ver(v: object) -> tuple[int, ...]:
+    return tuple(int(x) for x in re.findall(r"\d+", str(v or "0")))
+
+
+NOW = re.compile(r"\b(today|now|currently|is live|are live)\b|\bthe public (?:program|id)s? (?:still )?(?:charges?|runs?)\b", re.I)
+IF_LATER = re.compile(r"\b(until|before|once|when|after|from|would|will|propos\w*|pending|was|were|if|next|withdrawn|history)\b", re.I)
+NEW_FEE = re.compile(r"\b0\.30?%(?: of the amount)?,? (?:with )?(?:at least|a minimum of|minimum|floor) 0\.05\b", re.I)
+OLD_FEE = re.compile(r"\b(the 0\.3\.14 fee|2\.5% of the first 1,000|(?:at least|a minimum of|minimum) 0\.40)\b", re.I)
+QUORUM_FIXED = re.compile(r"\bquorum\b[^.|]{0,80}\b(is|are|has been|have been) (fixed|corrected|closed)\b|\bquorum fix(es)? (is|are) live\b", re.I)
+QUORUM_OPEN = re.compile(r"\bquorum (defects?|bugs?|flaws?)\b[^.|]{0,60}\b(are|is) (still )?(live|open)\b", re.I)
+FIXED_IN = "2.2"                                             # the knos_pay build with the 0.30% fee and both quorum fixes
+
+
+def live_problems(stmts: list[Statement], data: dict) -> list[Problem]:
+    out: list[Problem] = []
+    runs = (data.get("programs", {}).get("knos_pay") or {}).get("on_chain")
+    if not runs:
+        return out
+    new = _ver(runs) >= _ver(FIXED_IN)
+    where = f"{MANIFEST}: the public id of knos_pay runs {runs}"
+    for s in stmts:
+        if s.file == MANIFEST or IF_LATER.search(s.text):
+            continue
+        now = NOW.search(s.text)
+        if now and not new and NEW_FEE.search(s.text):
+            out.append(Problem("live", s.file, s.line, s.text, f"{where}, which charges the 0.3.14 fee, and this says the 0.30% fee holds {now.group(0)}"))
+        if now and new and OLD_FEE.search(s.text):
+            out.append(Problem("live", s.file, s.line, s.text, f"{where}, which charges 0.30% at least 0.05, and this says the 0.3.14 fee holds {now.group(0)}"))
+        if not new and QUORUM_FIXED.search(s.text):
+            out.append(Problem("live", s.file, s.line, s.text, f"{where}; both quorum fixes are in {FIXED_IN}, and this says the quorum is fixed"))
+        if new and QUORUM_OPEN.search(s.text):
+            out.append(Problem("live", s.file, s.line, s.text, f"{where}, which has both quorum fixes, and this says the defects are live"))
+    return out
+
+
+# ---- published
+
+
+# what Knos has published, where, and the line that installs it (checked on the registries on 8 Oct 2026)
+PUBLISHED: dict[str, tuple[str, str, str]] = {
+    "knos-oidc-interface": ("crates.io", "0.3.14", "https://crates.io/crates/knos-oidc-interface"),
+    "knos-pay-interface": ("crates.io", "0.3.14", "https://crates.io/crates/knos-pay-interface"),
+    "knos-settle": ("npm", "0.3.20", "https://www.npmjs.com/package/knos-settle"),
+}
+UNPUBLISHED = re.compile(r"\b(neither\b[^.]{0,60}\b(?:is|are) on (?:crates\.io|npm)|neither (?:\w+ )?(?:has|have) been published|none (?:of them )?(?:is |are )?published|not (?:yet )?published|unpublished|not (?:yet )?(?:on|in) (?:crates\.io|npm)|is not on (?:crates\.io|npm)|no (?:crate|package) on (?:crates\.io|npm))\b", re.I)
+PACKAGE = re.compile(r"\b(knos-(?:oidc|pay)-interface|knos-settle|interface crates?|crates?|crates\.io|npm|JS (?:SDK|client)|JavaScript client)\b", re.I)
+
+
+def published_problems(stmts: list[Statement]) -> list[Problem]:
+    out: list[Problem] = []
+    for s in stmts:
+        said = UNPUBLISHED.search(s.text)
+        if not said or not PACKAGE.search(s.text) or re.search(r"\b(was|were|until|before)\b", s.text):
+            continue
+        named = [n for n in PUBLISHED if n in s.text] or list(PUBLISHED)
+        out.append(Problem("published", s.file, s.line, s.text, "; ".join(f"{n} {PUBLISHED[n][1]} is on {PUBLISHED[n][0]} ({PUBLISHED[n][2]})" for n in named)
+                           + f', and this says "{said.group(0)}"'))
+    return out
+
+
 def problems(root: Path = ROOT, docs: Iterable[str] = DOCS) -> list[Problem]:
     stmts, data = statements(root, docs), load(root)
     found = (stage_problems(stmts, data) + call_problems(stmts, root) + price_problems(stmts, price_book(root), fee_rates(root))
-             + version_problems(stmts, data) + count_problems(stmts, data))
+             + version_problems(stmts, data) + count_problems(stmts, data) + release_problems(stmts, current_release(root))
+             + live_problems(stmts, data) + published_problems(stmts))
     return sorted(set(found), key=lambda p: (p.file, p.line, p.rule, p.against))
 
 

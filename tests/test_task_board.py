@@ -306,47 +306,48 @@ def test_the_days_budget_stops_it_and_a_strangers_marker_opens_nothing():
     assert "wrap" not in {r["slug"] for r in state["rows"]} and len(state["rows"]) == 4
 
 
-def test_the_five_tasks_that_are_not_code_open_first_paid_on_the_merge_within_the_days_budget(tmp_path):
+def test_the_tasks_that_are_not_code_open_first_paid_on_the_merge_within_the_days_budget(tmp_path):
     """`--kinds`: tasks/outside/ as funded issues. No checks are theirs: the starter task's checks under the issue's number
     go in the same commit as its line on the board, so the funding is merge mode, and a rebuild of the playground keeps it so."""
     from knos import tasks
     kinds = tb.kinds()
-    assert [k["slug"] for k in kinds] == [tb.KIND + k for k in tasks.KINDS] and len(kinds) == 5
+    assert [k["slug"] for k in kinds] == [tb.KIND + k for k in tasks.KINDS] and len(kinds) == len(tasks.KINDS) == 10
     for k in kinds:
-        assert (ROOT / "tasks" / "outside" / f"{k['kind']}.json").read_text(encoding="utf-8") == tasks.kind_file(k["kind"])
+        file = ROOT / "tasks" / "outside" / f"{k['kind']}.json"
+        assert file.read_text(encoding="utf-8") == tasks.kind_file(k["kind"]) if file.exists() or k["kind"] != "tamper" else True   # tamper.json: the judge's file
         assert k["amount"] == 5_000_000 and k["statement"].startswith(tb.FIRST + "\n") and tb.fund_line(k) == f"/knos fund 5 days {tb.KIND_DAYS}"
     forge = Forge()
-    for n in range(4, 9):                                                    # the starter task's checks, as small_repos.slots writes them
+    for n in range(4, 14):                                                   # the starter task's checks, as small_repos.slots writes them
         forge.files.update({f".knos/acceptance/{n}/{name}": b"x\n" for name in ("README.md", "blackbox.py", "cases.json")})
     code, said, _ = run(forge, "plan", "--kinds", "-n", "1", "--budget", "12")
     assert code == 0 and forge.wrote == [] and "open outside-reproduce: 5.00 test USDC, fee 0.05 test USDC, 30 days" in said
     assert "today's budget of 12.00 test USDC is used up to 10.10 test USDC: outside-fund (5.05 test USDC with its fee) waits for tomorrow (UTC)" in said
-    code, said, slept = run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "1")
-    assert code == 0 and "6 tasks written" in said and slept == [tb.PACE] * 5
+    code, said, slept = run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "1", "--budget", "60")      # ten kinds and one code task: 55.55
+    assert code == 0 and "11 tasks written" in said and slept == [tb.PACE] * 10
     assert [tb.MARK.search(i["body"]).group(1) for i in forge.issues] == [k["slug"] for k in kinds] + [SLUGS[0]]
-    for n, k in zip(range(4, 9), kinds):
+    for n, k in zip(range(4, 14), kinds):
         body = forge.issues[n - 4]["body"]
         assert body.splitlines()[0] == tb.FIRST and k["evidence"] in body and f"`outside/{k['kind']}/<your login>.json`" in body and "Closes #" in body
         assert not [f for f in forge.files if f.startswith(f".knos/acceptance/{n}/")], "a task that is not code keeps no checks: it is merge mode"
         assert [c["body"] for c in forge.comments[n]] == [f"/knos fund 5 days {tb.KIND_DAYS}"]
-    assert {k.split("/")[-1] for k in forge.files if k.startswith(".knos/acceptance/9/")} == set(tb.bundle(tb.load(SLUGS[0]), 9))
+    assert {k.split("/")[-1] for k in forge.files if k.startswith(".knos/acceptance/14/")} == set(tb.bundle(tb.load(SLUGS[0]), 14))
     board = {int(k): v for k, v in json.loads(forge.files["board.json"])["tasks"].items()}
-    assert board == {**{n: k["slug"] for n, k in zip(range(4, 9), kinds)}, 9: SLUGS[0]}
+    assert board == {**{n: k["slug"] for n, k in zip(range(4, 14), kinds)}, 14: SLUGS[0]}
     wrote = len(forge.wrote)                                                 # a second run, with or without --kinds, opens nothing again
     for argv in (("--kinds",), ()):
         code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "1", *argv)
-        assert code == 0 and len(forge.wrote) == wrote and "not in tasks/" not in said and "6 funded tasks open, 0 half opened, 0 to open" in said
+        assert code == 0 and len(forge.wrote) == wrote and "not in tasks/" not in said and "11 funded tasks open, 0 half opened, 0 to open" in said
     s = json.loads(run(forge, "status", "--json", "-n", "1")[1])
     assert [(t["issue"], t["kind"], t["file"], t["state"]) for t in s["tasks"][:2]] == [(4, "reproduce", "outside/reproduce/", "funding asked"),
                                                                                      (5, "shadow", "outside/shadow/", "funding asked")]
-    assert s["tasks"][5]["kind"] == "code" and s["budget"]["opened"] == 6 * 5_050_000 and "A maintainer checks it and merges." in s["tasks"][0]["accept"]
+    assert s["tasks"][10]["kind"] == "code" and s["budget"]["opened"] == 11 * 5_050_000 and "A maintainer checks it and merges." in s["tasks"][0]["accept"]
     assert [t["kind"] for t in tasks.rows(s)] == [k["kind"] for k in kinds] + ["code"]
     # the release's rebuild of the playground keeps them merge mode: no checks under their numbers, the code task's own
     small = _script("small_repos")
     out = small.files("knos-playground", board)
-    assert not [f for f in out if any(f.startswith(f".knos/acceptance/{n}/") for n in range(4, 9))]
-    assert {f.split("/")[-1] for f in out if f.startswith(".knos/acceptance/9/")} == set(tb.bundle(tb.load(SLUGS[0]), 9))
-    assert {f for f in out if f.startswith(".knos/acceptance/10/")} and out["board.json"] == forge.files["board.json"]
+    assert not [f for f in out if any(f.startswith(f".knos/acceptance/{n}/") for n in range(4, 14))]
+    assert {f.split("/")[-1] for f in out if f.startswith(".knos/acceptance/14/")} == set(tb.bundle(tb.load(SLUGS[0]), 14))
+    assert {f for f in out if f.startswith(".knos/acceptance/15/")} and out["board.json"] == forge.files["board.json"]
 
 
 def test_a_task_whose_order_no_merge_can_pay_is_closed_with_the_chains_sentence_and_opened_again():
@@ -384,6 +385,39 @@ def test_a_task_whose_order_no_merge_can_pay_is_closed_with_the_chains_sentence_
     wrote = len(forge.wrote)
     code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "3", now=NOW + 86_400, why=down)
     assert code == 1 and len(forge.wrote) == wrote and "could not be read (devnet did not answer): nothing was sent" in said
+
+
+def test_after_a_rebuild_new_kinds_open_first_and_a_task_a_person_works_on_is_not_closed(monkeypatch):
+    """0.3.21: the release rebuilds the playground at the next commit, so every open order strands, and five new kinds
+    wait. Within one day's budget the kinds never offered go first; a stranded issue that a stranger's open pull request
+    names stays open, said, and is not opened again."""
+    from knos import tasks
+    every = tb.kinds()
+    old, new = every[:5], every[5:]
+    assert [k["kind"] for k in new] == ["compose", "gate", "keyholder", "tamper", "witness"]
+    forge = Forge()
+    monkeypatch.setattr(tb, "kinds", lambda: old)
+    assert run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "3", "--budget", "60")[0] == 0
+    monkeypatch.setattr(tb, "kinds", lambda: every)
+    assert [tb.MARK.search(i["body"]).group(1) for i in forge.issues] == [k["slug"] for k in old] + SLUGS[:3]       # #4-#8 kinds, #9-#11 code
+    forge.pulls = [{"number": 40, "user": STRANGER, "state": "open", "body": "Closes #5"},                          # a person works on #5
+                   {"number": 41, "user": OWNER, "state": "open", "body": "Closes #6"}]                             # the owner's own is no person's work
+
+    def pin(where, pull):
+        return tasks.explain({"where": where, "orders": [{"state": "open", "wf_public": True, "wf_sha": "b" * 40, "called": False}]})
+    forge.day = "2026-10-08"
+    code, said, _ = run(forge, "plan", "--kinds", "-n", "3", now=NOW + 86_400, why=pin)
+    assert code == 0 and "  left open #5: no merge can pay its order, but pull request #40 of @stranger names it and is open" in said
+    assert "stranded #6:" in said and "stranded #5:" not in said
+    code, said, _ = run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "3", now=NOW + 86_400, why=pin)
+    assert code == 0
+    assert {i["number"]: i["state"] for i in forge.issues if i["number"] <= 11} == {4: "closed", 5: "open", 6: "closed", 7: "closed", 8: "closed",
+                                                                                   9: "closed", 10: "closed", 11: "closed"}
+    assert not [c for c in forge.comments[5] if "funded through" in c["body"]]
+    opened = [tb.MARK.search(i["body"]).group(1) for i in forge.issues if i["number"] > 11]
+    assert opened == [k["slug"] for k in new] + ["outside-reproduce", "outside-fund", "outside-install"]          # 8 x 5.05 = 40.40 of 45.00
+    assert "today's budget of 45.00 test USDC is used up to 40.40 test USDC: outside-judge (5.05 test USDC with its fee) waits for tomorrow (UTC)" in said
+    assert all([c["body"] for c in forge.comments[n]] == [f"/knos fund 5 days {tb.KIND_DAYS}"] for n in range(12, 20))
 
 
 @pytest.fixture(scope="module")

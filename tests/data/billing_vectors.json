@@ -56,5 +56,6 @@
     "meter": {"gross_margin": "69.0%", "allowed_each": "0.0000091", "cost_each": "0.0000563", "meets": false, "measured_each": "0.0000068", "measured_meets": true, "reaches_at": 213930},
     "control": {"cost": "15,000.00", "gross_margin": "85.0%", "target_cost": "7,000.00", "gross_margin_at_target": "93.0%", "to_remove": "8,000.00"},
     "remedy": {"one_by_one": {"releases": 100, "fee": "5.00", "tips": "5.00", "fee_owner": "0.00"}, "netted": {"releases": 1, "amount": "500.00", "fee": "1.50", "tips": "0.05", "fee_owner": "1.45"}}
-  }
+  },
+  "sensitivity": {"about": "knos bill margin --sensitivity docs/unit_costs.json: [book bps, Control+Meter+Record, direct cost, one bps]; rows [bps, revenue, gross margin, above the book's rate], worked by hand: revenue = fixed + accepted x bps / 10,000", "customers": [{"head": ["30.0", "100,240.00", "15,124.36", "1,000.00"], "rows": [[30, "130,240.00", "88.4%", false], [20, "120,240.00", "87.4%", false], [10, "110,240.00", "86.3%", false], [5, "105,240.00", "85.6%", false]]}, {"head": ["21.0", "121,600.00", "16,208.36", "12,000.00"], "rows": [[30, "481,600.00", "96.6%", true], [20, "361,600.00", "95.5%", false], [10, "241,600.00", "93.3%", false], [5, "181,600.00", "91.1%", false]]}]}
 }

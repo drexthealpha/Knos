@@ -1,6 +1,7 @@
 {
  "title": "For judges: one page",
  "sentence": "The neutral meter for AI agent work: neither side keeps the count.",
+ "pitch": "Buyers and suppliers verify what AI work earned payment, then carry that evidence from authorisation through invoice approval to settlement.",
  "number": "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.",
  "claim": "two parties who distrust each other compute the same bill from evidence a third party signed, and the program releases the money on that signature.",
  "why_solana": "Money is released with no custodian, and the count is anchored where neither side can alter it.",
@@ -52,9 +53,58 @@
    "sentence": "Knos earns one fee, on value released against a signed acceptance, and the supplier never pays.",
    "link": "https://github.com/drexthealpha/Knos/blob/main/docs/MARKET.md",
    "label": "the price book and its costs"
+  },
+  {
+   "id": "founder_and_market_fit",
+   "thing": "Founder and market fit",
+   "sentence": "The founder builds with coding agents daily and has never sold to the person who approves an invoice.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/TEAM.md",
+   "label": "the team, for and against"
+  },
+  {
+   "id": "insight",
+   "thing": "Insight",
+   "sentence": "Every vendor counts its own outcomes, while the forge already signs a record that neither buyer nor supplier owns.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/WHY.md",
+   "label": "why a neutral count"
+  },
+  {
+   "id": "product_and_execution",
+   "thing": "Product and execution",
+   "sentence": "One page ties each public program id to the build it runs and each capability to its evidence.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/MANIFEST.md",
+   "label": "the release manifest"
+  },
+  {
+   "id": "potential_market_size",
+   "thing": "Potential market size",
+   "sentence": "Not counted: the market is built from qualified organisations, and none has been asked yet.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/MARKET.md",
+   "label": "the addressable market"
+  },
+  {
+   "id": "founder_communication",
+   "thing": "Founder communication",
+   "sentence": "The presentation fits in three minutes and ends on its limits in one sentence.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/submission/pitch_script.md",
+   "label": "the presentation"
+  },
+  {
+   "id": "viability",
+   "thing": "Viability",
+   "sentence": "Each customer's delivery cost is budgeted line by line, only the monthly batch is measured, and nothing has been sold.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/UNIT_COSTS.md",
+   "label": "the unit costs"
+  },
+  {
+   "id": "traction",
+   "thing": "Traction",
+   "sentence": "Outside funders 0, outside repositories 0, interviews 0, revenue 0; one outside payee was paid on tasks Knos funded.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/submission/NUMBERS.md",
+   "label": "the outside-use numbers"
   }
  ],
- "wait": "From merge to paid took 25 seconds at the median, over 42 payments on devnet. A buyer does not wait for that. A buyer waits for a person to approve the invoice, and that wait is the argument over whose count is right. Knos is built to shorten that wait. It has not measured it with any buyer, so no figure for it is given here.",
+ "wait": "From merge to paid took 25 seconds at the median, over 42 payments on devnet. A buyer waits instead for a person to approve the invoice. Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person with authority approves it. Knos would read both dates: receipt from the buyer's payables system, approval from the record `knos statement approve` writes. Not measured. It has not measured it with any buyer, so no figure for it is given here.",
  "not_real": [
   "Money: Solana devnet and test USDC only. Mainnet is not touched.",
   "Buyers: 0 interviews, 0 letters of intent, 0 paying customers, 0 revenue.",

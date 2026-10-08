@@ -233,7 +233,8 @@ def test_the_install_page_names_one_release_and_says_why_two_registries_are_miss
     assert 'name = "knos-oidc-interface"' in _text("crates", "knos-oidc-interface", "Cargo.toml")
     release = _text(".github", "workflows", "release.yml")
     for registry, secret in (("npm", "NPM_TOKEN"), ("crates.io", "CARGO_REGISTRY_TOKEN")):
-        assert f"is not on {registry}." in page and f"`{secret}`" in page and f"secrets.{secret}" in release
+        assert f"when it skipped {registry}." in " ".join(page.split()) and f"`{secret}`" in page and f"secrets.{secret}" in release
+    assert "is not on npm" not in page and "is not on crates.io" not in page                 # both are published now
     # every link into the repository leads to a file, and every link into the page to a heading
     for target in re.findall(r"\]\((\.\./[^)#]+)\)", page):
         assert (ROOT / "docs" / target).resolve().exists(), target

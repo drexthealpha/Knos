@@ -964,7 +964,7 @@
    "stage": "exercised",
    "evidence": {
     "implemented": {
-     "path": "src/knos/settle/v2/relay.py",
+     "path": "src/knos/settle/v2/relay/wallets.py",
      "names": "def passkey_fund("
     },
     "tested": {
@@ -1052,7 +1052,7 @@
    "stage": "tested",
    "evidence": {
     "implemented": {
-     "path": "src/knos/settle/v2/relay.py",
+     "path": "src/knos/settle/v2/relay/kinds.py",
      "names": "def kind_of"
     },
     "tested": {
@@ -2534,7 +2534,7 @@
      "names": "test_the_chain_says_what_waits_for_whom_and_counts_only_authority"
     }
    },
-   "note": "`knos approve record | check | status`. An approval's author and time are the forge's; the funding workflow asks it on every funding by comment."
+   "note": "`knos approve record | check | status`. An approval's author and time are the forge's; the funding workflow asks it on every funding by comment (src/knos/flow.py `_gated`), and, where the buyer keeps approval requests, an approval counts only for the one commitment it names (`knos boundary`)."
   },
   {
    "id": "fee_bounds_proofs",
@@ -3070,7 +3070,7 @@
      "names": "test_the_registry_plan_says_what_would_be_published_where_and_publishes_nothing"
     }
    },
-   "note": "`python scripts/release.py registry-plan`. The interface crates and the JS SDK are not published yet."
+   "note": "`python scripts/release.py registry-plan`. The interface crates are published on crates.io (knos-oidc-interface 0.3.14, knos-pay-interface 0.3.14) and the JS client on npm (knos-settle 0.3.20, `npm install knos-settle`, https://www.npmjs.com/package/knos-settle); the plan says what a release would publish next."
   },
   {
    "id": "record_answer_signed",
@@ -3090,7 +3090,7 @@
   },
   {
    "id": "judges_page",
-   "what": "One page for a judge holds six judged things, one sentence and one link each, then five lines of what is not real yet.",
+   "what": "One page for a judge holds six judged things and the seven further factors, one sentence and one link each, then five lines of what is not real yet.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -3099,7 +3099,7 @@
     },
     "tested": {
      "test": "tests/test_judges.py",
-     "names": "test_the_page_is_one_page_six_rows_five_zeros_and_the_file_is_the_page"
+     "names": "test_the_page_is_one_page_thirteen_rows_five_zeros_and_the_file_is_the_page"
     }
    },
    "note": "docs/JUDGES.md, and the site's #judges page from the same file (docs/judges.json). The page prints no fee: the live one is read from the chain on the pricing page."
@@ -3250,7 +3250,7 @@
   },
   {
    "id": "outside_task_kinds",
-   "what": "Five tasks that are not code puzzles each state the evidence that completes them and the outside count they would move.",
+   "what": "Ten tasks that are not code puzzles each state the evidence that completes them and the outside count they would move.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -3259,10 +3259,10 @@
     },
     "tested": {
      "test": "tests/test_tasks.py",
-     "names": "test_five_kinds_each_state_their_evidence_and_counter_and_only_an_outside_actor_is_counted"
+     "names": "test_every_kind_states_its_evidence_and_counter_and_only_an_outside_actor_is_counted"
     }
    },
-   "note": "tasks/outside/: reproduce, shadow count, fund from the faucet, install, host a judge. Only an account that is not Knos's is counted (scripts/outsiders.py `task_counts`). Completed by an outside account: 0 of each."
+   "note": "tasks/outside/: reproduce, shadow count, fund from the faucet, install, host a judge, compose (read the verifier through the published crate), gate (adopt the upgrade gate), keyholder (an offer, never a holder until seated), tamper (the cheat bounty) and witness (the independently witnessed transaction). Only an account that is not Knos's is counted (scripts/outsiders.py `task_counts`). Completed by an outside account: 0 of each."
   },
   {
    "id": "enforcement_matrix",
@@ -3294,7 +3294,7 @@
      "names": "test_it_verifies_in_an_empty_directory_with_knos_unimportable"
     }
    },
-   "note": "`knos archive make|verify`. It checks RS256 and ES256 signatures against the archived keys, the log's chain, every root and every total. One run on this repository's samples is recorded (docs/archive_verify.json): they carry no signed token, and the verifier says so. One archive of a real period is recorded there too (`real`): month 202610 of one pair, whose three batches are anchored at the public knos_meter on devnet, with the six tokens GitHub signed for them; its verifier, run with no Knos, says 11 checks hold and 6 notes (the log of events starts at number 1 and nobody else acknowledged it). That pair is the founder's own account on both sides, and no outside party holds an archive."
+   "note": "`knos archive make|verify`. It checks RS256 and ES256 signatures against the archived keys, the log's chain, every root and every total. One run on this repository's samples is recorded (docs/archive_verify.json): they carry no signed token, and the verifier says so. One archive of a real period is recorded there too (`real`): month 202610 of one pair, whose three batches are anchored at the public knos_meter on devnet, with the six tokens GitHub signed for them; its verifier, run with no Knos, says 13 checks hold and 5 notes (the log of events starts at number 1; both acknowledgements of the month are signed by keys the founder holds). That pair is the founder's own account on both sides, and no outside party holds an archive."
   },
   {
    "id": "events_gaps",
@@ -3551,6 +3551,294 @@
     }
    },
    "note": "docs/MARKET.md section 7, and `devnet.stats.loop` of the published statistics. All six read 0 today: with no outside buyer the three chain counters are 0 by arithmetic."
+  },
+  {
+   "id": "reserve_by_comment",
+   "what": "A comment `/knos reserve <amount> for @supplier until <date>` locks a reserve for one supplier through the pinned funding workflow and says its id, amount, deadline and how the supplier checks it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/flow.py",
+     "names": "def _reserve_order"
+    },
+    "tested": {
+     "test": "tests/test_flow_reserve.py",
+     "names": "test_a_reserve_comment_locks_a_standing_order_for_one_supplier_and_says_its_id_amount_deadline_and_how_the_supplier_checks_it"
+    }
+   },
+   "note": "Runs on the workflow's fakes and, in the round `net-reserve`, on the simulator. Not run at the public ids: the pinned workflows are republished at 0.3.21 by the release run."
+  },
+  {
+   "id": "enterprise_boundary",
+   "what": "An organisation's money in a Squads v4 vault: the approval policy becomes the vault's members, threshold, time lock and a separate config authority, and an approval funds only the one commitment it names.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/boundary.py",
+     "names": "def gate_bound"
+    },
+    "tested": {
+     "test": "tests/test_boundary.py",
+     "names": "test_an_approval_is_refused_for_another_order_after_expiry_under_a_changed_policy_or_for_another_payee"
+    }
+   },
+   "note": "`knos boundary plan`. Squads v4 is Squads Labs' deployed program, not Knos's; the tests that run it in LiteSVM need its bytes fetched from devnet (scripts/squads_program.py) and skip without them. No vault has been set up by a buyer; nobody outside uses it."
+  },
+  {
+   "id": "exit_before_upgrade",
+   "what": "`knos exit --before-upgrade` lists every order and Balance of an owner, the instruction that takes its money out and whether that lands before a pending upgrade can execute.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/exit.py",
+     "names": "def upgrade_deadline"
+    },
+    "tested": {
+     "test": "tests/test_exit.py",
+     "names": "test_a_funder_sees_which_orders_can_be_left_before_the_upgrade_and_the_program_agrees"
+    }
+   },
+   "note": "On the simulator with a pending proposal. Held and warranty money cannot leave before an upgrade, and the command says so (docs/GOVERNANCE.md)."
+  },
+  {
+   "id": "verify_proposal",
+   "what": "`python scripts/provenance.py verify-proposal N` compares one upgrade proposal's buffer with the verified build's hash and, if asked, with a build of your own.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/provenance.py",
+     "names": "def verify_proposal"
+    },
+    "tested": {
+     "test": "tests/test_provenance_verify.py",
+     "names": "test_a_proposal_whose_bytes_the_verified_build_recorded_is_verified_and_says_how_to_rebuild_it"
+    }
+   },
+   "note": "Reads the chain and the verified-build record; the tests use fixed accounts. Not yet run against a live proposal by anyone outside."
+  },
+  {
+   "id": "issuer_key_rotation_drill",
+   "what": "A drill where GitHub rotates its signing key mid-period: what verification does with the new key id, what breaks if nobody admits it, and how long recovery takes.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/drills.py",
+     "names": "def issuer_key_rotates"
+    },
+    "tested": {
+     "test": "tests/test_drills.py",
+     "names": "test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took"
+    }
+   },
+   "note": "On the test builds with the tests' fakes (docs/DRILLS.md). Not drilled at the public ids."
+  },
+  {
+   "id": "judge_host_limits",
+   "what": "On the judge's host a submission meets limits: a fork bomb stops at the process limit, a write outside its work folder is refused, CPU, memory, file size and time are capped, and the time limit kills the whole tree.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/judge.py",
+     "names": "HOST_LIMITS = HostLimits()"
+    },
+    "tested": {
+     "test": "tests/test_judge_box.py",
+     "names": "test_a_fork_bomb_meets_the_process_limit_and_nothing_it_started_outlives_the_run"
+    }
+   },
+   "note": "Linux. What macOS and Windows runners can and cannot enforce is in docs/ATTESTOR.md. The hermetic container is the default where the runner has one; the host sandbox is the fallback and the verdict says so."
+  },
+  {
+   "id": "period_acks",
+   "what": "A month closes only when both parties signed its last line, or one did and closed it after the silence the terms allow; an event missing or changed after an acknowledgement is a named discrepancy.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/events.py",
+     "names": "def acknowledgement"
+    },
+    "tested": {
+     "test": "tests/test_events_period.py",
+     "names": "test_both_acknowledgements_close_the_month"
+    }
+   },
+   "note": "Ed25519 acknowledgements; the archive carries them and the stand-alone verifier checks them. No outside party has signed one."
+  },
+  {
+   "id": "receipt_parts_everywhere",
+   "what": "Every export row, the paid record answer and every statement line carry a receipt's five parts (identity, execution, acceptance, consequence, assurance), and terms can require a minimum assurance level for payment.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/exports.py",
+     "names": "def parts_rows"
+    },
+    "tested": {
+     "test": "tests/test_exports_parts.py",
+     "names": "test_every_bill_of_every_finance_format_has_its_five_parts"
+    }
+   },
+   "note": "A parts file beside each export names it by its sha256; one that leaves a row or a part out is refused. The funding workflow refuses a payment under terms whose `checks.min_assurance` its evaluator cannot reach."
+  },
+  {
+   "id": "relay_heartbeat",
+   "what": "The watchdog counts a relay run alive only by the heartbeat it writes after its install, cancels and replaces a run stuck in its install wait, and two watchdogs never start two chains.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/chain.py",
+     "names": "def beat"
+    },
+    "tested": {
+     "test": "tests/test_worker_chain.py",
+     "names": "test_a_run_stuck_in_its_install_wait_is_cancelled_and_replaced"
+    }
+   },
+   "note": "Tested with fake runs. It also runs when a worker run ends and from the release step; not yet observed on GitHub's timer at the public ids."
+  },
+  {
+   "id": "relay_durable_ingestion",
+   "what": "An event (a comment, a merge) is recorded in the relay log by the event's own run before anything reads it, so the chain's polling is a backstop.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relayq.py",
+     "names": "def ingest"
+    },
+    "tested": {
+     "test": "tests/test_relayq.py",
+     "names": "test_an_event_is_recorded_in_the_relay_log_first_so_a_run_that_dies_after_leaves_the_sweep_where_to_read"
+    }
+   },
+   "note": "Tested locally; not yet run on the public worker."
+  },
+  {
+   "id": "relay_partitions",
+   "what": "Workers are partitioned by order: an order's tokens go to one worker, and two workers never take the same order.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/relayq.py",
+     "names": "def part_of"
+    },
+    "tested": {
+     "test": "tests/test_relayq.py",
+     "names": "test_an_orders_tokens_go_to_one_worker_and_two_workers_never_take_the_same_order"
+    }
+   },
+   "note": "Tested locally; not yet run on the public worker."
+  },
+  {
+   "id": "payorder_capacity",
+   "what": "`python scripts/load.py measure --pay` measures end-to-end PayOrder capacity with N relays, each with its own fee payer, counting every attempt with its failures.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/load_pay.py",
+     "names": "def simulate"
+    },
+    "tested": {
+     "test": "tests/test_load_pay.py",
+     "names": "test_the_simulator_pays_every_order_once_each_by_the_relay_of_its_part_with_that_relays_key_alone"
+    }
+   },
+   "note": "The simulator proves the path and counts; it gives no rate. End-to-end PayOrder capacity on devnet has not been measured: the release run measures it."
+  },
+  {
+   "id": "approval_record",
+   "what": "Approving on the approver's screen writes an approval record (policy and version, who, when, why, the evidence's hashes) that the page checks again later: it still matches its evidence, or it was changed.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/approver.js",
+     "names": "export async function recordOf"
+    },
+    "tested": {
+     "test": "tests/web/approver.mjs",
+     "names": "an approval record names the policy and its version"
+    }
+   },
+   "note": "In the browser, with no account and nothing kept. Ordinary lines resolve in one action; exceptions are read. No buyer has used it."
+  },
+  {
+   "id": "supplier_finance_view",
+   "what": "A supplier's finance lead sees what is funded with its transaction, the acceptance window and its countdown, appeal rights and the predictable payment date, read from the order's account with no wallet.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/supplier_finance.js",
+     "names": "export function financeOf"
+    },
+    "tested": {
+     "test": "tests/web/supplier.mjs",
+     "names": "the finance lead's view"
+    }
+   },
+   "note": "Reads devnet with one call. No supplier's finance lead has used it."
+  },
+  {
+   "id": "vendor_pages",
+   "what": "A page for each vendor the Agent PR Index rates: its numbers with their sample, a right of reply printed word for word, its disputes and their outcome, and how to earn the supplier badge.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/vendor_pages.py",
+     "names": "def load_replies"
+    },
+    "tested": {
+     "test": "tests/test_index_vendors.py",
+     "names": "test_every_row_has_a_page_with_its_sample_reply_and_dispute"
+    }
+   },
+   "note": "Replies received: 0. Disputes opened by a vendor: 0."
+  },
+  {
+   "id": "task_witnessed",
+   "what": "An independently witnessed transaction a stranger with only a GitHub account runs end to end: terms and a budget, failing then passing work, both statements, a replay refused, the payment, and the stand-alone verifier on the archive.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/witnessed/witness.py",
+     "names": "def _comment"
+    },
+    "tested": {
+     "test": "tests/test_task_witnessed.py",
+     "names": "test_the_whole_sequence_runs_in_order_leaves_a_link_for_each_step_and_the_record_meets_the_witness_task"
+    }
+   },
+   "note": "Simulated sequence. Completed by an outside account: 0 (task kind `witness`)."
+  },
+  {
+   "id": "memory_approval_defence",
+   "what": "`knos recall approval COMMITMENT` answers from the buyer's memory alone, after a restart, who approved what under which policy version and whether its evidence still matches.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/proof/history.py",
+     "names": "def approval_recalled"
+    },
+    "tested": {
+     "test": "tests/test_history_defence.py",
+     "names": "test_the_approval_is_answered_after_a_restart_from_the_store_only"
+    }
+   },
+   "note": "In the Sibyl memory engine (one entity per commitment, one journal event per decision). `knos recall supplier` answers what a supplier brings from other buyers, only what was granted."
+  },
+  {
+   "id": "billing_sensitivity",
+   "what": "`knos bill margin --sensitivity` prints, for the worked customers, revenue and gross margin at a realised Acceptance rate of 30, 20, 10 and 5 basis points, credits and rebates applied.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/billing.py",
+     "names": "def sensitivity"
+    },
+    "tested": {
+     "test": "tests/test_billing.py",
+     "names": "test_sensitivity_prints_the_worked_customers_at_30_20_10_and_5_bps_realised"
+    }
+   },
+   "note": "Worked customers, not sales: nothing has been sold, and on devnet every fee is test money and zero revenue."
   }
  ],
  "public_round": {

@@ -100,7 +100,7 @@ def test_the_verifier_is_one_file_of_the_standard_library_with_no_knos_and_no_ne
     assert (ROOT / "conformance" / "standalone" / "verify.py").read_text(encoding="utf-8") == source      # the published copy is the file archives carry
     imported = {a.name.split(".")[0] for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Import) for a in n.names} \
         | {(n.module or "").split(".")[0] for n in ast.walk(ast.parse(source)) if isinstance(n, ast.ImportFrom)}
-    assert imported == {"base64", "hashlib", "json", "os", "re", "sys", "zipfile"}
+    assert imported == {"base64", "datetime", "hashlib", "json", "os", "re", "sys", "zipfile"}
     assert not any(isinstance(n, ast.ImportFrom) and n.level for n in ast.walk(ast.parse(source)))
     assert A.verifier() == source.encode("utf-8")
 

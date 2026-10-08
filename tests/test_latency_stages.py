@@ -36,7 +36,7 @@ def sample() -> tuple[dict, callable, callable]:
 def test_each_payment_is_split_into_its_stages_and_every_stage_says_its_own_n():
     doc, get, when = sample()
     r = ls.report(doc["comments"], doc["events"], get, when)
-    assert r["whole"] == {"n": 9, "p50": 68, "p95": 1210, "max": 1210, "lines": 9, "not_timed": 0, "window": {"from": "2026-10-04", "to": "2026-10-04"}}
+    assert r["whole"] == {"n": 9, "p50": 68, "p95": 1210, "p99": 1210, "max": 1210, "lines": 9, "not_timed": 0, "window": {"from": "2026-10-04", "to": "2026-10-04"}}
     assert set(r["stages"]) == {*ls.STAGES, *ls.ALSO} and all(s["n"] == 9 for s in r["stages"].values())
     # the stages of one payment add up to its wait, to the second
     for row in r["slowest"]:
@@ -49,11 +49,11 @@ def test_each_payment_is_split_into_its_stages_and_every_stage_says_its_own_n():
     assert (top[126]["queued"], top[126]["relay_wait"]) == (95, 3)                                          # a runner queue
     assert (top[92]["relay_wait"], top[92]["first_send"], top[92]["confirm"]) == (2, 66, 6)                 # sends the endpoint dropped
     assert top[68]["relay_wait"] == 41                                                                      # a gap between two runs of the worker
-    assert r["stages"]["relay_wait"] == {"n": 9, "p50": 3, "p95": 41, "max": 41} and r["stages"]["confirm"]["max"] == 8
+    assert r["stages"]["relay_wait"] == {"n": 9, "p50": 3, "p95": 41, "p99": 41, "max": 41} and r["stages"]["confirm"]["max"] == 8
     assert r["stages"]["runner_queue"]["p50"] == 4 and r["stages"]["runner_queue"]["max"] == 1182
     # without block times the last two stages are left out and `chain` stands for both; without GitHub nothing is timed, and that is said
     bare = ls.report(doc["comments"], doc["events"], get)
-    assert bare["stages"]["first_send"] == {"n": 0, "p50": None, "p95": None, "max": None} and bare["stages"]["chain"]["n"] == 9
+    assert bare["stages"]["first_send"] == {"n": 0, "p50": None, "p95": None, "p99": None, "max": None} and bare["stages"]["chain"]["n"] == 9
     blind = ls.report(doc["comments"], doc["events"])
     assert blind["whole"]["n"] == 0 and blind["whole"]["not_timed"] == 9 and blind["attempts"] == r["attempts"]
 
@@ -121,8 +121,8 @@ def test_the_five_states_cover_every_payment_whose_line_has_its_times_and_the_ot
                 "body": f"Knos: paid.\n\n<!-- knos-status -->\n<sub>…</sub>\n<!-- knos-states since=100.0 received=104.0 accepted=105.0 submitted=106.0 confirmed=110.0 finalized=123.4 tx={paying}\n-->"})
     r = ls.report(now, doc["events"], get, when)
     assert r["whole"] == old["whole"] and r["stages"] == old["stages"]      # the old table is as it was
-    assert [r["states"][k]["n"] for k in ls.STATES] == [6, 6, 6, 6, 1] and r["states"]["finalized"] == {"n": 1, "p50": 13, "p95": 13, "max": 13}
-    assert r["states"]["confirmed"] == {"n": 6, "p50": 2, "p95": 2, "max": 2}
+    assert [r["states"][k]["n"] for k in ls.STATES] == [6, 6, 6, 6, 1] and r["states"]["finalized"] == {"n": 1, "p50": 13, "p95": 13, "p99": 13, "max": 13}
+    assert r["states"]["confirmed"] == {"n": 6, "p50": 2, "p95": 2, "p99": 2, "max": 2}
     # the states of one payment add up to its wait (finalized comes after it was paid, and is not part of the wait)
     for token in tokens[:6]:
         f = ls.states(done[token], parts[token], ls.times_of(now)[token])
@@ -152,7 +152,7 @@ def test_the_six_stages_are_one_table_and_a_stage_nobody_recorded_says_so_never_
     by = {row["stage"]: row for row in r["six"]}
     assert (by["workflow scheduling"]["n"], by["workflow scheduling"]["p50"], by["workflow scheduling"]["p95"]) == (9, 4, 1182)
     assert (by["relay pickup"]["n"], by["relay pickup"]["p50"], by["relay pickup"]["p95"]) == (9, 3, 41)
-    assert by["finality"] == {"stage": "finality", "n": 0, "p50": None, "p95": None, "what": "the last confirmation to the cluster finalizing it"}
+    assert by["finality"] == {"stage": "finality", "n": 0, "p50": None, "p95": None, "p99": None, "max": None, "what": "the last confirmation to the cluster finalizing it"}
     table = ls.table(r["six"], r["whole"])
     assert table[0] == "| stage | from, to | n | p50 | p95 |"
     assert table[2] == "| merge to paid, the whole wait | GitHub's `merged_at` to the block that paid | 9 | 68 s | 1210 s |"

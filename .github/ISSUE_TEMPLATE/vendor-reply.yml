@@ -1,0 +1,34 @@
+name: Reply for a vendor
+description: An agent vendor's reply to its row of the Agent PR Index, printed beside the row word for word.
+title: "Reply for "
+labels: ["index-reply"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A vendor whose agent the Agent PR Index counts may reply to its row. The reply costs nothing.
+        It is listed in `docs/index_replies.json` and printed word for word on the vendor's page (docs/VENDORS.md and
+        the site's vendor page), with a link to this issue. A reply changes no number by itself: to say that pull
+        requests were counted wrongly, use the "Dispute a row" form instead, which can change one.
+        Knos never charges a vendor for its row, and a vendor cannot pay to change one.
+  - type: input
+    id: agent
+    attributes:
+      label: Which agent
+      description: The row's name as the table writes it (for example `copilot`).
+    validations:
+      required: true
+  - type: textarea
+    id: reply
+    attributes:
+      label: Your reply
+      description: Printed as you write it, 1,200 characters at most. Links anyone can open are kept.
+    validations:
+      required: true
+  - type: input
+    id: who
+    attributes:
+      label: Who replies
+      description: Your role at the vendor. The issue's author account is shown with the reply.
+    validations:
+      required: true

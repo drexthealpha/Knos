@@ -49,8 +49,11 @@ Who is not a customer, today:
 
 **Days to approve, not seconds to pay.** From merge to paid took 25 seconds at the median, over 42 payments on
 devnet. That is not the wait this customer has. It waits for a person to approve the invoice, while two companies
-argue over whose count is right. Knos has not measured that wait with any buyer, so no figure for it is given;
-[PILOT.md](PILOT.md) lists it among what a pilot would measure.
+argue over whose count is right. Days to approve is defined as the days from the day the buyer receives a
+supplier's invoice to the day a person with authority approves it. Knos would read both dates: receipt from the
+buyer's payables system, approval from the record `knos statement approve` writes (who, in which role, on which
+day). Knos has not measured that wait with any buyer, so no figure for it is given; [PILOT.md](PILOT.md) lists it
+among what a pilot would measure.
 
 ## 1. An agent's word costs nothing, so it is not evidence
 

@@ -99,18 +99,42 @@ def count(jobs: list[dict], own: frozenset, own_wallets: frozenset, own_repos: f
 
 # ---- tasks that turn a zero into a one: counted only when the account that did them is outside --------------------------------------
 TASK_LABEL = "on tasks Knos funded itself"
-TASK_COUNTERS = {"reproduce": "reproductions", "shadow": "shadow_counts", "fund": "funders", "install": "repositories", "judge": "judges"}
+TASK_COUNTERS = {"reproduce": "reproductions", "shadow": "shadow_counts", "fund": "funders", "install": "repositories", "judge": "judges",
+                 "compose": "programs", "gate": "gates", "keyholder": "key_offers", "tamper": "outside_cheats", "witness": "witnessed"}
 TASK_DEFINITIONS = {
     "reproductions": "GitHub-signed reproduction reports filed by accounts that are not Knos's",
     "shadow_counts": "published shadow counts of a repository whose owner is not Knos's",
     "funders": "accounts that are not Knos's and funded a task in a repository of their own",
     "repositories": "repositories that are not Knos's with the check installed and one finished run",
     "judges": "accounts that are not Knos's and hosted a judge whose run GitHub signed",
+    "programs": "programs deployed by accounts that are not Knos's that read the verifier in a devnet transaction, built on the published crate",
+    "gates": "accounts that are not Knos's whose program's builds a gate of their own recorded on devnet",
+    "key_offers": "accounts that are not Knos's that offered a key through the key holder issue: offers, never holders, until the multisig seats one",
+    "outside_cheats": "cheats written by accounts that are not Knos's that the judge accepted; each joins the tamper set as written outside",
+    "witnessed": "accounts that are not Knos's that ran the witnessed transaction end to end in a repository of their own",
 }
+EVIDENCE_FILE = re.compile(r"outside/([a-z]+)/([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))\.json")
+
+
+def evidence_rows(files: dict[str, dict] | None, id_of, accepts) -> list[dict] | None:
+    """Accepted-evidence rows for `task_counts` from the files merged into the playground: {path: the file's JSON}, each
+    `outside/<kind>/<login>.json`. `id_of(login)` is GitHub's id for the login (None: not known), `accepts(kind,
+    evidence)` is knos.tasks.accepts. A row is accepted only when the evidence passes AND the file's login is the
+    account the evidence names: a file cannot count somebody else. `files` None: not read, and None comes back."""
+    if files is None:
+        return None
+    out = []
+    for path, e in sorted(files.items()):
+        m = EVIDENCE_FILE.fullmatch(path)
+        if not m or m.group(1) not in TASK_COUNTERS or not isinstance(e, dict):
+            continue
+        ok = accepts(m.group(1), e)[0] and id_of(m.group(2)) == e.get("actor_id")
+        out.append({**e, "kind": m.group(1), "accepted": bool(ok), "file": path})
+    return out
 
 
 def task_counts(done: list[dict] | None, own: frozenset, own_wallets: frozenset = frozenset()) -> dict:
-    """Each counter the five task kinds can move (src/knos/tasks.py KINDS), counted from accepted evidence rows:
+    """Each counter the task kinds can move (src/knos/tasks.py KINDS), counted from accepted evidence rows:
     {"kind", "accepted": True, "actor_id": the GitHub id that did it, "wallet": optional, "repository_owner_id": optional}.
     A row counts only when it was accepted, its actor is a real account that is not Knos's, and (when it names them) its
     wallet and its repository's owner are not Knos's either. One account moves one counter once. `done` None: nothing

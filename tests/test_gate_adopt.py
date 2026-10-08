@@ -236,5 +236,5 @@ def test_the_registry_plan_says_what_would_be_published_where_and_publishes_noth
     # the one-package question release.yml asks is unchanged, and the bare command is the plan
     assert release.registry_plan("crates", "knos-pay-interface", "v9.9.9", held, fetch=lambda _u: None)[0] == 0
     compose = (ROOT / "docs" / "COMPOSE.md").read_text(encoding="utf-8").split("## Install from a registry")[1].split("\n## ")[0]
-    assert compose.count("not published yet") == 3 and "**Not published yet.**" in compose and "python scripts/release.py registry-plan" in compose
+    assert "not published" not in compose.lower() and "https://crates.io/crates/knos-oidc-interface" in compose and "python scripts/release.py registry-plan" in compose
     assert f'knos-oidc-interface = "{held}"' in compose and f'knos-pay-interface = "{held}"' in compose and "npm install knos-settle" in compose

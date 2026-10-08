@@ -74,6 +74,17 @@ LOG --month YYYY-MM` refuses a month while a gap has neither.
 - **The end of a run.** Numbers cut from the end leave a shorter run that is still a run. They are found only when
   the sender states its last number: `--last BUYER:SUPPLIER:YYYYMM.N`.
 
+### Counterpart acknowledgements and closure
+
+A number finds what never arrived; it cannot show that both sides saw the same lines. Each party signs the month's
+last line, its hash and the month's root with the Ed25519 key its terms name, and a month closes only with both
+signatures or with a closure after the silence the terms allow (docs/EVENTS.md, "Each party signs the month").
+`knos archive make --ack FILE` keeps each signed file under `acks/<sha256>.json`, beside the terms under
+`terms/`. The archive's `verify.py` checks each signature with nothing but Python, that the key is the one the
+archived terms name, that every acknowledged line is still in the log, and names `missing-after-ack`,
+`changed-after-ack` and `event-after-close`; a month not closed is a note marked `OPEN`, which `--strict` fails
+on. `knos archive policy` holds an archive whose month is open.
+
 ## What survives if Knos disappears
 
 `verify.py` is one file. It imports the Python standard library and nothing else, it does not import `knos`, and
@@ -141,15 +152,20 @@ An archive past its years is `held`, with the reason, while any of these is true
 | a missing number is named | `test_a_number_a_sender_gave_that_never_arrived_is_named` |
 | a gap closes a month only under an acknowledged correction | `test_a_gap_closes_a_month_only_under_a_correction_a_party_acknowledged` |
 | one deliverable is counted once across periods | `test_one_deliverable_is_counted_once_across_periods` |
+| the archive carries both parties' acknowledgements and its verifier checks them | `tests/test_events_period.py::test_the_archive_carries_the_acknowledgements_and_its_verifier_checks_them` |
+| a month left open, and an event after its close, are named | `tests/test_events_period.py::test_the_archive_verifier_names_a_month_left_open_and_an_event_after_close` |
+| lines cut after an acknowledgement are named | `tests/test_events_period.py::test_the_archive_verifier_names_lines_cut_after_an_acknowledgement` |
 
 ## What has not happened
 
-No outside party holds an archive. Every archive but one was made in tests, from test keys, or from this
+No outside party holds an archive, and no outside party has signed a month: every acknowledgement of a month was made
+in tests, with fixed test keys, but the two of the real period below, signed by two keys the founder holds. Every archive but one was made in tests, from test keys, or from this
 repository's samples. The one other is of a real period: month 202610 of the pair 142920951/142920951 (the founder's
 own account on both sides), whose three batches are anchored at the public knos_meter on devnet, with the six
-tokens GitHub signed for them. Its run is in [`archive_verify.json`](archive_verify.json) under `real`: 11 checks
-hold, 6 notes, among them `INCOMPLETE` (the log of events it holds starts at number 1) and `UNSIGNED` (nobody
-else acknowledged the log), so `--strict` fails on it. `python scripts/archive_verify.py --real ARCHIVE --source
+tokens GitHub signed for them. Its run is in [`archive_verify.json`](archive_verify.json) under `real`: 13 checks
+hold, 5 notes. The month is closed by both acknowledgements its terms name (`knos events sign`, 8 October 2026), and
+both keys are the founder's, so it is one person's word on both sides. Among the notes is `INCOMPLETE` (the log of
+events it holds starts at number 1), so `--strict` fails on it. `python scripts/archive_verify.py --real ARCHIVE --source
 TEXT` records such a run; the archive is not in this repository, so later runs and `--check` keep that part as
 written.
 

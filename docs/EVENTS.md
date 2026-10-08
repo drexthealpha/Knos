@@ -100,6 +100,44 @@ After that, a log in which that line no longer has that hash fails `knos events 
 changed it recomputed every hash after the change: they cannot make the token name another head. No program
 reads this audience. It is checked off chain.
 
+## Each party signs the month, and when a month closes
+
+A token in the log says that one GitHub owner signed a head. It does not say which side of the contract that owner
+is, and nothing stopped one side from adding a line the other never saw. So each party also signs the month itself,
+with an Ed25519 key its Knos Terms 3 document names (`window.period_close`: `buyer_key`, `supplier_key`,
+`silence_days`). The signed text puts one fact a line, as a transparency log's signed note does and as a witness's
+cosignature of a checkpoint does ([C2SP tlog-cosignature](https://github.com/C2SP/C2SP/blob/tlog-cosignature/v1.0.0/tlog-cosignature.md)):
+
+    knos-period-ack/v1
+    role supplier
+    month 202610
+    last 41                 the last line of the log the party read
+    head <hash of line 41>  it commits to every line before it
+    root <sha256>           over the hashes of the month's lines up to line 41
+    events 12               how many lines of the month that is
+    terms <sha256>          the terms that name the keys
+    day 2026-11-03          the signer's own word: no clock signs it
+
+A month is **closed** only when the buyer and the supplier signed the same last line and root, or when one of them
+signed, the terms allow one party to close after `silence_days` without an answer (0: never), and that party signed
+a closure (`knos-period-close/v1`, the same lines plus `acknowledged <day>` and `silence_days N`) dated that many days
+or more after its acknowledgement. After that, three things are **named discrepancies**:
+
+| Name | What happened |
+| --- | --- |
+| `missing-after-ack` | lines a party acknowledged are no longer in the log |
+| `changed-after-ack` | the acknowledged line now has another hash, or the month another root |
+| `event-after-close` | a counted event of a closed month was added after the line it closed at (a correction may still arrive) |
+
+    knos events sign LOG --month YYYY-MM --role buyer|supplier --key KEY.json --terms TERMS.json --on YYYY-MM-DD [--out FILE]
+    knos events sign LOG ... --closing MY-ACK.json            # a closure after the silence the terms allow
+    knos events close LOG --month YYYY-MM --terms TERMS.json --ack BUYER.json --ack SUPPLIER.json
+
+The rule is written once, in `src/knos/standalone_verify.py` (`periods`; Ed25519 as RFC 8032 section 6 writes it,
+in the standard library: [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032.html)), and `knos.period` reads it; keys
+are signed with solders. An evidence archive keeps the files under `acks/`, and its `verify.py` checks them against
+the archived log and terms (docs/RETENTION.md). Tests: `tests/test_events_period.py`.
+
 ## Statements from the index
 
 The log keeps three indexes as it grows: by deliverable, by month and by supplier. A month's statement reads
@@ -135,7 +173,8 @@ funded there ([PLAYGROUND.md](PLAYGROUND.md)).
     knos events ack LOG --token FILE --keys JWKS              # add a signed acknowledgement
     knos events dupes LOG
     knos events gaps LOG [--month YYYY-MM] [--last B:S:YYYYMM.N] [--explain B:S:YYYYMM.N --reason WHY]
-    knos events close LOG --month YYYY-MM [--last B:S:YYYYMM.N]
+    knos events close LOG --month YYYY-MM [--last B:S:YYYYMM.N] [--terms TERMS --ack FILE ...]
+    knos events sign LOG --month YYYY-MM --role buyer|supplier --key KEY --terms TERMS --on DAY [--closing ACK]
     knos events statement LOG --month YYYY-MM [--supplier S]
     knos events export LOG --out DIR
 
@@ -175,7 +214,9 @@ root binds the set of evaluation ids, the count, the accepted count and the valu
 - **A log rewritten whole before anyone acknowledged it.** Hashes and all, by whoever holds the file. Until a
   second party has signed a head, the log is one party's file.
 - **A dropped acknowledgement.** The party that signed holds the token and the head; the file alone does not
-  show that an acknowledgement was cut off its end.
+  show that an acknowledgement was cut off its end. A month signed under `window.period_close` is not closed
+  without both signatures (or a closure the terms allow), so a dropped one leaves the month open, and says so.
+- **Who holds a key, and on which day it signed.** The terms name the keys; the day is the signer's word.
 - **That the content is true.** A wrong verdict ingested once is counted once.
 - **Numbers past the last one that arrived.** A gap is a number below the highest seen. The end of a run is
   checked only against the last number its sender states (`--last`).
@@ -204,7 +245,7 @@ METER.md sources for the same day.
 | 5,080 (both clusters, 4 Oct 2026) | 1,097,280 lamports | 0.1333 | 109.7 SOL (13,332 USD) | 1,097 SOL (133,320 USD) |
 | 696 (the target of the last step) | 150,336 lamports | 0.0183 | 15.0 SOL (1,827 USD) | 150 SOL (18,266 USD) |
 
-At today's rate the deposit for one marker is 2.7 times the 0.05 USD an evaluation is priced at. A marker with
+At today's rate the deposit for one marker is about 67 times the 0.002 USD an evaluation is priced at (0.1333 / 0.002). A marker with
 no data at all is still held against 128 bytes: 890,880, 650,240 and 89,088 lamports at the three rates. Ask a
 node for its cluster's figure: `getMinimumBalanceForRentExemption` with the size.
 

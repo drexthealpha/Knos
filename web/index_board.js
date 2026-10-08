@@ -9,6 +9,7 @@
 //   disputeUrl(agent, week)                                 a new "Dispute a row" issue with the agent and the week filled in
 //   renderBoardStrip(el, { weekly | feed, rows, href })     the top rows as bars with whiskers, for a first screen (web/board_strip.js)
 // Every row of the board names its agent as a link to that agent's public record (#record=<slug>, web/supplier_record.js).
+// Every row also links its vendor's page (#vendor=<slug>, web/vendor.js): the numbers, a right of reply, the disputes.
 //
 // A row: of an agent's merged pull requests that claimed passing tests and whose checks had finished, how many had a
 // failed check, over every week read up to and including the one shown. The share is a bar from 0; its 95% Wilson
@@ -106,6 +107,7 @@ function rowHtml(r, week, least) {
     <td class="ib-head">${rateCell(r)}</td>
     <td class="ib-n k-num">${esc(num(r.claimed_passing))}</td>
     <td class="ib-act"><a class="ib-dispute" href="${esc(disputeUrl(r.agent, week))}" target="_blank" rel="noopener">Dispute this row</a>
+      <a class="ib-vendor" href="#vendor=${esc(slugOf(r.agent))}">Vendor page and reply</a>
       <details class="k-more ib-badge"><summary>Badge</summary><span class="ib-svg">${agentBadgeSvg(r, week)}</span>
         <button type="button" class="k-btn quiet ib-copy" data-agent="${esc(r.agent)}">Copy SVG</button></details></td></tr>`;
 }
@@ -167,6 +169,7 @@ export function indexBoardHtml(weekly, week, feed) {
       <li id="ib-rank">Place only agents with ${esc(least)} merged claims; others stay unranked.</li>
       <li id="ib-not">Treat a failed check as a record, not proof.</li>
       <li id="ib-pay">Dispute any row; no vendor pays to change one.</li>
+      <li id="ib-quality">Rates no defect-free work, code or vendor.</li>
     </ul>
     <p class="fine" id="ib-verified"><strong>Verified: ${esc(verified)} this week.</strong> Counts claims Knos also paid on a black-box check.</p>
   </div>`;

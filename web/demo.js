@@ -6,6 +6,9 @@
 //   5 Replay          the order's fund token sent again is refused, and a line billed twice is owed once
 //   6 Pay             the program releases test USDC; or a payment instruction file for a bank rail (web/rails.js)
 //   7 Verify          the exported file is checked again: its root derived anew, its totals added anew
+// It is ONE INDEPENDENTLY WITNESSED TRANSACTION: every beat names its public evidence (a devnet transaction on the
+// explorer, or the repository's record of it) on one line under the scene, and the last beat names the stand-alone
+// verifier anyone runs on the archive without Knos. A stranger runs the same path in a fork: examples/witnessed.
 // renderDemo(el, env) fills `el`. WHAT IS RECORDED AND WHAT IS COMPUTED is said under every beat. Recorded: every
 // figure, address and signature of demo_data.json, which scripts/demo_data.py cuts out of this repository's records
 // (the devnet round, the tamper benchmark). Computed here, in the reader's browser, from the sample statement this site
@@ -22,6 +25,7 @@ export const WHY_SOLANA = "Money is released with no custodian, and the count is
 const esc0 = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const short = (s) => `${s.slice(0, 4)}…${s.slice(-4)}`;
 const thousands = (n) => String(n).replace(/\B(?=(\d{3})+$)/g, ",");
+const money = (a) => { const [i, f] = String(a).split("."); return `${thousands(i)}${f === undefined ? "" : `.${f}`}`; };          // 100000.00 -> 100,000.00
 const explorer0 = (kind, id) => `https://explorer.solana.com/${kind}/${id}?cluster=devnet`;
 // statement.canonical and statement.digest (src/knos/statement.py; web/finance_data.js holds the same two): JSON with
 // sorted keys and no spaces, one final newline; the root is its sha256 with the sha256 field empty.
@@ -114,6 +118,7 @@ const STYLE = `
 .kd-terms dt { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin: 0; align-self: center; }
 .kd-terms dd { margin: 0; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 .kd-prov { font-size: 12px; color: var(--ink-2); padding-top: 8px; border-top: 1px dashed var(--line); }
+.kd-scene > .kd-ev { margin-top: -6px; overflow-wrap: anywhere; }
 .kd-root { font-family: var(--k-mono); font-size: 13px; overflow-wrap: anywhere; min-height: 1.4em; }
 .kd-root[data-s="ok"] { color: var(--ok); } .kd-root[data-s="bad"] { color: var(--bad); }
 .kd-why { font-size: 13px; } .kd-why summary { cursor: pointer; font-weight: 600; width: fit-content; } .kd-why p { margin: 6px 0 0; max-width: 46ch; }
@@ -181,6 +186,13 @@ export async function renderDemo(el, env = {}) {
   const PROV = [`Recorded on ${d.cluster}, ${day}.`, "Recorded in the tamper benchmark.", "Recorded in the tamper benchmark.", `Counts recorded on ${d.cluster}. Sample statement hashed here.`,
     `Token recorded on ${d.cluster}. Line from the sample statement.`, `Payment recorded on ${d.cluster}, in ${d.money}.`, "The sample statement, checked in your browser."];
 
+  // Each beat's public evidence, one link: a transaction on the explorer, or where the repository records the beat. The
+  // last is the stand-alone verifier, which checks an archive with nothing of Knos installed.
+  const EVIDENCE = [["the funding transaction", EXPLORER("tx", d.fund.tx)], ["the refused pull request, tamper benchmark", `${REPO}docs/TAMPER.md`],
+    ["the accepted fix, tamper benchmark", `${REPO}docs/TAMPER.md`], ["both counts, in the round's record", `${REPO}docs/CAPABILITIES.md#${d.ids === "public" ? "the-round-on-the-public-program-ids" : "the-0314-rehearsal-on-devnet"}`],
+    ["the refused transaction", EXPLORER("tx", d.replay.tx)], ["the payment transaction", EXPLORER("tx", d.paid.tx)],
+    ["verify.py, run it without Knos", `${REPO}conformance/standalone/verify.py`]];
+
   // The sample statement this site publishes, read when the reader first acts, and what this page computes from it: the
   // root (twice: once a pane), whether the totals add up, the line billed twice, and the root of the same file with one
   // amount changed. No file (a build without it, no network): the beats show what is recorded and say so.
@@ -199,15 +211,15 @@ export async function renderDemo(el, env = {}) {
   el.setAttribute("role", "group");
   el.setAttribute("aria-label", "One transaction, in seven beats");
   el.innerHTML = `
-    <div class="kd-top"><p class="k-kicker">One transaction. You drive.</p><p class="kd-keys" aria-hidden="true">Enter: act · arrows: steps · Esc: start over</p></div>
-    <p class="kd-mark" data-ids="${esc(d.ids || "staging")}">A real ${esc(d.cluster)} round, replayed (${esc(where)}, ${esc(day)}).</p>
+    <div class="kd-top"><p class="k-kicker">One witnessed transaction. You drive.</p><p class="kd-keys" aria-hidden="true">Enter: act · arrows: steps · Esc: start over</p></div>
+    <p class="kd-mark" data-ids="${esc(d.ids || "staging")}">Recorded on ${esc(d.cluster)}: ${esc(where)}, ${esc(day)}.</p>
     <ol class="kd-steps">${STEPS.map((s, i) => `<li><button type="button" class="k-step" data-step="${i}" data-state="idle"><i>${i + 1}</i><span>${esc(s)}</span></button></li>`).join("")}</ol>
     <ul class="kd-rail k-stage" aria-hidden="true">${["Buyer", "GitHub", "Solana", "Supplier"].map((n) => `<li class="kd-node" data-node="${n.toLowerCase()}"><b></b><span>${n}</span><em class="k-num"></em></li>`).join("")}</ul>
     <div class="kd-scene"></div>
     <p class="kd-say" role="status" aria-live="polite"></p>
     <div class="kd-act"><button type="button" class="k-btn kd-go"></button><button type="button" class="k-btn quiet ghost kd-alt" hidden></button><button type="button" class="k-btn quiet ghost kd-reset" hidden>Start over</button></div>
     <p class="kd-src">Sources:
-      <a href="${REPO}docs/CAPABILITIES.md#the-round-on-the-public-program-ids">round</a>, <a href="${REPO}docs/TAMPER.md">tamper benchmark</a>, <a href="${REPO}docs/RELAY.md">timing</a>, <a href="statement_sample.json">sample statement</a>.</p>`;
+      <a href="${REPO}docs/CAPABILITIES.md#the-round-on-the-public-program-ids">round</a>, <a href="${REPO}docs/TAMPER.md">tamper benchmark</a>, <a href="${REPO}docs/RELAY.md">timing</a>, <a href="statement_sample.json">sample statement</a>, <a href="${REPO.replace("/blob/", "/tree/")}examples/witnessed">run it yourself</a>.</p>`;
   const q = (s) => el.querySelector(s), node = (n) => q(`[data-node="${n}"]`);
   const scene = q(".kd-scene"), say = q(".kd-say"), go = q(".kd-go"), alt = q(".kd-alt"), resetB = q(".kd-reset");
   const badge = (s, text) => `<span class="kd-badge" data-s="${s}">${esc(text)}</span>`;
@@ -217,13 +229,13 @@ export async function renderDemo(el, env = {}) {
   // ---- what each beat shows, before and after its one action -------------------------------------------------------
   const views = [
     (on) => ({
-      html: `<dl class="kd-terms"><dt>Price</dt><dd class="k-num">${esc(d.agree.price)} ${esc(d.money)}</dd><dt>Acceptance</dt><dd>Named checks pass at merge</dd>
+      html: `<dl class="kd-terms"><dt>Price</dt><dd class="k-num">${esc(money(d.agree.price))} ${esc(d.money)}</dd><dt>Acceptance</dt><dd>Named checks pass at merge</dd>
           <dt>Deadline</dt><dd class="k-num">${esc(d.agree.days)} days</dd><dt>Remedy</dt><dd>Unproven: the money goes back</dd></dl>
         <label class="kd-tag" for="kd-comment">The buyer's comment on the issue</label>
         <input id="kd-comment" class="kd-input" type="text" readonly value="${esc(d.fund.comment)}">
         ${on ? `<div class="kd-box"><div class="kd-row"><span class="kd-tag">Order</span><span class="kd-mono">${esc(short(d.fund.order))}</span>${badge("ok", "funded")}</div>
-          <div class="kd-row"><span class="k-num"><strong>${esc(d.fund.amount)}</strong> ${esc(d.money)} held</span><span class="kd-fine k-num" data-fee-rule="0.3.14" title="This is a recording: the fee is the one the program took then.">fee ${esc(d.fund.fee)}, charged under the 0.3.14 fee</span>${tx(d.fund.tx, "transaction")}</div></div>` : ""}`,
-      say: on ? `Agreed and funded: ${d.fund.amount} ${d.money} held.` : "Buyer and supplier fix four terms first.",
+          <div class="kd-row"><span class="k-num"><strong>${esc(money(d.fund.amount))}</strong> ${esc(d.money)} held</span><span class="kd-fine k-num" data-fee-rule="before-upgrade" title="This is a recording: the fee is the one the program took then.">fee ${esc(money(d.fund.fee))}, the fee the program charged then (before the upgrade)</span></div></div>` : ""}`,
+      say: on ? `Agreed and funded: ${money(d.fund.amount)} ${d.money} held.` : "Buyer and supplier fix four terms first.",
       act: "Agree and fund",
     }),
     (on) => ({
@@ -259,8 +271,8 @@ export async function renderDemo(el, env = {}) {
       const dup = on && facts?.dup;
       return {
         html: `<div class="kd-box kd-shake"><div class="kd-row"><span class="kd-tag">Fund token, sent again</span>${badge(on ? "bad" : "wait", on ? "Refused" : "used once")}</div>
-          ${on ? `<p class="kd-fine k-num">Error ${esc(d.replay.error)}: ${esc(d.replay.means)}. ${tx(d.replay.tx, "transaction")}</p>` : ""}</div>
-          ${dup ? `<div class="kd-box"><div class="kd-row"><span class="kd-tag">Invoice line ${esc(dup.line)}</span><span class="k-num">${esc(dup.amount)}</span>${badge("bad", "duplicate")}</div>
+          ${on ? `<p class="kd-fine k-num">Error ${esc(d.replay.error)}: ${esc(d.replay.means)}.</p>` : ""}</div>
+          ${dup ? `<div class="kd-box"><div class="kd-row"><span class="kd-tag">Invoice line ${esc(dup.line)}</span><span class="k-num">${esc(money(dup.amount))}</span>${badge("bad", "duplicate")}</div>
             <p class="kd-fine k-num kd-dup">${esc(dup.why.split(":")[0].replace(/^./, (c) => c.toUpperCase()))}: owed once.</p></div>` : ""}`,
         say: on ? `Refused: a token works once. Error ${d.replay.error}.` : "Send the same token a second time.",
         act: "Send the same token again",
@@ -269,10 +281,11 @@ export async function renderDemo(el, env = {}) {
     (on) => ({
       html: `<p class="kd-big"><span class="k-num kd-secs" data-to="${on ? d.paid.seconds : 0}">${on ? esc(d.paid.seconds) : 0}</span> <small>seconds</small></p>
         <p class="kd-fine k-num">Merge to paid, median of ${esc(d.paid.payments)} payments.</p>
-        ${on ? `<p class="kd-row">${badge("ok", "Paid")}<span class="k-num"><strong>${esc(d.paid.amount)}</strong> ${esc(d.money)}</span>${tx(d.paid.tx, "See it on the explorer")}</p>` : ""}
-        ${state.bank ? `<p class="kd-row kd-bank">${badge("ok", "Bank file written")}<a class="kd-mono" download="${esc(state.bank.name)}" href="${esc(state.bank.href)}">${esc(state.bank.name)}</a><span class="kd-fine k-num">${esc(thousands(state.bank.bytes))} bytes. No bank has taken this file.</span></p>` : ""}
+        ${on ? `<p class="kd-row">${badge("ok", "Paid")}<span class="k-num"><strong>${esc(money(d.paid.amount))}</strong> ${esc(d.money)}</span></p>` : ""}
+        ${state.bank ? `<p class="kd-row kd-bank">${badge("ok", "Bank file written")}<a class="kd-mono" download="${esc(state.bank.name)}" href="${esc(state.bank.href)}">${esc(state.bank.name)}</a><span class="kd-fine k-num">${esc(thousands(state.bank.bytes))} bytes. No bank has taken this file.</span></p>
+          <p class="kd-fine kd-return">A payment the bank returns makes its lines payable again.</p>` : ""}
         <details class="kd-why"><summary>Why Solana?</summary><p>${esc(WHY_SOLANA)}</p></details>`,
-      say: state.bank && !on ? "Bank file written. No bank has taken it." : on ? `Paid ${d.paid.amount} ${d.money}. Median wait: ${d.paid.seconds} seconds.` : "Release the money on the signed acceptance.",
+      say: state.bank && !on ? "Bank file written. No bank has taken it." : on ? `Paid ${money(d.paid.amount)} ${d.money}. Median wait: ${d.paid.seconds} seconds.` : "Release the money on the signed acceptance.",
       act: `Pay in ${d.money}`,
       alt: facts?.pain && facts.st && !state.bank ? ["Write a bank file instead", bankFile] : null,
     }),
@@ -296,7 +309,9 @@ export async function renderDemo(el, env = {}) {
     const i = state.step, on = state.done[i], v = views[i](on && !state.busy);
     state.run += 1;
     const inside = scene.contains(document.activeElement), wasAlt = document.activeElement === alt;
-    scene.innerHTML = `${v.html}<p class="kd-fine kd-prov">${esc(PROV[i])}</p>`;
+    const [evText, evHref] = EVIDENCE[i];
+    scene.innerHTML = `${v.html}<p class="kd-fine kd-prov">${esc(PROV[i])}</p>
+      <p class="kd-fine kd-ev">Evidence: ${online() ? `<a href="${esc(evHref)}" target="_blank" rel="noopener">${esc(evText)}</a>` : `${esc(evText)} (online)`}</p>`;
     scene.setAttribute("aria-label", `Step ${i + 1} of ${N}: ${STEPS[i]}`);
     scene.setAttribute("role", "group");
     if (state.busy) scene.setAttribute("aria-busy", "true"); else scene.removeAttribute("aria-busy");

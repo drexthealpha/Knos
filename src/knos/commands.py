@@ -5,6 +5,7 @@
                         [judge: owner/repo] [grace]
     /knos fund terms    the order the repository's own terms describe (`.knos/terms.json`, Knos Terms 3), and no other
     /knos offer @vendor rate <amount> budget <amount> [checks: a, b] [paths: glob, ...] [days N]
+    /knos reserve <amount> for @supplier until <YYYY-MM-DD> [tranche <amount>] [period YYYY-MM]
     /knos raise <amount>    /knos cancel    /knos split @a 60 @b 40
     /knos take          /knos release       /knos address <address>      /knos mine
     /knos pay @login    /knos reject [reason]   /knos tip <amount>       /knos settle
@@ -23,6 +24,7 @@ decided here (knos.who decides from what GitHub authenticates; the chain decides
 
 from __future__ import annotations
 
+import datetime
 import re
 from dataclasses import dataclass, replace
 
@@ -75,6 +77,19 @@ class Offer:
     def units(self) -> int:
         """What goes into escrow: the whole budget."""
         return self.budget
+
+
+@dataclass(frozen=True)
+class Reserve:
+    """`/knos reserve`: money locked for ONE supplier before the work, drawn one tranche at a time by a netted period
+    (knos.netting): a standing order on the reserve terms of the pair (knos.netting.reserve_fund). What no draw takes
+    goes back to the funder by RefundOrder after `until`."""
+    units: int
+    supplier: str                               # the supplier's GitHub login, as typed after the @
+    until: str                                  # YYYY-MM-DD: the money is locked to the end of that day (UTC)
+    tranche: int | None = None                  # what one draw pays; None: a tenth of the amount (knos.flow says it)
+    period: int | None = None                   # YYYYMM: the one month it secures, named in the terms; None: any month until `until`
+    name = "reserve"
 
 
 @dataclass(frozen=True)
@@ -181,6 +196,7 @@ class Error:
 FORMS = {   # the exact form to type, in the order `/knos help` lists them
     "fund": "/knos fund <amount> [checks: a, b] [paths: glob, ...] [days N] [reserve N]",
     "offer": "/knos offer @vendor rate <amount> budget <amount> [checks: a, b] [paths: glob, ...] [days N]",
+    "reserve": "/knos reserve <amount> for @supplier until <YYYY-MM-DD> [tranche <amount>] [period YYYY-MM]",
     "raise": "/knos raise <amount>",
     "cancel": "/knos cancel",
     "take": "/knos take",
@@ -202,6 +218,7 @@ _ABOUT = {
     "fund": "a maintainer, on an issue: put a bounty on it (a work order also takes `warranty N`, `holdback N`, `arbiter @login`, `neutral off`, "
             "`auto`, `quorum 2`, `quorum 3 judge: owner/repo`, `grace`; `/knos fund terms` funds what `.knos/terms.json` says)",
     "offer": "a maintainer, on an issue: a standing offer that pays one vendor for each accepted change",
+    "reserve": "a maintainer, on an issue: lock money for one supplier before the work",
     "raise": "on a funded issue: how its work order is topped up",
     "cancel": "a maintainer, on a funded issue: end its work order with 7 days' notice",
     "take": "on a funded issue: reserve it for yourself",
@@ -218,7 +235,7 @@ _ABOUT = {
     "status": "what is in escrow here",
     "help": "this list",
 }
-_ON_PULL = {"fund": False, "offer": False, "raise": False, "cancel": False, "split": True, "take": False, "release": False, "address": True, "mine": True, "pay": True, "reject": True,
+_ON_PULL = {"fund": False, "offer": False, "reserve": False, "raise": False, "cancel": False, "split": True, "take": False, "release": False, "address": True, "mine": True, "pay": True, "reject": True,
             "appeal": True, "tip": True, "settle": True, "faucet": False}     # where a command belongs; status and help go anywhere
 FAUCET_LABEL = "faucet"             # the label of the one issue the faucet answers on (knos.faucet.LABEL)
 FAUCET_WHERE = "https://github.com/drexthealpha/knos-playground/issues?q=is%3Aissue+is%3Aopen+label%3Afaucet"       # knos.faucet.WHERE
@@ -421,6 +438,51 @@ def _offer(rest: str):
     return Offer(m.group(1), **options)
 
 
+_RESERVE_LINE = re.compile(r"(\S+)\s+for\s+@(" + _LOGIN + r")\s+until\s+(\S+)((?:\s+\S+)*)", re.I)
+
+
+def _reserve(rest: str):
+    m = _RESERVE_LINE.fullmatch(rest)
+    if not m:
+        return _bad("reserve", "say the amount, the supplier and the last day, like `/knos reserve 500 for @acme-agents until 2026-12-31`")
+    units = _units(m.group(1))
+    if isinstance(units, str):
+        return _bad("reserve", units)
+    until = m.group(3)
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", until) or not _real_day(until):
+        return _bad("reserve", "the last day is a date written YYYY-MM-DD, like 2026-12-31")
+    more, got = m.group(4).split(), {}
+    while more:
+        word = more.pop(0).lower()
+        if word not in ("tranche", "period") or not more:
+            return _bad("reserve", f"`{_show(word)}` is not something this command takes" if word not in ("tranche", "period") else
+                        f"`{word}` needs a value after it, like " + ("`tranche 50`" if word == "tranche" else "`period 2026-11`"))
+        if word in got:
+            return _bad("reserve", f"`{word}` is written twice")
+        value = more.pop(0)
+        if word == "tranche":
+            t = _units(value)
+            if isinstance(t, str):
+                return _bad("reserve", f"`tranche`: {t}")
+            if t > units:
+                return _bad("reserve", "the tranche (what one draw pays) is more than the reserve")
+            got[word] = t
+        else:
+            pm = re.fullmatch(r"([0-9]{4})-([0-9]{2})", value)
+            if not pm or not 1 <= int(pm.group(2)) <= 12:
+                return _bad("reserve", "`period` is a month written YYYY-MM, like 2026-11")
+            got[word] = int(pm.group(1)) * 100 + int(pm.group(2))
+    return Reserve(units, m.group(2), until, **got)
+
+
+def _real_day(text: str) -> bool:
+    try:
+        datetime.date.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
 def _raise(rest: str):
     units = _units(rest) if rest else "the amount is missing"
     return _bad("raise", units) if isinstance(units, str) else Raise(units)
@@ -470,7 +532,7 @@ def _bare(kind):
     return lambda rest: kind() if not rest else _bad(kind.name, "nothing goes after it")
 
 
-_READ = {"fund": _fund, "offer": _offer, "raise": _raise, "cancel": _bare(Cancel), "split": _split, "take": _bare(Take), "release": _bare(Release), "address": _address, "mine": _bare(Mine),
+_READ = {"fund": _fund, "offer": _offer, "reserve": _reserve, "raise": _raise, "cancel": _bare(Cancel), "split": _split, "take": _bare(Take), "release": _bare(Release), "address": _address, "mine": _bare(Mine),
          "pay": _pay, "reject": lambda rest: Reject(rest[:200].strip()),
          "appeal": lambda rest: Appeal(rest[:200].strip()) if rest.strip() else _bad("appeal", "say why after it"), "tip": _tip, "settle": _bare(Settle),
          "faucet": lambda rest: Faucet((rest.split() or [""])[0][:60]),       # handed to knos.faucet as typed: nothing about it is judged here
@@ -516,6 +578,7 @@ def _commands() -> str:
 _WHO = {
     "fund": "the repository's owner and the people they let spend its balance",
     "offer": "the repository's owner and the people they let spend its balance",
+    "reserve": "the repository's owner and the people they let spend its balance",
     "cancel": "people with write access to this repository",
     "split": "people with write access to this repository",
     "tip": "the repository's owner and the people they let spend its balance",
@@ -529,6 +592,7 @@ _WHO = {
 _INSTEAD = {
     "fund": "You can ask them to fund it: they comment `/knos fund 20` on the issue.",
     "offer": "You can ask them: they comment `/knos offer @you rate 12 budget 100` on the issue.",
+    "reserve": "You can ask them: they comment `/knos reserve 500 for @supplier until 2026-12-31` on an issue.",
     "cancel": "The order runs until its deadline; `/knos status` shows it.",
     "split": "You can ask a maintainer to name the shares before the merge.",
     "tip": "You can ask them: they comment `/knos tip 5` on the merged pull request.",

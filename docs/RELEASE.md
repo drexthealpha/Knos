@@ -480,6 +480,7 @@ python scripts/bench_docs.py --set tests_passing=<passed> --source "pytest (ubun
 python scripts/bench_docs.py --check && python scripts/doc_claims.py
 python scripts/release_manifest.py --check        # docs/MANIFEST.md is what the tree gives: source, built bytes, capabilities, limits
 python scripts/truth_check.py                     # no document or page contradicts the capability list, the source or the price book
+python scripts/rate_claims.py                     # every latency or throughput figure has its sample size, its program ids and its date
 python scripts/public_face.py --check             # every description of Knos in this tree is the one sentence
 python scripts/judges.py --check                  # docs/JUDGES.md keeps its rules, and docs/judges.json is that page
 python -m knos.enforce --check                    # docs/ENFORCEMENT.md is the table the code gives
@@ -527,14 +528,14 @@ Two rules, each learned from a release that broke it:
 export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
 python scripts/release.py publish                 # uploads THAT wheel and the sdist, then asks PyPI for the hash and its index for the file
 git push origin main                              # the ONE push, only after `publish` said "Next: git push"
-git tag v0.3.20 && git push origin v0.3.20        # starts release.yml
+git tag v0.3.21 && git push origin v0.3.21        # starts release.yml
 ```
 
 `publish` refuses unless `dist/` holds the locked wheel, the tree is committed and the commit holds the lock. A file
 on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a new version.
 
 The wheel goes up before the push because the moment the commit is public, the workflows it pins install
-`knos==0.3.20` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
+`knos==0.3.21` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
 
 **Push only after `publish` printed "Next: git push".** PyPI answers from two places: the page of a version shows an
 upload at once, and the index an installer resolves from (`https://pypi.org/simple/knos/`) is a cached page that
@@ -557,8 +558,11 @@ index had "no version of" the release they asked for. `publish` now asks that in
 
 ## Publishing the crates and the npm package
 
-Three packages, none published yet: `knos-oidc-interface` and `knos-pay-interface` (crates.io) and `knos-settle`
-(npm). On 4 October 2026 all three names were free: `https://crates.io/api/v1/crates/<name>` and
+Three packages, each published: `knos-oidc-interface` 0.3.14 and `knos-pay-interface` 0.3.14 on crates.io
+([knos-oidc-interface](https://crates.io/crates/knos-oidc-interface),
+[knos-pay-interface](https://crates.io/crates/knos-pay-interface)) and `knos-settle` 0.3.20 on npm
+([knos-settle](https://www.npmjs.com/package/knos-settle)), all three by hand by the owner on 8 October 2026. On
+4 October 2026 all three names were free: `https://crates.io/api/v1/crates/<name>` and
 `https://registry.npmjs.org/knos-settle` each answered 404.
 
 After the first version, `release.yml` publishes them with no stored secret (the jobs `crates-trusted` and
@@ -567,7 +571,7 @@ records provenance. But both registries let a trusted publisher be configured on
 ([crates.io](https://blog.rust-lang.org/2025/07/11/crates-io-development-update-2025-07/): "you'll need to publish
 your first release manually"; [npm](https://docs.npmjs.com/trusted-publishers): the setting is on the package's own
 page). So the first version of each is published by hand, once, by the owner, signed in to each registry. That is
-the only step here that needs a person and an account, and it has not been done.
+the only step here that needs a person and an account, and it was done on 8 October 2026 for all three.
 
 Before anything is uploaded, on the release commit (each prints what would be uploaded and uploads nothing):
 
@@ -642,7 +646,8 @@ python scripts/release.py registry-plan --online        # each version is now on
 ```
 
 When a registry says `blocked`, nothing is published there and the release goes on: no `cargo login`, no
-`npm login`, no account. Neither has been published: the 0.3.19 run was signed in to neither registry.
+`npm login`, no account. The 0.3.19 run was signed in to neither registry; the first versions went up by hand on
+8 October 2026, from a machine signed in to both.
 
 A package is published at ITS OWN version. `knos-settle` moves with every release, so its version is the tag's.
 The two interface crates are among the crates `scripts/bump_version.py` holds (`PROGRAMS_FROZEN`, at `FROZEN_AT`), so
@@ -651,7 +656,7 @@ during such a release their version is NOT the tag's, on purpose. The publishing
 package that is not on its registry yet, and a version the registry already has, are green with a notice; only a
 version the registry lacks is published. (In 0.3.15 the job compared a held crate with the tag and could never pass.)
 
-Until the first publish, the crates install as git dependencies and the client from the release's tarball
+Besides the registries, the crates still install as git dependencies and the client from the release's tarball
 ([INSTALL.md](INSTALL.md)).
 
 ## After the pending upgrade: the ONE proposal set
@@ -727,7 +732,9 @@ None of this is written into a commit ("Nothing after the push goes into a commi
 
 The public worker (`worker.yml`) is a chain: each run starts the next. The first run on a new release installs that
 release by hash. Its install step waits when PyPI's index does not list the release yet: for that one error, 15, 30,
-60, 120, 180 and 195 seconds, 10 minutes in all, and then it fails as before. Any other install error is red at once.
+60 and 90 seconds, 195 seconds in all, inside a 6-minute step timeout, and then it fails as before. Any other install
+error is red at once. A run that stays in its install longer than that has written no heartbeat, and the watchdog
+cancels and replaces it ([RELAY.md](RELAY.md)).
 
 The start of the next run is asked again when GitHub answers it with a 5xx or a 429, or does not answer: after 2, 4,
 8, ... seconds, or what `Retry-After` says (`python -m knos.proof.chain start`; up to 3 times in the handover step
@@ -750,10 +757,17 @@ watchdog starts a chain when none is alive, but its timer is a scheduled run, an
 ([GitHub's documentation of `schedule`](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule));
 after a release, look once and start it by hand.
 
+Right after the push, start the watchdog once so the chain does not wait for GitHub's timer:
+
+```
+gh workflow run watchdog.yml --repo drexthealpha/Knos
+```
+
 ## After the tag: the first real runs
 
 1. **The pinned workflows are republished** (the `release.py workflows` step and its push, above): check that the
-   pinned commit of `drexthealpha/knos-workflows` holds this release's set.
+   pinned commit of `drexthealpha/knos-workflows` holds this release's set. 0.3.21's `/knos reserve` and the
+   hermetic judge exist only once they are republished at 0.3.21.
 2. **The knos-verify action and the reproduce workflow** ([`integrations/workflows/knos-verify.yml`](../integrations/workflows/knos-verify.yml),
    [`examples/knos-reproduce.yml`](../examples/knos-reproduce.yml), [REPRODUCE.md](REPRODUCE.md)): a run that this
    release changed is run once for real before anyone else is asked to rely on it.

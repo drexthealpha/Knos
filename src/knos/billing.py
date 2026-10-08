@@ -40,6 +40,8 @@ The rules, each of which a line of the invoice names:
   fee). The same deliverable under both rails is counted once, on the rail first given.
 - A rail's own charge (a bank's wire fee, a network's fee) is not Knos's price. It is listed apart, under
   `rail_charges`, and is in no line and not in the total: `payable` is the total and those charges together.
+- Money held or passed on is never revenue: a reserve the customer funds, rent that returns, a supplier's principal.
+  It is listed apart, under `held`, in no line, not in the total and not in `payable`.
 
 Arithmetic is `decimal.Decimal`, exact, rounded half up to the cent once per line (Acceptance: once per
 deliverable). Nothing here reads the network, the chain or a clock. Nothing has been sold: these are proposed
@@ -50,6 +52,13 @@ for payment. On devnet every fee the program takes is test money: 0 revenue.
     knos bill explain month.json
     knos bill margin month.json docs/unit_costs.json      (GROSS margin; the three leaks; who earns what at the floor;
                                                            what netting saves; the second worked customer)
+    knos bill margin --sensitivity docs/unit_costs.json   (the worked customers at a realised Acceptance rate of 30, 20,
+                                                           10 and 5 bps)
+
+THE ACCOUNTING RULES, each held by a test: an annual commitment is drawn down by use and is never a second revenue line;
+on a release on chain the relayer's tip and the chain costs it pays are the relayer's (`release_split`), never counted
+as Knos's revenue and again as Knos's cost; money a customer puts in a reserve, rent that returns and a supplier's
+principal are held or passed on (`held` in a customer-month), never revenue.
 
 GROSS MARGIN IS NOT OPERATING MARGIN. Gross margin = (revenue - the direct cost of delivering it) / revenue. Operating
 margin subtracts building, selling and administering as well. Nobody is employed and nothing has been sold, so no
@@ -120,7 +129,12 @@ RULES = {
     "once_any_rail": "Acceptance is charged once, whichever rail pays: on chain at release, or on the invoice when a bank pays.",
     "rails": "A rail's own charge is not Knos's price: it is listed apart from the software price and is in no line of it.",
     "devnet": "On devnet every fee the program takes is test money: 0 revenue.",
+    "held": ("A reserve the customer funds, rent that returns and a supplier's principal are held or passed on, never Knos's revenue: "
+             "listed apart, in no line, not in the total."),
+    "relayer": ("On a release on chain the relayer's tip and the chain costs it pays are the relayer's: Knos counts the fee owner's part as "
+                "revenue, or, when Knos relays, the whole fee as revenue and the chain costs as its cost; never both."),
 }
+HELD = ("reserve", "rent", "principal")   # what `held` may name: money that is never Knos's revenue
 
 
 class BillingError(ValueError):
@@ -255,7 +269,7 @@ def _valued(rows: Any, what: str) -> list[tuple[str, Decimal, dict]]:
 
 FIELDS = {"plan", "month", "billed_to", "evaluations", "duplicates", "infrastructure_failures", "knos_retries", "accepted", "disputed",
           "reversed", "suppliers", "record_lookups", "committed", "drawn", "credit_brought_forward", "other", "customer", "period",
-          "rail_charges"}
+          "rail_charges", "held"}
 RAILS = ("chain", "bank")                # how an accepted deliverable was paid: by the program, or by any other rail
 
 
@@ -281,6 +295,8 @@ def invoice(month: dict) -> dict:
         other                    [{"what": "...", "amount": "..."}]  agreed separately; a negative amount is a credit
         rail_charges             [{"what": "bank wire fees", "amount": "45.00"}]  what a payment rail charged, passed on as it
                                  was charged: listed apart, in no line and not in `total`; `payable` adds them
+        held                     [{"kind": "reserve", "what": "...", "amount": "..."}]  money held or passed on (kind: reserve,
+                                 rent or principal): listed apart, in no line, not in `total` and not in `payable`
     An accepted row may say "rail": "chain" (the same as "on_chain": true) or "bank" (the same as leaving it out).
     """
     if not isinstance(month, dict):
@@ -441,11 +457,20 @@ def invoice(month: dict) -> dict:
             raise BillingError(f"rail_charges {n}: a charge is 0 or more")
         rails.append({"what": str(row["what"]).strip(), "amount": show(charge), "rule": RULES["rails"]})
     rail_total = sum((_amount(row) for row in rails), ZERO)
+    held = []
+    for n, row in enumerate(month.get("held") or [], 1):
+        if not isinstance(row, dict) or str(row.get("kind", "")).strip().lower() not in HELD:
+            raise BillingError(f"held {n}: kind is one of {', '.join(HELD)}")
+        amount = money(row.get("amount", "0"), f"held {n}, amount")
+        if amount < 0:
+            raise BillingError(f"held {n}: an amount is 0 or more")
+        held.append({"kind": str(row["kind"]).strip().lower(), "what": str(row.get("what") or row["kind"]).strip(), "amount": show(amount), "rule": RULES["held"]})
     return {
         "billed_to": PAYER, "currency": "USD", "plan": plan, "month": m,
         **({k: month[k] for k in ("customer", "period") if k in month}),
         "lines": lines, "total": show(total),
         "rail_charges": rails, "rail_total": show(rail_total), "payable": show(total + rail_total),
+        "held": held, "held_total": show(sum((_amount(row) for row in held), ZERO)),
         "credit_carried_forward": show(credit - used),
         "commitment_remaining": show(committed - drawn - covered),
         "rules": [RULES["on_chain"], RULES["suppliers"], RULES["rated"], RULES["devnet"]],
@@ -501,6 +526,10 @@ def explain(inv: dict) -> list[str]:
         out.append("Rail charges, apart from the software price:")
         out += [f"  {row['what']:<42} {row['amount']:>14}" for row in inv["rail_charges"]]
         out += [f"      rule: {RULES['rails']}", f"  {'Payable in all':<42} {inv['payable']:>14}"]
+    if inv.get("held"):
+        out.append("Held or passed on, never revenue:")
+        out += [f"  {row['what']:<42} {row['amount']:>14}" for row in inv["held"]]
+        out.append(f"      rule: {RULES['held']}")
     if inv["credit_carried_forward"] != "0.00":
         out.append(f"  Credit carried forward: {inv['credit_carried_forward']}")
     if inv["commitment_remaining"] != "0.00":
@@ -530,12 +559,20 @@ def estimate_lines(e: dict) -> list[str]:
 
 # ---- gross margin: what a month's lines cost Knos to deliver, from a unit-cost file --------------------------------------
 COST_FIELDS = ("evaluation", "accepted_deliverable", "record_lookup", "control_year")
-MORE_COSTS = {"pair_month": ZERO, "payee_account": Decimal("0.18"), "control_year_target": Decimal(7_000)}
+MORE_COSTS = {"pair_month": ZERO, "payee_account": Decimal("0.18"), "control_year_target": Decimal(7_000), "release_chain": Decimal("0.0072")}
 #   optional in a unit-cost file: one anchored batch for one buyer-supplier pair in a month; the rent of a payee's first token
-#   account; what a year of Control has to cost once onboarding is self-service (a target, not a measurement)
+#   account; what a year of Control has to cost once onboarding is self-service (a target, not a measurement); the chain fees
+#   of one order funded and paid (12 transactions, measured in the simulator)
 TARGET = Decimal("0.95")                 # the GROSS margin each line is held to in `leaks`
 GROSS = ("Every margin here is GROSS: revenue less the direct cost of delivering it, over revenue. Operating margin also subtracts "
          "building, selling and administering; nobody is employed and nothing is sold, so none of that is known and no operating margin is printed.")
+WORKED: dict[str, Any] = {"plan": "business", "evaluations": 110_000, "accepted": "10000000.00", "suppliers": 5, "deliverable": "20000.00"}
+#   the worked customer of docs/MARKET.md, section 6: 130,240 a year
+SENSITIVITY_BPS = (30, 20, 10, 5)        # the realised Acceptance rates `sensitivity` works, in basis points
+SUPPORT_RATES = (("the assumption docs/UNIT_COSTS.md has always used", Decimal(75)),
+                 ("a computer support specialist's median wage, 30.24 an hour (BLS, May 2025), over wages' 70.0% share of an employer's cost (BLS, June 2026)",
+                  Decimal("43.20")))
+#   https://www.bls.gov/ooh/computer-and-information-technology/computer-support-specialists.htm and https://www.bls.gov/news.release/ecec.nr0.htm
 SECOND: dict[str, Any] = {"plan": "business", "evaluations": 1_000_000, "accepted": "120000000.00", "suppliers": 5, "deliverable": "20000.00"}
 #   the second worked customer: 120 million accepted a year in twelve even months, 1 million evaluations a month, no record lookups
 SPLIT_AMOUNTS = (5, 20, 100, 1_000)      # whole test USDC: the releases `floor_split` works
@@ -659,15 +696,101 @@ def second_customer(unit: dict[str, Decimal] | None = None) -> dict:
            "acceptance": e["acceptance"], "meter": e["meter"], "records": e["records"], "total": e["total"], "hurdle": e["benefit_to_demand"],
            "hurdle_is": "a hurdle to be measured in a pilot, not a claim", "cost_ceiling_at_95": show(total * (1 - TARGET))}
     if unit is not None:
-        n = int(money(SECOND["accepted"]) / money(SECOND["deliverable"]))
-        parts = {"control": unit["control_year"], "meter": 12 * (SECOND["evaluations"] * unit["evaluation"] + SECOND["suppliers"] * unit["pair_month"]),
-                 "acceptance": n * unit["accepted_deliverable"]}
+        n, parts = _year_cost(SECOND, unit)
         cost = sum(parts.values(), ZERO)
         at_target = cost - unit["control_year"] + unit["control_year_target"]
         out |= {"suppliers": SECOND["suppliers"], "deliverables": n, "direct_cost": show(cost), "gross_margin": _pct(total, cents(cost)),
                 "direct_cost_at_control_target": show(at_target), "gross_margin_at_control_target": _pct(total, cents(at_target)),
                 "cost_by_line": {k: show(v) for k, v in parts.items()}}
     return out
+
+
+def _year_cost(customer: dict, unit: dict[str, Decimal]) -> tuple[int, dict[str, Decimal]]:
+    """What a worked customer's year costs to deliver, by line: Control's budget, every evaluation and each supplier's
+    monthly batch, and each accepted deliverable. The count of deliverables comes first."""
+    n = int(money(customer["accepted"]) / money(customer["deliverable"]))
+    return n, {"control": unit["control_year"], "meter": 12 * (customer["evaluations"] * unit["evaluation"] + customer["suppliers"] * unit["pair_month"]),
+               "acceptance": n * unit["accepted_deliverable"]}
+
+
+def sensitivity(unit: dict[str, Decimal], rates: tuple = SENSITIVITY_BPS) -> dict:
+    """Pricing power: each worked customer's year at a REALISED Acceptance rate of `rates` basis points, the rate that is
+    left of the price book once volume rebates, credits for disputed or reversed value and any discount are applied.
+    Control, Meter and direct cost do not move with the rate; revenue and gross margin do. `book_bps` is what the price
+    book itself realises for that customer; a rate above it is printed and marked: the book does not reach it."""
+    out = []
+    for name, c in (("the worked customer", WORKED), ("the second worked customer", SECOND)):
+        e = estimate(c["plan"], c["evaluations"], c["accepted"])
+        value = money(c["accepted"])
+        fixed = Decimal(e["control"].replace(",", "")) + Decimal(e["meter"].replace(",", "")) + Decimal(e["records"].replace(",", ""))
+        book = (Decimal(e["acceptance"].replace(",", "")) - Decimal(e["rebate"].replace(",", ""))) / value * 10_000
+        cost = cents(sum(_year_cost(c, unit)[1].values(), ZERO))
+        rows = []
+        for bps in rates:
+            acceptance = cents(value * bps / 10_000)
+            revenue = fixed + acceptance
+            rows.append({"bps": bps, "acceptance": show(acceptance), "revenue": show(revenue), "gross": show(revenue - cost), "gross_margin": _pct(revenue, cost),
+                         "acceptance_share": share(acceptance, revenue), "above_book": Decimal(bps) > book})
+        out.append({"customer": name, "plan": c["plan"], "accepted_a_year": e["accepted_a_year"], "evaluations_a_month": c["evaluations"],
+                    "fixed": show(fixed), "direct_cost": show(cost), "book_bps": f"{book:.1f}", "one_bps": show(value / 10_000), "rows": rows})
+    return {"rates_bps": list(rates), "customers": out, "kind": "gross",
+            "realised": "the Acceptance rate left after volume rebates, credits for disputed or reversed value and discounts",
+            "note": "Examples at the price book's prices; no such customer exists and nothing has been sold. Direct cost is the unit-cost file's budget."}
+
+
+def sensitivity_lines(s: dict) -> list[str]:
+    out = [f"Pricing power: the worked customers' year at a realised Acceptance rate of {', '.join(str(r) for r in s['rates_bps'])} bps.",
+           f"Realised: {s['realised']}. Control, Meter and direct cost stay where they are. USD a year.", GROSS]
+    for c in s["customers"]:
+        out += ["", f"{c['customer'].capitalize()}: {c['plan']}, {c['evaluations_a_month']:,} evaluations a month, {c['accepted_a_year']} accepted a year. "
+                f"The price book realises {c['book_bps']} bps; one bps is {c['one_bps']}.",
+                f"  Control, Meter and Record: {c['fixed']}. Direct cost: {c['direct_cost']}.",
+                f"  {'bps':>4} {'Acceptance':>14} {'revenue':>14} {'gross':>14}  gross margin  Acceptance's share"]
+        out += [f"  {r['bps']:>4} {r['acceptance']:>14} {r['revenue']:>14} {r['gross']:>14}  {r['gross_margin']:>12}  {r['acceptance_share']:>8}"
+                + ("  (above the book's own rate: not reached)" if r["above_book"] else "") for r in c["rows"]]
+    w = s["customers"][-1]
+    out += ["", f"Defending the rate matters more than shaving verification time: each bps given up costs {w['customer']} {w['one_bps']} a year, "
+            f"and its whole direct cost is {w['direct_cost']}.",
+            "What would defend it, measured separately: recoveries, avoided labour, financing benefit. None is measured.", s["note"]]
+    return out
+
+
+def release_split(amount: int, relayer: str = "outside", first: bool = False, unit: dict[str, Decimal] | None = None) -> dict:
+    """One release on chain, in the token's base units (6 decimals), under knos_pay 2.2, counted once. The funder pays
+    the fee on top of the amount; the amount is the payee's principal and is never revenue. Out of the fee the relayer
+    takes its tip (0.30 on a payee's first payment, when it also puts up the token account's rent). With an OUTSIDE
+    relayer, Knos's revenue is the fee owner's part and the chain costs are the relayer's, paid out of its tip: none is
+    Knos's cost. When KNOS relays, the whole fee is Knos's revenue and the chain costs and the rent are its cost. The
+    tip is never Knos's revenue and Knos's cost at once. On devnet all of it is test money: 0 revenue."""
+    from . import fees
+    from .settle.v2 import pay
+
+    if relayer not in ("outside", "knos"):
+        raise BillingError("relayer: outside or knos")
+    if isinstance(amount, bool) or not isinstance(amount, int) or amount < pay.ORDER_MIN_AMOUNT:
+        raise BillingError(f"amount: base units, at least {pay.ORDER_MIN_AMOUNT:,}")
+    unit = unit or {"release_chain": MORE_COSTS["release_chain"], "payee_account": MORE_COSTS["payee_account"]}
+    fee = Decimal(fees.NEW.order(amount)) / 1_000_000
+    tip = Decimal(min(pay.TIP_FIRST if first else pay.TIP, fees.NEW.order(amount))) / 1_000_000
+    chain = unit["release_chain"] + (unit["payee_account"] if first else ZERO)
+    mine = relayer == "knos"
+    revenue, cost = (fee, chain) if mine else (fee - tip, ZERO)
+    return {"build": fees.NEW.build, "relayer": relayer, "first": first, "amount": show(Decimal(amount) / 1_000_000), "principal_is_revenue": False,
+            "fee": show(fee), "tip": show(tip), "relayer_revenue": show(ZERO if mine else tip), "relayer_cost": f"{ZERO if mine else chain:.4f}",
+            "revenue": show(revenue), "direct_cost": f"{cost:.4f}", "devnet": RULES["devnet"], "rule": RULES["relayer"]}
+
+
+def ceilings(target: Decimal = TARGET) -> list[dict]:
+    """The most one unit may cost to deliver and keep `target` gross, at its price: an evaluation past the free ones; 10,000
+    settled at 20 bps (by contract, above the month's first million); a year of Business Control."""
+    keep = 1 - target
+    units = (("evaluation", METER_PRICE), ("10,000 settled at 0.20%", Decimal(10_000) * ACCEPT_TIERS[-1][1]), ("Control, Business, a year", CONTROL["business"]))
+    return [{"unit": what, "price": f"{price.normalize():f}", "ceiling": f"{(price * keep).normalize():f}"} for what, price in units]
+
+
+def support_hours(budget: Decimal = Decimal(5_000), rates: tuple = SUPPORT_RATES) -> list[dict]:
+    """What a delivery budget buys in hours of a person, at each rate in `rates` (USD an hour): see SUPPORT_RATES."""
+    return [{"rate": show(rate), "hours": f"{budget / rate:.1f}", "hours_a_month": f"{budget / rate / 12:.1f}", "what": what} for what, rate in rates]
 
 
 def floor_remedy(value: int = REMEDY[0], count: int = REMEDY[1]) -> dict:
@@ -826,11 +949,25 @@ def register(app: Any, help_lines: list | None = None) -> None:
             typer.echo(line)
 
     @bill.command("margin")
-    def margin_(month: Path = typer.Argument(..., help="a customer-month, as JSON"),
-                costs: Path = typer.Argument(..., help="a unit-cost file, as JSON (docs/unit_costs.json is one)"),
+    def margin_(month: Path = typer.Argument(None, help="a customer-month, as JSON (with --sensitivity: leave it out)"),
+                costs: Path = typer.Argument(None, help="a unit-cost file, as JSON (docs/unit_costs.json is one)"),
+                sensitivity_: bool = typer.Option(False, "--sensitivity", help="the worked customers at a realised Acceptance rate of 30, 20, 10 and 5 bps"),
                 as_json: bool = typer.Option(False, "--json", help="print JSON")) -> None:
         """Revenue, direct cost and GROSS margin of one customer-month, line by line, at the unit costs of a file; the three leaks, the floor and netting."""
         from . import cli
+        if sensitivity_:
+            if month is None or costs is not None:
+                raise cli.Stop("--sensitivity takes one file: the unit costs.", "knos bill margin --sensitivity docs/unit_costs.json")
+            try:
+                unit = unit_costs(json.loads(month.read_text(encoding="utf-8-sig")))
+            except (OSError, ValueError) as why:
+                raise cli.Stop(f"a file could not be read: {why}", "Give a unit-cost file, as JSON.") from None
+            s = sensitivity(unit)
+            for line in ([json.dumps(s, indent=2)] if as_json else sensitivity_lines(s)):
+                typer.echo(line)
+            return
+        if month is None or costs is None:
+            raise cli.Stop("give a customer-month and a unit-cost file", "knos bill margin month.json docs/unit_costs.json")
         try:
             data, unit = (json.loads(p.read_text(encoding="utf-8-sig")) for p in (month, costs))
         except (OSError, ValueError) as why:

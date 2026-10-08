@@ -618,7 +618,7 @@ const OLD_ROWS = [["5.00", "0.40", "8.00%"], ["20.00", "0.50", "2.50%"], ["1,000
 chain.payVersion = 1;
 const at21 = await feesOf("knos_pay 2.1 answers");
 check("while knos_pay 2.1 is live the page shows the 0.3.14 fee, says the program charges it now, and what 2.2 will charge", at21.rule === "0.3.14" && at21.source === "chain"
-  && /a fee of 2\.50 on top, which is 2\.50% of the amount/.test(at21.cost) && at21.note === `The program on devnet charges this now (the 0.3.14 fee). From knos_pay 2.2 this order pays 0.30. ${KEEPS}`
+  && /a fee of 2\.50 on top, which is 2\.50% of the amount/.test(at21.cost) && at21.note === `The program on devnet charges this now (the fee it charges before the upgrade). From knos_pay 2.2 this order pays 0.30. ${KEEPS}`
   && JSON.stringify(at21.rows) === JSON.stringify(OLD_ROWS) && /^Fee today: 2\.5% of the first 1,000, 1% to 50,000, 0\.5% above, at least 0\.40 test USDC/.test(at21.under) && at21.under.endsWith(KEEPS), at21);
 chain.payVersion = 2;
 const at22 = await feesOf("knos_pay 2.2 answers");
@@ -638,7 +638,7 @@ chain.feed = { not: "a feed" };
 const nobody = await feesOf("nobody answers");
 check("nobody answers: the 0.3.18 number with both rules said, never a rule claimed as live", nobody.rule === "0.3.18" && nobody.source === "none"
   && nobody.note === `This is the fee from knos_pay 2.2. Until that upgrade is live the public program charges 2.50 on this order. ${KEEPS}`
-  && /once knos_pay 2\.2 is live; until that upgrade executes the public program charges the 0\.3\.14 fee \(2\.5% of the first 1,000, 1% to 50,000, 0\.5% above, at least 0\.40\)/.test(nobody.under) && nobody.under.endsWith(KEEPS), nobody);
+  && /once knos_pay 2\.2 is live; until that upgrade executes the public program charges the fee it charges before the upgrade \(2\.5% of the first 1,000, 1% to 50,000, 0\.5% above, at least 0\.40\)/.test(nobody.under) && nobody.under.endsWith(KEEPS), nobody);
 chain.payVersion = 1; chain.feed = null;
 
 await browser.close(); server.close();

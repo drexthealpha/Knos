@@ -4,6 +4,8 @@
 // made from the rows on screen, in the browser, not fetched.
 import { jsonFile, tableHtml, sourceHtml, isLogin, KIND_WORDS } from "./records.js";
 import { show } from "./price.js";
+/** A statement's amount as a person reads it: 1500.00 as 1,500.00 (the files keep the plain form). */
+const group = (text) => String(text ?? "").replace(/^(-?)(\d{4,})/, (m, sign, whole) => sign + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ","));
 import { chained as auditChained, totals as auditTotals, auditWrite, recordsOf, exportAs, readRefs, FORMATS, UNVERIFIED } from "./finance_data.js";
 import { objectsHtml, chipOf } from "./console.js";
 import { statementCells, statementCsv, statementDigest, statementExport, statementLines, statementGrn, STATEMENT_KIND, STATEMENT_FORMATS, LINE_WORDS, PAY_WORDS, LABEL, HANDED } from "./finance_data.js";
@@ -287,7 +289,7 @@ export function grnHtml(esc, note) {
   return `<section class="k-grn" data-grn="${esc(i.id)}" data-match="${note.match ? "1" : "0"}"><p class="k-kicker">Line ${esc(i.line)}: <span class="k-state" data-state="${note.match ? "agreed" : "disputed"}">${note.match ? "match" : "mismatch"}</span></p>
     <div class="k-statement-totals">${card("order", "Purchase order", o ? [["number", o.number], ["terms", o.terms_hash], ["approver", o.approver], ["price", o.price]] : [["none", "on record"]])}
       ${card("goods", "Receipt of goods", [["note", g.reference || "none"], ["evaluator", g.evaluator], ["assurance", g.assurance], ["evidence", g.evidence]])}
-      ${card("invoice", "Invoice line", [["id", i.id], ["amount", `${i.amount || "not priced"} ${i.currency}`.trim()], ["state", LINE_WORDS[i.state]], ["payment", PAY_WORDS[i.payment]]])}</div>
+      ${card("invoice", "Invoice line", [["id", i.id], ["amount", `${group(i.amount) || "not priced"} ${i.currency}`.trim()], ["state", LINE_WORDS[i.state]], ["payment", PAY_WORDS[i.payment]]])}</div>
     ${note.mismatches.length ? `<details class="k-more"><summary>Show why</summary><ul>${note.mismatches.map((w) => `<li class="fine">${esc(w)}</li>`).join("")}</ul></details>` : ""}</section>`;
 }
 
@@ -321,14 +323,14 @@ export function renderStatements(el, ctx = {}) {
       <h3>Invoice ${esc(st.invoice)}${st.supplier ? `, ${esc(st.supplier)}` : ""}</h3>
       <p class="status ${whole ? "ok" : "bad"}" id="aps-whole">${whole ? "Unchanged since it was made." : "Changed after it was made. Do not approve it."}</p>
       <div class="k-statement-totals">${c.totals.map(([state, lines, amount]) => `<div class="k-card" data-total="${esc(state)}"><p class="k-kicker">${esc(state)}</p>
-        <p class="k-num">${esc(amount || lines)}</p><p class="fine">${esc(lines)} ${lines === "1" ? "line" : "lines"}${st.currency && amount ? `, ${esc(st.currency)}` : ""}</p></div>`).join("")}</div>
+        <p class="k-num">${esc(group(amount) || lines)}</p><p class="fine">${esc(lines)} ${lines === "1" ? "line" : "lines"}${st.currency && amount ? `, ${esc(st.currency)}` : ""}</p></div>`).join("")}</div>
       <div class="k-statement-tools no-print"><button type="button" class="k-btn" id="aps-csv">Download CSV</button>
         <button type="button" class="k-btn quiet" id="aps-print">Print or save as PDF</button>
         ${STATEMENT_FORMATS.map((f) => `<button type="button" class="k-btn quiet" data-aps-export="${esc(f)}">${esc({ quickbooks: "QuickBooks file", netsuite: "NetSuite file", generic: "Every line, generic" }[f])}</button>`).join(" ")}
         <span class="fine" id="aps-label">${esc(LABEL)}</span></div>
       <div class="k-table" id="aps-answers">${tableHtml(esc, ["question", "answer"], c.answers.map((a) => a.map(esc)))}</div>
       <div class="k-table" id="aps-lines">${tableHtml(esc, SHOWN, c.rows.map((r, n) => SHOWN.map((col) => (col === "state" ? `<span class="k-state" data-state="${esc(now[n].state)}">${esc(r[at(col)])}</span>`
-        : col === "evidence" ? link(r[at(col)]) : col === "amount" ? `<span class="k-num">${esc(r[at(col)])}</span>` : esc(r[at(col)])))))}</div>
+        : col === "evidence" ? link(r[at(col)]) : col === "amount" ? `<span class="k-num">${esc(group(r[at(col)]))}</span>` : esc(r[at(col)])))))}</div>
       <details class="k-more" id="aps-grn"><summary>Match order, receipt, invoice</summary>${now.map((r) => grnHtml(esc, statementGrn(st, status, r.invoice_line))).join("")}</details>
       <details class="k-more"><summary>Show every id</summary>
         <div class="k-table" id="aps-ids">${tableHtml(esc, ["line", "deliverable", "evaluations", "invoice line", "settlement", "evidence sha256", "purchase order", "goods-received note"],

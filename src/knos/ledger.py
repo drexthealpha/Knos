@@ -2084,6 +2084,8 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                                                                                     "asked for it): check it and keep it, and ask GitHub for none"),
                check: Path = typer.Option(None, "--check", metavar="CLOSE", help="check the tokens kept beside this close record, with no network"),
                events_log: Path = typer.Option(None, "--events", metavar="LOG", help="the log of events (knos events): the month is not closed while a number a sender gave never arrived and no acknowledged correction explains it"),
+               ack: list[Path] = typer.Option(None, "--ack", help="with --events: a party's signed acknowledgement or closure of the month (`knos events sign`); repeat"),
+               terms_file: list[Path] = typer.Option(None, "--terms", help="with --events and --ack: the Knos Terms 3 file that names the parties' keys; repeat"),
                remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory archives the month's exceptions once it is agreed"),
                memory_dir: Path = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store")) -> None:
         """Close a month: set the two ledgers against each other and write the record both sides sign. `agreed`, or `disputed` with every line in dispute.
@@ -2141,7 +2143,10 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             beside_log = events_log.with_name(events_log.name + ".jwks.json")
             try:
                 log_keys = json.loads(beside_log.read_text(encoding="utf-8")) if beside_log.exists() else None
-                missing = events.close_problems(events.load(events_log, log_keys), month_of(month), signatures_checked=log_keys is not None)
+                acks = [json.loads(p.read_text(encoding="utf-8")) for p in ack or []] if ack or terms_file else None
+                docs = [json.loads(p.read_text(encoding="utf-8")) for p in terms_file or []]
+                missing = events.close_problems(events.load(events_log, log_keys), month_of(month), signatures_checked=log_keys is not None,
+                                                acks=acks, terms_docs=docs)
             except (Bad, events.Bad, OSError, ValueError) as why:
                 raise Stop(f"{str(why).rstrip('.')}.") from None
             if missing:

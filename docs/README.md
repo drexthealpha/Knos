@@ -10,7 +10,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | document | what it answers |
 |---|---|
 | [STORY.md](STORY.md) | one task in seven steps on one page, each with its evidence |
-| [JUDGES.md](JUDGES.md) | a judge's one page: six judged things, one sentence and one link each, and what is not real yet |
+| [JUDGES.md](JUDGES.md) | a judge's one page: six criteria and seven factors, one sentence and one link each, and what is not real yet |
 | [MANIFEST.md](MANIFEST.md) | this release on one page: source, the build live at each public id, every capability's stage, the limits |
 | [CAPABILITIES.md](CAPABILITIES.md) | every capability, the stage it has reached, and the file or transaction that shows it |
 | [BENCH.md](BENCH.md) | every measured number, with the command that reproduces it |
@@ -32,6 +32,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | document | what it answers |
 |---|---|
 | [WHY.md](WHY.md) | why a signed run and not a description |
+| [VENDORS.md](VENDORS.md) | a page per rated agent vendor: its numbers, its right of reply, and how to earn the badge |
 | [INDEX.md](INDEX.md) | the Agent PR Index: how often "tests pass" agrees with the checks, by agent and week |
 | [MARKET.md](MARKET.md) | who buys, the price book, the costs, and what can stop this |
 | [PILOT.md](PILOT.md) | the one offer for money: one buyer, its suppliers, 30 days |
@@ -52,7 +53,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [DISPUTES.md](DISPUTES.md) | who can do what in a dispute, at each state, with nobody from Knos |
 | [LIABILITY.md](LIABILITY.md) | each way the count can be wrong, what the software does, and what nobody has signed for |
 | [OUTCOMES.md](OUTCOMES.md) | outcomes other than a merged pull request |
-| [X402.md](X402.md) | a proposal: pay on signed acceptance over x402 |
+| [X402.md](X402.md) | a proposal: pay on signed acceptance over x402, open upstream as a draft pull request |
 
 ## 4. How do I use it?
 
@@ -95,6 +96,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [SECURITY.md](SECURITY.md) | who is trusted for what, every command and term, and every limit |
 | [ATTESTOR.md](ATTESTOR.md) | what the forge's signature proves and does not, and five ways to narrow the gap; two exist |
 | [MAINNET.md](MAINNET.md) | the gates between devnet and mainnet; not planned for this release |
+| [BOUNDARY.md](BOUNDARY.md) | where enterprise funds live, and which program enforces each spending limit and approval |
 | [ENFORCEMENT.md](ENFORCEMENT.md) | each route that can spend, against each restriction: enforced by the program, by the workflow, advisory, or outside |
 | [CONTROLS.md](CONTROLS.md) | for a security or procurement review: what exists and what does not |
 | [PRIVACY.md](PRIVACY.md) | what goes in public, and what does not |

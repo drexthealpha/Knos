@@ -291,7 +291,8 @@ def test_the_sandbox_keeps_pull_request_code_from_the_judges_files_and_the_netwo
     v = variants(tmp_path, PY, spy={"pkg/__init__.py": PY["pkg/__init__.py"] + SPY % victim})
     got = judge.judge(v["base"], v["spy"], CFG, sandbox="require", setup="cp spy.json /dev/null 2>/dev/null; true")
     assert got["passed"], got["reasons"]                               # an honest fix passes inside the sandbox
-    assert got["evidence"]["sandbox"] == {"user": judge.SANDBOX_UID, "network": "setup only"}
+    assert {k: got["evidence"]["sandbox"][k] for k in ("user", "network")} == {"user": judge.SANDBOX_UID, "network": "setup only"}
+    assert got["evidence"]["sandbox"]["outside_work"] == "read-only" and got["evidence"]["judged_in"] == "host sandbox"
     assert victim.read_text() == "passed=false"                        # it could not write the judge's file
 
 

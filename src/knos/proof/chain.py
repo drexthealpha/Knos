@@ -6,12 +6,29 @@ again. Two things here, both with nothing but the standard library (the watchdog
 
     python -m knos.proof.chain start --after <this run>     the handover: asked again after a 5xx, a 429 or no answer,
                                                             waiting 2, 4, 8, ... s (or what Retry-After says)
-    python -m knos.proof.chain watch                        the watchdog: starts a chain when none is alive
+    python -m knos.proof.chain watch                        the watchdog: starts a chain when none is alive, and
+                                                            replaces a run with no heartbeat in time
 
 GitHub may take a start and still answer with an error. So before a start is asked again the runs are listed, and a
 run that already took over ends the asking. When the listing fails too the start is asked again all the same: of
 two runs that take over from one run the worker's first step lets the older one go on, and of two runs nobody
 handed over to (two watchdogs, or a watchdog and a person) the older one. Nothing here reads a key.
+
+ALIVE MEANS A HEARTBEAT (0.3.21). In the 0.3.20 release run a run sat in its PyPI install wait, the watchdog counted it
+alive because it existed, and the chain was down until a person restarted it. So "a run exists" is no longer enough:
+
+    the heartbeat     the relay job's step HEARTBEAT, run right after the relay showed it starts with what was
+                      installed. GitHub lists each step of a job with its status and the time it completed
+                      (`GET /repos/{repo}/actions/runs/{id}/jobs`), so the watchdog reads the beat with no secret.
+    alive             queued for less than QUEUED_MOST; or in progress with a beat less than BEAT_MOST old; or in
+                      progress with no beat yet, started less than INSTALL_MOST ago (it is installing).
+    stuck             in progress and none of that: no beat INSTALL_MOST after it started (an install that hangs), or
+                      a beat older than BEAT_MOST (a relay that hangs). The watchdog cancels it, waits until GitHub
+                      lists it ended (force-cancel when a cancel is not enough), and starts one run in its place.
+    unknown           GitHub did not list a run's jobs: that run counts as alive (two chains are worse than a late one).
+
+After a start the watchdog waits until GitHub lists the new run, so the next watchdog (they run one at a time) sees it:
+two watchdogs never start two chains.
 """
 from __future__ import annotations
 
@@ -29,6 +46,11 @@ ALIVE = ("queued", "in_progress", "requested", "waiting", "pending")     # every
 WAIT_MOST = 60                  # seconds: the longest wait between two tries, whatever Retry-After says
 TRIES = 6                       # 2 + 4 + 8 + 16 + 32 s of waiting at most
 AGAIN = (429, 500, 502, 503, 504)
+HEARTBEAT = "heartbeat: the relay starts with what was installed"     # the relay job's step that is the beat (worker.yml)
+INSTALL_MOST = 8 * 60           # seconds from a run's start to its beat: checkout, uv, the install (6 minutes at most), the smoke step
+BEAT_MOST = 9 * 60              # seconds a run may go on after its beat: about 4.5 minutes of relay, the cache, the handover
+QUEUED_MOST = 15 * 60           # seconds a run may wait for a runner before it is replaced
+SEEN_TRIES = 5                  # listings after a start, 2 s apart, until GitHub lists the new run
 
 
 class Refused(Exception):
@@ -56,10 +78,41 @@ def call(path: str, data: dict | None = None, opener: Callable | None = None) ->
         return json.loads(resp.read() or b"null")
 
 
+def when(text: Any) -> float | None:
+    """GitHub's time ("2026-10-08T05:22:00Z") as seconds since 1970; None for anything else."""
+    import datetime
+    try:
+        return datetime.datetime.strptime(str(text), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc).timestamp()
+    except ValueError:
+        return None
+
+
 def runs(repo: str, request: Callable = call) -> list[dict]:
-    """The newest 50 runs of the worker: id, status, title."""
+    """The newest 50 runs of the worker: id, status, title, and when it was made and started (None when not said)."""
     got = request(f"/repos/{repo}/actions/workflows/{WORKFLOW}/runs?per_page=50")
-    return [{"id": int(r["id"]), "status": str(r.get("status")), "title": str(r.get("display_title") or "")} for r in (got or {}).get("workflow_runs", [])]
+    return [{"id": int(r["id"]), "status": str(r.get("status")), "title": str(r.get("display_title") or ""), "created": when(r.get("created_at")),
+             "started": when(r.get("run_started_at") or r.get("created_at"))} for r in (got or {}).get("workflow_runs", [])]
+
+
+def beat(repo: str, run: int, request: Callable = call) -> float | None:
+    """When the run's HEARTBEAT step completed well; None when it has not (yet). Raises what the request raises."""
+    got = request(f"/repos/{repo}/actions/runs/{run}/jobs?filter=latest&per_page=100")
+    for job in (got or {}).get("jobs", []):
+        for step in job.get("steps") or []:
+            if step.get("name") == HEARTBEAT and step.get("status") == "completed" and step.get("conclusion") == "success":
+                return when(step.get("completed_at"))
+    return None
+
+
+def health(run: dict, beat_at: float | None, now: float) -> str:
+    """`alive` or `stuck` for a run that holds the chain (the module's text, "alive means a heartbeat")."""
+    if run["status"] != "in_progress":
+        made = run.get("created")
+        return "stuck" if made is not None and now - made > QUEUED_MOST else "alive"
+    if beat_at is not None:
+        return "alive" if now - beat_at <= BEAT_MOST else "stuck"
+    began = run.get("started")
+    return "alive" if began is None or now - began <= INSTALL_MOST else "stuck"
 
 
 def holders(listed: list[dict], me: int = 0) -> list[int]:
@@ -109,11 +162,49 @@ def start(repo: str, after: str = "", ref: str = "main", tries: int = TRIES, req
     return False
 
 
+def _ended(repo: str, ids: list[int], request: Callable, sleep: Callable[[float], None], tries: int = 6) -> bool:
+    """Lists the runs until none of `ids` is alive any more, 10 s apart. False when they still are."""
+    for n in range(tries):
+        try:
+            if not [r for r in runs(repo, request) if r["id"] in ids and r["status"] in ALIVE]:
+                return True
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        if n < tries - 1:
+            sleep(10.0)
+    return False
+
+
+def replace(repo: str, stuck: list[int], request: Callable = call, sleep: Callable[[float], None] = time.sleep, say: Callable[[str], None] = print) -> bool:
+    """Cancels the stuck runs and waits until GitHub lists them ended; asks a force-cancel for those a cancel did not end.
+    True when none of them is alive any more. A run that was cancelled starts nothing (its last step needs a relay step
+    that succeeded), so the chain it held is over."""
+    for rid in stuck:
+        try:
+            request(f"/repos/{repo}/actions/runs/{rid}/cancel", {})
+        except (OSError, ValueError) as e:
+            say(f"GitHub did not take the cancel of run {rid} ({type(e).__name__})")
+    if _ended(repo, stuck, request, sleep):
+        return True
+    for rid in stuck:
+        try:
+            request(f"/repos/{repo}/actions/runs/{rid}/force-cancel", {})
+        except (OSError, ValueError) as e:
+            say(f"GitHub did not take the force-cancel of run {rid} ({type(e).__name__})")
+    return _ended(repo, stuck, request, sleep)
+
+
 def watch(repo: str, me: int = 0, tries: int = TRIES, request: Callable = call, sleep: Callable[[float], None] = time.sleep,
-          say: Callable[[str], None] = print) -> str:
-    """The watchdog. `alive`: a run holds the chain, nothing is started. `started`: none did, and one was started.
+          say: Callable[[str], None] = print, now: Callable[[], float] = time.time, successor: bool = False) -> str:
+    """The watchdog. `alive`: a run holds the chain with a heartbeat (or is still installing within its time), nothing is
+    started. `started`: none did (or the ones that held it were stuck and are cancelled), and one was started.
     `unknown`: GitHub did not list the runs, so nothing is started (two chains are worse than a late one; the next
-    watchdog asks again). `failed`: none is alive and GitHub took no start."""
+    watchdog asks again). `stuck`: a stuck run would not end, so nothing is started. `failed`: GitHub took no start.
+
+    `successor`: the watchdog runs inside run `me` of the chain, whose relay did not succeed (worker.yml, job
+    `rewatch`). Run `me` is still in progress while this runs, and a first run ("relay") that finds a run of the chain
+    going ends at its first step; so the run started here takes over from `me` ("relay after <me>"), which that step
+    lets go on. A run that took over from `me` already holds the chain like any other: nothing is started then."""
     listed = None
     for n in range(1, 4):
         try:
@@ -127,11 +218,39 @@ def watch(repo: str, me: int = 0, tries: int = TRIES, request: Callable = call, 
         say("nothing is started: the next watchdog asks again")
         return "unknown"
     held = holders(listed, me)
-    if held:
-        say(f"the chain is alive (run {', '.join(map(str, held))}): nothing to do")
-        return "alive"
-    say("no run of the chain is queued or in progress: starting one")
-    return "started" if start(repo, "", tries=tries, request=request, sleep=sleep, say=say) else "failed"
+    stuck: list[int] = []
+    for run in [r for r in listed if r["id"] in held]:
+        beat_at = None
+        if run["status"] == "in_progress":
+            try:
+                beat_at = beat(repo, run["id"], request)
+            except (OSError, ValueError, KeyError, TypeError) as e:
+                say(f"the chain is alive as far as can be told (run {run['id']}: GitHub did not list its steps, {type(e).__name__}): nothing to do")
+                return "alive"
+        if health(run, beat_at, now()) == "alive":
+            said = "its heartbeat" if beat_at is not None else "installing" if run["status"] == "in_progress" else run["status"]
+            say(f"the chain is alive (run {run['id']}, {said}): nothing to do")
+            return "alive"
+        stuck.append(run["id"])
+    if stuck:
+        say(f"run {', '.join(map(str, stuck))} holds the chain with no heartbeat in time: cancelled, and one is started in its place")
+        if not replace(repo, stuck, request, sleep, say):
+            say("GitHub still lists the stuck run as going: nothing is started (it would end at its first step). The next watchdog asks again.")
+            return "stuck"
+    else:
+        say("no run of the chain is queued or in progress: starting one")
+    if not start(repo, str(me) if successor and me else "", tries=tries, request=request, sleep=sleep, say=say):
+        return "failed"
+    for n in range(SEEN_TRIES):     # so that the next watchdog, which runs after this one, finds the run this one started
+        try:
+            if holders(runs(repo, request), me):
+                return "started"
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        if n < SEEN_TRIES - 1:
+            sleep(2.0)
+    say("GitHub does not list the started run yet: a second start would end at its first step all the same")
+    return "started"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -142,13 +261,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--tries", type=int, default=TRIES)
     ap.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
     ap.add_argument("--ref", default="main")
+    ap.add_argument("--successor", action="store_true",
+                    help="watch: run inside a chain run whose relay did not succeed; a run it starts takes over from this one")
     a = ap.parse_args(argv)
     if not a.repo:
         ap.error("give --repo owner/name (or GITHUB_REPOSITORY)")
     try:
         if a.command == "start":
             return 0 if start(a.repo, a.after, a.ref, a.tries) else 1
-        return 1 if watch(a.repo, int(os.environ.get("GITHUB_RUN_ID") or 0), a.tries) == "failed" else 0
+        return 1 if watch(a.repo, int(os.environ.get("GITHUB_RUN_ID") or 0), a.tries, successor=a.successor) in ("failed", "stuck") else 0
     except Refused as no:
         print(f"stopped: {no}", file=sys.stderr)
         return 1

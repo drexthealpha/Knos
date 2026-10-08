@@ -26,7 +26,7 @@
     "public",
     "money"
    ],
-   "shows": "the title; then FIRST the judge's refusal of beat two with its reason, held while the number is said; then the issue that is the task, the buyer's funding comment, the order with its price, its acceptance terms and their hash, its deadline and the refund if nothing is accepted, and the supplier who takes it"
+   "shows": "the title; then FIRST the judge's refusal of beat two with its reason, held while the number is said; then the issue that is the task, the buyer's funding comment, the order with its price, its acceptance terms and their hash, its deadline and the refund if nothing is accepted, and the supplier who takes it; then the funding transaction's address on the explorer, held for a second"
   },
   {
    "moment": "two",
@@ -60,7 +60,7 @@
    "kind": "live",
    "faster": false,
    "captions": [],
-   "shows": "buyer and supplier each rebuilding the same statement from their own ledger, side by side, with the same digest"
+   "shows": "buyer and supplier each rebuilding the same statement from their own ledger, side by side, with the same digest; each side's statement file attached to the issue"
   },
   {
    "moment": "five",
@@ -72,7 +72,7 @@
     "public",
     "money"
    ],
-   "shows": "a token that already paid, sent again and refused by the program; the balance unchanged; the repeated evidence listed as a duplicate: no second payment"
+   "shows": "a token that already paid, sent again and refused by the program; the balance unchanged; the repeated evidence listed as a duplicate: no second payment; the refused transaction's address on the explorer"
   },
   {
    "moment": "six",
@@ -85,7 +85,7 @@
     "public",
     "money"
    ],
-   "shows": "the paying transaction and the supplier's balance before and after; the fee read from the chain while recording, never typed; the accounting export of the approved statement and its file; the bank instruction file with its caption if the build has it"
+   "shows": "the paying transaction and the supplier's balance before and after; the fee read from the chain while recording, never typed; the accounting export of the approved statement and its file; the bank instruction file with its caption if the build has it; if a payment fails instead, the line returned to payable and nothing paid twice; the paying transaction's address on the explorer"
   },
   {
    "moment": "seven",
@@ -96,7 +96,7 @@
    "captions": [
     "offline"
    ],
-   "shows": "a machine with the network off verifying the receipt file alone; docs/MANIFEST.md: each public program id, its build, its hash and its commit; the limits as one line; the front door"
+   "shows": "the period's archive from knos archive make, unpacked into an empty folder on a machine with the network off, and its own verify.py run with Python alone, no Knos installed; docs/MANIFEST.md: each public program id, its build, its hash and its commit; the limits as one line; the front door"
   }
  ]
 }

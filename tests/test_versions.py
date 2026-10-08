@@ -80,11 +80,12 @@ def test_a_release_that_changes_no_program_leaves_every_program_crate_where_its_
 
 
 def test_the_example_that_builds_against_a_tag_keeps_a_tag_that_exists():
-    """examples/reader_template takes the interface crate from GitHub by tag, and its lock holds that tag's commit. A
-    release's own tag exists only after the push, so no bump moves this one: it is the tag the frozen crate was made at."""
+    """examples/reader_template takes the interface crate as published on crates.io (since 0.3.21), at the version the
+    frozen crate was made at, and its lock holds that version from the registry. No bump moves it."""
     here = ROOT / "examples" / "reader_template"
-    [tag] = re.findall(r'git = "https://github.com/drexthealpha/Knos", tag = "v(\d+\.\d+\.\d+)"', (here / "Cargo.toml").read_text(encoding="utf-8"))
-    assert tag == b.FROZEN_AT and f"Knos?tag=v{tag}#" in (here / "Cargo.lock").read_text(encoding="utf-8")
+    [version] = re.findall(r'^knos-oidc-interface = "(\d+\.\d+\.\d+)"$', (here / "Cargo.toml").read_text(encoding="utf-8"), re.M)
+    assert version == b.FROZEN_AT
+    assert f'name = "knos-oidc-interface"\nversion = "{version}"\nsource = "registry+https://github.com/rust-lang/crates.io-index"' in (here / "Cargo.lock").read_text(encoding="utf-8")
     assert not [rel for rel in b.found()[0] if rel.startswith("examples/reader_template/")]
 
 

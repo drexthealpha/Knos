@@ -38,14 +38,15 @@
 // "title", "asks", "line", "facts": { ... }, "more": [...] }] }; its line is named by the facts of its parts.
 // A file holds one such object, a list of them, or { "receipts": [ ... ] }. A receipt missing a part is not shown.
 import { parse, pullOf, cents, money } from "./shadow.js";
-import { csvRows, statementLines, statementDigest, statementCsv, statementExport, statementUnits as units, statementAmount as amountOf, canonicalText,
+import { csvRows, statementLines, statementDigest, statementCsv, statementExport, statementUnits as units, statementAmount as amountOf, canonicalText, sha256Hex,
   STATEMENT_KIND, STATUS_KIND, PAY_WORDS, HANDED } from "./finance_data.js";
 import { fromShadow, approve as approveLines } from "./statement_make.js";
 import { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } from "./front_door_sample.js";
 
-export const EXCEPTIONS = ["disputed", "duplicate", "insufficient_evidence", "over_po", "replayed"];
-export const WORDS = { disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence", over_po: "over the purchase order", replayed: "replayed" };
-export const COLUMNS = [["supplier", "Supplier"], ["po", "Purchase order"], ["deliverable", "Agreed deliverable"], ["evidence", "Acceptance evidence"],
+export const EXCEPTIONS = ["disputed", "duplicate", "insufficient_evidence", "over_po", "over_limit", "replayed"];
+export const WORDS = { disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence", over_po: "over the purchase order", over_limit: "over your approval limit",
+  replayed: "replayed" };
+export const COLUMNS = [["supplier", "Supplier"], ["po", "Authorisation"], ["deliverable", "Agreed deliverable"], ["evidence", "Acceptance evidence"],
   ["amount", "Authorised amount"], ["exception", "Exception"], ["payment", "Payment status"]];
 export const PARTS = ["identity", "execution", "acceptance", "consequence", "assurance"];
 export const PRIVATE_PATH = "https://github.com/drexthealpha/Knos/blob/main/docs/PRIVATE.md";
@@ -54,7 +55,15 @@ export const SAMPLE_ORDERS = "pull_request,po_number,po_amount\nexample-co/store
   + "example-co/storefront#104,PO-1001,1500.00\nexample-co/storefront#105,PO-1001,1500.00\nexample-co/billing-internal#7,PO-1002,500.00\n";
 const REMEDY = { disputed: "Send the passing run for this change, or appeal.", duplicate: "Withdraw the line, or name the separate deliverable it is for.",
   replayed: "Withdraw the line: an earlier invoice was agreed for this deliverable.", insufficient_evidence: "Send evidence that this line was accepted.",
-  over_po: "Ask for the purchase order to be raised, or bill this line later." };
+  over_po: "Ask for the purchase order to be raised, or bill this line later.", over_limit: "Ask an approver whose limit covers this amount." };
+// THE POLICY an approval is made under. An ordinary line meets all three rules and is approved with the others in one
+// action; any other line is an exception and is read on its own. The version changes when a rule changes, so a record
+// made under version 1 is always read against version 1's rules. `limit` is the approver's own (null: none stated).
+export const POLICY = { id: "knos.approval-policy", version: 1, ordinary: ["the statement calls the line agreed", "the agreed lines stay within their purchase order",
+  "the line is within the approver's limit"] };
+export const RECORD_KIND = "knos-approval-record";
+/** An amount as a person reads it: 1500.00 as 1,500.00. Files keep the plain form; only the screen groups the digits. */
+export const group = (text) => String(text ?? "").replace(/^(-?)(\d{4,})/, (m, sign, whole) => sign + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ","));
 
 const PO_NAMES = ["po", "po_number", "po_no", "po_reference", "purchase_order"];
 const LIMIT_NAMES = ["po_amount", "po_limit", "po_value", "authorised", "authorized", "authorised_amount", "authorized_amount"];
@@ -107,7 +116,8 @@ export function readReceipts(doc) {
     reference: refOf(d.reference || d.pull_request), parts: partsOf(d) })).filter((r) => r.parts);
 }
 
-function rowsFrom(lines, scale, orders, receipts) {
+function rowsFrom(lines, scale, orders, receipts, limit = null) {
+  const cap_ = limit === null || limit === undefined || limit === "" ? null : units(String(limit), scale);
   const up = 10n ** BigInt(Math.max(0, scale - 2)), used = {};
   return lines.map((ln) => {
     const ref = String(ln.reference || "").toLowerCase(), listed = orders[ref], amount = units(ln.amount, scale);
@@ -115,21 +125,21 @@ function rowsFrom(lines, scale, orders, receipts) {
       : ln.po_reference ? { number: ln.po_reference, limit: null, source: "a goods-received note", used: 0n } : null;
     let kind = ln.state === "agreed" ? null : ln.state === "duplicate" && /^statement /.test(ln.duplicate_of || "") ? "replayed" : ln.state;
     let reason = ln.why ? `${ln.why[0].toUpperCase()}${ln.why.slice(1)}.` : "";
-    if (!kind && po && po.limit !== null) {
-      const next = (used[po.number] || 0n) + amount;
-      if (next > po.limit) { kind = "over_po"; reason = `Purchase order ${po.number} allows ${amountOf(po.limit, scale)}; agreed lines reach ${amountOf(next, scale)}.`; } else used[po.number] = next;
-    }
+    const next = po ? (used[po.number] || 0n) + amount : 0n;
+    if (!kind && po && po.limit !== null && next > po.limit) { kind = "over_po"; reason = `Purchase order ${po.number} allows ${group(amountOf(po.limit, scale))}; agreed lines reach ${group(amountOf(next, scale))}.`; }
+    if (!kind && cap_ !== null && amount > cap_) { kind = "over_limit"; reason = `Your approval limit is ${group(amountOf(cap_, scale))}; this line is ${group(amountOf(amount, scale))}.`; }
+    if (!kind && po) used[po.number] = next;
     if (po) po.used = used[po.number] || 0n;
     const receipt = receipts.find((r) => (r.invoice_line && r.invoice_line === ln.invoice_line) || (!r.invoice_line && r.deliverable && r.deliverable === ln.deliverable && ln.state !== "duplicate")
       || (!r.invoice_line && !r.deliverable && r.reference && r.reference === ref && ln.state !== "duplicate"));
     return { line: ln.line, id: ln.invoice_line, supplier: ln.supplier || "", reference: ln.reference || "", po, amount: ln.amount || "", authorised: kind ? amountOf(0n, scale) : ln.amount || "",
-      kind, reason, approved: ln.approved_by || "", payment: kind === "over_po" ? "held here" : `${ln.approved_by ? "approved, " : ""}${PAY_WORDS[ln.payment] || ln.payment}`,
+      kind, reason, approved: ln.approved_by || "", payment: kind === "over_po" || kind === "over_limit" ? "held here" : `${ln.approved_by ? "approved, " : ""}${PAY_WORDS[ln.payment] || ln.payment}`,
       parts: receipt ? receipt.parts : null, ln };
   });
 }
 /** The rows of a statement as they stand with its status file: each line's purchase order, what is authorised, its
  *  exception (one of EXCEPTIONS, or null) and the reason in one sentence. */
-export const rowsOf = (st, status = null, orders = {}, receipts = []) => rowsFrom(statementLines(st, status), st.scale, orders, receipts);
+export const rowsOf = (st, status = null, orders = {}, receipts = [], limit = null) => rowsFrom(statementLines(st, status), st.scale, orders, receipts, limit);
 /** The rows of an invoice with no statement: nothing was checked, so nothing is agreed and every line is an exception. */
 export const uncheckedRows = (invoice, orders = {}) => rowsFrom(invoice.lines.map((ln) => ({ line: ln.line, reference: ln.pr, supplier: ln.supplier, amount: ln.amount === null ? "" : money(ln.amount),
   state: "insufficient_evidence", why: "no statement covers this line", payment: "held", evaluations: [], evidence: "", evidence_sha256: "", duplicate_of: "", invoice_line: "", deliverable: "",
@@ -139,10 +149,55 @@ export const uncheckedRows = (invoice, orders = {}) => rowsFrom(invoice.lines.ma
 export function messageOf(row, st) {
   const unit = st && st.currency ? ` ${st.currency}` : "", invoice = st ? st.invoice : "", name = row.supplier || (st && st.supplier) || "supplier";
   return { subject: `Invoice ${invoice}, line ${row.line}: ${WORDS[row.kind]}`,
-    body: [`To ${name},`, "", `Line ${row.line} of invoice ${invoice}${row.reference ? ` (${row.reference})` : ""}${row.amount ? `, ${row.amount}${unit},` : ""} is not approved.`,
+    body: [`To ${name},`, "", `Line ${row.line} of invoice ${invoice}${row.reference ? ` (${row.reference})` : ""}${row.amount ? `, ${group(row.amount)}${unit},` : ""} is not approved.`,
       `It is held as: ${WORDS[row.kind]}.`, `Reason: ${row.reason}`, `What settles it: ${REMEDY[row.kind]}`, "",
       "The agreed lines of this invoice are approved separately; this line does not hold them back.",
       ...(st && st.sha256 ? [`Statement sha256: ${st.sha256}`] : []), ...(row.id ? [`Invoice line: ${row.id}`] : [])].join("\n") };
+}
+
+// ---- the approval record ---------------------------------------------------------------------------------------------------
+// What an approver can defend later: the policy (its version and the limit), who, when, why, and a snapshot of every line
+// approved (its amount, state, evaluations, evidence, purchase order and receipt) with the sha256 of that snapshot. The
+// record's own sha256 covers all of it. Dropped back on the page with its statement (and the same invoice file and
+// receipts), each line is worked out again and compared: the page says whether the approval still matches its evidence.
+const sha = (text) => sha256Hex(text);
+async function snapshot(row, scale) {
+  const ln = row.ln;
+  return { line: row.line, invoice_line: row.id, deliverable: ln.deliverable || "", reference: row.reference, amount: row.amount, state: ln.state || "",
+    evaluations: [...(ln.evaluations || [])], evidence_sha256: ln.evidence_sha256 || "", po: row.po ? row.po.number : "",
+    po_limit: row.po && row.po.limit !== null ? amountOf(row.po.limit, scale) : "", receipt_sha256: row.parts ? await sha(canonicalText(row.parts)) : "" };
+}
+export const policyOf = (limit = null) => ({ ...POLICY, limit: limit === null || limit === undefined || limit === "" ? null : String(limit) });
+const recordDigest = (rec) => sha(canonicalText({ ...rec, sha256: "" }));
+/** The approval record of `rows` (the lines just approved) of statement `st`. who: { by, role, why, on, at, limit }. */
+export async function recordOf(st, rows, who) {
+  const lines = await Promise.all(rows.map((r) => snapshot(r, st.scale))), policy = policyOf(who.limit);
+  const rec = { kind: RECORD_KIND, version: 1, sha256: "", statement: st.sha256, invoice: st.invoice, supplier: st.supplier || "", buyer: st.buyer || "", currency: st.currency || "",
+    policy, policy_sha256: await sha(canonicalText(policy)), by: String(who.by).trim(), role: String(who.role).trim(), why: String(who.why || "").trim(), on: who.on, at: who.at,
+    amount: amountOf(rows.reduce((a, r) => a + units(r.amount, st.scale), 0n), st.scale), lines, evidence_sha256: await sha(canonicalText(lines)) };
+  rec.sha256 = await recordDigest(rec);
+  return rec;
+}
+const FIELD_WORDS = { amount: "amount", state: "state", evaluations: "evaluations", evidence_sha256: "evidence", po: "purchase order", po_limit: "purchase order",
+  receipt_sha256: "receipt", deliverable: "deliverable", reference: "deliverable" };
+/** Does an approval record still match its evidence? { ok, said, changed: [{ line, what }] }. `st`, `rows`: what the page
+ *  holds now (rowsOf with the same invoice file and receipts); without its statement only the record itself is checked. */
+export async function checkRecord(rec, st = null, rows = []) {
+  if (!rec || rec.kind !== RECORD_KIND) return { ok: false, said: "That is not an approval record.", changed: [] };
+  if ((await recordDigest(rec)) !== rec.sha256 || (await sha(canonicalText(rec.policy))) !== rec.policy_sha256 || (await sha(canonicalText(rec.lines))) !== rec.evidence_sha256)
+    return { ok: false, said: "This approval record was changed after it was made.", changed: [] };
+  if (!st) return { ok: true, partial: true, said: "Record intact. Add its statement to check the evidence.", changed: [] };
+  if (st.sha256 !== rec.statement) return { ok: false, said: "This record is for another statement.", changed: [] };
+  const changed = [];
+  for (const was of rec.lines) {
+    const row = rows.find((r) => r.id === was.invoice_line);
+    if (!row) { changed.push({ line: was.line, what: ["line"] }); continue; }
+    const now = await snapshot(row, st.scale);
+    const what = [...new Set(Object.keys(was).filter((k) => canonicalText(was[k]) !== canonicalText(now[k])).map((k) => FIELD_WORDS[k] || k))];
+    if (what.length) changed.push({ line: was.line, what });
+  }
+  return changed.length ? { ok: false, changed, said: `${changed.length === 1 ? "Line" : "Lines"} ${changed.map((c) => c.line).join(", ")} changed since approval: ${[...new Set(changed.flatMap((c) => c.what))].join(", ")}.` }
+    : { ok: true, changed, said: `This approval still matches its evidence: ${rec.lines.length} ${rec.lines.length === 1 ? "line" : "lines"}, approved ${rec.on}.` };
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -163,6 +218,7 @@ const STYLE = `.approver{min-width:0}.approver [hidden]{display:none}.approver .
 .ap-ev>td{padding:0;border-top:0}.ap-ev>td>div{margin:4px 2px 12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius,12px);background:var(--paper-2);box-shadow:var(--depth-1);animation:ap-in var(--dur-2) var(--ease)}
 .ap-ev h4{margin:0 0 6px}.ap-ev dl{margin:6px 0}.ap-ev dd{overflow-wrap:anywhere}.ap-parts{list-style:none;padding:0;margin:0;display:grid;gap:8px}.ap-parts li{border-left:3px solid var(--line);padding:0 0 0 10px}.ap-parts li[data-part=assurance]{border-color:var(--accent)}
 @keyframes ap-in{from{opacity:0;translate:0 -4px}}
+.approver [data-ap=check]{font-weight:600}.approver [data-ok=yes]{color:var(--ok)}.approver [data-ok=no]{color:var(--bad)}.ap-decide{margin:12px 0}
 .ap-queue ol{list-style:none;padding:0;margin:0}.ap-queue li{border-top:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}.ap-queue li p{margin:0 0 8px}.ap-queue li b{color:var(--bad)}
 .ap-msg textarea{min-height:190px;font-size:14px}.ap-sign{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px;align-items:end;margin:12px 0}.ap-sign label{display:grid;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
 .ap-sign input,.ap-pay input{width:100%;box-sizing:border-box}.ap-pay{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:12px;align-items:end;margin:12px 0}.ap-pay label{display:grid;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
@@ -172,22 +228,24 @@ const STYLE = `.approver{min-width:0}.approver [hidden]{display:none}.approver .
 @media (prefers-reduced-motion:reduce){.ap-ev>td>div{animation:none}.approver .ap-drop,.approver button.ap-cell{transition:none}}`;
 
 /** What one cell opens: [[name, value, href]] and, for the evidence of a line with a receipt, its five parts. */
-function evidenceOf(row, key, st) {
+function evidenceOf(row, key, st, limit = null) {
   const ln = row.ln, scale = st ? st.scale : 2, unit = st && st.currency ? ` ${st.currency}` : "", none = "none on file";
   if (key === "supplier") return { title: "Who billed this line", facts: [["supplier", row.supplier || "not named"], ["invoice", st ? st.invoice : "no statement"], ["buyer", (st && st.buyer) || "not named"], ["statement date", st ? st.date : ""]] };
-  if (key === "po") return { title: "What was authorised", facts: row.po ? [["purchase order", row.po.number], ["its limit", row.po.limit === null ? "not stated" : `${amountOf(row.po.limit, scale)}${unit}`],
-    ["agreed against it", `${amountOf(row.po.used, scale)}${unit}`], ["read from", row.po.source], ["who checks the limit", "this page, as advice: no program enforces a purchase order"]]
-    : [["purchase order", none], ["how to name one", "add po_number and po_amount columns to the invoice file"]] };
+  const policy = [["policy", `${POLICY.id} version ${POLICY.version}: ${POLICY.ordinary.join("; ")}`], ["approver's limit", limit ? `${group(limit)}${unit}` : "none stated"],
+    ["approved by", row.approved || "nobody yet"]];
+  if (key === "po") return { title: "What was authorised", facts: [...(row.po ? [["purchase order", row.po.number], ["its limit", row.po.limit === null ? "not stated" : `${group(amountOf(row.po.limit, scale))}${unit}`],
+    ["agreed against it", `${group(amountOf(row.po.used, scale))}${unit}`], ["read from", row.po.source], ["who checks the limit", "this page, as advice: no program enforces a purchase order"]]
+    : [["purchase order", none], ["how to name one", "add po_number and po_amount columns to the invoice file"]]), ...policy] };
   if (key === "deliverable") return { title: "What was to be delivered", facts: [["named on the invoice", row.reference || "nothing", ln.evidence && /\/pull\/\d+$/.test(ln.evidence) ? ln.evidence : ""], ["deliverable id", ln.deliverable || none],
     ["invoice line id", ln.invoice_line || none], ["billed before", ln.duplicate_of || "no"]] };
   if (key === "evidence") return { title: "Why this line is, or is not, accepted", parts: row.parts,
     facts: [["evaluations", ln.evaluations.length ? ln.evaluations.join(" ") : "none"], ["assurance", ln.assurance || "not evaluated"], ["evidence", ln.evidence || "none", ln.evidence], ["evidence sha256", ln.evidence_sha256 || "none"],
       ...(st ? [["made from", st.source === "shadow" ? "the invoice against GitHub's record, which GitHub does not sign" : st.source === "month" ? "a closed month of the meter" : st.source]] : []),
       ...(row.parts ? [] : [["receipt", "none given for this line: drop its five parts to read them here"]])] };
-  if (key === "amount") return { title: "What may be paid", facts: [["billed", row.amount ? `${row.amount}${unit}` : "no amount"], ["authorised", `${row.authorised || "nothing"}${row.authorised ? unit : ""}`],
-    ["why", row.kind ? `held: ${WORDS[row.kind]}` : "the line is agreed"], ...(row.po && row.po.limit !== null ? [["purchase order limit", `${amountOf(row.po.limit, scale)}${unit}`]] : [])] };
+  if (key === "amount") return { title: "What may be paid", facts: [["billed", row.amount ? `${group(row.amount)}${unit}` : "no amount"], ["authorised", `${group(row.authorised) || "nothing"}${row.authorised ? unit : ""}`],
+    ["why", row.kind ? `held: ${WORDS[row.kind]}` : "the line is agreed"], ...(row.po && row.po.limit !== null ? [["purchase order limit", `${group(amountOf(row.po.limit, scale))}${unit}`]] : [])] };
   if (key === "exception") return { title: row.kind ? `Exception: ${WORDS[row.kind]}` : "No exception", facts: row.kind ? [["reason", row.reason], ["what settles it", REMEDY[row.kind]],
-    ["decided by", row.kind === "over_po" ? "this page, from the limit the invoice file states" : st ? "the statement" : "nothing yet: no statement was given"]] : [["state", "agreed"]] };
+    ["decided by", row.kind === "over_po" ? "this page, from the limit the invoice file states" : row.kind === "over_limit" ? "this page, from the limit you typed" : st ? "the statement" : "nothing yet: no statement was given"]] : [["state", "agreed"]] };
   return { title: "What happened to the money", facts: [["payment", row.payment], ["approved by", row.approved || "nobody yet"], ["settlement", ln.settlement || "none recorded"],
     ["how it is paid", "outside this page: a bank file, or the escrow on devnet (test USDC)"]] };
 }
@@ -206,10 +264,18 @@ export function renderApprover(el, ctx = {}) {
         <button type="button" class="k-btn quiet" data-ap="last" hidden>Open the last check</button> <button type="button" class="k-btn quiet" data-ap="clear" hidden>Start over</button></p>
     </form>
     <p data-ap="said" role="status" aria-live="polite"></p>
+    <p data-ap="check" role="status" aria-live="polite" hidden></p>
     <div data-ap="out" hidden>
       <p data-ap="mark" class="fine" hidden>Sample: a made-up invoice from a made-up supplier.</p>
       <div class="ap-sum" data-ap="sum"></div>
       <div class="k-table ap-table" data-ap="table"></div>
+      <section class="ap-decide" data-ap="decide" aria-label="Approve">
+        <div class="ap-sign" data-ap="sign"><label>Your name<input type="text" id="ap-by" autocomplete="name" maxlength="120"></label><label>Your role<input type="text" id="ap-role" autocomplete="organization-title" maxlength="120"></label>
+          <label>Your limit, if any<input type="text" id="ap-limit" inputmode="decimal" autocomplete="off" maxlength="24" spellcheck="false" placeholder="5,000.00"></label>
+          <label>Why, if not the policy<input type="text" id="ap-why" autocomplete="off" maxlength="200"></label>
+          <button type="button" class="k-btn" data-ap="approve" disabled>Approve ordinary lines</button></div>
+        <p data-ap="approved" role="status" aria-live="polite"></p>
+      </section>
       <section class="ap-queue" data-ap="queue" aria-label="Exceptions"></section>
       <section data-ap="files" aria-label="Files" hidden></section>
       <div data-ap="recall" hidden></div>
@@ -219,7 +285,7 @@ export function renderApprover(el, ctx = {}) {
     <p class="fine" data-ap="time" hidden></p>
     <p class="fine"><a href="${PRIVATE_PATH}" target="_blank" rel="noopener">Private repositories: read the private path</a></p>`;
   const $ = (name) => el.querySelector(`[data-ap="${name}"]`), said = (text) => { $("said").textContent = text; };
-  const state = { st: null, status: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, rails: undefined, recall: null };
+  const state = { st: null, status: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, rails: undefined, recall: null, limit: null, record: null, checks: [] };
   let motion = null;
   import("./motion.js").then((m) => { motion = m; }).catch(() => { /* the page is whole without it */ });
   const toast = (text, kind) => { if (motion && motion.toast) motion.toast(text, kind); };
@@ -235,12 +301,13 @@ export function renderApprover(el, ctx = {}) {
   const cellHtml = (row, key) => {
     const text = { supplier: esc(row.supplier || "not named"), po: esc(row.po ? row.po.number : "none on file"), deliverable: esc(row.reference || "none named"),
       evidence: esc(row.parts ? "receipt, five parts" : row.ln.evaluations.length ? `${plural(row.ln.evaluations.length, "evaluation")}, ${row.ln.assurance}` : "none"),
-      amount: `<span class="k-num">${esc(row.authorised || "none")}</span>${row.kind && row.amount ? `<small>of <span class="k-num">${esc(row.amount)}</span> billed</small>` : ""}`,
+      amount: `<span class="k-num">${esc(group(row.authorised) || "none")}</span>${row.kind && row.amount ? `<small>of <span class="k-num">${esc(group(row.amount))}</span> billed</small>` : ""}`,
       exception: row.kind ? `<b>${esc(WORDS[row.kind])}</b>` : "none", payment: `<b>${esc(row.payment)}</b>` }[key];
+    if (key === "po") return `${text}<small>policy ${POLICY.version}${row.po && row.po.limit !== null ? ` · up to <span class="k-num">${esc(group(amountOf(row.po.limit, state.st ? state.st.scale : 2)))}</span>` : ""}${row.approved ? ` · ${esc(row.approved)}` : ""}</small>`;
     return text;
   };
   const panelHtml = (row, key) => {
-    const ev = evidenceOf(row, key, state.st);
+    const ev = evidenceOf(row, key, state.st, state.limit);
     return `<div data-ev="${key}"><h4>Line ${row.line}: ${esc(ev.title)}</h4>
       ${ev.parts ? `<ol class="ap-parts" data-ap="parts">${ev.parts.map((p) => `<li data-part="${p.key}"><strong>${esc(cap(p.key))}</strong> <span data-not-prose>${esc(p.said)}</span>
         ${p.facts.length ? `<dl class="facts">${p.facts.map(([n, v]) => `<dt>${esc(n)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}</li>`).join("")}</ol>` : ""}
@@ -275,28 +342,29 @@ export function renderApprover(el, ctx = {}) {
     state.open = null;
     $("out").hidden = false; $("mark").hidden = !state.sample; $("clear").hidden = false;
     $("sum").innerHTML = [["Billed", rows, "amount"], ["Authorised", agreed, "amount"], ["Exceptions", held, "amount"]].map(([name, list, field]) => `<div data-sum="${name.toLowerCase()}"><p class="k-kicker">${name}</p>
-      <span class="k-num">${esc(sum(list, field))}${esc(unit)}</span><span>${plural(list.length, "line")}</span></div>`).join("");
+      <span class="k-num">${esc(group(sum(list, field)))}${esc(unit)}</span><span>${plural(list.length, "line")}</span></div>`).join("");
     $("table").innerHTML = `<table><thead><tr>${COLUMNS.map(([, name]) => `<th scope="col">${name}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr class="ap-row" data-line="${row.line}"${row.kind ? ` data-kind="${row.kind}"` : ""}${row.approved ? " data-approved" : ""}>
-      ${COLUMNS.map(([key, name]) => `<td><button type="button" class="ap-cell" data-col="${key}" data-label="${name}" aria-expanded="false" aria-label="Line ${row.line}, ${name.toLowerCase()}: ${esc(key === "amount" ? row.authorised || "none" : cellHtml(row, key).replace(/<[^>]+>/g, ""))}"><span>${cellHtml(row, key)}</span></button></td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      ${COLUMNS.map(([key, name]) => `<td><button type="button" class="ap-cell" data-col="${key}" data-label="${name}" aria-expanded="false" aria-label="Line ${row.line}, ${name.toLowerCase()}: ${esc(key === "amount" ? group(row.authorised) || "none" : cellHtml(row, key).replace(/<small>.*$/, "").replace(/<[^>]+>/g, ""))}"><span>${cellHtml(row, key)}</span></button></td>`).join("")}</tr>`).join("")}</tbody></table>`;
     const can = Boolean(st) && state.whole && waiting.length > 0;
+    $("sign").hidden = !st;
+    const go = $("approve");
+    go.disabled = !can; go.textContent = waiting.length ? `Approve ${plural(waiting.length, "ordinary line")}` : "No ordinary line waiting";
+    $("approved").textContent = !st ? "Add the statement file to approve." : !state.whole ? "Changed after it was made. Do not approve it." : !agreed.length ? "No line is ordinary."
+      : !waiting.length ? `Approved ${plural(agreed.length, "line")}. ${plural(held.length, "exception")} stay open.` : "";
     $("queue").innerHTML = `<h3>Exceptions <span class="k-num" data-ap="count">${held.length}</span></h3>
-      ${st ? `<div class="ap-sign"><label>Your name<input type="text" id="ap-by" autocomplete="name" maxlength="120"></label><label>Your role<input type="text" id="ap-role" autocomplete="organization-title" maxlength="120"></label>
-        <button type="button" class="k-btn" data-ap="approve"${can ? "" : " disabled"}>Approve agreed lines</button></div>` : ""}
-      <p data-ap="approved" role="status" aria-live="polite">${!st ? "Add the statement file to approve." : !state.whole ? "Changed after it was made. Do not approve it." : !agreed.length ? "No line is agreed."
-    : !waiting.length ? `Approved ${plural(agreed.length, "line")}. ${plural(held.length, "exception")} stay open.` : ""}</p>
-      ${held.length ? `<ol>${held.map((row) => `<li data-line="${row.line}" data-kind="${row.kind}"><p><span class="k-num">Line ${row.line}</span> · <b>${esc(cap(WORDS[row.kind]))}.</b> <span data-ap="reason" data-not-prose>${esc(row.reason)}</span>${row.amount ? ` <span class="k-num">${esc(row.amount)}</span>` : ""}</p>
+      ${held.length ? `<ol>${held.map((row) => `<li data-line="${row.line}" data-kind="${row.kind}"><p><span class="k-num">Line ${row.line}</span> · <b>${esc(cap(WORDS[row.kind]))}.</b> <span data-ap="reason" data-not-prose>${esc(row.reason)}</span>${row.amount ? ` <span class="k-num">${esc(group(row.amount))}</span>` : ""}</p>
         <p class="actions"><button type="button" class="k-btn quiet" data-ap="open">Open line ${row.line}</button> <button type="button" class="k-btn quiet" data-ap="message" aria-expanded="false">Message the supplier</button></p>
         <div class="ap-msg" data-ap="msg" hidden></div></li>`).join("")}</ol>` : `<p>No exception on this invoice.</p>`}`;
     const files = $("files"); files.hidden = !st;
     if (st) {
       const approvedNow = agreed.some((r) => r.approved);
       files.innerHTML = `<h3>Files</h3>
-        <p class="actions"><button type="button" class="k-btn quiet" data-file="csv">Download statement</button> <button type="button" class="k-btn quiet" data-file="generic">Download audit file</button></p>
+        <p class="actions"><button type="button" class="k-btn" data-file="record"${state.record ? "" : " hidden"}>Download approval record</button> <button type="button" class="k-btn quiet" data-file="csv">Download statement</button> <button type="button" class="k-btn quiet" data-file="generic">Download audit file</button></p>
         <div data-ap="pay" hidden><div class="ap-pay"><label>Paying account name<input type="text" id="ap-payer" autocomplete="organization" maxlength="70"></label><label>IBAN<input type="text" id="ap-iban" autocomplete="off" maxlength="34" spellcheck="false"></label>
           <label>BIC<input type="text" id="ap-bic" autocomplete="off" maxlength="11" spellcheck="false"></label><button type="button" class="k-btn" data-file="pain">Download payment file</button></div>
           <p class="fine">No bank has taken this file.</p></div>
         <p data-ap="filed" role="status" aria-live="polite"></p>
-        <details class="k-more"><summary>More files</summary><p class="actions"><button type="button" class="k-btn quiet" data-file="status"${approvedNow || state.status ? "" : " disabled"}>Approval record</button>
+        <details class="k-more"><summary>More files</summary><p class="actions"><button type="button" class="k-btn quiet" data-file="status"${approvedNow || state.status ? "" : " disabled"}>Status file</button>
           <button type="button" class="k-btn quiet" data-file="json">Statement file</button> <button type="button" class="k-btn quiet" data-file="quickbooks">QuickBooks file</button>
           <button type="button" class="k-btn quiet" data-file="netsuite">NetSuite file</button></p><p class="fine">File exports, not integrations.</p></details>`;
       if (approvedNow) offerPayment();
@@ -314,7 +382,7 @@ export function renderApprover(el, ctx = {}) {
     pay.hidden = false;
   }
   function refresh() {
-    state.rows = state.st ? rowsOf(state.st, state.status, state.orders, state.receipts) : state.invoice ? uncheckedRows(state.invoice, state.orders) : [];
+    state.rows = state.st ? rowsOf(state.st, state.status, state.orders, state.receipts, state.limit) : state.invoice ? uncheckedRows(state.invoice, state.orders) : [];
     if (!state.rows.length) { $("out").hidden = true; return; }
     draw();
     const held = state.rows.filter((r) => r.kind).length;
@@ -336,7 +404,8 @@ export function renderApprover(el, ctx = {}) {
         if (state.status && state.status.statement !== doc_.sha256) state.status = null;
         const kept = doc_.evidence && doc_.evidence.embedded && doc_.evidence.embedded.invoice;
         if (typeof kept === "string") state.orders = { ...readOrders(kept), ...state.orders };
-      } else if (doc_ && doc_.kind === STATUS_KIND && Array.isArray(doc_.events)) state.pending = doc_;
+      } else if (doc_ && doc_.kind === RECORD_KIND) state.checks.push(doc_);
+      else if (doc_ && doc_.kind === STATUS_KIND && Array.isArray(doc_.events)) state.pending = doc_;
       else if (isRecall(doc_)) state.recall = Array.isArray(doc_) ? doc_ : Array.isArray(doc_.recall) ? doc_.recall : Array.isArray(doc_.rows) ? doc_.rows : [doc_];
       else if (doc_ && readReceipts(doc_).length) state.receipts = [...readReceipts(doc_), ...state.receipts];
       else {
@@ -353,9 +422,18 @@ export function renderApprover(el, ctx = {}) {
     $("out").removeAttribute("aria-busy");
     refresh();
     if (unread.length) said(`Not read: ${unread.join(", ")}.`);
-    else if (!state.rows.length) said("Nothing to show yet. Add an invoice or a statement.");
+    else if (!state.rows.length) said(state.checks.length ? `Read ${plural(state.checks.length, "approval record")}.` : "Nothing to show yet. Add an invoice or a statement.");
+    await checkRecords();
     drawRecall();
     return state;
+  }
+  // An approval record dropped back: does it still match its evidence, as the page reads it now?
+  async function checkRecords() {
+    const box = $("check");
+    if (!state.checks.length) { box.hidden = true; return; }
+    const got = await Promise.all(state.checks.map((r) => checkRecord(r, state.st, state.rows)));
+    box.innerHTML = got.map((g) => `<span data-ok="${g.ok && !g.partial ? "yes" : g.ok ? "partly" : "no"}">${esc(g.said)}</span>`).join("<br>");
+    box.hidden = false;
   }
   async function drawRecall() {
     const box = $("recall");
@@ -363,7 +441,7 @@ export function renderApprover(el, ctx = {}) {
     const mod = ctx.recall !== undefined ? ctx.recall : await import("./recall.js").catch(() => null);
     if (mod && typeof mod.renderRecall === "function") { box.hidden = false; mod.renderRecall(box, state.recall); }
   }
-  function reset() { Object.assign(state, { st: null, status: null, pending: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, recall: null }); }
+  function reset() { Object.assign(state, { st: null, status: null, pending: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, recall: null, record: null, checks: [] }); $("check").hidden = true; }
   async function sample() {
     reset(); said("Reading the sample.");
     state.st = await fromShadow({ invoice: SAMPLE_INVOICE, answers: SAMPLE_BOOK }, SAMPLE_META);
@@ -380,18 +458,20 @@ export function renderApprover(el, ctx = {}) {
   }
 
   // ---- deciding ----------------------------------------------------------------------------------------------------------
-  function approve() {
-    const by = doc.getElementById("ap-by"), role = doc.getElementById("ap-role"), note = $("approved");
+  async function approve() {
+    const by = doc.getElementById("ap-by"), role = doc.getElementById("ap-role"), why = doc.getElementById("ap-why"), note = $("approved");
     const empty = [by, role].find((i) => !i.value.trim());
     if (empty) { note.textContent = "Type your name and your role."; empty.focus(); return; }
     const mine = state.rows.filter((r) => !r.kind && !r.approved);
     try { state.status = approveLines(state.st, state.status, by.value, role.value, today(), mine.map((r) => r.id)); } catch (e) { note.textContent = e.message; return; }
-    const total = state.status.events[state.status.events.length - 1].amount;
+    const total = state.status.events[state.status.events.length - 1].amount, now = ctx.now || new Date();
+    state.record = await recordOf(state.st, mine, { by: by.value, role: role.value, why: why.value.trim() || "The lines meet the policy: agreed, within order and limit.",
+      on: today(), at: now.toISOString(), limit: state.limit });
     refresh();
     const held = state.rows.filter((r) => r.kind).length;
-    $("approved").textContent = `Approved ${plural(mine.length, "line")}, ${total}. ${plural(held, "exception")} stay open.`;
+    $("approved").textContent = `Approved ${plural(mine.length, "line")}, ${group(total)}. ${plural(held, "exception")} stay open.`;
     toast(`Approved ${plural(mine.length, "line")}`);
-    (el.querySelector('[data-file="csv"]') || $("queue")).focus?.();          // the focus is not left on a button that no longer works
+    (el.querySelector('[data-file="record"]') || $("queue")).focus?.();          // the focus is not left on a button that no longer works
     if (state.sample || state.st === HANDED.st) Object.assign(HANDED, { st: state.st, status: state.status });      // the Statement page opens the same approval
   }
   function message(li) {
@@ -410,6 +490,7 @@ export function renderApprover(el, ctx = {}) {
       if (kind === "csv") save(await statementCsv(st, status), `${name}.csv`);
       else if (kind === "json") save(canonicalText(st), `${name}.json`, "application/json");
       else if (kind === "status") save(canonicalText(status), `${name}.status.json`, "application/json");
+      else if (kind === "record") save(canonicalText(state.record), `${name}.approval.json`, "application/json");
       else if (kind === "pain") {
         const iban = doc.getElementById("ap-iban").value.replace(/\s+/g, "").toUpperCase();
         const payer = { name: doc.getElementById("ap-payer").value.trim(), account: iban, iban, bic: doc.getElementById("ap-bic").value.trim().toUpperCase(), on: today() };
@@ -423,6 +504,13 @@ export function renderApprover(el, ctx = {}) {
   const texts = (list) => Promise.all([...list].map(async (f) => ({ name: f.name, text: await f.text() })));
   const form = $("in"), drop = $("drop"), box = doc.getElementById("ap-paste"), picker = doc.getElementById("ap-file");
   form.addEventListener("submit", (ev) => { ev.preventDefault(); if (box.value.trim()) take([{ name: "what was pasted", text: box.value }]).then(() => { box.value = ""; }); else said("Nothing to read. Drop a file, or try the sample."); });
+  doc.getElementById("ap-limit").addEventListener("input", (ev) => {
+    const text = ev.target.value.replace(/[,\s]/g, "");
+    let limit = null;
+    if (text) { try { limit = money(cents(text)); } catch { $("approved").textContent = "Write the limit as an amount, like 5,000.00."; return; } }
+    state.limit = limit;
+    if (state.st || state.invoice) refresh();
+  });
   picker.addEventListener("change", async () => { if (picker.files.length) { await take(await texts(picker.files)); picker.value = ""; } });
   for (const name of ["dragenter", "dragover"]) el.addEventListener(name, (ev) => { ev.preventDefault(); drop.dataset.over = ""; });
   for (const name of ["dragleave", "drop"]) el.addEventListener(name, (ev) => { ev.preventDefault(); delete drop.dataset.over; });

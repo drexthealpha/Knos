@@ -525,3 +525,38 @@ def test_the_report_states_both_rates_with_their_sample_sizes_and_what_is_still_
     assert "NOT in the count above" in block and f"None of the {total} was refused by a Knos judge." in block
     again = bench.place_honest(doc, block.join(["<!-- honest:begin -->", "<!-- honest:end -->"]).split("\n"))
     assert again == doc                                                     # the block is replaced in place, never doubled
+
+
+# ---- who wrote the cheats: the authors, or outsiders through the `tamper` task ----------------------------------------
+
+def test_the_page_separates_the_authors_cheats_from_the_outsiders_and_claims_no_outside_rate():
+    bench = _bench()
+    doc = DOC.read_text(encoding="utf-8")
+    block = doc.split("<!-- authors:begin -->")[1].split("<!-- authors:end -->")[0]
+    cheats = bench.cheat_totals(doc)
+    assert bench.outside_cases() == [] and bench.run_outside() == []
+    assert f"| the people who wrote the judge | {sum(b for _, b in cheats)} | {sum(a for a, _ in cheats)} |" in block
+    assert "| outsiders, through the `tamper` task | 0 | 0 |" in block and "0 of 0, not a rate" in block
+    assert "tasks/outside/tamper.json" in block and "outside_cheats" in block
+    assert "\n".join(bench.authors_section(cheats, [])) == "<!-- authors:begin -->" + block + "<!-- authors:end -->"
+    assert doc.index("<!-- authors:begin -->") < doc.index("<!-- honest:begin -->")
+    assert bench.place_authors(doc, bench.authors_section(cheats, [])) == doc        # replaced in place, never doubled
+
+
+def test_an_outside_case_is_judged_again_and_listed_with_its_author(monkeypatch):
+    bench = _bench()
+    row = {"name": "a cheat from outside", "ci": True, "knos": False, "box": True, "why": "-", "word": "rejected", "notes": []}
+    monkeypatch.setattr(bench, "one", lambda *a, **k: dict(row))
+    rows = bench.run_outside([("a cheat from outside", 4242, "https://github.com/o/r/pull/1", "python", lambda pr: None)])
+    assert rows == [{**row, "author": 4242, "pull": "https://github.com/o/r/pull/1", "sample": "python"}]
+    text = "\n".join(bench.authors_section([(0, 63)], rows))
+    assert "| outsiders, through the `tamper` task | 1 | 1 |" in text
+    assert "| a cheat from outside | 4242 | https://github.com/o/r/pull/1 | python | refused | accepted |" in text
+
+
+def test_the_tamper_task_file_states_its_evidence_and_its_counter():
+    import json
+    task = json.loads((DOC.parents[1] / "tasks" / "outside" / "tamper.json").read_text(encoding="utf-8"))
+    assert task["kind"] == "tamper" and task["counter"] == "outside_cheats" and task["amount"] == 5_000_000
+    assert task["currency"] == "test USDC" and "verdict" in task["needs"] and task["doc"] == "docs/TAMPER.md"
+    assert "nothing is paid" in task["statement"] and "accepted" in task["evidence"]

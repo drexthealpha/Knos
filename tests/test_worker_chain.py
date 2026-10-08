@@ -27,10 +27,18 @@ class GitHub:
     """GitHub's answers to the two requests the chain makes: `answers` to the start, in turn (an exception is raised,
     anything else means taken); `listed` to the listing (an exception is raised). A fake clock: sleeping only adds."""
 
-    def __init__(self, answers=(), listed=()):
+    def __init__(self, answers=(), listed=(), beats=None):
         self.answers, self.listed, self.starts, self.slept, self.said = list(answers), listed, [], [], []
+        self.beats = beats or {}            # run id -> when its heartbeat step completed (GitHub's text); none: no beat yet
 
     def request(self, path: str, data: dict | None = None):
+        if data is None and "/jobs?" in path:
+            rid = int(path.split("/runs/")[1].split("/")[0])
+            beat = self.beats.get(rid)
+            steps = [{"name": "Set up job", "status": "completed", "conclusion": "success", "completed_at": "2026-10-08T00:00:01Z"}]
+            if beat:
+                steps.append({"name": chain.HEARTBEAT, "status": "completed", "conclusion": "success", "completed_at": beat})
+            return {"jobs": [{"name": "relay", "steps": steps}]}
         if data is None:
             assert path == "/repos/o/r/actions/workflows/worker.yml/runs?per_page=50"
             if isinstance(self.listed, Exception):
@@ -93,6 +101,19 @@ def test_the_watchdog_starts_a_chain_only_when_none_is_queued_or_in_progress():
     assert chain.watch("o/r", 90, tries=2, **gh.kw()) == "failed"
 
 
+
+def test_the_watchdog_inside_a_chain_run_that_did_not_relay_starts_that_runs_successor():
+    """worker.yml's job `rewatch` (`watch --successor`): run 90 is still in progress while its last job watches, so it is
+    not counted, and the run started takes over from it ("relay after 90"): a first run would find run 90 going and end
+    at its first step. A run that took over from 90 already holds the chain: nothing is started."""
+    ending = [(90, "in_progress", "relay after 85"), (85, "completed", "relay after 80")]
+    gh = GitHub(listed=ending)
+    assert chain.watch("o/r", 90, successor=True, **gh.kw()) == "started" and gh.starts == [{"ref": "main", "inputs": {"after": "90"}}]
+    gh = GitHub(listed=[*ending, (93, "queued", "relay after 90")])
+    assert chain.watch("o/r", 90, successor=True, **gh.kw()) == "alive" and gh.starts == []
+    gh = GitHub(listed=ending)          # without --successor (the timer's watchdog) a start is a first run, as before
+    assert chain.watch("o/r", 77, **gh.kw()) == "alive" and gh.starts == []
+
 def test_two_watchdogs_cannot_start_two_chains():
     """The second watchdog runs after the first (their concurrency group) and finds the run the first one started. And
     when its start got a 500 that GitHub took, the listing before the next try finds that run too."""
@@ -116,3 +137,115 @@ def test_the_watchdog_runs_as_one_file_with_nothing_installed():
     """The job runs `python3 -I src/knos/proof/chain.py watch` right after the checkout: the standard library alone."""
     out = subprocess.run([sys.executable, "-I", str(ROOT / "src" / "knos" / "proof" / "chain.py"), "watch"], capture_output=True, text=True, encoding="utf-8", env={})
     assert out.returncode == 2 and "GITHUB_REPOSITORY" in out.stderr
+
+
+# ---- 0.3.21: alive means a heartbeat, not "a run exists" ----------------------------------------------------------------
+
+T0 = chain.when("2026-10-08T01:00:00Z")
+
+
+def _at(seconds: float) -> str:
+    import datetime
+    return datetime.datetime.fromtimestamp(T0 + seconds, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+class World(GitHub):
+    """A worker's runs that change: a cancel ends a run after `cancel_takes` listings (None: only a force-cancel ends it),
+    a start adds a run that GitHub lists only after `lag` listings. The clock is the test's (`now`)."""
+
+    def __init__(self, runs, beats=None, lag=0, cancel_takes=0):
+        super().__init__(beats=beats)
+        self.world = [dict(r) for r in runs]
+        self.lag, self.cancel_takes, self.cancels, self.forced, self.pending = lag, cancel_takes, [], [], []
+
+    def request(self, path, data=None):
+        if "/jobs?" in path:
+            return super().request(path, data)
+        if data is None:
+            for p in list(self.pending):
+                p["in"] -= 1
+                if p["in"] < 0:
+                    self.world.append(p["run"])
+                    self.pending.remove(p)
+            for r in self.world:
+                if r.get("ends_in") is not None:
+                    r["ends_in"] -= 1
+                    if r["ends_in"] < 0:
+                        r["status"], r["ends_in"] = "completed", None
+            return {"workflow_runs": [{"id": r["id"], "status": r["status"], "display_title": r["title"], "created_at": r.get("created"),
+                                       "run_started_at": r.get("started")} for r in self.world]}
+        if path.endswith("/cancel") or path.endswith("/force-cancel"):
+            rid = int(path.split("/runs/")[1].split("/")[0])
+            (self.forced if path.endswith("/force-cancel") else self.cancels).append(rid)
+            for r in self.world:
+                if r["id"] == rid and (path.endswith("/force-cancel") or self.cancel_takes is not None):
+                    r["ends_in"] = 0 if path.endswith("/force-cancel") else self.cancel_takes
+            return None
+        self.starts.append(data)
+        run = {"id": 200 + len(self.starts), "status": "queued", "title": "relay", "created": _at(0)}
+        self.pending.append({"in": self.lag, "run": run})
+        return None
+
+
+def test_a_run_stuck_in_its_install_wait_is_cancelled_and_replaced():
+    """The 0.3.20 gap: a run in its PyPI wait counted as alive. Now a run with no heartbeat INSTALL_MOST after it started
+    is cancelled, and one run is started once GitHub lists the stuck one ended."""
+    stuck = {"id": 80, "status": "in_progress", "title": "relay after 79", "created": _at(-700), "started": _at(-690)}
+    gh = World([stuck], cancel_takes=1)
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "started"
+    assert gh.cancels == [80] and gh.forced == [] and gh.starts == [{"ref": "main", "inputs": {"after": ""}}]
+    assert any("no heartbeat in time" in line for line in gh.said)
+
+
+def test_a_run_still_installing_within_its_time_or_with_a_fresh_beat_is_alive_and_an_old_beat_is_not():
+    installing = {"id": 80, "status": "in_progress", "title": "relay after 79", "created": _at(-200), "started": _at(-190)}
+    gh = World([installing])
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "alive" and gh.cancels == [] and gh.starts == []
+    relaying = {"id": 80, "status": "in_progress", "title": "relay after 79", "created": _at(-900), "started": _at(-890)}
+    gh = World([relaying], beats={80: _at(-120)})
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "alive" and gh.starts == []
+    gh = World([relaying], beats={80: _at(-chain.BEAT_MOST - 1)})          # a relay that hangs after its beat
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "started" and gh.cancels == [80]
+    # a run that waits for a runner past QUEUED_MOST is replaced too; one that waits less is alive
+    assert chain.health({"status": "queued", "created": T0 - 60}, None, T0) == "alive"
+    assert chain.health({"status": "queued", "created": T0 - chain.QUEUED_MOST - 1}, None, T0) == "stuck"
+
+
+def test_a_cancel_that_does_not_end_the_run_is_forced_and_one_that_never_ends_starts_nothing():
+    stuck = {"id": 80, "status": "in_progress", "title": "relay after 79", "created": _at(-700), "started": _at(-690)}
+    gh = World([stuck], cancel_takes=None)          # a cancel is ignored: only a force-cancel ends it
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "started" and gh.cancels == [80] and gh.forced == [80]
+
+    class Never(World):
+        def request(self, path, data=None):
+            if path.endswith("cancel"):
+                return None                          # taken, and the run goes on all the same
+            return super().request(path, data)
+    gh = Never([stuck])
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "stuck" and gh.starts == []
+
+
+def test_when_github_does_not_list_a_runs_steps_the_run_counts_as_alive():
+    class Blind(World):
+        def request(self, path, data=None):
+            if "/jobs?" in path:
+                raise OSError("down")
+            return super().request(path, data)
+    stuck = {"id": 80, "status": "in_progress", "title": "relay after 79", "created": _at(-700), "started": _at(-690)}
+    gh = Blind([stuck])
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "alive" and gh.cancels == [] and gh.starts == []
+
+
+def test_two_watchdogs_never_start_two_chains_even_when_github_lists_the_new_run_late():
+    """The first watchdog replaces a stuck run and waits until GitHub lists the run it started (here: two listings
+    late); the second, which runs after it (their concurrency group), finds that run queued and starts nothing."""
+    stuck = {"id": 80, "status": "in_progress", "title": "relay after 79", "created": _at(-700), "started": _at(-690)}
+    gh = World([stuck], lag=2)
+    assert chain.watch("o/r", 90, now=lambda: T0, **gh.kw()) == "started"
+    assert chain.watch("o/r", 91, now=lambda: T0 + 30, **gh.kw()) == "alive"
+    assert len(gh.starts) == 1 and gh.cancels == [80]
+    assert [r["id"] for r in gh.world if r["status"] in chain.ALIVE] == [201]
+
+
+def test_github_times_read_as_seconds():
+    assert chain.when("1970-01-01T00:01:00Z") == 60.0 and chain.when(None) is None and chain.when("soon") is None

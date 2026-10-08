@@ -156,8 +156,10 @@ def _period(o: object) -> dict:
         ledger._int(o["max_exposure"], "max_exposure")
     if "reserve" in o:
         r = o["reserve"]
-        if not isinstance(r, dict) or set(r) != _RESERVE or not isinstance(r["order"], str) or not 32 <= len(r["order"]) <= 44:
+        if not isinstance(r, dict) or set(r) - {"period"} != _RESERVE or not isinstance(r["order"], str) or not 32 <= len(r["order"]) <= 44:
             raise Bad("a reserve names its order and what it holds: order, funded, tranche, deadline, brought")
+        if "period" in r and ledger.month_of(ledger._int(r["period"], "period")) != o["month"]:
+            raise Bad(f"the reserve was locked for period {r['period']}, and this period is {o['month']}: its terms name the month it secures")
         ledger._int(r["deadline"], "deadline", least=1)
         if not 1 <= ledger._int(r["tranche"], "tranche") <= ledger._int(r["funded"], "funded") <= MAX_CAP:
             raise Bad("a reserve holds at least one tranche and at most 100,000.00")
@@ -311,7 +313,7 @@ def open_line(book: Book, buyer: int, seller: int, month: int | str, cap: str | 
         seq = 1 + max((p.terms["seq"] for p in book.periods if p.terms["month"] == m), default=-1)
     t: dict = {"buyer": buyer, "cap": units(cap), "month": m, "seller": seller, "seq": seq, "unit": unit}
     if reserve is not None:
-        t["reserve"] = {**{k: reserve[k] for k in ("order", "funded", "tranche", "deadline")}, "brought": carried(book, reserve["order"])}
+        t["reserve"] = {**{k: reserve[k] for k in ("order", "funded", "tranche", "deadline", "period") if k in reserve}, "brought": carried(book, reserve["order"])}
     if max_exposure is not None:
         t["max_exposure"] = units(max_exposure)
     line = canon({"period": t})
@@ -543,52 +545,60 @@ def release(n: Net, balance, issue: int, order=None, wallet=None, work_s: int = 
 
 
 # -- the reserve on chain -----------------------------------------------------------------------------------------------
-def reserve_terms(buyer: int, seller: int, unit: str = "USDC") -> dict:
+def reserve_terms(buyer: int, seller: int, unit: str = "USDC", period: int | str | None = None) -> dict:
     """The terms a reserve order is funded on. The program stores their hash, so the order names its pair on chain:
-    `reserve_of` refuses an order funded on any other terms."""
-    return {"accept": "", "checks": [], "mode": "net-reserve", "v": 2, "net": {"buyer": buyer, "seller": seller, "unit": unit}}
+    `reserve_of` refuses an order funded on any other terms. `period` (YYYYMM): the one month the reserve secures,
+    also under the hash; without it the reserve secures any period of the pair until its deadline."""
+    net: dict = {"buyer": buyer, "seller": seller, "unit": unit, **({"period": ledger.month_of(period)} if period is not None else {})}
+    return {"accept": "", "checks": [], "mode": "net-reserve", "v": 2, "net": net}
 
 
-def reserve_hash(buyer: int, seller: int, unit: str = "USDC") -> bytes:
+def reserve_hash(buyer: int, seller: int, unit: str = "USDC", period: int | str | None = None) -> bytes:
     from .settle.v2 import pay
-    return pay.terms_hash(pay.terms_json(reserve_terms(buyer, seller, unit)))
+    return pay.terms_hash(pay.terms_json(reserve_terms(buyer, seller, unit, period)))
 
 
 def reserve_fund(buyer: int, seller: int, funded: str | int, tranche: str | int, balance, issue: int, work_s: int = 90 * 86_400, unit: str = "USDC",
-                 seq: int = 0) -> dict:
+                 seq: int = 0, period: int | str | None = None) -> dict:
     """What the buyer's pinned fund.yml asks the forge to sign to lock a reserve: a standing order of `funded`, paid one
     `tranche` a draw, from the buyer's Balance. `work_s`: how long it stays locked, at most 90 days (the program's
-    bound); after that RefundOrder returns what no draw took. The fee is the escrow's, taken on top at funding."""
+    bound); after that RefundOrder returns what no draw took. The fee is the escrow's, taken on top at funding.
+    `period` (YYYYMM): the month it secures, named in the terms (`reserve_terms`)."""
     from .settle.v2 import pay
     amount, rate = units(funded), units(tranche)
     if not ORDER_MIN <= amount <= MAX_CAP or not 1 <= rate <= amount:
         raise Bad("a reserve is between 5.00 and 100,000.00 (one order), and its tranche is no more than it")
     if not pay.MIN_WORK <= work_s <= pay.MAX_WORK:
         raise Bad("a reserve is locked for at most 90 days: an order's longest deadline")
-    raw = pay.terms_json(reserve_terms(buyer, seller, unit))
+    raw = pay.terms_json(reserve_terms(buyer, seller, unit, period))
     options = pay.opts(pay.F_STANDING, rate=rate)
     return {"amount": amount, "tranche": rate, "fee": fee_of(amount), "total": amount + fee_of(amount), "terms": raw.decode(),
-            "terms_hash": pay.terms_hash(raw).hex(), "mode": MODE, "options": options.hex(), "work_s": work_s,
+            "terms_hash": pay.terms_hash(raw).hex(), "mode": MODE, "options": options.hex(), "work_s": work_s, "seq": seq,
+            **({"period": ledger.month_of(period)} if period is not None else {}),
             "fund_audience": pay.order_fund_audience(issue, amount, MODE, pay.terms_hash(raw), balance, work_s, seq, options)}
 
 
-def reserve_of(o, address, buyer: int, seller: int, now: int, unit: str = "USDC") -> dict:
+def reserve_of(o, address, buyer: int, seller: int, now: int, unit: str = "USDC", month: int | str | None = None) -> dict:
     """What the order at `address` (a knos.settle.v2.pay.Order as read now, or None) is as a reserve of this pair, as
-    `open_line` takes it; Bad, in words, when it secures nothing."""
+    `open_line` takes it; Bad, in words, when it secures nothing. `month`: the period it is to secure; a reserve whose
+    terms name a month (`/knos reserve ... period YYYY-MM`) secures that month and no other."""
     from .settle.v2 import pay
     if o is None:
         raise Bad(f"there is no order at {address}: it was paid out, refunded, or never funded. " + NOT_LOCKED)
     if o.state != "open" or not o.flags & pay.F_STANDING or o.holdback_bps:
         raise Bad("a reserve is an open standing order with no holdback: it pays one tranche for each signed draw and keeps the rest locked")
-    if o.terms != reserve_hash(buyer, seller, unit):
-        raise Bad(f"the order at {address} was not funded on the reserve terms of buyer {buyer} and supplier {seller} in {unit}: it secures another pair, or other work")
+    m = ledger.month_of(month) if month is not None else None
+    period = m if m is not None and o.terms == reserve_hash(buyer, seller, unit, m) else None
+    if period is None and o.terms != reserve_hash(buyer, seller, unit):
+        raise Bad(f"the order at {address} was not funded on the reserve terms of buyer {buyer} and supplier {seller} in {unit}"
+                  + (f" for period {m}" if m is not None else "") + ": it secures another pair, another month, or other work")
     if o.from_balance and o.owner_id != buyer:
         raise Bad(f"the order at {address} was funded from a Balance of GitHub owner {o.owner_id}, not of the buyer {buyer}")
     if now > o.deadline or o.amount - o.paid < o.rate:
         raise Bad(f"the order at {address} is past its deadline or holds less than one tranche: RefundOrder returns it to its funder")
     return {"order": str(address), "funded": o.amount - o.paid, "tranche": o.rate, "deadline": o.pay_until, "notice": bool(o.cancel_at),
             "judges": "the order's own repository" + (", or a neutral run" if o.flags & pay.F_NEUTRAL else "") + (", or its judge repository" if o.judge_repo_id else ""),
-            "returns_to": str(o.refund_to)}
+            "returns_to": str(o.refund_to), **({"period": period} if period is not None else {})}
 
 
 def reserve_check(p: Period, o, now: int) -> list[str]:
@@ -632,7 +642,7 @@ def draws(p: Period, wallet=None) -> list[dict]:
     if p.closed is None:
         raise Bad(f"period {p.name} is open: a reserve is drawn at close, when both books came to one root")
     s, n, t = reserve_state(p), net_of(p), p.terms
-    th, order = reserve_hash(t["buyer"], t["seller"], t["unit"]), Pubkey.from_string(s["order"])
+    th, order = reserve_hash(t["buyer"], t["seller"], t["unit"], p.reserve.get("period") if p.reserve else None), Pubkey.from_string(s["order"])
     return [{"draw": k, "pr": draw_number(n, k), "amount": s["tranche"],
              "pay_audience": pay.order_pay_audience(order, head(n), th, MODE, draw_number(n, k), [(n.seller, 10_000, wallet)])} for k in range(1, s["draws"] + 1)]
 
@@ -748,7 +758,7 @@ def register(app, help_lines: list | None = None) -> None:
         if reserve:
             o, now = order_at(reserve)
             try:
-                facts = reserve_of(o, reserve, buyer, seller, now, unit)
+                facts = reserve_of(o, reserve, buyer, seller, now, unit, month)
             except Bad as why:
                 raise stop(str(why), "Lock one: the buyer funds the audience `knos net reserve` prints. Or open the period unsecured, with --max-exposure.") from None
         with held(book):
@@ -773,11 +783,12 @@ def register(app, help_lines: list | None = None) -> None:
                  balance: str = typer.Option(..., help="the buyer's Balance address the money comes from"),
                  issue: int = typer.Option(..., help="the issue of the buyer's repository the reserve is funded on"),
                  days: int = typer.Option(90, help="how long it stays locked: at most 90"),
-                 unit: str = typer.Option("USDC", help="what the amounts count")):
+                 unit: str = typer.Option("USDC", help="what the amounts count"),
+                 period: str = typer.Option("", help="YYYY-MM: the one month the reserve secures, named in its terms (default: any)")):
         """Print what the buyer's funding run signs to lock a reserve for one supplier. Nothing is sent."""
         from solders.pubkey import Pubkey
         try:
-            out = reserve_fund(buyer, seller, amount, tranche, Pubkey.from_string(balance), issue, days * 86_400, unit)
+            out = reserve_fund(buyer, seller, amount, tranche, Pubkey.from_string(balance), issue, days * 86_400, unit, period=period or None)
         except ValueError as why:
             raise stop(str(why)) from None
         say({**out, "reserve_returns": REFUND})

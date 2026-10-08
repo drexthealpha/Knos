@@ -549,7 +549,7 @@ def test_every_other_knos_comment_gets_its_answer(tmp_path):
     def reply(n: int, who_: dict, body: str, code: int = 0) -> str:
         run = w.run(w.hub.commented(n, who_, body))
         assert flow.command(run) == code and run.outputs == {}
-        return plain(w.hub.knos(n)[-1], 1850 if "- `/knos help`: this list" in w.hub.knos(n)[-1] else 1100)     # the list of commands is the one long answer (17 lines since 0.3.19: the faucet's)
+        return plain(w.hub.knos(n)[-1], 2000 if "- `/knos help`: this list" in w.hub.knos(n)[-1] else 1100)     # the list of commands is the one long answer (18 lines since 0.3.21: the reserve's)
     # an agent's pull request: nobody is paid until GitHub authenticates a person
     assert reply(12, MONA, f"/knos address {ADDRESS}").startswith("Knos: `/knos address` is for the person this pull request pays. An address counts once")
     assert reply(12, EVE, "/knos mine") == ("Knos: `/knos mine` is for a person named in this pull request's assignees, when a bot account "

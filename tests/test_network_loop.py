@@ -23,7 +23,7 @@ def job(by: int, payee: int, at: int, repo: int = 500) -> dict:
 def test_nothing_read_is_zero_and_says_it_was_not_measured():
     got = nl.rows(None, ROOT)
     assert got["measured"] is False and (got["suppliers_two_buyers"], got["buyers_through_supplier"], got["repeat_buyers"]) == (0, 0, 0)
-    assert set(nl.DEFINITIONS) == set(got) - {"measured", "definitions"}
+    assert set(nl.DEFINITIONS) == set(got) - {"measured", "definitions", "reuse"}
     assert nl.loop([], OWN)["measured"] is True
 
 
@@ -61,3 +61,38 @@ def test_market_prints_each_link_with_its_counter_and_reads_zero():
         row = next(line for line in table.splitlines() if f"`{name}`" in line)
         assert row.rstrip().endswith(f"| {here.get(name, 0)} |"), name
     assert "scripts/network_loop.py" in table and "A larger log of events is not a network effect." in table
+
+
+def test_nothing_read_counts_no_reuse_and_no_saving():
+    got = nl.rows(None, ROOT)["reuse"]
+    assert (got["suppliers_reused"], got["onboarding_pairs"], got["onboarding_saved_s"]) == (0, 0, None)
+    assert set(got) - {"definitions"} == set(nl.REUSE)
+
+
+def test_a_supplier_reused_by_a_second_buyer_and_what_the_second_buyer_saved():
+    first = {**job(10, 77, 10 * DAY), "funded_at": 10 * DAY - 7_200}      # the first buyer: two hours to its first payment
+    again = {**job(10, 77, 12 * DAY), "funded_at": 12 * DAY - 60}         # its later order is not its first
+    second = {**job(11, 77, 20 * DAY), "funded_at": 20 * DAY - 1_800}     # the second buyer: half an hour
+    got = nl.reuse([second, again, first], None, OWN)
+    assert got == {"suppliers_reused": 1, "onboarding_pairs": 1, "onboarding_first_s": 7_200.0, "onboarding_second_s": 1_800.0,
+                   "onboarding_saved_s": 5_400.0}
+    assert nl.reuse([first, second], None, OWN) == got                     # the order of the records changes nothing
+
+
+def test_a_paid_lookup_by_another_buyer_counts_as_reuse_and_knos_own_reader_does_not():
+    paid = job(10, 77, DAY)
+    assert nl.reuse([paid], [{"reader": "wallet:outsider", "supplier": "gh:77"}], OWN)["suppliers_reused"] == 1
+    assert nl.reuse([paid], [{"reader": "gh:1", "supplier": "gh:77"}], OWN)["suppliers_reused"] == 0          # Knos read it
+    assert nl.reuse([paid], [{"reader": "wallet:k", "supplier": "gh:77"}], OWN, frozenset({"k"}))["suppliers_reused"] == 0
+    assert nl.reuse([paid], [{"reader": "gh:10", "supplier": "gh:77"}], OWN)["suppliers_reused"] == 0         # its own buyer again
+    # a supplier with two buyers but no funding time on record is reused and not timed
+    assert nl.reuse([job(10, 77, DAY), job(11, 77, 2 * DAY)], None, OWN)["onboarding_pairs"] == 0
+
+
+def test_the_command_reads_job_and_lookup_files(tmp_path, capsys):
+    (tmp_path / "jobs.json").write_text(json.dumps([job(10, 77, DAY)]), encoding="utf-8")
+    (tmp_path / "lookups.json").write_text(json.dumps([{"reader": "wallet:x", "supplier": "gh:77"}]), encoding="utf-8")
+    (tmp_path / "own.json").write_text(json.dumps({"ids": [1], "wallets": []}), encoding="utf-8")
+    assert nl.main(["--jobs", str(tmp_path / "jobs.json"), "--lookups", str(tmp_path / "lookups.json"), "--own", str(tmp_path / "own.json")]) == 0
+    got = json.loads(capsys.readouterr().out)
+    assert got["measured"] is True and got["reuse"]["suppliers_reused"] == 1

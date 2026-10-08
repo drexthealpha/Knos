@@ -33,7 +33,9 @@ commit's. The sections after this one give the detail and the line counts.
 | 4 Oct 2026 | Knos 0.3.13 (09:02), Knos 0.3.14 (21:46, commit `6eb81dd`) | during |
 | 5 Oct 2026 | Knos 0.3.15 (10:49, commit `72511b3`) and 0.3.16 (23:47, commit `50ecb05`) | during |
 | 6 Oct 2026 | Knos 0.3.17 (20:00, commit `f03ec51`) | during |
-| after 6 Oct 2026 | Knos 0.3.18 | during |
+| 7 Oct 2026 | Knos 0.3.18 (07:40, commit `f8bcd9d`) and 0.3.19 (15:47, commit `155b570`) | during |
+| 8 Oct 2026 | Knos 0.3.20 (01:04, commit `fb77f4f`); the interface crates published on crates.io and the JavaScript client on npm (`npm install knos-settle`, [knos-settle](https://www.npmjs.com/package/knos-settle) 0.3.20) | during |
+| after 8 Oct 2026 | Knos 0.3.21 | during |
 
 **Everything the product is today was built during the contest period.** What predates it is a different product,
 of which 1.1% of the lines at Knos 0.3.11 remain (the table below says which).
@@ -130,7 +132,7 @@ One dependency also carries over: Sibyl's memory client, which the judge and the
   by image digest; a feed of upgrade proposals; and the documents [INVARIANTS.md](INVARIANTS.md) and
   [GOVERNANCE.md](GOVERNANCE.md).
 
-- **Knos 0.3.16 to 0.3.18** (5 Oct 2026 onward): [CHANGELOG.md](../CHANGELOG.md) has each list.
+- **Knos 0.3.16 to 0.3.21** (5 Oct 2026 onward): [CHANGELOG.md](../CHANGELOG.md) has each list.
 - **Knos 0.3.15**: no program changed. Clients, workflows, the site, documents and tests only;
   [CHANGELOG.md](../CHANGELOG.md) has the list. The offer of a paid [Pilot](PILOT.md) and the page on who builds
   Knos ([TEAM.md](TEAM.md)) were written for it.
@@ -177,7 +179,7 @@ reviewed and committed the change.
 
 ## Outstanding limits
 
-Each limit is said once, on one line. Code cannot produce the first fifteen. `python scripts/release_manifest.py`
+Each limit is said once, on one line. Code cannot produce the first fourteen. `python scripts/release_manifest.py`
 copies these lines into [MANIFEST.md](MANIFEST.md).
 
 - **No buyer has been interviewed.** Every statement here about what a buyer wants is the founder's reasoning from public sources ([MARKET.md](MARKET.md)).
@@ -194,7 +196,6 @@ copies these lines into [MANIFEST.md](MANIFEST.md).
 - **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples.
 - **No outside program is known to read the verifier.** The interface and the examples are Knos's own ([COMPOSE.md](COMPOSE.md)).
 - **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash, rerunning the benchmarks or running the drills.
-- **The Rust crates and the npm package are not on crates.io or npm.** They install from this repository ([INSTALL.md](INSTALL.md)); the Python package is on PyPI.
 - **No mainnet deployment.** Solana devnet and test USDC only; no real money has moved.
 - **No second operator.** If the founder is unavailable, nobody answers a report, approves a key or cancels a proposal ([OPERATOR.md](OPERATOR.md)).
 - **No organisation account.** The pinned workflows and the relay live in one personal GitHub account ([GOVERNANCE.md](GOVERNANCE.md), section 9).

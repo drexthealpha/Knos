@@ -176,7 +176,7 @@ that needs no token, no signature of Knos's or of the funder's, and does not rea
   rent returns to, the mint, the token program). The destination is fixed: the Balance's own token account, or a
   token account of the mint owned by the funding wallet. If that wallet closed its token account, the sender
   creates it again in the same transaction, at their own cost. `knos relay` does all of this for every order that
-  is due (`refund_orders_due` in [`relay.py`](../src/knos/settle/v2/relay.py)), with `KNOS_RELAY_KEY` set to any
+  is due (`refund_orders_due` in [`upkeep.py`](../src/knos/settle/v2/relay/upkeep.py)), with `KNOS_RELAY_KEY` set to any
   funded key.
 - **Also without a token:** `Withdraw` (a Balance's wallet, at any time), `SettleOrder` (a held order whose payee
   now has a wallet), `Release` (after the warranty), `Refund` (a 0.3.12 bounty), a passkey wallet's withdrawal.

@@ -28,6 +28,19 @@ hold is printed as **MISSING** with the reason. Nothing is filled in.
 6. **Exercised scenario.** A transaction at the public id that used the build and succeeded, taken from
    [`docs/capabilities.json`](capabilities.json). A run on a staging deployment of the same build is not one.
 
+## Check one upgrade proposal yourself
+
+    python scripts/provenance.py verify-proposal N --so programs-v2/target/deploy/<program>.so
+
+It reads proposal N of the upgrade multisig from the cluster (`--rpc`, default devnet's public endpoint), the bytes
+in the buffer it would deploy (or, once it has run and the buffer is closed, the bytes the program runs), the
+record `upgrade_gate` holds for exactly those bytes, and the hash [`web/upgrades.json`](../web/upgrades.json)
+printed. With `--so` (or `--hash`) it compares them with a build you made yourself; without, it prints the four
+commands that make that build from the recorded commit, in the pinned image of `program.yml`'s verified-build job.
+It says VERIFIED, and exits 0, only when a verified-build run recorded these bytes, the feed agrees, and your build
+(when given) is the same; it exits 1 otherwise and 2 when the cluster cannot be read. It sends nothing and needs no
+key. Tested on fixture accounts (`tests/test_provenance_verify.py`); nobody outside Knos has run it.
+
 Each program's section opens with one table: the source commit, the verified build hash, the program id, the
 proposal's number, the slot in which the build went live at the public id, and the transactions that exercised it
 there. The last two are filled by `python scripts/exercise_public.py record`, and only for a program whose hash on

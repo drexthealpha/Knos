@@ -113,7 +113,7 @@ def test_the_buyers_checks_say_success_and_the_suite_fails_when_it_is_run_again_
     plan = json.loads((trees / "plan.json").read_text(encoding="utf-8"))
     assert plan == {"order": str(ORDER), "repository": "o/r", "pull": 12, "issue": 7, "head": head, "base": sha("main"),
                     "accept": BY_TESTS["accept"], "image": "", "changed": ["src/a.py"]} and (out["rerun"], out["base"], out["head"]) == ("1", sha("main"), head)
-    assert judged.asked == [("base", "pr", {"issue": "7"}, "require")] and judged.changed == ["src/a.py"]      # GitHub's list, not the trees' difference
+    assert judged.asked == [("base", "pr", {"issue": "7"}, "hermetic")] and judged.changed == ["src/a.py"]      # GitHub's list, not the trees' difference
     assert code == 1 and "was run again here and did not pass (black-box)" in text and "Nothing is signed: the job that asks GitHub for the token does not start." in text
     v = json.loads(out["verdict"])
     assert v == json.loads((trees / "verdict.json").read_text(encoding="utf-8"))

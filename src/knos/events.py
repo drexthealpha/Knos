@@ -847,11 +847,17 @@ def gaps(log: Log, month: int | str = 0, last: dict[str, int] | None = None) -> 
     return out
 
 
-def close_problems(log: Log, month: int | str, last: dict[str, int] | None = None, signatures_checked: bool = True) -> list[str]:
+def close_problems(log: Log, month: int | str, last: dict[str, int] | None = None, signatures_checked: bool = True,
+                   acks: Iterable[dict] | None = None, terms_docs: Iterable[dict] = ()) -> list[str]:
     """Why the month cannot be closed, in words; an empty list when it can. A month is not closed over a missing number:
     either the number arrives, or a correction explains it under a head a party signed (and the signature was checked
-    against the issuer's keys: `signatures_checked`)."""
+    against the issuer's keys: `signatures_checked`). With `acks` (the parties' signed acknowledgements and closures of
+    months, knos.period) and the Knos Terms 3 documents that name their keys, the month must also be CLOSED by them:
+    both parties signed its last line, or one did and closed it after the silence the terms allow."""
     said = []
+    if acks is not None:
+        from . import period
+        said += period.close_problems(log, month, acks, terms_docs)
     for g in gaps(log, month, last):
         what = f"Number {g['number']} of {g['stream']} never arrived"
         if g["state"] == "open":
@@ -916,7 +922,7 @@ def check_export(files: dict[str, bytes]) -> list[str]:
 
 # -- the command line -------------------------------------------------------------------------------------------------
 def register(app, help_lines: list | None = None) -> None:
-    """`knos events ingest | verify | ack | dupes | gaps | close | statement | export`, on the main app. `help_lines`: cli._HELP."""
+    """`knos events ingest | verify | ack | sign | dupes | gaps | close | statement | export`, on the main app. `help_lines`: cli._HELP."""
     import importlib
     typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
@@ -924,7 +930,7 @@ def register(app, help_lines: list | None = None) -> None:
                          help="One log of events under every recording mode: what was counted, what arrived twice, what both sides acknowledged.")
     app.add_typer(events, name="events")
     if help_lines is not None:
-        help_lines.append(("events", "For money", "One log under every recording mode: ingest, verify, ack, dupes, gaps, close, statement, export."))
+        help_lines.append(("events", "For money", "One log under every recording mode: ingest, verify, ack, sign, dupes, gaps, close, statement, export."))
 
     def stop(said: str, fix: str = ""):
         from . import cli
@@ -1125,12 +1131,16 @@ def register(app, help_lines: list | None = None) -> None:
 
     @events.command("close")
     def close_(log: Path = typer.Argument(..., help="the log file"), month: str = typer.Option(..., "--month", help="YYYY-MM"),
-               last: list[str] = typer.Option(None, "--last", metavar="BUYER:SUPPLIER:YYYYMM.N", help="the last number a sender says it sent")) -> None:
-        """Say whether a month can be closed. Refused over a missing number unless an acknowledged correction explains it. Prints the statement's hash and the head both parties sign."""
+               last: list[str] = typer.Option(None, "--last", metavar="BUYER:SUPPLIER:YYYYMM.N", help="the last number a sender says it sent"),
+               ack: list[Path] = typer.Option(None, "--ack", help="a party's signed acknowledgement or closure of the month (`knos events sign`); repeat"),
+               terms_file: list[Path] = typer.Option(None, "--terms", help="the Knos Terms 3 file that names the parties' keys; repeat")) -> None:
+        """Say whether a month can be closed. Refused over a missing number unless an acknowledged correction explains it. With --ack and --terms, refused too unless both parties signed the month's last line, or one did and closed it after the silence the terms allow. Prints the statement's hash and the head both parties sign."""
         try:
             jwks = keys_of(log)
             book = opened(log, jwks)
-            said = close_problems(book, month, last_of(last), jwks is not None)
+            signed = [json.loads(p.read_text(encoding="utf-8")) for p in ack or []] if ack or terms_file else None
+            docs = [json.loads(p.read_text(encoding="utf-8")) for p in terms_file or []]
+            said = close_problems(book, month, last_of(last), jwks is not None, signed, docs)
             st = statement(book, month)
         except Bad as why:
             raise stop(str(why)) from None
@@ -1138,6 +1148,37 @@ def register(app, help_lines: list | None = None) -> None:
             raise stop(f"{month} is not closed. " + said[0] + (f" ({len(said) - 1} more: knos events gaps)" if len(said) > 1 else ""))
         typer.echo(f"{month} can be closed: no number is missing without an acknowledged reason. Statement {st['sha256']}, head {book.head}. "
                    "Each party signs the head: `knos events ack`.")
+
+    @events.command("sign")
+    def sign_(log: Path = typer.Argument(..., help="the log file"), month: str = typer.Option(..., "--month", help="YYYY-MM"),
+              role: str = typer.Option(..., "--role", help="buyer or supplier: whose key signs"),
+              key: Path = typer.Option(..., "--key", help="your Ed25519 key, the JSON list of 64 numbers solana-keygen writes; the terms name its public half"),
+              terms_file: Path = typer.Option(..., "--terms", help="the Knos Terms 3 file that names both parties' keys"),
+              on: str = typer.Option(..., "--on", help="the day you sign, YYYY-MM-DD"),
+              closing: Path = typer.Option(None, "--closing", help="your own earlier acknowledgement: sign a closure of the month, which holds only after the silence the terms allow"),
+              out: Path = typer.Option(None, "--out", help="write the signed file here and not to standard output")) -> None:
+        """Sign a month of the log: its last line, that line's hash and the month's root, under the terms that name your key. Both parties' acknowledgements close the month; so does one party's closure after the days of silence the terms allow."""
+        from . import period, terms3
+        try:
+            doc = json.loads(terms_file.read_text(encoding="utf-8"))
+            rule = terms3.period_close(doc)
+            if rule is None:
+                raise Bad("these terms name no keys to close a month (`window.period_close`)")
+            signer = period.load_key(key)
+            if str(signer.pubkey()) != rule.get(f"{role}_key"):
+                raise Bad(f"this key is {signer.pubkey()}; the terms name {rule.get(role + '_key')} for the {role}")
+            if closing is not None:
+                got = period.close_alone(signer, json.loads(closing.read_text(encoding="utf-8")), rule["silence_days"], on)
+            else:
+                got = period.acknowledge(signer, opened(log, keys_of(log)), month, role, terms3.digest(doc), on)
+        except (Bad, ValueError, OSError) as why:
+            raise stop(str(why)) from None
+        text = period.dumps(got)
+        if out:
+            out.write_text(text, encoding="utf-8")
+            typer.echo(f"wrote {out}: the {role} signed {got['month']} up to line {got['last']}", err=True)
+        else:
+            typer.echo(text, nl=False)
 
     @events.command("statement")
     def statement_(log: Path = typer.Argument(..., help="the log file"), month: str = typer.Option(..., "--month", help="YYYY-MM"),

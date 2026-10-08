@@ -72,10 +72,11 @@ def test_the_lint_job_runs_ruff_and_mypy_at_pinned_versions_and_pyproject_lists_
     tool = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]
     assert tool["ruff"]["lint"]["select"] == ["E4", "E7", "E9", "F"] and tool["ruff"]["lint"]["ignore"] == ["E702"]
     assert tool["mypy"]["files"] == ["src/knos"] and tool["mypy"]["ignore_missing_imports"] is True
-    [skipped] = tool["mypy"]["overrides"]
-    assert skipped["ignore_errors"] is True and len(skipped["module"]) == len(set(skipped["module"]))
-    for module in skipped["module"]:
-        assert (ROOT / "src" / Path(*module.split("."))).with_suffix(".py").is_file(), f"{module} is gone: take it off the list"
+    for skipped in tool["mypy"].get("overrides", []):        # none since 0.3.21: the relay package is under mypy too
+        assert skipped["ignore_errors"] is True and len(skipped["module"]) == len(set(skipped["module"]))
+        for module in skipped["module"]:
+            base = ROOT / "src" / Path(*module.split("."))
+            assert base.with_suffix(".py").is_file() or (base / "__init__.py").is_file(), f"{module} is gone: take it off the list"
 
 
 def test_every_publishing_job_needs_the_gate_and_none_can_run_when_it_did_not_pass():
@@ -346,13 +347,14 @@ def _worker_install() -> str:
 
 def test_the_workers_install_waits_only_for_the_index_to_list_the_release_and_for_ten_minutes_at_most(tmp_path):
     """The first worker run after 0.3.15 was pushed failed on "no version of" the knos release it asked for (PyPI's index was minutes
-    behind the upload), and a run that fails starts no next run. The step now waits for that error alone, 600 s in all."""
+    behind the upload), and a run that fails starts no next run. The step now waits for that error alone, 195 s in all (since 0.3.21,
+    inside a 6-minute step timeout: a run that stays stuck is replaced by the watchdog, tests/test_worker_chain.py)."""
     import os
     import subprocess
 
     import _posix
     run = _worker_install()
-    assert "for nap in 15 30 60 120 180 195 end; do" in run and sum((15, 30, 60, 120, 180, 195)) == 600
+    assert "for nap in 15 30 60 90 end; do" in run and sum((15, 30, 60, 90)) == 195
     assert run.count("uv pip install ") == 1 and run.count("sleep ") == 1 and "while" not in run and "until" not in run     # no loop without an end
     assert _yaml("worker.yml")["jobs"]["relay"]["timeout-minutes"] >= 15                                # the wait and the 5 minutes of relaying fit
     if os.name == "nt":
@@ -384,8 +386,8 @@ def test_the_workers_install_waits_only_for_the_index_to_list_the_release_and_fo
     done, tries, naps, installed = go([lag, lag])                       # the index shows the release on the third try
     assert (done.returncode, tries, naps, installed) == (0, 3, [15, 30], True), done.stderr
     assert done.stdout.count("PyPI's index does not list knos 9.8.7 yet") == 2
-    done, tries, naps, installed = go([lag] * 20)                       # it never does: seven tries, 600 s, then red
-    assert (done.returncode, tries, sum(naps), installed) == (1, 7, 600, False) and naps == [15, 30, 60, 120, 180, 195]
+    done, tries, naps, installed = go([lag] * 20)                       # it never does: five tries, 195 s, then red
+    assert (done.returncode, tries, sum(naps), installed) == (1, 5, 195, False) and naps == [15, 30, 60, 90]
     # any other failure is red at once: a hash that does not match, another package, another release of knos, the network
     for other in (f"  x Failed to download `{pin}`: Hash mismatch for `{pin}`",
                   "Because there is no version of solders==0.29.0 and you require solders==0.29.0, we can conclude",

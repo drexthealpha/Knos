@@ -39,6 +39,7 @@ cp docs/agent_weekly.json "$out/agent_weekly.json"
 # feed; both are held to the weekly table first.
 "${PYTHON:-python3}" scripts/agent_pr_index.py board --check
 cp docs/index.json "$out/agent_index.json"
+cp docs/vendors.json "$out/vendors.json"       # the vendor pages (#vendor=<agent>): web/vendor.js reads it; scripts/agent_pr_index.py vendors writes it
 cp docs/index.atom "$out/index.atom"
 # A supplier's public record (docs/RECORD.md): the file and its badge, which the record page reads.
 mkdir -p "$out/records" && cp docs/records/*.json "$out/records/"

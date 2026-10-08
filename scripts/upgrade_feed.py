@@ -173,16 +173,28 @@ def entries(account: mc.Account, ids: dict, previous: list[dict] | None = None, 
     return ms, out
 
 
-def words(e: Entry) -> str:
-    """One entry in plain words: what is proposed, by which build, and what a reader can do about it."""
+def hours_to_leave(e: Entry, now: int | None) -> int | None:
+    """Whole hours from `now` until a pending, approved proposal can run: the time a funder has to take money out
+    (`knos exit --before-upgrade` lists what can and cannot be out by then). None for any other entry."""
+    if now is None or e.status != "pending" or e.earliest_execution is None:
+        return None
+    return max(0, e.earliest_execution - now) // 3600
+
+
+def words(e: Entry, now: int | None = None) -> str:
+    """One entry in plain words: what is proposed, by which build, and what a reader can do about it. `now`: the time
+    the hours to leave are counted from (the feed's `generated`)."""
     build = (f"build {e.build_hash}" if e.build_hash else "a build whose hash can no longer be read (its buffer is closed and no earlier read is on file)")
     source = (f"GitHub's runner built it from commit {e.source_commit} (run {e.gate_run}, recorded on chain by upgrade_gate)" if e.source_commit else
               "upgrade_gate holds no record of this build: no GitHub run vouches for these bytes" if e.build_hash else "its source commit is not known")
     if e.status == "pending":
         state = (f"The multisig approved it ({e.approved} of {e.threshold}); it can run from {utc(e.earliest_execution)}." if e.earliest_execution else
                  f"{e.approved} of {e.threshold} approvals so far; it can run 48 hours after the vote that approves it.")
-        todo = (" Until then: read the diff at that commit, compare the hash with your own build (docs/ASSURANCE.md), and if you do not "
-                "accept it, withdraw a Balance now and cancel a wallet-funded order (docs/GOVERNANCE.md).")
+        left = hours_to_leave(e, now)
+        todo = ((f" {left} hours to leave (at {utc(now)})." if left is not None else "")
+                + " Until then: read the diff at that commit, compare the hash with your own build (docs/ASSURANCE.md), and if you do not "
+                "accept it, withdraw a Balance now and cancel a wallet-funded order. An open order whose deadline falls after that time "
+                "cannot be out by then (a cancellation gives 7 days of notice): `knos exit --before-upgrade` lists yours (docs/GOVERNANCE.md).")
     elif e.status == "executed":
         state, todo = f"It ran: {e.program} now runs this build (the multisig marked it executed at {utc(e.since)}).", ""
     elif e.status == "replaced":
@@ -198,7 +210,8 @@ def as_json(ms: mc.Multisig, got: list[Entry], ids: dict, now: int, cluster: str
         "generated": utc(now), "cluster": cluster, "feed": FEED, "multisig": ids["upgrade_multisig"],
         "time_lock": ms.time_lock, "threshold": ms.threshold, "members": len(ms.members),
         "pending": sum(e.status == "pending" for e in got),
-        "entries": [{**asdict(e), "earliest_execution_utc": utc(e.earliest_execution), "words": words(e)} for e in got],
+        "entries": [{**asdict(e), "earliest_execution_utc": utc(e.earliest_execution), "hours_to_leave": hours_to_leave(e, now), "words": words(e, now)}
+                    for e in got],
     }, indent=1) + "\n"
 
 
@@ -207,13 +220,15 @@ def as_atom(got: list[Entry], ids: dict, now: int) -> str:
     how a feed reader shows that a pending proposal ran or was withdrawn."""
     def one(e: Entry) -> str:
         changed = max(e.since, 0) or now
-        title = f"{e.program}: upgrade proposal {e.index} is {e.status}" + (f", can run from {utc(e.earliest_execution)}" if e.status == "pending" and e.earliest_execution else "")
+        left = hours_to_leave(e, now)
+        title = (f"{e.program}: upgrade proposal {e.index} is {e.status}" + (f", can run from {utc(e.earliest_execution)}" if e.status == "pending" and e.earliest_execution else "")
+                 + (f" ({left} hours to leave at {utc(now)})" if left is not None else ""))
         return ("<entry>"
                 f"<id>tag:drexthealpha.github.io,2026:knos/upgrade/{ids['upgrade_multisig']}/{e.index}</id>"
                 f"<title>{escape(title)}</title><updated>{utc(changed)}</updated>"
                 f'<link rel="alternate" href="{escape(EXPLORER.format(e.proposal), {chr(34): "&quot;"})}"/>'
                 f'<category term="{e.status}"/><category term="{e.program}"/>'
-                f"<summary>{escape(words(e))}</summary></entry>")
+                f"<summary>{escape(words(e, now))}</summary></entry>")
     return ('<?xml version="1.0" encoding="UTF-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom">'
             f"<id>tag:drexthealpha.github.io,2026:knos/upgrades/{ids['upgrade_multisig']}</id>"
             "<title>Knos: upgrade proposals of the programs</title>"
@@ -296,7 +311,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         say(f"stopped: {a.rpc} could not be read ({type(why).__name__}: {why}). Nothing was written; run it again when the cluster answers.")
         return 2
     for e in got:
-        say(words(e))
+        say(words(e, now))
     pending = sum(e.status == "pending" for e in got)
     say(f"{len(got)} upgrade proposals, {pending} pending; wrote {a.out / 'upgrades.json'} and {a.out / 'upgrades.xml'}")
     if a.published:

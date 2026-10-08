@@ -32,12 +32,10 @@ What is in this folder:
 | [weekly_update.md](weekly_update.md) | the one-minute weekly update |
 | [../CAPABILITIES.md](../CAPABILITIES.md) | the index of evidence: every capability, the stage it has reached (implemented, tested locally, deployed, exercised on devnet, reproduced by someone else) and the file that shows it |
 
-What this release (0.3.18) changes, each at the stage [../MANIFEST.md](../MANIFEST.md) gives it and no higher: the
-price book is one fee on value released against a signed acceptance; a supplier gets a kit (a signed public
-record, a badge, a one-line install, a verified receipt to attach to an invoice); a batch's commitment hashes each
-complete canonical event (format 2); and two quorum findings are fixed in the escrow, with their tests kept as
-release blockers. The escrow build that carries the last is in the tree and is not the build at the public program
-id until a proposal for it has executed.
+What each release changes is in [../../CHANGELOG.md](../../CHANGELOG.md), and each capability stands at the stage
+[../MANIFEST.md](../MANIFEST.md) gives it and no higher. Knos 0.3.21 changes no program. The demonstration is one
+independently witnessed transaction ([demo_script.md](demo_script.md)); a judge's one page is
+[../JUDGES.md](../JUDGES.md), with the six criteria and the seven factors Colosseum's page lists.
 
 A number that only the release run can measure is a slot, `[[stat: name]]`; `python scripts/bench_docs.py --slots`
 lists the ones still open. Every field is under a thousand characters, and `tests/test_business_docs.py` counts them. Three fields state facts about the founder that nothing in the repository can back;
@@ -47,6 +45,12 @@ each says so, and the founder confirms it before pasting.
 
 - [ ] **Confirm the Solana ecosystem track is selected in the form.** A submission with no track selected is not
       in that track.
+- [ ] **The founder enters the disclosure in the submission form itself, not only in this repository.**
+      Colosseum's page asks teams to "disclose all relevant past development work in the submission form"
+      ([colosseum.com/hackathon](https://colosseum.com/hackathon)). The field `repoContext` below is that text: the
+      work before the window (Knos 0.1, a different product), the 1.1% of lines that survive from it, and that the
+      commits were written with coding agents. Nothing in this repository can do this step: the founder pastes it
+      into the form and ticks this box.
 - [ ] Both videos open for someone who is not signed in, and neither is longer than three minutes.
 - [ ] `python scripts/release_manifest.py --check` passes, and [../MANIFEST.md](../MANIFEST.md) has been read on the day:
       no field and no shot says a build is live that the manifest does not.
@@ -119,7 +123,7 @@ USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one
 Knos funded itself, and the rest to Knos's own accounts. When the release ran, 46 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
 their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 42
-payments. 3,596 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
+payments. 3,746 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
 sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
 source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 

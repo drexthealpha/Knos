@@ -55,6 +55,7 @@ import hashlib
 import json
 import math
 import random
+import re
 import sys
 import threading
 import time
@@ -660,15 +661,30 @@ def render_measured(doc: dict) -> list[str]:
                 "`tests/test_load_measure.py`), which proves the path and gives no rate: it has no leader, no block limit and no other traffic. "
                 "Until the release run records one, this page holds no measured throughput.", ""]
     for m in runs:
-        out += [f"**Measured on devnet ({m['date']}): {m['relays']} relays, {m['orders']:,} orders each way**" + ("" if m.get("ok") else " (did not complete cleanly)"), "",
-                "| | Confirmed | Seconds | Confirmed a second | Retries | Failures | Confirm p50 s | p95 | Slots used | Most in one slot |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+        kind = MEASURED_KIND.get(m.get("kind", "fund"), m.get("kind", "fund"))
+        if m.get("kind") == "pay" and "phases" not in m:            # scripts/load_pay.py's record: one row of payments
+            out += paid_rows(m, kind)
+            continue
+        out += [f"#### Measured on devnet, {ids_of(m.get('programs') or m.get('program'))}, {m['date']}: {kind}; {m['relays']} relays, {m['orders']:,} orders each way"
+                + ("" if m.get("ok") else " (did not complete cleanly)"), "",
+                "| | Confirmed | Seconds | Confirmed a second | Retries | Failures | Confirm p50 s | p95 | p99 | worst | Slots used | Most in one slot |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
         for name, x in m["phases"].items():
+            c = x["confirm_s"]
+            p99 = c.get("p99", "none: fewer than 100 samples" if x["confirmed"] < 100 else "not kept")
             out.append(f"| {name}: {m['what'][name]} | {x['confirmed']:,} of {x['transactions']:,} | {x['seconds']} | {x['confirmed_per_s']} | {x['retries']} | "
-                       f"{x['failures']} | {x['confirm_s']['p50']} | {x['confirm_s']['p95']} | {x['slots']} | {x['most_in_one_slot']} |")
+                       f"{x['failures']} of {x['transactions']:,} | {c['p50']} | {c['p95']} | {p99} | {c.get('max', 'not kept')} | {x['slots']} | {x['most_in_one_slot']} |")
         c = m.get("contention") or {}
         out += ["", f"The contention seen: the shared account's rate was {c.get('rate_shared_over_apart')} of the rate apart, with {c.get('retries_more')} more "
                 f"retries and {c.get('failures_more')} more failures. It cost {m.get('sol_spent')} SOL in fees and rent not recovered. Wallet `{m['wallet']}`, "
                 f"mint `{m.get('mint')}`, shared account `{m.get('shared_account')}`." + (f" Stopped: {m['stopped']}." if m.get("stopped") else ""), ""]
+    if not any(m.get("kind") == "pay" for m in runs):
+        out += ["**Not measured: end-to-end PayOrder capacity.** Every rate above is of funding (FundOrderWallet) alone. No run has sent "
+                "PayOrder, the transaction that writes the fee account of the mint, side by side on a cluster, so how many payments a second "
+                "the whole path carries (token verification, then PayOrder, through the one fee account) has no measured figure, on the "
+                "public program ids or on staging. The derived ceiling below is arithmetic. The command that will measure it: "
+                "`python scripts/load.py measure --pay --relays 4 --tokens <pay tokens GitHub signed> --wallet <keypair> --write`. A run of it is recorded here "
+                "under its own heading, with its ids and date.", ""]
     if doc.get("local"):
         d = doc["local"]["derived"]
         out += ["**Derived bound (not measured).** Section 3's arithmetic from the simulator's compute units and Solana's published limits: "
@@ -689,6 +705,52 @@ ABOUT = ("Load measurements; scripts/load.py writes this file and renders docs/L
 
 def usd(micro: int) -> str:
     return f"{micro / 1_000_000:,.2f}"
+
+
+PUBLIC_IDS = ROOT / "src" / "knos" / "settle" / "v2" / "program_ids.json"
+
+
+def paid_rows(m: dict, kind: str) -> list[str]:
+    """One end-to-end PayOrder run of scripts/load_pay.py on a cluster: every payment attempted, what became of each,
+    and the seconds of the ones paid, p50, p95 and p99 apart (no p99 below 100 payments)."""
+    progs = {k: v for k, v in (m.get("programs") or {}).items() if k != "ids"}
+    c = m.get("payment_s") or {}
+    p99 = c.get("p99") if m.get("paid", 0) >= 100 else "none: fewer than 100 payments"
+    out = [f"#### Measured on devnet, {ids_of(progs)}, {m['date']}: {kind}; {m['relays']} relays, {m.get('attempted', 0):,} payments attempted"
+           + ("" if m.get("ok") else " (did not complete cleanly)"), "",
+           "| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |",
+           "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+           f"| {m.get('attempted', 0):,} | {m.get('paid', 0):,} of {m.get('attempted', 0):,} | {m.get('already', 0)} | {m.get('refused', 0)} | "
+           f"{m.get('never_completed', 0)} | {m.get('seconds')} | {m.get('paid_per_s')} | {c.get('p50')} | {c.get('p95')} | {p99} | {c.get('max')} |", ""]
+    said = (f"A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then "
+            f"PayOrder. Each relay paid from a fee payer of its own ({', '.join(f'`{k}`' for k in m.get('fee_payers') or [])}), lent its SOL by "
+            f"wallet `{m.get('wallet')}` and swept back.")
+    if m.get("first_refusals"):
+        said += " The first refusals: " + "; ".join(m["first_refusals"]) + "."
+    if m.get("stopped"):
+        said += f" Stopped: {m['stopped']}."
+    return out + [said, ""]
+
+
+def ids_of(programs) -> str:
+    """Which program ids a cluster run used, in the words every heading prints: "public program ids" when each one is
+    a public id (src/knos/settle/v2/program_ids.json), "STAGING program ids (not the public ones)" when none is,
+    "program ids not recorded" when the run did not keep them. `programs`: {name: id} or one id."""
+    got = [programs] if isinstance(programs, str) else list((programs or {}).values())
+    if not got:
+        return "program ids not recorded"
+    public = {v for v in json.loads(PUBLIC_IDS.read_text(encoding="utf-8")).values() if isinstance(v, str)}
+    if all(x in public for x in got):
+        return "public program ids"
+    if not any(x in public for x in got):
+        return "STAGING program ids (not the public ones)"
+    return "public and STAGING program ids mixed"
+
+
+def _when(source: str) -> str:
+    """The date a source sentence names (2026-10-06, or 6 October 2026), else "date not recorded"."""
+    m = re.search(r"\d{4}-\d{2}-\d{2}|\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}", source or "")
+    return m.group(0) if m else "date not recorded"
 
 
 def render(doc: dict) -> str:
@@ -801,13 +863,17 @@ def render(doc: dict) -> str:
         out += ["**No cluster run is recorded yet.** The path is unit-tested against a simulated RPC (`tests/test_load.py`); it has not been "
                 "run on devnet.", ""]
     for r in runs:
-        out += [f"### {r['cluster']}, {r['date']}: {r['orders']:,} orders, {r['senders']} senders" + ("" if r.get("ok") else " (did not complete cleanly)"), "",
-                "| Stage | Units finalized | Transactions | Failures | Retries | Transaction p50 s | p95 | p99 | Unit p50 s | p95 | p99 |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+        out += [f"### {r['cluster']}, {ids_of(r.get('programs'))}, {r['date']}: {r['orders']:,} orders, {r['senders']} senders"
+                + ("" if r.get("ok") else " (did not complete cleanly)"), "",
+                *([f"These {r['orders']:,} orders ran on the staging deployment, not on the public program ids: knos_oidc `{r['programs'].get('knos_oidc')}`, "
+                   f"knos_pay `{r['programs'].get('knos_pay')}`. Every figure in this table is staging's; on the public program ids only the funding rate below was measured.", ""]
+                  if ids_of(r.get("programs")).startswith("STAGING") else []),
+                "| Stage | Units finalized | Transactions | Failures | Retries | Transaction p50 s | p95 | p99 | worst | Unit p50 s | p95 | p99 | worst |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
         for s, x in r["stages"].items():
             t, u = x["tx_submit_to_finalized_s"], x["unit_submit_to_finalized_s"]
-            out.append(f"| {s} | {x['units_finalized']:,} of {x['units']:,} | {x['transactions']:,} | {x['failures']} | {x['retries']} | {t['p50']} | "
-                       f"{t['p95']} | {t['p99']} | {u['p50']} | {u['p95']} | {u['p99']} |")
+            out.append(f"| {s} | {x['units_finalized']:,} of {x['units']:,} | {x['transactions']:,} | {x['failures']} of {x['transactions']:,} | {x['retries']} | "
+                       f"{t['p50']} | {t['p95']} | {t['p99']} | {t.get('max', 'not kept')} | {u['p50']} | {u['p95']} | {u['p99']} | {u.get('max', 'not kept')} |")
         out += ["", f"Wallet `{r['wallet']}`, key account `{r['key_account']}`, mint `{r.get('mint')}`." + (f" Stopped: {r['stopped']}." if r.get("stopped") else ""), ""]
     out += render_measured(doc)
     if doc.get("workflow"):
@@ -829,7 +895,8 @@ def render_relay(rel: dict) -> list[str]:
         import latency_stages
         n = [row["n"] for row in st["six"]]
         out += ["### The stages of a payment (recorded on devnet)", "",
-                f"From {st['source']}. Each stage is timed only for the payments whose log line recorded it, so each row has its own n; "
+                f"From {st['source']}. Every payment in it was made by the public program ids (the relay log's payments, read from their "
+                f"escrows' history). Each stage is timed only for the payments whose log line recorded it, so each row has its own n; "
                 f"a stage no line recorded says \"{latency_stages.NOT_RECORDED}\", and no figure here is derived from another row.", "",
                 *latency_stages.table(st["six"], st["whole"]), "",
                 f"Read it with its n. The whole wait is {st['whole']['n']} payments; the stage rows are {max(n)} of them, because the log lines of the other "
@@ -877,7 +944,8 @@ def render_relay(rel: dict) -> list[str]:
                 "a relay killed between its send and the confirmation on the programs as built (LiteSVM).", ""]
     if sw:
         whole = (st or {}).get("whole") or {}
-        made = (f"The {whole['n']} payments recorded on devnet above (p50 {whole['p50']} s, p95 {whole['p95']} s) were made by the serial sweep, "
+        made = (f"The {whole['n']} payments recorded on devnet above (public program ids, {_when(st['source'])}: p50 {whole['p50']} s, "
+                f"p95 {whole['p95']} s) were made by the serial sweep, "
                 "before it was on the queue: no figure on this page times the queue on a cluster.") if whole else \
             "No payment recorded on devnet was carried by the sweep on the queue: no figure on this page times the queue on a cluster."
         out += ["### The always-on sweep on the queue (the same local test, through the relay's own pass)", "",
@@ -902,6 +970,7 @@ def render_relay(rel: dict) -> list[str]:
     return out
 
 
+MEASURED_KIND = {"fund": "funding only (FundOrderWallet), no PayOrder", "pay": "end-to-end PayOrder: token verification, then the payment"}
 HELD_FOR_SLOW = 20      # scripts/queue_drill.py HELD_FOR: entries carried while the slow one is held
 
 
@@ -945,7 +1014,7 @@ def render_workflow(w: dict, runs: list) -> list[str]:
             f"| Solana transactions | {own['transactions']} | {pub['transactions']} | measured in the simulator (section 2) |",
             f"| Bytes of signed transactions | {own['bytes']:,} | {pub['bytes']:,} | measured in the simulator (p50) |",
             f"| Compute units | {own['cu']:,} | {pub['cu']:,} | measured in the simulator (mean) |",
-            f"| Seconds from merge to paid | not timed apart | median {m2p['median']}, p95 {m2p['p95']} | recorded on devnet: {m2p['count']} "
+            f"| Seconds from merge to paid | not timed apart | median {m2p['median']}, p95 {m2p['p95']} | recorded on devnet, public program ids: {m2p['count']} "
             f"payments in the public relay's log, {lat['window']['from']} to {lat['window']['to']} (`docs/bench.json`) |",
             "| Actions minutes | not measured | not measured | a job's time on the runner was not recorded; standard runners are free in "
             "public repositories |",
@@ -986,7 +1055,8 @@ def render_workflow(w: dict, runs: list) -> list[str]:
             same = other.get(r["limit"]) == r["at"]
             if not (same and way == "public"):
                 rows.append((r, "" if same else f" ({ways[way]})"))
-    out += ["", f"Every limit, for the largest of the three ({big['own']['repositories']:,} repositories, {big['own']['per_day']:,} a day), soonest first:", "",
+    out += ["", f"Every limit, for the largest of the three ({big['own']['repositories']:,} repositories, {big['own']['per_day']:,} a day), soonest first. "
+            f"The waits it uses are merge-to-paid over {m2p['count']} payments on the public program ids, {lat['window']['from']} to {lat['window']['to']}:", "",
             "| Limit | Whose | Binds at (a day) | From | What lifts it without a program change |", "| --- | --- | --- | --- | --- |"]
     for r, way in sorted(rows, key=lambda x: x[0]["at"]):
         out.append(f"| {r['limit']}{way} | {r['scope']} | {r['at']:,} | {r['from']} | {r['lift']} |")
@@ -1001,7 +1071,7 @@ def render_workflow(w: dict, runs: list) -> list[str]:
             "| Compute units, transactions and bytes of an order; paid once, none lost | measured in the local simulator, 1,000 orders (sections 1 and 2) |"]
     for r in runs:
         fails = sum(x["failures"] for x in r["stages"].values())
-        out.append(f"| Token verification, funding from a wallet, refund and close on a cluster | measured on {r['cluster']}, {r['date']}: "
+        out.append(f"| Token verification, funding from a wallet, refund and close on a cluster | measured on {r['cluster']}, {ids_of(r.get('programs'))}, {r['date']}: "
                    f"{r['orders']:,} orders, {fails} failures (section 4). PayOrder, funding from a Balance and the meter were not sent in that run |")
     out += [f"| Seconds from merge to paid | recorded on devnet, {m2p['count']} payments (`docs/bench.json`) |",
             "| Requests, comments, tokens and jobs of a word | counted from the code against a stand-in for GitHub; not observed on GitHub |",
@@ -1037,6 +1107,7 @@ def main(argv=None) -> int:
     ap.add_argument("--relays", type=int, default=4, metavar="N", help="measure: relays side by side, each with its own fee payer")
     ap.add_argument("--orders", type=int, default=40, metavar="M", help="measure: orders funded each way (0: only sweep the relays' SOL back)")
     ap.add_argument("--simulate", action="store_true", help="measure: the local simulator; proves the path, gives no rate, writes nothing")
+    ap.add_argument("--pay", action="store_true", help="measure: end-to-end PayOrder capacity instead of funding (scripts/load_pay.py: --relays, --orders with --simulate, or --tokens and --wallet)")
     ap.add_argument("--local", type=int, metavar="N", help="N orders through the test builds in LiteSVM")
     ap.add_argument("--devnet", type=int, metavar="N", help="N tokens verified and N orders funded and refunded on a cluster")
     ap.add_argument("--issuer-key", help="the test issuer's RSA private key, PEM (openssl genrsa 2048)")
@@ -1050,6 +1121,27 @@ def main(argv=None) -> int:
     ap.add_argument("--render", action="store_true", help="only render docs/LOAD.md again from docs/load.json")
     ap.add_argument("--stages", metavar="FILE", help="what `scripts/latency_stages.py --json` printed: store its six stages (docs/load.json `relay.stages`) and render")
     ap.add_argument("--stages-source", metavar="TEXT", help="with --stages: where and when the report was made, in words")
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args[:1] == ["measure"] and "--pay" in args:     # end-to-end PayOrder capacity: scripts/load_pay.py
+        import load_pay
+        rest = [x for x in args[1:] if x not in ("--pay", "--write")]
+        if "--write" not in args:
+            return load_pay.main(rest)
+        if "--simulate" in rest or "--out" in rest:
+            ap.error("measure --pay --write records a cluster's run: a simulated run measures nothing and is never written; --out is not needed")
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "pay.json"
+            code = load_pay.main([*rest, "--out", str(out)])
+            got = json.loads(out.read_text(encoding="utf-8")) if out.is_file() else None
+        if got is None:
+            return code or 1
+        print(json.dumps(got, indent=1))
+        if got.get("attempted"):                        # a run that sent nothing has no figure to keep
+            doc = load()
+            doc.setdefault("measured", []).append(got)
+            write(doc)
+        return code
     a = ap.parse_args(argv)
     doc = load()
     if a.stages:

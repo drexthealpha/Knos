@@ -43,8 +43,11 @@ The second number: 17.8% of first such pull requests, 147 of 826 repositories ([
 <!-- bench:today -->
 | What | Today | Read from |
 |---|---|---|
-| Runs on the public devnet program ids | token verification; a bounty funded by one comment, paid on merge, refunded at its deadline; one counted evaluation; a payee's passkey wallet | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows above "tested locally" |
-| Tested here only | work orders, the ledger and its statements, the invoice check, the console, the exports, and every other capability | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "tested locally" |
+| Reproduced by someone else | 0 of 222 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "reproduced by someone else" |
+| Exercised at the public devnet program ids | 16 of 222: GitHub token verification, funding from a wallet, refund at the deadline, work orders, an order paying up to four payees, orders judged by hidden tests, auto-accepted orders, top-ups, single-use tokens, a counted batch of evaluations, the seller's own count, a passkey funder, the passkey relay, the site's Buy page, an x402 order, an outcome that is not code | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "exercised on devnet" |
+| Deployed at the public devnet program ids, no transaction recorded | 9 of 222: GitLab token verification, the key guardian, funding by one comment, pay on merge, holding pay for a payee with no wallet, pause, one counted evaluation, a payee's passkey wallet, the upgrade gate | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "deployed on devnet" |
+| Tested here only | 194 of 222, each with the test its row names | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "tested locally" |
+| Written, not tested | 3 of 222 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "implemented" |
 | Outside funders | 0 | [docs/submission/NUMBERS.md](docs/submission/NUMBERS.md), row 1 |
 | Outside repositories | 0 | [docs/submission/NUMBERS.md](docs/submission/NUMBERS.md), row 2 |
 | Outside payees | 1, on tasks Knos funded itself | [docs/submission/NUMBERS.md](docs/submission/NUMBERS.md), row 3 |

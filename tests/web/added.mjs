@@ -31,11 +31,12 @@ const built = addedPages(root);
 check("list: the build names no page whose module or data it lacks", built.every((n) => { const a = LIST.find((x) => x.name === n); return a && existsSync(join(root, a.file)) && (!a.json || existsSync(join(root, a.json))); })
   && LIST.every((a) => built.includes(a.name) === (existsSync(join(root, a.file)) && (!a.json || existsSync(join(root, a.json))))), built);
 
-const ENFORCE = { routes: [{ id: "comment", name: "Funding by comment" }, { id: "wallet", name: "Wallet funding" }, "netted_release"],
+const ENFORCE = { routes: [{ id: "comment", name: "Funding by comment" }, { id: "squads_vault", name: "Funding from the vault", group: "enterprise" }, { id: "wallet", name: "Wallet funding" }, "netted_release"],
   restrictions: [{ id: "who", name: "Who may fund" }, { id: "limit", name: "Per-order limit" }, "deadline"],
   cells: { comment: { who: { class: "workflow", by: "fund.yml job fund: approvals.gate", test: "tests/test_enforcement.py::test_comment_who" }, limit: { class: "advisory", by: "procurement/limits.json", test: "tests/test_enforcement.py::test_comment_limit" }, deadline: { class: "program", by: "knos_pay FundOrder: deadline <= MAX_WORK", test: "tests/test_enforcement.py::test_deadline" } },
     wallet: { who: { class: "outside", by: "a wallet is its owner's", test: "" }, limit: { class: "outside", by: "a wallet is its owner's", test: "" }, deadline: { class: "program", by: "knos_pay FundOrder", test: "tests/test_enforcement.py::test_deadline" } },
-    netted_release: { who: { class: "workflow", by: "release job", test: "t::a" } } } };
+    netted_release: { who: { class: "workflow", by: "release job", test: "t::a" } },
+    squads_vault: { who: { class: "program", by: "Squads v4: threshold of the vault's members", test: "tests/test_boundary.py::t" }, limit: { class: "program", by: "Squads v4 spending limit", test: "tests/test_boundary.py::t" } } } };
 const JUDGES = { source: "docs/JUDGES.md", columns: ["Judged", "What exists", "Evidence"], not_real: ["Outside funders: 0.", "Interviews: 0."],
   rows: ["How well it works", "Potential impact", "Novelty", "User experience", "Open source", "Business plan"].map((thing, i) => ({ thing, sentence: `Sentence ${i + 1}.`, link: i ? `https://github.com/drexthealpha/Knos/blob/main/docs/E${i}.md` : "https://explorer.solana.com/tx/abc?cluster=devnet", label: `evidence ${i + 1}` })) };
 const standIn = (a) => `export const ${a.draw} = (el, ctx) => { window.__drawn = (window.__drawn || 0) + 1; el.innerHTML = '<h2>${a.nav} stands in here</h2><p class="lede">A stand-in page.</p><div class="card"><button type="button">One control</button></div>'; };\n`;
@@ -118,11 +119,19 @@ if (enforcement) {
   await page.goto(`${base}#enforcement`, { waitUntil: "load" }); await ready("enforcement");
   const data = realData(enforcement) ? JSON.parse(readFileSync(join(root, "enforce.json"), "utf8")) : ENFORCE;
   const n = (v) => (Array.isArray(v) ? v.length : Object.keys(v).length), cells = Object.values(data.cells).flatMap((r) => Object.values(r));
-  const got = await page.evaluate(() => { const el = document.getElementById("enforcement"); return { title: el.querySelector("h2").textContent, rows: el.querySelectorAll("tbody tr").length, cols: el.querySelectorAll("thead th").length - 1,
+  const got = await page.evaluate(() => { const el = document.getElementById("enforcement"); return { title: el.querySelector("h2").textContent, rows: el.querySelectorAll("tbody tr:not(.ke-group)").length, sets: [...el.querySelectorAll("tbody tr.ke-group")].map((t) => t.textContent), last: [...el.querySelectorAll("tbody tr")].map((t) => t.dataset.group || (t.matches(".ke-group") ? "set" : "")), cols: el.querySelectorAll("thead th").length - 1,
     cells: [...el.querySelectorAll(".ke-cell")].map((c) => c.dataset.class), keys: [...el.querySelectorAll("[data-only]")].map((k) => k.textContent.replace(/\s+/g, " ").trim()), heads: [...el.querySelectorAll("tbody th")].map((t) => t.textContent) }; });
   check("matrix: the hash opens it: one row a route, one column a restriction, a cell for every cell of the file", got.rows === n(data.routes) && got.cols === n(data.restrictions) && got.cells.length === cells.length && got.title === "Who enforces each rule", got);
+  const grouped = (Array.isArray(data.routes) ? data.routes : Object.values(data.routes)).filter((r) => typeof r === "object" && r && (r.group === "enterprise" || /^squads/i.test(r.id || ""))
+    || (typeof r === "string" && /^squads/i.test(r))).length;
+  check("matrix: the routes of enterprise-controlled funds stand last, under one row that names them", grouped ? got.sets.length === 1 && got.sets[0] === (data.groups?.enterprise ?? "Enterprise-controlled funds (Squads vault)") && got.last.slice(-grouped - 1).join() === ["set", ...Array(grouped).fill("enterprise")].join()
+    : got.sets.length === 0, got);
   check("matrix: every cell is one of the four classes, and the four keys count them", got.cells.every((c) => ["program", "workflow", "advisory", "outside"].includes(c))
     && got.keys.join("|") === ["program", "workflow", "advisory", "outside"].map((k) => `${k} ${cells.filter((c) => c.class === k).length}`).join("|"), got.keys);
+  // the stand-in file, drawn by the same module beside the page: a Squads route is drawn last, under the row that names its set
+  const alone = await page.evaluate(async (file) => { const { renderEnforcement } = await import("./enforce_view.js"), el = document.createElement("div");
+    renderEnforcement(el, { esc: (x) => String(x), data: file }); return [...el.querySelectorAll("tbody tr")].map((t) => t.textContent.trim().split(/\s{2,}|(?=program|workflow|advisory|outside)/)[0]); }, ENFORCE);
+  check("matrix: enterprise-controlled funds stand last, under their own row (the stand-in file)", alone.join("|") === "Funding by comment|Wallet funding|netted release|Enterprise-controlled funds (Squads vault)|Funding from the vault", alone);
   await page.focus("#enforcement .ke-cell"); await page.keyboard.press("Enter");
   const said = await page.evaluate(() => { const el = document.getElementById("enforcement"); return { text: el.querySelector(".ke-said").textContent.replace(/\s+/g, " ").trim(), pressed: el.querySelectorAll('.ke-cell[aria-pressed="true"]').length, live: el.querySelector(".ke-said").getAttribute("aria-live") }; });
   const firstRoute = Array.isArray(data.routes) ? data.routes[0] : Object.keys(data.routes)[0], rid = typeof firstRoute === "object" ? firstRoute.id : firstRoute;
@@ -162,6 +171,12 @@ if (enforcement) {
   const seen = await page.evaluate(() => { const s = document.querySelector("#enforcement .ke-said"), r = s.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, height: innerHeight, text: s.textContent.trim().slice(0, 60),
     breaks: [...s.querySelectorAll(".mono")].map((m) => getComputedStyle(m).wordBreak) }; });
   check("phone: the answer under the table is in view once a cell is pressed, its lines broken between words", seen.top >= 0 && seen.bottom <= seen.height + 1 && !seen.text.startsWith("No cell pressed") && seen.breaks.every((b) => b !== "break-all"), seen);
+  // the name of the set ("Enterprise-controlled funds (Squads vault)") is read whole: wrapped inside the visible part, not cut at its edge, scrolled or not
+  const label = await page.evaluate(async () => { const w = document.querySelector("#enforcement .k-table"), s = w.querySelector("tr.ke-group th > span"); if (!s) return [];
+    const at = async (x) => { w.scrollLeft = x; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); const r = s.getBoundingClientRect(), wr = w.getBoundingClientRect();
+      return { x, left: r.left, right: r.right, from: wr.left + w.clientLeft, to: wr.left + w.clientLeft + w.clientWidth }; };
+    return [await at(0), await at(w.scrollWidth)]; });
+  check("phone: the set's name is wholly inside the table's visible part, at the start and scrolled to the end", label.length === 2 && label.every((g) => g.left >= g.from - 0.5 && g.right <= g.to + 0.5), label);
 }
 if (judges) {
   for (const width of [390, 1280]) {

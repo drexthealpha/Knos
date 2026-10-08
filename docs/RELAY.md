@@ -30,9 +30,28 @@ What holds now:
   ... seconds, or what `Retry-After` says (`src/knos/proof/chain.py`). Before each new try the runs are listed, and a
   run that already took over ends the asking. In the 0.3.19 release run one HTTP 500 to that start ended the chain.
 - The watchdog is a job of its own (`watchdog` in `worker.yml`) with no secret and nothing installed. It runs on
-  the 5-minute timer and on every event that starts the workflow, and starts a chain when no run of one is queued
-  or in progress. Watchdogs run one at a time; should two starts be taken all the same, each run's first step lets
-  the older one go on. Tested here (`tests/test_worker_chain.py`, `tests/test_workflows2.py`); not yet run on GitHub.
+  the 5-minute timer and on every event that starts the workflow. Watchdogs run one at a time; should two starts be
+  taken all the same, each run's first step lets the older one go on.
+- In the 0.3.20 release run GitHub's 5-minute timer fired twice in four hours, and a run that sat in its PyPI install
+  wait counted as alive while the chain was down. Since 0.3.21:
+  - the same watchdog also runs when any run of the worker ends, whatever its conclusion (`watchdog.yml`, a file of
+    its own so that its own runs ending start nothing), on a `knos-watch` dispatch, and by hand (the release step).
+    GitHub sends `watchdog.yml` that event only for a run a person started, never for one the workflow's own token
+    started, which is every run of the chain after the first (seen in staging on 8 October 2026). So a chain run whose
+    relay job failed, was cancelled or timed out runs the watchdog itself as its last job (`rewatch` in `worker.yml`),
+    and the run it starts takes over from it;
+  - a run is alive by its **heartbeat**, not by existing: the relay job's step `heartbeat: the relay starts with what
+    was installed`, which GitHub lists with the time it completed. Alive: queued less than 15 minutes, or in progress
+    with a heartbeat less than 9 minutes old, or still installing less than 8 minutes after it started. Anything
+    else is cancelled (force-cancelled if a cancel does not end it) and one run is started in its place, after GitHub
+    lists the stuck run ended. When GitHub does not list a run's steps, the run counts as alive;
+  - after a start the watchdog waits until GitHub lists the new run, so the next watchdog finds it;
+  - the install waits 195 s for PyPI's index (it waited 10 minutes), uv asks each request again up to 5 times and
+    gives up on a read after 30 s ([uv's settings](https://docs.astral.sh/uv/reference/environment/)), and the step
+    ends at 6 minutes.
+
+  Tested here with fake runs (`tests/test_worker_chain.py`: a stuck install is replaced; two watchdogs never start two
+  chains); not yet run on GitHub.
 
 ## A run that relays its own token
 
@@ -123,6 +142,25 @@ confirmation holds the tokens of its own owner and nobody else's.
 
 **The event.** `worker.yml` also starts on the event that posted a token, in a job of its own (`event`) that carries
 what the event names and ends. It keeps no notes, saves no cache and starts no run.
+
+**Recorded before it is read (0.3.21).** The event run's first write is one line in the relay log (`knos-inbox 1
+<runner> {"repo": ..., "n": [...], "t": ...}`), before it reads a comment or sends a transaction. The sweep reads the
+log's comments on every pass anyway, and reads the repository an inbox line names from then on. An event run that
+dies after that line loses nothing: the sweep's polling is the backstop, not the transport. Until 0.3.21 the repository
+an event named was written only in the event runner's own folder, which the sweep never sees. Only lines the log
+repository's own workflow account wrote count.
+
+**Workers partitioned by order (0.3.21).** A token's lane is the owner of the repository it was signed for, so an
+order's tokens all have one lane. `relayq.part_of(lane, n)` (sha256, modulo n) gives a lane one part, the same in
+every process. The event run's workers each take one part, so an order's tokens always go to the same worker. A runner
+can take one part only (`KNOS_RELAY_PARTITION=i/n`), so runners that share no file never take the same order; the
+sweep takes every part and is the backstop for a part whose runner is gone. Tested in `tests/test_relayq.py`.
+
+**PayOrder capacity, end to end.** `scripts/load_pay.py` carries M payments with N relays, each with a fee payer of
+its own, each payment to the relay of its part: the token written, verified, then PayOrder. In the simulator it
+checks every order paid once, each relay paid only its part and with its own key, and counts transactions and compute
+units per payment; it gives no rate. On devnet it takes pay tokens GitHub signed (the release run collects them) and
+records attempts, paid, refused, never completed, p50/p95/p99 seconds and payments a second. Not yet run on devnet.
 
 | Trigger | Who can fire it | What the run reads | GitHub's limits |
 | --- | --- | --- | --- |
@@ -532,7 +570,7 @@ Every path that can add minutes, with a test that reproduces it under a fake Git
 | --- | --- | --- | --- |
 | A repository the relay does not know: no open job or order on chain, no token in two days, not in `KNOS_RELAY_REPOS`. This is a first funding comment, never a proof (a proof's repository has money on chain, and the chain is read once a minute for those) | the delay of GitHub's comment search, then up to 30 s (`SEARCH_EVERY`) | GitHub publishes no bound for its search index; the relay adds at most 30 s | not fixable in the relay: the caller has no secret to call it with, and a search on every pass would be 1,200 requests an hour against the 1,000 a workflow's token gets ([GitHub's limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)). The way around is a relay in the run itself (`KNOS_RELAY_KEY`, above) |
 | A relay that starts with empty notes and many open repositories | it learned 20 repository names a minute, so a proof in the 45th waited two minutes | now 20 a pass: 45 repositories are known on the third pass, 6 s in | fixed |
-| A token posted while no run relays. Two runs overlap by 30 s and the next takes 10 to 21 s to start (`worker.yml`); a next run that waits longer for a runner leaves a gap, and a chain of runs that stopped waits for the watchdog (the 5-minute timer, or the next event that starts the workflow; a start GitHub answers with a 5xx or a 429 is asked again first: `src/knos/proof/chain.py`) | the gap | the runner's wait less 30 s; after a stop, 5 minutes plus GitHub's own delay ("During periods of high load, your scheduled workflows may be delayed", [GitHub's documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)) | not fixed: it is the workflow's, and one worker is one point of failure. The relay adds nothing: the first pass of the next run carries what was posted, once |
+| A token posted while no run relays. Two runs overlap by 30 s and the next takes 10 to 21 s to start (`worker.yml`); a next run that waits longer for a runner leaves a gap, and a chain of runs that stopped waits for the watchdog (a worker run ending, the 5-minute timer, or the next event that starts the workflow; a run with no heartbeat in time is replaced; a start GitHub answers with a 5xx or a 429 is asked again first: `src/knos/proof/chain.py`) | the gap | the runner's wait less 30 s; after a stop, until the next worker run ends or the next event (since 0.3.21), else 5 minutes plus GitHub's own delay ("During periods of high load, your scheduled workflows may be delayed", [GitHub's documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)) | not fixed: it is the workflow's, and one worker is one point of failure. The relay adds nothing: the first pass of the next run carries what was posted, once |
 | A first send that fails for the cluster's reasons (no answer, a dropped transaction, "Blockhash not found", a node that is behind or unhealthy) | the next pass (3 s), twice; then 10, 20, ... 60 s; then every 60 s | 60 s between two tries (`BACKOFF_MOST`), with no random part. A transaction that is never confirmed is waited for 60 s (`knos.chain`). Up to 4 tokens of different owners are carried at once, so such a token holds its own owner's tokens that long; the other tokens of the pass are carried and logged without it, and since 0.3.18 a comment posted meanwhile is read 3 s later and carried by a free worker | the retry is fixed: 0.3.14 gave such a token up after 12 passes, about 6.5 minutes, and logged a failure. Now it is tried while the chain would still take it (an hour past its expiry). A refusal by the program that another run with the same key can cause (errors 67, 69, 84) is still given 12 passes and then logged as a failure: when it does not clear, it is the program's answer. The 60 s held by one unconfirmed transaction is not fixed |
 | GitHub's secondary rate limit (a 403 or 429 with `Retry-After`) | until the time GitHub names | what GitHub names, at most an hour | fixed: the relay used to ask again every 3 s, which GitHub's page says to stop doing. Now nothing is asked until that time, and a verdict GitHub would not take meanwhile is kept and posted after |
 | GitHub's hourly limit for a workflow's token: 1,000 requests | until the hour's reset, when it is spent | under an hour | not reached today. Each run starts with no saved answers, so every known repository costs one counted read per run, 12 runs an hour, beside 120 searches: by that arithmetic (not measured) the budget is spent at about 70 repositories read per run |

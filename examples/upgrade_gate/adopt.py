@@ -2,8 +2,10 @@
 
     python examples/upgrade_gate/adopt.py init --repo-id N --workflow OWNER/REPO/.github/workflows/FILE.yml --gate-id ADDRESS [--out DIR]
         Writes a gate program of your own into DIR (default: my_gate): this folder's crate with three lines changed
-        (the program id, your repository's numeric id, your build workflow), the interface crate taken by tag, and
-        gate-job.yml, the job your build workflow adds. No network. Nothing here is Knos's afterwards: you build it and
+        (the program id, your repository's numeric id, your build workflow), the interface crate taken by tag,
+        gate-job.yml, the job an existing build workflow adds, and .github/workflows/FILE.yml, the same as a whole
+        workflow that builds the program itself (the one pull request of an adoption). No network.
+        --link OWNER/REPO[@BRANCH] also prints the link that opens GitHub's page adding that workflow file. Nothing here is Knos's afterwards: you build it and
         deploy it with your own key.
     python examples/upgrade_gate/adopt.py expect --gate ADDRESS --program ADDRESS FILE.so
         The executable hash of a build, the audience your workflow asks GitHub to sign for it, and the address of the
@@ -66,6 +68,77 @@ JOB = """\
           python3 knos/examples/upgrade_gate/adopt.py record --gate {gate} --token-file gate.jwt
 """
 
+# The same job as a whole workflow of its own, for a team that adopts the gate in one pull request: it builds the program
+# on GitHub's runner and records that build, so the bytes signed for are the bytes this run built from this commit.
+WHOLE = """\
+# {file}: the upgrade gate (docs/GATE.md in drexthealpha/Knos). On main and on release tags it builds your program on a
+# GitHub-hosted runner, asks GitHub to sign gate:<program>:<hash of the build>, and has your gate {gate} record it.
+# Propose an upgrade only from the artifact "program" of a run of this file: the record is of those bytes.
+name: knos gate
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+permissions: {{}}
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write             # GitHub signs the statement
+      contents: read
+    env:
+      SOLANA_VERSION: {solana}
+      PROGRAM: YOUR_PROGRAM_ID    # the program the gate records builds of
+      MANIFEST: programs/YOUR_PROGRAM/Cargo.toml
+    steps:
+      - uses: actions/checkout@{checkout}
+      - uses: actions/checkout@{checkout}
+        with: {{repository: drexthealpha/Knos, ref: {tag}, path: .knos}}
+      - name: agave (pinned)
+        run: |
+          sh -c "$(curl -sSfL "https://release.anza.xyz/$SOLANA_VERSION/install")"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - run: cargo build-sbf --manifest-path "$MANIFEST" --sbf-out-dir built
+      - uses: actions/upload-artifact@{upload}
+        with: {{name: program, path: built/*.so}}
+      - run: pip install ./.knos
+      - name: GitHub signs the hash of the build; the gate records it
+        env:
+          KNOS_RELAY_KEY: ${{{{ secrets.GATE_FEE_PAYER }}}}     # any key with a little devnet SOL: it pays fees and can do nothing else
+        run: |
+          set -euo pipefail
+          so="$(ls built/*.so)"
+          hash="$(python3 -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read().rstrip(b"\\0")).hexdigest())' "$so")"
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=gate:$PROGRAM:$hash" \\
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["value"])' > gate.jwt
+          python3 .knos/examples/upgrade_gate/adopt.py record --gate {gate} --token-file gate.jwt
+"""
+SOLANA_VERSION = re.compile(r"^  SOLANA_VERSION: (v\d+\.\d+\.\d+)$", re.M)
+URL_LIMIT = 8191                                          # web/install.js URL_LIMIT: the longest link GitHub opens
+
+
+def solana_version() -> str:
+    """The agave release Knos's own program workflow builds with, so an adopter builds with the same."""
+    found = SOLANA_VERSION.search((ROOT / ".github" / "workflows" / "program.yml").read_text(encoding="utf-8"))
+    if not found:
+        raise Refused(".github/workflows/program.yml no longer names SOLANA_VERSION.")
+    return found.group(1)
+
+
+def install_link(where: str, workflow: str, text: str) -> str:
+    """GitHub's page that opens a pull request adding `text` as the workflow file, built as web/install.js `installLink`
+    builds its link: https://github.com/OWNER/REPO/new/BRANCH?filename=PATH&value=TEXT."""
+    from urllib.parse import quote
+    repo, _, branch = where.partition("@")
+    if not re.fullmatch(r"[\w.-]+/[\w.-]+", repo):
+        raise Refused("--link is OWNER/REPO, or OWNER/REPO@BRANCH: the repository the workflow goes in.")
+    enc = lambda x: quote(x, safe="-_.!~*'()")  # noqa: E731 - encodeURIComponent, as install.js uses
+    url = (f"https://github.com/{repo}/new/{'/'.join(enc(p) for p in (branch or 'main').split('/'))}"
+           f"?filename={enc('.github/workflows/' + workflow.rsplit('/', 1)[1])}&value={enc(text)}")
+    if len(url) > URL_LIMIT:
+        raise Refused(f"the link is {len(url)} characters, more than GitHub opens ({URL_LIMIT}): add the file by hand.")
+    return url
+
 
 class Refused(Exception):
     """What is wrong and what to do, in one line. Exit 1."""
@@ -120,11 +193,18 @@ def init(repo_id: int, workflow: str, gate_id: str, out: Path) -> list[Path]:
     toml = "\n".join(line for line in toml.splitlines() if not line.startswith("# What an outside team writes")) + "\n"
     files = {out / "src" / "lib.rs": rs, out / "Cargo.toml": toml,
              out / "gate-job.yml": JOB.format(file=workflow.split("/", 2)[2], tag=tag(), gate=gate_id, checkout=pin("actions/checkout"),
-                                                download=pin("actions/download-artifact"))}
+                                                download=pin("actions/download-artifact")),
+             out / ".github" / "workflows" / workflow.rsplit("/", 1)[1]: whole(workflow, gate_id)}
     for path, text in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8", newline="\n")
     return list(files)
+
+
+def whole(workflow: str, gate_id: str) -> str:
+    """The gate as a whole workflow file of its own (WHOLE): the one pull request of an adoption."""
+    return WHOLE.format(file=workflow.split("/", 2)[2], gate=gate_id, solana=solana_version(), tag=tag(), checkout=pin("actions/checkout"),
+                        upload=pin("actions/upload-artifact"))
 
 
 def expect(gate_id: str, program: str, so: bytes) -> dict:
@@ -208,6 +288,7 @@ def parser() -> argparse.ArgumentParser:
     a.add_argument("--workflow", required=True, help="OWNER/REPO/.github/workflows/FILE.yml, the workflow that builds your program")
     a.add_argument("--gate-id", required=True, help="the address your gate will be deployed at: solana address -k gate.json")
     a.add_argument("--out", type=Path, default=Path("my_gate"))
+    a.add_argument("--link", metavar="OWNER/REPO[@BRANCH]", help="also print the link that opens the pull request adding the workflow")
     a = sub.add_parser("expect", help="the hash, audience and record address of one build (no network)")
     a.add_argument("--gate", required=True)
     a.add_argument("--program", required=True)
@@ -231,8 +312,12 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     o = parser().parse_args(argv)
     try:
         if o.command == "init":
+            if o.link:
+                install_link(o.link, o.workflow, "")                 # a wrong repository is refused before anything is written
             for path in init(o.repo_id, o.workflow, o.gate_id, o.out):
                 say(f"wrote {path}")
+            if o.link:
+                say(f"install: {install_link(o.link, o.workflow, whole(o.workflow, _address(o.gate_id, '--gate-id')))}")
             say(f"Next: cd {o.out} && cargo build-sbf && solana program deploy -u devnet --program-id gate.json target/deploy/upgrade_gate.so")
             return 0
         if o.command == "expect":

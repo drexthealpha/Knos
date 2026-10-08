@@ -6,6 +6,11 @@ name: hermetic judge (staging)
 # escapes are held. Everywhere else in the suite the judge runs against a stand-in runtime, and this test is skipped
 # where no runtime answers. Here a skip is a failure, and the job counts the containers docker started from that image.
 #
+# The same job then holds the host sandbox to its limits (tests/test_judge_box.py: a fork bomb, a write outside the
+# work directory, a file past the size limit, a CPU loop, a run past its time limit; a skip fails the job) and measures
+# the five escapes in all three places, the container included, into the step summary (scripts/tamper_bench.py
+# --escape on a copy of docs/TAMPER.md).
+#
 # Staging only (drexthealpha/knos-rc). tests.yml is the release gate and runs every job it has, with no condition
 # (tests/test_release_gate.py), so this job, which pulls an image from Docker Hub, is a workflow of its own.
 on:
@@ -50,3 +55,16 @@ jobs:
           started="$(grep -c "@$digest " "$RUNNER_TEMP/started" || true)"
           [ "$started" -ge 1 ] || { echo "::error::docker started no container of the image $digest"; exit 1; }
           echo "hermetic judge, end to end: passed; docker started $started containers of the image @$digest" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: the host sandbox's limits (a skip fails the job)
+        shell: bash
+        run: |
+          pytest -p no:cacheprovider -q -rA tests/test_judge_box.py | tee "$RUNNER_TEMP/box.out"
+          if grep -q "^SKIPPED" "$RUNNER_TEMP/box.out"; then echo "::error::the host sandbox was not available"; exit 1; fi
+          grep -q "^PASSED tests/test_judge_box.py::test_a_fork_bomb_meets_the_process_limit_and_nothing_it_started_outlives_the_run" "$RUNNER_TEMP/box.out"
+      - name: the five escapes, measured in all three places
+        shell: bash
+        run: |
+          cp docs/TAMPER.md "$RUNNER_TEMP/TAMPER.md"
+          python scripts/tamper_bench.py --escape --out "$RUNNER_TEMP/TAMPER.md"
+          sed -n '/<!-- escape:begin -->/,/<!-- escape:end -->/p' "$RUNNER_TEMP/TAMPER.md" | tee -a "$GITHUB_STEP_SUMMARY"
+          if grep -q "hermetic (image): not run here" "$RUNNER_TEMP/TAMPER.md"; then echo "::error::the container place did not run"; exit 1; fi

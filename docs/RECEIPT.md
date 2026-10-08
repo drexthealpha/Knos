@@ -97,6 +97,21 @@ Versions 1 and 2 are not read this way (they do not say who funded); a version 3
 receipt `build4` makes of it. An account id above 2^53 (a GitLab id as the program stores it) is read exactly by the
 command and rounded by a browser's JSON reader: for those, use the command.
 
+### Everywhere a receipt leaves Knos
+
+The five parts are not optional anywhere a receipt's acceptance is passed on:
+
+| Surface | Where the five parts are | What refuses a row without them |
+| --- | --- | --- |
+| Finance exports | `knos statement export` writes a parts file beside each file it writes, `<file>.parts.csv` (beside the statement when the file goes to standard output): one row per line, keyed by its bill number, with the receipt's sha256 when one was read. `knos.exports.parts_rows` gives the same rows for a file of `knos audit export` | `knos.exports.parts_file` refuses a row with an empty part; `parts_check` names a bill with no row |
+| A statement line | `parts` on every line (`knos statement show --json`); from the receipt of a recorded goods-received note, else from the statement, which says no receipt was read | `tests/test_receipt_surfaces.py` |
+| The paid record answer (`knos record serve`) | `parts` in the signed answer | `knos record verify` says `invalid` without them |
+| Terms | Knos Terms 3 `checks.min_assurance` (`reported`, `rerun` or `agreed`): no payment below it | `knos statement pay --terms-file` refuses; `knos.terms3.payment_refusal` |
+
+No product's import has a column for them, so they are not packed into a memo. A row whose receipt was not read
+says `reported`, the floor every receipt reaches, and that no receipt was read. Tests: `tests/test_exports_parts.py`,
+`tests/test_receipt_surfaces.py`.
+
 ## Version 5
 
 Version 4 says what was concluded. Version 5 says **how much was verified**. It is version 4 with one more field,

@@ -116,7 +116,7 @@ def test_the_readme_names_the_line_that_prevents_each_of_the_five_mistakes_and_t
     assert source.count("// CHANGE") == 2
     # a workspace of its own: nothing is taken from this repository by path, only the published crate by tag
     cargo = (here / "Cargo.toml").read_text(encoding="utf-8")
-    assert "path =" not in cargo and "[workspace]" in cargo and 'git = "https://github.com/drexthealpha/Knos", tag = "v' in cargo
+    assert "path =" not in cargo and "[workspace]" in cargo and 'knos-oidc-interface = "0.3.14"' in cargo     # the crate as published on crates.io
     compose = (root / "docs" / "COMPOSE.md").read_text(encoding="utf-8")
     assert "**Programs outside this repository that read `knos-oidc`: 0.**" in compose and "| none yet |" in compose
     assert "has not been deployed" in readme

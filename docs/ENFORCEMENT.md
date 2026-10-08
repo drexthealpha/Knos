@@ -11,13 +11,16 @@ Every route that can set money aside or move it, against every restriction a buy
 | **advisory** | A file or a command says so, and nothing stops it. |
 | **outside** | Intentionally outside the policy boundary. The cell says why. |
 
-99 cells: 43 program, 9 workflow, 16 advisory, 31 outside. Every cell that is not `outside` names a test that tries to get round it and asserts what really happens; `tests/test_enforcement.py` holds this page to the table, the table to the tests it names, and the instructions and functions it names to the source.
+126 cells: 59 program, 12 workflow, 18 advisory, 37 outside. Every cell that is not `outside` names a test that tries to get round it and asserts what really happens; `tests/test_enforcement.py` holds this page to the table, the table to the tests it names, and the instructions and functions it names to the source.
 
 ## At a glance
 
 | route | Who may fund | Limit per order | Limit per period | Approver count | Rate card | Envelope or budget | Supplier allow-list | Terms fixed at funding | Deadline |
 |---|---|---|---|---|---|---|---|---|---|
 | [Wallet funding](#wallet) | program | program | outside | outside | outside | outside | outside | program | program |
+| [Enterprise vault, by vote](#vault) | program | outside | outside | program | advisory | program | workflow | program | program |
+| [Enterprise vault's Balance](#vault_balance) | program | program | program | workflow | advisory | program | workflow | program | program |
+| [A Squads allowance](#allowance) | program | program | program | outside | outside | program | program | outside | outside |
 | [Funding by comment](#comment) | program | program | program | workflow | advisory | advisory | workflow | program | program |
 | [A tip by comment](#tip) | program | program | program | workflow | outside | advisory | workflow | program | program |
 | [A standing offer](#offer) | program | program | program | workflow | workflow | advisory | workflow | program | program |
@@ -35,7 +38,8 @@ Every route that can set money aside or move it, against every restriction a buy
 - What an approval is. A comment by the named account on the forge, read back through the forge's API. Knos adds no key: whoever controls the approver's account controls the approval, and whoever can rewrite `.knos/procurement/policy.yaml` can name a new approver.
 - One approval, one subject, one amount. An approval names `offer:<name>`, `issue:<number>` or `tip:<number>` and an amount. A second order of the same amount on the same issue is covered by the same approval: the Balance's limits bound how often.
 - A repository with no file under `.knos/procurement/` is asked nothing more than before: the gate is one question to the forge, answered no.
-- Deployed and exercised. The program checks named here are those of the knos_pay and knos_passkey sources in this repository, run by the named tests against the committed builds. The workflow checks are in this release's workflows; no round on the public cluster has exercised the gate on a plain order, a tip or a private order.
+- Enterprise-controlled funds. The rows Enterprise vault, by vote, Enterprise vault's Balance and A Squads allowance are an organisation's money in a Squads v4 vault (Squads Labs' deployed program; Knos changes nothing in it). Their `program` cells are Squads' and knos_pay's checks, run by tests/test_boundary.py against the deployed Squads build in the simulator. A person's own wallet stays outside: it is their money, and an organisation's policy cannot bind it.
+- Deployed and exercised. The program checks named here are those of the knos_pay and knos_passkey sources in this repository, run by the named tests against the committed builds. The workflow checks are in this release's workflows; no round on the public cluster has exercised the gate on a plain order, a tip or a private order, nor a funding from a Squads vault planned by `knos boundary`.
 
 <a id="wallet"></a>
 
@@ -54,6 +58,60 @@ A wallet calls knos_pay itself: FundOrderWallet (15), or FundWallet (4) for a jo
 | Supplier allow-list | outside | Who is paid is decided at payment, by the signed run of the workflows the order names. The repository's `.knos/policy.yml` is not the wallet's, and the wallet states no list. |  |
 | Terms fixed at funding | program | knos_pay FundOrderWallet (15): the terms are logged, the hash of the terms is stored in the order, and PayOrder (17) takes only a token whose audience carries that hash (error 87). | `tests/test_enforcement.py::test_a_wallet_is_held_to_the_programs_bounds_and_to_no_file` |
 | Deadline | program | knos_pay FundOrderWallet (15): the work time is 60 seconds to 90 days (error 81); after the deadline nothing pays the order and RefundOrder (22) returns the money to where it came from. | `tests/test_order_chain.py::test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before` |
+
+<a id="vault"></a>
+
+## Enterprise vault, by vote
+
+An organisation's money in a Squads v4 vault: a requester's key proposes, the threshold of voting keys approves, an Execute key executes after the time lock, and only then does the vault sign FundOrderWallet (15), TopUp (23), OpenBalance (0) or SetBalance (1). `knos boundary plan` writes the vault's settings from the approval policy.
+
+| restriction | class | by what | test |
+|---|---|---|---|
+| Who may fund | program | knos_pay FundOrderWallet (15) takes the vault's signature as the funder's (error 80 without it), and the vault signs only inside Squads v4 VaultTransactionExecute: a key that is no member cannot propose (NotAMember), and nothing executes short of the threshold. | `tests/test_boundary.py::test_squads_refuses_a_funding_from_the_vault_without_the_threshold` |
+| Limit per order | outside | A vote of the threshold is the organisation deciding: it can fund up to knos_pay's bounds (an order holds 5.00 to 100,000.00, error 81). The cap a requester meets is the vault's Balance (row Enterprise vault's Balance), which only a vote changes. |  |
+| Limit per period | outside | Same reason: the threshold may spend what the vault holds. A limit per period that binds requesters is the vault's Balance; one that binds a key without a vote is an allowance (row A Squads allowance). |  |
+| Approver count | program | knos_pay FundOrderWallet (15) is reached only through Squads v4 VaultTransactionExecute, after ProposalApprove: only keys with the Vote permission count, a requester's key cannot vote (Unauthorized), execution waits for the threshold (InvalidProposalStatus) and for the time lock after the last vote (TimeLockNotReleased). Only the config authority changes members, threshold or time lock. | `tests/test_boundary.py::test_squads_refuses_a_funding_from_the_vault_without_the_threshold` |
+| Rate card | advisory | `knos boundary bind` puts the amount in the commitment the approvers sign. Nothing compares it with a rate card. | `tests/test_boundary.py::test_an_approval_funds_the_one_commitment_it_names` |
+| Envelope or budget | program | knos_pay FundOrderWallet (15) moves the amount and the fee from the vault's token account into the order when the funding executes, before any work; the token program refuses what the vault does not hold, so two approved fundings cannot both take the last of it. `knos boundary reserve` also holds a budget at approval, in a file. | `tests/test_boundary.py::test_the_vault_cannot_fund_past_what_it_holds` |
+| Supplier allow-list | workflow | prove.yml job `settle` and attest.yml job `attest`: `flow._cleared` refuses a payee that `payees` in `.knos/policy.yml` does not list. The payee an approval names (`knos boundary bind`) is checked by `boundary.payee_allowed`, which no workflow asks yet. | `tests/test_enforcement.py::test_a_neutral_run_refuses_a_payee_the_policy_file_does_not_list` |
+| Terms fixed at funding | program | knos_pay FundOrderWallet (15): the terms are logged, the hash of the terms is stored in the order, and PayOrder (17) takes only a token whose audience carries that hash (error 87). Squads v4 VaultTransactionCreate stores the message the members vote on, so the votes are for those bytes. | `tests/test_enforcement.py::test_a_wallet_is_held_to_the_programs_bounds_and_to_no_file` |
+| Deadline | program | knos_pay FundOrderWallet (15): the work time is 60 seconds to 90 days (error 81); after the deadline nothing pays the order and RefundOrder (22) returns the money to where it came from: to the vault. | `tests/test_order_chain.py::test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before` |
+
+<a id="vault_balance"></a>
+
+## Enterprise vault's Balance
+
+A knos_pay Balance the vault opened by vote: `/knos fund` spends it as Funding by comment does, and its cap, limits, spenders and workflow pin change only by the vault's vote.
+
+| restriction | class | by what | test |
+|---|---|---|---|
+| Who may fund | program | knos_pay FundOrderBalance (16): GitHub's token must name the Balance's owner as the repository's owner and the commenter as that owner or a spender its wallet listed (error 92). SetBalance (1) and SetBalanceX (13) take only the vault's signature (error 98), so neither a requester's nor an approver's own key adds a spender. | `tests/test_boundary.py::test_a_balance_the_vault_opened_is_changed_only_by_the_vault` |
+| Limit per order | program | knos_pay FundOrderBalance (16): the Balance's cap for one order (error 93). Only a vote of the vault raises it (SetBalance (1)). | `tests/test_boundary.py::test_a_balance_the_vault_opened_is_changed_only_by_the_vault` |
+| Limit per period | program | knos_pay FundOrderBalance (16): the Balance's daily and total limits count the amount and the fee (error 100). Only a vote of the vault changes them (SetBalanceX (13)). | `tests/test_controls.py::test_limits_set_with_budget_set_are_enforced_by_the_program_and_budget_check_names_the_rule_first` |
+| Approver count | workflow | fund.yml job `command`: `flow._gated` asks `approvals.gate_order`, as for Funding by comment. `boundary.gate_bound` (one approval, one commitment) is not asked by the workflow yet. | `tests/test_enforcement.py::test_a_plain_fund_cannot_go_round_the_approval_a_standing_offer_needs` |
+| Rate card | advisory | This names no rate card. `knos budget offer` and the console show a card's price; nothing compares this amount with one. | `tests/test_enforcement.py::test_a_plain_order_is_held_to_no_rate_card_and_no_envelope` |
+| Envelope or budget | program | knos_pay FundOrderBalance (16) takes the amount from the Balance's token account into the order at funding; the Balance holds only what a vote of the vault moved into it, and the token program refuses more. | `tests/test_boundary.py::test_a_balance_the_vault_opened_is_changed_only_by_the_vault` |
+| Supplier allow-list | workflow | prove.yml job `settle` and attest.yml job `attest`: `flow._cleared`, as for Funding by comment. | `tests/test_enforcement.py::test_a_neutral_run_refuses_a_payee_the_policy_file_does_not_list` |
+| Terms fixed at funding | program | knos_pay FundOrderBalance (16): GitHub signs the amount, the terms' hash and the Balance in one audience; the hash of the terms is stored in the order, and PayOrder (17) takes only a token whose audience carries that hash (error 87). | `tests/test_pay_chain.py::test_every_wrong_proof_is_refused` |
+| Deadline | program | knos_pay FundOrderBalance (16): the work time is 60 seconds to 90 days (error 81); after the deadline nothing pays the order and RefundOrder (22) returns the money to where it came from: to the Balance, which only the vault's vote withdraws (Withdraw (2)). | `tests/test_order_chain.py::test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before` |
+
+<a id="allowance"></a>
+
+## A Squads allowance
+
+Squads v4 SpendingLimitUse: a key the config authority listed moves up to an amount a period to listed destinations, with no vote. `knos boundary plan` adds none unless the boundary file asks.
+
+| restriction | class | by what | test |
+|---|---|---|---|
+| Who may fund | program | Squads v4 SpendingLimitUse: only a key the allowance lists (Unauthorized otherwise), and only the config authority adds or removes an allowance. It takes no vote: the allowance is a standing approval. | `tests/test_boundary.py::test_squads_refuses_an_allowance_over_its_limit_to_another_destination_or_by_another_key` |
+| Limit per order | program | Squads v4 SpendingLimitUse: never more than what is left of the period's amount (SpendingLimitExceeded). | `tests/test_boundary.py::test_squads_refuses_an_allowance_over_its_limit_to_another_destination_or_by_another_key` |
+| Limit per period | program | Squads v4 SpendingLimitUse: the amount comes back after a day, a week or 30 days, never sooner; a one-time allowance never. | `tests/test_boundary.py::test_squads_refuses_an_allowance_over_its_limit_to_another_destination_or_by_another_key` |
+| Approver count | outside | An allowance is approved once, by the config authority that adds it; its uses take no vote. That is what it is for, and why the plan adds none unless asked. |  |
+| Rate card | outside | No file of a repository is read on this route: the program sees accounts and signatures, never `.knos/`. |  |
+| Envelope or budget | program | Squads v4 SpendingLimitUse: the allowance's amount is its own budget, and the vault's token account is the floor. | `tests/test_boundary.py::test_squads_refuses_an_allowance_over_its_limit_to_another_destination_or_by_another_key` |
+| Supplier allow-list | program | Squads v4 SpendingLimitUse: only to a destination the allowance lists (InvalidDestination). A destination is the owner of the receiving token account, and every Balance and order of knos_pay has the same owner, so an allowance cannot be narrowed to one Balance: the plan points allowances at a supplier's own wallet. | `tests/test_boundary.py::test_squads_refuses_an_allowance_over_its_limit_to_another_destination_or_by_another_key` |
+| Terms fixed at funding | outside | An allowance moves tokens; no order and no terms are involved. Paying through Knos is the row Enterprise vault, by vote. |  |
+| Deadline | outside | An allowance has no deadline. The config authority removes it. |  |
 
 <a id="comment"></a>
 

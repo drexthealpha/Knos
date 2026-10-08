@@ -489,7 +489,8 @@ dependencies = [
 [[package]]
 name = "knos-oidc-interface"
 version = "0.3.14"
-source = "git+https://github.com/drexthealpha/Knos?tag=v0.3.14#6eb81dd152bd6cf752ee6c151b692f4a08815ae5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60af5a2e10ab04db9b8b02b8a859a31b597d000cad78af70adbe4167dbc0081d"
 
 [[package]]
 name = "lazy_static"

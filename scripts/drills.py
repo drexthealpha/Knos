@@ -1191,6 +1191,85 @@ def restore_from_export() -> Outage:
                   "bundle; the open orders and the money are not recovered")
 
 
+def issuer_key_rotates() -> Outage:
+    """GitHub signs with a new key (a new kid in its key set) while an order is open. Case A: the key was published
+    before GitHub signed with it, so the daily rotate run, signed under the old key, names it; it is registered,
+    the guardian approves it, its day passes, and the order is paid under the new key. Case B, the same switch with
+    no admission: every token under the new key is refused, an attestation signed by it cannot be verified, and the
+    order's money only goes back to its funder at the deadline."""
+    _harness()
+    try:
+        from _order import AUTHOR, DAY, USDC, OrderChain
+        from _pay2 import GUARDIAN, WF_REPO, WF_SHA, github_claims
+        from _settle import SeedKey, modulus, sign_jwt
+    except ImportError as why:
+        raise Skipped(f"the tests' harness could not be imported ({why}): pip install -e '.[dev]'") from None
+
+    class Rotated(OrderChain):
+        signer = None               # the key GitHub signs with now; None: the seed key the chain registered first
+
+        def gh(self, aud, file="prove.yml", wf_repo=WF_REPO, wf_sha=WF_SHA, payer=None, **over):
+            if self.signer is None:
+                return super().gh(aud, file, wf_repo, wf_sha, payer, **over)
+            now = self.now()
+            self._n += 1
+            claims = dict(aud=aud, iat=now, nbf=now - 600, exp=now + 300, jti=f"r{self._n}",
+                          job_workflow_ref=f"{wf_repo}/.github/workflows/{file}@refs/tags/v0.3.12", job_workflow_sha=wf_sha)
+            claims.update(over)
+            return self.verify(sign_jwt(self.signer, github_claims(**claims)), oidc.GITHUB, modulus(self.signer), payer)
+
+    def switch(c, key) -> None:
+        c.signer, c.key = key, oidc.key_pda(oidc.GITHUB, modulus(key))     # GitHub signs with the new key from now on
+
+    def paid(c, order) -> bool:
+        tok = c.pay_token(order, payee)                                 # None: the verifier refused the token itself
+        return tok is not None and c.send([c.pay_ix(order, tok, payee)])
+
+    new = SeedKey(2048, "knos drill: GitHub's next signing key")
+    n = modulus(new)
+    payee = [(AUTHOR, 10_000, Keypair.from_seed(bytes([41]) * 32).pubkey())]
+    # A: published, admitted, then used
+    c = Rotated()
+    order = c.fund_wallet(amount=20 * USDC, work_s=14 * DAY)
+    c.warp(3 * DAY)                                                     # mid-period
+    published = c.now()
+    attest = c.attest(oidc.GITHUB, n)                                   # the daily rotate run, still signed under the old key, names the new kid
+    if attest is None or not c.send([oidc.register_key_ix(c.payer.pubkey(), oidc.GITHUB, n, attest, c.key_of(attest))]) \
+            or not c.send([oidc.key_params_ix(c.payer.pubkey(), oidc.GITHUB, n)]) \
+            or not c.send([oidc.approve_ix(GUARDIAN.pubkey(), oidc.GITHUB, n)], signers=[GUARDIAN]):
+        raise Failed(f"the new key was not admitted on the old key's attestation: {c.err}")
+    switch(c, new)
+    if paid(c, order):
+        raise Failed("a token under the new key paid before its day of waiting was over")
+    c.warp(oidc.KEY_DELAY)
+    if not paid(c, order):
+        raise Failed(f"the order was not paid under the new key after its day: {c.err}")
+    took = c.now() - published
+    # B: the same switch, never admitted
+    b = Rotated()
+    left = b.fund_wallet(amount=20 * USDC, work_s=14 * DAY)
+    b.warp(3 * DAY)
+    switch(b, new)
+    if paid(b, left):
+        raise Failed("a token under a key the verifier does not hold paid")
+    b.signer = new
+    if b.attest(oidc.GITHUB, n, by=new) is not None:
+        raise Failed("an attestation signed by the unknown key itself was verified")
+    o, had = b.order(left), b.balance(b.funder_tok)
+    b.warp(o.pay_until + 1 - b.now())
+    if not b.refund(left) or b.order(left) is not None or b.balance(b.funder_tok) != had + o.amount + o.fee:
+        raise Failed(f"the order did not go back to its funder at the deadline: {b.err}")
+    return Outage("GitHub rotates its signing key mid-period",
+                  "three days into a 14-day order GitHub signs with a key the verifier did not hold (a new kid in its key set)",
+                  "with the rotation done (A): nothing; a payment in the new key's first day is refused and paid once the day is over. "
+                  "Without it (B): every payment is refused, the order's money stays in escrow, and it goes back to the funder at the deadline",
+                  "the daily rotate run, signed under the old key while it still signs, names the new key; anyone sends RegisterKey; the "
+                  "guardian approves; a day later the key verifies. If GitHub stops signing with every key the verifier holds before that, "
+                  "no attestation can be verified and only an upgrade of the verifier (48 hours) admits a key",
+                  f"A: paid {took} s after the new key was published ({oidc.KEY_DELAY} s of it the program's own wait). B: never paid; "
+                  "refunded in full after the deadline")
+
+
 DEPENDENCIES: list[tuple[str, Callable[[], Outage]]] = [
     ("GitHub's API is down for ten minutes", github_down_ten_minutes),
     ("GitHub's signing key has expired on chain", signing_key_expired_on_chain),
@@ -1199,6 +1278,7 @@ DEPENDENCIES: list[tuple[str, Callable[[], Outage]]] = [
     ("the evidence is missing (a required check run was deleted)", evidence_missing),
     ("devnet is reset", devnet_reset),
     ("devnet is reset and the operator's copies are deleted", restore_from_export),
+    ("GitHub rotates its signing key mid-period", issuer_key_rotates),
 ]
 
 

@@ -46,8 +46,8 @@ Two parts of the package go into a coding agent:
 | a repository that pays for merged work | [one pull request](#paid-work-in-a-repository-install-by-pull-request) | the payment workflow, a 21-line file |
 | a repository's pull requests | [a workflow file](#the-github-action) | the free check, as a GitHub Action |
 | a seller who settles a merged pull request without the buyer's workflow | [a workflow file in a repository of your own](#settle-yourself-the-attest-workflow) | nothing: it only reads, and asks GitHub to sign |
-| a JavaScript project | [`npm install <release tarball>`](#the-javascript-client) | the client `knos-settle` |
-| a Solana program | [a git dependency](#the-rust-interface-crates) | the crates `knos-oidc-interface` and `knos-pay-interface` |
+| a JavaScript project | [`npm install knos-settle`](#the-javascript-client) | the client `knos-settle` |
+| a Solana program | [`knos-oidc-interface = "0.3.14"`](#the-rust-interface-crates) | the crates `knos-oidc-interface` and `knos-pay-interface` |
 
 The routes for one agent start Knos as `uvx knos ...`, so they need
 [uv](https://docs.astral.sh/uv/getting-started/installation/) and nothing else: uv downloads `knos` from PyPI the
@@ -356,7 +356,7 @@ about money works; `/knos status` on a pull request then tells its author what t
 
 A supplier who wants the free check on every pull request of their own repository, its result posted once and its
 receipt attached to the run, adds one workflow file ([examples/knos-supplier.yml](../examples/knos-supplier.yml))
-whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.20`.
+whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.21`.
 
 It needs no secret, moves no money and reads no chain. The record, the badge and the receipt to send with an invoice
 are in [RECORD.md](RECORD.md), section 3.
@@ -426,7 +426,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.20
+      - uses: drexthealpha/Knos@v0.3.21
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -459,7 +459,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.20
+    - python -m pip install knos==0.3.21
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -491,22 +491,26 @@ is the default; an order funded with `neutral off` does not. This takes effect w
 ## The JavaScript client
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.20/knos-settle-0.3.20.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.21/knos-settle-0.3.21.tgz
 ```
 
 It installs `knos-settle`, the client for Knos's Solana programs: one file with no dependency, for a browser and for
 Node 20 or newer ([`sdk/settle`](../sdk/settle)). The tarball is attached to every release.
 
-`knos-settle` is not on npm. A first publish to npm needs the owner to sign in at npmjs.com and create a token, and
-nobody else can do that for them. The release workflow publishes the client by itself from the first release after
-the repository has that token as the secret `NPM_TOKEN`; until then each release says in one line that it skipped
-npm.
+`knos-settle` is on npm at 0.3.20 ([npmjs.com/package/knos-settle](https://www.npmjs.com/package/knos-settle)):
+
+```bash
+npm install knos-settle@0.3.20
+```
+
+The release workflow publishes a newer version by itself when the repository holds the secret `NPM_TOKEN`, and says
+in one line when it skipped npm.
 
 ## The Rust interface crates
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.20" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.21" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,
@@ -517,11 +521,18 @@ a program names the first (`v1::read`).
 repository: the addresses and instructions a program needs to fund, top up and refund a work order from an account
 it controls. [COMPOSE.md](COMPOSE.md) lists the examples built on both.
 
-`knos-oidc-interface` is not on crates.io. A first publish to crates.io needs the owner to sign in there and create
-a token, and nobody else can do that for them. The release workflow publishes the crate by itself from the first
-release after the repository has that token as the secret `CARGO_REGISTRY_TOKEN`; until then each release says in
-one line that it skipped crates.io. One consequence: crates.io does not accept a crate that depends on a git
-repository, so a crate that uses this one cannot itself be published there yet.
+Both crates are on crates.io at 0.3.14 ([knos-oidc-interface](https://crates.io/crates/knos-oidc-interface),
+[knos-pay-interface](https://crates.io/crates/knos-pay-interface)); a crate that depends on them can itself be
+published there. In `[dependencies]`:
+
+```toml
+knos-oidc-interface = "0.3.14"
+knos-pay-interface = "0.3.14"
+```
+
+The interface crates stay at 0.3.14 while the programs that link them do. The release workflow publishes a newer
+version by itself when the repository holds the secret `CARGO_REGISTRY_TOKEN`, and says in one line when it skipped
+crates.io.
 
 ## Any other MCP client
 

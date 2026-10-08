@@ -1,0 +1,18 @@
+{
+ "kind": "keyholder",
+ "v": 1,
+ "title": "Offer to hold one key of the upgrade multisig",
+ "statement": "Test USDC, no monetary value.\n\nOpen the Key holder request issue (.github/ISSUE_TEMPLATE/key_holder.md) on drexthealpha/Knos with your public key, a name or handle, and how to reach you. An offer is counted as an offer; a key is held only once it is seated.",
+ "evidence": "an issue your account opened on drexthealpha/Knos from the key holder template, naming a Solana public key",
+ "counter": "key_offers",
+ "needs": [
+  "actor_id",
+  "issue",
+  "public_key",
+  "contact"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "docs/KEYHOLDER.md"
+}

@@ -1,7 +1,7 @@
 # Knos compared
 
 What each alternative does, read from its own code, pages and chain on 2 Oct 2026; the boards' fees were read
-again on 3 Oct 2026, and MergePay's and Algora's published fees again on 6 Oct 2026. The Knos row is the second deployment (`programs-v2`) as Knos 0.3.14 upgrades it. Knos is on
+again on 3 Oct 2026, and MergePay's and Algora's published fees again on 6 Oct 2026. The Knos row is the second deployment (`programs-v2`), at the version [capabilities.json](capabilities.json) records for each public id. Knos is on
 Solana devnet and its money is test USDC; several of the others move real money today. Where another product is
 ahead, this page says so.
 
@@ -39,7 +39,7 @@ two sides count differently. That is the next table. The count is priced apart f
 |---|---|---|---|---|
 | **A vendor that bills per accepted outcome** (per merged change, per resolution; [MARKET.md](MARKET.md), section 2) | The vendor, in its own system. | Only against the vendor's report. | The vendor's contract and its own definition of the unit. | Inside the vendor's price. |
 | **The buyer's own tally** (a spreadsheet, a query over merged pull requests) | The buyer. | The supplier has to trust it, or keep a second tally and argue. | Whatever the two agreed in writing. | The buyer's time. |
-| **Knos** (`knos-meter`) | A program, from tokens the forge signed for runs of a pinned workflow in the buyer's repository. The supplier's own count of the same month is recorded beside it from the supplier's runs. | Yes. Both counts are on chain; each side keeps a ledger file whose Merkle root the chain holds, and both compute the same statement or see which evaluations differ. | Named checks and allowed paths, hashed before the work. | 10,000 evaluations a month free, then 0.05 USD, or 0.02 on an annual commitment; or 0.5% of the reconciled accepted invoice value, capped at 250 USD per deliverable, when that is the greater. Proposed prices: nobody has paid them. |
+| **Knos** (`knos-meter`) | A program, from tokens the forge signed for runs of a pinned workflow in the buyer's repository. The supplier's own count of the same month is recorded beside it from the supplier's runs. | Yes. Both counts are on chain; each side keeps a ledger file whose Merkle root the chain holds, and both compute the same statement or see which evaluations differ. | Named checks and allowed paths, hashed before the work. | Meter: 100,000 evaluations a month free per organisation, then 0.002 USD an evaluation. Acceptance: 0.30% of value released or reconciled against a signed acceptance, at least 0.05 a release, no cap ([MARKET.md](MARKET.md), the price book). Proposed prices: nobody has paid them. |
 
 Where the others are ahead here: a vendor's count needs nothing installed and comes with a company that answers
 for it. Knos's count trusts the forge's hosted runner and the pinned workflow's reading of the forge's record, runs

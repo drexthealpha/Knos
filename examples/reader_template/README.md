@@ -2,7 +2,7 @@
 
 A complete Solana program, on its own, that releases once when GitHub signed that one workflow of one repository
 asked this program to. `knos-oidc` checked GitHub's signature on chain; this program reads the result. It takes one
-crate from Knos (`knos-oidc-interface`, by tag, no dependency of its own) and nothing else: no call into Knos, no
+crate from Knos (`knos-oidc-interface = "0.3.14"` from [crates.io](https://crates.io/crates/knos-oidc-interface), no dependency of its own) and nothing else: no call into Knos, no
 key of Knos's, nobody to ask. Devnet only: the verifier is `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W`.
 
 ## Use this template
@@ -29,9 +29,10 @@ Whoever sends your instruction writes that token to `knos-oidc` and has it verif
 record at `["done", sha256(claims)]` under your program, and the system program. Then put your own action where
 `src/lib.rs` says YOUR ACTION.
 
-Built here from the published tag with `cargo build-sbf` and run in a simulator against the verifier
+Built here with `cargo build-sbf` (the fixture was built from the v0.3.14 tag; the crates.io release is the same version) and run in a simulator against the verifier
 (`tests/test_reader_template.py`, 2 tests). It has not been deployed to devnet, and no program outside this
-repository is known to use it. Built something on it? [docs/COMPOSE.md](../../docs/COMPOSE.md) says how to be listed.
+repository is known to use it. Built something on it? [docs/COMPOSE.md](../../docs/COMPOSE.md) says how to be listed, and the playground's `compose` task
+([tasks/outside/compose.json](../../tasks/outside/compose.json)) pays 5 test USDC for one devnet transaction of it.
 
 ## Five mistakes a reader can make, and the line that prevents each
 

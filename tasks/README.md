@@ -47,7 +47,7 @@ maintainer's `/knos tip` on the merged pull request then put the amount in escro
 until the author says where it goes. The board now reads the playground's own
 workflow files before it funds anything and funds nothing unless they call the public pinned workflows.
 
-## Five tasks that are not code puzzles
+## Ten tasks that are not code puzzles
 
 Each turns one of the outside-use counts from zero to one, and only when the account that does it is not one of
 Knos's own. The files are [`tasks/outside/`](outside/); `knos task kinds` prints them.
@@ -59,12 +59,18 @@ Knos's own. The files are [`tasks/outside/`](outside/); `knos task kinds` prints
 | `fund` | take test USDC from the faucet and fund an issue in a repository you own | a funded job on devnet that `scripts/outsiders.py` reads as an outside funder ([FAUCET.md](../docs/FAUCET.md)) | outside funders |
 | `install` | install the check in a repository you own and let it finish once | the default branch calls the public pinned check, and one finished run ([INSTALL.md](../docs/INSTALL.md)) | outside repositories |
 | `judge` | host a judge from the template `examples/host_a_judge` | one GitHub-signed attestation run in a repository you own | judges hosted outside |
+| `compose` | build a program on the published crate `knos-oidc-interface = "0.3.14"` ([reader template](../examples/reader_template)) and read the verifier from it on devnet | one devnet transaction of your program that reads a token `knos-oidc` verified | outside programs reading the verifier |
+| `gate` | put a program of yours behind the upgrade gate ([GATE.md](../docs/GATE.md)) | your gate's build record on devnet, and `adopt.py check` exiting 0 | programs behind the gate outside |
+| `keyholder` | offer a key through the key holder issue ([KEYHOLDER.md](../docs/KEYHOLDER.md)) | an issue your account opened from that template, naming a public key | key offers (never holders until seated) |
+| `tamper` | write a submission meant to fool the judge on a task ([TAMPER.md](../docs/TAMPER.md)) | a judge verdict of accepted on work that does not do what the task asks; refused is not paid | cheats written outside |
+| `witness` | run one transaction start to end in a repository of yours ([examples/witnessed](../examples/witnessed)) | `witness.json`: funding, a refused run, the payment, a refused replay, two statements with one hash, the verifier's result | witnessed transactions |
 
 Every one pays 5 test USDC from a task Knos funded itself, and a count that comes from one is shown with those words:
 "on tasks Knos funded itself". `python scripts/task_board.py open --kinds` opens each as a funded issue in the playground
 that a maintainer's merge pays: the pull request adds one file, `outside/<kind>/<login>.json`, with the evidence.
 None is an offer of work. `tasks.accepts` checks the evidence and `outsiders.task_counts` decides who is outside;
-neither has been met by anyone yet.
+neither has been met by anyone yet. The site's `outsiders.json` publishes each counter (`task_counts`), read from the
+evidence files merged into the playground; a file counts only for the account its name says.
 
 The text of each is `KINDS` in [`src/knos/tasks.py`](../src/knos/tasks.py), and a test holds the files to it. Each file states what to
 do, the `evidence`, the fields that evidence `needs`, and the one `counter` it can move

@@ -1,0 +1,20 @@
+{
+ "kind": "compose",
+ "v": 1,
+ "title": "Read the verifier from a program of your own",
+ "statement": "Test USDC, no monetary value.\n\nBuild a Solana program on the published crate `knos-oidc-interface = \"0.3.14\"` (examples/reader_template is a complete one), deploy it to devnet, and send one transaction in which it reads a token knos-oidc verified.",
+ "evidence": "one devnet transaction of a program your account deployed whose accounts include a token account owned by knos-oidc (FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W), and the program's source naming knos-oidc-interface 0.3.14",
+ "counter": "programs",
+ "needs": [
+  "actor_id",
+  "program_id",
+  "tx",
+  "reads_verifier",
+  "crate",
+  "source"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "examples/reader_template"
+}

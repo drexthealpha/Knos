@@ -1,0 +1,19 @@
+{
+ "kind": "tamper",
+ "v": 1,
+ "title": "Fool the judge on a task",
+ "statement": "Test USDC, no monetary value.\n\nWrite a submission meant to make the judge accept work that does not do what the task asks. If the judge accepts it, the cheat joins the tamper set as a case written outside Knos. If the judge refuses it, nothing is paid.",
+ "evidence": "a pull request of yours on a funded task whose judge verdict was accepted, and a maintainer's note that the accepted work does not do what the task asks (docs/TAMPER.md)",
+ "counter": "outside_cheats",
+ "needs": [
+  "actor_id",
+  "task",
+  "submission",
+  "verdict",
+  "why_wrong"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "docs/TAMPER.md"
+}

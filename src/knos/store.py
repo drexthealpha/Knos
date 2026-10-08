@@ -20,7 +20,13 @@ words.
 The buyer's side uses all five (knos.proof.history, `knos recall exception`): the live exception queue is one state
 document (HOT), one entity per supplier-and-terms holds how their exceptions ended (WARM), each resolution is a journal
 event (COLD), the text of the terms is a reference document (REFERENCE), and a closed period is an entity moved to the
-archive (ARCHIVE). That memory has one tenant per buyer organisation (`buyer_tenant`, `for_buyer`).
+archive (ARCHIVE). That memory has one tenant per buyer organisation (`buyer_tenant`, `for_buyer`). It also keeps the
+approver's defence (`knos recall approval`): one entity per commitment (WARM) holds every approval record given for it,
+and each approval is a journal event (COLD) the entity is checked against.
+
+A supplier has a tenant of its own (`supplier_tenant`, `for_supplier`, `knos recall supplier`): the accepted terms and
+outcomes buyers GRANTED it to carry to its next buyer (WARM; a withdrawn grant goes to the ARCHIVE), and each buyer's
+onboarding time (first order to first payment), so that a second buyer's onboarding can be set against the first's.
 
 The judge's store also holds how each past order in a repository ended, by terms template and policy version (entities
 of category `order`: knos.proof.history.order_outcome), so a funding reply can say which published template
@@ -70,14 +76,24 @@ def tenant(repo: Path) -> str:
     return f"knos-{Path(real).name}-{hashlib.sha256(real.encode()).hexdigest()[:10]}"
 
 
+def _named(kind: str, name: str) -> str:
+    given = str(name or "").strip().lower()
+    slug = "".join(ch if ch.isalnum() else "-" for ch in given).strip("-")[:40]
+    if not slug:
+        raise ValueError(f"a {kind} organisation has a name" if kind == "buyer" else f"a {kind} has a name")
+    return f"knos-{kind}-{slug}-{hashlib.sha256(given.encode()).hexdigest()[:10]}"
+
+
 def buyer_tenant(buyer: str) -> str:
     """The tenant of one buyer organisation: its name as a slug, and a hash of the name as it was given, so two
     organisations whose names make the same slug never share a memory."""
-    given = str(buyer or "").strip().lower()
-    slug = "".join(ch if ch.isalnum() else "-" for ch in given).strip("-")[:40]
-    if not slug:
-        raise ValueError("a buyer organisation has a name")
-    return f"knos-buyer-{slug}-{hashlib.sha256(given.encode()).hexdigest()[:10]}"
+    return _named("buyer", buyer)
+
+
+def supplier_tenant(supplier: str) -> str:
+    """The tenant of one supplier: what buyers granted it to carry from one buyer to the next, and its onboarding
+    times. Named like a buyer's, under another prefix, so a supplier's memory and a buyer's never share a tenant."""
+    return _named("supplier", supplier)
 
 
 def account() -> dict[str, str]:
@@ -112,14 +128,23 @@ def for_repo(repo: Path):
     return MemoryClient(storage, tenant_id=tenant(repo), cap_gate=gate), storage
 
 
+def _for(tenant_id: str, root: Path | None):
+    if root is not None:
+        return local(root, tenant_id), None
+    client, storage = for_repo(Path.cwd())
+    client.set_tenant(tenant_id)
+    return client, storage
+
+
 def for_buyer(buyer: str, root: Path | None = None):
     """(MemoryClient, Storage or None) for one buyer organisation's tenant: in Sibyl's local store at <root>/sibyl.db
     when a directory is named, else in Sibyl's shared store on this machine, under Sibyl's cap gate."""
-    if root is not None:
-        return local(root, buyer_tenant(buyer)), None
-    client, storage = for_repo(Path.cwd())
-    client.set_tenant(buyer_tenant(buyer))
-    return client, storage
+    return _for(buyer_tenant(buyer), root)
+
+
+def for_supplier(supplier: str, root: Path | None = None):
+    """(MemoryClient, Storage or None) for one supplier's tenant, in the same store a buyer's would be in."""
+    return _for(supplier_tenant(supplier), root)
 
 
 def local(root: Path, tenant_id: str = "knos-judge"):

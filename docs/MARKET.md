@@ -445,6 +445,9 @@ The relayer's tip comes out of each fee. All of it is test money while settlemen
 What is and is not revenue:
 
 - A subscription under a signed annual contract is recurring revenue. There is none.
+- An annual commitment is drawn down by use and is never counted beside the use it pays for.
+- On a release on chain the relayer's tip and the chain costs it pays are the relayer's: they are not Knos's
+  revenue and then Knos's cost as well ([UNIT_COSTS.md](UNIT_COSTS.md), "Counted once").
 - Metered evaluations are consumption: revenue when invoiced, not recurring revenue. There is none.
 - Customer money in escrow, prepaid credits not yet used, rent that returns, money a financier advances and the
   payments a customer makes to its suppliers are never Knos's revenue.
@@ -479,6 +482,27 @@ million crosses the first million, so 9 million of it pays 0.20% by contract. Re
 Three to one on that price is 1,120,800 USD a year. **That is a hurdle to be measured in a pilot, not a claim.**
 [UNIT_COSTS.md](UNIT_COSTS.md), "A second customer, worked", has what it costs to deliver: a gross margin of 95.7%
 at today's budgets.
+
+### Pricing power: the realised rate
+
+The realised Acceptance rate is what is left of the price book after volume rebates, credits for disputed or
+reversed value and any discount. Control, Meter and direct cost do not move with it; revenue and gross margin do.
+`knos bill margin --sensitivity docs/unit_costs.json` prints both worked customers at four rates (USD a year;
+direct cost at today's budgets):
+
+| realised rate | the worked customer: revenue | gross margin | the second worked customer: revenue | gross margin |
+|---|---|---|---|---|
+| 30 bps | 130,240 | 88.4% | 481,600 (above the 21 bps its book reaches) | 96.6% |
+| 20 bps | 120,240 | 87.4% | 361,600 | 95.5% |
+| 10 bps | 110,240 | 86.3% | 241,600 | 93.3% |
+| 5 bps | 105,240 | 85.6% | 181,600 | 91.1% |
+
+**Defending the rate matters more than shaving verification time.** Each basis point given up costs the second
+customer's account 12,000 USD a year; its whole direct cost is 16,208.36. A faster check lowers a cost that is
+already small. What would defend the rate is a buyer's own measured benefit, in three kinds kept apart:
+**recoveries** (money not paid for duplicated lines or work that missed its terms), **avoided labour** (hours that
+lower what the buyer spends) and **financing benefit** (days of payment brought forward, worth something to the
+supplier). **None of the three is measured.** The [Pilot](PILOT.md) is where each would be.
 
 **The first customer to look for** is the one for whom that hurdle could be true. It meets the four conditions
 of section 5, and three more that make the first sale short: the work is code in repositories a forge already
@@ -568,6 +592,7 @@ already there, and each link has one counter ([`scripts/network_loop.py`](../scr
 | link | the evidence that would show it | counter | today |
 |---|---|---|---|
 | Suppliers reuse the integration | suppliers paid by two or more unrelated buyers | `suppliers_two_buyers`, from the job records | 0 |
+| A second buyer costs a supplier less | suppliers whose record a second unrelated buyer read or paid, and the time from first order to first payment, first buyer against second | `reuse.suppliers_reused` and `reuse.onboarding_saved_s`, from the job records and the paid lookups (and, with `--memory`, the supplier's own memory: `knos recall supplier`) | 0 reused; time saved: none measured |
 | Buyers arrive through a supplier | buyers whose first paid job paid a supplier another buyer had already paid | `buyers_through_supplier`, from the job records | 0 |
 | The format spreads | software that is not Knos's and reads or writes the receipt format | `receipt_implementations`, kept by hand with a link | 0 |
 | The record improves decisions | buyers who say they chose or dropped a supplier on its record | `decisions_from_record`, kept by hand | 0 |

@@ -382,3 +382,126 @@ def test_the_record_line_says_who_runs_it_and_is_budgeted_at_zero():
     row = next(r for r in b.BOOK if r[0] == "Record")
     assert row[4] == "`knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it"
     assert b.second_customer()["records"] == "0.00" and (ROOT / "src" / "knos" / "record_api.py").is_file()
+
+
+# ---- 0.3.21: pricing power, and money counted once ----------------------------------------------------------------------
+
+def test_sensitivity_prints_the_worked_customers_at_30_20_10_and_5_bps_realised():
+    got = b.sensitivity(b.unit_costs(COSTS))
+    want = VECTORS["sensitivity"]
+    assert got["rates_bps"] == [30, 20, 10, 5] and got["kind"] == "gross"
+    for c, w in zip(got["customers"], want["customers"]):
+        assert (c["book_bps"], c["fixed"], c["direct_cost"], c["one_bps"]) == tuple(w["head"]), c["customer"]
+        assert [[r["bps"], r["revenue"], r["gross_margin"], r["above_book"]] for r in c["rows"]] == w["rows"], c["customer"]
+    first, second = got["customers"]
+    assert first["rows"][0]["revenue"] == "130,240.00" and b.second_customer()["total"] == "373,600.00"      # at the book's own rate, the book
+    assert D(second["book_bps"]) * 120_000_000 / 10_000 == 252_000                                           # 21 bps: 252,000 on 120 million
+    # the direct cost does not move with the rate, and every row is gross arithmetic on it
+    for c in got["customers"]:
+        cost = D(c["direct_cost"].replace(",", ""))
+        for r in c["rows"]:
+            assert D(r["revenue"].replace(",", "")) - cost == D(r["gross"].replace(",", ""))
+    assert b.second_customer(b.unit_costs(COSTS))["direct_cost"] == second["direct_cost"]
+    text = "\n".join(b.sensitivity_lines(got))
+    assert "matters more than shaving verification time" in text and "None is measured." in text and "not reached" in text
+    for line in text.splitlines():
+        if "margin" in line.lower() and "%" in line:
+            assert "gross" in line.lower(), line
+
+
+def test_knos_bill_margin_sensitivity(tmp_path):
+    import typer
+    from typer.testing import CliRunner
+
+    app = typer.Typer()
+    b.register(app)
+    costs = str(ROOT / "docs" / "unit_costs.json")
+    run = CliRunner().invoke(app, ["bill", "margin", "--sensitivity", costs])
+    assert run.exit_code == 0 and "481,600.00" in run.output and "105,240.00" in run.output and "21.0 bps" in run.output
+    as_json = json.loads(CliRunner().invoke(app, ["bill", "margin", "--sensitivity", costs, "--json"]).output)
+    assert [r["bps"] for r in as_json["customers"][0]["rows"]] == [30, 20, 10, 5]
+    assert CliRunner().invoke(app, ["bill", "margin", "--sensitivity"]).exit_code != 0
+    assert CliRunner().invoke(app, ["bill", "margin", costs]).exit_code != 0                 # a month needs its cost file too
+
+
+def test_a_year_under_a_commitment_is_the_larger_of_the_two_never_their_sum():
+    use = {"plan": "none", "evaluations": 600_000, "accepted": [{"deliverable": "a", "value": "100000.00"}]}       # 1,300 a month of use
+
+    def year(committed: str) -> tuple[D, D]:
+        drawn, total = D(0), D(0)
+        for m in range(1, 13):
+            inv = b.invoice({**use, "month": m, "committed": committed, "drawn": str(drawn)})
+            total += D(inv["total"].replace(",", ""))
+            drawn = D(committed) - D(inv["commitment_remaining"].replace(",", ""))
+        return total, drawn
+
+    assert year("0") == (D("15600.00"), D(0))
+    assert year("24000.00") == (D("24000.00"), D("15600.00"))          # under the commitment: the commitment, not 24,000 + 15,600
+    assert year("12000.00") == (D("15600.00"), D("12000.00"))          # over it: the use, of which the commitment paid 12,000
+    # and the gross margin's revenue never adds the commitment line to the use it pays for
+    assert b.margin({**use, "committed": "24000.00"}, COSTS)["revenue"] == b.margin(use, COSTS)["revenue"] == "1,300.00"
+
+
+def test_the_relayers_tip_and_chain_costs_are_counted_once():
+    unit = b.unit_costs(COSTS)
+    assert unit["release_chain"] == D("0.0072") and f"{60_000 * D('120.82') / 10**9:.4f}" == "0.0072"
+    for first in (False, True):
+        out, mine = b.release_split(1_000_000_000, "outside", first, unit), b.release_split(1_000_000_000, "knos", first, unit)
+        fee, tip = D(out["fee"]), D(out["tip"])
+        assert fee == D("3.00") and tip == (D("0.30") if first else D("0.05"))
+        # outside: Knos has the fee less the tip, and no chain cost; the relayer has the tip and pays the chain
+        assert (D(out["revenue"]), D(out["direct_cost"]), D(out["relayer_revenue"])) == (fee - tip, D(0), tip)
+        assert D(out["relayer_cost"]) == unit["release_chain"] + (unit["payee_account"] if first else 0)
+        # Knos relays: the whole fee, and the chain costs as its own
+        assert (D(mine["revenue"]), D(mine["direct_cost"]), D(mine["relayer_revenue"]), D(mine["relayer_cost"])) == (fee, D(out["relayer_cost"]), D(0), D(0))
+        # the fee is shared once: nothing of it is anyone's twice, and the principal is nobody's revenue
+        assert D(out["revenue"]) + D(out["relayer_revenue"]) == fee == D(mine["revenue"]) + D(mine["relayer_revenue"])
+        assert out["principal_is_revenue"] is False and "test money" in out["devnet"]
+    small = b.release_split(5_000_000, "outside", True, unit)
+    assert (small["fee"], small["tip"], small["revenue"]) == ("0.05", "0.05", "0.00")      # at the floor the tip is the whole fee
+    for bad in ((4_999_999, "outside"), (5_000_000, "anyone"), (True, "outside")):
+        with pytest.raises(b.BillingError):
+            b.release_split(*bad)
+    raw = (ROOT / "docs" / "UNIT_COSTS.md").read_text(encoding="utf-8")
+    for relayer, first, label in (("outside", False, "an outside relayer"), ("knos", True, "Knos relays, a payee's first payment")):
+        r = b.release_split(1_000_000_000, relayer, first, unit)
+        assert f"| {label} | {r['fee']} | {r['tip']} | {r['revenue']} | {r['direct_cost']} | {r['relayer_revenue']} | {r['relayer_cost']} |" in raw
+
+
+def test_reserves_rent_and_principal_are_never_revenue():
+    month = {"plan": "team", "accepted": [{"deliverable": "a", "value": "60000.00", "rail": "bank"}]}
+    held = [{"kind": "reserve", "what": "netting reserve, funded by the buyer", "amount": "5000.00"},
+            {"kind": "rent", "what": "token account rent, returned on close", "amount": "0.18"},
+            {"kind": "principal", "what": "paid to the supplier", "amount": "60000.00"}]
+    inv, bare = b.invoice({**month, "held": held}), b.invoice(month)
+    assert inv["lines"] == bare["lines"] and (inv["total"], inv["payable"]) == (bare["total"], bare["payable"]) == ("2,263.33", "2,263.33")
+    assert inv["held_total"] == "65,000.18" and [h["rule"] for h in inv["held"]] == [b.RULES["held"]] * 3 and bare["held"] == []
+    assert b.margin({**month, "held": held}, COSTS)["revenue"] == b.margin(month, COSTS)["revenue"]
+    text = "\n".join(b.explain(inv))
+    assert text.index("Total") < text.index("Held or passed on, never revenue:") and "65,000" not in text.split("Total")[0]
+    for bad in ([{"kind": "fee", "amount": "1.00"}], [{"kind": "reserve", "amount": "-1.00"}], [{"kind": "rent", "amount": 0.5}]):
+        with pytest.raises(b.BillingError, match="held 1"):
+            b.invoice({"plan": "none", "held": bad})
+
+
+def test_the_ceilings_at_95_and_what_5000_buys_in_support_hours():
+    assert [(c["price"], c["ceiling"]) for c in b.ceilings()] == [("0.002", "0.0001"), ("20", "1"), ("100000", "5000")]
+    hours = b.support_hours()
+    assert [(h["rate"], h["hours"], h["hours_a_month"]) for h in hours] == [("75.00", "66.7", "5.6"), ("43.20", "115.7", "9.6")]
+    assert D("30.24") / D("0.700") == D("43.20")                       # the BLS median wage over wages' share of what an employer pays
+    raw = (ROOT / "docs" / "UNIT_COSTS.md").read_text(encoding="utf-8")
+    assert "| 20.00 | 2.00 | 1.00 |" in raw and "| 75 USD, the assumption above | 66.7 | 5.6 |" in raw and "| 43.20 USD, from public wages (the inputs) | 115.7 | 9.6 |" in raw
+    assert "https://www.bls.gov/news.release/ecec.nr0.htm" in raw and "Automated onboarding\nis therefore an economic requirement" in raw
+
+
+def test_market_says_defending_the_rate_matters_more_and_that_nothing_defends_it_yet():
+    s = b.sensitivity(b.unit_costs(COSTS))
+    raw = (ROOT / "docs" / "MARKET.md").read_text(encoding="utf-8")
+    flat = " ".join(raw.split())
+    for a, c in zip(*(x["rows"] for x in s["customers"])):
+        rev = lambda r: r["revenue"].replace(".00", "")      # noqa: E731
+        assert f"| {a['bps']} bps | {rev(a)} | {a['gross_margin']} | {rev(c)}" in raw and f"| {c['gross_margin']} |" in raw
+    assert "Defending the rate matters more than shaving verification time." in flat and "None of the three is measured." in flat
+    for kind in ("recoveries", "avoided labour", "financing benefit"):
+        assert kind in flat and kind in " ".join((ROOT / "docs" / "PILOT.md").read_text(encoding="utf-8").split())
+    assert "costs the second customer's account 12,000 USD a year; its whole direct cost is 16,208.36" in flat

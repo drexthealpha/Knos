@@ -675,11 +675,12 @@ def test_an_event_run_and_the_sweep_on_two_runners_see_each_other_through_the_re
             return "sig"
     assert relayq.serve_event("repository_dispatch", event, Ledger(), None, tmp_path / "event-runner" / "ghrelay.json", get=lambda path: api,
                               post=posted.extend, clock=lambda: now, say=lambda line: None, notes=theirs) == 1
-    assert sent == [("fund", ghrelay.token_id(one))] and [c["body"].split('"s":"')[1].split('"')[0] for c in log.comments] == ["sending", "confirmed"]
+    assert log.comments[0]["body"] == relayq.INBOX_MARK + 'event-1 {"repo":"o/r","n":[12],"t":%s}' % now     # 0.3.21: the event, written down first
+    assert sent == [("fund", ghrelay.token_id(one))] and [c["body"].split('"s":"')[1].split('"')[0] for c in log.comments[1:]] == ["sending", "confirmed"]
     assert not (tmp_path / "ghrelay-notes" / "event-1.jsonl").exists()          # the sweep's disk holds nothing of the event run's
     comments.append(ghrelay.Found("fund", 12, one, "octocat", TERMS.encode(), now - 20))
     assert once(now + 3) == [] and len(sent) == 1 and fetched == [f"repos/{ghrelay.HOME_REPO}/issues/comments"]
-    assert len(log.comments) == 2                                               # the sweep wrote nothing about a token it did not carry
+    assert len(log.comments) == 3                                               # the sweep wrote nothing about a token it did not carry
     # the event run holds the next one in flight: the sweep leaves it until that lease is over, then sends it once
     api.append(_comment(12, ghrelay.token_comment("fund", three, TERMS), "2026-10-04T08:00:25Z"))
     held = relayq.Queue(tmp_path / "event-runner" / "ghrelay.json", lambda: now + 7, notes=theirs)
@@ -689,7 +690,7 @@ def test_an_event_run_and_the_sweep_on_two_runners_see_each_other_through_the_re
     assert once(now + 9) == [] and once(now + 60) == [] and len(sent) == 1
     [line] = once(now + 7 + relayq.LEASE)
     assert f" {ghrelay.token_id(three)} ok " in line and len(sent) == 2
-    assert [(c["body"].split(" ")[2][:5], c["body"].split('"s":"')[1].split('"')[0]) for c in log.comments[2:]] == [("event", "sending"), ("sweep", "sending"), ("sweep", "confirmed")]
+    assert [(c["body"].split(" ")[2][:5], c["body"].split('"s":"')[1].split('"')[0]) for c in log.comments[3:]] == [("event", "sending"), ("sweep", "sending"), ("sweep", "confirmed")]
 
 
 def test_an_event_run_that_sends_nothing_for_a_token_it_found_says_who_holds_it_and_where_the_log_says_so(tmp_path, monkeypatch):
@@ -720,7 +721,7 @@ def test_an_event_run_that_sends_nothing_for_a_token_it_found_says_who_holds_it_
     confirmed_at = log.comments[1]["id"]
     assert said == [f"relay: fund o/r#12 {ghrelay.token_id(one)}: not carried by this run: sweep-1 has it on chain "
                     f"(relay log comment {confirmed_at}), so nothing is sent from here"]
-    assert len(log.comments) == 2               # nothing written by the run that sent nothing
+    assert len(log.comments) == 3 and log.comments[2]["body"].startswith(relayq.INBOX_MARK)    # nothing written by the run that sent nothing, but its event
     # the sweep holds the next one when the event run queues it, and answers while the event run waits for its lease
     api.append(_comment(12, ghrelay.token_comment("fund", two, TERMS), "2026-10-04T08:00:20Z"))
     assert sweep_notes.lease(key(two), now + relayq.LEASE)
@@ -735,3 +736,67 @@ def test_an_event_run_that_sends_nothing_for_a_token_it_found_says_who_holds_it_
     assert serve() == 0 and sent == []
     assert said[-1] == (f"relay: fund o/r#12 {ghrelay.token_id(two)}: not carried by this run: sweep-1 has it on chain "
                         f"(relay log comment {log.comments[-1]['id']}), so nothing is sent from here")
+
+
+# ---- 0.3.21: the event recorded before it is read; workers partitioned by order ----------------------------------------
+
+def test_an_event_is_recorded_in_the_relay_log_first_so_a_run_that_dies_after_leaves_the_sweep_where_to_read(tmp_path):
+    """Durable ingestion: the event run writes one `knos-inbox` comment before it reads anything. Here it dies at once
+    (GitHub does not answer its read): the sweep, on another runner with no file in common, reads the log's comments
+    in its pass anyway and from then on reads the repository the event named. A line anyone else wrote counts for nothing."""
+    log, said = Log(), []
+    notes = relayq.Notes(tmp_path / "event" / "notes", "event-7", lambda: 100.0, store=log.store("E"))
+
+    def dead(path):
+        raise relayq.Slow(path, 30)
+    assert relayq.serve_event("repository_dispatch", {"client_payload": {"repo": "a/b", "number": 4}}, None, None, tmp_path / "event" / "q.json",
+                              get=dead, clock=lambda: 100.0, say=said.append, notes=notes) == 0
+    assert [c["body"] for c in log.comments] == [relayq.INBOX_MARK + 'event-7 {"repo":"a/b","n":[4],"t":100.0}']
+    sweep = relayq.Notes(tmp_path / "sweep" / "notes", "sweep-1", lambda: 101.0, store=log.store("S"))
+    assert "a/b" not in sweep.repos()
+    log._post(relayq.INBOX_MARK + 'event-9 {"repo":"x/evil","n":[1],"t":1}', login="someone")        # not the workflow's account
+    log._post(relayq.INBOX_MARK + 'event-9 {"repo":"not a repo","n":[1],"t":1}')                     # not a repository's name
+    assert sweep.store.take(list(reversed(log.comments))) == 1
+    assert sweep.repos() == {"a/b"} and sweep.store.inbox["event-7"]["a/b"]["n"] == [4]
+    # GitHub does not take the line: the run says so, and the sweep's polling is where it was before 0.3.21
+    log.down, said = True, []
+    relayq.serve_event("repository_dispatch", {"client_payload": {"repo": "a/b", "number": 5}}, None, None, tmp_path / "event" / "q.json",
+                       get=dead, clock=lambda: 100.0, say=said.append, notes=notes)
+    assert any("not recorded in the relay log" in line for line in said)
+
+
+def test_an_orders_tokens_go_to_one_worker_and_two_workers_never_take_the_same_order(tmp_path):
+    """`work(..., partition=True)`: worker i of 4 takes only the lanes of part i, for the whole run; every entry is
+    still carried once. And two runners with parts of their own (`Queue(part=...)`) never take one order."""
+    import threading
+    q = relayq.Queue(tmp_path / "q.json", lambda: 0.0, workers=4)
+    lanes = [f"order-{i}" for i in range(12)]
+    for n in range(36):
+        assert q.put(f"k{n:02d}", lanes[n % 12], {"n": n})
+    took: dict[str, set] = {}
+    held: dict[str, str] = {}
+    guard = threading.Lock()
+
+    def handle(entry):
+        with guard:
+            assert held.get(entry["lane"]) is None, "two workers hold one order at once"
+            held[entry["lane"]] = entry["worker"]
+            took.setdefault(entry["lane"], set()).add(entry["worker"])
+        with guard:
+            held[entry["lane"]] = None
+        return {"ok": True}
+    got = relayq.work(q, handle, 4, idle=lambda: None, partition=True)
+    assert got["done"] == 36 and got["stopped"] == 0
+    assert all(len(w) == 1 for w in took.values()) and set(took) == set(lanes)
+    assert all(took[lane] == {f"w{relayq.part_of(lane, 4) + 1}"} for lane in lanes)          # the part names the worker, every run the same
+    # two runners, each with its part: what one takes, the other never does, and between them every order is taken
+    a = relayq.Queue(tmp_path / "shared.json", lambda: 0.0, part=(0, 2))
+    b = relayq.Queue(tmp_path / "shared.json", lambda: 0.0, part=(1, 2))
+    for n, lane in enumerate(lanes):
+        a.put(f"k{n:02d}", lane, {"n": n})
+    first = {e["lane"] for e in iter(lambda: a.take("A:w1"), None)}
+    second = {e["lane"] for e in iter(lambda: b.take("B:w1"), None)}
+    assert first and second and not first & second and first | second == set(lanes)
+    assert relayq.partition({"KNOS_RELAY_PARTITION": "1/3"}) == (1, 3) and relayq.partition({}) is None
+    with pytest.raises(ValueError):
+        relayq.partition({"KNOS_RELAY_PARTITION": "3/3"})

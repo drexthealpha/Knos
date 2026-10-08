@@ -32,7 +32,8 @@ def test_every_command_is_read_into_its_own_type():
     assert c.parse("/knos appeal the test I added passes") == c.Appeal("the test I added passes")
     assert isinstance(c.parse("/knos appeal"), c.Error) and "say why after it" in c.parse("/knos appeal").reply     # an appeal says why
     assert c.parse("/knos settle") == c.Settle() and c.parse("/knos status") == c.Status() and c.parse("/knos help") == c.Help()
-    assert [k.name for k in (c.Fund, c.Offer, c.Raise, c.Cancel, c.Take, c.Release, c.Address, c.Mine, c.Pay, c.Split, c.Reject, c.Appeal, c.Tip, c.Settle, c.Faucet, c.Status, c.Help)] == list(c.FORMS)
+    assert c.parse("/knos reserve 500 for @acme until 2026-12-31") == c.Reserve(500_000_000, "acme", "2026-12-31")
+    assert [k.name for k in (c.Fund, c.Offer, c.Reserve, c.Raise, c.Cancel, c.Take, c.Release, c.Address, c.Mine, c.Pay, c.Split, c.Reject, c.Appeal, c.Tip, c.Settle, c.Faucet, c.Status, c.Help)] == list(c.FORMS)
     # a request for test USDC is read here and judged nowhere here: knos.faucet takes the word as typed
     assert c.parse(f"/knos faucet {ADDRESS}") == c.Faucet(ADDRESS) and c.parse("/knos FAUCET passkey") == c.Faucet("passkey")
     assert c.parse("/knos faucet") == c.Faucet("") and c.parse("/knos faucet not-an-address and more") == c.Faucet("not-an-address")

@@ -110,10 +110,10 @@ def words(version: int | None = None) -> str:
     says both rules and what decides between them."""
     if version is None:
         return (f"Fee: {NEW.rate()} test USDC, paid by the funder on top, once knos_pay {NEW.build} is live; until that upgrade executes "
-                f"the public program charges the {OLD.release} fee ({OLD.rate()}). `knos status` says which build runs. {KEEPS}")
+                f"the public program charges the fee it charges before the upgrade ({OLD.rate()}). `knos status` says which build runs. {KEEPS}")
     if version >= NEW_VERSION:
         return f"Fee: {NEW.rate()} test USDC, paid by the funder on top (knos_pay {NEW.build} is live). {KEEPS}"
-    return (f"Fee today: {OLD.rate()} test USDC, paid by the funder on top (the {OLD.release} fee: knos_pay {NEW.build} is not live yet). "
+    return (f"Fee today: {OLD.rate()} test USDC, paid by the funder on top (the fee it charges before the upgrade: knos_pay {NEW.build} is not live yet). "
             f"From knos_pay {NEW.build}: {NEW.rate()}. {KEEPS}")
 
 

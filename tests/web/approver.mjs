@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)), web = join(here, "../../web"), data = join(here, "../data/statement");
 const mod = (name) => import(pathToFileURL(join(web, name)).href);
-const { readOrders, rowsOf, uncheckedRows, partsOf, readReceipts, messageOf, EXCEPTIONS, WORDS, COLUMNS, PARTS, SAMPLE_ORDERS } = await mod("approver.js");
+const { readOrders, rowsOf, uncheckedRows, partsOf, readReceipts, messageOf, recordOf, checkRecord, group, EXCEPTIONS, WORDS, COLUMNS, PARTS, SAMPLE_ORDERS, POLICY } = await mod("approver.js");
 const { fromShadow, approve } = await mod("statement_make.js");
 const { parse } = await mod("shadow.js");
 const { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } = await mod("front_door_sample.js");
@@ -29,8 +29,9 @@ let failed = 0;
 const same = (what, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) failed++; console.log(`${ok ? "ok  " : "FAIL"} ${what}${ok ? "" : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`); };
 const kinds = (rows) => rows.map((r) => r.kind);
 
-same("seven columns, in the order an approver reads", COLUMNS.map((c) => c[1]), ["Supplier", "Purchase order", "Agreed deliverable", "Acceptance evidence", "Authorised amount", "Exception", "Payment status"]);
-same("five exceptions, each with its words", EXCEPTIONS.map((k) => WORDS[k]), ["disputed", "duplicate", "insufficient evidence", "over the purchase order", "replayed"]);
+same("seven columns, in the order an approver reads", COLUMNS.map((c) => c[1]), ["Supplier", "Authorisation", "Agreed deliverable", "Acceptance evidence", "Authorised amount", "Exception", "Payment status"]);
+same("six exceptions, each with its words", EXCEPTIONS.map((k) => WORDS[k]), ["disputed", "duplicate", "insufficient evidence", "over the purchase order", "over your approval limit", "replayed"]);
+same("amounts are read with thousands separators", ["1500.00", "999.00", "1234567.89", "-25000.5", ""].map(group), ["1,500.00", "999.00", "1,234,567.89", "-25,000.5", ""]);
 same("a purchase order column is read by pull request", JSON.stringify(readOrders(INVOICE), (k, v) => (typeof v === "bigint" ? String(v) : v)), JSON.stringify({ "acme/app#1": { number: "PO-7", limit: "12000" },
   "acme/app#2": { number: "PO-7", limit: "12000" }, "acme/app#3": { number: "PO-7", limit: "12000" }, "acme/app#4": { number: "PO-7", limit: "12000" } }));
 same("an invoice with no purchase order column names none", readOrders(SAMPLE_INVOICE), {});
@@ -67,11 +68,28 @@ const m = messageOf(over[1], sept);
 same("the message to the supplier says the line, the reason and what settles it", [m.subject, m.body.split("\n").slice(0, 6)], ["Invoice INV-2026-09, line 2: disputed",
   ["To Acme Agents,", "", "Line 2 of invoice INV-2026-09 (acme/app#2), 250.00 USD, is not approved.", "It is held as: disputed.", "Reason: A check failed when this change was merged: test.",
     "What settles it: Send the passing run for this change, or appeal."]]);
-same("every exception has a message", EXCEPTIONS.map((kind) => messageOf({ ...over[1], kind }, sept).body.includes("What settles it: undefined")), [false, false, false, false, false]);
+same("every exception has a message", EXCEPTIONS.map((kind) => messageOf({ ...over[1], kind }, sept).body.includes("What settles it: undefined")), EXCEPTIONS.map(() => false));
+// the approver's limit is part of the policy: an agreed line above it is an exception, not an ordinary line
+const capped = rowsOf(sept, null, {}, [], "90.00");
+same("an agreed line above the approver's limit is held, in business words", [kinds(capped), capped[0].reason, capped[0].payment], [["over_limit", "disputed", "insufficient_evidence", "duplicate", null],
+  "Your approval limit is 90.00; this line is 100.00.", "held here"]);
+// the approval record: policy, who, when, why and a snapshot of the evidence, which the page can check again later
+{
+  const rows = rowsOf(sept, null, readOrders(INVOICE), readReceipts(RECEIPT)), ordinary = rows.filter((r) => !r.kind);
+  const rec = await recordOf(sept, ordinary, { by: "Dana Reyes", role: "finance controller", why: "", on: "2026-10-07", at: "2026-10-07T12:00:00.000Z", limit: "5000.00" });
+  same("an approval record names the policy and its version, who, when, the lines and their evidence", [rec.kind, rec.policy.id, rec.policy.version, rec.policy.limit, rec.by, rec.on, rec.amount, rec.lines.map((l) => [l.line, l.po, l.po_limit, Boolean(l.receipt_sha256)]),
+    /^[0-9a-f]{64}$/.test(rec.sha256) && /^[0-9a-f]{64}$/.test(rec.evidence_sha256)], ["knos-approval-record", POLICY.id, 1, "5000.00", "Dana Reyes", "2026-10-07", "100.00", [[1, "PO-7", "120.00", true]], true]);
+  same("checked against the same files, it still matches", (await checkRecord(rec, sept, rows)).said, "This approval still matches its evidence: 1 line, approved 2026-10-07.");
+  same("without its statement only the record is checked", (await checkRecord(rec)).said, "Record intact. Add its statement to check the evidence.");
+  same("a record edited afterwards is caught", (await checkRecord({ ...rec, by: "Someone Else" }, sept, rows)).said, "This approval record was changed after it was made.");
+  same("against another statement it says so", (await checkRecord(rec, october, rowsOf(october))).said, "This record is for another statement.");
+  const raised = rowsOf(sept, null, readOrders(INVOICE.replaceAll("120.00", "900.00")), []);
+  same("a changed purchase order and a missing receipt are named", (await checkRecord(rec, sept, raised)).said, "Line 1 changed since approval: purchase order, receipt.");
+}
 if (existsSync(TIME)) {
   const t = JSON.parse(readFileSync(TIME, "utf8"));
-  same("the time the page states is a script's, of five steps, under ten minutes", [t.scripted, t.steps.map((s) => s.step), t.total_ms < 600_000 && t.total_ms === t.steps.reduce((a, s) => a + s.ms, 0)],
-    [true, ["open the page", "drop the invoice and the statement", "read the result", "open one exception", "approve the agreed lines"], true]);
+  same("the time the page states is a script's, of five steps, under five minutes", [t.scripted, t.steps.map((s) => s.step), t.total_ms < 300_000 && t.total_ms === t.steps.reduce((a, s) => a + s.ms, 0)],
+    [true, ["open the page", "drop the invoice and the statement", "read the result", "open one exception", "approve the ordinary lines"], true]);
 }
 
 // ---- the page, in headless Chromium: node tests/web/approver.mjs page [--write] ------------------------------------------
@@ -144,8 +162,8 @@ async function page() {
     });
     ok("the result says how many lines and how many exceptions", got.said === "Read 5 lines. 4 exceptions.", got.said);
     ok("one row a line, read left to right in the seven columns", JSON.stringify(got.head) === JSON.stringify(COLUMNS.map((c) => c[1])) && got.rows.length === 5 && got.rows.every((r) => r.length === 7), got.head);
-    ok("an agreed line: supplier, order, deliverable, evidence, amount, no exception, payable", JSON.stringify(got.rows[0]) === JSON.stringify(["Acme Agents", "PO-7", "acme/app#1", "1 evaluation, reported", "100.00", "none", "payable"]), got.rows[0]);
-    ok("a line over its purchase order: nothing authorised, held here", JSON.stringify(got.rows[4]) === JSON.stringify(["Acme Agents", "PO-7", "acme/app#4", "1 evaluation, reported", "0.00 of 60.00 billed", "over the purchase order", "held here"]), got.rows[4]);
+    ok("an agreed line: supplier, order, deliverable, evidence, amount, no exception, payable", JSON.stringify(got.rows[0]) === JSON.stringify(["Acme Agents", "PO-7 policy 1 · up to 120.00", "acme/app#1", "1 evaluation, reported", "100.00", "none", "payable"]), got.rows[0]);
+    ok("a line over its purchase order: nothing authorised, held here", JSON.stringify(got.rows[4]) === JSON.stringify(["Acme Agents", "PO-7 policy 1 · up to 120.00", "acme/app#4", "1 evaluation, reported", "0.00 of 60.00 billed", "over the purchase order", "held here"]), got.rows[4]);
     ok("billed, authorised and exceptions are added up", JSON.stringify(got.sums) === JSON.stringify(["Billed 590.00 USD 5 lines", "Authorised 100.00 USD 1 line", "Exceptions 490.00 USD 4 lines"]), got.sums);
     ok("one queue: every line that is not agreed, each with its reason in one sentence", JSON.stringify(got.queue) === JSON.stringify(["Line 2 · Disputed. A check failed when this change was merged: test. 250.00",
       "Line 3 · Insufficient evidence. The checks give no verdict: no check ran. 80.00", "Line 4 · Duplicate. Billed twice on this invoice: same pull request as line 1. 100.00",
@@ -155,15 +173,19 @@ async function page() {
       && (await p.innerText("tr.ap-ev")).includes("Send the passing run for this change, or appeal."), await p.innerText("tr.ap-ev"));
     await p.click("[data-ap=approve]");
     ok("an approval names who approved and in which role", (await said(p, "approved")) === "Type your name and your role." && (await p.evaluate(() => document.activeElement.id)) === "ap-by");
-    await timed("approve the agreed lines", async () => { await p.fill("#ap-by", "Dana Reyes"); await p.fill("#ap-role", "finance controller"); await p.click("[data-ap=approve]"); await p.waitForSelector("tr.ap-row[data-approved]"); });
+    ok("one action approves every ordinary line", (await p.innerText("[data-ap=approve]")) === "Approve 1 ordinary line", await p.innerText("[data-ap=approve]"));
+    await timed("approve the ordinary lines", async () => { await p.fill("#ap-by", "Dana Reyes"); await p.fill("#ap-role", "finance controller"); await p.click("[data-ap=approve]"); await p.waitForSelector("tr.ap-row[data-approved]"); });
     ok("approving says what was approved and what stays open", (await said(p, "approved")) === "Approved 1 line, 100.00. 4 exceptions stay open.", await said(p, "approved"));
     ok("the approved line says so, and the exceptions are still held", JSON.stringify(await p.evaluate(() => [...document.querySelectorAll("tr.ap-row [data-col=payment]")].map((c) => c.innerText))) === JSON.stringify(["approved, payable", "held", "held", "held", "held here"]));
     ok("nothing is left to approve", await p.isDisabled("[data-ap=approve]"));
     const total = steps.reduce((a, s) => a + s.ms, 0);
-    ok(`a first comparison by script: ${total} ms, under ten minutes, with no command line`, total < 600_000, steps);
+    ok(`a first comparison by script: ${total} ms, under five minutes, with no command line`, total < 300_000, steps);
     if (process.argv.includes("--write")) writeFileSync(TIME, `${JSON.stringify({ scripted: true, by: "tests/web/approver.mjs page --write", what: "headless Chromium at 1280 px on the build machine: a script's time, not a person's; nobody was observed",
       steps, total_ms: total }, null, 1)}\n`);
     // the signed-off statement, the approval beside it, the payment file and the audit export
+    const rec = await downloaded(p, () => p.click("[data-file=record]")), record = JSON.parse(rec.text);
+    ok("the approval record is downloaded: policy, who, when, why, the line and its evidence", rec.name === "statement-INV-2026-09.approval.json" && record.kind === "knos-approval-record" && record.statement === sept.sha256
+      && record.policy.version === 1 && record.by === "Dana Reyes" && record.at === "2026-10-07T12:00:00.000Z" && record.why.length > 0 && record.lines.length === 1 && record.lines[0].po === "PO-7", record);
     const status = JSON.parse((await downloaded(p, async () => { await p.click("details.k-more summary"); await p.click("[data-file=status]"); })).text);
     ok("the approval record is the statement's status file: one approval, the held line left out", status.kind === "knos-statement-status" && status.statement === sept.sha256
       && JSON.stringify(status.events) === JSON.stringify([{ amount: "100.00", by: "Dana Reyes", lines: [sept.lines[0].invoice_line], on: "2026-10-07", role: "finance controller", scope: "agreed", type: "approval" }]), status);
@@ -176,6 +198,16 @@ async function page() {
     const pain = await downloaded(p, () => p.click("[data-file=pain]"));
     ok("the payment file is the module's, handed the statement, the payer and the approval", pain.name === "statement-INV-2026-09.pain.001.xml" && pain.text === `<pain>${sept.sha256}|Northwind Ltd|GB33BUKB20201555555555|BUKBGB22|1</pain>`, pain);
     ok("nobody but this page's own host was asked", seen.strangers.length === 0, seen.strangers);
+    // six months later: the record dropped back with its statement and invoice file; then with an edited copy
+    await p.click("[data-ap=clear]");
+    await dropFiles(p, [["approval.json", rec.text], ["sept.json", read("sept.json")], ["invoice.csv", INVOICE]]);
+    await p.waitForSelector("[data-ap=check]:not([hidden])");
+    ok("a record dropped back says it still matches its evidence", (await p.innerText("[data-ap=check]")) === "This approval still matches its evidence: 1 line, approved 2026-10-07.", await p.innerText("[data-ap=check]"));
+    await p.click("[data-ap=clear]");
+    await dropFiles(p, [["approval.json", JSON.stringify({ ...record, amount: "1000.00" })]]);
+    await p.waitForFunction(() => document.querySelector("[data-ap=check]").textContent.includes("changed"));
+    ok("an edited record is caught", (await p.innerText("[data-ap=check]")) === "This approval record was changed after it was made.");
+    ok("a record read alone: the line above says it was read, not \"Reading.\"", (await said(p)) === "Read 1 approval record.", await said(p));
     ok("no error on the page", seen.errors.length === 0, seen.errors);
     await ctx.close();
   }
@@ -184,13 +216,22 @@ async function page() {
   for (const width of [1280, 768, 390, 320]) {
     const { ctx, p, seen } = await open(width);
     ok(`${width}px: the empty screen does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
+    // Read and "Try the sample" in one line: same top and bottom (the form's submit margin once set Read 8 px lower), or, wrapped, the same left edge
+    const line = await p.evaluate(() => { const [r, s] = ["read", "sample"].map((k) => document.querySelector(`[data-ap=${k}]`).getBoundingClientRect());
+      return { read: [r.left, r.top, r.bottom], sample: [s.left, s.top, s.bottom], wrapped: s.top >= r.bottom }; });
+    ok(`${width}px: Read and Try the sample sit in line`, line.wrapped ? Math.abs(line.read[0] - line.sample[0]) <= 1
+      : Math.abs(line.read[1] - line.sample[1]) <= 1 && Math.abs(line.read[2] - line.sample[2]) <= 1, line);
     // the answer within 300 ms, or a pending state at once: the press itself writes "Reading the sample." before anything is worked out
     const pending = await p.evaluate(() => { document.querySelector("[data-ap=sample]").click(); return document.querySelector("[data-ap=said]").textContent; });
     await p.waitForSelector("tr.ap-row[data-line='7']");
     ok(`${width}px: the sample shows a pending state at once`, pending === "Reading the sample.", pending);
     ok(`${width}px: the sample says it is a sample`, (await p.innerText("[data-ap=mark]")) === "Sample: a made-up invoice from a made-up supplier." && (await said(p)) === "Read 7 lines. 5 exceptions.", await said(p));
     ok(`${width}px: seven rows, five in the queue, each cell a control with its column's name`, (await p.locator("tr.ap-row").count()) === 7 && (await p.locator(".ap-queue li").count()) === 5
-      && (await p.getAttribute("tr.ap-row[data-line='1'] [data-col=po]", "aria-label")) === "Line 1, purchase order: PO-1001");
+      && (await p.getAttribute("tr.ap-row[data-line='1'] [data-col=po]", "aria-label")) === "Line 1, authorisation: PO-1001");
+    await p.click("tr.ap-row[data-line='1'] [data-col=po]");
+    ok(`${width}px: the authorisation opens with the policy, and amounts are grouped`, (await p.innerText("tr.ap-ev")).includes("1,500.00 USD") && (await p.innerText("tr.ap-ev")).includes("knos.approval-policy version 1")
+      && (await p.innerText("tr.ap-row[data-line='1'] [data-col=po]")).includes("1,500.00"), await p.innerText("tr.ap-ev"));
+    await p.click("tr.ap-row[data-line='1'] [data-col=po]");
     await p.click("tr.ap-row[data-line='1'] [data-col=evidence]");
     ok(`${width}px: evidence opens in place and says no receipt was given`, (await p.getAttribute("tr.ap-row[data-line='1'] [data-col=evidence]", "aria-expanded")) === "true"
       && (await p.innerText("tr.ap-ev")).includes("none given for this line") && (await p.innerText("tr.ap-ev")).includes("which GitHub does not sign"));
@@ -254,10 +295,10 @@ async function page() {
     ok("no movement asked for: the evidence appears with none", (await p.evaluate(() => getComputedStyle(document.querySelector("tr.ap-ev > td > div")).animationName)) === "none");
     await p.keyboard.press("Escape");
     ok("keys: Escape shuts it and the focus stays on the cell", (await p.locator("tr.ap-ev").count()) === 0 && (await at()) === "2:exception", await at());
-    ok("keys: Tab reaches the name, the role and Approve", (await tabTo("ap-by")) && (await p.keyboard.type("Dana Reyes"), await tabTo("ap-role", 1)) && (await p.keyboard.type("controller"), await tabTo("approve", 1)));
+    ok("keys: Tab reaches the name, the role and Approve", (await tabTo("ap-by")) && (await p.keyboard.type("Dana Reyes"), await tabTo("ap-role", 1)) && (await p.keyboard.type("controller"), await tabTo("approve", 3)));
     await p.keyboard.press("Enter");
     await p.waitForSelector("tr.ap-row[data-approved]");
-    ok("keys: Enter approves, and the focus moves to the statement's download", (await said(p, "approved")) === "Approved 2 lines, 650.00. 5 exceptions stay open." && (await at()) === "csv", [await said(p, "approved"), await at()]);
+    ok("keys: Enter approves, and the focus moves to the approval record's download", (await said(p, "approved")) === "Approved 2 lines, 650.00. 5 exceptions stay open." && (await at()) === "record", [await said(p, "approved"), await at()]);
     ok("keys: every control on the screen can be reached and shows where the focus is", await p.evaluate(() => [...document.querySelectorAll(".approver button, .approver a, .approver input, .approver textarea, .approver summary")]
       .filter((e) => e.offsetParent !== null && !e.disabled).every((e) => e.tabIndex >= 0)));
     ok("no error on the page", seen.errors.length === 0 && seen.strangers.length === 0, seen);

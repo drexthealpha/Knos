@@ -42,6 +42,9 @@ NOT_BUILT = "not built: needs a signing system of record"
 ANYONE = "*"            # an evaluator's repository or owner: any, as long as it is neither party's
 MAX_AMOUNT = 100_000 * 10**6
 MAX_DAYS = 365
+ASSURANCE = ("reported", "rerun", "agreed")      # the levels a receipt can reach (knos.receipt.LEVELS without the unreachable `attested`), rising
+SILENCE_MAX = 90                                 # the most days a month may wait for the other party before one party may close it
+_B58 = re.compile(r"[1-9A-HJ-NP-Za-km-z]{32,44}")
 
 # the ten questions, in the order a buyer reads them: (field, the question, what the field must name)
 FIELDS = (
@@ -160,7 +163,7 @@ def _evidence(d, doc) -> dict:
 
 
 def _checks(d, _doc) -> dict:
-    d = _keys(d, "checks", ("mode", "deciding", "accept", "authority"), ("image",))
+    d = _keys(d, "checks", ("mode", "deciding", "accept", "authority"), ("image", "min_assurance"))
     if d["mode"] not in ("merge", "tests"):
         raise Refused("`checks.mode` is merge (a maintainer's merge decides) or tests (the acceptance suite decides)")
     if not isinstance(d["accept"], str) or not re.fullmatch(r"[0-9a-f]{64}" if d["mode"] == "tests" else "", d["accept"]):
@@ -178,15 +181,33 @@ def _checks(d, _doc) -> dict:
             out["image"] = terms.valid_image(d["image"])
         except terms.Refused as why:
             raise Refused(f"`checks.image`: {why}") from None
+    if "min_assurance" in d:      # optional (0.3.21): no payment below this level. Terms without it are the terms they were
+        if d["min_assurance"] not in ASSURANCE:
+            raise Refused(f"`checks.min_assurance` is one of {', '.join(ASSURANCE)}: `attested` is defined and no receipt reaches it yet")
+        out["min_assurance"] = d["min_assurance"]
     return out
 
 
+def _key(value, what: str) -> str:
+    if not isinstance(value, str) or not _B58.fullmatch(value):
+        raise Refused(f"{what} is an Ed25519 public key written in base 58, as a Solana address is")
+    return value
+
+
 def _window(d, _doc) -> dict:
-    d = _keys(d, "window", ("warranty_days", "holdback_percent"))
+    d = _keys(d, "window", ("warranty_days", "holdback_percent"), ("period_close",))
     days, held = _int(d["warranty_days"], 0, 365, "`window.warranty_days`"), _int(d["holdback_percent"], 0, 50, "`window.holdback_percent`")
     if bool(days) != bool(held):
         raise Refused("`window`: a warranty needs a holdback and a holdback a warranty. With nothing held, nothing can come back.")
-    return {"warranty_days": days, "holdback_percent": held}
+    out: dict = {"warranty_days": days, "holdback_percent": held}
+    if "period_close" in d:       # optional (0.3.21): whose signatures close a month, and after how long one party may close it alone
+        c = _keys(d["period_close"], "window.period_close", ("buyer_key", "supplier_key", "silence_days"))
+        keys = (_key(c["buyer_key"], "`window.period_close.buyer_key`"), _key(c["supplier_key"], "`window.period_close.supplier_key`"))
+        if keys[0] == keys[1]:
+            raise Refused("`window.period_close`: the buyer and the supplier sign with two keys. One key closing a month alone is one party's word.")
+        out["period_close"] = {"buyer_key": keys[0], "supplier_key": keys[1],
+                               "silence_days": _int(c["silence_days"], 0, SILENCE_MAX, "`window.period_close.silence_days`")}
+    return out
 
 
 def _changes(d, _doc) -> dict:
@@ -340,12 +361,17 @@ def say(field: str, d: dict, is_built: bool = True) -> str:
         after = (f", after {' and '.join(_check(c) for c in d['deciding'])} pass{'es' if len(d['deciding']) == 1 else ''} at the last commit"
                  if d["deciding"] else ", and no named check has to pass")
         image = f" The suite runs in the image {d['image']}." if d.get("image") else ""
-        return f"{by}{after}.{image} The authoritative copy: {d['authority']}."
+        floor = (f" Nothing is paid below the assurance level `{d['min_assurance']}`." if d.get("min_assurance") else "")
+        return f"{by}{after}.{image} The authoritative copy: {d['authority']}.{floor}"
     if field == "window":
+        c = d.get("period_close")
+        close = "" if not c else (f" A month closes when the buyer (key {c['buyer_key']}) and the supplier (key {c['supplier_key']}) both sign its "
+                                  "last line" + (f", or when one signed and the other has not answered in {_days(c['silence_days'])}." if c["silence_days"]
+                                                 else "; neither closes it alone."))
         if not d["warranty_days"]:
-            return "Payment is final when it is made: nothing is held back, and accepted work cannot be reopened."
+            return "Payment is final when it is made: nothing is held back, and accepted work cannot be reopened." + close
         return (f"{d['holdback_percent']}% of the payment waits {_days(d['warranty_days'])} in the order and goes back to the funder if the "
-                "change is reverted in that time. What was already paid stays paid.")
+                "change is reverted in that time. What was already paid stays paid." + close)
     if field == "changes":
         only = f"Only files matching {_list(d['paths'])} may change." if d["paths"] else "Any file may change."
         guard = f" No change may touch {_list(d['protected'])}." if d["protected"] else " No path is protected."
@@ -525,6 +551,24 @@ def evaluator_allowed(doc: dict, issuer: str, repository: str, workflow: str, pa
     return None
 
 
+def payment_refusal(doc: dict, level: str) -> str | None:
+    """Why a receipt at the assurance level `level` (knos.receipt.assurance_of) may not be paid under these terms, or
+    None. Terms without `checks.min_assurance` pay at any level, as they always did."""
+    want = validate(doc)["checks"].get("min_assurance")
+    if want is None:
+        return None
+    if level not in ASSURANCE or ASSURANCE.index(level) < ASSURANCE.index(want):
+        return (f"The terms pay only at the assurance level `{want}` or above; this receipt reaches `{level}`. "
+                "Have an evaluator outside the supplier's control run the pinned suite again.")
+    return None
+
+
+def period_close(doc: dict) -> dict | None:
+    """The keys that close a month under these terms, and the days of silence after which one party may close it
+    alone: {buyer_key, supplier_key, silence_days}, or None when the terms name none."""
+    return validate(doc)["window"].get("period_close")
+
+
 def appeal_open(doc: dict, rejected_at: float, now: float) -> bool:
     """Whether an appeal of a rejection made at `rejected_at` is still inside the terms' window at `now`."""
     return now - rejected_at <= validate(doc)["dispute"]["within_days"] * 86400
@@ -561,10 +605,16 @@ def diff(a: dict, b: dict) -> list[tuple[str, str]]:
         out.append(("checks", f"Where the suite runs changed: {ca.get('image') or 'no pinned image'} before, {cb.get('image') or 'no pinned image'} now."))
     if ca["authority"] != cb["authority"]:
         out.append(("checks", f"The authoritative copy of the checks moved: {ca['authority']} before, {cb['authority']} now."))
+    if ca.get("min_assurance") != cb.get("min_assurance"):
+        out.append(("checks", f"The assurance level a payment needs changed: {ca.get('min_assurance') or 'any'} before, {cb.get('min_assurance') or 'any'} now."))
     wa, wb = a["window"], b["window"]
-    if wa != wb:
+    if (wa["warranty_days"], wa["holdback_percent"]) != (wb["warranty_days"], wb["holdback_percent"]):
         w = lambda x: f"{x['holdback_percent']}% held for {_days(x['warranty_days'])}" if x["warranty_days"] else "nothing held, no reopening"  # noqa: E731
         out.append(("window", f"The reopening window changed: {w(wa)} before; {w(wb)} now."))
+    if wa.get("period_close") != wb.get("period_close"):
+        c = lambda x: (f"buyer key {x['buyer_key']}, supplier key {x['supplier_key']}, " + (f"one may close alone after {_days(x['silence_days'])}"   # noqa: E731
+                       if x["silence_days"] else "neither closes alone")) if x else "no keys named"
+        out.append(("window", f"Who signs a month closed changed: {c(wa.get('period_close'))} before; {c(wb.get('period_close'))} now."))
     ha, hb = a["changes"], b["changes"]
     if bool(ha["paths"]) != bool(hb["paths"]):
         listed = _list(ha["paths"] or hb["paths"])

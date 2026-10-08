@@ -379,11 +379,14 @@ def not_independent(receipt) -> str:
     return f"{_COUNT.get(len(judges), str(len(judges)))} evaluations, one controller: not independent"
 
 
-def pay(st: dict, status: dict | None, line: str, method: str, reference: str, on: str, state: str = "", receipt: dict | None = None) -> dict:
+def pay(st: dict, status: dict | None, line: str, method: str, reference: str, on: str, state: str = "", receipt: dict | None = None,
+        terms_doc: dict | None = None) -> dict:
     """The status with one more settlement record for the invoice line `line`. `method`: bank, chain or other; `state`:
     one of PAY_STATES (a bank payment is "paid outside Knos" unless said otherwise). It records; it moves nothing.
     `receipt`: the acceptance receipt of a payment made on chain (its transaction is the reference). When the quorum
-    it records was of evaluators that share a controller, the record carries that in a `note`, and the line says it."""
+    it records was of evaluators that share a controller, the record carries that in a `note`, and the line says it.
+    `terms_doc`: the Knos Terms 3 document of the order. When it requires a minimum assurance level (`checks.min_assurance`)
+    a payment below it is refused: the level is the receipt's (`receipt`), else the one the line says."""
     status = _status(st, status)
     ln = next((x for x in st["lines"] if x["invoice_line"] == line), None)
     if ln is None:
@@ -410,6 +413,17 @@ def pay(st: dict, status: dict | None, line: str, method: str, reference: str, o
                           "transaction is the reference.")
         if not_independent(receipt):
             event["note"] = not_independent(receipt)
+    if terms_doc is not None and state in ("paid_outside", "devnet_demonstration"):
+        from . import receipt as rc
+        from . import terms3
+        level = (rc.assurance_of(receipt, receipt["assurance"]["declared_related"] if receipt["version"] == 5 else terms3.declared(terms_doc))["level"]
+                 if receipt is not None else next(x["assurance"] for x in lines_now(st, status) if x["invoice_line"] == line))
+        try:
+            refused = terms3.payment_refusal(terms_doc, level)
+        except terms3.Refused as why:
+            raise Refused(f"--terms-file is not a Knos Terms 3 document: {why}") from None
+        if refused:
+            raise Refused(refused)
     return {**status, "events": [*status["events"], event]}
 
 
@@ -417,6 +431,34 @@ def grn_reference(ln: dict) -> str:
     """The reference of a line's goods-received note: the id of the first evaluation that stands behind it, as a note's
     (`grn_` and the same 24 hex characters). Empty for a line nothing evaluated: no goods were received on record."""
     return "grn_" + ln["evaluations"][0].split("_", 1)[1] if ln["evaluations"] else ""
+
+
+FIVE = ("identity", "execution", "acceptance", "consequence", "assurance")      # knos.receipt.FIVE: the five parts, in this order
+IDENTITY = {"shadow": "GitHub's answers about this line's pull request, as they were read: GitHub does not sign them.",
+            "month": "GitHub signed the month's close record (the tokens in the archive); the meter's two ledgers name the evaluations.",
+            "events": "The log of events, its chain of hashes checked; the evidence each event names was not read again."}
+RULE = {"shadow": f"the policy {POLICY_SHADOW} (GitHub's checks at the merged commit)", "month": "the meter's verdicts, as both ledgers recorded them",
+        "events": "the verdicts the log records"}
+LEVEL_SAYS = {"reported": "a workflow reported the result", "rerun": "an evaluator outside the supplier's control ran the pinned suite again",
+              "agreed": "two evaluators with different owners each ran the suite and agree", "attested": "an attestation of the execution itself stands behind the result"}
+
+
+def line_parts(st: dict, ln: dict, noted: dict | None = None) -> dict:
+    """The five parts of one statement line, one line each, and the sha256 of the receipt they were read from (None when
+    no receipt stands behind the line: they are then read from the statement and say so). `noted`: the goods-received
+    note recorded for the line, whose receipt's parts (`knos statement grn --record --receipt`) are used when it has them."""
+    kept = ((noted or {}).get("receipt_of_goods") or {}).get("parts")
+    if kept:
+        return {k: kept[k] for k in ("receipt_sha256", *FIVE)}
+    level = ln.get("assurance") or ("reported" if ln["evaluations"] else NOT_EVALUATED)
+    money = f"{ln['amount']} {st['currency']}" if ln["amount"] else "no amount"
+    return {"receipt_sha256": None, "identity": IDENTITY[st["source"]],
+            "execution": (f"{len(ln['evaluations'])} evaluation(s): {' '.join(ln['evaluations'])}; evidence {ln['evidence'] or 'not named'}."
+                          if ln["evaluations"] else "No evaluation stands behind this line."),
+            "acceptance": f"{ids.LINE_WORDS[ln['state']].capitalize()}" + (f": {ln['why']}" if ln["why"] else "") + f", by {RULE[st['source']]}.",
+            "consequence": f"{money} for {ln['supplier']}: {PAY_WORDS.get(ln['payment'], ln['payment'])}" + (f", settlement {ln['settlement']}" if ln.get("settlement") else "") + ".",
+            "assurance": (f"{level}: {LEVEL_SAYS[level]}. No receipt was read for this line: `knos statement grn --record --receipt` reads one."
+                          if level in LEVEL_SAYS else "Not evaluated: nothing stands behind this line.")}
 
 
 def lines_now(st: dict, status: dict | None = None) -> list[dict]:
@@ -434,9 +476,10 @@ def lines_now(st: dict, status: dict | None = None) -> list[dict]:
         paid = [e for e in events if e["type"] == "settlement" and e["line"] == ln["invoice_line"]]
         ok = next((e for e in events if e["type"] == "approval" and ln["invoice_line"] in e["lines"]), None)
         note = paid[-1].get("note", "") if paid else ""       # a quorum of one controller, from the payment's receipt (`pay`)
-        out.append({**ln, "settlement": paid[-1]["settlement"] if paid else None, "payment": paid[-1]["state"] if paid else ln["payment"],
-                    "approved_by": f"{ok['by']} ({ok['role']}) on {ok['on']}" if ok else "",
-                    **({"why": f"{ln['why']}; {note}" if ln["why"] else note} if note else {})})
+        row = {**ln, "settlement": paid[-1]["settlement"] if paid else None, "payment": paid[-1]["state"] if paid else ln["payment"],
+               "approved_by": f"{ok['by']} ({ok['role']}) on {ok['on']}" if ok else "",
+               **({"why": f"{ln['why']}; {note}" if ln["why"] else note} if note else {})}
+        out.append({**row, "parts": line_parts(st, row, noted[-1] if noted else None)})
     return out
 
 
@@ -531,6 +574,8 @@ def grn(st: dict, status: dict | None, line: str, receipt: dict | None = None, p
                  "controllers": [{"kind": e["kind"], "owner_id": e["owner_id"], "actor_id": e["actor_id"]} for e in seen["evaluator"]["controllers"]],
                  "assurance": level["level"], "trusted": level["trusted"], "declared_related": level["declared_related"],
                  "evidence": f"{src['kind'].replace('_', ' ')} {src['reference'] or 'not kept'}", "receipt_sha256": rc.digest(receipt)}
+        if receipt["version"] >= 3:      # the five parts the line then links (knos.receipt.parts reads versions 3 to 5)
+            goods["parts"] = rc.five_cells(receipt, level["declared_related"])
         paid = receipt["transaction"]["signature"] if receipt.get("transaction") else None
         four = receipt.get("ids") or {}
         tied = (four.get("invoice_line") == line or four.get("deliverable") == ln["deliverable"]
@@ -838,6 +883,7 @@ def register(app, help_lines: list | None = None) -> None:
              ref: str = typer.Option("", "--ref", help="the payer's own reference, or the transaction"),
              on: str = on_opt, state: str = typer.Option("", "--state", help="payable, paid outside Knos, held, refunded or devnet demonstration"),
              receipt: Path = typer.Option(None, "--receipt", help="with --method chain: the payment's acceptance receipt (JSON); a quorum of one controller is then said on the line"),
+             terms_file: Path = typer.Option(None, "--terms-file", help="the order's Knos Terms 3 file: a payment below the assurance level it requires is refused"),
              rail: str = typer.Option("", "--rail", help="bank: write a payment file (ISO 20022 pain.001) for the agreed, approved lines. usdc: record a devnet payment of --line (its transaction is --ref)"),
              payer_name: str = typer.Option("", "--payer-name", help="with --rail bank: who pays, as the bank knows them"),
              payer_account: str = typer.Option("", "--payer-account", help="with --rail bank: the account that pays (an IBAN, or an account number)"),
@@ -877,7 +923,11 @@ def register(app, help_lines: list | None = None) -> None:
                 held = json.loads(receipt.read_text(encoding="utf-8")) if receipt else None
             except (OSError, ValueError):
                 raise Refused(f"Cannot read {receipt} as a receipt's JSON.") from None
-            status = pay(st, status, line, "chain" if rail == "usdc" else method, ref, today(on), state, held)
+            try:
+                floor = json.loads(terms_file.read_text(encoding="utf-8")) if terms_file else None
+            except (OSError, ValueError):
+                raise Refused(f"Cannot read {terms_file} as a terms file's JSON.") from None
+            status = pay(st, status, line, "chain" if rail == "usdc" else method, ref, today(on), state, held, floor)
         except (Refused, rails.Refused) as why:
             raise stop(why) from None
         last = status["events"][-1]
@@ -968,6 +1018,13 @@ def register(app, help_lines: list | None = None) -> None:
             raise stop(why) from None
         f = {**exports.FORMATS, **exports.STATEMENT_MORE}[fmt]
         typer.echo(f"{f['name']}: {exports.label(fmt)}." + (f" Unverified: {f['unverified']}." if f["unverified"] else ""), err=True)
+        name = file.name[:-5] if file.name.endswith(".json") else file.name
+        beside = exports.parts_path(out) if out else file.parent / f"{name}.{fmt}.parts.csv"      # the five parts of every line, always beside the file
+        try:
+            beside.write_bytes(exports.parts_file(exports.statement_parts_rows(st, status), exports.sha_of(text)).encode("utf-8"))
+        except audit.Refused as why:
+            raise stop(why) from None
+        typer.echo(f"wrote {beside}: the five parts of every line (identity, execution, acceptance, consequence, assurance)", err=True)
         if out:
             out.write_bytes(text.encode("utf-8"))
             typer.echo(f"wrote {out}", err=True)

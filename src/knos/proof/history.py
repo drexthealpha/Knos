@@ -43,6 +43,16 @@ that history makes required.
                   (REFERENCE), and a closed period is an entity moved to the archive (ARCHIVE). `knos recall exception`
                   (knos.recall) answers from them: how the same exception under the same terms ended before.
 
+    approval_kept(), approval_recalled()
+                  the approver's defence six months later, in the buyer's tenant: one entity per commitment (WARM) holds
+                  every approval record given for it (who, amount, policy version, evidence hash, why, expiry), each one
+                  also a journal event (COLD) the entity is checked against. `knos recall approval` answers from them.
+
+    outcome_granted(), grant_withdrawn(), onboarded(), reuse(), supplier_brings()
+                  supplier reuse, in the SUPPLIER's tenant: what a buyer granted it to carry (accepted terms, results,
+                  value; WARM, a withdrawn grant ARCHIVED), and each buyer's time from first order to first payment, so
+                  the second buyer's onboarding is set against the first's. `knos recall supplier` answers from them.
+
 `NullStore` keeps nothing: the same engine with no memory, which is what a plain hook amounts to.
 """
 
@@ -65,6 +75,9 @@ class NullStore:
 
     def all(self, category: str) -> list[dict]:
         return []
+
+    def get(self, category: str, name: str) -> dict:
+        return {}
 
     def rows(self, category: str) -> list[tuple[str, dict]]:
         return []
@@ -151,6 +164,18 @@ class SibylStore:
             got._storage = storage
         return got
 
+    @classmethod
+    def for_supplier(cls, supplier: str, root=None) -> "SibylStore":
+        """One supplier's own memory: what buyers granted it to carry to its next buyer, and how long each buyer took
+        to onboard it (knos.store.supplier_tenant), in <root>/sibyl.db when a directory is named, else in Sibyl's
+        shared store on this machine."""
+        from .. import store
+        client, storage = store.for_supplier(supplier, root)
+        got = cls(client)
+        if storage is not None:
+            got._storage = storage
+        return got
+
     def _release(self) -> None:
         """Close Sibyl's connections after each call: an open SQLite handle locks memory.db (and its -wal/-shm) on
         Windows, so the store could not be moved, deleted or restored from a cache while a SibylStore is alive.
@@ -187,6 +212,24 @@ class SibylStore:
 
     def all(self, category: str) -> list[dict]:
         return [body for _name, body in self.rows(category)]
+
+    def get(self, category: str, name: str) -> dict:
+        """The body of one active entity, looked up by its category and name (the WARM tier), or {} when none is held."""
+        try:
+            got = self.client.get_entity(category, name)
+        except Exception as why:  # noqa: BLE001 - the engine's NotFoundError, named here so that this module imports nothing of the engine
+            if type(why).__name__ != "NotFoundError":
+                raise
+            return {}
+        finally:
+            self._release()
+        body = got.get("body") if isinstance(got, dict) else None
+        if isinstance(body, str):
+            try:
+                body = json.loads(body)
+            except ValueError:
+                return {}
+        return body if isinstance(body, dict) and got.get("status", "active") == "active" else {}
 
     def journal(self, evaluated=None, acted=None, forward=None, extra=None) -> None:
         """One event in Sibyl's journal (the COLD tier): appended, never rewritten."""
@@ -946,6 +989,208 @@ def period_closed(store, period: str, at: float | None = None) -> dict:
     store.put("exception_period", period, body)
     store.archive("exception_period", period, "period closed")
     return body
+
+
+# ---- the approver's defence: who approved what, under which policy, and whether its evidence still matches -------
+
+APPROVAL_MARK = "knos-approval"             # what makes a journal event one of these (COLD)
+_APPROVAL_KEPT = 50                         # the approvals one commitment's entity keeps (WARM); the journal keeps them all
+_APPROVAL_JOURNAL = 100_000                 # how far back the journal is read to check an approval against it
+_APPROVAL_TEXT = {"commitment": 120, "approver": 64, "policy_version": 64, "amount": 40, "at": 40, "why": 400,
+                  "beneficiary": 120, "expires": 40, "purchase_order": 120, "role": 32}
+_APPROVAL_NEEDS = ("commitment", "approver", "policy_version", "amount", "at")
+
+
+def canonical(value) -> bytes:
+    """The bytes a hash of a JSON value is taken over: keys sorted, no spaces, UTF-8."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def evidence_hash(evidence) -> str:
+    """The sha256 of an evidence snapshot (a JSON object: the five receipt parts as the approver saw them), or the hash
+    itself when 64 hex characters are given."""
+    if isinstance(evidence, str) and _HASH.fullmatch(evidence.strip().lower()):
+        return evidence.strip().lower()
+    if not isinstance(evidence, (dict, list)):
+        raise ValueError("evidence is a JSON object (the snapshot the approver saw) or its sha256")
+    return hashlib.sha256(canonical(evidence)).hexdigest()
+
+
+def approval_record(record) -> dict:
+    """One approval record as memory keeps it: who (`approver`) approved what (`commitment`, `amount`, `beneficiary`,
+    `purchase_order`), under which `policy_version`, when (`at`), until when (`expires`), why, and the sha256 of the
+    evidence the approver saw (`evidence_sha256`, or `evidence` itself, which is hashed and not kept). `record_sha256`
+    is the hash of the rest. Raises ValueError for a record without a commitment, approver, policy version, amount
+    and time, or with no evidence."""
+    if not isinstance(record, dict):
+        raise ValueError("an approval record is a JSON object")
+    out: dict[str, Any] = {}
+    for key, most in _APPROVAL_TEXT.items():
+        got = record.get(key)
+        out[key] = "" if got is None or isinstance(got, bool) else _short(got, most)
+    missing = [k for k in _APPROVAL_NEEDS if not out[k]]
+    if missing:
+        raise ValueError(f"an approval record names its {', '.join(missing)}")
+    given = record.get("evidence_sha256") if record.get("evidence_sha256") else record.get("evidence")
+    if given is None:
+        raise ValueError("an approval record names the evidence the approver saw: evidence_sha256 or evidence")
+    out["evidence_sha256"] = evidence_hash(given)
+    out["record_sha256"] = hashlib.sha256(canonical(out)).hexdigest()
+    return out
+
+
+def _approval_intact(a) -> bool:
+    return isinstance(a, dict) and isinstance(a.get("record_sha256"), str) \
+        and hashlib.sha256(canonical({k: v for k, v in a.items() if k != "record_sha256"})).hexdigest() == a["record_sha256"]
+
+
+def approval_kept(store, record) -> dict:
+    """Remember one approval record in the buyer's tenant: added to the entity of its commitment (WARM: one entity per
+    commitment, every approval given for it) and appended to the journal (COLD), which nothing rewrites. The same record
+    kept twice is one memory. Returns the record as kept."""
+    rec = approval_record(record)
+    name = _id("approval", rec["commitment"])
+    held = getattr(store, "held", None)
+    with held() if held is not None else contextlib.nullcontext(store):
+        body = store.get("approval", name)
+        kept = [a for a in body.get("approvals", []) if isinstance(a, dict)] if body.get("commitment") == rec["commitment"] else []
+        if any(a.get("record_sha256") == rec["record_sha256"] for a in kept):
+            return rec
+        kept = sorted([*kept, rec], key=lambda a: (str(a.get("at")), str(a.get("record_sha256"))))[-_APPROVAL_KEPT:]
+        store.put("approval", name, {"commitment": rec["commitment"], "approvals": kept})
+        store.journal(evaluated={"commitment": rec["commitment"], "evidence_sha256": rec["evidence_sha256"], "policy_version": rec["policy_version"]},
+                      acted=f"approved {rec['amount']} under policy {rec['policy_version']} ({rec['approver']})",
+                      extra={"kind": APPROVAL_MARK, **rec})
+    return rec
+
+
+def approval_recalled(store, commitment: str, evidence=None) -> dict:
+    """Who approved `commitment`, what, under which policy version, and why, read from memory only. Each approval says
+    whether it is `intact` (its record hashes to what it says and the journal holds the same record) and, when the
+    evidence as it stands now is given, whether it still `matches` the evidence the approver saw. `journal_only`: the
+    approvals the journal holds and the entity has lost (an entity edited after the fact). Empty with no memory."""
+    commitment = _short(commitment, 120)
+    if not commitment:
+        raise ValueError("name the commitment that was approved")
+    now = evidence_hash(evidence) if evidence is not None else None
+    body = store.get("approval", _id("approval", commitment))
+    kept = [a for a in body.get("approvals", []) if isinstance(a, dict)] if body.get("commitment") == commitment else []
+    journal: dict[str, dict] = {}
+    for e in store.events(_APPROVAL_JOURNAL):
+        x = e.get("extra")
+        if isinstance(x, dict) and x.get("kind") == APPROVAL_MARK and x.get("commitment") == commitment and _approval_intact(
+                {k: v for k, v in x.items() if k != "kind"}):
+            journal[str(x["record_sha256"])] = {k: v for k, v in x.items() if k != "kind"}
+    rows = []
+    for a in kept:
+        intact = _approval_intact(a) and journal.get(str(a.get("record_sha256"))) == a
+        rows.append({**a, "intact": intact, "matches": None if now is None else (intact and a.get("evidence_sha256") == now)})
+    lost = [r for _h, r in sorted(journal.items()) if r not in kept]       # what the journal holds and the entity no longer does, word for word
+    out = {"kind": "knos.recall.approval/1", "commitment": commitment, "approvals": rows, "seen": len(rows), "journal_only": lost,
+           "intact": bool(rows) and all(r["intact"] for r in rows) and not lost,
+           "evidence_now": now, "matches": None if now is None or not rows else all(r["matches"] for r in rows),
+           "memory": not isinstance(store, NullStore)}
+    return out
+
+
+# ---- supplier reuse: what a supplier brings from other buyers, and what its second buyer saved (Sibyl) -------------
+
+SUPPLY_OUTCOMES = ("accepted", "refused", "disputed", "reverted")
+_GRANT_REFS = 200                           # the newest deliverable ids one grant keeps, so a result is counted once
+
+
+def _buyer_key(buyer) -> str:
+    who = _agent_key(buyer)
+    if not who:
+        raise ValueError("name the buyer organisation")
+    return hashlib.sha256(who.encode()).hexdigest()[:16]
+
+
+def _grant_row(body) -> bool:
+    return (isinstance(body, dict) and isinstance(body.get("buyer"), str) and 1 <= len(body["buyer"]) <= 64
+            and isinstance(body.get("terms"), str) and bool(_HASH.fullmatch(body["terms"]))
+            and isinstance(body.get("outcomes"), dict) and all(body["outcomes"].get(o, 0) >= 0 and type(body["outcomes"].get(o, 0)) is int for o in SUPPLY_OUTCOMES)
+            and type(body.get("value")) is int and body["value"] >= 0 and isinstance(body.get("refs"), list))
+
+
+def outcome_granted(store, supplier, buyer, terms: str, outcome: str, ref: str, value: int = 0, at: float | None = None) -> dict:
+    """In the SUPPLIER's tenant: buyer `buyer` grants that one result of `supplier`'s work under the terms with hash
+    `terms` may be shown to its other buyers: `outcome` (one of SUPPLY_OUTCOMES) of deliverable `ref`, `value` in base
+    units when accepted. Nothing is kept that a buyer did not grant: this is the only call that writes it. The same
+    `ref` is counted once. One entity per buyer and terms (WARM), one journal event per result (COLD)."""
+    terms, who, ref = str(terms), _agent_key(supplier)[:64], _short(ref, 120)
+    if outcome not in SUPPLY_OUTCOMES or not _HASH.fullmatch(terms) or not who or not ref or type(value) is not int or value < 0:
+        raise ValueError(f"a granted result is {', '.join(SUPPLY_OUTCOMES)}, of a named deliverable, under a terms hash, with a value of 0 or more")
+    by = _agent_key(buyer)[:64]
+    name = _id("granted", _buyer_key(buyer), terms)
+    at = float(at if at is not None else time.time())
+    held = getattr(store, "held", None)
+    with held() if held is not None else contextlib.nullcontext(store):
+        body = store.get("granted", name)
+        if not _grant_row(body):
+            body = {"supplier": who, "buyer": by, "terms": terms, "outcomes": {o: 0 for o in SUPPLY_OUTCOMES}, "value": 0, "refs": [], "first_at": at, "last_at": at}
+        if ref in body["refs"]:
+            return body
+        outcomes = {o: int(body["outcomes"].get(o, 0)) for o in SUPPLY_OUTCOMES}
+        outcomes[outcome] += 1
+        body = {**body, "outcomes": outcomes, "value": body["value"] + (value if outcome == "accepted" else 0), "refs": [*body["refs"], ref][-_GRANT_REFS:],
+                "first_at": min(float(body.get("first_at", at)), at), "last_at": max(float(body.get("last_at", at)), at)}
+        store.put("granted", name, body)
+        store.journal(evaluated={"supplier": who, "buyer": by, "terms": terms, "ref": ref}, acted=f"{outcome} under granted terms ({by})",
+                      extra={"kind": "knos-granted", "supplier": who, "buyer": by, "terms": terms, "ref": ref, "outcome": outcome, "value": value, "at": at})
+    return body
+
+
+def grant_withdrawn(store, buyer, terms: str) -> bool:
+    """The buyer takes its grant back: the entity goes to the engine's archive (ARCHIVE) and no recall shows it again.
+    False when nothing was granted."""
+    return store.archive("granted", _id("granted", _buyer_key(buyer), str(terms)), "grant withdrawn")
+
+
+def onboarded(store, buyer, ordered_at: float | None = None, paid_at: float | None = None) -> dict:
+    """In the SUPPLIER's tenant: when `buyer` first ordered from this supplier and when it first paid it. The earliest
+    of each is kept; the buyer is kept as a hash of its name only (a time is not a grant). One entity per buyer."""
+    key = _buyer_key(buyer)
+    body = store.get("onboarding", key)
+    def first(old, new):
+        got = [float(x) for x in (old, new) if isinstance(x, (int, float)) and not isinstance(x, bool)]
+        return min(got) if got else None
+    body = {"buyer_key": key, "ordered_at": first(body.get("ordered_at"), ordered_at), "paid_at": first(body.get("paid_at"), paid_at)}
+    store.put("onboarding", key, body)
+    return body
+
+
+def reuse(store) -> dict:
+    """The onboarding counter vendors' reuse needs, from the supplier's memory: buyers in the order they first ordered,
+    each one's time from first order to first payment, and what the second buyer saved against the first
+    (`saved_seconds`: first less second; None until both were paid). All zero with no memory."""
+    rows = [b for _n, b in store.rows("onboarding") if isinstance(b.get("ordered_at"), (int, float))]
+    rows.sort(key=lambda b: (b["ordered_at"], str(b.get("buyer_key"))))
+    took = [max(0.0, b["paid_at"] - b["ordered_at"]) if isinstance(b.get("paid_at"), (int, float)) else None for b in rows]
+    first, second = (took + [None, None])[:2]
+    return {"buyers": len(rows), "paid": sum(1 for t in took if t is not None), "seconds": took,
+            "first_seconds": first, "second_seconds": second,
+            "saved_seconds": first - second if first is not None and second is not None else None}
+
+
+def supplier_brings(store, supplier, buyer) -> dict:
+    """What `supplier` brings to `buyer` from its OTHER buyers, as they granted it: per buyer and terms, the results and
+    the value accepted; their totals; and the onboarding counter (reuse). `you`: this buyer's place in the order the
+    supplier's buyers came (1 for the first), or None when it has not ordered yet."""
+    who, mine = _agent_key(supplier)[:64], _buyer_key(buyer)
+    rows = []
+    for name, b in store.rows("granted"):
+        if _grant_row(b) and b.get("supplier") == who and name == _id("granted", _buyer_key(b["buyer"]), b["terms"]) and _buyer_key(b["buyer"]) != mine:
+            rows.append({"buyer": b["buyer"], "terms": b["terms"], "outcomes": b["outcomes"], "value": b["value"], "results": len(b["refs"]),
+                         "first_at": b.get("first_at"), "last_at": b.get("last_at")})
+    rows.sort(key=lambda r: (r["buyer"], r["terms"]))
+    totals = {o: sum(r["outcomes"].get(o, 0) for r in rows) for o in SUPPLY_OUTCOMES}
+    order = sorted((b for _n, b in store.rows("onboarding") if isinstance(b.get("ordered_at"), (int, float))),
+                   key=lambda b: (b["ordered_at"], str(b.get("buyer_key"))))
+    you = next((i for i, b in enumerate(order, 1) if b.get("buyer_key") == mine), None)
+    return {"kind": "knos.recall.supplier/1", "supplier": who, "from": rows, "buyers": len({r["buyer"] for r in rows}),
+            "outcomes": totals, "value": sum(r["value"] for r in rows), "reuse": reuse(store), "you": you,
+            "memory": not isinstance(store, NullStore)}
 
 
 # ---- what the judge learned, to carry between runs (knos.proof.memory) -------------------------------------------

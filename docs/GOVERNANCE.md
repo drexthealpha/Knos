@@ -1,12 +1,18 @@
 # Governance: who can change what, today
 
 This page says who can change the programs and the keys they trust, what stands between that power and a user's
-money, and what is planned. It describes Knos 0.3.14 on Solana devnet with test USDC. [SECURITY.md](SECURITY.md) is
+money, and what is planned. It describes the programs as devnet holds them, with test USDC; the pending proposals
+are in [`web/upgrades.json`](../web/upgrades.json). [SECURITY.md](SECURITY.md) is
 the security model; [INVARIANTS.md](INVARIANTS.md) is what the programs guarantee while they are unchanged.
 
 **The short version.** One person can change every program, 48 hours after saying so in public. Both multisigs are
 2-of-3 over the same three member keys, and all three are the founder's. So the 48-hour delay gives **notice**. It does not give
 independent oversight: nobody else has to agree, and nobody else can refuse.
+
+**Leaving before an upgrade is not always possible.** A Balance can be withdrawn at once, but an open order whose
+deadline falls after the upgrade's time cannot be refunded before it: a cancellation gives the seller 7 days of
+notice, and the upgrade delay is 48 hours. `knos exit --before-upgrade` lists every holding of yours with its way out
+and the hours it misses by (section 2).
 
 **Outside key holders today: 0.** What would change it: one person opens a "Key holder request"
 ([KEYHOLDER.md](KEYHOLDER.md), one page) and the founder runs one command (section 5).
@@ -31,7 +37,7 @@ and all three member keys (section 6).
 | Which signing keys the verifier accepts | a new key: an attestation from one of two repositories of one personal GitHub account, then a day, then the guardian's approval. A refresh of a key the issuer still publishes: anyone (section 7) | a day and the guardian's vote | constants in [`pins.rs`](../programs-v2/knos_oidc/src/pins.rs) |
 | Revoking a key; pausing new funding for at most 7 days | the guardian multisig: 2 of 3 keys, all the founder's | at once (no time lock) | it has no instruction that moves money, and cannot block a refund, a withdrawal or a payment under a good key |
 | The guardian multisig's own members | the same 2 of 3 | at once | no config authority |
-| A contract fee rate for one repository owner | `FEE_OWNER`, one key of Knos's | at once | only downward, between 0.5% and 2.5%, until an expiry |
+| A contract fee rate for one repository owner | `FEE_OWNER`, one key of Knos's | at once | only downward, until an expiry: under `knos_pay` 2.1 the first tier between 0.5% and 2.5%; under 2.2 (proposal 8) to no less than 0.10% |
 | An order's terms, payee, amount or deadline after funding | nobody | | the program has no such instruction; a change takes an upgrade |
 | The first deployment ([`programs`](../programs)) | nobody | | neither program has an upgrade authority |
 
@@ -49,11 +55,32 @@ accounts. On devnet the Squads program itself has an upgrade authority, which is
   status, so a funder can follow the feed instead of visiting the site
   ([`scripts/upgrade_feed.py`](../scripts/upgrade_feed.py)). The feed is rewritten when the site is built, so it
   is as fresh as the last build; the banner and `knos status` read the chain directly.
-- **What a funder can do inside them.** Withdraw a Balance at once (`Withdraw`, the wallet signs). Cancel a
-  wallet-funded order (`Cancel`, the wallet signs): its deadline becomes at most 7 days away, which is longer than
-  48 hours, so the order's money is still in the program when the upgrade runs unless its deadline was already
-  near. An order funded from a Balance by comment is cancelled by a comment in its repository. So the notice fully
-  protects Balances, and protects orders only when their deadline falls inside it.
+- **What a funder can do inside them, and what not.** `knos exit --before-upgrade --wallet <address>` (or
+  `--github-id <n>`) reads the pending proposal and every Balance and order of yours, and prints for each the
+  instruction that takes the money out of `knos_pay`, who sends it, when, and whether that is before the upgrade can
+  execute ([`src/knos/exit.py`](../src/knos/exit.py); tested against the program in `tests/test_exit.py`). The
+  feed and `knos status` give the hours left. The rules are the program's:
+
+  | what you hold | the way out | before an upgrade approved now? |
+  |---|---|---|
+  | a Balance | `Withdraw`, your wallet signs, at once | yes |
+  | an open order past its deadline | `RefundOrder`, anyone sends it, at once | yes |
+  | an open order whose deadline is inside the 48 hours | `RefundOrder` after the deadline | yes |
+  | an open order whose deadline is later | `Cancel` moves the deadline to at most 7 days away (`NOTICE`), then `RefundOrder`; a wallet's order is cancelled by its wallet, a Balance's by a `/knos cancel` comment, which needs GitHub | **no**: 7 days of notice are longer than 48 hours |
+  | an order held for a payee who has bound no wallet | `RefundOrder` after the 180-day hold | **no** |
+  | a holdback in its warranty (up to 90 days) | `Release` to the seller when it ends; back to the funder only by a judge's revert token | **no** |
+
+  **Where an order cannot be left, and why.** The notice protects the seller who is working on the order: a funder
+  who could take the money back at once could cancel after the work was done. So the timetable has two promises
+  that disagree, and today the seller's wins: an upgrade can execute while a funder's order is still in its notice.
+  For comparison, L2BEAT's framework for rollups asks that users have at least 7 days to exit before an unwanted
+  upgrade, and 30 days at its highest stage
+  ([L2BEAT, "Introducing Stages"](https://medium.com/l2beat/introducing-stages-a-framework-to-evaluate-rollups-maturity-d290bb22befe)).
+  What would close the gap for open orders without any program change: set the upgrade multisig's time lock
+  longer than the notice plus the presentation grace (7 days and 2 hours), with a Squads `SetTimeLock` config
+  transaction ([Squads documentation](https://docs.squads.so/main/development/typescript/instructions/create-config-transaction)),
+  which itself waits out the present 48 hours. It would not cover held orders or holdbacks in warranty. Not done:
+  it slows every fix, the one in section 3 included, and it is the founder's decision to make with a key holder.
 - **They are not oversight.** The same person proposes, approves and executes.
 - **Nothing is sent to anyone.** No comment is posted on repositories with open orders, and no email exists. The
   notice reaches someone who looks, or who subscribed to the feed.
@@ -80,7 +107,10 @@ This section is the job description of an outside key holder.
 
 1. **The bytes.** Download the proposal's buffer (`solana program dump <buffer> buffer.so`), hash it
    (`solana-verify get-executable-hash buffer.so`), and compare with a build they made themselves from the proposed
-   commit ([ASSURANCE.md](ASSURANCE.md) has the commands). The hash the proposer printed is not evidence.
+   commit ([ASSURANCE.md](ASSURANCE.md) has the commands). The hash the proposer printed is not evidence. One
+   command does the comparison from the chain: `python scripts/provenance.py verify-proposal <N> --so <your build>`
+   reads the proposal's buffer, the gate record for those bytes and the feed, and says VERIFIED only when all agree
+   with the build you made; without `--so` it prints the commands that make it ([PROVENANCE.md](PROVENANCE.md)).
 2. **The gate record.** The account `["build", program, hash]` of [`examples/upgrade_gate`](../examples/upgrade_gate)
    exists and names a commit: GitHub signed that Knos's own `program.yml`, on a commit of `main` or of a release
    tag, built exactly these bytes. `knos status` and the feed print it. A proposal made with `--ungated` has none,
@@ -229,6 +259,13 @@ attested.
   own personal account, with `id-token: write`. Sending it: `Refresh` is open to anyone; `knos relay --token-file`
   carries the token with any key that holds a little SOL. Such a run refreshes keys; it never registers one.
 - **Being warned.** `knos status` fails when a key has less than 7 days left, and says which.
+- **When GitHub rotates its key.** A new key is admitted only on an attestation verified under a key the verifier
+  already holds. So the rotation works while GitHub publishes the new key before it stops signing with the old one:
+  the daily rotate run names it, anyone registers it, the guardian approves, and a day later it verifies. Drilled
+  in simulation on the test builds ([DRILLS.md](DRILLS.md), "GitHub rotates its signing key mid-period"): paid one
+  day after the new key was published. If GitHub signs with a key the verifier never admitted and with no other,
+  every token is refused, no attestation can be verified, and only an upgrade of the verifier admits a key, 48
+  hours away; open orders go back to their funders at their deadlines. Not drilled on devnet.
 - **If nobody does.** Keys expire one by one, 30 days after each one's last attestation. A token under an expired
   key is refused. An expired key comes back when it is attested again, as long as the attestation is verified under
   some other key that is still usable. When the last usable key of GitHub's expires, nothing can be verified and
@@ -265,7 +302,8 @@ it does:
    `Release`, and the holdback goes to the seller.
 6. **Sending any of these** needs a Solana key with a little SOL and an RPC endpoint, and nothing of Knos's or
    GitHub's: `KNOS_RELAY_KEY=<key> knos relay` makes one pass and sends every refund, settlement and release that is
-   due. The package is installed from PyPI, not from GitHub.
+   due. The package is installed from PyPI, not from GitHub. `knos exit --wallet <address>` lists what you hold and
+   when each refund becomes due.
 
 The step-by-step version for a funder, with what each step shows, is in [DRILLS.md](DRILLS.md). Work that was
 accepted but not yet paid when the account was suspended is not paid: the seller's remedy is outside the program.
@@ -326,7 +364,10 @@ pending upgrade against the gate before voting. The same page says what it canno
 
 ## 10. What is missing, in one list
 
-- An outside key holder on either multisig ([KEYHOLDER.md](KEYHOLDER.md)).
+- An outside key holder on either multisig ([KEYHOLDER.md](KEYHOLDER.md)). One would hold 1 key of 3 and could
+  not act alone; the founder would keep 2 and could still approve any upgrade without them.
+- An exit window as long as the notice: an open order whose deadline is after an upgrade's time cannot be left
+  before it (section 2).
 - A second person for any duty: review, deploy, approve, relay, respond ([OPERATOR.md](OPERATOR.md) is the
   checklist; nobody has run it).
 - An outside review of anything. The verifier's freeze waits on it.

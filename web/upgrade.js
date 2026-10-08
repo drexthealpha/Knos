@@ -117,6 +117,9 @@ export function inWords(t, now) {
   return `${Math.floor(left / 3600)} h ${Math.floor((left % 3600) / 60)} min`;
 }
 
+// Whole hours from `now` until an approved upgrade can run: the time a funder has to take money out (scripts/upgrade_feed.py hours_to_leave)
+export const hoursToLeave = (t, now) => Math.floor(Math.max(0, t - now) / 3600);
+
 // What a pending upgrade is, in two sentences. `lock`: the multisig's time lock in seconds. `now`: the chain's clock, or null when it could
 // not be read (then no countdown is given, and nothing is said about the delay being over).
 export function upgradeWords(p, lock, now) {
@@ -124,7 +127,8 @@ export function upgradeWords(p, lock, now) {
   if (p.status === "Approved") {
     const delay = now === null ? `it can be run from ${when(p.executesAt)}`
       : now >= p.executesAt ? `its delay is over (${when(p.executesAt)}), so a member can run it now` : `it can be run from ${when(p.executesAt)}, in ${inWords(p.executesAt, now)}`;
-    return { what, state: `The multisig has approved it (${p.approved} of ${p.threshold} members); ${delay}.` };
+    const leave = now === null || now >= p.executesAt ? "" : ` ${hoursToLeave(p.executesAt, now)} hours to leave: knos exit --before-upgrade lists what you hold and how to take it out before then.`;
+    return { what, state: `The multisig has approved it (${p.approved} of ${p.threshold} members); ${delay}.${leave}` };
   }
   if (p.status === "Active") return { what, state: `${p.approved} of ${p.threshold} approvals so far. It can be run ${Math.round(lock / 3600)} hours after the vote that approves it.` };
   return { what, state: "It is drafted and not yet put to the members' vote." };

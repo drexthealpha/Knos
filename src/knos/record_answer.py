@@ -218,6 +218,24 @@ def check_grant(doc, supplier: str, reader: str, supplier_key: str | None, now: 
 
 
 # ---- the answer ------------------------------------------------------------------------------------------------------
+FIVE = ("identity", "execution", "acceptance", "consequence", "assurance")      # knos.receipt.FIVE: every answer carries all five
+
+
+def parts_of(doc: dict, read_time: int, slot: int | None) -> dict:
+    """The five parts of a paid answer, one line each, written from the record and the read: who produced the evidence,
+    what was read, what was accepted, what the answer authorises, and what stays trusted."""
+    c = {k: int(v["n"]) for k, v in doc["orders"]["counts"].items()}
+    decided = c["accepted"] + c["rejected"] + c["insufficient_evidence"] + c["disputed"]
+    head = (doc["orders"]["parts"]["events"] or {}).get("head")
+    when = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(int(read_time)))
+    return {"identity": f"The record of {doc['supplier']} (sha256 {doc['sha256']}), as of {doc['as_of']}, built from "
+                        + (f"the log of events with head {head}" if head else "no log of events") + "; the answer is signed by the server's operator, or unsigned.",
+            "execution": f"The server read the chain at {when}" + (f", slot {slot}" if slot is not None else ", at no slot it names") + ", and ran the arithmetic every record gets.",
+            "acceptance": f"{c['accepted']} of {decided} deliverables with a verdict were accepted, each under its own terms; this answer accepts nothing itself.",
+            "consequence": "The reader paid for this lookup. It authorises no payment to the supplier and moves no money.",
+            "assurance": "reported: each count is the record's word, as built from the log and the chain; the signature says when it was read, not that the work was good. "
+                         + NOT_A_RATING}
+
 
 def answer(doc: dict, *, reader: str, read_time: int, slot: int | None, produced: int, ttl: int = TTL, key=None, past: dict | None = None,
            granted: Iterable[str] = (), why: str | None = None, grant_doc: dict | None = None, promise: dict | None = None) -> dict:
@@ -237,7 +255,7 @@ def answer(doc: dict, *, reader: str, read_time: int, slot: int | None, produced
                      "history_sha256": past["sha256"] if past is not None and released else None},
             "read": {"time": int(read_time), "slot": slot, "source": "the cluster's clock, as the programs see it"},
             "produced": int(produced), "expires": int(produced) + int(ttl),
-            "summary": summary(doc),
+            "summary": summary(doc), "parts": parts_of(doc, read_time, slot),
             "history": hist, "grant": {"sha256": sha(grant_doc) if grant_doc is not None and released else None, "refused": None if released else (why or "no grant was shown")},
             "availability": dict(promise or PROMISE), "who_pays": "The reader pays. The rated supplier never pays, for the record or for a grant.",
             "budget": BUDGET}
@@ -269,6 +287,8 @@ def verify(reply: dict, now: int, operator: str | None = None) -> dict:
             return end(INVALID, "the answer is about another record than the one it came with")
         if a["summary"] != summary(doc):
             return end(INVALID, "the summary is not the one this record gives")
+        if a.get("parts") != parts_of(doc, a["read"]["time"], a["read"]["slot"]):
+            return end(INVALID, "the answer does not carry its five parts (identity, execution, acceptance, consequence, assurance), or they are not this record's")
         produced, expires = int(a["produced"]), int(a["expires"])
         for f in FIELDS:
             h = a["history"][f]

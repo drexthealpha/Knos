@@ -195,7 +195,7 @@ def test_the_command_prints_the_row_the_queue_reads(tmp_path):
     app, lines = typer.Typer(), []
     recall.register(app, lines)
     app.command("noop")(lambda: None)
-    assert lines == [("recall", "For money", "How the same exception under the same terms ended before, from memory.")]
+    assert lines == [("recall", "For money", "What memory holds: past exceptions, who approved what, what a supplier brings.")]
     args = ["recall", "exception", "--buyer", "Acme Corp", "--memory", str(tmp_path / "memory"), "--terms", TERMS, "--reason", "disputed"]
     got = CliRunner().invoke(app, [*args, "--supplier", "nimbus", "--json"])
     assert got.exit_code == 0, got.output

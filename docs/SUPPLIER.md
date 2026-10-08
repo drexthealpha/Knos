@@ -269,6 +269,14 @@ it, the terms, the check conclusions), `supplier.json` (what memory holds of you
 your record) and `REFUSALS.md`. `knos bundle verify my-copy/evidence.bundle.tar` checks the bundle offline, with
 nobody's help.
 
+## 5. For your finance lead: when you are paid
+
+The supplier page of the site has a view for the person who books the money: paste the funding comment (or the
+order's address) and it reads the order's own account on devnet, with no wallet, and shows four rows: what is funded
+(with the funding transaction), the acceptance window counting down, how to appeal and who decides, and the payment
+date (with a holdback, the part kept back and the day it is released). [FINANCE.md](FINANCE.md), section 6, says what
+each row is read from.
+
 ## What is not here yet
 
 - `/knos appeal` is recorded by the workflow, and nothing starts the neutral run for you: you, the buyer or anyone

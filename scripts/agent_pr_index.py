@@ -23,6 +23,8 @@ Steps, so the Pages build never scans:
                                                                # offline: add that week to the published series
     python scripts/agent_pr_index.py board [--check]           # offline: the leaderboard into docs/INDEX.md, docs/index.json and
                                                                # docs/index.atom, with the disputes (agent_pr_board.py)
+    python scripts/agent_pr_index.py vendors [--check]         # offline: a page per vendor into docs/VENDORS.md and
+                                                               # docs/vendors.json: numbers, reply, disputes, badge (vendor_pages.py)
     python scripts/agent_pr_index.py scan --end <Sunday> --days 14 --per-agent N --rows rows.json
     python scripts/agent_pr_index.py weekly --rows rows.json --add-sample docs/agent_weekly.json --doc docs/INDEX.md
                                                                # a capped sample of recent weeks, cut by week and
@@ -982,13 +984,14 @@ def gate(scanned, index, previous=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("step", choices=["scan", "sample", "build", "gate", "check", "restate", "weekly", "board"])
+    ap.add_argument("step", choices=["scan", "sample", "build", "gate", "check", "restate", "weekly", "board", "vendors"])
     ap.add_argument("--max-requests", type=int, default=MAX_REQUESTS, help="sample: the most requests one run sends to GitHub")
     ap.add_argument("--max-minutes", type=float, default=MAX_MINUTES, help="sample: the longest one run reads for")
     ap.add_argument("--no-wait", action="store_true", help="sample: stop at the first refusal for a rate limit; by default the run waits as long as GitHub says, inside its minutes")
     ap.add_argument("--pace", type=float, help="sample: the least seconds between two requests; by default the requests are spread over four fifths of the run's minutes")
     ap.add_argument("--series", default="docs/agent_weekly.json", help="board: the published series")
     ap.add_argument("--disputes", default="docs/index_disputes.json", help="board: the disputes file")
+    ap.add_argument("--replies", default="docs/index_replies.json", help="vendors: the vendors' replies, printed word for word")
     ap.add_argument("--feed", default="docs/index.json", help="board: the machine-readable feed to write")
     ap.add_argument("--atom", default="docs/index.atom", help="board: the Atom feed to write")
     ap.add_argument("--check", action="store_true", help="board: write nothing; exit 1 when the document or a feed differs from what would be written")
@@ -1014,6 +1017,9 @@ def main():
     if a.step == "board":
         import agent_pr_board
         return agent_pr_board.main(a.series, a.disputes, a.doc or "docs/INDEX.md", a.feed, a.atom, a.check)
+    if a.step == "vendors":
+        import vendor_pages
+        return vendor_pages.main(a.series, a.disputes, a.replies, a.doc or "docs/VENDORS.md", "docs/vendors.json", a.check)
     if a.step == "sample":
         monday = last_week() if (a.week or "last") == "last" else a.week
         pace = a.pace if a.pace is not None else 0.8 * a.max_minutes * 60 / max(1, a.max_requests)

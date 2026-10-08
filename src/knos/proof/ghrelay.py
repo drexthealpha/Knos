@@ -1061,7 +1061,8 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
     # another runner reads those, and this pass reads its lines in the comments it fetches anyway (`read`, below)
     store = log_store()
     shared = relayq.Notes(Path(os.environ.get("KNOS_RELAY_NOTES") or sp.with_name(f"{sp.stem}-notes")), me, lambda: at, store=store)
-    queue = relayq.Queue(sp, lambda: at, limit=relayq.LIMIT, workers=hands, max_tries=None, strict=False, notes=shared)
+    # every part of the orders, unless KNOS_RELAY_PARTITION gives this runner one (relayq, "partitions"): the sweep is the backstop
+    queue = relayq.Queue(sp, lambda: at, limit=relayq.LIMIT, workers=hands, max_tries=None, strict=False, notes=shared, part=relayq.partition())
     queue.release(me)               # leases of this run's own workers: a pass has ended, so a lease it left was a worker killed
     shared.prune()
     state = queue.notes()
@@ -1073,7 +1074,7 @@ def once(ledger=None, payer=None, now: float | None = None, crank: bool = True, 
     hold = {t: until for t, until in dict(state.get("hold", {})).items() if until > now}      # tokens not to be tried again before a time
     known = {r: t for r, t in dict(state.get("repos", {})).items() if now - t <= KNOWN_FOR}
     for named in shared.repos() - set(known):
-        known[named] = now          # where an event run read: swept from now on
+        known[named] = now          # where an event run read, or was told to read (its `knos-inbox` line in the relay log): swept from now on
     day = _stamp(now)[:10]
     verified = dict(state.get("verify", {}).get("n", {})) if state.get("verify", {}).get("day") == day else {}
     if ledger is None:

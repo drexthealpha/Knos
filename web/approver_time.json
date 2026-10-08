@@ -5,24 +5,24 @@
  "steps": [
   {
    "step": "open the page",
-   "ms": 398
+   "ms": 577
   },
   {
    "step": "drop the invoice and the statement",
-   "ms": 59
+   "ms": 50
   },
   {
    "step": "read the result",
-   "ms": 3
+   "ms": 16
   },
   {
    "step": "open one exception",
-   "ms": 74
+   "ms": 85
   },
   {
-   "step": "approve the agreed lines",
-   "ms": 424
+   "step": "approve the ordinary lines",
+   "ms": 392
   }
  ],
- "total_ms": 958
+ "total_ms": 1120
 }

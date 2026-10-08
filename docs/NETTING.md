@@ -11,7 +11,8 @@ Code: [`src/knos/netting.py`](../src/knos/netting.py). Test: [`tests/test_nettin
 
 | step | command | what happens |
 |---|---|---|
-| reserve | `knos net reserve --buyer ID --seller ID --amount 500 --tranche 50 --balance ADDRESS --issue N` | prints what the buyer's funding run signs to lock money for this supplier before the work; sends nothing |
+| lock | a comment `/knos reserve 500 for @supplier until 2026-12-31 [tranche 50] [period 2026-11]` on an issue of the buyer's repository | the buyer's pinned fund.yml locks the money for this supplier before the work, with the same checks as any funding comment (who may write, `.knos/policy.yml`, the procurement gate, the Balance). The reply names the reserve (the order's address), the amount, the deadline and the command below that the supplier runs to check it. Without `tranche`, a draw pays a tenth of the amount; `period` names the one month the reserve secures, in its terms |
+| reserve | `knos net reserve --buyer ID --seller ID --amount 500 --tranche 50 --balance ADDRESS --issue N [--period 2026-11]` | prints what that funding run signs, for reading; sends nothing |
 | open | `knos net open BOOK --buyer ID --seller ID --month 2026-10 --cap 500 --reserve ORDER` | a period between one buyer and one supplier, with a cap, bound to the locked order. Without `--reserve` the period is unsecured, and `--max-exposure` (default: the cap) bounds what the supplier carries |
 | add | `knos net add BOOK outcomes.jsonl --events LOG` | accepted outcomes under 20.00, each with its evidence id (sha256 of the signed token or receipt) |
 | dispute | `knos net dispute BOOK --evidence ID --reason "..."` | that line leaves the net; every other line stays payable |
@@ -40,7 +41,8 @@ Every period is one of two things, and `open`, `add`, `close` and `statement` ea
 before the freelancer starts ([Upwork's description of its own](https://support.upwork.com/hc/en-us/articles/360000990428)).
 Here the lock is a standing order of knos_pay as it is today: the order's own token account holds the money, no
 instruction lets the buyer withdraw it, and its terms name the pair, so `open --reserve` refuses an order funded for
-another supplier or for other work. The statement prints, for each period:
+another supplier or for other work. A reserve locked with `period` also names its month: `open --reserve` refuses it
+for any other month, and its draws name that same terms hash. The statement prints, for each period:
 
 | printed | meaning | rule |
 |---|---|---|
@@ -152,8 +154,12 @@ credits: on a 0.32 outcome that is 0.6% beside the 0.30% acceptance fee.
   from a capped Balance and [paid](https://explorer.solana.com/tx/49ydAiiexCVrXQNArt1LuDoqY3mATmKbmx8i5kT8EQdtyHQH64HqFJ4Gxnqmg3PwCtVsu8sXY8YunmU8Aypoqqgr?cluster=devnet)
   to the supplier's wallet, on tokens a workflow of the run's own repository asked for (it signs the audience it is
   given). The fee taken was 0.40, the rule of knos_pay 2.1, which the public id ran then; `close` prints the 2.2 rule.
-- No published workflow signs a reserve's funding or its draws: `knos net reserve` and `close` print the audiences,
-  and the simulator tests send them. No reserve has been locked or drawn on devnet.
+- The funding of a reserve is a comment (`/knos reserve`) that fund.yml answers from knos 0.3.21 on; the copies pinned
+  in drexthealpha/knos-workflows run the release they name, so a reserve can be locked there once they name 0.3.21.
+  `tests/test_flow_reserve.py` runs the comment on the workflow's fakes; `tests/test_round_net_reserve.py` runs the
+  round `net-reserve` from that comment on the built programs in the simulator.
+- No published workflow signs a reserve's draws: `close` prints their audiences, and the simulator tests send them.
+  No reserve has been locked or drawn on devnet.
 - A reserve that was topped up is not bound again inside a period: close the period and open the next on it.
 - Nothing forces a buyer to sign a draw: a reserve whose judge is not the buyer's own repository is not built.
 - No carry of a closed period's correction into the next period's net.

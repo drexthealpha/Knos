@@ -10,7 +10,7 @@
 # that cargo cannot read. litesvm 0.7.1 is the release on the solana 2.x crates the programs are built from.
 [package]
 name = "knos-handler-tests"
-version = "0.3.20"
+version = "0.3.21"
 edition = "2021"
 publish = false
 

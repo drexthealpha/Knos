@@ -8,6 +8,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const { readTerms, termsLink, termsInComments, classify, rules, tree, search, matches, SAMPLES, LABELS, PROTECTIONS, NETTED, ENFORCED, owed, CLASSES, PROGRAMS } =
   await import(pathToFileURL(join(here, "../../web/supplier.js")).href);
+const fin = await import(pathToFileURL(join(here, "../../web/supplier_finance.js")).href);
+const fixtures = JSON.parse(readFileSync(join(here, "../../sdk/settle/fixtures.json"), "utf8")).second["order accounts"];
+const settle = await import(pathToFileURL(join(here, "../../sdk/settle/index.js")).href);
+const orderOf = (name) => settle.v2.readOrder(settle.unhex(fixtures[name].data));
 const { cases } = JSON.parse(readFileSync(join(here, "../data/supplier_cases.json"), "utf8"));
 const refusals = JSON.parse(readFileSync(join(here, "../../web/refusals.json"), "utf8")).rows;
 
@@ -54,6 +58,29 @@ same("what terms give of each: a suite order holds two and asks two; a merge wit
   [["held", "ask", "held", "ask"], ["lacked", "lacked", "ask", "ask"], ["held", "lacked", "ask", "held"], []]);
 same("three classes, each with a label of three words at most", CLASSES.map((c) => LABELS[c].split(" ").length <= 3), [true, true, true]);
 
+// ---- the finance lead's view (web/supplier_finance.js): the order's own account, read as four rows --------------------
+{
+  const cols = (g) => g.rows.map((r) => [r.id, r.value, r.detail]);
+  const s = fin.financeOf(fin.SAMPLE.order, fin.SAMPLE.now, {});
+  same("the sample: funded with separators, nine days left, the neutral judge, paid the day the checks pass", cols(s), [
+    ["funded", "5,000.00 test USDC", "Held for this work since funding. The funder paid the 15.00 fee on top."],
+    ["window", "9 days 4 hours left", "Passing checks pay without a merge until 2026-10-17 12:00 UTC. Then unpaid money returns to the funder."],
+    ["appeal", "A neutral judge decides", "Refused? Comment /knos appeal with your reason, free. Another account runs the agreed checks again."],
+    ["payment", "The day the checks pass", "4,500.00 test USDC at once; 10% (500.00) 14 days later. Latest: 2026-10-31."]]);
+  const open = orderOf("order (open, from a wallet, public)"), merge = fin.financeOf(open, open.deadline + 1, { tx: "5".repeat(88) });
+  same("an order paid on a merge, after its window: closed, and the funding transaction is linked", [merge.rows[1].value, merge.rows[1].detail.startsWith("Merged passing work is paid until"), merge.rows[0].href, merge.rows[3].detail],
+    ["Closed", true, `https://explorer.solana.com/tx/${"5".repeat(88)}?cluster=devnet`, "All 5.00 test USDC at once. Latest: 2026-10-05."]);
+  const w = orderOf("order (warranty, from a Balance, standing, token-2022)"), wr = fin.financeOf(w, w.holdUntil - 100);
+  same("in warranty: accepted, an arbiter decides, the held part's day is the end of the warranty", [wr.rows[0].value, wr.rows[1].value, wr.rows[2].value, wr.rows[2].detail.endsWith("GitHub user id 9001 decides."), wr.rows[3].value],
+    ["40.00 test USDC", "Accepted", "An arbiter decides", true, "2026-09-26"]);
+  const h = orderOf("order (held, private)");
+  same("held for a payee with no address: the day it is kept until", fin.financeOf(h, 0).rows[3].detail, "Accepted and held for the payee until 2027-03-20 14:13 UTC.");
+  same("no order at the address", fin.financeOf(null, 0).rows.map((r) => r.value), ["No order at this address"]);
+  same("what is pasted: the funding comment's order and transaction", fin.readPasted(`Funded. Order 6eyyJcCVuB5Af6ZU6St8haGxkqrtad7dcBdKMZeNGAaY, transaction https://explorer.solana.com/tx/${"3".repeat(87)}?cluster=devnet`),
+    { order: "6eyyJcCVuB5Af6ZU6St8haGxkqrtad7dcBdKMZeNGAaY", tx: "3".repeat(87) });
+  same("time left in words", [fin.left(0), fin.left(59), fin.left(3700), fin.left(86400 * 2 + 3600)], ["closed", "1 minute", "1 hour 1 minute", "2 days 1 hour"]);
+}
+
 // ---- the page, in headless Chromium: node tests/web/supplier.mjs page ---------------------------------------------------
 async function page() {
   const { createServer } = await import("node:http");
@@ -77,6 +104,8 @@ async function page() {
   const server = createServer((req, res) => {
     const path = decodeURIComponent(new URL(req.url, "http://x").pathname), file = path.startsWith("/terms/") ? join(repo, path) : join(root, path);     // the build copies terms/ beside the site
     if (path === "/supplier_page.html") { res.writeHead(200, { "content-type": "text/html" }); return res.end(HOLDER); }
+    const built = { "/settle.js": "sdk/settle/index.js", "/program_ids.json": "src/knos/settle/v2/program_ids.json" }[path];          // what scripts/build_site.sh copies beside the site
+    if (built) { res.writeHead(200, { "content-type": TYPES[extname(built)] }); return res.end(readFileSync(join(repo, built))); }
     if (!file.startsWith(repo) || !existsSync(file) || !extname(file)) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }); res.end(readFileSync(file));
   });
@@ -93,6 +122,13 @@ async function page() {
       const u = new URL(route.request().url());
       if (u.origin === new URL(base).origin) return route.continue();
       strangers.push(u.href); return route.abort();
+    });
+    const rpc = [];
+    await ctx.route("https://api.devnet.solana.com/**", (route) => {      // one order account, as devnet answers getAccountInfo
+      const body = JSON.parse(route.request().postData()); rpc.push(body.method);
+      const ids = JSON.parse(readFileSync(join(repo, "src/knos/settle/v2/program_ids.json"), "utf8")), data = Buffer.from(fixtures["order (warranty, a holdback, from a wallet)"].data, "hex").toString("base64");
+      return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: body.id, result: { context: { slot: 1 }, value: { owner: ids.knos_pay, data: [data, "base64"], lamports: 1, executable: false } } }) });
     });
     await ctx.route("https://api.github.com/**", (route) => {
       const q = route.request(), u = new URL(q.url());
@@ -136,11 +172,23 @@ async function page() {
     await p.waitForFunction(() => document.querySelector("[data-sp=said]").textContent.startsWith("Sample: bugfix"));
     ok(`${width}px: terms paid on a merge lack an acceptance deadline, and the page says so`, JSON.stringify((await owedRows()).slice(0, 4).map((r) => [r[1], r[3]])) === JSON.stringify([
       ["held", "Held: the criteria cannot change after funding."], ["lacked", "Lacking: the buyer can wait forever."], ["ask", "Ask: does the order name an arbiter?"], ["ask", "Ask: is the order funded? Read its issue."]]), await owedRows());
+    // the finance lead's view: the sample, then a pasted funding comment read from devnet with one call and no wallet
+    await p.click("[data-sf=sample]"); await p.waitForSelector("[data-sf=rows] [data-row=payment]");
+    ok(`${width}px: the finance view's sample: four rows, amounts grouped`, JSON.stringify(await p.$$eval("[data-sf=rows] [data-row]", (x) => x.map((e) => e.dataset.row))) === JSON.stringify(["funded", "window", "appeal", "payment"])
+      && (await p.innerText("[data-row=funded] [data-sf-value]")) === "5,000.00 test USDC" && (await p.innerText("[data-sf=said]")) === "Sample: a made-up order of test money.");
+    await p.fill("#sf-order", `Funded. Order 6eyyJcCVuB5Af6ZU6St8haGxkqrtad7dcBdKMZeNGAaY, transaction ${"3".repeat(87)}`);
+    const pending = await p.evaluate(() => { document.querySelector("[data-sf=read]").click(); return document.querySelector("[data-sf=said]").textContent; });
+    await p.waitForFunction(() => document.querySelector("[data-sf=said]").textContent === "Read from devnet. Test money.");
+    ok(`${width}px: a pasted order is read with one call, a pending state at once, its payment day shown`, pending === "Reading the order." && JSON.stringify(rpc) === JSON.stringify(["getAccountInfo"])
+      && (await p.innerText("[data-row=payment] [data-sf-value]")) === "2026-10-21" && (await p.getAttribute("[data-row=funded] a", "href")) === `https://explorer.solana.com/tx/${"3".repeat(87)}?cluster=devnet`, rpc);
+    const gap = await p.evaluate(() => { const f = document.querySelector("[data-sf=in]").getBoundingClientRect(), s = document.querySelector("[data-sf=said]").getBoundingClientRect(); return Math.round((s.top - f.bottom) * 10) / 10; });
+    ok(`${width}px: the line that says what was read stands clear of the buttons above it (8 px or more)`, gap >= 8, gap);
+    ok(`${width}px: the finance view never says wallet, hash or token account`, !/\b(hash|token account)\b/i.test(await p.innerText("[data-sp=finance]")) && !/\bwallet\b/i.test((await p.innerText("[data-sp=finance]"))));
     await p.fill("#sp-in", "not terms"); await p.click("[data-sp=run]");
     ok(`${width}px: what is not terms is said`, (await p.innerText("[data-sp=said]")) === "That is not JSON.");
     ok(`${width}px: every statement is twelve words at most`, wordy(await statements(p)).length === 0, wordy(await statements(p)));
     ok(`${width}px: the filled page does not scroll sideways`, (await measure(p)).over <= 0, await measure(p));
-    ok(`${width}px: nobody but this page and api.github.com is asked`, strangers.length === 0, strangers);
+    ok(`${width}px: nobody but this page, api.github.com and devnet is asked`, strangers.length === 0, strangers);
     ok(`${width}px: no error on the page`, errors.length === 0, errors);
     await ctx.close();
   }
@@ -150,7 +198,8 @@ async function page() {
     const p = await ctx.newPage();
     await p.goto(`${base}supplier_page.html`); await p.waitForFunction(() => window.drawn === true);
     await p.click("[data-sp=samples] button:has-text('feature-blackbox')"); await p.waitForSelector("[data-sp=owed] tr[data-state=held]");
-    const moving = await p.evaluate(() => [...document.querySelectorAll(".supplier .sp-out, .supplier .sp-owed tr")].filter((e) => { const c = getComputedStyle(e); return parseFloat(c.transitionDuration) > 0 || c.animationName !== "none"; }).length);
+    await p.click("[data-sf=sample]"); await p.waitForSelector("[data-sf=rows] [data-row]");
+    const moving = await p.evaluate(() => [...document.querySelectorAll(".supplier .sp-out, .supplier .sp-owed tr, .supplier [data-sf=rows] > div")].filter((e) => { const c = getComputedStyle(e); return parseFloat(c.transitionDuration) > 0 || c.animationName !== "none"; }).length);
     ok("reduced motion: the terms and the four protections appear with no transition", moving === 0, moving);
     await ctx.close();
   }

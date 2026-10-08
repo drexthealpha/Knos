@@ -91,10 +91,10 @@ export function feeRate(c, bps = c.feeBps) {
 export function feeWords(version, lib = settle) {
   const now = priceConstants(lib, FEE_VERSION), was = priceConstants(lib, FEE_VERSION - 1);
   if (version === null || version === undefined) {
-    return `Fee: ${feeRate(now)} test USDC, paid by the funder on top, once knos_pay ${now.fee.build} is live; until that upgrade executes the public program charges the ${was.fee.release} fee (${feeRate(was)}). \`knos status\` says which build runs. ${KEEPS}`;
+    return `Fee: ${feeRate(now)} test USDC, paid by the funder on top, once knos_pay ${now.fee.build} is live; until that upgrade executes the public program charges the fee it charges before the upgrade (${feeRate(was)}). \`knos status\` says which build runs. ${KEEPS}`;
   }
   if (version >= FEE_VERSION) return `Fee: ${feeRate(now)} test USDC, paid by the funder on top (knos_pay ${now.fee.build} is live). ${KEEPS}`;
-  return `Fee today: ${feeRate(was)} test USDC, paid by the funder on top (the ${was.fee.release} fee: knos_pay ${now.fee.build} is not live yet). From knos_pay ${now.fee.build}: ${feeRate(now)}. ${KEEPS}`;
+  return `Fee today: ${feeRate(was)} test USDC, paid by the funder on top (the fee it charges before the upgrade: knos_pay ${now.fee.build} is not live yet). From knos_pay ${now.fee.build}: ${feeRate(now)}. ${KEEPS}`;
 }
 
 /** One line under a fee shown before funding: which rule the number is, and the other rule's number when it differs.
@@ -105,7 +105,7 @@ export function feeNote(units, c, lib = settle) {
     return c.fee.live ? `The program on devnet charges this now (knos_pay ${c.fee.build}). ${KEEPS}`
       : `This is the fee from knos_pay ${c.fee.build}. Until that upgrade is live the public program charges ${show(their)} on this order. ${KEEPS}`;
   }
-  return `The program on devnet charges this now (the ${c.fee.release} fee). From knos_pay ${other.fee.build} this order pays ${show(their)}. ${KEEPS}`;
+  return `The program on devnet charges this now (the fee it charges before the upgrade). From knos_pay ${other.fee.build} this order pays ${show(their)}. ${KEEPS}`;
 }
 
 /** The one line a page adds when the fee it shows is not the fee of this tree's build: { label, rate, fee } or null.

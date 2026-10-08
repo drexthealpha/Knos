@@ -13,6 +13,7 @@
 //                                 workflow or advisory), and what these terms give of each: `knos preflight` says the same
 //                                 four (knos.preflight.PROTECTIONS; tests/test_preflight.py compares the rows)
 //   search(rows, words)           the refusal rows that hold every word
+//   and, under the four protections, the finance lead's view of a funded order: web/supplier_finance.js
 //
 // The refusal table is refusals.json, written from knos.ghwords.REFUSALS (scripts/supplier_docs.py), so the page, the
 // command line and the comments say the same two sentences. Nothing is sent anywhere: a pasted link is read with GET and
@@ -213,6 +214,7 @@ export function renderSupplier(el, ctx = {}) {
     <h3>What you are owed before you start</h3>
     <div class="k-table sp-owed" data-sp="owed">${owedHtml(null)}</div>
     <p class="fine">Check all four: <code>knos preflight --strict</code></p>
+    <div class="sp-finance" data-sp="finance"></div>
     <h3>Every refusal, in plain words</h3>
     <p class="sp-row"><input type="search" id="sp-q" aria-label="Search refusals" placeholder="Search: protected, pay.83, token" autocomplete="off"></p>
     <p class="fine" data-sp="count"></p>
@@ -272,12 +274,15 @@ export function renderSupplier(el, ctx = {}) {
   $("run").addEventListener("click", run);
   pathBox.addEventListener("input", tryPath); $("new").addEventListener("change", tryPath); q.addEventListener("input", table);
   sampleButtons(SAMPLES);
+  // the finance lead's view of a funded order (web/supplier_finance.js): fetched with the page, drawn under the four protections
+  const finance = import("./supplier_finance.js").then((m) => m.renderSupplierFinance($("finance"), ctx.finance || {})).catch(() => null);
   const loaded = Promise.all([
+    finance,
     fetchFn(`${base}refusals.json`).then((r) => (r.ok ? r.json() : null)).then((j) => { refusals = Array.isArray(j?.rows) ? j.rows : []; }).catch(() => {}).then(table),
     fetchFn(`${base}terms/index.json`).then((r) => (r.ok ? r.json() : null)).then((j) => {
       const list = (j?.templates || []).filter((t) => /^[a-z0-9-]+$/.test(t.name) && Number.isInteger(t.version)).map((t) => ({ name: t.name, url: `${base}terms/${t.name}/${t.version}.json` }));
       if (list.length) sampleButtons(list);
     }).catch(() => {}),
   ]);
-  return { run, loaded };
+  return { run, loaded, finance };
 }

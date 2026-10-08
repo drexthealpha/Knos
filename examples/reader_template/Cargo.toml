@@ -11,8 +11,9 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 solana-program = "=2.2.1"
-# The only thing taken from Knos: the published interface crate, by tag. It has no dependency of its own.
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.14" }
+# The only thing taken from Knos: the interface crate as published on crates.io (https://crates.io/crates/knos-oidc-interface).
+# It has no dependency of its own.
+knos-oidc-interface = "0.3.14"
 
 [lints.rust]
 unexpected_cfgs = { level = "allow" }

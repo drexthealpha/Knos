@@ -152,7 +152,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.20"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.21"
       - name: the plan (which two commits, which suite, which image), from the order on Solana and GitHub's record
         id: plan
         env:

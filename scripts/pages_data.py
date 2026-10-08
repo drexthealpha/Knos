@@ -903,6 +903,61 @@ def playground_pulls(get, jobs: list[dict] | None, own: frozenset, repo: str = P
     return outside_rules.pulls(found, jobs, own, repo=ident)
 
 
+def playground_task_files(get, repo: str = PLAYGROUND) -> dict[str, dict] | None:
+    """The evidence files merged into the playground for the tasks that are not code: {"outside/<kind>/<login>.json":
+    its JSON}, read from the default branch through GitHub's contents API (a file is there only once a maintainer merged
+    the pull request that filed it). None when GitHub was not asked or did not answer whole: then nothing is counted.
+    A folder that is not there yet is no file, and that is a reading (no evidence filed), not a failure."""
+    import base64
+    if get is None:
+        return None
+    try:
+        try:
+            top = get(f"repos/{repo}/contents/outside")
+        except Exception as why:  # noqa: BLE001 - only GitHub's 404 is an answer: no folder, no file
+            if getattr(why, "code", None) == 404:
+                return {}
+            raise
+        if isinstance(top, dict) and top.get("message") == "Not Found":
+            return {}
+        if not isinstance(top, list):
+            raise ValueError("not a list")
+        out: dict[str, dict] = {}
+        for folder in (d for d in top if isinstance(d, dict) and d.get("type") == "dir"):
+            listed = get(f"repos/{repo}/contents/outside/{urllib.parse.quote(str(folder['name']), safe='')}")
+            if not isinstance(listed, list):
+                raise ValueError("not a list")
+            for f in (x for x in listed if isinstance(x, dict) and x.get("type") == "file" and str(x.get("name", "")).endswith(".json")):
+                got = get(f"repos/{repo}/contents/{urllib.parse.quote(str(f['path']), safe='/')}")
+                try:
+                    out[str(f["path"])] = json.loads(base64.b64decode(str(got["content"])).decode("utf-8"))
+                except (ValueError, KeyError, TypeError):
+                    out[str(f["path"])] = {}          # a file that is not JSON evidence: listed, never counted
+    except Exception:  # noqa: BLE001 - not read: say so with None, never a count of what was seen
+        return None
+    return out
+
+
+def playground_task_counts(get, own: frozenset, own_wallets: frozenset, repo: str = PLAYGROUND) -> dict:
+    """outsiders.task_counts over the evidence merged into the playground (`playground_task_files`), each file checked
+    by knos.tasks.accepts and held to the account its name says (GitHub's id for the login). Not read: every number None."""
+    import outsiders as outside_rules
+    from knos import tasks as task_rules
+    files = playground_task_files(get, repo)
+    ids: dict[str, int | None] = {}
+
+    def id_of(login: str) -> int | None:
+        if login not in ids:
+            try:
+                ids[login] = int(get(f"users/{login}")["id"])
+            except Exception:  # noqa: BLE001 - an account GitHub does not name is nobody's
+                ids[login] = None
+        return ids[login]
+    counted = outside_rules.task_counts(outside_rules.evidence_rows(files, id_of, task_rules.accepts), own, own_wallets)
+    counted["files"] = None if files is None else len(files)
+    return counted
+
+
 def build(events: list[dict], comments: list[dict] | None, get, index: dict | None, accounts: dict | None, names: Names, now: float,
           own: frozenset | None = None, own_wallets: frozenset | None = None, canary: str = CANARY, source: dict | None = None,
           partial: bool = False, canary_repo: str = CANARY_REPO) -> dict[str, str]:
@@ -941,9 +996,9 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
     counted = ns.outsiders(jobs, own, own_wallets, owner_of=None if get is None else ns.repo_owner(get)) if ns else outside_rules.count([], own, own_wallets, measured=False)
     # and, apart from those three: outside pull requests on the playground's funded tasks (the task board, tasks/README.md)
     counted["pulls"] = playground_pulls(get, jobs if ns else None, own)
-    # and the counters the five outside task kinds can move (tasks/outside/, src/knos/tasks.py KINDS). No build gathers accepted
-    # evidence rows for them yet, so each is "not read" (None), never 0: the definitions are published with them.
-    counted["task_counts"] = outside_rules.task_counts(None, own, own_wallets)
+    # and the counters the outside task kinds can move (tasks/outside/, src/knos/tasks.py KINDS), from the evidence files merged
+    # into the playground (outside/<kind>/<login>.json): GitHub not asked is "not read" (None), never 0
+    counted["task_counts"] = playground_task_counts(get, own, own_wallets)
     dump("outsiders.json", stamp(counted))
 
     # bounties

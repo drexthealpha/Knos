@@ -4,6 +4,10 @@
 ([GOVERNANCE.md](GOVERNANCE.md)). This page is for the first person who is not the founder: what a key is for, what
 it can never do, and the three steps to ask for one. Everything is on Solana devnet, in test money.
 
+**Said plainly: a first outside key holder holds 1 key of 3 and cannot act alone, and the founder keeps 2, which
+are enough to approve any upgrade without that key.** The key holder can vote, refuse to vote and check every build
+in public; binding the founder takes a second outside key or a threshold of 3 of 3.
+
 The count is the list `outside` in [`web/keyholders.json`](../web/keyholders.json). It changes only after the
 proposal that adds a key has executed on chain.
 

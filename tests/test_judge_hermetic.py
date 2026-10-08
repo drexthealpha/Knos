@@ -411,3 +411,54 @@ def test_the_judge_command_prints_the_assurance_of_its_verdict(repos, capsys):
     assert cli.main(["proof", "judge", "--base", str(base), "--pr", str(pr), "--issue", "2", "--sandbox", "off"]) == 0
     said = " ".join(capsys.readouterr().out.split())
     assert "assurance black-box: The pull request's code runs as a separate process" in said and "0 of 63" in said
+
+
+# ---- the container as the default: `--sandbox hermetic` --------------------------------------------------------------
+
+def test_the_default_image_is_pinned_and_is_the_one_the_escapes_are_measured_in():
+    assert terms.valid_image(judge.DEFAULT_IMAGE) == judge.DEFAULT_IMAGE
+    text = (ROOT / "scripts" / "tamper_bench.py").read_text(encoding="utf-8")
+    assert f'ESCAPE_IMAGE = "{judge.DEFAULT_IMAGE}"' in text
+
+
+def test_the_default_image_is_used_only_where_a_container_can_hold_the_submission(tmp_path):
+    py, js = tmp_path / "py", tmp_path / "js"
+    py.mkdir()
+    js.mkdir()
+    (js / "package.json").write_text("{}", encoding="utf-8")
+    up = lambda: True        # noqa: E731
+    assert judge.default_image("blackbox", [py], "linux", up) == (judge.DEFAULT_IMAGE, "")
+    for runner, trees, platform, ready, why in [
+            ("blackbox", [py], "darwin", up, "Linux runners only"),
+            ("blackbox", [py], "win32", up, "Linux runners only"),
+            ("python", [py], "linux", up, "only a black-box check"),
+            ("blackbox", [py, js], "linux", up, "package.json"),
+            ("blackbox", [py], "linux", lambda: False, "no container runtime answers")]:
+        image, said = judge.default_image(runner, trees, platform, ready)
+        assert image == "" and why in said
+
+
+@posix
+def test_hermetic_runs_a_black_box_check_in_the_default_image_and_says_so(repos, fake, monkeypatch):
+    base, pr = repos
+    monkeypatch.setattr(judge, "DEFAULT_IMAGE", IMAGE)
+    if not sys.platform.startswith("linux"):
+        pytest.skip("the default container is for Linux machines")
+    v = judge.judge(base, pr, {"issue": "2"}, sandbox="hermetic")
+    assert v["passed"], v["reasons"]
+    assert v["assurance"] == "hermetic" and v["judged_in"] == "container"
+    assert v["evidence"]["image"]["ref"] == IMAGE and "fallback" not in v["evidence"]
+    assert all(IMAGE in c for c in fake() if c[0] in ("pull", "run"))
+
+
+@posix
+def test_hermetic_falls_back_to_the_host_sandbox_and_the_verdict_says_why(repos, monkeypatch):
+    base, pr = repos
+    monkeypatch.setattr(judge, "container_runtime", lambda *a, **k: None)
+    v = judge.judge(base, pr, {"issue": "2"}, sandbox="hermetic")
+    if judge.sandbox_available():
+        assert v["passed"], v["reasons"]
+        assert v["assurance"] == "black-box" and v["judged_in"].startswith("host sandbox (fallback: ")
+        assert "image" not in v["evidence"] and v["evidence"]["sandbox"]["outside_work"] == "read-only"
+    else:                    # the fallback is the host sandbox, required: without one nothing runs
+        assert v["verdict"] == "insufficient_evidence" and "no sandbox on this machine" in v["reasons"][0]

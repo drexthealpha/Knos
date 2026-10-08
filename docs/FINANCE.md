@@ -266,6 +266,20 @@ What a supplier cannot see without the buyer:
 What stays with the supplier: every line of `owed`, the transactions it names, and the acceptance receipt of each
 payment. `knos receipt mirror` keeps a copy that verifies from the issuer's signature with no chain.
 
+**The supplier's finance lead, on the site.** The supplier page ([`web/supplier_finance.js`](../web/supplier_finance.js))
+takes the funding comment or the order's address, reads the order's own account from devnet with one call
+(`getAccountInfo`), and shows four rows, with no wallet and no sign-in:
+
+| Row | Read from the order account |
+| --- | --- |
+| Funded | the amount the payees receive (escrowed at funding; the fee was paid by the funder on top), with a link to the funding transaction when the comment names it |
+| Acceptance window | until when a passing run is paid (`payUntil`), counting down; after it, what is unpaid returns to the funder |
+| Appeal | `/knos appeal <reason>`, free; who decides: the order's arbiter, or the neutral judge running the agreed checks again |
+| Payment date | the day the checks pass, at the latest the window's end; with a holdback, the part kept back and the day it is released (the end of the warranty, unless a failing run reverts it) |
+
+Amounts carry thousands separators. "Try the sample" shows a made-up order of 5,000.00 test USDC. On devnet all of it
+is test money.
+
 ## 6a. When the buyer goes quiet
 
 A supplier does not need the buyer's cooperation to be paid for accepted work. This is the path that exists, from

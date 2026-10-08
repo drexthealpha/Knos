@@ -40,6 +40,13 @@ class Cell(NamedTuple):
 
 ROUTES: tuple[tuple[str, str, str], ...] = (
     ("wallet", "Wallet funding", "A wallet calls knos_pay itself: FundOrderWallet (15), or FundWallet (4) for a job. Its own money."),
+    ("vault", "Enterprise vault, by vote", "An organisation's money in a Squads v4 vault: a requester's key proposes, the threshold of voting keys "
+     "approves, an Execute key executes after the time lock, and only then does the vault sign FundOrderWallet (15), TopUp (23), "
+     "OpenBalance (0) or SetBalance (1). `knos boundary plan` writes the vault's settings from the approval policy."),
+    ("vault_balance", "Enterprise vault's Balance", "A knos_pay Balance the vault opened by vote: `/knos fund` spends it as Funding by comment "
+     "does, and its cap, limits, spenders and workflow pin change only by the vault's vote."),
+    ("allowance", "A Squads allowance", "Squads v4 SpendingLimitUse: a key the config authority listed moves up to an amount a period to "
+     "listed destinations, with no vote. `knos boundary plan` adds none unless the boundary file asks."),
     ("comment", "Funding by comment", "`/knos fund <amount>`: fund.yml job `command` has GitHub sign, and FundOrderBalance (16) spends a Balance."),
     ("tip", "A tip by comment", "`/knos tip <amount>` on a merged pull request: the same job; FundBalance (3) opens a job that lasts one day."),
     ("offer", "A standing offer", "`/knos offer @vendor rate R budget B`: the same job; an order that pays one rate per accepted pull request."),
@@ -65,6 +72,11 @@ RESTRICTIONS: tuple[tuple[str, str], ...] = (
 )
 
 _OC, _CT, _P2, _E = "tests/test_order_chain.py::", "tests/test_controls.py::", "tests/test_pay2_chain.py::", "tests/test_enforcement.py::"
+_B = "tests/test_boundary.py::"
+_SQ_VOTE = _B + "test_squads_refuses_a_funding_from_the_vault_without_the_threshold"
+_SQ_HOLDS = _B + "test_the_vault_cannot_fund_past_what_it_holds"
+_SQ_ALLOW = _B + "test_squads_refuses_an_allowance_over_its_limit_to_another_destination_or_by_another_key"
+_SQ_VBAL = _B + "test_a_balance_the_vault_opened_is_changed_only_by_the_vault"
 _LIMITS = _CT + "test_limits_set_with_budget_set_are_enforced_by_the_program_and_budget_check_names_the_rule_first"
 _DEADLINE = _OC + "test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before"
 _WALLET = _OC + "test_what_a_funding_wallet_cannot_do"
@@ -126,6 +138,66 @@ CELLS: dict[str, dict[str, Cell]] = {
                         "`.knos/policy.yml` is not the wallet's, and the wallet states no list."),
         "terms": _p(f"knos_pay FundOrderWallet (15): the terms are logged, {_STORED}.", _E + "test_a_wallet_is_held_to_the_programs_bounds_and_to_no_file"),
         "deadline": _p(f"knos_pay FundOrderWallet (15): {_REFUND}.", _DEADLINE),
+    },
+    "vault": {
+        "who": _p("knos_pay FundOrderWallet (15) takes the vault's signature as the funder's (error 80 without it), and the vault signs only "
+                  "inside Squads v4 VaultTransactionExecute: a key that is no member cannot propose (NotAMember), and nothing executes short "
+                  "of the threshold.", _SQ_VOTE),
+        "order_limit": _o("A vote of the threshold is the organisation deciding: it can fund up to knos_pay's bounds (an order holds 5.00 to "
+                          "100,000.00, error 81). The cap a requester meets is the vault's Balance (row Enterprise vault's Balance), which "
+                          "only a vote changes."),
+        "period_limit": _o("Same reason: the threshold may spend what the vault holds. A limit per period that binds requesters is the "
+                           "vault's Balance; one that binds a key without a vote is an allowance (row A Squads allowance)."),
+        "approvers": _p("knos_pay FundOrderWallet (15) is reached only through Squads v4 VaultTransactionExecute, after ProposalApprove: "
+                        "only keys with the Vote permission count, a requester's key cannot vote (Unauthorized), execution waits for the "
+                        "threshold (InvalidProposalStatus) and for the time lock after the last vote (TimeLockNotReleased). Only the "
+                        "config authority changes members, threshold or time lock.", _SQ_VOTE),
+        "rate_card": _a("`knos boundary bind` puts the amount in the commitment the approvers sign. Nothing compares it with a rate card.",
+                        _B + "test_an_approval_funds_the_one_commitment_it_names"),
+        "envelope": _p("knos_pay FundOrderWallet (15) moves the amount and the fee from the vault's token account into the order when the "
+                       "funding executes, before any work; the token program refuses what the vault does not hold, so two approved "
+                       "fundings cannot both take the last of it. `knos boundary reserve` also holds a budget at approval, in a file.",
+                       _SQ_HOLDS),
+        "suppliers": _w("prove.yml job `settle` and attest.yml job `attest`: `flow._cleared` refuses a payee that `payees` in "
+                        "`.knos/policy.yml` does not list. The payee an approval names (`knos boundary bind`) is checked by "
+                        "`boundary.payee_allowed`, which no workflow asks yet.", _E + "test_a_neutral_run_refuses_a_payee_the_policy_file_does_not_list"),
+        "terms": _p(f"knos_pay FundOrderWallet (15): the terms are logged, {_STORED}. Squads v4 VaultTransactionCreate stores the message "
+                    "the members vote on, so the votes are for those bytes.", _E + "test_a_wallet_is_held_to_the_programs_bounds_and_to_no_file"),
+        "deadline": _p(f"knos_pay FundOrderWallet (15): {_REFUND}: to the vault.", _DEADLINE),
+    },
+    "vault_balance": {
+        "who": _p(f"knos_pay FundOrderBalance (16): {_SPENDER}. SetBalance (1) and SetBalanceX (13) take only the vault's signature "
+                  "(error 98), so neither a requester's nor an approver's own key adds a spender.", _SQ_VBAL),
+        "order_limit": _p(f"knos_pay FundOrderBalance (16): {_BAL_CAP}. Only a vote of the vault raises it (SetBalance (1)).", _SQ_VBAL),
+        "period_limit": _p(f"knos_pay FundOrderBalance (16): {_BAL_X}. Only a vote of the vault changes them (SetBalanceX (13)).", _LIMITS),
+        "approvers": _w("fund.yml job `command`: `flow._gated` asks `approvals.gate_order`, as for Funding by comment. "
+                        "`boundary.gate_bound` (one approval, one commitment) is not asked by the workflow yet.", _PLAIN),
+        "rate_card": _a(_NO_CARD_TEXT, _NO_CARD),
+        "envelope": _p("knos_pay FundOrderBalance (16) takes the amount from the Balance's token account into the order at funding; the "
+                       "Balance holds only what a vote of the vault moved into it, and the token program refuses more.", _SQ_VBAL),
+        "suppliers": _w("prove.yml job `settle` and attest.yml job `attest`: `flow._cleared`, as for Funding by comment.",
+                        _E + "test_a_neutral_run_refuses_a_payee_the_policy_file_does_not_list"),
+        "terms": _p(f"knos_pay FundOrderBalance (16): GitHub signs the amount, the terms' hash and the Balance in one audience; {_STORED}.",
+                    "tests/test_pay_chain.py::test_every_wrong_proof_is_refused"),
+        "deadline": _p(f"knos_pay FundOrderBalance (16): {_REFUND}: to the Balance, which only the vault's vote withdraws (Withdraw (2)).",
+                       _DEADLINE),
+    },
+    "allowance": {
+        "who": _p("Squads v4 SpendingLimitUse: only a key the allowance lists (Unauthorized otherwise), and only the config authority "
+                  "adds or removes an allowance. It takes no vote: the allowance is a standing approval.", _SQ_ALLOW),
+        "order_limit": _p("Squads v4 SpendingLimitUse: never more than what is left of the period's amount (SpendingLimitExceeded).", _SQ_ALLOW),
+        "period_limit": _p("Squads v4 SpendingLimitUse: the amount comes back after a day, a week or 30 days, never sooner; a one-time "
+                           "allowance never.", _SQ_ALLOW),
+        "approvers": _o("An allowance is approved once, by the config authority that adds it; its uses take no vote. That is what it is for, "
+                        "and why the plan adds none unless asked."),
+        "rate_card": _o(_NO_FILE),
+        "envelope": _p("Squads v4 SpendingLimitUse: the allowance's amount is its own budget, and the vault's token account is the floor.",
+                       _SQ_ALLOW),
+        "suppliers": _p("Squads v4 SpendingLimitUse: only to a destination the allowance lists (InvalidDestination). A destination is the "
+                        "owner of the receiving token account, and every Balance and order of knos_pay has the same owner, so an allowance "
+                        "cannot be narrowed to one Balance: the plan points allowances at a supplier's own wallet.", _SQ_ALLOW),
+        "terms": _o("An allowance moves tokens; no order and no terms are involved. Paying through Knos is the row Enterprise vault, by vote."),
+        "deadline": _o("An allowance has no deadline. The config authority removes it."),
     },
     "comment": {
         "who": _p(f"knos_pay FundOrderBalance (16): {_SPENDER}. Before that the workflow asks more: write access (`flow._can_write`), "
@@ -320,16 +392,24 @@ NOTES = (
     "One approval, one subject, one amount. An approval names `offer:<name>`, `issue:<number>` or `tip:<number>` and an amount. A second "
     "order of the same amount on the same issue is covered by the same approval: the Balance's limits bound how often.",
     "A repository with no file under `.knos/procurement/` is asked nothing more than before: the gate is one question to the forge, answered no.",
+    "Enterprise-controlled funds. The rows Enterprise vault, by vote, Enterprise vault's Balance and A Squads allowance are an "
+    "organisation's money in a Squads v4 vault (Squads Labs' deployed program; Knos changes nothing in it). Their `program` cells are "
+    "Squads' and knos_pay's checks, run by tests/test_boundary.py against the deployed Squads build in the simulator. A person's own "
+    "wallet stays outside: it is their money, and an organisation's policy cannot bind it.",
     "Deployed and exercised. The program checks named here are those of the knos_pay and knos_passkey sources in this repository, run by the "
     "named tests against the committed builds. The workflow checks are in this release's workflows; no round on the public cluster has "
-    "exercised the gate on a plain order, a tip or a private order.",
+    "exercised the gate on a plain order, a tip or a private order, nor a funding from a Squads vault planned by `knos boundary`.",
 )
+
+
+ENTERPRISE = ("vault", "vault_balance", "allowance")   # the routes of enterprise-controlled funds: money in a Squads v4 vault (NOTES names all three)
 
 
 def as_json() -> dict:
     """The table for a page. Keys are stable: `routes`, `restrictions`, `cells[route][restriction] = {class, by, test}`."""
     return {"version": 1, "classes": list(CLASSES),
-            "routes": [{"id": i, "name": n, "how": h} for i, n, h in ROUTES],
+            "routes": [{"id": i, "name": n, "how": h, **({"group": "enterprise"} if i in ENTERPRISE else {})} for i, n, h in ROUTES],
+            "groups": {"enterprise": "Enterprise-controlled funds (Squads vault)"},
             "restrictions": [{"id": i, "name": n} for i, n in RESTRICTIONS],
             "cells": {r: {x: {"class": c.cls, "by": c.by, "test": c.test} for x, c in row.items()} for r, row in CELLS.items()},
             "counts": counts(), "notes": list(NOTES)}

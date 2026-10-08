@@ -129,7 +129,7 @@ def _find(doc, key):
 def test_the_fee_in_words_is_true_on_both_sides_and_says_what_an_older_order_keeps():
     both, before, after = fees.words(None), fees.words(1), fees.words(2)
     assert all(w.endswith(fees.KEEPS) for w in (both, before, after, fees.words(0)))
-    assert "once knos_pay 2.2 is live" in both and "until that upgrade executes the public program charges the 0.3.14 fee" in both and "`knos status`" in both
+    assert "once knos_pay 2.2 is live" in both and "until that upgrade executes the public program charges the fee it charges before the upgrade" in both and "`knos status`" in both
     assert before.startswith("Fee today: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40 test USDC") and "From knos_pay 2.2: 0.30% of the amount, at least 0.05." in before
     assert after == f"Fee: 0.30% of the amount, at least 0.05 test USDC, paid by the funder on top (knos_pay 2.2 is live). {fees.KEEPS}"
     assert "2.5%" not in after and "0.40" not in after

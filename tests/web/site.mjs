@@ -1515,7 +1515,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("pricing: the fee worked at 100, 5,000 and 100,000: one rate, one step each", JSON.stringify(worked) === JSON.stringify([["100", "0.30% of 100", "0.30"], ["5,000", "0.30% of 5,000", "15"], ["100,000", "0.30% of 100,000", "300"]]), JSON.stringify(worked));
   const pageWords = (await page.evaluate(() => document.querySelector("main").textContent)).replace(/\s+/g, " ");
   check("  nothing on the page says a fee has a maximum of 25, or that an order stops at 500", !/at most 25\b|maximum (?:of )?25\b|at most 500\b|1 to 500\b|capped at 500/.test(arithmetic) && !/at most 25\)|0\.40 test USDC, at most 25|from 1 to 500 test USDC, with/.test(pageWords)
-    && pageWords.includes("from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.") && pageWords.includes("at least 0.05 test USDC and no maximum") && pageWords.includes("the 0.3.14 fee (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40 test USDC)"));
+    && pageWords.includes("from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.") && pageWords.includes("at least 0.05 test USDC and no maximum") && pageWords.includes("the fee it charged before the upgrade (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40 test USDC)"));
   const effective = await page.$$eval("#fee-effective tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.trim())));
   check("pricing: the effective fee before funding: 5 pays 0.05 (1.00%), and from 20 up 0.30%", JSON.stringify(effective) === JSON.stringify([
     ["5", "0.05", "1.00%"], ["20", "0.06", "0.30%"], ["100", "0.30", "0.30%"], ["1,000", "3", "0.30%"], ["5,000", "15", "0.30%"], ["100,000", "300", "0.30%"]]), JSON.stringify(effective));
@@ -1536,7 +1536,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
     && JSON.stringify((await page.$$eval("#fee-effective tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.trim())))).slice(0, 2)) === JSON.stringify([["5", "0.40", "8.00%"], ["20", "0.50", "2.50%"]]));
   await calc("20", "3");
   check("  2.1: a contract rate is held to that build's bounds", (await text(page, "#calc-result")).includes("from 0.50% to 2.50%"), await text(page, "#calc-result"));
-  check("  2.1: what is enforced is said for today and for the next build", (await text(page, "#price-honest")).replace(/\s+/g, " ").includes("Until knos_pay 2.2 is live the program charges the 0.3.14 fee: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40. From 2.2: The program enforces"));
+  check("  2.1: what is enforced is said for today and for the next build", (await text(page, "#price-honest")).replace(/\s+/g, " ").includes("Until knos_pay 2.2 is live the program charges the fee it charges before the upgrade: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40. From 2.2: The program enforces"));
   chain.simulate = before;
 
   // which fee applies today: asked of the program (instruction 12, simulated), never sent
@@ -2239,7 +2239,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   const payUp = rec.pending.find((p) => p.index === 4), oidcUp = rec.pending.find((p) => p.index === 3);
   check("upgrade: the banner shows the two upgrades of Knos's programs, newest first: not the unrelated program's draft, not the multisig's own change, not the one that ran", JSON.stringify(paras.map((p) => p.slice(0, 3))) === JSON.stringify([["knos_pay", "Approved", "4"], ["knos_oidc", "Active", "3"]]), JSON.stringify(paras));
   const short = (a) => `${a.slice(0, 4)}…${a.slice(-4)}`;
-  check("  an approved one says the program, the buffer, the votes, and when it can be run, from the chain's clock: 43 h 0 min", paras[0][3] === `An upgrade of knos_pay is pending: it would replace the program's code with the bytes in the buffer ${short(payUp.buffer)}. The multisig has approved it (2 of 2 members); it can be run from ${day(payUp.executes_at)}, in 43 h 0 min.`, paras[0][3]);
+  check("  an approved one says the program, the buffer, the votes, and when it can be run, from the chain's clock: 43 h 0 min", paras[0][3] === `An upgrade of knos_pay is pending: it would replace the program's code with the bytes in the buffer ${short(payUp.buffer)}. The multisig has approved it (2 of 2 members); it can be run from ${day(payUp.executes_at)}, in 43 h 0 min. 43 hours to leave: knos exit --before-upgrade lists what you hold and how to take it out before then.`, paras[0][3]);
   check("  an active one says the votes so far and how long after the last it can run", paras[1][3] === `An upgrade of knos_oidc is pending: it would replace the program's code with the bytes in the buffer ${short(oidcUp.buffer)}. 1 of 2 approvals so far. It can be run 48 hours after the vote that approves it.`, paras[1][3]);
   check("  the buffer links to devnet's explorer", (await page.getAttribute('#upgrade-banner p[data-program="knos_pay"] a', "href")) === `https://explorer.solana.com/address/${payUp.buffer}?cluster=devnet`);
   const security = readFileSync(join(here, "../../docs/SECURITY.md"), "utf8");
@@ -2812,9 +2812,9 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   await visit(page);
   await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go");
   check("demo: the round is mounted in the first screen, under the hero, and says which program ids it replays", await page.isVisible("#demo") && await page.isVisible("#view-check") && (await page.$$eval("#demo .k-step", (l) => l.length)) === 7
-    && (await text(page, "#demo .kd-mark")).trim() === `A real devnet round, replayed (${demo.ids} program ids, ${demo.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && ["staging", "public"].includes(demo.ids), await text(page, "#demo .kd-mark"));
+    && (await text(page, "#demo .kd-mark")).trim() === `Recorded on devnet: ${demo.ids} program ids, ${demo.date.replace(/^(\d+ \w{3})\w*/, "$1")}.` && ["staging", "public"].includes(demo.ids), await text(page, "#demo .kd-mark"));
   await page.click("#demo .kd-go");
-  check("  one press agrees the terms and funds the recorded order, and links its transaction", (await text(page, "#demo .kd-say")) === `Agreed and funded: ${demo.fund.amount} test USDC held.` && (await text(page, "#demo .kd-scene [data-fee-rule]")) === `fee ${demo.fund.fee}, charged under the 0.3.14 fee` && (await page.getAttribute("#demo .kd-scene a", "href")) === `https://explorer.solana.com/tx/${demo.fund.tx}?cluster=devnet`);
+  check("  one press agrees the terms and funds the recorded order, and links its transaction", (await text(page, "#demo .kd-say")) === `Agreed and funded: ${demo.fund.amount} test USDC held.` && (await text(page, "#demo .kd-scene [data-fee-rule]")) === `fee ${demo.fund.fee}, the fee the program charged then (before the upgrade)` && (await page.getAttribute("#demo .kd-scene a", "href")) === `https://explorer.solana.com/tx/${demo.fund.tx}?cluster=devnet`);
   check("  the front door is above the round once it is mounted", await page.isVisible("#front-door [data-fd=run]") && (await overflow(page)) <= 1);
   for (const from of ['#nav > a[href="#demo"]', "#hero-cue"]) {
     await page.evaluate(() => { document.activeElement.blur(); scrollTo(0, 0); });

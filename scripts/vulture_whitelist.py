@@ -166,3 +166,20 @@ from knos import rails as rails_, tasks as tasks_
 rails_.accepted_rows                                # the rows a month's bill is made from, whichever rail paid; tests/test_statement_rails.py
 tasks_.COUNTERS                                     # the counter each outside task kind moves, held to scripts/outsiders.py; tests/test_tasks.py
 tasks_.kind_file                                    # tasks/outside/<kind>.json byte for byte; tests/test_tasks.py
+
+# 0.3.21. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.bind_, _.release_, _.spend_   # knos.boundary.register: knos boundary bind | release | spend
+_.sign_                         # knos.events.register: knos events sign
+_.exit_                         # knos.exit.register: knos exit
+_.keep_approval_, _.approval_, _.grant_, _.supplier_    # knos.recall.register: knos recall keep-approval | approval | grant | supplier
+# Python looks a module's attributes up on its class: knos.settle.v2.relay sets its own module's __class__ so that a
+# name set on the package reaches the part that holds it (a test's monkeypatch included).
+_.__class__
+# Public functions with no caller inside src/knos or scripts, each held by the tests that name it.
+from knos import exports as exports_
+from knos.proof import history as history_
+
+billing_.release_split                              # a release's money, whose it is (docs/UNIT_COSTS.md); tests/test_billing.py
+billing_.support_hours                              # the support hours a budget buys (docs/UNIT_COSTS.md); tests/test_billing.py
+exports_.parts_check                                # an export held to its parts file; tests/test_exports_parts.py
+history_.grant_withdrawn                            # whether a buyer withdrew a supplier's grant; tests/test_history_defence.py

@@ -99,13 +99,22 @@ def test_the_release_publishes_all_three_without_a_stored_secret_once_a_first_ve
     assert all(f"cd crates/{c}" in _job("crates") for c in CRATES)
 
 
-def test_the_release_page_gives_the_first_publish_and_claims_nothing_is_published():
+def test_the_release_page_gives_the_first_publish_and_says_each_package_is_published():
     page = (ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")
     part = page.split("## Publishing the crates and the npm package")[1].split("\n## ")[0]
     for line in ("cargo login", "(cd crates/knos-oidc-interface && cargo publish --locked)", "(cd crates/knos-pay-interface  && cargo publish --locked)",
                  "npm login", "(cd sdk/settle && node test.mjs && npm publish --access public)", "cargo publish --dry-run --locked", "npm publish --dry-run"):
         assert line in part, line
-    assert "none published yet" in part and "by hand, once, by the owner, signed in to each registry" in part and "has not been done" in part
+    # the first versions went up by hand on 8 October 2026: the page names each with its registry, version and page,
+    # and no longer says that none is published or that the first publish has not been done
+    assert "by hand, once, by the owner, signed in to each registry" in part and "it was done on 8 October 2026 for all three" in part
+    flat = " ".join(part.split())
+    for name, version, url in (("knos-oidc-interface", "0.3.14", "https://crates.io/crates/knos-oidc-interface"),
+                               ("knos-pay-interface", "0.3.14", "https://crates.io/crates/knos-pay-interface"),
+                               ("knos-settle", "0.3.20", "https://www.npmjs.com/package/knos-settle")):
+        assert f"`{name}` {version}" in flat and f"({url})" in flat, name
+    for stale in ("none published yet", "has not been done", "Neither has been published", "Until the first publish"):
+        assert stale not in flat, stale
     assert "workflow `release.yml`" in part and "crates-trusted" in part and "npm-trusted" in part
     # a package is published at its own version: the page says why a held crate's is not the tag's, and names the one rule
     assert "A package is published at ITS OWN version" in part and "python scripts/release.py registry-plan" in part and "`PROGRAMS_FROZEN`" in part

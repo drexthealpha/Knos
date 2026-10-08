@@ -205,7 +205,7 @@ export function initPricing(ctx) {
     if (worked) worked.innerHTML = WORKED.map((whole) => `<tr data-amount="${whole}"><th scope="row">${count(whole)}</th><td>${how(whole)}</td><td>${plain(orderFee(whole * 1e6, c.feeBps, c))}</td></tr>`).join("");
     for (const id of ["calc-settle", "arithmetic"]) if ($(id)) $(id).dataset.fee = c.fee.release;
     set("fee-how", `${c.tiered ? "Each part of the amount pays its tier's rate" : "One rate applies to the whole amount"}, and the fee is never under the floor. The funder pays the fee on top; the payee receives the amount in full.`);
-    set("price-honest-now", c.tiered ? `Until knos_pay 2.2 is live the program charges the ${c.fee.release} fee: ${feeRate(c)}. From 2.2: ` : "");
+    set("price-honest-now", c.tiered ? `Until knos_pay 2.2 is live the program charges the fee it charges before the upgrade: ${feeRate(c)}. From 2.2: ` : "");
   }
   drawRule();
 

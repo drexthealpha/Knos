@@ -220,3 +220,14 @@ def test_an_adopter_gets_the_full_feed_for_its_own_programs_and_its_own_gate(tmp
     assert uf.main(["--ids", str(good)], said.append) == 2 and "--out DIR" in said[-1]
     assert uf.main(["--gate", their_gate], said.append) == 2 and "--gate goes with --ids" in said[-1]
     assert not (tmp_path / "upgrades.json").exists()
+
+
+def test_a_pending_approved_proposal_says_how_many_hours_are_left_to_leave(tmp_path):
+    got = read(first_world())
+    assert uf.hours_to_leave(got[3], NOW) == 43                         # approved 5 hours ago, 48 hours of delay
+    assert uf.hours_to_leave(got[4], NOW) is None and uf.hours_to_leave(got[2], NOW) is None   # not approved; not pending
+    assert "43 hours to leave" in uf.words(got[3], NOW) and "knos exit --before-upgrade" in uf.words(got[3], NOW)
+    uf.write(tmp_path, first_world().get, IDS, NOW, "devnet")
+    entries = {e["index"]: e for e in json.loads((tmp_path / "upgrades.json").read_text())["entries"]}
+    assert entries[3]["hours_to_leave"] == 43 and entries[1]["hours_to_leave"] is None
+    assert "(43 hours to leave at " in (tmp_path / "upgrades.xml").read_text()

@@ -160,8 +160,12 @@ need USDC; and there is no payout to a bank.
 ### Open source
 
 MIT. The verifier is a separate program with an interface other Solana programs call, with examples in the
-repository ([COMPOSE.md](../COMPOSE.md)). The receipt has a published schema. Anyone can relay, and the program
-pays whoever does. What is not there: no outside program is known to use the verifier, and nobody outside Knos
+repository ([COMPOSE.md](../COMPOSE.md)). The interface crates are on crates.io
+([knos-oidc-interface](https://crates.io/crates/knos-oidc-interface) and
+[knos-pay-interface](https://crates.io/crates/knos-pay-interface), 0.3.14), and the JavaScript client is on npm
+(`npm install knos-settle`, [knos-settle](https://www.npmjs.com/package/knos-settle), 0.3.20). The x402 scheme is open upstream as a draft pull request
+([x402-foundation/x402#3731](https://github.com/x402-foundation/x402/pull/3731)) with no maintainer reply yet. The
+receipt has a published schema. Anyone can relay, and the program pays whoever does. What is not there: no outside program is known to use the verifier, and nobody outside Knos
 has published a reproduction.
 
 ### Business plan

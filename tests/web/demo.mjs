@@ -91,7 +91,7 @@ async function round(label, width, opts = {}) {
   check(`${tag}: the statement is not asked for before the reader acts`, !asked.some((u) => u.endsWith("/statement_sample.json")), asked);
   for (let n = 0; n < 12 && (await page.evaluate(() => document.activeElement?.id)) !== "kd-comment"; n += 1) await page.keyboard.press("Tab");
   check(`${tag}: Tab reaches the comment box`, (await page.evaluate(() => document.activeElement?.id)) === "kd-comment");
-  const seen = [];
+  const seen = [], evs = [];
   let last = first;
   for (let i = 0; i < STEPS.length; i += 1) {
     // a beat that shows something to read is reached first ("Next"); every other beat is done by the one key that names it
@@ -106,16 +106,22 @@ async function round(label, width, opts = {}) {
     for (const s of [...before.lines, ...after.lines]) check(`${tag}: beat ${i + 1}: "${s.slice(0, 40)}" is 12 words or fewer`, words(s) <= 12, [words(s), s]);
     check(`${tag}: beat ${i + 1} changed on one key`, after.step === i && after.states[i] === (BAD.includes(i) ? "bad" : "done") && after.say !== before.say, after);
     check(`${tag}: beat ${i + 1} says what is recorded and what is computed`, /^(Recorded|Counts recorded|Token recorded|Payment recorded|The sample statement)/.test(after.prov) && (!waits || after.prov === before.prov), after.prov);
+    const ev = await page.evaluate(() => { const p = document.querySelector("#demo .kd-ev"), a = p?.querySelector("a"); return { text: p?.textContent || "", href: a?.href || "" }; });
+    evs.push(ev.href);
+    check(`${tag}: beat ${i + 1} names its public evidence${opts.offline ? ", with no link offline" : ", one link to the explorer or the repository"}`, ev.text.startsWith("Evidence: ")
+      && (opts.offline ? ev.href === "" : /^https:\/\/(explorer\.solana\.com\/tx\/|github\.com\/drexthealpha\/Knos\/blob\/main\/)/.test(ev.href)), ev);
     check(`${tag}: beat ${i + 1} does not scroll sideways`, before.sideways <= 0 && after.sideways <= 0, [before.sideways, after.sideways]);
     check(`${tag}: beat ${i + 1} keeps the focus on the one button`, after.focus.includes("kd-go"), after.focus);
     if (opts.reduce) check(`${tag}: beat ${i + 1} moves nothing`, after.running === 0 && after.animated === 0, [after.running, after.animated]);
     if (shots && opts.shot) await page.locator("#demo").screenshot({ path: join(shots, `demo-${width}-${i + 1}-${STEPS[i].toLowerCase().replace(/\s+/g, "-")}.png`), animations: "disabled" });
     if (i < STEPS.length - 1 && READ[i + 1]) { check(`${tag}: beat ${i + 1} offers the next, which is read first`, after.go === `Next: ${STEPS[i + 1]}`, after.go); await page.keyboard.press("Enter"); }
   }
+  if (!opts.offline) check(`${tag}: the evidence is the round's own: fund, refusal and payment on the explorer, and the stand-alone verifier last`, evs[0].includes(data.fund.tx) && evs[4].includes(data.replay.tx)
+    && evs[5].includes(data.paid.tx) && evs[6].endsWith("/conformance/standalone/verify.py"), evs);
   check(`${tag}: the whole round took one key a beat, and one more before each of the four beats that are read`, true);
-  check(`${tag}: the demo says what it is: a replay of a round, at the program ids it ran on`, first.mark === `A real ${data.cluster} round, replayed (${data.ids} program ids, ${data.date.replace(/^(\d+ \w{3})\w*/, "$1")}).` && ["staging", "public"].includes(data.ids), first.mark);
+  check(`${tag}: the demo says what it is: one witnessed transaction, recorded, at the program ids it ran on`, first.mark === `Recorded on ${data.cluster}: ${data.ids} program ids, ${data.date.replace(/^(\d+ \w{3})\w*/, "$1")}.` && ["staging", "public"].includes(data.ids), first.mark);
   const [fund, claim, fixed, both, replay, paid, verify] = seen.map((s) => s.after);
-  check(`${tag}: 1 agree: the order is the recorded one`, fund.scene.includes(`${data.fund.order.slice(0, 4)}…${data.fund.order.slice(-4)}`) && fund.say === `Agreed and funded: ${data.fund.amount} ${data.money} held.` && fund.badges.includes("funded") && fund.scene.includes(`fee ${data.fund.fee}, charged under the 0.3.14 fee`), fund.scene);
+  check(`${tag}: 1 agree: the order is the recorded one`, fund.scene.includes(`${data.fund.order.slice(0, 4)}…${data.fund.order.slice(-4)}`) && fund.say === `Agreed and funded: ${data.fund.amount} ${data.money} held.` && fund.badges.includes("funded") && fund.scene.includes(`fee ${data.fund.fee}, the fee the program charged then (before the upgrade)`) && !/0\.3\.14/.test(fund.scene), fund.scene);
   check(`${tag}: 2 fails: the submission is rejected, the failed check is named and the judge's reason is given word for word`, claim.badges.includes("rejected") && claim.badges.includes("failed") && claim.say === "Rejected: test_mixed failed."
     && claim.scene.includes(data.claim.check.split(".").pop()) && claim.scene.includes(`${data.claim.reason}: test_mixed`) && data.claim.reason === "acceptance checks not passed" && seen[1].before.scene.includes(data.claim.says), claim);
   check(`${tag}: 3 passes: the correction is accepted and signed with the three claims`, fixed.badges.includes("accepted") && fixed.say.startsWith("Accepted: ") && fixed.badges.filter((b) => b === "passes").length === 3 && data.fixed.claims.every((c) => fixed.scene.includes(c.name) && fixed.scene.includes(c.is)), fixed.scene);

@@ -23,7 +23,7 @@ from knos import statement
 
 ROOT = Path(__file__).resolve().parents[1]
 BROWSERS = "/opt/pw-browsers"
-STEPS = ["open the page", "drop the invoice and the statement", "read the result", "open one exception", "approve the agreed lines"]
+STEPS = ["open the page", "drop the invoice and the statement", "read the result", "open one exception", "approve the ordinary lines"]
 
 
 def _node(*args: str) -> subprocess.CompletedProcess:
@@ -51,7 +51,7 @@ def test_a_first_comparison_by_script_with_no_command_line():
     if run.returncode == 0 and "\nSKIP " in "\n" + run.stdout:
         pytest.skip(run.stdout.split("SKIP ", 1)[1].strip())
     assert run.returncode == 0 and "all passed" in run.stdout, _failures(run)
-    for said in ("320px: every statement is twelve words at most", "keys: Enter approves", "no movement asked for: the evidence appears with none", "under ten minutes, with no command line"):
+    for said in ("320px: every statement is twelve words at most", "keys: Enter approves", "no movement asked for: the evidence appears with none", "under five minutes, with no command line"):
         assert said in run.stdout, said
 
 
@@ -71,7 +71,7 @@ def test_an_approval_that_holds_a_line_back_is_still_a_status_the_command_line_r
 def test_the_time_the_page_states_is_what_the_script_wrote():
     t = json.loads((ROOT / "web" / "approver_time.json").read_text(encoding="utf-8"))
     assert t["scripted"] is True and [s["step"] for s in t["steps"]] == STEPS
-    assert t["total_ms"] == sum(s["ms"] for s in t["steps"]) < 600_000
+    assert t["total_ms"] == sum(s["ms"] for s in t["steps"]) < 300_000
     assert "not a person's" in t["what"]
 
 

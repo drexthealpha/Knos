@@ -1401,6 +1401,18 @@ def explain(r: dict, declared=()) -> list[str]:
     return out[:-1]
 
 
+def five_cells(r: dict, declared=()) -> dict:
+    """The five parts of a receipt as five cells, one line each, and the receipt's sha256: what every surface a receipt
+    leaves Knos by carries beside its row (an export's parts file, a statement line, the record answer)."""
+    got = parts(r, declared)
+    return {"receipt_sha256": got["receipt"], **{p["id"]: p["line"] for p in got["parts"]}}
+
+
+def five_missing(cells: dict) -> list[str]:
+    """The parts a row leaves out or empty: [] when all five are said. A surface refuses a row this names."""
+    return [k for k in FIVE if not isinstance(cells.get(k), str) or not cells[k].strip()]
+
+
 # ---- the mirror: every receipt, off chain -----------------------------------------------------------------------------------
 MIRROR, MIRROR_VERSION = "knos.receipt-mirror", 1
 FROM_MIRROR = "from mirror, chain record unavailable"

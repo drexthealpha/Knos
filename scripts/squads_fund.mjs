@@ -12,7 +12,8 @@
 //   ... --execute INDEX --member FILE    once the approvals reach the threshold (and the multisig's time lock has passed)
 //
 // --amount is in the mint's smallest units (20000000 is 20 USDC): what the payees receive. The vault is debited the
-// amount plus knos_pay's fee (2.5% of the first 1,000 whole units, 1% from there to 50,000, 0.5% above; at least 0.40), and pays the rent of the order's two
+// amount plus knos_pay's fee (0.30% of the amount, at least 0.05: knos_pay 2.2; the 2.1 build still live before its upgrade
+// charges the 0.3.14 fee, and --send checks the vault holds the larger of the two), and pays the rent of the order's two
 // accounts, which returns to it when the order closes. So before it executes, the vault needs the tokens in its
 // associated token account and a little SOL. --terms is the terms JSON (a file, at most 600 bytes) the order is paid
 // under. Only devnet is written to. Install the packages first: npm ci --prefix scripts
@@ -66,10 +67,16 @@ const sha256 = (...parts) => { const h = createHash("sha256"); for (const p of p
 const le = (v, bytes) => { const b = Buffer.alloc(bytes); let n = BigInt(v); for (let i = 0; i < bytes; i++) { b[i] = Number(n & 255n); n >>= 8n; } return b; };
 const meta = (pubkey, isSigner, isWritable) => ({ pubkey, isSigner, isWritable });
 
-/** knos_pay's fee on top of an order's amount, for a mint with `decimals` decimals (lib.rs order_fee, no Plan): 2.5% of
- *  the first 1,000 whole units, 1% of what lies between 1,000 and 50,000, 0.5% of what lies above, each part rounded
- *  down; at least 0.40; no maximum. */
+/** knos_pay's fee on top of an order's amount, for a mint with `decimals` decimals (lib.rs order_fee of knos_pay 2.2, no
+ *  Plan): 30 basis points of the amount, rounded down, at least 0.05; one rate, no tiers, no maximum. */
 export function orderFee(amount, decimals = 6) {
+  const a = BigInt(amount), lo = 50_000n * 10n ** BigInt(decimals) / 1_000_000n, f = a * 30n / 10_000n;
+  return f < lo ? lo : f;
+}
+
+/** The fee knos_pay 2.1 charged (the 0.3.14 fee, fees.OLD): 2.5% of the first 1,000 whole units, 1% of what lies
+ *  between 1,000 and 50,000, 0.5% of what lies above, each part rounded down; at least 0.40. Orders funded under it keep it. */
+export function orderFeeOld(amount, decimals = 6) {
   const unit = 10n ** BigInt(decimals), a = BigInt(amount), t1 = 1_000n * unit, t2 = 50_000n * unit, min = (x, y) => (x < y ? x : y);
   const first = min(a, t1), second = min(a, t2) - first, third = a - first - second;
   const f = first * 250n / 10_000n + second * 100n / 10_000n + third * 50n / 10_000n, lo = 400_000n * unit / 1_000_000n;
@@ -170,7 +177,8 @@ async function main(argv) {
   const mint = await conn.getParsedAccountInfo(f.mint);
   const decimals = mint.value?.data?.parsed?.info?.decimals;
   if (decimals === undefined) throw new Refused(`${f.mint} is not a token mint on devnet.`);
-  const debit = f.amount + orderFee(f.amount, decimals);
+  const fees = [orderFee(f.amount, decimals), orderFeeOld(f.amount, decimals)];
+  const debit = f.amount + (fees[0] > fees[1] ? fees[0] : fees[1]);      // whichever build is live
   const have = await conn.getTokenAccountBalance(p.funderToken).then((r) => BigInt(r.value.amount), () => 0n);
   if (have < debit) throw new Refused(`the vault's token account ${p.funderToken} holds ${have} and the order takes ${debit} (the amount plus the fee). Send the vault the tokens first. Nothing was sent.`);
   if (await conn.getAccountInfo(p.order)) throw new Refused(`the vault already has an order for this issue with --seq ${f.seq} (${p.order}). Use another --seq. Nothing was sent.`);

@@ -70,9 +70,16 @@ def test_the_page_keeps_measured_and_derived_apart_and_says_when_nothing_is_meas
         x.update(seconds=10.0, confirmed_per_s=0.4)
     got["contention"]["rate_shared_over_apart"] = 1.0
     shown = "\n".join(load.render_measured({**doc, "measured": [got], "local": json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))["local"]}))
-    assert "**Measured on devnet (2026-10-09): 2 relays, 4 orders each way**" in shown and "nothing yet" not in shown
-    assert "| apart: no account written by two relays | 4 of 4 | 10.0 | 0.4 |" in shown
-    assert "**Derived bound (not measured).**" in shown and shown.index("Measured on devnet (") < shown.index("Derived bound")
+    head = "#### Measured on devnet, public program ids, 2026-10-09: funding only (FundOrderWallet), no PayOrder; 2 relays, 4 orders each way"
+    assert head in shown and "nothing yet" not in shown
+    assert "| apart: no account written by two relays | 4 of 4 | 10.0 | 0.4 | 0 | 0 of 4 |" in shown
+    assert "**Derived bound (not measured).**" in shown and shown.index("Measured on devnet, ") < shown.index("Derived bound")
+    # a funding rate is not a payment rate: until a PayOrder run is recorded the page says so, and names the command
+    assert "**Not measured: end-to-end PayOrder capacity.**" in shown and "load.py measure --pay" in shown
+    paid = {**got, "kind": "pay", "programs": {"knos_pay": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH"}}
+    shown = "\n".join(load.render_measured({**doc, "measured": [paid]}))
+    assert "#### Measured on devnet, STAGING program ids (not the public ones), 2026-10-09: end-to-end PayOrder" in shown
+    assert "Not measured: end-to-end PayOrder capacity" not in shown
     page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
     assert "### Throughput with relays side by side: measured, and derived" in page and "**Derived bound (not measured).**" in page
 
@@ -85,3 +92,21 @@ def test_the_command_simulates_from_the_shell_and_never_writes_a_simulated_run()
     assert got["cluster"] == "simulator" and got["ok"] and "say nothing about a cluster" in got["note"]
     no = subprocess.run([*cmd, "--write"], capture_output=True, text=True, encoding="utf-8")
     assert no.returncode == 2 and "never written" in no.stderr
+
+
+def test_every_cluster_run_says_which_program_ids_it_ran_on():
+    """The 200-order run used staging ids and was summarised as "measured on devnet": the heading of every run now
+    names its ids, read against the public ones."""
+    public = json.loads((ROOT / "src" / "knos" / "settle" / "v2" / "program_ids.json").read_text(encoding="utf-8"))
+    assert load.ids_of({"knos_pay": public["knos_pay"], "knos_oidc": public["knos_oidc"]}) == "public program ids"
+    assert load.ids_of(public["knos_pay"]) == "public program ids"
+    assert load.ids_of({"knos_pay": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH"}).startswith("STAGING")
+    assert load.ids_of({"a": public["knos_pay"], "b": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH"}) == "public and STAGING program ids mixed"
+    assert load.ids_of(None) == "program ids not recorded"
+    page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
+    kept = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))
+    for r in kept["runs"]:
+        assert f"### {r['cluster']}, {load.ids_of(r.get('programs'))}, {r['date']}:" in page
+    assert "### devnet, STAGING program ids (not the public ones), 2026-10-04: 200 orders" in page
+    assert "measured on devnet, STAGING program ids (not the public ones), 2026-10-04: 200 orders" in page
+    assert page == load.render(load.load())                                       # written by the script, not by hand
