@@ -3,6 +3,6 @@
   "name": "io.github.drexthealpha/knos",
   "description": "The neutral meter for AI agent work: neither side keeps the count.",
   "repository": {"url": "https://github.com/drexthealpha/Knos", "source": "github"},
-  "version": "0.3.22",
-  "packages": [{"registryType": "pypi", "identifier": "knos", "version": "0.3.22", "transport": {"type": "stdio"}, "packageArguments": [{"type": "positional", "value": "mcp"}]}]
+  "version": "0.3.23",
+  "packages": [{"registryType": "pypi", "identifier": "knos", "version": "0.3.23", "transport": {"type": "stdio"}, "packageArguments": [{"type": "positional", "value": "mcp"}]}]
 }

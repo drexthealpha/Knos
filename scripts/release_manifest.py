@@ -16,6 +16,14 @@ Nothing on it is typed and nothing is assumed. Each part is read from the file t
     docs/provenance.json          the hash at each public id, from one read of the cluster
     web/upgrades.json             the proposals: build hash, source commit, verified-build run, status
     docs/DISCLOSURE.md            the limits, one line each ("## Outstanding limits")
+    docs/load.json                the orders the load runs sent to the public ids (`measured`), with their dates
+    docs/fee_slots.json           the slot of each recorded transaction, read from the cluster by `--read-slots`
+
+For every recorded order at the public ids the page names the fee schedule that applied (knos_pay 2.1's tiers or 2.2's
+0.30% with its 0.05 floor), decided in this order: the fee the order stored, when its record states it (a fee is taken
+at funding and held with the order, so the stored fee IS the schedule); else the build live at the transaction's slot
+(docs/fee_slots.json against the slots docs/provenance.json and web/upgrades.json give each build); else its date,
+which only rules out a build whose proposal could not yet execute. A row none of these decide says so.
 
 No time is printed: when a proposal can execute is in web/upgrades.json and on chain, and a page that named it would be
 false after it ran (scripts/doc_claims.py refuses such a sentence). No count of capabilities is printed either: the
@@ -32,6 +40,7 @@ from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT / "src"))
 
 import capabilities as cap  # noqa: E402
 import provenance as prov  # noqa: E402
@@ -204,6 +213,169 @@ def limits(root: Path = ROOT) -> list[str]:
     return got
 
 
+SLOTS = "docs/fee_slots.json"
+_DAY = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b|\b(\d{1,2}) (October|September|November) (\d{4})\b")
+_MONTH = {"September": 9, "October": 10, "November": 11}
+
+
+def _json_of(path: Path) -> dict:
+    import json
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+
+
+def _day(text: str | None) -> str | None:
+    m = _DAY.search(text or "")
+    if not m:
+        return None
+    return m.group(1) or f"{m.group(4)}-{_MONTH[m.group(3)]:02d}-{int(m.group(2)):02d}"
+
+
+def _units(text: str) -> int:
+    whole, _, frac = text.replace(",", "").partition(".")
+    return int(whole) * 1_000_000 + int((frac + "000000")[:6])
+
+
+def orders(data: dict, root: Path = ROOT) -> list[dict]:
+    """Every order (or job) a record of this tree says was funded or paid at the public knos_pay: what, the transaction,
+    its date, its amount and stored fee when the record states them. One row per transaction."""
+    caps, out, seen = data["capabilities"], [], set()
+    pay_id = (caps.get("programs", {}).get("knos_pay") or {}).get("id")
+    rnd = caps.get("public_round") or {}
+    if rnd.get("fund", {}).get("tx"):
+        f = rnd["fund"]
+        out.append({"what": f"the public round: order `{f.get('order')}` funded by `{f.get('comment')}`", "tx": f["tx"], "date": _day(rnd.get("date")),
+                    "amount": f.get("amount"), "fee": f.get("fee"), "from": "docs/capabilities.json `public_round`"})
+        seen.add(f["tx"])
+    for c in caps.get("capabilities", []):
+        ev = c.get("evidence") or {}
+        got, dep = ev.get("exercised") or {}, ev.get("deployed") or {}
+        if not got.get("signature") or got["signature"] in seen or got.get("ids") != "public" or dep.get("id") != pay_id:
+            continue
+        said = " ".join(got.get("asserted") or [])
+        m = re.search(r"holds (\d[\d,]*\.\d\d) and its fee of (\d[\d,]*\.\d\d)", said)
+        out.append({"what": f"`{c['id']}` ({got.get('round')} round)", "tx": got["signature"], "date": None,
+                    "amount": m.group(1) if m else None, "fee": m.group(2) if m else None, "from": "docs/capabilities.json"})
+        seen.add(got["signature"])
+    for m in (_json_of(root / "docs" / "load.json").get("measured") or []):
+        progs = m.get("programs") or ({"knos_pay": m["program"]} if m.get("program") else {})
+        if progs.get("knos_pay") != pay_id:
+            continue
+        n = m.get("attempted") or m.get("orders")
+        kind = "paid" if m.get("kind") == "pay" else "funded and refunded"
+        out.append({"what": f"{n} orders {kind} by a load run, {m.get('relays')} relay{'' if m.get('relays') == 1 else 's'}; order ids not kept in docs/load.json", "tx": None,
+                    "date": m.get("date"), "amount": None, "fee": None, "from": "docs/load.json `measured`"})
+    return out
+
+
+def builds(data: dict) -> list[dict]:
+    """knos_pay's builds at its public id that this tree knows the first slot of, oldest first: {version, slot, fee}."""
+    import knos.fees as fees
+    out = []
+    rec = (data["record"].get("programs") or {}).get("knos_pay") or {}
+    entries = {int(e.get("index", 0)): e for e in data["upgrades"].get("entries", []) if e.get("program") == "knos_pay"}
+    for idx, e in sorted(entries.items()):
+        slot = e.get("executed_slot") or (rec.get("live_slot") if rec.get("proposal") == idx else None)
+        if e.get("status") == "executed" and slot:
+            new = idx > fees.OLD_PAY_PROPOSALS
+            out.append({"proposal": idx, "slot": int(slot), "rule": fees.NEW if new else fees.OLD})
+    return out
+
+
+def schedule(o: dict, data: dict, slots: dict) -> tuple[str, str]:
+    """(the fee schedule that applied, how this page knows it)."""
+    import knos.fees as fees
+    words = {r.build: rule_words(r) for r in (fees.OLD, fees.NEW)}
+    if o.get("amount") and o.get("fee"):
+        amount, fee = _units(o["amount"]), _units(o["fee"])
+        fits = [r for r in (fees.OLD, fees.NEW) if r.order(amount) == fee]
+        if len(fits) == 1:
+            return words[fits[0].build], f"the order's stored fee: {o['fee']} on {o['amount']}"
+    slot = (slots.get(o["tx"]) or {}).get("slot") if o.get("tx") else None
+    if slot:
+        live = [b for b in builds(data) if b["slot"] <= int(slot)]
+        if live:
+            b = live[-1]
+            return words[b["rule"].build], f"the build live at slot {slot}: proposal {b['proposal']}'s, live from slot {b['slot']}"
+        return "not decided", f"slot {slot} is before every build this tree knows the slot of"
+    if o.get("date"):
+        later = sorted((e for e in data["upgrades"].get("entries", []) if e.get("program") == "knos_pay" and int(e.get("index", 0)) > fees.OLD_PAY_PROPOSALS
+                        and e.get("status") in ("pending", "executed") and e.get("earliest_execution_utc")), key=lambda e: e["earliest_execution_utc"])
+        rec = (data["record"].get("programs") or {}).get("knos_pay") or {}
+        old_live = rec.get("proposal") is not None and int(rec["proposal"]) <= fees.OLD_PAY_PROPOSALS and str(data["record"].get("read", ""))[:10] < o["date"]
+        if later and o["date"] < later[0]["earliest_execution_utc"][:10] and old_live:
+            return words[fees.OLD.build], (f"its date: a day before proposal {later[0]['index']} (2.2) could execute (web/upgrades.json "
+                                           f"`earliest_execution_utc`) and after the cluster read that found proposal {rec['proposal']} (2.1) live "
+                                           "(docs/provenance.json `read`)")
+        if later and o["date"] < later[0]["earliest_execution_utc"][:10]:
+            return "knos_pay 2.0 or 2.1, not 2.2", f"its date rules out 2.2 only (proposal {later[0]['index']} could not yet execute); " + (
+                "`--read-slots` reads the slot" if o.get("tx") else "the run kept no transaction to read a slot from")
+    return "not decided", "no stored fee, slot or date in the record; `--read-slots` reads the slot"
+
+
+def rule_words(r) -> str:
+    """A knos_pay build's fee schedule in one phrase: orders and jobs apart where the build has them apart."""
+    import knos.fees as fees
+    job = f"{fees.pct(r.job_bps)} of the amount, at least {fees._money(r.job_floor)}"
+    return f"knos_pay {r.build}: jobs and orders {r.rate()}" if not r.tiers and r.rate() == job else f"knos_pay {r.build}: orders {r.rate()}; jobs {job}"
+
+
+def fee_rows(data: dict, root: Path = ROOT) -> list[str]:
+    slots = _json_of(root / SLOTS)
+    lines = ["| order | transaction | fee schedule that applied | how it is known | from |", "|---|---|---|---|---|"]
+    for o in orders(data, root):
+        tx = f"[{o['tx'][:8]}...]({TX.format(o['tx'])})" if o.get("tx") else "none kept"
+        rule, how = schedule(o, data, slots)
+        lines.append(f"| {_cell(o['what'])} | {tx} | {rule} | {_cell(how)} | {o['from']} |")
+    return lines
+
+
+def start_here(data: dict, root: Path = ROOT) -> list[str]:
+    """One line for each program a payment runs through: source -> build hash -> deployed version -> transactions ->
+    fee schedule."""
+    import knos.fees as fees
+    rows = orders(data, root)
+    caps = data["capabilities"]
+    out = []
+    for c in prov.chains(data):
+        if c["program"] not in ("knos_pay", "knos_oidc"):
+            continue
+        e, now = c["entry"] or {}, c["now"] or {}
+        src = f"[`{str(e.get('source_commit'))[:7]}`]({REPO}/commit/{e.get('source_commit')})" if e.get("source_commit") else "source not recorded"
+        h = _short(now.get("hash")[:16] if now.get("hash") else None)
+        live = f"{c['program']} {c['runs']} at `{c['address']}`" if c["runs"] else f"`{c['address']}`, version not recorded"
+        mine = ([o["tx"] for o in rows if o.get("tx")] if c["program"] == "knos_pay" else
+                [x["evidence"]["exercised"]["signature"] for x in caps.get("capabilities", []) if (x.get("evidence") or {}).get("exercised", {}).get("signature")
+                 and x["evidence"]["exercised"].get("ids") == "public" and (x["evidence"].get("deployed") or {}).get("id") == c["address"]])
+        mine = list(dict.fromkeys(mine))
+        txs = f"{len(mine)} recorded transaction{'' if len(mine) == 1 else 's'}" + (f", first [{mine[0][:8]}...]({TX.format(mine[0])})" if mine else "")
+        if c["program"] == "knos_pay":
+            nxt = _pending_after(data, "knos_pay", c["entry"])
+            rule = fees.rule(fees.NEW_VERSION if c["runs"] and str(c["runs"]).startswith("2.2") else 1)
+            fee = "fee schedule: " + rule_words(rule) + (f"; proposal {nxt['index']} (pending) would charge {rule_words(fees.NEW)}" if nxt and rule is fees.OLD else "")
+        else:
+            fee = "no fee: the verifier moves no money"
+        out.append(f"- **{c['program']}**: {src} -> build {h} -> {live} -> {txs} -> {fee}.")
+    return out
+
+
+def read_slots(root: Path = ROOT, rpc: str | None = None, say: Callable[[str], None] = print, call=None) -> int:
+    """The slot and block time of every recorded transaction whose slot is not kept yet, into docs/fee_slots.json."""
+    import json
+
+    from knos import chain
+    url = rpc or chain.ledger().url
+    ask = call or (lambda method, params: chain.call(url, method, params))
+    path, have = root / SLOTS, _json_of(root / SLOTS)
+    for o in orders(prov.load(root), root):
+        if o.get("tx") and o["tx"] not in have:
+            got = ask("getTransaction", [o["tx"], {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 1}])
+            if got:
+                have[o["tx"]] = {"slot": int(got["slot"]), "block_time": got.get("blockTime")}
+    path.write_text(json.dumps(dict(sorted(have.items())), indent=1) + "\n", encoding="utf-8")
+    say(f"{SLOTS}: {len(have)} transactions with their slots")
+    return 0
+
+
 def render(root: Path = ROOT) -> str:
     data, v = prov.load(root), version(root)
     feed = data["upgrades"]
@@ -212,6 +384,10 @@ def render(root: Path = ROOT) -> str:
         "One page for this release: the source, the bytes each public program id runs, every capability's stage, and the",
         "limits still open. `python scripts/release_manifest.py` writes it from the files named under each heading, and",
         "`--check` fails when it differs from them. Nothing here is typed by hand, and no time is printed.", "",
+        "## Start here", "",
+        "Each program a payment runs through, in one line: the source, the hash of the build at its public id, the version",
+        "deployed there, the transactions recorded, and the fee schedule. The rows behind each step are below.", "",
+        *start_here(data, root), "",
         "## Source", "",
         f"- Release: Knos {v} (`pyproject.toml`). Tag: [`v{v}`]({REPO}/tree/v{v}); `git rev-list -n 1 v{v}` prints its commit. A file",
         "  cannot hold the hash of the commit that holds it.",
@@ -235,6 +411,11 @@ def render(root: Path = ROOT) -> str:
         "exercised count only at the public program ids. A cell with nothing behind it says none. The note of each",
         "capability is in [CAPABILITIES.md](CAPABILITIES.md).", "",
         *capabilities(data, root), "",
+        "## Fee schedule of each recorded order", "",
+        "Every order or job a record of this tree says ran at the public knos_pay, and the fee schedule that applied: the",
+        "fee the order stored when the record states it, else the build live at its slot (`docs/fee_slots.json`, written by",
+        "`python scripts/release_manifest.py --read-slots`), else what its date rules out.", "",
+        *fee_rows(data, root), "",
         "## Outstanding limits", "",
         "From [DISCLOSURE.md](DISCLOSURE.md), one line each.", "",
         *limits(root), "",
@@ -245,7 +426,11 @@ def render(root: Path = ROOT) -> str:
 def main(argv: list[str] | None = None, say: Callable[[str], None] = print, root: Path = ROOT) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     ap.add_argument("--check", action="store_true", help="exit 1 when docs/MANIFEST.md is not what its sources give")
+    ap.add_argument("--read-slots", action="store_true", help="read each recorded transaction's slot from the cluster into docs/fee_slots.json, then write")
+    ap.add_argument("--rpc", help="with --read-slots: the cluster's endpoint (default: KNOS_RPC, else public devnet)")
     a = ap.parse_args(argv)
+    if a.read_slots:
+        read_slots(root, a.rpc, say)
     page, want = root / DOC, render(root)
     if a.check:
         if not page.is_file() or page.read_text(encoding="utf-8") != want:

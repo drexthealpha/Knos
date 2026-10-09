@@ -85,7 +85,7 @@
   {
    "id": "founder_communication",
    "thing": "Founder communication",
-   "sentence": "The presentation fits in three minutes and ends on its limits in one sentence.",
+   "sentence": "The presentation fits in three minutes: the finding, one transaction, the founder's record, the limits in one sentence, the ask.",
    "link": "https://github.com/drexthealpha/Knos/blob/main/docs/submission/pitch_script.md",
    "label": "the presentation"
   },
@@ -104,7 +104,7 @@
    "label": "the outside-use numbers"
   }
  ],
- "wait": "From merge to paid took 25 seconds at the median, over 42 payments on devnet. A buyer waits instead for a person to approve the invoice. Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person with authority approves it. Knos would read both dates: receipt from the buyer's payables system, approval from the record `knos statement approve` writes. Not measured. It has not measured it with any buyer, so no figure for it is given here.",
+ "wait": "From merge to paid took 25 seconds at the median, over 42 payments on devnet. Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person with authority approves it. Not measured. It has not measured it with any buyer, so no figure for it is given here.",
  "not_real": [
   "Money: Solana devnet and test USDC only. Mainnet is not touched.",
   "Buyers: 0 interviews, 0 letters of intent, 0 paying customers, 0 revenue.",
@@ -112,5 +112,31 @@
   "Outside checks: no security review, 0 reproductions by anyone else, 0 outside programs reading the verifier.",
   "Neutrality: one person holds every key, and that person is the whole team."
  ],
+ "entry": {
+  "manifest": "https://github.com/drexthealpha/Knos/blob/main/docs/MANIFEST.md",
+  "witnessed": [
+   {
+    "label": "funded",
+    "link": "https://explorer.solana.com/tx/5NGGSCAN17FiN1gaSiZ5YBUwPiDX56DXdv7txKGqKGQL4FMrCYL3gpduBzxDYLYojYp4YhKq8ZhkQLttiSEEAnjN?cluster=devnet"
+   },
+   {
+    "label": "wrong work refused",
+    "link": "https://github.com/drexthealpha/knos-witness/actions/runs/37834796417/job/113509142113"
+   },
+   {
+    "label": "paid",
+    "link": "https://explorer.solana.com/tx/5agirebr3WcfmjF4JV8KNJeFsWqrd21vkPZtebqZyxTLNTWqYv8azX28zTZuMYKCuH6uaCmTaGPeTbLAooJT1Vs9?cluster=devnet"
+   },
+   {
+    "label": "replay paid nothing more",
+    "link": "https://github.com/drexthealpha/knos-witness/pull/8#issuecomment-6067864262"
+   },
+   {
+    "label": "the record",
+    "link": "https://github.com/drexthealpha/knos-witness/blob/main/witness.json"
+   }
+  ],
+  "yourself": "https://github.com/drexthealpha/Knos/blob/main/examples/witnessed/README.md"
+ },
  "page": "https://github.com/drexthealpha/Knos/blob/main/docs/JUDGES.md"
 }

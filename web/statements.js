@@ -8,7 +8,9 @@ import { show } from "./price.js";
 const group = (text) => String(text ?? "").replace(/^(-?)(\d{4,})/, (m, sign, whole) => sign + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ","));
 import { chained as auditChained, totals as auditTotals, auditWrite, recordsOf, exportAs, readRefs, FORMATS, UNVERIFIED } from "./finance_data.js";
 import { objectsHtml, chipOf } from "./console.js";
-import { statementCells, statementCsv, statementDigest, statementExport, statementLines, statementGrn, STATEMENT_KIND, STATEMENT_FORMATS, LINE_WORDS, PAY_WORDS, LABEL, HANDED } from "./finance_data.js";
+import { statementCells, statementCsv, statementDigest, statementExport, statementLines, statementAnswers, statementGrn, STATEMENT_KIND, STATEMENT_FORMATS, LINE_WORDS, PAY_WORDS, LABEL, HANDED, OWED_WORDS } from "./finance_data.js";
+import { stepRowHtml, stepStyle } from "./line_steps.js";
+const APPEAL = "https://github.com/drexthealpha/Knos/blob/main/docs/DISPUTES.md#the-path";
 
 const ROLES = { seller: ["as_seller", "Seller: what the account was paid"], owner: ["as_owner", "Owner: what the account's money paid out"] };
 const KINDS = Object.keys(KIND_WORDS);
@@ -293,11 +295,14 @@ export function grnHtml(esc, note) {
     ${note.mismatches.length ? `<details class="k-more"><summary>Show why</summary><ul>${note.mismatches.map((w) => `<li class="fine">${esc(w)}</li>`).join("")}</ul></details>` : ""}</section>`;
 }
 
-/** The statement view, drawn into `el`. ctx: { file(path) -> JSON or null, print() } (both optional). Returns open(statement, status). */
+/** The statement view, drawn into `el`. ctx: { file(path) -> JSON or null, print(), now: a Date } (all optional). Returns open(statement, status).
+ *  Each line shows its four steps (policy satisfied, parties accepted, payment authorised, settled); a line owed to the
+ *  supplier (statement.steps_of: policy met, refused or unauthorised past the window) says so, with the appeal. */
 export function renderStatements(el, ctx = {}) {
   const doc = el.ownerDocument, esc = escHtml, file = ctx.file || jsonFile;
+  stepStyle(doc);
   el.innerHTML = `<h2 class="no-print">One invoice, line by line</h2>
-    <div class="k-statement-tools no-print"><label class="k-btn quiet" for="aps-file">Open a statement file</label>
+    <div class="k-statement-tools no-print"><button type="button" class="k-btn quiet" id="aps-open">Open a statement file</button>
       <input type="file" id="aps-file" accept=".json,application/json" multiple hidden>
       <button type="button" class="k-btn quiet" id="aps-sample">Open the sample</button></div>
     <div id="aps-result" role="status" aria-live="polite"></div>`;
@@ -316,7 +321,10 @@ export function renderStatements(el, ctx = {}) {
     const whole = (await statementDigest(st)) === st.sha256;
     let c;
     try { c = await statementCells(st, status); } catch (e) { status = null; c = await statementCells(st); say(e.message, "bad"); }
-    const now = statementLines(st, status), at = (name) => c.head.indexOf(name);
+    const today = (ctx.now || new Date()).toISOString().slice(0, 10);
+    let now, said;
+    try { now = statementLines(st, status, today); said = statementAnswers(st, status, today); } catch { now = statementLines(st, null, today); said = statementAnswers(st, null, today); }
+    const at = (name) => c.head.indexOf(name);
     const name = `statement-${String(st.invoice).replace(/[^\w.-]+/g, "-")}`;
     out.innerHTML = `<article class="k-statement" id="aps-statement" data-sha256="${esc(st.sha256)}" data-whole="${whole ? "1" : "0"}">
       <p class="k-kicker">Statement</p>
@@ -328,8 +336,9 @@ export function renderStatements(el, ctx = {}) {
         <button type="button" class="k-btn quiet" id="aps-print">Print or save as PDF</button>
         ${STATEMENT_FORMATS.map((f) => `<button type="button" class="k-btn quiet" data-aps-export="${esc(f)}">${esc({ quickbooks: "QuickBooks file", netsuite: "NetSuite file", generic: "Every line, generic" }[f])}</button>`).join(" ")}
         <span class="fine" id="aps-label">${esc(LABEL)}</span></div>
-      <div class="k-table" id="aps-answers">${tableHtml(esc, ["question", "answer"], c.answers.map((a) => a.map(esc)))}</div>
-      <div class="k-table" id="aps-lines">${tableHtml(esc, SHOWN, c.rows.map((r, n) => SHOWN.map((col) => (col === "state" ? `<span class="k-state" data-state="${esc(now[n].state)}">${esc(r[at(col)])}</span>`
+      <div class="k-table" id="aps-answers">${tableHtml(esc, ["question", "answer"], said.map((a) => a.map(esc)))}</div>
+      <div class="k-table" id="aps-lines">${tableHtml(esc, SHOWN, c.rows.map((r, n) => SHOWN.map((col) => (col === "state" ? `<span class="k-state" data-state="${esc(now[n].state)}">${esc(r[at(col)])}</span>${stepRowHtml(now[n].steps)}`
+          + (now[n].owed ? `<p class="fine" data-owed><b>${esc(OWED_WORDS)}.</b> <a href="${APPEAL}" target="_blank" rel="noopener">Supplier: appeal</a></p>` : "")
         : col === "evidence" ? link(r[at(col)]) : col === "amount" ? `<span class="k-num">${esc(group(r[at(col)]))}</span>` : esc(r[at(col)])))))}</div>
       <details class="k-more" id="aps-grn"><summary>Match order, receipt, invoice</summary>${now.map((r) => grnHtml(esc, statementGrn(st, status, r.invoice_line))).join("")}</details>
       <details class="k-more"><summary>Show every id</summary>
@@ -361,6 +370,8 @@ export function renderStatements(el, ctx = {}) {
     try { await open(await file(SAMPLE), await file(SAMPLE.replace(".json", ".status.json"))); } catch (e) { say(e.message, "bad"); }
   };
   $("aps-sample").onclick = sample;
+  // a button, not a label for the hidden input: a label is not reached by Tab, so with the keyboard alone no file could be opened
+  $("aps-open").onclick = () => $("aps-file").click();
   // the invoice checked on the first screen is opened here as it is: the same statement, with its approval if one was made
   const handed = () => { if (HANDED.st) open(HANDED.st, HANDED.status).catch((e) => say(e.message, "bad")); };
   doc.addEventListener("knos:statement", handed);

@@ -65,7 +65,7 @@ It reads the files you drop, choose or paste and asks nobody anything: no GitHub
 **What it reads.** A statement (`knos statement make`, or the one the first screen made from your invoice), its status
 file if there is one, the invoice (CSV; the columns `po_number` and `po_amount`, when it has them, name each line's
 purchase order and its limit), and receipts' five parts. "Try the sample" opens the first screen's made-up invoice.
-An invoice with no statement is shown with nothing agreed: the page does not check an invoice itself.
+An invoice with no statement is shown with no line's policy met: the page does not check an invoice itself.
 
 The approver's question is one: can I approve this amount, against this purchase order, under our policy, and defend
 it six months later? Each row answers it for one line.
@@ -76,19 +76,19 @@ status. Amounts are shown with thousands separators (1,500.00); the files keep t
 The evidence cell of a line with a receipt reads the receipt in its five parts (Identity, Execution, Acceptance,
 Consequence, Assurance); the shape the page reads is written at the top of the module.
 
-**One exception queue.** Every line that is not agreed, with its reason in one sentence:
+**One exception queue.** Every line whose policy is not met, with its reason in one sentence:
 
 | Exception | Who decides it | Enforced by |
 | --- | --- | --- |
-| disputed | the statement (`knos.ids.LINE_STATES`) | the statement flow: `knos statement approve` approves agreed lines only |
+| disputed | the statement (`knos.ids.LINE_STATES`) | the statement flow: `knos statement approve` authorises payment of lines whose policy is met, only |
 | duplicate | the statement: billed twice on this invoice | the same |
 | insufficient evidence | the statement | the same |
 | replayed | the statement: its duplicate whose earlier billing is on another statement | the same |
-| over the purchase order | this page: agreed lines are added up per purchase order, in line order, against the limit the invoice file states | nothing. It is advice: the statement still calls the line agreed, `knos statement approve` would approve it, and no program knows a purchase order |
-| over your approval limit | this page: an agreed line above the limit the approver typed (optional) | nothing. It is advice, like the purchase order |
+| over the purchase order | this page: lines whose policy is met are added up per purchase order, in line order, against the limit the invoice file states | nothing. It is advice: the statement still says the line's policy is met, `knos statement approve` would authorise its payment, and no program knows a purchase order |
+| over your approval limit | this page: a line whose policy is met, above the limit the approver typed (optional) | nothing. It is advice, like the purchase order |
 
-**The policy.** `knos.approval-policy` version 1 (`POLICY` in the module): a line is ordinary when the statement calls
-it agreed, the agreed lines stay within their purchase order, and the line is within the approver's limit. Ordinary
+**The policy.** `knos.approval-policy` version 1 (`POLICY` in the module): a line is ordinary when the statement says
+its policy is met, those lines stay within their purchase order, and the line is within the approver's limit. Ordinary
 lines resolve themselves into one action, **Approve N ordinary lines**; every other line is an exception, read on its
 own, in the words above. The version changes whenever a rule does, so a record is always read against its own rules.
 

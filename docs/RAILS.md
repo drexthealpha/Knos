@@ -13,10 +13,10 @@ channel first.
 | Step | Who | Command | What comes out |
 | --- | --- | --- | --- |
 | 1. Evidence | buyer or supplier | `knos shadow invoice.csv --out run/` (or a closed month, or a log of events) | `evidence.json`: the invoice and what the forge recorded about each line |
-| 2. Statement | either | `knos statement make run/evidence.json --invoice INV-1 --currency USD` | `ap-statement.json`, `.csv`, `.pdf`: each line agreed, disputed, duplicate or without enough evidence |
-| 3. Approval | the approver | `knos statement approve ap-statement.json --agreed --by NAME --role ROLE` | the agreed lines approved in `ap-statement.status.json`; every exception stays open |
+| 2. Statement | either | `knos statement make run/evidence.json --invoice INV-1 --currency USD` | `ap-statement.json`, `.csv`, `.pdf`: each line policy met, disputed, duplicate or without enough evidence, and its four steps: policy satisfied, parties accepted, payment authorised, settled |
+| 3. Approval | the approver | `knos statement approve ap-statement.json --agreed --by NAME --role ROLE` | payment authorised for the lines whose policy is met, in `ap-statement.status.json`; every exception stays open |
 | 4. Instruction file | the payer | `knos statement pay ap-statement.json --rail bank --payer-name N --payer-account IBAN --payees payees.csv` | `ap-statement.pain001.xml`, and a record of it in the status file |
-| 5. Status | the payer | `knos statement status ap-statement.json --from bank-answer.xml` | each line paid, or payable again with the bank's reason |
+| 5. Status | the payer | `knos statement status ap-statement.json --from bank-answer.xml` | each line paid, payable again with the bank's reason, or held as unknown when the answer is not clear |
 
 `payees.csv` has one row a supplier: `supplier,name,account,bic`. The supplier is the statement's own word for it. The
 account is an IBAN (its check digits are verified) or another account number of up to 34 letters and digits.
@@ -36,7 +36,7 @@ per supplier.
 
 | In the file | What it is |
 | --- | --- |
-| Which lines | Only lines that are agreed, approved, still payable, and in no earlier instruction file that the bank has not returned. A disputed or duplicate line, or one without enough evidence, is never in it. |
+| Which lines | Only lines whose policy is met and whose payment is authorised, still payable, and in no earlier instruction file that the bank has not returned. A disputed or duplicate line, or one without enough evidence, is never in it. |
 | `EndToEndId` | The settlement id (`stl_` and 24 hex characters, 28 characters; the field takes 35). It is made from the statement's hash, the supplier and the invoice lines the transfer pays, so the bank's statement, the supplier's and the Knos statement name one payment by one id. |
 | `InstdAmt` | The sum of the supplier's lines, in whole cents, in the statement's currency. |
 | `RmtInf/Ustrd` | First `KNOS <the statement's sha256> INV <invoice number>`, then the invoice line ids, four to a line. Each is at most 140 characters. |
@@ -96,7 +96,8 @@ types what their bank statement shows.
 | --- | --- |
 | `ACSC`, `ACCC`, or `paid` | each line of the transfer is paid outside Knos; its settlement id is the end-to-end id |
 | `RJCT`, `CANC`, or `failed` | each line is payable again, with the bank's code and reason; the next instruction file names it under a new end-to-end id |
-| `ACTC`, `ACCP`, `ACSP`, `ACWC`, `PDNG`, or `pending` | nothing: the transfer is still with the bank |
+| `ACTC`, `ACCP`, `ACSP`, `ACWC`, `ACWP`, `ACFC`, `RCVD`, `PART`, `PATC`, `PDNG`, or `pending` | nothing: the transfer is still with the bank |
+| `timeout`, `no answer`, `unknown`, `error`, or a code not in this table | each line is held as **unknown**: the money may have left. No new instruction file names the line until a later answer says paid or returned |
 
 `ACSC` (settlement complete) and `RJCT` (rejected) are read as one bank's developer pages describe them
 ([Goldman Sachs Transaction Banking, payment status](https://developer.gs.com/docs/services/transaction-banking/best-practices-iso-paystatus/),
@@ -107,6 +108,27 @@ was not read from a primary page here.
 
 Reading the same answer twice changes nothing. A transfer no instruction file of this statement names is said and
 skipped.
+
+The status code list was checked on 2026-10-09 against
+[Token.io's table of ISO 20022 payment status codes](https://docs.token.io/products/tpp/sip/sip-v2/iso-20022), which
+also lists `PATC` (partially accepted, technically correct) and says the final status is not standardised across banks.
+
+### An answer that is not clear is never a no
+
+A payment adapter that retries after a timeout can pay twice. So Knos never treats an unclear answer as a rejection:
+
+- An unclear answer holds each line of the transfer as unknown. The statement, its CSV and PDF, and the site show the
+  line held, with "the bank's answer is not clear" and the code. `knos.rails.unknown` lists such lines.
+- Only a later status file resolves it. Paid: the line is paid. Returned: the line is payable again, and the next file
+  names it under a new end-to-end id. An unclear answer after a return holds the line again: the first transfer may
+  have left after all.
+- One end-to-end id, one instruction. `knos.rails.instruct` refuses a file that would reuse an id or a message id an
+  earlier file of the statement used, whatever else the status file says.
+- A payment reported for a line already paid under another end-to-end id is said as PAID TWICE, so the payer asks the
+  supplier to return one. Acceptance is still charged once (below).
+
+`tests/test_statement_rails.py` checks each rule. Knos never asks a bank: the payer uploads the file and records the
+answer. No bank has taken a file Knos wrote.
 
 ## One fee, whichever rail
 

@@ -148,10 +148,114 @@ def test_on_a_cluster_k_fee_accounts_are_named_to_the_relays_for_the_run_and_the
     assert "KNOS_FEE_SHARDS" not in os.environ                      # put back as it was
 
 
-def test_the_one_relay_run_of_8_october_stays_on_the_page_as_measured_and_the_new_path_as_not_measured():
+def test_the_one_relay_run_and_the_four_relay_run_of_8_october_stand_side_by_side_as_measured():
     doc = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))
     run = [m for m in doc["measured"] if m.get("kind") == "pay" and m.get("date") == "2026-10-08"]
-    assert len(run) == 1 and (run[0]["relays"], run[0]["paid"], run[0]["attempted"], run[0]["paid_per_s"], run[0]["seconds"]) == (1, 40, 40, 0.097, 412.74)
+    assert [(m["relays"], m["paid"], m["attempted"], m["paid_per_s"], m["seconds"], m["fee_accounts"]) for m in run] == [
+        (1, 40, 40, 0.097, 412.74, 1), (4, 40, 40, 0.189, 211.27, 4)]
+    four = run[1]
+    assert [r["paid"] for r in four["per_relay"]] == [16, 8, 5, 11] and four["per_fee_account"] == [14, 9, 9, 8]
+    assert (four["payment_s"]["p50"], four["payment_s"]["p95"], four["payment_s"]["max"], four["lanes"]) == (11.45, 22.61, 34.9, "order")
     page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
     assert "2026-10-08: end-to-end PayOrder: token verification, then the payment; 1 relay, 40 payments attempted" in page
-    assert "ONE relay carried all of them" in page and "**Not measured: payments by order over several relays and K fee accounts.**" in page
+    assert "2026-10-08: end-to-end PayOrder: token verification, then the payment; 4 relays, 40 payments attempted" in page
+    assert "ONE relay carried all of them" in page and "Not measured: payments by order over several relays" not in page
+    assert "against 40 of 40 payments, 0.097 a second, through one relay and one fee account (2026-10-08): 1.95 times the rate" in page
+
+
+# == contention scenarios ==============================================================================================
+@pytest.mark.parametrize("scenario", sorted(load_pay.SCENARIOS))
+def test_each_contention_scenario_runs_in_the_simulator_with_its_own_checks_and_no_rate(scenario):
+    """hot-funder: one fee account written by every relay; rpc-faults: refusals and lost answers injected, a resend
+    after a lost answer refused by the program, nobody paid twice; priority-fee: the lamports a priced PayOrder costs
+    over an unpriced one are exactly ceil(price x limit / 1,000,000); burst: every token open before the first payment."""
+    pytest.importorskip("solders.litesvm")
+    got = load_pay.simulate(2, 6, fee_accounts=2, scenario=scenario)
+    assert got["ok"] and all(got["checks"].values()), got["checks"]
+    assert (got["attempted"], got["paid"], got["scenario"], got["rate"]) == (6, 6, scenario, None)
+    if scenario == "rpc-faults":
+        f = got["faults_injected"]
+        assert f["refused"] and f["lost"] and f["resent_and_refused"] and got["retries"] > 0
+    if scenario == "priority-fee":
+        assert got["priority_lamports_expected"] == 14_000
+        assert got["lamports_per_payorder"]["with_price"][0] - got["lamports_per_payorder"]["without"][0] == 14_000
+    if scenario == "hot-funder":
+        assert got["fee_accounts"] == 1 and got["fee_accounts_used"] == 1
+    if scenario == "burst":
+        assert got["tokens_open_at_once"] == 6
+
+
+class _Inner:
+    """A ledger that takes every send and remembers its instructions."""
+    def __init__(self):
+        self.sent = []
+
+    def send(self, ixs, payer, signers=None, v1=False):
+        self.sent.append(list(ixs))
+        return f"s{len(self.sent)}"
+
+
+def _lanes(monkeypatch, n: int):
+    from knos.settle.v2 import relay
+    monkeypatch.setattr(relay, "lane", lambda jwt: jwt)
+    return [{"kind": "pay", "jwt": f"t{i}"} for i in range(n)]
+
+
+def test_rpc_faults_on_a_cluster_retry_and_count_a_lost_answer_as_paid_only_when_this_run_sent_it(monkeypatch):
+    tokens = _lanes(monkeypatch, 12)
+    inner, done = _Inner(), set()
+
+    def send(ledger, key, kind, jwt):         # a relay: one send, which the chain keeps; once it has it, it answers "already"
+        if jwt in done:
+            return {"ok": True, "already": True}
+        inner.now = jwt
+        ledger.send([], key)
+        return {"ok": True}
+    real = inner.send
+    inner.send = lambda ixs, payer, signers=None, v1=False: (done.add(inner.now), real(ixs, payer, signers, v1))[1]
+    got = load_pay.on_cluster(None, Keypair.from_seed(bytes(32)), 1, tokens, ledger=inner, relay_one=send, lend=lambda k: True,
+                              sweep=lambda k: None, scenario="rpc-faults")
+    f = got["faults_injected"]
+    assert f["refused"] + f["lost"] > 0 and got["retries"] >= f["refused"] + f["lost"] - got["never_completed"]
+    assert got["already"] == 0 and got["paid"] + got["never_completed"] == 12 and len(done) == len(inner.sent)
+    assert got["scenario"] == "rpc-faults" and "measures" in got
+
+
+def test_priority_fee_on_a_cluster_puts_the_price_beside_the_limit_on_every_legacy_transaction_with_room(monkeypatch):
+    from solders.compute_budget import ID as BUDGET
+
+    from knos import chain
+    tokens = _lanes(monkeypatch, 3)
+    inner = _Inner()
+    got = load_pay.on_cluster(None, Keypair.from_seed(bytes(32)), 1, tokens, ledger=inner, lend=lambda k: True, sweep=lambda k: None,
+                              relay_one=lambda led, key, kind, jwt: (led.send([chain.set_compute_unit_limit(1)], key), {"ok": True})[1],
+                              scenario="priority-fee", cu_price=7)
+    assert got["paid"] == 3 and got["priority"] == {"priced": 3, "no_room": 0} and got["cu_price_micro_lamports"] == 7
+    for ixs in inner.sent:      # the relay's own limit kept, the price added, nothing else
+        assert [ix.program_id for ix in ixs] == [BUDGET, BUDGET] and bytes(ixs[0].data)[:1] == b"\x03" and int.from_bytes(bytes(ixs[0].data)[1:9], "little") == 7
+
+
+def test_burst_on_a_cluster_sends_a_relays_payments_at_once_and_hot_funder_needs_one_funder(monkeypatch):
+    import threading
+    tokens = _lanes(monkeypatch, 3)
+    together = threading.Barrier(3, timeout=30)
+
+    def send(ledger, key, kind, jwt):         # passes only if all three are in flight at the same time
+        together.wait()
+        return {"ok": True}
+    got = load_pay.on_cluster(None, Keypair.from_seed(bytes(32)), 1, tokens, relay_one=send, lend=lambda k: True, sweep=lambda k: None,
+                              scenario="burst")
+    assert (got["paid"], got["never_completed"], got["ok"]) == (3, 0, True)
+    monkeypatch.setattr(load_pay, "_owner", lambda jwt: jwt)        # three tokens, three owners
+    got = load_pay.on_cluster(None, Keypair.from_seed(bytes(32)), 1, tokens, relay_one=lambda *a: {"ok": True}, lend=lambda k: True,
+                              sweep=lambda k: None, scenario="hot-funder")
+    assert got["ok"] is False and "one funder" in got["stopped"] and got["fee_accounts"] == 1
+
+
+def test_the_page_says_what_each_scenario_measures_and_which_have_run():
+    page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
+    for name, words in load_pay.SCENARIOS.items():
+        row = next(line for line in page.splitlines() if line.startswith(f"| {name} | "))
+        assert words in row and "local simulator" in row and "every check holds" in row
+        assert row.endswith("| not run yet |") or "public program ids" in row
+    assert "0.189" in page and "16, 8, 5 and 11" in page and "14, 9, 9 and 8" in page and "37833126115" in page

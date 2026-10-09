@@ -322,10 +322,20 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Chromium starts (with no browser the job stops here; it does not go on and skip)
         run: node -e "import('playwright').then(async (pw) => { const b = await pw.chromium.launch(); console.log('chromium', b.version()); await b.close(); })"
-      - run: pytest -q -n auto --dist worksteal --no-skips --junitxml=junit/site.xml tests/test_site_*.py
+      # tests/web/motion.mjs TIMES the browser: a change of page that takes over MORPH_BUDGET_MS (web/motion.js) stops the
+      # crossings that follow, and the test then sees none. Beside three other Chromiums on this runner's cores it timed
+      # them, not the page (run 37878140249: seen []), so it runs after the rest, alone, against the same bound.
+      - run: pytest -q -n auto --dist worksteal --no-skips --junitxml=junit/site.xml tests/test_site_*.py --deselect "$TIMED"
+        env:
+          TIMED: tests/test_site_overflow.py::test_the_budget_of_words_weight_and_motion_holds
+      - name: the test that times the browser, alone on the runner
+        if: ${{ !cancelled() }}
+        run: pytest -q --no-skips --junitxml=junit/site-timed.xml "$TIMED"
+        env:
+          TIMED: tests/test_site_overflow.py::test_the_budget_of_words_weight_and_motion_holds
       - name: the time of these tests and the slowest; over 5 minutes fails
         if: ${{ !cancelled() }}
-        run: python scripts/suite_time.py --markdown --limit 300 junit/site.xml >> "$GITHUB_STEP_SUMMARY"
+        run: python scripts/suite_time.py --markdown --limit 300 junit/site.xml junit/site-timed.xml >> "$GITHUB_STEP_SUMMARY"
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

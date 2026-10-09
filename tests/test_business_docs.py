@@ -195,8 +195,8 @@ def test_unit_costs_states_the_three_leaks_with_their_sizes():
                     f"{r['first_relayer_net'].replace('-', '−')} | {r['first_fee_owner']} |") in raw, (build["build"], r["amount"])
     assert "the fee owner earns nothing on a release of 16.66 or less" in page and "first payment of 100.00 or less" in page
     n = billing.netting_example()
-    assert (n["alone_share"], n["netted_share"], n["reaches_rate"]) == ("5.05%", "0.30%", 19)
-    assert "| charged by itself | 0.05, the floor | 5.05% |" in raw and "| 0.30 for the release | 0.30% |" in raw and "From 19 such outcomes" in page
+    assert (n["alone_share"], n["netted_share"], n["reaches_rate"]) == ("5.05%", "0.30%", 17)
+    assert "| charged by itself | 0.05, the floor | 5.05% |" in raw and "| 0.30 for the release | 0.30% |" in raw and "From 17 such outcomes" in page
     assert "is a gross margin of 85%: gross, before" in page and "for 95%, 5,000" in page and 5_000 // 75 == 66 and "66 hours a year" in page
     assert (100_000 - 15_000) / 100_000 == 0.85 and "None of the three figures is measured." in page
 
@@ -529,3 +529,33 @@ def test_market_builds_acceptance_bottom_up_and_reconfirms_the_three_competitors
         assert says in line and "8 Oct 2026" in line, link
     beyond = raw.split("What Knos sells beyond each, one line each:")[1].split("What Knos is that they are not")[0]
     assert len([r for r in beyond.splitlines() if r.startswith("| ") and not r.startswith("| who")]) == 3
+
+
+def test_micro_outcomes_are_worked_from_the_price_book_and_say_netting_moves_transfers_not_evaluation_cost():
+    from decimal import ROUND_HALF_UP, Decimal
+
+    from knos import billing
+    raw, page = read("docs/UNIT_COSTS.md"), flat("docs/UNIT_COSTS.md")
+    part = raw.split("## Micro-outcomes: a different delivery")[1].split("\n## ")[0]
+    value = billing.NET_EXAMPLE[0]
+    accept = (value * billing.ACCEPT_RATE).normalize()                         # netted: the floor once per release, not per outcome
+    earned = (accept + billing.METER_PRICE).normalize()
+    at90, at95, free95 = earned * Decimal("0.10"), earned * (1 - billing.TARGET), accept * (1 - billing.TARGET)
+    six = lambda d: str(d.quantize(Decimal("0.000001"), ROUND_HALF_UP))     # noqa: E731 - USD to the millionth, halves up
+    assert (value, accept, earned) == (Decimal("0.99"), Decimal("0.00297"), Decimal("0.00497"))
+    rows = dict(re.findall(r"(?m)^\| (.+?) \| (\S+) \|$", part))
+    assert rows["Meter, one evaluation past the free ones"] == str(billing.METER_PRICE)
+    assert [v.strip("*") for k, v in rows.items() if k.startswith("Acceptance")] == [str(accept)]
+    assert rows["**What Knos earns**"] == f"**{earned}**" and rows["the most it may cost to deliver at a gross margin of 90%"] == six(at90)
+    assert rows["**the most it may cost to deliver at a gross margin of 95%**"] == f"**{six(at95)}**" == "**0.000249**"
+    assert any(k.startswith("the same at 95% while the evaluation is still one of the month's 100,000 free ones") and v == six(free95)
+               for k, v in rows.items()) and billing.METER_FREE == 100_000
+    assert "must stay below about 0.00025 USD" in page and round(at95, 5) == Decimal("0.00025")
+    costs = billing.unit_costs(json.loads(read("docs/unit_costs.json")))
+    evaluation, deliverable = Decimal(str(costs["evaluation"])), Decimal(str(costs["accepted_deliverable"]))
+    assert (evaluation, deliverable) == (Decimal("0.00005"), Decimal("0.10"))
+    assert round(evaluation / at95 * 5) == 1 and "about a fifth of the ceiling" in page                      # the evaluation fits
+    assert f"about {round(deliverable / at95)} times the ceiling" in page and round(deliverable / at95) == 402
+    assert f"target of {billing.DELIVERABLE_TARGET} is about {round(billing.DELIVERABLE_TARGET / at95)} times it" in page
+    assert "Netting moves transfers, not evaluation cost." in page and "high-value deliverables and micro-outcomes need different delivery" in page
+    assert "none of these costs is measured" in page and "https://www.intercom.com/pricing" in part

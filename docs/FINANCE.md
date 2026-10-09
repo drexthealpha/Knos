@@ -155,7 +155,7 @@ the invoice line, and a settlement once one is recorded), its amount, where its 
 
 | state | means | why, in the file |
 |---|---|---|
-| agreed | the evidence supports the line | |
+| policy met (written `agreed` in the file) | the evidence met the policy; nobody has accepted, authorised or paid it yet: those are the next three steps | |
 | disputed | the evidence contradicts it | "a check failed when this change was merged: test", "the pull request is not merged", "the two ledgers give this evaluation different verdicts" |
 | duplicate | the deliverable is billed already | "billed twice on this invoice: same pull request as line 1", "already billed: invoice INV-2026-09 line 1 agreed this deliverable on 2026-09-30" |
 | insufficient evidence | nothing says either way | "the checks give no verdict: no check ran", "GitHub could not be read for this line: rate limit" |
@@ -166,7 +166,7 @@ billed again is not a duplicate. In a shadow run the deliverable is the issue a 
 request when it closes none, so a second pull request for the same issue is caught and a second invoice for
 unrelated work in the same repository is not.
 
-**Approval.** `approve --agreed` records who approved the agreed lines, in which role and on which day. The other
+**Approval.** `approve --agreed` records who authorised payment of the lines whose policy is met (policy satisfied is the first of four steps; parties accepted, payment authorised and settled are recorded apart), in which role and on which day. The other
 lines stay open: no command here approves an exception. The role is written as stated; Knos has no accounts to check
 it against (`knos budget who` shows who may spend a Balance on chain, which is a different authority).
 

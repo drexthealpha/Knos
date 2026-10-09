@@ -11,7 +11,7 @@ version, and off chain. It reads the second deployment of knos-oidc unless you n
 account has the same layout under both.
 
 ```toml
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.22" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.23" }
 ```
 
 ```rust

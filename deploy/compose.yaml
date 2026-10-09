@@ -1,0 +1,53 @@
+# Knos in the buyer's own cloud (docs/SELFHOST.md). One image, built here from deploy/Dockerfile (bases pinned by digest,
+# packages by hash), run as three services. One config file, knos.toml, beside this file; key files in ./secrets.
+#
+#   python -m knos.selfhost check deploy/knos.toml      what will run, and which key files it reads
+#   python -m knos.selfhost plan deploy/knos.toml       the services to start, and the command that starts them
+#
+# Ports are published on 127.0.0.1 only: put the buyer's identity proxy in front of them (docs/SELFHOST.md).
+# Knos runs none of this and hosts nothing.
+
+x-knos: &knos
+  image: knos-selfhost:local
+  pull_policy: build             # never pulled from a registry: built from the Dockerfile, whose bases are pinned by digest
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+    args:
+      KNOS_COMMIT: ${KNOS_COMMIT:?set KNOS_COMMIT to the full commit you build from}
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: [/tmp]
+  volumes:
+    - ./knos.toml:/etc/knos/knos.toml:ro
+    - ./secrets:/run/secrets:ro
+
+services:
+  record:
+    <<: *knos
+    command: ["run", "record", "--config", "/etc/knos/knos.toml"]
+    ports: ["127.0.0.1:8402:8402"]
+    volumes:
+      - ./knos.toml:/etc/knos/knos.toml:ro
+      - ./secrets:/run/secrets:ro
+      - ./records:/srv/knos/records:ro
+      - record-state:/var/lib/knos
+
+  relay:
+    <<: *knos
+    command: ["run", "relay", "--config", "/etc/knos/knos.toml"]
+    volumes:
+      - ./knos.toml:/etc/knos/knos.toml:ro
+      - ./secrets:/run/secrets:ro
+      - relay-state:/var/lib/knos
+
+  site:
+    <<: *knos
+    command: ["run", "site", "--config", "/etc/knos/knos.toml"]
+    ports: ["127.0.0.1:8080:8080"]
+
+volumes:
+  record-state: {}
+  relay-state: {}

@@ -680,8 +680,8 @@
  },
  "release": {
   "tests_passing": {
-   "value": 3788,
-   "source": "pytest (ubuntu-latest, 3.12) of tests.yml run 37826726338 on drexthealpha/knos-rc 9577c0014edff31d4c72b0c77e60be81c4c7b086, the staging tree of this release: 3788 passed, 55 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37826726338"
+   "value": 3860,
+   "source": "pytest (ubuntu-latest, 3.12) of tests.yml run 37882997946 on drexthealpha/knos-rc 2607fd0b9bbf4806e2581d07e9b89b0eb3981559, the staging tree of this release: 3860 passed, 55 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/37882997946"
   },
   "outside_prs_merged_and_paid": {
    "value": 3,

@@ -137,12 +137,42 @@ jobs:
           python-version: "3.12"
           enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
           ignore-empty-workdir: true
+      # A release commit reaches the default branch before PyPI lists the knos file the lock pins, and an install
+      # started then fails (0.3.22: this job, after the push). So the lock is written to a file, and the install waits
+      # for that exact file as the worker's claims job does with scripts/pypi_wait.py, written in here because this job
+      # checks nothing out: standard library only, PyPI's simple index in its JSON form (PEP 691), pauses of 5, 10, 20,
+      # 40 then 60 s, at most 10 minutes. A lock with no knos line (a rehearsal installs knos from its source) waits
+      # for nothing.
       - name: install knos and what it needs, each by its hash, and nothing else
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
-          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          cat > "$RUNNER_TEMP/knos.lock" <<'LOCK'
           KNOS_LOCK
           LOCK
+          python3 -I - "$RUNNER_TEMP/knos.lock" 600 <<'WAIT'
+          import json, re, sys, time, urllib.request
+          pin = re.search(r"(?m)^knos==(\S+) --hash=sha256:([0-9a-f]{64})$", open(sys.argv[1], encoding="utf-8").read())
+          if not pin:
+              sys.exit(print("the lock pins no knos file: nothing to wait for", flush=True))
+          version, sha, most, waited, pauses, seen = pin.group(1), pin.group(2), float(sys.argv[2]), 0.0, [5, 10, 20, 40], "nothing yet"
+          while True:
+              try:
+                  ask = urllib.request.Request("https://pypi.org/simple/knos/", headers={"Accept": "application/vnd.pypi.simple.v1+json", "Cache-Control": "no-cache"})
+                  with urllib.request.urlopen(ask, timeout=30) as r:
+                      files = json.loads(r.read().decode("utf-8")).get("files") or []
+                  if any(str(f.get("filename") or "").startswith(f"knos-{version}-") and (f.get("hashes") or {}).get("sha256") == sha for f in files):
+                      sys.exit(print(f"PyPI lists knos {version} with the pinned hash (after {waited:.0f} s)", flush=True))
+                  seen = f"no file of knos {version} with the pinned hash"
+              except (OSError, ValueError) as why:
+                  seen = f"{type(why).__name__}: {why}"
+              pause = pauses.pop(0) if pauses else 60
+              if waited + pause > most:
+                  sys.exit(f"PyPI did not list knos {version} with the pinned hash within {most:.0f} s; last seen: {seen}")
+              print(f"waiting {pause} s for knos {version} on PyPI ({seen})", flush=True)
+              time.sleep(pause)
+              waited += pause
+          WAIT
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock"
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       - name: knos settle
         env:
@@ -185,7 +215,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.22"
+        run: uv tool install --no-config "knos==0.3.23"
       - name: knos review
         id: review
         env:
@@ -256,7 +286,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.22"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.23"
       # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
       # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
       # sandbox cannot be made here, the job ends now.

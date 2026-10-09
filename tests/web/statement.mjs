@@ -25,7 +25,7 @@ same("the next invoice's CSV, with the line billed before", await fd.statementCs
 for (const fmt of fd.STATEMENT_FORMATS) same(`the ${fmt} file`, await fd.statementExport(fmt, st, status, { account: "6100 Contract engineering" }), read(`sept.${fmt}.csv`));
 same("four states on one invoice", fd.statementLines(st).map((r) => r.state), ["agreed", "disputed", "insufficient_evidence", "duplicate", "agreed"]);
 same("the duplicate across two statements", [oct.lines[0].state, oct.lines[0].duplicate_of], ["duplicate", `statement ${st.sha256.slice(0, 12)} line 1`]);
-same("who approved", Object.fromEntries(fd.statementAnswers(st, status)).Approved, "2 agreed lines, 160.00 USD by Dana Reyes (finance controller) on 2026-10-01, role as stated");
+same("who approved", Object.fromEntries(fd.statementAnswers(st, status)).Approved, "2 lines, 160.00 USD by Dana Reyes (finance controller) on 2026-10-01, role as stated");
 same("every line says its assurance level, computed", fd.statementLines(st, status).map((r) => r.assurance), ["reported", "reported", "reported", "not evaluated", "reported"]);
 for (const n of [0, 1, 3]) same(`the goods-received note of line ${n + 1} is the Python's`, fd.canonicalText(fd.statementGrn(st, status, st.lines[n].invoice_line)), read(`sept.grn.${n + 1}.json`));
 const noted = json("sept.grn.status.json");

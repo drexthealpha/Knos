@@ -1,6 +1,10 @@
 // The front door: check your own invoice before anything else. One box takes a supplier's invoice (CSV, or lines of
 // pull request links) or the name of a public repository; the answer is drawn in place: the supplier's count beside
-// the neutral count, then every line in one of four groups. No install, no login, nothing sent to Knos.
+// the neutral count, then every line in one of four groups, each line with its four steps (policy satisfied, parties
+// accepted, payment authorised, settled: web/line_steps.js). A line whose checks passed is "policy met", never
+// "agreed": nobody accepted or authorised it until someone does, here or in the statement. Left unauthorised more than
+// ACCEPT_DAYS after the statement's day, it is owed to the supplier, with the supplier's appeal one click away.
+// No install, no login, nothing sent to Knos.
 //
 //   renderFrontDoor(el[, env])    the control in `el` (index.html: <form id="front-door">) and its result
 //   LINE_STATES, LINE_WORDS       src/knos/ids.py's, mirrored (tests/web/front_door.mjs holds the two together)
@@ -13,9 +17,15 @@
 import { parse, pullOf, gather, statement, recorded, githubReader, Unread, ANONYMOUS_AN_HOUR, LINE_COSTS } from "./shadow.js";
 import { parseRepo, installLink, pinnedFile, INSTALL_WORKFLOW } from "./install.js";
 import { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } from "./front_door_sample.js";
+import { stepRowHtml, shadowSteps, markSteps, stepStyle } from "./line_steps.js";
 
 export const LINE_STATES = ["agreed", "disputed", "duplicate", "insufficient_evidence"];
-export const LINE_WORDS = { agreed: "agreed", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
+export const LINE_WORDS = { agreed: "policy met", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
+export const ACCEPT_DAYS = 30;            // knos.statement.ACCEPT_DAYS: the acceptance window when none is given
+export const APPEAL = "https://github.com/drexthealpha/Knos/blob/main/docs/DISPUTES.md#the-path";
+const daysBetween = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+/** Is a line owed to the supplier on `today`: its policy met, nobody authorised it, and the window after `since` has passed? */
+export const isOwed = (row, since, today, decided = null) => row.class === "clean" && !decided && Boolean(since) && daysBetween(since, today) > ACCEPT_DAYS;
 const STATE_OF = { clean: "agreed", failed: "disputed", not_merged: "disputed", duplicate: "duplicate", unverified: "insufficient_evidence", unreadable: "insufficient_evidence" };
 export const stateOf = (row) => STATE_OF[row.class] || "insufficient_evidence";
 
@@ -55,8 +65,9 @@ export async function repoInvoice(at, get) {
     known: new Map(merged.map((p) => [`repos/${repo}/pulls/${p.number}`, p])) };
 }
 
-/** The seven answers for one line: { key: { text, href } }. `pull`: GitHub's own record of it, when it was read. */
-export function answers(row, pull = null) {
+/** The seven answers for one line: { key: { text, href } }. `pull`: GitHub's own record of it, when it was read.
+ *  `owed`: the line is owed to the supplier (isOwed); `decided`: { by, on } when it was accepted and authorised here. */
+export function answers(row, pull = null, owed = false, decided = null) {
   const state = stateOf(row), home = row.pr.split("#")[0], by = pull && pull.merged_by && pull.merged_by.login, same = row.class === "duplicate" && row.merged === null;
   const unread = row.class === "unreadable" ? "not read" : same ? `see line ${row.duplicate_of}` : "";
   const passed = row.checks.filter((c) => c.state === "passed").length;
@@ -67,8 +78,8 @@ export function answers(row, pull = null) {
     passed: unread ? { text: unread } : !row.merged ? { text: "nothing ran" } : row.failed.length ? { text: `failed: ${row.failed.map((f) => f.name).join(", ")}`, href: row.failed[0].url }
       : row.checks.length ? { text: `${passed} of ${row.checks.length} checks` } : { text: "no check ran" },
     billed_before: { text: row.duplicate_of ? `yes, line ${row.duplicate_of}` : "no" },
-    approved_by: { text: "nobody yet" },
-    owed: { text: state === "agreed" ? (row.amount ?? "1 change") : state === "disputed" ? "nothing: disputed" : state === "duplicate" ? "nothing: billed twice" : "undecided" },
+    approved_by: { text: decided && state === "agreed" ? `${decided.by}, ${decided.on}` : "nobody yet" },
+    owed: { text: state === "agreed" ? `${row.amount ?? "1 change"}${decided ? ", authorised" : owed ? ", to the supplier" : " once authorised"}` : state === "disputed" ? "nothing: disputed" : state === "duplicate" ? "nothing: billed twice" : "undecided" },
     evidence: row.url ? { text: "pull request", href: row.url } : { text: "none" },
   };
 }
@@ -88,6 +99,7 @@ const STYLE = `.fd textarea{min-height:64px;font-size:15px;resize:vertical}.fd .
 .fd-group[data-empty]{opacity:.55}.fd-line{padding:10px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.fd-line p{margin:0 0 6px}.fd-line .fd-why{color:var(--ink-2)}
 .fd-line dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px 12px;margin:0}.fd-line dt{font-size:12px;color:var(--ink-2)}.fd-line dd{margin:0}
 .fd-line[data-approved]{background:color-mix(in srgb,var(--ok) 9%,transparent);transition:background var(--dur-2) var(--ease)}
+.fd-line[data-owed]{border-left:3px solid var(--accent);padding-left:9px}.fd-owed{margin:6px 0 0;font-weight:600}
 .hero:has(>#front-result:not([hidden])) .hero-board{display:none}
 .fd-under{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;margin:16px 0 8px}.fd-result [hidden]{display:none}`;
 
@@ -96,6 +108,7 @@ const STYLE = `.fd textarea{min-height:64px;font-size:15px;resize:vertical}.fd .
 export function renderFrontDoor(el, env = {}) {
   const doc = el.ownerDocument, fetchFn = env.fetch || ((...a) => globalThis.fetch(...a));
   if (!doc.getElementById("fd-style")) { const s = doc.createElement("style"); s.id = "fd-style"; s.textContent = STYLE; doc.head.appendChild(s); }
+  stepStyle(doc);
   if (!el.querySelector("textarea")) {
     el.classList.add("fd");
     el.innerHTML = `<textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="A supplier's invoice, or a public repository" placeholder="Paste an invoice, or type owner/repo"></textarea>
@@ -114,11 +127,11 @@ export function renderFrontDoor(el, env = {}) {
     out.innerHTML = `<p data-fd="mark" class="fine" hidden>Sample: a made-up invoice from a made-up supplier.</p>
       <p data-fd="said" role="status" aria-live="polite">${esc(said)}</p>
       <div class="fd-counts" data-fd="counts" hidden><div><p class="k-kicker" data-fd="theirs-name">${esc(theirs)}</p><span class="k-num fd-big" data-fd="theirs">0</span><span data-fd="theirs-sum"></span></div>
-        <div><p class="k-kicker">Neutral count</p><span class="k-num fd-big" data-fd="ours">0</span><span data-fd="ours-sum">agreed so far</span></div></div>
+        <div><p class="k-kicker">Neutral count</p><span class="k-num fd-big" data-fd="ours">0</span><span data-fd="ours-sum">policy met so far</span></div></div>
       <ol class="fd-pending" data-fd="pending"></ol>
       <div class="fd-groups" data-fd="groups" hidden>${LINE_STATES.map((s) => `<section class="fd-group" data-group="${s}" data-empty><h3><span>${esc(cap(LINE_WORDS[s]))}</span> <span class="k-num" data-count>0</span></h3><ol></ol></section>`).join("")}</div>
       <div data-fd="after" hidden>
-        <p class="fd-under"><button type="button" class="k-btn" data-fd="approve">Approve agreed lines</button>
+        <p class="fd-under"><button type="button" class="k-btn" data-fd="approve">Accept and authorise</button>
           <button type="button" class="k-btn quiet" data-fd="csv">Download CSV</button>
           <a data-fd="statement" href="#invoice-statement">Open the statement</a></p>
         <p data-fd="approved" role="status" aria-live="polite"></p>
@@ -131,12 +144,15 @@ export function renderFrontDoor(el, env = {}) {
     // the answer is brought into the window, so the lines are seen as they sort (a reader who asked for no movement gets it at once)
     out.scrollIntoView?.({ block: "nearest", behavior: motion && !motion.prefersReduced() ? "smooth" : "auto" });
   };
-  const lineHtml = (row, pull) => {
-    const a = answers(row, pull), why = whyOf(row);
+  const lineHtml = (row, pull, owed = false) => {
+    const a = answers(row, pull, owed), why = whyOf(row);
     return `<p><span class="k-num">Line ${row.line}</span> · ${row.url ? link(row.url, row.pr) : esc(row.pr || "no pull request")}${row.amount ? ` · <span class="k-num">${esc(row.amount)}</span>` : ""}</p>
       ${why ? `<p class="fd-why">${esc(why)}</p>` : ""}
-      <dl>${COLUMNS.map(([key, name]) => `<div><dt>${esc(name)}</dt><dd data-col="${key}">${link(a[key].href, a[key].text)}</dd></div>`).join("")}</dl>`;
+      ${stepRowHtml(shadowSteps(row))}
+      <dl>${COLUMNS.map(([key, name]) => `<div><dt>${esc(name)}</dt><dd data-col="${key}">${link(a[key].href, a[key].text)}</dd></div>`).join("")}</dl>
+      ${owed ? owedHtml() : ""}`;
   };
+  const owedHtml = () => `<p class="fd-owed" data-fd-owed>Owed to the supplier: policy met, unauthorised ${ACCEPT_DAYS} days. <a href="${APPEAL}" target="_blank" rel="noopener">Supplier: appeal</a></p>`;
 
   async function run(sample = false) {
     if (busy) { again = !sample && box.value !== checking; return; }     // asked while a check runs: what the box holds now is checked next, when it is not what is being checked
@@ -183,7 +199,7 @@ export function renderFrontDoor(el, env = {}) {
     const count = (el, n) => { if (motion && motion.countTo) motion.countTo(el, n, { digits: 0 }); else el.textContent = String(n); };
     count($("theirs"), invoice.lines.length);
     const tally = () => {
-      const agreed = rows.filter((r) => stateOf(r) === "agreed");
+      const agreed = rows.filter((r) => stateOf(r) === "agreed");      // policy met: the checks passed, and nothing more
       count($("ours"), agreed.length);
       for (const s of LINE_STATES) { const g = out.querySelector(`[data-group="${s}"]`), n = rows.filter((r) => stateOf(r) === s).length; count(g.querySelector("[data-count]"), n); g.toggleAttribute("data-empty", n === 0); }
     };
@@ -209,8 +225,18 @@ export function renderFrontDoor(el, env = {}) {
     const st = statement(invoice, facts), agreed = st.lines.filter((r) => stateOf(r) === "agreed"), left = st.lines.length - agreed.length;
     if (priced && st.amounts) {
       $("theirs-sum").textContent = `lines, ${st.amounts.billed} billed`;
-      $("ours-sum").textContent = `lines, ${st.amounts.clean} agreed`;
-    } else $("ours-sum").textContent = agreed.length === 1 ? "line agreed" : "lines agreed";
+      $("ours-sum").textContent = `lines, ${st.amounts.clean} policy met`;
+    } else $("ours-sum").textContent = agreed.length === 1 ? "line, policy met" : "lines, policy met";
+    // OWED: the statement's day is the last merge (knos.statement.from_shadow); a line whose policy is met and that nobody
+    // authorised within the window after it is owed to the supplier, and says so beside the supplier's appeal
+    const merged = st.lines.map((r) => r.merged_at).filter(Boolean).map((t) => t.slice(0, 10)).sort(), since = merged[merged.length - 1] || "";
+    const today = (env.now || new Date()).toISOString().slice(0, 10), owed = agreed.filter((r) => isOwed(r, since, today));
+    for (const r of owed) {
+      const li = out.querySelector(`.fd-line[data-line="${r.line}"]`);
+      if (!li) continue;
+      li.dataset.owed = "1"; li.querySelector('[data-col="owed"]').textContent = answers(r, null, true).owed.text;
+      li.insertAdjacentHTML("beforeend", owedHtml());
+    }
     const at = repo ? what.repo : sample ? null : (() => {      // an invoice: the repository most of its lines name, on the branch GitHub says is its default
       const seen = {}; for (const ln of invoice.lines) if (ln.repo) seen[ln.repo.toLowerCase()] = [(seen[ln.repo.toLowerCase()] || [0])[0] + 1, ln];
       const top = Object.values(seen).sort((a, b) => b[0] - a[0])[0];
@@ -227,7 +253,8 @@ export function renderFrontDoor(el, env = {}) {
     last = { st, pulls, approved: "", status: null, made: null, bundle: { invoice: text, answers: book }, meta: sample ? SAMPLE_META : {} };
     made().catch(() => {});                 // the statement itself, made beside the page's own count and handed to the Statement page
     out.dataset.done = "1";
-    finish(budget.spent ? "GitHub's hourly limit reached. Unread lines stay insufficient evidence." : `Checked ${st.lines.length} ${st.lines.length === 1 ? "line" : "lines"}. ${left} ${left === 1 ? "exception" : "exceptions"}.`);
+    finish(budget.spent ? "GitHub's hourly limit reached. Unread lines stay insufficient evidence." : `Checked ${st.lines.length} ${st.lines.length === 1 ? "line" : "lines"}. ${left} ${left === 1 ? "exception" : "exceptions"}.`
+      + (owed.length ? ` ${owed.length} owed to the supplier.` : ""));
   }
 
   // THE STATEMENT: what `knos statement make` writes from the same invoice and the same answers (web/statement_make.js,
@@ -240,15 +267,22 @@ export function renderFrontDoor(el, env = {}) {
     if (!last || last.approved) return;
     const mine = last, day = (env.now || new Date()).toISOString().slice(0, 10), lines = [...out.querySelectorAll('.fd-line[data-state="agreed"]')];
     mine.approved = `you, ${day}`;
-    for (const li of lines) { li.dataset.approved = day; li.querySelector('[data-col="approved_by"]').textContent = mine.approved; }
+    const decided = { by: "you", on: day };
+    // two steps move, and only those: parties accepted, then payment authorised. Policy met was already so; settled is not.
+    for (const li of lines) {
+      const row = mine.st.lines.find((r) => String(r.line) === li.dataset.line);
+      li.dataset.approved = day; li.removeAttribute("data-owed"); li.querySelector("[data-fd-owed]")?.remove();
+      li.querySelector('[data-col="approved_by"]').textContent = mine.approved;
+      if (row) { li.querySelector('[data-col="owed"]').textContent = answers(row, null, false, decided).owed.text; markSteps(li, shadowSteps(row, decided)); }
+    }
     const left = mine.st.lines.length - lines.length;
-    $("approved").textContent = `Approved ${lines.length} ${lines.length === 1 ? "line" : "lines"}. ${left} ${left === 1 ? "exception" : "exceptions"} left.`;
+    $("approved").textContent = `Accepted and authorised ${lines.length} ${lines.length === 1 ? "line" : "lines"}. ${left} ${left === 1 ? "exception" : "exceptions"} left. Not paid.`;
     if (doc.activeElement === $("approve")) $("csv").focus();          // the focus is not left on a button that no longer works
     $("approve").disabled = true;
-    say(`Approved ${lines.length} ${lines.length === 1 ? "line" : "lines"}`);
-    // the approval is an event beside the statement, as `knos statement approve` records it: who says they approved, and the day
+    say(`Authorised ${lines.length} ${lines.length === 1 ? "line" : "lines"}`);
+    // two events beside the statement, as `knos statement accept` and `knos statement approve` record them: who, and the day
     const m = await import("./statement_make.js"), st = await made();
-    mine.status = m.approve(st, mine.status, "you", "approver", day);
+    mine.status = m.approve(st, m.accept(st, mine.status, "you", "approver", day), "you", "approver", day);
     if (last === mine) m.hand(st, mine.status);
   }
 

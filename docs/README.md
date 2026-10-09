@@ -91,6 +91,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 |---|---|
 | [GOVERNANCE.md](GOVERNANCE.md) | who can change what today, and three plans that are not done |
 | [KEYHOLDER.md](KEYHOLDER.md) | hold a member key: what it can do, and three steps to ask; outside holders today: 0 |
+| [SELFHOST.md](SELFHOST.md) | the record API, relay and approver in the buyer's own cloud: one image, one config file, no single sign-on yet |
 | [OPERATOR.md](OPERATOR.md) | a second person runs it from a clean machine; the drill nobody has run yet |
 | [TEAM.md](TEAM.md) | who builds it, and the three roles needed first, none filled |
 | [SECURITY.md](SECURITY.md) | who is trusted for what, every command and term, and every limit |

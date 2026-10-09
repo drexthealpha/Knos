@@ -3,8 +3,8 @@ scripts/video/demo.shots.json, docs/STORY.md).
 
 The demonstration is one transaction in seven beats and opens on the refusal: the first thing on screen after the
 title. No fee is spoken as a number: the fee on screen is read from the chain while it is recorded. The
-presentation is seven beats: buyer, problem, insight, evidence, team, business, and the limits in one sentence; no
-count is read out as a list of zeros. Everything here reads files.
+presentation opens on the finding, tells the same seven steps as one story, then the founder, the business, where it
+stands in one sentence and the ask; no count is read out as a list of zeros. Everything here reads files.
 """
 
 from __future__ import annotations
@@ -123,43 +123,56 @@ def test_the_shot_list_follows_the_script():
     assert "docs/MANIFEST.md" in by["seven"]["shows"] and "limits as one line" in by["seven"]["shows"]
 
 
-def test_the_pitch_is_buyer_problem_insight_evidence_team_business_and_one_sentence_of_limits():
+def test_the_pitch_opens_on_the_finding_tells_one_story_then_the_founder_the_zeros_and_the_ask():
     pitch = read("docs/submission/pitch_script.md")
     parts = said_in("docs/submission/pitch_script.md")
     heads = re.findall(r"(?m)^## (\d)\. (.+) \((\d:\d\d)\)$", pitch)
-    assert [h[1] for h in heads] == ["The buyer", "The problem", "The insight", "The evidence", "The team", "The business", "The limits"]
+    assert [h[1] for h in heads] == ["The finding", "One transaction, seven steps", "The evidence", "The founder", "The business",
+                                     "Where it stands", "The ask"]
     starts = [seconds(h[2]) for h in heads]
     assert starts == sorted(starts) and starts[0] == 0 and starts[-1] <= 170
-    for (_n, _name, a), (_m, _next, b), (_h, words) in zip(heads, heads[1:], parts):          # each beat fits before the next starts
+    for (_n, _name, a), (_m, _next, b), (_h, words) in zip(heads, heads[1:], parts):          # each part fits before the next starts
         assert len(words.split()) <= (seconds(b) - seconds(a)) * WORDS_A_SECOND + 5, _name
     said = {head.split(". ", 1)[1].split(" (")[0]: words for head, words in parts}
     total = sum(len(w.split()) for w in said.values())
-    assert 300 <= total <= 430, total
-    assert said["The buyer"].startswith(NUMBER) and "approves a supplier's invoice" in said["The buyer"]
-    assert "cannot prove it" in said["The problem"]
-    assert "Every vendor keeps its own count." in said["The insight"] and "neutral meter for AI agent work: neither side keeps the count" in said["The insight"]
-    assert said["The insight"].endswith(OUTCOME) and "no company holds it, and no oracle reports it" in said["The insight"]
-    assert f"Why Solana? {WHY_SOLANA}" in said["The insight"]
-    assert "56 of 63" in said["The evidence"] and "refused all 63" in said["The evidence"] and "the same bill, line for line" in said["The evidence"]
-    assert "the black-box check refused all 63" in said["The evidence"]
+    assert 300 <= total <= 430 and total / WORDS_A_SECOND < 180, total                        # under three minutes at the script's pace
+    assert seconds(heads[-1][2]) + len(said["The ask"].split()) / WORDS_A_SECOND <= 180
+    # the finding: the one number, then its basis (GitHub's record, agents' own claims), then the Index
+    finding = said["The finding"]
+    assert finding.startswith(NUMBER) and "GitHub's own record" in finding and "Agent PR Index" in finding
+    merged = json.loads(read("docs/backtest.json"))["sample"]["merged"]["overall"]
+    assert (merged["prs"], merged["any_check_failed"]["prs"]) == (241, 30)
+    # ONE story: the seven steps of the one transaction, named in order, the same seven as the story and the demonstration
+    story = said["One transaction, seven steps"]
+    steps = [re.search(rf"\b{name}: ", story) for name in ("Agree", "Fails", "Passes", "Statement", "Replay", "Pay", "Verify")]
+    at = [m.start() for m in steps if m]
+    assert len(at) == 7 and at == sorted(at)
+    assert "neutral meter for AI agent work: neither side keeps the count" in story and "no company holds it, and no oracle reports it" in story
+    assert f"Why Solana? {WHY_SOLANA}" in story and "the same bill, line for line" in story
+    assert "56 of 63" in said["The evidence"] and "the black-box check refused all 63" in said["The evidence"]
     # days to approve, not seconds to pay: the measured time, and the wait that is not measured, said as not measured
     assert "From merge to paid took 25 seconds at the median, on devnet." in said["The evidence"]
     assert "an invoice waits on the person who approves it, not on the payment" in said["The evidence"] and "we have not measured that wait" in said["The evidence"]
-    numbers = read("docs/submission/NUMBERS.md")
-    value = {what.split(":")[0].strip(): int(n) for what, n in re.findall(r"(?m)^\| \d \| ([^|]+) \| (\d+) \|", numbers)}
-    assert f"paid {value['Payments between unrelated accounts']} times on devnet, in test money" in said["The evidence"]
-    assert ("one other GitHub account" in said["The evidence"]) == (value["Outside payees"] == 1)
-    # the team, plainly: one founder, what shipped, and who owns commercial, security and operations
-    team = said["The team"]
-    assert team.startswith("The team is one founder.") and "I shipped all of it" in team
-    assert "I own commercial, security and operations as well, and today nobody else does." in team
-    assert "Before the hackathon period I had built a different product, a shared memory for coding agents" in team
+    # the founder's record, spoken in one sentence, as TEAM.md and the facts file state it
+    record = [s for s in re.split(r"(?<=\.) ", said["The founder"]) if "first place" in s]
+    assert len(record) == 1 and "first place of 92 teams at the Sibyl Labs hackathon" in record[0] and "shared memory for coding agents" in record[0]
+    assert "Knos's earlier product" in record[0] and "first place of 92 teams in the Sibyl Labs" in " ".join(read("docs/TEAM.md").split())
+    assert said["The founder"].startswith("I am one founder, and I built all of it.")
     model = said["The business"]
-    assert "one fee" in model and "The check is free." in model and "released against a signed acceptance" in model
+    assert "The check is free." in model and "released against a signed acceptance" in model
     assert "a fee the program collects, paid by the funder on top" in model and "The supplier never pays." in model
     assert "The rate on screen is the one the program charges today." in model and "**No fee is spoken as a number**" in " ".join(pitch.split())
-    # the limits: ONE sentence, the last; never a list of zeros anywhere in what is said
-    assert said["The limits"] == f"The limits, in one sentence: {LIMITS}"
+    # where it stands: ONE sentence, with the outside payee as NUMBERS.md counts it; never a list of zeros in what is said
+    stands = said["Where it stands"]
+    assert stands.startswith("Where it stands, in one sentence: Solana devnet, test money, one person holds every key, no outside review")
+    assert stands.count(". ") == 0 and stands.endswith(".") and "nobody has paid" in stands
+    numbers = read("docs/submission/NUMBERS.md")
+    value = {what.split(":")[0].strip(): int(n) for what, n in re.findall(r"(?m)^\| \d \| ([^|]+) \| (\d+) \|", numbers)}
+    assert f"paid {value['Payments between unrelated accounts']} times, in test money" in stands
+    assert ("one other GitHub account" in stands) == (value["Outside payees"] == 1)
+    # the ask: what STORY.md asks for, said last
+    assert said["The ask"].startswith("The ask.") and "first buyer" in said["The ask"] and "outside key holder" in said["The ask"]
+    assert "outside key holder" in read("docs/STORY.md").split("## The ask")[1]
     everything = " ".join(said.values())
     assert ": 0." not in everything and len(re.findall(r"\b0\b", everything)) == 0
     for sorry in ("sorry", "unfortunately", "admit", "only a", "just a"):

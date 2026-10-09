@@ -23,10 +23,15 @@ So an open order whose deadline is more than 48 hours away CANNOT be left before
 notice that protect the seller are longer than the upgrade's delay. A held order and a holdback in warranty cannot
 either. This is the gap the command shows, with the hours that are missing.
 
+The gap closes for open orders when the upgrade multisig's time lock is at least COVERS (NOTICE + GRACE + 2 seconds):
+scripts/timelock_plan.py plans that change (docs/GOVERNANCE.md). With --before-upgrade the command reads the time lock
+on chain and says which it is: every open order can leave before any upgrade approved from now on, or not.
+
     holdings(ledger, wallet, github_id)   what the owner holds in knos_pay, read through ledger.program_accounts/infos
     upgrade_deadline(account, ids, now)   the earliest time a pending upgrade of a Knos program can execute
     plan(items, now, upgrade)             one Way per holding: instruction, who sends it, when the money is out, and
                                           whether that is before the upgrade
+    time_lock(account, ids)               the upgrade multisig's time lock on chain; lock_words(seconds) says what it covers
 """
 
 from __future__ import annotations
@@ -43,6 +48,8 @@ from .settle.v2 import pay
 
 SCHEMA = "knos.exit/1"
 PROGRAMS = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
+# an order cancelled when an upgrade is approved is refunded at notice + grace + 1; it is out first when the lock is longer
+COVERS = pay.NOTICE + pay.GRACE + 2
 
 
 @dataclass
@@ -132,6 +139,24 @@ def upgrade_deadline(account: Callable, ids: dict, now: int) -> Upgrade | None:
     return best
 
 
+def time_lock(account: Callable, ids: dict) -> int | None:
+    """The upgrade multisig's time lock in seconds, read from chain; None when the multisig cannot be read."""
+    from . import mainnet_check as mc
+    ms, _why = mc.multisig_at(account, ids["upgrade_multisig"], ids["squads_program"])
+    return None if ms is None else ms.time_lock
+
+
+def lock_words(seconds: int | None) -> str:
+    """What the upgrade multisig's time lock means for leaving, in one sentence."""
+    if seconds is None:
+        return "The upgrade multisig's time lock could not be read."
+    if seconds >= COVERS:
+        return (f"The upgrade multisig's time lock is {hours(seconds)}: longer than 7 days of notice and 2 hours of grace, so every open order "
+                "can be cancelled and refunded before any upgrade approved from now on can execute. Held orders and holdbacks in warranty still cannot.")
+    return (f"The upgrade multisig's time lock is {hours(seconds)}: shorter than 7 days of notice and 2 hours of grace, so an open order whose "
+            f"deadline is later than that cannot be left before an upgrade approved now ({hours(COVERS - seconds)} short).")
+
+
 def _way(h: Holding, now: int) -> tuple[str, str, str, int, str, str]:
     """(state, mint, instruction, out_at, who, why) for one holding."""
     if h.kind == "balance":
@@ -189,7 +214,8 @@ def hours(seconds: int) -> str:
     return f"{seconds // 3600} h {seconds % 3600 // 60} min"
 
 
-def words(ways: list[Way], now: int, upgrade: Upgrade | None) -> list[str]:
+def words(ways: list[Way], now: int, upgrade: Upgrade | None, lock: int | None = None, read_lock: bool = False) -> list[str]:
+    """The answer in lines. With `read_lock`, a last line says what the time lock `lock` covers."""
     lines = []
     if upgrade is None:
         lines.append("No upgrade of a Knos program is pending. Every holding below can be left on its own schedule.")
@@ -207,11 +233,14 @@ def words(ways: list[Way], now: int, upgrade: Upgrade | None) -> list[str]:
     if upgrade is not None:
         stuck = [w for w in ways if w.before is False]
         lines.append(f"{len(ways) - len(stuck)} of {len(ways)} holdings can be out before the upgrade; {len(stuck)} cannot.")
+    if read_lock:
+        lines.append(lock_words(lock))
     return lines
 
 
-def as_json(ways: list[Way], now: int, upgrade: Upgrade | None) -> dict:
-    return {"kind": SCHEMA, "now": now, "upgrade": asdict(upgrade) if upgrade else None,
+def as_json(ways: list[Way], now: int, upgrade: Upgrade | None, lock: int | None = None) -> dict:
+    return {"kind": SCHEMA, "now": now, "upgrade": asdict(upgrade) if upgrade else None, "time_lock": lock,
+            "open_orders_covered": None if lock is None else lock >= COVERS,
             "hours_to_leave": None if upgrade is None else max(0, upgrade.executes_at - now) // 3600,
             "ways": [asdict(w) for w in ways], "cannot_leave": sum(w.before is False for w in ways)}
 
@@ -240,7 +269,9 @@ def register(app: Any, help_lines: list | None = None) -> None:
             ledger = chain.Ledger(url)
             now = ledger.now()
             items = holdings(ledger, Pubkey.from_string(wallet) if wallet else None, github_id or None)
-            upgrade = None
+            upgrade, lock = None, None
+            if before_upgrade:
+                lock = time_lock(mc._rpc(url), pay.IDS)
             if upgrade_at:
                 upgrade = Upgrade(0, "a given time", upgrade_at, True)
             elif before_upgrade:
@@ -249,9 +280,9 @@ def register(app: Any, help_lines: list | None = None) -> None:
             raise cli.Stop(f"{url} could not be read ({type(why).__name__}: {why}). Nothing was decided.", "run it again when the cluster answers") from None
         ways = plan(items, now, upgrade)
         if as_json_:
-            print(json.dumps(as_json(ways, now, upgrade), indent=1))
+            print(json.dumps(as_json(ways, now, upgrade, lock), indent=1))
         else:
-            for line in words(ways, now, upgrade):
+            for line in words(ways, now, upgrade, lock, before_upgrade):
                 print(line)
         if any(w.before is False for w in ways):
             raise typer.Exit(1)

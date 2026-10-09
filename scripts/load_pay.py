@@ -32,6 +32,14 @@ printed without its denominator and its failures, and p50, p95 and p99 are given
              for fees, and swept back at the end. Each payment goes through `knos.proof.ghrelay.relay_one`, the code the
              worker runs. Recorded: seconds from a payment's first submission to its answer, per payment, p50/p95/p99;
              payments confirmed per second over the run (first submission to last answer).
+--scenario S  contention added to the same run, in the simulator and on a cluster alike (SCENARIOS says each):
+             hot-funder (one funder's orders, ONE fee account, all relays at once), rpc-faults (sends refused or their
+             answers lost, by a seeded draw, then retried; a payment is counted only when the chain shows it), priority-
+             fee (SetComputeUnitPrice on every transaction with room; in the simulator on every other PayOrder, so the
+             difference in lamports is the priority fee alone), burst (each relay sends all its payments at once; in the
+             simulator every token is verified and open before the first PayOrder). Sources for the fee: Solana's fee
+             structure, https://solana.com/docs/core/fees/fee-structure (prioritization fee = ceil(price x limit /
+             1,000,000) lamports).
 --fee-accounts K   fee accounts per mint (default 1: the associated one alone). On a cluster the wallet is their base:
              make them first with `KNOS_RELAY_KEY=<the wallet> knos relay fee-accounts --k K --execute`; a relay that
              finds one missing names the associated one, and the run's record says how many it used.
@@ -55,6 +63,18 @@ from solders.keypair import Keypair  # noqa: E402
 from knos.settle.v2 import relayq  # noqa: E402
 
 SEED = 21
+CU_PRICE = 10_000                   # micro-lamports a compute unit, under --scenario priority-fee (devnet; test SOL)
+ATTEMPTS = 4                        # a payment's sends at most, under --scenario rpc-faults: the first and three retries
+FAULTS = {"refused": 0.15, "lost": 0.15}    # under rpc-faults, of every submission: refused by the endpoint; sent, answer lost
+SCENARIOS = {
+    "hot-funder": "every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every "
+                  "payment shares",
+    "rpc-faults": "15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 "
+                  "times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused",
+    "priority-fee": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports "
+                    "unless --cu-price says otherwise",
+    "burst": "every relay sends all of its payments at once instead of one after another",
+}
 LAMPORTS_PER_RELAY = 50_000_000     # SOL lent to each relay key for fees on a cluster (0.05 SOL); swept back at the end
 
 
@@ -81,15 +101,19 @@ def counted(rows: list[dict], relays: int) -> dict:
 
 
 # == the simulator =====================================================================================================
-def simulate(relays: int, orders: int, seed: int = SEED, fee_accounts: int = 1) -> dict:
-    """See the module's words on --simulate."""
+def simulate(relays: int, orders: int, seed: int = SEED, fee_accounts: int = 1, scenario: str | None = None, cu_price: int = CU_PRICE) -> dict:
+    """See the module's words on --simulate and --scenario."""
     import random
+
+    from solders.compute_budget import set_compute_unit_price
 
     import load
     from _order import OWNER, USDC, OrderChain, issue, user
     from solders.pubkey import Pubkey
 
     from knos.settle.v2 import pay
+    if scenario == "hot-funder":
+        fee_accounts = 1
     load.fast_signer()
     c = OrderChain()
     meter = c.svm = load.Meter(c.svm)
@@ -115,31 +139,79 @@ def simulate(relays: int, orders: int, seed: int = SEED, fee_accounts: int = 1) 
         address = pay.order_pda(pay.scope_of(repo, num), c.bal)
         funded.append({"i": i, "address": address, "o": c.order(address), "lane": f"order:{address}",
                        "fee": pay.fee_account_for(address, c.usdc, pay.TOKEN, fee_accounts, base)})
-    # -- pay: each order by the relay of its part, the relays in turns (one payment of each in flight at a time) -----
+    # -- pay: each order by the relay of its part, the relays in turns (one payment of each in flight at a time; under
+    #    `burst` every token is written and verified before the first PayOrder is sent) -----------------------------
     queues: list[list[dict]] = [[] for _ in range(relays)]
     for x in funded:
         queues[relayq.part_of(x["lane"], relays)].append(x)
-    rows: list[dict] = []
+    turns: list[tuple[int, dict]] = []
     while any(queues):
         for r, q in enumerate(queues):
-            if not q:
+            if q:
+                turns.append((r, q.pop(0)))
+    faults = random.Random(seed + 1)
+    rows: list[dict] = []
+    tally = {"refused": 0, "lost": 0, "resent_and_refused": 0}
+
+    def prepare(r: int, x: dict) -> None:
+        x["wallet"] = Keypair().pubkey()
+        c.payer = home
+        c.token_account(x["wallet"], c.usdc)        # the payee's account exists: the tip is 0.05 and the rest of the fee is FEE_OWNER's
+        c.payer = keys[r]                           # this relay's key writes, verifies and pays: its fee payer alone
+        meter.phase, meter.order = f"pay:{r}", x["i"]
+        x["before"] = len(meter.rows)
+        x["payees"] = [(user(), 10_000, x["wallet"])]
+        x["tok"] = c.pay_token(x["address"], x["payees"], o=x["o"], repository_owner_id=OWNER)        # one owner, many orders
+        x["prepared"] = len(meter.rows)
+
+    def submit(r: int, x: dict) -> tuple[int, str | None]:
+        """PayOrder for one order, through the faults the scenario injects; returns (attempts, why it was refused)."""
+        c.payer = keys[r]
+        meter.phase, meter.order = f"pay:{r}", x["i"]
+        x["fee_had"], x["pay_from"] = c.balance(x["fee"]), len(meter.rows)
+        x["lamports_had"] = int(c.svm.get_balance(keys[r].pubkey()) or 0)
+        ixs = [c.pay_ix(x["address"], x["tok"], x["payees"], o=x["o"], fee_token=x["fee"])]
+        if scenario == "priority-fee" and x["i"] % 2 == 0:       # every other order: the difference is the priority fee alone
+            ixs.insert(0, set_compute_unit_price(cu_price))
+        attempts, why = 0, None
+        while attempts < ATTEMPTS:
+            attempts += 1
+            roll = faults.random() if scenario == "rpc-faults" else 1.0
+            if roll < FAULTS["refused"]:            # the endpoint refused the request: nothing reached the chain
+                tally["refused"] += 1
                 continue
-            x = q.pop(0)
-            wallet = Keypair().pubkey()
-            c.payer = home
-            c.token_account(wallet, c.usdc)         # the payee's account exists: the tip is 0.05 and the rest of the fee is FEE_OWNER's
-            c.payer = keys[r]                       # this relay's key writes, verifies and pays: its fee payer alone
-            meter.phase, meter.order = f"pay:{r}", x["i"]
-            before = len(meter.rows)
-            payees = [(user(), 10_000, wallet)]
-            tok = c.pay_token(x["address"], payees, o=x["o"], repository_owner_id=OWNER)        # one owner, many orders
-            had = c.balance(x["fee"])
-            ok = tok is not None and c.send([c.pay_ix(x["address"], tok, payees, o=x["o"], fee_token=x["fee"])])
-            x["fee_in"] = c.balance(x["fee"]) - had
-            mine = meter.rows[before:]
-            got = c.balance(pay.ata(wallet, c.usdc))
-            rows.append({"relay": r, "order": x["i"], "state": "paid" if ok and got == x["o"].amount else "refused", "why": None if ok else str(c.err)[:200],
-                         "transactions": len(mine), "cu": sum(m.cu for m in mine), "payers": sorted({str(m.writable[0]) for m in mine})})
+            lost_before = x.get("lost", False)
+            ok = c.send(ixs)
+            if lost_before and not ok:
+                tally["resent_and_refused"] += 1    # a resend after a lost answer: the program refuses the second PayOrder
+            if roll < FAULTS["refused"] + FAULTS["lost"]:   # sent, and the answer lost: the relay does not know; it tries again
+                tally["lost"] += 1
+                x["lost"] = True
+                continue
+            why = None if ok else str(c.err)[:200]
+            break
+        return attempts, why
+
+    def settle(r: int, x: dict, attempts: int, why: str | None) -> None:
+        mine = meter.rows[x["before"]:x["prepared"]] + meter.rows[x["pay_from"]:]
+        got = c.balance(pay.ata(x["wallet"], c.usdc))
+        paid = c.order(x["address"]) is None and got == x["o"].amount     # read back from the chain, whatever the answers said
+        x["fee_in"] = c.balance(x["fee"]) - x["fee_had"]
+        rows.append({"relay": r, "order": x["i"], "state": "paid" if paid else "refused" if why else "never_completed",
+                     "why": None if paid else (why or "every attempt failed"), "attempts": attempts, "payee_got": got,
+                     "transactions": len(mine), "cu": sum(m.cu for m in mine), "payers": sorted({str(m.writable[0]) for m in mine}),
+                     "pay_writes": sorted({str(w) for m in mine if m.stage == "pay" for w in m.writable}),
+                     "lamports": x["lamports_had"] - int(c.svm.get_balance(keys[r].pubkey()) or 0)})
+
+    for r, x in turns:
+        prepare(r, x)
+        if scenario != "burst":
+            settle(r, x, *submit(r, x))
+    open_at_once = 0
+    if scenario == "burst":                         # every token verified and open, then every PayOrder back to back
+        open_at_once = sum(1 for _r, x in turns if x["tok"] is not None and c.svm.get_account(x["tok"]) is not None)
+        for r, x in turns:
+            settle(r, x, *submit(r, x))
     c.payer = home
     out = {"kind": "pay", "cluster": "local simulator (LiteSVM)", "programs": _programs("the committed test builds"),
            "date": datetime.date.today().isoformat(), "seed": seed, "relays": relays, "orders": orders,
@@ -155,9 +227,35 @@ def simulate(relays: int, orders: int, seed: int = SEED, fee_accounts: int = 1) 
         "each_relay_paid_only_its_part": all(relayq.part_of(funded[r["order"]]["lane"], relays) == r["relay"] for r in rows),
         "no_relay_paid_with_anothers_key": all(r["payers"] == [own[r["relay"]]] for r in rows),
         "fee_payers_distinct": len(set(own)) == relays and str(Pubkey.default()) not in own,
-        "one_owner_spread_over_relays": relays == 1 or orders < 2 * relays or len({r["relay"] for r in rows}) > 1,
+        # the relays used are exactly the parts the one owner's orders fall in (the Balance's address is random, so a
+        # small run may by chance fall in one part: the check is the partition, and per_relay shows the spread)
+        "one_owner_spread_over_relays": {r["relay"] for r in rows} == {relayq.part_of(x["lane"], relays) for x in funded},
         "each_fee_in_its_orders_account": all(x.get("fee_in", 0) > 0 for x in funded) and all(x["fee"] in every_fee for x in funded)}
     out["fee_accounts_used"] = len({str(x["fee"]) for x in funded})
+    out["checks"]["no_payee_paid_twice"] = all(r["payee_got"] <= funded[r["order"]]["o"].amount for r in rows)
+    if scenario:
+        out["scenario"], out["measures"] = scenario, SCENARIOS[scenario]
+        out["retries"] = sum(r["attempts"] - 1 for r in rows)
+        out["attempts_per_payment"] = spread([float(r["attempts"]) for r in rows])
+        out["first_refusals"] = [r["why"] for r in rows if r["state"] == "refused"][:5]
+    if scenario == "rpc-faults":
+        out["faults_injected"] = dict(tally)
+        out["checks"]["faults_were_injected"] = tally["refused"] > 0 and tally["lost"] > 0
+        out["checks"]["every_resend_after_a_lost_answer_refused"] = tally["resent_and_refused"] > 0
+    if scenario == "priority-fee":
+        expected = -(-cu_price * 1_400_000 // 1_000_000)       # ceil(price x limit / 1,000,000): the harness asks for 1.4M units
+        out["cu_price_micro_lamports"], out["priority_lamports_expected"] = cu_price, expected
+        priced = {r["lamports"] for r in paid if r["order"] % 2 == 0}
+        plain = {r["lamports"] for r in paid if r["order"] % 2 == 1}
+        out["lamports_per_payorder"] = {"with_price": sorted(priced), "without": sorted(plain)}
+        out["checks"]["priority_fee_charged"] = len(priced) == len(plain) == 1 and min(priced) - min(plain) == expected
+    if scenario == "hot-funder":
+        common = set.intersection(*[{w for r in rows if r["relay"] == i for w in r["pay_writes"]} for i in range(relays)]) if rows else set()
+        out["written_by_every_relay"] = len(common)
+        out["checks"]["one_fee_account_written_by_every_relay"] = out["fee_accounts_used"] == 1 and str(funded[0]["fee"]) in common
+    if scenario == "burst":
+        out["tokens_open_at_once"] = open_at_once
+        out["checks"]["every_token_open_before_the_first_payment"] = open_at_once == orders
     out["ok"] = all(out["checks"].values())
     return out
 
@@ -170,15 +268,19 @@ def _programs(which: str) -> dict:
 
 # == a cluster =========================================================================================================
 def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time.monotonic, ledger=None, relay_one=None,
-               lend=None, sweep=None, fee_accounts: int = 1) -> dict:
-    """See the module's words on --tokens and --fee-accounts. `ledger`, `relay_one`, `lend(key)`, `sweep(key)`: the
-    tests' stand-ins. With K > 1 the relays read KNOS_FEE_SHARDS=K and KNOS_FEE_BASE=<wallet> for the run."""
+               lend=None, sweep=None, fee_accounts: int = 1, scenario: str | None = None, cu_price: int = CU_PRICE, seed: int = SEED) -> dict:
+    """See the module's words on --tokens, --fee-accounts and --scenario. `ledger`, `relay_one`, `lend(key)`,
+    `sweep(key)`: the tests' stand-ins. With K > 1 the relays read KNOS_FEE_SHARDS=K and KNOS_FEE_BASE=<wallet> for
+    the run."""
     import os
+    if scenario == "hot-funder":
+        fee_accounts = 1
+    shaped = Shaped(ledger, scenario, cu_price, seed) if scenario in ("rpc-faults", "priority-fee") else None
     keep = {n: os.environ.get(n) for n in ("KNOS_FEE_SHARDS", "KNOS_FEE_BASE")}
     if fee_accounts > 1:
         os.environ.update(KNOS_FEE_SHARDS=str(fee_accounts), KNOS_FEE_BASE=str(wallet.pubkey()))
     try:
-        got = _on_cluster(rpc, wallet, relays, tokens, clock, ledger, relay_one, lend, sweep)
+        got = _on_cluster(rpc, wallet, relays, tokens, clock, shaped or ledger, relay_one, lend, sweep, scenario)
     finally:
         for n, v in keep.items():
             if v is None:
@@ -186,7 +288,86 @@ def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time
             else:
                 os.environ[n] = v
     got.update(fee_accounts=fee_accounts, lanes="order", owners=len({_owner(str(t["jwt"])) for t in tokens}))
+    if scenario:
+        got.update(scenario=scenario, measures=SCENARIOS[scenario])
+    if shaped is not None:
+        got.update(shaped.said())
+    if scenario == "hot-funder" and got["owners"] != 1:
+        got.update(ok=False, stopped=f"hot-funder needs the tokens of one funder; these came from {got['owners']} owners")
     return got
+
+
+class Shaped:
+    """A ledger as the relay uses it, with what a scenario changes on the way to the cluster.
+
+    rpc-faults     of every send, by a seeded draw: refused by the endpoint before anything is sent (ConnectionError),
+                   or sent and its answer lost (TimeoutError after the cluster took it), as FAULTS says
+    priority-fee   a legacy transaction with room for it carries SetComputeUnitPrice(cu_price) beside the compute unit
+                   limit `knos.chain.message` would add; a v1 transaction keeps its budget in the message and carries none
+    Everything else passes through to the ledger."""
+
+    def __init__(self, ledger, scenario: str | None, cu_price: int = CU_PRICE, seed: int = SEED):
+        import random
+        import threading
+        self.inner, self.scenario, self.cu_price = ledger, scenario, cu_price
+        self.rng, self.lock = random.Random(seed + 1), threading.Lock()
+        self.counts = {"sends": 0, "refused": 0, "lost": 0, "priced": 0, "no_room": 0}
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+    def _draw(self) -> str:
+        with self.lock:
+            self.counts["sends"] += 1
+            if self.scenario != "rpc-faults":
+                return "ok"
+            roll = self.rng.random()
+            kind = "refused" if roll < FAULTS["refused"] else "lost" if roll < FAULTS["refused"] + FAULTS["lost"] else "ok"
+            if kind != "ok":
+                self.counts[kind] += 1
+            return kind
+
+    def _priced(self, ixs, payer, v1: bool) -> list:
+        ixs = list(ixs)
+        if self.scenario != "priority-fee" or v1:
+            return ixs
+        from solders.compute_budget import set_compute_unit_limit, set_compute_unit_price
+
+        from knos import chain
+        more = ([] if any(ix.program_id == chain.COMPUTE_BUDGET for ix in ixs) else [set_compute_unit_limit(chain.MAX_COMPUTE_UNITS)])
+        out = more + [set_compute_unit_price(self.cu_price)] + ixs
+        with self.lock:
+            if chain.tx_size(out, payer.pubkey()) > chain.MAX_TX_BYTES:
+                self.counts["no_room"] += 1
+                return ixs
+            self.counts["priced"] += 1
+        return out
+
+    def send(self, ixs, payer, signers=None, v1: bool = False) -> str:
+        kind = self._draw()
+        if kind == "refused":
+            raise ConnectionError("injected: the endpoint refused the request; nothing was sent")
+        ixs = self._priced(ixs, payer, v1)
+        sig = self.inner.send(ixs, payer, signers, v1=True) if v1 else self.inner.send(ixs, payer, signers)
+        if kind == "lost":
+            raise TimeoutError("injected: the transaction was sent and its answer lost")
+        return sig
+
+    def send_all(self, groups, payer, signers=None, v1: bool = False) -> list:
+        kind = self._draw()
+        if kind == "refused":
+            raise ConnectionError("injected: the endpoint refused the request; nothing was sent")
+        groups = [self._priced(g, payer, v1) for g in groups]
+        many = getattr(self.inner, "send_all")
+        sigs = list(many(groups, payer, signers, v1=True) if v1 else many(groups, payer, signers))
+        if kind == "lost":
+            raise TimeoutError("injected: the transactions were sent and their answer lost")
+        return sigs
+
+    def said(self) -> dict:
+        if self.scenario == "rpc-faults":
+            return {"faults_injected": {k: self.counts[k] for k in ("sends", "refused", "lost")}}
+        return {"cu_price_micro_lamports": self.cu_price, "priority": {k: self.counts[k] for k in ("priced", "no_room")}}
 
 
 def _owner(jwt: str) -> str:
@@ -199,7 +380,7 @@ def _owner(jwt: str) -> str:
         return "unknown"
 
 
-def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, ledger, relay_one, lend, sweep) -> dict:
+def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, ledger, relay_one, lend, sweep, scenario: str | None = None) -> dict:
     import load
 
     from knos.proof import ghrelay
@@ -218,19 +399,37 @@ def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, le
         return out
     rows: list[dict] = []
 
-    def one(r: int) -> list[dict]:
-        done = []
-        for t in parts[r]:
-            began = clock()
+    tries = ATTEMPTS if scenario == "rpc-faults" else 1
+
+    def pay_one(r: int, t: dict) -> dict:
+        """One token, sent again after a refusal or a lost answer under rpc-faults; a result that says the chain had
+        it done already counts as this run's payment only when one of this run's own sends may have landed it."""
+        began, sent, attempts = clock(), False, 0
+        state, why = "never_completed", "no attempt"
+        while attempts < tries:
+            attempts += 1
             try:
                 got = send(ledger, keys[r], str(t.get("kind") or "pay"), str(t["jwt"]))
-                state = ("already" if got.get("already") else "paid") if got.get("ok") else "refused"
-                why = (None if state == "paid" else "the chain showed it done before this relay sent anything: not a payment of this run"
-                       if state == "already" else str(got.get("why") or "no reason given")[:200])
             except Exception as e:  # noqa: BLE001 - no answer: counted, never dropped
                 state, why = "never_completed", f"{type(e).__name__}: {e}"[:200]
-            done.append({"relay": r, "state": state, "why": why, "began": began, "ended": clock()})
-        return done
+                sent = sent or not isinstance(e, ConnectionError)
+                continue
+            if got.get("ok"):
+                state = "already" if got.get("already") and not sent else "paid"
+                why = None if state == "paid" else "the chain showed it done before this relay sent anything: not a payment of this run"
+            else:
+                state, why = "refused", str(got.get("why") or "no reason given")[:200]
+                if "injected" in why:
+                    sent = sent or "refused the request" not in why
+                    continue
+            break
+        return {"relay": r, "state": state, "why": why, "began": began, "ended": clock(), "attempts": attempts}
+
+    def one(r: int) -> list[dict]:
+        if scenario == "burst":                     # all of this relay's payments at once
+            with ThreadPoolExecutor(max_workers=max(1, len(parts[r]))) as each:
+                return list(each.map(lambda t: pay_one(r, t), parts[r]))
+        return [pay_one(r, t) for t in parts[r]]
     with ThreadPoolExecutor(max_workers=max(1, relays)) as pool:
         for got in pool.map(one, range(relays)):
             rows += got
@@ -243,6 +442,8 @@ def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, le
     out["paid_per_s"] = round(len(paid) / wall, 3) if wall > 0 else None
     out["payment_s"] = {k: (round(v, 2) if isinstance(v, float) else v) for k, v in spread([r["ended"] - r["began"] for r in paid]).items()}
     out["confirm_s"] = out["payment_s"]         # first submission to its confirmed answer: p50, p95 and p99 apart, and the worst
+    out["retries"] = sum(r["attempts"] - 1 for r in rows)
+    out["failures"] = out["refused"] + out["never_completed"]
     out["ok"] = out["paid"] == out["attempted"]
     return out
 
@@ -269,6 +470,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--tokens", type=Path, help="a cluster: a JSON list of pay tokens GitHub signed ({kind, jwt} each)")
     ap.add_argument("--wallet", type=Path, help="a cluster: the keypair that lends the relays their SOL")
     ap.add_argument("--fee-accounts", type=int, default=1, metavar="K", help="fee accounts per mint, each order's fee to one (default 1)")
+    ap.add_argument("--scenario", choices=tuple(SCENARIOS), help="contention to add: " + "; ".join(f"{k}: {v}" for k, v in SCENARIOS.items()))
+    ap.add_argument("--cu-price", type=int, default=CU_PRICE, metavar="MICRO_LAMPORTS", help="--scenario priority-fee: the compute unit price")
     ap.add_argument("--out", type=Path, help="write the result here as JSON (default: print it)")
     a = ap.parse_args(argv)
     if a.relays < 1:
@@ -278,7 +481,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.simulate:
         if a.orders < 1:
             ap.error("--simulate needs --orders M (at least 1)")
-        got = simulate(a.relays, a.orders, fee_accounts=a.fee_accounts)
+        got = simulate(a.relays, a.orders, fee_accounts=a.fee_accounts, scenario=a.scenario, cu_price=a.cu_price)
     else:
         if not (a.tokens and a.wallet):
             ap.error("give --simulate, or --tokens FILE and --wallet KEYPAIR for a cluster")
@@ -288,7 +491,8 @@ def main(argv: list[str] | None = None) -> int:
         if not (isinstance(tokens, list) and all(isinstance(t, dict) and isinstance(t.get("jwt"), str) for t in tokens)):
             ap.error("--tokens is a JSON list of {\"kind\": \"pay\", \"jwt\": ...}")
         wallet = Keypair.from_bytes(bytes(json.loads(a.wallet.read_text(encoding="utf-8"))))
-        got = on_cluster(load.Rpc(chain.ledger().url), wallet, a.relays, tokens, ledger=chain.ledger(), fee_accounts=a.fee_accounts)
+        got = on_cluster(load.Rpc(chain.ledger().url), wallet, a.relays, tokens, ledger=chain.ledger(), fee_accounts=a.fee_accounts,
+                         scenario=a.scenario, cu_price=a.cu_price)
     text = json.dumps(got, indent=1, sort_keys=True)
     if a.out:
         a.out.write_text(text + "\n", encoding="utf-8")

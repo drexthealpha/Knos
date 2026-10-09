@@ -1146,6 +1146,7 @@ _MODULES = (    # (the commands it adds, how); in the order they were always reg
     (("task",), lambda: _mod("tasks").register(_app, _HELP)),                      # knos task list | show | take | submit | why (src/knos/tasks.py)
     (("exit",), lambda: _mod("exit").register(_app, _HELP)),                      # knos exit --before-upgrade: every holding and its way out (src/knos/exit.py)
     (("boundary",), lambda: _mod("boundary").register(_app, _HELP)),              # knos boundary plan | bind | reserve: a Squads vault for an organisation's money (src/knos/boundary.py)
+    (("selfhost",), lambda: _mod("selfhost").register(_app, _HELP)),              # knos selfhost check | plan: the bundle a buyer runs in its own cloud (src/knos/selfhost.py)
 )
 _OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
 _loaded: set[int] = set()
@@ -1160,7 +1161,7 @@ def load(command: str | None = None) -> None:
         if i not in _loaded:
             _loaded.add(i)
             _MODULES[i][1]()
-    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "archive", "approve", "decide", "net", "advance", "faucet", "controls", "recall", "task", "exit", "boundary") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "archive", "approve", "decide", "net", "advance", "faucet", "controls", "recall", "task", "exit", "boundary", "selfhost") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     _HELP[:] = [row for row in _HELP if row not in tail] + tail
     _arrange()
 

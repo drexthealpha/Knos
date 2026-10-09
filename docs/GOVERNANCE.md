@@ -12,7 +12,8 @@ independent oversight: nobody else has to agree, and nobody else can refuse.
 **Leaving before an upgrade is not always possible.** A Balance can be withdrawn at once, but an open order whose
 deadline falls after the upgrade's time cannot be refunded before it: a cancellation gives the seller 7 days of
 notice, and the upgrade delay is 48 hours. `knos exit --before-upgrade` lists every holding of yours with its way out
-and the hours it misses by (section 2).
+and the hours it misses by (section 2). The plan: a time lock of 8 days, set by a Squads configuration transaction
+after the pending upgrades have executed. It is planned, not applied.
 
 **Outside key holders today: 0.** What would change it: one person opens a "Key holder request"
 ([KEYHOLDER.md](KEYHOLDER.md), one page) and the founder runs one command (section 5).
@@ -76,11 +77,27 @@ accounts. On devnet the Squads program itself has an upgrade authority, which is
   For comparison, L2BEAT's framework for rollups asks that users have at least 7 days to exit before an unwanted
   upgrade, and 30 days at its highest stage
   ([L2BEAT, "Introducing Stages"](https://medium.com/l2beat/introducing-stages-a-framework-to-evaluate-rollups-maturity-d290bb22befe)).
-  What would close the gap for open orders without any program change: set the upgrade multisig's time lock
-  longer than the notice plus the presentation grace (7 days and 2 hours), with a Squads `SetTimeLock` config
-  transaction ([Squads documentation](https://docs.squads.so/main/development/typescript/instructions/create-config-transaction)),
-  which itself waits out the present 48 hours. It would not cover held orders or holdbacks in warranty. Not done:
-  it slows every fix, the one in section 3 included, and it is the founder's decision to make with a key holder.
+- **The plan that closes the gap for open orders, with no program change.** Set the upgrade multisig's time lock
+  above the notice plus the presentation grace: an order cancelled when an upgrade is approved is refunded 7 days,
+  2 hours and 1 second later, so the lock must be at least 612,002 s. The plan is 8 days (691,200 s); about 22 hours
+  above the minimum are for sending the `Cancel`, which for a Balance's order is a comment and a workflow run.
+  [`scripts/timelock_plan.py`](../scripts/timelock_plan.py) reads the multisig and prints the Squads configuration
+  transaction: `config_transaction_create` with one action, `SetTimeLock { new_time_lock: 691200 }`, then a
+  proposal, 2 approvals, and `config_transaction_execute`, which itself waits out the present 48 hours. It refuses
+  while any proposal of the multisig is a draft, active, or approved and not executed, because the change makes
+  every earlier proposal stale: one not yet approved can no longer be approved, and an approved upgrade waits the
+  new time lock from its approval. So the release run applies it only after proposals 7 and 8 have executed.
+  Facts from the Squads v4 source: `time_lock` is the seconds between approval and execution; at most 3 × 30 days;
+  `SetTimeLock` calls `invalidate_prior_transactions`
+  ([state/multisig.rs](https://github.com/Squads-Protocol/v4/blob/main/programs/squads_multisig_program/src/state/multisig.rs),
+  [config_transaction_execute.rs](https://github.com/Squads-Protocol/v4/blob/main/programs/squads_multisig_program/src/instructions/config_transaction_execute.rs),
+  [vault_transaction_execute.rs](https://github.com/Squads-Protocol/v4/blob/main/programs/squads_multisig_program/src/instructions/vault_transaction_execute.rs),
+  [Squads documentation](https://docs.squads.so/main/development/typescript/instructions/create-config-transaction)).
+  Once it is in force, `knos exit --before-upgrade` says that every open order can be cancelled and refunded
+  before any upgrade approved from then on can execute. It does not cover held orders (180 days) or holdbacks in
+  warranty (up to 90 days). The cost: every fix waits 8 days, the one in section 3 included.
+  **State: planned, not applied.** It is applied only when a release run records the executed configuration
+  transaction here, with its signature. The time lock on chain is 48 hours.
 - **They are not oversight.** The same person proposes, approves and executes.
 - **Nothing is sent to anyone.** No comment is posted on repositories with open orders, and no email exists. The
   notice reaches someone who looks, or who subscribed to the feed.
@@ -367,7 +384,7 @@ pending upgrade against the gate before voting. The same page says what it canno
 - An outside key holder on either multisig ([KEYHOLDER.md](KEYHOLDER.md)). One would hold 1 key of 3 and could
   not act alone; the founder would keep 2 and could still approve any upgrade without them.
 - An exit window as long as the notice: an open order whose deadline is after an upgrade's time cannot be left
-  before it (section 2).
+  before it. The 8-day time lock that closes it is planned, not applied (section 2).
 - A second person for any duty: review, deploy, approve, relay, respond ([OPERATOR.md](OPERATOR.md) is the
   checklist; nobody has run it).
 - An outside review of anything. The verifier's freeze waits on it.

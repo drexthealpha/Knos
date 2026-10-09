@@ -306,6 +306,27 @@ workflows that may spend it; and never more than it holds.
   funding is accepted exactly when a model says the day's and the total limit and the Balance's money allow it, and
   the counters equal the model's after every step. The machine above checks the same counters on its first Balance.
 
+## One economic deliverable pays once
+
+The invariants above are about one order on chain. A deliverable can also meet a refund, a second funding, a standing
+order, an assignment, a warranty, a payment in parts, and a second rail: a bank. Each row says what identifies the
+payment, what makes it once, and the test that checks it. An on-chain "paid once" does not cover a bank transfer by
+itself: the last row is the bank rail's own rule ([RAILS.md](RAILS.md), "An answer that is not clear is never a no").
+[`invariants.json`](invariants.json) has the same rows under `economic_idempotency`.
+
+| through | its identity | made once by | checked by |
+|---|---|---|---|
+| refund | the order's address at one funding | the refund closes the order; pay, settle, release and revert after it are refused | `test_every_ordering_of_two_and_of_three_of_pay_cancel_expiry_refund_settle_release_and_revert_ends_an_order_exactly_once` in `tests/test_invariants_gaps.py` |
+| reopen | the order's address at one funding | a pay token of the paid order is refused at the order a second funding puts at the same address (its marker) | `test_a_pay_token_does_not_pay_the_order_a_second_funding_puts_at_the_same_address` in `tests/test_double_pay.py`; `test_no_instruction_takes_a_token_twice_and_a_second_try_never_moves_money` in `tests/test_double_pay.py` |
+| standing order | (order, pull request) | the `["done", order, pr]` marker | `test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_one_rate_is_left` in `tests/test_order_terms.py` |
+| assignment | the order's address | the payment goes to the assignee once, at acceptance and at release, and never also to the seller | `test_an_assignment_before_acceptance_pays_the_financier_at_acceptance_and_at_release_and_never_the_seller` in `tests/test_advance.py`; `test_a_payee_assigns_an_orders_payment_and_only_the_assignee_can_change_it` in `tests/test_order_terms.py` |
+| warranty holdback | the order's address | Release runs only after the warranty and Revert only inside it; both close the order | `test_a_holdback_stays_in_the_order_through_the_warranty_and_then_goes_to_the_wallets_it_recorded` in `tests/test_order_terms.py`; `test_a_revert_inside_the_warranty_returns_the_holdback_and_its_fee_to_the_funder` in `tests/test_order_terms.py` |
+| partial payments | the order's address; (pair, period) for a netted release | the shares of up to four payees and a holdback sum to the amount once; a netted outcome is added to one period once | `test_up_to_four_payees_share_an_order_and_every_unit_is_paid` in `tests/test_order_chain.py`; `test_an_outcome_is_added_once_in_any_period_and_never_past_the_cap` in `tests/test_netting.py` |
+| bank rail | the settlement id (the end-to-end id) of one transfer | one instruction per id; an unclear answer holds the line until a status resolves it; a line paid or refunded on either rail is never in a bank file; Acceptance is charged once whichever rail paid | `test_an_ambiguous_answer_holds_the_lines_as_unknown_and_blocks_any_new_file_until_a_status_resolves_it` in `tests/test_statement_rails.py`; `test_never_a_second_instruction_under_the_same_settlement_id_and_a_double_payment_is_said` in `tests/test_statement_rails.py`; `test_a_line_paid_on_chain_or_refunded_is_never_in_a_bank_file_and_a_bank_paid_line_never_in_a_second` in `tests/test_statement_rails.py`; `test_acceptance_is_charged_once_whichever_rail_pays` in `tests/test_statement_rails.py` |
+
+What these rows leave out: a bank paying a transfer it first reported as rejected is detected and said (PAID TWICE),
+not prevented, because Knos never holds the bank's money.
+
 ## What an outside system must still reconcile
 
 The programs make each operation happen once on chain. They say nothing about a system that mirrors them. A buyer's

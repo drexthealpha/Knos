@@ -51,6 +51,9 @@ const world = async (o = {}) => {
 };
 const open = async (ctx, hash = "") => { const page = await ctx.newPage(); await page.goto(base + hash, { waitUntil: "load" }); await page.evaluate(() => document.fonts.ready); await page.waitForSelector("#mark3d .face", { state: "attached" }); return page; };
 const settle = (page, ms = 700) => page.waitForTimeout(ms);                      // longer than --dur-3, the longest thing that moves
+// On a loaded machine an entrance can start late, so a fixed wait may look while it still runs: wait for what the clock
+// drives to end, up to `ms`. Something that loops never ends, and is still running when it is looked at.
+const ended = (page, ms = 5000) => page.waitForFunction(() => document.getAnimations().every((a) => a.timeline !== document.timeline || (a.playState !== "running" && a.playState !== "pending")), null, { timeout: ms, polling: "raf" }).catch(() => {});
 // what the clock drives. An entry tied to the scroll (a section not yet scrolled to) is held, not running: it is counted apart
 const running = (page) => page.evaluate(() => document.getAnimations().filter((a) => a.timeline === document.timeline && (a.playState === "running" || a.playState === "pending")).map((a) => a.animationName || a.transitionProperty || "script"));
 // every element of the page, and what it draws before and after itself: which of them could move at all
@@ -200,7 +203,7 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
     const mounted = at(), mark = document.getElementById("mark3d"), body = mark.firstElementChild;
     mark.replaceChildren(); const empty = at(); mark.append(body); return { mounted, empty }; });
   check("place: mounting the mark moves nothing", before.mounted === before.empty, before);
-  await settle(page);
+  await settle(page); await ended(page);
   check("movement: the page says it moves, and after the mark has settled nothing is left running", await page.evaluate(() => document.documentElement.classList.contains("k-motion")) && (await running(page)).length === 0, await running(page));
   await page.mouse.move(700, 300); await page.mouse.move(980, 380, { steps: 4 });
   const turned = await page.$eval("#mark3d", (e) => [e.style.getPropertyValue("--turn-y"), e.style.getPropertyValue("--light-x")]);
@@ -243,6 +246,10 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   await page.click(".brand"); await page.waitForSelector("#view-check", { state: "visible" });
   await page.waitForFunction(() => !("morph" in document.documentElement.dataset));
   const crossed = await page.evaluate(() => window.transitions);
+  // the first screen is let rest before the next press, as a reader's would: pressed while its entrance still runs, the
+  // browser's picture of it costs more than MORPH_BUDGET_MS on a slow runner (160-210 ms against 135-150 rested, measured
+  // in WSL), web/motion.js then rightly stops crossing, and the crossing below has nothing to show (seen: [])
+  await settle(page);
   await page.click('#nav a[href="#pricing"]');
   await page.waitForSelector("#view-pricing", { state: "visible" });
   check("  from then on a link to another page is a view transition, and the page asked for is shown", crossed === 1 && (await page.evaluate(() => window.transitions)) === 2 && await page.isHidden("#view-check") && (await page.evaluate(() => location.hash)) === "#pricing");
@@ -297,7 +304,7 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   // a second change of page, by a link inside a fold: the fold is opened first, so the press lands at once
   await page.$eval('#view-pricing a[href="#pilot"]', (a) => { a.closest("details").open = true; });
   await page.click('#view-pricing a[href="#pilot"]');
-  await settle(page, 1200);
+  await settle(page, 1200); await ended(page);
   check("  and when everything has landed nothing is left running: nothing loops", (await running(page)).length === 0, await running(page));
   await ctx.close();
 }

@@ -2300,7 +2300,7 @@
   },
   {
    "id": "ap_statement",
-   "what": "One invoice becomes a statement as JSON, CSV and PDF that say the same; each line is agreed, disputed, duplicate or has insufficient evidence, and anyone rebuilds it from its evidence.",
+   "what": "One invoice becomes a statement as JSON, CSV and PDF that say the same; each line shows policy satisfied, parties accepted, payment authorised and settled, or why not, and anyone rebuilds it from its evidence.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -3122,7 +3122,7 @@
   },
   {
    "id": "approver_screen",
-   "what": "Whoever approves an invoice sees one row per line, one queue of exceptions, and approves the agreed lines with no command line.",
+   "what": "Whoever approves an invoice sees one row per line, one queue of exceptions and the four steps of each line, and authorises payment of the lines whose policy is met with no command line.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -3854,7 +3854,7 @@
      "names": "test_pay_order_and_settle_order_take_a_seeded_token_account_of_the_fee_owner_and_nothing_else"
     }
    },
-   "note": "knos_pay takes any token account the fee owner holds for the mint; `knos relay fee-accounts --k N` plans the accounts and `--execute` makes them. Tested in the simulator against the compiled programs. On devnet six seeded fee accounts exist since 8 Oct 2026 (K = 4 for devnet USDC and the faucet's test USDC, owned by the fee owner, made by the project's own relayer key; docs/RELAY.md lists them); the public worker runs with K = 1, so no payment has used them, and the one-relay rate measured on 8 Oct (0.097 a second) is the only measured rate."
+   "note": "knos_pay takes any token account the fee owner holds for the mint; `knos relay fee-accounts --k N` plans the accounts and `--execute` makes them. Tested in the simulator against the compiled programs. On devnet six seeded fee accounts exist since 8 Oct 2026 (K = 4 for devnet USDC and the faucet's test USDC, owned by the fee owner, made by the project's own relayer key; docs/RELAY.md lists them); the public worker runs with K = 1. Two rates are measured on 8 Oct at the public ids (docs/LOAD.md): 0.097 a second through one relay and one fee account, and 0.189 a second with 4 relays and 4 fee accounts (40 of 40; the fee accounts took 14, 9, 9 and 8 payments)."
   },
   {
    "id": "memory_changes_decisions",
@@ -3887,6 +3887,114 @@
     }
    },
    "note": "A check of the source, not an outside review: it shows what the code allows, and docs/DISPUTES.md says how verdicts and appeals stay with the parties' judges and arbiters."
+  },
+  {
+   "id": "line_four_steps_owed",
+   "what": "Each statement line shows four steps recorded apart, and a line whose policy is met that the buyer refused, or left unauthorised past the window, is owed to the supplier and counted as a wrongful refusal.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/statement.py",
+     "names": "def steps_of"
+    },
+    "tested": {
+     "test": "tests/test_line_states.py",
+     "names": "test_a_refused_line_whose_policy_is_met_is_owed_and_counted_as_a_wrongful_refusal"
+    }
+   }
+  },
+  {
+   "id": "timelock_plan",
+   "what": "A script reads the upgrade multisig and prints the Squads configuration transaction that sets its time lock above the seven-day notice plus the grace, refusing while an upgrade proposal is open or approved and not executed.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/timelock_plan.py",
+     "names": "SET_TIME_LOCK"
+    },
+    "tested": {
+     "test": "tests/test_timelock_plan.py",
+     "names": "test_it_refuses_while_a_proposal_is_open_or_approved_and_not_executed"
+    }
+   },
+   "note": "The script is tested; the time lock itself is not applied: no configuration transaction has been sent, and docs/GOVERNANCE.md says applied only when the release run records it."
+  },
+  {
+   "id": "bank_unknown_held",
+   "what": "An unclear bank answer holds each line of the transfer as unknown, no payment file names it until a status file says paid or returned, and no settlement id is instructed twice.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/rails.py",
+     "names": "def unknown"
+    },
+    "tested": {
+     "test": "tests/test_statement_rails.py",
+     "names": "test_an_ambiguous_answer_holds_the_lines_as_unknown_and_blocks_any_new_file_until_a_status_resolves_it"
+    }
+   }
+  },
+  {
+   "id": "pays_once_matrix",
+   "what": "One economic deliverable pays once across refund, reopen, standing order, assignment, warranty holdback, partial payments and the bank rail: each row of the matrix names the test that checks it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "docs/invariants.json",
+     "names": "economic_idempotency"
+    },
+    "tested": {
+     "test": "tests/test_invariants_doc.py",
+     "names": "test_the_economic_idempotency_rows_cover_the_lifecycle_and_name_tests_that_exist"
+    }
+   }
+  },
+  {
+   "id": "selfhost_bundle",
+   "what": "A bundle a buyer runs in its own cloud: one image, the record API, the relay worker and the static site with the approver, configured from one file; `knos selfhost check` validates the file and `knos selfhost plan` prints the services.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/selfhost.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_selfhost.py",
+     "names": "test_compose_parses_and_names_only_pinned_images"
+    }
+   },
+   "note": "Never deployed: not run in any cloud, and no single sign-on (docs/SELFHOST.md)."
+  },
+  {
+   "id": "contention_scenarios",
+   "what": "PayOrder under contention: a hot funder, RPC faults, a priority fee and a burst, each with its own result row (paid of attempted, failures, retries, p50/p95/p99, worst).",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/load_pay.py",
+     "names": "SCENARIOS"
+    },
+    "tested": {
+     "test": "tests/test_load_pay.py",
+     "names": "test_each_contention_scenario_runs_in_the_simulator_with_its_own_checks_and_no_rate"
+    }
+   },
+   "note": "Simulated here with injected faults; not run on devnet yet (docs/LOAD.md)."
+  },
+  {
+   "id": "audit_export_fast",
+   "what": "`knos audit export` reads only the owner's part of the escrow, a few transactions at once, so a history the size of the witnessed run takes a handful of calls instead of a thousand.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/audit.py",
+     "names": "def owner_history"
+    },
+    "tested": {
+     "test": "tests/test_audit_speed.py",
+     "names": "test_a_history_the_size_of_the_witnessed_run_takes_a_handful_of_calls_not_a_thousand"
+    }
+   }
   }
  ],
  "public_round": {

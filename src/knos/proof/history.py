@@ -53,6 +53,12 @@ that history makes required.
                   value; WARM, a withdrawn grant ARCHIVED), and each buyer's time from first order to first payment, so
                   the second buyer's onboarding is set against the first's. `knos recall supplier` answers from them.
 
+    line_decided(), line_decisions()
+                  what a buyer decided about a statement line whose policy was met: accepted, refused or authorised, by
+                  whom, in which role, when and why, in the buyer's tenant. One entity per supplier and terms (WARM) holds
+                  the decisions, each also a journal event (COLD). When the same supplier comes back under the same
+                  terms, the approver's row says what was decided before (knos.recall `decisions`).
+
 `NullStore` keeps nothing: the same engine with no memory, which is what a plain hook amounts to.
 """
 
@@ -1571,3 +1577,54 @@ def _lint(rules, diff_text: str, commits=()) -> list[RuleViolation]:
                     line = next((t for g, _n, t in added if g == f), "")
                     out.append(RuleViolation(r, f"{f}:{first}", line, f"{pat} must not be edited"))
     return out
+
+
+# ---- decisions on statement lines: accepted, refused or authorised, recalled when the same supplier and terms return --
+
+LINE_DECISIONS = ("accepted", "refused", "authorised")
+DECISION_MARK = "knos-line-decision"         # what makes a journal event one of these (COLD)
+_DECISIONS_KEPT = 200                        # the decisions one supplier-and-terms entity keeps (WARM); the journal keeps them all
+
+
+def _decision_row(body) -> bool:
+    return (isinstance(body, dict) and isinstance(body.get("supplier"), str) and isinstance(body.get("terms"), str)
+            and bool(_HASH.fullmatch(body["terms"])) and isinstance(body.get("decisions"), list))
+
+
+def line_decided(store, supplier, terms: str, deliverable: str, decision: str, by: str, role: str, why: str = "", line: str = "",
+                 on: str = "", at: float | None = None) -> dict:
+    """Remember one decision about one statement line: `decision` (LINE_DECISIONS) of `deliverable` (its knos.ids
+    deliverable id), by `by` in `role`, on the day `on`, for `why`, under the terms with hash `terms`, for `supplier`.
+    The same decision of the same deliverable by the same person on the same day is one memory. Returns it."""
+    who = _agent_key(supplier)[:64]
+    if not who or not _HASH.fullmatch(str(terms)) or decision not in LINE_DECISIONS or not str(deliverable).strip() or not str(by).strip():
+        raise ValueError("a decision is remembered for a supplier, under a terms hash (64 hex characters), of a deliverable, by someone: "
+                         f"one of {', '.join(LINE_DECISIONS)}")
+    row = {"deliverable": _short(deliverable, 80), "decision": decision, "by": _short(by, 64), "role": _short(role, 64), "why": _short(why, 300),
+           "line": _short(line, 40), "on": _short(on, 10), "at": float(at if at is not None else time.time())}
+    name = _id("decision", who, terms)
+    held = getattr(store, "held", None)
+    with held() if held is not None else contextlib.nullcontext(store):
+        body = store.get("decision", name)
+        kept = [d for d in body.get("decisions", []) if isinstance(d, dict)] if _decision_row(body) and body["supplier"] == who and body["terms"] == terms else []
+        same = lambda d: all(d.get(k) == row[k] for k in ("deliverable", "decision", "by", "on"))  # noqa: E731
+        was = next((d for d in kept if same(d)), None)
+        if was is not None:
+            return was
+        store.put("decision", name, {"supplier": who, "terms": str(terms), "decisions": [*kept, row][-_DECISIONS_KEPT:]})
+        store.journal(evaluated={"supplier": who, "terms": terms, "deliverable": row["deliverable"]},
+                      acted=f"{decision} {row['deliverable']} ({row['by']}, {row['role']})", extra={"kind": DECISION_MARK, "supplier": who, "terms": terms, **row})
+    return row
+
+
+def line_decisions(store, supplier, terms: str, deliverable: str | None = None) -> list[dict]:
+    """What was decided before about lines of `supplier` under the terms `terms`, oldest first; `deliverable`: only
+    about that one. Read from memory only: [] with no memory (NullStore), or for another supplier or other terms."""
+    who = _agent_key(supplier)[:64]
+    if not who or not _HASH.fullmatch(str(terms)):
+        return []
+    body = store.get("decision", _id("decision", who, terms))
+    if not _decision_row(body) or body["supplier"] != who or body["terms"] != terms:
+        return []
+    rows = [d for d in body["decisions"] if isinstance(d, dict) and d.get("decision") in LINE_DECISIONS]
+    return [d for d in rows if deliverable is None or d.get("deliverable") == deliverable]

@@ -3,7 +3,10 @@
 //   keeping(get)                  [a reader that writes down what `get` said, the book it writes in] (knos.shadow.keeping)
 //   fromShadow(bundle, meta)      the statement of a shadow run. bundle: { invoice: the invoice's text, answers: { path:
 //                                 GitHub's answer } }. meta: invoice, supplier, buyer, currency, date, each optional
-//   approve(st, status, by, role, on[, only])   the status with one more approval of every agreed line nobody approved yet
+//   approve(st, status, by, role, on[, only])   the status with one more approval of every line whose policy is met
+//                                 that nobody approved or refused yet (payment authorised)
+//   accept(st, status, by, role, on[, lines])    knos.statement.accept: a party accepts lines (accepted, nothing more)
+//   refuse(st, status, line, by, role, on, why)  knos.statement.refuse: a party refuses one line, and says why
 //   HANDED, hand(st, status)      web/finance_data.js's: the statement the front door made last, for the Statement page to open
 //
 // The front door (web/front_door.js) makes its statement here, so what it downloads is the file `knos statement make`
@@ -110,12 +113,40 @@ export function approve(st, status, by, role, on, only = null) {
   status = status || { kind: STATUS_KIND, version: 1, statement: st.sha256, events: [] };
   if (status.kind !== STATUS_KIND || status.statement !== st.sha256) throw new Error("The status file is another statement's: it names another sha256.");
   if (!String(by).trim() || !String(role).trim()) throw new Error("An approval names who approved and in which role.");
-  const done = new Set(status.events.filter((e) => e.type === "approval").flatMap((e) => e.lines));
+  const done = new Set([...status.events.filter((e) => e.type === "approval").flatMap((e) => e.lines), ...refusedLines(status)]);
   const mine = st.lines.filter((ln) => ln.state === "agreed" && !done.has(ln.invoice_line) && (!only || only.includes(ln.invoice_line)));
-  if (!mine.length) throw new Error(done.size ? "There is no agreed line left to approve." : "No line of this statement is agreed, so there is nothing to approve.");
+  if (!mine.length) throw new Error(done.size ? "There is no line left to approve whose policy is met." : "No line of this statement meets its policy, so there is nothing to approve.");
   const event = { type: "approval", scope: "agreed", by: String(by).trim(), role: String(role).trim(), on: day(on), lines: mine.map((ln) => ln.invoice_line),
     amount: amountOf(mine.reduce((a, ln) => a + units(ln.amount, st.scale), 0n), st.scale) };
   return { ...status, events: [...status.events, event] };
+}
+
+const statusOf = (st, status) => {
+  status = status || { kind: STATUS_KIND, version: 1, statement: st.sha256, events: [] };
+  if (status.kind !== STATUS_KIND || status.statement !== st.sha256) throw new Error("The status file is another statement's: it names another sha256.");
+  return status;
+};
+/** statement._decided: the last acceptance or refusal of each invoice line. */
+const decided = (status) => { const out = new Map(); for (const e of (status && status.events) || []) if (e.type === "acceptance" || e.type === "refusal") for (const l of e.lines) out.set(l, e); return out; };
+/** statement.refused_lines: the lines whose last decision is a refusal. */
+export const refusedLines = (status) => [...decided(status)].filter(([, e]) => e.type === "refusal").map(([l]) => l);
+
+/** knos.statement.accept: `lines` (ids), or every line whose policy is met that nobody accepted or refused yet. */
+export function accept(st, status, by, role, on, lines = []) {
+  status = statusOf(st, status);
+  if (!String(by).trim() || !String(role).trim()) throw new Error("An acceptance names who accepted and in which role: --by and --role.");
+  const known = new Set(st.lines.map((ln) => ln.invoice_line)), was = decided(status);
+  for (const l of lines) if (!known.has(l)) throw new Error(`No line of this statement has the id ${l}. The ids are in the invoice_line column.`);
+  const mine = lines.length ? [...lines] : st.lines.filter((ln) => ln.state === "agreed" && !was.has(ln.invoice_line)).map((ln) => ln.invoice_line);
+  if (!mine.length) throw new Error("There is no line left to accept whose policy is met.");
+  return { ...status, events: [...status.events, { type: "acceptance", by: String(by).trim(), role: String(role).trim(), on: day(on), lines: mine }] };
+}
+/** knos.statement.refuse: one line refused, by whom, in which role, and why. */
+export function refuse(st, status, line, by, role, on, why) {
+  status = statusOf(st, status);
+  if (!String(by).trim() || !String(role).trim() || !String(why || "").trim()) throw new Error("A refusal names who refused, in which role and why: --by, --role and --why.");
+  if (!st.lines.some((ln) => ln.invoice_line === line)) throw new Error(`No line of this statement has the id ${line}. The ids are in the invoice_line column.`);
+  return { ...status, events: [...status.events, { type: "refusal", by: String(by).trim(), role: String(role).trim(), on: day(on), lines: [line], why: String(why).split(/\s+/).filter(Boolean).join(" ").slice(0, 300) }] };
 }
 
 export { HANDED, hand };

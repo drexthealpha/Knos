@@ -106,3 +106,54 @@ def test_the_claims_job_waits_for_pypi_before_it_installs():
     assert 600 < jobs["claims"]["timeout-minutes"] * 60                              # the wait ends before the job's own limit
     assert "KEY" not in json.dumps(jobs["claims"]["steps"][wait])                     # no secret near it
     assert all("pypi_wait" not in json.dumps(job) for name, job in jobs.items() if name != "claims")
+
+
+
+# ---- the `knos settle` job of prove.yml: the same wait, written into its install step (that job checks nothing out) ----
+def _settle_install() -> str:
+    steps = yaml.safe_load((ROOT / ".github" / "workflows" / "prove.yml").read_text(encoding="utf-8"))["jobs"]["settle"]["steps"]
+    return next(str(s["run"]) for s in steps if "--require-hashes" in str(s.get("run") or ""))
+
+
+def test_the_settle_job_writes_the_lock_waits_for_its_knos_file_then_installs_from_it():
+    run = _settle_install().splitlines()
+    write, wait, install = (next(i for i, ln in enumerate(run) if ln.startswith(x)) for x in ('cat > "$RUNNER_TEMP/knos.lock"', "python3 -I - ", "uv pip install"))
+    assert write < wait < install and run[write + 1:write + 3] == ["KNOS_LOCK", "LOCK"]
+    assert run[wait] == """python3 -I - "$RUNNER_TEMP/knos.lock" 600 <<'WAIT'""" and run[install].endswith('--require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock"')
+    assert "${{" not in _settle_install() and "KEY" not in _settle_install()
+
+
+@pytest.mark.parametrize("lock, answers, code, said", [
+    (f"solders==0.29.0 --hash=sha256:{'a' * 64}\nknos=={VER} --hash=sha256:{H}\n", [index(), OSError("lag"), index((f"knos-{VER}-py3-none-any.whl", "d" * 64)),
+     index((f"knos-{VER}-py3-none-any.whl", H))], 0, ["waiting 5 s", "waiting 10 s", "waiting 20 s", f"PyPI lists knos {VER} with the pinned hash (after 35 s)"]),
+    (f"knos=={VER} --hash=sha256:{H}\n", [index(("knos-0.3.21-py3-none-any.whl", H))] * 20,
+     f"PyPI did not list knos {VER} with the pinned hash within 600 s; last seen: no file of knos {VER} with the pinned hash", ["waiting 60 s"]),
+    (f"solders==0.29.0 --hash=sha256:{'a' * 64}\n", [], 0, ["the lock pins no knos file: nothing to wait for"]),      # a rehearsal's lock
+])
+def test_the_settle_jobs_wait_runs_as_written(monkeypatch, capsys, tmp_path, lock, answers, code, said):
+    import io
+    import sys
+    import textwrap
+    import time
+    import urllib.request
+    text = textwrap.dedent(_settle_install().split("<<'WAIT'\n", 1)[1].split("\nWAIT\n", 1)[0])
+    (tmp_path / "knos.lock").write_text(lock, encoding="utf-8")
+    left, slept = list(answers), []
+
+    def fake(req, timeout=0):
+        assert req.full_url == "https://pypi.org/simple/knos/" and req.headers["Accept"] == PW.ACCEPT
+        got = left.pop(0)
+        if isinstance(got, Exception):
+            raise got
+        return io.BytesIO(json.dumps(got).encode("utf-8"))
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    monkeypatch.setattr(time, "sleep", slept.append)
+    monkeypatch.setattr(sys, "argv", ["-", str(tmp_path / "knos.lock"), "600"])
+    try:
+        exec(compile(text, "settle-wait", "exec"), {"__name__": "__main__"})      # noqa: S102 - the step's own text
+        got = 0
+    except SystemExit as stop:
+        got = stop.code or 0
+    out = capsys.readouterr().out
+    assert got == code and all(x in out for x in said), (got, out)
+    assert sum(slept) <= 600 and slept[:4] == [5, 10, 20, 40][:len(slept)]

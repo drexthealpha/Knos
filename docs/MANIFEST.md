@@ -1,4 +1,4 @@
-# Release manifest: Knos 0.3.22
+# Release manifest: Knos 0.3.23
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -6,9 +6,17 @@ One page for this release: the source, the bytes each public program id runs, ev
 limits still open. `python scripts/release_manifest.py` writes it from the files named under each heading, and
 `--check` fails when it differs from them. Nothing here is typed by hand, and no time is printed.
 
+## Start here
+
+Each program a payment runs through, in one line: the source, the hash of the build at its public id, the version
+deployed there, the transactions recorded, and the fee schedule. The rows behind each step are below.
+
+- **knos_oidc**: [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) -> build `3758348d1051feab` -> knos_oidc 2.1 at `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` -> 2 recorded transactions, first [4G2Zew7L...](https://explorer.solana.com/tx/4G2Zew7LgfNJ7v6KjaKceCFRRLBmK5LD7qYK3oUi58b9X3iMhR7dXD7oqr2FuNcvewy65R6N8k7iVD6JbrG5eJJV?cluster=devnet) -> no fee: the verifier moves no money.
+- **knos_pay**: [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5) -> build `2ed301a2bc99fc6e` -> knos_pay 2.1 at `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` -> 7 recorded transactions, first [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) -> fee schedule: knos_pay 2.1: orders 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40; jobs 2.5% of the amount, at least 0.05; proposal 8 (pending) would charge knos_pay 2.2: jobs and orders 0.30% of the amount, at least 0.05.
+
 ## Source
 
-- Release: Knos 0.3.22 (`pyproject.toml`). Tag: [`v0.3.22`](https://github.com/drexthealpha/Knos/tree/v0.3.22); `git rev-list -n 1 v0.3.22` prints its commit. A file
+- Release: Knos 0.3.23 (`pyproject.toml`). Tag: [`v0.3.23`](https://github.com/drexthealpha/Knos/tree/v0.3.23); `git rev-list -n 1 v0.3.23` prints its commit. A file
   cannot hold the hash of the commit that holds it.
 - Cluster: Solana devnet. The money is test USDC. Mainnet is not touched.
 
@@ -275,6 +283,32 @@ capability is in [CAPABILITIES.md](CAPABILITIES.md).
 | `fee_accounts_sharded` | tested locally | [`src/knos/settle/v2/pay.py`](../src/knos/settle/v2/pay.py): `def fee_account_for(order: Pubkey, mint: Pubkey` | [`tests/test_fee_shards.py`](../tests/test_fee_shards.py): `test_pay_order_and_settle_order_take_a_seeded_token_account_of_the_fee_owner_and_nothing_else` | none | none | none |
 | `memory_changes_decisions` | tested locally | [`src/knos/proof/history.py`](../src/knos/proof/history.py): `def protections_recalled(store, repo, terms: str` | [`tests/test_preflight.py`](../tests/test_preflight.py): `test_memory_changes_what_preflight_recommends_and_without_it_nothing_is_recommended` | none | none | none |
 | `fee_neutrality` | tested locally | [`programs-v2/knos_pay/src/order_pay.rs`](../programs-v2/knos_pay/src/order_pay.rs): `is_owned(a.fee_tok, a.token.key, &o.mint, &FEE_OWNER)` | [`tests/test_neutrality.py`](../tests/test_neutrality.py): `test_knos_fee_account_only_receives_fees_and_lowers_a_rate` | none | none | none |
+| `line_four_steps_owed` | tested locally | [`src/knos/statement.py`](../src/knos/statement.py): `def steps_of` | [`tests/test_line_states.py`](../tests/test_line_states.py): `test_a_refused_line_whose_policy_is_met_is_owed_and_counted_as_a_wrongful_refusal` | none | none | none |
+| `timelock_plan` | tested locally | [`scripts/timelock_plan.py`](../scripts/timelock_plan.py): `SET_TIME_LOCK` | [`tests/test_timelock_plan.py`](../tests/test_timelock_plan.py): `test_it_refuses_while_a_proposal_is_open_or_approved_and_not_executed` | none | none | none |
+| `bank_unknown_held` | tested locally | [`src/knos/rails.py`](../src/knos/rails.py): `def unknown` | [`tests/test_statement_rails.py`](../tests/test_statement_rails.py): `test_an_ambiguous_answer_holds_the_lines_as_unknown_and_blocks_any_new_file_until_a_status_resolves_it` | none | none | none |
+| `pays_once_matrix` | tested locally | [`docs/invariants.json`](../docs/invariants.json): `economic_idempotency` | [`tests/test_invariants_doc.py`](../tests/test_invariants_doc.py): `test_the_economic_idempotency_rows_cover_the_lifecycle_and_name_tests_that_exist` | none | none | none |
+| `selfhost_bundle` | tested locally | [`src/knos/selfhost.py`](../src/knos/selfhost.py): `def check` | [`tests/test_selfhost.py`](../tests/test_selfhost.py): `test_compose_parses_and_names_only_pinned_images` | none | none | none |
+| `contention_scenarios` | tested locally | [`scripts/load_pay.py`](../scripts/load_pay.py): `SCENARIOS` | [`tests/test_load_pay.py`](../tests/test_load_pay.py): `test_each_contention_scenario_runs_in_the_simulator_with_its_own_checks_and_no_rate` | none | none | none |
+| `audit_export_fast` | tested locally | [`src/knos/audit.py`](../src/knos/audit.py): `def owner_history` | [`tests/test_audit_speed.py`](../tests/test_audit_speed.py): `test_a_history_the_size_of_the_witnessed_run_takes_a_handful_of_calls_not_a_thousand` | none | none | none |
+
+## Fee schedule of each recorded order
+
+Every order or job a record of this tree says ran at the public knos_pay, and the fee schedule that applied: the
+fee the order stored when the record states it, else the build live at its slot (`docs/fee_slots.json`, written by
+`python scripts/release_manifest.py --read-slots`), else what its date rules out.
+
+| order | transaction | fee schedule that applied | how it is known | from |
+|---|---|---|---|---|
+| the public round: order `6eyyJcCVuB5Af6ZU6St8haGxkqrtad7dcBdKMZeNGAaY` funded by `/knos fund 5` | [177CEpZ8...](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet) | knos_pay 2.1: orders 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40; jobs 2.5% of the amount, at least 0.05 | the order's stored fee: 0.40 on 5.00 | docs/capabilities.json `public_round` |
+| `fund_from_wallet` (expiry round) | [4Q1cvM78...](https://explorer.solana.com/tx/4Q1cvM785mimadqAPQTwQyYWHBMZbFWzZ5W1w1zVQZsx3TUEKwesdyQoSimQCiUVJvUhUP6TFW9on5xLKzEn41sK?cluster=devnet) | not decided | no stored fee, slot or date in the record; `--read-slots` reads the slot | docs/capabilities.json |
+| `refund` (expiry round) | [57E3wRPG...](https://explorer.solana.com/tx/57E3wRPGfY34MFq89Uxi75AS9PMoCT7eFwnXgnfsFpVg9mbtoHB4FVJ5bYNMGLPANuvrYygwc32Su2W8jE5XtVeY?cluster=devnet) | not decided | no stored fee, slot or date in the record; `--read-slots` reads the slot | docs/capabilities.json |
+| `order_pay` (order round) | [59AfaYHT...](https://explorer.solana.com/tx/59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV?cluster=devnet) | not decided | no stored fee, slot or date in the record; `--read-slots` reads the slot | docs/capabilities.json |
+| `tests_mode` (auto round) | [55Gxtqyo...](https://explorer.solana.com/tx/55GxtqyoErGS6fJgJNNSe87qxJF3sUwgoZZkAQfTQ1eXQYhnqQaB861AQS6u1FXwuBBwY2dmQdWwgH9Zps1YfTVm?cluster=devnet) | not decided | no stored fee, slot or date in the record; `--read-slots` reads the slot | docs/capabilities.json |
+| `top_up` (expiry round) | [432L2F98...](https://explorer.solana.com/tx/432L2F987ADLGHRPLuHMoULKQr8pYRMNyb9k2PAMZ5H7CJsix4JgqKbMHLx7yyY5kDmJnAt1Lb6fz5nMwEFhCCQJ?cluster=devnet) | not decided | no stored fee, slot or date in the record; `--read-slots` reads the slot | docs/capabilities.json |
+| `x402_knos_order` (x402 round) | [2noSVLKX...](https://explorer.solana.com/tx/2noSVLKXsSDc9iL72m6H4geVenuoDvrH7YiQ4FUEwLUYgEbWpqxk9TZxf6GQegSXCsZUR33GT2gn6HEUbkKTpwsX?cluster=devnet) | not decided | no stored fee, slot or date in the record; `--read-slots` reads the slot | docs/capabilities.json |
+| 40 orders funded and refunded by a load run, 4 relays; order ids not kept in docs/load.json | none kept | knos_pay 2.0 or 2.1, not 2.2 | its date rules out 2.2 only (proposal 8 could not yet execute); the run kept no transaction to read a slot from | docs/load.json `measured` |
+| 40 orders paid by a load run, 1 relay; order ids not kept in docs/load.json | none kept | knos_pay 2.1: orders 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40; jobs 2.5% of the amount, at least 0.05 | its date: a day before proposal 8 (2.2) could execute (web/upgrades.json `earliest_execution_utc`) and after the cluster read that found proposal 4 (2.1) live (docs/provenance.json `read`) | docs/load.json `measured` |
+| 40 orders paid by a load run, 4 relays; order ids not kept in docs/load.json | none kept | knos_pay 2.1: orders 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40; jobs 2.5% of the amount, at least 0.05 | its date: a day before proposal 8 (2.2) could execute (web/upgrades.json `earliest_execution_utc`) and after the cluster read that found proposal 4 (2.1) live (docs/provenance.json `read`) | docs/load.json `measured` |
 
 ## Outstanding limits
 

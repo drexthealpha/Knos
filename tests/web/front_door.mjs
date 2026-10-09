@@ -39,13 +39,26 @@ const make = await load("statement_make.js"), finance = await load("finance_data
 const made = await make.fromShadow({ invoice: SAMPLE_INVOICE, answers: SAMPLE_BOOK }, SAMPLE_META);
 same("the sample's statement names a currency, so a bank file can be made from it", made.currency, "USD");
 same("the sample's statement is the Python's, byte for byte", finance.canonicalText(made), fixture("front_door.json"));
-same("  its CSV too, before an approval and after one", [await finance.statementCsv(made), await finance.statementCsv(made, make.approve(made, null, "you", "approver", "2026-10-06"))], [fixture("front_door.plain.csv"), fixture("front_door.csv")]);
+same("  its CSV too, before an approval and after one", [await finance.statementCsv(made), await finance.statementCsv(made, make.approve(made, make.accept(made, null, "you", "approver", "2026-10-06"), "you", "approver", "2026-10-06"))], [fixture("front_door.plain.csv"), fixture("front_door.csv")]);
 same("  every line has its deliverable and invoice line ids, an evaluation where one ran, and one of the four states", [made.lines.every((l) => /^dlv_[0-9a-f]{24}$/.test(l.deliverable) && /^inv_[0-9a-f]{24}$/.test(l.invoice_line) && l.evaluations.every((e) => /^evl_[0-9a-f]{24}$/.test(e))),
   made.lines.filter((l) => l.evaluations.length).length, made.lines.map((l) => l.state)], [true, 4, WANT]);
 same("seven columns, one per question an approver asks", COLUMNS.map((c) => c[1]), ["Authorized", "Delivered", "Passed", "Billed before", "Approved by", "Owed", "Evidence"]);
 const said = st.lines.map((r) => answers(r));
 ok("each answer is a few words", said.every((a) => COLUMNS.every(([k]) => a[k].text && words(a[k].text) <= 6)), said.flatMap((a) => COLUMNS.map(([k]) => a[k].text)).filter((t) => words(t) > 6));
-same("a line billed twice says where, and is owed nothing", [said[5].billed_before.text, said[5].owed.text, said[0].billed_before.text, said[0].owed.text], ["yes, line 1", "nothing: billed twice", "no", "400.00"]);
+same("a line billed twice says where, and is owed nothing", [said[5].billed_before.text, said[5].owed.text, said[0].billed_before.text, said[0].owed.text], ["yes, line 1", "nothing: billed twice", "no", "400.00 once authorised"]);
+// FOUR STEPS, never "agreed": a line whose checks passed has its policy met and nothing else until someone accepts and
+// authorises it; left unauthorised past the window it is owed to the supplier (src/knos/statement.py steps_of)
+const steps = await load("line_steps.js"), door = await load("front_door.js");
+same("no line state is called agreed in words", Object.values(LINE_WORDS).includes("agreed"), false);
+same("a line whose checks passed: policy met, then three steps nobody took", steps.shadowSteps(st.lines[0]).map((x) => x.state), ["done", "open", "open", "open"]);
+same("  accepted and authorised once someone does both; still not settled", steps.shadowSteps(st.lines[0], { by: "you", on: "2026-10-06" }).map((x) => x.state), ["done", "done", "done", "open"]);
+same("  a failed check: the policy is not met, and nothing after it is for this line", steps.shadowSteps(st.lines[1]).map((x) => x.state), ["failed", "open", "open", "open"]);
+same("owed to the supplier only past the window, and only while nobody authorised it",
+  [door.isOwed(st.lines[0], "2026-09-07", "2026-10-07"), door.isOwed(st.lines[0], "2026-09-07", "2026-10-08"), door.isOwed(st.lines[0], "2026-09-07", "2026-10-08", { by: "you" }), door.isOwed(st.lines[1], "2026-09-07", "2026-12-01")],
+  [false, true, false, false]);
+same("  and its answer says so, in a few words", [answers(st.lines[0], null, true).owed.text, answers(st.lines[0], null, false, { by: "you", on: "2026-10-06" }).owed.text], ["400.00, to the supplier", "400.00, authorised"]);
+const row = steps.stepRowHtml(steps.shadowSteps(st.lines[1]));
+ok("the step row names each step in words for a screen reader", /policy satisfied: no/.test(row) && /parties accepted: not yet/.test(row) && (row.match(/class="k-step"/g) || []).length === 4, row);
 same("what the box holds: a repository's name, or an invoice", [reading(" acme/app ").repo, reading("https://github.com/acme/app").repo.repo, reading("acme/app#1").invoice.lines.length, reading("acme/app#1\nacme/app#2").invoice.lines.length],
   [{ owner: "acme", repo: "app", branch: "main" }, "app", 1, 2]);
 const listing = [1, 2, 3, 5, 9, 12, 13, 14].map((n) => book[`repos/acme/app/pulls/${n}`]);
@@ -224,7 +237,7 @@ async function page() {
       await p.click('[data-fd="approve"]'); await p.click('[data-fd="statement"]');
       await p.waitForSelector("#aps-statement", { state: "visible" });
       same("320px, on the site: Open the statement shows the same statement on the Statement page, with the approval", await p.$eval("#aps-statement", (e) => [e.dataset.sha256, e.dataset.whole, document.body.dataset.page]).then(async (l) => [...l,
-        (await p.textContent("#aps-answers")).includes("2 agreed lines, 650.00 USD by you (approver) on"), await p.$$eval("#aps-lines .k-state", (x) => x.map((e) => e.dataset.state))]), [made.sha256, "1", "invoice-statement", true, WANT]);
+        (await p.textContent("#aps-answers")).includes("2 lines, 650.00 USD by you (approver) on"), await p.$$eval("#aps-lines .k-state", (x) => x.map((e) => e.dataset.state))]), [made.sha256, "1", "invoice-statement", true, WANT]);
       ok("320px, on the site: the statement does not scroll sideways", (await measure(p)).over <= 0, await measure(p));
     }
     await ctx.close();
@@ -245,7 +258,7 @@ async function page() {
     same(`${tag}: four groups with the expected counts`, Object.fromEntries(Object.entries(g).map(([k, v]) => [k, v[0]])), COUNTS);
     same(`${tag}: every line is in its group`, Object.fromEntries(Object.entries(g).map(([k, v]) => [k, v[1]])), { agreed: [1, 5], disputed: [2, 3], duplicate: [4, 6], insufficient_evidence: [7] });
     same(`${tag}: the neutral count beside the supplier's`, await p.$$eval("#front-result .fd-counts > div", (l) => l.map((d) => d.innerText.split("\n").map((t) => t.trim()).filter(Boolean))),
-      [["Supplier's count", "7", "lines, 2900.00 billed"], ["Neutral count", "2", "lines, 650.00 agreed"]]);
+      [["Supplier's count", "7", "lines, 2900.00 billed"], ["Neutral count", "2", "lines, 650.00 policy met"]]);
     same(`${tag}: each line answers the seven questions`, await p.$$eval("#front-result .fd-line", (l) => [...new Set(l.map((li) => [...li.querySelectorAll("dt")].map((d) => d.textContent).join()))]), [COLUMNS.map((c) => c[1]).join()]);
     same(`${tag}: it is marked as made up, and nothing is left pending`, [await p.textContent('[data-fd="mark"]'), await p.$$eval('[data-fd="pending"] li', (l) => l.length), await p.textContent('[data-fd="said"]')],
       ["Sample: a made-up invoice from a made-up supplier.", 0, "Checked 7 lines. 5 exceptions."]);
@@ -256,13 +269,16 @@ async function page() {
       ok("sample: the feedback link carries nothing of the invoice", !/example|storefront|400|2900|Agents/i.test(decodeURIComponent(FEEDBACK)));
       const [d0] = await Promise.all([p.waitForEvent("download"), p.click('[data-fd="csv"]')]);
       same("sample: before anyone approves, the CSV says nobody has", readFileSync(await d0.path(), "utf8"), fixture("front_door.plain.csv"));
+      const stepsOf = () => p.$$eval(".fd-line[data-steps-line], .fd-line", (l) => l.filter((li) => li.dataset.state === "agreed").map((li) => [...li.querySelectorAll("[data-step]")].map((x) => x.dataset.state).join(" ")));
+      same("sample: a line whose policy is met shows four steps, three of them not taken", await stepsOf(), ["done idle idle idle", "done idle idle idle"]);
       await p.click('[data-fd="approve"]');
+      same("sample: accepting and authorising moves two steps, and settled stays open", await stepsOf(), ["done done done idle", "done done done idle"]);
       same("sample: approving marks the agreed lines and says what is left", [await p.textContent('[data-fd="approved"]'), await p.$$eval(".fd-line[data-approved]", (l) => l.map((li) => `${li.dataset.line} ${li.querySelector('[data-col="approved_by"]').textContent}`)),
-        await p.$$eval('.fd-line:not([data-approved]) [data-col="approved_by"]', (l) => [...new Set(l.map((d) => d.textContent))])], ["Approved 2 lines. 5 exceptions left.", ["1 you, 2026-10-06", "5 you, 2026-10-06"], ["nobody yet"]]);
+        await p.$$eval('.fd-line:not([data-approved]) [data-col="approved_by"]', (l) => [...new Set(l.map((d) => d.textContent))])], ["Accepted and authorised 2 lines. 5 exceptions left. Not paid.", ["1 you, 2026-10-06", "5 you, 2026-10-06"], ["nobody yet"]]);
       const [d] = await Promise.all([p.waitForEvent("download"), p.click('[data-fd="csv"]')]), csv = readFileSync(await d.path(), "utf8");
       same("sample: Download CSV gives the statement `knos statement make` writes, with the approval: the same bytes", [d.suggestedFilename(), csv], ["statement-sha256-fb61f3411e72ffea.csv", fixture("front_door.csv")]);
       same("sample: its columns are the statement's, and every line is in one of the four states", [csv.split("\n")[10], [...new Set(csv.split("\n").slice(11, 18).map((r) => r.split(",")[3]))].sort()],
-        ["line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of,assurance,po_reference,grn_reference", ["agreed", "disputed", "duplicate", "insufficient evidence"]]);
+        ["line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of,assurance,po_reference,grn_reference", ["disputed", "duplicate", "insufficient evidence", "policy met"]]);
       await p.waitForSelector(".k-toast");
       same("sample: a toast says what was downloaded", await p.textContent(".k-toast"), "Downloaded statement-sha256-fb61f3411e72ffea.csv");
       ok("sample: every statement is still twelve words at most", wordy(await statements(p)).length === 0, wordy(await statements(p)));

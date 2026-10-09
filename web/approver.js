@@ -40,14 +40,15 @@
 import { parse, pullOf, cents, money } from "./shadow.js";
 import { csvRows, statementLines, statementDigest, statementCsv, statementExport, statementUnits as units, statementAmount as amountOf, canonicalText, sha256Hex,
   STATEMENT_KIND, STATUS_KIND, PAY_WORDS, HANDED } from "./finance_data.js";
-import { fromShadow, approve as approveLines } from "./statement_make.js";
+import { fromShadow, approve as approveLines, accept as acceptLines } from "./statement_make.js";
+import { stepRowHtml, stepStyle } from "./line_steps.js";
 import { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } from "./front_door_sample.js";
 
 export const EXCEPTIONS = ["disputed", "duplicate", "insufficient_evidence", "over_po", "over_limit", "replayed"];
 export const WORDS = { disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence", over_po: "over the purchase order", over_limit: "over your approval limit",
   replayed: "replayed" };
 export const COLUMNS = [["supplier", "Supplier"], ["po", "Authorisation"], ["deliverable", "Agreed deliverable"], ["evidence", "Acceptance evidence"],
-  ["amount", "Authorised amount"], ["exception", "Exception"], ["payment", "Payment status"]];
+  ["amount", "Amount to approve"], ["exception", "Exception"], ["payment", "Payment status"]];
 export const PARTS = ["identity", "execution", "acceptance", "consequence", "assurance"];
 export const PRIVATE_PATH = "https://github.com/drexthealpha/Knos/blob/main/docs/PRIVATE.md";
 // The sample's purchase orders: made up, like its invoice. Both limits cover what is agreed, so the sample can be paid.
@@ -139,7 +140,11 @@ function rowsFrom(lines, scale, orders, receipts, limit = null) {
 }
 /** The rows of a statement as they stand with its status file: each line's purchase order, what is authorised, its
  *  exception (one of EXCEPTIONS, or null) and the reason in one sentence. */
-export const rowsOf = (st, status = null, orders = {}, receipts = [], limit = null) => rowsFrom(statementLines(st, status), st.scale, orders, receipts, limit);
+export const rowsOf = (st, status = null, orders = {}, receipts = [], limit = null, today = "") => rowsFrom(statementLines(st, status, today), st.scale, orders, receipts, limit);
+/** Is this what `knos recall decisions --json` prints: what was accepted, refused or authorised before for each line's
+ *  supplier under the same terms (schema knos.recall.decision/1)? A list of rows, each naming its invoice line. */
+export const isDecisions = (d) => Array.isArray(d) && d.length > 0 && d.every((r) => r && typeof r === "object" && r.kind === "knos.recall.decision/1" && typeof r.invoice_line === "string");
+const APPEAL = "https://github.com/drexthealpha/Knos/blob/main/docs/DISPUTES.md#the-path";
 /** The rows of an invoice with no statement: nothing was checked, so nothing is agreed and every line is an exception. */
 export const uncheckedRows = (invoice, orders = {}) => rowsFrom(invoice.lines.map((ln) => ({ line: ln.line, reference: ln.pr, supplier: ln.supplier, amount: ln.amount === null ? "" : money(ln.amount),
   state: "insufficient_evidence", why: "no statement covers this line", payment: "held", evaluations: [], evidence: "", evidence_sha256: "", duplicate_of: "", invoice_line: "", deliverable: "",
@@ -254,6 +259,7 @@ function evidenceOf(row, key, st, limit = null) {
 export function renderApprover(el, ctx = {}) {
   const doc = el.ownerDocument, win = doc.defaultView;
   if (!doc.getElementById("ap-style")) { const s = doc.createElement("style"); s.id = "ap-style"; s.textContent = STYLE; doc.head.appendChild(s); }
+  stepStyle(doc);
   el.classList.add("approver");
   el.innerHTML = `<h2>Approve one invoice</h2>
     <p>Drop the invoice and its statement.</p>
@@ -285,7 +291,7 @@ export function renderApprover(el, ctx = {}) {
     <p class="fine" data-ap="time" hidden></p>
     <p class="fine"><a href="${PRIVATE_PATH}" target="_blank" rel="noopener">Private repositories: read the private path</a></p>`;
   const $ = (name) => el.querySelector(`[data-ap="${name}"]`), said = (text) => { $("said").textContent = text; };
-  const state = { st: null, status: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, rails: undefined, recall: null, limit: null, record: null, checks: [] };
+  const state = { st: null, status: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, rails: undefined, recall: null, limit: null, record: null, checks: [], decisions: [] };
   let motion = null;
   import("./motion.js").then((m) => { motion = m; }).catch(() => { /* the page is whole without it */ });
   const toast = (text, kind) => { if (motion && motion.toast) motion.toast(text, kind); };
@@ -298,6 +304,14 @@ export function renderApprover(el, ctx = {}) {
   const fileName = () => `statement-${String(state.st.invoice).replace(/[^\w.-]+/g, "-")}`;
 
   // ---- drawing ---------------------------------------------------------------------------------------------------------
+  // under the payment status: the line's four steps; a line owed to the supplier says so with the appeal; and what memory
+  // says was decided before for the same supplier and terms (`knos recall decisions --json`, dropped on the page)
+  const afterHtml = (row) => {
+    if (!row.ln.steps) return "";
+    const before = state.decisions.find((d) => d.invoice_line === row.id);
+    return `${stepRowHtml(row.ln.steps)}${row.ln.owed ? `<p class="fine" data-ap="owed"><b>Owed to the supplier.</b> <a href="${APPEAL}" target="_blank" rel="noopener">Supplier: appeal</a></p>` : ""}`
+      + (before ? `<p class="fine" data-ap="before">${esc(before.words)}</p>` : "");
+  };
   const cellHtml = (row, key) => {
     const text = { supplier: esc(row.supplier || "not named"), po: esc(row.po ? row.po.number : "none on file"), deliverable: esc(row.reference || "none named"),
       evidence: esc(row.parts ? "receipt, five parts" : row.ln.evaluations.length ? `${plural(row.ln.evaluations.length, "evaluation")}, ${row.ln.assurance}` : "none"),
@@ -341,10 +355,10 @@ export function renderApprover(el, ctx = {}) {
     const agreed = rows.filter((r) => !r.kind), held = rows.filter((r) => r.kind), waiting = agreed.filter((r) => !r.approved), kept = state.open;
     state.open = null;
     $("out").hidden = false; $("mark").hidden = !state.sample; $("clear").hidden = false;
-    $("sum").innerHTML = [["Billed", rows, "amount"], ["Authorised", agreed, "amount"], ["Exceptions", held, "amount"]].map(([name, list, field]) => `<div data-sum="${name.toLowerCase()}"><p class="k-kicker">${name}</p>
+    $("sum").innerHTML = [["Billed", rows, "amount"], ["Policy met", agreed, "amount"], ["Exceptions", held, "amount"]].map(([name, list, field]) => `<div data-sum="${name.toLowerCase().replace(" ", "-")}"><p class="k-kicker">${name}</p>
       <span class="k-num">${esc(group(sum(list, field)))}${esc(unit)}</span><span>${plural(list.length, "line")}</span></div>`).join("");
     $("table").innerHTML = `<table><thead><tr>${COLUMNS.map(([, name]) => `<th scope="col">${name}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr class="ap-row" data-line="${row.line}"${row.kind ? ` data-kind="${row.kind}"` : ""}${row.approved ? " data-approved" : ""}>
-      ${COLUMNS.map(([key, name]) => `<td><button type="button" class="ap-cell" data-col="${key}" data-label="${name}" aria-expanded="false" aria-label="Line ${row.line}, ${name.toLowerCase()}: ${esc(key === "amount" ? group(row.authorised) || "none" : cellHtml(row, key).replace(/<small>.*$/, "").replace(/<[^>]+>/g, ""))}"><span>${cellHtml(row, key)}</span></button></td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      ${COLUMNS.map(([key, name]) => `<td><button type="button" class="ap-cell" data-col="${key}" data-label="${name}" aria-expanded="false" aria-label="Line ${row.line}, ${name.toLowerCase()}: ${esc(key === "amount" ? group(row.authorised) || "none" : cellHtml(row, key).replace(/<small>.*$/, "").replace(/<[^>]+>/g, ""))}"><span>${cellHtml(row, key)}</span></button>${key === "payment" ? afterHtml(row) : ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     const can = Boolean(st) && state.whole && waiting.length > 0;
     $("sign").hidden = !st;
     const go = $("approve");
@@ -383,7 +397,7 @@ export function renderApprover(el, ctx = {}) {
     pay.hidden = false;
   }
   function refresh() {
-    state.rows = state.st ? rowsOf(state.st, state.status, state.orders, state.receipts, state.limit) : state.invoice ? uncheckedRows(state.invoice, state.orders) : [];
+    state.rows = state.st ? rowsOf(state.st, state.status, state.orders, state.receipts, state.limit, today()) : state.invoice ? uncheckedRows(state.invoice, state.orders) : [];
     if (!state.rows.length) { $("out").hidden = true; return; }
     draw();
     const held = state.rows.filter((r) => r.kind).length;
@@ -407,6 +421,7 @@ export function renderApprover(el, ctx = {}) {
         if (typeof kept === "string") state.orders = { ...readOrders(kept), ...state.orders };
       } else if (doc_ && doc_.kind === RECORD_KIND) state.checks.push(doc_);
       else if (doc_ && doc_.kind === STATUS_KIND && Array.isArray(doc_.events)) state.pending = doc_;
+      else if (isDecisions(doc_)) state.decisions = doc_;
       else if (isRecall(doc_)) state.recall = Array.isArray(doc_) ? doc_ : Array.isArray(doc_.recall) ? doc_.recall : Array.isArray(doc_.rows) ? doc_.rows : [doc_];
       else if (doc_ && readReceipts(doc_).length) state.receipts = [...readReceipts(doc_), ...state.receipts];
       else {
@@ -455,7 +470,7 @@ export function renderApprover(el, ctx = {}) {
     }
     list.append(...items.filter((li) => li.dataset.pattern), ...items.filter((li) => !li.dataset.pattern));
   }
-  function reset() { Object.assign(state, { st: null, status: null, pending: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, recall: null, record: null, checks: [] }); $("check").hidden = true; }
+  function reset() { Object.assign(state, { st: null, status: null, pending: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, recall: null, record: null, checks: [], decisions: [] }); $("check").hidden = true; }
   async function sample() {
     reset(); said("Reading the sample.");
     state.st = await fromShadow({ invoice: SAMPLE_INVOICE, answers: SAMPLE_BOOK }, SAMPLE_META);
@@ -477,7 +492,8 @@ export function renderApprover(el, ctx = {}) {
     const empty = [by, role].find((i) => !i.value.trim());
     if (empty) { note.textContent = "Type your name and your role."; empty.focus(); return; }
     const mine = state.rows.filter((r) => !r.kind && !r.approved);
-    try { state.status = approveLines(state.st, state.status, by.value, role.value, today(), mine.map((r) => r.id)); } catch (e) { note.textContent = e.message; return; }
+    // the approver accepts the lines and authorises their payment: two events, as `knos statement accept` and `approve` record them
+    try { state.status = approveLines(state.st, acceptLines(state.st, state.status, by.value, role.value, today(), mine.map((r) => r.id)), by.value, role.value, today(), mine.map((r) => r.id)); } catch (e) { note.textContent = e.message; return; }
     const total = state.status.events[state.status.events.length - 1].amount, now = ctx.now || new Date();
     state.record = await recordOf(state.st, mine, { by: by.value, role: role.value, why: why.value.trim() || "The lines meet the policy: agreed, within order and limit.",
       on: today(), at: now.toISOString(), limit: state.limit });

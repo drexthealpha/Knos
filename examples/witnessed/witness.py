@@ -1,9 +1,12 @@
 """One transaction, start to end, witnessed by whoever runs it. Test USDC, no monetary value.
 
     python examples/witnessed/witness.py plan --login YOU           every step and what it leaves in public; sends nothing
-    python examples/witnessed/witness.py run  --login YOU [--from STEP] [--dir DIR]
+    python examples/witnessed/witness.py run  --login YOU [--from STEP] [--dir DIR] [--fund-from KEYFILE] [--timeout S]
                                                                     the steps in order, as your GitHub account; stops at the
-                                                                    first that fails and says why; --from goes on from a step
+                                                                    first that fails and says why; --from goes on from a step;
+                                                                    --fund-from: a key of yours that holds test USDC, used
+                                                                    only when the faucet says no (one grant per 7 days);
+                                                                    --timeout: how long one command may take (default 600 s)
     python examples/witnessed/witness.py check witness.json         the record against the `witness` task's rules (no network)
 
 Everything happens in a repository of YOUR account, made from the public template drexthealpha/knos-task, with your
@@ -13,14 +16,16 @@ key). The steps:
     repo      your repository from the template (it holds the two public caller workflows and nothing secret)
     key       a Solana key made here, kept in DIR/witness-key.json: the address the faucet pays and the budget's owner
     sol       devnet SOL for that key's transaction fees (by hand: https://faucet.solana.com)
-    faucet    20 test USDC from the playground's faucet issue, to that address
+    faucet    20 test USDC from the playground's faucet issue, to that address; when the faucet says no (it gives each
+              account once in 7 days), 10 test USDC from the key named with --fund-from, or a stop that says so
     budget    a balance for your account's repositories, filled with 10 of them (knos balance open, deposit)
     terms     an issue, its black-box acceptance checks committed (`knos.accept.bundle`: blackbox.py and cases.json),
               funded with `/knos fund 5 checks: none auto`: the terms are fixed then, and the checks alone pay
     fail      a pull request whose work is wrong; the judge job of the `knos review` run refuses it and says why
     pass      the corrected work on the same pull request; the judge passes, GitHub signs, the escrow pays, no merge
     replay    `/knos settle` again on the paid pull request: nothing more is paid
-    buyer     the buyer's statement, from the chain alone (knos audit export, events, statement)
+    buyer     the buyer's statement: the chain's paid line (knos audit export), the judge's verdict and the supplier's
+              invoice line for it taken into a log of events, and the statement of that log (one line, its policy met)
     supplier  the supplier's statement, made again from a second export: the same payable, the same hash
     archive   one archive of the evidence, checked by the stand-alone verifier inside it (python verify.py)
     record    witness.json committed to your repository: each step's public link
@@ -55,6 +60,17 @@ WRONG = "import sys\nfor line in sys.stdin:\n    print(line.rstrip('\\n'))\n"   
 RIGHT = "import sys\nfor line in sys.stdin:\n    print(' '.join(reversed(line.split())))\n"        # the words in reverse order
 PAIRS = [("one two three", "three two one"), ("a b", "b a"), ("solo", "solo"), ("x  y   z", "z y x"), ("left right", "right left")]
 STATEMENT = "ap-statement.json"
+TIMEOUT = 600                       # seconds one command may take (--timeout); `knos audit export` reads only the owner's part
+TOP_UP = 10_000_000                 # test USDC (millionths) moved from --fund-from when the faucet says no: the budget's 10
+
+# The replies, word for word as Knos writes them (knos.faucet `_words` and `no`; knos.flow `_fund` and `_funded_order`).
+# A reply is read by these and nothing else: 0.3.21 and 0.3.22 waited for a transaction link in the funding reply, which
+# links the order's address, and read every funding as "nothing was funded".
+FAUCET_SENT = re.compile(r"^Knos: [\d.]+ test USDC sent to `(?P<to>[1-9A-HJ-NP-Za-km-z]{32,44})`")
+FAUCET_NO = re.compile(r"^Knos: nothing was sent\. (?P<why>.*)", re.S)
+FUNDED = re.compile(r"^Knos: (?P<money>[\d.]+ .+?) from (?P<source>.+?) is in escrow for issue #(?P<issue>\d+)(?: as a (?:private )?work order)? "
+                    r"\(\[[^\]]*\]\(https://explorer\.solana\.com/address/(?P<order>[1-9A-HJ-NP-Za-km-z]{32,44})")
+NOT_FUNDED = ("nothing was funded", "Knos: not confirmed yet.")      # every refusal of `_fund`, and the relay's time out
 
 
 class Stop(Exception):
@@ -65,12 +81,25 @@ class Shell:
     """How the steps reach the world: `run(argv, cwd)` -> (exit code, output); `wait` polls until `got()` is not None.
     Tests give another one."""
 
-    def __init__(self, tries: int = 60, pause: float = 10.0):
-        self.tries, self.pause = tries, pause
+    def __init__(self, tries: int = 60, pause: float = 10.0, timeout: float = TIMEOUT):
+        self.tries, self.pause, self.timeout = tries, pause, timeout
 
     def run(self, argv: list[str], cwd: Path | None = None, stdin: str | None = None) -> tuple[int, str]:
-        got = subprocess.run(argv, cwd=cwd, input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=300)  # noqa: S603 - a fixed argv, no shell
+        try:
+            got = subprocess.run(argv, cwd=cwd, input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=self.timeout)  # noqa: S603 - a fixed argv, no shell
+        except subprocess.TimeoutExpired:
+            return 1, f"it took more than {self.timeout:.0f} s (raise --timeout)"
         return got.returncode, (got.stdout or "") + (got.stderr or "")
+
+    def top_up(self, source: Path, payer: Path, to: str, units: int) -> str:
+        """Move `units` of test USDC from the key in the file `source` to `to`; `payer` pays the fee and the account's
+        rent. The transaction's signature, once it landed. Neither key is printed."""
+        from knos import chain, faucet
+        read = lambda p: chain._keypair(Path(p).read_text(encoding="utf-8"))      # noqa: E731
+        devnet = faucet.DevnetChain(chain.ledger(), read(source), read(payer))
+        signed = devnet.sign(to, units)
+        devnet.submit(signed)
+        return str(self.wait("the transfer from --fund-from", lambda: {"landed": signed.sig, "failed": ""}.get(devnet.status(signed.sig))))
 
     def wait(self, what: str, got: Callable[[], Any]) -> Any:
         for _ in range(self.tries):
@@ -148,8 +177,18 @@ def faucet(s: dict, sh: Shell) -> dict:
         raise Stop(f"{PLAYGROUND} has no open issue labelled faucet")
     n = int(found[0]["number"])
     mine = _comment(sh, PLAYGROUND, n, f"/knos faucet {s['address']}")
-    said = sh.wait("the faucet's reply", _reply(sh, PLAYGROUND, n, mine, re.compile(re.escape(s["address"]) + r"[\s\S]*" + TX.pattern)))
-    return {"faucet_reply": said["url"], "faucet_tx": _tx(said["body"])}
+    sent = re.compile(FAUCET_SENT.pattern.replace("(?P<to>[1-9A-HJ-NP-Za-km-z]{32,44})", re.escape(s["address"])) + r"[\s\S]*" + TX.pattern)
+    said = sh.wait("the faucet's reply", _reply(sh, PLAYGROUND, n, mine, re.compile(f"{sent.pattern}|{FAUCET_NO.pattern}", re.S)))
+    no = FAUCET_NO.match(str(said["body"]))
+    if not no:
+        return {"faucet_reply": said["url"], "faucet_tx": _tx(said["body"])}
+    why = " ".join(no.group("why").split())[:240]
+    if not s.get("fund_from"):
+        raise Stop(f"the faucet said no ({why}): run again with --fund-from KEYFILE, a key of yours that holds test USDC, and --from faucet")
+    sig = sh.top_up(Path(s["fund_from"]), Path(s["keypair"]), s["address"], TOP_UP)
+    if not sig:
+        raise Stop("the transfer from --fund-from failed on Solana: does that key hold 10 test USDC? Run again with --from faucet")
+    return {"faucet_reply": said["url"], "faucet_refused": why, "top_up_tx": sig}
 
 
 def budget(s: dict, sh: Shell) -> dict:
@@ -177,9 +216,20 @@ def terms(s: dict, sh: Shell) -> dict:
         _ok(sh, argv, work)
     mine = _comment(sh, s["repo"], n, FUND_LINE)
     said = sh.wait("the funding's reply", _reply(sh, s["repo"], n, mine, re.compile(r"\S"), other_than=s["login"]))
-    if not TX.search(str(said["body"])):
-        raise Stop(f"nothing was funded: {' '.join(str(said['body']).split())[:300]} ({said['url']})")
-    return {"issue": n, "funded_reply": said["url"], "funded_tx": _tx(said["body"])}
+    return {"issue": n, "funded_reply": said["url"], "funded_order": funding(str(said["body"]), n, str(said["url"]))}
+
+
+def funding(body: str, issue: int, url: str = "") -> str:
+    """The order's address in a funding reply that says the money is in escrow for `issue`; Stop with the reply's own
+    words for any other (a refusal, the relay's time out, the grammar's). The funding transaction is read from the
+    chain at the buyer step (the reply links the order, not the transaction)."""
+    got = FUNDED.match(body.strip())
+    if got and int(got.group("issue")) == issue:
+        return got.group("order")
+    said = " ".join(body.split())[:300]
+    if any(x in body for x in NOT_FUNDED):
+        raise Stop(f"nothing was funded: {said} ({url})")
+    raise Stop(f"nothing was funded: the reply does not say the money is in escrow for #{issue}: {said} ({url})")
 
 
 def _checks(sh: Shell, s: dict) -> Callable[[], str | None]:
@@ -252,14 +302,50 @@ def _statement(s: dict, sh: Shell, side: str) -> str:
     _ok(sh, ["knos", "audit", "export", "--owner", s["login"], "--from", day, "--to", day, "--format", "csv", "--out", str(folder / "audit.csv")])
     log = folder / "events.jsonl"
     _ok(sh, ["knos", "events", "ingest", str(log), str(folder / "audit.csv"), "--from", "settle"])
-    _ok(sh, ["knos", "statement", "make", str(log), "--out", str(folder), "--buyer", s["login"], "--supplier", s["login"], "--currency", "test USDC",
+    # A statement's line is an invoice line (knos.events.statement); the settle mode takes only the settlement. So the
+    # judge's verdict and the supplier's invoice line for the paid deliverable go in beside it, or the statement is empty.
+    (folder / "billed.jsonl").write_text("".join(json.dumps(x, sort_keys=True) + "\n" for x in billed(s, folder / "audit.csv")), encoding="utf-8")
+    _ok(sh, ["knos", "events", "ingest", str(log), str(folder / "billed.jsonl"), "--from", "import"])
+    _ok(sh, ["knos", "statement", "make", str(log), "--out", str(folder), "--buyer", s["login"], "--supplier", str(s["actor_id"]), "--currency", "test USDC",
              "--date", day, "--invoice", f"witness-{s['issue']}"])
     st = json.loads((folder / STATEMENT).read_text(encoding="utf-8"))
     return str(st["sha256"])
 
 
+def _paid_rows(path: Path, issue: object) -> list[dict]:
+    """The export's paid lines for this issue."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    rows = csv.DictReader(lines[1:] if lines and lines[0].startswith("knos.audit-export,") else lines)     # (the line naming the version)
+    return [r for r in rows if r.get("kind") in ("paid", "released") and str(r.get("issue")) == str(issue)]
+
+
+def billed(s: dict, export: Path) -> list[dict]:
+    """For each paid line of the issue: the judge job's verdict, the acceptance and the supplier's invoice line, in the
+    import form of `knos events ingest --from import`, on the deliverable the settle mode names (the line's billing key)."""
+    from knos import ids
+    out: list[dict] = []
+    for n, r in enumerate(_paid_rows(export, s["issue"]), 1):
+        scope, _, milestone = r["billing_key"].rpartition(":")
+        dlv, who, units = ids.deliverable(scope, milestone), str(r.get("supplier_ids") or s["actor_id"]), int(r["paid_units"])
+        common = {"supplier": who, "month": r["date"][:7], "amount": units, "unit": "units", "evidence": f"tx:{r['transaction']}"}
+        out += [{"evaluation": {"deliverable": dlv, "artifact": s.get("passed_head", ""), "policy": r.get("terms_hash", ""), "evaluator": "judge",
+                                "run": s.get("passed_run", ""), "verdict": "accepted"}, **common, "evidence": str(s.get("passed_run", ""))},
+                {"acceptance": {"deliverable": dlv}, **common},
+                {"invoice_line": {"supplier": who, "invoice": f"witness-{s['issue']}", "line": n}, "deliverable": dlv, **common}]
+    if not out:
+        raise Stop(f"the audit export shows no payment for issue #{s['issue']}: the statement would have no line. Is the payment on chain yet?")
+    return out
+
+
 def buyer(s: dict, sh: Shell) -> dict:
-    return {"buyer_statement": _statement(s, sh, "buyer")}
+    mine = _statement(s, sh, "buyer")
+    got = {"buyer_statement": mine}
+    if not s.get("funded_tx"):      # the funding reply links the order; the export names the transaction that funded it
+        got["funded_tx"] = next((r["funded_transaction"] for r in _paid_rows(s["dir"] / "buyer" / "audit.csv", s["issue"]) if r.get("funded_transaction")), "")
+    lines = json.loads((s["dir"] / "buyer" / STATEMENT).read_text(encoding="utf-8"))["lines"]
+    if not lines:
+        raise Stop("the buyer's statement has no line: the log of events in buyer/ shows why")
+    return {**got, "statement_lines": len(lines), "statement_state": ",".join(sorted({ln["state"] for ln in lines}))}
 
 
 def supplier(s: dict, sh: Shell) -> dict:
@@ -282,15 +368,13 @@ def archive(s: dict, sh: Shell) -> dict:
 
 def payments(s: dict) -> int:
     """Paid lines in the buyer's export for this order: one, or the replay paid twice."""
-    lines = (s["dir"] / "buyer" / "audit.csv").read_text(encoding="utf-8").splitlines()
-    rows = csv.DictReader(lines[1:] if lines and lines[0].startswith("knos.audit-export,") else lines)     # (the line naming the version)
-    return len({r.get("transaction") for r in rows if r.get("kind") == "paid" and str(r.get("issue")) == str(s["issue"])})
+    return len({r.get("transaction") for r in _paid_rows(s["dir"] / "buyer" / "audit.csv", s["issue"]) if r.get("kind") == "paid"})
 
 
 def record(s: dict, sh: Shell) -> dict:
-    keep = ("actor_id", "repository", "repository_owner_id", "address", "faucet_reply", "faucet_tx", "budget_tx", "issue", "funded_reply", "funded_tx",
-            "pull_url", "failed_run", "passed_head", "passed_run", "paid_reply", "paid_tx", "replay_refused", "buyer_statement", "supplier_statement", "statements_agree",
-            "archive", "verified")
+    keep = ("actor_id", "repository", "repository_owner_id", "address", "faucet_reply", "faucet_tx", "faucet_refused", "top_up_tx", "budget_tx", "issue",
+            "funded_reply", "funded_order", "funded_tx", "pull_url", "failed_run", "passed_head", "passed_run", "paid_reply", "paid_tx", "replay_refused",
+            "buyer_statement", "statement_lines", "statement_state", "supplier_statement", "statements_agree", "archive", "verified")
     doc = {"v": 1, "note": "Test USDC, no monetary value.", **{k: s[k] for k in keep if k in s}, "payments": payments(s)}
     work = s["dir"] / NAME
     (work / "witness.json").write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -302,16 +386,16 @@ def record(s: dict, sh: Shell) -> dict:
 
 STEPS: list[tuple[str, Callable[[dict, Shell], dict], str]] = [
     ("repo", repo, "your repository, made from the public template"), ("key", key, "a key made here; its address is public from the next step"),
-    ("sol", sol, "devnet SOL for fees, by hand"), ("faucet", faucet, "the faucet's reply on the playground, with its transaction"),
-    ("budget", budget, "the deposit's transaction"), ("terms", terms, "the issue, its acceptance pairs, and the funding's reply with its transaction"),
+    ("sol", sol, "devnet SOL for fees, by hand"), ("faucet", faucet, "the faucet's reply on the playground, with its transaction (or the --fund-from transfer's)"),
+    ("budget", budget, "the deposit's transaction"), ("terms", terms, "the issue, its acceptance pairs, and the funding's reply with its order"),
     ("fail", fail, "the pull request and the judge job that refused it"), ("pass", pass_, "the passing judge job and the payment's reply with its transaction"),
-    ("replay", replay, "the answer to a second /knos settle: no new payment"), ("buyer", buyer, "the buyer's statement and its hash"),
+    ("replay", replay, "the answer to a second /knos settle: no new payment"), ("buyer", buyer, "the buyer's statement (one line, its policy met), its hash, and the funding transaction"),
     ("supplier", supplier, "the supplier's statement: the same hash"), ("archive", archive, "the archive and what its own verifier said"),
     ("record", record, "witness.json in your repository"),
 ]
 
 
-def run(login: str, folder: Path, shell: Shell, start: str = "repo", state: dict | None = None) -> dict:
+def run(login: str, folder: Path, shell: Shell, start: str = "repo", state: dict | None = None, fund_from: Path | None = None) -> dict:
     """Every step from `start` on, in order; the state is kept in DIR/witness-state.json after each, so --from goes on."""
     names = [n for n, _f, _w in STEPS]
     if start not in names:
@@ -321,10 +405,12 @@ def run(login: str, folder: Path, shell: Shell, start: str = "repo", state: dict
     s.update(login=login, repo=f"{login}/{NAME}")
     for name, step, _what in STEPS[names.index(start):]:
         s["dir"] = folder
+        if fund_from is not None:
+            s["fund_from"] = str(fund_from)
         s.update(step(s, shell))
         s.setdefault("done", [])
         s["done"] = [d for d in s["done"] if d != name] + [name]
-        saved.write_text(json.dumps({k: v for k, v in s.items() if k != "dir"}, indent=1), encoding="utf-8")
+        saved.write_text(json.dumps({k: v for k, v in s.items() if k not in ("dir", "fund_from")}, indent=1), encoding="utf-8")
     return s
 
 
@@ -342,6 +428,8 @@ def main(argv: list[str] | None = None) -> int:
         one.add_argument("--login", required=True)
         one.add_argument("--dir", type=Path, default=Path("witness"))
         one.add_argument("--from", dest="start", default="repo")
+        one.add_argument("--fund-from", type=Path, default=None)
+        one.add_argument("--timeout", type=float, default=TIMEOUT)
     sub.add_parser("check").add_argument("record", type=Path)
     a = p.parse_args(argv)
     try:
@@ -355,7 +443,7 @@ def main(argv: list[str] | None = None) -> int:
             print("the record meets the witness task" if ok else f"not yet: {why}")
             return 0 if ok else 1
         a.dir.mkdir(parents=True, exist_ok=True)
-        s = run(a.login, a.dir.resolve(), Shell(), a.start)
+        s = run(a.login, a.dir.resolve(), Shell(timeout=a.timeout), a.start, fund_from=a.fund_from.resolve() if a.fund_from else None)
         print(f"Done. The record: {s['record']}. File it as outside/witness/{a.login}.json in a pull request to {PLAYGROUND}.")
         return 0
     except Stop as no:

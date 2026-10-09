@@ -151,6 +151,12 @@ if (judges) {
     zeros: [...el.querySelectorAll("#judges-zeros + .k-table td")].map((t) => t.textContent), doc: el.querySelector("#judges-doc")?.getAttribute("href") }; });
   check("judges: the hash opens it: the file's rows, word for word, one link each", got.rows.length === data.rows.length && data.rows.every((r, i) => got.rows[i][0] === r.thing && got.rows[i][1] === r.sentence && got.rows[i][2] === (r.link || "") && got.rows[i][3] === (r.link ? 1 : 0)), got.rows);
   check("judges: then what is not real yet, as the file lists it, and the document itself", got.zeros.join("|") === (data.not_real || []).join("|") && got.doc === "https://github.com/drexthealpha/Knos/blob/main/docs/JUDGES.md" && got.title === "For judges: one page", got);
+  if (data.entry) {      // the entry first: the manifest, then the witnessed transaction's links, above the table
+    const first = await page.evaluate(() => { const el = document.getElementById("judges"), e = el.querySelector("#judges-entry"), t = el.querySelector("table");
+      return e ? { before: !!(e.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING), links: [...e.querySelectorAll("a")].map((a) => a.getAttribute("href")) } : null; });
+    const want = [data.entry.manifest, ...(data.entry.witnessed || []).map((w) => w.link), data.entry.yourself].filter(Boolean);
+    check("judges: the entry comes first: the manifest, then the witnessed transaction", !!first && first.before && first.links.join("|") === want.join("|"), first);
+  }
 }
 // ON A PHONE (390 x 640): the matrix scrolls sideways under a sticky first column. A cell reached with Tab is wholly in
 // the visible part, clear of that column and of the edge, row after row; the answer, drawn under the table, is in view

@@ -29,7 +29,7 @@ let failed = 0;
 const same = (what, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) failed++; console.log(`${ok ? "ok  " : "FAIL"} ${what}${ok ? "" : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`); };
 const kinds = (rows) => rows.map((r) => r.kind);
 
-same("seven columns, in the order an approver reads", COLUMNS.map((c) => c[1]), ["Supplier", "Authorisation", "Agreed deliverable", "Acceptance evidence", "Authorised amount", "Exception", "Payment status"]);
+same("seven columns, in the order an approver reads", COLUMNS.map((c) => c[1]), ["Supplier", "Authorisation", "Agreed deliverable", "Acceptance evidence", "Amount to approve", "Exception", "Payment status"]);
 same("six exceptions, each with its words", EXCEPTIONS.map((k) => WORDS[k]), ["disputed", "duplicate", "insufficient evidence", "over the purchase order", "over your approval limit", "replayed"]);
 same("amounts are read with thousands separators", ["1500.00", "999.00", "1234567.89", "-25000.5", ""].map(group), ["1,500.00", "999.00", "1,234,567.89", "-25,000.5", ""]);
 same("a purchase order column is read by pull request", JSON.stringify(readOrders(INVOICE), (k, v) => (typeof v === "bigint" ? String(v) : v)), JSON.stringify({ "acme/app#1": { number: "PO-7", limit: "12000" },
@@ -164,7 +164,7 @@ async function page() {
     ok("one row a line, read left to right in the seven columns", JSON.stringify(got.head) === JSON.stringify(COLUMNS.map((c) => c[1])) && got.rows.length === 5 && got.rows.every((r) => r.length === 7), got.head);
     ok("an agreed line: supplier, order, deliverable, evidence, amount, no exception, payable", JSON.stringify(got.rows[0]) === JSON.stringify(["Acme Agents", "PO-7 policy 1 · up to 120.00", "acme/app#1", "1 evaluation, reported", "100.00", "none", "payable"]), got.rows[0]);
     ok("a line over its purchase order: nothing authorised, held here", JSON.stringify(got.rows[4]) === JSON.stringify(["Acme Agents", "PO-7 policy 1 · up to 120.00", "acme/app#4", "1 evaluation, reported", "0.00 of 60.00 billed", "over the purchase order", "held here"]), got.rows[4]);
-    ok("billed, authorised and exceptions are added up", JSON.stringify(got.sums) === JSON.stringify(["Billed 590.00 USD 5 lines", "Authorised 100.00 USD 1 line", "Exceptions 490.00 USD 4 lines"]), got.sums);
+    ok("billed, authorised and exceptions are added up", JSON.stringify(got.sums) === JSON.stringify(["Billed 590.00 USD 5 lines", "Policy met 100.00 USD 1 line", "Exceptions 490.00 USD 4 lines"]), got.sums);
     ok("one queue: every line that is not agreed, each with its reason in one sentence", JSON.stringify(got.queue) === JSON.stringify(["Line 2 · Disputed. A check failed when this change was merged: test. 250.00",
       "Line 3 · Insufficient evidence. The checks give no verdict: no check ran. 80.00", "Line 4 · Duplicate. Billed twice on this invoice: same pull request as line 1. 100.00",
       "Line 5 · Over the purchase order. Purchase order PO-7 allows 120.00; agreed lines reach 160.00. 60.00"]), got.queue);
@@ -187,10 +187,11 @@ async function page() {
     ok("the approval record is downloaded: policy, who, when, why, the line and its evidence", rec.name === "statement-INV-2026-09.approval.json" && record.kind === "knos-approval-record" && record.statement === sept.sha256
       && record.policy.version === 1 && record.by === "Dana Reyes" && record.at === "2026-10-07T12:00:00.000Z" && record.why.length > 0 && record.lines.length === 1 && record.lines[0].po === "PO-7", record);
     const status = JSON.parse((await downloaded(p, async () => { await p.click("details.k-more summary"); await p.click("[data-file=status]"); })).text);
-    ok("the approval record is the statement's status file: one approval, the held line left out", status.kind === "knos-statement-status" && status.statement === sept.sha256
-      && JSON.stringify(status.events) === JSON.stringify([{ amount: "100.00", by: "Dana Reyes", lines: [sept.lines[0].invoice_line], on: "2026-10-07", role: "finance controller", scope: "agreed", type: "approval" }]), status);
+    ok("the approval record is the statement's status file: one acceptance and one approval, the held line left out", status.kind === "knos-statement-status" && status.statement === sept.sha256
+      && JSON.stringify(status.events) === JSON.stringify([{ by: "Dana Reyes", lines: [sept.lines[0].invoice_line], on: "2026-10-07", role: "finance controller", type: "acceptance" },
+        { amount: "100.00", by: "Dana Reyes", lines: [sept.lines[0].invoice_line], on: "2026-10-07", role: "finance controller", scope: "agreed", type: "approval" }]), status);
     const csv = await downloaded(p, () => p.click("[data-file=csv]"));
-    ok("the statement downloaded carries the approval", csv.name === "statement-INV-2026-09.csv" && csv.text.startsWith(`knos-statement,1,${sept.sha256}\n`) && csv.text.includes("approval,2026-10-07,Dana Reyes (finance controller),1 agreed lines,100.00\n"), csv.text.slice(0, 200));
+    ok("the statement downloaded carries the approval", csv.name === "statement-INV-2026-09.csv" && csv.text.startsWith(`knos-statement,1,${sept.sha256}\n`) && csv.text.includes("approval,2026-10-07,Dana Reyes (finance controller),\"1 line authorised, policy met\",100.00\n"), csv.text.slice(0, 200));
     const audit = await downloaded(p, () => p.click("[data-file=generic]"));
     ok("the audit export is one click: every line, with its ids", audit.name === "statement-INV-2026-09-generic.csv" && audit.text.split("\n").length === 8 && audit.text.includes(sept.lines[1].invoice_line), audit.text.slice(0, 120));
     ok("with a payment module the payment file is offered after approval", await p.isVisible("[data-file=pain]"));

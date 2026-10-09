@@ -257,7 +257,7 @@ def bounds(c: dict, repos: int, per_day: int, way: str = OWN, plan: str = "Free"
          "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that "
                  "FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes "
                  "K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the "
-                 "simulator on the 2.1 and 2.2 builds, not yet measured on a cluster"},
+                 "simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)"},
     ]
     if way == PUBLIC:
         tokens = ch["tokens_per_order"]

@@ -15,13 +15,27 @@ from pathlib import Path
 
 import pytest
 
-from knos import audit, commands, judge, tasks
+from knos import audit, commands, faucet, judge, tasks
+from knos.settle.v2 import pay as pay2
 from test_audit import DAY, T0, U, funded, line, paid
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGIN, ME = "stranger", 5001
 DAYS = "2026-09-02"                                 # T0 + 1 day: the day the simulated chain holds the order
-FUNDED, PAID, FAUCET, DEPOSIT = "F" * 64, "P" * 64, "A" * 64, "D" * 64
+FUNDED, PAID, FAUCET, DEPOSIT, TOPUP = "F" * 64, "P" * 64, "A" * 64, "D" * 64, "T" * 64
+ORDER = str(pay2.order_pda(bytes(32), pay2.USDC_DEVNET))           # an address in the order's place: the reply links it
+
+
+def funded_reply(issue: int) -> str:
+    """knos.flow `_funded_order`'s reply, as it is posted (the order linked by `_link(run, "order on Solana", "address", ...)`),
+    with the memory's paragraph that `_proposed` may add."""
+    order = f"[order on Solana](https://explorer.solana.com/address/{ORDER}?cluster=devnet)"
+    return "\n\n".join((
+        f"Knos: 5.00 test USDC from the balance `{'B' * 44}` is in escrow for issue #{issue} as a work order ({order}), 14 s after the comment. "
+        "The funder pays Knos's fee of 0.05 test USDC on top, so whoever is paid receives the full amount.",
+        "The acceptance checks decide. `auto`: the first pull request they pass is paid, with no merge.",
+        f"To earn it: open a pull request whose description says `Fixes #{issue}`. Reserve it with `/knos reserve`.",
+        "Memory: the last 2 work orders here were paid."))
 
 
 def _witness():
@@ -41,9 +55,10 @@ def tx(sig: str) -> str:
 class World(W.Shell):
     """GitHub, the relay and the chain, as dictionaries. The check runs words.py on the committed pairs."""
 
-    def __init__(self, folder: Path, replay_pays: bool = False):
+    def __init__(self, folder: Path, replay_pays: bool = False, faucet_says_no: bool = False):
         super().__init__(tries=3, pause=0)
-        self.folder, self.replay_pays = folder, replay_pays
+        self.folder, self.replay_pays, self.faucet_says_no = folder, replay_pays, faucet_says_no
+        self.moved: list[tuple] = []
         self.comments: dict[tuple[str, int], list[dict]] = {}
         self.ids, self.commits, self.issues = 100, 0, 0
         self.runs: dict[str, list[dict]] = {}            # check runs by commit: only "knos check", which passes any work
@@ -76,11 +91,16 @@ class World(W.Shell):
                 self._post(repo, issue, "Knos: nothing was funded. `auto` pays the first pull request that passes the acceptance checks, "
                                         "without a merge, so those checks must be black-box.", "knos-bot")
                 return
-        if isinstance(cmd, commands.Faucet):
-            self._post(repo, issue, f"Knos: 20 test USDC sent to `{body.split()[-1]}`.\n\nTransaction: {tx(FAUCET)}", "knos-bot")
+        if isinstance(cmd, commands.Faucet):        # the faucet's own words (knos.faucet `_words`, `no`, `refuses`)
+            if self.faucet_says_no:
+                self._post(repo, issue, faucet.no("This account had test USDC from the faucet on 2026-09-01 10:00 UTC. One grant per 7 days: ask "
+                                                  "again after 2026-09-08 10:00 UTC.").reply, "knos-bot")
+            else:
+                row = {"to": body.split()[-1], "units": faucet.AMOUNT, "state": "sent", "sig": FAUCET, "request": "r1", "forge": "github", "account": ME}
+                self._post(repo, issue, faucet._words(row), "knos-bot")
         elif isinstance(cmd, commands.Fund):
             self.chain += funded("OrdW", T0 + DAY + 60, FUNDED, 5 * U, by=ME, issue=issue)
-            self._post(repo, issue, f"Funded 5 test USDC for this issue under the terms fixed now. {tx(FUNDED)}", "knos-bot")
+            self._post(repo, issue, funded_reply(issue), "knos-bot")
         elif isinstance(cmd, commands.Settle):
             if self.replay_pays:
                 self.chain += paid("OrdW", T0 + DAY + 600, "Q" * 64, [(ME, 5 * U)], 5 * U, 5 * U, 0, pr=2)
@@ -170,6 +190,10 @@ class World(W.Shell):
     def ask(self, said):
         self.said.append(["ask", said])
 
+    def top_up(self, source, payer, to, units):
+        self.moved.append((Path(source).name, Path(payer).name, to, units))
+        return TOPUP
+
 
 def _key(state: dict, folder: Path) -> None:
     """The key step without solders' randomness: a fixed key."""
@@ -184,7 +208,12 @@ def test_the_whole_sequence_runs_in_order_leaves_a_link_for_each_step_and_the_re
     s = W.run(LOGIN, tmp_path, world, state={"day": DAYS})
     assert s["done"] == [n for n, _f, _w in W.STEPS]
     assert (s["funded_tx"], s["paid_tx"], s["faucet_tx"], s["budget_tx"]) == (FUNDED, PAID, FAUCET, DEPOSIT)
+    assert s["funded_order"] == ORDER and s["funded_reply"].endswith("#issuecomment-104")
     assert s["statements_agree"] is True and s["payments"] == 1
+    # the statements carry the paid line, agreed (0.3.22's had none: the settle mode alone writes no invoice line)
+    st = json.loads((tmp_path / "buyer" / W.STATEMENT).read_text(encoding="utf-8"))
+    assert (s["statement_lines"], s["statement_state"]) == (1, "agreed") and len(st["lines"]) == 1
+    assert (st["lines"][0]["state"], st["lines"][0]["amount"], st["lines"][0]["supplier"]) == ("agreed", "5.00", str(ME))
     assert s["buyer_statement"] == s["supplier_statement"] and len(s["buyer_statement"]) == 64
     record = json.loads((tmp_path / W.NAME / "witness.json").read_text(encoding="utf-8"))
     assert record["note"] == "Test USDC, no monetary value." and record["repository"] == f"https://github.com/{LOGIN}/{W.NAME}"
@@ -215,6 +244,42 @@ def test_a_replay_that_pays_again_stops_the_run_or_fails_the_record(tmp_path):
     assert tasks.accepts("witness", {**good, "payments": 2})[0] is False and tasks.accepts("witness", good)[0] is True
     with pytest.raises(W.Stop, match="--from is one of"):
         W.run(LOGIN, tmp_path, world, start="nowhere")
+
+
+def test_when_the_faucet_says_no_the_run_uses_the_own_key_named_or_stops_saying_so(tmp_path):
+    world = World(tmp_path, faucet_says_no=True)
+    _key({}, tmp_path)
+    with pytest.raises(W.Stop, match=r"^the faucet said no \(This account had test USDC .* 7 days.*\): run again with --fund-from KEYFILE"):
+        W.run(LOGIN, tmp_path, world, state={"day": DAYS})
+    assert world.moved == []
+    own = tmp_path / "own-key.json"
+    own.write_text("[1]", encoding="utf-8")
+    s = W.run(LOGIN, tmp_path, world, start="faucet", fund_from=own)
+    assert world.moved[0] == ("own-key.json", "witness-key.json", s["address"], 10_000_000) and s["top_up_tx"] == TOPUP
+    assert "faucet_tx" not in s and s["faucet_refused"].startswith("This account had test USDC")
+    saved = (tmp_path / "witness-state.json").read_text(encoding="utf-8")
+    assert "own-key" not in saved and "fund_from" not in saved                     # the key's file is never written down
+    record = json.loads((tmp_path / W.NAME / "witness.json").read_text(encoding="utf-8"))
+    assert record["top_up_tx"] == TOPUP and tasks.accepts("witness", record) == (True, "")
+
+
+def test_the_funding_reply_is_read_by_the_words_knos_writes():
+    """The reply links the order's address, not a transaction: 0.3.21 and 0.3.22 read it as "nothing was funded"."""
+    assert W.funding(funded_reply(7), 7) == ORDER
+    assert W.funding(funded_reply(7).replace("as a work order", "as a private work order"), 7) == ORDER
+    with pytest.raises(W.Stop, match="does not say the money is in escrow for #8"):
+        W.funding(funded_reply(7), 8)
+    for refused in ("Knos: nothing was funded. New funding is paused on Solana until 2026-10-09 08:25 UTC.",
+                    "Knos: GitHub did not sign the request (timed out), so nothing was funded. Post the comment again.",
+                    "Knos: not confirmed yet. GitHub signed the request (it is posted above) and no relayer carried it to Solana within 10 minutes."):
+        with pytest.raises(W.Stop, match="^nothing was funded: Knos: "):
+            W.funding(refused, 7)
+    # the words are knos.flow's and knos.faucet's own: a change there fails here
+    flow = (ROOT / "src" / "knos" / "flow.py").read_text(encoding="utf-8")
+    assert "is in escrow for issue #{number} as a {'private ' if plan.get('attestor') else ''}work order ({order}), {took}." in flow
+    assert 'order = _link(run, "order on Solana", "address",' in flow and 'return f"[{text}](https://explorer.solana.com/{kind}/{at}' in flow
+    assert all(x in flow for x in ('"Knos: nothing was funded. ', "so nothing was funded.", '"Knos: not confirmed yet. '))
+    assert W.FAUCET_NO.match(faucet.no("x").reply) and W.FAUCET_SENT.match(faucet._words({"to": "1" * 32, "units": 1, "state": "sent", "sig": "s"}))
 
 
 def test_plan_sends_nothing_and_names_every_step(capsys):

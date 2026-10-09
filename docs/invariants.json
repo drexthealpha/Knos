@@ -453,5 +453,115 @@
       "finding_one_account_that_starts_both_runs_is_one_judge_not_two",
       "finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second"
     ]
+  },
+  "economic_idempotency": {
+    "page_section": "One economic deliverable pays once",
+    "rows": [
+      {
+        "through": "refund",
+        "identity": "the order's address at one funding",
+        "made_once_by": "the refund closes the order; pay, settle, release and revert after it are refused",
+        "tests": [
+          {
+            "file": "tests/test_invariants_gaps.py",
+            "test": "test_every_ordering_of_two_and_of_three_of_pay_cancel_expiry_refund_settle_release_and_revert_ends_an_order_exactly_once"
+          }
+        ]
+      },
+      {
+        "through": "reopen",
+        "identity": "the order's address at one funding",
+        "made_once_by": "a pay token of the paid order is refused at the order a second funding puts at the same address (its marker)",
+        "tests": [
+          {
+            "file": "tests/test_double_pay.py",
+            "test": "test_a_pay_token_does_not_pay_the_order_a_second_funding_puts_at_the_same_address"
+          },
+          {
+            "file": "tests/test_double_pay.py",
+            "test": "test_no_instruction_takes_a_token_twice_and_a_second_try_never_moves_money"
+          }
+        ]
+      },
+      {
+        "through": "standing order",
+        "identity": "(order, pull request)",
+        "made_once_by": "the [\"done\", order, pr] marker",
+        "tests": [
+          {
+            "file": "tests/test_order_terms.py",
+            "test": "test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_one_rate_is_left"
+          }
+        ]
+      },
+      {
+        "through": "assignment",
+        "identity": "the order's address",
+        "made_once_by": "the payment goes to the assignee once, at acceptance and at release, and never also to the seller",
+        "tests": [
+          {
+            "file": "tests/test_advance.py",
+            "test": "test_an_assignment_before_acceptance_pays_the_financier_at_acceptance_and_at_release_and_never_the_seller"
+          },
+          {
+            "file": "tests/test_order_terms.py",
+            "test": "test_a_payee_assigns_an_orders_payment_and_only_the_assignee_can_change_it"
+          }
+        ]
+      },
+      {
+        "through": "warranty holdback",
+        "identity": "the order's address",
+        "made_once_by": "Release runs only after the warranty and Revert only inside it; both close the order",
+        "tests": [
+          {
+            "file": "tests/test_order_terms.py",
+            "test": "test_a_holdback_stays_in_the_order_through_the_warranty_and_then_goes_to_the_wallets_it_recorded"
+          },
+          {
+            "file": "tests/test_order_terms.py",
+            "test": "test_a_revert_inside_the_warranty_returns_the_holdback_and_its_fee_to_the_funder"
+          }
+        ]
+      },
+      {
+        "through": "partial payments",
+        "identity": "the order's address; (pair, period) for a netted release",
+        "made_once_by": "the shares of up to four payees and a holdback sum to the amount once; a netted outcome is added to one period once",
+        "tests": [
+          {
+            "file": "tests/test_order_chain.py",
+            "test": "test_up_to_four_payees_share_an_order_and_every_unit_is_paid"
+          },
+          {
+            "file": "tests/test_netting.py",
+            "test": "test_an_outcome_is_added_once_in_any_period_and_never_past_the_cap"
+          }
+        ]
+      },
+      {
+        "through": "bank rail",
+        "identity": "the settlement id (the end-to-end id) of one transfer",
+        "made_once_by": "one instruction per id; an unclear answer holds the line until a status resolves it; a line paid or refunded on either rail is never in a bank file; Acceptance is charged once whichever rail paid",
+        "tests": [
+          {
+            "file": "tests/test_statement_rails.py",
+            "test": "test_an_ambiguous_answer_holds_the_lines_as_unknown_and_blocks_any_new_file_until_a_status_resolves_it"
+          },
+          {
+            "file": "tests/test_statement_rails.py",
+            "test": "test_never_a_second_instruction_under_the_same_settlement_id_and_a_double_payment_is_said"
+          },
+          {
+            "file": "tests/test_statement_rails.py",
+            "test": "test_a_line_paid_on_chain_or_refunded_is_never_in_a_bank_file_and_a_bank_paid_line_never_in_a_second"
+          },
+          {
+            "file": "tests/test_statement_rails.py",
+            "test": "test_acceptance_is_charged_once_whichever_rail_pays"
+          }
+        ]
+      }
+    ]
   }
 }

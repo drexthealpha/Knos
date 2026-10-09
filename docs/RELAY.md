@@ -162,7 +162,9 @@ checks every order paid once, each relay paid only its part and with its own key
 units per payment; it gives no rate. On devnet it takes pay tokens GitHub signed (the release run collects them) and
 records attempts, paid, refused, never completed, p50/p95/p99 seconds and payments a second. Run once on devnet at
 the public program ids (8 Oct 2026, [LOAD.md](LOAD.md)): 40 of 40 paid in 412.74 s, 0.097 a second, through ONE
-relay, because all 40 tokens came from one owner and a lane was then the owner.
+relay, because all 40 tokens came from one owner and a lane was then the owner. Run again the same day with 4 relays
+and 4 fee accounts: 40 of 40 paid in 211.27 s, 0.189 a second (p50 11.45 s, p95 22.61 s, worst 34.9 s; relays paid
+16, 8, 5 and 11; fee accounts took 14, 9, 9 and 8). Both rates are measured.
 
 **Pay work by order, and K fee accounts (0.3.22).** Two changes, no program change.
 

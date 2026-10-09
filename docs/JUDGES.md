@@ -11,6 +11,17 @@ program releases the money on that signature.
 
 Why Solana: Money is released with no custodian, and the count is anchored where neither side can alter it.
 
+## Start here
+
+1. [The release manifest](MANIFEST.md): source, build hash, deployed version, transactions, fee schedule.
+2. The witnessed transaction (8 Oct 2026, Knos 0.3.22, own repository, test USDC):
+   [funded](https://explorer.solana.com/tx/5NGGSCAN17FiN1gaSiZ5YBUwPiDX56DXdv7txKGqKGQL4FMrCYL3gpduBzxDYLYojYp4YhKq8ZhkQLttiSEEAnjN?cluster=devnet),
+   [wrong work refused](https://github.com/drexthealpha/knos-witness/actions/runs/37834796417/job/113509142113),
+   [paid](https://explorer.solana.com/tx/5agirebr3WcfmjF4JV8KNJeFsWqrd21vkPZtebqZyxTLNTWqYv8azX28zTZuMYKCuH6uaCmTaGPeTbLAooJT1Vs9?cluster=devnet),
+   [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/8#issuecomment-6067864262),
+   [the record](https://github.com/drexthealpha/knos-witness/blob/main/witness.json).
+   It needed three workarounds; its statements had no lines. [Run it yourself](../examples/witnessed/README.md).
+
 ## Six criteria and seven factors, one link each
 
 Six criteria from the rules, then the seven factors on [Colosseum's page](https://colosseum.com/hackathon).
@@ -27,7 +38,7 @@ Six criteria from the rules, then the seven factors on [Colosseum's page](https:
 | Insight | Every vendor counts its own outcomes, while the forge already signs a record that neither buyer nor supplier owns. | [why a neutral count](WHY.md) |
 | Product and execution | Sibyl's memory engine, which the founder's first-place Sibyl Labs product ran on, holds Knos's history; each capability has evidence. | [the release manifest](MANIFEST.md) |
 | Potential market size | Not counted: the market is built from qualified organisations, and none has been asked yet. | [the addressable market](MARKET.md) |
-| Founder communication | The presentation fits in three minutes and ends on its limits in one sentence. | [the presentation](submission/pitch_script.md) |
+| Founder communication | The presentation fits in three minutes: the finding, one transaction, the founder's record, the limits in one sentence, the ask. | [the presentation](submission/pitch_script.md) |
 | Viability | Each customer's delivery cost is budgeted line by line, only the monthly batch is measured, and nothing has been sold. | [the unit costs](UNIT_COSTS.md) |
 | Traction | Outside funders 0, outside repositories 0, interviews 0, revenue 0; one outside payee was paid on tasks Knos funded. | [the outside-use numbers](submission/NUMBERS.md) |
 
@@ -36,11 +47,9 @@ page prints no rate.
 
 ## Days to approve, not seconds to pay
 
-From merge to paid took 25 seconds at the median, over 42 payments on devnet. A buyer waits instead for a person
-to approve the invoice. Days to approve is defined as the days from the day the buyer receives a supplier's invoice
-to the day a person with authority approves it. Knos would read both dates: receipt from the buyer's payables
-system, approval from the record `knos statement approve` writes. Not measured. It has not measured it with any
-buyer, so no figure for it is given here.
+From merge to paid took 25 seconds at the median, over 42 payments on devnet. Days to approve is defined as the days
+from the day the buyer receives a supplier's invoice to the day a person with authority approves it.
+Not measured. It has not measured it with any buyer, so no figure for it is given here.
 
 ## What is not real yet
 
@@ -50,5 +59,5 @@ buyer, so no figure for it is given here.
 4. Outside checks: no security review, 0 reproductions by anyone else, 0 outside programs reading the verifier.
 5. Neutrality: one person holds every key, and that person is the whole team.
 
-Each count is read from [NUMBERS.md](submission/NUMBERS.md), and every limit is in [DISCLOSURE.md](DISCLOSURE.md).
-The same transaction told in steps is [STORY.md](STORY.md); every other document is on [the map](README.md).
+Counts: [NUMBERS.md](submission/NUMBERS.md). Limits: [DISCLOSURE.md](DISCLOSURE.md). The steps: [STORY.md](STORY.md).
+Everything else: [the map](README.md).

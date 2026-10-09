@@ -5,6 +5,8 @@
     knos recall approval COMMITMENT --buyer ORG [--evidence FILE] [--memory DIR] [--json]
     knos recall grant --supplier ID --buyer ORG --terms HASH --outcome accepted --ref DLV [--value N] [--memory DIR]
     knos recall supplier ID --buyer ORG [--memory DIR] [--json]
+    knos recall decisions STATEMENT --buyer ORG [--terms HASH] [--memory DIR] [--json]
+                                    what was accepted, refused or authorised before, for each line's supplier and terms
 
 `approval` answers the approver's question six months later: who approved this commitment, what amount, under which
 policy version and why, whether the record is intact (it agrees with the engine's append-only journal) and, given the
@@ -168,6 +170,56 @@ def statement_paid(store, statement: dict, event: dict, terms: str = "", at: flo
         return None
     return line_resolved(store, terms or unnamed_terms(statement.get("buyer", ""), ln.get("supplier", "")), ln, ending, at=at,
                          period=str(statement.get("date", ""))[:7].replace("-", ""))
+
+
+DECISION_SCHEMA = "knos.recall.decision/1"
+_DECIDED = {"acceptance": "accepted", "refusal": "refused", "approval": "authorised"}
+DECISION_WORDS = {"accepted": "accepted", "refused": "refused", "authorised": "authorised for payment"}
+
+
+def decision_made(store, statement: dict, event: dict, terms: str = "") -> list[dict]:
+    """A decision recorded on a statement (knos.statement `accept`, `refuse` or `approve`: its last status event) kept
+    through history.line_decided, one per line, under `terms` or unnamed_terms(buyer, supplier). [] with no memory."""
+    decision = _DECIDED.get(str(event.get("type")))
+    if decision is None or isinstance(store, history.NullStore):
+        return []
+    out = []
+    for ln in statement.get("lines", []):
+        if ln.get("invoice_line") in event.get("lines", []) and ln.get("supplier"):
+            out.append(history.line_decided(store, ln["supplier"], terms or unnamed_terms(statement.get("buyer", ""), ln["supplier"]), ln["deliverable"],
+                                            decision, event["by"], event.get("role", ""), event.get("why", ""), ln["invoice_line"], event.get("on", "")))
+    return out
+
+
+def decisions(store, statement: dict, terms: str = "") -> list[dict]:
+    """For each line of `statement`, what was decided before about the same supplier under the same terms (schema
+    knos.recall.decision/1): the last decision about the same deliverable (`same`), else the last about any, with
+    `seen` (how many) and `words`. A line nothing was decided about gets no row. [] with no memory."""
+    rows = []
+    for ln in statement.get("lines", []):
+        supplier = str(ln.get("supplier") or "")
+        if not supplier:
+            continue
+        under = terms or unnamed_terms(statement.get("buyer", ""), supplier)
+        before = history.line_decisions(store, supplier, under)
+        if not before:
+            continue
+        mine = [d for d in before if d["deliverable"] == ln.get("deliverable")]
+        if not mine and ln.get("state") != "agreed":
+            continue                # another line's decision says nothing of a line whose own policy is not met
+        last = (mine or before)[-1]
+        rows.append({"kind": DECISION_SCHEMA, "invoice_line": ln.get("invoice_line", ""), "line": ln.get("line"), "supplier": supplier, "terms": under,
+                     "seen": len(before), "same": bool(mine), "last": last, "words": decision_words(last, bool(mine), len(before))})
+    return rows
+
+
+def decision_words(last: dict, same: bool, seen: int) -> str:
+    """"Refused before by Dana (AP lead) on 2026-09-30: no test ran." in one sentence."""
+    said = f"{DECISION_WORDS[last['decision']].capitalize()} before by {last['by']}" + (f" ({last['role']})" if last.get("role") else "")
+    said += f" on {last['on']}" if last.get("on") else ""
+    said += f": {last['why']}" if last.get("why") else ""
+    said += "." if same else f", for another line of this supplier under these terms ({seen} {'decision' if seen == 1 else 'decisions'} remembered)."
+    return said
 
 
 def appeal_moved(store, appeal: dict) -> dict | None:
@@ -405,6 +457,26 @@ def register(app: Any, help_lines: list | None = None) -> None:
         except ValueError as why:
             raise cli.Stop(f"Nothing was granted: {why}.") from None
         typer.echo(f"Granted: {sum(got['outcomes'].values())} result(s) of {supplier_id} under these terms can be shown to its other buyers.")
+
+    @group.command("decisions")
+    def decisions_(statement: Path = typer.Argument(..., metavar="STATEMENT", help="the statement's JSON file (knos statement make)"),
+                   buyer: str = typer.Option(..., "--buyer", metavar="ORG", help="the buyer organisation whose memory answers"),
+                   terms: str = typer.Option("", "--terms", metavar="HASH", help="the hash of the terms, as given to `knos statement make --remember`"),
+                   memory: Path = typer.Option(None, "--memory", metavar="DIR", help="the directory of the memory store"),
+                   as_json: bool = typer.Option(False, "--json", help="the rows the approver's page reads")) -> None:
+        """What was accepted, refused or authorised before for each line's supplier under the same terms. Drop the JSON on the approver's page: each row then says it."""
+        from . import cli
+        try:
+            rows = decisions(_open(buyer, memory), _json_file(statement, "the statement"), terms.lower())
+        except (ValueError, KeyError, TypeError) as why:
+            raise cli.Stop(f"Nothing was recalled: {why}.") from None
+        if as_json:
+            typer.echo(json.dumps(rows, indent=1, sort_keys=True))
+            return
+        if not rows:
+            typer.echo("Nothing was decided before about these suppliers under these terms.")
+        for r in rows:
+            typer.echo(f"line {r['line']}: {r['words']}")
 
     @group.command("supplier")
     def supplier_(supplier_id: str = typer.Argument(..., metavar="ID", help="the supplier"),

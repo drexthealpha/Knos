@@ -169,6 +169,15 @@ def test_every_file_of_tests_web_runs_where_a_browser_is_installed_and_a_skip_th
     assert named <= files and "for f in tests/web/*.mjs; do" in ran and 'node "$f" "$RUNNER_TEMP/site"' in ran
     assert '[ "$f" = tests/web/buyer.mjs ]' in ran and "buyer.mjs" in (ROOT / "tests" / "test_site_buyer.py").read_text(encoding="utf-8")
     assert "pytest -q -n auto --dist worksteal --no-skips --junitxml=junit/site.xml tests/test_site_*.py" in _runs(site)
+    # the one test that times the browser (tests/web/motion.mjs against MORPH_BUDGET_MS) runs alone, after the rest and
+    # never beside them: it is deselected from the parallel run, run by itself with --no-skips, and its time counted
+    timed = "tests/test_site_overflow.py::test_the_budget_of_words_weight_and_motion_holds"
+    together = next(s for s in site["steps"] if "-n auto" in str(s.get("run", "")))
+    alone = next(s for s in site["steps"] if "junit/site-timed.xml" in str(s.get("run", "")) and "suite_time" not in str(s.get("run", "")))
+    assert together["env"]["TIMED"] == alone["env"]["TIMED"] == timed and '--deselect "$TIMED"' in together["run"]
+    assert alone["run"] == 'pytest -q --no-skips --junitxml=junit/site-timed.xml "$TIMED"' and site["steps"].index(alone) > site["steps"].index(together)
+    assert "junit/site-timed.xml" in next(s for s in site["steps"] if "suite_time" in str(s.get("run", "")))["run"]
+    assert timed.split("::")[1] in (ROOT / "tests" / "test_site_overflow.py").read_text(encoding="utf-8")
     # every node line's output goes to the log the last step reads, and a failing one still fails its step
     assert sdk["defaults"]["run"]["shell"] == "bash"
     for step in sdk["steps"]:

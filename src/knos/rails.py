@@ -16,6 +16,13 @@ element name) or a CSV (`end_to_end_id,status,reference,date,reason`). `apply` m
 paid outside Knos and each line of a rejected one payable again, with the bank's reason. Reading one report twice
 changes nothing.
 
+An answer that is not clear is never taken as a no. A timeout, "unknown", or a status code this module does not know
+marks each line of the transfer UNKNOWN (a settlement record with state `held` and `unknown: true`, so the statement,
+its CSV and the site all show the line held, with why): the money may have left. No payment file names such a line
+until a later status file says paid (the line is paid) or returned (payable again, under a new end-to-end id). A
+second instruction under an end-to-end id an earlier file used is refused, whatever the status file says
+(`instruct`), and a payment reported for a line already paid under another id is said as paid twice.
+
 `accepted_rows` is what the month's bill is made from: one row per agreed deliverable that was paid, whichever rail
 paid it, so Acceptance is charged on it once; a deliverable the program released says `on_chain`, and its fee was
 taken there.
@@ -44,10 +51,11 @@ NS = "urn:iso:std:iso:20022:tech:xsd:" + MESSAGE
 RAILS = ("bank", "usdc")
 PAID = ("ACSC", "ACCC")                   # settled on the debtor's account; settled on the creditor's account
 FAILED = ("RJCT", "CANC")                 # rejected; cancelled
-PENDING = ("ACTC", "ACCP", "ACSP", "ACWC", "ACFC", "ACWP", "PDNG", "RCVD", "PART")
+PENDING = ("ACTC", "ACCP", "ACSP", "ACWC", "ACFC", "ACWP", "PDNG", "RCVD", "PART", "PATC")
+UNCLEAR = ("unknown", "timeout", "timed out", "no answer", "error")    # the bank, or the link to it, gave no clear answer
 WORDS = {"paid": "paid", "settled": "paid", "completed": "paid", "failed": "failed", "returned": "failed", "rejected": "failed",
          "cancelled": "failed", "pending": "pending", "sent": "pending", "accepted": "pending",
-         **{c.lower(): "paid" for c in PAID}, **{c.lower(): "failed" for c in FAILED}, **{c.lower(): "pending" for c in PENDING}}
+         **{w: "unknown" for w in UNCLEAR}, **{c.lower(): "paid" for c in PAID}, **{c.lower(): "failed" for c in FAILED}, **{c.lower(): "pending" for c in PENDING}}
 STATUS_HEAD = ("end_to_end_id", "status", "reference", "date", "reason")
 _OK = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/-?:().,'+ "
 _IBAN = re.compile(r"[A-Z]{2}[0-9]{2}[A-Za-z0-9]{1,30}")
@@ -97,7 +105,8 @@ def bic(value: str, whose: str) -> str:
 
 
 def instructed(status: dict | None) -> dict[str, dict]:
-    """Invoice line -> the transfer that pays it, for every line an instruction file names and no bank returned since."""
+    """Invoice line -> the transfer that pays it, for every line an instruction file names and no bank returned since.
+    A line whose last bank answer is not clear is held by its settlement record (`unknown`), returned or not."""
     out: dict[str, dict] = {}
     for e in (status or {}).get("events", []):
         if e["type"] == "instruction":
@@ -107,6 +116,16 @@ def instructed(status: dict | None) -> dict[str, dict]:
         elif e["type"] == "settlement" and e.get("returned"):
             out.pop(e["line"], None)
     return out
+
+
+def unknown(status: dict | None) -> dict[str, dict]:
+    """Invoice line -> its last settlement record, for every line whose last bank answer was not clear: no payment file
+    names it until a status file says paid or returned."""
+    last: dict[str, dict] = {}
+    for e in (status or {}).get("events", []):
+        if e["type"] == "settlement":
+            last[e["line"]] = e
+    return {line: e for line, e in last.items() if e.get("unknown")}
 
 
 def transfers(st: dict, status: dict | None = None) -> list[dict]:
@@ -331,7 +350,7 @@ def read_status(data: bytes) -> list[dict]:
     def row(el, e2e: str, code: str) -> dict:
         why = next((e for e in el if name(e) == "StsRsnInf"), None)
         reason = " ".join(x for x in ((one(why, "Cd") or one(why, "Prtry")), one(why, "AddtlInf")) if x) if why is not None else ""
-        return {"end_to_end": e2e, "message": message, "result": WORDS.get(code.lower(), "pending"), "code": code, "reason": reason,
+        return {"end_to_end": e2e, "message": message, "result": WORDS.get(code.lower(), "unknown"), "code": code or "none", "reason": reason,
                 "reference": one(el, "AcctSvcrRef"), "on": one(el, "AccptncDtTm")[:10]}
 
     out = [row(tx, one(tx, "OrgnlEndToEndId"), one(tx, "TxSts")) for tx in root.iter() if name(tx) == "TxInfAndSts"]
@@ -347,8 +366,9 @@ def read_status(data: bytes) -> list[dict]:
 def apply(st: dict, status: dict | None, rows: list[dict], on: str) -> tuple[dict, list[str]]:
     """(the status with what the bank said recorded, what was done in words). A settled transfer marks each of its
     lines paid outside Knos, with the end-to-end id as the settlement; a rejected one marks them payable again with the
-    bank's reason, so the next instruction file names them; a pending one records nothing. A transfer no instruction
-    of this statement names is said and skipped. What is already recorded is not recorded again."""
+    bank's reason, so the next instruction file names them; a pending one records nothing; an answer that is not clear
+    holds them as unknown (see the module's text). A transfer no instruction of this statement names is said and
+    skipped. What is already recorded is not recorded again."""
     from . import statement as S
     status = S._status(st, status)
     known: dict[str, dict] = {}
@@ -369,22 +389,42 @@ def apply(st: dict, status: dict | None, rows: list[dict], on: str) -> tuple[dic
             if r["result"] == "pending":
                 said.append(f"{t['end_to_end']}: still with the bank ({r['code']}); nothing recorded")
                 continue
-            state = "paid_outside" if r["result"] == "paid" else "payable"
             day = S._day(r["on"] or on)
-            done = 0
+            why = " ".join(x for x in (r["code"], r["reason"]) if x) or "no status"
+            done, twice = 0, []
             for line in t["lines"]:
-                last = next((e for e in reversed(events) if e["type"] == "settlement" and e["line"] == line and e["settlement"] == t["end_to_end"]), None)
-                if last is not None and last["state"] == state:
-                    continue
+                last = next((e for e in reversed(events) if e["type"] == "settlement" and e["line"] == line), None)
                 event = {"type": "settlement", "line": line, "deliverable": deliverable[line], "settlement": t["end_to_end"], "method": "bank",
-                         "reference": r["reference"] or t["end_to_end"], "on": day, "state": state, "rail": MESSAGE}
-                if state == "payable":
-                    why = " ".join(x for x in (r["code"], r["reason"]) if x)
-                    event.update({"returned": why, "note": f"the bank returned this payment: {why}"})
+                         "reference": r["reference"] or t["end_to_end"], "on": day, "rail": MESSAGE}
+                if r["result"] == "unknown":
+                    if last is not None and last.get("unknown") and last["settlement"] == t["end_to_end"]:
+                        continue
+                    event.update({"reference": f"no clear answer ({why})", "state": "held", "unknown": why,
+                                  "note": f"the bank's answer is not clear ({why}): the money may have left; no new payment file names this line "
+                                          "until a status file says paid or returned"})
+                else:
+                    state = "paid_outside" if r["result"] == "paid" else "payable"
+                    mine_last = next((e for e in reversed(events) if e["type"] == "settlement" and e["line"] == line and e["settlement"] == t["end_to_end"]), None)
+                    if mine_last is not None and mine_last["state"] == state:
+                        continue
+                    if state == "paid_outside" and any(e["type"] == "settlement" and e["line"] == line and e["state"] == "paid_outside"
+                                                       and e["settlement"] != t["end_to_end"] for e in events):
+                        twice.append(line)
+                    event["state"] = state
+                    if state == "payable":
+                        event.update({"returned": why, "note": f"the bank returned this payment: {why}"})
                 events.append(event)
                 done += 1
-            words = f"paid, {t['amount']} {t['currency']} to {t['supplier']}" if state == "paid_outside" else f"returned by the bank ({r['code']} {r['reason']}".rstrip() + "): payable again"
-            said.append(f"{t['end_to_end']}: {words}; {done} {'line' if done == 1 else 'lines'} recorded" if done else f"{t['end_to_end']}: already recorded; nothing changed")
+            n = f"{done} {'line' if done == 1 else 'lines'}"
+            if r["result"] == "unknown":
+                said.append(f"{t['end_to_end']}: the answer is not clear ({why}): {n} held as unknown; no new payment file names them until a status "
+                            "file says paid or returned" if done else f"{t['end_to_end']}: already held as unknown; nothing changed")
+                continue
+            words = f"paid, {t['amount']} {t['currency']} to {t['supplier']}" if r["result"] == "paid" else f"returned by the bank ({r['code']} {r['reason']}".rstrip() + "): payable again"
+            said.append(f"{t['end_to_end']}: {words}; {n} recorded" if done else f"{t['end_to_end']}: already recorded; nothing changed")
+            if twice:
+                said.append(f"{t['end_to_end']}: PAID TWICE: {', '.join(twice)} {'was' if len(twice) == 1 else 'were'} paid already under another end-to-end id; "
+                            "ask the supplier to return one payment")
     return {**status, "events": events}, said
 
 
@@ -394,6 +434,10 @@ def instruct(st: dict, status: dict | None, payer: dict) -> tuple[dict, str, lis
     from . import statement as S
     status = S._status(st, status)
     xml, found, msg = pain001(st, status, payer)
+    used = {t["end_to_end"] for e in status["events"] if e["type"] == "instruction" for t in e["transfers"]}
+    again = [t["end_to_end"] for t in found if t["end_to_end"] in used] + ([msg] if any(e["type"] == "instruction" and e["message"] == msg for e in status["events"]) else [])
+    if again:                                                 # one settlement id, one instruction: never a second file for it
+        raise Refused(f"An earlier payment file already used {', '.join(again)}. A second instruction under the same id could pay twice; nothing was written.")
     wrong = check(xml)
     if wrong:                                                 # never hand over a file the checker would not take
         raise Refused("The payment file does not hold to the message's structure: " + "; ".join(wrong[:3]))

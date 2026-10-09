@@ -24,10 +24,28 @@ VERDICT_WORDS = {"accepted": "accepted", "rejected": "rejected", "insufficient_e
                  "disputed": "disputed"}
 BILLABLE = frozenset({"accepted"})          # the only verdict a deliverable is billed on, and once
 
-# What a statement says of one invoice line, after it is set against the count.
+# What a statement says of one invoice line, after it is set against the count. The key `agreed` is the one every
+# statement file has always written, and it is kept so that every file still reads: it means the evidence met the
+# policy, and nothing more. It never means anybody accepted, authorised or paid the line. Its words say so.
 LINE_STATES = ("agreed", "disputed", "duplicate", "insufficient_evidence")
-LINE_WORDS = {"agreed": "agreed", "disputed": "disputed", "duplicate": "duplicate",
+LINE_WORDS = {"agreed": "policy met", "disputed": "disputed", "duplicate": "duplicate",
               "insufficient_evidence": "insufficient evidence"}
+# Older words for the same four states, and the words a person may type: each maps to its key (`line_state`).
+OLD_LINE_WORDS = {"agreed": "agreed", "policy_met": "agreed", "policy_satisfied": "agreed", "met": "agreed", "clean": "agreed",
+                  "failed": "disputed", "not_merged": "disputed", "billed_twice": "duplicate", "unverified": "insufficient_evidence",
+                  "unreadable": "insufficient_evidence"}
+
+# The four steps of one line, each recorded apart, in order. Being in the first says nothing of the other three.
+#   policy      the evidence met the terms (the line's state is `agreed`)
+#   accepted    a party accepted the line: who, and when (an acceptance recorded beside the statement, or both
+#               ledgers of a closed month)
+#   authorised  somebody authorised its payment: who, in which role, under which policy
+#   settled     the money moved: the transaction, or the bank's file and reference
+STEPS = ("policy", "accepted", "authorised", "settled")
+STEP_WORDS = {"policy": "policy satisfied", "accepted": "parties accepted", "authorised": "payment authorised", "settled": "settled"}
+# A line whose evidence met the policy that the buyer refused, or left unauthorised past the acceptance window, is
+# owed to the supplier: counted as a wrongful refusal beside the unsupported charges, with the supplier's appeal.
+OWED_WORDS = "owed to the supplier"
 
 PREFIX = {"deliverable": "dlv", "evaluation": "evl", "invoice_line": "inv", "settlement": "stl"}
 
@@ -86,6 +104,17 @@ def invoice_line(supplier: str, invoice: str, line: str | int) -> str:
 def settlement(deliverable_id: str, method: str, reference: str) -> str:
     """`method`: chain, bank or other. `reference`: the transaction signature, or the payer's own reference."""
     return _id("settlement", deliverable_id, method, reference)
+
+
+def line_state(word: str) -> str:
+    """The line state a word means: a key of LINE_STATES, its words, or an older word. ValueError for anything else."""
+    w = str(word).strip().lower().replace(" ", "_").replace("-", "_")
+    if w in LINE_STATES:
+        return w
+    w = OLD_LINE_WORDS.get(w) or next((k for k, v in LINE_WORDS.items() if v.replace(" ", "_") == w), "")
+    if not w:
+        raise ValueError(f"not a line state: {word!r} (one of: {', '.join(LINE_WORDS.values())})")
+    return w
 
 
 def kind_of(an_id: str) -> str | None:

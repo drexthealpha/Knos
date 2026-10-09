@@ -20,7 +20,7 @@ What is in this folder:
 | [../STORY.md](../STORY.md) | the one page: the number, the seven steps with the evidence under each, and the ask |
 | [../MANIFEST.md](../MANIFEST.md) | the release manifest, written by a script: source, the build live at each public program id, pending proposals, every capability's stage with its evidence, the outstanding limits |
 | [NUMBERS.md](NUMBERS.md) | the nine numbers about outside use, each with today's value, zeros included |
-| [pitch_script.md](pitch_script.md) | the presentation, under three minutes: the buyer, the problem, the insight, the evidence, the team, the business, and the limits in one sentence |
+| [pitch_script.md](pitch_script.md) | the presentation, under three minutes: the Agent PR Index finding, one transaction in seven steps, the evidence, the founder's record, the business, the limits in one sentence, and the ask |
 | [demo_script.md](demo_script.md) | the technical demonstration, three minutes in seven beats, the refusal first, each captioned with the program ids it ran on |
 | [CRITERIA.md](CRITERIA.md) | one paragraph for each factor Colosseum lists, founder and market fit included, and for each criterion in the rules; then six evidence targets, as targets |
 | [../PILOT.md](../PILOT.md) | the one offer for money: a 30-day pilot for one buyer and its suppliers, and what blocks it |
@@ -140,7 +140,7 @@ USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one
 Knos funded itself, and the rest to Knos's own accounts. When the release ran, 46 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
 their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 42
-payments. 3,788 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
+payments. 3,860 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
 sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
 source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 

@@ -248,7 +248,7 @@ floor of 0.05 is the tip, so on a release of 5 the relayer is paid and the fee o
 | one of 100 to one payee in a period, netted into one release of 99.00 | 0.30 for the release | 0.30% |
 | the only one to its payee in the period | 0.05, the floor once | 5.05% |
 
-From 19 such outcomes to one payee the rate is the fee and not the floor. Netting is reconciled off chain; the
+From 17 such outcomes to one payee the rate is the fee and not the floor (counted as knos_pay counts, in base units: 17 x 0.99 = 16.83, and 0.30% of it is 0.05049, above the floor of 0.05). Netting is reconciled off chain; the
 program has no instruction for it, and on chain the least order is 5 test USDC.
 
 The same remedy at the least order the program takes, under 2.2, 100 outcomes of 5.00 to one payee in a period:
@@ -298,6 +298,38 @@ to become a command the customer runs. `knos bill margin --sensitivity docs/unit
 
 The worked customer's first month, at these costs: revenue 10,753.33, direct cost 1,260.20, gross margin 88.3%
 (Control 85.0%, Meter 69.0%, Acceptance 99.8%). `tests/test_billing.py` holds the command to those figures.
+
+## Micro-outcomes: a different delivery
+
+An outcome of 0.99 USD is a real price: it is what Intercom lists for one Fin outcome
+([intercom.com/pricing](https://www.intercom.com/pricing), read 7 Oct 2026). What Knos earns on one, and what it may
+cost to deliver, from the price book's constants (`knos.billing`; `tests/test_business_docs.py` computes every figure
+in this table):
+
+| on one outcome of 0.99 | USD |
+|---|---|
+| Acceptance, 0.30% (netted with the payee's other small outcomes, so the 0.05 floor is paid once per release, not per outcome) | 0.00297 |
+| Meter, one evaluation past the free ones | 0.002 |
+| **What Knos earns** | **0.00497** |
+| the most it may cost to deliver at a gross margin of 90% | 0.000497 |
+| **the most it may cost to deliver at a gross margin of 95%** | **0.000249** |
+| the same at 95% while the evaluation is still one of the month's 100,000 free ones (0.00297 earned) | 0.000149 |
+
+So at 95% gross the direct cost of one micro-outcome must stay below about 0.00025 USD. Against the budget today:
+
+- **The evaluation fits.** 0.00005 **[budget, not measured]** is about a fifth of the ceiling: one anchored batch a
+  supplier a month, and no person in the path.
+- **An accepted deliverable does not.** Its budget of 0.10 **[budget, not measured]** is about 402 times the
+  ceiling, and even its target of 0.02 is about 80 times it. That cost is a person looking at an exception; at
+  0.99 an outcome cannot carry one.
+- **Netting moves transfers, not evaluation cost.** It turns a hundred releases into one, so the floor and the
+  chain fees are paid once (leak 2). It does not make one outcome cheaper to judge or to dispute: each is still
+  evaluated, and each difference is still a line someone settles.
+
+What that means: high-value deliverables and micro-outcomes need different delivery. A deliverable of thousands
+carries a person on its exceptions. A micro-outcome is judged by the check alone; its exceptions are handled in
+bulk or as the separate, separately priced dispute service, never one by one inside the 0.30%. No micro-outcome has
+been delivered for anyone, so none of these costs is measured.
 
 ## A second customer, worked
 

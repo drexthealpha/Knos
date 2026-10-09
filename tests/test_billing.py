@@ -238,7 +238,10 @@ def test_small_tickets_are_netted_one_release_per_payee_and_the_floor_once():
     chain = b.invoice({"plan": "none", "accepted": [{"deliverable": "c", "value": "5.00", "payee": "acme", "on_chain": True}]})
     assert chain["total"] == "0.00"                                         # released on chain: its fee was paid there
     n = b.netting_example()
-    assert (n["alone_share"], n["netted_share"], n["netted_fee"], n["individually"], n["reaches_rate"]) == ("5.05%", "0.30%", "0.30", "5.00", 19)
+    assert (n["alone_share"], n["netted_share"], n["netted_fee"], n["individually"], n["reaches_rate"]) == ("5.05%", "0.30%", "0.30", "5.00", 17)
+    # the count agrees with the program's own arithmetic: fee = max(floor, floor(amount * 30 / 10,000)) in base units
+    on_chain = lambda k: max(50_000, (990_000 * k * 30) // 10_000)        # noqa: E731
+    assert on_chain(n["reaches_rate"]) > 50_000 == on_chain(n["reaches_rate"] - 1)
 
 
 def test_who_earns_what_at_the_floor_under_both_builds():

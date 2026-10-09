@@ -240,7 +240,7 @@ def test_the_commands_write_the_file_read_the_answer_and_keep_the_old_path(tmp_p
     e2e = rails.transfers(st, approved(st))[0]["end_to_end"]
     (tmp_path / "bank.csv").write_text(f"end_to_end_id,status,reference,date,reason\n{e2e},ACSC,BK-1,2026-10-03,\n", encoding="utf-8")
     got = cli.invoke(app, ["statement", "status", str(file), "--from", str(tmp_path / "bank.csv"), "--on", "2026-10-04"])
-    assert got.exit_code == 0 and "paid, 160.00 USD to Acme Agents; 2 lines recorded" in got.output and "Owed:" in got.output and "0 lines, 0.00 USD payable" in got.output
+    assert got.exit_code == 0 and "paid, 160.00 USD to Acme Agents; 2 lines recorded" in got.output and "Payable:" in got.output and "0 lines, 0.00 USD authorised, not paid" in got.output
     status = json.loads((tmp_path / "ap-statement.status.json").read_text(encoding="utf-8"))
     assert [e["type"] for e in status["events"]] == ["approval", "instruction", "settlement", "settlement"]
     assert (tmp_path / "ap-statement.csv").read_bytes() == statement.as_csv(st, status).encode() and file.read_bytes() == statement.canonical(st)
@@ -285,13 +285,16 @@ if __name__ == "__main__":
 
 
 def test_the_site_words_a_payment_file_and_a_returned_payment_as_the_python_does(tmp_path):
-    """web/finance_data.js `statementCells` against statement.cells, on a status that holds an instruction and a return."""
+    """web/finance_data.js `statementCells` against statement.cells, on a status that holds an instruction, a return and an unclear answer."""
     node = shutil.which("node")
     if node is None:
         pytest.skip("node is not installed")
     st, s = returned()
+    back = next(e["settlement"] for e in s["events"] if e.get("returned"))      # then an unclear answer about the same transfer
+    s = rails.apply(st, s, rails.read_status(csv_answer((back, "timeout"))), "2026-10-05")[0]
     kinds = [row[0] for row in statement.cells(st, s)["events"]]
     assert "payment file" in kinds and any("returned by the bank" in row[3] for row in statement.cells(st, s)["events"])
+    assert any(row[3].startswith("held as unknown") for row in statement.cells(st, s)["events"])
     (tmp_path / "in.json").write_text(json.dumps({"st": st, "status": s}), encoding="utf-8")
     script = ("import { readFileSync } from 'node:fs'; import { pathToFileURL } from 'node:url';"
               "const m = await import(pathToFileURL(process.argv[2]).href), d = JSON.parse(readFileSync(process.argv[3], 'utf8'));"
@@ -302,3 +305,80 @@ def test_the_site_words_a_payment_file_and_a_returned_payment_as_the_python_does
     assert done.returncode == 0, done.stderr
     got = json.loads(done.stdout)
     assert got["events"] == statement.cells(st, s)["events"] and got["csv"] == statement.as_csv(st, s)
+
+
+def csv_answer(*rows: tuple[str, str]) -> bytes:
+    return ("end_to_end_id,status,reference,date,reason\n" + "".join(f"{e},{s},,2026-10-03,\n" for e, s in rows)).encode()
+
+
+def test_an_ambiguous_answer_holds_the_lines_as_unknown_and_blocks_any_new_file_until_a_status_resolves_it():
+    st = two()
+    s, _xml, found = rails.instruct(st, approved(st), PAYER)
+    acme, zeta = found
+    # a timeout, the word unknown and a code nobody knows are all "not clear": never taken as a no
+    rows = rails.read_status(csv_answer((acme["end_to_end"], "timeout"), (zeta["end_to_end"], "unknown")))
+    assert [r["result"] for r in rows] == ["unknown", "unknown"]
+    odd = PAIN002.replace("<TxSts>ACSC</TxSts><AccptncDtTm>", "<TxSts>BLCK</TxSts><AccptncDtTm>").format(msg="M", a=acme["end_to_end"], b=zeta["end_to_end"])
+    assert rails.read_status(odd.encode())[0]["result"] == "unknown"
+    assert rails.read_status(PAIN002.replace("RJCT", "PATC").format(msg="M", a="a", b="b").encode())[1]["result"] == "pending"
+    held, said = rails.apply(st, s, rows, "2026-10-04")
+    assert "held as unknown" in said[0] and "3 lines" not in said[0] and "2 lines held as unknown" in said[0]
+    now = {r["invoice_line"]: r for r in statement.lines_now(st, held)}
+    assert set(rails.unknown(held)) == {*acme["lines"], *zeta["lines"]}
+    assert all(now[ln]["payment"] == "held" and "not clear (timeout)" in now[ln]["why"] for ln in acme["lines"])
+    with pytest.raises(rails.Refused, match="nothing to instruct"):           # no new file names an unknown line
+        rails.pain001(st, held, {**PAYER, "on": "2026-10-05"})
+    unclear = [row for row in statement.cells(st, held)["events"] if row[0] == "settlement"]    # each unknown line has its own row, said as unknown
+    assert len(unclear) == len(rails.unknown(held)) == 3 and all(row[3].startswith("held as unknown: the bank's answer is not clear (") for row in unclear)
+    assert "held as unknown: the bank's answer is not clear (timeout)" in statement.as_csv(st, held) and statement.as_pdf(st, held).startswith(b"%PDF")
+    again, said2 = rails.apply(st, held, rows, "2026-10-05")                   # the same unclear answer twice changes nothing
+    assert again == held and all("already held as unknown" in w for w in said2)
+    # a later, clear answer resolves it: paid stays paid; returned is payable again, under a new end-to-end id
+    clear, _ = rails.apply(st, held, rails.read_status(csv_answer((acme["end_to_end"], "ACSC"), (zeta["end_to_end"], "RJCT"))), "2026-10-06")
+    assert rails.unknown(clear) == {}
+    pays = {r["invoice_line"]: r["payment"] for r in statement.lines_now(st, clear)}
+    assert {pays[ln] for ln in acme["lines"]} == {"paid_outside"} and {pays[ln] for ln in zeta["lines"]} == {"payable"}
+    _xml2, found2, _ = rails.pain001(st, clear, {**PAYER, "on": "2026-10-07"})
+    assert [t["lines"] for t in found2] == [zeta["lines"]] and found2[0]["end_to_end"] not in (acme["end_to_end"], zeta["end_to_end"])
+    # an unclear answer after a return holds the line again: the first transfer may have left after all
+    late, _ = rails.apply(st, clear, rails.read_status(csv_answer((zeta["end_to_end"], "no answer"))), "2026-10-07")
+    with pytest.raises(rails.Refused, match="nothing to instruct"):
+        rails.pain001(st, late, {**PAYER, "on": "2026-10-08"})
+    assert rails.accepted_rows(st, held) == []                                 # an unknown line is not billed as paid
+
+
+def test_never_a_second_instruction_under_the_same_settlement_id_and_a_double_payment_is_said():
+    st = two()
+    s, _xml, found = rails.instruct(st, approved(st), PAYER)
+    zeta = found[1]
+    # a status file that lost which lines a file paid would let the same transfer be written again: refused by its id
+    first = s["events"][-1]
+    dummy = {**s, "events": [*s["events"][:-1], {**first, "transfers": [], "message": "X"}]}
+    would = rails.transfers(st, dummy)                                          # the ids a second file would carry
+    forged = {**s, "events": [*s["events"][:-1], {**first, "message": "Y", "transfers": [{**t, "lines": []} for t in would]}]}
+    with pytest.raises(rails.Refused, match="already used"):
+        rails.instruct(st, forged, PAYER)
+    # returned, paid again under a new id, then the bank says the first transfer was settled after all
+    back, _ = rails.apply(st, s, rails.read_status(csv_answer((zeta["end_to_end"], "RJCT"))), "2026-10-04")
+    s2, _xml2, found2 = rails.instruct(st, back, {**PAYER, "on": "2026-10-05"})
+    paid2, _ = rails.apply(st, s2, rails.read_status(csv_answer((found2[0]["end_to_end"], "ACSC"))), "2026-10-06")
+    _after, said = rails.apply(st, paid2, rails.read_status(csv_answer((zeta["end_to_end"], "ACSC"))), "2026-10-07")
+    assert any("PAID TWICE" in w and zeta["lines"][0] in w for w in said)
+    assert len([r for r in rails.accepted_rows(st, _after) if r["payee"] == zeta["supplier"]]) == len({ln["deliverable"] for ln in st["lines"] if ln["invoice_line"] in zeta["lines"]})
+
+
+def test_a_line_paid_on_chain_or_refunded_is_never_in_a_bank_file_and_a_bank_paid_line_never_in_a_second():
+    """One economic deliverable, two rails: what the program paid or refunded never goes to the bank, and what the bank
+    paid never goes to it again (docs/INVARIANTS.md, "One economic deliverable pays once")."""
+    st = two()
+    lines = [ln["invoice_line"] for ln in st["lines"] if ln["state"] == "agreed"]
+    s = statement.pay(st, approved(st), lines[0], "chain", "TxOne", "2026-10-03")
+    s = statement.pay(st, s, lines[1], "other", "CREDIT-1", "2026-10-03", state="refunded")
+    found = rails.transfers(st, s)
+    named = {ln for t in found for ln in t["lines"]}
+    assert lines[0] not in named and lines[1] not in named and named == set(lines[2:])
+    s2, _xml, _found = rails.instruct(st, s, PAYER)
+    paid, _ = rails.apply(st, s2, rails.read_status(csv_answer(*((t["end_to_end"], "ACSC") for t in found))), "2026-10-04")
+    with pytest.raises(rails.Refused, match="nothing to instruct"):
+        rails.pain001(st, paid, {**PAYER, "on": "2026-10-05"})
+    assert {r["deliverable"] for r in rails.accepted_rows(st, paid)} == {ln["deliverable"] for ln in st["lines"] if ln["invoice_line"] in (lines[0], *lines[2:])}

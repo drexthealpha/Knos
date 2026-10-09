@@ -356,7 +356,8 @@ def test_every_reader_of_a_transaction_asks_for_version_1():
                 readers[path.relative_to(root).as_posix()] = (asks, re.findall(r"""maxSupportedTransactionVersion["']?\s*:\s*(\w+)""", text))
     assert readers == {"scripts/rehearse_fork.py": (1, ["1"]), "sdk/settle/agent.js": (1, ["1"]), "scripts/latency_stages.py": (1, ["1"]),
                        "src/knos/bundle.py": (2, ["1", "1", "1"]), "src/knos/chain.py": (1, ["1"]), "src/knos/observe.py": (1, ["1"]),      # bundle.py's third is its getBlock
-                       "src/knos/records.py": (2, ["1", "1"]), "web/buyer.js": (1, ["1"]), "web/first.js": (1, ["1"]), "scripts/provenance.py": (1, ["1"]), "scripts/exercise_public.py": (1, ["1"])}, readers
+                       "src/knos/records.py": (2, ["1", "1"]), "web/buyer.js": (1, ["1"]), "web/first.js": (1, ["1"]), "scripts/provenance.py": (1, ["1"]), "scripts/exercise_public.py": (1, ["1"]),
+                       "src/knos/audit.py": (1, ["1"]), "scripts/release_manifest.py": (1, ["1"])}, readers
 
 
 # ---- the commands -----------------------------------------------------------------------------------------------------

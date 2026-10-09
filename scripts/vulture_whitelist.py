@@ -183,3 +183,13 @@ billing_.release_split                              # a release's money, whose i
 billing_.support_hours                              # the support hours a budget buys (docs/UNIT_COSTS.md); tests/test_billing.py
 exports_.parts_check                                # an export held to its parts file; tests/test_exports_parts.py
 history_.grant_withdrawn                            # whether a buyer withdrew a supplier's grant; tests/test_history_defence.py
+
+# 0.3.23. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.decisions_                    # knos.recall.register: knos recall decisions
+_.accept_, _.refuse_            # knos.statement.register: knos statement accept | refuse
+# http.server calls it for a folder (knos.selfhost.serve_site: no directory listing, a 404 instead).
+_.list_directory
+# Public functions with no caller inside src/knos or scripts, each held by the tests that name it.
+from knos import ids as ids_
+
+ids_.line_state                                     # the line state a word means, older words included; tests/test_line_states.py

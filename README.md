@@ -1,8 +1,8 @@
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="web/brand/wordmark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="web/brand/wordmark-light.svg">
-    <img alt="Knos" src="web/brand/wordmark-light.svg" height="84">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/drexthealpha/Knos/v0.3.23/web/brand/wordmark-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/drexthealpha/Knos/v0.3.23/web/brand/wordmark-light.svg">
+    <img alt="Knos" src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.3.23/web/brand/wordmark-light.svg" height="84">
   </picture>
 </h1>
 
@@ -25,7 +25,7 @@ Limits, in one line: Solana devnet, test USDC, no outside users yet ([docs/DISCL
 
 1. Buyer and supplier each keep their own ledger of the evaluations GitHub signed.
 2. Each runs `knos meter reconcile` on its own copy and rebuilds the same statement, line for line.
-3. A line is agreed, disputed, duplicate or insufficient evidence, and only an agreed line is billed ([docs/METER.md](docs/METER.md)).
+3. A line's policy is met, or it is disputed, duplicate or without enough evidence; only a line whose policy is met is billed. Each line then shows its four steps: policy satisfied, parties accepted, payment authorised, settled ([docs/METER.md](docs/METER.md)).
 
 ## The money: released on a signature
 
@@ -38,17 +38,23 @@ Limits, in one line: Solana devnet, test USDC, no outside users yet ([docs/DISCL
 241 merged pull requests by AI coding agents said tests or CI pass; 30 had a failed check at the head commit ([docs/backtest.json](docs/backtest.json), counted by `scripts/backtest.py`).
 The second number: 17.8% of first such pull requests, 147 of 826 repositories ([docs/BENCH.md](docs/BENCH.md)). A failed check is GitHub's record, not a judgment of why it failed.
 
+## For a judge
+
+Start at [the release manifest](docs/MANIFEST.md): source, build hash, deployed version, transactions, fee schedule.
+The witnessed transaction (8 Oct, Knos 0.3.22, own repository, test USDC, three workarounds): [funded](https://explorer.solana.com/tx/5NGGSCAN17FiN1gaSiZ5YBUwPiDX56DXdv7txKGqKGQL4FMrCYL3gpduBzxDYLYojYp4YhKq8ZhkQLttiSEEAnjN?cluster=devnet) · [wrong work refused](https://github.com/drexthealpha/knos-witness/actions/runs/37834796417/job/113509142113) · [paid](https://explorer.solana.com/tx/5agirebr3WcfmjF4JV8KNJeFsWqrd21vkPZtebqZyxTLNTWqYv8azX28zTZuMYKCuH6uaCmTaGPeTbLAooJT1Vs9?cluster=devnet) · [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/8#issuecomment-6067864262) · [the record](https://github.com/drexthealpha/knos-witness/blob/main/witness.json).
+Everything else is one click from [docs/JUDGES.md](docs/JUDGES.md).
+
 ## What is real today
 
 <!-- bench:today -->
 | What | Today | Read from |
 |---|---|---|
-| This copy | Release 0.3.22, October 2026. A copy naming an older release, or another product, is out of date | [CHANGELOG.md](CHANGELOG.md); the newest: [PyPI](https://pypi.org/project/knos/) |
-| Reproduced by someone else | 0 of 225 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "reproduced by someone else" |
-| Exercised at the public devnet program ids | 16 of 225: GitHub token verification, funding from a wallet, refund at the deadline, work orders, an order paying up to four payees, orders judged by hidden tests, auto-accepted orders, top-ups, single-use tokens, a counted batch of evaluations, the seller's own count, a passkey funder, the passkey relay, the site's Buy page, an x402 order, an outcome that is not code | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "exercised on devnet" |
-| Deployed at the public devnet program ids, no transaction recorded | 9 of 225: GitLab token verification, the key guardian, funding by one comment, pay on merge, holding pay for a payee with no wallet, pause, one counted evaluation, a payee's passkey wallet, the upgrade gate | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "deployed on devnet" |
-| Tested here only | 197 of 225, each with the test its row names | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "tested locally" |
-| Written, not tested | 3 of 225 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "implemented" |
+| This copy | Release 0.3.23, October 2026. A copy naming an older release, or another product, is out of date | [CHANGELOG.md](CHANGELOG.md); the newest: [PyPI](https://pypi.org/project/knos/) |
+| Reproduced by someone else | 0 of 232 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "reproduced by someone else" |
+| Exercised at the public devnet program ids | 16 of 232: GitHub token verification, funding from a wallet, refund at the deadline, work orders, an order paying up to four payees, orders judged by hidden tests, auto-accepted orders, top-ups, single-use tokens, a counted batch of evaluations, the seller's own count, a passkey funder, the passkey relay, the site's Buy page, an x402 order, an outcome that is not code | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "exercised on devnet" |
+| Deployed at the public devnet program ids, no transaction recorded | 9 of 232: GitLab token verification, the key guardian, funding by one comment, pay on merge, holding pay for a payee with no wallet, pause, one counted evaluation, a payee's passkey wallet, the upgrade gate | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "deployed on devnet" |
+| Tested here only | 204 of 232, each with the test its row names | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "tested locally" |
+| Written, not tested | 3 of 232 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md), the rows "implemented" |
 | Outside funders | 0 | [docs/submission/NUMBERS.md](docs/submission/NUMBERS.md), row 1 |
 | Outside repositories | 0 | [docs/submission/NUMBERS.md](docs/submission/NUMBERS.md), row 2 |
 | Outside payees | 1, on tasks Knos funded itself | [docs/submission/NUMBERS.md](docs/submission/NUMBERS.md), row 3 |

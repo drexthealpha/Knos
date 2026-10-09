@@ -1,6 +1,6 @@
 {
   "name": "knos",
-  "version": "0.3.22",
+  "version": "0.3.23",
   "description": "The neutral meter for AI agent work: neither side keeps the count.",
   "mcpServers": {
     "knos": {

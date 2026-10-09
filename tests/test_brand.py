@@ -129,14 +129,18 @@ def test_fitting_keeps_a_shape_and_drops_its_curves():
     assert tool.absolute("M5 6h10v20l-10-20z") == "M5,6L15,6L15,26L5,6Z"
 
 
-def test_the_readme_header_shows_the_wordmark_on_both_of_githubs_themes():
+def test_the_readme_header_shows_the_wordmark_on_both_of_githubs_themes_and_on_pypi():
+    """GitHub picks a <source> by theme; PyPI drops <source> and keeps an <img> whose src is absolute (its cleaner,
+    readme_renderer's clean.py, allows img src and no source tag), so every address names the file at this release's
+    tag: a relative path was a broken image on the PyPI page of 0.3.22. scripts/bump_version.py moves the tag."""
     head = "\n".join(_text(ROOT / "README.md").splitlines()[:12])
+    at = f"https://raw.githubusercontent.com/drexthealpha/Knos/v{_version()}/"
     sources = re.findall(r'<source media="\(prefers-color-scheme: (dark|light)\)" srcset="([^"]+)">', head)
-    assert dict(sources) == {"dark": "web/brand/wordmark-dark.svg", "light": "web/brand/wordmark-light.svg"}
+    assert dict(sources) == {"dark": at + "web/brand/wordmark-dark.svg", "light": at + "web/brand/wordmark-light.svg"}
     img = re.search(r'<img alt="Knos" src="([^"]+)"', head)
-    assert "<picture>" in head and "</picture>" in head and img and img[1] == "web/brand/wordmark-light.svg"
+    assert "<picture>" in head and "</picture>" in head and img and img[1] == at + "web/brand/wordmark-light.svg"
     for ref in {img[1], *(s for _, s in sources)}:
-        assert (ROOT / ref).is_file() and not ref.startswith(("http", "/"))
+        assert (ROOT / ref.removeprefix(at)).is_file()
     assert "**The neutral meter for AI agent work: neither side keeps the count.**" in head                                  # the one sentence, and no other
 
 
@@ -177,3 +181,17 @@ def test_the_mark_with_depth_is_the_same_drawing_and_costs_no_download():
         assert cls in css, cls
     for state in ("live", "done", "bad"):
         assert f'.k-step[data-state="{state}"]' in css
+
+
+def _version() -> str:
+    return re.search(r'(?m)^version = "([^"]+)"', _text(ROOT / "pyproject.toml"))[1]
+
+
+def test_a_bump_moves_the_readme_logo_to_the_new_tag(tmp_path):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("bump_version", ROOT / "scripts" / "bump_version.py")
+    b = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(b)
+    head = "\n".join(_text(ROOT / "README.md").splitlines()[:7])
+    spans = [m.span() for m in b.PIN.finditer(head)]
+    assert len(spans) == 3 and all(head[x:y].startswith("raw.githubusercontent.com/drexthealpha/Knos/v" + _version()) for x, y in spans)

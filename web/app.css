@@ -447,7 +447,7 @@ h1 { font-size: clamp(36px, 5.6vw, 72px); line-height: 1.02; font-weight: 600; l
   .hero-cue::after { animation: k-cue var(--dur-3) var(--ease); }
   @keyframes k-cue { 50% { transform: translateY(4px) rotate(45deg); } }
 }
-.hero-mark { width: min(64vw, 300px); margin: 0 auto 8px; order: -1; }
+.hero-mark { width: min(64vw, 300px); margin: 72px auto 8px; order: -1; }
 @media (min-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); padding: 48px 0; }
   .hero-mark { width: 100%; max-width: 440px; margin: 0 0 0 auto; order: 0; }

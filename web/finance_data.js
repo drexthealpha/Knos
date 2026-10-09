@@ -365,8 +365,15 @@ export function statementOf(s) {
 // tests/data/statement). It does not make the PDF: the browser prints the same cells (web/statements.js).
 export const STATEMENT_KIND = "knos-statement", STATUS_KIND = "knos-statement-status", LABEL = "file export, not an integration";
 export const LINE_STATES = ["agreed", "disputed", "duplicate", "insufficient_evidence"];
-export const LINE_WORDS = { agreed: "agreed", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
-export const PAY_WORDS = { payable: "payable", paid_outside: "paid outside Knos", held: "held", refunded: "refunded", devnet_demonstration: "devnet demonstration" };
+export const LINE_WORDS = { agreed: "policy met", disputed: "disputed", duplicate: "duplicate", insufficient_evidence: "insufficient evidence" };
+// ids.STEPS, ids.STEP_WORDS, ids.OWED_WORDS: the four steps of a line, each recorded apart, and what a line is when its
+// policy is met and the buyer refused it, or left it unauthorised past the acceptance window (statement.steps_of)
+export const STEPS = ["policy", "accepted", "authorised", "settled"];
+export const STEP_WORDS = { policy: "policy satisfied", accepted: "parties accepted", authorised: "payment authorised", settled: "settled" };
+export const OWED_WORDS = "owed to the supplier", ACCEPT_DAYS = 30;
+export const APPROVE_POLICY = "knos statement approve: lines whose policy is met, not refused";
+const RULE = { shadow: "the policy github-checks-at-merge.v1 (GitHub's checks at the merged commit)", month: "the meter's verdicts, as both ledgers recorded them", events: "the verdicts the log records" };
+export const PAY_WORDS = { payable: "payable", paid_outside: "paid outside Knos", held: "held", refunded: "refunded", devnet_demonstration: "devnet demonstration", unknown: "held as unknown" };
 export const STATEMENT_HEAD = ["line", "reference", "supplier", "state", "amount", "why", "deliverable", "evaluations", "invoice_line", "settlement", "payment", "evidence",
   "evidence_sha256", "duplicate_of", "assurance", "po_reference", "grn_reference"];
 export const NOT_EVALUATED = "not evaluated", GRN_KIND = "knos-grn";
@@ -410,9 +417,30 @@ const eventsOf = (st, status) => {
 };
 /** statement.grn_reference: the first evaluation's id as a note's; empty for a line nothing evaluated. */
 export const grnReference = (ln) => (ln.evaluations.length ? `grn_${ln.evaluations[0].split("_").slice(1).join("_")}` : "");
+const daysBetween = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+/** statement.steps_of: the four steps of one line, [{ step, state: done | open | failed, said }], and whether it is owed
+ *  to the supplier. `today` (YYYY-MM-DD) and `window` (days) decide when silence after the statement's day counts. */
+export function stepsOf(st, ln, events, today = "", window = ACCEPT_DAYS) {
+  const line = ln.invoice_line, met = ln.state === "agreed";
+  const policy = { step: "policy", state: met ? "done" : ln.state === "insufficient_evidence" ? "open" : "failed", said: met ? `under ${RULE[st.source]}` : `${LINE_WORDS[ln.state]}${ln.why ? `: ${ln.why}` : ""}` };
+  let last = null;
+  for (const e of events) if ((e.type === "acceptance" || e.type === "refusal") && e.lines.includes(line)) last = e;
+  const accepted = last && last.type === "refusal" ? { step: "accepted", state: "failed", said: `refused by ${last.by} (${last.role}) on ${last.on}: ${last.why}` }
+    : last ? { step: "accepted", state: "done", said: `by ${last.by} (${last.role}) on ${last.on}` }
+    : st.source === "month" && met ? { step: "accepted", state: "done", said: `by the buyer and the supplier: both ledgers, month closed ${st.date}` }
+    : { step: "accepted", state: "open", said: "nobody yet" };
+  const ok = events.find((e) => e.type === "approval" && e.lines.includes(line));
+  const authorised = ok ? { step: "authorised", state: "done", said: `by ${ok.by} (${ok.role}) on ${ok.on}, under ${APPROVE_POLICY}` } : { step: "authorised", state: "open", said: "nobody yet" };
+  const paid = events.filter((e) => e.type === "settlement" && e.line === line), end = paid[paid.length - 1];
+  const settled = end && (end.state === "paid_outside" || end.state === "devnet_demonstration") ? { step: "settled", state: "done", said: `${PAY_WORDS[end.state]} by ${end.method}, reference ${end.reference}, on ${end.on}` }
+    : { step: "settled", state: end && end.state === "refunded" ? "failed" : "open", said: end ? `${PAY_WORDS[end.state]}, reference ${end.reference}` : "not paid" };
+  const late = Boolean(today) && !ok && daysBetween(st.date, today) > window;
+  return { steps: [policy, accepted, authorised, settled], owed: met && settled.state !== "done" && (accepted.state === "failed" || late) };
+}
 /** statement.lines_now: the lines with the last settlement recorded for each, who approved it, and its assurance level,
- *  purchase order and goods-received note (computed: the recorded note's level, else reported, else "not evaluated"). */
-export function statementLines(st, status = null) {
+ *  purchase order and goods-received note (computed: the recorded note's level, else reported, else "not evaluated"),
+ *  then its four `steps` and whether it is `owed` to the supplier (stepsOf). */
+export function statementLines(st, status = null, today = "", window = ACCEPT_DAYS) {
   const events = eventsOf(st, status);
   return st.lines.map((ln) => {
     const paid = events.filter((e) => e.type === "settlement" && e.line === ln.invoice_line), last = paid[paid.length - 1];
@@ -421,8 +449,9 @@ export function statementLines(st, status = null) {
     ln = { ...ln, assurance: note ? note.receipt_of_goods.assurance : ln.evaluations.length ? "reported" : NOT_EVALUATED,
       po_reference: note && note.purchase_order ? note.purchase_order.number : "", grn_reference: grnReference(ln) };
     const said = last && last.note ? last.note : "";       // what the last settlement adds in words: a bank's return, a quorum of one controller
+    const { steps, owed } = stepsOf(st, ln, events, today, window);
     return { ...ln, settlement: last ? last.settlement : null, payment: last ? last.state : ln.payment, approved_by: ok ? `${ok.by} (${ok.role}) on ${ok.on}` : "",
-      ...(said ? { why: ln.why ? `${ln.why}; ${said}` : said } : {}) };
+      ...(said ? { why: ln.why ? `${ln.why}; ${said}` : said } : {}), steps, owed };
   });
 }
 /** statement.grn_said: a goods-received note's result in one sentence. */
@@ -445,28 +474,31 @@ export function statementGrn(st, status, line) {
     match: false, mismatches: wrong, recorded: null };
 }
 /** statement.answers: what whoever approves the invoice asks, answered in order: [[question, answer]]. */
-export function statementAnswers(st, status = null) {
-  const now = statementLines(st, status), scale = st.scale, priced = Boolean(st.totals.billed.amount), unit = st.currency ? ` ${st.currency}` : "";
+export function statementAnswers(st, status = null, today = "", window = ACCEPT_DAYS) {
+  const now = statementLines(st, status, today, window), scale = st.scale, priced = Boolean(st.totals.billed.amount), unit = st.currency ? ` ${st.currency}` : "";
   const said = (rows) => `${rows.length} ${rows.length === 1 ? "line" : "lines"}${priced ? `, ${stAmount(rows.reduce((a, r) => a + stUnits(r.amount, scale), 0n), scale)}${unit}` : ""}`;
   const of = (state) => now.filter((r) => r.state === state);
   const approvals = eventsOf(st, status).filter((e) => e.type === "approval"), agreed = of("agreed"), waiting = agreed.filter((r) => !r.approved_by);
   const paid = now.filter((r) => r.payment === "paid_outside" || r.payment === "devnet_demonstration"), wrongly = paid.filter((r) => r.state !== "agreed");
-  let approved = approvals.map((e) => `${e.lines.length} agreed ${e.lines.length === 1 ? "line" : "lines"}${priced ? `, ${e.amount}${unit}` : ""} by ${e.by} (${e.role}) on ${e.on}, role as stated`).join("; ") || "nobody yet";
-  if (approvals.length && waiting.length) approved += `; ${waiting.length} agreed not yet approved`;
-  const twice = of("duplicate");
+  let approved = approvals.map((e) => `${e.lines.length} ${e.lines.length === 1 ? "line" : "lines"}${priced ? `, ${e.amount}${unit}` : ""} by ${e.by} (${e.role}) on ${e.on}, role as stated`).join("; ") || "nobody yet";
+  if (approvals.length && waiting.length) approved += `; ${waiting.length} with the policy met not yet approved`;
+  const twice = of("duplicate"), took = now.filter((r) => r.steps[1].state === "done"), owed = now.filter((r) => r.owed);
   return [
     ["Authorised", st.source === "shadow" ? "not known here: a shadow run reads the invoice and GitHub, not the order"
       : `${new Set(now.map((r) => r.deliverable)).size} deliverables, each a milestone of an order both ledgers name`],
     ["Billed", `${said(now)} on invoice ${st.invoice}${st.supplier ? ` from ${st.supplier}` : ""}`],
     ["Delivered", `${now.filter((r) => r.evaluations.length).length} of ${now.length} lines name work that was evaluated`],
-    ["Passed", `${said(agreed)} agreed`],
+    ["Policy met", `${said(agreed)}: the evidence met the terms, nothing more`],
+    ["Accepted", said(took) + (took.length ? " by a party" : "")],
     ["Already billed", said(twice) + (twice.length ? `: ${twice.map((r) => `line ${r.line} (${r.duplicate_of})`).join("; ")}` : "")],
     ["Approved", approved],
     ["Disputed", `${said(of("disputed"))}, open`],
     ["Insufficient evidence", `${said(of("insufficient_evidence"))}, open`],
-    ["Credited", `${said(now.filter((r) => r.payment === "refunded"))} refunded${wrongly.length ? `; ${said(wrongly)} paid though not agreed, to be credited or settled` : ""}`],
+    ["Unsupported charges", `${said([...of("disputed"), ...of("duplicate")])}, not owed`],
+    ["Wrongful refusals", said(owed) + (owed.length ? `, ${OWED_WORDS}: refused, or not authorised ${window} days after ${st.date}; the supplier may appeal` : "")],
+    ["Credited", `${said(now.filter((r) => r.payment === "refunded"))} refunded${wrongly.length ? `; ${said(wrongly)} paid though the policy was not met, to be credited or settled` : ""}`],
     ["Paid", said(paid) + (paid.length ? ` (${[...new Set(paid.map((r) => PAY_WORDS[r.payment]))].sort().join(", ")})` : "")],
-    ["Owed", `${said(agreed.filter((r) => r.payment === "payable"))} payable`],
+    ["Payable", `${said(agreed.filter((r) => r.payment === "payable" && r.approved_by))} authorised, not paid`],
   ];
 }
 /** statement.cells: everything the CSV and the printed page say, as text. `statusHash`: sha256 of the status file's canonical text. */
@@ -480,10 +512,13 @@ export async function statementCells(st, status = null) {
   const rows = statementLines(st, status).map((r) => [String(r.line), r.reference, r.supplier, LINE_WORDS[r.state], r.amount, r.why, r.deliverable, r.evaluations.join(" "),
     r.invoice_line, r.settlement || "", PAY_WORDS[r.payment], r.evidence, r.evidence_sha256, r.duplicate_of, r.assurance, r.po_reference, r.grn_reference]);
   const totals = ["billed", ...LINE_STATES].map((name) => [name === "billed" ? name : LINE_WORDS[name], String(st.totals[name].lines), st.totals[name].amount]);
-  const recorded = events.map((e) => (e.type === "approval" ? ["approval", e.on, `${e.by} (${e.role})`, `${e.lines.length} agreed lines`, e.amount]
+  const recorded = events.map((e) => (e.type === "approval" ? ["approval", e.on, `${e.by} (${e.role})`, `${e.lines.length} ${e.lines.length === 1 ? "line" : "lines"} authorised, policy met`, e.amount]
+    : e.type === "acceptance" ? ["acceptance", e.on, `${e.by} (${e.role})`, `${e.lines.length} ${e.lines.length === 1 ? "line" : "lines"} accepted`, e.lines.join(" ")]
+    : e.type === "refusal" ? ["refusal", e.on, `${e.by} (${e.role})`, `refused: ${e.why}`, e.lines.join(" ")]
     : e.type === "grn" ? ["goods-received note", e.on, e.line, grnSaid(e.grn), e.grn.reference]
     : e.type === "instruction" ? ["payment file", e.on, e.message, `${e.transfers.length} ${e.transfers.length === 1 ? "transfer" : "transfers"} by bank (${e.format}), ${e.amount} ${e.currency}, to pay on ${e.execute}`, `sha256 ${e.sha256}`]
     : e.returned ? ["settlement", e.on, e.line, `returned by the bank (${e.returned}): payable again, reference ${e.reference}`, e.settlement]
+    : e.unknown ? ["settlement", e.on, e.line, `${PAY_WORDS.unknown}: the bank's answer is not clear (${e.unknown}); no new payment file names this line`, e.settlement]
     : ["settlement", e.on, e.line, `${PAY_WORDS[e.state]} by ${e.method}, reference ${e.reference}`, e.settlement]));
   return { top, head: [...STATEMENT_HEAD], rows, totals, answers: statementAnswers(st, status), events: recorded };
 }

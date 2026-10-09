@@ -1,6 +1,7 @@
 // "For judges" (#judges): the rows of docs/JUDGES.md, as judges.json holds them (scripts/judges.py; copied by
-// scripts/build_site.sh): { rows: [{ thing, sentence, link, label }], not_real: [..] }. One row a judged thing, one
-// sentence, one link a judge can open; then what is not real yet. The page words nothing of its own.
+// scripts/build_site.sh): { entry: { manifest, witnessed: [{ label, link }], yourself }, rows: [{ thing, sentence, link,
+// label }], not_real: [..] }. The entry first (the manifest, then the witnessed transaction's links); then one row a
+// judged thing, one sentence, one link a judge can open; then what is not real yet.
 const DOC = "https://github.com/drexthealpha/Knos/blob/main/docs/JUDGES.md";
 // On a phone the three columns would leave the sentence a few words a line: each row is drawn as a block instead.
 const STYLE = `@media (max-width: 560px) {
@@ -14,7 +15,15 @@ export function renderJudges(el, { esc, data } = {}) {
   if (!el || !rows.length) return;
   const zeros = Array.isArray(data.not_real) ? data.not_real : [];
   if (!document.getElementById("kj-style")) { const s = document.createElement("style"); s.id = "kj-style"; s.textContent = STYLE; document.head.append(s); }
+  const entry = data.entry && typeof data.entry === "object" ? data.entry : null;
+  const link = (href, text) => `<a href="${esc(href)}"${/^https?:/.test(href) ? ' target="_blank" rel="noopener"' : ""}>${esc(text)}</a>`;
+  const seen = entry ? (Array.isArray(entry.witnessed) ? entry.witnessed : []).filter((w) => w && w.link) : [];
   el.innerHTML = `<h2>For judges: one page</h2>
+    ${entry ? `<ol class="kj-entry" id="judges-entry" data-keep>
+      ${entry.manifest ? `<li>${link(entry.manifest, "Open the release manifest")}: source, build, deployment, transactions, fee schedule.</li>` : ""}
+      ${seen.length ? `<li>Follow the witnessed transaction: ${seen.map((w) => link(w.link, w.label || "Open")).join(", ")}.</li>` : ""}
+      ${entry.yourself ? `<li>${link(entry.yourself, "Run it yourself")}.</li>` : ""}
+    </ol>` : ""}
     <p class="lede">One row a judged thing. One link each.</p>
     <div class="card" data-keep><div class="k-table kj"><table>
       <thead><tr><th scope="col">Judged</th><th scope="col">What exists</th><th scope="col">Evidence</th></tr></thead>

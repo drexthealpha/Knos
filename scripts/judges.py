@@ -14,11 +14,17 @@ as it is (scripts/build_site.sh copies it into the build):
      "rows": [{"id", "thing", "sentence", "link", "label"}],                        thirteen, in the page's order
      "wait": "...",                                                                 the paragraph on days to approve
      "not_real": ["...", ...],                                                      five lines
+     "entry": {"manifest": "...", "witnessed": [{"label", "link"}], "yourself": "..."},   the "Start here" list
      "page": "https://github.com/.../docs/JUDGES.md"}
 
 `thing` and `sentence` are a row's first two cells as the page words them; `link` is the row's first link made
 absolute (a relative one is a file of the repository on GitHub), so a page that is not in docs/ can use it, and
 `label` its words. `not_real` is the list under the first heading whose words hold "not real".
+
+A judge's single entry is the "Start here" list above the table: its first item is the release manifest (source ->
+build -> deployment -> transactions -> fee schedule), its second the witnessed transaction's links (funded, wrong
+work refused, paid, replay paid nothing more, the record) and how to run it yourself; everything else is one click
+from there. `entry` is that list as data.
 """
 
 from __future__ import annotations
@@ -42,6 +48,8 @@ DAYS = ("Days to approve is defined as the days from the day the buyer receives 
         "with authority approves it.")
 WHY_SOLANA = "Money is released with no custodian, and the count is anchored where neither side can alter it."
 LIMIT_WORDS, ZEROS = 350, 5
+START = "## Start here"
+WITNESSED = ["funded", "wrong work refused", "paid", "replay paid nothing more", "the record"]
 WORD = re.compile(r"[A-Za-z0-9][\w'%.,-]*")
 LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 MAIN = "https://github.com/drexthealpha/Knos/blob/main/"
@@ -99,6 +107,18 @@ def read(text: str, root: Path = ROOT) -> dict:
     return {"source": PAGE, "columns": columns, "rows": rows, "not_real": not_real}
 
 
+def entry(page: str, root: Path = ROOT) -> dict:
+    """The "Start here" list: the manifest, the witnessed transaction's links in the order they happened, and the guide."""
+    if START not in page:
+        return {"manifest": "", "witnessed": [], "yourself": ""}
+    items = re.split(r"(?m)^\d\. ", page.split(START, 1)[1].split("\n## ", 1)[0])[1:]
+    first = LINK.findall(items[0]) if items else []
+    rest = LINK.findall(items[1]) if len(items) > 1 else []
+    return {"manifest": _address(first[0][1], root) if first else "",
+            "witnessed": [{"label": label, "link": _address(href, root)} for label, href in rest if label in WITNESSED],
+            "yourself": next((_address(href, root) for label, href in rest if label not in WITNESSED), "")}
+
+
 def build(root: Path = ROOT) -> dict:
     page = (root / PAGE).read_text(encoding="utf-8")
     lines = [line for line in page.splitlines() if line.strip()]
@@ -108,7 +128,7 @@ def build(root: Path = ROOT) -> dict:
     return {"title": lines[0].lstrip("# "), "sentence": lines[1].strip("*"), "pitch": lines[2], "number": lines[3],
             "claim": flat(page.split("The claim: ")[1].split("\n\n")[0]), "why_solana": WHY_SOLANA,
             "source": PAGE, "columns": got["columns"], "rows": rows, "wait": wait, "not_real": got["not_real"],
-            "page": BLOB + "JUDGES.md"}
+            "entry": entry(page, root), "page": BLOB + "JUDGES.md"}
 
 
 def problems(root: Path = ROOT) -> list[str]:
@@ -132,6 +152,11 @@ def problems(root: Path = ROOT) -> list[str]:
         out.append(f"{PAGE}: the second line is not the pitch line")
     if DAYS not in data["wait"] or "Not measured." not in data["wait"] or re.search(r"\d+(\.\d+)? days", data["wait"]):
         out.append(f"{PAGE}: days to approve is defined, said to be not measured, and given no figure")
+    first = data["entry"]
+    if not first["manifest"].endswith("docs/MANIFEST.md") or page.find(START) > page.find("\n|"):
+        out.append(f"{PAGE}: '{START}' comes before the table, and its first link is the release manifest")
+    if [w["label"] for w in first["witnessed"]] != WITNESSED or not first["yourself"]:
+        out.append(f"{PAGE}: '{START}' links the witnessed transaction's steps {WITNESSED} and how to run it yourself")
     if len(data["not_real"]) != ZEROS:
         out.append(f"{PAGE}: {len(data['not_real'])} lines under 'What is not real yet'; it is {ZEROS}")
     if f"Why Solana: {WHY_SOLANA}" not in flat(page):

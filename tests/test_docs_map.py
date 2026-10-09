@@ -46,12 +46,13 @@ def test_every_document_is_on_the_map_once_under_one_of_six_questions():
         assert target.startswith("https://") or (DOCS / target).exists(), target
 
 
-def test_the_front_page_has_six_parts_above_the_line_and_three_links_onward():
+def test_the_front_page_has_seven_parts_above_the_line_and_three_links_onward():
     readme = read("README.md")
     above, below = readme.split("\n---\n", 1)
-    # the claim and the meter lead; the bounty is the smallest example of the money; the table of today's numbers is lower
+    # the claim and the meter lead; the bounty is the smallest example of the money; a judge's one entry (tests/test_judges.py);
+    # the table of today's numbers is lower
     assert re.findall(r"(?m)^## (.+)$", above) == ["The claim", "The meter: two ledgers, one bill", "The money: released on a signature", "The number",
-                                                    "What is real today", "Read more"]
+                                                    "For a judge", "What is real today", "Read more"]
     more = above.split("## Read more")[1]
     assert links(more) == ["docs/STORY.md", "docs/MANIFEST.md", "docs/README.md"]
     claim = [line for line in above.split("## The claim")[1].split("\n## ")[0].splitlines() if line.strip()]
@@ -175,7 +176,8 @@ def test_the_release_manifest_is_what_its_sources_give_and_states_what_is_live_f
 def test_the_release_manifest_check_fails_when_a_source_moves(tmp_path):
     rm = _manifest()
     for rel in ("pyproject.toml", "programs-v2/program_ids.json", "docs/capabilities.json", "docs/provenance.json", "web/upgrades.json",
-                "docs/DISCLOSURE.md", "docs/facts.json", "CHANGELOG.md", "docs/MANIFEST.md", "examples/upgrade_gate/src/lib.rs"):
+                "docs/DISCLOSURE.md", "docs/facts.json", "CHANGELOG.md", "docs/MANIFEST.md", "examples/upgrade_gate/src/lib.rs",
+                "docs/load.json"):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / rel, tmp_path / rel)
     assert rm.main(["--check"], say=lambda _line: None, root=tmp_path) == 0

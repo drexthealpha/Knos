@@ -2,6 +2,98 @@
 
 Prices and figures in older entries are superseded; the current price book is [docs/MARKET.md](docs/MARKET.md), section "The price book", and each GitHub release's notes are its entry here.
 
+## 0.3.23 (October 2026)
+
+**One story, told the same way everywhere: a line's four steps kept apart, money owed to a supplier said as owed, a
+witnessed script that makes a statement with a line, capacity measured with more than one relay, a plan for the
+upgrade gap, and a bundle a buyer can run itself.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md): none of it has run at the public program ids or been used by a person
+outside this repository, and each line below says its own limit. **No program changes in this release:** nothing
+under `programs-v2/knos_*`, `programs/`, `idl/` or `tests/fixtures/*.so` moved by a byte. The interface crates stay
+at 0.3.14.
+
+### Four steps, and owed both ways
+
+- **"Policy met" is not "approved".** In the public sample two lines totalling 650 read "agreed" while nobody had
+  approved them. Every statement line now shows four steps, each recorded apart: policy satisfied (the evidence met
+  the terms), parties accepted (who, when), payment authorised (by whom, under which policy) and settled (the
+  transaction or the bank's file). A line whose only step is the first says "policy met". Files written before keep
+  reading: the key `agreed` stays and older words map to it (`knos.ids.line_state`; `tests/test_line_states.py`).
+- **Owed to the supplier.** A line whose policy is met that the buyer refused, or left unauthorised past the
+  acceptance window (30 days unless given), is shown as owed to the supplier with the appeal one click away, and the
+  statement counts these wrongful refusals beside the unsupported charges. Tested both ways.
+- **Decisions are remembered.** An approval or a refusal can be kept through the memory engine
+  (`knos.proof.history`) and is recalled when the same supplier and terms come back; the approver's row says so.
+  With no memory nothing is kept or recalled.
+- **The site shows the steps.** The front door's sample, the approver and the statement page draw the four steps as
+  one row; a change of step animates and holds still under reduced motion.
+
+### Witnessed
+
+- **The witnessed script makes a statement with a line.** The 0.3.22 run's statements had no lines because the
+  settle mode carries only the settlement; the script now takes the paid line from `knos audit export` with the
+  judge's verdict and the supplier's invoice line into a log of events, and stops with a sentence when the payment
+  is not on chain yet. It reads the faucet's replies by their exact sentences, and when the faucet has already given
+  the account its weekly grant it moves 10 test USDC from a key the operator names (`--fund-from KEYFILE`, never
+  printed) or stops and says so. A command's limit is `--timeout` (600 s by default). It has not been run again on
+  devnet in this release.
+- **`knos audit export` reads only the owner's part.** It lists the owner's Balances and reads their histories, a
+  few transactions at once, instead of the escrow's newest thousand one by one: on a simulated history the size of
+  the witnessed run it makes at most 8 calls and writes the same bytes (`tests/test_audit_speed.py`). It has not
+  been timed against devnet.
+- **The settle job waits for PyPI** with `scripts/pypi_wait.py`, as the claims job does, before it installs the
+  version its lock pins.
+- **The logo on PyPI.** The README's wordmark uses absolute addresses pinned to the release tag, and
+  `scripts/bump_version.py` moves them.
+
+### Capacity, measured
+
+- **Two measured rates.** At the public ids on 8 October: 40 of 40 PayOrder payments in 211.27 s, 0.189 a second,
+  with 4 relays and 4 fee accounts (p50 11.45 s, p95 22.61 s, worst 34.9 s; the relays paid 16, 8, 5 and 11; the fee
+  accounts took 14, 9, 9 and 8), against 0.097 a second through one relay ([`docs/LOAD.md`](docs/LOAD.md)). Both runs
+  used the project's own wallets and one owner's tokens.
+- **Contention scenarios.** `scripts/load.py measure --pay --scenario hot-funder|rpc-faults|priority-fee|burst`
+  adds one kind of contention, with faults injected on the way to the simulator. Each is simulated here and gives no
+  rate; none has run on devnet yet.
+- **The manifest names the fee schedule.** [`docs/MANIFEST.md`](docs/MANIFEST.md) opens with one line per program:
+  source, build hash, deployed version, transactions, fee schedule; and it says, for every recorded order at the
+  public knos_pay, which fee schedule applied and how that is known.
+
+### Governance and lifecycle
+
+- **The upgrade gap, and its plan.** A seven-day notice can outlast the 48-hour upgrade delay.
+  `scripts/timelock_plan.py` prints the Squads configuration transaction that sets the time lock to 8 days, above the
+  minimum of the notice plus the grace, and refuses while any upgrade proposal is open or approved and not executed.
+  It is planned, not applied: the time lock on chain is still 48 hours ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md)).
+- **One deliverable pays once.** [`docs/INVARIANTS.md`](docs/INVARIANTS.md) has a row for each of refund, reopen,
+  standing order, assignment, warranty holdback, partial payments and the bank rail, each naming its test. A bank
+  that pays a transfer it first reported as rejected is detected and said, not prevented.
+- **An unclear bank answer is held.** A timeout, "unknown" or a status code nobody knows holds each line of the
+  transfer as unknown, with a row of its own in the statement; no payment file names it until a later answer says
+  paid or returned, and a second instruction under the same settlement id is refused.
+
+### Customer-hosted
+
+- **One bundle a buyer runs.** `deploy/` holds one image (bases pinned by digest, packages installed by hash) and a
+  compose file for three roles: the record API, the relay worker over the buyer's own fee payer, and the static site
+  with the approver, configured from one `knos.toml` that names keys by file path. `knos selfhost check` validates
+  the file and says which keys it needs; `knos selfhost plan` prints the services. It has not been run in any cloud,
+  and it has no single sign-on: it listens on 127.0.0.1 for the buyer's own identity proxy
+  ([`docs/SELFHOST.md`](docs/SELFHOST.md)).
+
+### The pitch
+
+- **One story.** The spoken script opens on the Agent PR Index finding, follows one transaction, states the founder's
+  first place of 92 at the Sibyl Labs hackathon in one sentence, and says the zeros. A judge's single entry is the
+  manifest and the witnessed transaction's links, in [`docs/JUDGES.md`](docs/JUDGES.md), the README and the site.
+- **Micro-outcomes.** On a 0.99 outcome Knos would earn about 0.00497 (0.30% netted, plus one 0.002 evaluation), so at
+  95% gross the direct cost must stay below about 0.00025 ([`docs/UNIT_COSTS.md`](docs/UNIT_COSTS.md)). Netting moves
+  transfers, not evaluation cost. The netting example now counts as the program does, in base units: from 17 outcomes
+  of 0.99 to one payee the rate, not the floor, is the fee.
+
 ## 0.3.22 (October 2026)
 
 **Seven answers to three outside readings: a fee account that is not a bottleneck, a witnessed script that finishes,

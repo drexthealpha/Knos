@@ -12,10 +12,10 @@ jobs:
     name: knos command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/knos') || contains(github.event.comment.body, fromJSON('"\n/knos"')))) || (github.event_name == 'issues' && (contains(github.event.issue.body, '/knos fund') || contains(github.event.issue.body, '/knos bounty')))
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@b6d4df883e87d25afa28e5496402e95a8c272076
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@5b26b1cddeae766b0693fa3eafdd9e44a7755481
   settle:
     name: knos settle
     needs: command
     permissions: {contents: read, issues: write, pull-requests: write, checks: read, statuses: read, actions: read, id-token: write}
     if: github.event_name != 'issues' && !cancelled() && (github.event_name != 'issue_comment' || needs.command.outputs.settle != '') && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@b6d4df883e87d25afa28e5496402e95a8c272076
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@5b26b1cddeae766b0693fa3eafdd9e44a7755481

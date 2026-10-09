@@ -1,10 +1,12 @@
 """The statement a person who approves invoices attaches in their accounts-payable system: `knos statement`.
 
     knos statement make <evidence>      one statement as JSON (canonical), CSV and PDF
-    knos statement approve <file> --agreed --by NAME --role ROLE
+    knos statement accept <file> --by NAME --role ROLE    a party accepts the lines whose policy is met
+    knos statement refuse <file> --line inv_... --by NAME --role ROLE --why TEXT
+    knos statement approve <file> --agreed --by NAME --role ROLE      authorises payment of those lines
     knos statement pay <file> --line inv_... --method bank --ref REF --on DATE
     knos statement pay <file> --rail bank --payer-name N --payer-account IBAN --payees payees.csv
-                                        a payment file for the payer's own bank (ISO 20022 pain.001): the agreed, approved lines
+                                        a payment file for the payer's own bank (ISO 20022 pain.001): the approved lines whose policy is met
     knos statement status <file> --from <the bank's status report>     marks the lines of each transfer paid, or payable again
     knos statement grn <file> --line inv_...   the goods-received note of one line: order, acceptance and invoice line, matched
     knos statement show <file>          what was authorised, delivered, passed, already billed, approved, disputed, owed
@@ -21,7 +23,13 @@ It is made from one of two things, and only from them:
 
 Each invoice line carries the four ids of knos.ids (deliverable, evaluations, invoice line, and a settlement once one
 is recorded), one state of ids.LINE_STATES, its amount, why (for a line that is not agreed, in plain words) and where
-its evidence is. A deliverable that an earlier statement agreed (`--prior`) is a duplicate here: already billed.
+its evidence is. The state `agreed` is the file's key for "policy met": the evidence met the terms, nothing more.
+Every line has four steps, each recorded apart (ids.STEPS, `steps_of`): policy satisfied, parties accepted (who,
+when), payment authorised (by whom, under which policy) and settled (the transaction or the bank's reference). A
+line whose policy is met that the buyer refused, or left unauthorised past the acceptance window, is owed to the
+supplier: a wrongful refusal, counted beside the unsupported charges, with the supplier's appeal.
+
+A deliverable that an earlier statement agreed (`--prior`) is a duplicate here: already billed.
 
 The JSON is the statement. It holds its own SHA-256 (of its canonical bytes with that one field empty) and the
 SHA-256 of every piece of evidence, and the evidence itself unless `--reference` kept it in a file beside. The CSV and
@@ -49,8 +57,11 @@ NAME = "ap-statement"                            # the files: ap-statement.json,
 STATUS_KIND = "knos-statement-status"
 POLICY_SHADOW = "github-checks-at-merge.v1"       # what shadow mode evaluates a line by: the checks at the merged commit
 PAY_STATES = ("payable", "paid_outside", "held", "refunded", "devnet_demonstration")
+ACCEPT_DAYS = 30                                  # the acceptance window when none is given: days after the statement's day
+APPROVE_POLICY = "knos statement approve: lines whose policy is met, not refused"     # the policy an approval authorises under
+PAID = ("paid_outside", "devnet_demonstration")
 PAY_WORDS = {"payable": "payable", "paid_outside": "paid outside Knos", "held": "held", "refunded": "refunded",
-             "devnet_demonstration": "devnet demonstration"}
+             "devnet_demonstration": "devnet demonstration", "unknown": "held as unknown"}     # unknown: the bank's answer was not clear (knos.rails)
 METHODS = {"bank": "paid_outside", "other": "paid_outside", "chain": "devnet_demonstration"}
 NOTES = {"shadow": shadow.NOTE + " GitHub's answers are kept as they were read; GitHub does not sign them.",
          "month": "Made from a closed month of the meter. The tokens in the archive are GitHub's signatures of the close record; the chain was not asked.",
@@ -351,18 +362,101 @@ def _status(st: dict, status: dict | None) -> dict:
 
 
 def approve(st: dict, status: dict | None, by: str, role: str, on: str) -> dict:
-    """The status with one more approval: `by`, in `role`, approves every agreed line nobody approved yet. The lines
+    """The status with one more approval: `by`, in `role`, authorises payment of every line whose policy is met that nobody approved or refused yet. The lines
     that are disputed, duplicate or without enough evidence stay open. The role is recorded as it was stated."""
     status = _status(st, status)
     if not by.strip() or not role.strip():
         raise Refused("An approval names who approved and in which role: --by and --role.")
-    done = {i for e in status["events"] if e["type"] == "approval" for i in e["lines"]}
+    done = {i for e in status["events"] if e["type"] == "approval" for i in e["lines"]} | refused_lines(status)
     mine = [ln for ln in st["lines"] if ln["state"] == "agreed" and ln["invoice_line"] not in done]
     if not mine:
-        raise Refused("There is no agreed line left to approve." if done else "No line of this statement is agreed, so there is nothing to approve.")
+        raise Refused("There is no line left to approve whose policy is met." if done else "No line of this statement meets its policy, so there is nothing to approve.")
     event = {"type": "approval", "scope": "agreed", "by": by.strip(), "role": role.strip(), "on": _day(on), "lines": [ln["invoice_line"] for ln in mine],
              "amount": amount_of(sum(units(ln["amount"], st["scale"]) for ln in mine), st["scale"])}
     return {**status, "events": [*status["events"], event]}
+
+
+def _decided(status: dict) -> dict[str, dict]:
+    """The last acceptance or refusal recorded for each invoice line: {invoice line: event}."""
+    out: dict[str, dict] = {}
+    for e in status["events"]:
+        if e["type"] in ("acceptance", "refusal"):
+            for line in e["lines"]:
+                out[line] = e
+    return out
+
+
+def refused_lines(status: dict | None) -> set[str]:
+    """The invoice lines whose last decision is a refusal."""
+    return {line for line, e in _decided(status or {"events": []}).items() if e["type"] == "refusal"}
+
+
+def accept(st: dict, status: dict | None, by: str, role: str, on: str, lines: list[str] | tuple = ()) -> dict:
+    """The status with one more acceptance: `by`, in `role`, accepts `lines` (invoice line ids), or every line whose
+    policy is met that nobody accepted or refused yet. This is the parties' acceptance, and only that: it authorises
+    no payment (`approve` does) and pays nothing."""
+    status = _status(st, status)
+    if not by.strip() or not role.strip():
+        raise Refused("An acceptance names who accepted and in which role: --by and --role.")
+    known, decided = {ln["invoice_line"]: ln for ln in st["lines"]}, _decided(status)
+    for line in lines:
+        if line not in known:
+            raise Refused(f"No line of this statement has the id {line}. The ids are in the invoice_line column.")
+    mine = list(lines) or [ln["invoice_line"] for ln in st["lines"] if ln["state"] == "agreed" and ln["invoice_line"] not in decided]
+    if not mine:
+        raise Refused("There is no line left to accept whose policy is met.")
+    return {**status, "events": [*status["events"], {"type": "acceptance", "by": by.strip(), "role": role.strip(), "on": _day(on), "lines": mine}]}
+
+
+def refuse(st: dict, status: dict | None, line: str, by: str, role: str, on: str, why: str) -> dict:
+    """The status with one more refusal: `by`, in `role`, refuses the invoice line `line`, for `why`. A refused line
+    whose policy is met is owed to the supplier all the same (`steps_of`): the refusal is recorded, never hidden."""
+    status = _status(st, status)
+    if not by.strip() or not role.strip() or not why.strip():
+        raise Refused("A refusal names who refused, in which role and why: --by, --role and --why.")
+    if line not in {ln["invoice_line"] for ln in st["lines"]}:
+        raise Refused(f"No line of this statement has the id {line}. The ids are in the invoice_line column.")
+    return {**status, "events": [*status["events"], {"type": "refusal", "by": by.strip(), "role": role.strip(), "on": _day(on), "lines": [line],
+                                                     "why": " ".join(why.split())[:300]}]}
+
+
+def _days(a: str, b: str) -> int:
+    import datetime
+    return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
+
+
+def steps_of(st: dict, ln: dict, events: list[dict], today: str = "", window: int = ACCEPT_DAYS) -> tuple[list[dict], bool]:
+    """The four steps of one line (ids.STEPS), each {"step", "state": done | open | failed, "said"}, and whether the
+    line is owed to the supplier: its policy is met, it is not paid, and it was refused, or nobody authorised it and
+    `today` is more than `window` days after the statement's day. Read from the statement and its status events."""
+    line = ln["invoice_line"]
+    met = ln["state"] == "agreed"
+    policy = {"step": "policy", "state": "done" if met else "open" if ln["state"] == "insufficient_evidence" else "failed",
+              "said": f"under {RULE[st['source']]}" if met else f"{ids.LINE_WORDS[ln['state']]}" + (f": {ln['why']}" if ln["why"] else "")}
+    last = None
+    for e in events:
+        if e["type"] in ("acceptance", "refusal") and line in e["lines"]:
+            last = e
+    if last and last["type"] == "refusal":
+        accepted = {"step": "accepted", "state": "failed", "said": f"refused by {last['by']} ({last['role']}) on {last['on']}: {last['why']}"}
+    elif last:
+        accepted = {"step": "accepted", "state": "done", "said": f"by {last['by']} ({last['role']}) on {last['on']}"}
+    elif st["source"] == "month" and met:
+        accepted = {"step": "accepted", "state": "done", "said": f"by the buyer and the supplier: both ledgers, month closed {st['date']}"}
+    else:
+        accepted = {"step": "accepted", "state": "open", "said": "nobody yet"}
+    ok = next((e for e in events if e["type"] == "approval" and line in e["lines"]), None)
+    authorised = ({"step": "authorised", "state": "done", "said": f"by {ok['by']} ({ok['role']}) on {ok['on']}, under {APPROVE_POLICY}"} if ok
+                  else {"step": "authorised", "state": "open", "said": "nobody yet"})
+    paid = [e for e in events if e["type"] == "settlement" and e["line"] == line]
+    end = paid[-1] if paid else None
+    settled = ({"step": "settled", "state": "done", "said": f"{PAY_WORDS[end['state']]} by {end['method']}, reference {end['reference']}, on {end['on']}"}
+               if end and end["state"] in PAID else
+               {"step": "settled", "state": "failed" if end and end["state"] == "refunded" else "open",
+                "said": f"{PAY_WORDS[end['state']]}, reference {end['reference']}" if end else "not paid"})
+    late = bool(today) and not ok and _days(st["date"], today) > window
+    owed = met and settled["state"] != "done" and (accepted["state"] == "failed" or late)
+    return [policy, accepted, authorised, settled], owed
 
 
 _COUNT = {2: "two", 3: "three", 4: "four"}
@@ -396,7 +490,7 @@ def pay(st: dict, status: dict | None, line: str, method: str, reference: str, o
     state = (state or METHODS[method]).strip().lower().replace(" ", "_")
     state = {"paid_outside_knos": "paid_outside"}.get(state, state)
     if state not in PAY_STATES:
-        raise Refused(f"--state is one of: {', '.join(PAY_WORDS.values())}.")
+        raise Refused(f"--state is one of: {', '.join(PAY_WORDS[s] for s in PAY_STATES)}.")
     if not reference.strip():
         raise Refused("A settlement record needs the payer's own reference: --ref.")
     settlement = ids.settlement(ln["deliverable"], method, reference.strip())
@@ -461,12 +555,13 @@ def line_parts(st: dict, ln: dict, noted: dict | None = None) -> dict:
                           if level in LEVEL_SAYS else "Not evaluated: nothing stands behind this line.")}
 
 
-def lines_now(st: dict, status: dict | None = None) -> list[dict]:
+def lines_now(st: dict, status: dict | None = None, today: str = "", window: int = ACCEPT_DAYS) -> list[dict]:
     """The statement's lines with what the status file adds: the last settlement recorded for each, and who approved it.
     Each line also says its assurance level (knos.receipt.LEVELS), computed and never typed: the level of the receipt a
     recorded goods-received note was made from; without one, `reported` for a line an evaluation stands behind (the
     evidence is a record of what a workflow reported) and "not evaluated" for a line with none. `po_reference` is the
-    purchase order a recorded note names, `grn_reference` the note's own reference."""
+    purchase order a recorded note names, `grn_reference` the note's own reference. `steps` are the line's four steps
+    and `owed` whether it is owed to the supplier (`steps_of`; `today` and `window` decide when silence counts)."""
     events = _status(st, status)["events"]
     out = []
     for ln in st["lines"]:
@@ -479,13 +574,15 @@ def lines_now(st: dict, status: dict | None = None) -> list[dict]:
         row = {**ln, "settlement": paid[-1]["settlement"] if paid else None, "payment": paid[-1]["state"] if paid else ln["payment"],
                "approved_by": f"{ok['by']} ({ok['role']}) on {ok['on']}" if ok else "",
                **({"why": f"{ln['why']}; {note}" if ln["why"] else note} if note else {})}
-        out.append({**row, "parts": line_parts(st, row, noted[-1] if noted else None)})
+        steps, owed = steps_of(st, ln, events, today, window)
+        out.append({**row, "parts": line_parts(st, row, noted[-1] if noted else None), "steps": steps, "owed": owed})
     return out
 
 
-def answers(st: dict, status: dict | None = None) -> list[tuple[str, str]]:
-    """What whoever approves the invoice asks, answered from the statement and its status, in order."""
-    now, scale, t = lines_now(st, status), st["scale"], st["totals"]
+def answers(st: dict, status: dict | None = None, today: str = "", window: int = ACCEPT_DAYS) -> list[tuple[str, str]]:
+    """What whoever approves the invoice asks, answered from the statement and its status, in order. The unsupported
+    charges (disputed or billed before) and the wrongful refusals (owed to the supplier) are counted side by side."""
+    now, scale, t = lines_now(st, status, today, window), st["scale"], st["totals"]
     priced = bool(t["billed"]["amount"])
     unit = f" {st['currency']}" if st["currency"] else ""
 
@@ -499,10 +596,12 @@ def answers(st: dict, status: dict | None = None) -> list[tuple[str, str]]:
     waiting = [r for r in agreed if not r["approved_by"]]
     paid = [r for r in now if r["payment"] in ("paid_outside", "devnet_demonstration")]
     wrongly = [r for r in paid if r["state"] != "agreed"]
-    approved = "; ".join(f"{len(e['lines'])} agreed {'line' if len(e['lines']) == 1 else 'lines'}" + (f", {e['amount']}{unit}" if priced else "")
+    approved = "; ".join(f"{len(e['lines'])} {'line' if len(e['lines']) == 1 else 'lines'}" + (f", {e['amount']}{unit}" if priced else "")
                          + f" by {e['by']} ({e['role']}) on {e['on']}, role as stated" for e in approvals) or "nobody yet"
     if approvals and waiting:
-        approved += f"; {len(waiting)} agreed not yet approved"
+        approved += f"; {len(waiting)} with the policy met not yet approved"
+    took = [r for r in now if r["steps"][1]["state"] == "done"]
+    owed = [r for r in now if r["owed"]]
     return [
         ("Authorised", "not known here: a shadow run reads the invoice and GitHub, not the order" if st["source"] == "shadow"
          else f"{st['accepted_deliverables']} {'deliverable' if st['accepted_deliverables'] == 1 else 'deliverables'} accepted in the log this month, each billable once"
@@ -511,15 +610,19 @@ def answers(st: dict, status: dict | None = None) -> list[tuple[str, str]]:
                                          for d in st["repeats"]) or "nothing")] if st["source"] == "events" else []),
         ("Billed", said(now) + f" on invoice {st['invoice']}" + (f" from {st['supplier']}" if st["supplier"] else "")),
         ("Delivered", f"{sum(1 for r in now if r['evaluations'])} of {len(now)} lines name work that was evaluated"),
-        ("Passed", said(agreed) + " agreed"),
+        ("Policy met", said(agreed) + ": the evidence met the terms, nothing more"),
+        ("Accepted", said(took) + (" by a party" if took else "")),
         ("Already billed", said(of("duplicate")) + (": " + "; ".join(f"line {r['line']} ({r['duplicate_of']})" for r in of("duplicate")) if of("duplicate") else "")),
         ("Approved", approved),
         ("Disputed", said(of("disputed")) + ", open"),
         ("Insufficient evidence", said(of("insufficient_evidence")) + ", open"),
+        ("Unsupported charges", said(of("disputed") + of("duplicate")) + ", not owed"),
+        ("Wrongful refusals", said(owed) + (f", {ids.OWED_WORDS}: refused, or not authorised {window} days after {st['date']}; the supplier may appeal"
+                                            if owed else "")),
         ("Credited", said([r for r in now if r["payment"] == "refunded"]) + " refunded"
-         + (f"; {said(wrongly)} paid though not agreed, to be credited or settled" if wrongly else "")),
+         + (f"; {said(wrongly)} paid though the policy was not met, to be credited or settled" if wrongly else "")),
         ("Paid", said(paid) + (" (" + ", ".join(sorted({PAY_WORDS[r["payment"]] for r in paid})) + ")" if paid else "")),
-        ("Owed", said([r for r in agreed if r["payment"] == "payable"]) + " payable"),
+        ("Payable", said([r for r in agreed if r["payment"] == "payable" and r["approved_by"]]) + " authorised, not paid"),
     ]
 
 
@@ -646,12 +749,16 @@ def cells(st: dict, status: dict | None = None) -> dict:
             for r in lines_now(st, status)]
     totals = [[name if name == "billed" else ids.LINE_WORDS[name], str(st["totals"][name]["lines"]), st["totals"][name]["amount"]]
               for name in ("billed", *ids.LINE_STATES)]
-    events = [["approval", e["on"], f"{e['by']} ({e['role']})", f"{len(e['lines'])} agreed lines", e["amount"]] if e["type"] == "approval" else
+    events = [["approval", e["on"], f"{e['by']} ({e['role']})", f"{len(e['lines'])} {'line' if len(e['lines']) == 1 else 'lines'} authorised, policy met", e["amount"]] if e["type"] == "approval" else
+              ["acceptance", e["on"], f"{e['by']} ({e['role']})", f"{len(e['lines'])} {'line' if len(e['lines']) == 1 else 'lines'} accepted", " ".join(e["lines"])] if e["type"] == "acceptance" else
+              ["refusal", e["on"], f"{e['by']} ({e['role']})", f"refused: {e['why']}", " ".join(e["lines"])] if e["type"] == "refusal" else
               ["goods-received note", e["on"], e["line"], grn_said(e["grn"]), e["grn"]["reference"]] if e["type"] == "grn" else
               ["payment file", e["on"], e["message"], f"{len(e['transfers'])} {'transfer' if len(e['transfers']) == 1 else 'transfers'} by bank ({e['format']}), "
                f"{e['amount']} {e['currency']}, to pay on {e['execute']}", f"sha256 {e['sha256']}"] if e["type"] == "instruction" else
               ["settlement", e["on"], e["line"], f"returned by the bank ({e['returned']}): payable again, reference {e['reference']}", e["settlement"]]
               if e.get("returned") else
+              ["settlement", e["on"], e["line"], f"{PAY_WORDS['unknown']}: the bank's answer is not clear ({e['unknown']}); no new payment file names this line", e["settlement"]]
+              if e.get("unknown") else
               ["settlement", e["on"], e["line"], f"{PAY_WORDS[e['state']]} by {e['method']}, reference {e['reference']}", e["settlement"]]
               for e in status["events"]]
     return {"top": top, "head": list(HEAD), "rows": rows, "totals": totals, "answers": [list(a) for a in answers(st, status)], "events": events}
@@ -785,7 +892,7 @@ def register(app, help_lines: list | None = None) -> None:
     typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
 
     sub = typer.Typer(add_completion=False, no_args_is_help=True,
-                      help="The statement for accounts payable: every invoice line agreed, disputed, duplicate or without enough evidence, as JSON, CSV and PDF.")
+                      help="The statement for accounts payable: every invoice line: policy met, disputed, duplicate or without enough evidence, then accepted, authorised and settled, as JSON, CSV and PDF.")
     app.add_typer(sub, name="statement")
     if help_lines is not None:
         help_lines.append(("statement", "For money", "An invoice's statement for accounts payable: JSON, CSV and PDF; approve, record payment, verify."))
@@ -834,10 +941,10 @@ def register(app, help_lines: list | None = None) -> None:
               date: str = typer.Option("", "--date", help="the statement's day, YYYY-MM-DD (the last merge's day, or the month's last day, when left out)"),
               reference: bool = typer.Option(False, "--reference", help="keep the evidence in its own file and name it by sha256, instead of inside the statement"),
               name: str = typer.Option(NAME, "--name", help="the files' name"),
-              remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory keeps each line that is not agreed, for `knos recall`; nothing is remembered when left out"),
+              remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory keeps each line whose policy is not met, for `knos recall`; nothing is remembered when left out"),
               memory_dir: Path = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store; default: the memory engine's shared store on this machine"),
               terms: str = typer.Option("", "--terms", metavar="HASH", help="with --remember: the hash of the terms the lines fall under; without it they are kept under the buyer and supplier's names")) -> None:
-        """Make one statement in three forms that say the same: JSON (the statement itself), CSV and PDF. Each line of the invoice is agreed, disputed, a duplicate, or has insufficient evidence, with why in plain words, its ids and where its evidence is. It reads the evidence file and nothing else: no network, no chain. Nothing is paid."""
+        """Make one statement in three forms that say the same: JSON (the statement itself), CSV and PDF. Each line of the invoice has its policy met, is disputed, a duplicate, or has insufficient evidence, with why in plain words, its ids and where its evidence is. It reads the evidence file and nothing else: no network, no chain. Nothing is paid."""
         try:
             data = evidence.read_bytes()
             before = [billed_before(json.loads(p.read_text(encoding="utf-8"))) for p in prior]
@@ -862,19 +969,59 @@ def register(app, help_lines: list | None = None) -> None:
             kept.write_bytes(canonical(whole) if st["source"] == "shadow" else data)
             typer.echo(f"The evidence is in {kept} (sha256 {st['evidence']['sha256']}): keep it with the statement; `verify` needs it as --bundle.")
 
+    remember_opt = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory keeps this decision, recalled when the same supplier and terms come back")
+    memory_opt = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store")
+    terms_opt = typer.Option("", "--terms", metavar="HASH", help="with --remember: the hash of the terms, as given to `knos statement make`")
+
+    def decided(st: dict, status: dict, remember: str, memory_dir: Path | None, terms: str) -> None:
+        if remember:
+            recall, store = memory(remember, memory_dir)
+            kept = recall.decision_made(store, st, status["events"][-1], terms_or_stop(terms))
+            typer.echo(f"Remembered for {remember}: {len(kept)} {'decision' if len(kept) == 1 else 'decisions'}. `knos recall decisions` says them when this supplier and these terms come back.")
+
     @sub.command("approve")
-    def approve_(file: Path = file_arg, agreed: bool = typer.Option(False, "--agreed", help="approve the agreed lines; the others stay open"),
+    def approve_(file: Path = file_arg, agreed: bool = typer.Option(False, "--agreed", help="authorise payment of the lines whose policy is met; the others stay open"),
                  by: str = typer.Option(..., "--by", help="who approves"), role: str = typer.Option(..., "--role", help="in which role, as they state it"),
-                 on: str = on_opt) -> None:
-        """Record who approved the agreed lines. Disputed and duplicate lines, and lines without enough evidence, stay open: nothing approves them here. The approval is appended to the status file beside the statement; the statement does not change, and nothing is paid."""
+                 on: str = on_opt, remember: str = remember_opt, memory_dir: Path = memory_opt, terms: str = terms_opt) -> None:
+        """Authorise payment of the lines whose policy is met and that nobody refused. Disputed and duplicate lines, and lines without enough evidence, stay open: nothing approves them here. The approval is appended to the status file beside the statement; the statement does not change, and nothing is paid."""
         if not agreed:
-            raise stop(Refused("Say what is approved: --agreed approves the agreed lines and leaves every exception open. Nothing else can be approved here."))
+            raise stop(Refused("Say what is approved: --agreed authorises the lines whose policy is met and leaves every exception open. Nothing else can be approved here."))
         try:
             st, status = load(file)
             status = approve(st, status, by, role, today(on))
         except Refused as why:
             raise stop(why) from None
         save(file, st, status)
+        decided(st, status, remember, memory_dir, terms)
+        say(st, status)
+
+    @sub.command("accept")
+    def accept_(file: Path = file_arg, by: str = typer.Option(..., "--by", help="who accepts"), role: str = typer.Option(..., "--role", help="in which role, as they state it"),
+                line: list[str] = typer.Option([], "--line", help="an invoice line's id (inv_...); repeat for more; every line whose policy is met when left out"),
+                on: str = on_opt, remember: str = remember_opt, memory_dir: Path = memory_opt, terms: str = terms_opt) -> None:
+        """Record that a party accepted lines. This is acceptance only: it authorises no payment (`approve` does) and pays nothing."""
+        try:
+            st, status = load(file)
+            status = accept(st, status, by, role, today(on), line)
+        except Refused as why:
+            raise stop(why) from None
+        save(file, st, status)
+        decided(st, status, remember, memory_dir, terms)
+        say(st, status)
+
+    @sub.command("refuse")
+    def refuse_(file: Path = file_arg, line: str = typer.Option(..., "--line", help="the invoice line's id (inv_...)"),
+                by: str = typer.Option(..., "--by", help="who refuses"), role: str = typer.Option(..., "--role", help="in which role, as they state it"),
+                why: str = typer.Option(..., "--why", help="why, in one sentence"), on: str = on_opt,
+                remember: str = remember_opt, memory_dir: Path = memory_opt, terms: str = terms_opt) -> None:
+        """Record that a party refused one line. A refused line whose evidence met its policy is shown as owed to the supplier, counted as a wrongful refusal, with the supplier's appeal."""
+        try:
+            st, status = load(file)
+            status = refuse(st, status, line, by, role, today(on), why)
+        except Refused as err:
+            raise stop(err) from None
+        save(file, st, status)
+        decided(st, status, remember, memory_dir, terms)
         say(st, status)
 
     @sub.command("pay")
@@ -884,7 +1031,7 @@ def register(app, help_lines: list | None = None) -> None:
              on: str = on_opt, state: str = typer.Option("", "--state", help="payable, paid outside Knos, held, refunded or devnet demonstration"),
              receipt: Path = typer.Option(None, "--receipt", help="with --method chain: the payment's acceptance receipt (JSON); a quorum of one controller is then said on the line"),
              terms_file: Path = typer.Option(None, "--terms-file", help="the order's Knos Terms 3 file: a payment below the assurance level it requires is refused"),
-             rail: str = typer.Option("", "--rail", help="bank: write a payment file (ISO 20022 pain.001) for the agreed, approved lines. usdc: record a devnet payment of --line (its transaction is --ref)"),
+             rail: str = typer.Option("", "--rail", help="bank: write a payment file (ISO 20022 pain.001) for the approved lines whose policy is met. usdc: record a devnet payment of --line (its transaction is --ref)"),
              payer_name: str = typer.Option("", "--payer-name", help="with --rail bank: who pays, as the bank knows them"),
              payer_account: str = typer.Option("", "--payer-account", help="with --rail bank: the account that pays (an IBAN, or an account number)"),
              payer_bic: str = typer.Option("", "--payer-bic", help="with --rail bank: the payer's bank (BIC), when the bank asks for it"),
@@ -894,7 +1041,7 @@ def register(app, help_lines: list | None = None) -> None:
              remember: str = typer.Option("", "--remember", metavar="ORG", help="the buyer organisation whose memory keeps how a line that was set aside ended (paid: accepted on appeal; refunded: refused)"),
              memory_dir: Path = typer.Option(None, "--memory", metavar="DIR", help="with --remember: the directory of the memory store"),
              terms: str = typer.Option("", "--terms", metavar="HASH", help="with --remember: the hash of the terms, as given to `knos statement make`")) -> None:
-        """Record the payment status of one line that was paid, held or refunded outside Knos; or, with --rail bank, write the payment file the payer uploads to their own bank: one transfer per supplier for the lines that are agreed, approved and still payable, each carrying its settlement id end to end. It moves no money and checks no bank. No bank has taken a file this command wrote: try it in the bank's test channel first."""
+        """Record the payment status of one line that was paid, held or refunded outside Knos; or, with --rail bank, write the payment file the payer uploads to their own bank: one transfer per supplier for the lines whose policy is met, approved and still payable, each carrying its settlement id end to end. It moves no money and checks no bank. No bank has taken a file this command wrote: try it in the bank's test channel first."""
         from . import rails
         try:
             st, status = load(file)
@@ -943,7 +1090,7 @@ def register(app, help_lines: list | None = None) -> None:
     def status_(file: Path = file_arg,
                 source: Path = typer.Option(..., "--from", help="the bank's answer: a payment status report (pain.002 XML), or a CSV: end_to_end_id,status,reference,date,reason"),
                 on: str = on_opt) -> None:
-        """Read the bank's answer to a payment file and record it: each line of a settled transfer becomes paid outside Knos, each line of a rejected one payable again with the bank's reason, and a transfer still with the bank changes nothing. Reading the same answer twice changes nothing. It records what the bank's file says; it asks no bank."""
+        """Read the bank's answer to a payment file and record it: each line of a settled transfer becomes paid outside Knos, each line of a rejected one payable again with the bank's reason, each line of an unclear answer (a timeout, \"unknown\") held as unknown until a later answer says paid or returned, and a transfer still with the bank changes nothing. Reading the same answer twice changes nothing. It records what the bank's file says; it asks no bank."""
         from . import rails
         try:
             st, status = load(file)
@@ -986,17 +1133,27 @@ def register(app, help_lines: list | None = None) -> None:
             raise typer.Exit(1)
 
     @sub.command("show")
-    def show_(file: Path = file_arg, as_json: bool = typer.Option(False, "--json", help="print the lines with their status as JSON")) -> None:
-        """Answer what an approver asks: what was authorised, billed, delivered and passed, what was already billed, who approved, what is disputed, credited, paid and owed."""
+    def show_(file: Path = file_arg, as_json: bool = typer.Option(False, "--json", help="print the lines with their status as JSON"),
+              on: str = typer.Option("", "--on", help="the day to judge the acceptance window on, YYYY-MM-DD (today when left out)"),
+              window: int = typer.Option(ACCEPT_DAYS, "--window", help="the acceptance window, in days after the statement's day")) -> None:
+        """Answer what an approver asks: what was authorised, billed and delivered, whose policy is met, who accepted and who approved, what is unsupported, what is owed to the supplier, credited and paid. Each line shows its four steps."""
         try:
             st, status = load(file)
+            day = _day(today(on))
             if as_json:
-                typer.echo(canonical({"statement": st["sha256"], "lines": lines_now(st, status), "answers": [list(a) for a in answers(st, status)]}).decode(), nl=False)
+                typer.echo(canonical({"statement": st["sha256"], "lines": lines_now(st, status, day, window),
+                                      "answers": [list(a) for a in answers(st, status, day, window)]}).decode(), nl=False)
                 return
-            say(st, status)
-            for r in lines_now(st, status):
+            for question, answer in answers(st, status, day, window):
+                typer.echo(f"{question + ':':<23}{answer}")
+            for r in lines_now(st, status, day, window):
                 if r["state"] != "agreed":
                     typer.echo(f"  line {r['line']} {r['reference'] or '(no reference)'}: {ids.LINE_WORDS[r['state']]}: {r['why']}")
+                    continue
+                typer.echo(f"  line {r['line']} {r['reference'] or '(no reference)'}: " + "; ".join(f"{ids.STEP_WORDS[x['step']]}: {x['said']}" if x["state"] != "failed"
+                                                                                                   else f"NOT {ids.STEP_WORDS[x['step']]}: {x['said']}" for x in r["steps"]))
+                if r["owed"]:
+                    typer.echo(f"    {ids.OWED_WORDS.upper()}: the evidence met the terms. The supplier may appeal: knos appeal \"<reason>\" --repo OWNER/NAME --pull N --by LOGIN")
         except Refused as why:
             raise stop(why) from None
 
@@ -1008,7 +1165,7 @@ def register(app, help_lines: list | None = None) -> None:
                 account: str = typer.Option("", "--account", help="the expense account every bill is booked to"),
                 tax_code: str = typer.Option("", "--tax-code", help="QuickBooks' Line Tax Code"),
                 date_format: str = typer.Option("", "--date-format", help="another date format than the product's default, written with YYYY, MM, DD, M and D")) -> None:
-        """Write the statement as a file an accounting system imports. QuickBooks Online and NetSuite get one bill per agreed line, with the line's state, payment status and ids in the memo; a line that is disputed, duplicate or without enough evidence is never a bill. The generic file lists every line. Each is a file export, not an integration: nobody has imported one into the product yet."""
+        """Write the statement as a file an accounting system imports. QuickBooks Online and NetSuite get one bill per line whose policy is met, with the line's state, payment status and ids in the memo; a line that is disputed, duplicate or without enough evidence is never a bill. The generic file lists every line. Each is a file export, not an integration: nobody has imported one into the product yet."""
         from . import audit, exports
         try:
             st, status = load(file)

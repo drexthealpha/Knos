@@ -75,11 +75,13 @@ gets a partial file until the reader pages further.
 
 from __future__ import annotations
 
+import calendar
 import csv
 import hashlib
 import io
 import json
 import sys
+import time
 from pathlib import Path
 
 from . import controls, ids, records
@@ -830,6 +832,102 @@ def owed_lines(rows: list[dict], payee: str) -> list[str]:
     return [*said, disputed, "", *NOT_VISIBLE]
 
 
+# ---- reading only what one owner's lines need -------------------------------------------------------------------------
+# Every line of the file comes from the second escrow, and only from the transactions that touched one of the owner's
+# Balances (or a wallet named with --wallet) or one of the orders and bounties funded from them. Reading those, and not
+# the escrow's newest 1,000 transactions (and the first escrow's and the meter's, which no line uses), is what makes an
+# export take seconds: the public devnet endpoint answers at most 40 calls of one method per 10 s
+# (https://solana.com/docs/references/clusters), so 1,000 transactions alone take over 4 minutes.
+WORKERS = 4                     # transactions asked for at once; chain.call backs off on a 429
+
+
+def _blocks(url: str, sigs: list[dict], workers: int = WORKERS) -> dict[str, list[dict]]:
+    """{signature: its events (knos.records.events_of)} for each signature; a transaction the cluster would not give
+    is left out (the caller counts it unread)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from . import chain
+
+    def one(sig: str):
+        try:
+            return sig, records.events_of(chain.call(url, "getTransaction", [sig, {"encoding": "json", "commitment": "confirmed",
+                                                                                   "maxSupportedTransactionVersion": 1}], timeout=30))
+        except Exception:  # noqa: BLE001 - still throttled after the backoff: counted, never guessed
+            return sig, None
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        return {sig: got for sig, got in pool.map(one, [s["signature"] for s in sigs]) if got is not None}
+
+
+def owner_history(url: str, owner_id: int, wallets=(), limit: int = 1000, last: str = "", workers: int = WORKERS) -> records.Record | None:
+    """The second escrow's events that one owner's lines can name, as knos.records.Record: the owner's Balances (found
+    with one getProgramAccounts by the owner id they hold), the wallets in `wallets`, and every order or bounty funded
+    from them, each address's own history up to `limit` transactions. Transactions after the day `last` are not read.
+    None when the cluster will not list the Balances (the caller then reads the whole escrow)."""
+    from solders.pubkey import Pubkey
+
+    from . import chain
+    try:
+        found = chain.call(url, "getProgramAccounts", [str(pay2.PAY_ID), {"encoding": "base64", "dataSlice": {"offset": 0, "length": 0}, "filters": [
+            {"dataSize": pay2.BALANCE_LEN}, {"memcmp": {"offset": 8, "bytes": chain.b58(int(owner_id).to_bytes(8, "little"))}}]}], timeout=30)
+    except Exception:  # noqa: BLE001 - an endpoint that does not list program accounts: read the whole escrow instead
+        return None
+    sources = sorted({str(a["pubkey"]) for a in found or []} | {str(w) for w in wallets})
+    end = calendar.timegm(time.strptime(records.day_of(last, "--to"), "%Y-%m-%d")) + 86_400 if last else None
+    todo, asked, cut = list(sources), set(), False
+    sigs: dict[str, dict] = {}
+    while todo:
+        address = todo.pop(0)
+        if address in asked:
+            continue
+        asked.add(address)
+        got = chain.call(url, "getSignaturesForAddress", [address, {"limit": limit}], timeout=30) or []
+        cut = cut or len(got) >= limit
+        fresh = [s for s in got if s.get("err") is None and s["signature"] not in sigs and (end is None or int(s.get("blockTime") or 0) < end)]
+        sigs.update({s["signature"]: s for s in fresh})
+        for sig, evs in _blocks(url, fresh, workers).items():
+            sigs[sig]["events"] = evs
+            for ev in evs:
+                if ev.get("v") != 2:
+                    continue
+                if str(ev.get("order") or "") and str(ev["event"]).startswith("order_"):
+                    todo.append(str(ev["order"]))
+                elif ev["event"] == "funded" and "repo" in ev and "issue" in ev:
+                    for src in sources:
+                        if src in ev.get("keys", ()):
+                            todo.append(str(pay2.job_pda(int(ev["repo"]), int(ev["issue"]), Pubkey.from_string(src))))
+    read = sorted((s for s in sigs.values() if "events" in s), key=lambda s: (int(s.get("blockTime") or 0), int(s.get("slot") or 0)))
+    events = [{**ev, "tx": s["signature"]} for s in read for ev in s["events"]]
+    return records.Record(events, len(sigs) - len(read), (2,) if cut else (), limit)
+
+
+def escrow_history(url: str, limit: int = 1000, last: str = "", workers: int = WORKERS) -> records.Record:
+    """The second escrow's newest `limit` transactions (up to the day `last`), several at a time: what an export reads
+    when the cluster will not list an owner's Balances."""
+    from . import chain
+    got = chain.call(url, "getSignaturesForAddress", [str(pay2.PAY_ID), {"limit": limit}], timeout=30) or []
+    end = calendar.timegm(time.strptime(records.day_of(last, "--to"), "%Y-%m-%d")) + 86_400 if last else None
+    sigs = [s for s in reversed(got) if s.get("err") is None and (end is None or int(s.get("blockTime") or 0) < end)]
+    blocks = _blocks(url, sigs, workers)
+    events = [{**ev, "tx": s["signature"]} for s in sigs if s["signature"] in blocks for ev in blocks[s["signature"]]]
+    events.sort(key=lambda ev: ev["at"])
+    return records.Record(events, len(sigs) - len(blocks), (2,) if len(got) >= limit else (), limit)
+
+
+def history_for(owner_id: int, wallets=(), limit: int = 1000, last: str = "") -> records.Record:
+    """What `knos audit export` reads: the owner's own part of the escrow, else the escrow's newest `limit`."""
+    from . import chain, cli, ghwords
+    if limit < 1:
+        raise cli.Stop("--limit is a number of transactions, at least 1.")
+    url = cli._ledger().url
+    try:
+        got = owner_history(url, owner_id, wallets, min(limit, 1000), last) or escrow_history(url, min(limit, 1000), last)
+    except (chain.Refused, OSError, ValueError) as why:
+        raise cli.Stop(f"Solana did not give the escrow's history: {ghwords.first_line(why)}.") from None
+    for note in got.notes():
+        cli.err.print(note, markup=False)
+    return got
+
+
 # ---- the command line ---------------------------------------------------------------------------------------------------
 
 def register(app, help_lines: list | None = None) -> None:
@@ -860,7 +958,7 @@ def register(app, help_lines: list | None = None) -> None:
                 last: str = typer.Option("", "--to", help="last UTC day, like 2026-09-30 (inclusive). Name it: a file with an end is the same whoever exports it"),
                 fmt: str = typer.Option("csv", "--format", help="csv or json (the statement), or a finance system's import: netsuite, sap, coupa, quickbooks, generic"),
                 wallet: list[str] = typer.Option([], "--wallet", help="also the orders this wallet funded itself (repeat for several)"),
-                limit: int = typer.Option(1000, "--limit", help="how many of the escrow's newest transactions to read (at most 1000)"),
+                limit: int = typer.Option(1000, "--limit", help="how many transactions to read of each Balance, order and bounty of the owner (at most 1000)"),
                 partial: bool = typer.Option(False, "--partial", help="write the file even when the cluster did not give the whole history; it then says so"),
                 refs: Path = typer.Option(None, "--refs", help="a CSV of your own references: order,ref,paid_outside,dispute (for the finance formats)"),
                 account: str = typer.Option("", "--account", help="finance formats: the expense or general-ledger account every line is booked to"),
@@ -875,12 +973,13 @@ def register(app, help_lines: list | None = None) -> None:
             raise cli.Stop(f"--format is csv or json, or {', '.join(exports.FORMATS)}; {fmt!r} is none of them.")
         mine = refs_of(refs)
         a, b = cli._days(first, last)
-        got = cli._history(limit)
+        owner_id = cli._owner(owner)
+        got = history_for(owner_id, wallet, limit, b)
         short = bool(got.unread or 2 in got.cut)        # the second escrow's history is the one a work order is in
         if short and not partial:
             raise cli.Stop("The cluster did not give the escrow's whole history (see above), so the file would not be the one another party gets.",
                            "Run it again, or with --partial for a file that says it is partial.")
-        scope = scope_of(cli._owner(owner), a, b, wallet, short)
+        scope = scope_of(owner_id, a, b, wallet, short)
         rows, head = chained(lines(got.events, scope["owner_id"], wallet, a, b), scope)
         if fmt in exports.FORMATS:
             text = exports.write(fmt, scope, rows, head, mine, {"account": account, "entity": entity, "tax_code": tax_code, "date_format": date_format})

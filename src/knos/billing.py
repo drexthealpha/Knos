@@ -848,10 +848,12 @@ def floor_split(payee_account: Decimal = MORE_COSTS["payee_account"], amounts: t
 def netting_example(value: Decimal = NET_EXAMPLE[0], count: int = NET_EXAMPLE[1]) -> dict:
     """What an outcome of `value` (under 20 USD) costs in fees by itself, and as one of `count` owed to one payee in a
     period. By itself it pays the floor; netted, the release pays 0.30% of the netted amount and the floor once.
-    `reaches_rate`: how many such outcomes one payee needs in a period before the floor stops being the fee."""
+    `reaches_rate`: how many such outcomes one payee needs in a period before the floor stops being the fee, counted as
+    knos_pay counts: in the token's base units (6 decimals), the rate's fee rounded down, against the floor's 50,000 units."""
     alone = acceptance_fee(value)
     net = netted([("payee", value)] * count)
-    need = next(n for n in range(1, 10_000) if cents(value * n * ACCEPT_RATE) > ACCEPT_FLOOR)
+    units, floor_units = int(value * 10**6), int(ACCEPT_FLOOR * 10**6)
+    need = next(n for n in range(1, 10_000) if int(units * n * ACCEPT_RATE) > floor_units)
     return {"value": show(value), "alone_fee": show(alone), "alone_share": share(alone, value), "count": count, "netted_amount": net["releases"][0]["amount"],
             "netted_fee": show(net["fee"]), "netted_share": net["releases"][0]["share"], "individually": show(net["individually"]),
             "one_in_a_period": share(netted([("payee", value)])["fee"], value), "reaches_rate": need,

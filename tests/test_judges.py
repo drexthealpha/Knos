@@ -43,7 +43,7 @@ def test_the_page_is_one_page_thirteen_rows_five_zeros_and_the_file_is_the_page(
     assert lines[2] == j.PITCH == data["pitch"]                                          # the pitch line is the second line
     assert lines[3] == "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check."
     assert [r["thing"] for r in data["rows"]] == j.JUDGED and len(data["rows"]) == 13
-    assert set(data) == {"title", "sentence", "pitch", "number", "claim", "why_solana", "source", "columns", "rows", "wait", "not_real", "page"}
+    assert set(data) == {"title", "sentence", "pitch", "number", "claim", "why_solana", "source", "columns", "rows", "wait", "not_real", "entry", "page"}
     for row in data["rows"]:
         assert set(row) == {"id", "thing", "sentence", "link", "label"}             # the shape web/judges.js reads
         assert row["link"].startswith("https://") and len(j.WORD.findall(row["sentence"])) <= 22, row["thing"]
@@ -51,6 +51,30 @@ def test_the_page_is_one_page_thirteen_rows_five_zeros_and_the_file_is_the_page(
     assert data["rows"][0]["link"] == f"https://explorer.solana.com/tx/{json.loads(read('web/demo_data.json'))['paid']['tx']}?cluster=devnet"
     assert len(data["not_real"]) == 5 and data["why_solana"] == WHY_SOLANA == j.WHY_SOLANA
     assert "black-box check refused all 63" in page and "this check" not in page
+
+
+
+def test_a_judge_enters_through_the_manifest_and_the_witnessed_transaction_and_everything_else_is_one_click():
+    j = _judges()
+    page, data = read("docs/JUDGES.md"), json.loads(read("docs/judges.json"))
+    first = data["entry"]
+    # "Start here" comes after the four lines and before the table; its first link is the manifest's chain
+    assert page.index("## Start here") < page.index("\n|") and first["manifest"].endswith("docs/MANIFEST.md")
+    assert "source, build hash, deployed version, transactions, fee schedule" in page
+    # the witnessed transaction: each step's link, in the order it happened, on devnet and in its own repository
+    assert [w["label"] for w in first["witnessed"]] == j.WITNESSED
+    assert all(w["link"].startswith(("https://explorer.solana.com/tx/", "https://github.com/drexthealpha/knos-witness/")) for w in first["witnessed"])
+    assert all(w["link"].endswith("?cluster=devnet") for w in first["witnessed"] if "explorer" in w["link"])
+    assert first["yourself"].endswith("examples/witnessed/README.md") and (ROOT / "examples" / "witnessed" / "README.md").exists()
+    # what that run was, plainly: an own repository, test money, and what it needed
+    start = flat("docs/JUDGES.md").split("## Start here")[1].split("## ")[0]
+    assert "own repository, test USDC" in start and "three workarounds" in start and "no lines" in start
+    # the README's judge link is the page whose first entry this is, and its "For a judge" part carries the same links
+    readme = read("README.md")
+    assert "](docs/JUDGES.md)" in readme.split("</h1>", 1)[1].split("\n## ", 1)[0]
+    judge = readme.split("\n## For a judge\n", 1)[1].split("\n## ", 1)[0]
+    assert judge.index("](docs/MANIFEST.md)") < judge.index(first["witnessed"][0]["link"]) and "three workarounds" in judge
+    assert all(f"[{w['label']}]({w['link']})" in judge for w in first["witnessed"]) and len([x for x in judge.splitlines() if x.strip()]) == 3
 
 
 def test_the_zeros_are_the_numbers_page_and_no_fee_or_missing_thing_is_claimed():
@@ -111,6 +135,10 @@ def test_the_check_fails_when_the_page_and_the_file_part(tmp_path):
     assert any("days to approve" in line for line in j.problems(tmp_path))
     page.write_text(text.replace("| Traction |", "| Demand |"), encoding="utf-8")
     assert any("the rows are" in line for line in j.problems(tmp_path))
+    page.write_text(text.replace("[The release manifest](MANIFEST.md)", "[The release manifest](BENCH.md)"), encoding="utf-8")
+    assert any("its first link is the release manifest" in line for line in j.problems(tmp_path))
+    page.write_text(text.replace("[paid](", "[settled]("), encoding="utf-8")
+    assert any("witnessed transaction" in line for line in j.problems(tmp_path))
 
 
 def test_the_seven_factors_are_colosseums_and_traction_says_the_zeros():

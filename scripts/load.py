@@ -531,10 +531,10 @@ REDUCES = [
                                           "the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`). "
                                           "`knos relay fee-accounts --k K` makes K-1 beside the associated one, and each order's payments use one "
                                           "of K, chosen by the order. Shown in the simulator on the 2.1 and 2.2 builds (tests/test_fee_shards.py); "
-                                          "not measured on a cluster."),
+                                          "used on devnet by the 4-relay run of 8 Oct 2026 with K = 4 (its row above)."),
     ("Pay work partitioned by order", "exists since 0.3.22: a token that pays an order travels in that order's lane, so one owner's orders "
-                                      "spread over N relays. Before, one owner's tokens were one lane and so one relay (the 0.097 a second "
-                                      "measured on 8 Oct). Not measured on a cluster."),
+                                      "spread over N relays. Before, one owner's tokens were one lane and so one relay. Measured on devnet "
+                                      "by the 4-relay run of 8 Oct 2026 (its row above, beside the one-relay row)."),
 ]
 
 
@@ -685,6 +685,7 @@ def render_measured(doc: dict) -> list[str]:
         out += ["", f"The contention seen: the shared account's rate was {c.get('rate_shared_over_apart')} of the rate apart, with {c.get('retries_more')} more "
                 f"retries and {c.get('failures_more')} more failures. It cost {m.get('sol_spent')} SOL in fees and rent not recovered. Wallet `{m['wallet']}`, "
                 f"mint `{m.get('mint')}`, shared account `{m.get('shared_account')}`." + (f" Stopped: {m['stopped']}." if m.get("stopped") else ""), ""]
+    out += side_by_side(runs) + scenarios(doc, runs)
     if any(m.get("kind") == "pay" for m in runs) and not any(m.get("kind") == "pay" and m.get("lanes") == "order" and m.get("relays", 1) > 1 for m in runs):
         out += ["**Not measured: payments by order over several relays and K fee accounts.** Since 0.3.22 one owner's orders spread over N "
                 "relays and each order's fee goes to one of K accounts (shown in the simulator: `python scripts/load_pay.py --relays 4 "
@@ -730,6 +731,7 @@ def paid_rows(m: dict, kind: str) -> list[str]:
     c = m.get("payment_s") or {}
     p99 = c.get("p99") if m.get("paid", 0) >= 100 else "none: fewer than 100 payments"
     out = [f"#### Measured on devnet, {ids_of(progs)}, {m['date']}: {kind}; {m['relays']} relay{'' if m['relays'] == 1 else 's'}, {m.get('attempted', 0):,} payments attempted"
+           + (f"; scenario {m['scenario']}" if m.get("scenario") else "")
            + ("" if m.get("ok") else " (did not complete cleanly)"), "",
            "| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |",
            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
@@ -742,9 +744,20 @@ def paid_rows(m: dict, kind: str) -> list[str]:
     if m.get("lanes") == "order":
         said += (f" A pay token's lane was its order, so the tokens{f' of {owners} owner(s)' if owners else ''} spread over the relays; "
                  f"{k} fee account(s) of the mint, each order's fee to one.")
+        if m.get("per_relay"):
+            said += " The relays paid " + _and([str(r["paid"]) for r in m["per_relay"]]) + " of the payments"
+            said += ("; the fee accounts took " + _and([str(n) for n in m["per_fee_account"]]) + ".") if m.get("per_fee_account") else "."
     else:
         said += (" A lane was then the repository's owner, and every token came from one owner: one lane, so ONE relay carried all of "
                  "them, through one fee account. This is a one-relay figure, not a ceiling of the program.")
+    if m.get("scenario"):
+        said += f" Scenario {m['scenario']}: {m.get('measures', '')}. Retries: {m.get('retries', 0)}; failures: {m.get('failures', 0)}."
+        if m.get("faults_injected"):
+            f = m["faults_injected"]
+            said += f" Injected: {f.get('refused', 0)} of {f.get('sends', 0)} sends refused, {f.get('lost', 0)} answers lost."
+        if m.get("priority"):
+            said += (f" Compute unit price {m.get('cu_price_micro_lamports')} micro-lamports on {m['priority'].get('priced', 0)} transactions; "
+                     f"{m['priority'].get('no_room', 0)} had no room for it.")
     if m.get("source"):
         said += f" Source: {m['source']}."
     if m.get("first_refusals"):
@@ -752,6 +765,76 @@ def paid_rows(m: dict, kind: str) -> list[str]:
     if m.get("stopped"):
         said += f" Stopped: {m['stopped']}."
     return out + [said, ""]
+
+
+def _and(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def side_by_side(runs: list[dict]) -> list[str]:
+    """The newest one-relay run of payments beside the newest run over several relays by order, when both are recorded:
+    the same path, the same kind of tokens, one change (the relays and the fee accounts)."""
+    pays = [m for m in runs if m.get("kind") == "pay" and "phases" not in m and m.get("paid_per_s") and not m.get("scenario")]
+    one = [m for m in pays if m.get("relays") == 1]
+    many = [m for m in pays if m.get("relays", 1) > 1 and m.get("lanes") == "order"]
+    if not (one and many):
+        return []
+    a, b = one[-1], many[-1]
+    return [f"**One relay against {b['relays']}, measured.** Devnet, {ids_of({k: v for k, v in (b.get('programs') or {}).items() if k != 'ids'})}: "
+            f"{b['paid']} of {b['attempted']} payments in {b['seconds']} s, {b['paid_per_s']} a second, with {b['relays']} relays and "
+            f"{b.get('fee_accounts', 1)} fee accounts ({b['date']}), against {a['paid']} of {a['attempted']} payments, {a['paid_per_s']} a second, "
+            f"through one relay and one fee account ({a['date']}): {b['paid_per_s'] / a['paid_per_s']:.2f} times the rate. Both runs had one owner's "
+            "tokens and waited for each payment's answer before a relay sent the next.", ""]
+
+
+SCENARIO_ORDER = ("hot-funder", "rpc-faults", "priority-fee", "burst")
+
+
+def _sim_cell(x: dict | None) -> str:
+    if not x:
+        return "not simulated yet"
+    failed = [k for k, v in (x.get("checks") or {}).items() if not v]
+    extra = []
+    if x.get("retries"):
+        extra.append(f"{x['retries']} retries")
+    if x.get("faults_injected"):
+        f = x["faults_injected"]
+        extra.append(f"{f.get('refused', 0)} sends refused, {f.get('lost', 0)} answers lost, {f.get('resent_and_refused', 0)} resends refused by the program")
+    if x.get("priority_lamports_expected") is not None:
+        extra.append(f"priority fee {x['priority_lamports_expected']:,} lamports a PayOrder at {x.get('cu_price_micro_lamports'):,} micro-lamports, as charged")
+    if x.get("written_by_every_relay") is not None:
+        extra.append(f"{x['written_by_every_relay']} accounts written by every relay, the one fee account among them")
+    if x.get("tokens_open_at_once") is not None:
+        extra.append(f"{x['tokens_open_at_once']} tokens verified and open at once")
+    return (f"{x.get('paid')} of {x.get('attempted')} paid, {x.get('relays')} relays, local simulator, {x.get('date')}; "
+            + ("every check holds" if not failed else "FAILED: " + ", ".join(failed)) + ("; " + "; ".join(extra) if extra else "") + "; no rate")
+
+
+def _run_cell(m: dict | None) -> str:
+    if not m:
+        return "not run yet"
+    c = m.get("payment_s") or {}
+    p99 = c.get("p99") if m.get("paid", 0) >= 100 else "none (fewer than 100)"
+    progs = {k: v for k, v in (m.get("programs") or {}).items() if k != "ids"}
+    return (f"{m.get('paid', 0)} of {m.get('attempted', 0)} paid, {m.get('failures', 0)} failures, {m.get('retries', 0)} retries, "
+            f"{m.get('paid_per_s')} a second; p50 {c.get('p50')} s, p95 {c.get('p95')} s, p99 {p99}, worst {c.get('max')} s; "
+            f"{m['relays']} relays, devnet, {ids_of(progs)}, {m['date']}")
+
+
+def scenarios(doc: dict, runs: list[dict]) -> list[str]:
+    """Each contention scenario: what it measures, its run in the simulator here, and its run on devnet."""
+    sims = (doc.get("scenarios") or {}).get("simulated") or {}
+    if str(ROOT / "scripts") not in sys.path:
+        sys.path.append(str(ROOT / "scripts"))
+    import load_pay
+    out = ["**Contention scenarios.** `python scripts/load.py measure --pay --scenario S` adds one kind of contention to the "
+           "PayOrder run: `--simulate` here (faults injected on the way to the simulator), `--tokens ... --wallet ... --write` "
+           "on devnet by the release, each with a row of its own.", "",
+           "| Scenario | What it measures | Simulated here | On devnet |", "| --- | --- | --- | --- |"]
+    for name in SCENARIO_ORDER:
+        mine = [m for m in runs if m.get("scenario") == name]
+        out.append(f"| {name} | {load_pay.SCENARIOS[name]} | {_sim_cell(sims.get(name))} | {_run_cell(mine[-1] if mine else None)} |")
+    return out + [""]
 
 
 def ids_of(programs) -> str:
@@ -1151,8 +1234,11 @@ def main(argv=None) -> int:
         rest = [x for x in args[1:] if x not in ("--pay", "--write")]
         if "--write" not in args:
             return load_pay.main(rest)
-        if "--simulate" in rest or "--out" in rest:
-            ap.error("measure --pay --write records a cluster's run: a simulated run measures nothing and is never written; --out is not needed")
+        if "--out" in rest:
+            ap.error("measure --pay --write writes docs/load.json itself; --out is not needed")
+        if "--simulate" in rest and "--scenario" not in rest:
+            ap.error("measure --pay --write records a cluster's run: a simulated run measures nothing and is never written "
+                     "(a simulated --scenario is kept apart, under `scenarios.simulated`, with its checks and no rate)")
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "pay.json"
@@ -1163,7 +1249,13 @@ def main(argv=None) -> int:
         print(json.dumps(got, indent=1))
         if got.get("attempted"):                        # a run that sent nothing has no figure to keep
             doc = load()
-            doc.setdefault("measured", []).append(got)
+            if got.get("rate") is None and got.get("seconds") is None:      # the simulator's: checks and counts, never a rate
+                keep = ("scenario", "measures", "cluster", "date", "seed", "relays", "orders", "attempted", "paid", "refused",
+                        "never_completed", "retries", "faults_injected", "lamports_per_payorder", "priority_lamports_expected",
+                        "cu_price_micro_lamports", "written_by_every_relay", "tokens_open_at_once", "fee_accounts", "checks", "ok", "why_no_rate")
+                doc.setdefault("scenarios", {}).setdefault("simulated", {})[got["scenario"]] = {k: got[k] for k in keep if k in got}
+            else:
+                doc.setdefault("measured", []).append(got)
             write(doc)
         return code
     a = ap.parse_args(argv)

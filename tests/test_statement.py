@@ -285,12 +285,14 @@ def test_approving_the_agreed_lines_leaves_the_exceptions_open_and_names_who():
     said = dict(statement.answers(st, s))
     assert said == {"Authorised": "not known here: a shadow run reads the invoice and GitHub, not the order",
                     "Billed": "5 lines, 590.00 USD on invoice INV-2026-09 from Acme Agents", "Delivered": "4 of 5 lines name work that was evaluated",
-                    "Passed": "2 lines, 160.00 USD agreed", "Already billed": "1 line, 100.00 USD: line 4 (line 1)",
-                    "Approved": "2 agreed lines, 160.00 USD by Dana Reyes (finance controller) on 2026-10-01, role as stated",
-                    "Disputed": "1 line, 250.00 USD, open", "Insufficient evidence": "1 line, 80.00 USD, open", "Credited": "0 lines, 0.00 USD refunded",
-                    "Paid": "0 lines, 0.00 USD", "Owed": "2 lines, 160.00 USD payable"}
+                    "Policy met": "2 lines, 160.00 USD: the evidence met the terms, nothing more", "Accepted": "0 lines, 0.00 USD",
+                    "Already billed": "1 line, 100.00 USD: line 4 (line 1)",
+                    "Approved": "2 lines, 160.00 USD by Dana Reyes (finance controller) on 2026-10-01, role as stated",
+                    "Disputed": "1 line, 250.00 USD, open", "Insufficient evidence": "1 line, 80.00 USD, open",
+                    "Unsupported charges": "2 lines, 350.00 USD, not owed", "Wrongful refusals": "0 lines, 0.00 USD", "Credited": "0 lines, 0.00 USD refunded",
+                    "Paid": "0 lines, 0.00 USD", "Payable": "2 lines, 160.00 USD authorised, not paid"}
     assert dict(statement.answers(st))["Approved"] == "nobody yet"
-    with pytest.raises(statement.Refused, match="no agreed line left"):
+    with pytest.raises(statement.Refused, match="no line left to approve"):
         statement.approve(st, s, "Dana Reyes", "finance controller", "2026-10-02")
     with pytest.raises(statement.Refused, match="another statement"):
         statement.approve(october(), s, "Dana Reyes", "finance controller", "2026-10-02")
@@ -306,7 +308,7 @@ def test_a_payment_made_outside_is_a_settlement_record_with_its_own_id_and_moves
     now = statement.lines_now(st, s)
     assert [(r["payment"], bool(r["settlement"])) for r in now] == [("paid_outside", True), ("held", False), ("held", False), ("held", False), ("devnet_demonstration", True)]
     said = dict(statement.answers(st, s))
-    assert said["Paid"] == "2 lines, 160.00 USD (devnet demonstration, paid outside Knos)" and said["Owed"] == "0 lines, 0.00 USD payable"
+    assert said["Paid"] == "2 lines, 160.00 USD (devnet demonstration, paid outside Knos)" and said["Payable"] == "0 lines, 0.00 USD authorised, not paid"
     with pytest.raises(statement.Refused, match="already recorded"):
         statement.pay(st, s, one["invoice_line"], "bank", "BACS 77120", "2026-10-09")
     with pytest.raises(statement.Refused, match="No line of this statement"):
@@ -316,8 +318,8 @@ def test_a_payment_made_outside_is_a_settlement_record_with_its_own_id_and_moves
     back = statement.pay(st, s, one["invoice_line"], "bank", "BACS 77999", "2026-10-20", "refunded")           # every state can be written down, the last one stands
     assert statement.lines_now(st, back)[0]["payment"] == "refunded" and dict(statement.answers(st, back))["Credited"] == "1 line, 100.00 USD refunded"
     wrong = statement.pay(st, None, two["invoice_line"], "bank", "BACS 1", "2026-10-02")                       # paid before anyone looked: it is said, not hidden
-    assert dict(statement.answers(st, wrong))["Credited"].endswith("1 line, 250.00 USD paid though not agreed, to be credited or settled")
-    assert {statement.pay(st, None, one["invoice_line"], "other", "r", "2026-10-02", w)["events"][0]["state"] for w in statement.PAY_WORDS.values()} == set(statement.PAY_STATES)
+    assert dict(statement.answers(st, wrong))["Credited"].endswith("1 line, 250.00 USD paid though the policy was not met, to be credited or settled")
+    assert {statement.pay(st, None, one["invoice_line"], "other", "r", "2026-10-02", w)["events"][0]["state"] for w in (statement.PAY_WORDS[s] for s in statement.PAY_STATES)} == set(statement.PAY_STATES)
 
 
 # ---- made again, years later ----------------------------------------------------------------------------------------
@@ -396,10 +398,10 @@ def test_the_exports_carry_the_state_and_the_ids_and_only_agreed_lines_become_bi
     assert qb[1][:5] == [exports.bill_number(one["deliverable"], "Acme Agents"), "Acme Agents", "30/9/2026", "30/9/2026", "6100 Contract engineering"]
     assert ns[1][:4] == [qb[1][0], "Acme Agents", "9/30/2026", qb[1][0]] and ns[1][0] == ns[1][3]
     memo = qb[1][8]
-    assert memo == ns[1][4] and memo.startswith(f"agreed, paid outside Knos | Knos statement sha256:{st['sha256']} | deliverable {one['deliverable']} | invoice line {one['invoice_line']}")
+    assert memo == ns[1][4] and memo.startswith(f"policy met, paid outside Knos | Knos statement sha256:{st['sha256']} | deliverable {one['deliverable']} | invoice line {one['invoice_line']}")
     assert f"evaluation {one['evaluations'][0]}" in memo and f"settlement {ids.settlement(one['deliverable'], 'bank', 'BACS 77120')}" in memo
     assert generic[0] == ["knos.finance-export", "version", "1", "statement", "file export, not an integration"] and tuple(generic[1]) == exports.STATEMENT_GENERIC
-    assert [r[2] for r in generic[2:]] == ["agreed", "disputed", "insufficient evidence", "duplicate", "agreed"] and len({r[12] for r in generic[2:]}) == 5
+    assert [r[2] for r in generic[2:]] == ["policy met", "disputed", "insufficient evidence", "duplicate", "policy met"] and len({r[12] for r in generic[2:]}) == 5
     assert exports.IMPORTED == {} and all(exports.label(f) == exports.LABEL == "file export, not an integration" for f in exports.FORMATS)
     with pytest.raises(Exception, match="--format is quickbooks, netsuite, generic"):
         exports.write_statement("sap", st)
@@ -438,7 +440,7 @@ def test_the_commands_from_a_shadow_run_to_a_verified_statement(tmp_path):
     ok("statement", "pay", file, "--line", sept()["lines"][4]["invoice_line"], "--method", "chain", "--ref", "5Yd1testtransaction", "--on", "2026-10-03")
     assert (out / "ap-statement.status.json").read_bytes() == statement.canonical(status()) and file.read_bytes() == statement.canonical(sept())
     assert (out / "ap-statement.csv").read_bytes() == statement.as_csv(sept(), status()).encode()
-    assert "Owed:" in ok("statement", "show", file) and "same" in ok("statement", "verify", file)
+    assert "Wrongful refusals:" in ok("statement", "show", file) and "same" in ok("statement", "verify", file)
     assert ok("statement", "export", file, "--format", "quickbooks", "--account", "6100 Contract engineering").endswith(golden()["sept.quickbooks.csv"].decode())
     # the next invoice, with the earlier statement: the deliverable billed again is named
     (tmp_path / "oct.csv").write_text(OCT, encoding="utf-8")

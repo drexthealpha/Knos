@@ -557,7 +557,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
       "load": 0.0,
       "binds": false
      },
@@ -641,7 +641,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
       "load": 0.0,
       "binds": false
      },
@@ -716,7 +716,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
       "load": 0.0001,
       "binds": false
      },
@@ -800,7 +800,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
       "load": 0.0001,
       "binds": false
      },
@@ -879,7 +879,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
       "load": 0.007,
       "binds": false
      },
@@ -969,7 +969,7 @@
       "scope": "every customer, every relayer",
       "at": 14221440,
       "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
-      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds, not yet measured on a cluster",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
       "load": 0.007,
       "binds": false
      },
@@ -1268,6 +1268,198 @@
    "fee_payers": [],
    "wallet": null,
    "source": "the operator's release run of 0.3.21 on 8 Oct 2026 with its own wallets; the 40 pay tokens were signed in GitHub Actions run 37763004447; recorded from the run's report, which kept no fee payers"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-08",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "seconds": 211.27,
+   "paid_per_s": 0.189,
+   "payment_s": {
+    "n": 40,
+    "p50": 11.45,
+    "p95": 22.61,
+    "p99": 34.9,
+    "max": 34.9
+   },
+   "ok": true,
+   "lanes": "order",
+   "owners": 1,
+   "fee_accounts": 4,
+   "per_relay": [
+    {
+     "relay": 0,
+     "attempted": 16,
+     "paid": 16
+    },
+    {
+     "relay": 1,
+     "attempted": 8,
+     "paid": 8
+    },
+    {
+     "relay": 2,
+     "attempted": 5,
+     "paid": 5
+    },
+    {
+     "relay": 3,
+     "attempted": 11,
+     "paid": 11
+    }
+   ],
+   "per_fee_account": [
+    14,
+    9,
+    9,
+    8
+   ],
+   "fee_payers": [],
+   "wallet": null,
+   "github_run": "https://github.com/drexthealpha/knos-load/actions/runs/37833126115",
+   "source": "the operator's release run of 0.3.22 on 8 Oct 2026 with its own wallets; the 40 pay tokens were signed in GitHub Actions run 37833126115 of drexthealpha/knos-load; recorded from the run's report, which lists the 40 order ids and the four fee accounts; it kept no fee payers of the relays"
   }
- ]
+ ],
+ "scenarios": {
+  "simulated": {
+   "hot-funder": {
+    "scenario": "hot-funder",
+    "measures": "every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every payment shares",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 0,
+    "written_by_every_relay": 2,
+    "fee_accounts": 1,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_fee_account_written_by_every_relay": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   },
+   "rpc-faults": {
+    "scenario": "rpc-faults",
+    "measures": "15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 12,
+    "faults_injected": {
+     "lost": 5,
+     "refused": 7,
+     "resent_and_refused": 5
+    },
+    "fee_accounts": 4,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "every_resend_after_a_lost_answer_refused": true,
+     "faults_were_injected": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   },
+   "priority-fee": {
+    "scenario": "priority-fee",
+    "measures": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 0,
+    "lamports_per_payorder": {
+     "with_price": [
+      3429400
+     ],
+     "without": [
+      3415400
+     ]
+    },
+    "priority_lamports_expected": 14000,
+    "cu_price_micro_lamports": 10000,
+    "fee_accounts": 4,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true,
+     "priority_fee_charged": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   },
+   "burst": {
+    "scenario": "burst",
+    "measures": "every relay sends all of its payments at once instead of one after another",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 0,
+    "tokens_open_at_once": 40,
+    "fee_accounts": 4,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "every_token_open_before_the_first_payment": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   }
+  }
+ }
 }

@@ -226,6 +226,7 @@ def world(monkeypatch):
     state = SimpleNamespace(record=records.Record(month(), limit=1000))
     monkeypatch.setattr(cli, "_ledger", lambda: SimpleNamespace(url="http://rpc"))
     monkeypatch.setattr(records, "read", lambda url, limit: state.record)
+    monkeypatch.setattr(audit, "owner_history", lambda *_a, **_k: state.record)      # the export reads the owner's part (test_audit_speed.py)
     monkeypatch.setattr(cli, "_fetch", lambda path: {"users/acme": {"id": ACME}, "users/dev1": {"id": 8001}}[path])
     return state
 

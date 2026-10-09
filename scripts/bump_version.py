@@ -8,7 +8,8 @@
 A place is a manifest (PLACES: the package, its lock, the registries' manifests, the plugin manifests, the JavaScript
 client, the Rust crates and their lock files, the IDLs) or a PIN: a line somewhere in the tree that installs or names
 one release (`knos==X`, `tag = "vX"`, `drexthealpha/Knos@vX`, `drexthealpha/Knos/.github/actions/knos-verify@vX`, `releases/download/vX/knos-settle-X.tgz`,
-`drexthealpha/Knos/.github/workflows/supplier.yml@vX`, `git tag vX && git push origin vX`). Pins are found by pattern in every file git tracks, so a new document that
+`drexthealpha/Knos/.github/workflows/supplier.yml@vX`, `git tag vX && git push origin vX`, the README's logo at
+`raw.githubusercontent.com/drexthealpha/Knos/vX/`: PyPI shows only an absolute image). Pins are found by pattern in every file git tracks, so a new document that
 installs a release is covered the day it is written.
 
 The lock is not a pin: requirements/sign.txt ends with `knos==X --hash=sha256:<the wheel>` once a release is locked,
@@ -81,7 +82,7 @@ LOCKED = _locked([n for n in OURS[1:] if n not in PROGRAMS_FROZEN])
 LOCKED_FROZEN = _locked(PROGRAMS_FROZEN)
 PINS = (r"\bknos==" + V, r'tag = "v' + V + '"', r"drexthealpha/Knos@v" + V, r"drexthealpha/Knos/\.github/actions/knos-verify@v" + V,
         r"drexthealpha/Knos/\.github/workflows/supplier\.yml@v" + V, r"releases/download/v" + V + r"/knos-settle-" + V + r"\.tgz",
-        r"git tag v" + V + r" && git push origin v" + V)
+        r"git tag v" + V + r" && git push origin v" + V, r"raw\.githubusercontent\.com/drexthealpha/Knos/v" + V + "/")
 PIN = re.compile("|".join(PINS))
 # history, the first deployment, the patterns themselves, and the lock (its line names a wheel by hash: see unlock).
 # examples/reader_template is the one example that really builds against a tag (the others name theirs in a comment and

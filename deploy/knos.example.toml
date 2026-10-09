@@ -1,0 +1,32 @@
+# knos.toml: the one file a customer-hosted Knos reads (docs/SELFHOST.md). Copy it to deploy/knos.toml and check it:
+#   python -m knos.selfhost check deploy/knos.toml
+# Paths are as the containers see them (deploy/compose.yaml mounts ./secrets at /run/secrets and ./records at
+# /srv/knos/records). Keys are named BY FILE PATH, never written here: a value that looks like a key is refused.
+
+[chain]
+cluster = "devnet"                          # devnet or localnet; mainnet is refused
+rpc = "https://api.devnet.solana.com"       # your own RPC provider's devnet URL works the same
+# Leave [chain.programs] out to use the program ids pinned in the release. Name one only to try a staging deployment:
+# [chain.programs]
+# knos_pay = "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+
+[keys]
+relay = "/run/secrets/relay-key.json"       # your own fee payer (solana-keygen new -o secrets/relay-key.json)
+# relay_more = ["/run/secrets/relay-key-2.json", "/run/secrets/relay-key-3.json"]
+github_token = "/run/secrets/github-token"  # a token that can read your repositories' comments
+record = "/run/secrets/record-key.json"     # signs the record API's paid answers
+
+[record]
+offer = "/srv/knos/records/offer.json"      # the seller's offer (knos.record_api.offer, as JSON)
+records = "/srv/knos/records"               # <slug>.json record files, served free
+# suppliers = "/srv/knos/records/suppliers.json"
+# ttl = 3600
+
+[relay]
+repos = ["acme/payments-service"]           # where your workflows post the tokens the relay carries
+workers = 4
+every = 3                                    # seconds between passes
+serve = 3600                                 # seconds a run lasts; the container restarts it
+
+[site]
+enabled = true
