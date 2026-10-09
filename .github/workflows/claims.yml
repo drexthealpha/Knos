@@ -78,10 +78,20 @@ jobs:
           version: "0.8.20"
           python-version: "3.12"
           enable-cache: false
+      # PyPI's index can lag a release's upload, and uv may answer from what it read a moment before (0.3.23: the wait
+      # for the file passed, and uv still said "no version of knos"). So the install itself is tried 3 times, the
+      # second and third with --refresh (uv asks the index again), 10 then 30 s apart; the third failure ends the job.
       - name: install what the check needs, each by its hash, and nothing else
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
-          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt
+          refresh=""
+          for nap in 10 30 end; do
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt && break
+            [ "$nap" != end ] || exit 1
+            echo "The install failed: asking PyPI's index again (--refresh) in $nap s."
+            refresh="--refresh"
+            sleep "$nap"
+          done
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       - name: answer a claim of payment that no funded order stands behind
         env:

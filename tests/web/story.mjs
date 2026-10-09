@@ -13,8 +13,8 @@ let failed = 0;
 const ok = (what, cond, detail) => { if (!cond) failed++; console.log(`${cond ? "ok  " : "FAIL"} ${what}${cond || detail === undefined ? "" : `: ${JSON.stringify(detail)}`}`); };
 const words = (s) => (s.match(/[A-Za-z0-9][\w'%.,/-]*/g) || []).length;
 
-const bt = JSON.parse(readFileSync(join(root, "docs/backtest.json"), "utf8")).sample.merged.overall;
-ok("the number is the backtest's", MERGED === bt.prs && FAILED === bt.any_check_failed.prs, [MERGED, FAILED]);
+const bt = JSON.parse(readFileSync(join(root, "docs/backtest.json"), "utf8")).reviewed.overall;
+ok("the number is the backtest's", MERGED === bt.prs && FAILED === bt.test_or_build_check_failed.prs, [MERGED, FAILED]);
 
 const story = readFileSync(join(root, "docs/STORY.md"), "utf8");
 const told = [...story.matchAll(/^(\d)\. \*\*(.+?)\*\* (.+)\n {3}Evidence: \[([^\]]+)\]\(([^)]+)\)/gm)].map((m) => ({ title: m[2], says: m[3], evidence: m[4], link: m[5] }));
@@ -34,16 +34,16 @@ ok("the three transactions are the public round's, as the demo's data file has t
 ok("the refusal is step two, and the last step is the deployment identity", STEPS[1].ends === "bad" && STEPS.filter((s) => s.ends === "bad").length === 1 && STEPS[6].path === "docs/MANIFEST.md");
 ok("after the last beat: the reader's invoice at the front door, and no customer is quoted", NEXT === "Check your own invoice" && storyHtml().includes(`<a class="k-btn story-next" href="${FRONT}">${NEXT}</a>`) && story.includes(`[check it](${FRONT}). Nobody has paid for this yet.`) && STEPS.every((s) => !/customer|pilot|"/i.test(s.says)));
 ok("the ask is three needs, 12 words at most each, and the document's", ASK.length === 3 && ASK.every((a) => a.startsWith("Needed: ") && words(a) <= 12 && story.includes(a)), ASK.map(words));
-ok("the document opens with the sentence and the number", story.includes(`**${SENTENCE}**`) && story.includes(`Of ${MERGED} merged agent pull requests that claimed passing tests, ${FAILED} had a failed check.`));
+ok("the document opens with the sentence and the number", story.includes(`**${SENTENCE}**`) && story.includes(`Of ${MERGED} merged agent pull requests claiming passing tests, ${FAILED} failed a test, build, lint or type check.`));
 
 const html = storyHtml();
 ok("the page has seven .k-step cards, idle until they play, each with one link", (html.match(/class="k-step"/g) || []).length === 7 && (html.match(/data-state="idle"/g) || []).length === 7 && STEPS.every((s) => html.includes(`href="${linkOf(s).replace(/&/g, "&amp;")}"`)));
-ok("the number leads it", html.indexOf(`>${MERGED}</strong> merged agent “tests pass” pull requests: <strong class="k-num">${FAILED}</strong> had a failed check.`) > 0 && html.indexOf(`>${MERGED}</strong>`) < html.indexOf("k-step"));
+ok("the number leads it", html.indexOf(`>${MERGED}</strong> merged agent “tests pass” pull requests: <strong class="k-num">${FAILED}</strong> failed tests or builds.`) > 0 && html.indexOf(`>${MERGED}</strong>`) < html.indexOf("k-step"));
 ok("evidence in the repository opens on GitHub; nothing else is linked", [...html.matchAll(/href="([^"]+)"/g)].every((m) => m[1].startsWith(REPO) || m[1].startsWith("https://explorer.solana.com/tx/") || m[1] === FRONT));
 ok("no script, image, frame or style asks any host for anything", !/<(script|img|iframe|link|style)\b/i.test(html) && !/url\(/.test(html));
 const still = storyHtml({ reduced: true });
 ok("reduced motion: all seven are in their last state, and there is nothing to play", STEPS.every((s, i) => still.includes(`data-step="${i + 1}" data-ends="${s.ends}" data-state="${s.ends}"`)) && still.includes("story-play\" hidden"));
-ok("a caller's own numbers and addresses are used", />9<\/strong> merged agent .*>2<\/strong> had a failed check/.test(storyHtml({ merged: 9, failed: 2, repo: "/r/", front: "/#front" })) && storyHtml({ repo: "/r/" }).includes('href="/r/docs/TAMPER.md"') && storyHtml({ front: "/#front" }).includes('href="/#front"'));
+ok("a caller's own numbers and addresses are used", />9<\/strong> merged agent .*>2<\/strong> failed tests or builds/.test(storyHtml({ merged: 9, failed: 2, repo: "/r/", front: "/#front" })) && storyHtml({ repo: "/r/" }).includes('href="/r/docs/TAMPER.md"') && storyHtml({ front: "/#front" }).includes('href="/#front"'));
 
 // playing: a made-up page and a made-up clock
 const lis = STEPS.map((s) => ({ dataset: { ends: s.ends, state: "idle" } }));

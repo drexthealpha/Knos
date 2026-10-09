@@ -480,8 +480,10 @@ await reset();
   check("  Demo, while the demo's mount is empty, puts the cursor in the box that checks a pull request", await page.evaluate(() => document.activeElement.id === "pr-url") && await page.isHidden("#demo"));
   await page.evaluate(() => { document.activeElement.blur(); document.getElementById("demo").innerHTML = "<p>Filled</p>"; });
   await page.waitForSelector("#demo", { state: "visible" });
-  check("  the demo's mount, once filled, is shown under the front door and How it works, and Demo goes to it", await page.isVisible("#view-check") && await page.$eval("#demo", (d) => d.parentElement.id === "view-check" && d.previousElementSibling.classList.contains("sides")
-    && d.parentElement.querySelector(".hero ~ #how-it-works ~ .how ~ #demo") === d));
+  // under the buyer and the supplier comes the one transaction told end to end (one fold), and the demo's mount under it
+  check("  the demo's mount, once filled, is shown under the front door, How it works and the one transaction, and Demo goes to it", await page.isVisible("#view-check") && await page.$eval("#demo", (d) => d.parentElement.id === "view-check"
+    && d.previousElementSibling.id === "one-transaction" && d.previousElementSibling.previousElementSibling.classList.contains("sides")
+    && d.parentElement.querySelector(".hero ~ #how-it-works ~ .how ~ .sides ~ #one-transaction ~ #demo") === d));
   await page.click('#nav > a[href="#demo"]');
   check("    and the cursor stays out of the box", await page.evaluate(() => document.activeElement.id !== "pr-url" && location.hash === "#demo"));
   await page.evaluate(() => { document.getElementById("demo").replaceChildren(); });

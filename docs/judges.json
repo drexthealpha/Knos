@@ -2,7 +2,7 @@
  "title": "For judges: one page",
  "sentence": "The neutral meter for AI agent work: neither side keeps the count.",
  "pitch": "Knos lets buyers and suppliers agree what AI work earned payment, and independently prove that agreement later.",
- "number": "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.",
+ "number": "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check.",
  "claim": "two parties who distrust each other compute the same bill from evidence a third party signed, and the program releases the money on that signature.",
  "why_solana": "Money is released with no custodian, and the count is anchored where neither side can alter it.",
  "source": "docs/JUDGES.md",
@@ -22,7 +22,7 @@
   {
    "id": "potential_impact",
    "thing": "Potential impact",
-   "sentence": "A buyer paying per merge on our sample would have paid for 30 pull requests whose checks failed.",
+   "sentence": "A buyer paying per merge on our sample would have paid for 19 pull requests whose checks failed, read again by hand.",
    "link": "https://github.com/drexthealpha/Knos/blob/main/docs/BENCH.md",
    "label": "the measurement"
   },
@@ -104,7 +104,7 @@
    "label": "the outside-use numbers"
   }
  ],
- "wait": "From merge to paid took 25 seconds at the median, over 42 payments on devnet. Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person with authority approves it. Not measured. It has not measured it with any buyer, so no figure for it is given here.",
+ "wait": "From merge to paid took 26 seconds at the median, over 51 payments on devnet. Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person with authority approves it. Not measured. It has not measured it with any buyer, so no figure for it is given here.",
  "not_real": [
   "Money: Solana devnet and test USDC only. Mainnet is not touched.",
   "Buyers: 0 interviews, 0 letters of intent, 0 paying customers, 0 revenue.",
@@ -117,23 +117,23 @@
   "witnessed": [
    {
     "label": "funded",
-    "link": "https://explorer.solana.com/tx/5NGGSCAN17FiN1gaSiZ5YBUwPiDX56DXdv7txKGqKGQL4FMrCYL3gpduBzxDYLYojYp4YhKq8ZhkQLttiSEEAnjN?cluster=devnet"
+    "link": "https://explorer.solana.com/tx/3UaY22WKexigMpkVhibfeMdNgBiyybWm2Z4LuLskKGbNUDXV34yYWyH42atxFjELbrqSgoVs6TwpFzSQwhfXqzgM?cluster=devnet"
    },
    {
     "label": "wrong work refused",
-    "link": "https://github.com/drexthealpha/knos-witness/actions/runs/37834796417/job/113509142113"
+    "link": "https://github.com/drexthealpha/knos-witness/actions/runs/37890511112/job/113690226126"
    },
    {
     "label": "paid",
-    "link": "https://explorer.solana.com/tx/5agirebr3WcfmjF4JV8KNJeFsWqrd21vkPZtebqZyxTLNTWqYv8azX28zTZuMYKCuH6uaCmTaGPeTbLAooJT1Vs9?cluster=devnet"
+    "link": "https://explorer.solana.com/tx/2PtmKUrQHKPARZE4nr35Te559NGQSG7tSHUfwzcKCAjL7gzvQ76fNTVLMWvq8mcZLxd27tbyTe31mCk2PxEGfAqa?cluster=devnet"
    },
    {
     "label": "replay paid nothing more",
-    "link": "https://github.com/drexthealpha/knos-witness/pull/8#issuecomment-6067864262"
+    "link": "https://github.com/drexthealpha/knos-witness/pull/10#issuecomment-6075196710"
    },
    {
     "label": "the record",
-    "link": "https://github.com/drexthealpha/knos-witness/blob/main/witness.json"
+    "link": "https://github.com/drexthealpha/knos-witness/blob/acaa854d241c2e030f521b6f5603c8f43c93bab6/witness.json"
    }
   ],
   "yourself": "https://github.com/drexthealpha/Knos/blob/main/examples/witnessed/README.md"

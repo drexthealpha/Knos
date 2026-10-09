@@ -392,6 +392,14 @@ def live(data: dict, url: str) -> tuple[dict, list[str]]:
                     lines.append("  PROBLEM: the proposal executed and the program does not run its build")
             elif p and p.status != entry.get("squads_status"):
                 lines.append("  the feed is older than the cluster: run scripts/upgrade_feed.py, then this again")
+        # the build live before this one (scripts/exercise_public.py record keeps it): a read of the cluster sees only
+        # the newest, and a transaction of the earlier build's time is still decided by its slot (scripts/release_manifest.py)
+        old = (data["record"].get("programs") or {}).get(program) or {}
+        if old.get("before") and old.get("proposal") == row.get("proposal"):
+            row["before"] = old["before"]
+        elif None not in (old.get("proposal"), row.get("proposal")) and old["proposal"] != row["proposal"] and old.get("live_slot"):
+            row["before"] = {**{k: old[k] for k in ("proposal", "on_chain_hash", "live_slot") if k in old},
+                             **({"read": data["record"]["read"]} if data["record"].get("read") else {})}
         seen["programs"][program] = row
     if data["record"].get("next"):          # the build scripts/exercise_public.py propose named: not something a read replaces
         seen["next"] = data["record"]["next"]

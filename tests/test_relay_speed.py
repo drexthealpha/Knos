@@ -291,6 +291,31 @@ def test_what_is_fed_while_a_worker_waits_is_carried_by_a_free_worker_before_the
     assert out["done"] == 4 and len(asked) >= 2
 
 
+def test_a_pass_ends_when_its_workers_say_they_ended_though_their_threads_are_not_gone_yet(tmp_path, monkeypatch):
+    """A worker's thread is still alive for a moment after its last word. A pass that asked Thread.is_alive() could
+    see it alive then, wait out the whole feed_every for a word already said, and read again for nothing: on Python
+    3.13 with four processes at once 4 to 7 passes of 200 did (tests/test_relay_failures.py took 76 s where 3.12 takes 2).
+    Here every thread of the pass stays alive until it is joined, the moment made as long as it can be: the pass ends
+    when its workers have said so, and never reads again."""
+    class Lingering(threading.Thread):
+        def is_alive(self) -> bool:
+            return not getattr(self, "joined", False)
+
+        def join(self, timeout=None) -> None:
+            super().join(timeout)
+            self.joined = True
+    monkeypatch.setattr(threading, "Thread", Lingering)
+    queue = relayq.Queue(tmp_path / "q.json", lambda: T0, max_tries=None, strict=False)
+    assert queue.put("a", "owner:1", {"jwt": "a"}) and queue.put("b", "owner:2", {"jwt": "b"})
+    asked = []
+
+    def feed() -> int:                  # what a pass that waited out feed_every does next: reads again
+        asked.append(1)
+        return 0
+    out = relayq.work(queue, lambda e: {"ok": True}, workers=4, drain=False, feed=feed, feed_every=SOON, stop=lambda: bool(asked))
+    assert out["done"] == 2 and out["stopped"] == 0 and asked == []
+
+
 def test_the_sweep_reads_new_comments_while_a_slow_confirmation_is_pending_and_carries_them_in_the_same_pass(tmp_path, monkeypatch):
     """0.3.17: "a pass still ends with its slowest token": a comment posted while one confirmation was awaited was
     read by the next pass, up to 60 s later. Now the pass reads again while it waits."""

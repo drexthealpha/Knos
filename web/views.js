@@ -12,6 +12,7 @@ export const ADDED = {
   rails: { file: "./rails.js", draw: "renderRails", nav: "Pay by bank" },
   enforcement: { file: "./enforce_view.js", draw: "renderEnforcement", nav: "Enforcement", json: "enforce.json" },
   judges: { file: "./judges.js", draw: "renderJudges", nav: "For judges", bar: true, json: "judges.json" },
-  payee: { file: "./supplier_finance.js", draw: "renderSupplierFinance", nav: "Supplier finance" },
+  finance: { file: "./supplier_finance.js", draw: "renderSupplierFinance", nav: "Supplier finance" },
+  payee: { file: "./payee.js", draw: "renderPayee", nav: "Collect payout" },
   vendor: { file: "./vendor.js", draw: "renderVendor", nav: "Vendor pages" },
 };

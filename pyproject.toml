@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knos"
-version = "0.3.23"
+version = "0.3.24"
 description = "The neutral meter for AI agent work: neither side keeps the count."
-readme = "README.md"
+readme = "README.pypi.md"   # README.md with its links pinned to the tag (scripts/bump_version.py writes it)
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [{ name = "drexthealpha", email = "zulibro1999@gmail.com" }]
@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Software Development :: Version Control :: Git",
 ]

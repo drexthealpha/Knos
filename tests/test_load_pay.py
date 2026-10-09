@@ -164,6 +164,16 @@ def test_the_one_relay_run_and_the_four_relay_run_of_8_october_stand_side_by_sid
 
 
 # == contention scenarios ==============================================================================================
+def test_one_seed_lays_the_same_orders_over_the_same_relays_so_hot_funder_has_every_relay_write_the_fee_account():
+    """The Balance's owner and the orders' issues come from the seed: two runs of one seed spread the orders alike.
+    Drawn anew each run, 1 run in 32 of 2 relays and 6 orders put every order in one part, and hot-funder's one fee
+    account was then written by one relay, not by all (tests.yml run 37925673025, Python 3.10)."""
+    pytest.importorskip("solders.litesvm")
+    a, b = (load_pay.simulate(2, 6, fee_accounts=2, scenario="hot-funder") for _ in range(2))
+    assert a["per_relay"] == b["per_relay"] and all(r["attempted"] for r in a["per_relay"]), (a["per_relay"], b["per_relay"])
+    assert a["checks"]["one_fee_account_written_by_every_relay"] and a["written_by_every_relay"] >= 1
+
+
 @pytest.mark.parametrize("scenario", sorted(load_pay.SCENARIOS))
 def test_each_contention_scenario_runs_in_the_simulator_with_its_own_checks_and_no_rate(scenario):
     """hot-funder: one fee account written by every relay; rpc-faults: refusals and lost answers injected, a resend
@@ -259,3 +269,145 @@ def test_the_page_says_what_each_scenario_measures_and_which_have_run():
         assert words in row and "local simulator" in row and "every check holds" in row
         assert row.endswith("| not run yet |") or "public program ids" in row
     assert "0.189" in page and "16, 8, 5 and 11" in page and "14, 9, 9 and 8" in page and "37833126115" in page
+
+
+# == 0.3.24: v1 transactions priced; burst backs off ===================================================================
+class _Cluster:
+    """A cluster's ledger as far as `Shaped` signs v1 transactions itself: a blockhash, a submission, nothing else."""
+    url, commitment = "fake://", "confirmed"
+
+    def __init__(self):
+        self.sent, self.legacy = [], []
+
+    def _blockhash(self):
+        from solders.hash import Hash
+        return Hash.new_unique()
+
+    def _submit(self, tx):
+        self.sent.append(tx)
+        return str(tx.signatures[0])
+
+    def send(self, ixs, payer, signers=None, v1=False):
+        assert not v1, "a v1 transaction under priority-fee is signed by Shaped, with its price in the message"
+        self.legacy.append(list(ixs))
+        return f"s{len(self.legacy)}"
+
+
+def test_priority_fee_prices_every_transaction_legacy_and_v1_alike(monkeypatch):
+    """The 9 Oct run sent its v1 transactions with no price. Now every transaction built under priority-fee carries
+    one: a legacy one SetComputeUnitPrice beside its limit, a v1 one the same lamports in its message configuration
+    (ceil(price x limit / 1,000,000)), signed and valid."""
+    from solders.compute_budget import ID as BUDGET
+    from solders.compute_budget import set_compute_unit_limit, set_compute_unit_price
+    from solders.instruction import Instruction
+    from solders.pubkey import Pubkey
+
+    from knos import chain
+    monkeypatch.setattr(chain, "wait", lambda *a, **k: {})
+    monkeypatch.setattr(chain, "wait_all", lambda *a, **k: [])
+    tokens = _lanes(monkeypatch, 3)
+    inner = _Cluster()
+    memo = Pubkey.from_string("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
+
+    def relay_one(led, key, kind, jwt):
+        work = Instruction(memo, jwt.encode(), [])
+        led.send([set_compute_unit_limit(600_000), work], key, v1=True)          # a v1 transaction with its own limit
+        led.send_all([[work], [Instruction(memo, b"x" + jwt.encode(), [])]], key, v1=True)      # two at once
+        led.send([work], key)                                                           # and a legacy one
+        return {"ok": True}
+    got = load_pay.on_cluster(None, Keypair.from_seed(bytes(32)), 1, tokens, ledger=inner, relay_one=relay_one, lend=lambda k: True,
+                              sweep=lambda k: None, scenario="priority-fee", cu_price=10_000)
+    assert got["paid"] == 3 and got["priority"] == {"priced": 12, "no_room": 0}
+    assert len(inner.sent) == 9 and len(inner.legacy) == 3
+    for tx in inner.sent:
+        assert tx.verify_with_results() == [True] * len(tx.signatures)
+        cfg = tx.message.config
+        assert cfg.priority_fee == load_pay.priority_lamports(10_000, cfg.compute_unit_limit) > 0
+        assert not any(tx.message.account_keys[ix.program_id_index] == BUDGET for ix in tx.message.instructions) or chain.V1_BUDGET_IX
+    assert sorted({tx.message.config.compute_unit_limit for tx in inner.sent}) == [600_000, chain.MAX_COMPUTE_UNITS]
+    assert {tx.message.config.priority_fee for tx in inner.sent} == {6_000, 14_000}
+    for ixs in inner.legacy:
+        prices = [ix for ix in ixs if ix.program_id == BUDGET and bytes(ix.data)[:1] == b"\x03"]
+        assert len(prices) == 1 and int.from_bytes(bytes(prices[0].data)[1:9], "little") == 10_000
+    # with the tests' simulator setting (V1_BUDGET_IX) the instructions go in beside the configuration too
+    monkeypatch.setattr(chain, "V1_BUDGET_IX", True)
+    m = load_pay.message_v1_priced([set_compute_unit_price(5)], Keypair.from_seed(bytes(32)).pubkey())
+    assert m.config.priority_fee == 7 and len(m.instructions) == 2
+
+
+class _Endpoint:
+    """A public endpoint under a burst, as 9 Oct met it: it takes 13 sends in each 10 seconds and turns the rest away,
+    half with HTTP 429, half with "Blockhash not found". Time is each payment's own (`pause` adds to it), so the run
+    takes no wall-clock time. `lose`: that many of the first sends that land have their answer lost (a 429 on the
+    confirmation): the payment is on chain, the relay does not know it. The order's single-use marker refuses a second
+    PayOrder for a paid order."""
+
+    def __init__(self, lose: int = 0):
+        import threading
+        self.lock, self.mine = threading.Lock(), threading.local()
+        self.at: dict[str, float] = {}
+        self.taken: dict[int, int] = {}
+        self.payouts: dict[str, int] = {}
+        self.hashes: dict[str, list[int]] = {}
+        self.fetched, self.lose, self.turned_away = 0, lose, {"429": 0, "blockhash": 0}
+
+    def pause(self, seconds: float) -> None:
+        self.mine.owed = getattr(self.mine, "owed", 0.0) + seconds
+
+    def relay_one(self, ledger, key, kind, jwt):
+        import urllib.error
+        with self.lock:
+            self.at[jwt] = self.at.get(jwt, 0.0) + getattr(self.mine, "owed", 0.0)
+            self.mine.owed = 0.0
+            self.fetched += 1
+            self.hashes.setdefault(jwt, []).append(self.fetched)        # each send signed over a blockhash fetched for it
+            window = int(self.at[jwt] // 10)
+            if self.taken.get(window, 0) >= 13:
+                n = sum(self.turned_away.values())
+                if n % 2 == 0:
+                    self.turned_away["429"] += 1
+                    raise urllib.error.HTTPError("fake://", 429, "Too Many Requests", None, None)  # type: ignore[arg-type]
+                self.turned_away["blockhash"] += 1
+                return {"ok": False, "why": "Transaction simulation failed: Blockhash not found"}
+            self.taken[window] = self.taken.get(window, 0) + 1
+            if jwt in self.payouts:
+                return {"ok": False, "why": "Allocate: account Address { used marker } already in use"}
+            self.payouts[jwt] = 1
+            if self.lose:
+                self.lose -= 1
+                raise urllib.error.HTTPError("fake://", 429, "Too Many Requests", None, None)  # type: ignore[arg-type]
+        return {"ok": True}
+
+
+def _burst(monkeypatch, lose: int = 0) -> tuple[dict, _Endpoint]:
+    tokens = _lanes(monkeypatch, 40)
+    net = _Endpoint(lose)
+    got = load_pay.on_cluster(None, Keypair.from_seed(bytes(32)), 4, tokens, relay_one=net.relay_one, lend=lambda k: True,
+                              sweep=lambda k: None, scenario="burst", pause=net.pause)
+    return got, net
+
+
+def test_burst_before_the_backoff_pays_13_of_40_as_9_october_did(monkeypatch):
+    monkeypatch.setattr(load_pay, "BURST_ATTEMPTS", 1)
+    got, net = _burst(monkeypatch)
+    assert (got["attempted"], got["paid"], got["failures"], got["retries"]) == (40, 13, 27, 0) and got["ok"] is False
+    assert net.turned_away == {"429": 14, "blockhash": 13}
+
+
+def test_burst_backs_off_refreshes_the_blockhash_and_pays_40_of_40_once_each(monkeypatch):
+    for _ in range(5):          # the relays race for the endpoint's 13 places a window: the outcome may not depend on who wins
+        got, net = _burst(monkeypatch, lose=2)
+        assert (got["attempted"], got["paid"], got["failures"], got["ok"]) == (40, 40, 0, True), got["first_refusals"]
+        assert got["duplicates_refused"] == 2 and set(net.payouts.values()) == {1} and len(net.payouts) == 40     # no payee paid twice
+        assert got["retries"] > 0 and max(net.at.values()) <= 63.0                                               # waits bounded
+        assert all(len(h) == len(set(h)) for h in net.hashes.values())                                           # a fresh blockhash a send
+        assert got["backoff"]["sends_at_most"] == load_pay.BURST_ATTEMPTS
+
+
+def test_backoff_is_bounded_jittered_and_seeded():
+    import random
+    waits = [load_pay.backoff_s(a, random.Random("21:t0")) for a in range(1, 12)]
+    assert waits == [load_pay.backoff_s(a, random.Random("21:t0")) for a in range(1, 12)]
+    assert all(min(16.0, 2 ** (a - 1)) / 2 <= w <= min(16.0, 2 ** (a - 1)) for a, w in zip(range(1, 12), waits))
+    assert load_pay.transient("HTTPError: HTTP Error 429: Too Many Requests") and load_pay.transient("Blockhash not found")
+    assert not load_pay.transient("custom program error: 0x1771")

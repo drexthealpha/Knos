@@ -19,6 +19,6 @@ jobs:
       verdict: ${{ steps.knos.outputs.verdict }}
     steps:
       - id: knos
-        uses: drexthealpha/Knos/.github/actions/knos-verify@v0.3.23
+        uses: drexthealpha/Knos/.github/actions/knos-verify@v0.3.24
         with:
           checks: test          # the names of the checks a bounty's work must pass, as GitHub shows them

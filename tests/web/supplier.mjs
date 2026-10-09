@@ -209,6 +209,22 @@ async function page() {
     ok(`${width}px: no error on the page`, errors.length === 0, errors);
     await ctx.close();
   }
+  {   // the finance view's countdown: redrawn each minute on the clock it was drawn with. The sample is drawn on its own
+      // day (9 days 4 hours left); a minute later it said the time left by today's clock, and once that day passed,
+      // "closed left". Now: 9 days 3 hours a minute on, then "Closed", as the first drawing says a closed window.
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));
+    const p = await ctx.newPage();
+    await p.clock.install({ time: new Date("2026-10-20T00:00:00Z") });          // after the sample's window, by today's clock
+    await p.goto(`${base}supplier_page.html`); await p.waitForFunction(() => window.drawn === true);
+    await p.click("[data-sf=sample]"); await p.waitForSelector("[data-sf=rows] [data-row=window]");
+    const shown = () => p.innerText("[data-row=window] [data-sf-value]"), seen = [await shown()];
+    await p.clock.fastForward(61_000); seen.push(await shown());
+    await p.clock.fastForward(10 * 86_400_000); seen.push(await shown());
+    ok("the finance sample's countdown keeps the sample's day: 9 days 4 hours left, a minute on 9 days 3 hours, then Closed",
+      JSON.stringify(seen) === JSON.stringify(["9 days 4 hours left", "9 days 3 hours left", "Closed"]), seen);
+    await ctx.close();
+  }
   {   // reduced motion: nothing on the page moves
     const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, reducedMotion: "reduce" });
     await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));

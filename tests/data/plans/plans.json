@@ -1,0 +1,120 @@
+{
+ "note": "getProgramAccounts answers of knos_pay filtered by dataSize 24, built for the test: now = 1791000000. Owner 1002's 10 bps Plan has expired; 1004's account is not at its Plan address. 1005 holds a 15 bps Plan in force: below the floor.",
+ "now": 1791000000,
+ "ok": [
+  {
+   "pubkey": "NYqrMVPWNLdivTx5CEuU3vmTFowPQ9sf4nVpcnqkSTi",
+   "account": {
+    "data": [
+     "Af8UAAAAAADpAwAAAAAAAEDPwWoAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  },
+  {
+   "pubkey": "ETBC1RosyF6vweAWu2GBohCukUxWmQicW2bGik1JkRxG",
+   "account": {
+    "data": [
+     "Af8KAAAAAADqAwAAAAAAAEAsv2oAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  },
+  {
+   "pubkey": "3GtYNvokBRcFvKtUHsWxXtw8VumxXZaayVap1WFjZ4h1",
+   "account": {
+    "data": [
+     "Af8ZAAAAAADrAwAAAAAAAEDPwWoAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  }
+ ],
+ "below": [
+  {
+   "pubkey": "NYqrMVPWNLdivTx5CEuU3vmTFowPQ9sf4nVpcnqkSTi",
+   "account": {
+    "data": [
+     "Af8UAAAAAADpAwAAAAAAAEDPwWoAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  },
+  {
+   "pubkey": "ETBC1RosyF6vweAWu2GBohCukUxWmQicW2bGik1JkRxG",
+   "account": {
+    "data": [
+     "Af8KAAAAAADqAwAAAAAAAEAsv2oAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  },
+  {
+   "pubkey": "3GtYNvokBRcFvKtUHsWxXtw8VumxXZaayVap1WFjZ4h1",
+   "account": {
+    "data": [
+     "Af8ZAAAAAADrAwAAAAAAAEDPwWoAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  },
+  {
+   "pubkey": "11111111111111111111111111111112",
+   "account": {
+    "data": [
+     "Af8KAAAAAADsAwAAAAAAAEDPwWoAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  },
+  {
+   "pubkey": "CKNTbjAUweugupVso8UpHezWvorfQyowYTVDJSjSAoQY",
+   "account": {
+    "data": [
+     "Af4PAAAAAADtAwAAAAAAAEDPwWoAAAAA",
+     "base64"
+    ],
+    "executable": false,
+    "lamports": 1057920,
+    "owner": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "rentEpoch": 18446744073709551615,
+    "space": 24
+   }
+  }
+ ]
+}

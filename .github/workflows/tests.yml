@@ -51,6 +51,9 @@ jobs:
           - {os: ubuntu-latest, python: "3.12", shard: 1/2, part: 1of2}
           - {os: ubuntu-latest, python: "3.12", shard: 2/2, part: 2of2}
           - {os: ubuntu-latest, python: "3.12", shard: slow, part: slow}
+          - {os: ubuntu-latest, python: "3.13", shard: 1/2, part: 1of2}
+          - {os: ubuntu-latest, python: "3.13", shard: 2/2, part: 2of2}
+          - {os: ubuntu-latest, python: "3.13", shard: slow, part: slow}
           - {os: macos-latest, python: "3.12", shard: 1/3, part: 1of3}
           - {os: macos-latest, python: "3.12", shard: 2/3, part: 2of3}
           - {os: macos-latest, python: "3.12", shard: 3/3, part: 3of3}

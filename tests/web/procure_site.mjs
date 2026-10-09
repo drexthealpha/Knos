@@ -90,9 +90,11 @@ const t0 = Date.now();
 await page.fill("#proc-cap", "400");
 await page.waitForSelector("#proc-fit [data-fit='1']");
 check("the envelope answers within 300 ms of the last field", Date.now() - t0 < 300, Date.now() - t0);
-check("before: 2,800.00 left; after: 1,570.00 left", (await page.locator("#proc-fit [data-fact=left]").allInnerTexts()).join("|") === "2,800.00|1,570.00");
-check("it says so in one sentence", (await text("#proc-fit [data-fit-said]")) === "Fits: 1,230.00 is committed, and 1,570.00 stays in envelope eng-2026q4.");
-check("periods, suppliers and fees are named", (await text("#proc-fit [data-offer-sum]")) === "3 months, 1 supplier; fees 30 on top." || (await text("#proc-fit [data-offer-sum]")) === "3 months, 1 supplier; fees 30.00 on top.", await text("#proc-fit [data-offer-sum]"));
+// the fee is the live build's (web/fee_live.js): devnet is not asked here, and the site's upgrades.json says proposal 8 executed,
+// so knos_pay 2.2: 0.30%, at least 0.05. Three months of 400.00 are 1,200.00 and 3.60 of fees.
+check("before: 2,800.00 left; after: 1,596.40 left", (await page.locator("#proc-fit [data-fact=left]").allInnerTexts()).join("|") === "2,800.00|1,596.40");
+check("it says so in one sentence", (await text("#proc-fit [data-fit-said]")) === "Fits: 1,203.60 is committed, and 1,596.40 stays in envelope eng-2026q4.");
+check("periods, suppliers and fees are named", (await text("#proc-fit [data-offer-sum]")) === "3 months, 1 supplier; fees 3.60 on top.", await text("#proc-fit [data-offer-sum]"));
 await page.click("#proc-create");
 await page.waitForSelector("#proc-file");
 const file = await text("#proc-file"), made = p.readYaml(file);
@@ -104,8 +106,8 @@ check("the comment that funds it on devnet", (await text("[data-offer-comment]")
 check("the approval it needs is said", (await text("[data-offer-need]")) === "Waits for 2 approvers: 1,200.00 needs 2 approvers.");
 check("the offer is listed", (await page.locator("#proc-offer-list tr[data-offer]").count()) === 2 && /Waits for 2 approvers/.test(await text("#proc-offer-list tr[data-offer=feature-hubot]")));
 await page.click("#proc-tab-budgets");
-check("Budgets: the envelope changed", Number(await attr("#proc-budgets .k-env", "data-left")) === 1570 * U && Number(await attr("#proc-budgets .k-env", "data-committed")) === 2430 * U && (await text("#proc-budgets [data-fact=left]")) === "1,570.00"
-  && (await text("#proc-budgets [data-fact=committed]")) === "2,430.00");
+check("Budgets: the envelope changed", Number(await attr("#proc-budgets .k-env", "data-left")) === 1_596_400_000 && Number(await attr("#proc-budgets .k-env", "data-committed")) === 2_403_600_000 && (await text("#proc-budgets [data-fact=left]")) === "1,596.40"
+  && (await text("#proc-budgets [data-fact=committed]")) === "2,403.60");
 await page.waitForFunction(() => document.querySelector("#proc-budgets .k-bar [data-part=draft]").getBoundingClientRect().width > 0);
 const after = await widths();
 check("the bar grew by what was drafted, and the rest stayed", after[3] > 0 && after[0] === before[0] && after[2] === before[2], after);
@@ -117,8 +119,8 @@ await page.fill("#proc-supplier", "octocat");
 await page.selectOption("#proc-outcome", "maintenance-2026q4/feature");
 await page.fill("#proc-cap", "1000");
 await page.waitForSelector("#proc-fit [data-fit='0']");
-check("an offer over the limit is refused with the amount over", (await text("#proc-fit [data-fit-said]")) === "Refused: this is 1,505.00 over envelope eng-2026q4. 1,570.00 of 5,000.00 is left." && await page.locator("#proc-create").isDisabled(), await text("#proc-fit [data-fit-said]"));
-check("a refusal leaves the after-view as it was", (await page.locator("#proc-fit [data-fact=left]").allInnerTexts()).join("|") === "1,570.00|1,570.00");
+check("an offer over the limit is refused with the amount over", (await text("#proc-fit [data-fit-said]")) === "Refused: this is 1,412.60 over envelope eng-2026q4. 1,596.40 of 5,000.00 is left." && await page.locator("#proc-create").isDisabled(), await text("#proc-fit [data-fit-said]"));
+check("a refusal leaves the after-view as it was", (await page.locator("#proc-fit [data-fact=left]").allInnerTexts()).join("|") === "1,596.40|1,596.40");
 await page.fill("#proc-cap", "40");
 check("a cap under one outcome's price is said plainly", (await text("#proc-fit [data-offer-bad]")) === "The cap of 40.00 is less than one feature at 80.00.");
 await page.fill("#proc-cap", "");
@@ -148,10 +150,10 @@ await page.waitForSelector("#buy-fit [data-fit='1']");
 check("the step says in one line whether the order fits its envelope", (await text("#buy-fit")) === (await page.locator("#buy-envelope [data-fit-said]").textContent()) && /^Fits: /.test(await text("#buy-fit")), await text("#buy-fit"));
 await page.click("#buy-controls > summary");
 await page.waitForSelector("#buy-envelope [data-fit='1']");
-check("funding a task shows the envelope before and after, fee included", (await page.locator("#buy-envelope [data-fact=left]").allInnerTexts()).join("|") === "1,570.00|1,518.75", await page.locator("#buy-envelope [data-fact=left]").allInnerTexts());
+check("funding a task shows the envelope before and after, fee included", (await page.locator("#buy-envelope [data-fact=left]").allInnerTexts()).join("|") === "1,596.40|1,546.25", await page.locator("#buy-envelope [data-fact=left]").allInnerTexts());
 await page.fill("#buy-amount", "2000");
 await page.waitForSelector("#buy-envelope [data-fit='0']");
-check("and refuses over the limit with the amount over", (await text("#buy-envelope [data-fit-said]")) === "Refused: this is 465.00 over envelope eng-2026q4. 1,570.00 of 5,000.00 is left.", await text("#buy-envelope [data-fit-said]"));
+check("and refuses over the limit with the amount over", (await text("#buy-envelope [data-fit-said]")) === "Refused: this is 409.60 over envelope eng-2026q4. 1,596.40 of 5,000.00 is left.", await text("#buy-envelope [data-fit-said]"));
 
 // ---- words: twelve at most a statement; no key, address or digest ----------------------------------------------------------------------------
 const said = await page.evaluate(() => {

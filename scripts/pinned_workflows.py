@@ -281,11 +281,11 @@ def naming() -> list[Path]:
 
 
 def in_the_wheel() -> list[str]:
-    """Why the wheel would change with `stamp`, one line each: README.md is its description (pyproject.toml: readme),
-    src/knos its content and terms/ carried in it as knos/_terms, so none may name a commit of the published workflows.
+    """Why the wheel would change with `stamp`, one line each: README.pypi.md is its description (pyproject.toml: readme;
+    README.md with its links pinned to the tag, and README.md is in the sdist), src/knos its content and terms/ carried in it as knos/_terms, so none may name a commit of the published workflows.
     Empty when the wheel is free of it, which is what lets it be built before that commit exists."""
     said = []
-    held = [ROOT / "README.md", *(p for folder in (ROOT / "src" / "knos", ROOT / "terms") for p in sorted(folder.rglob("*"))
+    held = [ROOT / "README.md", ROOT / "README.pypi.md", *(p for folder in (ROOT / "src" / "knos", ROOT / "terms") for p in sorted(folder.rglob("*"))
                                   if p.is_file() and "__pycache__" not in p.parts)]
     for path in held:
         text = _text(path) or ""

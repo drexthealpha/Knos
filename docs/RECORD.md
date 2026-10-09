@@ -81,7 +81,7 @@ jobs:
       contents: read
       checks: read
       pull-requests: write
-    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.23
+    uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.24
 ```
 
 The last line is the install. It runs the free check on every pull request and none of the pull request's code,

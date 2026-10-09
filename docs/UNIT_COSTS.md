@@ -212,7 +212,7 @@ transaction created the payee's token account (0.18 USD of rent the relayer puts
 more than the fee. The fee owner keeps the rest. In test USDC, from the constants of each build
 (`knos bill margin` prints both tables; `knos status` says which build is live):
 
-**knos_pay 2.1, the build live on 7 Oct 2026** (three tiers and a floor of 0.40):
+**knos_pay 2.1, the build before 2.2** (three tiers and a floor of 0.40; an order funded under it keeps that fee):
 
 | release | fee | as a share | relayer's tip | fee owner | first payment: tip | less 0.18 of rent | fee owner |
 |---|---|---|---|---|---|---|---|
@@ -221,7 +221,7 @@ more than the fee. The fee owner keeps the rest. In test USDC, from the constant
 | 100.00 | 2.50 | 2.50% | 0.05 | 2.45 | 0.30 | 0.12 | 2.20 |
 | 1,000.00 | 25.00 | 2.50% | 0.05 | 24.95 | 0.30 | 0.12 | 24.70 |
 
-**knos_pay 2.2, proposed on that day** (0.30% of the amount, at least 0.05):
+**knos_pay 2.2, the build the public program runs** (proposal 8, executed; 0.30% of the amount, at least 0.05):
 
 | release | fee | as a share | relayer's tip | fee owner | first payment: tip | less 0.18 of rent | fee owner |
 |---|---|---|---|---|---|---|---|
@@ -414,6 +414,21 @@ The fee is one part of four.
 Knos runs no customer test. The tests run on the customer's runners, on the customer's bill. That keeps the cost
 out of Knos's gross margin. **It is not a saving for the customer:** the customer paid for those minutes before Knos and
 pays for them after.
+
+## Exceptional review is priced apart
+
+Exceptional review: priced per case by contract, never inside the unit prices. The arithmetic (`knos.billing.review_budget`):
+
+| step | value |
+|---|---|
+| Acceptance on a 0.99 USD outcome at 0.20% | 0.00198 USD |
+| Direct-cost budget at a 95% gross margin (5% of that) | 0.000099 USD, about 0.0001 |
+| One manual review at 25 USD, in such budgets | 252,525 outcomes, about 250,000 |
+
+So no person can look at a routine exception inside the unit prices. Routine exceptions are automated: the supplier
+contests a refusal with `knos appeal`, the judge runs again from pinned inputs, and the statement records the
+outcome. A case that needs a person is billed as its own invoice line (`reviews` in a customer-month; one line each,
+never drawn from an annual commitment), at the price the contract names for it. No contract exists today.
 
 ## What is not known
 

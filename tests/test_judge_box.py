@@ -118,7 +118,8 @@ def test_a_write_outside_the_box_is_refused_and_inside_it_works(tmp_path):
 def test_a_file_past_the_size_limit_and_cpu_past_the_cpu_limit_are_stopped():
     box = _box(judge.HostLimits(fsize=1 << 20, cpu=1))
     try:
-        code, out = box.run([sys.executable, "-c", "open('big', 'wb').write(b'x' * (2 << 20)); print('wrote it all')"], timeout=60)
+        # the marker is printed in two parts: Python 3.13's traceback quotes the source line, which must not count as the output
+        code, out = box.run([sys.executable, "-c", "open('big', 'wb').write(b'x' * (2 << 20)); print('wrote', 'it all')"], timeout=60)
         assert code != 0 and "wrote it all" not in out
         assert (box.work / "big").stat().st_size <= 1 << 20
         code, out = box.run([sys.executable, "-c", "while True: pass"], timeout=60)

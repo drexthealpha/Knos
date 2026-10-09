@@ -17,7 +17,7 @@
 import { prefersReduced } from "./motion.js";
 
 export const SENTENCE = "The neutral meter for AI agent work: neither side keeps the count.";
-export const MERGED = 241, FAILED = 30;            // docs/backtest.json, sample.merged.overall (tests/web/story.mjs compares)
+export const MERGED = 241, FAILED = 9;             // docs/backtest.json, reviewed.overall.test_or_build_check_failed (tests/web/story.mjs compares)
 export const REPO = "https://github.com/drexthealpha/Knos/blob/main/";
 export const FRONT = "https://drexthealpha.github.io/Knos/";
 const TX = "https://explorer.solana.com/tx/";
@@ -64,7 +64,7 @@ export function storyHtml(ctx = {}) {
     + `${s.staging ? ` <small class="story-staging">${esc(STAGING)}</small>` : ""}</li>`).join("");
   return `<p class="k-kicker">${esc(SENTENCE)}</p>`
     + `<h2>One task, seven steps</h2>`
-    + `<p class="story-number"><strong class="k-num">${esc(merged)}</strong> merged agent “tests pass” pull requests: <strong class="k-num">${esc(failed)}</strong> had a failed check.</p>`
+    + `<p class="story-number"><strong class="k-num">${esc(merged)}</strong> merged agent “tests pass” pull requests: <strong class="k-num">${esc(failed)}</strong> failed tests or builds.</p>`
     + `<ol class="story-steps k-stage" aria-label="The demonstration in seven steps" data-not-prose data-keep>${steps}</ol>`
     + `<p><a class="k-btn story-next" href="${esc(ctx.front || FRONT)}">${esc(NEXT)}</a> <button type="button" class="k-btn quiet story-play"${ctx.reduced ? " hidden" : ""}>Play again</button></p>`
     + `<details class="k-more story-ask-fold"><summary>The ask: three needs</summary><ol class="story-ask" data-keep>${ASK.map((a) => `<li>${esc(a)}</li>`).join("")}</ol></details>`;

@@ -12,6 +12,12 @@ same names.
     python scripts/backtest.py --index index.json               # and from a published index, where merges are known
     python scripts/backtest.py fetch --index index.json --pulls pulls.json    # read them from GitHub (needs gh)
     python scripts/backtest.py --index index.json --pulls pulls.json          # then: the whole index, with times
+    python scripts/backtest.py --check                          # the method is frozen and docs/backtest.json is current
+
+The recorded counts are read again by hand: docs/index_review.json says, for each merged pull request with a failed
+check, what its page showed on a second reading and whether it stays counted (rules R1-R5 in docs/INDEX_METHOD.md).
+`reviewed` in the output holds the counts after that reading; the recorded ones stay beside them. The method is
+version 1: METHODS holds its sha256, and --check fails if docs/INDEX_METHOD.md changes without a new version.
 
 What the data in the repository has: docs/agent_pr_ci.json (the 1 Oct 2026 sample) says for each pull request whether
 it was merged when it was read, and when it was created; not when it was closed. index.json lists no merge state at
@@ -21,6 +27,8 @@ The output says, in `cannot_show`, what it could not work out from what it was g
 """
 import argparse
 import datetime as dt
+import hashlib
+import re
 import json
 import os
 import statistics
@@ -34,6 +42,12 @@ import agent_pr_index  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "docs", "agent_pr_ci.json")
 OUT = os.path.join(ROOT, "docs", "backtest.json")
+REVIEW = os.path.join(ROOT, "docs", "index_review.json")
+METHOD = os.path.join(ROOT, "docs", "INDEX_METHOD.md")
+# Each version of the method and the sha256 of docs/INDEX_METHOD.md at that version. A new version is a new line here.
+METHODS = {1: "8502cc17977108607d404737696a62cb6e69fa9c535beedce1abd3a61fa5dbfb"}
+# The expressions the method quotes, as the code holds them: --check finds each, verbatim, in the method file.
+QUOTED = ("CLAIM_RE", "NONCLAIM_RE", "_BOILER_RE", "AGENT_RUN_RE", "TESTISH_RE", "ANCILLARY_RE")
 
 DEFINITIONS = {
     "prs": "pull requests by the listed AI coding agents whose description says tests or CI pass, whose CI had "
@@ -195,6 +209,77 @@ def fetch(index, max_seconds, get=None):
     return out, left
 
 
+def method(path=METHOD):
+    """{"version", "file", "sha256"} of the method file, and the problems --check reports (empty when it holds)."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    text, digest = raw.decode("utf-8"), hashlib.sha256(raw).hexdigest()
+    m = re.search(r"(?m)^Version: (\d+)$", text)
+    version = int(m.group(1)) if m else None
+    problems = []
+    if version not in METHODS:
+        problems.append(f"docs/INDEX_METHOD.md names version {version}, which METHODS in scripts/backtest.py does not list")
+    elif METHODS[version] != digest:
+        problems.append(f"docs/INDEX_METHOD.md changed (sha256 {digest[:12]}) but still says version {version}, frozen at "
+                        f"{METHODS[version][:12]}: a change of method is a new version")
+    problems += [f"docs/INDEX_METHOD.md does not quote {name} as scripts/agent_pr_ci.py holds it"
+                 for name in QUOTED if getattr(agent_pr_ci, name).pattern not in text]
+    return {"version": version, "file": "docs/INDEX_METHOD.md", "sha256": digest}, problems
+
+
+def reviewed(sample, review):
+    """The recorded counts after the second reading: a merged pull request the review excludes leaves the numerators;
+    the denominator stays (the pull requests with no failed check were not read again)."""
+    rows = [r for r in sample["prs"] if r.get("class") in agent_pr_index.COMPLETED and _state(r) == "merged"]
+    read = {p["pr"].lower(): p for p in review["prs"]}
+    failed = {_key(r) for r in rows if _failed(r)}
+    if failed != set(read):
+        raise SystemExit(f"docs/index_review.json reads {len(read)} pull requests; the sample has {len(failed)} merged with a "
+                         f"failed check: {sorted(failed ^ set(read))[:5]}")
+    kept = {k for k, p in read.items() if p["decision"] == "counted"}
+    plain = {k for k in kept if not p_template(read[k])}
+
+    def over(mine):
+        n = len(mine)
+
+        def one(keys, strict):
+            k = sum(1 for r in mine if _key(r) in keys and (not strict or agent_pr_index.FAILED["test_or_build_check_failed"](r)))
+            return {"prs": k, "share": round(k / n, 4) if n else None, "ci95": agent_pr_index.wilson(k, n)}
+        return {"prs": n, "test_or_build_check_failed": one(kept, True), "any_check_failed": one(kept, False),
+                "without_template_boxes": {"test_or_build_check_failed": one(plain, True), "any_check_failed": one(plain, False)}}
+
+    excluded: dict = {}
+    for p in review["prs"]:
+        for rule in p["rules"] if p["decision"] == "excluded" else ():
+            excluded[rule] = excluded.get(rule, 0) + 1
+    return {"source": "docs/index_review.json", "read": review["read"], "method_version": review["method_version"],
+            "reread": len(read), "kept": len(kept), "excluded": len(read) - len(kept), "excluded_by_rule": dict(sorted(excluded.items())),
+            "overall": over(rows), "agents": {name: over([r for r in rows if r["agent"] == name]) for name, _ in agent_pr_ci.AGENTS}}
+
+
+def p_template(p):
+    return bool(p["read"].get("template_box"))
+
+
+def build(sample, review, index=None, pulls=None, kept=None):
+    """`kept`: the `index` part of an earlier output, carried over when this run was given no index (index.json and its
+    pulls are not in the repository, so a run without them keeps what the run with them wrote)."""
+    out = {"about": "Of merged pull requests by AI coding agents whose description said tests or CI pass, how many had a "
+                    "failed check at the head commit. A Knos bounty whose terms required that check would not have "
+                    "paid the merge. Written by scripts/backtest.py.",
+           "definitions": {**DEFINITIONS, "reviewed": "the same counts after a second reading of each merged pull request "
+                           "with a failed check (docs/index_review.json, rules in docs/INDEX_METHOD.md); the denominator "
+                           "stays, since the others were not read again"},
+           "method": method()[0], "sample": from_sample(sample)}
+    out["reviewed"] = reviewed(sample, review)
+    if index:
+        out["index"] = from_index(index, pulls, sample)
+    elif kept:
+        out["index"] = kept
+    out["cannot_show"] = cannot_show(out)
+    return out
+
+
 def _load(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -208,7 +293,18 @@ def main(argv=None):
     ap.add_argument("--pulls", help="merge state of the index's pull requests, written by `fetch`")
     ap.add_argument("--out", default=OUT)
     ap.add_argument("--max-seconds", type=int, default=3000)
+    ap.add_argument("--review", default=REVIEW)
+    ap.add_argument("--check", action="store_true", help="fail if the method changed without a new version, or the output is stale")
     a = ap.parse_args(argv)
+    if a.check:
+        _, problems = method()
+        if not problems and not a.index:
+            was = _load(a.out)
+            if was != json.loads(json.dumps(build(_load(a.sample), _load(a.review), kept=was.get("index")))):
+                problems.append(f"{os.path.relpath(a.out, ROOT)} is not what scripts/backtest.py writes: run it")
+        for line in problems:
+            print("backtest --check: " + line, file=sys.stderr)
+        return 1 if problems else 0
     index = agent_pr_index.check(a.index) if a.index else None
     if a.step == "fetch":
         if not index or not a.pulls:
@@ -220,19 +316,17 @@ def main(argv=None):
               + (f"; {left:,} not answered yet: run this again to continue" if left else ""), file=sys.stderr)
         return 1 if left else 0
     sample = _load(a.sample)
-    out = {"about": "Of merged pull requests by AI coding agents whose description said tests or CI pass, how many had a "
-                    "failed check at the head commit. A Knos bounty whose terms required that check would not have "
-                    "paid the merge. Written by scripts/backtest.py.",
-           "definitions": DEFINITIONS, "sample": from_sample(sample)}
-    if index:
-        out["index"] = from_index(index, _load(a.pulls) if a.pulls and os.path.exists(a.pulls) else None, sample)
-    out["cannot_show"] = cannot_show(out)
+    pulls = _load(a.pulls) if index and a.pulls and os.path.exists(a.pulls) else None
+    was = _load(a.out) if os.path.exists(a.out) else {}
+    out = build(sample, _load(a.review), index, pulls, kept=was.get("index"))
     with open(a.out, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=1, ensure_ascii=False)
         f.write("\n")
     m = out["sample"]["merged"]["overall"]
     print(f"backtest: {m['prs']} merged pull requests in the sample, {m['any_check_failed']['prs']} with a failed check "
-          f"({m['test_or_build_check_failed']['prs']} a test or build check)", file=sys.stderr)
+          f"({m['test_or_build_check_failed']['prs']} a test or build check); after the second reading "
+          f"{out['reviewed']['overall']['any_check_failed']['prs']} and {out['reviewed']['overall']['test_or_build_check_failed']['prs']}",
+          file=sys.stderr)
     return 0
 
 

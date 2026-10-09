@@ -114,6 +114,7 @@ import sys
 import time as time
 import types
 import urllib.request  # noqa: F401 - `relay.urllib`, as in the one-module relay
+import weakref as weakref
 from dataclasses import dataclass as dataclass, field as field
 from datetime import datetime as datetime, timezone as timezone
 from typing import Callable as Callable
@@ -149,7 +150,8 @@ from .pins import (ATTESTERS as ATTESTERS, CLAIM_REF as CLAIM_REF, CLAIM_SHAS as
     _VERIFIER as _VERIFIER, _code as _code, _failed as _failed, _no as _no, _out_of_compute as _out_of_compute,
     answered as answered, transient as transient, why_failed as why_failed)
 from .build import (_TIERED as _TIERED, _UPGRADEABLE as _UPGRADEABLE, _VERSION as _VERSION,
-    _VERSION_LINE as _VERSION_LINE, _built as _built, forget as forget, version as version)
+    _VERSION_LINE as _VERSION_LINE, _built as _built, _drop as _drop, _keep as _keep, _where as _where, forget as forget,
+    version as version)
 from .tokens import (ORDER_LANES as ORDER_LANES, _KEPT as _KEPT, _Token as _Token, _address as _address, _exp as _exp, _ints as _ints,
     _jwks as _jwks, _units as _units, _when as _when, _workflow as _workflow, lane as lane, other_keys as other_keys,
     signed as signed)

@@ -13,7 +13,8 @@ Everything happens in a repository of YOUR account, made from the public templat
 own key: Knos opens nothing there. It needs `gh` logged in as you, `git`, and `pip install knos` (for `knos` and the
 key). The steps:
 
-    repo      your repository from the template (it holds the two public caller workflows and nothing secret)
+    repo      your repository from the template (it holds the two public caller workflows and nothing secret); run again,
+              the one made before, cloned here, its caller workflows brought to the template's (each release pins them)
     key       a Solana key made here, kept in DIR/witness-key.json: the address the faucet pays and the budget's owner
     sol       devnet SOL for that key's transaction fees (by hand: https://faucet.solana.com)
     faucet    20 test USDC from the playground's faucet issue, to that address; when the faucet says no (it gives each
@@ -21,11 +22,13 @@ key). The steps:
     budget    a balance for your account's repositories, filled with 10 of them (knos balance open, deposit)
     terms     an issue, its black-box acceptance checks committed (`knos.accept.bundle`: blackbox.py and cases.json),
               funded with `/knos fund 5 checks: none auto`: the terms are fixed then, and the checks alone pay
-    fail      a pull request whose work is wrong; the judge job of the `knos review` run refuses it and says why
+    fail      a pull request whose work is wrong, on a branch of its own (witness-work-<issue>); the judge job of the `knos
+              review` run refuses it and says why
     pass      the corrected work on the same pull request; the judge passes, GitHub signs, the escrow pays, no merge
     replay    `/knos settle` again on the paid pull request: nothing more is paid
     buyer     the buyer's statement: the chain's paid line (knos audit export), the judge's verdict and the supplier's
-              invoice line for it taken into a log of events, and the statement of that log (one line, its policy met)
+              invoice line for it taken into a log of events, and the statement of that log (one line, its policy met),
+              its "settled" step closed from the paying transaction (`knos statement settle-sync`: amount, payee, order)
     supplier  the supplier's statement, made again from a second export: the same payable, the same hash
     archive   one archive of the evidence, checked by the stand-alone verifier inside it (python verify.py)
     record    witness.json committed to your repository: each step's public link
@@ -40,6 +43,7 @@ import argparse
 import csv
 import json
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -71,6 +75,12 @@ FAUCET_NO = re.compile(r"^Knos: nothing was sent\. (?P<why>.*)", re.S)
 FUNDED = re.compile(r"^Knos: (?P<money>[\d.]+ .+?) from (?P<source>.+?) is in escrow for issue #(?P<issue>\d+)(?: as a (?:private )?work order)? "
                     r"\(\[[^\]]*\]\(https://explorer\.solana\.com/address/(?P<order>[1-9A-HJ-NP-Za-km-z]{32,44})")
 NOT_FUNDED = ("nothing was funded", "Knos: not confirmed yet.")      # every refusal of `_fund`, and the relay's time out
+# Which comment on the issue is the funding's reply. The workflow posts two, as the same account (github-actions[bot]):
+# first the token GitHub signed, `knos-fund: <jwt>` (knos.flow `_relay_there`, for a relayer to carry), then the reply.
+# 0.3.23 took the first comment after its own for the reply, and read the token as "nothing was funded". Every reply
+# of the flow and of the command grammar (knos.commands.reply) starts "Knos: "; a token comment never does.
+FLOW_REPLY = re.compile(r"\A\s*Knos: ")
+SETTLED = re.compile(r"settled by (?P<tx>[1-9A-HJ-NP-Za-km-z]{64,90}) in slot (?P<slot>\d+)")     # `knos statement settle-sync`
 
 
 class Stop(Exception):
@@ -152,9 +162,42 @@ def _comment(shell: Shell, repo: str, issue: int, body: str) -> int:
 
 # ---- the steps ----------------------------------------------------------------------------------------------------------
 def repo(s: dict, sh: Shell) -> dict:
-    _ok(sh, ["gh", "repo", "create", s["repo"], "--public", "--template", TEMPLATE, "--clone"], s["dir"])
+    """The repository made from the template. A second run by one account finds the one it made before (`gh repo create`
+    refuses a name that exists: 0.3.23's second run stopped here): it is cloned here, unless DIR holds its clone, and its
+    caller workflows are brought to the template's."""
+    work, updated = s["dir"] / NAME, None
+    if sh.run(["gh", "api", f"repos/{s['repo']}"])[0] != 0:
+        _ok(sh, ["gh", "repo", "create", s["repo"], "--public", "--template", TEMPLATE, "--clone"], s["dir"])
+    else:
+        if not (work / ".git").exists():
+            _ok(sh, ["gh", "repo", "clone", s["repo"], NAME], s["dir"])
+        updated = callers(s, sh)
     return {"repository": f"https://github.com/{s['repo']}", "repository_owner_id": int(_json(sh, f"repos/{s['repo']}")["owner"]["id"]),
-            "actor_id": int(_json(sh, "user")["id"])}
+            "actor_id": int(_json(sh, "user")["id"]), **({} if updated is None else {"callers_updated": updated})}
+
+
+def callers(s: dict, sh: Shell) -> list[str]:
+    """Bring the repository's caller workflows to the template's as it is now: each release republishes the template
+    with its callers pinned to that release's shared workflows, so a repository made by an earlier run would call an
+    earlier release. The template's files are copied over the clone's main branch, committed and pushed only when one
+    differs. The names of the files that changed."""
+    work, template = s["dir"] / NAME, s["dir"] / "template"
+    shutil.rmtree(template, ignore_errors=True)
+    _ok(sh, ["gh", "repo", "clone", TEMPLATE, str(template), "--", "-q", "--depth", "1"], s["dir"])
+    for argv in (["git", "checkout", "-q", "main"], ["git", "pull", "-q"]):
+        _ok(sh, argv, work)
+    mine, theirs, changed = work / ".github" / "workflows", template / ".github" / "workflows", []
+    mine.mkdir(parents=True, exist_ok=True)
+    for f in sorted(p for p in theirs.iterdir() if p.suffix in (".yml", ".yaml")):
+        now = mine / f.name
+        if not now.exists() or now.read_bytes() != f.read_bytes():
+            now.write_bytes(f.read_bytes())
+            changed.append(f.name)
+    if changed:
+        for argv in (["git", "add", ".github/workflows"], ["git", "commit", "-qm", f"Callers as the template {TEMPLATE} writes them"],
+                     ["git", "push", "-q", "origin", "main"]):
+            _ok(sh, argv, work)
+    return changed
 
 
 def key(s: dict, sh: Shell) -> dict:
@@ -215,7 +258,7 @@ def terms(s: dict, sh: Shell) -> dict:
     for argv in (["git", "add", ".knos"], ["git", "commit", "-qm", f"Acceptance pairs for #{n}"], ["git", "push", "-q", "origin", "HEAD"]):
         _ok(sh, argv, work)
     mine = _comment(sh, s["repo"], n, FUND_LINE)
-    said = sh.wait("the funding's reply", _reply(sh, s["repo"], n, mine, re.compile(r"\S"), other_than=s["login"]))
+    said = sh.wait("the funding's reply", _reply(sh, s["repo"], n, mine, FLOW_REPLY, other_than=s["login"]))
     return {"issue": n, "funded_reply": said["url"], "funded_order": funding(str(said["body"]), n, str(said["url"]))}
 
 
@@ -259,11 +302,13 @@ def _judged(sh: Shell, s: dict, after: str) -> Callable[[], tuple[str, str] | No
 
 def fail(s: dict, sh: Shell) -> dict:
     work = s["dir"] / NAME
+    # one branch per issue: an earlier run's branch is the head of its pull request, and is never pushed over
+    branch = f"witness-work-{s['issue']}"
     (work / TASK).write_text(WRONG, encoding="utf-8")
-    for argv in (["git", "checkout", "-qb", "witness-work"], ["git", "add", "words.py"], ["git", "commit", "-qm", "Words, first try"],
-                 ["git", "push", "-q", "-u", "origin", "witness-work"]):
+    for argv in (["git", "checkout", "-qb", branch], ["git", "add", "words.py"], ["git", "commit", "-qm", "Words, first try"],
+                 ["git", "push", "-q", "-u", "origin", branch]):
         _ok(sh, argv, work)
-    url = _ok(sh, ["gh", "pr", "create", "--repo", s["repo"], "--head", "witness-work", "--title", "Reverse the words",
+    url = _ok(sh, ["gh", "pr", "create", "--repo", s["repo"], "--head", branch, "--title", "Reverse the words",
                    "--body", f"Closes #{s['issue']}"], work).split()[-1]
     s["pull"], s["head"] = int(url.rstrip("/").rsplit("/", 1)[1]), _ok(sh, ["git", "rev-parse", "HEAD"], work).strip()
     got, link = sh.wait("the judge on the wrong work", _judged(sh, s, sh.wait("the checks on the wrong work", _checks(sh, s))))
@@ -345,7 +390,13 @@ def buyer(s: dict, sh: Shell) -> dict:
     lines = json.loads((s["dir"] / "buyer" / STATEMENT).read_text(encoding="utf-8"))["lines"]
     if not lines:
         raise Stop("the buyer's statement has no line: the log of events in buyer/ shows why")
-    return {**got, "statement_lines": len(lines), "statement_state": ",".join(sorted({ln["state"] for ln in lines}))}
+    # the line's "settled" step: the paying transaction read from the chain, checked against the line, written beside the statement
+    out = _ok(sh, ["knos", "statement", "settle-sync", str(s["dir"] / "buyer" / STATEMENT), "--order", str(s.get("funded_order") or "")])
+    paid = SETTLED.search(out)
+    if not paid:
+        raise Stop(f"the statement's line was not recorded settled: {' '.join(out.split())[:300]}")
+    return {**got, "statement_lines": len(lines), "statement_state": ",".join(sorted({ln["state"] for ln in lines})),
+            "settled_tx": paid.group("tx"), "settled_slot": int(paid.group("slot"))}
 
 
 def supplier(s: dict, sh: Shell) -> dict:
@@ -374,7 +425,7 @@ def payments(s: dict) -> int:
 def record(s: dict, sh: Shell) -> dict:
     keep = ("actor_id", "repository", "repository_owner_id", "address", "faucet_reply", "faucet_tx", "faucet_refused", "top_up_tx", "budget_tx", "issue",
             "funded_reply", "funded_order", "funded_tx", "pull_url", "failed_run", "passed_head", "passed_run", "paid_reply", "paid_tx", "replay_refused",
-            "buyer_statement", "statement_lines", "statement_state", "supplier_statement", "statements_agree", "archive", "verified")
+            "buyer_statement", "statement_lines", "statement_state", "settled_tx", "settled_slot", "supplier_statement", "statements_agree", "archive", "verified")
     doc = {"v": 1, "note": "Test USDC, no monetary value.", **{k: s[k] for k in keep if k in s}, "payments": payments(s)}
     work = s["dir"] / NAME
     (work / "witness.json").write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -385,7 +436,7 @@ def record(s: dict, sh: Shell) -> dict:
 
 
 STEPS: list[tuple[str, Callable[[dict, Shell], dict], str]] = [
-    ("repo", repo, "your repository, made from the public template"), ("key", key, "a key made here; its address is public from the next step"),
+    ("repo", repo, "your repository, made from the public template (run again: the same one, its callers as the template's)"),("key", key, "a key made here; its address is public from the next step"),
     ("sol", sol, "devnet SOL for fees, by hand"), ("faucet", faucet, "the faucet's reply on the playground, with its transaction (or the --fund-from transfer's)"),
     ("budget", budget, "the deposit's transaction"), ("terms", terms, "the issue, its acceptance pairs, and the funding's reply with its order"),
     ("fail", fail, "the pull request and the judge job that refused it"), ("pass", pass_, "the passing judge job and the payment's reply with its transaction"),

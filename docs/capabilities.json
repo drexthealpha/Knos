@@ -13,17 +13,19 @@
    "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
    "versions": [
     "2.0",
-    "2.1"
+    "2.1",
+    "2.2"
    ],
-   "on_chain": "2.1"
+   "on_chain": "2.2"
   },
   "knos_pay": {
    "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
    "versions": [
     "2.0",
-    "2.1"
+    "2.1",
+    "2.2"
    ],
-   "on_chain": "2.1"
+   "on_chain": "2.2"
   },
   "knos_meter": {
    "id": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
@@ -537,7 +539,7 @@
   {
    "id": "holdback_release",
    "what": "A holdback stays in the order through its warranty and is then released to the payees.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/order_terms.rs",
@@ -546,9 +548,22 @@
     "tested": {
      "test": "tests/test_order_terms.py",
      "names": "test_a_holdback_stays_in_the_order_through_the_warranty"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.2"
+    },
+    "exercised": {
+     "signature": "3o7qVyZJ7C2hip61C4NGZ58Bw2Pc6Nk8Rg4S4SnL8WRqwwKaDEfYXcSopdHFPL9CuktBoPQ7fZq59BDcXK5895DP",
+     "ids": "public",
+     "round": "holdback",
+     "asserted": [
+      "the proof paid 4.00 and the order kept 1.00 until 2026-10-08 04:01 UTC",
+      "another relayer's sweep sent the release; the order's account is closed"
+     ]
     }
-   },
-   "note": "Runs at the public ids only once the upgrade to `knos_pay 2.1` and `knos_oidc 2.1` has executed (the live state is in web/upgrades.json)."
+   }
   },
   {
    "id": "warranty_revert",
@@ -2222,7 +2237,7 @@
   {
    "id": "oidc_strict_json",
    "what": "The verifier reads every value of a token's header and payload as strict JSON and refuses a token that is not.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_oidc/src/strict.rs",
@@ -2231,9 +2246,30 @@
     "tested": {
      "test": "tests/test_oidc_differential.py",
      "names": "test_the_program_and_the_reference_give_the_same_answer_on_every_case"
+    },
+    "deployed": {
+     "program": "knos_oidc",
+     "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+     "version": "2.2"
+    },
+    "exercised": {
+     "signature": "59bmRFKddsFS7uodRzpEUEyahPDwzCU3NrpCQSPN7XcvDpZ6WimHVgMG26jnpY1XUN3sRguFhCp6wfjcUPferAmM",
+     "ids": "public",
+     "round": "strict",
+     "asserted": [
+      "knos_oidc verified a token of https://strict.knos-exercise.invalid under a private key this wallet registered, and refused the same token with a NaN claim with error 61",
+      "the key's seed is public and the key is this wallet's private key only: it speaks for no issuer"
+     ],
+     "refusals": [
+      {
+       "signature": "58zrjJZY57ohxGWK35t4WY7enUBWFiAZHTuCbRBrcyCQpGGmtz1AkEk4GaDTTWMZ2bSHaEFeGMGUZdn6ZEqyq2fF",
+       "error": 61,
+       "means": "the payload is not JSON",
+       "what": "a NaN claim"
+      }
+     ]
     }
-   },
-   "note": "knos_oidc 2.2 is not deployed: it will be proposed after the pending upgrade executes, and until that proposal has executed devnet runs an earlier version, which accepts such a token (the live state is in web/upgrades.json)."
+   }
   },
   {
    "id": "unwrap_inventory",
@@ -2475,7 +2511,7 @@
   {
    "id": "es256_tokens",
    "what": "An ES256 token is verified in one transaction: Solana's secp256r1 precompile checks the signature, and `VerifyEs256` checks that what it verified is the issuer's key, the token and its signature.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_oidc/src/es256.rs",
@@ -2484,9 +2520,31 @@
     "tested": {
      "test": "programs-v2/handlers/tests/knos_oidc_es256.rs",
      "names": "a_good_token_is_verified_in_one_transaction"
+    },
+    "deployed": {
+     "program": "knos_oidc",
+     "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+     "version": "2.2"
+    },
+    "exercised": {
+     "signature": "2L4YLehpwZ3bKn9corLPDQptRU3Td91tvjs63EanQDDWE26wSQHXYmKu1BgiQ41jQ3MafCtKvAC2N7aJTNNgJABD",
+     "ids": "public",
+     "round": "es256",
+     "asserted": [
+      "knos_oidc verified an ES256 token of 740 bytes of https://es256.knos-exercise.invalid in one transaction, under a private P-256 key this wallet registered",
+      "the key's seed is public and the key is this wallet's private key only: it speaks for no issuer"
+     ],
+     "refusals": [
+      {
+       "signature": "fbLuy2giQuzaXTXTZjk4kmgPYvmuUn8F5tvaWZNWQxStMDmStzPLyLVFnsUSjkLjBbB48G4MxvkbNU6NJY91BNx",
+       "error": 69,
+       "means": "the token account exists",
+       "what": "the same token a second time"
+      }
+     ]
     }
    },
-   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test`), run by the program workflow and not by pytest. In the default build of knos_oidc in this tree (202,032 bytes; the verifier's data account on devnet has room for 279,360, so no extension is needed) and NOT deployed: no public program id runs it until the upgrade that carries it (proposal 7) has executed. Two fixed test keys; no token of a real ES256 issuer has been verified. A signing input of at most 780 bytes (docs/ES256.md). A Python client exists since 0.3.19 (`src/knos/settle/v2/oidc.py`), held to the built program by `tests/test_es256_client.py`; the release run's `es256` round sends it at the public id once the build is live."
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test`), run by the program workflow and not by pytest, and the release run's `es256` round at the public id of knos_oidc 2.2 (proposal 7, executed): a P-256 key the run's own wallet registered as its private key, and a token of 740 bytes verified in one transaction. The key's seed is public and it speaks for no issuer: no token of a real ES256 issuer has been verified. A signing input of at most 780 bytes (docs/ES256.md). The Python client is `src/knos/settle/v2/oidc.py`, held to the built program by `tests/test_es256_client.py`."
   },
   {
    "id": "contributor_tests_not_counted",
@@ -2550,7 +2608,7 @@
      "names": "test_the_parts_cover_every_amount_and_rate_and_the_status_is_what_they_say"
     }
    },
-   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 10 to 30 basis points, one rate and no tiers (the knos_pay 2.2 build of this tree, not deployed). docs/kani.json `fee_proofs`, status `verified`; the exact 0.30% at the rate 30 by cvc5 with bit-vectors solved as integers, on whose translation that one result also rests; its `parts` say which statement is verified over which amounts and rates. The test holds the record to the source's hash: no test of this repository runs Kani itself."
+   "note": "For amounts from 0 to 100,000.00 at 6 decimals and rates from 10 to 30 basis points, one rate and no tiers (knos_pay 2.2, which the public id runs: proposal 8, executed). docs/kani.json `fee_proofs`, status `verified`; the exact 0.30% at the rate 30 by cvc5 with bit-vectors solved as integers, on whose translation that one result also rests; its `parts` say which statement is verified over which amounts and rates. The test holds the record to the source's hash: no test of this repository runs Kani itself."
   },
   {
    "id": "adversarial_replays",
@@ -2610,7 +2668,7 @@
      "names": "test_the_018_fee_is_one_rate_with_a_floor_and_is_pay_pys_own_numbers"
     }
    },
-   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json). Until then the public program charges the 0.3.14 fee (`fee_tiers`); orders funded before the upgrade keep the rate fixed at their funding."
+   "note": "In knos_pay 2.2, which the public id runs (proposal 8, executed; web/upgrades.json). Not exercised there yet: the release run's `one_rate` round funds orders of 5.00, 100.00 and 1,500.00 for one minute, 1,609.85 test USDC in all, and its wallet held 225.53 (`cannot`). An order funded before the upgrade keeps the fee it was funded with: one funded under 2.1 went back with its stored 0.40 (docs/CAPABILITIES.md, the round on the public program ids)."
   },
   {
    "id": "quorum_by_owner",
@@ -2626,12 +2684,12 @@
      "names": "the_same_owner_behind_two_repositories_is_refused_as_a_second_judge_and_different_owners_are_accepted"
     }
    },
-   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json). What the program cannot know: that two accounts are two people."
+   "note": "In knos_pay 2.2, which the public id runs (proposal 8, executed; web/upgrades.json). Not exercised there yet: the release run's `one_owner` round funded its order and waits for the order's own prove.yml run and a neutral attest.yml run, which it has not had. What the program cannot know: that two accounts are two people."
   },
   {
    "id": "presentation_grace",
    "what": "An order may give a token issued by its deadline a grace in which it can still be presented; the refund follows when no such token can live.",
-   "stage": "tested",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/order_terms.rs",
@@ -2640,9 +2698,31 @@
     "tested": {
      "test": "programs-v2/handlers/tests/adversarial.rs",
      "names": "the_grace_ends_when_no_token_issued_by_the_deadline_can_live_and_the_refund_follows_at_once"
+    },
+    "deployed": {
+     "program": "knos_pay",
+     "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+     "version": "2.2"
+    },
+    "exercised": {
+     "signature": "49ibrvKHtWorUFnsCsRb62WMtMqRP3iq5AnRyZwL7CiY8kcBy8yUJo13iN5w88xu4hrQqf7E2FFBc299wwBmzBAf",
+     "ids": "public",
+     "round": "grace",
+     "asserted": [
+      "the order's deadline was 2026-10-09 10:45 UTC and it takes a token issued by then until 2026-10-09 12:45 UTC",
+      "its refund right after the deadline is refused with error 83 and moves nothing",
+      "paying inside the grace needs a merge within two minutes of the funding: not attempted at the public id"
+     ],
+     "refusals": [
+      {
+       "signature": "4UYnecBhVtnronaBTNzaNgSpgz1BrDnNdEc9UjkvK2HfeUuD7ywUXWqP66fMjArsLCNfkWf8rpj1t4zpfbeNyq8A",
+       "error": 83,
+       "means": "too early or too late: the job is not in the state this needs",
+       "what": "the refund of an order inside its presentation grace"
+      }
+     ]
     }
-   },
-   "note": "In the knos_pay 2.2 build of this tree: tested in the simulator, not deployed. The build is proposed after the release and is not live at the public id until that proposal executes (web/upgrades.json)."
+   }
   },
   {
    "id": "commitment_format2",
@@ -3742,7 +3822,7 @@
      "names": "test_the_simulator_pays_every_order_once_each_by_the_relay_of_its_part_with_that_relays_key_alone"
     }
    },
-   "note": "The simulator proves the path and counts; it gives no rate. End-to-end PayOrder capacity on devnet has not been measured: the release run measures it."
+   "note": "Measured on devnet, public ids, 8 and 9 Oct (n=40 each); burst 13/40 and priority-fee unpriced until the release reruns them."
   },
   {
    "id": "approval_record",
@@ -3917,7 +3997,7 @@
      "names": "test_it_refuses_while_a_proposal_is_open_or_approved_and_not_executed"
     }
    },
-   "note": "The script is tested; the time lock itself is not applied: no configuration transaction has been sent, and docs/GOVERNANCE.md says applied only when the release run records it."
+   "note": "The script is tested. The configuration transaction it plans was created and approved on devnet on 9 October 2026: proposal 9 of the upgrade multisig, approved by two member keys in MSTGH4Q99fy6xNWVJ8hTCjs7mJzuVD7rGNF1Ymy6JeuB3cDMThTGnsxKBBKPvv5Q741DEfKLJrecrtBibv45uyQ. The time lock itself is not applied until that transaction executes, which the Squads program allows 48 hours after the approval; docs/GOVERNANCE.md says applied only when a release run records it."
   },
   {
    "id": "bank_unknown_held",
@@ -3979,7 +4059,7 @@
      "names": "test_each_contention_scenario_runs_in_the_simulator_with_its_own_checks_and_no_rate"
     }
    },
-   "note": "Simulated here with injected faults; not run on devnet yet (docs/LOAD.md)."
+   "note": "Simulated here with injected faults; run on devnet, public ids, 9 Oct (n=40 each): hot-funder 40/40, rpc-faults 40/40, priority-fee 40/40 with version-1 transactions unpriced, burst 13/40 (docs/LOAD.md)."
   },
   {
    "id": "audit_export_fast",
@@ -3995,10 +4075,154 @@
      "names": "test_a_history_the_size_of_the_witnessed_run_takes_a_handful_of_calls_not_a_thousand"
     }
    }
+  },
+  {
+   "id": "assurance_levels",
+   "what": "Every receipt and accepted statement line says its assurance level (workflow-reported, re-executed, independently attested or proved), and a statement keeps agreement, completeness, correctness and satisfaction apart.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/assurance.py",
+     "names": "def of_line"
+    },
+    "tested": {
+     "test": "tests/test_assurance_levels.py",
+     "names": "test_the_levels_are_four_in_order_and_two_are_reachable"
+    }
+   },
+   "note": "Workflow-reported and re-executed are reachable today; independently attested and proved are defined and nothing reaches them. Commercial satisfaction is never claimed (`knos assurance`)."
+  },
+  {
+   "id": "plan_floor_check",
+   "what": "`knos fees plans --check` reads every fee Plan of knos_pay on the cluster and fails when one in force is below the 20 bps contract floor; Knos's own Plan builder refuses below 20.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/plan_floor.py",
+     "names": "def below"
+    },
+    "tested": {
+     "test": "tests/test_plan_floor.py",
+     "names": "test_the_check_fails_on_a_plan_in_force_below_20"
+    }
+   },
+   "note": "The program allows Plans from 10 to 30 bps; the 20 bps floor is enforced by Knos's own signer and checked against the chain, not by the program."
+  },
+  {
+   "id": "workflow_strip_check",
+   "what": "`knos protect --check-strip OWNER/REPO` reads a repository's rulesets and branch protection and says whether a buyer can remove the Knos workflow before merging: closed, partly closed or open.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/strip_check.py",
+     "names": "def classify"
+    },
+    "tested": {
+     "test": "tests/test_strip_check.py",
+     "names": "test_closed_is_never_closed_for_those_who_can_edit_the_ruleset"
+    }
+   },
+   "note": "Tested on recorded GitHub answers. Never closed for those who can edit the ruleset; open is said plainly."
+  },
+  {
+   "id": "exceptional_review_line",
+   "what": "An exceptional manual review is its own invoice line, priced per case by contract and never drawn from the unit prices.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/billing.py",
+     "names": "Exceptional review"
+    },
+    "tested": {
+     "test": "tests/test_billing_review.py",
+     "names": "test_a_manual_review_is_a_separate_line_never_drawn_from_the_commitment"
+    }
+   },
+   "note": "Nothing has been sold; no review has been priced for anyone."
+  },
+  {
+   "id": "statement_settle_sync",
+   "what": "`knos statement settle-sync` writes the paying transaction into a statement's settled step after checking amount, payee and order against the PayOrder transaction.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/statement.py",
+     "names": "def settle_sync"
+    },
+    "tested": {
+     "test": "tests/test_task_witnessed.py",
+     "names": "test_settle_sync_writes_the_paying_transaction_after_checking_amount_payee_and_order"
+    }
+   },
+   "note": "Offline only: tested on recorded transactions (also tests/test_statement.py); not yet run against devnet."
+  },
+  {
+   "id": "witness_funding_reply",
+   "what": "The witnessed run reads the funding reply from the flow's own reply only, never from a token comment posted before it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/witnessed/witness.py",
+     "names": "def _reply"
+    },
+    "tested": {
+     "test": "tests/test_task_witnessed.py",
+     "names": "test_the_funding_reply_is_the_flows_and_never_the_token_comment_posted_before_it"
+    }
+   },
+   "note": "Tested on recorded comments; the witnessed run of 9 Oct predates the fix."
+  },
+  {
+   "id": "index_review",
+   "what": "Each of the 30 merged pull requests the scan counted with a failed check is read again under a frozen method; the reviewed counts lead.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/backtest.py",
+     "names": "def reviewed"
+    },
+    "tested": {
+     "test": "tests/test_backtest.py",
+     "names": "test_the_review_reads_every_one_of_the_thirty_and_the_reviewed_counts_lead"
+    }
+   },
+   "note": "30 re-read by hand on 9 Oct; method version 1 hash-checked (docs/INDEX_METHOD.md, docs/index_review.json)."
+  },
+  {
+   "id": "payee_passkey_bind",
+   "what": "The payout page (`#payee=<login>`) makes a passkey wallet with no seed phrase and links the payee to the one run that binds it.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/payee.js",
+     "names": "export function renderPayee"
+    },
+    "tested": {
+     "test": "tests/test_site_payee.py",
+     "names": "test_the_page_in_a_browser_with_a_virtual_passkey"
+    }
+   },
+   "note": "Not exercised on public ids. 8 clicks, 4 with knos-claim already created; one click needs a program change (docs/PAYEE.md)."
+  },
+  {
+   "id": "pypi_description_links",
+   "what": "The package description on PyPI is the README with every link pinned to the release's tag.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/bump_version.py",
+     "names": "def pypi_readme"
+    },
+    "tested": {
+     "test": "tests/test_pypi_readme.py",
+     "names": "test_the_package_description_is_the_pinned_readme_and_no_relative_link_remains"
+    }
+   },
+   "note": "Written by bump_version; checked by `bump_version --check`."
   }
  ],
  "public_round": {
-  "date": "7 October 2026",
+  "date": "9 October 2026",
   "fund": {
    "comment": "/knos fund 5",
    "tx": "177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s",

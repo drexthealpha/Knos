@@ -43,8 +43,9 @@ approached or committed.
 Work is starting to be priced per outcome, and the seller keeps the count. For code, unlike for support tickets, a
 third party already records the outcome and signs statements about it: the forge records the merge and the checks
 and signs a CI run. So the count can belong to neither side. We measured why it matters: of 241 merged agent pull
-requests whose description said tests pass, 30 had a failed check at the head commit
-([BENCH.md](../BENCH.md)), so a buyer paying per merge on that sample would have paid for those 30. The second
+requests whose description said tests pass, 9 had a failed test, build, lint or type-check job at the head commit and
+19 a failed check of any kind ([index_review.json](../index_review.json)), so a buyer paying per merge on that sample
+would have paid for those 19. The second
 half is about what is bought: the unit is a deliverable, not a pull request, so splitting one piece of work into
 many pull requests does not multiply the bill. The third is about price: a flat price per evaluation cannot grow
 with the value it verifies, which is why a price on the outcome billing verified is proposed
@@ -60,8 +61,8 @@ On Solana devnet, in test USDC: a task is funded, a submission whose required ch
 check named, a valid one is paid on the forge's signature, a replayed token is refused, and an unfulfilled task
 refunds without anyone's permission. Which of these runs on the public program ids on a given day is not stated
 here: [CAPABILITIES.md](../CAPABILITIES.md) gives each capability's stage and `web/upgrades.json` the live builds,
-and the demo captions each step with the program ids it ran on. From merge to paid took 25 seconds at the
-median, over 42 payments on devnet; the demo's replays are captioned and are not evidence of speed. Against the competition
+and the demo captions each step with the program ids it ran on. From merge to paid took 26 seconds at the
+median, over 51 payments on devnet; the demo's replays are captioned and are not evidence of speed. Against the competition
 ([COMPARE.md](../COMPARE.md)): cloud platforms and billing companies already meter agents and move payments, with
 customers and real money, so that is not a difference; the difference is acceptance independent of every vendor,
 and nobody has yet paid for that. MergePay is on a mainnet with real USDC and no platform fee, and is ahead

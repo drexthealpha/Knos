@@ -26,6 +26,8 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [REPRODUCE.md](REPRODUCE.md) | how someone else runs it and files a signed report |
 | [OPERATIONS.md](OPERATIONS.md) | whether the canary and the relay are working, from the public record |
 | [submission/NUMBERS.md](submission/NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
+| [submission/TRANSACTION.md](submission/TRANSACTION.md) | one order told end to end for a finance reader: terms, a rejection, an acceptance, payment, a refused replay |
+| [submission/CHECKLIST.md](submission/CHECKLIST.md) | what each entry needs: the form's fields and each track's, checked off |
 
 ## 2. Why does it matter?
 
@@ -34,6 +36,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [WHY.md](WHY.md) | why a signed run and not a description |
 | [VENDORS.md](VENDORS.md) | a page per rated agent vendor: its numbers, its right of reply, and how to earn the badge |
 | [INDEX.md](INDEX.md) | the Agent PR Index: how often "tests pass" agrees with the checks, by agent and week |
+| [INDEX_METHOD.md](INDEX_METHOD.md) | the frozen count method, version 1: what counts as merged, claimed and failed, checked by its hash |
 | [MARKET.md](MARKET.md) | who buys, the price book, the costs, and what can stop this |
 | [PILOT.md](PILOT.md) | the one offer for money: one buyer, its suppliers, 30 days |
 | [UNIT_COSTS.md](UNIT_COSTS.md) | what one unit costs Knos to deliver, measured or a budget, and the ceilings at a 90% and a 95% gross margin |
@@ -66,6 +69,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [RAILS.md](RAILS.md) | paying by bank: evidence, statement, approval, a payment instruction file, and the status coming back |
 | [NETTING.md](NETTING.md) | small outcomes netted into one release per supplier per period, and what the chain enforces of it |
 | [SUPPLIER.md](SUPPLIER.md) | for the supplier: the rules before the work, every refusal in plain words, appeals |
+| [PAYEE.md](PAYEE.md) | the payout page: a passkey address, one link, the run you start; why it is not one click |
 | [RECORD.md](RECORD.md) | the supplier's kit: a public record, a badge, one line to install, a receipt for the invoice |
 | [ADVANCE.md](ADVANCE.md) | an advance by a third party against a funded order: the offer, the one transaction, the three ends, no recourse |
 | [RETENTION.md](RETENTION.md) | what a root proves and does not, who keeps what, and what still verifies if Knos is gone |

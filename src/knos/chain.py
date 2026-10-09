@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from solders.compute_budget import ID as COMPUTE_BUDGET
-from solders.compute_budget import set_compute_unit_limit
+from solders.compute_budget import set_compute_unit_limit, set_compute_unit_price
 from solders.hash import Hash
 from solders.keypair import Keypair
 from solders.message import Message, MessageV1, TransactionConfig
@@ -121,17 +121,31 @@ def message(ixs, payer: Pubkey, blockhash: Hash | None = None) -> Message:
 
 
 def message_v1(ixs, payer: Pubkey, blockhash: Hash | None = None) -> MessageV1:
-    """The same instructions as a v1 message: up to MAX_V1_BYTES, no lookup tables, and the compute-unit limit in the
-    message itself (the limit an instruction among `ixs` asks for, else the most a transaction may use). A compute
-    budget instruction does nothing in a v1 transaction, so those are left out (see V1_BUDGET_IX)."""
-    units, rest = MAX_COMPUTE_UNITS, []
+    """The same instructions as a v1 message: up to MAX_V1_BYTES, no lookup tables, and the compute budget in the
+    message itself: the limit an instruction among `ixs` asks for (else the most a transaction may use) and, when one
+    asks a compute unit price, the priority fee that price comes to over that limit (`priority_lamports`), which is
+    what a legacy transaction with that price and limit pays. A compute budget instruction does nothing in a v1
+    transaction, so those are left out (see V1_BUDGET_IX); a v1 transaction's priority fee is a total in lamports in
+    its configuration (https://solana.com/docs/core/fees/fee-structure)."""
+    units, price, rest = MAX_COMPUTE_UNITS, 0, []
     for ix in ixs:
+        data = bytes(ix.data)
         if ix.program_id != COMPUTE_BUDGET:
             rest.append(ix)
-        elif bytes(ix.data)[:1] == b"\x02":
-            units = int.from_bytes(bytes(ix.data)[1:5], "little")
-    config = TransactionConfig(compute_unit_limit=units, loaded_accounts_data_size_limit=V1_LOADED)
-    return MessageV1.try_compile(payer, ([set_compute_unit_limit(units)] if V1_BUDGET_IX else []) + rest, blockhash or Hash.default(), config)
+        elif data[:1] == b"\x02":
+            units = int.from_bytes(data[1:5], "little")
+        elif data[:1] == b"\x03":
+            price = int.from_bytes(data[1:9], "little")
+    config = TransactionConfig(compute_unit_limit=units, loaded_accounts_data_size_limit=V1_LOADED,
+                               priority_fee=priority_lamports(price, units) if price else None)
+    budget = ([set_compute_unit_limit(units)] + ([set_compute_unit_price(price)] if price else [])) if V1_BUDGET_IX else []
+    return MessageV1.try_compile(payer, budget + rest, blockhash or Hash.default(), config)
+
+
+def priority_lamports(price: int, units: int) -> int:
+    """The priority fee in lamports of `price` micro-lamports a compute unit over a limit of `units`: ceil(price x
+    units / 1,000,000) (https://solana.com/docs/core/fees/fee-structure)."""
+    return -(-price * units // 1_000_000)
 
 
 def tx_size(ixs, payer: Pubkey, v1: bool = False) -> int:

@@ -26,7 +26,7 @@ def _load(name: str):
 def _copy(tmp_path: Path) -> Path:
     """What the wheel, the lock, the pinned workflows and the stamp read, as a tree of its own."""
     root = tmp_path / "tree"
-    for rel in ("pyproject.toml", "README.md", "LICENSE", "src/knos", "terms", "requirements", "examples", ".github/workflows", "docs", "web/front.js",
+    for rel in ("pyproject.toml", "README.md", "README.pypi.md", "LICENSE", "src/knos", "terms", "requirements", "examples", ".github/workflows", "docs", "web/front.js",
                 "sdk/settle/README.md", "scripts/front_workflow.py"):
         src, dst = ROOT / rel, root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -81,10 +81,10 @@ def test_a_commit_named_inside_the_wheel_is_caught_before_it_can_break_the_lock(
     root, pub, rel = tree
     assert pub.in_the_wheel() == []
     first = rel.build(tmp_path / "a", root)[0]
-    readme = root / "README.md"
+    readme = root / "README.pypi.md"
     readme.write_text(readme.read_text(encoding="utf-8") + f"\nCall {pub.REPO}/.github/workflows/fund.yml@{'c' * 40}\n", encoding="utf-8")
     said = pub.in_the_wheel()
-    assert len(said) == 1 and said[0].startswith("README.md names a commit of drexthealpha/knos-workflows, and it is part of the wheel")
+    assert len(said) == 1 and said[0].startswith("README.pypi.md names a commit of drexthealpha/knos-workflows, and it is part of the wheel")
     assert said[0] in pub.inconsistencies()
     # why it matters: the description is inside the wheel, so the wheel is another file now
     assert rel.build(tmp_path / "b", root)[0].read_bytes() != first.read_bytes()

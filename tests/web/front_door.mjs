@@ -166,7 +166,7 @@ async function page() {
     const hero = await p.evaluate(() => ({ h1: document.querySelector("h1").textContent.trim(), fact: document.getElementById("hero-fact").textContent.trim(),
       controls: [...document.querySelectorAll(".hero input, .hero textarea, .hero select, .hero button, .hero-words a:not(.k-num):not(#hero-board a)")].map((e) => e.dataset.fd || e.id),
       below: Boolean(document.querySelector(".hero ~ #how-it-works ~ #demo")), boxTop: document.querySelector("#front-door [data-fd=run]").getBoundingClientRect().bottom, fold: innerHeight }));
-    ok(`${width}px: the sentence, then the number`, hero.h1 === "The neutral meter for AI agent work: neither side keeps the count." && hero.fact === "241 merged agent “tests pass” pull requests: 30 had a failed check." && words(hero.fact) <= 12, hero);
+    ok(`${width}px: the sentence, then the number`, hero.h1 === "The neutral meter for AI agent work: neither side keeps the count." && hero.fact === "241 merged agent “tests pass” pull requests: 9 failed tests or builds." && words(hero.fact) <= 12, hero);
     // under the sentence, one line: what a customer gets; then the number. An orphan: a last line of one word.
     const outcome = await p.evaluate(() => { const o = document.getElementById("hero-outcome"), h = document.querySelector("h1"), f = document.getElementById("hero-fact");
       const lastLine = (el) => { const r = document.createRange(); r.selectNodeContents(el); const rects = [...r.getClientRects()].filter((x) => x.width > 1), last = rects.at(-1).top;
@@ -174,7 +174,7 @@ async function page() {
         for (let i = node.textContent.length; i > 0; i--) { probe.setStart(node, i - 1); probe.setEnd(node, i); if (Math.abs(probe.getBoundingClientRect().top - last) > 4) break; n++; }
         return rects.length > 1 && !node.textContent.trim().slice(-n).trim().includes(" ") && t.length > 1 && node.textContent.trim().slice(-n).trim().split(" ").length < 2 && new Set(rects.map((x) => Math.round(x.top))).size > 1; };
       return { text: o.textContent.trim(), after: h.nextElementSibling === o, before: o.nextElementSibling === f, orphan: lastLine(o) }; });
-    ok(`${width}px: under the sentence, one line says the customer outcome, and no word is left alone on its last line`, outcome.text === "Buyers and suppliers close invoices on evidence both can verify." && outcome.after && outcome.before && !outcome.orphan, outcome);
+    ok(`${width}px: under the sentence, one line says the customer outcome, and no word is left alone on its last line`, outcome.text === "Both sides close invoices on evidence both verify." && outcome.after && outcome.before && !outcome.orphan, outcome);
     const bars = await p.evaluate(() => [...document.querySelectorAll("#hero-board li")].map((li) => { const b = li.querySelector(".bs-bar").getBoundingClientRect(), f = li.querySelector(".bs-fill").getBoundingClientRect(), w = li.querySelector(".bs-whisker").getBoundingClientRect();
       const [k, n] = li.querySelector(".bs-n").textContent.split(" of ").map(Number); return { want: k / n, got: f.width / b.width, whisker: w.width > 1 && getComputedStyle(li.querySelector(".bs-whisker")).opacity === "1" }; }));
     ok(`${width}px: every bar of the strip is filled to its rate, with its whisker drawn`, bars.length === 4 && bars.every((b) => b.got > 0 && Math.abs(b.got - b.want) < 0.02 && b.whisker), bars);

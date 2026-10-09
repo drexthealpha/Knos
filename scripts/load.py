@@ -735,15 +735,16 @@ def paid_rows(m: dict, kind: str) -> list[str]:
            + ("" if m.get("ok") else " (did not complete cleanly)"), "",
            "| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |",
            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-           f"| {m.get('attempted', 0):,} | {m.get('paid', 0):,} of {m.get('attempted', 0):,} | {m.get('already', 0)} | {m.get('refused', 0)} | "
-           f"{m.get('never_completed', 0)} | {m.get('seconds')} | {m.get('paid_per_s')} | {c.get('p50')} | {c.get('p95')} | {p99} | {c.get('max')} |", ""]
+           f"| {m.get('attempted', 0):,} | {m.get('paid', 0):,} of {m.get('attempted', 0):,} | {m.get('already', 0)} | {_kept(m, 'refused')} | "
+           f"{_kept(m, 'never_completed')} | {_kept(m, 'seconds')} | {m.get('paid_per_s')} | {c.get('p50')} | {c.get('p95')} | {p99} | {c.get('max')} |", ""]
     said = ("A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then "
             "PayOrder. " + (f"Each relay paid from a fee payer of its own ({', '.join(f'`{k}`' for k in m['fee_payers'])}), lent its SOL by "
                             f"wallet `{m.get('wallet')}` and swept back." if m.get("fee_payers") else "The fee payers were not kept in the record."))
     k, owners = m.get("fee_accounts", 1), m.get("owners")
     if m.get("lanes") == "order":
         said += (f" A pay token's lane was its order, so the tokens{f' of {owners} owner(s)' if owners else ''} spread over the relays; "
-                 f"{k} fee account(s) of the mint, each order's fee to one.")
+                 + (f"{k} fee account(s) of the mint, each order's fee to one." if "fee_accounts" in m or not m.get("scenario")
+                    else "the number of fee accounts was not recorded."))
         if m.get("per_relay"):
             said += " The relays paid " + _and([str(r["paid"]) for r in m["per_relay"]]) + " of the payments"
             said += ("; the fee accounts took " + _and([str(n) for n in m["per_fee_account"]]) + ".") if m.get("per_fee_account") else "."
@@ -752,19 +753,32 @@ def paid_rows(m: dict, kind: str) -> list[str]:
                  "them, through one fee account. This is a one-relay figure, not a ceiling of the program.")
     if m.get("scenario"):
         said += f" Scenario {m['scenario']}: {m.get('measures', '')}. Retries: {m.get('retries', 0)}; failures: {m.get('failures', 0)}."
+        if m.get("duplicates_refused"):
+            said += f" Duplicates refused by the chain (a resend of a payment that had landed): {m['duplicates_refused']}."
         if m.get("faults_injected"):
             f = m["faults_injected"]
             said += f" Injected: {f.get('refused', 0)} of {f.get('sends', 0)} sends refused, {f.get('lost', 0)} answers lost."
         if m.get("priority"):
             said += (f" Compute unit price {m.get('cu_price_micro_lamports')} micro-lamports on {m['priority'].get('priced', 0)} transactions; "
                      f"{m['priority'].get('no_room', 0)} had no room for it.")
+    if m.get("note"):
+        said += f" {m['note']}"
     if m.get("source"):
         said += f" Source: {m['source']}."
+    if m.get("rerun"):
+        said += f" To be rerun: {m['rerun']}."
     if m.get("first_refusals"):
         said += " The first refusals: " + "; ".join(m["first_refusals"]) + "."
     if m.get("stopped"):
         said += f" Stopped: {m['stopped']}."
     return out + [said, ""]
+
+
+def _kept(m: dict, key: str):
+    """A figure of a recorded run, or "not recorded" where the run's report did not keep it (never a zero it did not
+    measure)."""
+    v = m.get(key, 0)
+    return "not recorded" if v is None else v
 
 
 def _and(items: list[str]) -> str:
@@ -818,7 +832,7 @@ def _run_cell(m: dict | None) -> str:
     progs = {k: v for k, v in (m.get("programs") or {}).items() if k != "ids"}
     return (f"{m.get('paid', 0)} of {m.get('attempted', 0)} paid, {m.get('failures', 0)} failures, {m.get('retries', 0)} retries, "
             f"{m.get('paid_per_s')} a second; p50 {c.get('p50')} s, p95 {c.get('p95')} s, p99 {p99}, worst {c.get('max')} s; "
-            f"{m['relays']} relays, devnet, {ids_of(progs)}, {m['date']}")
+            f"{m['relays']} relays, devnet, {ids_of(progs)}, {m['date']}" + (f"; to be rerun: {m['rerun']}" if m.get("rerun") else ""))
 
 
 def scenarios(doc: dict, runs: list[dict]) -> list[str]:

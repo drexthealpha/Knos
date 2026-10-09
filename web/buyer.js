@@ -158,12 +158,12 @@ export function renderBuyer(el, env = {}) {
     <section class="card buy-step" id="buy-step-1" data-state="live"><span class="pill">Step 1 of 3</span>
       <h3>What are you buying?</h3>
       <label for="buy-kind">The work</label>
-      <select id="buy-kind"><option value="issue">One issue, done once</option><option value="rate">A rate per accepted pull request, from one vendor</option></select>
+      <select id="buy-kind"><option value="issue">One issue, done once</option><option value="rate">A rate when the agreed checks pass at merge, from one vendor</option></select>
       <label for="buy-issue" id="buy-issue-label">The issue on GitHub</label>
       <input id="buy-issue" autocomplete="off" spellcheck="false" placeholder="https://github.com/owner/repo/issues/7">
       <div id="buy-rate-box" hidden><div class="row">
         <div><label for="buy-vendor">The vendor's GitHub account</label><input id="buy-vendor" autocomplete="off" spellcheck="false" placeholder="octocat"></div>
-        <div><label for="buy-rate">Rate per accepted pull request (test USDC)</label><input id="buy-rate" inputmode="decimal" value="10"></div></div></div>
+        <div><label for="buy-rate">Rate when the agreed checks pass at merge (test USDC)</label><input id="buy-rate" inputmode="decimal" value="10"></div></div></div>
       <div class="row">
         <div><label for="buy-amount" id="buy-amount-label">Amount (test USDC)</label><input id="buy-amount" inputmode="decimal" value="50"></div>
         <div><label for="buy-days">Deadline: days until unpaid money goes back</label><input id="buy-days" inputmode="numeric" value="14"></div></div>

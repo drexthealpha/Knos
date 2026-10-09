@@ -172,7 +172,14 @@ jobs:
               time.sleep(pause)
               waited += pause
           WAIT
-          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock"
+          refresh=""
+          for nap in 10 30 end; do
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock" && break
+            [ "$nap" != end ] || exit 1
+            echo "The install failed: asking PyPI's index again (--refresh) in $nap s."
+            refresh="--refresh"
+            sleep "$nap"
+          done
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       - name: knos settle
         env:
@@ -215,7 +222,7 @@ jobs:
       - name: install knos, this one requirement exactly
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config "knos==0.3.23"
+        run: uv tool install --no-config "knos==0.3.24"
       - name: knos review
         id: review
         env:
@@ -286,7 +293,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.23"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.24"
       # The same layers the judge puts around the code (sudo, a network namespace of its own, the user nobody, an empty
       # environment), and a program that tries to reach three well-known addresses by number. If it gets out, or the
       # sandbox cannot be made here, the job ends now.

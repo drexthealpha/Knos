@@ -261,8 +261,8 @@ def _rpc(url: str, method: str, params: list):
 
 
 def pay_version(url: str, program: str, payer: str, rpc=_rpc) -> str:
-    """knos_pay's version, asked of the program itself: 2.1 answers the Version instruction (it logs
-    `knos2:version 1`), 2.0 refuses it. Simulated, so nothing is sent and nothing is paid."""
+    """knos_pay's version, asked of the program itself: 2.1 and later answer the Version instruction (2.1 logs
+    `knos2:version 1`, 2.2 logs `knos2:version 2`), 2.0 refuses it. Simulated, so nothing is sent and nothing is paid."""
     import base64
     from solders.hash import Hash
     from solders.instruction import Instruction
@@ -272,8 +272,9 @@ def pay_version(url: str, program: str, payer: str, rpc=_rpc) -> str:
     tx = Transaction.new_unsigned(Message.new_with_blockhash([Instruction(Pubkey.from_string(program), b"\x0c", [])], Pubkey.from_string(payer), Hash.default()))
     got = rpc(url, "simulateTransaction", [base64.b64encode(bytes(tx)).decode(), {"encoding": "base64", "sigVerify": False, "replaceRecentBlockhash": True}])["value"]
     logs = " ".join(got.get("logs") or [])
-    if "knos2:version 1" in logs:
-        return "2.1"
+    said = re.search(r"knos2:version (\d+)", logs)
+    if said and not got.get("err"):
+        return f"2.{said.group(1)}"
     if got.get("err") and f"Program {program} invoke" in logs:        # the program ran and refused the instruction
         return "2.0"
     raise OSError(f"the simulation did not reach the program: {got.get('err')}")

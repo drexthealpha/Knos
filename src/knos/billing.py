@@ -126,6 +126,7 @@ RULES = {
     "suppliers": "Connecting a supplier costs nothing.",
     "commitment": "An annual commitment is billed in twelve parts and drawn down by use; only what it does not cover is charged on top.",
     "separate": "Agreed separately, and listed as agreed.",
+    "exceptional": "Exceptional review: priced per case by contract, never inside the unit prices.",
     "pilot": "The Pilot is 2,500 USD, credited against year one.",
     "rated": "The rated party never pays.",
     "once_any_rail": "Acceptance is charged once, whichever rail pays: on chain at release, or on the invoice when a bank pays.",
@@ -271,7 +272,7 @@ def _valued(rows: Any, what: str) -> list[tuple[str, Decimal, dict]]:
 
 FIELDS = {"plan", "month", "billed_to", "evaluations", "duplicates", "infrastructure_failures", "knos_retries", "accepted", "disputed",
           "reversed", "suppliers", "record_lookups", "committed", "drawn", "credit_brought_forward", "other", "customer", "period",
-          "rail_charges", "held"}
+          "rail_charges", "held", "reviews"}
 RAILS = ("chain", "bank")                # how an accepted deliverable was paid: by the program, or by any other rail
 
 
@@ -295,6 +296,8 @@ def invoice(month: dict) -> dict:
         drawn                    how much of it earlier months of this year already used
         credit_brought_forward   credit an earlier invoice could not use
         other                    [{"what": "...", "amount": "..."}]  agreed separately; a negative amount is a credit
+        reviews                  [{"case": "...", "amount": "25.00"}]  an exceptional manual review, priced per case by
+                                 contract: one line each, never inside Meter or Acceptance and never drawn from the commitment
         rail_charges             [{"what": "bank wire fees", "amount": "45.00"}]  what a payment rail charged, passed on as it
                                  was charged: listed apart, in no line and not in `total`; `payable` adds them
         held                     [{"kind": "reserve", "what": "...", "amount": "..."}]  money held or passed on (kind: reserve,
@@ -448,6 +451,16 @@ def invoice(month: dict) -> dict:
             raise BillingError(f"other {n}: needs a `what`")
         what = str(row["what"]).strip()
         lines.append(_line("other", what, money(row.get("amount", "0"), f"other {n}, amount"), "pilot" if "pilot" in what.lower() else "separate"))
+
+    # 9. exceptional manual review: one line a case, at the price the contract names for it; routine exceptions go
+    #    through the appeal path (knos appeal) and cost nothing here
+    for n, row in enumerate(month.get("reviews") or [], 1):
+        if not isinstance(row, dict) or not str(row.get("case", "")).strip():
+            raise BillingError(f"reviews {n}: needs a `case`")
+        price = money(row.get("amount", "0"), f"reviews {n}, amount")
+        if price < 0:
+            raise BillingError(f"reviews {n}: a review's price is 0 or more")
+        lines.append(_line("review", f"Exceptional review {str(row['case']).strip()}", price, "exceptional", "priced per case by contract"))
 
     total = sum((_amount(row) for row in lines), ZERO)
     rails = []
@@ -780,6 +793,16 @@ def release_split(amount: int, relayer: str = "outside", first: bool = False, un
     return {"build": fees.NEW.build, "relayer": relayer, "first": first, "amount": show(Decimal(amount) / 1_000_000), "principal_is_revenue": False,
             "fee": show(fee), "tip": show(tip), "relayer_revenue": show(ZERO if mine else tip), "relayer_cost": f"{ZERO if mine else chain:.4f}",
             "revenue": show(revenue), "direct_cost": f"{cost:.4f}", "devnet": RULES["devnet"], "rule": RULES["relayer"]}
+
+
+def review_budget(outcome: Decimal = NET_EXAMPLE[0], rate: Decimal = ACCEPT_TIERS[-1][1], review: Decimal = Decimal(25),
+                  target: Decimal = TARGET) -> dict:
+    """Why an exceptional manual review is priced apart (docs/UNIT_COSTS.md, "Exceptional review is priced apart"): the
+    Acceptance fee of one `outcome` at `rate`, the direct-cost budget that leaves at `target` gross margin, and how many
+    such budgets one `review` uses."""
+    fee = outcome * rate
+    budget = fee * (1 - target)
+    return {"fee": fee, "budget": budget, "outcomes": int(review / budget), "rule": RULES["exceptional"]}
 
 
 def ceilings(target: Decimal = TARGET) -> list[dict]:

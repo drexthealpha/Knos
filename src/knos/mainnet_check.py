@@ -79,6 +79,10 @@ NEEDS_GH = NOT_HERE + " (and gh, logged in to GitHub)"
 PROGRAMS = ("knos_oidc", "knos_pay")
 NEW_PROGRAMS = ("knos_meter", "knos_passkey")       # new in 0.3.13: the release run deploys them, so until it has they are "not deployed yet"
 TIME_LOCK = 172_800      # seconds between the vote that approves an upgrade and its execution
+# 8 days, once the configuration transaction scripts/timelock_plan.py plans has executed (docs/GOVERNANCE.md, section 2):
+# longer than an order's 7 days of notice and 2 hours of grace. Either is what the design fixes.
+PLANNED_TIME_LOCK = 691_200
+TIME_LOCKS = (TIME_LOCK, PLANNED_TIME_LOCK)
 KEY_MARGIN = 7 * 86_400  # `knos status`: a key must outlive today by this much, so that the rotate workflow has a week to refresh it
 MULTISIG = hashlib.sha256(b"account:Multisig").digest()[:8]   # Anchor's discriminator of a Squads v4 Multisig account
 PROPOSAL = hashlib.sha256(b"account:Proposal").digest()[:8]
@@ -411,7 +415,7 @@ def run(fetch: Fetch, ids: dict | None = None, env: Mapping[str, str] | None = N
     its_vault = ms is not None and str(vault_address(Pubkey.from_string(ids["upgrade_multisig"]), Pubkey.from_string(squads))) == vault
     res.append(("upgrade multisig: the pinned vault is its vault", its_vault,
                 found if ms is None else f"vault 0 of {ids['upgrade_multisig']} is " + (vault if its_vault else f"not {vault}")))
-    res.append((f"upgrade multisig: time lock is {TIME_LOCK} s (48 hours)", ms is not None and ms.time_lock == TIME_LOCK, found))
+    res.append((f"upgrade multisig: time lock is {TIME_LOCK} s (48 hours), or the planned {PLANNED_TIME_LOCK} s (8 days)", ms is not None and ms.time_lock in TIME_LOCKS, found))
     res.append(("upgrade multisig: no config authority", ms is not None and ms.config_authority is None, found))
 
     res.append(("guardian: the vault both programs name is the pinned multisig's, which has no config authority", *_guardian(fetch.account, ids, elfs)))
@@ -564,7 +568,8 @@ def status(fetch: Fetch, ids: dict | None = None, first: dict | None = None) -> 
     moot = " (not needed now: both programs are immutable)" if immutable else ""
     fixed = ("a multisig's delay and its authority are fixed when it is made. Make a new upgrade multisig with node scripts/governance.mjs create, "
              "pin its addresses in programs-v2/program_ids.json and hand the programs to it; until then upgrades are not held to a public wait")
-    res.append(Check(f"upgrade delay: an upgrade waits {TIME_LOCK // 3600} hours in public", immutable or (its_vault and ms is not None and ms.time_lock == TIME_LOCK),
+    res.append(Check(f"upgrade delay: an upgrade waits {TIME_LOCK // 3600} hours in public, or the planned {PLANNED_TIME_LOCK // 86_400} days",
+                     immutable or (its_vault and ms is not None and ms.time_lock in TIME_LOCKS),
                      said + ("" if ms is None else f"; vault 0 is {'' if its_vault else 'not '}{vault}") + moot, fixed))
     res.append(Check("upgrade multisig: no single key can change it", immutable or (ms is not None and ms.config_authority is None),
                      said + moot, fixed))

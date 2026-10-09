@@ -82,7 +82,7 @@ Then back to the start: an issue, which is the task. The buyer's comment that fu
 its price, the acceptance terms and their hash, the deadline, and what happens if nothing is accepted by then: a
 refund. The supplier who takes the issue. *Captions: replay; devnet.*
 
-> Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. This is one such claim,
+> Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check. This is one such claim,
 > and it was not paid: the reason is on screen. Here is what was agreed before the work started. In one issue,
 > buyer and supplier agree the price, the acceptance terms, the deadline and the remedy. The price and the
 > acceptance terms are hashed into the order when it is funded.

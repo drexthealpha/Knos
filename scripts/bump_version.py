@@ -9,7 +9,8 @@ A place is a manifest (PLACES: the package, its lock, the registries' manifests,
 client, the Rust crates and their lock files, the IDLs) or a PIN: a line somewhere in the tree that installs or names
 one release (`knos==X`, `tag = "vX"`, `drexthealpha/Knos@vX`, `drexthealpha/Knos/.github/actions/knos-verify@vX`, `releases/download/vX/knos-settle-X.tgz`,
 `drexthealpha/Knos/.github/workflows/supplier.yml@vX`, `git tag vX && git push origin vX`, the README's logo at
-`raw.githubusercontent.com/drexthealpha/Knos/vX/`: PyPI shows only an absolute image). Pins are found by pattern in every file git tracks, so a new document that
+`raw.githubusercontent.com/drexthealpha/Knos/vX/`: PyPI shows only an absolute image). A bump also writes README.pypi.md,
+the package's description: README.md with every relative link pinned to the tag (PyPI shows the page alone). Pins are found by pattern in every file git tracks, so a new document that
 installs a release is covered the day it is written.
 
 The lock is not a pin: requirements/sign.txt ends with `knos==X --hash=sha256:<the wheel>` once a release is locked,
@@ -97,6 +98,64 @@ SELF_PINS = "scripts/action_pins.json"
 SELF_PIN = "KNOS_RELEASE_SHA"
 SELF_KEY = re.compile(r'^(\s*)"drexthealpha/Knos@v' + V + r'": "([^"]*)",?\r?\n', re.M)
 LOCK = re.compile(r"\r?\nknos==" + V + r" --hash=sha256:[0-9a-f]{64}\r?\n\Z")
+# PyPI shows README.md alone, so a link relative to the repository leads nowhere there. README.md stays relative (it is
+# read on GitHub); PYPI_README is README.md with every relative link made whole and pinned to the release's tag, and it
+# is the package's description (pyproject.toml `readme`). A bump writes it; --check fails when it is not README.md's.
+PYPI_README = "README.pypi.md"
+GITHUB = "https://github.com/drexthealpha/Knos"
+RAW = "https://raw.githubusercontent.com/drexthealpha/Knos"
+_IMAGE = re.compile(r"\.(?:png|svg|jpe?g|gif|webp|avif)$", re.I)
+_LINK = re.compile(r"(?P<img>!?)\[(?P<text>[^\]]*)\]\((?P<target>[^)\s]+)(?P<title>\s+\"[^\"]*\")?\)"
+                   r"|^(?P<ref>\s{0,3}\[[^\]]+\]:\s+)(?P<reftarget>\S+)"
+                   r"|(?P<attr>\b(?:href|src|srcset)=\")(?P<attrtarget>[^\"]+)\"", re.M)
+
+
+def whole(target: str, version: str, image: bool = False, root: Path = ROOT) -> str:
+    """A link target as PyPI can follow it: a whole URL stays; an anchor of the README becomes the README's at the tag; a
+    path becomes the file at the tag (an image: its raw bytes, which PyPI shows; a folder: its tree)."""
+    if re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:|//", target):
+        return target
+    if target.startswith("#"):
+        return f"{GITHUB}/blob/v{version}/README.md{target}"
+    path, _, anchor = target.partition("#")
+    while path.startswith("./"):
+        path = path[2:]
+    path = path.lstrip("/")
+    if image or _IMAGE.search(path):
+        return f"{RAW}/v{version}/{path}"
+    kind = "tree" if path.endswith("/") or (root / path).is_dir() else "blob"
+    return f"{GITHUB}/{kind}/v{version}/{path.rstrip('/')}" + (f"#{anchor}" if anchor else "")
+
+
+def pypi_readme(text: str, version: str, root: Path = ROOT) -> str:
+    """README.md's text with every relative link made whole at tag v<version>, under a line saying where it comes from."""
+    def one(m: re.Match) -> str:
+        if m.group("target") is not None:
+            return f"{m.group('img')}[{m.group('text')}]({whole(m.group('target'), version, bool(m.group('img')), root)}{m.group('title') or ''})"
+        if m.group("reftarget") is not None:
+            return m.group("ref") + whole(m.group("reftarget"), version, root=root)
+        return m.group("attr") + whole(m.group("attrtarget"), version, "src" in m.group("attr"), root) + '"'
+    head = "<!-- Written by scripts/bump_version.py from README.md, with links pinned to the tag: edit README.md. -->\n"
+    return head + _LINK.sub(one, text)
+
+
+def relative_left(text: str) -> list[str]:
+    """The link targets of a page that still lean on the repository: none may remain on PyPI's page."""
+    return [t for m in _LINK.finditer(text) for t in [m.group("target") or m.group("reftarget") or m.group("attrtarget")]
+            if not re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:|//", t)]
+
+
+def pypi_stale(version: str, root: Path = ROOT, write: bool = False) -> bool:
+    """True when PYPI_README is not README.md's at `version` (with `write`, it is then written)."""
+    readme, out = root / "README.md", root / PYPI_README
+    if not readme.is_file():
+        return False
+    want = pypi_readme(_text(readme) or "", version, root)
+    if (_text(out) if out.is_file() else None) == want:
+        return False
+    if write:
+        out.write_bytes(want.encode("utf-8", errors="surrogateescape"))
+    return True
 CHANGELOG = re.compile(r"^## " + V + r"\b", re.M)
 
 
@@ -190,6 +249,8 @@ def disagreements(version: str | None = None, root: Path = ROOT, changelog: bool
     said += [f"{rel}:{line}: {got}, not {FROZEN_AT} (a program crate, frozen: its builds must stay byte-identical until the proposed upgrades execute)"
              for rel, line, got in frozen_places(root) if got != FROZEN_AT]
     said += found(root)[1]
+    if pypi_stale(want, root):
+        said.append(f"{PYPI_README}: not README.md with its links pinned to v{want} (python scripts/bump_version.py {want} writes it)")
     if self_pin(want, root, write=False):
         said.append(f"{SELF_PINS}: no key drexthealpha/Knos@v{want} (a bump adds it with {SELF_PIN}; the commit is written after the tag)")
     if changelog:
@@ -247,7 +308,9 @@ def bump(version: str, root: Path = ROOT) -> list[str]:
         if new != text:
             (root / rel).write_bytes(new.encode("utf-8", errors="surrogateescape"))
             changed.append(rel)
-    return sorted(changed)
+    if pypi_stale(version, root, write=True):                 # after the pins: it is README.md's text at this version
+        changed.append(PYPI_README)
+    return sorted(set(changed))
 
 
 def main(argv: list[str] | None = None) -> int:

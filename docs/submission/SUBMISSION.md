@@ -2,7 +2,7 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.
+Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check.
 
 Of first agent pull requests that claimed passing tests, 17.8% had a failed check (147 of 826 repositories).
 
@@ -86,6 +86,27 @@ each says so, and the founder confirms it before pasting.
       funded an order since this was written, the count is updated from `docs/facts.json`; if a conversation has
       happened, it is added only with the other party's agreement to be named.
 - [ ] Every team member is registered on colosseum.com. Today the team is one person.
+- [ ] Each entry's needs, Grand Prize, Solana track and Public Good, are ticked in [CHECKLIST.md](CHECKLIST.md).
+
+## Built in the window, and before it
+
+The window is 14 Sep to 12 Oct 2026. Each date below is the day git first records the path
+(`git log --diff-filter=A --format=%ad --date=short -- <path>`).
+
+| Built in the window | First recorded |
+| --- | --- |
+| The first escrow, which checks GitHub's OIDC signature on chain (`programs/`) | 1 Oct 2026 |
+| The Agent PR Index and the site (`scripts/agent_pr_index.py`, `web/`) | 1 Oct 2026 |
+| What Knos remembers, kept in the Sibyl engine (`src/knos/proof/history.py`) | 1 Oct 2026 |
+| knos_oidc and knos_pay, the second deployment (`programs-v2/`) | 3 Oct 2026 |
+| The merged pull request count (`scripts/backtest.py`) and the workflow flow (`src/knos/flow.py`) | 3 Oct 2026 |
+| The meter: knos_meter, the ledger (`src/knos/ledger.py`), knos_passkey | 4 Oct 2026 |
+| The statement both sides compute (`src/knos/statement.py`) | 6 Oct 2026 |
+
+Before the window: Knos 0.1.0 to 0.1.8 (tags `v0.1.0` to `v0.1.8`, 1 to 7 Sep 2026), a different product: shared
+memory for coding agents on one machine. It ran on Sibyl Labs' memory engine, `sibyl-memory-client`, a dependency
+since 0.1.0. Knos reuses that engine for what it remembers; the engine is not new work, and neither is the
+founder's record with it. One complete transaction is told in [TRANSACTION.md](TRANSACTION.md).
 
 ## whatBuilding
 
@@ -101,7 +122,9 @@ of every capability, and web/upgrades.json has which builds are live on the publ
 
 ## whyNow
 
-Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check at the head commit (12.4%). Of first such pull
+Of 241 merged agent pull requests that claimed passing tests, 9 had a failed test, build, lint or type-check job at
+the head commit (3.7%, 95% interval 2.0% to 6.9%), and 19 a failed check of any kind (7.9%); the scan recorded 16 and 30;
+11 of the 30 were excluded on a second reading ([index_review.json](../index_review.json)). Of first such pull
 requests, 17.8% had one: 147 of 826 repositories, and in 80 of them (9.7%) it was a test or a build. Billing by outcome has begun, and the seller keeps the count: on 14 Sep 2026 one vendor started
 billing per merged changeset, another advertises that customers pay only for merged pull requests, and support
 agents are sold per resolution that the vendor itself counts. The person who approves that invoice has no count
@@ -125,8 +148,8 @@ commands that reproduce every count.
 
 None yet. No buyer or supplier has been interviewed, there is no letter of intent, no pilot, no shadow count,
 and nobody has paid. NUMBERS.md prints each of those as a zero. What exists is a measurement, an offer and a
-plan to ask. The measurement: of 241 merged agent pull requests whose description said tests pass, 30 had a
-failed check at the head commit. The buyer is whoever must approve a supplier's invoice and defend it
+plan to ask. The measurement: of 241 merged agent pull requests whose description said tests pass, 9 had a
+failed test, build, lint or type-check job at the head commit, each read again by hand. The buyer is whoever must approve a supplier's invoice and defend it
 afterwards. An organisation is qualified when it has measurable spend on work bought per outcome, acceptance
 criteria it can write down, a buyer with authority, and a problem worth another system; nobody has counted how
 many there are. A maintainer's bounty is the smallest case and not the market: all open bounties on every board
@@ -137,10 +160,10 @@ came to 64,291 USD on 2 Oct 2026. The offer starts free, in shadow mode, and bec
 
 No traction is claimed beyond what the chain counts. Knos's own account funded every task paid so far, in test
 USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one outside contributor, for bounties
-Knos funded itself, and the rest to Knos's own accounts. When the release ran, 46 tasks had been
+Knos funded itself, and the rest to Knos's own accounts. When the release ran, 315 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
-their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 25 seconds at the median, over 42
-payments. 3,860 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
+their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 26 seconds at the median, over 51
+payments. 3,928 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
 sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
 source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 

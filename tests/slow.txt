@@ -9,6 +9,11 @@ tests/test_judge_langs.py::test_go
 tests/test_judge_langs.py::test_rust
 tests/test_pay2_chain.py::test_a_random_walk_keeps_every_vault_equal_to_its_open_jobs
 
+# `cargo test` of crates/knos-pay-interface from a cold target: 101 s and 154 s on windows-latest (tests.yml runs
+# 37918500152 and 37910335588; in the second the slowest test of a shard that took 5m31s, over the limit), 28 to 35 s
+# on Ubuntu
+tests/test_pay_interface.py::test_the_crates_own_tests_pass_against_the_fixture
+
 # a build of the site and a page driven in headless Chromium (skipped at once where there is no browser)
 tests/test_site_approver.py::test_a_first_comparison_by_script_with_no_command_line
 tests/test_site_buyer.py::test_the_buy_page_in_a_browser_and_its_signed_line_on_chain

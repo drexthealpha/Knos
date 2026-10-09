@@ -14,8 +14,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-NUMBER = "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check."
-OUTCOME = "Buyers and suppliers close invoices on evidence both can verify."
+NUMBER = "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check."
+OUTCOME = "Both sides close invoices on evidence both verify."
 LIMITS = "Solana devnet, test money, one person holds every key, no outside review, and nobody has paid."
 STEPS = ["one", "two", "three", "four", "five", "six", "seven"]
 WHY_SOLANA = "Money is released with no custodian, and the count is anchored where neither side can alter it."
@@ -151,7 +151,7 @@ def test_the_pitch_opens_on_the_finding_tells_one_story_then_the_founder_the_zer
     assert f"Why Solana? {WHY_SOLANA}" in story and "the same bill, line for line" in story
     assert "56 of 63" in said["The evidence"] and "the black-box check refused all 63" in said["The evidence"]
     # days to approve, not seconds to pay: the measured time, and the wait that is not measured, said as not measured
-    assert "From merge to paid took 25 seconds at the median, on devnet." in said["The evidence"]
+    assert "From merge to paid took 26 seconds at the median, on devnet." in said["The evidence"]
     assert "an invoice waits on the person who approves it, not on the payment" in said["The evidence"] and "we have not measured that wait" in said["The evidence"]
     # the founder's record, spoken in one sentence, as TEAM.md and the facts file state it
     record = [s for s in re.split(r"(?<=\.) ", said["The founder"]) if "first place" in s]

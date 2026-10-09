@@ -99,8 +99,8 @@ class Chain:
         self.key = oidc.key_pda(oidc.GITHUB, self.github)
         assert self.register(oidc.GITHUB, self.github), self.err
 
-    def fund(self, sol: int = 100) -> Keypair:
-        k = Keypair(); self.svm.airdrop(k.pubkey(), sol * 10 ** 9); return k
+    def fund(self, sol: int = 100, key: Keypair | None = None) -> Keypair:
+        k = key or Keypair(); self.svm.airdrop(k.pubkey(), sol * 10 ** 9); return k
 
     def warp(self, seconds: int) -> None:
         c = self.svm.get_clock(); c.unix_timestamp += seconds; self.svm.set_clock(c)
@@ -289,9 +289,9 @@ class Chain:
                          [AccountMeta(mint, False, True), AccountMeta(account, False, True), AccountMeta(self.payer.pubkey(), True, False)])
         assert self.send([ix]), self.err
 
-    def wallet(self, mint: Pubkey, amount: int = 0, sol: int = 10) -> tuple[Keypair, Pubkey]:
-        """A new wallet with SOL and a token account of the mint holding `amount`."""
-        k = self.fund(sol)
+    def wallet(self, mint: Pubkey, amount: int = 0, sol: int = 10, key: Keypair | None = None) -> tuple[Keypair, Pubkey]:
+        """A new wallet with SOL and a token account of the mint holding `amount` (`key`: its key; default a new one)."""
+        k = self.fund(sol, key)
         t = self.token_account(k.pubkey(), mint)
         if amount:
             self.mint_to(mint, t, amount)

@@ -15,7 +15,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 DOCS, SUB = ROOT / "docs", ROOT / "docs" / "submission"
 ONE = "The neutral meter for AI agent work: neither side keeps the count."
-NUMBER = "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check"
+NUMBER = "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check"
 SECOND = "Of first agent pull requests that claimed passing tests, 17.8% had a failed check"
 OLD = "the neutral count and settlement for software work priced per outcome"
 CARRY_ONE = ["docs/MARKET.md", "docs/WHY.md", "docs/COMPARE.md", "docs/PILOT.md", "docs/TEAM.md", "docs/submission/SUBMISSION.md",
@@ -24,7 +24,7 @@ MINE = [*CARRY_ONE, "docs/DISCLOSURE.md", "docs/GOVERNANCE.md", "docs/submission
         "docs/submission/weekly_update.md", "web/pricing.js", "web/price.js", "scripts/video/demo.shots.json"]
 LIMIT_WORDS, LIMIT_FIELD = 300, 1000
 BOOK = [tuple(row) for row in json.loads((ROOT / "tests" / "data" / "billing_vectors.json").read_text(encoding="utf-8"))["lines"]]     # the six lines of Price book 3, as src/knos/billing.py and web/price.js hold them
-FIRST = "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check"
+FIRST = "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check"
 
 
 def read(rel: str) -> str:
@@ -219,7 +219,8 @@ def test_the_measured_twelve_percent_is_a_count_of_failed_checks_and_never_a_sha
     prs = json.loads(read("docs/agent_pr_ci.json"))["prs"]
     assert len(prs) >= merged["prs"]                                    # the pull requests the count is made from are in the file the page names
     market = flat("docs/MARKET.md")
-    assert "Of 241 merged agent pull requests whose description said tests or CI pass, 30 had a failed check at the head commit: 12.4%" in market
+    assert "Of 241 merged agent pull requests whose description said tests or CI pass, 9 had a failed test, build, lint or type-check job at the head commit: 3.7%" in market
+    assert "19 had a failed check of any kind (7.9%)" in market and "index_review.json" in market and "recorded 16 and 30 (12.4%)" in market
     assert "That is a count of failed checks, not of money." in market
     assert "It is not a promise that any buyer saves" in market and "agent_pr_ci.json" in market and "backtest.json" in market
     assert ("Both figures count failed checks. Neither is invoice leakage: a failed check is not always a failed test or a false claim, "

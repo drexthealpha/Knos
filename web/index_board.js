@@ -167,7 +167,7 @@ export function indexBoardHtml(weekly, week, feed) {
     <ul class="fine ib-notes">
       <li id="ib-rate">Count merged claims that had a failed check.</li>
       <li id="ib-bar">Read each whisker as a 95% interval.</li>
-      <li id="ib-rank">Place only agents with ${esc(least)} merged claims; others stay unranked.</li>
+      <li id="ib-rank">Mark agents under ${esc(least)} merged claims “${TOO_FEW}”.</li>
       <li id="ib-not">Treat a failed check as a record, not proof.</li>
       <li id="ib-pay">Dispute any row; no vendor pays to change one.</li>
       <li id="ib-quality">Rates no defect-free work, code or vendor.</li>

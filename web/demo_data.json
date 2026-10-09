@@ -2,7 +2,7 @@
  "_about": "Written by scripts/demo_data.py from the documents under `sources`; tests/test_site_demo.py holds every signature and number to them.",
  "cluster": "devnet",
  "ids": "public",
- "date": "7 October 2026",
+ "date": "9 October 2026",
  "money": "test USDC",
  "agree": {
   "price": "5.00",
@@ -50,11 +50,11 @@
  "paid": {
   "tx": "59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV",
   "amount": "5.00",
-  "seconds": 25,
-  "payments": 42,
+  "seconds": 26,
+  "payments": 51,
   "window": {
    "from": "2026-10-02",
-   "to": "2026-10-06"
+   "to": "2026-10-09"
   }
  },
  "replay": {

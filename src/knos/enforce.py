@@ -49,7 +49,7 @@ ROUTES: tuple[tuple[str, str, str], ...] = (
      "listed destinations, with no vote. `knos boundary plan` adds none unless the boundary file asks."),
     ("comment", "Funding by comment", "`/knos fund <amount>`: fund.yml job `command` has GitHub sign, and FundOrderBalance (16) spends a Balance."),
     ("tip", "A tip by comment", "`/knos tip <amount>` on a merged pull request: the same job; FundBalance (3) opens a job that lasts one day."),
-    ("offer", "A standing offer", "`/knos offer @vendor rate R budget B`: the same job; an order that pays one rate per accepted pull request."),
+    ("offer", "A standing offer", "`/knos offer @vendor rate R budget B`: the same job; an order that pays one rate each time the agreed checks pass at merge."),
     ("topup", "A top-up", "TopUp (23) adds to an open order. `/knos raise` only says how: a comment cannot sign for a wallet."),
     ("private", "A private order", "`/knos fund` in a private repository, answered by its attestor's run of fund.yml job `command`."),
     ("balance", "A Balance", "OpenBalance (0), SetBalance (1), SetBalanceX (13), Withdraw (2): money a wallet sets aside for one GitHub owner."),
@@ -241,7 +241,7 @@ CELLS: dict[str, dict[str, Cell]] = {
         "who": _p(f"knos_pay FundOrderBalance (16): {_SPENDER}. The workflow asks write access, `who_may_fund`, and that the offer file's "
                   "requester holds the requester role (`flow._gated`).", _LIMITS),
         "order_limit": _p(f"knos_pay FundOrderBalance (16): {_BAL_CAP} holds the offer's budget, and PayOrder (17) pays one rate, signed in "
-                          "the order's options, per accepted pull request.",
+                          "the order's options, each time the agreed checks pass at merge.",
                           "tests/test_order_terms.py::test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_one_rate_is_left"),
         "period_limit": _p(f"knos_pay FundOrderBalance (16): {_BAL_X}. An offer file's cap by period is one funding a period: the program "
                            "holds a budget until its deadline, 90 days at most.", _LIMITS),
@@ -442,6 +442,25 @@ def problems() -> list[str]:
     return out
 
 
+OUTSIDE_MATRIX = (     # two gaps between what the program allows and what the contract says, each with the command that shows it
+    ("The Plan floor",
+     "knos_pay lets FEE_OWNER set a Plan for one owner's orders down to 10 basis points (`PLAN_BPS_MIN`); the price book's floor is "
+     "0.20%. The program allows 10 bps; Knos signs no Plan below 20 bps; the check proves which Plans exist. `knos.plan_floor.build` "
+     "is the one Knos builder of SetPlan and refuses below 20; `knos fees plans --check` reads every Plan account on the cluster "
+     "(one getProgramAccounts, by the Plan's 24-byte length) and exits 1 when one in force is below 20. Test: "
+     "`tests/test_plan_floor.py`."),
+    ("The workflow-strip hole",
+     "A buyer who controls the repository can remove or edit the Knos workflow in the pull request it merges, so the check never runs. "
+     "`knos protect --check-strip OWNER/REPO` reads GitHub's rules for the default branch and says: closed (a ruleset's `workflows` "
+     "rule requires the Knos workflow, which then runs from the pinned file, not the pull request's copy), partly (a required status "
+     "check names a Knos check: the merge waits for it, but a pull request can change the workflow behind it), or open. Closed never "
+     "holds against those who can edit or bypass the ruleset: organisation owners for an organisation ruleset, repository admins for "
+     "a repository one. Requiring workflows through rulesets is a GitHub Enterprise Cloud feature "
+     "(https://github.blog/changelog/2023-10-11-requiring-workflows-with-repository-rules-is-generally-available/); the rule shapes "
+     "are in https://docs.github.com/en/rest/repos/rules. Test: `tests/test_strip_check.py`."),
+)
+
+
 def _cell_md(text: str) -> str:
     return text.replace("|", "\\|")
 
@@ -477,6 +496,7 @@ def render() -> str:
         lines.append(f"| [{name}](#{rid}) | " + " | ".join(CELLS[rid][x].cls for x, _n in RESTRICTIONS) + " |")
     lines += ["", "## What to keep in mind", ""]
     lines += [f"- {_cell_md(note)}" for note in NOTES]
+    lines += [f"- Outside the matrix: {name.lower()}. {_cell_md(note)}" for name, note in OUTSIDE_MATRIX]
     for rid, name, how in ROUTES:
         lines += ["", f'<a id="{rid}"></a>', "", f"## {name}", "", how, "", "| restriction | class | by what | test |", "|---|---|---|---|"]
         for x, xname in RESTRICTIONS:

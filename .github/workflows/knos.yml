@@ -89,7 +89,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@5b26b1cddeae766b0693fa3eafdd9e44a7755481
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
     secrets:
       KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -110,7 +110,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@5b26b1cddeae766b0693fa3eafdd9e44a7755481
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
     secrets:
       KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -130,6 +130,6 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@5b26b1cddeae766b0693fa3eafdd9e44a7755481
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
     secrets:
       KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}       # optional, as above

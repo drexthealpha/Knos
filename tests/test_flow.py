@@ -40,7 +40,7 @@ PAID = (f"Knos: paid. @mona received 19.50 {MONEY} for issue #7: the bounty of 2
 
 HELD = (f"Knos: held for @mona. 20.00 {MONEY} for issue #7 waits for them until 2027-03-20 15:13 UTC, because no wallet is "
         "known for them: none is bound to their GitHub account and no `/knos address` comment counted. To receive it, @mona binds a "
-        "wallet: `knos claim <their Solana address>` in a terminal, or https://drexthealpha.github.io/Knos/#claim in the browser. It "
+        "wallet: https://drexthealpha.github.io/Knos/#payee=mona in the browser, or `knos claim <their Solana address>` in a terminal. It "
         "is then paid, less Knos's fee of 0.50; after that date it goes back to where it came from "
         f"([transaction]({EXPLORER}/tx/sig2?cluster=devnet), 34 s after the merge).")
 

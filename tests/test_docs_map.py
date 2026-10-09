@@ -77,7 +77,7 @@ def test_the_story_is_seven_beats_each_with_evidence_that_exists_and_asks_for_th
     story = read("docs/STORY.md")
     lines = [line for line in story.splitlines() if line.strip()]
     assert lines[1] == "**The neutral meter for AI agent work: neither side keeps the count.**"
-    assert lines[2] == "Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check."
+    assert lines[2] == "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check."
     steps = re.findall(r"(?m)^(\d)\. \*\*(.+?)\*\* (.+)\n   Evidence: \[([^\]]+)\]\(([^)]+)\)", story)
     assert [int(s[0]) for s in steps] == list(range(1, STEPS + 1))
     for _n, title, said, _name, target in steps:

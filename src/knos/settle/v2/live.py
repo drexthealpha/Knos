@@ -16,6 +16,7 @@ then sent as it always was, and the program's own refusal stands.
 from __future__ import annotations
 
 import re
+import weakref
 from datetime import datetime, timezone
 
 from solders.instruction import Instruction
@@ -61,7 +62,17 @@ def runs(ledger, payer: Keypair, name: str) -> bool | None:
     if logs is not None and not any(line.endswith(f"knosm:version {WANT[name]}") for line in logs):
         return None
     _NEW.add(where)
+    if not getattr(ledger, "url", None):    # known by id(), which Python gives to another object once this one is gone
+        try:
+            weakref.finalize(ledger, _drop, where)
+        except TypeError:
+            pass
     return True
+
+
+def _drop(where: tuple) -> None:
+    """A ledger with no url is gone: what it answered goes with it, so a later one with its id() is asked itself."""
+    _NEW.discard(where)
 
 
 def executes(ledger, name: str) -> tuple[int | None, int | None, bool]:

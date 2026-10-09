@@ -283,7 +283,8 @@ PLAIN = {
     "meter_single": "one counted evaluation", "meter_batch": "a counted batch of evaluations", "meter_seller_claim": "the seller's own count",
     "passkey_payee_wallet": "a payee's passkey wallet", "passkey_funder": "a passkey funder", "passkey_fund_relay": "the passkey relay",
     "buyer_page": "the site's Buy page", "x402_knos_order": "an x402 order", "upgrade_gate": "the upgrade gate",
-    "outcome_not_code": "an outcome that is not code",
+    "outcome_not_code": "an outcome that is not code", "holdback_release": "a holdback released after its warranty",
+    "oidc_strict_json": "strict JSON in the verifier", "es256_tokens": "ES256 tokens in one transaction", "presentation_grace": "the presentation grace",
 }
 STAGE_ROWS = (   # (stage, the row's name, what the row adds after the names, the label docs/CAPABILITIES.md gives the stage)
     ("reproduced", "Reproduced by someone else", "", "reproduced by someone else"),

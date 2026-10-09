@@ -457,6 +457,45 @@ Knos's is attested: the level stays out of the product until a verifier is live 
 
 **Maturity.** One experiment, off chain, on one machine. Nothing in the product reads a proof.
 
+## Assurance levels on every accepted line
+
+`src/knos/assurance.py` gives each receipt and each statement line one of four levels, lowest first, computed from its
+evidence and never typed (`knos assurance FILE` prints them):
+
+| Level | What it means | Reached today |
+|---|---|---|
+| workflow-reported | the forge signed which workflow ran; that run reported the result | yes: every signed receipt |
+| re-executed | an evaluator outside the supplier's control ran the pinned inputs again (rung b; receipt levels `rerun` and `agreed`) | yes, when rung b ran |
+| independently attested | a party other than buyer and supplier signed the result | no: no such party exists today, and no line may say it |
+| proved | a proof of the property itself, checked on chain | only the forge's signature of the workflow identity, which knos_oidc checks in the paying transaction; an acceptance result is never proved |
+
+A line's level is therefore at most re-executed. Whether the chain checked the signature is said beside it
+(`identity_proved`), not as a level of the result. A shadow statement's lines (GitHub's answers, which GitHub does
+not sign) reach no level until a receipt is recorded for them.
+
+## Four words a statement keeps apart
+
+- **Agreement**: both sides reconstruct the same lines from the recorded events. Two ledgers can agree and both miss
+  the same event.
+- **Completeness**: the record has no gap. A log of events (`knos events`) checks sequence numbers per stream, signed
+  corrections and the parties' acknowledgements of a month's last line; a shadow statement or a closed month carries
+  no sequence and says "not checked".
+- **Correctness**: the acceptance decision matches the terms hashed at funding; the level of each accepted line says
+  how it was checked.
+- **Commercial satisfaction**: whether the buyer got what it wanted. Knos never claims it, at any level.
+
+## The workflow-strip hole
+
+A buyer who controls the repository can remove or edit the Knos workflow in the very pull request it merges, so the
+check never runs and nothing is signed. `knos protect --check-strip OWNER/REPO` (`src/knos/strip_check.py`) reads
+GitHub's rules for the default branch (GET /repos/{owner}/{repo}/rules/branches/{branch}, rule shapes in
+[GitHub's REST reference](https://docs.github.com/en/rest/repos/rules), read 2026-10-09) and says one of: **closed** (a
+ruleset's `workflows` rule requires the Knos workflow, which then runs from the pinned file; requiring workflows
+through rulesets is a [GitHub Enterprise Cloud feature](https://github.blog/changelog/2023-10-11-requiring-workflows-with-repository-rules-is-generally-available/)),
+**partly** (a required status check names a Knos check: the merge waits for it, but a pull request can change the
+workflow behind it and an admin can remove the requirement) or **open**. Closed never holds against those who can
+edit or bypass the ruleset: organisation owners for an organisation ruleset, repository admins for a repository one.
+
 ## The order Knos intends, and why
 
 These are intentions. None of them is a date, and none exists beyond what the sections above say exists.

@@ -237,13 +237,13 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     first = readme.split("</h1>", 1)[1].split("\n## ", 1)[0]             # what GitHub shows before scrolling, under the header
     lines = [line for line in first.splitlines() if line.strip()]
-    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
-    number = f"Of {merged['prs']} merged agent pull requests that claimed passing tests, {merged['any_check_failed']['prs']} had a failed check."
+    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]
+    number = f"Of {merged['prs']} merged agent pull requests claiming passing tests, {merged['test_or_build_check_failed']['prs']} failed a test, build, lint or type check."
     # the site's first screen, line for line where they share lines: the one sentence (the one noun leads it), the customer
     # outcome, the one number, one link to the site and one to the judges' page: four lines, forty words at most
-    outcome = "Buyers and suppliers close invoices on evidence both can verify."
+    outcome = "Both sides close invoices on evidence both verify."
     assert lines[0] == f"**{cc.SENTENCE}**" and cc.SENTENCE.startswith("The neutral meter ") and lines[1] == outcome and lines[2] == number and len(lines) == 4
-    assert lines[3] == "[Check yours](https://drexthealpha.github.io/Knos/) · [Judges](docs/JUDGES.md)"
+    assert lines[3] == "[Check](https://drexthealpha.github.io/Knos/) · [Judges](docs/JUDGES.md)"
     hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
     assert f">{cc.SENTENCE}</h1>" in hero and f">{outcome}</p>" in hero and hero.index(cc.SENTENCE) < hero.index(outcome) < hero.index('id="hero-fact"')
     # the ONE command is the first line under "Read more", no longer on the first screen

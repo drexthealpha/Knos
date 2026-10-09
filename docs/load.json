@@ -396,7 +396,7 @@
    "wait_every_s": 3.0,
    "wait_at_most_s": 600,
    "polls_at_median": 10,
-   "polls_at_p95": 21,
+   "polls_at_p95": 23,
    "polls_at_timeout": 202,
    "repositories_read_per_pass_at_most": 122,
    "search_every_s": 30,
@@ -425,15 +425,15 @@
   },
   "latency": {
    "merge_to_paid_s": {
-    "count": 42,
-    "median": 25,
-    "p95": 58
+    "count": 51,
+    "median": 26,
+    "p95": 65
    },
    "window": {
     "from": "2026-10-02",
-    "to": "2026-10-06"
+    "to": "2026-10-09"
    },
-   "comment_to_funded_median_s": 45,
+   "comment_to_funded_median_s": 36,
    "stage_split": "not apart in these samples; scripts/latency_stages.py splits the payments whose relay log line carries the stage fields: docs/RELAY.md, \"Where a token waits\""
   },
   "budget": {
@@ -468,12 +468,12 @@
     "jobs": 2,
     "poll_requests": {
      "median": 20,
-     "p95": 42,
+     "p95": 46,
      "timeout": 404
     },
     "token_requests": {
      "median": 54,
-     "p95": 76,
+     "p95": 80,
      "timeout": 438
     },
     "relay_log_comments": 2,
@@ -537,10 +537,10 @@
      {
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
-      "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "at": 13292,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 65 s (recorded, 51 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
-      "load": 0.0007,
+      "load": 0.0008,
       "binds": false
      },
      {
@@ -577,26 +577,26 @@
     "per_day": 10,
     "way": "public",
     "first": "GITHUB_TOKEN requests an hour",
-    "at": 315,
+    "at": 300,
     "fits": true,
     "binding": [],
     "bounds": [
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 315,
-      "from": "76 requests a deliverable (26 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "at": 300,
+      "from": "80 requests a deliverable (26 reads and 8 writes counted, 46 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
       "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 0.0317,
+      "load": 0.0333,
       "binds": false
      },
      {
       "limit": "the public relay's pass, at the serial rate recorded",
       "scope": "every customer of the public worker",
-      "at": 1728,
-      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
+      "at": 1661,
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 26 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
       "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
-      "load": 0.0058,
+      "load": 0.006,
       "binds": false
      },
      {
@@ -630,10 +630,10 @@
      {
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
-      "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "at": 13292,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 65 s (recorded, 51 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
-      "load": 0.0007,
+      "load": 0.0008,
       "binds": false
      },
      {
@@ -687,10 +687,10 @@
      {
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
-      "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "at": 13292,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 65 s (recorded, 51 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
-      "load": 0.0671,
+      "load": 0.0752,
       "binds": false
      },
      {
@@ -736,26 +736,26 @@
     "per_day": 1000,
     "way": "public",
     "first": "the public relay's pass, at the serial rate recorded",
-    "at": 1728,
+    "at": 1661,
     "fits": true,
     "binding": [],
     "bounds": [
      {
       "limit": "the public relay's pass, at the serial rate recorded",
       "scope": "every customer of the public worker",
-      "at": 1728,
-      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
+      "at": 1661,
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 26 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
       "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
-      "load": 0.5787,
+      "load": 0.602,
       "binds": false
      },
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 3157,
-      "from": "76 requests a deliverable (26 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "at": 3000,
+      "from": "80 requests a deliverable (26 reads and 8 writes counted, 46 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
       "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 0.3168,
+      "load": 0.3333,
       "binds": false
      },
      {
@@ -780,10 +780,10 @@
      {
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
-      "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "at": 13292,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 65 s (recorded, 51 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
-      "load": 0.0671,
+      "load": 0.0752,
       "binds": false
      },
      {
@@ -820,7 +820,7 @@
     "per_day": 100000,
     "way": "own",
     "first": "concurrent jobs (Free plan)",
-    "at": 14896,
+    "at": 13292,
     "fits": false,
     "binding": [
      "the meter's statement, recomputed from the logs",
@@ -841,10 +841,10 @@
      {
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
-      "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "at": 13292,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 65 s (recorded, 51 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
-      "load": 6.7132,
+      "load": 7.5233,
       "binds": true
      },
      {
@@ -899,7 +899,7 @@
     "per_day": 100000,
     "way": "public",
     "first": "the public relay's pass, at the serial rate recorded",
-    "at": 1728,
+    "at": 1661,
     "fits": false,
     "binding": [
      "the public relay's pass, at the serial rate recorded",
@@ -912,10 +912,10 @@
      {
       "limit": "the public relay's pass, at the serial rate recorded",
       "scope": "every customer of the public worker",
-      "at": 1728,
-      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
+      "at": 1661,
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 26 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
       "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
-      "load": 57.8704,
+      "load": 60.2047,
       "binds": true
      },
      {
@@ -940,19 +940,19 @@
      {
       "limit": "concurrent jobs (Free plan)",
       "scope": "the customer's account",
-      "at": 14896,
-      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "at": 13292,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 65 s (recorded, 51 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
       "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
-      "load": 6.7132,
+      "load": 7.5233,
       "binds": true
      },
      {
       "limit": "GITHUB_TOKEN requests an hour",
       "scope": "each repository",
-      "at": 31578,
-      "from": "76 requests a deliverable (26 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "at": 30000,
+      "from": "80 requests a deliverable (26 reads and 8 writes counted, 46 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
       "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
-      "load": 3.1668,
+      "load": 3.3333,
       "binds": true
      },
      {
@@ -1330,6 +1330,153 @@
    "wallet": null,
    "github_run": "https://github.com/drexthealpha/knos-load/actions/runs/37833126115",
    "source": "the operator's release run of 0.3.22 on 8 Oct 2026 with its own wallets; the 40 pay tokens were signed in GitHub Actions run 37833126115 of drexthealpha/knos-load; recorded from the run's report, which lists the 40 order ids and the four fee accounts; it kept no fee payers of the relays"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.185,
+   "payment_s": {
+    "n": 40,
+    "p50": 18.4,
+    "p95": 28.3,
+    "p99": 29.0,
+    "max": 29.0
+   },
+   "retries": 0,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "hot-funder",
+   "measures": "every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every payment shares",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "fee_accounts": 1,
+   "owners": 1
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.127,
+   "payment_s": {
+    "n": 40,
+    "p50": 23.2,
+    "p95": 48.5,
+    "p99": 49.7,
+    "max": 49.7
+   },
+   "retries": 17,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "rpc-faults",
+   "measures": "15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "No payment was made twice."
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.173,
+   "payment_s": {
+    "n": 40,
+    "p50": 18.5,
+    "p95": 29.3,
+    "p99": 32.1,
+    "max": 32.1
+   },
+   "retries": 0,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "priority-fee",
+   "measures": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "No transaction of this run carried a price: the code of 0.3.23 skipped v1 transactions, so this is a plain run, not a priced one.",
+   "rerun": "by the 0.3.24 release, which prices v1 transactions in the message; until then this row is a plain run"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 13,
+   "already": 0,
+   "refused": null,
+   "never_completed": null,
+   "failures": 27,
+   "seconds": null,
+   "paid_per_s": 0.039,
+   "payment_s": {
+    "n": 13,
+    "p50": 264.5,
+    "p95": 300.3,
+    "p99": 300.3,
+    "max": 300.3
+   },
+   "retries": 0,
+   "ok": false,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "burst",
+   "measures": "every relay sends all of its payments at once instead of one after another",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "The 27 failures were HTTP 429 (the public endpoint's rate limit) and \"Blockhash not found\"; 0.3.23 sent each payment once.",
+   "rerun": "by the 0.3.24 release, which waits and sends again over a fresh blockhash after a 429 or an expired blockhash; until then 13 of 40 stands"
   }
  ],
  "scenarios": {

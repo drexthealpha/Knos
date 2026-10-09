@@ -2,6 +2,98 @@
 
 Prices and figures in older entries are superseded; the current price book is [docs/MARKET.md](docs/MARKET.md), section "The price book", and each GitHub release's notes are its entry here.
 
+## 0.3.24 (October 2026)
+
+**The lead number survives a second reading: 9 of 241, not 30. Every accepted line says how much stands behind it,
+the witnessed transaction records its settlement, version-1 transactions carry their priority fee, and a payee
+collects through one page.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) unless a line says otherwise; none of it has been used by a person
+outside this repository. **No program changes in this release:** nothing under `programs-v2/knos_*`, `programs/`,
+`idl/` or `tests/fixtures/*.so` moved by a byte. The interface crates stay at 0.3.14.
+
+### The upgrade ran
+
+- **knos_oidc 2.2 and knos_pay 2.2 run at the public program ids** since 9 Oct: upgrade proposals 7 and 8 were
+  executed by the scheduled run. `python scripts/exercise_public.py status --want 2.2` reads it from the chain.
+- **The after rounds ran there and are recorded.** Newly exercised at the public ids: strict JSON and ES256 tokens
+  at knos_oidc, the presentation grace at knos_pay and a holdback's release
+  ([`docs/CAPABILITIES.md`](docs/CAPABILITIES.md)). The rounds that need a second repository owner, more test USDC
+  than the wallet holds or an arranged clock say `cannot`; those waiting on a deadline say `needs time`.
+- **The 8-day upgrade time lock is approved, not applied.** Its Squads configuration transaction (proposal 9) was
+  created and approved by two member keys; the Squads program executes it only once the present 48-hour lock has run,
+  and until then the lock on chain is 48 hours ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md)).
+
+### The number, read again
+
+- **The lead fell from 30 to 9.** The scan of 1 Oct counted 30 of 241 merged agent pull requests that claimed
+  passing tests with a failed check at the head commit, 16 of them a failed test, build, lint or type-check job.
+  Each of the 30 was read again by hand on 9 Oct: was it merged, into the default branch, was the claim the agent's,
+  did the failure hold. 11 of the 30 were excluded. The lead is now the strict count after that reading: 9 of 241
+  (3.7%, 95% interval 2.0% to 6.9%); 19 of 241 (7.9%) had a failed check of any kind. Every one of the 30 is listed
+  with its finding and decision in [`docs/index_review.json`](docs/index_review.json); the excluded ones are shown,
+  not dropped. The 211 with no failed check were not read again.
+- **The method is frozen.** [`docs/INDEX_METHOD.md`](docs/INDEX_METHOD.md) is version 1; its sha256 is in
+  `docs/backtest.json` and `scripts/backtest.py --check` fails when the file changes under the same version.
+- **`knos reproduce`'s example** is a pull request that is plainly merged.
+
+### Assurance, said per line
+
+- **Four levels.** `knos assurance FILE` prints, for a receipt or each statement line, workflow-reported,
+  re-executed, independently attested or proved. Only the first two are reachable today; the other two are defined
+  and shown as not reached. A statement keeps four things apart: agreement on the recorded events, completeness of the
+  record, correctness of the acceptance decision, and commercial satisfaction, which is never claimed.
+- **The Plan floor.** The program lets a Plan lower the fee to 10 basis points; the price book's floor is 20.
+  Knos's own Plan builder refuses below 20, and `knos fees plans --check` reads every Plan on the cluster and exits 1
+  when one in force is below it. The program still allows 10: the floor is Knos's signer, checked against the chain.
+- **The workflow-strip hole.** A buyer who controls the repository can remove the Knos workflow before merging.
+  `knos protect --check-strip OWNER/REPO` says closed (a ruleset requires the workflow), partly (a required check
+  only) or open, and never closed for those who can edit the ruleset. Tested on recorded GitHub answers.
+- **Exceptional review is priced apart:** its own invoice line per case, by contract, never inside the unit prices.
+
+### Witnessed
+
+- **The funding reply is the flow's.** The witnessed script read the token comment posted first as the funding
+  reply; it now parses only the flow's reply.
+- **The settlement goes into the statement.** `knos statement settle-sync` reads the PayOrder transaction, checks
+  amount, payee and order, and records it as the line's settled step. Offline only: the run of 9 Oct, whose line
+  still shows "settled" open, predates it.
+- **Installs are retried.** The settle job, the worker's claims job and the attest and refused jobs of the neutral judge try the
+  install 3 times, the second and third with `--refresh`, because PyPI's index can lag a release's upload.
+
+### Capacity
+
+- **Version-1 transactions are priced.** A compute unit price asked for is now written into a version-1 message as
+  its priority fee (`knos.chain.message_v1`), so the relay prices them as it does legacy ones. On 9 Oct the
+  priority-fee scenario paid 40 of 40 with version-1 transactions unpriced; that result stands until a rerun.
+- **Burst backs off.** The burst scenario now waits with jitter and refreshes the blockhash before a resend; in the
+  simulator it pays 40 of 40, each once. On devnet on 9 Oct it paid 13 of 40 (public RPC rate limits and expired
+  blockhashes), and that stays the recorded result until the release reruns it.
+- **The 9 Oct runs are recorded** in [`docs/LOAD.md`](docs/LOAD.md): hot-funder 40 of 40 (0.185 a second),
+  rpc-faults 40 of 40 with 17 retries and no double payment (0.127), priority-fee 40 of 40 (0.173), burst 13 of 40
+  (0.039). Own wallets, public program ids.
+
+### The payee
+
+- **One page to collect.** A held payment's reply now links to `#payee=<login>`: make a passkey wallet (no seed
+  phrase), open one link to create the claim repository, and start its run with the address pasted. That is 8 clicks,
+  4 when the repository exists; it was 13. It is not one click because the program binds a wallet only from a run the
+  owner starts; fewer clicks safely needs a program change, which this release does not make
+  ([`docs/PAYEE.md`](docs/PAYEE.md)). Not exercised at the public ids. The supplier finance page moved to `#finance`.
+
+### The submission
+
+- **The PyPI page's links work:** its description is the README with every link pinned to the tag (`README.pypi.md`,
+  written by `scripts/bump_version.py`).
+- **Witnessed links point to the 0.3.23 run** (knos-witness #9 and #10).
+- **One transaction, end to end,** for a finance reader: [`docs/submission/TRANSACTION.md`](docs/submission/TRANSACTION.md),
+  and a fold on the front door. [`docs/submission/CHECKLIST.md`](docs/submission/CHECKLIST.md) lists what each entry
+  needs; the submission names what was built inside the hackathon window and what came before.
+- **Python 3.13.** A test failed there because 3.13's traceback quotes the source line that held the text it looked
+  for; it now looks for text the source does not hold. The suite runs on 3.13 in CI.
+
 ## 0.3.23 (October 2026)
 
 **One story, told the same way everywhere: a line's four steps kept apart, money owed to a supplier said as owed, a

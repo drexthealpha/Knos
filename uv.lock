@@ -256,7 +256,7 @@ wheels = [
 
 [[package]]
 name = "knos"
-version = "0.3.23"
+version = "0.3.24"
 source = { editable = "." }
 dependencies = [
     { name = "rich" },

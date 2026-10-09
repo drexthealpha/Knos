@@ -25,7 +25,7 @@ ONE = "The neutral meter for AI agent work: neither side keeps the count."
 WORD = re.compile(r"[A-Za-z0-9][\w'’%.,/-]*")
 
 
-OUTCOME = "Buyers and suppliers close invoices on evidence both can verify."       # the customer outcome, under the sentence
+OUTCOME = "Both sides close invoices on evidence both verify."       # the customer outcome, under the sentence
 
 
 def _words(html: str) -> list[str]:
@@ -75,9 +75,9 @@ def test_the_first_screen_says_forty_words_at_most() -> None:
     assert f'<h1 id="check">{ONE}</h1>' in hero
     assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 6      # six links in the bar: Check, Demo, Console, Leaderboard, Pricing, Docs
     fact = re.search(r'<p class="hero-fact"[^>]*>(.*?)</p>', hero, re.S)
-    assert fact and len(_words(fact[1])) <= 12 and re.sub(r"<[^>]+>", "", fact[1]) == "241 merged agent “tests pass” pull requests: 30 had a failed check."
-    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
-    assert (merged["prs"], merged["any_check_failed"]["prs"]) == (241, 30)
+    assert fact and len(_words(fact[1])) <= 12 and re.sub(r"<[^>]+>", "", fact[1]) == "241 merged agent “tests pass” pull requests: 9 failed tests or builds."
+    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]
+    assert (merged["prs"], merged["test_or_build_check_failed"]["prs"]) == (241, 9)
     door = hero[hero.index('<form id="front-door"'):hero.index("</form>")]
     assert re.findall(r'data-fd="(\w+)"', door) == ["run", "sample"] and '<textarea id="fd-in"' in door and 'id="mark3d"' in hero
     # two buttons: the one primary action, and the sample beside it (quiet)

@@ -56,12 +56,14 @@ def transfer(c: Chain, source: Pubkey, dest: Pubkey, amount: int, owner: Keypair
 
 
 class OrderChain(Chain):
-    def __init__(self, **kw):
+    def __init__(self, owner: Keypair | None = None, **kw):
+        """`owner`: the key of the Balance's owner (default a new one), so a caller can lay the same orders at the same
+        addresses again (scripts/load_pay.py: one seed, one run)."""
         super().__init__(**kw)
         self.usdc = self.new_mint(keypair=USDC_KEY)
         self.fee = self.token_account(pay.FEE_OWNER, self.usdc)
         self.tip = self.token_account(self.payer.pubkey(), self.usdc)          # the relayer's: tips arrive here
-        self.owner, self.owner_tok = self.wallet(self.usdc, 1_000_000 * USDC)
+        self.owner, self.owner_tok = self.wallet(self.usdc, 1_000_000 * USDC, key=owner)
         assert self.send([pay.open_balance_ix(self.owner.pubkey(), OWNER, self.usdc, spenders=[MAINT])], self.owner), self.err
         self.bal = pay.balance_pda(OWNER, self.owner.pubkey(), self.usdc)
         transfer(self, self.owner_tok, pay.baltok_pda(self.bal), 100_000 * USDC, self.owner)

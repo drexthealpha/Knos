@@ -484,7 +484,43 @@ test("add-member, replace-member and set-threshold print the plan from a file an
     assert.match(r.err, words);
     assert.doesNotMatch(r.out, /cluster:/);
   }
-  for (const words of ["add-member <address>", "replace-member <old> <new>", "set-threshold <N>", "--send", "--state FILE"]) assert.ok(run("--help").out.includes(words), words);
+  const help = run("--help").out;
+  for (const words of ["add-member <address>", "replace-member <old> <new>", "set-threshold <N>", "set-time-lock [seconds]", "--send", "--state FILE"]) assert.ok(help.includes(words), words);
+});
+
+test("set-time-lock: one SetTimeLock action of the planned 8 days, the bytes scripts/timelock_plan.py prints, and refusals before anything is built", () => {
+  const ms = multisigOf("upgrade");
+  assert.equal(gov.PLANNED_TIME_LOCK, 691_200);
+  const plan = gov.configPlan(ms, { timeLock: gov.PLANNED_TIME_LOCK });
+  assert.deepEqual(plan.actions, [{ __kind: "SetTimeLock", newTimeLock: 691_200 }]);
+  assert.deepEqual(plan.timeLock, { before: 172_800, after: 691_200 });
+  assert.deepEqual([plan.after.threshold, plan.after.voters, plan.after.founder, plan.after.founderAlone], [2, 3, 3, true], "the members and the threshold stay");
+  const lines = gov.planLines("upgrade", plan).join("\n");
+  assert.match(lines, /the proposal {7}time lock 691200 s \(192 hours\)\n {2}when {15}172800 s \(48 hours\) after the vote that approves it/);
+  assert.match(lines, /the time lock {6}172800 s \(48 hours\) today; 691200 s \(192 hours\) once it executes/);
+  // the instruction the Squads SDK builds is byte for byte the one scripts/timelock_plan.py prints for transaction 9 of the devnet multisig
+  const multisigPda = pk(IDS.upgrade_multisig), creator = ms.members[0].key;
+  const ix = squads.instructions.configTransactionCreate({ multisigPda, transactionIndex: 9n, creator, rentPayer: creator, actions: plan.actions });
+  assert.equal(ix.data.toString("hex"), "9bec57e4894b51270100000003008c0a0000");
+  assert.equal(ix.keys[1].pubkey.toBase58(), "134L775E8yNp7Hw7gZxNVng6KsHUJe2sHuveAywyCHC8", "the transaction account timelock_plan.py names for index 9");
+  // what the Squads program would refuse, refused first; and the guardian keeps no time lock
+  const refused = (change, words) => assert.throws(() => gov.configPlan(ms, change), (e) => e instanceof gov.Refused && words.test(e.message) && /Nothing was sent/.test(e.message));
+  refused({ timeLock: 172_800 }, /the time lock is 172800 s already/);
+  refused({ timeLock: 3 * 30 * 86_400 + 1 }, /from 0 to 7776000 \(the Squads maximum, 90 days\)/);
+  refused({ timeLock: 1.5 }, /a whole number of seconds/);
+  const out = run("set-time-lock", "--state", STATE);
+  assert.equal(out.code, 0, out.err);
+  assert.match(out.out, /^upgrade multisig 9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK\n/);
+  assert.match(out.out, /the proposal {7}time lock 691200 s \(192 hours\)\n/);
+  assert.doesNotMatch(out.out, /guardian multisig|cluster:/);
+  const guardian = run("set-time-lock", "--on", "guardian");
+  assert.equal(guardian.code, 1);
+  assert.match(guardian.err, /the guardian's time lock stays 0/);
+  // `show --check`: the upgrade multisig is right with the time lock it was made with, and with the planned one once that executed
+  assert.deepEqual(gov.wrong("upgrade", ms), []);
+  assert.deepEqual(gov.wrong("upgrade", { ...ms, timeLock: 691_200 }), []);
+  assert.deepEqual(gov.wrong("upgrade", { ...ms, timeLock: 600 }), ["its time lock is 600 s, not 172800 s or the planned 691200 s"]);
+  assert.deepEqual(gov.wrong("guardian", { ...multisigOf("guardian"), timeLock: 691_200 }), ["its time lock is 691200 s, not 0 s"]);
 });
 
 // ---- who can do what with which key --------------------------------------------------------------------------------

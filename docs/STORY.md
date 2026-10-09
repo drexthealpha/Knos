@@ -2,7 +2,7 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check.
+Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check.
 
 The count is in [backtest.json](backtest.json), made by `scripts/backtest.py` from the pull requests listed in
 [agent_pr_ci.json](agent_pr_ci.json). A failed check is GitHub's record, not a judgment of why it failed.
@@ -13,7 +13,7 @@ program releases the money on that signature, with no company and no oracle in t
 Why Solana: Money is released with no custodian, and the count is anchored where neither side can alter it.
 A receipt verifies with no chain; the chain is for the money and for the root.
 
-Days to approve, not seconds to pay: from merge to paid took 25 seconds at the median, over 42 payments on devnet,
+Days to approve, not seconds to pay: from merge to paid took 26 seconds at the median, over 51 payments on devnet,
 and a buyer does not wait for that. A buyer waits for a person to approve the invoice: days to approve, from the
 day the invoice is received to the day it is approved. Knos has not measured that wait with any buyer, so no figure
 for it is given. A judge's one page: [JUDGES.md](JUDGES.md).

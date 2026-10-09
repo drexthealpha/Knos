@@ -49,6 +49,7 @@ import json
 import re
 from pathlib import Path
 
+from . import assurance as _assure
 from . import ids, pdf, shadow
 from . import ledger as L
 
@@ -450,7 +451,8 @@ def steps_of(st: dict, ln: dict, events: list[dict], today: str = "", window: in
                   else {"step": "authorised", "state": "open", "said": "nobody yet"})
     paid = [e for e in events if e["type"] == "settlement" and e["line"] == line]
     end = paid[-1] if paid else None
-    settled = ({"step": "settled", "state": "done", "said": f"{PAY_WORDS[end['state']]} by {end['method']}, reference {end['reference']}, on {end['on']}"}
+    slot = f", slot {end['chain']['slot']}" if end and isinstance(end.get("chain"), dict) else ""
+    settled = ({"step": "settled", "state": "done", "said": f"{PAY_WORDS[end['state']]} by {end['method']}, reference {end['reference']}{slot}, on {end['on']}"}
                if end and end["state"] in PAID else
                {"step": "settled", "state": "failed" if end and end["state"] == "refunded" else "open",
                 "said": f"{PAY_WORDS[end['state']]}, reference {end['reference']}" if end else "not paid"})
@@ -521,6 +523,76 @@ def pay(st: dict, status: dict | None, line: str, method: str, reference: str, o
     return {**status, "events": [*status["events"], event]}
 
 
+TX_REF = re.compile(r"tx:([1-9A-HJ-NP-Za-km-z]{64,90})")       # a line whose evidence is a transaction (knos.events.from_audit, the witness)
+
+
+def chain_payment(tx: dict | None, ln: dict, scale: int, order: str = "") -> tuple[dict | None, str]:
+    """What a confirmed transaction (getTransaction's JSON) paid for the statement line `ln`, read from knos_pay's own
+    log lines (knos.records.events_of): ({signature, slot, on, amount, fee, order, payee, to}, "") when it paid the
+    line's amount to the line's supplier (and, given `order`, from that order); (None, why) otherwise."""
+    from . import records
+    if not isinstance(tx, dict):
+        return None, "the cluster did not give the transaction"
+    if (tx.get("meta") or {}).get("err") is not None:
+        return None, "the transaction failed on chain"
+    got = records.events_of(tx)
+    want, who = units(ln.get("amount"), scale), str(ln.get("supplier") or "")
+    paid = [e for e in got if e["event"] in ("order_paid", "paid")]
+    if not paid:
+        return None, "the transaction paid nothing through knos_pay"
+    if order:
+        paid = [e for e in paid if str(e.get("order") or "") == order]
+        if not paid:
+            return None, f"the transaction paid no one from the order {order}"
+    if who.isdigit():
+        paid = [e for e in paid if str(e.get("payee")) == who]
+        if not paid:
+            return None, f"the transaction paid someone other than the line's supplier {who}"
+    hit = next((e for e in paid if int(e.get("amount") or 0) == want), None)
+    if hit is None:
+        return None, f"the transaction paid {amount_of(int(paid[0].get('amount') or 0), scale)}, and the line says {ln.get('amount')}"
+    end = next((e for e in got if e["event"] == "order_settled" and e.get("order") == hit.get("order")), None)
+    fee = int(end.get("fee") or 0) + int(end.get("tip") or 0) if end else int(hit.get("fee") or 0)
+    sig = str(((tx.get("transaction") or {}).get("signatures") or [""])[0])
+    import datetime
+    on = datetime.datetime.fromtimestamp(int(tx.get("blockTime") or 0), datetime.timezone.utc).strftime("%Y-%m-%d")
+    return ({"signature": sig, "slot": int(tx.get("slot") or 0), "on": on, "amount": amount_of(want, scale), "fee": amount_of(fee, scale),
+             "order": str(hit.get("order") or ""), "payee": str(hit.get("payee") or ""), "to": str(hit.get("to") or "")}, "")
+
+
+def settle_sync(st: dict, status: dict | None, read, find=None, order: str = "") -> tuple[dict, list[tuple[str, str]]]:
+    """Close the "settled" step of every line the chain paid: the status with one settlement record (method chain,
+    devnet demonstration) per such line, carrying the transaction as `chain` (signature, slot, amount, fee, order,
+    payee), and what was done for each line [(invoice line, words)]. The transaction is the one the line's evidence
+    names (`tx:<signature>`), else, given `order` and `find(order)` (its signatures, newest first), the first of them
+    that paid the line. `read(signature)` gives getTransaction's JSON, or None. Each payment is checked against the
+    line (amount, supplier, order) before it is written; a line already recorded settled is left as it is. Nothing moves."""
+    status = _status(st, status)
+    said: list[tuple[str, str]] = []
+    for ln in st["lines"]:
+        line = ln["invoice_line"]
+        if ln["state"] != "agreed":
+            continue
+        steps, _owed = steps_of(st, ln, status["events"])
+        if steps[3]["state"] == "done":
+            said.append((line, "already settled"))
+            continue
+        named = TX_REF.fullmatch(str(ln.get("reference") or ""))
+        sigs = [named.group(1)] if named else list(find(order) if find and order else [])
+        why = "its evidence names no transaction (give --order)" if not sigs else ""
+        for sig in sigs:
+            got, why = chain_payment(read(sig), ln, st["scale"], order)
+            if got is None:
+                continue
+            status = pay(st, status, line, "chain", got["signature"] or sig, got["on"], "devnet_demonstration")
+            status["events"][-1]["chain"] = got
+            said.append((line, f"settled by {got['signature'] or sig} in slot {got['slot']}: {got['amount']} to {got['payee']}, fee {got['fee']}"))
+            break
+        else:
+            said.append((line, f"not settled: {why}"))
+    return status, said
+
+
 def grn_reference(ln: dict) -> str:
     """The reference of a line's goods-received note: the id of the first evaluation that stands behind it, as a note's
     (`grn_` and the same 24 hex characters). Empty for a line nothing evaluated: no goods were received on record."""
@@ -575,7 +647,8 @@ def lines_now(st: dict, status: dict | None = None, today: str = "", window: int
                "approved_by": f"{ok['by']} ({ok['role']}) on {ok['on']}" if ok else "",
                **({"why": f"{ln['why']}; {note}" if ln["why"] else note} if note else {})}
         steps, owed = steps_of(st, ln, events, today, window)
-        out.append({**row, "parts": line_parts(st, row, noted[-1] if noted else None), "steps": steps, "owed": owed})
+        out.append({**row, "parts": line_parts(st, row, noted[-1] if noted else None), "steps": steps, "owed": owed,
+                    "assured": _assure.of_line(row, (noted[-1] if noted else {}).get("receipt_of_goods"), st["source"])})
     return out
 
 
@@ -676,7 +749,8 @@ def grn(st: dict, status: dict | None, line: str, receipt: dict | None = None, p
                  "verdict": seen["verdict"], "evaluator": f"{seen['evaluator']['kind']}@{seen['evaluator']['version']}",
                  "controllers": [{"kind": e["kind"], "owner_id": e["owner_id"], "actor_id": e["actor_id"]} for e in seen["evaluator"]["controllers"]],
                  "assurance": level["level"], "trusted": level["trusted"], "declared_related": level["declared_related"],
-                 "evidence": f"{src['kind'].replace('_', ' ')} {src['reference'] or 'not kept'}", "receipt_sha256": rc.digest(receipt)}
+                 "evidence": f"{src['kind'].replace('_', ' ')} {src['reference'] or 'not kept'}", "receipt_sha256": rc.digest(receipt),
+                 "assured": _assure.of_receipt(receipt)}
         if receipt["version"] >= 3:      # the five parts the line then links (knos.receipt.parts reads versions 3 to 5)
             goods["parts"] = rc.five_cells(receipt, level["declared_related"])
         paid = receipt["transaction"]["signature"] if receipt.get("transaction") else None
@@ -885,7 +959,7 @@ def load(path: Path) -> tuple[dict, dict | None]:
 
 
 def register(app, help_lines: list | None = None) -> None:
-    """`knos statement make | approve | pay | status | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
+    """`knos statement make | approve | pay | settle-sync | status | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
     import datetime
 
     import importlib
@@ -1086,6 +1160,45 @@ def register(app, help_lines: list | None = None) -> None:
             if ended is not None:
                 typer.echo(f"Remembered for {remember}: this line had been set aside, and it ended {recall.ENDING_WORDS[ended['ending']]}.")
 
+    @sub.command("settle-sync")
+    def settle_sync_(file: Path = file_arg,
+                     order: str = typer.Option("", "--order", help="the work order's address: only its payments count, and a line whose evidence names no transaction is looked for among its signatures"),
+                     tx: list[Path] = typer.Option([], "--tx", help="a recorded transaction (getTransaction's JSON) to read instead of asking the cluster; repeat for more"),
+                     rpc: str = typer.Option("", "--rpc", help="the cluster's RPC URL (devnet's when left out)")) -> None:
+        """Record the chain's payment of each line whose policy is met and that is not settled yet: the knos_pay transaction is read, its amount, payee and order are checked against the line, and its signature, slot, amount and fee are written to the status file. It moves no money."""
+        from . import chain
+        try:
+            st, status = load(file)
+            given: dict[str, dict] = {}
+            for p in tx:
+                try:
+                    doc = json.loads(p.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    raise Refused(f"Cannot read {p} as a transaction's JSON.") from None
+                doc = doc.get("result", doc) if isinstance(doc, dict) else doc
+                for sig in (doc.get("transaction") or {}).get("signatures") or [] if isinstance(doc, dict) else []:
+                    given[str(sig)] = doc
+            url = rpc or chain.ledger().url
+
+            def read(sig: str) -> dict | None:
+                if sig in given or tx:
+                    return given.get(sig)
+                return chain.call(url, "getTransaction", [sig, {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 1}], timeout=30)
+
+            def find(address: str) -> list[str]:
+                if tx:
+                    return list(given)
+                return [str(x["signature"]) for x in chain.call(url, "getSignaturesForAddress", [address, {"limit": 100}], timeout=30) or [] if not x.get("err")]
+            status, said = settle_sync(st, status, read, find, order)
+        except Refused as why:
+            raise stop(why) from None
+        except Exception as why:  # noqa: BLE001 - the cluster did not answer: nothing was written
+            raise stop(Refused(f"The cluster did not answer ({' '.join(str(why).split())[:200]}); nothing was written.")) from None
+        for line, words in said:
+            typer.echo(f"{line}  {words}")
+        if any(w.startswith("settled by") for _l, w in said):
+            save(file, st, status)
+
     @sub.command("status")
     def status_(file: Path = file_arg,
                 source: Path = typer.Option(..., "--from", help="the bank's answer: a payment status report (pain.002 XML), or a CSV: end_to_end_id,status,reference,date,reason"),
@@ -1141,7 +1254,8 @@ def register(app, help_lines: list | None = None) -> None:
             st, status = load(file)
             day = _day(today(on))
             if as_json:
-                typer.echo(canonical({"statement": st["sha256"], "lines": lines_now(st, status, day, window),
+                now = lines_now(st, status, day, window)
+                typer.echo(canonical({"statement": st["sha256"], "lines": now, "assurance": _assure.words(st, now),
                                       "answers": [list(a) for a in answers(st, status, day, window)]}).decode(), nl=False)
                 return
             for question, answer in answers(st, status, day, window):

@@ -12,8 +12,10 @@ independent oversight: nobody else has to agree, and nobody else can refuse.
 **Leaving before an upgrade is not always possible.** A Balance can be withdrawn at once, but an open order whose
 deadline falls after the upgrade's time cannot be refunded before it: a cancellation gives the seller 7 days of
 notice, and the upgrade delay is 48 hours. `knos exit --before-upgrade` lists every holding of yours with its way out
-and the hours it misses by (section 2). The plan: a time lock of 8 days, set by a Squads configuration transaction
-after the pending upgrades have executed. It is planned, not applied.
+and the hours it misses by (section 2). What closes it for open orders: a time lock of 8 days, set by a Squads
+configuration transaction. That transaction was created and approved by two member keys on 9 October 2026, once
+proposals 7 and 8 had run. It is approved, not yet applied: until a member executes it, which the Squads program
+allows 48 hours after the approval, the time lock on chain is 48 hours.
 
 **Outside key holders today: 0.** What would change it: one person opens a "Key holder request"
 ([KEYHOLDER.md](KEYHOLDER.md), one page) and the founder runs one command (section 5).
@@ -96,8 +98,16 @@ accounts. On devnet the Squads program itself has an upgrade authority, which is
   Once it is in force, `knos exit --before-upgrade` says that every open order can be cancelled and refunded
   before any upgrade approved from then on can execute. It does not cover held orders (180 days) or holdbacks in
   warranty (up to 90 days). The cost: every fix waits 8 days, the one in section 3 included.
-  **State: planned, not applied.** It is applied only when a release run records the executed configuration
-  transaction here, with its signature. The time lock on chain is 48 hours.
+  **State: approved, not yet applied.** The configuration transaction is proposal 9 of the upgrade multisig, sent
+  with `node scripts/governance.mjs set-time-lock --send` (one action, `SetTimeLock { new_time_lock: 691200 }`)
+  once `python scripts/timelock_plan.py --rpc` had found no proposal open, on 9 October 2026: created in
+  [`42yHfmYN...`](https://explorer.solana.com/tx/42yHfmYN8pF3zxow7a4SsVWW5voEpZ5BBbnSnyx6EQXSWQYifdVUySbEPuUDpLYErr24SpEa34eExcRy5ztSECfa?cluster=devnet) and approved by two of the three member keys in
+  [`MSTGH4Q9...`](https://explorer.solana.com/tx/MSTGH4Q99fy6xNWVJ8hTCjs7mJzuVD7rGNF1Ymy6JeuB3cDMThTGnsxKBBKPvv5Q741DEfKLJrecrtBibv45uyQ?cluster=devnet). The Squads program executes a configuration transaction only once the
+  present time lock has run from its approval, so it can be executed 48 hours after that approval, by any member:
+  `node scripts/governance.mjs execute upgrade 9`. Until then the time lock on chain is 48 hours, two members can
+  still cancel it, and `knos status` lists proposal 9 as a change to the upgrade multisig itself. It is applied only
+  when a release run records the executed configuration transaction here, with its signature, and the multisig
+  reads back 691200 s.
 - **They are not oversight.** The same person proposes, approves and executes.
 - **Nothing is sent to anyone.** No comment is posted on repositories with open orders, and no email exists. The
   notice reaches someone who looks, or who subscribed to the feed.
@@ -190,7 +200,7 @@ Three kinds of key are involved in an upgrade. The addresses are the ones devnet
 | key | address | what it can do alone |
 |---|---|---|
 | The deploy fee payer (`payer.json` in the key folder) | not published; it is no member of either multisig | Write a build to a buffer and hand the buffer to the vault. It cannot propose, vote or execute, and it cannot sign the loader's `Upgrade`. |
-| One member key | `8fjcaqHZ6RLPZfz9SmgA2QaUgmfLtEYnypKVWTK5VQKH`, `9bhAo5aP3FMe4kcENkrKtCKcth189xK4A4uiB1QMZBC5` or `DnfkiqUyTAKvBwFr8ZR7iV9FKL2QuG857NmfLf5Tb2iE` | Create a proposal, cast one of the two approvals, and execute a proposal the others approved once its delay has passed. Alone it cannot approve, reject or cancel. |
+| One member key | `9XmgVhQ5i9XzqUrFn85ue2bnxjxD6KBeBCk23gAowUX9`, `9vcyLKaxG2k24PFhmMC6cRCbmM3FqxCoRyHS36aG3dyk` or `Az4ftNZuvopLHwLuxHsw9Rh3QffGsnEFzCEZj1LeH4BX` (the same three on both multisigs) | Create a proposal, cast one of the two approvals, and execute a proposal the others approved once its delay has passed. Alone it cannot approve, reject or cancel. |
 | The upgrade vault | `CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2` | It is the upgrade authority of all four programs and the only signer the loader's `Upgrade` takes. It has no private key: it is an address of the Squads program, which signs for it only when executing a proposal of multisig `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK` that 2 members approved 48 hours before. |
 
 **So the key that deploys a build buffer cannot by itself authorise the upgrade.** Where this is checked:
@@ -384,7 +394,7 @@ pending upgrade against the gate before voting. The same page says what it canno
 - An outside key holder on either multisig ([KEYHOLDER.md](KEYHOLDER.md)). One would hold 1 key of 3 and could
   not act alone; the founder would keep 2 and could still approve any upgrade without them.
 - An exit window as long as the notice: an open order whose deadline is after an upgrade's time cannot be left
-  before it. The 8-day time lock that closes it is planned, not applied (section 2).
+  before it. The 8-day time lock that closes it was approved on 9 October 2026 and is not yet applied (section 2).
 - A second person for any duty: review, deploy, approve, relay, respond ([OPERATOR.md](OPERATOR.md) is the
   checklist; nobody has run it).
 - An outside review of anything. The verifier's freeze waits on it.

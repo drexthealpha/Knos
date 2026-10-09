@@ -2,7 +2,7 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check ([backtest.json](backtest.json)).
+Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check ([backtest.json](backtest.json)).
 Of first agent pull requests that claimed passing tests, 17.8% had a failed check (147 of 826 repositories in the
 Agent PR Index; [BENCH.md](BENCH.md)).
 
@@ -91,10 +91,12 @@ Two people who sell or study these contracts say so:
   read 3 Oct 2026). The seller decides them.
 
 For code, the count can be wrong in a way we measured. Of 241 merged agent pull requests whose description said
-tests or CI pass, 30 had a failed check at the head commit: 12.4% **[measured]** (95% interval 8.9% to 17.2%).
-The pull requests and each one's checks are in [agent_pr_ci.json](agent_pr_ci.json) (303 with finished CI, read on
-1 Oct 2026); the count of the merged ones is in [backtest.json](backtest.json), `sample.merged.overall`, and
-[BENCH.md](BENCH.md), "Merged anyway", prints it. **That is a count of failed checks, not of money.** A failed
+tests or CI pass, 9 had a failed test, build, lint or type-check job at the head commit: 3.7% **[measured]** (95%
+interval 2.0% to 6.9%); 19 had a failed check of any kind (7.9%). Those are the counts after a second reading of each
+page ([index_review.json](index_review.json), rules in [INDEX_METHOD.md](INDEX_METHOD.md), version 1); the scan had
+recorded 16 and 30 (12.4%); 11 of the 30 were excluded on the second reading. The pull requests and each one's checks are in [agent_pr_ci.json](agent_pr_ci.json) (303
+with finished CI, read on 1 Oct 2026); both counts are in [backtest.json](backtest.json), `reviewed.overall` and
+`sample.merged.overall`, and [BENCH.md](BENCH.md), "Merged anyway", prints the recorded ones. **That is a count of failed checks, not of money.** A failed
 check is not always a failed test, a defect or a false claim; no buyer's invoices have been read; and nothing here
 says what share of anyone's spend was paid for work that did not meet its terms. It is not a promise that any buyer
 saves anything.

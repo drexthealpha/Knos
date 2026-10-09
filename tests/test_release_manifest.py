@@ -118,16 +118,27 @@ def test_every_recorded_order_names_the_fee_schedule_that_applied_and_how_it_is_
     o = {"what": "x", "tx": "sig", "date": None, "amount": "100.00", "fee": "0.30", "from": "t"}
     assert rm.schedule(o, data, {})[0].startswith("knos_pay 2.2: jobs and orders 0.30%")
     assert rm.schedule({**o, "fee": None}, data, {})[0] == "not decided"
-    # a slot: before 2.1 went live nothing this tree knows; from its live slot on, 2.1; from 2.2's executed slot, 2.2
-    live = data["record"]["programs"]["knos_pay"]["live_slot"]
+    # a slot: before 2.1 went live nothing this tree knows; from its live slot on, 2.1; from 2.2's live slot, 2.2. Proposal 8
+    # executed on 9 October 2026: the cluster read finds 2.2, and 2.1's live slot is kept with the build before it
+    rec = data["record"]["programs"]["knos_pay"]
+    assert (rec["before"]["proposal"], rec["proposal"]) == (4, 8)
+    live, new = rec["before"]["live_slot"], rec["live_slot"]
+    assert live < new
     assert rm.schedule({**o, "fee": None}, data, {"sig": {"slot": live - 1}})[0] == "not decided"
     assert rm.schedule({**o, "fee": None}, data, {"sig": {"slot": live}})[0].startswith("knos_pay 2.1")
+    assert rm.schedule({**o, "fee": None}, data, {"sig": {"slot": new - 1}})[0].startswith("knos_pay 2.1")
+    assert rm.schedule({**o, "fee": None}, data, {"sig": {"slot": new}})[0].startswith("knos_pay 2.2")
+    # without the build before, a slot of 2.1's time is decided by nothing this tree knows: never guessed
+    alone = copy.deepcopy(data)
+    alone["record"]["programs"]["knos_pay"].pop("before")
+    assert rm.schedule({**o, "fee": None}, alone, {"sig": {"slot": new - 1}})[0] == "not decided"
+    # a slot the feed gives for an execution is taken over the read
     later = copy.deepcopy(data)
     for e in later["upgrades"]["entries"]:
         if e["index"] == 8:
-            e.update(status="executed", executed_slot=live + 1000)
-    assert rm.schedule({**o, "fee": None}, later, {"sig": {"slot": live + 1000}})[0].startswith("knos_pay 2.2")
-    assert rm.schedule({**o, "fee": None}, later, {"sig": {"slot": live + 999}})[0].startswith("knos_pay 2.1")
+            e.update(status="executed", executed_slot=new + 1000)
+    assert rm.schedule({**o, "fee": None}, later, {"sig": {"slot": new + 1000}})[0].startswith("knos_pay 2.2")
+    assert rm.schedule({**o, "fee": None}, later, {"sig": {"slot": new + 999}})[0].startswith("knos_pay 2.1")
     # a date before 2.2 could execute, with 2.1 read live the day before: 2.1; the same day as that read: not 2.2 only
     assert rm.schedule({**o, "fee": None, "tx": None, "date": "2026-10-08"}, data, {})[0].startswith("knos_pay 2.1")
     assert rm.schedule({**o, "fee": None, "tx": None, "date": "2026-10-07"}, data, {})[0] == "knos_pay 2.0 or 2.1, not 2.2"
@@ -137,8 +148,9 @@ def test_start_here_gives_each_payment_program_one_line_from_source_to_fee_sched
     page = (ROOT / "docs" / "MANIFEST.md").read_text(encoding="utf-8")
     start = page.split("## Start here", 1)[1].split("\n## ", 1)[0]
     pay = next(line for line in start.splitlines() if line.startswith("- **knos_pay**"))
-    assert pay.count(" -> ") == 4 and "/commit/" in pay and "build `" in pay and "knos_pay 2.1 at `" in pay
-    assert "recorded transactions" in pay and "fee schedule: knos_pay 2.1" in pay
+    # knos_pay 2.2 runs at the public id since proposal 8 executed: its line ends with 2.2's schedule
+    assert pay.count(" -> ") == 4 and "/commit/" in pay and "build `" in pay and "knos_pay 2.2 at `" in pay
+    assert "recorded transactions" in pay and "fee schedule: knos_pay 2.2: jobs and orders 0.30% of the amount, at least 0.05" in pay and "pending" not in pay
     assert any(line.startswith("- **knos_oidc**") and "no fee" in line for line in start.splitlines())
 
 
@@ -147,10 +159,11 @@ def test_read_slots_keeps_each_transactions_slot_and_the_page_then_decides_by_it
     for rel in COPIED:
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / rel, tmp_path / rel)
-    live = json.loads((ROOT / "docs" / "provenance.json").read_text(encoding="utf-8"))["programs"]["knos_pay"]["live_slot"]
+    rec = json.loads((ROOT / "docs" / "provenance.json").read_text(encoding="utf-8"))["programs"]["knos_pay"]
+    live = rec["live_slot"]
     asked = []
     rm.read_slots(tmp_path, say=lambda _l: None, call=lambda method, params: asked.append(params[0]) or {"slot": live + 5, "blockTime": 1})
     kept = json.loads((tmp_path / "docs" / "fee_slots.json").read_text(encoding="utf-8"))
     assert set(kept) == set(asked) and asked and all(v["slot"] == live + 5 for v in kept.values())
     page = rm.render(tmp_path)
-    assert f"the build live at slot {live + 5}: proposal 4's, live from slot {live}" in page
+    assert f"the build live at slot {live + 5}: proposal {rec['proposal']}'s, live from slot {live}" in page

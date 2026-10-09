@@ -27,7 +27,7 @@ in [NUMBERS.md](NUMBERS.md).
 
 *On screen: the number and its basis; then the Agent PR Index, one row per agent.*
 
-> Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. That is GitHub's own record
+> Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check. That is GitHub's own record
 > at the head commit, for pull requests AI coding agents opened between July and September, and each was merged
 > anyway. Our weekly Agent PR Index counts it for each agent, and the rate differs widely between them. Somebody
 > approved an invoice for that work.
@@ -52,7 +52,7 @@ payment, the fee read from the chain; the verifier with the network off.*
 *On screen: the tamper benchmark; then the Numbers page.*
 
 > What we measured. Plain CI passed 56 of 63 submissions that edit the test, and the black-box check refused all 63.
-> From merge to paid took 25 seconds at the median, on devnet. But an invoice waits on the person who approves it,
+> From merge to paid took 26 seconds at the median, on devnet. But an invoice waits on the person who approves it,
 > not on the payment, and we have not measured that wait with a buyer.
 
 ## 4. The founder (1:50)

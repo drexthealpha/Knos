@@ -108,6 +108,14 @@ def test_the_claims_job_waits_for_pypi_before_it_installs():
     assert all("pypi_wait" not in json.dumps(job) for name, job in jobs.items() if name != "claims")
 
 
+@pytest.mark.parametrize("path, job", [("worker.yml", "claims"), ("prove.yml", "settle"), ("attest.yml", "attest"), ("attest.yml", "refused")])
+def test_the_install_is_tried_three_times_and_asks_the_index_again(path, job):
+    steps = yaml.safe_load((ROOT / ".github" / "workflows" / path).read_text(encoding="utf-8"))["jobs"][job]["steps"]
+    run = next(str(s["run"]) for s in steps if "--require-hashes" in str(s.get("run") or ""))
+    assert 'for nap in 10 30 end; do' in run and 'refresh="--refresh"' in run and "uv pip install --no-config $refresh " in run
+    assert '[ "$nap" != end ] || exit 1' in run                                     # the third failure ends the job
+
+
 
 # ---- the `knos settle` job of prove.yml: the same wait, written into its install step (that job checks nothing out) ----
 def _settle_install() -> str:
@@ -117,9 +125,9 @@ def _settle_install() -> str:
 
 def test_the_settle_job_writes_the_lock_waits_for_its_knos_file_then_installs_from_it():
     run = _settle_install().splitlines()
-    write, wait, install = (next(i for i, ln in enumerate(run) if ln.startswith(x)) for x in ('cat > "$RUNNER_TEMP/knos.lock"', "python3 -I - ", "uv pip install"))
+    write, wait, install = (next(i for i, ln in enumerate(run) if ln.startswith(x)) for x in ('cat > "$RUNNER_TEMP/knos.lock"', "python3 -I - ", "  uv pip install"))
     assert write < wait < install and run[write + 1:write + 3] == ["KNOS_LOCK", "LOCK"]
-    assert run[wait] == """python3 -I - "$RUNNER_TEMP/knos.lock" 600 <<'WAIT'""" and run[install].endswith('--require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock"')
+    assert run[wait] == """python3 -I - "$RUNNER_TEMP/knos.lock" 600 <<'WAIT'""" and run[install].endswith('--require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock" && break')
     assert "${{" not in _settle_install() and "KEY" not in _settle_install()
 
 

@@ -108,7 +108,10 @@ class Cached:
         self._ledger, self._ttl, self._clock = ledger, ttl, clock
         self._kept: dict[tuple[str, str], tuple[float, Any]] = {}
         self.reads = self.hits = 0
-        self.url = getattr(ledger, "url", None) or f"cached:{id(ledger)}"
+        # The cluster's url, or none: a ledger with no url is then known by this object's own id() where answers are kept
+        # per cluster (knos.settle.v2.relay.version, live.runs), and such an answer goes when this object goes. A name
+        # made of the inner ledger's id() outlived both, and was the name of the next ledger Python gave that id.
+        self.url = getattr(ledger, "url", None)
 
     def __getattr__(self, name: str) -> Any:
         if name in ("send", "send_all"):

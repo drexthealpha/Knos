@@ -73,6 +73,31 @@ def test_the_rule_follows_what_the_program_answers(said, release):
     assert fees.live(ledger).release == release and ledger.asked == 1          # asked once for each cluster and process
 
 
+def test_a_ledger_with_no_url_is_never_handed_the_answer_of_one_that_is_gone():
+    """A ledger with no url (one made in memory) is known by id(), and Python gives that number to the next object once
+    the first is gone. Its answer goes with it: a later ledger that cannot be asked counts as 0, the fee of 2.1, never
+    as the 2 of a ledger that died (tests/test_mcp.py was shown the 0.3.18 fee now and then, as the tests were dealt out)."""
+    class Mute:
+        """A ledger that cannot be asked which build runs."""
+    for _ in range(50):
+        gone = Answers(2, url="")
+        where = (id(gone), pay.PAY_ID)
+        assert fees.version(gone) == 2 and relay2._VERSION[where] == 2 and gone.asked == 1
+        assert fees.version(gone) == 2 and gone.asked == 1                     # kept while it lives
+        del gone
+        assert where not in relay2._VERSION
+        later = Mute()
+        assert fees.version(later) == 0 and fees.live(later) is fees.OLD
+    # the same through knos.decide's cache of reads: it is known by itself, not by a name made of its inner ledger's
+    # id(), which outlived both
+    from knos import decide
+    seen = decide.Cached(Answers(2, url=""))
+    where = (id(seen), pay.PAY_ID)
+    assert not seen.url and fees.version(seen) == 2 and relay2._VERSION[where] == 2
+    del seen
+    assert where not in relay2._VERSION
+
+
 def test_budget_check_and_show_say_the_fee_of_the_live_build_on_both_sides_of_the_upgrade():
     """The same Balance and the same order, read from a cluster that runs knos_pay 2.1 and from one that runs 2.2."""
     balance = pay.Balance(False, 424242, pay.PAY_ID, pay.USDC_DEVNET, 0, 0, (), 0, False)

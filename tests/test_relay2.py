@@ -2688,10 +2688,17 @@ def test_a_v1_transaction_holds_4096_bytes_and_carries_its_limits_in_the_message
     from solders.compute_budget import set_compute_unit_limit
     m = chain.message_v1([set_compute_unit_limit(300_000), big], payer.pubkey())
     assert m.config.compute_unit_limit == 300_000 and len(m.instructions) == 1
+    # and a compute unit price becomes its priority fee: the total a legacy transaction with that price and limit pays
+    from solders.compute_budget import set_compute_unit_price
+    m = chain.message_v1([set_compute_unit_limit(300_000), set_compute_unit_price(10_000), big], payer.pubkey())
+    assert m.config.priority_fee == chain.priority_lamports(10_000, 300_000) == 3_000 and len(m.instructions) == 1
+    assert chain.message_v1([big], payer.pubkey()).config.priority_fee is None                  # no price asked, none paid
+    sig = ledger.send([set_compute_unit_price(10_000), big], payer, [other], v1=True)
+    assert fake.sent[sig].message.config.priority_fee == chain.priority_lamports(10_000, chain.MAX_COMPUTE_UNITS)
     assert len(ledger.send_all([[big], [Instruction(pay.PAY_ID, b"x", [])]], payer, [other], v1=True)) == 2
     # asked, not sent: what the transaction would log, or the programs' own refusal; no signature is checked and no fee paid
     assert ledger.simulate([pay.version_ix()], payer) == ["Program log: knos2:version 1"]
-    assert fake.simulated[1] == {"encoding": "base64", "sigVerify": False, "replaceRecentBlockhash": True, "commitment": "confirmed"} and fake.count("sendTransaction") == 3
+    assert fake.simulated[1] == {"encoding": "base64", "sigVerify": False, "replaceRecentBlockhash": True, "commitment": "confirmed"} and fake.count("sendTransaction") == 4
     fake.sim_err = {"InstructionError": [1, "InvalidInstructionData"]}
     with pytest.raises(chain.RpcError, match="InvalidInstructionData"):
         ledger.simulate([pay.version_ix()], payer)

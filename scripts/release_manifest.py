@@ -272,9 +272,11 @@ def builds(data: dict) -> list[dict]:
     import knos.fees as fees
     out = []
     rec = (data["record"].get("programs") or {}).get("knos_pay") or {}
+    # the build the cluster was read running, and the one before it (docs/provenance.json `before`), each from its live slot
+    known = {int(r["proposal"]): r.get("live_slot") for r in (rec.get("before") or {}, rec) if r.get("proposal") is not None}
     entries = {int(e.get("index", 0)): e for e in data["upgrades"].get("entries", []) if e.get("program") == "knos_pay"}
     for idx, e in sorted(entries.items()):
-        slot = e.get("executed_slot") or (rec.get("live_slot") if rec.get("proposal") == idx else None)
+        slot = e.get("executed_slot") or known.get(idx)
         if e.get("status") == "executed" and slot:
             new = idx > fees.OLD_PAY_PROPOSALS
             out.append({"proposal": idx, "slot": int(slot), "rule": fees.NEW if new else fees.OLD})
@@ -301,11 +303,14 @@ def schedule(o: dict, data: dict, slots: dict) -> tuple[str, str]:
         later = sorted((e for e in data["upgrades"].get("entries", []) if e.get("program") == "knos_pay" and int(e.get("index", 0)) > fees.OLD_PAY_PROPOSALS
                         and e.get("status") in ("pending", "executed") and e.get("earliest_execution_utc")), key=lambda e: e["earliest_execution_utc"])
         rec = (data["record"].get("programs") or {}).get("knos_pay") or {}
-        old_live = rec.get("proposal") is not None and int(rec["proposal"]) <= fees.OLD_PAY_PROPOSALS and str(data["record"].get("read", ""))[:10] < o["date"]
+        # the read that found 2.1 live: the newest read, or, once 2.2 runs, the one kept with the build before (`before`)
+        old = rec if rec.get("proposal") is not None and int(rec["proposal"]) <= fees.OLD_PAY_PROPOSALS else (rec.get("before") or {})
+        read = str((data["record"] if old is rec else old).get("read", ""))[:10]
+        old_live = old.get("proposal") is not None and int(old["proposal"]) <= fees.OLD_PAY_PROPOSALS and read < o["date"]
         if later and o["date"] < later[0]["earliest_execution_utc"][:10] and old_live:
             return words[fees.OLD.build], (f"its date: a day before proposal {later[0]['index']} (2.2) could execute (web/upgrades.json "
-                                           f"`earliest_execution_utc`) and after the cluster read that found proposal {rec['proposal']} (2.1) live "
-                                           "(docs/provenance.json `read`)")
+                                           f"`earliest_execution_utc`) and after the cluster read that found proposal {old['proposal']} (2.1) live "
+                                           f"(docs/provenance.json `read`{'' if old is rec else ' of `before`'})")
         if later and o["date"] < later[0]["earliest_execution_utc"][:10]:
             return "knos_pay 2.0 or 2.1, not 2.2", f"its date rules out 2.2 only (proposal {later[0]['index']} could not yet execute); " + (
                 "`--read-slots` reads the slot" if o.get("tx") else "the run kept no transaction to read a slot from")

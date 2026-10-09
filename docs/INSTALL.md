@@ -356,7 +356,7 @@ about money works; `/knos status` on a pull request then tells its author what t
 
 A supplier who wants the free check on every pull request of their own repository, its result posted once and its
 receipt attached to the run, adds one workflow file ([examples/knos-supplier.yml](../examples/knos-supplier.yml))
-whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.23`.
+whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.24`.
 
 It needs no secret, moves no money and reads no chain. The record, the badge and the receipt to send with an invoice
 are in [RECORD.md](RECORD.md), section 3.
@@ -373,7 +373,7 @@ knos terms show bugfix          # the comment to post, the terms JSON the progra
 | `bugfix` | `/knos fund 50 checks: unit, lint paths: src/**, tests/**` | named checks must pass; only `src/` and `tests/` may change |
 | `feature-blackbox` | `/knos fund 80 checks: unit` on an issue with `.knos/acceptance/<issue>/` | paid when the black-box acceptance suite passes |
 | `milestone` | `/knos fund 100 checks: unit holdback 20 warranty 30 days 30` | 20% waits 30 days |
-| `standing-rate` | `/knos offer @octocat rate 10 budget 100 checks: unit days 90` | one vendor, a rate per accepted pull request, up to a budget |
+| `standing-rate` | `/knos offer @octocat rate 10 budget 100 checks: unit days 90` | one vendor, a rate when the agreed checks pass at merge, up to a budget |
 | `private-attested` | `/knos fund 50 checks: unit paths: src/**` on an issue of a private repository | funded and paid by the attestor repository |
 
 Each is a file in [`examples/terms/`](../examples/terms): the comment, one sentence written from its fields, the
@@ -426,7 +426,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.3.23
+      - uses: drexthealpha/Knos@v0.3.24
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -459,7 +459,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.3.23
+    - python -m pip install knos==0.3.24
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -501,7 +501,7 @@ statement that names the workflow run which built it (`npm audit signatures` che
 registry cannot be reached, the same file is attached to the GitHub release:
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.23/knos-settle-0.3.23.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.3.24/knos-settle-0.3.24.tgz
 ```
 
 The release workflow publishes each new version through trusted publishing, with no stored secret. A token job is the
@@ -512,7 +512,7 @@ when it skipped npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.23" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.24" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

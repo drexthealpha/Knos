@@ -784,12 +784,72 @@ def test_the_phases_run_at_the_public_ids_only_on_the_builds_they_are_for_and_a_
     assert "program_accounts" not in body and 'book.ev["rounds"].get("stored_fund"' in body
 
 
+def test_an_order_funded_before_the_upgrade_that_another_sender_refunded_is_read_from_that_refund_and_never_assumed():
+    """RefundOrder is anyone's to send once the deadline has passed, and the public relay sends every refund that is
+    due: on 9 October 2026 the order of `stored_fund` due at 08:56 UTC went back 14 s later, in a transaction the relay
+    sent, before `run --phase after` looked for it. The step reads knos_pay's own line of that refund: the amount and
+    the fee as funded under 2.1 (5.40 on 5.00). A refund of any other sum, or none, is a failure."""
+    relay_key = "5zGQCyrtK4gv61EYpUvoKApWAxvbPucpHABA1vdhAJ9V"
+    orders = {k: ex.Keypair.from_seed(bytes([60 + i]) * 32).pubkey() for i, k in enumerate(("pay", "refund"))}
+
+    def lines(order, amount, program=ex.pay.PAY_ID):
+        return [f"Program {program} invoke [1]", f"Program log: knos3:refunded order={order} amount={amount}", f"Program {program} success"]
+
+    class Ledger:
+        def __init__(self, logs):
+            self.said = logs
+
+        def history(self, address, most=500):
+            return [s for s in self.said if s.endswith(str(address))][:most]
+
+        def logs(self, sig):
+            return self.said[sig]
+
+        def payer_of(self, sig):
+            return relay_key
+
+    class Gone(ex.World):
+        def __init__(self, logs):
+            self.ledger = Ledger(logs)
+
+        def account(self, address):
+            return None
+
+    def run(logs):
+        ev = {"rounds": {"stored_fund": {"issue": 7, **{k: {"order": str(o), "amount": 5_000_000, "fee": 400_000, "deadline": 1, "data": "00"}
+                                                         for k, o in orders.items()}}}, "exercises": {}}
+        said, st = [], {}
+        ex.after_stored_fee(ex.Book(ev, Gone(logs), said.append), st)
+        return st
+    both = {f"sig-{o}": lines(o, 5_400_000) for o in orders.values()}
+    st = run(both)
+    for k, o in orders.items():
+        assert st[k] == {"signature": f"sig-{o}", "amount": 5_000_000, "fee_back": 400_000, "refunded": True, "sent_by": relay_key}, k
+    assert [t["signature"] for t in st["transactions"]] == [f"sig-{orders['pay']}", f"sig-{orders['refund']}"]
+    assert all("went back whole: 5.00 and its stored fee of 0.40" in t["what"] and relay_key in t["what"] for t in st["transactions"])
+    # gone back with the new rule's fee (5.05), or a line another program wrote, or nothing found: never taken for the stored fee
+    for wrong in ({**both, f"sig-{orders['pay']}": lines(orders["pay"], 5_050_000)},
+                  {**both, f"sig-{orders['pay']}": lines(orders["pay"], 5_400_000, program=ex.Keypair.from_seed(bytes([9]) * 32).pubkey())},
+                  {f"sig-{orders['refund']}": both[f"sig-{orders['refund']}"]}):
+        with pytest.raises(ex.Failed, match="no transaction of knos_pay refunded it with its amount and the fee it was funded with"):
+            run(wrong)
+
+
 def test_record_moves_the_2_2_capabilities_and_the_versions_only_where_the_hash_is_proposal_7s_or_8s(phases, tmp_path):
     if "knos_pay" not in ex.changed_fixtures():
         pytest.skip("this tree's knos_pay test build is the live one")
     ev = copy.deepcopy(phases[0])
     root = tree(tmp_path)
     shutil.copyfile(ROOT / "docs" / "capabilities.json", root / "docs" / "capabilities.json")       # the manifest of this release: the 2.2 capabilities are in it
+    # as they stood before any run at the public ids: this release's own record moved some of them, and a capability
+    # already exercised is never moved again, so the copy starts them at `tested`, with no transaction
+    copied = json.loads((root / "docs" / "capabilities.json").read_text(encoding="utf-8"))
+    for c in copied["capabilities"]:
+        if c["id"] in ("fee_one_rate", "quorum_by_owner", "presentation_grace", "oidc_strict_json", "es256_tokens") and c["stage"] == "exercised":
+            c["stage"] = "tested"
+            c["evidence"].pop("exercised", None)
+            c["evidence"].pop("deployed", None)
+    (root / "docs" / "capabilities.json").write_text(json.dumps(copied, indent=1) + "\n", encoding="utf-8")
     feed = json.loads((root / "web" / "upgrades.json").read_text(encoding="utf-8"))
     feed["entries"][:0] = [{"index": i, "program": n, "build_hash": NEXT_HASH[n], "status": "executed", "squads_status": "Executed", "source_commit": "cd" * 20, "gate_run": 9}
                            for n, i in ex.NEXT_PROPOSALS.items()]
@@ -798,6 +858,10 @@ def test_record_moves_the_2_2_capabilities_and_the_versions_only_where_the_hash_
     ev["programs"] = ex.read_programs(cluster({**ELF, "knos_pay": NEXT["knos_pay"], "knos_oidc": b"bytes nobody recorded"}), root)
     assert [(r["is"], r["build"], r["proposal"]) for r in ev["programs"].values()] == [("unknown", None, None), ("next", "2.2", 8), ("new", "1.1", 5), ("new", "1.1", 6)]
     ev["mode"] = "public"
+    # the slot knos_pay 2.1 went live at: kept as `before` once 2.2 replaces it, so a transaction of 2.1's time is still named by its slot
+    prov = json.loads((root / "docs" / "provenance.json").read_text(encoding="utf-8"))
+    prov["programs"]["knos_pay"]["live_slot"] = 508_314_432
+    (root / "docs" / "provenance.json").write_text(json.dumps(prov, indent=1) + "\n", encoding="utf-8")
     said: list[str] = []
     ex.record(ev, root, said.append)
     data = json.loads((root / "docs" / "capabilities.json").read_text(encoding="utf-8"))
@@ -815,6 +879,7 @@ def test_record_moves_the_2_2_capabilities_and_the_versions_only_where_the_hash_
     assert by["oidc_strict_json"]["stage"] == "tested" and any(line.startswith("oidc_strict_json: not moved") for line in said)
     seen = json.loads((root / "docs" / "provenance.json").read_text(encoding="utf-8"))["programs"]["knos_pay"]
     assert (seen["proposal"], seen["proposal_status"], seen["on_chain_hash"], seen["on_chain_commit"]) == (8, "Executed", NEXT_HASH["knos_pay"], "cd" * 20) and "execution_signature" not in seen
+    assert {k: seen["before"][k] for k in ("proposal", "live_slot")} == {"proposal": 4, "live_slot": 508_314_432} and seen["before"].get("read") == prov.get("read")
     text = (root / "docs" / "CAPABILITIES.md").read_text(encoding="utf-8")
     assert "**one_rate.** The one rate on chain: 0.05 on an order of 5.00" in text[text.index(ex.BEGIN):text.index(ex.END)]
 

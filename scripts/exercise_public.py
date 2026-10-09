@@ -414,6 +414,22 @@ class World:
                 return sig, said[0]
         return None
 
+    def refunded(self, order: Pubkey, amount: int) -> str | None:
+        """The transaction in which knos_pay refunded `order` and itself logged `amount` going back; None when there is
+        none. RefundOrder is anyone's to send once the deadline has passed, and the public relay sends every refund
+        that is due, so an order of this run's own can be found gone back already: what went back is read from the
+        program's own line, never assumed."""
+        want = f"knos3:refunded order={order} amount={amount}"
+        for sig in self.ledger.history(order, 50):
+            if want in chain.said(self.ledger.logs(sig), pay.PAY_ID):
+                return sig
+        return None
+
+    def payer_of(self, signature: str) -> str | None:
+        """Who sent one transaction (its fee payer); None when that cannot be read."""
+        read = getattr(self.ledger, "payer_of", None)
+        return read(signature) if read else None
+
     def landed(self, signature: str) -> dict | None:    # pragma: no cover - overridden
         """A transaction as the chain has it: {"ok": it succeeded, "accounts": every address it names}. None: no such transaction."""
         raise NotImplementedError
@@ -1912,6 +1928,8 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
         if n in live and entry["build_hash"] == live[n]["hash"]:
             row = seen.setdefault("programs", {}).setdefault(n, {"address": live[n]["id"]})
             if row.get("proposal") != index[n]:         # the signature kept is the execution of the proposal before
+                if row.get("proposal") is not None and row.get("live_slot"):     # that build is kept: a slot of its time still names it (release_manifest.py)
+                    row["before"] = {**{k: row[k] for k in ("proposal", "on_chain_hash", "live_slot") if k in row}, **({"read": seen["read"]} if seen.get("read") else {})}
                 row.pop("execution_signature", None)
             row.update(on_chain_hash=live[n]["hash"], live_slot=live[n]["slot"], proposal=index[n], proposal_status="Executed")
             for key, value in (("on_chain_commit", entry.get("source_commit")), ("on_chain_run", entry.get("gate_run"))):
@@ -2418,6 +2436,16 @@ def after_stored_fee(book: Book, st: dict) -> None:
     for key in ("pay", "refund"):
         row, order = before[key], Pubkey.from_string(before[key]["order"])
         if key in st:
+            continue
+        if w.account(order) is None:        # gone back already: RefundOrder is anyone's after the deadline, and the public relay sends what is due
+            _check(row["fee"] == fee_tiers_21(row["amount"]) != fee_flat(row["amount"]), "the order's stored fee is not the 2.1 fee it was funded with")
+            sig = w.refunded(order, row["amount"] + row["fee"])
+            _check(sig is not None, "the order funded before the upgrade is not there, and no transaction of knos_pay refunded it with its amount and the fee "
+                                    f"it was funded with ({money(row['amount'] + row['fee'])})")
+            by = w.payer_of(sig)
+            st[key] = {"signature": sig, "amount": row["amount"], "fee_back": row["fee"], "refunded": True, **({"sent_by": by} if by else {})}
+            book.tx(st, f"the order funded under 2.1 went back whole: {money(row['amount'])} and its stored fee of {money(row['fee'])}, in a refund "
+                        + (f"{by} sent" if by else "another sender sent") + " (RefundOrder is anyone's once the deadline has passed)", sig, "knos_pay")
             continue
         o = have(pay.read_order(w.account(order)), "the order funded before the upgrade")
         _check(have(w.account(order)).hex() == row["data"] and (o.amount, o.fee, o.state) == (row["amount"], row["fee"], "open"),

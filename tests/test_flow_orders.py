@@ -131,6 +131,7 @@ def test_a_merge_pays_a_work_order_in_full_and_the_token_names_the_order_the_pul
     w = ordered(tmp_path / "held")
     got = settled(w)
     assert got.startswith(f"Knos: held for @mona. 20.00 {MONEY} for issue #7 waits for them until ") and "It is then paid in full" in got
+    assert "binds a wallet: https://drexthealpha.github.io/Knos/#payee=mona in the browser" in got     # the payout page for that login (web/payee.js)
     assert w.chain.orders(7)[0][1].state == "held" and w.signer.asked[-1].endswith(f":12:{MONA['id']}.10000.-")
     # a job and an order on one issue are both paid by one merge: each by its own token
     w = ordered(tmp_path / "both")

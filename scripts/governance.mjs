@@ -27,7 +27,10 @@
 //   node scripts/governance.mjs add-member <address>            the proposal that adds a key holder to a multisig, and what will be true after it
 //   node scripts/governance.mjs replace-member <old> <new>      the proposal that puts one member key in place of another, in one vote
 //   node scripts/governance.mjs set-threshold <N>               the proposal that changes how many members must approve
-//                               Each of the three PRINTS the proposal and what the multisig will be once it has executed (members,
+//   node scripts/governance.mjs set-time-lock [seconds]         the proposal that sets the UPGRADE multisig's time lock (default 691200,
+//                               8 days: above an order's 7 days of notice and 2 hours of grace; scripts/timelock_plan.py says why).
+//                               With --send it refuses while another proposal of that multisig is open: the change makes it stale
+//                               Each of the four PRINTS the proposal and what the multisig will be once it has executed (members,
 //                               threshold, how many voting keys the founder holds, whether the founder alone can still approve), and
 //                               sends nothing. With --send it creates that proposal and approves it with the member keys given; then
 //                               `execute <upgrade|guardian> <index>` runs it, after the 172800 s on the upgrade multisig. A new key
@@ -103,6 +106,10 @@ export const WHICH = {
   upgrade: { timeLock: 172_800, multisig: IDS.upgrade_multisig, vault: IDS.upgrade_authority, createKey: "upgrade-create-key.json" },
   guardian: { timeLock: 0, multisig: IDS.guardian_multisig, vault: IDS.guardian, createKey: "guardian-create-key.json" },
 };
+// The upgrade multisig's time lock once `set-time-lock` has executed: 8 days, scripts/timelock_plan.py PLANNED. Either it or
+// WHICH.upgrade.timeLock is what the design fixes; Squads v4 takes no time lock above MAX_TIME_LOCK (3 x 30 days).
+export const PLANNED_TIME_LOCK = 691_200;
+const MAX_TIME_LOCK = 3 * 30 * 86_400;
 // every program whose upgrade authority is the upgrade vault: what `upgrade propose` takes, in the order a release proposes them
 export const PROGRAMS = ["knos_oidc", "knos_pay", "knos_meter", "knos_passkey"];
 const PAUSE_MAX = 7 * 86_400;
@@ -334,10 +341,13 @@ function describe(name, ms) {
          `${isAutonomous(ms) ? "no config authority" : `config authority ${ms.configAuthority}`})`;
 }
 
-/** What is wrong with a multisig as the chain has it, in words; empty when it is what the design fixes. */
-function wrong(name, ms) {
+/** What is wrong with a multisig as the chain has it, in words; empty when it is what the design fixes. The upgrade
+ *  multisig's time lock is the one it was made with, or the planned one once `set-time-lock` has executed. */
+export function wrong(name, ms) {
   const out = [];
-  if (ms.timeLock !== WHICH[name].timeLock) out.push(`its time lock is ${ms.timeLock} s, not ${WHICH[name].timeLock} s`);
+  if (ms.timeLock !== WHICH[name].timeLock && !(name === "upgrade" && ms.timeLock === PLANNED_TIME_LOCK)) {
+    out.push(`its time lock is ${ms.timeLock} s, not ${WHICH[name].timeLock} s` + (name === "upgrade" ? ` or the planned ${PLANNED_TIME_LOCK} s` : ""));
+  }
   if (!isAutonomous(ms)) out.push(`it has a config authority (${ms.configAuthority}), which could change it alone`);
   if (ms.threshold < 1 || ms.threshold > ms.members.length) out.push(`its threshold ${ms.threshold} cannot be met by its ${ms.members.length} members`);
   return out;
@@ -778,8 +788,8 @@ export function powers(ms, keys) {
 
 /**
  * The actions a config transaction would carry for one change, and the multisig as it will be once they have executed.
- * `change`: { add, remove, threshold, mask, founder }: a key to add (with the permissions `mask`; the founder's own only when
- * `founder`), a member to remove, a new threshold; any of the three may be absent. `outside`: the addresses of the members
+ * `change`: { add, remove, threshold, timeLock, mask, founder }: a key to add (with the permissions `mask`; the founder's own only
+ * when `founder`), a member to remove, a new threshold, a new time lock in seconds; any of the four may be absent. `outside`: the addresses of the members
  * the founder does not hold today. Refuses, before anything is built, what the Squads program would refuse on execution.
  */
 export function configPlan(ms, change, outside = []) {
@@ -795,12 +805,18 @@ export function configPlan(ms, change, outside = []) {
   for (const [word, bit] of Object.entries(PERMISSION)) {
     if (!members.some((m) => m.mask & bit)) throw new Refused(`nobody could ${word} afterwards: the Squads program refuses a multisig with no member who may ${word}. Nothing was sent.`);
   }
-  if (!add && !remove && threshold === ms.threshold) throw new Refused(`the threshold is ${threshold} already. Nothing was sent.`);
+  const lock = change.timeLock ?? ms.timeLock;
+  if (change.timeLock !== undefined) {
+    if (!Number.isInteger(lock) || lock < 0 || lock > MAX_TIME_LOCK) throw new Refused(`a time lock is a whole number of seconds from 0 to ${MAX_TIME_LOCK} (the Squads maximum, 90 days). Nothing was sent.`);
+    if (lock === ms.timeLock) throw new Refused(`the time lock is ${lock} s already. Nothing was sent.`);
+  }
+  if (!add && !remove && threshold === ms.threshold && change.timeLock === undefined) throw new Refused(`the threshold is ${threshold} already. Nothing was sent.`);
   // the new key is added before the old one is removed, so the multisig is never short of a member inside the transaction
   const actions = [];
   if (add) actions.push({ __kind: "AddMember", newMember: { key: change.add, permissions: { mask } } });
   if (remove) actions.push({ __kind: "RemoveMember", oldMember: change.remove });
   if (threshold !== ms.threshold) actions.push({ __kind: "ChangeThreshold", newThreshold: threshold });
+  if (lock !== ms.timeLock) actions.push({ __kind: "SetTimeLock", newTimeLock: lock });
   const notFounder = new Set([...outside, ...(add && !change.founder ? [add] : [])]);
   const tally = (list) => {
     const voting = list.filter((m) => m.mask & 2), founder = voting.filter((m) => !notFounder.has(m.key)).length;
@@ -810,14 +826,14 @@ export function configPlan(ms, change, outside = []) {
   after.founderAlone = after.founder >= threshold;                   // the founder's keys meet the threshold with nobody else
   after.outsideCanRefuse = after.founder < threshold;                // no approval without an outside key
   after.everyKeyNeeded = threshold === after.voters;                 // one lost key and nothing is ever approved again
-  return { actions, before: { threshold: ms.threshold, ...tally(now) }, after };
+  return { actions, before: { threshold: ms.threshold, ...tally(now) }, after, timeLock: { before: ms.timeLock, after: lock } };
 }
 
 /** The plan in words: one line for the proposal, then what will be true after it executes. */
 export function planLines(name, plan) {
-  const { actions, before, after } = plan;
+  const { actions, before, after, timeLock } = plan;
   const carried = actions.map((a) => a.__kind === "AddMember" ? `add ${a.newMember.key} (${perms(a.newMember.permissions.mask)})`
-    : a.__kind === "RemoveMember" ? `remove ${a.oldMember}` : `threshold ${a.newThreshold}`).join("; ");
+    : a.__kind === "RemoveMember" ? `remove ${a.oldMember}` : a.__kind === "SetTimeLock" ? `time lock ${span(a.newTimeLock)}` : `threshold ${a.newThreshold}`).join("; ");
   const what = name === "upgrade" ? "approve an upgrade" : "approve a signing key, revoke one or pause new funding";
   const lines = [
     `${name} multisig ${WHICH[name].multisig}`,
@@ -831,6 +847,10 @@ export function planLines(name, plan) {
       : `  the founder alone can NOT ${what}: the founder holds ${after.founder} voting key(s) and ${after.threshold} are needed, so at least ${after.threshold - after.founder} outside key holder(s) must agree.`,
   ];
   if (after.everyKeyNeeded && after.voters > 1) lines.push(`  every voting key is needed: if one of the ${after.voters} is lost, nothing can be approved again, and the members cannot be changed either.`);
+  if (timeLock && timeLock.after !== timeLock.before) {
+    lines.push(`  the time lock      ${span(timeLock.before)} today; ${span(timeLock.after)} once it executes: a proposal approved after that waits ${span(timeLock.after)}, ` +
+               "and every proposal made before it is stale (one not yet approved can no longer be; an approved upgrade waits the new time lock from its approval)");
+  }
   return lines;
 }
 
@@ -856,7 +876,8 @@ function stateFile(file) {
 
 async function configCmd(o, command, args) {
   // the command line is checked before the network is asked anything
-  const names = o.on === undefined ? Object.keys(WHICH) : [o.on];
+  if (command === "set-time-lock" && o.on === "guardian") throw new Refused("the guardian's time lock stays 0, so that a revocation is never delayed: set-time-lock is for the upgrade multisig.");
+  const names = command === "set-time-lock" ? ["upgrade"] : o.on === undefined ? Object.keys(WHICH) : [o.on];
   if (names.some((n) => !WHICH[n])) throw new Refused("--on takes upgrade or guardian.");
   if (o.send && o.state) throw new Refused("--state reads the multisig from a file to print a plan; it cannot be combined with --send.");
   const key = (ref, what) => { try { return new PublicKey(ref ?? ""); } catch { throw new Refused(`${command} takes ${what}: an address as Solana prints it (solana-keygen pubkey FILE). Never send or paste a private key.`); } };
@@ -866,6 +887,10 @@ async function configCmd(o, command, args) {
   if (command === "set-threshold") {
     if (!/^\d+$/.test(args[0] ?? "")) throw new Refused("set-threshold takes how many members must approve: a whole number.");
     change.threshold = Number(args[0]);
+  }
+  if (command === "set-time-lock") {
+    if (args[0] !== undefined && !/^\d+$/.test(args[0])) throw new Refused(`set-time-lock takes the seconds an approved upgrade waits: a whole number (default ${PLANNED_TIME_LOCK}, 8 days).`);
+    change.timeLock = args[0] === undefined ? PLANNED_TIME_LOCK : Number(args[0]);
   }
   const outside = outsideHolders();
   const ctx = o.state ? null : o.send ? await context(o) : { conn: await connect(o) };
@@ -885,6 +910,15 @@ async function configCmd(o, command, args) {
       const p = await proposal(ctx.conn, multisigPda, i);
       if (!p || ["Draft", "Active", "Approved"].includes(p.status.__kind)) { index = i; made = { p }; break; }
     }
+    if (change.timeLock !== undefined) {
+      // a time lock change makes every proposal made before it stale: none may be open but this one (scripts/timelock_plan.py refuses the same)
+      const open = [];
+      for (let i = big(ms.transactionIndex); i > big(ms.staleTransactionIndex) && i > big(ms.transactionIndex) - 10n; i--) {
+        const p = i === index ? null : await proposal(ctx.conn, multisigPda, i);
+        if (p && ["Draft", "Active", "Approved"].includes(p.status.__kind)) open.push(`proposal ${i} (${p.status.__kind.toLowerCase()})`);
+      }
+      if (open.length) throw new Refused(`${open.join(", ")} of the ${name} multisig is still open, and a time lock change would make it stale. Execute or cancel it first. Nothing was sent.`);
+    }
     const creator = members[0].publicKey, rentPayer = ctx.feePayer.publicKey, ixs = [];
     if (index === null) {
       index = big(ms.transactionIndex) + 1n;
@@ -896,7 +930,7 @@ async function configCmd(o, command, args) {
     const p = await voteUpTo(ctx, name, ms, members, index, false, label);
     done.push(`${standing(name, ms, index, p)}; then: node scripts/governance.mjs execute ${name} ${index}`);
   }
-  if (o.send) return say(`on chain now: ${done.join(". ")}. The members and the threshold are unchanged until it executes.`);
+  if (o.send) return say(`on chain now: ${done.join(". ")}. ${change.timeLock !== undefined ? "The time lock is" : "The members and the threshold are"} unchanged until it executes.`);
   say(`Nothing was sent. Outside key holders today: ${outside.length}. To create the proposal${names.length > 1 ? "s" : ""}: the same command with --send and the member keys.`);
 }
 
@@ -948,7 +982,7 @@ async function main(argv) {
   }
   if (command === "approve" || command === "cancel") return vote(o, rest[0], rest[1], command === "cancel");
   if (command === "execute") return execute(o, rest[0], rest[1]);
-  if (["add-member", "replace-member", "set-threshold"].includes(command)) return configCmd(o, command, rest);
+  if (["add-member", "replace-member", "set-threshold", "set-time-lock"].includes(command)) return configCmd(o, command, rest);
   if (command === "derive") return deriveCmd(o);
   if (command === "inner") return innerCmd(o, rest);
   throw new Refused(`there is no command ${command}. Run node scripts/governance.mjs --help for the list.`);

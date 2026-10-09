@@ -152,7 +152,7 @@ jobs:
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
           UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.23"
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.24"
       - name: the plan (which two commits, which suite, which image), from the order on Solana and GitHub's record
         id: plan
         env:
@@ -248,12 +248,23 @@ jobs:
           python-version: "3.12"
           enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
           ignore-empty-workdir: true
+      # PyPI's index can lag a release's upload, and uv may answer from what it read a moment before (0.3.23: the wait
+      # for the file passed, and uv still said "no version of knos"). So the install itself is tried 3 times, the
+      # second and third with --refresh (uv asks the index again), 10 then 30 s apart; the third failure ends the job.
       - name: install knos and what it needs, each by its hash, and nothing else
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
-          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          cat > "$RUNNER_TEMP/knos.lock" <<'LOCK'
           KNOS_LOCK
           LOCK
+          refresh=""
+          for nap in 10 30 end; do
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock" && break
+            [ "$nap" != end ] || exit 1
+            echo "The install failed: asking PyPI's index again (--refresh) in $nap s."
+            refresh="--refresh"
+            sleep "$nap"
+          done
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       # The first job's verdict is text from a machine that ran a stranger's code. Before the command reads it, it is
       # held to what every reader reads the same way: small, plain characters, one object, each key once, only the
@@ -297,9 +308,17 @@ jobs:
       - name: install knos and what it needs, each by its hash, and nothing else
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
-          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          cat > "$RUNNER_TEMP/knos.lock" <<'LOCK'
           KNOS_LOCK
           LOCK
+          refresh=""
+          for nap in 10 30 end; do
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock" && break
+            [ "$nap" != end ] || exit 1
+            echo "The install failed: asking PyPI's index again (--refresh) in $nap s."
+            refresh="--refresh"
+            sleep "$nap"
+          done
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
       # as in attest: the verdict is posted only when every reader would read it the same way
       - name: the verdict, read as data (nothing is signed on text two readers could read differently)

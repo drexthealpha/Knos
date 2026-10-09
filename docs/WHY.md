@@ -2,7 +2,7 @@
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check ([backtest.json](backtest.json)).
+Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check ([backtest.json](backtest.json)).
 Of first agent pull requests that claimed passing tests, 17.8% had a failed check. That is 147 of 826 repositories in the Agent PR Index ([BENCH.md](BENCH.md)).
 Both count failed checks, not money: a failed check is not always a failed test or a false claim, and neither
 figure is a share of anyone's spend.
@@ -51,7 +51,7 @@ Who is not a customer, today:
 - A supplier, as the payer: Knos never charges the party being rated.
 - Anyone who needs a company to sign with: there is no legal entity.
 
-**Days to approve, not seconds to pay.** From merge to paid took 25 seconds at the median, over 42 payments on
+**Days to approve, not seconds to pay.** From merge to paid took 26 seconds at the median, over 51 payments on
 devnet. That is not the wait this customer has. It waits for a person to approve the invoice, while two companies
 argue over whose count is right. Days to approve is defined as the days from the day the buyer receives a
 supplier's invoice to the day a person with authority approves it. Knos would read both dates: receipt from the

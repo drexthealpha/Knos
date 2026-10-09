@@ -193,3 +193,12 @@ _.list_directory
 from knos import ids as ids_
 
 ids_.line_state                                     # the line state a word means, older words included; tests/test_line_states.py
+
+# 0.3.24. Typer registers these inside each module's `register` and calls them when a person types the command.
+_.assurance_                    # knos.assurance.register: knos assurance
+_.plans_                        # knos.plan_floor.register: knos fees plans
+_.protect_                      # knos.strip_check.register: knos protect
+_.settle_sync_                  # knos.statement.register: knos statement settle-sync
+# Public functions with no caller inside src/knos or scripts, each held by the tests that name it.
+billing_.review_budget                              # the arithmetic of an exceptional review (docs/UNIT_COSTS.md); tests/test_billing_review.py
+_.relative_left                                     # scripts/bump_version.py: no link of README.pypi.md leans on the repository; tests/test_pypi_readme.py

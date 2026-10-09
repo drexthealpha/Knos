@@ -83,7 +83,7 @@ jobs:
       contents: read
       issues: write           # the signed statement is posted on this repository's "knos tokens" issue, where a relayer finds it
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@5b26b1cddeae766b0693fa3eafdd9e44a7755481
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
     with:
       repository: ${{ inputs.repository }}
       pull: ${{ fromJSON(inputs.pull) }}       # a number input started by hand reaches here as text, and the called workflow takes a number

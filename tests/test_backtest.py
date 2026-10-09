@@ -119,8 +119,9 @@ def test_the_command_writes_the_file_and_the_index_is_used_only_if_its_root_matc
     sample.write_text(json.dumps({"generated_utc": "2026-10-01T14:42:51+00:00", "prs": rows}), encoding="utf-8")
     index = agent_pr_index.build(rows, "2026-10-02", ("2026-06-04", "2026-10-01"))
     (tmp_path / "index.json").write_text(json.dumps(index), encoding="utf-8")
-    out = tmp_path / "backtest.json"
-    assert backtest.main(["--sample", str(sample), "--index", str(tmp_path / "index.json"), "--out", str(out)]) == 0
+    out, review = tmp_path / "backtest.json", tmp_path / "review.json"
+    review.write_text(json.dumps(_review(["acme/r#1"])), encoding="utf-8")
+    assert backtest.main(["--sample", str(sample), "--index", str(tmp_path / "index.json"), "--out", str(out), "--review", str(review)]) == 0
     got = json.loads(out.read_text(encoding="utf-8"))
     assert got["sample"]["merged"]["overall"]["any_check_failed"]["prs"] == 1
     assert got["sample"]["without_author_owned_repos"]["merged"]["overall"]["prs"] == 1        # acme's own pull request is out
@@ -129,4 +130,62 @@ def test_the_command_writes_the_file_and_the_index_is_used_only_if_its_root_matc
     index["prs"][0]["class"] = "passed"                                                       # an edited list is not counted
     (tmp_path / "index.json").write_text(json.dumps(index), encoding="utf-8")
     with pytest.raises(SystemExit):
-        backtest.main(["--sample", str(sample), "--index", str(tmp_path / "index.json"), "--out", str(out)])
+        backtest.main(["--sample", str(sample), "--index", str(tmp_path / "index.json"), "--out", str(out), "--review", str(review)])
+
+
+# ---- the second reading and the frozen method -------------------------------------------------------------------------
+
+def _review(keys, excluded=()):
+    return {"read": "2026-10-09", "method_version": 1,
+            "prs": [{"pr": k, "decision": "excluded" if k in excluded else "counted", "rules": ["R2"] if k in excluded else [],
+                     "read": {"template_box": False}} for k in keys]}
+
+
+def test_the_review_reads_every_one_of_the_thirty_and_the_reviewed_counts_lead():
+    sample = json.loads((ROOT / "docs" / "agent_pr_ci.json").read_text(encoding="utf-8"))
+    review = json.loads((ROOT / "docs" / "index_review.json").read_text(encoding="utf-8"))
+    out = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))
+    assert len(review["prs"]) == 30 and all(p["decision"] in ("counted", "excluded") for p in review["prs"])
+    assert all(p["rules"] and set(p["rules"]) <= set(review["rules"]) for p in review["prs"] if p["decision"] == "excluded")
+    # the recorded scan is a layer under the review, never edited: each row's recorded part is the scan's own
+    rows = {f"{r['repo']}#{r['number']}": r for r in sample["prs"]}
+    for p in review["prs"]:
+        r = rows[p["pr"]]
+        assert (r["merged"], r["claim_line"], r["failed_checks"]) == (p["recorded"]["merged"], p["recorded"]["claim_line"], p["recorded"]["failed_checks"])
+    assert out["reviewed"] == json.loads(json.dumps(backtest.reviewed(sample, review)))
+    got = out["reviewed"]["overall"]
+    assert got["prs"] == 241 and got["test_or_build_check_failed"]["prs"] == 9 and got["any_check_failed"]["prs"] == 19
+    assert got["test_or_build_check_failed"]["ci95"] == agent_pr_index.wilson(9, 241)
+    assert sum(a["prs"] for a in out["reviewed"]["agents"].values()) == 241
+    assert sum(a["any_check_failed"]["prs"] for a in out["reviewed"]["agents"].values()) == 19
+    # the three a reader questioned: the staging-branch merge, the human-authored one, the reproduce example of 0.3.23
+    decided = {p["pr"]: p for p in review["prs"]}
+    assert decided["BerriAI/litellm#36575"]["decision"] == decided["wildcard/caro#1488"]["decision"] == "excluded"
+    assert decided["SciML/SciMLBase.jl#1574"]["decision"] == "excluded"
+
+
+def test_a_review_that_misses_a_pull_request_is_refused():
+    import pytest
+    rows = [pr(1, cls="failed", checks=["test"], merged=True), pr(2, cls="failed", checks=["vercel"], merged=True), pr(3, merged=True)]
+    got = backtest.reviewed({"prs": rows}, _review(["acme/r#1", "acme/r#2"], excluded=["acme/r#1"]))
+    assert got["overall"]["prs"] == 3 and got["overall"]["any_check_failed"]["prs"] == 1
+    assert got["overall"]["test_or_build_check_failed"]["prs"] == 0 and got["excluded_by_rule"] == {"R2": 1}
+    with pytest.raises(SystemExit):
+        backtest.reviewed({"prs": rows}, _review(["acme/r#1"]))
+
+
+def test_the_method_is_frozen_at_version_one_and_a_changed_file_fails_the_check(tmp_path):
+    assert backtest.main(["--check"]) == 0
+    info, problems = backtest.method()
+    assert problems == [] and info["version"] == 1 and info["sha256"] == backtest.METHODS[1]
+    assert json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["method"] == info
+    text = (ROOT / "docs" / "INDEX_METHOD.md").read_text(encoding="utf-8")
+    changed = tmp_path / "m.md"
+    # Written as bytes, with the line ends git checks the file out with on every OS (.gitattributes: eol=lf), so that
+    # only the line named changes. write_text on Windows ends every line with CR LF: that file names no version at all.
+    changed.write_bytes(text.replace("R5: its page cannot be read", "R5: its page is slow").encode("utf-8"))
+    assert any("still says version 1" in p for p in backtest.method(changed)[1])
+    changed.write_bytes(text.replace("Version: 1", "Version: 2").encode("utf-8"))
+    assert any("version 2" in p for p in backtest.method(changed)[1])
+    changed.write_bytes(text.replace(agent_pr_ci.TESTISH_RE.pattern, "test").encode("utf-8"))
+    assert any("TESTISH_RE" in p for p in backtest.method(changed)[1])

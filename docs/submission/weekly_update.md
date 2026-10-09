@@ -16,7 +16,7 @@ runs the earlier ones. The demonstration now opens on a refusal.
 
 *On screen: the number, then the site's Numbers page.*
 
-Of 241 merged agent pull requests that claimed passing tests, 30 had a failed check. From merge to paid took 25
+Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check. From merge to paid took 26
 seconds at the median, on devnet. Funders other than Knos: 0.
 
 ## The hardest problem, and the decision (0:40)

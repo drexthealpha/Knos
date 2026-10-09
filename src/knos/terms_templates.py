@@ -7,7 +7,7 @@
     bugfix             named checks must pass; only src/ and tests/ may change
     feature-blackbox   paid when the black-box acceptance suite (.knos/acceptance/<issue>/) passes
     milestone          a share of the payment held back for a warranty period
-    standing-rate      one vendor, a rate per accepted pull request, up to a budget
+    standing-rate      one vendor, a rate when the agreed checks pass at merge, up to a budget
     private-attested   a private repository's order, funded and paid by the organisation's attestor repository
 
 Three more are outcomes that are not code (examples/outcomes/): the same comment and the same terms, where the

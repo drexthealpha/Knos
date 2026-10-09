@@ -410,7 +410,7 @@ def test_the_first_view_has_no_numbers_outside_code_but_the_one_measurement_it_l
     """scripts/claims_check.py holds every number in this view to a fact; the easiest way to keep it true is to have
     almost none. A command shown in a <pre> is code, like one in <code>. The whole view is read, the demo's mount and
     the folds under it too. The one measurement the view leads with since 0.3.17 is docs/backtest.json's: of the merged
-    agent pull requests that said their tests pass, how many had a failed check. The second, under the first heading,
+    agent pull requests that said their tests pass, how many failed a test, build, lint or type check after the second reading. The second, under the first heading,
     is the one that led before (the share of repositories whose first such pull request had a failed check):
     docs/bench.json's, the Agent PR Index, any_check_failed of first_pr_per_repo. The only other numbers are one line
     under a fold, held here to its source: how many cheating pull requests passed the black-box check and how many
@@ -422,10 +422,10 @@ def test_the_first_view_has_no_numbers_outside_code_but_the_one_measurement_it_l
     first = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["market"]["index"]["overall"]["first_pr_per_repo"]
     share = f"{first['any_check_failed']['share'] * 100:.1f}%"
     assert round(first["any_check_failed"]["repos"] / first["repos"], 3) == first["any_check_failed"]["share"]
-    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["sample"]["merged"]["overall"]
-    lead = (str(merged["prs"]), str(merged["any_check_failed"]["prs"]))
-    assert f"{lead[0]} merged agent “tests pass” pull requests: {lead[1]} had a failed check." in said
-    assert f"{share} of" in said and said.count("had a failed check") == 2 and said.index(lead[0]) < said.index(share)
+    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]     # after the second reading (docs/index_review.json)
+    lead = (str(merged["prs"]), str(merged["test_or_build_check_failed"]["prs"]))
+    assert f"{lead[0]} merged agent “tests pass” pull requests: {lead[1]} failed tests or builds." in said
+    assert f"{share} of" in said and said.count("had a failed check") == 1 and said.index(lead[0]) < said.index(share)
     row = re.search(r"^\| \*\*all\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\* \|$", (ROOT / "docs" / "TAMPER.md").read_text(encoding="utf-8"), re.M)
     cases, plain_ci, _in_process, black_box = row.groups()
     assert f"{black_box} of {cases} cheating pull requests passed it, {plain_ci} passed plain CI" in said

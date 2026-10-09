@@ -799,7 +799,8 @@ def set_balance_x_ix(authority: Pubkey, balance: Pubkey, day_limit: int = 0, tot
 
 
 def set_plan_ix(fee_owner: Pubkey, payer: Pubkey, owner_id: int, fee_bps: int, expires: int, program: Pubkey = PAY_ID) -> Instruction:
-    """FEE_OWNER sets the fee rate (50..=250 basis points) of the orders of one repository owner until `expires`."""
+    """FEE_OWNER sets the fee rate of the orders of one repository owner until `expires`: the program accepts PLAN_BPS_MIN..=FEE_BPS
+    (10..=30 basis points); Knos signs no Plan below 20 (`knos fees plans --check` reads them back from the chain)."""
     return Instruction(program, b"\x0e" + _u64(owner_id) + fee_bps.to_bytes(2, "little") + expires.to_bytes(8, "little", signed=True),
                        [AccountMeta(fee_owner, True, False), AccountMeta(payer, True, True), AccountMeta(plan_pda(owner_id, program), False, True),
                         AccountMeta(SYSTEM, False, False)])

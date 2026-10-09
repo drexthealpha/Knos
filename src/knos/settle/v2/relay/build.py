@@ -3,6 +3,7 @@ cluster until `forget`."""
 from __future__ import annotations
 
 import re
+import weakref
 
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
@@ -51,6 +52,28 @@ def _built(ledger) -> int | None:
     return 0 if _VERSION_LINE not in code else 1 if _TIERED.search(code) else fees.NEW_VERSION
 
 
+def _where(ledger) -> tuple:
+    """The key of a cluster's answer: its url, or for a ledger with none (one made in memory) the ledger's id()."""
+    return (getattr(ledger, "url", None) or id(ledger), pay.PAY_ID)
+
+
+def _drop(where: tuple) -> None:
+    _VERSION.pop(where, None)
+
+
+def _keep(ledger, where: tuple, answer: int) -> None:
+    """Keeps an answer. Python gives the id() of a ledger with no url to another object once that ledger is gone, so
+    such an answer goes when its ledger goes: a ledger made later is never handed the answer of one that died. (In
+    tests/test_mcp.py a ledger that cannot be asked, so 2.1's fee, was now and then handed an earlier test's 2, as the
+    tests happened to be dealt out, and showed the 0.3.18 fee.) A ledger Python cannot watch keeps its answer by id()."""
+    _VERSION[where] = answer
+    if not getattr(ledger, "url", None):
+        try:
+            weakref.finalize(ledger, _drop, where)
+        except TypeError:
+            pass
+
+
 def forget(ledger=None) -> None:
     """Forgets what Version answered (for this ledger's cluster; with None, for every one), so that the next call asks
     again. A worker calls it when a pass begins: an upgrade that executed between two passes is met by the next one,
@@ -58,7 +81,7 @@ def forget(ledger=None) -> None:
     if ledger is None:
         _VERSION.clear()
     else:
-        _VERSION.pop((getattr(ledger, "url", None) or id(ledger), pay.PAY_ID), None)
+        _VERSION.pop(_where(ledger), None)
 
 
 def version(ledger, payer: Keypair | None = None) -> int:
@@ -72,7 +95,7 @@ def version(ledger, payer: Keypair | None = None) -> int:
     A simulation needs a fee payer that is on chain. A seller with no relay key (`knos settle --neutral`) or a
     repository with no secret has none, and the cluster refuses the simulation for that (AccountNotFound): then the
     deployed executable is read instead, which needs no payer at all (`_built`)."""
-    where = (getattr(ledger, "url", None) or id(ledger), pay.PAY_ID)
+    where = _where(ledger)
     if where in _VERSION:
         return _VERSION[where]
     ask = getattr(ledger, "simulate", None)
@@ -83,13 +106,13 @@ def version(ledger, payer: Keypair | None = None) -> int:
     except Exception as why:  # noqa: BLE001 - a refusal by the program is the answer 0; anything else is no answer
         text = " ".join([str(why), *((getattr(why, "data", None) or {}).get("logs") or [])]) if isinstance(getattr(why, "data", None), dict) else str(why)
         if "InstructionError" in text or "invalid instruction data" in text or _code(text) is not None:
-            _VERSION[where] = 0
+            _keep(ledger, where, 0)
         elif any(mark in text for mark in _BROKE):     # the fee payer is not on chain, or holds no SOL: nothing was asked
             built = _built(ledger)
             if built is not None:
-                _VERSION[where] = built
+                _keep(ledger, where, built)
                 return built
         return 0
     found = next((int(m.group(1)) for m in (re.fullmatch(r"knos2:version (\d+)", line) for line in chain.said(logs, pay.PAY_ID)) if m), 0)
-    _VERSION[where] = found
+    _keep(ledger, where, found)
     return found

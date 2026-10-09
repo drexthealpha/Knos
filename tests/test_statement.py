@@ -476,3 +476,17 @@ if __name__ == "__main__" and "--write" in sys.argv:
     for name, data in sample().items():
         (ROOT / "web" / name).write_bytes(data)
         print("wrote web/" + name)
+
+
+def test_every_line_says_its_assurance_level_and_the_statement_keeps_four_words_apart():
+    """knos.assurance through the statement: a line reaches only a level its evidence shows (never above re-executed
+    today), and whether the buyer got what it wanted is never claimed."""
+    from knos import assurance
+    st = json.loads((DATA / "sept.json").read_text(encoding="utf-8"))
+    status = json.loads((DATA / "sept.grn.status.json").read_text(encoding="utf-8")) if json.loads(
+        (DATA / "sept.grn.status.json").read_text(encoding="utf-8")).get("statement") == st["sha256"] else None
+    lines = statement.lines_now(st, status)
+    assert lines and all(x["assured"]["level"] in (None, *assurance.REACHABLE) for x in lines)
+    assert all(not x["assured"]["identity_proved"] or x["assured"]["proved"] for x in lines)
+    four = assurance.words(st, lines)
+    assert list(four) == list(assurance.WORDS) and four["satisfaction"]["state"] == "not claimed"

@@ -15,6 +15,7 @@ import pytest
 
 pytest.importorskip("solders.litesvm")
 
+from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
 
 from _meter import BUYER, SELLER, Meter  # noqa: E402
@@ -84,6 +85,25 @@ def test_the_builds_of_this_tree_answer_as_1_1_and_are_asked_once():
         raise chain.RpcError("the cluster did not answer", None)
     led.simulate = down
     assert live.runs(led, w.payer, "knos_passkey") is None and live.runs(led, w.payer, "knos_meter") is None
+
+
+def test_what_a_ledger_with_no_url_answered_goes_with_it_and_a_later_one_is_asked_itself():
+    """A ledger with no url is known by id(), which Python gives to the next object once it is gone. Its 1.1 goes with
+    it: a later ledger with that id that runs 1.0 is asked, and refused as 1.0, never told 1.1 by the one that died."""
+    class New:
+        def simulate(self, ixs, payer, signers=None):
+            return [f"Program {meter.METER_ID} invoke [1]", f"Program log: knosm:version {live.WANT['knos_meter']}"]
+
+    class Older:
+        def simulate(self, ixs, payer, signers=None):
+            raise chain.RpcError(CLUSTER, None)
+    payer = Keypair()
+    for _ in range(50):
+        gone = New()
+        where = (id(gone), meter.METER_ID)
+        assert live.runs(gone, payer, "knos_meter") is True and where in live._NEW
+        del gone
+        assert where not in live._NEW and live.runs(Older(), payer, "knos_meter") is False
 
 
 @pytest.mark.parametrize("words", [LITESVM, CLUSTER])

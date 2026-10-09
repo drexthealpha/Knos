@@ -96,6 +96,10 @@ def test_every_check_supports_capabilities_the_manifest_lists_and_the_named_thin
     repo, number = rp.CLAIM["pr"].split("#")
     [recorded] = [p for p in json.loads((ROOT / "docs" / "agent_pr_ci.json").read_text(encoding="utf-8"))["prs"] if p["repo"] == repo and p["number"] == int(number)]
     assert (recorded["sha"], recorded["class"], recorded["merged"]) == (rp.CLAIM["head"], "failed", True) and rp.CLAIM["verdict"] == "false"
+    # and the second reading kept it: merged into the default branch, the agent's own words, a failed test job
+    [read] = [p for p in json.loads((ROOT / "docs" / "index_review.json").read_text(encoding="utf-8"))["prs"] if p["pr"] == rp.CLAIM["pr"]]
+    assert read["decision"] == "counted" and read["read"]["merged"] and read["read"]["base"] == read["read"]["default_branch"]
+    assert read["read"]["claim"] == "agent's own words" and read["recorded"]["test_or_build_check_failed"]
     assert all((ROOT / t).is_file() for t in rp.SUITE)
 
 

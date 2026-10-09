@@ -8,7 +8,13 @@
   "cancelled_no_failure": "no failed check, but one that was cancelled, waits for a maintainer's approval or went stale (the index's class `other`). A Knos bounty that requires such a check counts it as failed; they are not in any_check_failed",
   "fate": "what had become of the pull requests when they were read, with a failed check and without one: merged, closed without a merge, or still open",
   "time_open": "hours from a pull request's creation to its merge or close, for those that were closed, with a failed check and without one; those still open are counted, not timed",
-  "share, ci95": "the count over its total, and the 95% Wilson interval of that share"
+  "share, ci95": "the count over its total, and the 95% Wilson interval of that share",
+  "reviewed": "the same counts after a second reading of each merged pull request with a failed check (docs/index_review.json, rules in docs/INDEX_METHOD.md); the denominator stays, since the others were not read again"
+ },
+ "method": {
+  "version": 1,
+  "file": "docs/INDEX_METHOD.md",
+  "sha256": "8502cc17977108607d404737696a62cb6e69fa9c535beedce1abd3a61fa5dbfb"
  },
  "sample": {
   "source": "docs/agent_pr_ci.json",
@@ -404,6 +410,245 @@
     }
    },
    "time_open": null
+  }
+ },
+ "reviewed": {
+  "source": "docs/index_review.json",
+  "read": "2026-10-09",
+  "method_version": 1,
+  "reread": 30,
+  "kept": 19,
+  "excluded": 11,
+  "excluded_by_rule": {
+   "R1": 1,
+   "R2": 4,
+   "R3": 4,
+   "R4": 3,
+   "R5": 1
+  },
+  "overall": {
+   "prs": 241,
+   "test_or_build_check_failed": {
+    "prs": 9,
+    "share": 0.0373,
+    "ci95": [
+     0.0198,
+     0.0694
+    ]
+   },
+   "any_check_failed": {
+    "prs": 19,
+    "share": 0.0788,
+    "ci95": [
+     0.051,
+     0.1198
+    ]
+   },
+   "without_template_boxes": {
+    "test_or_build_check_failed": {
+     "prs": 7,
+     "share": 0.029,
+     "ci95": [
+      0.0141,
+      0.0587
+     ]
+    },
+    "any_check_failed": {
+     "prs": 16,
+     "share": 0.0664,
+     "ci95": [
+      0.0413,
+      0.1051
+     ]
+    }
+   }
+  },
+  "agents": {
+   "copilot": {
+    "prs": 44,
+    "test_or_build_check_failed": {
+     "prs": 4,
+     "share": 0.0909,
+     "ci95": [
+      0.0359,
+      0.2116
+     ]
+    },
+    "any_check_failed": {
+     "prs": 12,
+     "share": 0.2727,
+     "ci95": [
+      0.1635,
+      0.4185
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 2,
+      "share": 0.0455,
+      "ci95": [
+       0.0126,
+       0.1514
+      ]
+     },
+     "any_check_failed": {
+      "prs": 9,
+      "share": 0.2045,
+      "ci95": [
+       0.1115,
+       0.345
+      ]
+     }
+    }
+   },
+   "devin": {
+    "prs": 43,
+    "test_or_build_check_failed": {
+     "prs": 2,
+     "share": 0.0465,
+     "ci95": [
+      0.0128,
+      0.1546
+     ]
+    },
+    "any_check_failed": {
+     "prs": 3,
+     "share": 0.0698,
+     "ci95": [
+      0.024,
+      0.1861
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 2,
+      "share": 0.0465,
+      "ci95": [
+       0.0128,
+       0.1546
+      ]
+     },
+     "any_check_failed": {
+      "prs": 3,
+      "share": 0.0698,
+      "ci95": [
+       0.024,
+       0.1861
+      ]
+     }
+    }
+   },
+   "claude-bot": {
+    "prs": 85,
+    "test_or_build_check_failed": {
+     "prs": 2,
+     "share": 0.0235,
+     "ci95": [
+      0.0065,
+      0.0818
+     ]
+    },
+    "any_check_failed": {
+     "prs": 2,
+     "share": 0.0235,
+     "ci95": [
+      0.0065,
+      0.0818
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 2,
+      "share": 0.0235,
+      "ci95": [
+       0.0065,
+       0.0818
+      ]
+     },
+     "any_check_failed": {
+      "prs": 2,
+      "share": 0.0235,
+      "ci95": [
+       0.0065,
+       0.0818
+      ]
+     }
+    }
+   },
+   "claude-code": {
+    "prs": 22,
+    "test_or_build_check_failed": {
+     "prs": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.1487
+     ]
+    },
+    "any_check_failed": {
+     "prs": 1,
+     "share": 0.0455,
+     "ci95": [
+      0.0081,
+      0.218
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.1487
+      ]
+     },
+     "any_check_failed": {
+      "prs": 1,
+      "share": 0.0455,
+      "ci95": [
+       0.0081,
+       0.218
+      ]
+     }
+    }
+   },
+   "codex": {
+    "prs": 47,
+    "test_or_build_check_failed": {
+     "prs": 1,
+     "share": 0.0213,
+     "ci95": [
+      0.0038,
+      0.1111
+     ]
+    },
+    "any_check_failed": {
+     "prs": 1,
+     "share": 0.0213,
+     "ci95": [
+      0.0038,
+      0.1111
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 1,
+      "share": 0.0213,
+      "ci95": [
+       0.0038,
+       0.1111
+      ]
+     },
+     "any_check_failed": {
+      "prs": 1,
+      "share": 0.0213,
+      "ci95": [
+       0.0038,
+       0.1111
+      ]
+     }
+    }
+   }
   }
  },
  "index": {

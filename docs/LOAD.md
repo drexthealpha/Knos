@@ -128,16 +128,48 @@ A payment's seconds run from its first submission to the relay's answer: the tok
 
 A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then PayOrder. The fee payers were not kept in the record. A pay token's lane was its order, so the tokens of 1 owner(s) spread over the relays; 4 fee account(s) of the mint, each order's fee to one. The relays paid 16, 8, 5 and 11 of the payments; the fee accounts took 14, 9, 9 and 8. Source: the operator's release run of 0.3.22 on 8 Oct 2026 with its own wallets; the 40 pay tokens were signed in GitHub Actions run 37833126115 of drexthealpha/knos-load; recorded from the run's report, which lists the 40 order ids and the four fee accounts; it kept no fee payers of the relays.
 
+#### Measured on devnet, public program ids, 2026-10-09: end-to-end PayOrder: token verification, then the payment; 4 relays, 40 payments attempted; scenario hot-funder
+
+| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 40 | 40 of 40 | 0 | 0 | 0 | not recorded | 0.185 | 18.4 | 28.3 | none: fewer than 100 payments | 29.0 |
+
+A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then PayOrder. The fee payers were not kept in the record. A pay token's lane was its order, so the tokens of 1 owner(s) spread over the relays; 1 fee account(s) of the mint, each order's fee to one. Scenario hot-funder: every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every payment shares. Retries: 0; failures: 0. Source: the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed.
+
+#### Measured on devnet, public program ids, 2026-10-09: end-to-end PayOrder: token verification, then the payment; 4 relays, 40 payments attempted; scenario rpc-faults
+
+| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 40 | 40 of 40 | 0 | 0 | 0 | not recorded | 0.127 | 23.2 | 48.5 | none: fewer than 100 payments | 49.7 |
+
+A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then PayOrder. The fee payers were not kept in the record. A pay token's lane was its order, so the tokens spread over the relays; the number of fee accounts was not recorded. Scenario rpc-faults: 15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused. Retries: 17; failures: 0. No payment was made twice. Source: the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed.
+
+#### Measured on devnet, public program ids, 2026-10-09: end-to-end PayOrder: token verification, then the payment; 4 relays, 40 payments attempted; scenario priority-fee
+
+| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 40 | 40 of 40 | 0 | 0 | 0 | not recorded | 0.173 | 18.5 | 29.3 | none: fewer than 100 payments | 32.1 |
+
+A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then PayOrder. The fee payers were not kept in the record. A pay token's lane was its order, so the tokens spread over the relays; the number of fee accounts was not recorded. Scenario priority-fee: every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise. Retries: 0; failures: 0. No transaction of this run carried a price: the code of 0.3.23 skipped v1 transactions, so this is a plain run, not a priced one. Source: the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed. To be rerun: by the 0.3.24 release, which prices v1 transactions in the message; until then this row is a plain run.
+
+#### Measured on devnet, public program ids, 2026-10-09: end-to-end PayOrder: token verification, then the payment; 4 relays, 40 payments attempted; scenario burst (did not complete cleanly)
+
+| Attempted | Paid | Carried first by another relay | Refused | Never completed | Seconds | Paid a second | Payment p50 s | p95 | p99 | worst |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 40 | 13 of 40 | 0 | not recorded | not recorded | not recorded | 0.039 | 264.5 | 300.3 | none: fewer than 100 payments | 300.3 |
+
+A payment's seconds run from its first submission to the relay's answer: the token written, GitHub's signature verified, then PayOrder. The fee payers were not kept in the record. A pay token's lane was its order, so the tokens spread over the relays; the number of fee accounts was not recorded. Scenario burst: every relay sends all of its payments at once instead of one after another. Retries: 0; failures: 27. The 27 failures were HTTP 429 (the public endpoint's rate limit) and "Blockhash not found"; 0.3.23 sent each payment once. Source: the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed. To be rerun: by the 0.3.24 release, which waits and sends again over a fresh blockhash after a 429 or an expired blockhash; until then 13 of 40 stands.
+
 **One relay against 4, measured.** Devnet, public program ids: 40 of 40 payments in 211.27 s, 0.189 a second, with 4 relays and 4 fee accounts (2026-10-08), against 40 of 40 payments, 0.097 a second, through one relay and one fee account (2026-10-08): 1.95 times the rate. Both runs had one owner's tokens and waited for each payment's answer before a relay sent the next.
 
 **Contention scenarios.** `python scripts/load.py measure --pay --scenario S` adds one kind of contention to the PayOrder run: `--simulate` here (faults injected on the way to the simulator), `--tokens ... --wallet ... --write` on devnet by the release, each with a row of its own.
 
 | Scenario | What it measures | Simulated here | On devnet |
 | --- | --- | --- | --- |
-| hot-funder | every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every payment shares | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; 2 accounts written by every relay, the one fee account among them; no rate | not run yet |
-| rpc-faults | 15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; 12 retries; 7 sends refused, 5 answers lost, 5 resends refused by the program; no rate | not run yet |
-| priority-fee | every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; priority fee 14,000 lamports a PayOrder at 10,000 micro-lamports, as charged; no rate | not run yet |
-| burst | every relay sends all of its payments at once instead of one after another | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; 40 tokens verified and open at once; no rate | not run yet |
+| hot-funder | every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every payment shares | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; 2 accounts written by every relay, the one fee account among them; no rate | 40 of 40 paid, 0 failures, 0 retries, 0.185 a second; p50 18.4 s, p95 28.3 s, p99 none (fewer than 100), worst 29.0 s; 4 relays, devnet, public program ids, 2026-10-09 |
+| rpc-faults | 15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; 12 retries; 7 sends refused, 5 answers lost, 5 resends refused by the program; no rate | 40 of 40 paid, 0 failures, 17 retries, 0.127 a second; p50 23.2 s, p95 48.5 s, p99 none (fewer than 100), worst 49.7 s; 4 relays, devnet, public program ids, 2026-10-09 |
+| priority-fee | every transaction carries a compute unit price, 10,000 micro-lamports unless --cu-price says otherwise: SetComputeUnitPrice in a legacy transaction with room, the same lamports in a v1 transaction's message | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; priority fee 14,000 lamports a PayOrder at 10,000 micro-lamports, as charged; no rate | 40 of 40 paid, 0 failures, 0 retries, 0.173 a second; p50 18.5 s, p95 29.3 s, p99 none (fewer than 100), worst 32.1 s; 4 relays, devnet, public program ids, 2026-10-09; to be rerun: by the 0.3.24 release, which prices v1 transactions in the message; until then this row is a plain run |
+| burst | every relay sends all of its payments at once instead of one after another; a payment the endpoint turns away (HTTP 429) or whose blockhash expired is sent again after a bounded wait with jitter, over a fresh blockhash | 40 of 40 paid, 4 relays, local simulator, 2026-10-09; every check holds; 40 tokens verified and open at once; no rate | 13 of 40 paid, 27 failures, 0 retries, 0.039 a second; p50 264.5 s, p95 300.3 s, p99 none (fewer than 100), worst 300.3 s; 4 relays, devnet, public program ids, 2026-10-09; to be rerun: by the 0.3.24 release, which waits and sends again over a fresh blockhash after a 429 or an expired blockhash; until then 13 of 40 stands |
 
 **Derived bound (not measured).** Section 3's arithmetic from the simulator's compute units and Solana's published limits: 8.46 orders a second per fee payer (verification included), 164.6 payments a second through one fee account (K accounts: K times that, up to the block), 224.1 fundings a second from one Balance. These are ceilings in an otherwise empty block. A measured rate above is of devnet on the day, with its own traffic, through one public endpoint, and each relay waits for a confirmation before it sends again: the two are different quantities, and neither is used in place of the other.
 
@@ -177,17 +209,17 @@ The job's own relay is the job sending the transactions itself with a fee key th
 | --- | --- | --- | --- |
 | Workflow jobs | 2 | 2 | counted |
 | GitHub requests with the repository's token, the work itself | 32 | 34 | counted |
-| Reads of the relay log while waiting, at the median wait | 0 | 20 | derived: one read every 3 s for the median of merge-to-paid, 25 s |
-| the same at the p95 wait (58 s) | 0 | 42 | derived |
+| Reads of the relay log while waiting, at the median wait | 0 | 20 | derived: one read every 3 s for the median of merge-to-paid, 26 s |
+| the same at the p95 wait (65 s) | 0 | 46 | derived |
 | the same when no relay answers (600 s) | 0 | 404 | derived |
-| Requests in all, at the p95 wait | 32 | 76 | counted + derived |
+| Requests in all, at the p95 wait | 32 | 80 | counted + derived |
 | Comments made in the repository | 3 | 5 | counted |
 | Comments the public worker adds to its log | 0 | 2 | from the code (`ghrelay.once` logs a carried token at once) |
 | Tokens GitHub signs (OIDC) | 2 | 2 | counted |
 | Solana transactions | 12 | 12 | measured in the simulator (section 2) |
 | Bytes of signed transactions | 8,647 | 8,647 | measured in the simulator (p50) |
 | Compute units | 3,546,061 | 3,546,061 | measured in the simulator (mean) |
-| Seconds from merge to paid | not timed apart | median 25, p95 58 | recorded on devnet, public program ids: 42 payments in the public relay's log, 2026-10-02 to 2026-10-06 (`docs/bench.json`) |
+| Seconds from merge to paid | not timed apart | median 26, p95 65 | recorded on devnet, public program ids: 51 payments in the public relay's log, 2026-10-02 to 2026-10-09 (`docs/bench.json`) |
 | Actions minutes | not measured | not measured | a job's time on the runner was not recorded; standard runners are free in public repositories |
 | RPC requests to send the transactions | not measured | not measured | |
 
@@ -212,21 +244,21 @@ For a customer with R repositories and N accepted deliverables a day, the work s
 | Repositories | Deliverables a day | Token carried by | Binds first | Binds at (a day) | This volume fits | Limits this volume is past |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 10 | the job's own relay | GITHUB_TOKEN requests an hour | 750 | yes | none |
-| 1 | 10 | the public worker | GITHUB_TOKEN requests an hour | 315 | yes | none |
+| 1 | 10 | the public worker | GITHUB_TOKEN requests an hour | 300 | yes | none |
 | 10 | 1,000 | the job's own relay | GITHUB_TOKEN requests an hour | 7,500 | yes | none |
-| 10 | 1,000 | the public worker | the public relay's pass, at the serial rate recorded | 1,728 | yes | none |
-| 100 | 100,000 | the job's own relay | concurrent jobs (Free plan) | 14,896 | **no** | the meter's statement, recomputed from the logs; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
-| 100 | 100,000 | the public worker | the public relay's pass, at the serial rate recorded | 1,728 | **no** | the public relay's pass, at the serial rate recorded; the meter's statement, recomputed from the logs; the public relay's log comments; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
+| 10 | 1,000 | the public worker | the public relay's pass, at the serial rate recorded | 1,661 | yes | none |
+| 100 | 100,000 | the job's own relay | concurrent jobs (Free plan) | 13,292 | **no** | the meter's statement, recomputed from the logs; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
+| 100 | 100,000 | the public worker | the public relay's pass, at the serial rate recorded | 1,661 | **no** | the public relay's pass, at the serial rate recorded; the meter's statement, recomputed from the logs; the public relay's log comments; concurrent jobs (Free plan); GITHUB_TOKEN requests an hour |
 
-Every limit, for the largest of the three (100 repositories, 100,000 a day), soonest first. The waits it uses are merge-to-paid over 42 payments on the public program ids, 2026-10-02 to 2026-10-06:
+Every limit, for the largest of the three (100 repositories, 100,000 a day), soonest first. The waits it uses are merge-to-paid over 51 payments on the public program ids, 2026-10-02 to 2026-10-09:
 
 | Limit | Whose | Binds at (a day) | From | What lifts it without a program change |
 | --- | --- | --- | --- | --- |
-| the public relay's pass, at the serial rate recorded (the public worker) | every customer of the public worker | 1,728 | 2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 25 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here | the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it) |
+| the public relay's pass, at the serial rate recorded (the public worker) | every customer of the public worker | 1,661 | 2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 26 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here | the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it) |
 | the meter's statement, recomputed from the logs | each buyer and seller, each month | 3,333 | `knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short | batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume |
 | the public relay's log comments (the public worker) | every customer of the public worker | 6,000 | 2 tokens a deliverable, one log comment each (src/knos/proof/ghrelay.py posts a carried token's line at once); 500 content-generating requests an hour (GitHub) | the job's own relay with the repository's fee key (KNOS_RELAY_KEY): nothing is logged by the public worker; or several workers, each logging in a repository of its own (KNOS_RELAY_LOG_REPO) |
-| concurrent jobs (Free plan) | the customer's account | 14,896 | 2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 58 s (recorded, 42 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub) | a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count |
-| GITHUB_TOKEN requests an hour (the public worker) | each repository | 31,578 | 76 requests a deliverable (26 reads and 8 writes counted, 42 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub) | the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour) |
+| concurrent jobs (Free plan) | the customer's account | 13,292 | 2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 65 s (recorded, 51 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub) | a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count |
+| GITHUB_TOKEN requests an hour (the public worker) | each repository | 30,000 | 80 requests a deliverable (26 reads and 8 writes counted, 46 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub) | the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour) |
 | GITHUB_TOKEN requests an hour (the job's own relay) | each repository | 75,000 | 32 requests a deliverable (26 reads and 6 writes counted); 1,000 an hour for a repository (GitHub) | more repositories; GitHub Enterprise Cloud (15,000 an hour) |
 | comments made in one repository (the public worker) | each repository | 240,000 | 5 comments a deliverable (counted); 500 content-generating requests an hour (GitHub) | more repositories; or the job's own relay, which posts no token comment |
 | comments made in one repository (the job's own relay) | each repository | 400,000 | 3 comments a deliverable (counted); 500 content-generating requests an hour (GitHub) | more repositories |
@@ -242,7 +274,7 @@ What this says. The public worker is a convenience for small volumes. The reads 
 | --- | --- |
 | Compute units, transactions and bytes of an order; paid once, none lost | measured in the local simulator, 1,000 orders (sections 1 and 2) |
 | Token verification, funding from a wallet, refund and close on a cluster | measured on devnet, STAGING program ids (not the public ones), 2026-10-04: 200 orders, 0 failures (section 4). PayOrder, funding from a Balance and the meter were not sent in that run |
-| Seconds from merge to paid | recorded on devnet, 42 payments (`docs/bench.json`) |
+| Seconds from merge to paid | recorded on devnet, 51 payments (`docs/bench.json`) |
 | Requests, comments, tokens and jobs of a word | counted from the code against a stand-in for GitHub; not observed on GitHub |
 | Limits of GitHub and of Solana | published by them, read on 2026-10-05 (links below); GitHub says its secondary limits may change without notice, and its page does not say whether the content limit is counted per repository for a workflow's token, which this page assumes |
 | Cluster rates, the relay log polling, statement requests, every "binds at" | derived |

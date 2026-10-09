@@ -849,33 +849,47 @@ def work(queue: Queue, handle: Callable[[dict[str, Any]], Mapping[str, Any]], wo
 
     mark = f"{owner}:" if owner else ""
     ended = threading.Condition()
+    # Worker i is carrying while carrying[i]: set before its thread starts, cleared under `ended` in the same breath as
+    # it says it has ended. The wait below reads this, never Thread.is_alive(): a thread is still alive for a moment
+    # after its last word, and a wait that saw it alive then waited out the whole feed_every for a word that had
+    # already been said (Python 3.13, four processes at once: 4 to 7 passes of 200; the sweep's feed_every is 3 s).
+    carrying = [False] * n
+    started: list[threading.Thread] = []
 
-    def start(i: int) -> threading.Thread:
+    def start(i: int) -> None:
         def body() -> None:
             try:
                 run(f"{mark}w{i + 1}", i)
             finally:
                 with ended:
+                    carrying[i] = False
                     ended.notify_all()
         t = threading.Thread(target=body, name=f"knos-relay-w{i + 1}")
+        with ended:
+            carrying[i] = True
+        started.append(t)
         t.start()
-        return t
 
-    threads = [start(i) for i in range(n)]
+    for i in range(n):
+        start(i)
     while feed is not None:
         until = time.monotonic() + max(0.0, feed_every)
         with ended:                         # until the time is up, or no worker is left (each says when it ends)
-            while any(t.is_alive() for t in threads) and until - time.monotonic() > 0:
+            while any(carrying) and until - time.monotonic() > 0:
                 ended.wait(until - time.monotonic())
-        if not any(t.is_alive() for t in threads) or (stop is not None and stop()):
+            left = any(carrying)
+        if not left or (stop is not None and stop()):
             break
         try:
             fresh = int(feed() or 0)
         except Exception:  # noqa: BLE001 - a read that failed is asked again; the workers carry on
             fresh = 0
         if fresh > 0:                       # a worker that had ended (nothing was left for it) is started again
-            threads = [t if t.is_alive() else start(i) for i, t in enumerate(threads)]
-    for t in threads:
+            with ended:
+                free = [i for i in range(n) if not carrying[i]]
+            for i in free:
+                start(i)
+    for t in started:
         t.join()
     return {**queue.counts(), "stopped": stopped}
 

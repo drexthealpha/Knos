@@ -82,15 +82,15 @@
 <main>
   <section id="view-check" class="view">
     <!-- THE FIRST SCREEN: 40 words of prose at most, bar included (tests/web/front_door.mjs counts them as
-         tests/web/words.mjs does). The sentence, the figure (docs/backtest.json: 30 of the 241 merged), ONE control: a box
+         tests/web/words.mjs does). The sentence, the figure (docs/backtest.json: 9 of the 241 merged, after the second reading), ONE control: a box
          for your own invoice or a repository's name, with a sample (web/front_door.js draws the answer into
          #front-result, in place), and directly under it the week's leaderboard as a strip. The round (web/demo.js fills
          #demo) is below it. -->
     <div class="hero k-stage">
       <div class="hero-words">
         <h1 id="check">The neutral meter for AI agent work: neither side keeps the count.</h1>
-        <p class="hero-outcome" id="hero-outcome">Buyers and suppliers close invoices on evidence both can verify.</p>
-        <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/backtest.json">241</a> merged agent “tests pass” pull requests: <span class="k-num">30</span> had a failed check.</p>
+        <p class="hero-outcome" id="hero-outcome">Both sides close invoices on evidence both verify.</p>
+        <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/backtest.json">241</a> merged agent “tests pass” pull requests: <span class="k-num">9</span> failed tests or builds.</p>
         <form id="front-door" class="fd">
           <textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="A supplier's invoice, or a public repository" placeholder="Paste an invoice, or type owner/repo"></textarea>
           <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <button type="button" class="k-btn quiet" data-fd="sample">Try a sample</button></p>
@@ -164,6 +164,18 @@
       <p><span class="k-kicker">Supplier</span> <span>same bill</span></p>
       <figcaption class="promise">Buyers can defend the bill; suppliers can defend what they are owed.</figcaption>
     </figure>
+    <!-- One order told end to end (docs/submission/TRANSACTION.md): six steps, one fold, each step 12 words at most. -->
+    <details class="k-more" id="one-transaction"><summary>One transaction, end to end</summary>
+      <ul class="plain" aria-label="One transaction, step by step">
+        <li class="k-step" data-state="done">Fund the order in test USDC under terms fixed first.</li>
+        <li class="k-step" data-state="bad">Reject the first work: a check failed, nothing paid.</li>
+        <li class="k-step" data-state="done">Accept the corrected work: GitHub signs the passing run.</li>
+        <li class="k-step" data-state="done">Pay the supplier once the program checks GitHub's signature.</li>
+        <li class="k-step" data-state="done">Refuse a replay of the same proof: nothing paid twice.</li>
+        <li class="k-step" data-state="done">Rebuild the invoice on both sides: one line, agreed.</li>
+      </ul>
+      <p class="fine"><a href="https://github.com/drexthealpha/Knos/blob/main/docs/submission/TRANSACTION.md">Read the whole record</a></p>
+    </details>
     <section id="demo" class="mount" aria-label="Demo" hidden></section>
 
     <h2 id="check-a-pull-request">Check a pull request</h2>

@@ -91,6 +91,12 @@ ANSWERED = re.compile(r"<!-- knos-answer (\d+) -->|<!-- knos-private-order \{\"a
 SCAN_DAYS = 3                           # how far back an attestor's run looks for funding comments and merges
 MAX_ASKED = 20                          # of each, how many one run acts on in one repository
 BIND = "`knos claim <their Solana address>` in a terminal, or https://drexthealpha.github.io/Knos/#claim in the browser"
+
+
+def _bind(login: str) -> str:
+    """How a payee whose money is held binds a wallet: the payout page for their login (a passkey wallet, no seed
+    phrase; docs/PAYEE.md), or `knos claim` in a terminal."""
+    return f"https://drexthealpha.github.io/Knos/#payee={login.lstrip('@')} in the browser, or `knos claim <their Solana address>` in a terminal"
 OPEN = ("A wallet opens one for that id with `knos balance open`, lists the GitHub ids that may spend it, and adds money "
         "with `knos balance deposit`.")
 WRITERS = "people with write access to this repository"
@@ -1120,7 +1126,7 @@ def _relayed(run: Run, c: Case, r: dict, after: str, how: str) -> str:
             until = who.when(max(x.get("held_until") or 0 for x in rows))
             out.append(f"held for {payee}. {_amount(gross)} {money} {for_} waits for them until {until}, because no "
                        f"wallet is known for them: none is bound to their GitHub account and no `/knos address` comment counted. To "
-                       f"receive it, {payee} binds a wallet: {BIND}. It is then paid, less Knos's fee of {_amount(fee)}; "
+                       f"receive it, {payee} binds a wallet: {_bind(payee)}. It is then paid, less Knos's fee of {_amount(fee)}; "
                        f"after that date it goes back to where it came from ({tx}, {took}).")
     if not out:
         return (f"the signed token for {name} was relayed ({tx}, {took}), but Solana does not show the payment yet. `/knos status` shows "
@@ -1172,7 +1178,7 @@ def _paid_order(run: Run, c: Case, r: dict, tx: str, took: str) -> str:
         login, share, _bps, _to, until = people[0]
         out = [f"held for @{login}. {_amount(share)} {money} for issue #{c.issue} waits for them until {who.when(until or run.now() + pay.HOLD)}, "
                f"because no wallet is known for them: none is bound to their GitHub account and no `/knos address` comment counted. To "
-               f"receive it, @{login} binds a wallet: {BIND}. It is then paid in full ({fee}); after that date it goes back to where "
+               f"receive it, @{login} binds a wallet: {_bind(login)}. It is then paid in full ({fee}); after that date it goes back to where "
                f"it came from ({tx}, {took})."]
     elif len(people) == 1:
         login, share, _bps, to, _until = people[0]

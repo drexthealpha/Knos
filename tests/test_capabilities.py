@@ -164,8 +164,13 @@ def test_the_chain_is_asked_for_the_version_and_for_every_signature():
         return ask
     v20 = {"err": {"InstructionError": [0, "InvalidInstructionData"]}, "logs": [f"Program {pay} invoke [1]", f"Program {pay} failed"]}
     v21 = {"err": None, "logs": [f"Program {pay} invoke [1]", "Program log: knos2:version 1"]}
+    v22 = {"err": None, "logs": [f"Program {pay} invoke [1]", "Program log: knos2:version 2", f"Program {pay} success"]}
     assert cap.chain_problems(data, "rpc", rpc(v20)) == []
     assert cap.chain_problems(data, "rpc", rpc(v21)) == ["knos_pay: devnet runs 2.1, the manifest says 2.0: move `on_chain`, then the stages that waited for it"]
+    # knos_pay 2.2 (proposal 8, live since 9 Oct 2026) logs `knos2:version 2`: it is read as 2.2, not as a cluster that did not answer
+    assert cap.chain_problems(data, "rpc", rpc(v22)) == ["knos_pay: devnet runs 2.2, the manifest says 2.0: move `on_chain`, then the stages that waited for it"]
+    data22 = json.loads(json.dumps(data)); data22["programs"]["knos_pay"]["on_chain"] = "2.2"
+    assert cap.chain_problems(data22, "rpc", rpc(v22)) == []
     assert cap.chain_problems(data, "rpc", rpc(v20, gone={data["programs"]["knos_meter"]["id"]})) == [f"knos_meter: no program at {data['programs']['knos_meter']['id']} on devnet"]
     assert cap.chain_problems(data, "rpc", rpc(v20, failed={sig})) == [f"fund_by_comment: the transaction {sig[:12]}... failed"]
     assert cap.chain_problems(data, "rpc", rpc(v20, failed={"missing"})) == [f"pay_on_merge: the transaction {other[:12]}... is not on devnet"]

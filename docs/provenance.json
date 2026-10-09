@@ -1,27 +1,39 @@
 {
- "read": "2026-10-07T05:01:21Z",
+ "read": "2026-10-09T11:42:05Z",
  "cluster": "devnet",
  "rpc": "https://api.devnet.solana.com",
  "programs": {
   "knos_oidc": {
    "address": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
-   "on_chain_hash": "3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d",
-   "live_slot": 508314408,
-   "on_chain_commit": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5",
-   "on_chain_run": 37237561915,
-   "proposal": 3,
+   "on_chain_hash": "a2df952d262c48edacf2f594a01321e805c28f1dc523cb6efa75f2c45f34e632",
+   "live_slot": 509118532,
+   "on_chain_commit": "f03ec515d8666c46e3fdc6bb0123bc0786d5dd75",
+   "on_chain_run": 37523515307,
+   "proposal": 7,
    "proposal_status": "Executed",
-   "execution_signature": "2KwefqMHCE9idyD6cXEt91GJERAbyHWGJbaGc5YzzLXV1WvDFp1VkGAMD9XYg1eGBinBx6LKE9wtNUTtQkGSu7Sq"
+   "execution_signature": "2ub9zBNXJKmPh5ikqBxoR5TXuK86YfCT846WTEq8R6VVQhxvYAmAiHqDdbBbyyZmKrBUgft6fiq66wPoq2B53KsT",
+   "before": {
+    "proposal": 3,
+    "on_chain_hash": "3758348d1051feab739b4dc776ffb597fe9ecef7d50e93abd3c460fa5e9f7d4d",
+    "live_slot": 508314408,
+    "read": "2026-10-07T05:01:21Z"
+   }
   },
   "knos_pay": {
    "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
-   "on_chain_hash": "2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507",
-   "live_slot": 508314432,
-   "on_chain_commit": "6eb81dd152bd6cf752ee6c151b692f4a08815ae5",
-   "on_chain_run": 37237561915,
-   "proposal": 4,
+   "on_chain_hash": "8b3c044024eac6e00cf10930c325465d5682c3fb7273fe2f0d59c6e01f99867c",
+   "live_slot": 509118717,
+   "on_chain_commit": "f8bcd9d51eda5e093cc92b0bcf0c8cc3676fa556",
+   "on_chain_run": 37589002080,
+   "proposal": 8,
    "proposal_status": "Executed",
-   "execution_signature": "4413TSB4ugAkQdwus9Pjcof94G8Wq6cBvRjAN1F4dD2mFJ6zji1aDBvpQQtZ73dPFFZcHVvaVYWcQSBXFjjiZ6cK"
+   "execution_signature": "444mkydj88tL7HMQ1S97Rviw8YrZAERjUzkXJtk6phV96wE1JDDx6frgK8v1p2hxWsBT9ZyniR78x5g7zMFW3ibt",
+   "before": {
+    "proposal": 4,
+    "on_chain_hash": "2ed301a2bc99fc6e58abc0dcb767cb35e640898a75f154b2d90c09171143d507",
+    "live_slot": 508314432,
+    "read": "2026-10-07T05:01:21Z"
+   }
   },
   "knos_meter": {
    "address": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",

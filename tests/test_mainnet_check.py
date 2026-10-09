@@ -140,7 +140,7 @@ def test_all_gates_pass_and_exit_zero():
     assert len(got) == 17 and "mainnet: locked (by design)" in got
     assert got[NEW_GATE][1] == "; ".join(f"{n} {IDS[n]}: deployed, executable, upgrade authority {IDS['upgrade_authority']}, the upgrade vault" for n in mc.NEW_PROGRAMS)
     assert got[KEYS_GATE][1] == "2 keys published; kid0-000: genesis, expires 2026-10-20; kid1-000: approved, expires 2026-10-20"
-    assert got["upgrade multisig: time lock is 172800 s (48 hours)"][1] == f"{IDS['upgrade_multisig']}: time lock 172800 s, 2 of 3 members, config authority none"
+    assert got["upgrade multisig: time lock is 172800 s (48 hours), or the planned 691200 s (8 days)"][1] == f"{IDS['upgrade_multisig']}: time lock 172800 s, 2 of 3 members, config authority none"
     assert got[VAULT_GATE][1] == f"{IDS['knos_pay']}: upgrade authority {IDS['upgrade_authority']}, the pinned vault"
 
 
@@ -148,7 +148,7 @@ def test_each_gate_fails_on_its_own():
     one_key = str(Pubkey.new_unique())
     cases = {
         "knos_pay: on-chain bytes are this repository's verified build": world(verified={"knos_oidc": {"executable_hash": mc.elf_hash(elf("knos_oidc"))}, "knos_pay": {"executable_hash": "0" * 64}}),
-        "upgrade multisig: time lock is 172800 s (48 hours)": world(upgrade=squads_multisig(UPGRADE_KEY, 86_400)),
+        "upgrade multisig: time lock is 172800 s (48 hours), or the planned 691200 s (8 days)": world(upgrade=squads_multisig(UPGRADE_KEY, 86_400)),
         "upgrade multisig: no config authority": world(upgrade=squads_multisig(UPGRADE_KEY, 172_800, config_authority=Pubkey.from_string(one_key))),
         "guardian: the vault both programs name is the pinned multisig's, which has no config authority": world(guardian=squads_multisig(GUARDIAN_KEY, 0, config_authority=Pubkey.from_string(one_key))),
         "rotate and claim workflow pins are in the programs and on GitHub": world(commit=False),
@@ -173,12 +173,16 @@ def test_only_the_pinned_vault_may_hold_the_upgrade_authority():
 
 
 def test_the_multisig_gates_read_the_account_the_squads_program_owns_at_the_pinned_address():
-    lock, auth, vault = "upgrade multisig: time lock is 172800 s (48 hours)", "upgrade multisig: no config authority", "upgrade multisig: the pinned vault is its vault"
+    lock, auth, vault = "upgrade multisig: time lock is 172800 s (48 hours), or the planned 691200 s (8 days)", "upgrade multisig: no config authority", "upgrade multisig: the pinned vault is its vault"
     for time_lock in (0, 172_799, 172_801, 7_776_000):
         got = results(world(upgrade=squads_multisig(UPGRADE_KEY, time_lock)))
         assert (got[lock], got[auth], got[vault]) == (False, True, True), time_lock
     # a rent collector moves the members along; the time lock is where it was
     assert all(results(world(upgrade=squads_multisig(UPGRADE_KEY, 172_800, rent_collector=Pubkey.new_unique()))).values())
+    # the planned time lock of 8 days (scripts/timelock_plan.py; docs/GOVERNANCE.md, section 2), once its configuration
+    # transaction has executed, is what the design fixes too: no gate fails on it
+    assert mc.PLANNED_TIME_LOCK == 691_200 and mc.TIME_LOCKS == (172_800, 691_200)
+    assert all(results(world(upgrade=squads_multisig(UPGRADE_KEY, mc.PLANNED_TIME_LOCK))).values())
     # another program's account, an account that is not a multisig, a multisig of another create key at this address, nothing
     other_owner = evidence(world(owner=str(Pubkey.new_unique())))
     assert not other_owner[lock][0] and "not by the Squads program" in other_owner[lock][1]
@@ -328,7 +332,7 @@ def test_nothing_deployed_fails_plainly():
                  review=lambda: (None, "no docs/review.json"), now=lambda: NOW, elsewhere=lambda a: {"testnet": False, "mainnet-beta": False})
     got = {n: (ok, d) for n, ok, d in mc.run(f, ids=IDS, env={})}
     assert got["knos_oidc: upgradeable only through the pinned vault"] == (False, f"{IDS['knos_oidc']}: not deployed")
-    assert got["upgrade multisig: time lock is 172800 s (48 hours)"] == (False, f"{IDS['upgrade_multisig']}: no such account")
+    assert got["upgrade multisig: time lock is 172800 s (48 hours), or the planned 691200 s (8 days)"] == (False, f"{IDS['upgrade_multisig']}: no such account")
     assert got[KEYS_GATE] == (False, f"{oidc.JWKS[oidc.GITHUB]} unreadable")
     assert sorted(n for n, (ok, _) in got.items() if ok) == ["mainnet: locked (by design)", "program ids are in use on no other cluster"]
 

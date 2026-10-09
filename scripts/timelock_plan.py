@@ -53,7 +53,7 @@ from knos.settle.v2 import pay  # noqa: E402
 
 KIND = "knos.timelock-plan/1"
 MINIMUM = pay.NOTICE + pay.GRACE + 2          # knos.exit: a refund at notice + grace + 1 is out before approval + lock
-PLANNED = 8 * 86_400
+PLANNED = mc.PLANNED_TIME_LOCK                 # 8 days: what knos status and governance.mjs show --check accept once it executed
 MAX_TIME_LOCK = 3 * 30 * 24 * 60 * 60         # Squads v4 state/multisig.rs
 SET_TIME_LOCK = 3                             # ConfigAction::SetTimeLock, the fourth variant
 SYSTEM = "11111111111111111111111111111111"

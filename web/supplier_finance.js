@@ -87,7 +87,7 @@ const STYLE = `.sf-rows{display:grid;grid-template-columns:repeat(auto-fit,minma
 export function renderSupplierFinance(el, ctx = {}) {
   const doc = el.ownerDocument, win = doc.defaultView;
   if (!doc.getElementById("sf-style")) { const s = doc.createElement("style"); s.id = "sf-style"; s.textContent = STYLE; doc.head.appendChild(s); }
-  const h = el.closest(".supplier") ? "h3" : "h2";      // a section of the supplier page, or a page of its own (#payee)
+  const h = el.closest(".supplier") ? "h3" : "h2";      // a section of the supplier page, or a page of its own (#finance)
   el.innerHTML = `<${h}>See when you are paid</${h}>
     <form class="sf-row" data-sf="in" novalidate><input type="text" id="sf-order" aria-label="The funding comment, or the order's address" placeholder="Paste the funding comment, or the order's address" spellcheck="false" autocomplete="off">
       <button type="submit" class="k-btn" data-sf="read">Read</button> <button type="button" class="k-btn quiet" data-sf="sample">Try the sample</button></form>
@@ -104,9 +104,15 @@ export function renderSupplierFinance(el, ctx = {}) {
       <p>${esc(r.detail)}</p>${r.href ? `<p><a href="${esc(r.href)}" target="_blank" rel="noopener">${esc(r.link)}</a></p>` : ""}</div>`).join("");
     said(words);
     win.clearInterval(timer);
-    const end = got.rows.find((r) => r.countdown)?.countdown;
-    // the countdown is a state that changes: it is redrawn once a minute while the view is on the page, and stops after
-    if (end && !ctx.now) timer = win.setInterval(() => { if (!el.isConnected) return win.clearInterval(timer); const v = el.querySelector('[data-row="window"] [data-sf-value]'); if (v) v.textContent = `${left(end - nowS())} left`; }, 60_000);
+    const end = got.rows.find((r) => r.countdown)?.countdown, t0 = nowS();
+    // the countdown is a state that changes: it is redrawn once a minute while the view is on the page, on the clock it
+    // was drawn with (the sample keeps its own day, not today's), and says "Closed" when it ends, as the first drawing does
+    if (end && !ctx.now) timer = win.setInterval(() => {
+      if (!el.isConnected) return win.clearInterval(timer);
+      const at = now + nowS() - t0, v = el.querySelector('[data-row="window"] [data-sf-value]');
+      if (v) v.textContent = at < end ? `${left(end - at)} left` : "Closed";
+      if (at >= end) win.clearInterval(timer);
+    }, 60_000);
     return got;
   };
   async function read(text) {

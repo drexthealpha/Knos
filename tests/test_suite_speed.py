@@ -138,7 +138,7 @@ def test_every_platform_runs_every_shard_and_the_slow_tests_and_each_shard_is_ti
     by_platform: dict[tuple[str, str], list[dict]] = {}
     for leg in job["strategy"]["matrix"]["include"]:
         by_platform.setdefault((leg["os"], leg["python"]), []).append(leg)
-    assert sorted(by_platform) == [("macos-latest", "3.12"), ("ubuntu-latest", "3.10"), ("ubuntu-latest", "3.12"), ("windows-latest", "3.12")]
+    assert sorted(by_platform) == [("macos-latest", "3.12"), ("ubuntu-latest", "3.10"), ("ubuntu-latest", "3.12"), ("ubuntu-latest", "3.13"), ("windows-latest", "3.12")]
     for platform, legs in by_platform.items():
         shards = [leg["shard"] for leg in legs]
         assert shards.count("slow") == 1, platform

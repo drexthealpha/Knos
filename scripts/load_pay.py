@@ -36,8 +36,11 @@ printed without its denominator and its failures, and p50, p95 and p99 are given
              hot-funder (one funder's orders, ONE fee account, all relays at once), rpc-faults (sends refused or their
              answers lost, by a seeded draw, then retried; a payment is counted only when the chain shows it), priority-
              fee (SetComputeUnitPrice on every transaction with room; in the simulator on every other PayOrder, so the
-             difference in lamports is the priority fee alone), burst (each relay sends all its payments at once; in the
-             simulator every token is verified and open before the first PayOrder). Sources for the fee: Solana's fee
+             difference in lamports is the priority fee alone; a v1 transaction carries the same lamports in its message),
+             burst (each relay sends all its payments at once; after a 429 or an expired blockhash a payment waits,
+             BACKOFF with jitter, and is sent again over a fresh blockhash, BURST_ATTEMPTS sends at most; a resend the
+             chain refuses because the first landed is a duplicate refused, not a failure; in the simulator every token
+             is verified and open before the first PayOrder). Sources for the fee: Solana's fee
              structure, https://solana.com/docs/core/fees/fee-structure (prioritization fee = ceil(price x limit /
              1,000,000) lamports).
 --fee-accounts K   fee accounts per mint (default 1: the associated one alone). On a cluster the wallet is their base:
@@ -50,6 +53,8 @@ import argparse
 import datetime
 import hashlib
 import json
+import random
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -71,10 +76,16 @@ SCENARIOS = {
                   "payment shares",
     "rpc-faults": "15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 "
                   "times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused",
-    "priority-fee": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports "
-                    "unless --cu-price says otherwise",
-    "burst": "every relay sends all of its payments at once instead of one after another",
+    "priority-fee": "every transaction carries a compute unit price, 10,000 micro-lamports unless --cu-price says otherwise: "
+                    "SetComputeUnitPrice in a legacy transaction with room, the same lamports in a v1 transaction's message",
+    "burst": "every relay sends all of its payments at once instead of one after another; a payment the endpoint turns away "
+             "(HTTP 429) or whose blockhash expired is sent again after a bounded wait with jitter, over a fresh blockhash",
 }
+BURST_ATTEMPTS = 8                  # a payment's sends at most, under --scenario burst: the first and seven after a transient refusal
+BACKOFF = (1.0, 16.0)               # under burst: the first wait and the longest, in seconds; each wait doubles and is jittered to
+                                    # between half and all of it (seeded), so 8 sends wait 63 s at most in all
+TRANSIENT = re.compile(r"\b429\b|too many requests|blockhash not found|block ?height exceeded|blockhash (?:has )?expired", re.I)
+DUPLICATE = re.compile(r"already in use|already been processed|already paid|alreadyprocessed", re.I)
 LAMPORTS_PER_RELAY = 50_000_000     # SOL lent to each relay key for fees on a cluster (0.05 SOL); swept back at the end
 
 
@@ -93,7 +104,10 @@ def counted(rows: list[dict], relays: int) -> dict:
     """The totals every run reports: attempts first, then each outcome, so no rate stands without its denominator."""
     out: dict = {"attempted": len(rows), "paid": sum(1 for r in rows if r["state"] == "paid"), "refused": sum(1 for r in rows if r["state"] == "refused"),
            "never_completed": sum(1 for r in rows if r["state"] == "never_completed"),
-           "already": sum(1 for r in rows if r["state"] == "already")}     # carried by another relay first: counted, never as paid
+           "already": sum(1 for r in rows if r["state"] == "already"),     # carried by another relay first: counted, never as paid
+           # a resend of a payment this run's own earlier send landed, which the chain refused (the order's single-use
+           # marker) or answered "already": the payment is paid once and the second is a duplicate refused, not a failure
+           "duplicates_refused": sum(1 for r in rows if r.get("duplicate"))}
     out["per_relay"] = [{"relay": i, "attempted": sum(1 for r in rows if r["relay"] == i), "paid": sum(1 for r in rows if r["relay"] == i and r["state"] == "paid")}
                         for i in range(relays)]
     out["first_refusals"] = [r["why"] for r in rows if r["state"] == "refused"][:5]
@@ -108,14 +122,17 @@ def simulate(relays: int, orders: int, seed: int = SEED, fee_accounts: int = 1, 
     from solders.compute_budget import set_compute_unit_price
 
     import load
-    from _order import OWNER, USDC, OrderChain, issue, user
+    from _order import OWNER, USDC, OrderChain, user
     from solders.pubkey import Pubkey
 
     from knos.settle.v2 import pay
     if scenario == "hot-funder":
         fee_accounts = 1
     load.fast_signer()
-    c = OrderChain()
+    # The Balance's owner and each order's issue come from the seed, so the seed alone says where every order lies
+    # and so which relay's part it falls in: one seed, one run. (They were drawn anew each run: then 1 run in 32 of
+    # 2 relays and 6 orders put every order in one part, and hot-funder had one relay write the fee account, not all.)
+    c = OrderChain(owner=Keypair.from_seed(hashlib.sha256(b"knos-load-pay-owner" + seed.to_bytes(4, "little")).digest()))
     meter = c.svm = load.Meter(c.svm)
     rng = random.Random(seed)
     home = c.payer
@@ -133,7 +150,7 @@ def simulate(relays: int, orders: int, seed: int = SEED, fee_accounts: int = 1, 
     funded = []
     for i in range(orders):
         meter.phase, meter.order = "fund", i
-        repo, num, amount = 900_000 + i, issue(), (20 + rng.randrange(40)) * USDC     # over 16.67: the fee (0.30%) is more than the 0.05 tip
+        repo, num, amount = 900_000 + i, 1_001 + i, (20 + rng.randrange(40)) * USDC     # over 16.67: the fee (0.30%) is more than the 0.05 tip
         tok = c.fund_token(num, amount, repository_id=repo)
         assert c.send([c.fund_balance_ix(tok, num, repo=repo)]), f"order {i} was not funded: {c.err}"
         address = pay.order_pda(pay.scope_of(repo, num), c.bal)
@@ -268,10 +285,11 @@ def _programs(which: str) -> dict:
 
 # == a cluster =========================================================================================================
 def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time.monotonic, ledger=None, relay_one=None,
-               lend=None, sweep=None, fee_accounts: int = 1, scenario: str | None = None, cu_price: int = CU_PRICE, seed: int = SEED) -> dict:
+               lend=None, sweep=None, fee_accounts: int = 1, scenario: str | None = None, cu_price: int = CU_PRICE, seed: int = SEED,
+               pause=time.sleep) -> dict:
     """See the module's words on --tokens, --fee-accounts and --scenario. `ledger`, `relay_one`, `lend(key)`,
     `sweep(key)`: the tests' stand-ins. With K > 1 the relays read KNOS_FEE_SHARDS=K and KNOS_FEE_BASE=<wallet> for
-    the run."""
+    the run. `pause(seconds)`: how a wait under burst is waited (the tests' own clock)."""
     import os
     if scenario == "hot-funder":
         fee_accounts = 1
@@ -280,7 +298,7 @@ def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time
     if fee_accounts > 1:
         os.environ.update(KNOS_FEE_SHARDS=str(fee_accounts), KNOS_FEE_BASE=str(wallet.pubkey()))
     try:
-        got = _on_cluster(rpc, wallet, relays, tokens, clock, shaped or ledger, relay_one, lend, sweep, scenario)
+        got = _on_cluster(rpc, wallet, relays, tokens, clock, shaped or ledger, relay_one, lend, sweep, scenario, seed, pause)
     finally:
         for n, v in keep.items():
             if v is None:
@@ -290,6 +308,8 @@ def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time
     got.update(fee_accounts=fee_accounts, lanes="order", owners=len({_owner(str(t["jwt"])) for t in tokens}))
     if scenario:
         got.update(scenario=scenario, measures=SCENARIOS[scenario])
+    if scenario == "burst":
+        got["backoff"] = {"sends_at_most": BURST_ATTEMPTS, "first_wait_s": BACKOFF[0], "longest_wait_s": BACKOFF[1], "jitter": "half to all of each wait"}
     if shaped is not None:
         got.update(shaped.said())
     if scenario == "hot-funder" and got["owners"] != 1:
@@ -303,7 +323,9 @@ class Shaped:
     rpc-faults     of every send, by a seeded draw: refused by the endpoint before anything is sent (ConnectionError),
                    or sent and its answer lost (TimeoutError after the cluster took it), as FAULTS says
     priority-fee   a legacy transaction with room for it carries SetComputeUnitPrice(cu_price) beside the compute unit
-                   limit `knos.chain.message` would add; a v1 transaction keeps its budget in the message and carries none
+                   limit `knos.chain.message` would add; a v1 transaction carries its price in the message's own
+                   configuration (`message_v1_priced`), since a compute budget instruction does nothing there: the
+                   same lamports, ceil(price x limit / 1,000,000), that a legacy one pays at that price and limit
     Everything else passes through to the ledger."""
 
     def __init__(self, ledger, scenario: str | None, cu_price: int = CU_PRICE, seed: int = SEED):
@@ -328,27 +350,55 @@ class Shaped:
             return kind
 
     def _priced(self, ixs, payer, v1: bool) -> list:
+        """The instructions with the price beside the limit (a legacy transaction that has room for them; a v1
+        transaction always has room: its price goes into the message's configuration, which `_send_v1` signs)."""
         ixs = list(ixs)
-        if self.scenario != "priority-fee" or v1:
+        if self.scenario != "priority-fee":
             return ixs
         from solders.compute_budget import set_compute_unit_limit, set_compute_unit_price
 
         from knos import chain
+        ixs = [ix for ix in ixs if not (ix.program_id == chain.COMPUTE_BUDGET and bytes(ix.data)[:1] == b"\x03")]     # one price: ours
         more = ([] if any(ix.program_id == chain.COMPUTE_BUDGET for ix in ixs) else [set_compute_unit_limit(chain.MAX_COMPUTE_UNITS)])
         out = more + [set_compute_unit_price(self.cu_price)] + ixs
         with self.lock:
+            if v1:
+                self.counts["priced"] += 1
+                return out
             if chain.tx_size(out, payer.pubkey()) > chain.MAX_TX_BYTES:
                 self.counts["no_room"] += 1
                 return ixs
             self.counts["priced"] += 1
         return out
 
+    def _signs_itself(self, v1: bool) -> bool:
+        """Whether a v1 transaction is signed here, with its price in the message (`knos.chain.message_v1` leaves a
+        compute budget instruction out and sets no price): a cluster's ledger under priority-fee. A stand-in ledger
+        without `_submit` is handed the priced instructions as they are."""
+        return v1 and self.scenario == "priority-fee" and hasattr(self.inner, "_submit") and hasattr(self.inner, "_blockhash")
+
+    def _send_v1(self, groups, payer, signers) -> list[str]:
+        """Each group as one priced v1 transaction over one fresh blockhash, sent, then waited for together."""
+        from knos import chain
+        blockhash = self.inner._blockhash()
+        txs = [sign_v1_priced(g, payer, signers, blockhash) for g in groups]
+        sigs = [self.inner._submit(tx) for tx in txs]
+        url, commitment = getattr(self.inner, "url", ""), getattr(self.inner, "commitment", "confirmed")
+        if len(sigs) == 1:
+            chain.wait(url, sigs[0], 60.0, commitment)
+        else:
+            chain.wait_all(url, sigs, 60.0, commitment)
+        return sigs
+
     def send(self, ixs, payer, signers=None, v1: bool = False) -> str:
         kind = self._draw()
         if kind == "refused":
             raise ConnectionError("injected: the endpoint refused the request; nothing was sent")
         ixs = self._priced(ixs, payer, v1)
-        sig = self.inner.send(ixs, payer, signers, v1=True) if v1 else self.inner.send(ixs, payer, signers)
+        if self._signs_itself(v1):
+            sig = self._send_v1([ixs], payer, signers)[0]
+        else:
+            sig = self.inner.send(ixs, payer, signers, v1=True) if v1 else self.inner.send(ixs, payer, signers)
         if kind == "lost":
             raise TimeoutError("injected: the transaction was sent and its answer lost")
         return sig
@@ -358,8 +408,11 @@ class Shaped:
         if kind == "refused":
             raise ConnectionError("injected: the endpoint refused the request; nothing was sent")
         groups = [self._priced(g, payer, v1) for g in groups]
-        many = getattr(self.inner, "send_all")
-        sigs = list(many(groups, payer, signers, v1=True) if v1 else many(groups, payer, signers))
+        if self._signs_itself(v1):
+            sigs = self._send_v1(groups, payer, signers)
+        else:
+            many = getattr(self.inner, "send_all")
+            sigs = list(many(groups, payer, signers, v1=True) if v1 else many(groups, payer, signers))
         if kind == "lost":
             raise TimeoutError("injected: the transactions were sent and their answer lost")
         return sigs
@@ -368,6 +421,42 @@ class Shaped:
         if self.scenario == "rpc-faults":
             return {"faults_injected": {k: self.counts[k] for k in ("sends", "refused", "lost")}}
         return {"cu_price_micro_lamports": self.cu_price, "priority": {k: self.counts[k] for k in ("priced", "no_room")}}
+
+
+def message_v1_priced(ixs, payer, blockhash=None):
+    """`knos.chain.message_v1`, which since 0.3.24 prices a v1 transaction itself: the compute unit limit and price the
+    instructions ask for (SetComputeUnitLimit, SetComputeUnitPrice) go into the message's configuration, the price as
+    the TOTAL priority fee in lamports, ceil(price x limit / 1,000,000), which is what a legacy transaction with that
+    price and limit pays (https://solana.com/docs/core/fees/fee-structure; https://www.helius.dev/docs/rpc/transaction-v1)."""
+    from knos import chain
+    return chain.message_v1(ixs, payer, blockhash)
+
+
+def priority_lamports(price: int, units: int) -> int:
+    """The priority fee in lamports of `price` micro-lamports a compute unit over a limit of `units`: ceil(price x
+    units / 1,000,000) (https://solana.com/docs/core/fees/fee-structure)."""
+    return -(-price * units // 1_000_000)
+
+
+def sign_v1_priced(ixs, payer: Keypair, signers, blockhash):
+    """One v1 transaction of `message_v1_priced`, signed by the fee payer and whoever else must sign."""
+    from solders.transaction import VersionedTransaction
+    everyone = {bytes(k.pubkey()): k for k in [payer, *(signers or [])]}
+    m1 = message_v1_priced(ixs, payer.pubkey(), blockhash)
+    return VersionedTransaction(m1, [everyone[bytes(k)] for k in m1.account_keys[:m1.header.num_required_signatures]])
+
+
+def backoff_s(attempt: int, rng: random.Random) -> float:
+    """The wait before send `attempt + 1` under burst: BACKOFF[0] doubled per send already made, at most BACKOFF[1],
+    jittered to between half and all of it so the relays that were turned away together do not come back together."""
+    full = min(BACKOFF[1], BACKOFF[0] * 2 ** (attempt - 1))
+    return full / 2 + rng.random() * full / 2
+
+
+def transient(why: str) -> bool:
+    """A refusal that says nothing of the payment: the endpoint's rate limit, or a blockhash that expired before the
+    transaction landed. Sent again over a fresh blockhash, it may well go through."""
+    return bool(TRANSIENT.search(why))
 
 
 def _owner(jwt: str) -> str:
@@ -380,7 +469,8 @@ def _owner(jwt: str) -> str:
         return "unknown"
 
 
-def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, ledger, relay_one, lend, sweep, scenario: str | None = None) -> dict:
+def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, ledger, relay_one, lend, sweep, scenario: str | None = None,
+                seed: int = SEED, pause=time.sleep) -> dict:
     import load
 
     from knos.proof import ghrelay
@@ -390,7 +480,7 @@ def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, le
     parts: list[list[dict]] = [[] for _ in range(relays)]
     for t in tokens:
         parts[relayq.part_of(relay.lane(str(t["jwt"])), relays)].append(t)
-    out = {"kind": "pay", "cluster": "devnet", "programs": _programs("the ids this installation names (public unless KNOS_PROGRAM_IDS says otherwise)"),
+    out: dict = {"kind": "pay", "cluster": "devnet", "programs": _programs("the ids this installation names (public unless KNOS_PROGRAM_IDS says otherwise)"),
            "date": datetime.date.today().isoformat(), "relays": relays, "orders": len(tokens), "wallet": str(wallet.pubkey()),
            "fee_payers": [str(k.pubkey()) for k in keys]}
     lent = [(lend or (lambda k: _lend(rpc, wallet, k)))(k) for k in keys]
@@ -399,31 +489,50 @@ def _on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock, le
         return out
     rows: list[dict] = []
 
-    tries = ATTEMPTS if scenario == "rpc-faults" else 1
+    tries = ATTEMPTS if scenario == "rpc-faults" else BURST_ATTEMPTS if scenario == "burst" else 1
 
     def pay_one(r: int, t: dict) -> dict:
-        """One token, sent again after a refusal or a lost answer under rpc-faults; a result that says the chain had
-        it done already counts as this run's payment only when one of this run's own sends may have landed it."""
-        began, sent, attempts = clock(), False, 0
-        state, why = "never_completed", "no attempt"
+        """One token, sent again after a refusal or a lost answer under rpc-faults, and after a rate limit or an expired
+        blockhash under burst (a bounded wait with jitter first; the relay signs each send over a fresh blockhash, and
+        the intent sent is the same pay token, so a second PayOrder can only be refused). A result that says the chain
+        had it done already counts as this run's payment only when one of this run's own sends may have landed it, and
+        then the resend is a duplicate refused, never a second payment and never a failure."""
+        began, sent, attempts, duplicate = clock(), False, 0, False
+        state, why_now = "never_completed", "no attempt"
+        why: str | None = why_now
+        jitter = random.Random(f"{seed}:{t['jwt']}")
         while attempts < tries:
             attempts += 1
+            if attempts > 1 and scenario == "burst":
+                pause(backoff_s(attempts - 1, jitter))
             try:
                 got = send(ledger, keys[r], str(t.get("kind") or "pay"), str(t["jwt"]))
             except Exception as e:  # noqa: BLE001 - no answer: counted, never dropped
                 state, why = "never_completed", f"{type(e).__name__}: {e}"[:200]
                 sent = sent or not isinstance(e, ConnectionError)
+                if scenario == "burst" and not transient(why):
+                    break
                 continue
             if got.get("ok"):
                 state = "already" if got.get("already") and not sent else "paid"
+                duplicate = bool(got.get("already")) and sent
                 why = None if state == "paid" else "the chain showed it done before this relay sent anything: not a payment of this run"
             else:
-                state, why = "refused", str(got.get("why") or "no reason given")[:200]
-                if "injected" in why:
-                    sent = sent or "refused the request" not in why
+                why_now = str(got.get("why") or "no reason given")[:200]
+                state, why = "refused", why_now
+                if sent and DUPLICATE.search(why_now):          # this run's earlier send landed: the order's single-use marker refuses the second
+                    state, why, duplicate = "paid", None, True
+                elif "injected" in why_now:
+                    sent = sent or "refused the request" not in why_now
+                    continue
+                elif scenario == "burst" and transient(why_now):
+                    # a 429 may have come while the relay waited for an answer, after the cluster took the transaction; an
+                    # expired blockhash means it never landed. Each order is one relay's alone, so "already" after a 429
+                    # can only be this run's own send
+                    sent = sent or "blockhash" not in why_now.lower()
                     continue
             break
-        return {"relay": r, "state": state, "why": why, "began": began, "ended": clock(), "attempts": attempts}
+        return {"relay": r, "state": state, "why": why, "began": began, "ended": clock(), "attempts": attempts, "duplicate": duplicate}
 
     def one(r: int) -> list[dict]:
         if scenario == "burst":                     # all of this relay's payments at once

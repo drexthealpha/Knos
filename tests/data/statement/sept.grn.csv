@@ -7,7 +7,7 @@ currency,USD
 made from,a shadow run: the invoice against GitHub's record
 evidence sha256,c19d8125a899aa7647d144bfb93056b63544d9d30a708dccca3d052c933e73c2
 evidence,inside the statement; not signed
-status sha256,e2383f853ea7b0f2bbcad77e7a94ed333e9bb322025be3b3f680474b8e79ff66
+status sha256,be9b19241165ef6bb345e8798ccd4f32e0ad47eb21bd7ecab62a9622d1286539
 line,reference,supplier,state,amount,why,deliverable,evaluations,invoice_line,settlement,payment,evidence,evidence_sha256,duplicate_of,assurance,po_reference,grn_reference
 1,acme/app#1,Acme Agents,policy met,100.00,,dlv_7d18ee5930ce4f8945ee626f,evl_d6f7851bb59a7591d7cd7726,inv_b4add9cf5f7842919a292b6f,stl_af382ff4f9349cb50eed8b34,paid outside Knos,https://github.com/acme/app/pull/1,206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93,,reported,,grn_d6f7851bb59a7591d7cd7726
 2,acme/app#2,Acme Agents,disputed,250.00,a check failed when this change was merged: test,dlv_2588c667db86d1b266ea0121,evl_1ca8008cccb72826ece72b62,inv_740e3c083fd82e11c55a3889,,held,https://github.com/acme/app/actions/runs/21/job/21,278c57dbd13ad16ac870c6f87d7a741a6c69b130e3f5ee3bf5f7af60ce63991c,,reported,,grn_1ca8008cccb72826ece72b62
