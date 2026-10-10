@@ -9,7 +9,8 @@ Of first agent pull requests that claimed passing tests, 17.8% had a failed chec
 - Story: [../STORY.md](../STORY.md), the number, one task in seven steps with its evidence, and what the project needs next
 - This release on one page: [../MANIFEST.md](../MANIFEST.md), the source, the build live at each public program id, every capability's stage, the limits
 - Site: [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/)
-- Code: [github.com/drexthealpha/Knos](https://github.com/drexthealpha/Knos) (MIT); in the form, the link is the release tag
+- Code, at the release tag: [`github.com/drexthealpha/Knos/tree/v0.3.25`](https://github.com/drexthealpha/Knos/tree/v0.3.25) (MIT)
+- A judge's one page, at the same tag: [docs/JUDGES.md](https://github.com/drexthealpha/Knos/blob/v0.3.25/docs/JUDGES.md)
 - Network: Solana devnet. The money is test USDC. Entered for: the Solana ecosystem track and the Public Good Prize.
 
 What is in this folder:
@@ -20,7 +21,8 @@ What is in this folder:
 | [../STORY.md](../STORY.md) | the one page: the number, the seven steps with the evidence under each, and the ask |
 | [../MANIFEST.md](../MANIFEST.md) | the release manifest, written by a script: source, the build live at each public program id, pending proposals, every capability's stage with its evidence, the outstanding limits |
 | [NUMBERS.md](NUMBERS.md) | the nine numbers about outside use, each with today's value, zeros included |
-| [pitch_script.md](pitch_script.md) | the presentation, under three minutes: the Agent PR Index finding, one transaction in seven steps, the evidence, the founder's record, the business, the limits in one sentence, and the ask |
+| [`pitch_script_120.md`](pitch_script_120.md) | the presentation for the form, under two minutes: the finding, one transaction, the founder's record, the business, the limits in one sentence, the ask; `scripts/video/render.py --script` renders it |
+| [pitch_script.md](pitch_script.md) | the longer presentation, under three minutes: the Agent PR Index finding, one transaction in seven steps, the evidence, the founder's record, the business, the limits in one sentence, and the ask |
 | [demo_script.md](demo_script.md) | the technical demonstration, three minutes in seven beats, the refusal first, each captioned with the program ids it ran on |
 | [CRITERIA.md](CRITERIA.md) | one paragraph for each factor Colosseum lists, founder and market fit included, and for each criterion in the rules; then six evidence targets, as targets |
 | [../PILOT.md](../PILOT.md) | the one offer for money: a 30-day pilot for one buyer and its suppliers, and what blocks it |
@@ -33,13 +35,31 @@ What is in this folder:
 | [../CAPABILITIES.md](../CAPABILITIES.md) | the index of evidence: every capability, the stage it has reached (implemented, tested locally, deployed, exercised on devnet, reproduced by someone else) and the file that shows it |
 
 What each release changes is in [../../CHANGELOG.md](../../CHANGELOG.md), and each capability stands at the stage
-[../MANIFEST.md](../MANIFEST.md) gives it and no higher. Knos 0.3.21 changes no program. The demonstration is one
+[../MANIFEST.md](../MANIFEST.md) gives it and no higher. This release changes no program. The demonstration is one
 independently witnessed transaction ([demo_script.md](demo_script.md)); a judge's one page is
 [../JUDGES.md](../JUDGES.md), with the six criteria and the seven factors Colosseum's page lists.
 
 A number that only the release run can measure is a slot, `[[stat: name]]`; `python scripts/bench_docs.py --slots`
 lists the ones still open. Every field is under a thousand characters, and `tests/test_business_docs.py` counts them. Three fields state facts about the founder that nothing in the repository can back;
 each says so, and the founder confirms it before pasting.
+
+## Which link goes in which field
+
+A copy of the repository's front page that a reader or a fetcher cached earlier can show an older release, with
+another product's description. So every link given to a judge is one whose content never changes or that no cache
+holds: the release tag, a file at that tag, or the site. Never the bare repository address.
+
+| Field of the form | What goes in it |
+|---|---|
+| GitHub repository | [`github.com/drexthealpha/Knos/tree/v0.3.25`](https://github.com/drexthealpha/Knos/tree/v0.3.25), the release tag |
+| Presentation video | the founder's YouTube, Loom or Vimeo upload of the render of [`pitch_script_120.md`](pitch_script_120.md) |
+| Product-demo video | the founder's YouTube, Loom or Vimeo upload of the render of [demo_script.md](demo_script.md) |
+| `liveProductLink` | the text of that field below: the site first, then the tag, the judges' page at the tag, the package |
+| any other place the form takes a link | the judges' page at the tag: [`docs/JUDGES.md` at `v0.3.25`](https://github.com/drexthealpha/Knos/blob/v0.3.25/docs/JUDGES.md) |
+
+The form takes video links from YouTube, Loom or Vimeo only (the form's own help text, read signed in on 9 Oct 2026),
+so a release's attached video is not a link it accepts. [CHECKLIST.md](CHECKLIST.md) lists what only the founder can
+fill in.
 
 ## Checklist for the day of submission
 
@@ -51,8 +71,8 @@ each says so, and the founder confirms it before pasting.
       anyone check an implementation. If the form has no place to enter it, the founder asks Colosseum before the
       deadline how to be considered, and says so here.
 - [ ] **The repository link in the form is the release tag, not the moving branch:**
-      `https://github.com/drexthealpha/Knos/tree/v<the version pyproject.toml names>` (the tag `release.yml` builds
-      from), and beside it the site, [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/). Open both
+      [`github.com/drexthealpha/Knos/tree/v0.3.25`](https://github.com/drexthealpha/Knos/tree/v0.3.25), the tag of
+      the version `pyproject.toml` names, which `release.yml` builds from, and beside it the site, [drexthealpha.github.io/Knos](https://drexthealpha.github.io/Knos/). Open both
       signed out.
 - [ ] **What predates the window is stated in the form** (`repoContext` below). The window is 14 Sep to
       12 Oct 2026 ([colosseum.com/worldsfair](https://colosseum.com/worldsfair)). Before it: Knos 0.1, a different
@@ -67,7 +87,8 @@ each says so, and the founder confirms it before pasting.
       work before the window (Knos 0.1, a different product), the 1.1% of lines that survive from it, and that the
       commits were written with coding agents. Nothing in this repository can do this step: the founder pastes it
       into the form and ticks this box.
-- [ ] Both videos open for someone who is not signed in, and neither is longer than three minutes.
+- [ ] Both videos open for someone who is not signed in. The presentation is the render of
+      [`pitch_script_120.md`](pitch_script_120.md) and ends before two minutes; the demo is no longer than three.
 - [ ] `python scripts/release_manifest.py --check` passes, and [../MANIFEST.md](../MANIFEST.md) has been read on the day:
       no field and no shot says a build is live that the manifest does not.
 - [ ] Every shot that is a replay, or is played faster than it happened, carries its caption for its whole length.
@@ -163,7 +184,7 @@ USDC. By 3 Oct 2026 the two deployments had made 15 payments on devnet: 3 to one
 Knos funded itself, and the rest to Knos's own accounts. When the release ran, 315 tasks had been
 paid on the second deployment. Across both deployments, 0 paid tasks were funded by someone other than Knos with
 their own tokens, by 0 funders, of whom 0 funded again. From merge to paid took 26 seconds at the median, over 51
-payments. 3,928 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
+payments. 4,092 tests pass. Buyers: none. Interviews: none. Letters of intent: none. Pilots: none, offered or
 sold. Revenue: none; test USDC is not money. Outside reproductions: none known. NUMBERS.md has each of these with its
 source; the site's Numbers page shows today's counts with Knos's own accounts kept apart.
 
@@ -237,8 +258,9 @@ devnet a faucet inside the program mints test USDC, which has no value.
 https://drexthealpha.github.io/Knos/ is the product. Paste a supplier's invoice or name a public repository: the
 page shows a neutral count and every mismatch, with no install, no wallet and no sign-up. A simulated round is
 below it. From there: put the workflow file in a repository, fund an issue with one comment, and see every
-payment the programs have made. The code is at
-https://github.com/drexthealpha/Knos and the package at https://pypi.org/project/knos/. Everything is on Solana
+payment the programs have made. This release's code: https://github.com/drexthealpha/Knos/tree/v0.3.25 (a
+tag, so it never changes). A judge's one page: https://github.com/drexthealpha/Knos/blob/v0.3.25/docs/JUDGES.md (the same tag). The
+package: https://pypi.org/project/knos/ (PyPI). Everything is on Solana
 devnet, and the money is test USDC.
 
 ## chains

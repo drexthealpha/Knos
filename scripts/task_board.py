@@ -43,11 +43,15 @@ starter task's checks under the issue's number are removed in the same commit as
 is merge mode. They are opened before the code tasks, a kind never offered before ahead of one opened again, count in
 the same day's budget, and not in the target.
 
-A STRANDED TASK IS OPENED AGAIN. `plan` and `open` read each open funded issue's order from the chain (knos.tasks.why):
-one funded through a commit of the workflows the playground no longer calls (every release rebuilds it at the next
-commit), past its deadline, or no longer open can pay no merge. `plan` names it; `open --apply` closes it with that
-sentence (its money goes back at its deadline) and the board opens the task again in a new issue, in the day's budget.
-One that an open pull request of another account names is left open, and said: nothing a person works on is closed.
+A STRANDED TASK IS FUNDED AGAIN IN PLACE, OR OPENED AGAIN. `plan` and `open` read each open funded issue's order from
+the chain (knos.tasks.why): one funded through a commit of the workflows the playground no longer calls (every release
+rebuilds it at the next commit), past its deadline, or no longer open can pay no merge. One stranded by the PIN alone
+(0.3.24: #22 to #29) stays open: `open --apply` says the chain's sentence on it and funds it again, on the same issue,
+through the commit the playground calls now (a second order of the issue; the old one goes back to its funder at its
+deadline), first in the day's budget; a marker in that comment (REPINNED) names the commit, so a later run funds it
+once per commit and never twice. One past its deadline or no longer open is closed with that sentence and the board
+opens the task again in a new issue, in the day's budget. One of those that an open pull request of another account
+names is left open, and said: nothing a person works on is closed.
 
 A HELD PAYMENT IS A STATE OF THE BOARD. `status` lists, under `held`, each merged pull request on a board task whose
 payment waits for its author to say where it goes, with the one instruction for the payee: comment
@@ -537,12 +541,14 @@ def read(gh: Forge, repo: str, owner_id: int) -> dict:
 
 
 STRANDED = ("pin", "late", "closed")     # knos.tasks.explain's codes for an order on an open issue that no merge can pay
+REPINNED = re.compile(r"<!-- knos-board: funded again at ([0-9a-f]{40}) -->")     # the owner's comment on an issue funded again in place
 
 
-def stranded(state: dict, repo: str, why: Callable) -> dict[int, str]:
+def stranded(state: dict, repo: str, why: Callable, codes: dict[int, str] | None = None) -> dict[int, str]:
     """{issue: the chain's sentence} for each open, funded board issue whose money no merge can pay any more: funded
     through a commit of the workflows the playground no longer calls (a release rebuilt it at the next commit), past its
-    deadline, or no longer open. `why(where, pull)` is knos.tasks.why, which reads the order from the chain."""
+    deadline, or no longer open. `why(where, pull)` is knos.tasks.why, which reads the order from the chain. `codes`,
+    when given, gets each one's code (STRANDED)."""
     out = {}
     for r in state["rows"]:
         if r["state"] != "open" or not r["funded"]:
@@ -553,7 +559,42 @@ def stranded(state: dict, repo: str, why: Callable) -> dict[int, str]:
             raise Stop(f"the order of #{r['number']} could not be read ({' '.join(str(no).split())[:160]}): nothing was sent") from None
         if got.get("code") in STRANDED:
             out[r["number"]] = str(got["said"])
+            if codes is not None:
+                codes[r["number"]] = str(got["code"])
     return out
+
+
+def repinned(gh: Forge, repo: str, number: int, owner_id: int, pin: str) -> float | None:
+    """When the owner funded issue `number` again in place through the commit `pin` (the time of the comment that
+    holds its marker), None when it did not. The chain still names the old order until it goes back, so this, and not
+    the chain, says the issue was funded again; the time counts it in that day's budget."""
+    said = gh("GET", f"repos/{repo}/issues/{number}/comments?per_page=100")
+    for c in said if isinstance(said, list) else []:
+        if isinstance(c, dict) and (c.get("user") or {}).get("id") == owner_id and pin in REPINNED.findall(str(c.get("body") or "")):
+            return _stamp(c.get("created_at"))
+    return None
+
+
+def repin_plan(state: dict, pinned: dict[int, str], now: float, budget: int, earlier: int = 0) -> tuple[list[tuple[int, dict, str]], list[str], int]:
+    """([(issue, task, the chain's sentence)] to fund again in place, in issue order, within today's budget; what
+    waits; what funding again spends today, earlier runs' included, for `plan`). Funding again spends the task's amount and fee anew (the old order's comes back
+    at its deadline), so it counts in the day's budget, first. `earlier`: what funding again spent today already."""
+    by_slug = {t["slug"]: t for t in catalogue() + kinds()}
+    today = _iso(now)[:10]
+    left = budget - earlier - sum(r["amount"] + _fee(r["amount"]) for r in state["rows"] if _iso(r["created"])[:10] == today)
+    slug = {r["number"]: r["slug"] for r in state["rows"]}
+    go, said = [], []
+    for n in sorted(pinned):
+        t = by_slug.get(slug.get(n, ""))
+        if t is None:
+            said.append(f"#{n} is not a task of tasks/: it is left as it is")
+            continue
+        if cost(t) > left:
+            said.append(f"today's budget of {_usdc(budget)} is used up to {_usdc(budget - left)}: #{n} {t['slug']} ({_usdc(cost(t))} with its fee) is funded again tomorrow (UTC)")
+            continue
+        go.append((n, t, pinned[n]))
+        left -= cost(t)
+    return go, said, earlier + sum(cost(t) for _n, t, _s in go)
 
 
 def working(gh: Forge, repo: str, owner_id: int, lost: dict[int, str]) -> dict[int, list[str]]:
@@ -572,9 +613,10 @@ def working(gh: Forge, repo: str, owner_id: int, lost: dict[int, str]) -> dict[i
 
 
 def plan(state: dict, now: float, target: int = TARGET, budget: int = BUDGET, reserve: int = RESERVE, balance: int | None = None,
-         tasks: list[dict] | None = None, kinds_: list[dict] | None = None) -> dict:
+         tasks: list[dict] | None = None, kinds_: list[dict] | None = None, repins: int = 0) -> dict:
     """What `open` would do. `balance`: millionths the named Balance holds, None when none was named (the faucet pays).
     `kinds_`: the tasks that are not code to keep open as well (`--kinds`), first, in the same budget and not in the target.
+    `repins`: what funding stranded issues again in place spends today (repin_plan), counted in the day's budget first.
     Returns {"open": rows that are whole, "resume": rows missing a step, "new": tasks to open, "said": why it stops
     where it stops, "spent": opened today, "left": of today's budget}."""
     tasks = catalogue() if tasks is None else tasks
@@ -584,7 +626,7 @@ def plan(state: dict, now: float, target: int = TARGET, budget: int = BUDGET, re
     live = [r for r in state["rows"] if r["state"] == "open"]
     whole = [r for r in live if r["funded"] and r["number"] in state["listed"]]
     resume = [r for r in live if r not in whole]
-    spent = sum(r["amount"] + _fee(r["amount"]) for r in state["rows"] if _iso(r["created"])[:10] == today)
+    spent = repins + sum(r["amount"] + _fee(r["amount"]) for r in state["rows"] if _iso(r["created"])[:10] == today)
     said: list[str] = []
     new: list[dict] = []
     funds = sum(r["amount"] + _fee(r["amount"]) for r in resume if not r["funded"])         # opened, counted in today's budget or an earlier day's; still to fund
@@ -858,18 +900,41 @@ def main(argv: list[str] | None = None, gh: Forge = github, ask: Callable = rpc,
         if a.command == "open" and a.apply and not a.balance and not a.faucet:
             raise Stop("nothing was sent: say what pays, `--balance <address>` (its reserve is kept) or `--faucet` (the devnet faucet mints it)")
         state = read(gh, a.repo, playground.OWNER_ID)
-        lost = stranded(state, a.repo, why or _tasks().why)
+        codes: dict[int, str] = {}
+        lost = stranded(state, a.repo, why or _tasks().why, codes)
+        pin = _pinned().pin() if any(c == "pin" for c in codes.values()) else ""
+        earlier, row_of = 0, {r["number"]: r for r in state["rows"]}
+        for n in [n for n in lost if codes[n] == "pin"]:
+            at = repinned(gh, a.repo, n, playground.OWNER_ID, pin)
+            if at is not None:                  # funded again at this commit already: its old order goes back at its deadline
+                del lost[n]
+                if _iso(at)[:10] == _iso(now())[:10]:
+                    earlier += row_of[n]["amount"] + _fee(row_of[n]["amount"])
+        pinned = {n: lost.pop(n) for n in sorted(lost) if codes[n] == "pin"}      # stays open: funded again in place, nothing closed
+        again, waits, used = repin_plan(state, pinned, now(), budget, earlier)
+        balance, reserve = held(a.balance, ask) if a.balance else None, int(round(a.reserve * 1_000_000))
+        while again and balance is not None and sum(cost(t) for _n, t, _s in again) > balance - reserve:
+            n, t, _s = again.pop()              # never below the Balance's reserve: the last ones wait
+            used -= cost(t)
+            waits.append(f"the Balance holds {_usdc(balance)} and keeps a reserve of {_usdc(reserve)}: #{n} {t['slug']} is not funded again")
+        holds = balance
+        if balance is not None:
+            balance -= sum(cost(t) for _n, t, _s in again)
         busy = working(gh, a.repo, playground.OWNER_ID, lost)
         for n in busy:
             del lost[n]
         for r in state["rows"]:
             if r["number"] in lost:
                 r["state"] = "stranded"         # not open for the plan: its money cannot pay a merge, so the task is opened again
-        p = plan(state, now(), a.target, budget, int(round(a.reserve * 1_000_000)), held(a.balance, ask) if a.balance else None,
-                 kinds_=kinds() if a.kinds else None)
-        p["listed"] = state["listed"]
+        p = plan(state, now(), a.target, budget, reserve, balance, kinds_=kinds() if a.kinds else None, repins=used)
+        p["listed"], p["balance"] = state["listed"], holds
         for line in words(p, a.repo):
             say(line)
+        for n, t, said in again:
+            say(f"  re-pin #{n}: {said} {'It is funded' if a.command == 'open' and a.apply else 'open --apply funds it'} again in place, through "
+                f"commit {pin[:12]} of the public workflows ({_usdc(cost(t))} with its fee); the old order goes back at its deadline. The issue stays open.")
+        for line in waits:
+            say(f"  re-pin waits: {line}")
         for n, pulls in sorted(busy.items()):
             say(f"  left open #{n}: no merge can pay its order, but {', '.join(pulls)} names it and is open: nothing a person is working on is closed. "
                 "On the merge a maintainer tips the work (`/knos tip <amount>`).")
@@ -885,6 +950,15 @@ def main(argv: list[str] | None = None, gh: Forge = github, ask: Callable = rpc,
             say("  funds through the public pinned workflows: checked in the playground's own workflow files.")
         if a.command == "open":
             if a.apply:
+                for k, (n, t, said) in enumerate(again):
+                    if k:
+                        sleep(a.pace)
+                    gh("POST", f"repos/{a.repo}/issues/{n}/comments", {"body": f"{said} The task stays open: it is funded again here, through commit "
+                                                                            f"{pin[:12]} of the public workflows, which the playground calls now. The old "
+                                                                            f"order goes back to its funder at its deadline. {FIRST}\n\n<!-- knos-board: funded again at {pin} -->"})
+                    gh("POST", f"repos/{a.repo}/issues/{n}/comments", {"body": fund_line(t)})
+                if again and (p["new"] or any(not r["funded"] for r in p["resume"])):
+                    sleep(a.pace)               # the faucet serves a repository once a minute
                 for n, said in sorted(lost.items()):
                     gh("POST", f"repos/{a.repo}/issues/{n}/comments", {"body": f"{said} The money goes back to its funder at its deadline; "
                                                                             f"the task is opened again in a new issue. {FIRST}"})

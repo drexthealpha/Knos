@@ -10,6 +10,8 @@ import { chained as auditChained, totals as auditTotals, auditWrite, recordsOf, 
 import { objectsHtml, chipOf } from "./console.js";
 import { statementCells, statementCsv, statementDigest, statementExport, statementLines, statementAnswers, statementGrn, STATEMENT_KIND, STATEMENT_FORMATS, LINE_WORDS, PAY_WORDS, LABEL, HANDED, OWED_WORDS } from "./finance_data.js";
 import { stepRowHtml, stepStyle } from "./line_steps.js";
+import { lineAssurance, assuranceHtml, assuranceWord } from "./assurance_words.js";
+import { erpWrite, TARGETS as ERP_TARGETS } from "./erp.js";
 const APPEAL = "https://github.com/drexthealpha/Knos/blob/main/docs/DISPUTES.md#the-path";
 
 const ROLES = { seller: ["as_seller", "Seller: what the account was paid"], owner: ["as_owner", "Owner: what the account's money paid out"] };
@@ -284,13 +286,14 @@ export function renderOrderStatement(el, env = {}) {
 const SAMPLE = "statement_sample.json";
 const SHOWN = ["line", "reference", "state", "assurance", "amount", "why", "payment", "evidence"];
 
-/** One line's goods-received note as three cards side by side (order, receipt of goods, invoice line) and the match. */
-export function grnHtml(esc, note) {
+/** One line's goods-received note as three cards side by side (order, receipt of goods, invoice line) and the match.
+ *  `assured`: the line's lineAssurance, whose words the receipt-of-goods card shows (else the receipt's own level). */
+export function grnHtml(esc, note, assured = null) {
   const o = note.purchase_order, g = note.receipt_of_goods, i = note.invoice_line, cut = (t) => (String(t).length > 28 ? `${String(t).slice(0, 25)}…` : String(t));
   const card = (leg, title, rows) => `<div class="k-card" data-grn-leg="${leg}"><p class="k-kicker">${title}</p>${rows.map(([k, v]) => `<p class="fine">${esc(k)} <span class="mono" title="${esc(v)}">${esc(cut(v))}</span></p>`).join("")}</div>`;
   return `<section class="k-grn" data-grn="${esc(i.id)}" data-match="${note.match ? "1" : "0"}"><p class="k-kicker">Line ${esc(i.line)}: <span class="k-state" data-state="${note.match ? "agreed" : "disputed"}">${note.match ? "match" : "mismatch"}</span></p>
     <div class="k-statement-totals">${card("order", "Purchase order", o ? [["number", o.number], ["terms", o.terms_hash], ["approver", o.approver], ["price", o.price]] : [["none", "on record"]])}
-      ${card("goods", "Receipt of goods", [["note", g.reference || "none"], ["evaluator", g.evaluator], ["assurance", g.assurance], ["evidence", g.evidence]])}
+      ${card("goods", "Receipt of goods", [["note", g.reference || "none"], ["evaluator", g.evaluator], ["assurance", assured ? assuranceWord(assured) : g.assurance], ["evidence", g.evidence]])}
       ${card("invoice", "Invoice line", [["id", i.id], ["amount", `${group(i.amount) || "not priced"} ${i.currency}`.trim()], ["state", LINE_WORDS[i.state]], ["payment", PAY_WORDS[i.payment]]])}</div>
     ${note.mismatches.length ? `<details class="k-more"><summary>Show why</summary><ul>${note.mismatches.map((w) => `<li class="fine">${esc(w)}</li>`).join("")}</ul></details>` : ""}</section>`;
 }
@@ -324,6 +327,7 @@ export function renderStatements(el, ctx = {}) {
     const today = (ctx.now || new Date()).toISOString().slice(0, 10);
     let now, said;
     try { now = statementLines(st, status, today); said = statementAnswers(st, status, today); } catch { now = statementLines(st, null, today); said = statementAnswers(st, null, today); }
+    const assured = now.map((ln) => lineAssurance(st, status, ln));                       // the words of `knos assurance`, not the receipt's level
     const at = (name) => c.head.indexOf(name);
     const name = `statement-${String(st.invoice).replace(/[^\w.-]+/g, "-")}`;
     out.innerHTML = `<article class="k-statement" id="aps-statement" data-sha256="${esc(st.sha256)}" data-whole="${whole ? "1" : "0"}">
@@ -336,11 +340,15 @@ export function renderStatements(el, ctx = {}) {
         <button type="button" class="k-btn quiet" id="aps-print">Print or save as PDF</button>
         ${STATEMENT_FORMATS.map((f) => `<button type="button" class="k-btn quiet" data-aps-export="${esc(f)}">${esc({ quickbooks: "QuickBooks file", netsuite: "NetSuite file", generic: "Every line, generic" }[f])}</button>`).join(" ")}
         <span class="fine" id="aps-label">${esc(LABEL)}</span></div>
+      <div class="k-statement-tools no-print" id="aps-erp"><label for="aps-erp-to">Accounting system</label>
+        <select id="aps-erp-to" style="width:auto;max-width:100%">${Object.entries(ERP_TARGETS).map(([k, t]) => `<option value="${esc(k)}">${esc(t.name)}</option>`).join("")}</select>
+        <button type="button" class="k-btn" id="aps-erp-go">Download for your accounting system</button>
+        <span class="fine" id="aps-erp-said" role="status"></span></div>
       <div class="k-table" id="aps-answers">${tableHtml(esc, ["question", "answer"], said.map((a) => a.map(esc)))}</div>
       <div class="k-table" id="aps-lines">${tableHtml(esc, SHOWN, c.rows.map((r, n) => SHOWN.map((col) => (col === "state" ? `<span class="k-state" data-state="${esc(now[n].state)}">${esc(r[at(col)])}</span>${stepRowHtml(now[n].steps)}`
           + (now[n].owed ? `<p class="fine" data-owed><b>${esc(OWED_WORDS)}.</b> <a href="${APPEAL}" target="_blank" rel="noopener">Supplier: appeal</a></p>` : "")
-        : col === "evidence" ? link(r[at(col)]) : col === "amount" ? `<span class="k-num">${esc(group(r[at(col)]))}</span>` : esc(r[at(col)])))))}</div>
-      <details class="k-more" id="aps-grn"><summary>Match order, receipt, invoice</summary>${now.map((r) => grnHtml(esc, statementGrn(st, status, r.invoice_line))).join("")}</details>
+        : col === "assurance" ? assuranceHtml(esc, assured[n]) : col === "evidence" ? link(r[at(col)]) : col === "amount" ? `<span class="k-num">${esc(group(r[at(col)]))}</span>` : esc(r[at(col)])))))}</div>
+      <details class="k-more" id="aps-grn"><summary>Match order, receipt, invoice</summary>${now.map((r, n) => grnHtml(esc, statementGrn(st, status, r.invoice_line), assured[n])).join("")}</details>
       <details class="k-more"><summary>Show every id</summary>
         <div class="k-table" id="aps-ids">${tableHtml(esc, ["line", "deliverable", "evaluations", "invoice line", "settlement", "evidence sha256", "purchase order", "goods-received note"],
           c.rows.map((r) => [r[at("line")], r[at("deliverable")], r[at("evaluations")], r[at("invoice_line")], r[at("settlement")], r[at("evidence_sha256")], r[at("po_reference")], r[at("grn_reference")]].map((v) => `<span class="mono">${esc(v)}</span>`)))}</div>
@@ -354,6 +362,13 @@ export function renderStatements(el, ctx = {}) {
       root.classList.add("k-printing");
       doc.defaultView.addEventListener("afterprint", done);
       (ctx.print || (() => doc.defaultView.print()))();
+    };
+    $("aps-erp-go").onclick = async () => {                       // the payable file, then every other line on its own sheet: never in the payable
+      const to = $("aps-erp-to").value, got = await erpWrite(to, st, status, null, today);
+      // named as `knos statement export --to` names them: never the name of the QuickBooks or NetSuite file above
+      save(got.payable, `${name}.${to}.csv`);
+      if (got.heldLines) save(got.held, `${name}.${to}.held.csv`);
+      $("aps-erp-said").textContent = `${got.bills} ${got.bills === 1 ? "bill" : "bills"}; ${got.heldLines} held ${got.heldLines === 1 ? "line" : "lines"} on a separate sheet.`;
     };
     for (const b of out.querySelectorAll("[data-aps-export]")) b.onclick = async () => save(await statementExport(b.dataset.apsExport, st, status), `${name}-${b.dataset.apsExport}.csv`);
     return { whole, lines: now.length, states: Object.fromEntries(Object.keys(LINE_WORDS).map((s) => [s, now.filter((r) => r.state === s).length])) };

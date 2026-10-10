@@ -20,12 +20,12 @@
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
-import { chromiumOrSkip, TYPES, addedPages } from "./overflow.mjs";
+import { chromiumOrSkip, TYPES, addedPages, answerGitHub, CHECKED } from "./overflow.mjs";
 
 const root = process.argv[2], list = process.argv.includes("--list");
 if (!root || !existsSync(join(root, "index.html"))) { console.error("usage: node tests/web/words.mjs <site dir> [--list]"); process.exit(2); }
 export const PAGES = ["check", "buy", "index", "pricing", "story", "supplier", "keyholder", "verifier", "playground", "terms", "records", "invoice-statement", "shadow",
-  "fund", "claim", "protect", "install", "network", "status", "pilot", "capabilities", "reproduce", "build", "record"];
+  "fund", "claim", "protect", "install", "network", "status", "pilot", "capabilities", "reproduce", "build", "record", CHECKED.slice(1)];
 const RECORD_KEEPERS = ["records", "verifier", "network", "fund", "claim", "protect", "install", "build"];
 const FIRST = 40, STATEMENT = 12;
 let fails = 0;
@@ -40,17 +40,20 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}/`;
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" });
-await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));
+await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : answerGitHub(route)));
 const page = await ctx.newPage();
 
 for (const name of [...PAGES, ...addedPages(root)]) {
   await page.goto(`${base}?p=${name}#${name}`, { waitUntil: "load" });
-  await page.waitForFunction((n) => document.documentElement.dataset.ready === n, name);
+  const id = name.split("=")[0];                    // check=acme/app/7: the check of one pull request, on the first screen's view
+  await page.waitForFunction((n) => document.documentElement.dataset.ready === n, id);
+  if (name !== id) await page.waitForSelector("#check-share [data-share]", { timeout: 10000 });
   // the round under the first screen comes with the reader's first move (web/front.js): its words are counted too
   if (name === "check") { await page.mouse.move(3, 3); await page.waitForSelector("#demo .kd-go"); }
   await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(500);
   const got = await page.evaluate((name) => {
     const WORD = /[A-Za-z0-9][\w'’%.,/-]*/g, words = (t) => (t.match(WORD) || []).filter((w) => /[A-Za-z0-9]/.test(w));
+    name = name.split("=")[0];
     const mount = document.getElementById(name);
     const section = name !== "check" && mount && mount.classList.contains("mount") ? mount : document.getElementById(`view-${name}`);
     const drawn = (el) => el.checkVisibility({ visibilityProperty: true, opacityProperty: true }) && el.getClientRects().length > 0;
@@ -90,8 +93,8 @@ for (const name of [...PAGES, ...addedPages(root)]) {
     return { title: title ? title.textContent.trim().replace(/\s+/g, " ") : "", titleWords: title ? words(title.textContent).length : 0, under, lines, first: first.length, firstSaid: first.join(" "), long, banned, handles };
   }, name);
   if (list) console.log(`     ${name}: title ${got.titleWords} "${got.title}", ${got.under} under it (${got.lines} lines), first screen ${got.first}, long ${got.long.length}, record words ${got.banned.length}`);
-  if (name !== "check") check(`${name}: the title is 3 to 6 words`, got.titleWords >= 3 && got.titleWords <= 6, got.title);
-  if (name !== "check") check(`${name}: at most one line under the title, then the thing itself`, got.under <= 1 && got.lines <= 1, [got.under, got.lines]);
+  if (id !== "check") check(`${name}: the title is 3 to 6 words`, got.titleWords >= 3 && got.titleWords <= 6, got.title);
+  if (id !== "check") check(`${name}: at most one line under the title, then the thing itself`, got.under <= 1 && got.lines <= 1, [got.under, got.lines]);
   check(`${name}: the first screen says ${FIRST} words at most, the bar apart (${got.first})`, got.first <= FIRST, got.firstSaid);
   check(`${name}: no statement is longer than ${STATEMENT} words`, got.long.length === 0, got.long);
   if (!RECORD_KEEPERS.includes(name)) check(`${name}: nothing about a wallet, a hash, a pin or a token account before the reader asks`, got.banned.length === 0, got.banned);

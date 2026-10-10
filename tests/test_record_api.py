@@ -75,7 +75,7 @@ def test_the_free_file_stays_free_and_a_lookup_without_payment_is_a_402_that_nam
     assert status == 402 and record_api.decode(headers["PAYMENT-REQUIRED"]) == body and body["extensions"]["knos-order"]["info"]["proposal"] is True
     assert (req["scheme"], req["amount"], req["extra"]["record"]["price"], req["extra"]["record"]["lookups"]) == ("knos-order", "5000000", "100000", 50)
     assert req["extra"]["order"] == record_api.order_address(off, str(key.pubkey())) and req["extra"]["fee"] == str(fees.rule().order(PACK))
-    assert server.handle("/lookup/nobody-here", {})[0] == 404 and server.handle("/lookup/../x", {})[0] == 404      # nothing is charged for nothing
+    assert server.handle("/lookup/nobody-here", {})[0] == 404 and server.handle("/lookup/../x", {})[0] == 400      # nothing is charged for nothing
     # the program takes no order under 5.00: one lookup cannot be one order, which is why an order buys fifty
     assert pay.ORDER_MIN_AMOUNT == record_api.PACK * record_api.PRICE == PACK
     key2, tok2, _ = agent(c, 72)
@@ -142,7 +142,7 @@ def test_the_caller_checks_the_402_against_its_own_limits_and_the_server_checks_
     elsewhere = c.fund_wallet(amount=PACK)
     got = ask(c, server, c.funder, a_fund, order=str(elsewhere))
     assert got["status"] == 402 and "another resource" in got["body"]["error"]
-    assert server.handle("/lookup/codex", {"PAYMENT-SIGNATURE": "not base64"})[0] == 402
+    assert server.handle("/lookup/codex", {"PAYMENT-SIGNATURE": "not base64"})[0] == 400      # refused before the chain is read
 
 
 def test_the_server_answers_on_a_socket():

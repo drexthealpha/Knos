@@ -1,0 +1,11 @@
+{
+ "what": "A made-up pull request (acme/app#7) as GitHub's public REST API answers for it: what tests/web/front_door.mjs serves when it times the first verdict and counts the presses. Its description claims the tests pass; its test check failed.",
+ "pr": "https://github.com/acme/app/pull/7",
+ "api": {
+  "repos/acme/app/pulls/7": {"number": 7, "state": "closed", "merged": true, "merged_at": "2026-09-28T10:00:00Z", "title": "Add a retry to the uploader", "body": "Adds one retry when the upload times out.\n\nAll tests pass.", "user": {"login": "acme-agent[bot]", "type": "Bot"}, "html_url": "https://github.com/acme/app/pull/7", "head": {"sha": "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a", "ref": "retry"}, "base": {"ref": "main", "repo": {"full_name": "acme/app", "default_branch": "main"}}},
+  "check-runs": {"total_count": 2, "check_runs": [{"name": "test", "status": "completed", "conclusion": "failure", "html_url": "https://github.com/acme/app/runs/1"}, {"name": "lint", "status": "completed", "conclusion": "success", "html_url": "https://github.com/acme/app/runs/2"}]},
+  "status": {"state": "pending", "total_count": 0, "statuses": [], "sha": "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a"},
+  "statuses": [],
+  "commits": [{"sha": "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a"}]
+ }
+}

@@ -1,6 +1,6 @@
 {
  "note": "Written by scripts/upgrade_feed.py from the upgrade multisig's accounts. Do not edit.",
- "generated": "2026-10-09T11:34:34Z",
+ "generated": "2026-10-10T01:51:59Z",
  "cluster": "devnet",
  "feed": "https://drexthealpha.github.io/Knos/upgrades.xml",
  "multisig": "9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK",

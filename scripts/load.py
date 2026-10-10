@@ -753,8 +753,16 @@ def paid_rows(m: dict, kind: str) -> list[str]:
                  "them, through one fee account. This is a one-relay figure, not a ceiling of the program.")
     if m.get("scenario"):
         said += f" Scenario {m['scenario']}: {m.get('measures', '')}. Retries: {m.get('retries', 0)}; failures: {m.get('failures', 0)}."
-        if m.get("duplicates_refused"):
-            said += f" Duplicates refused by the chain (a resend of a payment that had landed): {m['duplicates_refused']}."
+        if m.get("duplicates_refused") or "fanout" in m:
+            said += f" Duplicates refused by the chain (a resend of a payment that had landed): {m.get('duplicates_refused', 0)}."
+        if m.get("fanout"):
+            f = m["fanout"]
+            said += (f" Fan-out (knos.settle.v2.fanout): every signed transaction went to {f.get('endpoints')} endpoint(s), "
+                     f"{f.get('second_endpoints', 0)} of them a second endpoint, the same bytes again every {f.get('resend_every_s')} s while no "
+                     f"endpoint had taken them, confirmed by its signature's status ({f.get('confirm_by')}), at most {f.get('gives_up_after_s')} s "
+                     "a transaction; "
+                     f"{f.get('sends', 0):,} sends, {f.get('resends', 0):,} resends, {f.get('no_answer', 0):,} requests with no answer, "
+                     f"{f.get('status_polls', 0):,} status polls.")
         if m.get("faults_injected"):
             f = m["faults_injected"]
             said += f" Injected: {f.get('refused', 0)} of {f.get('sends', 0)} sends refused, {f.get('lost', 0)} answers lost."

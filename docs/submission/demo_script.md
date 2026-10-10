@@ -60,7 +60,7 @@ every one, and [MANIFEST.md](../MANIFEST.md) ties each to the build that is live
 
 | beat | capability | stage |
 |---|---|---|
-| one | `fund_by_comment` | deployed on devnet |
+| one | `fund_by_comment` | exercised on devnet |
 | one | `work_orders` | exercised on devnet |
 | two | `tests_mode` | exercised on devnet |
 | two | `refusal_table` | tested locally |
@@ -68,7 +68,7 @@ every one, and [MANIFEST.md](../MANIFEST.md) ties each to the build that is live
 | four | `statements` | tested locally |
 | five | `single_use_tokens` | exercised on devnet |
 | five | `ledger_dedup` | tested locally |
-| six | `pay_on_merge` | deployed on devnet |
+| six | `pay_on_merge` | exercised on devnet |
 | six | `order_pay` | exercised on devnet |
 | six | `finance_exports` | tested locally |
 | seven | `receipt` | tested locally |

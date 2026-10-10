@@ -17,6 +17,7 @@ does not prove. [`examples/issuers`](../examples/issuers) has one example per is
 | require a fact an issuer signed in your own program (which repository, branch and workflow; which cloud service account) | [`crates/knos-oidc-interface`](../crates/knos-oidc-interface): no dependency, reads a verified token account; no CPI | [`examples/oidc_gate`](../examples/oidc_gate) (`tests/test_oidc_gate.py`): a release gate, and the template to copy; [`examples/issuers`](../examples/issuers) (`tests/test_issuers.py`): ten issuers |
 | start a program of your own that reads the verifier | the same crate, by tag, from outside this repository | [`examples/reader_template`](../examples/reader_template) (`tests/test_reader_template.py`): a whole program in a workspace of its own. Copy the folder, change two constants, build, deploy with your own key. Its README lists the five mistakes a reader can make and the line that prevents each |
 | decide something in an application from a Knos receipt, with no program | `knos.badge.verified(receipt)` in Python; `renderVerified` of [`web/badge.js`](../web/badge.js) | [`examples/receipt_consumer/show_badge.py`](../examples/receipt_consumer/show_badge.py) (`tests/test_badge.py`): 55 lines that show the "Knos-verified" badge only when the receipt checks and its verdict is accepted. The badge cannot be bought |
+| decide in another language, with no Knos package and no Knos site, whether an order is paid, by which transaction, under which terms hash | the receipt's JSON Schema ([`docs/receipt/`](receipt)), the IDL ([`idl/knos_pay_v2.json`](../idl/knos_pay_v2.json)) and any Solana RPC endpoint | [`examples/consumer`](../examples/consumer) (`node --test examples/consumer/test.mjs`, `tests/test_consumer.py`): Node with no package; a receipt or a statement's status file in, a decision and what it trusts out |
 | hold tokens that only a workflow can spend, with no private key | the same crate, with the key account so a revoked key stops at once | [`examples/workflow_vault`](../examples/workflow_vault) (`tests/test_workflow_vault.py`): a vault that pays on `vault:<vault>:<to>:<amount>:<nonce>` from one workflow file at one commit |
 | state on chain that GitHub's runner built an executable from a commit, and gate upgrades on it | the same crate | [`examples/upgrade_gate`](../examples/upgrade_gate) (`tests/test_upgrade_gate.py`); `scripts/governance.mjs upgrade propose` refuses a buffer without a record unless `--ungated` |
 | fund a work order from your own program (a DAO treasury, a grants program) | [`crates/knos-pay-interface`](../crates/knos-pay-interface): `solana-program` only; ids, addresses, FundOrderWallet, TopUp, RefundOrder, the Order reader | [`examples/cpi_fund`](../examples/cpi_fund) (`tests/test_cpi_fund.py`): a treasury PDA funds, tops up, and is refunded |
@@ -58,6 +59,28 @@ The verifier on devnet is `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` (`knos-
 What you then hold in your program is GitHub's signature over which repository, which commit, which workflow file at
 which commit and which audience, checked by a program on chain. It is the issuer's word that these claims were
 signed, not proof of what the workflow read or decided ([VERIFIER.md](VERIFIER.md)).
+
+## Use the record without Knos
+
+A receipt and a statement's status file can be checked by an application that has neither Knos's Python package nor
+its site. [`examples/consumer`](../examples/consumer) is one, in Node with no package:
+
+```bash
+node examples/consumer/consumer.mjs receipt RECEIPT.json --rpc https://api.devnet.solana.com
+node examples/consumer/consumer.mjs status STATUS.json --rpc https://api.devnet.solana.com
+```
+
+**What it verifies.** The receipt fits its published schema. The transaction it names is finalized, did not fail,
+and holds knos_pay's PayOrder, SettleOrder or Release of that order (the IDL's tags and account places). knos_pay's
+own log lines, not another program's, paid those wallets those amounts, that fee and that tip; the token balances
+agree when the answer has them. The order's funding fixed the terms hash the receipt states: the sha256 of the terms
+the funding logged, or a private order's hash from its funding instruction. The deliverable and settlement ids are
+the ones the order and the transaction give. For a status file, each payment on chain is checked the same way and
+tied to its line's deliverable and settlement ids.
+
+**What it trusts.** The cluster's answers (ask a second endpoint to remove that); that the program at the IDL's
+address is knos_pay as published, whose upgrades pass a multisig with a public delay; and the acceptance itself, which
+the forge signed and knos_oidc checked on chain before knos_pay paid, and which this program does not re-read.
 
 ## Who reads the verifier
 

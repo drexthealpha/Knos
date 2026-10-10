@@ -176,7 +176,7 @@ class Forge:
         if len(where) == 3 and where[0] == "issues" and where[2] == "comments":
             if method == "GET":
                 return self.comments.get(int(where[1]), [])
-            self.comments.setdefault(int(where[1]), []).append({"user": OWNER, "body": body["body"]})
+            self.comments.setdefault(int(where[1]), []).append({"user": OWNER, "body": body["body"], "created_at": f"{self.day}T10:00:00Z"})
             return {}
         if where[:1] == ["labels"]:
             if method == "GET":
@@ -350,10 +350,10 @@ def test_the_tasks_that_are_not_code_open_first_paid_on_the_merge_within_the_day
     assert {f for f in out if f.startswith(".knos/acceptance/15/")} and out["board.json"] == forge.files["board.json"]
 
 
-def test_a_task_whose_order_no_merge_can_pay_is_closed_with_the_chains_sentence_and_opened_again():
-    """A release rebuilds the playground at the next commit of the workflows, and every order funded before names the
-    commit before: no merge can pay it (knos-playground #6 to #13 in 0.3.20). The board reads each order back and
-    opens the task again, within the day's budget."""
+def test_a_task_whose_order_is_past_its_deadline_is_closed_with_the_chains_sentence_and_opened_again():
+    """An order past its deadline (or no longer open) can pay no merge: the board reads each order back, closes the
+    issue with the chain's sentence and opens the task again, within the day's budget. (An order stranded by the
+    workflows' pin alone is funded again in place: the next test.)"""
     from knos import tasks
     forge = Forge()
     run(forge, "open", "--apply", "--faucet", "-n", "3")
@@ -363,18 +363,18 @@ def test_a_task_whose_order_no_merge_can_pay_is_closed_with_the_chains_sentence_
     def why(where, pull):
         asked.append((where, pull))
         if where.endswith("#5"):
-            return tasks.explain({"where": where, "orders": [{"state": "open", "wf_public": True, "wf_sha": "b" * 40, "called": False}]})
+            return tasks.explain({"where": where, "orders": [{"state": "open", "wf_public": True, "wf_sha": "b" * 40, "called": True, "past": True}]})
         return payable(where, pull)
     forge.day = "2026-10-08"
     wrote = len(forge.wrote)
     code, said, _ = run(forge, "plan", "-n", "3", now=NOW + 86_400, why=why)
     assert code == 0 and len(forge.wrote) == wrote and sorted(asked) == [(f"{playground.REPO}#{n}", None) for n in (4, 5, 6)]
-    assert (f"  stranded #5: The order on {playground.REPO}#5 was funded through commit bbbbbbbbbbbb of the public workflows, which the repository no "
-            "longer calls, so the public worker's signed run cannot pay it. open --apply closes it with that sentence, and its task can be opened again.") in said
-    assert "2 funded tasks open, 0 half opened, 1 to open" in said
+    assert (f"  stranded #5: The order on {playground.REPO}#5 is past its deadline: it pays nobody now and goes back to its funder. "
+            "open --apply closes it with that sentence, and its task can be opened again.") in said
+    assert "2 funded tasks open, 0 half opened, 1 to open" in said and "re-pin" not in said
     code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "3", now=NOW + 86_400, why=why)
     assert code == 0 and [i["state"] for i in forge.issues] == ["open", "closed", "open", "open"]
-    assert forge.comments[5][-1]["body"].startswith(f"The order on {playground.REPO}#5 was funded through commit bbbbbbbbbbbb") and tb.FIRST in forge.comments[5][-1]["body"]
+    assert forge.comments[5][-1]["body"].startswith(f"The order on {playground.REPO}#5 is past its deadline") and tb.FIRST in forge.comments[5][-1]["body"]
     assert tb.MARK.search(forge.issues[-1]["body"]).group(1) == SLUGS[3] and [c["body"] for c in forge.comments[7]] == [tb.fund_line(tb.load(SLUGS[3]))]
     asked.clear()                                                            # closed now: never read, never closed twice
     code, said, _ = run(forge, "open", "--apply", "--faucet", "-n", "3", now=NOW + 86_400, why=why)
@@ -387,37 +387,64 @@ def test_a_task_whose_order_no_merge_can_pay_is_closed_with_the_chains_sentence_
     assert code == 1 and len(forge.wrote) == wrote and "could not be read (devnet did not answer): nothing was sent" in said
 
 
-def test_after_a_rebuild_new_kinds_open_first_and_a_task_a_person_works_on_is_not_closed(monkeypatch):
-    """0.3.21: the release rebuilds the playground at the next commit, so every open order strands, and five new kinds
-    wait. Within one day's budget the kinds never offered go first; a stranded issue that a stranger's open pull request
-    names stays open, said, and is not opened again."""
+def test_after_a_rebuild_every_task_stranded_by_the_pin_is_funded_again_in_place_and_none_is_closed(monkeypatch):
+    """0.3.24: the release rebuilt the playground at the next commit of the workflows, so every open order named the
+    commit before and no merge could pay it (knos-playground #22 to #29); `open --apply` would have closed all eight and,
+    the day's budget spent, opened none. Now each stays open: the chain's sentence, then the task funded again on the
+    same issue through the commit the playground calls now, first in the day's budget; a task a person works on too.
+    A second run funds nothing twice; what does not fit today's budget waits for tomorrow."""
     from knos import tasks
     every = tb.kinds()
     old, new = every[:5], every[5:]
-    assert [k["kind"] for k in new] == ["compose", "gate", "keyholder", "tamper", "witness"]
     forge = Forge()
     monkeypatch.setattr(tb, "kinds", lambda: old)
     assert run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "3", "--budget", "60")[0] == 0
     monkeypatch.setattr(tb, "kinds", lambda: every)
     assert [tb.MARK.search(i["body"]).group(1) for i in forge.issues] == [k["slug"] for k in old] + SLUGS[:3]       # #4-#8 kinds, #9-#11 code
-    forge.pulls = [{"number": 40, "user": STRANGER, "state": "open", "body": "Closes #5"},                          # a person works on #5
-                   {"number": 41, "user": OWNER, "state": "open", "body": "Closes #6"}]                             # the owner's own is no person's work
+    forge.pulls = [{"number": 40, "user": STRANGER, "state": "open", "body": "Closes #5"}]                          # a person works on #5
+    pin = tb._pinned().pin()
+    seen: dict[int, int] = {}
 
-    def pin(where, pull):
+    def why(where, pull):
+        n = int(where.rsplit("#", 1)[1])
+        seen[n] = seen.get(n, 0) + 1
         return tasks.explain({"where": where, "orders": [{"state": "open", "wf_public": True, "wf_sha": "b" * 40, "called": False}]})
     forge.day = "2026-10-08"
-    code, said, _ = run(forge, "plan", "--kinds", "-n", "3", now=NOW + 86_400, why=pin)
-    assert code == 0 and "  left open #5: no merge can pay its order, but pull request #40 of @stranger names it and is open" in said
-    assert "stranded #6:" in said and "stranded #5:" not in said
-    code, said, _ = run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "3", now=NOW + 86_400, why=pin)
-    assert code == 0
-    assert {i["number"]: i["state"] for i in forge.issues if i["number"] <= 11} == {4: "closed", 5: "open", 6: "closed", 7: "closed", 8: "closed",
-                                                                                   9: "closed", 10: "closed", 11: "closed"}
-    assert not [c for c in forge.comments[5] if "funded through" in c["body"]]
-    opened = [tb.MARK.search(i["body"]).group(1) for i in forge.issues if i["number"] > 11]
-    assert opened == [k["slug"] for k in new] + ["outside-reproduce", "outside-fund", "outside-install"]          # 8 x 5.05 = 40.40 of 45.00
-    assert "today's budget of 45.00 test USDC is used up to 40.40 test USDC: outside-judge (5.05 test USDC with its fee) waits for tomorrow (UTC)" in said
-    assert all([c["body"] for c in forge.comments[n]] == [f"/knos fund 5 days {tb.KIND_DAYS}"] for n in range(12, 20))
+    code, said, _ = run(forge, "plan", "--kinds", "-n", "3", now=NOW + 86_400, why=why)
+    assert code == 0 and "stranded #" not in said and "left open #" not in said
+    assert (f"  re-pin #5: The order on {playground.REPO}#5 was funded through commit bbbbbbbbbbbb of the public workflows, which the repository no longer "
+            f"calls, so the public worker's signed run cannot pay it. open --apply funds it again in place, through commit {pin[:12]} of the public "
+            "workflows (5.05 test USDC with its fee); the old order goes back at its deadline. The issue stays open.") in said
+    assert said.count("  re-pin #") == 8 and "8 funded tasks open, 0 half opened, 0 to open" in said
+    assert "Today (UTC): 40.40 test USDC opened of a budget of 45.00 test USDC" in said
+    wrote = len(forge.wrote)
+    code, said, slept = run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "3", now=NOW + 86_400, why=why)
+    assert code == 0 and all(i["state"] == "open" for i in forge.issues) and len(forge.issues) == 8                 # nothing closed, nothing opened
+    for n in range(4, 12):
+        sent = [c["body"] for c in forge.comments[n]]
+        t = tb.load(SLUGS[n - 9]) if n >= 9 else next(k for k in old if k["slug"] == tb.MARK.search(forge.issues[n - 4]["body"]).group(1))
+        assert sent[-2].startswith(f"The order on {playground.REPO}#{n} was funded through commit bbbbbbbbbbbb") and "The task stays open" in sent[-2]
+        assert tb.REPINNED.findall(sent[-2]) == [pin] and tb.FIRST in sent[-2] and sent[-1] == tb.fund_line(t)
+    assert len(slept) == 7 and set(slept) == {tb.PACE}                                                             # the faucet's minute between fundings
+    assert (f"today's budget of 45.00 test USDC is used up to 40.40 test USDC: {new[0]['slug']} (5.05 test USDC with its fee) waits for tomorrow (UTC)") in said
+    assert len([w for w in forge.wrote[wrote:] if w[0] == "PATCH"]) == 0
+    # again: each is funded at this commit already, so nothing is sent; the chain is still asked (its old order is still open)
+    wrote = len(forge.wrote)
+    code, said, _ = run(forge, "open", "--apply", "--faucet", "--kinds", "-n", "3", now=NOW + 86_400, why=why)
+    assert code == 0 and "re-pin #" not in said and [w for w in forge.wrote[wrote:] if "comments" in w[1] or w[0] == "PATCH"] == []
+
+
+def test_a_re_pin_that_does_not_fit_the_days_budget_waits_and_never_goes_below_the_reserve():
+    from knos import tasks
+    forge = Forge()
+    run(forge, "open", "--apply", "--faucet", "-n", "3")
+
+    def why(where, pull):
+        return tasks.explain({"where": where, "orders": [{"state": "open", "wf_public": True, "wf_sha": "b" * 40, "called": False}]})
+    forge.day = "2026-10-08"
+    code, said, _ = run(forge, "plan", "-n", "3", "--budget", "10.10", now=NOW + 86_400, why=why)
+    assert code == 0 and said.count("  re-pin #") == 2
+    assert f"  re-pin waits: today's budget of 10.10 test USDC is used up to 10.10 test USDC: #6 {SLUGS[2]} (5.05 test USDC with its fee) is funded again tomorrow (UTC)" in said
 
 
 @pytest.fixture(scope="module")

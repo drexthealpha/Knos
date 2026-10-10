@@ -149,8 +149,9 @@ jobs:
   # prints SKIP and exits 0 when it finds no browser, which is right on a laptop and wrong here: the last step fails
   # the job if any of them said SKIP.
   # Two jobs side by side, each with its own Chromium and its own build of the site: one alone took 4m49s and then
-  # 5m07s (run 37570042831), over the 5 minutes. Part 1: the client's and the site's numbers, the built site, the live
-  # round and the board. Part 2: the pages driven on that build, and every other file of tests/web/.
+  # 5m07s (run 37570042831), over the 5 minutes. Part 1: the client's and the site's numbers, the built site, the launch
+  # pages and the page's speed, the live round and the board. Part 2: the pages driven on that build, and every other
+  # file of tests/web/.
   sdk:
     name: web (node tests/web/*.mjs in headless Chromium, ${{ matrix.part }} of 2)
     strategy:
@@ -230,6 +231,15 @@ jobs:
         run: |
           {
           node tests/web/site.mjs "$RUNNER_TEMP/site"
+          } 2>&1 | tee -a "$WEB_LOG"
+      # Two of the loop's slowest files run here, in part 1: with them part 2 took 5m00s and part 1 2m04s on a0023fa3
+      # (run 38009934380; the loop over the other files 186 s of it, launch.mjs 51 s and perf.mjs 39 s).
+      - if: matrix.part == 1
+        name: the launch pages (404, privacy, a data file that does not load) and how fast the first screen answers, on that build
+        run: |
+          {
+          node tests/web/launch.mjs "$RUNNER_TEMP/site"
+          node tests/web/perf.mjs "$RUNNER_TEMP/site"
           } 2>&1 | tee -a "$WEB_LOG"
       - if: matrix.part == 2
         name: the first screen's round, the verifier, the playground, the Terms page, the budget of what moves and every page at five widths, each in headless Chromium on that build

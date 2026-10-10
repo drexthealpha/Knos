@@ -531,13 +531,13 @@ export async function statementCsv(st, status = null) {
     ...c.events, ["note", st.note]];
   return out.map((row) => `${row.map(stCell).join(",")}\n`).join("");
 }
-/** exports.write_statement: the file an accounting system imports. Agreed lines only are bills; the generic file lists every line. */
+/** exports.write_statement: the file an accounting system imports. Agreed lines not owed to the supplier are bills; the generic file lists every line. */
 export async function statementExport(fmt, st, status = null, options = null) {
   if (!STATEMENT_FORMATS.includes(fmt)) throw new Error(`--format is ${STATEMENT_FORMATS.join(", ")}; "${fmt}" is none of them.`);
   const o = { ...DEFAULTS, ...Object.fromEntries(Object.entries(options || {}).filter(([, v]) => v)) }, found = [];
   for (const ln of statementLines(st, status)) {
     const words = LINE_WORDS[ln.state], paid = PAY_WORDS[ln.payment];
-    found.push({ bill: ln.state === "agreed", bill_no: await billNumber(ln.deliverable, ln.supplier), line: ln.line, state: words, payment: paid, date: st.date, supplier: ln.supplier,
+    found.push({ bill: ln.state === "agreed" && !ln.owed, bill_no: await billNumber(ln.deliverable, ln.supplier), line: ln.line, state: words, payment: paid, date: st.date, supplier: ln.supplier,
       reference: ln.reference, amount: ln.amount, currency: st.currency, why: ln.why, deliverable: ln.deliverable, evaluations: ln.evaluations.join(" "), invoice_line: ln.invoice_line,
       settlement: ln.settlement || "", evidence: ln.evidence, evidence_sha256: ln.evidence_sha256, duplicate_of: ln.duplicate_of, statement_sha256: st.sha256,
       po_reference: ln.po_reference, grn_reference: ln.grn_reference, assurance: ln.assurance,

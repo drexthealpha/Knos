@@ -69,6 +69,54 @@
    "note": "Runs in GitHub Actions and on the author's machine: there is no program to deploy."
   },
   {
+   "id": "pr_check_browser",
+   "what": "Any public pull request pasted on the site is checked in the browser with the Agent PR Index's own rules, no login.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/check_rules.js",
+     "names": "export function findClaim"
+    },
+    "tested": {
+     "test": "tests/test_check_rules.py",
+     "names": "test_python_and_the_browser_agree_on_every_recorded_pull_request"
+    }
+   },
+   "note": "Reads GitHub's public API from the reader's browser: 60 requests an hour per address without a login. Agrees with scripts/agent_pr_ci.py on all 349 recorded pull requests."
+  },
+  {
+   "id": "share_check",
+   "what": "A check's result is shared as a link, copied text, an X post box and a 1200 x 630 PNG card; nothing is posted automatically.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/share.js",
+     "names": "export function postUrl"
+    },
+    "tested": {
+     "test": "tests/test_share.py",
+     "names": "test_a_check_is_shared_by_link_copy_post_card_and_badge"
+    }
+   },
+   "note": "Link previews show the site's own card: crawlers run no script."
+  },
+  {
+   "id": "readme_badge",
+   "what": "A static README badge links a repository's readers to the check of its pull requests.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/share.js",
+     "names": "export function checkedBadgeSvg"
+    },
+    "tested": {
+     "test": "tests/test_share.py",
+     "names": "test_the_badge_is_a_static_svg_that_fetches_nothing"
+    }
+   },
+   "note": "Offered only to a repository that merged a pull request in the last 30 days. No repository is known to show it."
+  },
+  {
    "id": "install_by_pull_request",
    "what": "One link opens a pull request that installs Knos in a repository, with no secret.",
    "stage": "tested",
@@ -193,7 +241,8 @@
      "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
      "version": "2.0"
     }
-   }
+   },
+   "note": "Not exercised at the public id: Knos has no project on gitlab.com, so no pipeline signs a token for it. The round `gitlab` of scripts/exercise_public.py runs once a project of the maintainer's own is noted (`note gitlab project=...`); one owner can do it."
   },
   {
    "id": "verify_any_issuer",
@@ -229,12 +278,13 @@
      "id": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
      "version": "2.0"
     }
-   }
+   },
+   "note": "Not exercised at the public id: no transaction of the guardian is recorded there. The round `guardian` approves, with the maintainer's member keys, a key an issuer published and the rotate run registered, and only one that waits for approval; when none waits it says `cannot`. It never revokes a live key, because a revocation is for ever."
   },
   {
    "id": "fund_by_comment",
    "what": "One comment on an issue funds a task from the repository owner's Balance.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/fund.rs",
@@ -248,8 +298,17 @@
      "program": "knos_pay",
      "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
      "version": "2.0"
+    },
+    "exercised": {
+     "signature": "5DSN3BjKCUCLDGE2TsEoiLAEXv353jiVLbkm2RLxBUZD8ha58tUquYenoPZAsF5sBfaiCKPmqZVnwrE7UCsgvKrh",
+     "ids": "public",
+     "round": "tip",
+     "asserted": [
+      "a `/knos tip` comment in repository 1401439243 funded job #248 with 1.00 from the Balance D6SMFJDEE3G7Bp3GirkXPftUg2uyDdXq7ZjWEDo5XYQ7, as the token named"
+     ]
     }
-   }
+   },
+   "note": "Not exercised at the public id: with knos_pay 2.2 live, `/knos fund` makes a work order, and only `/knos tip` on a merged pull request still funds a job from the Balance. The round `tip` reads that funding from a tip in the maintainer's own repository; one owner can do it."
   },
   {
    "id": "fund_from_wallet",
@@ -282,7 +341,7 @@
   {
    "id": "pay_on_merge",
    "what": "A merge that GitHub signs pays the author of the pull request.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/pay.rs",
@@ -296,8 +355,17 @@
      "program": "knos_pay",
      "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
      "version": "2.0"
+    },
+    "exercised": {
+     "signature": "4pe3fFbF6Fg7HVvCUE7RG8vqG7zxvuY4f421zRMdR4Ft9xWqPpqWCTTX1vWcHAf4AHeKJZxgTYb6gvdSdM9D69W",
+     "ids": "public",
+     "round": "tip",
+     "asserted": [
+      "the merge GitHub signed paid 0.95 to the author (142920951) at 9a6RmArU8cfKGqWRfXU2i8xGXsvVFiNs97ZMVuYyozcW, fee 0.05"
+     ]
     }
-   }
+   },
+   "note": "Not exercised at the public id: a job is paid only on a tip now. The round `tip` reads the payment of a tip to a pull request whose author has a wallet bound (the maintainer's own); one owner can do it."
   },
   {
    "id": "hold_and_bind",
@@ -317,7 +385,8 @@
      "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
      "version": "2.0"
     }
-   }
+   },
+   "note": "Cannot be exercised by one owner: a job is held only for a payee whose GitHub account has no wallet bound, and that account binds a wallet from a run it starts in its own repository. The maintainer's only account has a wallet bound. The held half needs another person's account, and the bind is that person's to start."
   },
   {
    "id": "refund",
@@ -352,7 +421,7 @@
   {
    "id": "pause",
    "what": "The guardian pauses new funding for a limited time and money in escrow still leaves.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/fund.rs",
@@ -366,8 +435,25 @@
      "program": "knos_pay",
      "id": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
      "version": "2.0"
+    },
+    "exercised": {
+     "signature": "61ym68vUNFdAYeDZiMHvUpHErWHLMLwfAMHyRyxF1oAQkx2usqVCsfjvWJD7Q9Eyn9v5vC6kGKnhkXVjpUqQEUsr",
+     "ids": "public",
+     "round": "pause",
+     "asserted": [
+      "the pause account read a time 120 s ahead after the guardian's proposal executed, and 0 after the lift",
+      "a funding sent meanwhile landed and failed with error 96 (new funding is paused)"
+     ],
+     "refusals": [
+      {
+       "signature": "qJZKT9pgvsnTQiKxk1TxzAEzahqF5cQwgM8VviwcRrBHMxwYmMGGvjMDkxXpUp1krrwgJ4cfcHNzYkKjWCXTjYA",
+       "error": 96,
+       "means": "new funding is paused"
+      }
+     ]
     }
-   }
+   },
+   "note": "Not exercised at the public id. The round `pause` has the guardian multisig (2 of 3 keys, all the founder's) pause new funding for 120 s, holds one funding of its own to error 96, and lifts the pause at once."
   },
   {
    "id": "work_orders",
@@ -848,7 +934,7 @@
   {
    "id": "meter_single",
    "what": "One attested evaluation is counted once on chain, with no escrow.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_meter/src/meter.rs",
@@ -862,8 +948,18 @@
      "program": "knos_meter",
      "id": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
      "version": "1.0"
+    },
+    "exercised": {
+     "signature": "4Ak4At4DPuBem2sAUbi6nRGcT9qME8p3RoNQRPmEPb6yYApa91thktndj3t3N5GJtTt7U3iq8TNRiUwN8XThogoo",
+     "ids": "public",
+     "round": "meter-single",
+     "asserted": [
+      "the evaluation's mark 2kkPozqdQuR3GMumvgJtQ8tGrnzXSJ1d5e46HwQ56HbF holds its verdict (accepted) and its fee",
+      "the same token again was answered `already`: counted once, and the retry sent nothing"
+     ]
     }
-   }
+   },
+   "note": "Not exercised at the public id. The round `meter-single` relays one evaluation token from attest.yml in the maintainer's own repository, reads its mark, and sends the token again to show the retry is free."
   },
   {
    "id": "meter_batch",
@@ -926,7 +1022,7 @@
   {
    "id": "passkey_payee_wallet",
    "what": "A payee is paid to a wallet that only a passkey can spend from.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_passkey/src/lib.rs",
@@ -940,8 +1036,19 @@
      "program": "knos_passkey",
      "id": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
      "version": "1.0"
+    },
+    "exercised": {
+     "signature": "321WqsCLh89n4Cbydc3RwKB2Ps2zQKWJDmMjhwtQMpvCuGw9KmvNVVsVT5kxXsTqeMc2z6coPBwgXbp2iJYjpetq",
+     "ids": "public",
+     "round": "passkey-payee",
+     "asserted": [
+      "0.10 test USDC reached the wallet's address 5JVVuW4wYB8EjNvNKR9SiAdpDswH6vPDM1CxUN9DTsEm before any account existed there",
+      "one transaction opened the wallet and withdrew 0.10, verified by the secp256r1 precompile (withdrawal number 1)",
+      "the passkey was a P-256 key the round held in software, not a platform authenticator"
+     ]
     }
-   }
+   },
+   "note": "Not exercised at the public id. The round `passkey-payee` pays 0.10 test USDC to a passkey wallet that has no account yet, then opens it and withdraws in one transaction. The passkey is a P-256 key the round holds in software, not a platform authenticator, and the record says so."
   },
   {
    "id": "passkey_funder",
@@ -1316,7 +1423,7 @@
   {
    "id": "upgrade_gate",
    "what": "A program records that GitHub's runner built exactly the bytes of a proposed upgrade.",
-   "stage": "deployed",
+   "stage": "exercised",
    "evidence": {
     "implemented": {
      "path": "examples/upgrade_gate/src/lib.rs",
@@ -1330,8 +1437,20 @@
      "program": "upgrade_gate",
      "id": "2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW",
      "version": "1.0"
+    },
+    "exercised": {
+     "signature": "1Wq1hLtuNyXCR5coKhxt9duMpBSmt4sai1pad1sJi7hVrUrmDan5kFQ4SffkNEgPMv5qo38TZKptnNkaSjrgpw3",
+     "ids": "public",
+     "round": "gate",
+     "asserted": [
+      "knos_meter runs build 10f2b6cbb4983527... at its public id, and upgrade_gate's record Fk2yuykL5yXBPDpX6gZJJpAeCGBrioeARSB716K2XdVc ties it to commit 6eb81dd152bd6cf752ee6c151b692f4a08815ae5 and run 37237561915 of program.yml",
+      "knos_oidc runs build a2df952d262c48ed... at its public id, and upgrade_gate's record 7ftWndYyjyVZMRRp9pLq2UzbRdnHSZXA715AzYz7NpNQ ties it to commit f03ec515d8666c46e3fdc6bb0123bc0786d5dd75 and run 37523515307 of program.yml",
+      "knos_passkey runs build a9ce7a06fb99196c... at its public id, and upgrade_gate's record EdwcNsEm41STXCePxWxBy5qPquBZozNmfTzCjS99FeSk ties it to commit 6eb81dd152bd6cf752ee6c151b692f4a08815ae5 and run 37237561915 of program.yml",
+      "knos_pay runs build 8b3c044024eac6e0... at its public id, and upgrade_gate's record 8cncbo2WGpjEQhP4xSUMfbLraScruBvLgbqh2EJo5qEi ties it to commit f8bcd9d51eda5e093cc92b0bcf0c8cc3676fa556 and run 37589002080 of program.yml"
+     ]
     }
-   }
+   },
+   "note": "No exercising transaction is recorded yet, though docs/provenance.json names the commit and run upgrade_gate recorded for the live builds of proposals 7 and 8. The round `gate` reads those records at the public id with the transaction that wrote each one, and sends nothing."
   },
   {
    "id": "upgrade_delay",
@@ -3006,7 +3125,7 @@
      "names": "test_open_keeps_n_tasks_funded_and_a_second_run_does_nothing"
     }
    },
-   "note": "24 tasks under tasks/, 5 test USDC each. Tested with a stand-in forge and the simulator; the board has not been opened on GitHub or funded on devnet (tasks/README.md)."
+   "note": "24 tasks under tasks/, 5 test USDC each. `open --apply` funds a task stranded by a new workflow pin again in place and closes none (tests/test_task_board.py::test_after_a_rebuild_every_task_stranded_by_the_pin_is_funded_again_in_place_and_none_is_closed); tested with a stand-in forge and the simulator, not yet run on the eight open in drexthealpha/knos-playground."
   },
   {
    "id": "claim_guard_worker",
@@ -3822,7 +3941,7 @@
      "names": "test_the_simulator_pays_every_order_once_each_by_the_relay_of_its_part_with_that_relays_key_alone"
     }
    },
-   "note": "Measured on devnet, public ids, 8 and 9 Oct (n=40 each); burst 13/40 and priority-fee unpriced until the release reruns them."
+   "note": "Measured on devnet, public ids, own wallets (n=40 each): priority-fee 40/40, every PayOrder priced (9 Oct); burst 22/40 on 9 Oct (RPC drops, timeouts, HTTP 408), p50 262.5 s; the burst rerun with the fan-out (rpc_fanout) on 10 Oct: 40/40, 0 failures, 73 retries, p50 580.75 s (docs/LOAD.md)."
   },
   {
    "id": "approval_record",
@@ -4059,7 +4178,7 @@
      "names": "test_each_contention_scenario_runs_in_the_simulator_with_its_own_checks_and_no_rate"
     }
    },
-   "note": "Simulated here with injected faults; run on devnet, public ids, 9 Oct (n=40 each): hot-funder 40/40, rpc-faults 40/40, priority-fee 40/40 with version-1 transactions unpriced, burst 13/40 (docs/LOAD.md)."
+   "note": "Simulated here with injected faults; run on devnet, public ids, 9 Oct (n=40 each): hot-funder 40/40, rpc-faults 40/40, priority-fee 40/40 with version-1 transactions unpriced, burst 13/40; burst 22/40 on 9 Oct after the back-off, 40/40 on 10 Oct with the fan-out (docs/LOAD.md)."
   },
   {
    "id": "audit_export_fast",
@@ -4219,10 +4338,266 @@
     }
    },
    "note": "Written by bump_version; checked by `bump_version --check`."
+  },
+  {
+   "id": "record_api_safe",
+   "what": "`knos record serve` limits each client with a token bucket (429 with Retry-After), states and enforces each route's auth, validates every input (400 with one line) and never answers with a stack trace.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/record_api.py",
+     "names": "class Limiter"
+    },
+    "tested": {
+     "test": "tests/test_record_api_safe.py",
+     "names": "test_every_route_is_stated_and_answers_as_stated_and_nothing_else_is_served"
+    }
+   },
+   "note": "Runs on whoever's machine serves it; Knos hosts no record server. The public record page shows public chain data and public pull requests by design."
+  },
+  {
+   "id": "backup_restore",
+   "what": "`knos archive make` backs up the event log, ledger and statements in one file; unzip and `python verify.py` restore and check them, and the statements come back byte-identical.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/archive.py",
+     "names": "def make"
+    },
+    "tested": {
+     "test": "tests/test_backup_restore.py",
+     "names": "test_back_up_delete_restore_and_the_statements_are_byte_identical"
+    }
+   },
+   "note": "Tested on a fixture set; no buyer has restored one."
+  },
+  {
+   "id": "statement_completeness",
+   "what": "A statement is compared with its sources (the chain's orders and the GitHub events its receipts name) and lists each deleted, omitted, late or duplicated source as an exception; a resolution is remembered through the memory engine.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/completeness.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_completeness.py",
+     "names": "test_an_order_the_chain_paid_in_the_period_with_no_line_is_an_omitted_exception"
+    }
+   },
+   "note": "Offline: the sources document is given as a file; nothing reads the chain or GitHub for it yet."
+  },
+  {
+   "id": "finality_booking",
+   "what": "A payment is booked once and only when final: a retried webhook, a delayed bank status, a transaction dropped before finality or one only processed never makes two or contradictory records.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/completeness.py",
+     "names": "def contradictions"
+    },
+    "tested": {
+     "test": "tests/test_completeness.py",
+     "names": "test_a_payment_the_cluster_has_only_processed_or_confirmed_is_never_booked_until_it_is_finalized"
+    }
+   },
+   "note": "A state-machine test matrix (docs/INVARIANTS.md); offline."
+  },
+  {
+   "id": "secret_scan_history",
+   "what": "`scripts/secret_scan.py --history` scans every blob ever committed, not only the tree, and reports each hit by kind, never its value.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/secret_scan.py",
+     "names": "def history_blobs"
+    },
+    "tested": {
+     "test": "tests/test_secret_scan.py",
+     "names": "test_a_key_deleted_from_the_tree_is_still_found_in_history_by_kind_without_its_value"
+    }
+   },
+   "note": "Run on 9 Oct 2026 (docs/LAUNCH.md, items 1 and 2)."
+  },
+  {
+   "id": "launch_check",
+   "what": "`scripts/launch_check.py` checks the twenty pre-launch rows of docs/LAUNCH.md offline: every file and test named exists, no key in the tree, no analytics script, email sender or AI provider client.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/launch_check.py",
+     "names": "def check"
+    },
+    "tested": {
+     "test": "tests/test_launch_check.py",
+     "names": "test_this_repository_passes_and_every_item_of_the_list_has_its_row"
+    }
+   },
+   "note": "Offline; `--launch-day` fails while any row is partly or not done."
+  },
+  {
+   "id": "site_404",
+   "what": "A missing address on the site shows the site's own 404 page, with a guess at the page meant and the three main links.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/404.html",
+     "names": "lost-guess"
+    },
+    "tested": {
+     "test": "tests/web/launch.mjs",
+     "names": "404: an address that names no page offers no guess"
+    }
+   },
+   "note": "Run by tests/test_site_launch.py in headless Chromium on a build of web/."
+  },
+  {
+   "id": "site_data_retry",
+   "what": "When a data file of the site does not load, every page says so in one line with a Reload button: never a blank page or a stack.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/retry.js",
+     "names": "Try again: "
+    },
+    "tested": {
+     "test": "tests/web/launch.mjs",
+     "names": "data: the line is there while stats.json does not load"
+    }
+   },
+   "note": "Run by tests/test_site_launch.py in headless Chromium, with stats.json blocked."
+  },
+  {
+   "id": "site_android_first_screen",
+   "what": "The first screen paints and can be used within 3 s at 360 x 740 with the CPU slowed 4x on a slow 4G profile.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "tests/web/android.mjs",
+     "names": "setCPUThrottlingRate"
+    },
+    "tested": {
+     "test": "tests/test_site_launch.py",
+     "names": "test_a_cheap_android_phone_paints_and_can_be_used_within_three_seconds"
+    }
+   },
+   "note": "Measured in headless Chromium on a shared 2-CPU machine (docs/perf.json `android`), not on a phone."
+  },
+  {
+   "id": "site_privacy_terms",
+   "what": "A short privacy and terms page: no cookies, no third-party request, nothing stored by the site; devnet test software, MIT, no warranty.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/privacy.html",
+     "names": "cookie"
+    },
+    "tested": {
+     "test": "tests/test_site_launch.py",
+     "names": "test_each_privacy_line_agrees_with_the_code"
+    }
+   },
+   "note": "No lawyer has read it (docs/REGULATION.md)."
+  },
+  {
+   "id": "site_share_tags",
+   "what": "A shared link of the site carries its title, description, canonical address, Open Graph and X card tags and a 1200 x 630 card drawn from the brand.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/index.html",
+     "names": "twitter:image"
+    },
+    "tested": {
+     "test": "tests/test_site_launch.py",
+     "names": "test_a_shared_link_has_every_tag_and_one_address"
+    }
+   },
+   "note": "Checked on the files; no preview service was asked."
+  },
+  {
+   "id": "rpc_fanout",
+   "what": "Each signed transaction is sent to the configured endpoint and any second one, again every 2 s until one takes it, and confirmed by its signature status in one request for all the process waits on; a lost answer is never taken as a refusal.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/settle/v2/fanout.py",
+     "names": "class FanLedger"
+    },
+    "tested": {
+     "test": "tests/test_burst_fanout.py",
+     "names": "test_fanned_out_resent_and_confirmed_by_signature_the_burst_pays_40_of_40_once_each"
+    }
+   },
+   "note": "40 of 40 on a stand-in devnet that drops answers as devnet did; forty transactions waiting ask one status request a poll, not forty. Devnet, public ids, own wallets: burst 22/40 on 9 Oct before the fan-out; 40/40 on 10 Oct with it (0 failures, 73 retries, p50 580.75 s, n=40). A first run on 10 Oct with the fan-out as it was before this fix (each transaction's status asked every 0.5 s) had every status request answered HTTP 429 and was stopped at 11/40 (docs/LOAD.md)."
+  },
+  {
+   "id": "grace_refund_by_another",
+   "what": "The grace round reads a refund someone else (the relay) sent first and passes with it noted, instead of failing because the order is gone.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/exercise_public.py",
+     "names": "def refunded"
+    },
+    "tested": {
+     "test": "tests/test_grace_refunded_by_another.py",
+     "names": "test_a_refund_the_relay_sent_first_is_read_and_noted_and_the_round_passes"
+    }
+   },
+   "note": "Not exercised: the release runs the round on devnet."
+  },
+  {
+   "id": "reproduction_verify",
+   "what": "`knos reproduce --verify` checks a stranger's signed reproduction offline against GitHub's keys (run URL, artifact or token file), and scripts/reproductions.py lists verified ones by owner, Knos's own excluded.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/reproduce.py",
+     "names": "def verify_lines"
+    },
+    "tested": {
+     "test": "tests/test_reproduce_verify.py",
+     "names": "test_verify_refuses_an_edited_report_a_failed_check_another_key_and_calls_an_own_run_what_it_is"
+    }
+   },
+   "note": "0 reproductions recorded: nobody outside has run the workflow yet."
+  },
+  {
+   "id": "consumer_node_standalone",
+   "what": "A Node program with no dependency reads a Knos receipt or statement and the chain and decides alone whether an order is paid, by which transaction and under which terms hash, from the published schema and the IDL.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "examples/consumer/consumer.mjs",
+     "names": "export async function decideReceipt"
+    },
+    "tested": {
+     "test": "tests/test_consumer.py",
+     "names": "test_the_node_tests_pass_offline"
+    }
+   },
+   "note": "Tested on recorded devnet answers; no run against devnet recorded, and no outsider has used it."
+  },
+  {
+   "id": "erp_bill_import",
+   "what": "`knos statement export --to xero|quickbooks|netsuite|csv` writes the bill-import file of each system, one bill per agreed line with its four steps and assurance, and disputed or owed lines on a held sheet, never in the payable.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/erp.py",
+     "names": "TARGETS = {"
+    },
+    "tested": {
+     "test": "tests/test_erp.py",
+     "names": "test_disputed_and_owed_lines_go_to_the_held_sheet_never_the_payable"
+    }
+   },
+   "note": "A file export, never imported into any product; Xero's columns were read in a published guide, not on Xero's own page."
   }
  ],
  "public_round": {
-  "date": "9 October 2026",
+  "date": "10 October 2026",
   "fund": {
    "comment": "/knos fund 5",
    "tx": "177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s",

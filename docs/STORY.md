@@ -3,6 +3,7 @@
 **The neutral meter for AI agent work: neither side keeps the count.**
 
 Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check.
+Check one yourself: paste an agent's pull request [on the site](https://drexthealpha.github.io/Knos/#check). No install, no sign-up.
 
 The count is in [backtest.json](backtest.json), made by `scripts/backtest.py` from the pull requests listed in
 [agent_pr_ci.json](agent_pr_ci.json). A failed check is GitHub's record, not a judgment of why it failed.

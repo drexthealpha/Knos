@@ -2,7 +2,7 @@
  "_about": "Written by scripts/demo_data.py from the documents under `sources`; tests/test_site_demo.py holds every signature and number to them.",
  "cluster": "devnet",
  "ids": "public",
- "date": "9 October 2026",
+ "date": "10 October 2026",
  "money": "test USDC",
  "agree": {
   "price": "5.00",

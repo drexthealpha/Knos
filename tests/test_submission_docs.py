@@ -70,3 +70,21 @@ def test_the_transaction_page_and_the_changelog_say_which_build_runs_now_and_tha
     if "approved, not yet applied" in flat("docs/GOVERNANCE.md"):
         assert "The 8-day upgrade time lock is approved, not applied." in entry and "time lock is applied" not in entry
 
+
+def test_the_release_entry_says_what_ran_on_devnet_before_the_commit_and_calls_none_of_it_pending():
+    # once docs/load.json holds a devnet burst with the fan-out, and the manifest has the rounds' capabilities
+    # exercised, the release's entry says so and no longer calls them pending or not yet run
+    entry = " ".join((ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("## 0.3.24")[0].split())
+    load = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))
+    fanned = [m for m in load["measured"] if m.get("cluster") == "devnet" and m.get("fanout")]
+    if fanned:
+        assert "the burst rerun with the fan-out is pending" not in entry
+        assert f"the burst with the fan-out paid {fanned[-1]['paid']} of {fanned[-1]['attempted']}" in entry
+    caps = json.loads((ROOT / "docs" / "capabilities.json").read_text(encoding="utf-8"))["capabilities"]
+    stage = {c["id"]: c["stage"] for c in caps}
+    rounds = ("meter_single", "passkey_payee_wallet", "upgrade_gate", "pause")
+    if any(stage.get(r) == "exercised" for r in rounds):
+        assert "are ready for the release to run at the public ids" not in entry
+        exercised = sum(c["stage"] == "exercised" for c in caps)
+        assert f"to exercised ({exercised} of {len(caps)})" in entry
+

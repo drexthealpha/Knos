@@ -8,6 +8,9 @@
     knos statement pay <file> --rail bank --payer-name N --payer-account IBAN --payees payees.csv
                                         a payment file for the payer's own bank (ISO 20022 pain.001): the approved lines whose policy is met
     knos statement status <file> --from <the bank's status report>     marks the lines of each transfer paid, or payable again
+    knos statement complete <file> --sources sources.json
+                                        the statement against the orders the chain paid and the GitHub sources its lines
+                                        name: deleted, omitted, late and duplicated, each an exception (knos.completeness)
     knos statement grn <file> --line inv_...   the goods-received note of one line: order, acceptance and invoice line, matched
     knos statement show <file>          what was authorised, delivered, passed, already billed, approved, disputed, owed
     knos statement export <file> --format quickbooks|netsuite|generic|match|ariba
@@ -560,13 +563,16 @@ def chain_payment(tx: dict | None, ln: dict, scale: int, order: str = "") -> tup
              "order": str(hit.get("order") or ""), "payee": str(hit.get("payee") or ""), "to": str(hit.get("to") or "")}, "")
 
 
-def settle_sync(st: dict, status: dict | None, read, find=None, order: str = "") -> tuple[dict, list[tuple[str, str]]]:
+def settle_sync(st: dict, status: dict | None, read, find=None, order: str = "", final=None) -> tuple[dict, list[tuple[str, str]]]:
     """Close the "settled" step of every line the chain paid: the status with one settlement record (method chain,
     devnet demonstration) per such line, carrying the transaction as `chain` (signature, slot, amount, fee, order,
     payee), and what was done for each line [(invoice line, words)]. The transaction is the one the line's evidence
     names (`tx:<signature>`), else, given `order` and `find(order)` (its signatures, newest first), the first of them
     that paid the line. `read(signature)` gives getTransaction's JSON, or None. Each payment is checked against the
-    line (amount, supplier, order) before it is written; a line already recorded settled is left as it is. Nothing moves."""
+    line (amount, supplier, order) before it is written; a line already recorded settled is left as it is. Nothing moves.
+    `final(signature)`: the cluster's confirmation status of it (processed, confirmed, finalized, or None when the
+    cluster does not know it). Given, a payment is booked only once it is finalized: one seen only as processed or
+    confirmed is said and left for a later run, and one the cluster dropped is never booked (knos.completeness)."""
     status = _status(st, status)
     said: list[tuple[str, str]] = []
     for ln in st["lines"]:
@@ -584,11 +590,18 @@ def settle_sync(st: dict, status: dict | None, read, find=None, order: str = "")
             got, why = chain_payment(read(sig), ln, st["scale"], order)
             if got is None:
                 continue
+            seen = final(got["signature"] or sig) if final is not None else None
+            if final is not None and seen != "finalized":
+                why = f"{got['signature'] or sig} is {seen or 'not known to the cluster'}, not finalized: it is booked once it is"
+                break
             status = pay(st, status, line, "chain", got["signature"] or sig, got["on"], "devnet_demonstration")
-            status["events"][-1]["chain"] = got
+            status["events"][-1]["chain"] = {**got, "commitment": seen} if seen else got
             said.append((line, f"settled by {got['signature'] or sig} in slot {got['slot']}: {got['amount']} to {got['payee']}, fee {got['fee']}"))
             break
         else:
+            said.append((line, f"not settled: {why}"))
+            continue
+        if not said or said[-1][0] != line:
             said.append((line, f"not settled: {why}"))
     return status, said
 
@@ -959,7 +972,7 @@ def load(path: Path) -> tuple[dict, dict | None]:
 
 
 def register(app, help_lines: list | None = None) -> None:
-    """`knos statement make | approve | pay | settle-sync | status | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
+    """`knos statement make | approve | pay | settle-sync | complete | status | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
     import datetime
 
     import importlib
@@ -1189,7 +1202,11 @@ def register(app, help_lines: list | None = None) -> None:
                 if tx:
                     return list(given)
                 return [str(x["signature"]) for x in chain.call(url, "getSignaturesForAddress", [address, {"limit": 100}], timeout=30) or [] if not x.get("err")]
-            status, said = settle_sync(st, status, read, find, order)
+
+            def final(sig: str) -> str | None:
+                got = (chain.call(url, "getSignatureStatuses", [[sig], {"searchTransactionHistory": True}], timeout=30) or {}).get("value") or [None]
+                return (got[0] or {}).get("confirmationStatus")
+            status, said = settle_sync(st, status, read, find, order, None if tx else final)
         except Refused as why:
             raise stop(why) from None
         except Exception as why:  # noqa: BLE001 - the cluster did not answer: nothing was written
@@ -1198,6 +1215,38 @@ def register(app, help_lines: list | None = None) -> None:
             typer.echo(f"{line}  {words}")
         if any(w.startswith("settled by") for _l, w in said):
             save(file, st, status)
+
+    @sub.command("complete")
+    def complete_(file: Path = file_arg,
+                  sources: Path = typer.Option(..., "--sources", help="the sources document (kind knos-sources): the orders the chain paid in the period and what GitHub answered for each reference"),
+                  resolve: str = typer.Option("", "--resolve", metavar="ID=HOW", help="resolve one exception (cx_...): corrected, accepted or refused; kept in the buyer's memory"),
+                  as_json: bool = typer.Option(False, "--json", help="print the report as JSON"),
+                  remember: str = remember_opt, memory_dir: Path = memory_opt) -> None:
+        """Compare the statement with its sources and list every exception: a source deleted, an order omitted, an order seen after the period closed (carried, never added), one deliverable under two ids (counted once). With --remember, each exception says how the same source was resolved before."""
+        from . import completeness as C
+        try:
+            st, status = load(file)
+            try:
+                doc = json.loads(sources.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as why:
+                raise Refused(f"Cannot read {sources} as a sources document: {why}") from None
+            store = memory(remember, memory_dir)[1] if remember else None
+            report = C.check_status(st, status, C.check(st, doc, store))
+            if resolve:
+                eid, _, how = resolve.partition("=")
+                exc = next((x for x in report["exceptions"] if x["id"] == eid.strip()), None)
+                if exc is None or store is None:
+                    raise Refused(f"--resolve names an exception of this report and needs --remember: {eid.strip() or '(none)'} is not one here." if exc is None
+                                  else "--resolve keeps the resolution in the buyer's memory: name it with --remember ORG.")
+                C.remember(store, exc, how.strip(), str(st.get("supplier") or ""), period=report["period"])
+                exc["before"] = C.recall(store, exc, str(st.get("supplier") or ""))
+        except (Refused, C.Bad, ValueError) as why:
+            raise stop(why) from None
+        if as_json:
+            typer.echo(json.dumps(report, indent=1, sort_keys=True))
+            return
+        for row in C.words(report):
+            typer.echo(row)
 
     @sub.command("status")
     def status_(file: Path = file_arg,
@@ -1272,19 +1321,32 @@ def register(app, help_lines: list | None = None) -> None:
             raise stop(why) from None
 
     @sub.command("export")
-    def export_(file: Path = file_arg, fmt: str = typer.Option(..., "--format", help="quickbooks, netsuite, generic, match (every line with its purchase order and 2-way or 3-way match) or ariba (cXML invoice)"),
+    def export_(file: Path = file_arg, fmt: str = typer.Option("", "--format", help="quickbooks, netsuite, generic, match (every line with its purchase order and 2-way or 3-way match) or ariba (cXML invoice)"),
                 supplier_id: str = typer.Option("", "--supplier-id", help="ariba: the supplier's identity on the network"),
                 buyer_id: str = typer.Option("", "--buyer-id", help="ariba: the buyer's identity on the network"),
                 out: Path = typer.Option(None, "--out", help="write the file here and not to standard output"),
                 account: str = typer.Option("", "--account", help="the expense account every bill is booked to"),
                 tax_code: str = typer.Option("", "--tax-code", help="QuickBooks' Line Tax Code"),
-                date_format: str = typer.Option("", "--date-format", help="another date format than the product's default, written with YYYY, MM, DD, M and D")) -> None:
+                date_format: str = typer.Option("", "--date-format", help="another date format than the product's default, written with YYYY, MM, DD, M and D"),
+                to: str = typer.Option("", "--to", help="xero, quickbooks, netsuite or csv: that system's bill-import file of the payable lines, and a held sheet beside it")) -> None:
         """Write the statement as a file an accounting system imports. QuickBooks Online and NetSuite get one bill per line whose policy is met, with the line's state, payment status and ids in the memo; a line that is disputed, duplicate or without enough evidence is never a bill. The generic file lists every line. Each is a file export, not an integration: nobody has imported one into the product yet."""
+        if to:
+            from . import erp
+            try:
+                for said in erp.export_file(file, to, out, {"account": account, "tax_code": tax_code, "date_format": date_format}):
+                    typer.echo(said, err=True)
+            except Refused as why:
+                raise stop(why) from None
+            return
+        if not fmt:
+            raise stop(Refused("--format or --to: --to xero, quickbooks, netsuite or csv writes your accounting system's file."))
         from . import audit, exports
         try:
             st, status = load(file)
+            import datetime
+            today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")     # a line nobody authorised in time is owed: never a bill
             text = exports.write_statement(fmt, st, status, {"account": account, "tax_code": tax_code, "date_format": date_format,
-                                                             "supplier_id": supplier_id, "buyer_id": buyer_id})
+                                                             "supplier_id": supplier_id, "buyer_id": buyer_id, "today": today})
         except (Refused, audit.Refused) as why:
             raise stop(why) from None
         f = {**exports.FORMATS, **exports.STATEMENT_MORE}[fmt]

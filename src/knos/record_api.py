@@ -20,7 +20,14 @@ things differ, and both come from the program as it is:
     an order's address is public, so naming it proves nothing: each call is signed by the wallet that funded the order
     over "knos-record:<order>:<n>:<slug>", where n counts that order's lookups from 0.
 
-A call whose n was already served is a replay and is refused; so is a call another wallet signed. The server keeps the
+A call whose n was already served is a replay and is refused; so is a call another wallet signed.
+
+WHO MAY CALL WHAT (ROUTES). Only GET; any other method is 405, any other path 404. Every route is public by design
+except /lookup, which needs the payment above. Each client (its address) has a token bucket: RATE requests a second,
+BURST at once (`--rate`, `--burst`); past it, 429 with Retry-After. Every input is checked before anything is read:
+the path's length and characters, a slug's charset, an order's address, each header's size and its JSON's shape; a
+bad one is 400 with one line saying why. No answer carries a stack trace: an unforeseen error is a 500 with one line;
+`--debug` or KNOS_DEBUG=1 prints the trace to the operator's terminal, never to the caller. The server keeps the
 count of each order in the memory engine (knos.proof.history's store) when it is given one, so a restart does not
 sell a lookup twice. The escrow pays the server when the order's pinned judge signs an acceptance (PayOrder), or
 returns everything to the caller after the deadline (RefundOrder). No judge for a lookup is built: docs/X402.md says so.
@@ -31,6 +38,12 @@ from __future__ import annotations
 
 import base64
 import json
+import math
+import os
+import re
+import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -42,6 +55,98 @@ STATE = "knos_record_api"                                # the state document th
 PAYER_HEADER = "attested-payer"
 GRANT_HEADER = "record-grant"                            # base64 JSON: the supplier's signed grant to this reader (knos.record_answer.grant)
 NO_HOST = "Knos hosts no such server: whoever runs this one is its seller."
+RATE, BURST = 2.0, 30                                    # each client: 2 requests a second on average, 30 at once
+CLIENTS = 10_000                                         # buckets kept at most; the fullest are forgotten first
+MAX_PATH, MAX_HEADER = 200, 4096                         # characters of a path; of the PAYMENT-SIGNATURE or Record-Grant header
+ROUTES = (      # (path, who may call it, why): the server answers these and nothing else
+    ("/records/<slug>.json", "public", "the free record file: built from public chain data and public pull requests"),
+    ("/lookup/<slug>", "paid", "the signed answer: an order of this server's offer, each call signed by the wallet that funded it; "
+                               "the supplier's history only to a reader the supplier granted"),
+    ("/orders/<order>", "public", "how many of an order's lookups are used: the order, its funder and its amount are public on chain"),
+    ("/health", "public", "whether the server can answer; no key, no RPC address"),
+)
+_SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+_B58 = re.compile(r"[1-9A-HJ-NP-Za-km-z]+")
+_PATH = re.compile(r"/[A-Za-z0-9._/-]*")
+
+
+class Bad(ValueError):
+    """An input the server refuses before reading anything: 400, with this one line."""
+
+
+def debugging() -> bool:
+    """Whether KNOS_DEBUG asks for traces (on the operator's terminal only)."""
+    return os.environ.get("KNOS_DEBUG", "").strip().lower() not in ("", "0", "false", "no")
+
+
+def one_line(text: object, most: int = 300) -> str:
+    """A reason as one line: never a trace, never a page."""
+    line = " ".join(str(text).split())
+    return line if len(line) <= most else line[: most - 3] + "..."
+
+
+class Limiter:
+    """A token bucket per client: `rate` tokens a second, `burst` at most. `take(client)` is 0.0 when the request may
+    go on, else the seconds until it may. `clock`: monotonic seconds (a test gives its own)."""
+
+    def __init__(self, rate: float = RATE, burst: int = BURST, clock: Callable[[], float] = time.monotonic, most: int = CLIENTS):
+        if not rate > 0 or int(burst) < 1:
+            raise ValueError("the rate must be above 0 and the burst at least 1")
+        self.rate, self.burst, self.clock, self.most = float(rate), int(burst), clock, int(most)
+        self._buckets: dict[str, tuple[float, float]] = {}
+        self._lock = threading.Lock()
+
+    def take(self, client: str) -> float:
+        with self._lock:
+            now = self.clock()
+            tokens, then = self._buckets.get(client, (float(self.burst), now))
+            tokens = min(float(self.burst), tokens + (now - then) * self.rate)
+            if tokens >= 1.0:
+                self._buckets[client] = (tokens - 1.0, now)
+                wait = 0.0
+            else:
+                self._buckets[client] = (tokens, now)
+                wait = (1.0 - tokens) / self.rate
+            if len(self._buckets) > self.most:      # a flood of new addresses forgets the clients with the most tokens left
+                for gone in sorted(self._buckets, key=lambda k: -self._buckets[k][0])[: len(self._buckets) - self.most]:
+                    self._buckets.pop(gone, None)
+            return wait
+
+
+def address(text: object) -> bool:
+    """A Solana address as text: base58, 32 to 44 characters."""
+    return isinstance(text, str) and 32 <= len(text) <= 44 and _B58.fullmatch(text) is not None
+
+
+def slug_of(text: str) -> str:
+    if len(text) > 64 or not _SLUG.fullmatch(text):
+        raise Bad("a supplier's slug is lower-case letters, digits and single dashes, 64 at most")
+    return text
+
+
+def payment_of(header: str) -> tuple[dict, str, int, str]:
+    """The PAYMENT-SIGNATURE header, checked against its schema: (the whole payment, order, n, signature)."""
+    if len(header) > MAX_HEADER:
+        raise Bad(f"the PAYMENT-SIGNATURE header is over {MAX_HEADER} characters")
+    try:
+        p = decode(header)
+    except (ValueError, TypeError):
+        raise Bad("the PAYMENT-SIGNATURE header is not base64 JSON") from None
+    if not isinstance(p, dict) or not isinstance(p.get("payload"), dict):
+        raise Bad("the PAYMENT-SIGNATURE header is not base64 JSON with payload {order, n, signature}")
+    if not isinstance(p.get("x402Version"), int) or isinstance(p.get("x402Version"), bool) or not isinstance(p.get("accepted"), dict):
+        raise Bad("the payment needs x402Version (a number) and accepted (the requirement it pays)")
+    x = p["payload"]
+    order, n, sig, tx = x.get("order"), x.get("n"), x.get("signature"), x.get("transaction", "")
+    if not address(order):
+        raise Bad("payload.order is not a Solana address")
+    if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n < 2 ** 32:
+        raise Bad("payload.n is the lookup's number on the order: a whole number from 0")
+    if not isinstance(sig, str) or not 64 <= len(sig) <= 88 or not _B58.fullmatch(sig):
+        raise Bad("payload.signature is not a base58 signature")
+    if not isinstance(tx, str) or len(tx) > 100 or (tx and not _B58.fullmatch(tx)):
+        raise Bad("payload.transaction, when given, is a base58 transaction signature")
+    return p, str(order), int(n), str(sig)
 
 
 def encode(obj) -> str:
@@ -142,9 +247,11 @@ class Server:
     seconds an answer stays fresh."""
 
     def __init__(self, off: dict, chain, records: Path, store=None, now: Callable[[], int] | None = None, *, key=None, history: Path | None = None,
-                 suppliers: dict[str, str] | None = None, ttl: int | None = None):
+                 suppliers: dict[str, str] | None = None, ttl: int | None = None, limiter: Limiter | None = None, debug: bool | None = None):
         from . import record_answer
         self.offer, self.chain, self.records, self.store = off, chain, Path(records), store
+        self.limiter = limiter or Limiter()
+        self.debug = debugging() if debug is None else bool(debug)
         self.now = now or chain.now
         self._used: dict[str, int] = {}
         self.key, self.history, self.suppliers = key, Path(history) if history else None, dict(suppliers or {})
@@ -168,7 +275,7 @@ class Server:
         if self.history is None:
             return None
         try:
-            doc = json.loads((self.history / f"{slug}.history.json").read_text(encoding="utf-8"))
+            doc = json.loads(_inside(self.history, f"{slug}.history.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return None
         return doc if record_answer.check_history(doc, slug) is None else None
@@ -183,8 +290,10 @@ class Server:
         try:
             at, slot = self.read_chain()
             chain: dict = {"ok": True, "time": at, "slot": slot}
-        except Exception as why:  # noqa: BLE001
-            chain = {"ok": False, "why": str(why)}
+        except Exception as why:  # noqa: BLE001  (its words can carry the RPC address, and a key in it: the operator's terminal only, with --debug)
+            if self.debug:
+                print(f"health: the chain did not answer: {one_line(why)}", file=sys.stderr)
+            chain = {"ok": False, "why": "the chain did not answer"}
         return {"ok": bool(n) and chain["ok"], "records": n, "chain": chain, "signing": self.key is not None,
                 "key": str(self.key.pubkey()) if self.key is not None else None, "ttl_seconds": self.ttl,
                 "history": self.history is not None, "suppliers_with_a_key": len(self.suppliers), "counts_survive_restart": self.store is not None,
@@ -204,25 +313,49 @@ class Server:
         from . import record_page
         try:
             name = record_page.slug(slug)
-            doc = json.loads((self.records / f"{name}.json").read_text(encoding="utf-8"))
+            doc = json.loads(_inside(self.records, f"{name}.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return None
         return doc if name == slug and record_page.check(doc) is None else None
 
-    def handle(self, path: str, headers: dict[str, str]) -> tuple[int, dict[str, str], dict]:
-        h = {k.lower(): v for k, v in headers.items()}
-        path = path.split("?")[0]
+    def handle(self, path: str, headers: dict[str, str], client: str | None = None, method: str = "GET") -> tuple[int, dict[str, str], dict]:
+        """One request: (status, headers, body). `client`: the caller's address, which the rate limit counts by (None:
+        a call in this process, not limited). Inputs are checked first: 400 with one line; nothing is charged for one."""
+        if client is not None:
+            wait = self.limiter.take(client)
+            if wait > 0:
+                return 429, {"Retry-After": str(max(1, math.ceil(wait)))}, {"error": f"too many requests from this client: try again in {max(1, math.ceil(wait))} s"}
+        if method.upper() != "GET":
+            return 405, {"Allow": "GET"}, {"error": f"{one_line(method, 20)} is not served: every route is GET"}
+        try:
+            return self._route(path, {str(k).lower(): str(v) for k, v in headers.items()})
+        except Bad as why:
+            return 400, {}, {"error": one_line(why)}
+
+    def _route(self, path: str, h: dict[str, str]) -> tuple[int, dict[str, str], dict]:
+        if len(path) > MAX_PATH:
+            raise Bad(f"the path is over {MAX_PATH} characters")
+        if "?" in path or "#" in path:
+            raise Bad("this API takes no query string")
+        if not _PATH.fullmatch(path):
+            raise Bad("the path has characters no route has")
+        if h.get(PAYER_HEADER) and not address(h[PAYER_HEADER]):
+            raise Bad("the Attested-Payer header is not a Solana address")
+        if len(h.get(GRANT_HEADER, "")) > MAX_HEADER:
+            raise Bad(f"the Record-Grant header is over {MAX_HEADER} characters")
         if path.startswith("/records/") and path.endswith(".json"):
-            doc = self.record(path[9:-5])
+            doc = self.record(slug_of(path[9:-5]))
             return (200, {}, doc) if doc else (404, {}, {"error": "no such record"})
         if path == "/health":
             got = self.health()
             return (200 if got["ok"] else 503), {}, got
         if path.startswith("/orders/"):
+            if not address(path[8:]):
+                raise Bad("an order is named by its Solana address")
             return 200, {}, {"order": path[8:], "lookups": self.offer["lookups"], "used": self.used(path[8:]), "note": NO_HOST}
         if not path.startswith("/lookup/"):
-            return 404, {}, {"error": "no such resource", "paid": "/lookup/<slug>", "free": "/records/<slug>.json"}
-        slug = path[8:]
+            return 404, {}, {"error": "no such resource", "routes": [r[0] for r in ROUTES]}
+        slug = slug_of(path[8:])
         doc = self.record(slug)
         if doc is None:
             return 404, {}, {"error": "no such record"}                # nothing is charged for a record that is not there
@@ -233,12 +366,8 @@ class Server:
         proof = h.get("payment-signature")
         if not proof:
             return refuse("PAYMENT-SIGNATURE header is required", h.get(PAYER_HEADER))
-        try:
-            p = decode(proof)
-            payload = p["payload"]
-            order, n, sig = str(payload["order"]), int(payload["n"]), str(payload["signature"])
-        except (ValueError, KeyError, TypeError):
-            return refuse("the PAYMENT-SIGNATURE header is not base64 JSON with payload {order, n, signature}")
+        p, order, n, sig = payment_of(proof)
+        payload = p["payload"]
         o, why = verify(self.chain, self.offer, order)
         if o is None:
             return refuse(str(why))
@@ -267,6 +396,8 @@ class Server:
             try:
                 shown = decode(h[GRANT_HEADER])
             except (ValueError, TypeError):
+                shown = None
+            if not isinstance(shown, dict):
                 shown = None
             granted, why = record_answer.check_grant(shown, slug, payer, self.suppliers.get(slug), int(self.now()))
         read_time, slot = self.read_chain()                              # before the lookup is spent: a chain that does not answer costs the caller nothing
@@ -318,22 +449,68 @@ def lookup(ask: Callable[[str, dict[str, str]], tuple[int, dict[str, str], dict]
     return {"status": status, "body": body, "order": order, "n": n, "payment": payment}
 
 
+def _inside(folder: Path, name: str) -> Path:
+    """`folder`/`name`, refused (OSError) when it is a link or resolves anywhere but directly in `folder`: one
+    deployment's folder never hands out another's file."""
+    p = Path(folder) / name
+    if p.is_symlink() or p.resolve().parent != Path(folder).resolve():
+        raise OSError(f"{name} is not a file of {folder}")
+    return p
+
+
 def serve(server: Server, host: str = "127.0.0.1", port: int = 8402):
-    """The server on a socket (http.server). Returns the HTTPServer: call serve_forever()."""
+    """The server on a socket (http.server). Returns the HTTPServer: call serve_forever(). One request at a time (the
+    count of each order is read then written), and a connection that sends nothing for 10 s is closed."""
+    import traceback
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
+        server_version, sys_version, timeout = "knos-record", "", 10
+
+        def answer(self, method: str) -> None:
+            status: int
+            headers: dict[str, str]
+            body: dict
             try:
-                status, headers, body = server.handle(self.path, dict(self.headers.items()))
-            except Exception as why:  # noqa: BLE001  (a caller gets an answer, whatever went wrong)
-                status, headers, body = 500, {}, {"error": str(why)}
+                if int(self.headers.get("content-length") or 0) or self.headers.get("transfer-encoding"):
+                    status, headers, body = 400, {}, {"error": "a request to this API carries no body"}
+                else:
+                    status, headers, body = server.handle(self.path, dict(self.headers.items()), client=self.client_address[0], method=method)
+            except ValueError:
+                status, headers, body = 400, {}, {"error": "the Content-Length header is not a number"}
+            except Exception:  # noqa: BLE001  (a caller gets one line, whatever went wrong; the operator gets the trace with --debug)
+                if server.debug:
+                    traceback.print_exc(file=sys.stderr)
+                status, headers, body = 500, {}, {"error": "the server could not answer this request (its operator can run it with --debug to see why)"}
             raw = json.dumps(body).encode()
             self.send_response(status)
-            for k, v in {"content-type": "application/json", "content-length": str(len(raw)), **headers}.items():
+            for k, v in {"content-type": "application/json", "content-length": str(len(raw)), "x-content-type-options": "nosniff",
+                         "cache-control": "no-store", **headers}.items():
                 self.send_header(k, v)
             self.end_headers()
-            self.wfile.write(raw)
+            if method != "HEAD":
+                self.wfile.write(raw)
+
+        def do_GET(self):
+            self.answer("GET")
+
+        def do_POST(self):
+            self.answer("POST")
+
+        def do_PUT(self):
+            self.answer("PUT")
+
+        def do_DELETE(self):
+            self.answer("DELETE")
+
+        def do_PATCH(self):
+            self.answer("PATCH")
+
+        def do_HEAD(self):
+            self.answer("HEAD")
+
+        def do_OPTIONS(self):
+            self.answer("OPTIONS")
 
         def log_message(self, *a):
             pass
@@ -342,23 +519,32 @@ def serve(server: Server, host: str = "127.0.0.1", port: int = 8402):
 
 
 def build_server(offer_file: Path | None, records: Path = Path("docs/records"), memory: Path | None = None, key: Path | None = None,
-                 history: Path | None = None, suppliers: Path | None = None, ttl: int | None = None, ledger=None) -> Server:
+                 history: Path | None = None, suppliers: Path | None = None, ttl: int | None = None, ledger=None, *, tenant: str | None = None,
+                 rate: float = RATE, burst: int = BURST, debug: bool | None = None) -> Server:
     """The server `knos record serve` runs: the seller's offer (the JSON `offer` writes), the chain from KNOS_RPC as
     every command does. `memory`: the folder of a Sibyl store that keeps each order's count. `key`: the operator's
-    signing key file. `history`: the folder of history files. `suppliers`: a JSON file {slug: supplier's public key}."""
+    signing key file. `history`: the folder of history files. `suppliers`: a JSON file {slug: supplier's public key}.
+    `tenant`: whose deployment this is (the self-host bundle names it): its counts live in a tenant of their own in
+    the store, so two deployments sharing a memory folder never read each other's. `rate`, `burst`: each client's
+    limit."""
     from . import chain, record_answer
     off = json.loads(Path(offer_file).read_text(encoding="utf-8")) if offer_file else {}
     store = None
     if memory is not None:
         from .proof import history as memory_engine
-        store = memory_engine.SibylStore.local(memory, tenant_id="knos-record-api")
+        store = memory_engine.SibylStore.local(memory, tenant_id=tenant_id(tenant))
     known = json.loads(Path(suppliers).read_text(encoding="utf-8")) if suppliers else {}
     return Server(off, ledger or chain.ledger(), records, store, key=record_answer.load_key(key) if key else None, history=history,
-                  suppliers={str(k): str(v) for k, v in known.items()}, ttl=ttl)
+                  suppliers={str(k): str(v) for k, v in known.items()}, ttl=ttl, limiter=Limiter(rate, burst), debug=debug)
 
 
-def run_serve(offer_file: Path, records: Path = Path("docs/records"), memory: Path | None = None, host: str = "127.0.0.1", port: int = 8402, **more):
-    return serve(build_server(offer_file, records, memory, **more), host, port)
+def tenant_id(tenant: str | None) -> str:
+    """The store's tenant for a deployment: "knos-record-api", or "knos-record-api:<tenant>"."""
+    if tenant is None:
+        return STATE.replace("_", "-")
+    if len(tenant) > 64 or not _SLUG.fullmatch(tenant):
+        raise ValueError("a tenant is lower-case letters, digits and single dashes, 64 at most")
+    return f"{STATE.replace('_', '-')}:{tenant}"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -374,16 +560,31 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--suppliers", type=Path, default=None, help="a JSON file {slug: the supplier's public key}: whose grants this server accepts")
     ap.add_argument("--ttl", type=int, default=None, help="seconds a signed answer stays fresh (default 3600)")
     ap.add_argument("--health", action="store_true", help="print what the server would answer at /health and stop: exit 0 when it can serve")
+    ap.add_argument("--rate", type=float, default=RATE, help=f"requests a second each client may make on average (default {RATE:g}); past it, 429")
+    ap.add_argument("--burst", type=int, default=BURST, help=f"requests a client may make at once (default {BURST})")
+    ap.add_argument("--tenant", default=None, help="whose deployment this is: its counts are kept apart from any other's in the same --memory")
+    ap.add_argument("--debug", action="store_true", help="print the trace of an unforeseen error here (KNOS_DEBUG=1 does the same); callers never see one")
     a = ap.parse_args(argv)
     if a.offer is None and not a.health:
         ap.error("name the seller's offer file")
-    if a.health:
-        got = build_server(a.offer, a.records, a.memory, a.key, a.history, a.suppliers, a.ttl).health()
-        print(json.dumps(got, indent=1))
-        return 0 if got["ok"] else 1
-    httpd = run_serve(a.offer, a.records, a.memory, a.host, a.port, key=a.key, history=a.history, suppliers=a.suppliers, ttl=a.ttl)
+    if not a.rate > 0 or a.burst < 1:
+        ap.error("--rate must be above 0 and --burst at least 1")
+    debug = a.debug or debugging()
+    try:
+        server = build_server(a.offer, a.records, a.memory, a.key, a.history, a.suppliers, a.ttl, tenant=a.tenant, rate=a.rate, burst=a.burst, debug=debug)
+        if a.health:
+            got = server.health()
+            print(json.dumps(got, indent=1))
+            return 0 if got["ok"] else 1
+        httpd = serve(server, a.host, a.port)
+    except Exception as why:  # noqa: BLE001  (one line by default; the trace with --debug)
+        if debug:
+            raise
+        print(f"knos record serve stopped: {one_line(why)}", file=sys.stderr)
+        return 1
     signs = "signed answers" if a.key else "UNSIGNED answers (no --key)"
-    print(f"Serving on http://{a.host}:{httpd.server_address[1]}  paid: /lookup/<slug> ({signs})  free: /records/<slug>.json  health: /health. {NO_HOST}", flush=True)
+    print(f"Serving on http://{a.host}:{httpd.server_address[1]}  paid: /lookup/<slug> ({signs})  free: /records/<slug>.json  health: /health  "
+          f"limit: {a.rate:g}/s, {a.burst} at once per client. {NO_HOST}", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

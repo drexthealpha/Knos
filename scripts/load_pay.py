@@ -40,7 +40,12 @@ printed without its denominator and its failures, and p50, p95 and p99 are given
              burst (each relay sends all its payments at once; after a 429 or an expired blockhash a payment waits,
              BACKOFF with jitter, and is sent again over a fresh blockhash, BURST_ATTEMPTS sends at most; a resend the
              chain refuses because the first landed is a duplicate refused, not a failure; in the simulator every token
-             is verified and open before the first PayOrder). Sources for the fee: Solana's fee
+             is verified and open before the first PayOrder). On a cluster each signed transaction of a burst goes
+             through knos.settle.v2.fanout.FanLedger: sent to the configured endpoint and to every --second-rpc
+             (KNOS_RPC_SECOND), the same bytes again every 2 s until an endpoint takes them, confirmed by its
+             signature's status, read in one request for every transaction the run waits on; a dropped
+             connection, a timeout or HTTP 408 is no answer, and the payment is sent again (0.3.24: 22 of 40 paid, the
+             other 18 lost to exactly these, each after ONE send). Sources for the fee: Solana's fee
              structure, https://solana.com/docs/core/fees/fee-structure (prioritization fee = ceil(price x limit /
              1,000,000) lamports).
 --fee-accounts K   fee accounts per mint (default 1: the associated one alone). On a cluster the wallet is their base:
@@ -81,10 +86,14 @@ SCENARIOS = {
     "burst": "every relay sends all of its payments at once instead of one after another; a payment the endpoint turns away "
              "(HTTP 429) or whose blockhash expired is sent again after a bounded wait with jitter, over a fresh blockhash",
 }
-BURST_ATTEMPTS = 8                  # a payment's sends at most, under --scenario burst: the first and seven after a transient refusal
+BURST_ATTEMPTS = 12                 # a payment's sends at most, under --scenario burst: the first and eleven after a transient refusal
 BACKOFF = (1.0, 16.0)               # under burst: the first wait and the longest, in seconds; each wait doubles and is jittered to
-                                    # between half and all of it (seeded), so 8 sends wait 63 s at most in all
-TRANSIENT = re.compile(r"\b429\b|too many requests|blockhash not found|block ?height exceeded|blockhash (?:has )?expired", re.I)
+                                    # between half and all of it (seeded), so 12 sends wait 127 s at most in all (8 sent 63 s in 0.3.24)
+# what says nothing of the payment: a rate limit, an expired blockhash, and (0.3.25) what the public endpoint answered 18
+# of 40 payments with on 9 October 2026: a dropped connection, a timeout, HTTP 408 or a 5xx, and a send never confirmed
+TRANSIENT = re.compile(r"\b429\b|too many requests|blockhash not found|block ?height exceeded|blockhash (?:has )?expired"
+                       r"|HTTP Error 408|request timeout|timed? ?out|HTTP Error 50[0234]|not confirmed|remote end closed|connection (?:reset|refused|aborted)"
+                       r"|urlopen error|RemoteDisconnected|ConnectionError|TimeoutError", re.I)
 DUPLICATE = re.compile(r"already in use|already been processed|already paid|alreadyprocessed", re.I)
 LAMPORTS_PER_RELAY = 50_000_000     # SOL lent to each relay key for fees on a cluster (0.05 SOL); swept back at the end
 
@@ -286,13 +295,25 @@ def _programs(which: str) -> dict:
 # == a cluster =========================================================================================================
 def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time.monotonic, ledger=None, relay_one=None,
                lend=None, sweep=None, fee_accounts: int = 1, scenario: str | None = None, cu_price: int = CU_PRICE, seed: int = SEED,
-               pause=time.sleep) -> dict:
+               pause=time.sleep, seconds: tuple[str, ...] | None = None) -> dict:
     """See the module's words on --tokens, --fee-accounts and --scenario. `ledger`, `relay_one`, `lend(key)`,
     `sweep(key)`: the tests' stand-ins. With K > 1 the relays read KNOS_FEE_SHARDS=K and KNOS_FEE_BASE=<wallet> for
-    the run. `pause(seconds)`: how a wait under burst is waited (the tests' own clock)."""
+    the run. `pause(seconds)`: how a wait under burst is waited (the tests' own clock). `seconds`: the second
+    endpoints a burst's transactions also go to (default KNOS_RPC_SECOND)."""
     import os
+
+    from knos import chain
+    from knos.settle.v2 import fanout
     if scenario == "hot-funder":
         fee_accounts = 1
+    fan = None
+    # a cluster's own ledger: `chain.ledger()`, which `main` hands over, is a FanLedger itself since 0.3.25, so it is made
+    # again here with the run's second endpoints and its pause, and counted (before, only a plain chain.Ledger was: the
+    # run went out through chain.ledger()'s fan-out with --second-rpc ignored and no `fanout` in its record). A test's
+    # stand-in, a subclass of either, is left as it is
+    if scenario == "burst" and type(ledger) in (chain.Ledger, fanout.FanLedger):
+        fan = ledger = fanout.FanLedger(ledger.url, ledger.commitment, seconds=tuple(seconds) if seconds is not None else fanout.seconds_from_env(),
+                                           sleep=pause)
     shaped = Shaped(ledger, scenario, cu_price, seed) if scenario in ("rpc-faults", "priority-fee") else None
     keep = {n: os.environ.get(n) for n in ("KNOS_FEE_SHARDS", "KNOS_FEE_BASE")}
     if fee_accounts > 1:
@@ -310,6 +331,9 @@ def on_cluster(rpc, wallet: Keypair, relays: int, tokens: list[dict], clock=time
         got.update(scenario=scenario, measures=SCENARIOS[scenario])
     if scenario == "burst":
         got["backoff"] = {"sends_at_most": BURST_ATTEMPTS, "first_wait_s": BACKOFF[0], "longest_wait_s": BACKOFF[1], "jitter": "half to all of each wait"}
+    if fan is not None:
+        got["fanout"] = {"endpoints": len(fan.endpoints()), "second_endpoints": len(fan.seconds), "resend_every_s": fan.resend_every * fanout.POLL_S,
+                         "confirm_by": "getSignatureStatuses", "gives_up_after_s": fan.polls * fanout.POLL_S, **fan.asked}
     if shaped is not None:
         got.update(shaped.said())
     if scenario == "hot-funder" and got["owners"] != 1:
@@ -581,6 +605,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fee-accounts", type=int, default=1, metavar="K", help="fee accounts per mint, each order's fee to one (default 1)")
     ap.add_argument("--scenario", choices=tuple(SCENARIOS), help="contention to add: " + "; ".join(f"{k}: {v}" for k, v in SCENARIOS.items()))
     ap.add_argument("--cu-price", type=int, default=CU_PRICE, metavar="MICRO_LAMPORTS", help="--scenario priority-fee: the compute unit price")
+    ap.add_argument("--second-rpc", action="append", default=None, metavar="URL",
+                    help="--scenario burst on a cluster: a second endpoint each transaction is also sent to (repeatable; default KNOS_RPC_SECOND)")
     ap.add_argument("--out", type=Path, help="write the result here as JSON (default: print it)")
     a = ap.parse_args(argv)
     if a.relays < 1:
@@ -601,7 +627,7 @@ def main(argv: list[str] | None = None) -> int:
             ap.error("--tokens is a JSON list of {\"kind\": \"pay\", \"jwt\": ...}")
         wallet = Keypair.from_bytes(bytes(json.loads(a.wallet.read_text(encoding="utf-8"))))
         got = on_cluster(load.Rpc(chain.ledger().url), wallet, a.relays, tokens, ledger=chain.ledger(), fee_accounts=a.fee_accounts,
-                         scenario=a.scenario, cu_price=a.cu_price)
+                         scenario=a.scenario, cu_price=a.cu_price, seconds=tuple(a.second_rpc) if a.second_rpc else None)
     text = json.dumps(got, indent=1, sort_keys=True)
     if a.out:
         a.out.write_text(text + "\n", encoding="utf-8")

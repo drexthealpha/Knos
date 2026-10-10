@@ -23,13 +23,16 @@ def ex():
     spec.loader.exec_module(mod)
     said: list[str] = []
     mod.register_places()
-    assert mod.load_rounds(say=said.append) == ["gitlab", "judge", "net-reserve", "private"] and said == []
+    assert mod.load_rounds(say=said.append) == ["gitlab", "guardian", "judge", "meter-single", "net-reserve", "passkey-payee", "pause", "private", "tip", "gate"]
+    assert said == []
     return mod
 
 
 def test_every_place_kept_for_a_round_is_filled_and_gitlab_is_the_files_round(ex):
-    assert set(ex.EXT) == {"gitlab", "judge", "net-reserve", "private"} and "gitlab" not in ex.ROUNDS
-    assert all(x.simulate is not None and "a place kept for the round" not in x.doc for x in ex.EXT.values())
+    # 0.3.25's rounds for the capabilities deployed and not exercised: tests/test_exercise_deployed_rounds.py
+    added = {"guardian", "meter-single", "passkey-payee", "pause", "tip", "gate"}
+    assert set(ex.EXT) == {"gitlab", "judge", "net-reserve", "private"} | added and "gitlab" not in ex.ROUNDS
+    assert all(x.simulate is not None and "a place kept for the round" not in x.doc for n, x in ex.EXT.items() if n not in added)
     assert ex.EXT["net-reserve"].caps == ("netting_reserve",) and ex.EXT["gitlab"].caps == ("verify_gitlab", "gitlab_pay")
     assert ex.EXT["judge"].needs[-1] == "neutral" and ex.EXT["private"].caps == () and ex.EXT["judge"].caps == ("host_a_judge",)
     plan = ex.exercisable()

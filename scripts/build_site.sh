@@ -29,6 +29,9 @@ rm -rf "$out/brand/src"
 for f in icon.svg brand/mark.svg brand/wordmark.svg brand/mark.js brand/apple-touch-icon.png brand/card.png; do
   [ -s "$out/$f" ] || { echo "web/$f is missing: python scripts/brand.py --png writes it"; exit 1; }
 done
+# The page GitHub Pages answers a missing address with (404.html), the privacy and terms page, and the line every page
+# shows when a data file does not load (retry.js): files of web/, carried by the copy above; a build without one stops.
+for f in 404.html privacy.html retry.js; do [ -s "$out/$f" ] || { echo "web/$f is missing"; exit 1; }; done
 cp src/knos/settle/v2/program_ids.json "$out/program_ids.json"
 cp sdk/settle/index.js "$out/settle.js"
 cp sdk/settle/passkey.js "$out/passkey.js"

@@ -3,14 +3,16 @@
 
     python scripts/video/render.py STORYBOARD [--out FOLDER] [--voice SPEC] [--limit SECONDS] [--keep-work]
     python scripts/video/render.py STORYBOARD --estimate        check the storyboard and estimate its length; no voice, no browser
+    python scripts/video/render.py --script SCRIPT.md [...]      a spoken Markdown script instead of a storyboard (see storyboard.py)
 
 It writes NAME.mp4, NAME.srt (subtitles) and NAME.contact.jpg (twelve frames, to look at first) into FOLDER (default: an out
-folder next to the storyboard). The storyboard format is described in storyboard.py and shown in sample.storyboard.
+folder next to the storyboard; for --script, scripts/video/out). The storyboard format is described in storyboard.py and shown in sample.storyboard.
 
 What happens, in order, and where it stops:
   1 the storyboard is read                          a mistake is reported with its line (exit 2)
   2 the voice speaks every sentence                 the length of each is measured; Piper (offline) or edge-tts (online)
-  3 the length is added up                          over 180 seconds: stop here, before anything is recorded (exit 3)
+  3 the length is added up                          over the limit (180 s, or the storyboard's `limit:`): stop here,
+                                                    before anything is recorded (exit 3)
   4 each terminal scene's commands run for real     a command that fails stops the render unless it was written run!:
   5 each scene is photographed in Chromium          real pages, the terminal page, stills
   6 ffmpeg encodes one H.264/AAC file               constant frame rate; the narration is never cut short
@@ -65,21 +67,25 @@ def check_tools() -> None:
 
 def render(args: argparse.Namespace) -> int:
     started = time.monotonic()
-    if not 0 < args.limit <= sb.LIMIT:
+    if args.limit is not None and not 0 < args.limit <= sb.LIMIT:
         raise sb.StoryboardError(f"the limit is at most {sb.LIMIT:g} seconds, and not {args.limit:g}")
-    path = Path(args.storyboard)
+    if bool(args.storyboard) == bool(args.script):
+        raise sb.StoryboardError("give a storyboard or --script SCRIPT, one of the two")
+    path = Path(args.script or args.storyboard)
     if not path.is_file():
         raise sb.StoryboardError(f"{path} is not a file")
-    board = sb.parse(path.read_text(encoding="utf-8"), path)
+    text = path.read_text(encoding="utf-8")
+    board = sb.from_script(text, path) if args.script else sb.parse(text, path)
+    limit = args.limit if args.limit is not None else board.limit
     if args.voice:
         board.voices = [v.strip() for v in args.voice.split(",") if v.strip()]
         for spec in board.voices:
             if voice.parse_spec(spec)[0] not in voice.ENGINES or not voice.parse_spec(spec)[1]:
                 raise sb.StoryboardError(f"a voice is piper:NAME or edge:NAME, not {spec!r}")
     if args.estimate:
-        return estimate(board, args.limit)
+        return estimate(board, limit)
     check_tools()
-    out = Path(args.out) if args.out else path.parent / "out"
+    out = Path(args.out) if args.out else (HERE if args.script else path.parent) / "out"
     out.mkdir(parents=True, exist_ok=True)
     work = out / f".{path.stem}-work"
     shutil.rmtree(work, ignore_errors=True)
@@ -94,8 +100,8 @@ def render(args: argparse.Namespace) -> int:
     used, audio = voice.speak(board.voices, [(s.say, lead, tail, s.hold) for s in board.scenes], work, board.speed, say)
     lengths = [a.seconds for a in audio]
     total = sum(lengths)
-    say(f"  voice {used}; the scenes add up to {total:.1f} s (the limit is {args.limit:g} s)")
-    assemble.check_length(total, args.limit, [(s.id, n) for s, n in zip(board.scenes, lengths)])
+    say(f"  voice {used}; the scenes add up to {total:.1f} s (the limit is {limit:g} s)")
+    assemble.check_length(total, limit, [(s.id, n) for s, n in zip(board.scenes, lengths)])
 
     say("\n[2/4] commands")
     results = {}
@@ -121,7 +127,7 @@ def render(args: argparse.Namespace) -> int:
     (work / "master.ffconcat").write_text(assemble.ffconcat(frames), encoding="utf-8")
     assemble.encode(work, work / "master.ffconcat", work / "narration.wav", subtitles, mp4, board.fps, total, board.title)
     info = assemble.probe(mp4)
-    problems = assemble.verify(info, board.size, board.fps, args.limit, total)
+    problems = assemble.verify(info, board.size, board.fps, limit, total)
     if problems:
         mp4.unlink(missing_ok=True)
         subtitles.unlink(missing_ok=True)
@@ -133,7 +139,7 @@ def render(args: argparse.Namespace) -> int:
     if not args.keep_work:
         shutil.rmtree(work, ignore_errors=True)
     shown = float(info["format"]["duration"])
-    say(f"\nvideo      {mp4}  {shown:.1f} s, {board.size[0]}x{board.size[1]}, {board.fps} fps constant, H.264 and AAC (the limit is {args.limit:g} s)")
+    say(f"\nvideo      {mp4}  {shown:.1f} s, {board.size[0]}x{board.size[1]}, {board.fps} fps constant, H.264 and AAC (the limit is {limit:g} s)")
     say(f"subtitles  {subtitles}  {text.count(' --> ')} cues (also a track inside the video)")
     say(f"contact    {contact if sheet else 'not made'}")
     say(f"rendered in {time.monotonic() - started:.0f} s with voice {used}")
@@ -142,10 +148,11 @@ def render(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], epilog="The storyboard format: see storyboard.py and sample.storyboard.")
-    ap.add_argument("storyboard")
+    ap.add_argument("storyboard", nargs="?", help="the storyboard to render (or give --script)")
+    ap.add_argument("--script", help="a spoken Markdown script to render instead of a storyboard, such as docs/submission/pitch_script_120.md")
     ap.add_argument("--out", help="the folder for the video, the subtitles and the contact sheet (default: out, next to the storyboard)")
     ap.add_argument("--voice", help="piper:NAME or edge:NAME, several separated by commas; replaces the storyboard's voice line")
-    ap.add_argument("--limit", type=float, default=sb.LIMIT, help=f"the longest the video may be, at most {sb.LIMIT:g} seconds (default {sb.LIMIT:g})")
+    ap.add_argument("--limit", type=float, default=None, help=f"the longest the video may be, at most {sb.LIMIT:g} seconds (default: the storyboard's limit:, else {sb.LIMIT:g})")
     ap.add_argument("--estimate", action="store_true", help="check the storyboard and estimate its length; no voice, no browser")
     ap.add_argument("--keep-work", action="store_true", help="keep the folder of photographs and audio the render works in")
     args = ap.parse_args(argv)

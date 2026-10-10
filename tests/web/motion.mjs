@@ -255,7 +255,9 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
   check("  from then on a link to another page is a view transition, and the page asked for is shown", crossed === 1 && (await page.evaluate(() => window.transitions)) === 2 && await page.isHidden("#view-check") && (await page.evaluate(() => location.hash)) === "#pricing");
   await settle(page);
   // the heading and the mark cross by name, and the names are gone when it is over
-  const crossing = await page.evaluate(async () => {
+  // each crossing from a page at rest: the first screen's own entrance, still running when the second press came, cost
+  // the browser's picture more than MORPH_BUDGET_MS on a loaded machine and the crossing was rightly skipped (seen: [])
+  const crossOnce = (to) => page.evaluate(async (to) => {
     const m = await import("./motion.js"), names = () => [...document.querySelectorAll("*")].filter((e) => e.style.viewTransitionName).map((e) => `${e.style.viewTransitionName}:${e.id || e.className || e.tagName.toLowerCase()}`).sort().join();
     const cross = async (to) => {
       const seen = new Set(), groups = new Set(); let on = true;
@@ -264,8 +266,11 @@ for (const [width, height] of [[1280, 800], [390, 844], [1440, 900]]) {
       seen.add(names()); look(); await done; on = false;
       return { seen: [...seen].filter(Boolean), groups: [...groups].sort().join(), after: names(), hash: location.hash };
     };
-    return [await cross("#check"), await cross("#pricing")];
-  });
+    return cross(to);
+  }, to);
+  const crossing = [await crossOnce("#check")];
+  await settle(page); await ended(page);
+  crossing.push(await crossOnce("#pricing"));
   check("  to the first screen: the heading crosses to the sentence and the mark comes in by name; the names are taken off afterwards", crossing[0].seen.some((n) => /^title:/.test(n) && !/mark:/.test(n)) && crossing[0].seen.some((n) => n.includes("mark:mark3d") && n.includes("title:check"))
     && crossing[0].groups === "title" && crossing[0].after === "" && crossing[0].hash === "#check", crossing[0]);
   check("  and away from it: the mark crosses to the one in the bar", crossing[1].seen.some((n) => n.includes("mark:mark3d")) && crossing[1].seen.some((n) => n.includes("mark:wordmark")) && crossing[1].groups === "mark,title" && crossing[1].after === ""

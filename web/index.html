@@ -6,6 +6,10 @@
 <title>Knos. The neutral meter for AI agent work: neither side keeps the count.</title>
 <meta name="description" content="The neutral meter for AI agent work: neither side keeps the count.">
 <meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/">
+<!-- the colour of the browser's own bar: the page's paper (web/app.css --paper), dark first, light for a light system -->
+<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
 <!-- The card of a shared link is a file of this site (web/brand/card.png, drawn by scripts/brand.py); the page itself asks for nothing here. -->
@@ -22,9 +26,13 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Knos wordmark, a raven whose body and tail are the letter K, above the sentence: The neutral meter for AI agent work: neither side keeps the count.">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
+<meta name="twitter:image:alt" content="The Knos wordmark, a raven whose body and tail are the letter K, above the sentence: The neutral meter for AI agent work: neither side keeps the count.">
 <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="app.css">
+<!-- A data file that does not load is said in one line with a button to reload, on every page (web/retry.js); before front.js. -->
+<script type="module" src="retry.js"></script>
 <!-- The first screen's control comes before the mark on a phone, and its answer before the mark too (web/front_door.js). -->
 <link rel="alternate" type="application/atom+xml" title="Knos: upgrade proposals of the programs" href="upgrades.xml">
 <link rel="alternate" type="application/atom+xml" href="index.atom" title="Agent PR Index">
@@ -83,7 +91,8 @@
   <section id="view-check" class="view">
     <!-- THE FIRST SCREEN: 40 words of prose at most, bar included (tests/web/front_door.mjs counts them as
          tests/web/words.mjs does). The sentence, the figure (docs/backtest.json: 9 of the 241 merged, after the second reading), ONE control: a box
-         for your own invoice or a repository's name, with a sample (web/front_door.js draws the answer into
+         for an agent's pull request (pasted alone it goes to its check, web/check.js at #check=owner/repo/123), your own
+         invoice or a repository's name, with the invoice sample (web/front_door.js draws the answer into
          #front-result, in place), and directly under it the week's leaderboard as a strip. The round (web/demo.js fills
          #demo) is below it. -->
     <div class="hero k-stage">
@@ -92,7 +101,7 @@
         <p class="hero-outcome" id="hero-outcome">Both sides close invoices on evidence both verify.</p>
         <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/backtest.json">241</a> merged agent “tests pass” pull requests: <span class="k-num">9</span> failed tests or builds.</p>
         <form id="front-door" class="fd">
-          <textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="A supplier's invoice, or a public repository" placeholder="Paste an invoice, or type owner/repo"></textarea>
+          <textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="An agent's pull request, an invoice, or owner/repo" placeholder="Paste an agent's pull request"></textarea>
           <p class="actions"><button type="submit" class="k-btn" data-fd="run">Check</button> <button type="button" class="k-btn quiet" data-fd="sample">Try a sample</button></p>
         </form>
         <!-- The weekly leaderboard, directly under the box (web/board_strip.js, from agent_index.json): asked for after
@@ -106,6 +115,9 @@
       <details class="hero-upgrades" id="hero-upgrades" hidden><summary id="hero-upgrades-line"></summary><div class="hero-upgrades-body" id="hero-upgrades-body"></div></details>
       <div class="hero-mark" id="mark3d" aria-hidden="true"></div>
       <div id="front-result" hidden></div>
+      <!-- THE TEN-SECOND CHECK of one pull request (web/check.js, at #check=owner/repo/123; web/front.js mounts it), its
+           share row under the verdict (web/share.js). Empty and hidden until such a hash is opened. -->
+      <section id="check-one" hidden style="grid-column: 1 / -1; order: 2; min-width: 0"></section>
       <a class="hero-cue" id="hero-cue" href="#demo" aria-label="The demo, below"></a>
     </div>
     <!-- HOW IT WORKS, under the first screen: three steps, the same three everywhere. What the advanced terms mean
@@ -180,14 +192,14 @@
 
     <h2 id="check-a-pull-request">Check a pull request</h2>
     <p class="fine" id="second-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/BENCH.md">17.8%</a> of agents' first “tests pass” pull requests had a failed check.</p>
+    <!-- ONE BOX: a pull request, a repository or a transaction is typed in the first screen's box (#fd-in, web/front_door.js).
+         This form has no field of its own: the examples put their input in it and press it (web/first.js), and a
+         transaction typed in the box is read here too (web/front.js elsewhere). -->
     <form id="pr-form" class="card">
-      <label for="pr-url">Paste a pull request, a repository or a transaction</label>
-      <input id="pr-url" name="pr-url" type="text" inputmode="url" autocomplete="off" required
-        placeholder="https://github.com/owner/repo/pull/123, owner/repo or a transaction">
-      <p class="fine examples-row">Or open a result:</p>
+      <input id="pr-url" name="pr-url" type="hidden">
+      <p class="fine examples-row">Open an example:</p>
       <div id="examples" class="examples"></div>
       <p id="example-says" class="fine" role="status" aria-live="polite"></p>
-      <button type="submit" id="pr-check">Check it</button>
       <div id="pr-result" role="status" aria-live="polite"></div>
       <noscript><p class="fine">This check runs in your browser and needs JavaScript. The rest of the page reads without it.</p></noscript>
     </form>
@@ -412,11 +424,10 @@
 <p class="fine">A task is paid when a maintainer merges a pull request that closes the issue and its funded checks
   passed at the last commit. The payment is final. <code>/knos reject</code> before merging keeps a pull request from
   the bounty. Unpaid by the deadline, the money goes back; that needs no token.</p>
-<p class="fine">Fee: 0.30% of the amount, at least 0.05 test USDC and no maximum, paid by the funder on top, once
-  knos_pay 2.2 is live; until that upgrade executes the program charges the fee it charged before the upgrade (2.5% of the first 1,000, 1% to
-  50,000, 0.5% above, at least 0.40 test USDC). It is charged only when someone is paid: a refund returns it with the
-  amount. Orders funded before the upgrade keep the rate fixed at their funding.
-  <a href="#pricing">Pricing</a> says which fee the program on devnet applies today.</p>
+<p class="fine" id="fund-fee" data-fee="0.3.18">Fee: 0.30% of the amount, at least 0.05 test USDC, paid by the funder on top (knos_pay 2.2 is live). Orders funded before the upgrade keep the rate fixed at their funding.</p>
+<p class="fine">There is no maximum. It is charged only when someone is paid: a refund returns it with the amount. An
+  order funded under knos_pay 2.1 keeps its stored fee: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least
+  0.40 test USDC. <a href="#pricing">Pricing</a> says which fee the program on devnet applies today.</p>
 </details>
 
     <div class="card money" id="anyissue">
@@ -791,6 +802,7 @@
   <span>Devnet is test mode: the money is test USDC.
     <a href="https://github.com/drexthealpha/Knos/blob/main/docs/GOVERNANCE.md">Who can change the programs</a></span>
   <span><a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
+  <span><a href="privacy.html">Privacy and terms</a></span>
 </footer>
 <!-- One script for the first screen. The code of every other page is asked for when that page is first opened (web/front.js, PAGES). -->
 <script type="module" src="front.js"></script>

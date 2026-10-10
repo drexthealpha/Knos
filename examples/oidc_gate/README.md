@@ -26,7 +26,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 solana-program = "=2.2.1"
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.24" }   # no dependency of its own
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.25" }   # no dependency of its own
 
 [lints.rust]
 unexpected_cfgs = { level = "allow" }

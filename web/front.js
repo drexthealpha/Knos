@@ -202,7 +202,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
+    uses: drexthealpha/knos-workflows/.github/workflows/fund.yml@1997fe1d229c6296700d62136d0c2b62667087c0
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional: when the repository has none, this passes nothing
 
@@ -223,7 +223,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@1997fe1d229c6296700d62136d0c2b62667087c0
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 
@@ -243,7 +243,7 @@ jobs:
       statuses: read
       actions: read
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
+    uses: drexthealpha/knos-workflows/.github/workflows/prove.yml@1997fe1d229c6296700d62136d0c2b62667087c0
     secrets:
       KNOS_RELAY_KEY: \${{ secrets.KNOS_RELAY_KEY }}       # optional, as above
 `;
@@ -292,7 +292,7 @@ jobs:
       checks: read
       statuses: read
       actions: read
-    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
+    uses: drexthealpha/knos-workflows/.github/workflows/check.yml@1997fe1d229c6296700d62136d0c2b62667087c0
 `;
 
 export function checkUrl(owner, repo, branch) {
@@ -463,7 +463,7 @@ async function check(ev) {
       <p class="fine">One workflow file makes a funded issue's payment run on this repository: the merged pull request
         is paid when the funder's checks passed at the merged commit, as the workflow reads them from GitHub, and Solana has
         checked GitHub's signature of that workflow run. An optional second
-        file runs this same check on every pull request. Fee: 2.5%, only when someone is paid.</p>`;
+        file runs this same check on every pull request. Fee: only when someone is paid, at the rate <a href="#pricing">Pricing</a> reads from the program.</p>`;
   } catch (e) {
     out.innerHTML = e instanceof RateLimited
       ? `<p class="status bad">GitHub's free limit for this network is used up (60 reads an hour without login).
@@ -537,7 +537,10 @@ export const PAGES = {
         <a id="cap-document" href="https://github.com/drexthealpha/Knos/blob/main/docs/CAPABILITIES.md">As a document</a></div><div class="card" id="capabilities-list"></div>`;
     m.renderCapabilities($("capabilities-list"), data);
   } },
-  buy: chain("./buyer.js"), status: chain("./mounts.js"), index: chain("./mounts.js"), pilot: chain("./mounts.js"), reproduce: chain("./mounts.js"),
+  // #buy names its whole graph: a modulepreload fetches one file, not what it imports, and on a slow phone each level waited a round trip
+  buy: chain("./buyer.js", "./upgrade.js", "./views.js", "./console.js", "./procure.js", "./anyissue.js", "./passkey.js", "./price.js", "./controls_data.js",
+    "./passkey_fund.js", "./cache.js", "./fee_live.js", "./version.js"),
+  status: chain("./mounts.js"), index: chain("./mounts.js"), pilot: chain("./mounts.js"), reproduce: chain("./mounts.js"),
   fund: chain("./task.js", "./anyissue.js"), claim: chain("./claim.js"), pricing: chain("./pricing.js"), records: chain("./records.js", "./statements.js"), network: chain(),
 };
 // the pages added by name (web/views.js ADDED): each a module fetched on first opening, and its file of data read first
@@ -677,6 +680,7 @@ function openPage(name) {
   if (el) keepFolded(el);
   if (!p || !el) { ready(); return Promise.resolve(); }
   if (!drawn.has(name)) {
+    preload(name);                // every file the page names, asked for at once, not one import level per round trip
     const mount = MOUNTS.includes(name);
     if (mount && el.childElementCount === 0) bars(el);
     el.dataset.loading = ""; el.setAttribute("aria-busy", "true");
@@ -726,6 +730,7 @@ function route(moved) {
   if (name === "install" && !on) setTimeout(() => $("install-today")?.scrollIntoView?.(), 0);
   if (moved && was !== null && name !== pageOf(was, filled) && !["money", "task", "anyissue", "demo", "check-a-pull-request"].includes(raw)) globalThis.scrollTo?.(0, 0);
   const opened = openPage(name);
+  if (name === "check" && raw === "check" && arg) mountCheck(arg); else clearCheck();
   if (name === "protect" && arg) {
     const at = arg.lastIndexOf("@");
     $("protect-repo").value = at > 0 ? arg.slice(0, at) : arg;
@@ -733,6 +738,34 @@ function route(moved) {
     $("protect-form").requestSubmit();
   }
   return opened;
+}
+// THE TEN-SECOND CHECK (web/check.js in <section id="check-one">, under the first screen's box): #check=owner/repo/123
+// checks that pull request; #check=owner/repo (a README badge's link) fills the box with that repository's pull request
+// link, the number left to type. Once drawn, web/check.js follows later #check=… itself.
+let checkP = null;
+function mountCheck(arg) {
+  const el = $("check-one"), repoOnly = /^[\w.-]+\/[\w.-]+\/?$/.test(arg);
+  if (!el) return;
+  const fill = () => {
+    if (!repoOnly) return;
+    const box = el.querySelector("#check-url");
+    if (box) { box.value = `https://github.com/${arg.replace(/\/$/, "")}/pull/`; box.focus({ preventScroll: true }); }
+  };
+  if (checkP) { checkP.then(fill); return; }
+  el.hidden = false;
+  const mine = checkP = import("./check.js").then((m) => {
+    if (checkP !== mine) return;                     // left #check before its code arrived
+    m.renderCheck(el, { esc, go, arg });
+    fill();
+    el.scrollIntoView?.({ block: "start", behavior: prefersReduced() ? "auto" : "smooth" });
+  }).catch(() => { el.hidden = true; checkP = null; });
+}
+// Leaving #check=… clears the check: an answer is shown only at the link that asks for it (web/check.js stops following
+// the address once its form is gone).
+function clearCheck() {
+  const el = $("check-one");
+  if (!checkP || !el) return;
+  checkP = null; el.replaceChildren(); el.hidden = true;
 }
 // A change of page made from the page itself: shown in this very task, without waiting for the browser's hashchange.
 export function go(to) { if (location.hash === to) return; location.hash = to; route(true); }
@@ -782,7 +815,7 @@ function initBar() {
   for (const a of document.querySelectorAll('a[href="#demo"], #go-check')) a.addEventListener("click", (ev) => {
     if (ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
     ev.preventDefault();
-    const toBox = () => { go("#check-a-pull-request"); $("pr-form").scrollIntoView?.({ block: "center" }); $("pr-url").focus({ preventScroll: true }); };
+    const toBox = () => { go("#check-a-pull-request"); $("front-door")?.scrollIntoView?.({ block: "center" }); $("fd-in")?.focus({ preventScroll: true }); };
     if (a.id === "go-check" || !demo) return toBox();
     // the round's code may still be on its way (it is asked for when the reader first moves): the press waits for it
     mountDemo().then(() => { if (demo.hidden) return toBox(); go("#demo"); toDemo(); });
@@ -868,9 +901,30 @@ function initMotion() {
   initMotionRoot(main);
 }
 
+// THE ONE BOX on the first screen (web/front_door.js) takes everything: a pull request goes to its check (#check=…), an
+// invoice is checked in place, and two things are handed back to this page. A Solana transaction is read where the
+// examples answer (#pr-result, web/first.js); a repository named alone gets its record in the Agent PR Index (index.json,
+// nothing asked of GitHub), and counting its merged pull requests on GitHub is then one press (data-fd="count").
+let firstP = null;
+async function elsewhere(text, out) {
+  const first = await firstP?.catch(() => null);
+  if (first?.parseTx(text)) {
+    $("pr-url").value = text; $("example-says").textContent = "";
+    $("pr-form").requestSubmit();
+    $("pr-result").scrollIntoView?.({ block: "nearest" });
+    return true;
+  }
+  const ref = parseRepo(text);
+  if (!ref) return false;
+  out.hidden = false; delete out.dataset.done;
+  out.innerHTML = `${repoRecord(await loadIndex(), ref)}
+    <p class="fd-under"><button type="button" class="k-btn quiet" data-fd="count">Count its merged pull requests</button></p>`;
+  out.scrollIntoView?.({ block: "nearest" });
+  return true;
+}
+
 if (typeof document !== "undefined" && $("pr-form")) {
   $("pr-form").addEventListener("submit", check);
-  $("pr-url").addEventListener("paste", () => setTimeout(() => check(), 0));
   $("protect-form")?.addEventListener("submit", protectRepo);
   initTheme();
   workflowFacts();
@@ -880,7 +934,7 @@ if (typeof document !== "undefined" && $("pr-form")) {
   initUpgrades();
   // THE FRONT DOOR (web/front_door.js): the first screen's one control, your own invoice checked in place. Mounted
   // here, before anything else of the page is read, so it answers even when GitHub and devnet do not.
-  if ($("front-door")) import("./front_door.js").then((m) => m.renderFrontDoor($("front-door"))).catch(() => {});
+  if ($("front-door")) import("./front_door.js").then((m) => m.renderFrontDoor($("front-door"), { elsewhere })).catch(() => {});
   // THE WEEK'S LEADERBOARD, directly under the box (web/board_strip.js): asked for after the first paint, and index.html
   // holds grey bars of its size until the feed (agent_index.json, the build's copy of docs/index.json) has answered.
   // A build with no feed, or a feed with no placed agent, shows nothing there.
@@ -898,6 +952,7 @@ if (typeof document !== "undefined" && $("pr-form")) {
   // Below it on the first screen: the example buttons and the recording (web/first.js); the round (web/demo.js) comes
   // with the reader's first move (initDemo).
   // A transaction pasted into the box is read from Solana, and only then are the files that read Solana asked for.
-  import("./first.js").then((m) => m.initFirst({ $, esc, EXPLORER, core })).catch(() => {});
+  firstP = import("./first.js").then((m) => { m.initFirst({ $, esc, EXPLORER, core }); return m; });
+  firstP.catch(() => {});
   initDemo();
 }

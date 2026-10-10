@@ -10,6 +10,7 @@ spoken and one thing to show while they are spoken: a web page, the real output 
     pad: 0.4 0.6                            seconds of quiet before and after each scene's words (default 0.4 0.6)
     cwd: ../..                              where `run:` commands run, relative to this file (default: this file's folder)
     env: PYTHONPATH=src                     an environment variable for `run:` commands (repeat the line for more)
+    limit: 120                              the longest the video may be, in seconds, at most 180 (default 180)
 
     --- intro                               a scene starts with --- and its name (letters, digits, - and _)
     say: What is said, in plain sentences.  The words of the scene. A line that starts with two spaces goes on from the one
@@ -33,6 +34,12 @@ spoken and one thing to show while they are spoken: a web page, the real output 
 Lines that start with # are comments; blank lines mean nothing. A scene shows one thing: `show:` or `run:`, not both.
 A command runs for real, once, when the video is rendered, and the terminal page replays what it printed, with the
 exit status and the seconds it took; a storyboard runs commands, so only render one that you trust.
+
+A spoken script in Markdown is a storyboard too (`from_script`, and `render.py --script FILE`): each heading
+`## 1. Name (0:00)` starts a scene, each line that starts with `>` is said in it, and a whole line `<!-- key: value -->`
+(or <!-- `key: value` -->) is a storyboard line (before the first heading, a header line such as `<!-- limit: 120 -->`; after it, a scene's line
+such as `<!-- show: url https://... -->`). Everything else in the file is for the reader and is not said. A mistake is
+reported with the script's own line number.
 """
 
 from __future__ import annotations
@@ -43,7 +50,9 @@ from pathlib import Path
 
 LIMIT = 180.0                       # seconds: a longer video is a failure, whatever the storyboard says
 KEYS = ("say", "show", "scroll", "wait", "hold", "run", "run!")
-HEADER_KEYS = ("title", "size", "fps", "voice", "speed", "pad", "cwd", "env")
+HEADER_KEYS = ("title", "size", "fps", "voice", "speed", "pad", "cwd", "env", "limit")
+SCRIPT_HEAD = re.compile(r"## \d+\. (.+?) \(\d+:\d\d\)")      # a spoken script's section: `## 1. The finding (0:00)`
+SCRIPT_LINE = re.compile(r"<!--\s*`?([a-z!]+:.*?)`?\s*-->")    # `<!-- key: value -->`, the key and value maybe in backticks
 
 
 class StoryboardError(ValueError):
@@ -80,6 +89,7 @@ class Storyboard:
     pad: tuple[float, float] = (0.4, 0.6)
     cwd: Path = field(default_factory=Path)
     env: dict[str, str] = field(default_factory=dict)
+    limit: float = LIMIT
     scenes: list[Scene] = field(default_factory=list)
 
     @property
@@ -186,6 +196,8 @@ def _header(board: Storyboard, key: str, value: str, at: int) -> None:
         if len(parts) != 2:
             raise StoryboardError(f"line {at}: pad is two numbers, the seconds before and after each scene's words")
         board.pad = (_number(parts[0], at, "pad", 0, 10), _number(parts[1], at, "pad", 0, 10))
+    elif key == "limit":
+        board.limit = _number(value, at, "limit", 1, LIMIT)
     elif key == "cwd":
         board.cwd = (board.folder / value).resolve()
     elif key == "env":
@@ -193,6 +205,24 @@ def _header(board: Storyboard, key: str, value: str, at: int) -> None:
         if not eq or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name.strip()):
             raise StoryboardError(f"line {at}: env is NAME=value, not {value!r}")
         board.env[name.strip()] = val
+
+
+def from_script(text: str, path: str | Path = "script.md") -> Storyboard:
+    """The storyboard a spoken Markdown script describes (see the module's text). Each line of the script becomes one line
+    of a storyboard, so a StoryboardError names the script's own line."""
+    out = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        head, own = SCRIPT_HEAD.fullmatch(line), SCRIPT_LINE.fullmatch(line)
+        if head:
+            out.append("--- " + (re.sub(r"[^a-z0-9]+", "-", head.group(1).lower()).strip("-") or "scene"))
+        elif line.startswith(">"):
+            out.append("say: " + line[1:].strip() if line[1:].strip() else "")
+        elif own:
+            out.append(own.group(1))
+        else:
+            out.append("")
+    return parse("\n".join(out) + "\n", path)
 
 
 def _check(board: Storyboard) -> None:

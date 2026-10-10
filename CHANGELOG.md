@@ -2,6 +2,139 @@
 
 Prices and figures in older entries are superseded; the current price book is [docs/MARKET.md](docs/MARKET.md), section "The price book", and each GitHub release's notes are its entry here.
 
+## 0.3.25 (October 2026)
+
+**Check any public agent pull request in the browser in about ten seconds and share the result; and ready for a
+stranger on launch day: the twenty pre-launch checks answered one by one, a record that survives
+missing, late and duplicated evidence, a file for the accounting system, and a reproduction and a consumer that need
+nothing of Knos.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Everything this release adds is "tested locally" in
+[`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) unless a line says otherwise; none of it has been used by a person
+outside this repository. **No program changes in this release:** nothing under `programs-v2/knos_*`, `programs/`,
+`idl/` or `tests/fixtures/*.so` moved by a byte. The interface crates stay at 0.3.14.
+
+### The ten-second check
+
+- **The check** (`#check`, [`web/check.js`](web/check.js)): paste a public GitHub pull request link on the site's first
+  screen and the browser reads its description and the checks at its head commit from GitHub's public API, then
+  answers: does the description claim the tests pass (the sentence quoted), which checks failed (test, build, lint or
+  type, or other), and the verdict in one line. No install, no login, no wallet; nothing is sent to Knos. The rules
+  are the index's own: [`web/check_rules.js`](web/check_rules.js) is a port of `scripts/agent_pr_ci.py`, and
+  `tests/test_check_rules.py` runs both on all 349 recorded pull requests of
+  [`docs/agent_pr_ci.json`](docs/agent_pr_ci.json): they agree on every one.
+- **Sharing** ([`docs/SHARE.md`](docs/SHARE.md), [`web/share.js`](web/share.js)): the link
+  `#check=owner/repo/123` checks the same pull request again for whoever opens it; "Copy the result" copies the
+  verdict, the claim, the counts and the link; "Post on X" opens X's own compose box with them filled in (nothing is
+  posted automatically: the reader presses X's own button, or not); "Download the card" draws a 1200 x 630 PNG in the
+  browser; a static README badge links to the check of a repository's pull requests, offered only to a repository
+  that merged one in the last 30 days.
+- **Measured:** from the first paint of the landing page to the verdict drawn, 2.7 s at the median of 3 runs (2,695
+  ms; slowest 2,702 ms) on the android profile (360 x 740, processor 4 times slower, slow 4G for the site's files) with
+  GitHub's answers recorded ([`docs/perf.json`](docs/perf.json) `first_verdict`). Landing to X's compose box is two
+  presses: paste the link (the check runs as it lands), then "Post on X" (`tests/web/front_door.mjs` counts them).
+- **Limits:** GitHub answers 60 requests an hour to a reader without a login, and one check costs three, so about
+  twenty checks an hour from one address; the page says when the limit is hit and when it resets. A shared link's
+  preview on X or elsewhere shows the site's own card, not the verdict: crawlers run no script and never see what
+  follows `#`. Attach the downloaded card to show the verdict. Nobody outside this repository has used the check yet.
+
+### The twenty checks
+
+- **[`docs/LAUNCH.md`](docs/LAUNCH.md) answers a common pre-launch list item by item:** 12 done, 5 partly, 3 not
+  applicable (Knos has no accounts, no passwords, no email and calls no AI provider), each with its evidence and what
+  is not done. `python scripts/launch_check.py` checks offline that every file and test it names exists, that the
+  tree holds no key and that the site and package gain no analytics script, email sender or AI provider client.
+- **Keys in history.** `scripts/secret_scan.py --history` reads every blob ever committed and reports hits by kind,
+  never by value. It found one real key, a program keypair from a build of an example, never on `main` or on any
+  published tag, whose address holds no role; it is treated as spent. No GitHub, npm, PyPI or cloud token was found.
+- **Rollback.** [`docs/ROLLBACK.md`](docs/ROLLBACK.md): PyPI yank, npm deprecate, the tag, the site, the relay and the
+  programs (a guardian pause of new funding, at most 7 days; an upgrade back waits for the time lock), with the
+  commands from the tree. No drill of the whole page has been run.
+- **Contact.** `SECURITY.md` gives a private reporting path; the README and the site's privacy page give a public one.
+
+### The record API, hardened
+
+- **`knos record serve`** keeps a token bucket per client (2 requests a second, 30 at once by default; 429 with
+  Retry-After), states each route and who may call it (anything else is 404), checks every input (400 with one line)
+  and never answers with a stack trace: `--debug` or `KNOS_DEBUG=1` prints it on the operator's terminal only. The CLI
+  says one line the same way.
+- **Tenants.** In the self-host bundle one tenant never reads another's records or counts. The public record page
+  shows public chain data and public pull requests, by design.
+- **Backup and restore.** `knos archive make` with the event log, ledgers and statements; unzip and run
+  `python verify.py` to restore and check. A test backs up, deletes, restores and gets byte-identical statements.
+
+### A record that survives bad evidence
+
+- **Completeness.** `knos statement complete` compares a statement with its sources (the chain's orders and the GitHub
+  events its receipts name) and lists each exception: deleted (the pull request or run is gone), omitted (an order paid
+  in the period with no line), late (carried to the next period, never silently added) and duplicated (one deliverable
+  under two ids: counted once, flagged). A resolution is remembered through the memory engine and recalled when the
+  same source comes back. The sources are given as a file; nothing fetches them yet.
+- **Finality.** A retried webhook, a delayed or repeated bank status, a transaction dropped before finality and one the
+  cluster has only processed never make two or contradictory records; a payment is booked once, when finalized
+  ([`docs/INVARIANTS.md`](docs/INVARIANTS.md)).
+- **What an upgrade cannot change.** An order keeps the fee schedule stored at its funding; a test reads it from an
+  order funded under knos_pay 2.1.
+
+### Use it without Knos
+
+- **Signed reproduction for anyone.** [`docs/REPRODUCE.md`](docs/REPRODUCE.md): a workflow a stranger runs in their
+  own repository installs knos from PyPI, runs `knos reproduce` against devnet and has GitHub sign the result.
+  `knos reproduce --verify` checks such a run offline against GitHub's keys; `scripts/reproductions.py` lists verified
+  ones by owner, Knos's own excluded. Reproductions recorded: 0.
+- **A second application.** [`examples/consumer`](examples/consumer) is a Node program with no dependency that reads a
+  receipt or statement and the chain and decides alone whether an order is paid, by which transaction and under which
+  terms hash, from the published schema and the IDL ([`docs/COMPOSE.md`](docs/COMPOSE.md)). Tested on recorded devnet
+  answers; no outsider has used it.
+
+### Finance
+
+- **`knos statement export --to xero|quickbooks|netsuite|csv`** writes the bill-import file of each system, one bill
+  per agreed line with its four steps and assurance in the memo, and a held sheet beside it for every disputed, owed,
+  duplicate or unsupported line. The statement page has one control: Download for your accounting system. A file
+  export: nobody has imported one into any of these products, and Xero's columns were read in a published guide, not
+  on Xero's own page ([`docs/FINANCE.md`](docs/FINANCE.md)).
+- **Fixed: an owed line was billed.** `--format quickbooks`, `netsuite` and `ariba` billed a line whose policy was met
+  but the buyer refused (owed to the supplier). Owed and disputed lines never go into a payable now, on the site too.
+
+### Operations
+
+- **Fan-out.** Every signed transaction a relay sends now goes to the configured endpoint and any second one
+  (`KNOS_RPC_SECOND`), is sent again every 2 s until an endpoint takes it and is confirmed by its signature status, one
+  status request a poll for every transaction the process waits on; a lost answer is never taken as a refusal. On a
+  stand-in devnet that drops answers as devnet did, the burst pays 40 of 40, each once. On devnet on 9 Oct the burst
+  paid 22 of 40 (RPC drops, timeouts, HTTP 408) and priority-fee 40 of 40, every PayOrder priced. On 10 Oct, at the
+  public program ids with own wallets, the burst with the fan-out paid 40 of 40, with no failure; a first run that day,
+  with each transaction's status asked apart every 0.5 s, had its status requests answered HTTP 429 and was stopped at
+  11 of 40, which is why one request now serves them all. The runs are in [`docs/LOAD.md`](docs/LOAD.md).
+- **The worker's event job** retries its install with `--refresh`, as the claims job does.
+- **The grace round** reads a refund someone else sent first and passes with it noted. Run at the public ids on
+  10 Oct: its order had been refunded by the public relay 41 s after the grace ended, and the round passed.
+- **The task board** funds a task stranded by a new workflow pin again in place and closes none. Not yet run on the
+  eight open in the playground.
+- **Rounds for the capabilities deployed and not exercised:** tip, meter-single, passkey-payee, gate, guardian, pause
+  and gitlab. Run at the public ids on 10 Oct with own wallets, before this release's commit: tip, meter-single,
+  passkey-payee, gate and pause passed, and `record` moved funding by one comment, pay on merge, one counted
+  evaluation, a payee's passkey wallet, the upgrade gate and the pause to exercised (26 of 260). The guardian round
+  did not run (no signing key waits for the guardian at the public knos_oidc), nor the gitlab round (no GitLab project
+  of the maintainer's own is noted). hold_and_bind cannot be exercised by one owner, and its note says why.
+
+### The site
+
+- **A 404 page** of the site's own, and a retry line on every page when a data file does not load.
+- **A cheap Android phone,** emulated (360 x 740, CPU 4x slower, 1.6 Mbps, 150 ms): first paint 1,392 ms, usable
+  1,829 ms; the Console (#buy) drawn 2,549 ms after it opens, from 3,718 ms, by asking for its files at once and for
+  the statement's code only when used ([`docs/perf.json`](docs/perf.json)). Not measured on a phone.
+- **Privacy and terms** on one short page, linked from the foot; shared links carry their card and tags.
+- **The fee fold of #fund** states knos_pay 2.2's rule and follows the program's answer; the statement page's
+  assurance column uses the words of `knos assurance`.
+
+### The submission
+
+- **A two-minute cut** of the pitch ([`docs/submission/pitch_script_120.md`](docs/submission/pitch_script_120.md));
+  a test bounds its spoken length under 120 s. Every link the submission gives a judge names the release tag.
+
 ## 0.3.24 (October 2026)
 
 **The lead number survives a second reading: 9 of 241, not 30. Every accepted line says how much stands behind it,

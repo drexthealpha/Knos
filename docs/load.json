@@ -1439,7 +1439,43 @@
    "measures": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise",
    "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
    "note": "No transaction of this run carried a price: the code of 0.3.23 skipped v1 transactions, so this is a plain run, not a priced one.",
-   "rerun": "by the 0.3.24 release, which prices v1 transactions in the message; until then this row is a plain run"
+   "rerun": "done by the 0.3.24 release on 9 Oct 2026: the next priority-fee row"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.201,
+   "payment_s": {
+    "n": 40,
+    "p50": 12.9,
+    "p95": 23.5,
+    "p99": 31.5,
+    "max": 31.5
+   },
+   "retries": 0,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "priority-fee",
+   "measures": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise",
+   "source": "the operator's release run of 0.3.24 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, the duplicates refused, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "Every PayOrder carried a compute unit price this time (0.3.24 writes it into version-1 messages)."
   },
   {
    "kind": "pay",
@@ -1476,7 +1512,179 @@
    "measures": "every relay sends all of its payments at once instead of one after another",
    "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
    "note": "The 27 failures were HTTP 429 (the public endpoint's rate limit) and \"Blockhash not found\"; 0.3.23 sent each payment once.",
-   "rerun": "by the 0.3.24 release, which waits and sends again over a fresh blockhash after a 429 or an expired blockhash; until then 13 of 40 stands"
+   "rerun": "done by the 0.3.24 release on 9 Oct 2026: the next burst row"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 22,
+   "already": 0,
+   "refused": null,
+   "never_completed": null,
+   "failures": 18,
+   "seconds": null,
+   "paid_per_s": 0.077,
+   "payment_s": {
+    "n": 22,
+    "p50": 262.5,
+    "p95": 278.3,
+    "p99": 278.3,
+    "max": 278.3
+   },
+   "retries": 4,
+   "ok": false,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "burst",
+   "measures": "every relay sends all of its payments at once instead of one after another",
+   "source": "the operator's release run of 0.3.24 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, the duplicates refused, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "The 18 failures were RPC drops, timeouts and HTTP 408: answers lost on the way, which 0.3.24 did not send again.",
+   "rerun": "done by the 0.3.25 release on 10 Oct 2026: the next burst row"
+  },
+  {
+   "already": 0,
+   "attempted": 40,
+   "backoff": {
+    "first_wait_s": 1.0,
+    "jitter": "half to all of each wait",
+    "longest_wait_s": 16.0,
+    "sends_at_most": 12
+   },
+   "cluster": "devnet",
+   "confirm_s": {
+    "max": 611.85,
+    "n": 40,
+    "p50": 580.75,
+    "p95": 610.38,
+    "p99": 611.85
+   },
+   "date": "2026-10-10",
+   "duplicates_refused": 0,
+   "failures": 0,
+   "fanout": {
+    "confirm_by": "getSignatureStatuses",
+    "endpoints": 1,
+    "gives_up_after_s": 60.0,
+    "no_answer": 40,
+    "resend_every_s": 2.0,
+    "resends": 36,
+    "second_endpoints": 0,
+    "sends": 124,
+    "status_polls": 44
+   },
+   "fee_accounts": 4,
+   "fee_payers": [
+    "8yDmQNFynGvC6vnxBKn2jBTHXvQ2229nditAQayWFcve",
+    "CaA4rWEF77JT8XCYSB3U8jcj3dGETDNBk5eyXgurNJAp",
+    "DEzBx5xkBbuEfzoRgJGTDdrfhnodXX8djdgBknYW5Jd",
+    "56QGy4NsYspMUVfqfVbC2JcjLgFprbu1RZS7GcbGywvK"
+   ],
+   "first_refusals": [],
+   "kind": "pay",
+   "lanes": "order",
+   "measures": "every relay sends all of its payments at once instead of one after another; a payment the endpoint turns away (HTTP 429) or whose blockhash expired is sent again after a bounded wait with jitter, over a fresh blockhash",
+   "never_completed": 0,
+   "ok": true,
+   "orders": 40,
+   "owners": 1,
+   "paid": 40,
+   "paid_per_s": 0.065,
+   "payment_s": {
+    "max": 611.85,
+    "n": 40,
+    "p50": 580.75,
+    "p95": 610.38,
+    "p99": 611.85
+   },
+   "per_relay": [
+    {
+     "attempted": 8,
+     "paid": 8,
+     "relay": 0
+    },
+    {
+     "attempted": 13,
+     "paid": 13,
+     "relay": 1
+    },
+    {
+     "attempted": 8,
+     "paid": 8,
+     "relay": 2
+    },
+    {
+     "attempted": 11,
+     "paid": 11,
+     "relay": 3
+    }
+   ],
+   "programs": {
+    "ids": "the ids this installation names (public unless KNOS_PROGRAM_IDS says otherwise)",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   },
+   "refused": 0,
+   "relays": 4,
+   "retries": 73,
+   "scenario": "burst",
+   "seconds": 611.86,
+   "wallet": "9ig9AXfoNrd5uPhdSFGujPoVsrxze5CGVFM6uusgQydG",
+   "github_run": "https://github.com/drexthealpha/knos-load/actions/runs/38012410577",
+   "mint": "EdEeUeZxubezcCW3VHDtGKB9mScyF2Pz3MTD4xBycq1T",
+   "order_ids": [
+    "F1gmsuKrUWKpzpCFAiGvZQLTog95e7n6C8WvFhAwVVrk",
+    "DjcUe4oLRipAZMF7tvYhwgtH7orADxCUqTJKKjYusQSH",
+    "EP6pFsrhd7HZ3CFPoDLrsSobtbCjzeK63v61WHZBRDdk",
+    "FWu6g319VUJep24qhJ6vovZTXXKYf7WmC5TyqvkB2Eyo",
+    "9qZpY8Eegm3xGCke4vsAujq7Rypsf4bd2F6fjrPHVc45",
+    "2wynKZPAPFPtUV65B47iWuqyE47GvQAuofivYPSJtkw6",
+    "Fi1gfzticCoRkZEHHcW6c2f81aRN6fdikoMLeK8XJPbH",
+    "6Htbsk6eKgcQ2n8FeYiEwnBexe4o3RsvarBEs9aMv86F",
+    "FW3o8Q5GGiTMzYpvHa2fgBBjpRb1nhaWLYwJrgw5te9C",
+    "EwLoD4TzoCbG6t42DdAyVtYdLRHyuJ6RDqsLbje8mFQa",
+    "Bts5s2ocBz9WPqeZFXSeZ9RSLNziGruf85TXDkZTAZPa",
+    "6rmuoK9mNNk2fXRzjgRPUpaYY4cxG2pX8UQuvgUs5Egv",
+    "8yPGbBWMM6J8hV6eYFA1ZRnFssVa1FhsqqdvUYrRJzny",
+    "Gktx8zixiLSuDNuwJuibnafNa5b2W8nwYu2JyiEd5Yyu",
+    "C32KKGLRsTUheNDz2M5pfY8sYd1UnzfTUH3prBNsbJTu",
+    "X6NFVJfwJCcYdyRuSJbpTS22QkEfs4RZqGZhiuJvtMw",
+    "JB2rkLVkzcchmJAGE9FScwUt9S7dv3hyEe7HAzJ1CEa",
+    "6tq2bqERZB7xieSUKJmLdnMvpEyz4u57Wgx1s1Vi2ugj",
+    "B36fTWAXSoj16zkTbSKtzECnddxDohZ5TCsRhmPxCuKc",
+    "JB6fEyx4S3PJx6hH5xNaA7ZfEqF2DWEw2ZzjMMcZ9wUS",
+    "3At5sofPF7j8d48g7Zkou7uyMa2RCPGSC26DQvKFXARH",
+    "H8uL9bnydzEdHLXFVeoTJnGjSqxk48reX7U8pw8vdJcn",
+    "7ExXAL5a9WG6Y18bbYDy6w5dhjzshUwVPMNtJAh76Ymk",
+    "3ExHBnZN1ZJ4ctCT5Cy9tUUJnH5BaPdgkRZm9D36gFad",
+    "QfzgQmrGqGLF5s7Fds6gF5o1c5n2NyHsCG9YZQCKfkr",
+    "A2TBVcLQRxNFGKACvzeropGJqrMfHP7dXR5Jqj7gXpn4",
+    "MHwJvGuYeeQDGRdg2ZRGJfjNJAAHWb41aT7Nj3TvnWf",
+    "Dnb82TssvzHDrJzBVDbsGQtUbL4Y5Zkr99gCeWYBPeZo",
+    "56VzY7jTsATzBwH7hnhdRRjfCBqTRDYctaCWZRemDRXT",
+    "9XD55GJqafChiM3tN5opy99LcaTBSndtFdSruKpvbFqB",
+    "3oTuP4LZZx18tZBvZ8hvcasaUgYJxnnnEeF7sG86qrGG",
+    "9MgmWUcBy4zqtMJJPzaEcXrxkuE5iuFZ6mfhAMj5Dy5v",
+    "J4Tppq3LGoXjvcgtdaWXQ9Zym9vs3wbxxfd3xZqVEGfm",
+    "Gzae2DWNz248pcD8qsJVbob3odqXGwrWuJEQdVkPWf6h",
+    "NvroeCbczuUnH3PUERVWnsfRPQiwPPzWsbYR9RPD2sS",
+    "Er7VQsYHceU5aNLVrzVpTDiRNjaxWkNURHhHcbf2oUCB",
+    "2yuEoAM1KgPBQVsSsFJqht4ZTCEvAiTBfsk8U7je2gUt",
+    "B2QgFoSu1jyyqpWRRjJLsrwW2rjzBhBYJZTvhiR1ADJH",
+    "H77yFhoQG7ZB5DkYCA9QWxQxWikEAopjCYKwjyKbpLLX",
+    "3UUCrxqSn8Hc9bWekB7vjDy5jc3YfudXA1E21ZmNAGDv"
+   ],
+   "source": "the operator's release run of 0.3.25 on 10 Oct 2026 with its own wallets, 4 relays and 4 fee accounts; the 40 orders were funded from the run's own wallet in a mint made for the run (EdEeUeZxubezcCW3VHDtGKB9mScyF2Pz3MTD4xBycq1T), and their 40 pay tokens were signed in GitHub Actions run 38012410577 of drexthealpha/knos-load; one endpoint, https://api.devnet.solana.com: Solana lists one public devnet endpoint (https://solana.com/docs/references/clusters), so no second endpoint was given; the 40 order ids are in docs/load.json",
+   "note": "Sent through knos.settle.v2.fanout as this release fixed it before the run: one getSignatureStatuses a poll round for every transaction waiting, bytes sent again every 2 s only while no endpoint had taken them, each wait bounded in seconds as well as in polls. A first run on 10 Oct 2026 with the fan-out as it was before that fix (each transaction's status asked every 0.5 s, its bytes sent again every 2 s) was stopped after 22.8 minutes with 11 of 40 paid, every status request answered HTTP 429; it kept no record, and its 29 unpaid orders went back after their deadline."
   }
  ],
  "scenarios": {

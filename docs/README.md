@@ -41,6 +41,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [PILOT.md](PILOT.md) | the one offer for money: one buyer, its suppliers, 30 days |
 | [UNIT_COSTS.md](UNIT_COSTS.md) | what one unit costs Knos to deliver, measured or a budget, and the ceilings at a 90% and a 95% gross margin |
 | [SHADOW.md](SHADOW.md) | a neutral count beside an invoice a buyer already receives |
+| [SHARE.md](SHARE.md) | share a check: link, copied result, X post box, PNG card, README badge |
 
 ## 3. What is new?
 
@@ -108,6 +109,8 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [REGULATION.md](REGULATION.md) | what has been examined; no lawyer has read it |
 | [DISCLOSURE.md](DISCLOSURE.md) | what was built when, what came from elsewhere, what does not exist |
 | [RELEASE.md](RELEASE.md) | how a release is made: one commit, one push |
+| [LAUNCH.md](LAUNCH.md) | the twenty pre-launch checks, each with its status and evidence |
+| [ROLLBACK.md](ROLLBACK.md) | how to take a release back on launch day, surface by surface |
 | [submission/](submission/SUBMISSION.md) | the form's fields, the two scripts, the criteria and the interview kit |
 
 ## What is in this repository

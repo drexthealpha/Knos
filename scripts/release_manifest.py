@@ -262,7 +262,8 @@ def orders(data: dict, root: Path = ROOT) -> list[dict]:
             continue
         n = m.get("attempted") or m.get("orders")
         kind = "paid" if m.get("kind") == "pay" else "funded and refunded"
-        out.append({"what": f"{n} orders {kind} by a load run, {m.get('relays')} relay{'' if m.get('relays') == 1 else 's'}; order ids not kept in docs/load.json", "tx": None,
+        ids = (f"its {len(m['order_ids'])} order ids are in docs/load.json" if m.get("order_ids") else "order ids not kept in docs/load.json")
+        out.append({"what": f"{n} orders {kind} by a load run, {m.get('relays')} relay{'' if m.get('relays') == 1 else 's'}; {ids}", "tx": None,
                     "date": m.get("date"), "amount": None, "fee": None, "from": "docs/load.json `measured`"})
     return out
 

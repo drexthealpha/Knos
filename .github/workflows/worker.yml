@@ -207,11 +207,13 @@ jobs:
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
           release=$(sed -n '$s/^knos==\([0-9][0-9.]*\) --hash=sha256:[0-9a-f]*$/\1/p' requirements/sign.txt)
+          refresh=""
           for nap in 15 30 60 90 end; do
-            uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
             cat "$RUNNER_TEMP/install.err" >&2
             [ "$nap" != end ] && [ -n "$release" ] && grep -Fq "no version of knos==$release " "$RUNNER_TEMP/install.err" || exit 1
-            echo "PyPI's index does not list knos $release yet: asking again in $nap s."
+            echo "PyPI's index does not list knos $release yet: asking again (--refresh) in $nap s."
+            refresh="--refresh"
             sleep "$nap"
           done
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
@@ -356,7 +358,9 @@ jobs:
           version: "0.8.20"
           python-version: "3.12"
           enable-cache: false
-      # the chain's install, letter for letter, with its timeout and retries
+      # the chain's install, letter for letter, with its timeout and retries. Each retry adds --refresh (as the claims
+      # job): in the 0.3.24 release run this job asked five times without it and uv kept its first answer, "no version
+      # of knos==0.3.25", until a person re-ran the job.
       - name: install what the relay needs, each by its hash, and nothing else
         timeout-minutes: 6
         env:
@@ -365,11 +369,13 @@ jobs:
         run: |
           uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
           release=$(sed -n '$s/^knos==\([0-9][0-9.]*\) --hash=sha256:[0-9a-f]*$/\1/p' requirements/sign.txt)
+          refresh=""
           for nap in 15 30 60 90 end; do
-            uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
             cat "$RUNNER_TEMP/install.err" >&2
             [ "$nap" != end ] && [ -n "$release" ] && grep -Fq "no version of knos==$release " "$RUNNER_TEMP/install.err" || exit 1
-            echo "PyPI's index does not list knos $release yet: asking again in $nap s."
+            echo "PyPI's index does not list knos $release yet: asking again (--refresh) in $nap s."
+            refresh="--refresh"
             sleep "$nap"
           done
           echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"

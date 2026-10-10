@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- GitHub Pages answers any address the site does not have with this file, at that address (/Knos/a/b/c): every
+     link and file below is read from the site's root through <base>, so nothing breaks however deep the address. -->
+<base href="/Knos/">
+<title>Knos. No page here.</title>
+<meta name="description" content="No page at this address. Open the first screen, pricing or the docs.">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<style>.lost h1 { margin: 8px 0 24px; } .lost ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; } .lost li a { font-size: var(--s2); }</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+</header>
+<main>
+  <section class="view lost" id="not-found">
+    <p class="k-kicker">404</p>
+    <h1>Check the address: no page lives here.</h1>
+    <ul id="lost-links">
+      <li><a href="./">Open the first screen</a></li>
+      <li><a href="./#pricing">See the prices</a></li>
+      <li><a href="https://github.com/drexthealpha/Knos/tree/main/docs" rel="noopener">Read the docs</a></li>
+    </ul>
+  </section>
+</main>
+<footer class="foot">
+  <span>Devnet is test mode: the money is test USDC.</span>
+  <span><a href="privacy.html">Privacy and terms</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
+</footer>
+<script>
+// An address that names a page of the site (/Knos/pricing) is offered as that page (/Knos/#pricing), first.
+(() => {
+  const PAGES = ["check", "demo", "pricing", "fund", "claim", "protect", "records", "buy", "index", "story", "supplier", "install",
+    "network", "status", "capabilities", "reproduce", "terms", "playground", "verifier", "keyholder", "record", "build"];
+  const last = location.pathname.replace(/\/+$/, "").split("/").pop().toLowerCase().replace(/\.html?$/, "");
+  if (!PAGES.includes(last)) return;
+  const li = document.createElement("li"), a = document.createElement("a");
+  a.href = `./#${last}`; a.textContent = `Open #${last}`; a.id = "lost-guess";
+  li.append(a); document.getElementById("lost-links").prepend(li);
+})();
+</script>
+</body>
+</html>

@@ -86,6 +86,36 @@ def test_each_round_ends_with_its_own_code_and_a_3_or_a_1_stops_no_other(clean):
     assert set(ex.run_registered(W(), ev(), said.append, phase="before")) == {"early"}
 
 
+def test_a_round_that_stops_something_for_everyone_runs_only_when_named(clean, tmp_path):
+    """A round registered `alone` (the guardian's pause stops new funding at the public knos_pay) is passed by when the
+    rounds run together (`run`, `run --resume`, `run --phase after`), is written nowhere then, and runs when `--only`
+    names it or its capability."""
+    ran: list[str] = []
+
+    def stops(book, st):
+        """Stops new funding for two minutes."""
+        ran.append("stops")
+
+    def other(book, st):
+        """Something else."""
+        ran.append("other")
+    (tmp_path / "stops.py").write_text('ROUND = {"name": "stops", "caps": ("pause",), "phase": "any", "alone": True}\n\n\n'
+                                       'def run(book, st):\n    """Stops new funding."""\n\n\nsimulate = run\n', encoding="utf-8")
+    (tmp_path / "loose.py").write_text('ROUND = {"name": "loose", "phase": "any", "alone": "yes"}\n\n\ndef run(book, st):\n    """Not alone."""\n', encoding="utf-8")
+    assert ex.load_rounds(tmp_path, [].append) == ["loose", "stops"]
+    assert ex.EXT["stops"].alone and not ex.EXT["loose"].alone          # only the value True makes a round alone
+    ex.register("stops", stops, caps=("pause",), simulate=stops, phase="any", alone=True)
+    ex.register("other", other, simulate=other, phase="any")
+    said: list[str] = []
+    e = ev()
+    for phase in (None, "after"):
+        assert "stops" not in ex.run_registered(W(), e, said.append, phase) and ran.count("stops") == 0
+    assert "stops" not in e["rounds"] and "pause" not in e["exercises"] and ran.count("other") == 1
+    assert said.count("[stops] runs only by name (`run --only stops`): it stops something for everyone while it runs; passed by") == 2
+    assert ex.run_registered(W(), e, said.append, "after", "stops") == {"stops": 0} and ran.count("stops") == 1
+    assert ex.run_registered(W(), ev(), said.append, None, "pause") == {"stops": 0} and ran.count("stops") == 2     # by its capability too
+
+
 def test_what_each_prerequisite_asks():
     e = ev(knos_pay="old", knos_meter="next")
     assert ex.prerequisite("knos_meter", W(), e) is None and "knos_pay does not run its upgraded build" in ex.prerequisite("knos_pay", W(), e)

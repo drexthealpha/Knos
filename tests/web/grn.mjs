@@ -58,7 +58,7 @@ try {
     ok(`${width}px: the lines have an assurance column`, head.includes("assurance"), head);
     const at = head.indexOf("assurance");
     const levels = await page.$$eval("#aps-lines tbody tr", (rows, n) => rows.map((r) => r.children[n].textContent.trim()), at);
-    ok(`${width}px: every line says its level`, JSON.stringify(levels) === JSON.stringify(["reported", "reported", "reported", "not evaluated", "reported"]), levels);
+    ok(`${width}px: every line says its level`, JSON.stringify(levels) === JSON.stringify(["not signed", "not signed", "not signed", "not evaluated", "not signed"]), levels);     // `knos assurance`'s words: a shadow statement is not signed
     await page.click("#aps-grn > summary");
     const notes = await page.$$eval("#aps-grn .k-grn", (x) => x.map((s) => ({ match: s.dataset.match, legs: [...s.querySelectorAll("[data-grn-leg]")].map((c) => c.dataset.grnLeg),
       tops: [...s.querySelectorAll("[data-grn-leg]")].map((c) => Math.round(c.getBoundingClientRect().top)), said: s.querySelector(".k-state").textContent })));
@@ -72,9 +72,9 @@ try {
     await page.evaluate(async () => { const j = async (n) => (await fetch(`/golden/${n}`)).json(); await window.openStatement(await j("sept.json"), await j("sept.grn.status.json")); });
     await page.click("#aps-grn > summary");
     const last = await page.$eval("#aps-grn .k-grn:last-of-type", (s) => ({ match: s.dataset.match, order: s.querySelector('[data-grn-leg="order"]').textContent, goods: s.querySelector('[data-grn-leg="goods"]').textContent }));
-    ok(`${width}px: a recorded note matches and names its order and level`, last.match === "1" && last.order.includes("PO-2026-0932") && last.goods.includes("agreed"), last);
+    ok(`${width}px: a recorded note matches and names its order and level`, last.match === "1" && last.order.includes("PO-2026-0932") && last.goods.includes("re-executed"), last);
     const level = await page.$$eval("#aps-lines tbody tr", (rows, n) => rows[4].children[n].textContent.trim(), at);
-    ok(`${width}px: the line then says the receipt's level`, level === "agreed", level);
+    ok(`${width}px: the line then says the receipt's assurance, as knos assurance does`, level === "re-executed (workflow identity proved on chain)", level);
     ok(`${width}px: nothing runs off the side with a recorded note`, await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
     ok(`${width}px: nobody is asked but the page's own server`, asked.length === 0, asked);
     await page.close();

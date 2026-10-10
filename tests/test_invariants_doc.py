@@ -47,3 +47,18 @@ def test_the_economic_idempotency_rows_cover_the_lifecycle_and_name_tests_that_e
         for t in r["tests"]:
             source = (ROOT / t["file"]).read_text(encoding="utf-8")
             assert re.search(rf"^def {t['test']}\(", source, re.M) and f"`{t['test']}`" in section, t
+
+
+def test_the_cross_system_rows_cover_the_four_exceptions_and_the_four_finality_cases_and_name_tests_that_exist():
+    import json
+    doc = json.loads((ROOT / "docs" / "invariants.json").read_text(encoding="utf-8"))
+    cross = doc["cross_system"]
+    cases = [r["case"].split(":")[0] for r in cross["rows"]]
+    assert cases == [*cross["kinds"], "a retried webhook", "a delayed bank status", "a transaction dropped before finality, then sent again",
+                     "a chain answer that is only `processed` or `confirmed`"]
+    section = DOC.split("## " + cross["page_section"])[1].split("\n## ")[0]
+    for t in [x for r in cross["rows"] for x in r["tests"]] + [cross["contradictions"], cross["memory"], doc["upgrade_stored_terms"]]:
+        source = (ROOT / t["file"]).read_text(encoding="utf-8")
+        assert re.search(rf"^def {t['test']}\(", source, re.M) and f"`{t['test']}`" in DOC, t
+    assert all(f"| {r['case']} |" in section for r in cross["rows"])
+    assert (ROOT / doc["upgrade_stored_terms"]["fixture"]).is_file()

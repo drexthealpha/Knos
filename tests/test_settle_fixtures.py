@@ -365,12 +365,13 @@ def test_the_numbers_the_site_states_are_the_codes():
     assert f"at most {usdc(pay.FAUCET_CAP)} per comment, once per repository per minute" in fund and pay.FUND_PERIOD == 60
     assert f"{commands.DAYS} days unless you say, {commands.MAX_DAYS} at most" in fund
     assert f"{commands.RESERVE} unless you say" in fund
-    # an order's fee: its funder pays it on top of the amount and gets it back with a refund. The page is static, so it states
-    # both rules and what decides between them (knos.fees): 0.30% with a floor of 0.05 once knos_pay 2.2 is live, the 0.3.14
-    # tiers with a floor of 0.40 until that upgrade executes, and that an order keeps the rate of its funding.
+    # an order's fee: its funder pays it on top of the amount and gets it back with a refund. knos_pay 2.2 is live at the public
+    # id since 9 October 2026: the page states its rule (0.30% with a floor of 0.05; web/fund_fee.js draws it again from what
+    # the program answers), and that an order funded under 2.1 keeps its stored fee, the 0.3.14 tiers with a floor of 0.40.
     from knos import fees
     new, old = fees.NEW, fees.OLD
-    for part in (f"{fees.pct(new.bps)} of the amount", f"at least {new.floor / 10 ** 6:.2f} test USDC", f"once knos_pay {new.build} is live",
+    for part in (f"{fees.pct(new.bps)} of the amount", f"at least {new.floor / 10 ** 6:.2f} test USDC", f"(knos_pay {new.build} is live)",
+                 f"An order funded under knos_pay {old.build} keeps its stored fee", "There is no maximum.",
                  f"{fees.pct(old.bps)} of the first {whole(old.tiers[0][0])}", f"{fees.pct(old.tiers[0][1])} to {whole(old.tiers[1][0])}",
                  f"{fees.pct(old.tiers[1][1])} above", f"at least {old.floor / 10 ** 6:.2f} test USDC", "paid by the funder on top",
                  "only when someone is paid: a refund returns it with the amount", fees.KEEPS):

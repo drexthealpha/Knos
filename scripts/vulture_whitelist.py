@@ -142,6 +142,8 @@ _.add_, _.dispute_              # knos.netting.register: knos net add | dispute
 _.grn_                          # knos.statement.register: knos statement grn
 # http.server calls a handler's do_GET for each GET request (knos.record_api.serve: `knos record serve`).
 _.do_GET
+_.do_PUT, _.do_DELETE, _.do_PATCH, _.do_HEAD, _.do_OPTIONS       # the same for the other methods: each answers 405 in one line
+_.server_version, _.sys_version                                 # http.server reads these for the Server header: no version is told
 # Public functions and constants with no caller inside src/knos or scripts, each held by the tests that name it.
 from knos import netting as netting_, record_api as record_api_
 
@@ -199,6 +201,7 @@ _.assurance_                    # knos.assurance.register: knos assurance
 _.plans_                        # knos.plan_floor.register: knos fees plans
 _.protect_                      # knos.strip_check.register: knos protect
 _.settle_sync_                  # knos.statement.register: knos statement settle-sync
+_.complete_                     # knos.statement.register: knos statement complete
 # Public functions with no caller inside src/knos or scripts, each held by the tests that name it.
 billing_.review_budget                              # the arithmetic of an exceptional review (docs/UNIT_COSTS.md); tests/test_billing_review.py
 _.relative_left                                     # scripts/bump_version.py: no link of README.pypi.md leans on the repository; tests/test_pypi_readme.py

@@ -199,11 +199,34 @@ def grant(key, supplier: str, reader: str, fields: Iterable[str], issued: int, n
                     "not_after": int(not_after)}, GRANT, key)
 
 
+_GRANT_KEYS = {"schema", "supplier", "reader", "fields", "issued", "not_after", "key", "signature"}
+
+
+def grant_shape(doc: dict) -> str | None:
+    """Why a grant a caller shows is not the shape `grant` writes (one line), or None: checked before anything in it
+    is used, so no value from a caller reaches arithmetic or a lookup unchecked."""
+    if set(doc) - _GRANT_KEYS:
+        return f"the grant has fields no grant has: {', '.join(sorted(str(k) for k in set(doc) - _GRANT_KEYS))[:120]}"
+    for k in ("supplier", "reader", "key", "signature"):
+        if not isinstance(doc.get(k), str) or not 1 <= len(doc[k]) <= 128:
+            return f"the grant's {k} is not text of 1 to 128 characters"
+    for k in ("issued", "not_after"):
+        if not isinstance(doc.get(k), int) or isinstance(doc.get(k), bool) or not 0 <= doc[k] < 2 ** 63:
+            return f"the grant's {k} is not a time in whole seconds"
+    fields = doc.get("fields")
+    if not isinstance(fields, list) or not fields or len(fields) > len(FIELDS) or not all(isinstance(f, str) and f in FIELDS for f in fields):
+        return f"the grant's fields are a list of: {', '.join(FIELDS)}"
+    return None
+
+
 def check_grant(doc, supplier: str, reader: str, supplier_key: str | None, now: int) -> tuple[list[str], str | None]:
     """(the fields a grant releases, None) or ([], why not). `supplier_key`: the key the server holds for the
     supplier, from its operator; the grant's own word for who signed it is never enough."""
     if not isinstance(doc, dict) or doc.get("schema") != GRANT:
         return [], "no grant was shown"
+    bad = grant_shape(doc)
+    if bad:
+        return [], bad
     if supplier_key is None:
         return [], "this server holds no key for the supplier, so it can check no grant"
     if doc.get("key") != supplier_key or not _signer_ok(doc, GRANT):

@@ -85,6 +85,12 @@ PINS = (r"\bknos==" + V, r'tag = "v' + V + '"', r"drexthealpha/Knos@v" + V, r"dr
         r"drexthealpha/Knos/\.github/workflows/supplier\.yml@v" + V, r"releases/download/v" + V + r"/knos-settle-" + V + r"\.tgz",
         r"git tag v" + V + r" && git push origin v" + V, r"raw\.githubusercontent\.com/drexthealpha/Knos/v" + V + "/")
 PIN = re.compile("|".join(PINS))
+# Pins that move only in some files: the submission's links to the tag's tree and files (a judge's link names a tag, which no
+# cache has served before the release). Elsewhere a tag link may be history.
+SCOPED_PINS: tuple[tuple[str, str, re.Pattern], ...] = (
+    ("docs/submission/", ".md", re.compile(r"github\.com/drexthealpha/Knos/(?:tree|blob)/v" + V)),
+    ("docs/submission/", ".md", re.compile(r"` at `v" + V + "`")),                 # the words of such a link: [`docs/JUDGES.md` at `vX`](...)
+)
 # history, the first deployment, the patterns themselves, and the lock (its line names a wheel by hash: see unlock).
 # examples/reader_template is the one example that really builds against a tag (the others name theirs in a comment and
 # build by path): its Cargo.lock holds that tag's commit, and a tag exists only after its release is pushed, so a bump
@@ -214,6 +220,9 @@ def found(root: Path = ROOT) -> tuple[dict[str, list[tuple[int, int]]], list[str
         text = _text(root / rel)
         if text is not None and (got := _spans(text, PIN)):
             spans.setdefault(rel, []).extend(got)
+        for folder, suffix, scoped in SCOPED_PINS:
+            if text is not None and rel.startswith(folder) and "/" not in rel[len(folder):] and rel.endswith(suffix) and (got := _spans(text, scoped)):
+                spans.setdefault(rel, []).extend(got)
     return {rel: sorted(set(s)) for rel, s in spans.items()}, missing
 
 

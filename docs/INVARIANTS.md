@@ -6,8 +6,8 @@ test exists the row says **no test yet**. Instruction names are those documented
 [`knos_meter/src/lib.rs`](../programs-v2/knos_meter/src/lib.rs) and
 [`knos_passkey/src/lib.rs`](../programs-v2/knos_passkey/src/lib.rs); the source is the authority.
 
-This page describes Knos 0.3.14 (`knos_pay` 2.1 as corrected, `knos_meter` 1.1, `knos_passkey` 1.1) on Solana devnet,
-with test USDC. Nobody outside Knos has reviewed the programs, these statements or the tests. The tests run the
+This page describes the programs of this tree (`knos_pay` 2.2, which the public program id runs since 9 October 2026;
+`knos_meter` 1.1, `knos_passkey` 1.1) on Solana devnet, with test USDC. Nobody outside Knos has reviewed the programs, these statements or the tests. The tests run the
 programs in a simulator (LiteSVM); [DRILLS.md](DRILLS.md) says which paths have run on the deployed bytes.
 `tests/test_invariants_doc.py` checks that every test file and test name on this page exists, and
 [`invariants.json`](invariants.json) is the same list for a program to read.
@@ -333,7 +333,9 @@ The programs make each operation happen once on chain. They say nothing about a 
 or a seller's own books must still reconcile these:
 
 1. **Confirmed is not final.** The relay and the command line wait for the `confirmed` commitment. A ledger should
-   book a payment when its transaction is `finalized`, and compare by transaction signature.
+   book a payment when its transaction is `finalized`, and compare by transaction signature. `knos statement
+   settle-sync` does: asking the cluster, it books a line only once its transaction is `finalized` (see "Records
+   across systems" below). Given recorded transactions (`--tx`), it books what it is handed.
 2. **A comment is not the payment.** The reply on GitHub is written by a workflow; the chain is the record.
    `knos receipts`, `knos statement` and `knos export` are recomputed from the programs' logs, and an outside system
    should key its entries on (order address, transaction signature), never on a comment or a run.
@@ -348,6 +350,61 @@ or a seller's own books must still reconcile these:
    ledgers say which events one side has and the other does not; the chain shows only that two counts differ.
 7. **Devnet can be reset.** Every account then disappears, and no record on chain survives
    ([DRILLS.md](DRILLS.md), "Recovery a funder can run"). Keep exports.
+
+## Records across systems: completeness and finality
+
+The programs make each payment once on chain. A statement is a record of those payments and of GitHub's answers, kept
+off chain; two such records can agree and still both miss an event. `knos statement complete <file> --sources
+<file>` ([`completeness.py`](../src/knos/completeness.py)) sets a statement against its sources (the orders the chain
+paid in the period, and what GitHub answers for each pull request and run its lines name) and lists every difference
+as an exception. Nothing is fixed in place, and an exception never changes the count silently.
+
+| case | what the record does | checked by |
+|---|---|---|
+| deleted: a line names a pull request or run GitHub no longer has | the line is held; GitHub not answering is said, not taken as deleted | `test_a_line_whose_pull_request_or_run_github_no_longer_has_is_a_deleted_exception_and_held` in `tests/test_completeness.py` |
+| omitted: the chain paid an order in the period and no line bills it | listed with its amount; never added to the count | `test_an_order_the_chain_paid_in_the_period_with_no_line_is_an_omitted_exception` in `tests/test_completeness.py` |
+| late: the record saw an order after the period closed | carried to the next period, never added; a line that bills it is held | `test_an_order_seen_after_the_period_closed_is_carried_never_added_and_a_line_that_bills_it_is_held` in `tests/test_completeness.py` |
+| duplicated: one deliverable under two ids (two lines, or two orders) | counted once; the others flagged and left out of the count | `test_one_deliverable_under_two_ids_is_counted_once_and_flagged` in `tests/test_completeness.py` |
+| a retried webhook: the same event delivered again | the same arrival changes nothing; the same event from a second source is a repeat, counted once; the same id with another amount is refused | `test_a_retried_webhook_is_one_event_and_the_same_event_from_a_second_source_is_counted_once` in `tests/test_completeness.py` |
+| a delayed bank status: unknown, then paid; or paid twice | an unclear answer holds the line; the line is booked paid once, when the bank says paid | `test_a_delayed_or_repeated_bank_status_books_each_line_once_and_only_when_paid` in `tests/test_completeness.py` |
+| a transaction dropped before finality, then sent again | the dropped one is never booked; the one sent again is booked once; a second payment found later is not booked again | `test_a_transaction_dropped_before_finality_is_never_booked_and_its_resubmission_is_booked_once` in `tests/test_completeness.py` |
+| a chain answer that is only `processed` or `confirmed` | never booked until `finalized`; the record keeps the commitment it was booked at | `test_a_payment_the_cluster_has_only_processed_or_confirmed_is_never_booked_until_it_is_finalized` in `tests/test_completeness.py` |
+
+After every step of those tests, `knos.completeness.contradictions` reads the status file and finds no line paid
+under two ids without a return between them, and no line booked from a transaction that was not final
+(`test_contradictions_finds_a_line_paid_under_two_ids_and_one_booked_from_a_transaction_that_was_not_final` in
+`tests/test_completeness.py` shows it finds both when they are planted).
+
+**What is remembered.** How an exception was resolved (corrected, accepted or refused) is kept in the buyer's memory
+through `knos.proof.history` (the Sibyl memory engine: one entity per supplier and terms, one journal event), and is
+recalled when the same source appears again under the same terms. With no memory nothing is kept or recalled
+(`test_a_resolution_is_remembered_and_recalled_when_the_same_source_comes_back_and_no_memory_recalls_nothing` in
+`tests/test_completeness.py`).
+
+**What this does not cover.** The sources document is read by the caller: this module asks neither the cluster nor
+GitHub. A chain reorganisation after `finalized` is not handled; a payment booked at `finalized` is not unbooked.
+A bank that pays a transfer it first reported as rejected is detected and said (PAID TWICE), not prevented.
+
+## An upgrade and an order already funded
+
+An order's account holds its own schedule: the amount, the fee it was funded with (`fee`, escrowed on top of the
+amount), the rate fixed at funding (`fee_bps`), the deadline, the terms hash, the workflow commit and whether it has
+the presentation grace. The build that funded it is read from the incarnation (0: funded under 2.1).
+`knos.completeness.stored_terms` reads them from the account's bytes
+(`test_the_stored_schedule_of_an_order_funded_under_2_1_is_read_from_its_account` in `tests/test_completeness.py`, on
+an account written by hand in the 2.1 layout: 5.00 with its 2.1 fee of 0.40, where 2.2 would charge 0.05).
+
+- **What an upgrade to 2.2 did not change.** No account changed its size or its address. An order funded under 2.1
+  is paid, reverted and refunded with the fee it was funded with (`an_order_funded_under_2_1_is_paid_and_reverted_with_the_fee_it_was_funded_with`
+  and `an_order_funded_under_2_1_is_refunded_a_second_after_its_deadline` in `adversarial.rs`). On the public program
+  id on 9 October 2026, an order funded under 2.1 went back with 5.00 and its stored fee of 0.40
+  ([CAPABILITIES.md](CAPABILITIES.md), round `stored_fee`).
+- **What an upgrade can change.** Everything. The stored fields are bytes the program owns; a later build decides how
+  to read them, and can remove an instruction or move an order's money
+  ([GOVERNANCE.md](GOVERNANCE.md): "An upgrade can do anything, including taking every order's money"). What limits
+  it is the delay and the public bytes: 48 hours today, and 8 days once the time lock approved on 9 October 2026 is
+  applied, which the Squads program allows 48 hours after that approval. `knos exit --before-upgrade` lists each
+  holding and its way out.
 
 ## Safety and liveness
 

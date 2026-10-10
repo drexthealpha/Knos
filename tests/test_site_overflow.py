@@ -84,7 +84,8 @@ def test_the_first_screen_says_forty_words_at_most() -> None:
     assert [re.sub(r"<[^>]+>", "", b).strip() for b in re.findall(r"<button\b[^>]*>.*?</button>", hero)] == ["Check", "Try a sample"]
     assert 'class="k-btn" data-fd="run"' in hero and 'class="k-btn quiet" data-fd="sample"' in hero
     assert 'id="hero-board"' in hero and hero.index('id="hero-board"') > hero.index("</form>")      # the leaderboard strip, directly under the box
-    assert '<section id="demo" class="mount" aria-label="Demo" hidden></section>' in page.split('id="view-check"')[1].split("</section>")[0] + "</section>"
+    # the demo's mount is in the first view (its own section and #check-one, the check of one pull request, stand inside it)
+    assert '<section id="demo" class="mount" aria-label="Demo" hidden></section>' in page.split('id="view-check"')[1].split('<section id="view-')[0]
     # the 40 words are counted as tests/web/front_door.mjs counts them in a browser: prose (headings, sentences, links),
     # the bar with them. A control (a button) and a figure (.k-num) are the thing itself, not a statement about it. Since
     # 0.3.19 the customer outcome is one of the lines, inside the same 40.

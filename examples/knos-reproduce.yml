@@ -28,6 +28,10 @@
 # What it cannot do: write to the repository, its issues or its pull requests, or reach any secret. It needs no secret.
 # The token is good for a few minutes and only for the audience above: no program of Knos accepts it for anything.
 #
+# To check it yourself, anywhere: `knos reproduce --verify <this run's URL>` in the folder holding the artifact's file
+# (or give the file or the .zip). It checks GitHub's signature offline and prints the wall time, from the first step to
+# the signature.
+#
 # To send it: download the artifact, add the file as reproductions/<owner>-<repo>-<run id>.json in a pull request to
 # drexthealpha/Knos (the template `reproduction`), and a workflow there checks the signature, the hash, and that the
 # run is not Knos's own, without running anything from the pull request.
@@ -47,6 +51,8 @@ jobs:
     outputs:
       sha256: ${{ steps.report.outputs.sha256 }}
     steps:
+      - name: the clock starts (the report keeps it, so the run's wall time is in what GitHub signs)
+        run: echo "KNOS_REPRO_STARTED=$(date +%s)" >> "$GITHUB_ENV"
       - name: uv, with no cache
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
@@ -55,7 +61,7 @@ jobs:
           enable-cache: false
           ignore-empty-workdir: true
       - name: install knos, the released wheel
-        run: uv tool install --no-config "knos==0.3.24"
+        run: uv tool install --no-config "knos==0.3.25"
       - name: knos reproduce
         id: report
         env:

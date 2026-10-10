@@ -83,6 +83,7 @@ export function renderPayee(el, ctx = {}) {
   const esc = ctx.esc || escHtml, rpc = ctx.rpc || RPC, github = ctx.github || GITHUB;
   const rpId = ctx.rpId || globalThis.location?.hostname;
   const idsP = ctx.ids ? Promise.resolve(ctx.ids) : fetch("program_ids.json").then((r) => { if (!r.ok) throw new Error("program_ids.json is missing"); return r.json(); });
+  idsP.catch(() => {});        // not unhandled: web/retry.js shows the retry line, and each step that awaits it says what failed
   let who = parseArg(ctx.arg), me = null, repo = null;
   el.innerHTML = `<div class="payee">
     <h2>Collect your payout</h2>

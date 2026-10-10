@@ -1,7 +1,7 @@
 """From "staging" to "public": what the 2.1 and 1.1 builds add, run once at the PUBLIC program ids, and written down.
 
     python scripts/exercise_public.py status --rpc URL [--json] [--want 2.2]
-    python scripts/exercise_public.py run --phase before|after --rpc URL --keys DIR [--resume] [--neutral OWNER/REPO]
+    python scripts/exercise_public.py run --phase before|after --rpc URL --keys DIR [--resume] [--neutral OWNER/REPO] [--only STEP]
     python scripts/exercise_public.py run --rpc URL --keys DIR [--only CAPABILITY] [--resume] [--again ROUND --since TIME]
     python scripts/exercise_public.py note ROUND --keys DIR key=value ...     what a step done outside this script printed
     python scripts/exercise_public.py record --keys DIR --rpc URL
@@ -31,6 +31,7 @@ run --phase after   the rounds of knos_oidc 2.2 and knos_pay 2.2 at the PUBLIC i
          only ever read), a marker of an earlier funding counts for nothing, an order with the presentation grace and
          a two-minute deadline, a NaN claim refused by the strict verifier (error 61), ES256. `--simulate` runs both
          phases on the local simulator: the live source's test build, upgraded in place to this tree's.
+         `--only <step>` runs one step of the phase alone (or one registered round alone), and nothing else.
          `run --resume` (no phase) finishes what an earlier release's rounds left for the chain's clock, when due.
 
 run      for every capability of docs/capabilities.json below `exercised` that has a round here, runs the round in
@@ -1595,6 +1596,8 @@ ROUNDS: dict[str, tuple[Callable[[Book, dict], None], tuple[str, ...], tuple[str
 # steps, so it stays the ONE command for 2.2; `run --only <name>` runs one. Each round ends with a code of its own:
 # 0 done; 1 failed; 3 not run or not finished (a prerequisite is not met or not known here, a forge's run or the
 # chain's clock is waited for, or it cannot be done from here), with the reason. One round's 3 stops no other round.
+# A round whose ROUND says "alone": True stops something for everyone while it runs (`pause`: new funding at the public
+# knos_pay), so it runs only when `--only` names it: `run`, `run --resume` and `run --phase after` pass it by and say so.
 @dataclasses.dataclass(frozen=True)
 class Ext:
     name: str
@@ -1604,6 +1607,7 @@ class Ext:
     simulate: Callable[["Book", dict], None] | None = None
     phase: str = "after"
     doc: str = ""
+    alone: bool = False
 
 
 EXT: dict[str, Ext] = {}
@@ -1612,12 +1616,13 @@ PROGRAM_NAMES = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey")
 
 
 def register(name: str, fn: Callable[["Book", dict], None], needs: tuple[str, ...] = (), caps: tuple[str, ...] = (),
-             simulate: Callable[["Book", dict], None] | None = None, phase: str = "after") -> Ext:
-    """Registers a round by name (a second registration of a name replaces the first, and a round of ROUNDS)."""
+             simulate: Callable[["Book", dict], None] | None = None, phase: str = "after", alone: bool = False) -> Ext:
+    """Registers a round by name (a second registration of a name replaces the first, and a round of ROUNDS).
+    `alone`: it runs only when `--only` names it."""
     if phase not in ("before", "after", "any"):
         raise ValueError(f"round {name}: phase is before, after or any")
     ROUNDS.pop(name, None)
-    EXT[name] = Ext(name, fn, tuple(needs), tuple(caps), simulate, phase, " ".join((fn.__doc__ or "").split()))
+    EXT[name] = Ext(name, fn, tuple(needs), tuple(caps), simulate, phase, " ".join((fn.__doc__ or "").split()), bool(alone))
     return EXT[name]
 
 
@@ -1655,7 +1660,8 @@ def load_rounds(folder: Path = ROUNDS_DIR, say: Callable[[str], None] = print) -
             setattr(mod, "xp", sys.modules[__name__])
             have(have(spec).loader).exec_module(mod)
             meta = dict(mod.ROUND)
-            register(str(meta["name"]), mod.run, tuple(meta.get("needs", ())), tuple(meta.get("caps", ())), getattr(mod, "simulate", None), str(meta.get("phase", "after")))
+            register(str(meta["name"]), mod.run, tuple(meta.get("needs", ())), tuple(meta.get("caps", ())), getattr(mod, "simulate", None), str(meta.get("phase", "after")),
+                     meta.get("alone") is True)
             names.append(str(meta["name"]))
         except Exception as bad:  # noqa: BLE001 - one file's trouble is said; the other rounds still run
             say(f"[{f.name}] not a round: {type(bad).__name__}: {str(bad)[:200]}")
@@ -1664,10 +1670,14 @@ def load_rounds(folder: Path = ROUNDS_DIR, say: Callable[[str], None] = print) -
 
 def run_registered(w: "World", ev: dict, say: Callable[[str], None] = print, phase: str | None = None, only: str | None = None) -> dict[str, int]:
     """Runs the registered rounds (`phase`: those of that phase and of `any`; `only`: one name or capability). Returns
-    each round's code: 0, 1 or 3. Kept in ev["rounds"][name]: `result` in words and `exit`."""
+    each round's code: 0, 1 or 3. Kept in ev["rounds"][name]: `result` in words and `exit`. A round registered `alone`
+    runs only when `only` names it: otherwise it is said, and neither run nor written down."""
     book, codes = Book(ev, w, say), {}
     for name, x in list(EXT.items()):
         if (phase and x.phase not in (phase, "any")) or (only and only != name and only not in x.caps):
+            continue
+        if x.alone and not only:
+            say(f"[{name}] runs only by name (`run --only {name}`): it stops something for everyone while it runs; passed by")
             continue
         st = ev["rounds"].setdefault(name, {"round": name})
         if st.get("result") == "ok":
@@ -1732,6 +1742,9 @@ NOT_ON_CHAIN = {"fuzz_rsa_diff_target", "kani_fee_conservation", "rust_handler_t
 NO_ROUND = {
     "verify_any_issuer": "cannot: no issuer other than GitHub and GitLab has a key admitted on GitHub's signature at the public id, and Knos runs no such "
                          "issuer; a Kubernetes cluster's token is verified under a private key instead (the round `issuer`, capability `outcome_not_code`)",
+    "hold_and_bind": "cannot: a job is held only for a payee whose GitHub account has no wallet bound, and the wallet is bound only from a run that "
+                     "account starts in its own repository. The maintainer's one account (scripts/own_github_ids.json) has a wallet bound, so "
+                     "one owner can pay but never be held for; the held half needs another person's account, and its bind is theirs to start",
 }
 
 
@@ -1885,10 +1898,11 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
         if e.get("status") != "exercised" or c["stage"] in ("exercised", "reproduced"):
             continue
         prog = e["program"]
-        if prog not in live or not _SIG.fullmatch(e["signature"]) or "tested" not in c["evidence"]:
+        gated = prog == "upgrade_gate" and prog in manifest["programs"]       # never upgraded: it runs the one version it was deployed with
+        if (prog not in live and not gated) or not _SIG.fullmatch(e["signature"]) or "tested" not in c["evidence"]:
             say(f"{c['id']}: not moved ({prog} is not on its upgraded build, or the evidence is not a transaction)")
             continue
-        ran_on = c["evidence"].get("deployed", {}).get("version") or version[prog]
+        ran_on = c["evidence"].get("deployed", {}).get("version") or version.get(prog) or manifest["programs"][prog].get("on_chain")
         c["evidence"]["deployed"] = {"program": prog, "id": manifest["programs"][prog]["id"], "version": ran_on}
         c["evidence"]["exercised"] = {"signature": e["signature"], "ids": "public", "round": e["round"], "asserted": e["asserted"],
                                       **({"refusals": e["refusals"]} if e.get("refusals") else {})}
@@ -2564,7 +2578,7 @@ def after_grace(book: Book, st: dict) -> None:
     if "fund" not in st:
         sig, order, o = _rc_fund(w, st, 8, AMOUNT, pay.opts(grace=True), work_s=120)
         _check(o.grace and o.pay_until == o.deadline + pay.GRACE, "the order was not funded with the presentation grace")
-        st["fund"] = {"signature": sig, "order": str(order), "fee": o.fee, "deadline": o.deadline, "pay_until": o.pay_until}
+        st["fund"] = {"signature": sig, "order": str(order), "amount": o.amount, "fee": o.fee, "deadline": o.deadline, "pay_until": o.pay_until}
         book.tx(st, f"a wallet funds an order with the presentation grace, open for two minutes (until {day(o.deadline)})", sig, "knos_pay")
     if sim and "paid" not in st:            # a token issued by the deadline, shown after it: only the simulator has a forge and a clock to arrange
         sig, second, o2 = _rc_fund(w, st, 9, AMOUNT, pay.opts(grace=True), work_s=120)
@@ -2576,8 +2590,8 @@ def after_grace(book: Book, st: dict) -> None:
         _check(bool(r.get("ok")) and w.tokens(dest) - had == AMOUNT, f"a token issued by the deadline did not pay inside the grace: {r.get('why')}")
         st["paid"] = {"signature": r["sigs"][-1], "after_deadline_s": w.now() - o2.deadline}
         book.tx(st, "a second such order: a token issued by its deadline pays it after the deadline, inside the grace", r["sigs"][-1], "knos_pay")
-    o = have(pay.read_order(w.account(order)), "the order")
     if "early" not in st:
+        o = have(pay.read_order(w.account(order)), "the order")
         w.wait_until(st["fund"]["deadline"], "the order's deadline")
         held = w.tokens(pay.ov_pda(order))
         sig, code = w.refused([pay.refund_order_ix(w.relayer.pubkey(), order, o)])
@@ -2591,11 +2605,29 @@ def after_grace(book: Book, st: dict) -> None:
                      ["paying inside the grace needs a merge within two minutes of the funding: not attempted at the public id"])],
                   [{"signature": sig, "error": code, "means": st["early"]["means"], "what": "the refund of an order inside its presentation grace"}])
     w.wait_until(st["fund"]["pay_until"], "the end of the grace, after which the order goes back")
-    had = w.tokens(w.funder_token)
-    sig = w.send([pay.refund_order_ix(w.relayer.pubkey(), order, have(pay.read_order(w.account(order)), "the order"))])
-    _check(w.tokens(w.funder_token) - had == o.amount + o.fee and w.account(order) is None, "the order did not go back whole when its grace was over")
-    st["refund"] = {"signature": sig}
-    book.tx(st, "the grace is over: the order goes back to the wallet with its fee", sig, "knos_pay")
+    back = int(st["fund"].get("amount", AMOUNT)) + int(st["fund"]["fee"])
+    data = w.account(order)
+    if data is not None:
+        had = w.tokens(w.funder_token)
+        try:
+            sig = w.send([pay.refund_order_ix(w.relayer.pubkey(), order, have(pay.read_order(data), "the order"))])
+        except Exception:  # noqa: BLE001 - another sender's refund landed between the read and this one: read it below
+            if w.account(order) is not None:
+                raise
+        else:
+            _check(w.tokens(w.funder_token) - had == back and w.account(order) is None, "the order did not go back whole when its grace was over")
+            st["refund"] = {"signature": sig}
+            book.tx(st, "the grace is over: the order goes back to the wallet with its fee", sig, "knos_pay")
+            return
+    # RefundOrder is anyone's once the grace is over, and the public relay sends every refund that is due (0.3.24: it sent
+    # this one 41 s after the grace ended, before this step did): the refund is read from knos_pay's own line, never assumed.
+    sig = w.refunded(order, back)
+    _check(sig is not None, "the order is not there, and no transaction of knos_pay refunded it with its amount and its fee "
+                            f"({money(back)})")
+    by = w.payer_of(sig)
+    st["refund"] = {"signature": sig, "refunded": True, **({"sent_by": by} if by else {})}
+    book.tx(st, f"the grace is over: the order went back to the wallet whole ({money(back)}), in a refund "
+                + (f"{by} sent" if by else "another sender sent") + " (RefundOrder is anyone's once the grace is over)", sig, "knos_pay")
 
 
 def after_strict(book: Book, st: dict) -> None:
@@ -2776,10 +2808,11 @@ def after_simulated(say: Callable[[str], None] = print, phase: str = "after") ->
 
 
 def after_main(phase: str, where: Path | None, url: str | None, keys: Path | None, simulate: bool, since: str | None, neutral: str | None,
-               say: Callable[[str], None] = print, account: Callable | None = None, world: Callable[[], World] | None = None) -> int:
+               say: Callable[[str], None] = print, account: Callable | None = None, world: Callable[[], World] | None = None,
+               only: str | None = None) -> int:
     """`run --phase before|after`. At the public ids `after` runs only when `status --want 2.2` is satisfied, and
-    `before` only while knos_pay 2.1 is still live: otherwise exit 3 with nothing sent. `account` and `world` are the
-    tests' own cluster."""
+    `before` only while knos_pay 2.1 is still live: otherwise exit 3 with nothing sent. `only` (`--only`): one step of
+    the phase alone, or one registered round alone. `account` and `world` are the tests' own cluster."""
     if simulate:
         ev, code = after_simulated(say, phase)
         if where:
@@ -2806,8 +2839,10 @@ def after_main(phase: str, where: Path | None, url: str | None, keys: Path | Non
     ev = old if old and old.get("mode") == w.mode else new_evidence(w, programs)
     ev["programs"] = programs
     ev["want_2_2"] = code == 0
-    rehearse_phase(w, ev, phase, say, AFTER_STEPS, AFTER_AGAIN)
-    codes = run_registered(w, ev, say, phase)
+    step = only in AFTER_STEPS
+    if only is None or step:
+        rehearse_phase(w, ev, phase, say, {only: AFTER_STEPS[only]} if step else AFTER_STEPS, AFTER_AGAIN)
+    codes = {} if step else run_registered(w, ev, say, phase, only)
     _write(where, ev)
     say(f"wrote {where}")
     return registered_summary(codes, after_summary(ev, phase, say), say)
@@ -2843,7 +2878,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
                     help="rehearse: the verified builds that are live (program.yml's run on the v0.3.14 tag)")
     ap.add_argument("--rpc", help="the cluster (devnet)")
     ap.add_argument("--keys", type=Path, help="the key folder: relayer.json, funder.json, and where the evidence is kept")
-    ap.add_argument("--only", help="one capability (or one round) alone")
+    ap.add_argument("--only", help="one capability (or one round) alone; with --phase: one step (or one round) of that phase alone")
     ap.add_argument("--resume", action="store_true", help="go on from the evidence kept; read the repository's comments again")
     ap.add_argument("--fresh", action="store_true", help="forget the evidence kept and start over")
     ap.add_argument("--again", help="forget what one round kept (its tokens and its steps) and run it with new tokens; give --since with it")
@@ -2859,7 +2894,8 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
         for cap, how in exercisable().items():
             say(f"{cap}: {how}")
         for x in EXT.values():
-            say(f"round {x.name} (phase {x.phase}; needs {', '.join(x.needs) or 'nothing'}; simulated: {'yes' if x.simulate else 'no'}): {x.doc}")
+            say(f"round {x.name} (phase {x.phase}; needs {', '.join(x.needs) or 'nothing'}; simulated: {'yes' if x.simulate else 'no'}"
+                + (f"; runs only by name: run --only {x.name}" if x.alone else "") + f"): {x.doc}")
         return 0
     if a.command == "status":
         if not a.rpc:
@@ -2918,7 +2954,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
                 feed.write(root / "web", mc._rpc(a.rpc), ids, chain.Ledger(a.rpc).now(), mc._cluster(a.rpc))
         return record(ev, a.root, say, refresh)
     if a.command == "run" and a.phase:
-        return after_main(a.phase, where, a.rpc, a.keys, a.simulate, a.since, a.neutral, say)
+        return after_main(a.phase, where, a.rpc, a.keys, a.simulate, a.since, a.neutral, say, only=a.only)
     if a.simulate:
         w: World = Simulated()
         programs = simulated_programs()

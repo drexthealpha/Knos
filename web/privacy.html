@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos. Privacy and terms.</title>
+<meta name="description" content="What this site and the command line keep, and the terms of use: devnet, test USDC, MIT, no warranty.">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/privacy.html">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<!-- Each line is checked against the code by tests/test_site_launch.py: cookies (none), hosts (GitHub, devnet),
+     sessionStorage (web/cache.js), localStorage (the theme in web/front.js, a passkey in web/claim.js, buyer.js, payee.js). -->
+<style>.legal h2 { margin-top: 40px; } .legal ul { padding-left: 1.2em; } .legal li { margin: 6px 0; }</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+</header>
+<main>
+  <section class="view legal" id="privacy">
+    <h1>Privacy and terms</h1>
+    <h2>This site</h2>
+    <ul id="privacy-site">
+      <li>Sets no cookies.</li>
+      <li>Runs no analytics and no tracker.</li>
+      <li>Serves its own fonts, scripts and images.</li>
+      <li>Sends nothing to Knos.</li>
+      <li>Asks GitHub's API and Solana devnet straight from your browser.</li>
+      <li>Keeps what it read in this tab until you close it.</li>
+      <li>Keeps your light or dark choice in this browser.</li>
+      <li>Keeps a passkey's public key in this browser, if you make one.</li>
+    </ul>
+    <h2>The command line</h2>
+    <ul id="privacy-cli">
+      <li>Keeps its files on your own machine.</li>
+      <li>Asks GitHub and Solana devnet when a command needs them.</li>
+    </ul>
+    <h2>Terms</h2>
+    <ul id="terms-of-use">
+      <li>Runs on Solana devnet: the money is test USDC.</li>
+      <li>Uses the MIT licence: <a href="https://github.com/drexthealpha/Knos/blob/main/LICENSE">read it</a>.</li>
+      <li>Comes with no warranty, as the licence says.</li>
+      <li>Report a problem in <a href="https://github.com/drexthealpha/Knos/issues">GitHub issues</a>.</li>
+      <li>Read <a href="https://github.com/drexthealpha/Knos/blob/main/docs/PRIVACY.md">what a payment makes public</a>.</li>
+    </ul>
+  </section>
+</main>
+<footer class="foot">
+  <span>Devnet is test mode: the money is test USDC.</span>
+  <span><a href="./">Knos home</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
+</footer>
+</body>
+</html>

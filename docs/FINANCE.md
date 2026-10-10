@@ -219,6 +219,34 @@ column for each: `po_reference` (empty until a note is recorded), `grn_reference
 NetSuite's import templates have no such columns, so there the same three are in the memo
 (`PO ... | GRN ... | assurance ...`). Each remains a file export, not an integration.
 
+**For your accounting system.** `export --to xero|quickbooks|netsuite|csv` writes the bill-import file that system
+documents ([`src/knos/erp.py`](../src/knos/erp.py)), and a held sheet beside it:
+
+    knos statement export sept/ap-statement.json --to xero --account 400 --tax-code "Tax Exempt"
+    # wrote sept/ap-statement.xero.csv: 1 bill ...; wrote sept/ap-statement.xero.held.csv: 4 held lines ...
+
+- The payable file has one bill per line whose policy is met and that is not owed to the supplier. Its memo carries
+  the line's four steps (policy satisfied, parties accepted, payment authorised, settled, each with who and when)
+  and its assurance level, then the statement's hash and the line's ids. Xero's bill template has no memo column,
+  so there they follow the line's description.
+- The held sheet (`<file>.held.csv`) has every other line, with why: disputed; owed to the supplier (its policy is
+  met and the buyer refused it, or nobody authorised it within 30 days); duplicate; without enough evidence. These
+  lines never reach the payable file, in any format.
+- `--date-format` changes the date (written with YYYY, MM, DD, M and D); `--account` and `--tax-code` fill the
+  account and tax columns. Xero's account and tax columns take codes from your own organisation, so Knos leaves
+  them empty unless given.
+
+| `--to` | columns | read from | not confirmed |
+|---|---|---|---|
+| `xero` | ContactName, InvoiceNumber, Reference, InvoiceDate, DueDate, Description, Quantity, UnitAmount, AccountCode, TaxType, InventoryItemCode, Discount, Currency; date DD/MM/YYYY (US organisations: MM/DD/YYYY) | a [published guide](https://invoicedataextraction.com/blog/import-invoices-xero), read 2026-10-09: Xero's [own page](https://central.xero.com/s/article/Import-bills-and-credit-notes-US) draws its text by script and could not be read here | whether Xero's header marks required columns with asterisks; the whole file is best effort, unverified |
+| `quickbooks` | Bill no., Supplier, Bill Date, Due Date, Account, Line Description, Line Amount, Line Tax Code, Memo; date D/M/YYYY, chosen at import | [QuickBooks Online, United States edition](https://quickbooks.intuit.com/learn-support/en-us/help-articles/importing-your-bills/00/261324), read 2026-10-09: the seven mandatory columns, at most 100 bills a file recommended | the optional columns Line Description and Memo |
+| `netsuite` | External ID, Vendor, Date, Reference No., Memo, Expenses : Account, Expenses : Amount, Expenses : Memo; date M/D/YYYY | [NetSuite Vendor Bill Import](https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/section_N427250.html), read 2026-10-09 | the date format and the body Memo; Vendor is the supplier's name here, to be mapped to the vendor's id |
+| `csv` | Knos's own: one column per step, plus assurance, payment and the ids | this page | |
+
+Each is a file export, not an integration: nobody has imported one into the product yet. On the statement page,
+**Download for your accounting system** writes the same two files in the browser ([`web/erp.js`](../web/erp.js);
+`tests/web/erp.mjs` holds the bytes equal to the Python's).
+
 In a browser: `renderStatements` in [`web/statements.js`](../web/statements.js) opens a statement file, checks its
 hash, downloads the same CSV and the same export files (`tests/web/statement.mjs` holds the bytes equal to the
 Python's), and prints the statement alone to paper or PDF.

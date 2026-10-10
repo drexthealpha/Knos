@@ -411,3 +411,53 @@ def test_backoff_is_bounded_jittered_and_seeded():
     assert all(min(16.0, 2 ** (a - 1)) / 2 <= w <= min(16.0, 2 ** (a - 1)) for a, w in zip(range(1, 12), waits))
     assert load_pay.transient("HTTPError: HTTP Error 429: Too Many Requests") and load_pay.transient("Blockhash not found")
     assert not load_pay.transient("custom program error: 0x1771")
+
+
+def test_a_burst_runs_fan_out_and_its_duplicates_refused_are_printed_with_its_row():
+    """0.3.25: a burst on a cluster records its fan-out (knos.settle.v2.fanout); the page prints it beside the row, and
+    the duplicates refused even when there were none (a resend of a payment that landed is refused, never paid twice)."""
+    sys.path[:0] = [p for p in (str(ROOT / "scripts"), str(ROOT / "tests")) if p not in sys.path]
+    import load
+    from knos.settle.v2 import pay
+    m = {"kind": "pay", "cluster": "devnet", "date": "2026-10-10", "relays": 4, "orders": 40, "attempted": 40, "paid": 40, "refused": 0,
+         "never_completed": 0, "already": 0, "failures": 0, "retries": 3, "duplicates_refused": 0, "seconds": 90.0, "paid_per_s": 0.444,
+         "programs": {"knos_pay": str(pay.PAY_ID), "knos_oidc": str(pay.OIDC_ID)}, "lanes": "order", "owners": 1, "fee_accounts": 4,
+         "payment_s": {"n": 40, "p50": 20.0, "p95": 40.0, "p99": 45.0, "max": 45.0}, "ok": True, "scenario": "burst",
+         "measures": load_pay.SCENARIOS["burst"], "fanout": {"endpoints": 1, "second_endpoints": 0, "resend_every_s": 2.0,
+                                                              "confirm_by": "getSignatureStatuses", "gives_up_after_s": 60.0, "sends": 1234,
+                                                              "resends": 56, "no_answer": 7, "status_polls": 890}}
+    text = "\n".join(load.paid_rows(m, "end-to-end PayOrder"))
+    assert ("Fan-out (knos.settle.v2.fanout): every signed transaction went to 1 endpoint(s), 0 of them a second endpoint, the same bytes "
+            "again every 2.0 s while no endpoint had taken them, confirmed by its signature's status (getSignatureStatuses), at most 60.0 s a "
+            "transaction; 1,234 sends, 56 resends, 7 requests with no answer, 890 status polls.") in text
+    assert "Duplicates refused by the chain (a resend of a payment that had landed): 0." in text
+    assert "Duplicates refused" not in "\n".join(load.paid_rows({k: v for k, v in m.items() if k not in ("fanout", "duplicates_refused")}, "x"))
+    import rate_claims
+    assert rate_claims.check(text) == []
+
+
+def test_the_burst_rerun_with_the_fan_out_stands_beside_the_run_it_reruns():
+    """0.3.25's release run of the burst on devnet, through knos.settle.v2.fanout: 40 of 40 paid, each once, no failure;
+    the 0.3.24 row (22 of 40) stays as measured and says it was rerun. Every figure is the run's own record."""
+    doc = json.loads((ROOT / "docs" / "load.json").read_text(encoding="utf-8"))
+    bursts = [m for m in doc["measured"] if m.get("scenario") == "burst"]
+    old, new = bursts[-2], bursts[-1]
+    assert (old["paid"], old["attempted"], old["failures"]) == (22, 40, 18)
+    assert old["rerun"] == "done by the 0.3.25 release on 10 Oct 2026: the next burst row"
+    assert (new["date"], new["relays"], new["fee_accounts"], new["owners"], new["lanes"], new["ok"]) == ("2026-10-10", 4, 4, 1, "order", True)
+    assert (new["attempted"], new["paid"], new["failures"], new["refused"], new["never_completed"], new["already"], new["retries"],
+            new["duplicates_refused"]) == (40, 40, 0, 0, 0, 0, 73, 0)
+    assert new["payment_s"] == {"n": 40, "p50": 580.75, "p95": 610.38, "p99": 611.85, "max": 611.85} and (new["seconds"], new["paid_per_s"]) == (611.86, 0.065)
+    assert [r["paid"] for r in new["per_relay"]] == [8, 13, 8, 11]
+    assert (new["fanout"]["endpoints"], new["fanout"]["second_endpoints"], new["fanout"]["resend_every_s"], new["fanout"]["confirm_by"]) == (
+        1, 0, 2.0, "getSignatureStatuses")
+    assert len(set(new["order_ids"])) == 40 and new["github_run"] == "https://github.com/drexthealpha/knos-load/actions/runs/38012410577"
+    page = (ROOT / "docs" / "LOAD.md").read_text(encoding="utf-8")
+    assert ("#### Measured on devnet, public program ids, 2026-10-10: end-to-end PayOrder: token verification, then the payment; 4 relays, "
+            "40 payments attempted; scenario burst\n") in page
+    assert "| 40 | 40 of 40 | 0 | 0 | 0 | 611.86 | 0.065 | 580.75 | 610.38 | none: fewer than 100 payments | 611.85 |" in page
+    assert "To be rerun: done by the 0.3.25 release on 10 Oct 2026: the next burst row." in page
+    row = next(line for line in page.splitlines() if line.startswith("| burst | "))
+    assert "40 of 40 paid, 0 failures, 73 retries, 0.065 a second" in row and "2026-10-10" in row and "to be rerun" not in row
+    manifest = (ROOT / "docs" / "MANIFEST.md").read_text(encoding="utf-8")       # the run that kept its order ids says so
+    assert manifest.count("| 40 orders paid by a load run, 4 relays; its 40 order ids are in docs/load.json |") == 1

@@ -563,5 +563,114 @@
         ]
       }
     ]
+  },
+  "cross_system": {
+    "page_section": "Records across systems: completeness and finality",
+    "module": "src/knos/completeness.py",
+    "kinds": [
+      "deleted",
+      "omitted",
+      "late",
+      "duplicated"
+    ],
+    "rows": [
+      {
+        "case": "deleted: a line names a pull request or run GitHub no longer has",
+        "record": "the line is held; GitHub not answering is said, not taken as deleted",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_a_line_whose_pull_request_or_run_github_no_longer_has_is_a_deleted_exception_and_held"
+          }
+        ]
+      },
+      {
+        "case": "omitted: the chain paid an order in the period and no line bills it",
+        "record": "listed with its amount; never added to the count",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_an_order_the_chain_paid_in_the_period_with_no_line_is_an_omitted_exception"
+          }
+        ]
+      },
+      {
+        "case": "late: the record saw an order after the period closed",
+        "record": "carried to the next period, never added; a line that bills it is held",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_an_order_seen_after_the_period_closed_is_carried_never_added_and_a_line_that_bills_it_is_held"
+          }
+        ]
+      },
+      {
+        "case": "duplicated: one deliverable under two ids (two lines, or two orders)",
+        "record": "counted once; the others flagged and left out of the count",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_one_deliverable_under_two_ids_is_counted_once_and_flagged"
+          }
+        ]
+      },
+      {
+        "case": "a retried webhook: the same event delivered again",
+        "record": "the same arrival changes nothing; the same event from a second source is a repeat, counted once; the same id with another amount is refused",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_a_retried_webhook_is_one_event_and_the_same_event_from_a_second_source_is_counted_once"
+          }
+        ]
+      },
+      {
+        "case": "a delayed bank status: unknown, then paid; or paid twice",
+        "record": "an unclear answer holds the line; the line is booked paid once, when the bank says paid",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_a_delayed_or_repeated_bank_status_books_each_line_once_and_only_when_paid"
+          }
+        ]
+      },
+      {
+        "case": "a transaction dropped before finality, then sent again",
+        "record": "the dropped one is never booked; the one sent again is booked once; a second payment found later is not booked again",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_a_transaction_dropped_before_finality_is_never_booked_and_its_resubmission_is_booked_once"
+          }
+        ]
+      },
+      {
+        "case": "a chain answer that is only `processed` or `confirmed`",
+        "record": "never booked until `finalized`; the record keeps the commitment it was booked at",
+        "tests": [
+          {
+            "file": "tests/test_completeness.py",
+            "test": "test_a_payment_the_cluster_has_only_processed_or_confirmed_is_never_booked_until_it_is_finalized"
+          }
+        ]
+      }
+    ],
+    "contradictions": {
+      "file": "tests/test_completeness.py",
+      "test": "test_contradictions_finds_a_line_paid_under_two_ids_and_one_booked_from_a_transaction_that_was_not_final"
+    },
+    "memory": {
+      "through": "knos.proof.history.exception_resolved / exceptions_before",
+      "file": "tests/test_completeness.py",
+      "test": "test_a_resolution_is_remembered_and_recalled_when_the_same_source_comes_back_and_no_memory_recalls_nothing"
+    }
+  },
+  "upgrade_stored_terms": {
+    "page_section": "An upgrade and an order already funded",
+    "fixture": "tests/data/completeness/order_funded_under_2_1.json",
+    "file": "tests/test_completeness.py",
+    "test": "test_the_stored_schedule_of_an_order_funded_under_2_1_is_read_from_its_account",
+    "upgrade_can_change": "everything the program owns, after the public delay (docs/GOVERNANCE.md)",
+    "exercised": "an order funded under 2.1 refunded with its stored 0.40 at the public id on 9 October 2026 (docs/CAPABILITIES.md, round stored_fee)"
   }
 }

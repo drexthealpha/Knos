@@ -81,7 +81,7 @@ jobs:
       contents: read          # the ledger file, read through GitHub's API (there is no checkout)
       issues: write           # the signed statement is posted on this repository's "knos tokens" issue, where a relayer finds it
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@1997fe1d229c6296700d62136d0c2b62667087c0
     with:
       repository: ${{ github.repository }}
       pull: 0                 # a batch names no pull request
@@ -94,7 +94,7 @@ jobs:
       contents: read
       issues: write
       id-token: write
-    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@64b31fae2b0050ee6abeeb763442172f42398cd5
+    uses: drexthealpha/knos-workflows/.github/workflows/attest.yml@1997fe1d229c6296700d62136d0c2b62667087c0
     with:
       repository: ${{ github.repository }}
       pull: 0
@@ -155,7 +155,7 @@ jobs:
           enable-cache: false
           ignore-empty-workdir: true
       - name: install knos, the released wheel
-        run: uv tool install --no-config "knos==0.3.24"
+        run: uv tool install --no-config "knos==0.3.25"
       - name: the record and the token the first job made
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:

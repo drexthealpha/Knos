@@ -15,6 +15,7 @@ The sources (SOURCES), and nothing else:
                                   committed file is a copy (its `generated` says of when); the site's build writes it
                                   again from the chain, and `knos status` reads the chain itself
     programs-v2/program_ids.json  the programs
+    examples/upgrade_gate/src/lib.rs  upgrade_gate's public id (its declare_id!): where an exercised upgrade_gate ran
     docs/bench.json               what was measured on devnet: the `[[stat: name]]` slots of scripts/bench_docs.py
 
 A document states such a fact through a slot or a generated block, or in words that stay true as the state changes
@@ -47,7 +48,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST, UPGRADES, IDS, BENCH = "docs/capabilities.json", "web/upgrades.json", "programs-v2/program_ids.json", "docs/bench.json"
-SOURCES = [MANIFEST, UPGRADES, IDS, BENCH, "docs/backtest.json"]
+GATE = "examples/upgrade_gate/src/lib.rs"     # upgrade_gate's public id, its own declare_id! (scripts/capabilities.py, public_ids)
+SOURCES = [MANIFEST, UPGRADES, IDS, BENCH, "docs/backtest.json", GATE]
 # Where a withdrawn proposal's times may stand, in a sentence that says they are history (WAS).
 HISTORY = {"CHANGELOG.md", "docs/GOVERNANCE.md"}
 WAS = re.compile(r"withdr[ae]w|replaced|cancel|could have run|never ran|never executed|was proposed")

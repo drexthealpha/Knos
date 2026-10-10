@@ -43,7 +43,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
-         "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
+         "docs/submission/demo_script.md", "docs/submission/weekly_update.md", "docs/submission/pitch_script_120.md"]
 SENTENCE = "The neutral meter for AI agent work: neither side keeps the count."
 # what a work order is, in four sentences: on the home page, folded under "What is here"
 LONG = ("A work order is a task, its budget and the terms that decide whether it is done, fixed before the work starts. A bounty "

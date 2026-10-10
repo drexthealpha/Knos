@@ -20,8 +20,7 @@ import { passkeyFundIntent, intentComment, faucetComment, FAUCET_ISSUE } from ".
 import { termsOf, parseIssueUrl, workflowPin, orderAddress, listOf, F_NEUTRAL, SEQ_TRIES, MAX_DAYS, Refused } from "./anyissue.js";
 import { priceConstants, quote, unitsOf, show, feeWords, feeNext } from "./price.js";
 import { liveFee } from "./fee_live.js";
-import { renderOrderStatement } from "./statements.js";
-import { jsonFile } from "./records.js";
+// statements.js and records.js are asked for when they are used, not with this page: #buy paints first (docs/perf.json `android`)
 import * as con from "./console.js";
 
 const RPC = "https://api.devnet.solana.com", GH = "https://api.github.com";
@@ -134,7 +133,7 @@ export function renderBuyer(el, env = {}) {
   const ids = env.ids || (() => (idsP ||= fetch("program_ids.json").then((r) => { if (!r.ok) throw new Error("program_ids.json is missing from this build"); return r.json(); })));
   // the fee shown follows the build that is live (web/fee_live.js): this tree's own rule until devnet or upgrades.json has answered
   let c = env.priceConstants || priceConstants();
-  const file = env.file || jsonFile;
+  const file = env.file || ((path) => import("./records.js").then((m) => m.jsonFile(path)));
   const clock = env.now || (() => Math.floor(Date.now() / 1000));
   const say = (node, html, kind = "") => { node.innerHTML = `<p class="status ${kind}">${html}</p>`; };
   const copyTo = (button, text, area) => { button.onclick = async () => { try { await navigator.clipboard.writeText(text); button.textContent = "Copied"; } catch { area?.select?.(); button.textContent = "Select it and copy by hand"; } }; };
@@ -670,7 +669,8 @@ export function renderBuyer(el, env = {}) {
 
   $("buy-go-records").onclick = () => { showPart("invoice"); $("buy-statement").scrollIntoView?.({ block: "start" }); $("ost-owner")?.focus({ preventScroll: true }); };
   // ---- the statement, the templates, and a wallet this browser kept ----------------------------------------------------------------------
-  renderOrderStatement($("buy-statement-box"), { EXPLORER, gh, file: env.file });
+  import("./statements.js").then((m) => m.renderOrderStatement($("buy-statement-box"), { EXPLORER, gh, file: env.file }))
+    .catch((e) => say($("buy-statement-box"), `The statement view did not load: ${esc(e.message)}. Reload the page.`, "bad"));
   const ready = (env.templates ? Promise.resolve(env.templates) : fetch("buyer_templates.json").then((r) => { if (!r.ok) throw new Error(`buyer_templates.json did not load (${r.status})`); return r.json(); }))
     .then((got) => { book = got; kinds(); desk = renderProcurement($("proc"), { book, gh, now: clock, onChange: () => redraw(), fundBox: $("buy-envelope"), fee: () => c }); redraw(); })
     .catch((e) => { $("buy-sentence").textContent = `The templates did not load: ${e.message}. Reload the page.`; });

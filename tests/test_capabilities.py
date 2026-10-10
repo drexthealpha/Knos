@@ -192,7 +192,8 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     assert ("**Exercised on devnet:** none recorded yet." in block) == (not now)       # before a round at the public ids, and after it
     # README.md and the document say that a stage above `tested` is a run at a public program id, and where the rehearsal is
     assert block.count(cap.PUBLIC_ONLY) == 1 and full[full.index(cap.START):full.index(cap.END)].count(cap.PUBLIC_ONLY) == 1
-    assert {cap.ids_of(c) for c in DATA["capabilities"] if c["stage"] == "exercised"} <= {"public"} and cap.ids_of(BY_ID["pay_on_merge"]) is None
+    assert {cap.ids_of(c) for c in DATA["capabilities"] if c["stage"] == "exercised"} <= {"public"}
+    assert all(cap.ids_of(c) is None for c in DATA["capabilities"] if c["stage"] != "exercised")
     # what the rehearsal ran on staging ids is never a stage by that run: README.md names none of it for the rehearsal,
     # and one it ran that a round at the public ids exercised since is named for that run, with its public transaction
     for cid in REHEARSED:

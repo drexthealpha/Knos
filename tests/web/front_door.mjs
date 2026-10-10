@@ -7,13 +7,13 @@
 // and holds one control; the sample is answered with no request at all; a pasted invoice with a line billed twice has
 // it flagged; a named repository asks nobody but api.github.com (answered here from tests/data/shadow_cases.json);
 // nothing runs off the side at 320 px. No `playwright` package or no browser: says so and exits 0.
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname, extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, "../../web");
 const load = (f) => import(pathToFileURL(join(root, f)).href);
-const { LINE_STATES, LINE_WORDS, COLUMNS, FEEDBACK, REPO_LINES, stateOf, answers, reading, repoInvoice, invoiceLineId } = await load("front_door.js");
+const { LINE_STATES, LINE_WORDS, COLUMNS, FEEDBACK, REPO_LINES, stateOf, answers, reading, repoOf, repoInvoice, invoiceLineId, prOf, checkHref } = await load("front_door.js");
 const { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } = await load("front_door_sample.js");
 const { parse, gather, statement, recorded } = await load("shadow.js");
 const { book } = JSON.parse(readFileSync(join(here, "../data/shadow_cases.json"), "utf8"));
@@ -61,9 +61,22 @@ const row = steps.stepRowHtml(steps.shadowSteps(st.lines[1]));
 ok("the step row names each step in words for a screen reader", /policy satisfied: no/.test(row) && /parties accepted: not yet/.test(row) && (row.match(/class="k-step"/g) || []).length === 4, row);
 same("what the box holds: a repository's name, or an invoice", [reading(" acme/app ").repo, reading("https://github.com/acme/app").repo.repo, reading("acme/app#1").invoice.lines.length, reading("acme/app#1\nacme/app#2").invoice.lines.length],
   [{ owner: "acme", repo: "app", branch: "main" }, "app", 1, 2]);
+// the box reads a repository's name on the first screen, without web/install.js (tests/web/perf.mjs): as that file does
+{
+  const names = [" acme/app ", "https://github.com/acme/app", "acme/app@release/1.x", "acme/app.git", "acme/app/", "ACME-co/My.Repo_1@feature/x",
+    "acme/..", "acme/.", "-acme/app", "acme-/app", `${"a".repeat(39)}/x`, `${"a".repeat(40)}/x`, "acme/wid gets", "widgets", "", null,
+    "https://github.com/acme/app/pull/1", "acme/app#1", "http://github.com/acme/app", "acme/app@", "acme/app@a b"];
+  const { parseRepo } = await load("install.js");
+  same("a repository's name is read as web/install.js reads it", names.map(repoOf), names.map(parseRepo));
+}
 const listing = [1, 2, 3, 5, 9, 12, 13, 14].map((n) => book[`repos/acme/app/pulls/${n}`]);
 const listed = await repoInvoice({ owner: "acme", repo: "app" }, async () => listing);
 same(`a repository is read as its merged pull requests, ${REPO_LINES} at most, none asked for twice`, [listed.invoice.lines.map((l) => l.pr), listed.known.size], [[1, 2, 5, 9, 12, 13, 14].map((n) => `acme/app#${n}`), 7]);
+// THE TEN-SECOND CHECK: one pull request alone in the box goes to its own check (web/check.js at #check=owner/repo/123);
+// an invoice, a repository's name and a line with an amount stay the front door's own
+same("one pull request alone is the ten-second check, at its own hash", ["https://github.com/acme/app/pull/7", " https://github.com/acme/app/pull/7/files\n", "acme/app#7"].map((t) => checkHref(prOf(t))),
+  ["#check=acme/app/7", "#check=acme/app/7", "#check=acme/app/7"]);
+same("  an invoice, a repository or a priced line is not", ["acme/app#1\nacme/app#2", "acme/app", "https://github.com/acme/app/pull/1,100.00,Acme Agents", "", "not a link"].map(prOf), [null, null, null, null, null]);
 const fb = new URL(FEEDBACK);
 same("the feedback link: a new issue on drexthealpha/Knos, labelled, three questions, nothing else", [fb.origin + fb.pathname, fb.searchParams.get("labels"), fb.searchParams.get("body").split("\n").filter(Boolean)],
   ["https://github.com/drexthealpha/Knos/issues/new", "shadow-feedback", ["1. What was wrong in the result?", "2. Would you use this on a real invoice?", "3. What would you pay for it?"]]);
@@ -364,9 +377,101 @@ async function page() {
     ok("repository: no error on the page", errors.length === 0, errors);
     await ctx.close();
   }
+  // 5. THE TEN-SECOND CHECK, from the first screen: one pull request pasted goes to its check, and a posted result is
+  // three presses from landing at most (paste, check, post). The check and its post are web/check.js and web/share.js:
+  // in a build without them, what this page does is held, and the rest is said to be waiting for them.
+  const verdict = JSON.parse(readFileSync(join(here, "../data/front_verdict.json"), "utf8"));
+  const answerOf = (at) => (/^repos\/acme\/app\/pulls\/7$/.test(at) ? verdict.api["repos/acme/app/pulls/7"] : /\/check-runs(\?|$)/.test(at) ? verdict.api["check-runs"]
+    : /\/status(\?|$)/.test(at) ? verdict.api.status : /\/statuses(\?|$)/.test(at) ? verdict.api.statuses : /\/pulls\/7\/commits(\?|$)/.test(at) ? verdict.api.commits : null);
+  const pasteInto = (p, sel, text) => p.evaluate(([s, t]) => {      // as a paste does: the event, then the text in the box
+    const box = document.querySelector(s), data = new DataTransfer(); data.setData("text/plain", t); box.focus();
+    box.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true })); box.value = t;
+  }, [sel, text]);
+  {
+    const { ctx, p, sent, errors } = await visit("door.html", 360);
+    const t0 = await p.evaluate(() => performance.now());
+    await pasteInto(p, "#fd-in", verdict.pr);
+    await p.waitForFunction(() => location.hash.startsWith("#check="), null, { timeout: 2000 }).catch(() => {});
+    const went = await p.evaluate((t) => [location.hash, Math.round(performance.now() - t)], t0);
+    ok("ten seconds: a pull request pasted alone goes to its check at once, with no press", went[0] === "#check=acme/app/7" && went[1] < 300, went);
+    ok("  the front door asks GitHub nothing for it: the check does", sent.length === 0, sent);
+    await p.evaluate(() => { location.hash = ""; });
+    await p.fill("#fd-in", "acme/app#7"); await p.click('[data-fd="run"]');
+    same("  typed, Check takes it there too", await p.evaluate(() => location.hash), "#check=acme/app/7");
+    ok("  no error on the page", errors.length === 0, errors);
+    await ctx.close();
+  }
+  const withCheck = existsSync(join(built, "check.js")), withShare = existsSync(join(built, "share.js"));
+  // the verdict is drawn: an element marked [data-verdict] holds words, or the page says "Claimed tests pass" and its answer
+  const VERDICT = () => [...document.querySelectorAll("[data-verdict]")].some((e) => e.textContent.trim() && e.checkVisibility())
+    || /Claimed tests pass\W{0,3}\s*(yes|no)\b/i.test(document.body.innerText);
+  async function landing(o = {}) {
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, reducedMotion: "reduce" }), asked = [];
+    const cors = { "access-control-allow-origin": "*", "access-control-expose-headers": "x-ratelimit-remaining, x-ratelimit-limit, x-ratelimit-reset" };
+    await ctx.route("**/*", (route) => {
+      const u = new URL(route.request().url());
+      if (u.origin === new URL(base).origin || u.protocol === "blob:") return route.continue();
+      if (u.origin !== "https://api.github.com") { asked.push(u.href); return route.abort(); }
+      const at = (u.pathname + u.search).slice(1), head = { ...cors, "x-ratelimit-remaining": "55", "x-ratelimit-limit": "60", "x-ratelimit-reset": "2000000000" }, got = answerOf(u.pathname.slice(1));
+      if (at === "rate_limit") return route.fulfill({ status: 200, contentType: "application/json", headers: head, body: JSON.stringify({ resources: { core: { limit: 60, remaining: 55, reset: 2000000000 } } }) });
+      return got === null ? route.fulfill({ status: 404, contentType: "application/json", headers: head, body: "{}" }) : route.fulfill({ status: 200, contentType: "application/json", headers: head, body: JSON.stringify(got) });
+    });
+    await ctx.addInitScript((src) => {        // the first moment the verdict is in the page, seen as it is put there
+      const seen = new Function(`return (${src})()`);
+      new MutationObserver((l, o) => { if (seen()) { window.__verdictAt = performance.now(); o.disconnect(); } }).observe(document, { subtree: true, childList: true, characterData: true });
+    }, VERDICT.toString());
+    const p = await ctx.newPage();
+    if (o.slow) {
+      const cdp = await ctx.newCDPSession(p);
+      await cdp.send("Network.enable"); await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
+      await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 150, downloadThroughput: Math.round(1.6e6 / 8), uploadThroughput: Math.round(750e3 / 8) });
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    }
+    await p.goto(base); await p.waitForSelector("#front-door textarea"); await p.waitForSelector("#fd-style", { state: "attached" });      // web/front_door.js has run: the box is listened to
+    return { ctx, p, asked };
+  }
+  {
+    // THE PRESSES, counted: landing (no press), paste the link (1), the check runs as it lands (Check, 2, only if it did
+    // not), then "Post on X" (3): a link to x.com's own page to post, which posts nothing by itself
+    const { ctx, p, asked } = await landing();
+    let presses = 0;
+    await pasteInto(p, "#fd-in", verdict.pr); presses++;
+    try { await p.waitForFunction(() => location.hash.startsWith("#check="), null, { timeout: 1000 }); } catch { await p.click('[data-fd="run"]'); presses++; }
+    same("presses: landing, then a pasted link, is at its check in one press", [presses, await p.evaluate(() => location.hash)], [1, "#check=acme/app/7"]);
+    if (withCheck && withShare) {
+      await p.waitForFunction(() => window.__verdictAt !== undefined, null, { timeout: 10000 }).catch(() => {});
+      const post = p.locator('a[href^="https://x.com/intent/"], a[href^="https://twitter.com/intent/"]').first();
+      const href = await post.getAttribute("href", { timeout: 3000 }).catch(() => null);
+      if (href) { await post.click({ trial: true }); presses++; }        // pressable, and pressed: x.com is not asked here
+      ok("presses: landing to a posted result (paste, check, post) is three presses at most, the post carrying the link", href !== null && presses <= 3 && decodeURIComponent(href).includes("#check=acme/app/7"), [presses, href]);
+    } else console.log(`note presses: the post press waits for ${[withCheck ? "" : "web/check.js", withShare ? "" : "web/share.js"].filter(Boolean).join(" and ")} in the build: ${presses} press so far, two left at most`);
+    ok("presses: nobody but this site and api.github.com is asked", asked.length === 0, asked);
+    await ctx.close();
+  }
+  if (withCheck) {
+    // FIRST VERDICT: from the first paint of the landing page to the verdict drawn, on the android profile (360 x 740,
+    // the processor 4 times slower, a slow 4G for the site's own files), GitHub answered from tests/data/front_verdict.json
+    const runs = [];
+    for (let i = 0; i < 3; i++) {
+      const { ctx, p } = await landing({ slow: true });
+      await pasteInto(p, "#fd-in", verdict.pr);
+      await p.waitForFunction(() => window.__verdictAt !== undefined, null, { timeout: 20000 }).catch(() => {});
+      const ms = await p.evaluate(() => { const fcp = performance.getEntriesByName("first-contentful-paint")[0]; return window.__verdictAt === undefined || !fcp ? null : Math.round(window.__verdictAt - fcp.startTime); });
+      runs.push(ms); await ctx.close();
+    }
+    const sorted = runs.filter((x) => x !== null).sort((a, b) => a - b), med = sorted.length === runs.length ? sorted[1] : null;
+    ok("first verdict: drawn under 10 s from the first paint on the android profile, at every run", med !== null && sorted.at(-1) < 10000, runs);
+    if (writeTo && med !== null && !failed) {
+      const doc = JSON.parse(readFileSync(writeTo, "utf8"));
+      doc.first_verdict = { what: "tests/web/front_door.mjs: from the landing page's first contentful paint to the verdict of one pasted pull request drawn at #check, the link pasted as soon as web/front_door.js listens to the box; 360 x 740, processor 4 times slower, slow 4G for the site's files, GitHub's answers recorded (tests/data/front_verdict.json)",
+        runs: runs.length, p50_ms: med, max_ms: sorted.at(-1), limit_ms: 10000 };
+      writeFileSync(writeTo, JSON.stringify(doc, null, 1) + "\n", "utf8"); console.log(`wrote first_verdict to ${writeTo}`);
+    }
+  } else console.log("note first verdict: not timed, this build has no web/check.js");
   await browser.close(); server.close();
 }
 
+const wr = process.argv.indexOf("--write"), writeTo = wr < 0 ? null : process.argv[wr + 1] || join(here, "../../docs/perf.json");
 if (process.argv[2] === "page") await page();
 console.log(failed ? `${failed} failed` : "all passed");
 process.exit(failed ? 1 : 0);

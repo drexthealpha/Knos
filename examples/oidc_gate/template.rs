@@ -3,7 +3,7 @@
 //! no CPI, no oracle, no key of anyone's. README.md beside this file has the steps and the cargo commands.
 //!
 //! Cargo.toml:   solana-program = "2.2"
-//!               knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.24" }
+//!               knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.3.25" }
 //!
 //! Accounts:     0  token  read-only   the token account knos-oidc wrote (the client verifies the token first)
 //!               1  key    read-only   the key account that verified it: its address is inside the token account

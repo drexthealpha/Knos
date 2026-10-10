@@ -550,7 +550,11 @@ const PARTS = {
   fund: once(async () => {
     const [t, a] = await Promise.all([import("./task.js"), import("./anyissue.js")]);
     t.initTask({ $, esc, knos, gh });
-    anyShow = a.initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP });
+    // the fee fold takes the version the Fund card asked devnet for (one question, not two); with no answer, upgrades.json
+    let heard; const version = new Promise((r) => { heard = r; });
+    anyShow = a.initAnyIssue({ $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign: signAndConfirm, say, upgrades: upgradesP, onVersion: heard });
+    const live = version.then(async (v) => (v === null ? (await import("./fee_live.js")).liveFee({ knos }) : { version: v, source: "chain", c: (await import("./price.js")).priceConstants(knos, v) }));
+    import("./fund_fee.js").then((f) => f.renderFundFee($("fund-fee"), { knos, RPC, ids, live })).catch(() => {});
   }),
   // Buy: web/buyer.js, which a build may not have; then the page stays empty and web/front.js does not offer it.
   buy: once(async () => { await (await import("./buyer.js")).renderBuyer?.($("buy"), { $, esc, knos, RPC, EXPLORER, ids, client, gh, devnet }); }),

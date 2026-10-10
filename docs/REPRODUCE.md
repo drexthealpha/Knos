@@ -53,6 +53,30 @@ pipx run --spec knos knos reproduce
 
 It needs no secret, no wallet and no money, and it writes nothing to your repository.
 
+## Check one yourself
+
+Anyone can check a signed reproduction on their own machine, offline, without trusting Knos or the sender:
+
+```
+knos reproduce --verify https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+Run it in the folder holding the run's file (the artifact `knos-reproduction`, unpacked; or
+`gh run download RUN_ID -R OWNER/REPO -n knos-reproduction` first). It also takes the file itself, the artifact's
+`.zip` or the folder. It checks what the pull request's check checks: GitHub's signature, that the token was signed
+for these exact bytes, that the run is not Knos's own, that a check passed and none failed. It prints the repository,
+the commit, the run, the report's sha256, what passed and the run's wall time. Exit 0 means a valid outside
+reproduction; a run of Knos's own is named as such and exits 1.
+
+GitHub's keys come from `--keys FILE` (save
+[GitHub's key list](https://token.actions.githubusercontent.com/.well-known/jwks) once), else from
+`scripts/github_oidc_keys.json` in a source checkout. With neither, they are read from GitHub, and the output says so.
+
+`python scripts/reproductions.py` lists every verified reproduction in [`reproductions/`](../reproductions), grouped
+by the account that owns the repository it ran in. Runs of Knos's own accounts
+([`scripts/own_github_ids.json`](../scripts/own_github_ids.json), or a repository of drexthealpha) are never listed:
+they are counted apart. `--json` for a machine; more files or folders can follow.
+
 ## What each check proves
 
 `knos reproduce` runs a fixed list against public things only: Solana devnet at the PUBLIC program ids, GitHub's
@@ -118,6 +142,23 @@ from a fork is given a read-only token, so it is not a comment.
 A check that failed is a bug, not a reproduction: open an issue and attach `report.json`; the second run says so in
 place of the link. The last question in the pull request's text, what was awkward or broken on the way, is the part
 nobody inside can answer.
+
+## The steps, counted
+
+What a stranger does, each click or command counted once (GitHub's own steps for running a workflow by hand:
+[Manually running a workflow](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)):
+
+| path | steps | what they are |
+|---|---|---|
+| fork, then send | 10 | open the fork link, **Create fork**, **Actions**, enable workflows, **knos reproduce**, **Run workflow**, **Run workflow** again in its menu, open the run **knos reproduction, to send**, open the link it prints, **Create pull request** |
+| template, then check | 7 | open the template link, **Create repository**, **Actions**, **knos reproduce**, **Run workflow**, **Run workflow** again, download the artifact; then `knos reproduce --verify <run URL>` is an 8th, on your own machine |
+| a terminal only | 1 | `pipx run --spec knos knos reproduce` (not signed: proves nothing to anyone else) |
+
+Time to first verified result: the time from the workflow's first step to GitHub's signature. The workflow records it:
+its first step puts the clock into the report (`started`), and the token says when GitHub signed (`iat`), so the time
+is read from signed bytes, never typed. `knos reproduce --verify` and `scripts/reproductions.py` print it.
+**Runs recorded: 0.** Nobody outside has run the workflow, so there is no time to show yet. A report made before
+0.3.25 has no `started`, and its time shows as not recorded.
 
 ## How long it takes
 

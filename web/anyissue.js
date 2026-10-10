@@ -178,6 +178,7 @@ const ROLES = ["the funder (you, signing)", "the order", "the order's token acco
 
 export function initAnyIssue(ctx) {
   const { $, esc, knos, RPC, EXPLORER, gh, ids, client, devnet, wallet, sendable, whyFailed, sign, say, upgrades } = ctx;
+  const told = ctx.onVersion || (() => {});           // who else on the page wants the answer (the fee fold): devnet is asked once
   let c = priceConstants();              // the fee follows the build that is live: set again below from the program's own answer
   const state = { avail: null, preview: null, pending: null };
   const link = (kind, id, text = id) => `<a class="mono" href="${esc(EXPLORER(kind, id))}" target="_blank" rel="noopener">${esc(text)}</a>`;
@@ -195,9 +196,10 @@ export function initAnyIssue(ctx) {
     try {
       const [i, up, k] = await Promise.all([ids(), upgrades, client().catch(() => null)]);
       const version = await programVersion(knos, RPC, i.knos_pay).catch(() => null);
+      told(version);
       c = priceConstants(knos, version);   // the 0.3.14 fee until knos_pay 2.2 answers, the 0.3.18 fee after; nobody answered: this tree's own, and the page says both
       state.avail = availability({ version, funding: !!k && !!orderFunding(knos, k), up });
-    } catch { state.avail = availability({ version: null, funding: false }); }
+    } catch { state.avail = availability({ version: null, funding: false }); told(null); }
     out.className = `status ${state.avail.ok ? "ok" : ""}`;
     out.textContent = state.avail.words;
     refresh();

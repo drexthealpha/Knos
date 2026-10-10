@@ -15,7 +15,20 @@ export const WIDTHS = [320, 360, 390, 768, 1280];
 export const ROW_MAX = 400;
 export const PAGES = ["", "#protect", "#fund", "#money", "#task", "#anyissue", "#claim", "#pricing", "#records", "#u=alice", "#r=octo/widgets", "#rank=earners",
   "#network", "#build", "#buy", "#install", "#capabilities", "#status", "#index", "#pilot", "#reproduce", "#demo", "#shadow", "#verifier", "#playground", "#terms",
-  "#supplier", "#invoice-statement", "#story", "#keyholder", "#check-a-pull-request", "#record", "#record=codex"];
+  "#supplier", "#invoice-statement", "#story", "#keyholder", "#check-a-pull-request", "#record", "#record=codex", "#check=acme/app/7"];
+// THE CHECK OF ONE PULL REQUEST (web/check.js at #check=owner/repo/123, its share row web/share.js) is measured with a
+// verdict drawn: GitHub's answers for acme/app#7 are the recorded ones of tests/data/front_verdict.json. Every other
+// request outside the site is still refused.
+export const CHECKED = "#check=acme/app/7";
+const RECORDED = (() => { try { return JSON.parse(readFileSync(new URL("../data/front_verdict.json", import.meta.url), "utf8")).api; } catch { return null; } })();
+export function answerGitHub(route) {
+  const u = new URL(route.request().url()), at = u.pathname.slice(1);
+  const got = !RECORDED || u.origin !== "https://api.github.com" ? null : at === "repos/acme/app/pulls/7" ? RECORDED[at]
+    : /^repos\/acme\/app\/commits\/\w+\/check-runs$/.test(at) ? RECORDED["check-runs"] : /^repos\/acme\/app\/commits\/\w+\/status$/.test(at) ? RECORDED.status
+      : at === "repos/acme/app/pulls" ? [RECORDED["repos/acme/app/pulls/7"]] : null;
+  if (got === null) return route.abort();
+  return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(got) });
+}
 // The pages this build added by name (web/views.js ADDED, as scripts/build_site.sh left it: a page whose module or data
 // is not in the build is not in the list). They are held to the same width and the same word budget as the rest.
 export const addedPages = (root) => { try { return [...readFileSync(join(root, "views.js"), "utf8").matchAll(/^\s+([\w-]+): \{ file: "/gm)].map((m) => m[1]); } catch { return []; } };
@@ -73,7 +86,7 @@ async function main() {
   let fails = 0, looked = 0;
   for (const scheme of ["light", "dark"]) {
     const ctx = await browser.newContext({ colorScheme: scheme, viewport: { width: 1280, height: 800 } });
-    await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));
+    await ctx.route("**/*", (route) => (route.request().url().startsWith(base) ? route.continue() : answerGitHub(route)));
     // one page a width, all at once: every page is still loaded anew at its own width, and the waiting is shared
     const lines = await Promise.all(WIDTHS.map(async (width) => {
       const page = await ctx.newPage(), said = [];
@@ -82,6 +95,7 @@ async function main() {
         await page.goto("about:blank"); await page.goto(base + hash, { waitUntil: "load" });
         // a page's code arrives when the page is first opened: measured once it has run (web/front.js marks the root then)
         await page.waitForFunction(() => document.documentElement.dataset.ready !== undefined, null, { timeout: 15000 }).catch(() => {});
+        if (hash === CHECKED) await page.waitForSelector("#check-share [data-share]", { timeout: 10000 }).catch(() => {});
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(150);
         const tall = await tallRows(page);                         // as the reader first sees it: a shut fold is shut

@@ -214,6 +214,7 @@ async function mock(ctx) {
     }
     if (p.startsWith("/repositories/")) { const named = Object.entries(repos).find(([, id]) => id === Number(p.slice(14))); return named ? json({ id: Number(p.slice(14)), full_name: named[0] }) : json({ message: "Not Found" }, 404); }
     if (p.endsWith("/check-runs")) return json({ check_runs: [] });
+    if (p.endsWith("/check-suites")) return json({ total_count: 0, check_suites: [] });
     if (p.endsWith("/status")) return json({ sha: "e".repeat(40), statuses: [] });
     if (p === "/repos/limited/repo") return json({ message: "rate limit" }, 403, { "x-ratelimit-remaining": "0" });
     return json({ message: "Not Found" }, 404);
@@ -394,8 +395,10 @@ await reset();
     const card = await page.getAttribute('meta[property="og:image"]', "content");
     check("  the card of a shared link is this site's own file, 1200 by 630", card === "https://drexthealpha.github.io/Knos/brand/card.png" && existsSync(join(root, "brand", "card.png"))
       && readFileSync(join(root, "brand", "card.png")).readUInt32BE(16) === 1200 && readFileSync(join(root, "brand", "card.png")).readUInt32BE(20) === 630);
-    const tags = await page.$$eval("head link[href], head script[src], head meta[content]", (l) => l.map((x) => x.getAttribute("href") || x.getAttribute("src") || "").filter((h) => /^(https?:)?\/\//.test(h)));
-    check("  the head asks no other host for anything", tags.length === 0 && strangers.length === 0, [tags, strangers]);
+    // the canonical link names the site's own address and nothing fetches it (tests/test_site_launch.py holds its tags)
+    const tags = await page.$$eval('head link[href]:not([rel="canonical"]), head script[src], head meta[content]', (l) => l.map((x) => x.getAttribute("href") || x.getAttribute("src") || "").filter((h) => /^(https?:)?\/\//.test(h)));
+    const canonical = await page.$$eval('head link[rel="canonical"]', (l) => l.map((x) => x.getAttribute("href")));
+    check("  the head asks no other host for anything", tags.length === 0 && strangers.length === 0 && JSON.stringify(canonical) === JSON.stringify(["https://drexthealpha.github.io/Knos/"]), [tags, strangers, canonical]);
     for (const [scheme, ink] of [["light", "rgb(21, 23, 28)"], ["dark", "rgb(233, 235, 239)"]]) {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: scheme }); await mock(ctx);
       const p = await ctx.newPage(); await visit(p);
@@ -477,7 +480,7 @@ await reset();
   await page.evaluate(() => { document.getElementById("demo").innerHTML = ""; });
   await page.waitForSelector("#demo", { state: "hidden" });
   await page.click('#nav > a[href="#demo"]');
-  check("  Demo, while the demo's mount is empty, puts the cursor in the box that checks a pull request", await page.evaluate(() => document.activeElement.id === "pr-url") && await page.isHidden("#demo"));
+  check("  Demo, while the demo's mount is empty, puts the cursor in the box that checks a pull request", await page.evaluate(() => document.activeElement.id === "fd-in") && await page.isHidden("#demo"));
   await page.evaluate(() => { document.activeElement.blur(); document.getElementById("demo").innerHTML = "<p>Filled</p>"; });
   await page.waitForSelector("#demo", { state: "visible" });
   // under the buyer and the supplier comes the one transaction told end to end (one fold), and the demo's mount under it
@@ -485,12 +488,12 @@ await reset();
     && d.previousElementSibling.id === "one-transaction" && d.previousElementSibling.previousElementSibling.classList.contains("sides")
     && d.parentElement.querySelector(".hero ~ #how-it-works ~ .how ~ .sides ~ #one-transaction ~ #demo") === d));
   await page.click('#nav > a[href="#demo"]');
-  check("    and the cursor stays out of the box", await page.evaluate(() => document.activeElement.id !== "pr-url" && location.hash === "#demo"));
+  check("    and the cursor stays out of the box", await page.evaluate(() => document.activeElement.id !== "fd-in" && location.hash === "#demo"));
   await page.evaluate(() => { document.getElementById("demo").replaceChildren(); });
   await visit(page);
   const settled = async () => {};          // every page's link is in the menu from the start: a page fills when it is opened
   await settled(); await page.click("#more-button"); await page.click("#go-check");
-  check("  Check a pull request, under More, puts the cursor in the box", await page.evaluate(() => document.activeElement.id === "pr-url"));
+  check("  Check a pull request, under More, puts the cursor in the box", await page.evaluate(() => document.activeElement.id === "fd-in"));
   // the pages other modules fill: not offered while empty, shown alone at their hash once they hold something
   // in the order of the menu: the bar's, then More's; a page added by name (MENU) stands in the bar before Pricing or
   // last under More, and the Leaderboard goes first under More when an added page takes its words
@@ -595,51 +598,61 @@ await reset();
     check(`#${hash} shows the ${view} view alone`, shown.join() === `view-${view}` && (await page.getAttribute("nav a[aria-current=page]", "href")) === `#${view}`, shown);
   }
 
-  // a repository's own record in the Agent PR Index: the same box, no request but index.json
+  // ONE BOX: the first screen's box takes a pull request (its check, #check=…), a repository (its record in the Agent PR
+  // Index: no request but index.json) and a transaction; the old form keeps no field of its own (the examples press it)
+  const inBox = async (p, what) => { await p.fill("#fd-in", what); await p.click('#front-door [data-fd="run"]'); };
+  const viaForm = (p, what) => p.evaluate((t) => { document.getElementById("pr-url").value = t; document.getElementById("pr-form").requestSubmit(); }, what);
   await visit(page);
+  check("one box on the landing page: the old form has no field to type in", (await page.$$eval("#view-check input:not([type=hidden]), #view-check textarea", (l) => l.filter((x) => x.offsetParent !== null).map((x) => x.id))).join() === "fd-in");
   for (const ask of ["octo/widgets", "OCTO/Widgets", "https://github.com/octo/widgets/", "github.com/octo/widgets.git", "https://github.com/octo/widgets/pulls?q=x"]) {
     githubReads = 0;
-    await page.fill("#pr-url", ask);
-    await page.click("#pr-check");
-    await page.waitForSelector("#repo-record");
+    await inBox(page, ask);
+    await page.waitForFunction((a) => document.querySelector("#front-result #repo-record") && document.getElementById("fd-in").value === a, ask);
     const rec = await text(page, "#repo-record");
     check(`repository record for ${ask}`, rec.includes("4 agent pull requests") && rec.includes("tests pass, 2 had a failing check") && rec.includes("octo/widgets"));
     check(`  ${ask}: no GitHub request, only index.json`, githubReads === 0);
+    await page.evaluate(() => { document.getElementById("front-result").innerHTML = ""; });
   }
+  await inBox(page, "octo/widgets"); await page.waitForSelector("#front-result #repo-record");
   const rec = await text(page, "#repo-record");
   check("record: per agent", rec.includes("copilot") && rec.includes("1 of 2") && rec.includes("codex") && rec.includes("1 of 1"));
   check("record: each pull request links to GitHub", (await page.getAttribute('#repo-record a[href$="/pull/2"]', "href")) === "https://github.com/octo/widgets/pull/2" && rec.includes("build (3.12)"));
   check("record: index text is escaped, not run", (await page.$("#repo-record img")) === null && rec.includes("<img src=x"));
-  await page.fill("#pr-url", "octo/unknown");
-  await page.click("#pr-check");
-  await page.waitForSelector("#repo-record");
+  check("record: counting its merged pull requests is one press more", await page.isVisible('#front-result [data-fd="count"]'));
+  await page.evaluate(() => { document.getElementById("front-result").innerHTML = ""; });
+  await inBox(page, "octo/unknown");
+  await page.waitForSelector("#front-result #repo-record");
   const none = await text(page, "#repo-record");
   check("record: none says so and offers the single-PR check", none.includes("No agent pull requests") && none.includes("octo/unknown") && none.includes("pull request link"));
   githubReads = 0;
-  await page.fill("#pr-url", "https://github.com/octo/widgets/pull/12");
-  await page.click("#pr-check");
+  await inBox(page, "https://github.com/octo/widgets/pull/12");
+  await page.waitForSelector("#check-one #check-verdict");
+  check("a pull request link in the box is its check, at its own link", (await page.evaluate(() => location.hash)) === "#check=octo/widgets/12" && githubReads > 0
+    && (await text(page, "#check-verdict")).includes("Claims nothing about tests"));
+  await page.evaluate(() => { location.hash = ""; });
+  await page.waitForFunction(() => document.getElementById("check-one").hidden && !document.getElementById("check-one").firstChild);
+  check("  leaving #check clears the check", true);
+  await viaForm(page, "https://github.com/octo/widgets/pull/12");
   await page.waitForSelector("#verdict");
-  check("a pull request link is still the single-PR check", githubReads > 0 && (await text(page, "#verdict")).includes("No tests-pass claim") && (await page.$("#repo-record")) === null);
+  check("the examples' form still answers one pull request", (await text(page, "#verdict")).includes("No tests-pass claim") && (await page.$("#pr-result #repo-record")) === null);
   check("the result offers to protect that repository, at its default branch", (await page.getAttribute("#check-protect", "href")) === "#protect=octo%2Fwidgets%40develop");
-  check("the result says the fee and that it applies only when someone is paid", (await text(page, "#pr-result")).includes("Fee: 2.5%, only when someone is paid"));
+  check("the result says the fee applies only when someone is paid, and names no rate of its own", (await text(page, "#pr-result")).includes("Fee: only when someone is paid, at the rate Pricing reads from the program.")
+    && !/\d(\.\d+)?%/.test((await text(page, "#pr-result")).split("Fee:")[1]));
   await page.click("#check-protect");
   await page.waitForSelector("#protect-open");
   check("  and the link opens the Protect view with that repository and branch", await page.isVisible("#view-protect") && (await page.inputValue("#protect-repo")) === "octo/widgets"
     && (await page.inputValue("#protect-branch")) === "develop" && (await page.textContent("#protect-result")).includes("octo/widgets"));
   await visit(page);
-  await page.fill("#pr-url", "not a thing");
-  await page.click("#pr-check");
+  await viaForm(page, "not a thing");
   await page.waitForSelector("#pr-result .status.bad");
   check("anything else is refused in a sentence", (await text(page, "#pr-result")).includes("owner/repo"));
-  await page.fill("#pr-url", "limited/repo#1");
   await page.close();
 
   const again = await plain.newPage();
   served.index = { ...index, prs: "not a list" };                 // an index that is not the shape it should be: a sentence, no error
   await visit(again);
-  await again.fill("#pr-url", "octo/widgets");
-  await again.click("#pr-check");
-  await again.waitForSelector("#repo-record");
+  await inBox(again, "octo/widgets");
+  await again.waitForSelector("#front-result #repo-record");
   check("record: an index without a list of pull requests says none", (await text(again, "#repo-record")).includes("No agent pull requests"));
   served.index = index;
   await again.close();
@@ -1300,7 +1313,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   // the Console's sample approvals name where each was made: a comment in this project's own playground repository, never an account that is somebody else's
   check("links: the Console's sample is in the project's own playground repository", hrefs.some((h) => /^https:\/\/github\.com\/drexthealpha\/knos-playground\/issues\/\d+#issuecomment-\d+$/.test(h)) && !(await page.content()).includes("github.com/acme/"));
   const bad = hrefs.filter((h) => !(h.startsWith("#") ? ["check", "fd-in", "check-a-pull-request", "protect", "fund", "claim", "pricing", "records", "network", "build", "rank", "buy", "install", "capabilities", "status", "index", "pilot", "reproduce", "demo", "shadow", "verifier", "playground", "terms", "supplier", "invoice-statement", "story", "keyholder", "sample", "record", ...MENU.added.map((a) => a.name)].includes(h.slice(1).split("=")[0])
-    : h === TEMPLATE_LINK || h === JUDGE_TEMPLATE_LINK || h === "https://drexthealpha.github.io/Knos/" || /^https:\/\/explorer\.solana\.com\/(tx\/[1-9A-HJ-NP-Za-km-z]{64,90}|address\/[1-9A-HJ-NP-Za-km-z]{32,44})\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly|records|statement_sample)\.json$|^terms\/(?:3\/)?[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
+    : h === TEMPLATE_LINK || h === JUDGE_TEMPLATE_LINK || h === "https://drexthealpha.github.io/Knos/" || /^https:\/\/explorer\.solana\.com\/(tx\/[1-9A-HJ-NP-Za-km-z]{64,90}|address\/[1-9A-HJ-NP-Za-km-z]{32,44})\?cluster=devnet$/.test(h) || /^https:\/\/github\.com\/drexthealpha\/|^https:\/\/faucet\.circle\.com\/$|^(index|stats|operations|agent_weekly|records|statement_sample)\.json$|^privacy\.html$|^terms\/(?:3\/)?[\w-]+\/\d+\.json$/.test(h) || issuerDocs.includes(h)));
   check("links: every link goes to a view, to the site's own address, to the project's own GitHub, to a transaction or an address on devnet's explorer, to Circle's devnet faucet, to a file of the site or to an issuer's own documentation (the verifier's table)", bad.length === 0, bad);
   check("  a link that opens a new tab does not hand over the page", await page.$$eval('a[target="_blank"]', (a) => a.every((x) => /noopener/.test(x.rel))));
   await page.close();
@@ -1336,9 +1349,10 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   const openAll = () => page.evaluate(() => document.querySelectorAll("details").forEach((d) => { d.open = true; }));
 
   await visit(page);
-  await page.fill("#pr-url", "https://github.com/octo/widgets/pull/12"); await page.click("#pr-check"); await page.waitForSelector("#verdict");
+  await page.fill("#fd-in", "https://github.com/octo/widgets/pull/12"); await page.click('#front-door [data-fd="run"]'); await page.waitForSelector("#check-one #check-share [data-share]");
   await wide("check a pull request, with a result");
-  await page.fill("#pr-url", "octo/widgets"); await page.click("#pr-check"); await page.waitForSelector("#repo-record");
+  await page.evaluate(() => { location.hash = ""; }); await page.waitForFunction(() => document.getElementById("check-one").hidden);
+  await page.fill("#fd-in", "octo/widgets"); await page.click('#front-door [data-fd="run"]'); await page.waitForSelector("#repo-record");
   await wide("  and with a repository's record");
   await visit(page, "#protect");
   await page.fill("#protect-repo", "octo/widgets"); await page.click("#protect-go"); await page.waitForSelector("#protect-open");
@@ -1407,31 +1421,31 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
     && paidText.includes("0.25 test USDC") && paidText.includes("first deployment") && (await page.getAttribute('#pr-result a[href*="explorer.solana.com"]', "href")) === `https://explorer.solana.com/tx/${paid.input}?cluster=devnet`, paidText);
   check("  and says the money is test USDC and where the line was read", paidText.includes("test USDC: devnet money is worth nothing") && paidText.includes("escrow's own log line"));
 
-  // the same by hand: a link to the transaction, a transaction that paid nothing, one devnet does not have, another cluster
-  await page.fill("#pr-url", `https://explorer.solana.com/tx/${paid.input}?cluster=devnet`);
-  await page.click("#pr-check");
+  // the same by hand, in the one box: a link to the transaction, a transaction that paid nothing, one devnet does not have, another cluster
+  await page.fill("#fd-in", `https://explorer.solana.com/tx/${paid.input}?cluster=devnet`);
+  await page.click('#front-door [data-fd="run"]');
   await page.waitForFunction(() => document.getElementById("verdict")?.dataset.verdict === "paid");
   const other = firstDeployment.find((t) => !t.meta.logMessages.some((l) => /knos:paid/.test(l)) && t.meta.err === null);
-  await page.fill("#pr-url", other.signature);
-  await page.click("#pr-check");
+  await page.fill("#fd-in", other.signature);
+  await page.click('#front-door [data-fd="run"]');
   await page.waitForFunction(() => document.getElementById("verdict")?.dataset.verdict === "not a payment");
   check("a transaction with no payment in it says so", (await text(page, "#pr-result")).includes("no payment line from either escrow program"));
-  await page.fill("#pr-url", relayed.signature);
-  await page.click("#pr-check");
+  await page.fill("#fd-in", relayed.signature);
+  await page.click('#front-door [data-fd="run"]');
   await page.waitForFunction(() => document.getElementById("verdict")?.dataset.verdict === "paid" || document.querySelector("#pr-result .status.bad"));
   const relayedText = await text(page, "#pr-result");
   check("a payment a relay carried is a version 1 transaction, and the page reads it", relayedText.includes("Paid: 19.50 test USDC") && relayedText.includes("issue #31 of repository 777000111, pull request #9")
     && relayedText.includes("0.50 test USDC") && relayedText.includes("second deployment"), relayedText);
   check("  every transaction is asked for with version 1", called("getTransaction").length >= 4 && called("getTransaction").every((c) => c.params[1]?.maxSupportedTransactionVersion === 1),
     JSON.stringify(called("getTransaction").map((c) => c.params[1])));
-  await page.fill("#pr-url", "5".repeat(88));
-  await page.click("#pr-check");
+  await page.fill("#fd-in", "5".repeat(88));
+  await page.click('#front-door [data-fd="run"]');
   await page.waitForSelector("#pr-result .status.bad");
   check("a signature devnet does not know is a sentence", (await text(page, "#pr-result")).includes("Devnet has no transaction with that signature"));
   const asks = called("getTransaction").length;
   chain.genesis = MAINNET;
-  await page.fill("#pr-url", paid.input);
-  await page.click("#pr-check");
+  await page.fill("#fd-in", paid.input);
+  await page.click('#front-door [data-fd="run"]');
   await page.waitForFunction(() => document.querySelector("#pr-result .status.bad")?.textContent.includes("not devnet"));
   check("a cluster that is not devnet is refused before the transaction is asked for", called("getTransaction").length === asks, [asks, called("getTransaction").length]);
   chain.genesis = DEVNET;
@@ -1526,7 +1540,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
   check("pricing: the fee worked at 100, 5,000 and 100,000: one rate, one step each", JSON.stringify(worked) === JSON.stringify([["100", "0.30% of 100", "0.30"], ["5,000", "0.30% of 5,000", "15"], ["100,000", "0.30% of 100,000", "300"]]), JSON.stringify(worked));
   const pageWords = (await page.evaluate(() => document.querySelector("main").textContent)).replace(/\s+/g, " ");
   check("  nothing on the page says a fee has a maximum of 25, or that an order stops at 500", !/at most 25\b|maximum (?:of )?25\b|at most 500\b|1 to 500\b|capped at 500/.test(arithmetic) && !/at most 25\)|0\.40 test USDC, at most 25|from 1 to 500 test USDC, with/.test(pageWords)
-    && pageWords.includes("from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.") && pageWords.includes("at least 0.05 test USDC and no maximum") && pageWords.includes("the fee it charged before the upgrade (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40 test USDC)"));
+    && pageWords.includes("from 5 to 100,000 test USDC, with at most 6 decimals. A build for real money sets its own cap.") && pageWords.includes("There is no maximum.") && pageWords.includes("An order funded under knos_pay 2.1 keeps its stored fee: 2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40 test USDC."));
   const effective = await page.$$eval("#fee-effective tbody tr", (tr) => tr.map((r) => [...r.children].map((x) => x.textContent.trim())));
   check("pricing: the effective fee before funding: 5 pays 0.05 (1.00%), and from 20 up 0.30%", JSON.stringify(effective) === JSON.stringify([
     ["5", "0.05", "1.00%"], ["20", "0.06", "0.30%"], ["100", "0.30", "0.30%"], ["1,000", "3", "0.30%"], ["5,000", "15", "0.30%"], ["100,000", "300", "0.30%"]]), JSON.stringify(effective));

@@ -30,6 +30,7 @@ Every failure is one line that says what happened.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -1179,6 +1180,9 @@ def __getattr__(name: str):
 def main(argv: list[str] | None = None) -> int:
     """The console script. Errors are one line, never a traceback."""
     args = list(sys.argv[1:] if argv is None else argv) or ["--help"]       # no argument: the four commands to start with
+    debug = os.environ.get("KNOS_DEBUG", "").strip().lower() not in ("", "0", "false", "no")
+    if args[0] == "--debug":        # `knos --debug COMMAND ...`: an unforeseen error prints its trace (as KNOS_DEBUG=1 does)
+        debug, args = True, args[1:] or ["--help"]
     from .__main__ import FLOW_FIRST
     if args[0] in FLOW_FIRST:       # only these can be a workflow's job: knos.flow (and solders) is not imported to ask about any other
         from . import flow
@@ -1210,7 +1214,11 @@ def main(argv: list[str] | None = None) -> int:
             out.print(e.format_message(), markup=False)
             out.print("See:  knos --help", markup=False)
             return 2
-        out.print(f"knos stopped: {type(e).__name__}: {e}", markup=False)
+        if debug:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        said = " ".join(str(e).split())
+        out.print(f"knos stopped: {type(e).__name__}: {said[:297] + '...' if len(said) > 300 else said} (knos --debug shows where)", markup=False, soft_wrap=True)
         return 1
 
 

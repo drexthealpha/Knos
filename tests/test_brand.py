@@ -150,7 +150,9 @@ def test_the_site_names_its_own_files_for_the_icon_and_the_card():
     assert '<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">' in page
     assert badge.SITE == "https://drexthealpha.github.io/Knos"
     head = page.split("</head>")[0]
-    assert not re.findall(r'(?:href|src)="(?:https?:)?//', head)                     # the head asks no other host for anything
+    asks = [tag for tag in re.findall(r'<[^>]*(?:href|src)="(?:https?:)?//[^>]*>', head) if not re.search(r'\brel="canonical"', tag)]
+    assert not asks, asks                    # the head asks no other host for anything (the canonical link names the address; nothing fetches it)
+    assert head.count('rel="canonical"') == 1 and '<link rel="canonical" href="https://drexthealpha.github.io/Knos/">' in head
     css = _text(ROOT / "web" / "app.css")
     assert 'url("brand/wordmark.svg")' in css and 'url("brand/mark.svg")' in css
     for slot in ("status", "index", "pilot", "reproduce", "shadow", "verifier", "playground"):      # pages other modules fill: empty, hidden

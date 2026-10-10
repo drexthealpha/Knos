@@ -735,7 +735,7 @@ def test_the_after_rounds_run_on_the_live_build_upgraded_in_place_and_assert_the
     strict = ev["exercises"]["oidc_strict_json"]
     assert strict["refusals"] == [{"signature": ev["rounds"]["strict"]["refused"]["signature"], "error": 61, "means": "the payload is not JSON", "what": "a NaN claim"}]
     done = {c for c, e in ev["exercises"].items() if e["status"] == "exercised"}
-    registered = {"netting_reserve", "verify_gitlab", "gitlab_pay"}          # the registered rounds of the phase that have a path on the simulator and need no second owner
+    registered = {"netting_reserve", "verify_gitlab", "gitlab_pay", "meter_single"}     # the registered rounds of the phase that have a path on the simulator and need no second owner
     assert done - registered == {"fee_one_rate", "quorum_by_owner", "presentation_grace", "oidc_strict_json", "es256_tokens"} and registered <= done
     assert (ev["rounds"]["private"]["exit"], ev["rounds"]["judge"]["exit"]) == (0, 3) and ev["rounds"]["judge"]["result"].startswith("skipped: no `--neutral")
     # nothing stays: every order these rounds opened is closed or went back
@@ -775,6 +775,13 @@ def test_the_phases_run_at_the_public_ids_only_on_the_builds_they_are_for_and_a_
     kept = json.loads(where.read_text(encoding="utf-8"))
     assert kept["mode"] == "public" and kept["programs"]["knos_pay"]["build"] == "2.2" and kept["rounds"]["stored_fee"]["result"].startswith("cannot: no order of this run's own was funded before the upgrade")
     assert "cannot: no client" not in json.dumps(kept) and kept["rounds"]["es256"]["result"] != "ok" and any(line.startswith("FAILED: ") for line in said)
+    # `--only <step>`: that step of the phase and nothing else, and no registered round (the pause among them) is started
+    alone, said[:] = keys / "alone.json", []
+    assert ex.after_main("after", alone, "rpc", keys, False, None, None, said.append, live, Broken, only="grace") == 1
+    one = json.loads(alone.read_text(encoding="utf-8"))
+    assert set(one["rounds"]) == {"grace"} and one["rounds"]["grace"]["result"].startswith("failed: ")
+    assert [line for line in said if line.startswith("[")] == [line for line in said if line.startswith("[grace] ")] != []
+    assert not any(line.startswith("registered rounds:") for line in said)
     # a second owner: said as what cannot be done, unless --neutral names a repository, which is only ever read
     src = (ROOT / "scripts" / "exercise_public.py").read_text(encoding="utf-8")
     assert "`--neutral OWNER/REPO` names a repository of another" in src and "nothing is ever sent to that repository" in src

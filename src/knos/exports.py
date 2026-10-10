@@ -238,17 +238,18 @@ STATEMENT_GENERIC = ("bill_no", "line", "state", "payment", "date", "supplier", 
                      "invoice_line", "settlement", "evidence", "evidence_sha256", "duplicate_of", "statement_sha256", "po_reference", "grn_reference", "assurance")
 
 
-def statement_bills(st: dict, status: dict | None = None) -> list[dict]:
+def statement_bills(st: dict, status: dict | None = None, today: str = "") -> list[dict]:
     """One dict per line of a statement, in its order, with what the status file adds. `bill` is true for an agreed
-    line only: that is what the two products' files hold. Each carries the three things a three-way match keys on: the
+    line that is not owed to the supplier (refused or left unauthorised: never a payable) only: that is what the two
+    products' files hold. `today` (YYYY-MM-DD) also makes a line nobody authorised in time owed (statement.lines_now). Each carries the three things a three-way match keys on: the
     purchase order's reference (when a goods-received note was recorded: `knos statement grn --record`), the note's
     reference and the assurance level. The generic file has a column for each; QuickBooks' and NetSuite's import
     templates have none, so there they are in the memo."""
     from . import ids, statement
     out = []
-    for ln in statement.lines_now(st, status):
+    for ln in statement.lines_now(st, status, today):
         words, paid = ids.LINE_WORDS[ln["state"]], statement.PAY_WORDS[ln["payment"]]
-        out.append({"bill": ln["state"] == "agreed", "bill_no": bill_number(ln["deliverable"], ln["supplier"]), "line": ln["line"], "state": words,
+        out.append({"bill": ln["state"] == "agreed" and not ln["owed"], "bill_no": bill_number(ln["deliverable"], ln["supplier"]), "line": ln["line"], "state": words,
                     "payment": paid, "date": st["date"], "supplier": ln["supplier"], "reference": ln["reference"], "amount": ln["amount"],
                     "currency": st["currency"], "why": ln["why"], "deliverable": ln["deliverable"], "evaluations": " ".join(ln["evaluations"]),
                     "invoice_line": ln["invoice_line"], "settlement": ln["settlement"] or "", "evidence": ln["evidence"],
@@ -271,7 +272,7 @@ def write_statement(fmt: str, st: dict, status: dict | None = None, options: dic
     if fmt not in STATEMENT_FORMATS:
         raise audit.Refused(f"--format is {', '.join((*STATEMENT_FORMATS, *STATEMENT_MORE))}; {fmt!r} is none of them.")
     o = {**DEFAULTS, **{k: v for k, v in (options or {}).items() if v}}
-    found = statement_bills(st, status)
+    found = statement_bills(st, status, str((options or {}).get("today") or ""))
     bills_ = [b for b in found if b["bill"] and b["amount"]]
     when = lambda b: day(b["date"], o["date_format"] or FORMATS[fmt]["date"])       # noqa: E731
     if fmt == "netsuite":
@@ -377,7 +378,7 @@ MATCH = ("bill_no", "line", "supplier", "reference", "amount", "currency", "stat
 MATCH_WORDS = {"3-way": "purchase order + receipt of goods + invoice line", "2-way": "receipt of goods + invoice line", "none": ""}
 
 
-def match_of(st: dict, status: dict | None = None) -> list[dict]:
+def match_of(st: dict, status: dict | None = None, today: str = "") -> list[dict]:
     """Every line of a statement with its purchase order number and the match accounts payable performs:
 
         3-way    a goods-received note is recorded for the line (`knos statement grn --record`) and it matches: the
@@ -390,7 +391,7 @@ def match_of(st: dict, status: dict | None = None) -> list[dict]:
     from . import ids, statement
     events = statement._status(st, status)["events"]
     out = []
-    for b, ln in zip(statement_bills(st, status), statement.lines_now(st, status)):
+    for b, ln in zip(statement_bills(st, status, today), statement.lines_now(st, status, today)):
         noted = [e["grn"] for e in events if e["type"] == "grn" and e["line"] == ln["invoice_line"]]
         if noted:
             got, why = ("3-way", "") if noted[-1]["match"] else ("none", "; ".join(noted[-1]["mismatches"]))
@@ -412,7 +413,7 @@ def cxml(st: dict, status: dict | None = None, options: dict | None = None) -> s
     ids, its goods-received note and its match as Extrinsic elements. `options`: supplier_id, buyer_id (the two parties'
     identities on the network) and deployment (test, the default, or production)."""
     o = {"supplier_id": "", "buyer_id": "", "deployment": "test", **{k: v for k, v in (options or {}).items() if v}}
-    found = [m for m in match_of(st, status) if m["bill"] and m["amount"]]
+    found = [m for m in match_of(st, status, str(o.get("today") or "")) if m["bill"] and m["amount"]]
     cur, total = _x(st["currency"]), sum(_units(m["amount"], st["scale"]) for m in found)
     money = lambda amount: f'<Money currency="{cur}">{_x(amount)}</Money>'              # noqa: E731
     who = lambda tag, ident: f'    <{tag}><Credential domain="NetworkID"><Identity>{_x(ident)}</Identity></Credential></{tag}>'      # noqa: E731
@@ -463,6 +464,7 @@ def write_more(fmt: str, st: dict, status: dict | None = None, options: dict | N
     """The `match` file (every line, CSV) or the `ariba` file (the agreed lines, cXML)."""
     if fmt == "ariba":
         return cxml(st, status, options)
+    today = str((options or {}).get("today") or "")
     if fmt != "match":
         raise audit.Refused(f"--format is {', '.join((*STATEMENT_FORMATS, *STATEMENT_MORE))}; {fmt!r} is none of them.")
-    return _csv([[TYPE, "version", VERSION, "match", LABEL], MATCH, *([m[c] for c in MATCH] for m in match_of(st, status))])
+    return _csv([[TYPE, "version", VERSION, "match", LABEL], MATCH, *([m[c] for c in MATCH] for m in match_of(st, status, today))])

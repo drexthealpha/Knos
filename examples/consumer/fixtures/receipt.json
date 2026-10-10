@@ -1,0 +1,161 @@
+{
+ "amendments": [],
+ "amounts": {
+  "decimals": 6,
+  "fee": "0",
+  "mint": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+  "of": "20000000",
+  "paid": "20000000",
+  "tip": "60000"
+ },
+ "assurance": {
+  "declared_related": [],
+  "level": "reported",
+  "trusted": [
+   "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+   "The run that reported the result, and whoever controls its repository, its workflow and its runner: the result is that run's word.",
+   "The supplier, as far as the suite ran where the supplier's change could reach it.",
+   "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+  ]
+ },
+ "cluster": "localnet",
+ "commercial_authorisation": {
+  "billed_before": false,
+  "deliverable": {
+   "milestone": 0,
+   "order": "5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3"
+  },
+  "funded": "5zsTQHHcqHDm7dZYAvFdhVG1CzWKDnXGsRdbvtkCM3GqSRjYiR4yhxgcwAJpahjbUUZsHPec53r1b6aAJ1vETu5B",
+  "funder": {
+   "github_id": 555000,
+   "login": "mona",
+   "wallet": null
+  },
+  "limit": {
+   "cap_per_order": "0",
+   "daily": "500000000",
+   "repositories": [
+    987654321
+   ],
+   "total": "5000000000"
+  },
+  "role": "spender",
+  "source": {
+   "address": "HzNMom2SdGiSEBoLRygjUKXzKCqWjRr4GdC6x5Cbd797",
+   "kind": "balance",
+   "owner_id": 424242
+  }
+ },
+ "disputed": null,
+ "evaluator_observed": {
+  "artifact": {
+   "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "pull_request": 7
+  },
+  "checks": [
+   {
+    "conclusion": "passed",
+    "name": "test"
+   }
+  ],
+  "evaluators": [
+   {
+    "actor_id": 555000,
+    "independent_of_buyer": false,
+    "independent_of_seller": true,
+    "kind": "repository",
+    "owner_id": 424242,
+    "repository_id": 987654321,
+    "runner": "github-hosted"
+   }
+  ],
+  "independence": "One judge spoke.",
+  "judge": {
+   "kind": "repository",
+   "version": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "same_controller": false,
+  "verdict": "accepted"
+ },
+ "evidence_source": {
+  "kind": "issuer_token",
+  "reference": "66ee582b89427ca9e2e2dcd97885043a0845e76aa214481715748dc9d2523fd1",
+  "signed_by": "https://token.actions.githubusercontent.com"
+ },
+ "ids": {
+  "deliverable": "dlv_c632c47f3a8efddacd1f0c87",
+  "evaluation": "evl_df99900eebc180fb87e0654b",
+  "invoice_line": null,
+  "settlement": "stl_63bb4e96e5e08aeb9d6236c0"
+ },
+ "issuer_authenticated": {
+  "claims": {
+   "actor_id": "555000",
+   "event_name": "pull_request_target",
+   "exp": 1790000361,
+   "iat": 1790000061,
+   "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/v0.3.12",
+   "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+   "repository_id": "987654321",
+   "repository_owner_id": "424242",
+   "run_attempt": "1",
+   "run_id": "36905461215",
+   "runner_environment": "github-hosted"
+  },
+  "issuer": "https://token.actions.githubusercontent.com",
+  "provider": "github",
+  "token_sha256": "66ee582b89427ca9e2e2dcd97885043a0845e76aa214481715748dc9d2523fd1",
+  "verified": {
+   "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+   "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+   "transaction": "4jGbAEVpBAsyntUjrTBSX73Qo2YhkWmu5W8tGsfu6L3Lr9mJs6nRkAvGAhyN63J9pmqYk3NfBB5s7P3yozj3iGAv"
+  }
+ },
+ "limitations": [
+  "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+  "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+  "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+  "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+  "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+ ],
+ "order": "5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3",
+ "payees": [
+  {
+   "amount": "20000000",
+   "bps": 10000,
+   "github_id": 1234567,
+   "to": "3i4rz1p6U9CTLNYiZ5sRiEt2JxKw9tBMStGCfEPkD43R"
+  }
+ ],
+ "policy": {
+  "allowed_paths": [
+   "src/**"
+  ],
+  "denied_paths": [
+   ".github/**",
+   ".knos/**"
+  ],
+  "mode": "merge",
+  "terms_hash": "111e9b7b867a1bdaf26a361e1af0785f5fb6979306ead3ac46e76005af724397",
+  "version": 1
+ },
+ "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+ "repository": {
+  "id": 987654321,
+  "issue": 1001
+ },
+ "scope": "106c0d343e0440f9ea110cd84b043c3ead058c6b7c2484a329ad78f19b63b144",
+ "transaction": {
+  "signature": "dJogXZiBA2wAuP63hcma8rs1BvpGjXif78H5X4P7U4WKErjax4XECrt6k25eMsGeBhw2tuoEqsbWMpFBkGYszaR",
+  "slot": 435888022,
+  "time": 1790000061
+ },
+ "trust_remaining": [
+  "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+  "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+  "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+  "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+ ],
+ "type": "knos.acceptance-receipt",
+ "version": 5
+}

@@ -1,0 +1,394 @@
+{
+ "note": "One order funded from a Balance and paid on the LiteSVM harness (knos_pay and knos_oidc as built, tests/fixtures), its receipt, and the JSON-RPC answers a cluster would give. The signatures are numbered stand-ins: a LiteSVM run has no cluster. Written by examples/consumer/record.py; do not edit.",
+ "receipt": {
+  "amendments": [],
+  "amounts": {
+   "decimals": 6,
+   "fee": "0",
+   "mint": "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+   "of": "20000000",
+   "paid": "20000000",
+   "tip": "60000"
+  },
+  "assurance": {
+   "declared_related": [],
+   "level": "reported",
+   "trusted": [
+    "The issuer, for which workflow ran, in which repository and run. It did not sign what the run read, ran or concluded.",
+    "The run that reported the result, and whoever controls its repository, its workflow and its runner: the result is that run's word.",
+    "The supplier, as far as the suite ran where the supplier's change could reach it.",
+    "Whoever wrote the terms: the level says how the result was checked, not that the terms asked for the right thing."
+   ]
+  },
+  "cluster": "localnet",
+  "commercial_authorisation": {
+   "billed_before": false,
+   "deliverable": {
+    "milestone": 0,
+    "order": "5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3"
+   },
+   "funded": "5zsTQHHcqHDm7dZYAvFdhVG1CzWKDnXGsRdbvtkCM3GqSRjYiR4yhxgcwAJpahjbUUZsHPec53r1b6aAJ1vETu5B",
+   "funder": {
+    "github_id": 555000,
+    "login": "mona",
+    "wallet": null
+   },
+   "limit": {
+    "cap_per_order": "0",
+    "daily": "500000000",
+    "repositories": [
+     987654321
+    ],
+    "total": "5000000000"
+   },
+   "role": "spender",
+   "source": {
+    "address": "HzNMom2SdGiSEBoLRygjUKXzKCqWjRr4GdC6x5Cbd797",
+    "kind": "balance",
+    "owner_id": 424242
+   }
+  },
+  "disputed": null,
+  "evaluator_observed": {
+   "artifact": {
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "pull_request": 7
+   },
+   "checks": [
+    {
+     "conclusion": "passed",
+     "name": "test"
+    }
+   ],
+   "evaluators": [
+    {
+     "actor_id": 555000,
+     "independent_of_buyer": false,
+     "independent_of_seller": true,
+     "kind": "repository",
+     "owner_id": 424242,
+     "repository_id": 987654321,
+     "runner": "github-hosted"
+    }
+   ],
+   "independence": "One judge spoke.",
+   "judge": {
+    "kind": "repository",
+    "version": "cccccccccccccccccccccccccccccccccccccccc"
+   },
+   "same_controller": false,
+   "verdict": "accepted"
+  },
+  "evidence_source": {
+   "kind": "issuer_token",
+   "reference": "66ee582b89427ca9e2e2dcd97885043a0845e76aa214481715748dc9d2523fd1",
+   "signed_by": "https://token.actions.githubusercontent.com"
+  },
+  "ids": {
+   "deliverable": "dlv_c632c47f3a8efddacd1f0c87",
+   "evaluation": "evl_df99900eebc180fb87e0654b",
+   "invoice_line": null,
+   "settlement": "stl_63bb4e96e5e08aeb9d6236c0"
+  },
+  "issuer_authenticated": {
+   "claims": {
+    "actor_id": "555000",
+    "event_name": "pull_request_target",
+    "exp": 1790000361,
+    "iat": 1790000061,
+    "job_workflow_ref": "drexthealpha/Knos/.github/workflows/prove.yml@refs/tags/v0.3.12",
+    "job_workflow_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "repository_id": "987654321",
+    "repository_owner_id": "424242",
+    "run_attempt": "1",
+    "run_id": "36905461215",
+    "runner_environment": "github-hosted"
+   },
+   "issuer": "https://token.actions.githubusercontent.com",
+   "provider": "github",
+   "token_sha256": "66ee582b89427ca9e2e2dcd97885043a0845e76aa214481715748dc9d2523fd1",
+   "verified": {
+    "key": "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+    "program": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "transaction": "4jGbAEVpBAsyntUjrTBSX73Qo2YhkWmu5W8tGsfu6L3Lr9mJs6nRkAvGAhyN63J9pmqYk3NfBB5s7P3yozj3iGAv"
+   }
+  },
+  "limitations": [
+   "The issuer signs which workflow ran, in which repository and run, not what it read, ran or concluded.",
+   "The verdict is the pinned workflow's under the policy named here. It does not show that the policy asked for the right thing.",
+   "In merge mode the merge is the acceptance: no test was run for this receipt, and it does not show that the code works.",
+   "Accepted means the policy's conditions were met at this commit. It does not show that the work has no defect.",
+   "This receipt does not record whether the evaluator ran the acceptance suite itself or read another run's record."
+  ],
+  "order": "5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3",
+  "payees": [
+   {
+    "amount": "20000000",
+    "bps": 10000,
+    "github_id": 1234567,
+    "to": "3i4rz1p6U9CTLNYiZ5sRiEt2JxKw9tBMStGCfEPkD43R"
+   }
+  ],
+  "policy": {
+   "allowed_paths": [
+    "src/**"
+   ],
+   "denied_paths": [
+    ".github/**",
+    ".knos/**"
+   ],
+   "mode": "merge",
+   "terms_hash": "111e9b7b867a1bdaf26a361e1af0785f5fb6979306ead3ac46e76005af724397",
+   "version": 1
+  },
+  "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+  "repository": {
+   "id": 987654321,
+   "issue": 1001
+  },
+  "scope": "106c0d343e0440f9ea110cd84b043c3ead058c6b7c2484a329ad78f19b63b144",
+  "transaction": {
+   "signature": "dJogXZiBA2wAuP63hcma8rs1BvpGjXif78H5X4P7U4WKErjax4XECrt6k25eMsGeBhw2tuoEqsbWMpFBkGYszaR",
+   "slot": 435888022,
+   "time": 1790000061
+  },
+  "trust_remaining": [
+   "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
+   "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
+   "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
+   "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 48-hour delay, until an outside review."
+  ],
+  "type": "knos.acceptance-receipt",
+  "version": 5
+ },
+ "rpc": {
+  "getSignaturesForAddress 5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3": [
+   {
+    "err": null,
+    "signature": "dJogXZiBA2wAuP63hcma8rs1BvpGjXif78H5X4P7U4WKErjax4XECrt6k25eMsGeBhw2tuoEqsbWMpFBkGYszaR"
+   },
+   {
+    "err": null,
+    "signature": "5zsTQHHcqHDm7dZYAvFdhVG1CzWKDnXGsRdbvtkCM3GqSRjYiR4yhxgcwAJpahjbUUZsHPec53r1b6aAJ1vETu5B"
+   }
+  ],
+  "getTransaction 5zsTQHHcqHDm7dZYAvFdhVG1CzWKDnXGsRdbvtkCM3GqSRjYiR4yhxgcwAJpahjbUUZsHPec53r1b6aAJ1vETu5B": {
+   "blockTime": 1790000001,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1271536 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1268120 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos3:funded order=5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3 repo=987654321 issue=1001 seq=0 amount=20000000 fee=60000 mode=0 by=555000 source=HzNMom2SdGiSEBoLRygjUKXzKCqWjRr4GdC6x5Cbd797 flags=0 deadline=1791209601",
+     "Program log: knos3:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\"],\"reserve\":0,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 139825 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "slot": 435888016,
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "11111111111111111111111111111111",
+      "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+      "2P2EgtejGnzo3WFKF5WuPNYAdRjCJG95jBFY6JX6Lc3z",
+      "5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+      "7xbAZ8XCifMLCf4ZewYbtAh6xGPuaAvvLHjdW9xFPNw3",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "AXQkh3WhpSkSF1FxsF9ergv7sqVKwkxMbiUVzCcgUVTz",
+      "EW1iePzHVXnescHRFdAAAytEnwy7RvVcwZQEbSKehPDU",
+      "Eepf7FLjx34aiUFpLHQdVdvYLvrjJgX92VRFBvPtXvc7",
+      "Fh3TdeECm28NKYqKPiidEFkesqj5RE7JYT1Vv56dWPgq",
+      "GgqJRJ475b1NfWAqrnxN4kv243t6TnKyXCJxDqmwSFUh",
+      "HzNMom2SdGiSEBoLRygjUKXzKCqWjRr4GdC6x5Cbd797",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+     ],
+     "instructions": [
+      {
+       "accounts": [
+        9,
+        11,
+        8,
+        14,
+        5,
+        10,
+        13,
+        3,
+        12,
+        2,
+        1,
+        7,
+        15,
+        0,
+        6
+       ],
+       "data": "RFs4N6Y7Niwt4XaccEwWs1Kny8jZbfBoKCH24J8MM9zvYM7LWFVzgx1FznqELy4Rk9n1XDtVehu6AD946ipwV3PzzuZHEgeJvgRxX7tj6GjYSmrNTDtigvxQkJYcVfRwaMgdCA4GKg4exNh29RrAT4BovSK934pk9EQfro4JWTtwhbCweGJbdtgPidLx",
+       "programIdIndex": 4
+      }
+     ],
+     "recentBlockhash": "AVmDoWjWDaB1mcNGxpc7W1q8pJGrotP3oTWQRy9RHpyC"
+    }
+   }
+  },
+  "getTransaction dJogXZiBA2wAuP63hcma8rs1BvpGjXif78H5X4P7U4WKErjax4XECrt6k25eMsGeBhw2tuoEqsbWMpFBkGYszaR": {
+   "blockTime": 1790000061,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]",
+     "Program log: Create",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 183 of 1266826 compute units",
+     "Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [3]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: Initialize the associated token account",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 38 of 1261733 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1259269 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 15017 of 1273747 compute units",
+     "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1256241 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos3:paid order=5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3 pr=7 payee=1234567 amount=20000000 to=3i4rz1p6U9CTLNYiZ5sRiEt2JxKw9tBMStGCfEPkD43R",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1230453 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos3:settled order=5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3 paid=20000000 of=20000000 fee=0 tip=60000 judge=0",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 118 of 1225105 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 175664 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "slot": 435888022,
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "11111111111111111111111111111111",
+      "27M3incpw8x2njp1DqnfJGboeTfsk9gYcyQKGkKKroQJ",
+      "2KW2XRd9kwqet15Aha2oK3tYvd3nWbTFH1MBiRAv1BE1",
+      "31ixgUWDtSWpSsMdeVPSYtwBboBqK7qZmjcresmiG4Uq",
+      "3BJ8fjenNfDQMHKFkeDgTKwWpD1wafJxM44yKmss2tBp",
+      "3i4rz1p6U9CTLNYiZ5sRiEt2JxKw9tBMStGCfEPkD43R",
+      "53XMysVZ5w5BN7hpgqH5ytToRTePjstS3juFC91hDUq6",
+      "5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+      "8KngUdon1PZt6uXiQh7dTmFaXEwBTj5o8AMXSsJWyp7c",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+      "AXQkh3WhpSkSF1FxsF9ergv7sqVKwkxMbiUVzCcgUVTz",
+      "BDXEN9DuRSQTudhvYjjkDrRUM8GSMb5ZVNRDhciv7HKs",
+      "BXV2eZgAQRK856pSiRrBEg9y2EnGYHeg9MnsaqFd5G6T",
+      "ChCYeGRejsdJdiuf1LNNGupuZGkv6VCaSGi1qKfG72X8",
+      "Fh3TdeECm28NKYqKPiidEFkesqj5RE7JYT1Vv56dWPgq",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "aSoeMqLf4VMQ11U7MpN8KwHt4Vkt564apzXV6nQm6tn"
+     ],
+     "instructions": [
+      {
+       "accounts": [
+        13,
+        6,
+        11,
+        7,
+        17,
+        4,
+        1,
+        10,
+        13,
+        2,
+        18,
+        0,
+        12,
+        9,
+        16,
+        5,
+        15,
+        19,
+        14,
+        3
+       ],
+       "data": "J",
+       "programIdIndex": 8
+      }
+     ],
+     "recentBlockhash": "Cr64VEg56tAEcBu3MAx15Ka2439Sv6mgCzfgJUGZg7dr"
+    }
+   }
+  }
+ },
+ "status": {
+  "events": [
+   {
+    "deliverable": "dlv_c632c47f3a8efddacd1f0c87",
+    "line": "inv_58da9a9524408c0878923cb4",
+    "method": "chain",
+    "on": "2026-10-03",
+    "reference": "dJogXZiBA2wAuP63hcma8rs1BvpGjXif78H5X4P7U4WKErjax4XECrt6k25eMsGeBhw2tuoEqsbWMpFBkGYszaR",
+    "settlement": "stl_63bb4e96e5e08aeb9d6236c0",
+    "state": "devnet_demonstration",
+    "type": "settlement"
+   }
+  ],
+  "kind": "knos-statement-status",
+  "statement": "0000000000000000000000000000000000000000000000000000000000000000",
+  "version": 1
+ }
+}

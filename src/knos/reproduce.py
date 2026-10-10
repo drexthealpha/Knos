@@ -1,6 +1,7 @@
 """knos reproduce: re-run, from a clean install and against public things only, what Knos says it does, and write a report.
 
     knos reproduce [--only ID ...] [--rpc URL] [--out report.json] [--own-repo OWNER/NAME]
+    knos reproduce --verify <run URL | file | artifact .zip | folder> [--keys jwks.json]
 
 Five checks, each timed, each naming the capabilities of docs/capabilities.json it supports:
 
@@ -34,6 +35,14 @@ A report is made self-proving by GitHub, not by its author: examples/knos-reprod
 reproducer's repository and asks GitHub for an OIDC token whose audience is `knos-repro:<sha256 of the report>`. The token
 says which repository and account ran it; the audience says for which bytes. `verified` checks such a pair with no
 network, given GitHub's keys: scripts/capabilities.py and .github/workflows/reproductions.yml both call it.
+
+`--verify` is that check for anyone, on their own machine: the file, the artifact's .zip, the folder it was unpacked
+into, or the run's URL (the file named for that run, looked for here and in reproductions/). GitHub's keys come from
+--keys, else the archive in a source checkout (scripts/github_oidc_keys.json); only with neither are they read from
+GitHub, and the output says which. Exit 0 only for a run that is not Knos's own, intact, with a check passed and none failed.
+
+The workflow puts the time its first step began into the report (`started`, from KNOS_REPRO_STARTED), so GitHub's
+signing time (`iat`) less `started` is the run's wall time, from signed bytes: `wall_seconds` in what `verified` returns.
 
 What the token does not say: that the workflow file was the example unchanged. It names the workflow and its commit
 (`workflow_ref`, `workflow_sha`), which anyone can read in that repository.
@@ -148,14 +157,25 @@ def run_check(cid: str, fn: Callable[[], dict], clock: Callable[[], float] = tim
 
 
 def build(checks: dict[str, Callable[[], dict]], only: list[str] | tuple = (), *, version: str, commit: str = "", cluster: str = "devnet",
-          now: Callable[[], float] = time.time, clock: Callable[[], float] = time.monotonic) -> dict:
-    """The report: who ran (the knos version, platform, Python, commit), and each check in the fixed order."""
+          now: Callable[[], float] = time.time, clock: Callable[[], float] = time.monotonic, started: int | None = None) -> dict:
+    """The report: who ran (the knos version, platform, Python, commit), and each check in the fixed order.
+    `started`: when the workflow's first step began (unix seconds), kept so that the run's wall time can be read from
+    signed bytes; absent from a report made by hand."""
     unknown = sorted(set(only) - set(checks))
     if unknown:
         raise ValueError(f"no check is called {', '.join(unknown)}; the checks are {', '.join(c for c in EVERY if c in checks)}")
     rows = [run_check(cid, checks[cid], clock) for cid in EVERY if cid in checks and (not only or cid in only)]
-    return {"format": FORMAT, "knos": version, "python": platform.python_version(), "platform": platform.platform(), "commit": commit,
-            "cluster": cluster, "at": int(now()), "checks": rows, **{r: sum(row["result"] == r for row in rows) for r in RESULTS}}
+    report = {"format": FORMAT, "knos": version, "python": platform.python_version(), "platform": platform.platform(), "commit": commit,
+              "cluster": cluster, "at": int(now()), "checks": rows, **{r: sum(row["result"] == r for row in rows) for r in RESULTS}}
+    if started is not None:
+        report["started"] = int(started)
+    return report
+
+
+def started_from(env: dict) -> int | None:
+    """KNOS_REPRO_STARTED (unix seconds, set by the workflow's first step), or None when it is not a plain number."""
+    raw = str(env.get("KNOS_REPRO_STARTED", "")).strip()
+    return int(raw) if raw.isdigit() and len(raw) <= 12 else None
 
 
 def lines(report: dict) -> list[str]:
@@ -203,8 +223,11 @@ def is_own(claims: dict, own: dict) -> bool:
     """Whether the run a token names is Knos's own: in a repository of the maintainer's, or of an account of
     scripts/own_github_ids.json, or started by one. Such a run is never an outside reproduction."""
     ids = {int(i) for i in own.get("ids", [])}
+    repos = {int(i) for i in own.get("repositories", []) if str(i).isdigit()}
     owner, owner_id, actor_id = str(claims.get("repository_owner", "")), str(claims.get("repository_owner_id", "")), str(claims.get("actor_id", ""))
-    return owner.lower() == MAINTAINER or (owner_id.isdigit() and int(owner_id) in ids) or (actor_id.isdigit() and int(actor_id) in ids)
+    repo_id = str(claims.get("repository_id", ""))
+    return owner.lower() == MAINTAINER or (owner_id.isdigit() and int(owner_id) in ids) or (actor_id.isdigit() and int(actor_id) in ids) \
+        or (repo_id.isdigit() and int(repo_id) in repos)
 
 
 def verified(doc, keys: dict[str, int], own: dict, name: str = "", ours: bool = False) -> tuple[dict, list[str]]:
@@ -217,7 +240,7 @@ def verified(doc, keys: dict[str, int], own: dict, name: str = "", ours: bool = 
     report, GitHub's signature, the file, this check) is exercised before a stranger tries it. Everything is held as
     for anyone's file, except that the run MUST be Knos's own; and such a file counts for nothing: its `capabilities`
     are always empty, `counted` is False, and no count of reproductions reads that folder."""
-    facts: dict = {"passed": [], "failed": [], "capabilities": [], "own": bool(ours), "counted": False}
+    facts: dict = {"passed": [], "failed": [], "capabilities": [], "own": bool(ours), "counted": False, "wall_seconds": None}
     if not isinstance(doc, dict) or not isinstance(doc.get("report"), dict) or not isinstance(doc.get("token"), str) or set(doc) != {"report", "token"}:
         return facts, ['a reproduction is {"report": the report, "token": GitHub\'s token} and nothing else']
     report, token = doc["report"], doc["token"].strip()
@@ -254,7 +277,7 @@ def verified(doc, keys: dict[str, int], own: dict, name: str = "", ours: bool = 
     facts.update({k: claims.get(k) for k in ("repository", "repository_id", "repository_owner", "repository_owner_id", "actor", "actor_id", "run_id",
                                              "run_attempt", "sha", "workflow_ref", "workflow_sha", "job_workflow_ref", "event_name", "iat")},
                  kid=head.get("kid"), report_sha256=digest(report), knos=report.get("knos"),
-                 run=f"https://github.com/{claims.get('repository')}/actions/runs/{claims.get('run_id')}")
+                 run=f"https://github.com/{claims.get('repository')}/actions/runs/{claims.get('run_id')}", wall_seconds=wall(report, claims))
     if not wrong:
         facts["passed"] = [r["id"] for r in rows if r["result"] == "pass"]
         facts["failed"] = [r["id"] for r in rows if r["result"] == "fail"]
@@ -262,6 +285,119 @@ def verified(doc, keys: dict[str, int], own: dict, name: str = "", ours: bool = 
         facts["capabilities"] = [] if ours else sorted({c for r in rows if r["result"] == "pass" for c in r["capabilities"]})
         facts["counted"] = not ours
     return facts, wrong
+
+
+def wall(report: dict, claims: dict) -> int | None:
+    """Seconds from the workflow's first step (the report's `started`) to GitHub's signature (the token's `iat`): both
+    signed. None when the report has no `started` (made by a knos before 0.3.25, or by hand) or the two disagree."""
+    began, signed = report.get("started"), claims.get("iat")
+    if not (isinstance(began, int) and isinstance(signed, int)) or isinstance(began, bool) or isinstance(signed, bool):
+        return None
+    at = report.get("at")
+    ok = 0 <= signed - began <= 86_400 and (not isinstance(at, int) or began <= at <= signed + 60)
+    return signed - began if ok else None
+
+
+def judged(facts: dict, wrong: list[str]) -> list[str]:
+    """What keeps a valid file from counting as a reproduction: the reasons `verified` gives, then a failed check (a
+    bug report), then no check passed. The same words as the pull request's check (scripts/capabilities.py `sent`)."""
+    if wrong:
+        return list(wrong)
+    if facts["failed"]:
+        return [f"the check `{c}` failed in this run: that is a bug report, not a reproduction, so open an issue with the report" for c in facts["failed"]]
+    return [] if facts["passed"] else ["no check passed in this run (every one was skipped)"]
+
+
+# ---- --verify: a run's file, wherever it is ---------------------------------------------------------------------------
+
+RUN_URL = re.compile(r"https://github\.com/([A-Za-z0-9-]+)/([A-Za-z0-9._-]+)/actions/runs/(\d+)(?:/attempts/\d+)?(?:[/?#].*)?")
+
+
+def located(target: str, root: Path | None, here: Path) -> Path:
+    """The file to verify. A run's URL names its file (`<owner>-<repo>-<run id>.json`), which is looked for here, in a
+    folder `knos-reproduction` here (the artifact unpacked), and in the checkout's reproductions/ and reproductions/own/.
+    Anything else is a path. Raises FileNotFoundError with what to do."""
+    got = RUN_URL.fullmatch(target.strip())
+    if got is None:
+        path = Path(target)
+        if not path.exists():
+            raise FileNotFoundError(f"{target}: no such file, and not a run's URL (https://github.com/OWNER/REPO/actions/runs/ID)")
+        return path
+    owner, repo, run = got.groups()
+    name = file_name({"repository": f"{owner}/{repo}", "run_id": run})
+    places = [here / name, here / "knos-reproduction" / name]
+    if root is not None:
+        places += [root / REPRODUCTIONS / name, root / REPRODUCTIONS / OWN_DIR / name]
+    found = next((p for p in places if p.is_file()), None)
+    if found is None:
+        raise FileNotFoundError(f"{name} is not here. The run's file is its artifact `knos-reproduction`: download it from the run's page "
+                                f"(or `gh run download {run} -R {owner}/{repo} -n knos-reproduction`) and run this again in that folder, or give the file")
+    return found
+
+
+def opened(path: Path) -> tuple[dict, str]:
+    """(the file's JSON, its name) from the file, a folder holding one .json, or the artifact's .zip holding one."""
+    import zipfile
+    if path.is_dir():
+        found = sorted(path.glob("*.json"))
+        if len(found) != 1:
+            raise ValueError(f"{path} holds {len(found)} .json files; give the one to verify")
+        path = found[0]
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as z:
+            names = [n for n in z.namelist() if n.endswith(".json") and "/" not in n]
+            if len(names) != 1:
+                raise ValueError(f"{path.name} holds {len(names)} .json files; a run's artifact holds one")
+            if z.getinfo(names[0]).file_size > 4_000_000:
+                raise ValueError(f"{names[0]} is larger than a report and its token can be")
+            return json.loads(z.read(names[0]).decode("utf-8")), names[0]
+    if path.stat().st_size > 4_000_000:
+        raise ValueError(f"{path.name} is larger than a report and its token can be")
+    return json.loads(path.read_text(encoding="utf-8")), path.name
+
+
+def keys_and_own(root: Path | None, keys_file: Path | None, env: dict, fetch=None, read=None) -> tuple[dict[str, int], dict, list[str]]:
+    """(GitHub's keys, Knos's own accounts, one line each saying where they came from). `fetch(url)`: GitHub's keys
+    when neither a file nor a checkout has them; `read()`: scripts/own_github_ids.json (default: the checkout's, else
+    the repository's main branch)."""
+    said: list[str] = []
+    if keys_file is not None:
+        keys = keys_of(json.loads(Path(keys_file).read_text(encoding="utf-8")))
+        said.append(f"GitHub's keys: {keys_file} ({len(keys)})")
+    elif root is not None and (root / "scripts" / "github_oidc_keys.json").is_file():
+        keys = keys_of(json.loads((root / "scripts" / "github_oidc_keys.json").read_text(encoding="utf-8")))
+        said.append(f"GitHub's keys: scripts/github_oidc_keys.json, as archived ({len(keys)}); no network")
+    else:
+        keys = keys_of((fetch or _fetch_json)(JWKS))
+        said.append(f"GitHub's keys: read now from {JWKS} ({len(keys)}): no --keys and no source checkout")
+    own: dict = {"ids": []}
+    try:
+        own = (read or _record(root, "scripts/own_github_ids.json", env))()
+        said.append("Knos's own accounts: scripts/own_github_ids.json" + ("" if root is not None else ", from the repository's main branch"))
+    except (*UNASKED, ValueError):
+        said.append(f"Knos's own accounts: scripts/own_github_ids.json could not be read; only the account {MAINTAINER} is known as Knos's")
+    return keys, own, said
+
+
+def verify_lines(doc, name: str, keys: dict[str, int], own: dict) -> tuple[int, list[str]]:
+    """(exit code, lines) for `--verify`: 0 only for a valid outside reproduction that counts."""
+    facts, wrong = verified(doc, keys, own, name)
+    mine = any("the run is Knos's own" in w for w in wrong)
+    if mine:
+        facts, ours_wrong = verified(doc, keys, own, name, ours=True)
+        if not ours_wrong:
+            return 1, [f"{name}: signed by GitHub and intact, for run {facts['run']}, but the run is Knos's own: it is not a "
+                       "reproduction and counts for nothing"]
+    why = judged(facts, wrong)
+    if why:
+        return 1, [f"{name}: not a reproduction."] + [f"  - {w}" for w in why]
+    took = f"{facts['wall_seconds']} s from the workflow's first step to GitHub's signature" if facts["wall_seconds"] is not None else \
+        "wall time not recorded (the report has no `started`)"
+    return 0, [f"{name}: a valid outside reproduction.",
+               f"  GitHub signed report sha256 {facts['report_sha256']} (key {facts['kid']}) for run {facts['run']}",
+               f"  repository {facts['repository']} (owner {facts['repository_owner']}, id {facts['repository_owner_id']}; started by "
+               f"{facts['actor']}, id {facts['actor_id']}), commit {facts['sha']}, workflow {facts['workflow_ref']}",
+               f"  knos {facts['knos']}; passed: {', '.join(facts['passed'])}; supports: {', '.join(facts['capabilities'])}; {took}"]
 
 
 def own_runs(root: Path, keys: dict[str, int], own: dict) -> tuple[dict[str, dict], list[str]]:
@@ -652,8 +788,22 @@ def register(app, help_lines: list | None = None) -> None:
     def reproduce(only: list[str] = typer.Option([], "--only", help=f"run only this check, or the checks behind this capability id (repeat for several); the checks: {', '.join(EVERY)}"),
                   rpc: str = typer.Option("", "--rpc", help="the Solana JSON-RPC URL (default: KNOS_RPC, then devnet)"),
                   out_file: Path = typer.Option(Path("report.json"), "--out", help="where to write the report"),
-                  own: str = typer.Option("", "--own-repo", help="OWNER/NAME of a repository of yours with Knos installed: also run one funded round there (test USDC; it opens and merges a pull request). Needs GH_TOKEN")) -> None:
+                  own: str = typer.Option("", "--own-repo", help="OWNER/NAME of a repository of yours with Knos installed: also run one funded round there (test USDC; it opens and merges a pull request). Needs GH_TOKEN"),
+                  verify: str = typer.Option("", "--verify", help="check a signed reproduction instead of making one: a run's URL, the file, the artifact's .zip or its folder"),
+                  keys: str = typer.Option("", "--keys", help="with --verify: GitHub's keys as a JWKS file (default: the checkout's archive, else read from GitHub)")) -> None:
         """Re-run, from this install and against public things only, what Knos says it does: a named devnet payment verified again from signatures, the on-chain programs against the hashes the release names, the local simulator's money invariants (from a source checkout), and the claim check on a public pull request. Writes a report; examples/knos-reproduce.yml has GitHub sign it in your repository. Exit 1 when a check fails. Devnet: test USDC."""
+        if verify:
+            root = checkout()
+            try:
+                doc, name = opened(located(verify, root, Path.cwd()))
+                github, accounts, said = keys_and_own(root, Path(keys) if keys else None, dict(os.environ))
+            except (OSError, ValueError, *UNASKED) as why:
+                typer.echo(f"Cannot verify: {' '.join(str(why).split())[:400]}", err=True)
+                raise typer.Exit(2) from None
+            code, out = verify_lines(doc, name, github, accounts)
+            for line in [*out, *said]:
+                typer.echo(line)
+            raise typer.Exit(code)
         from . import version
         checks = live(rpc, own)
         wanted = [cid for cid in EVERY if cid in checks and (cid in only or set(EVERY[cid]) & set(only))]
@@ -661,7 +811,7 @@ def register(app, help_lines: list | None = None) -> None:
         if unknown:
             typer.echo(f"No check is called {', '.join(unknown)} and none supports a capability of that name. The checks: {', '.join(EVERY)}.", err=True)
             raise typer.Exit(2)
-        report = build(checks, wanted, version=version(), commit=_commit(checkout()))
+        report = build(checks, wanted, version=version(), commit=_commit(checkout()), started=started_from(dict(os.environ)))
         out_file.write_bytes(canonical(report))
         for line in lines(report):
             typer.echo(line)

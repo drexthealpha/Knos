@@ -18,6 +18,11 @@ and hands it to the role in the variable the role already reads (KNOS_RELAY_KEY,
 Knos runs none of this and hosts nothing: the buyer runs it. It has not been run in any cloud. There is no single
 sign-on in it: the ports are bound to 127.0.0.1 and docs/SELFHOST.md says how to put an identity proxy in front.
 
+ONE BUYER A DEPLOYMENT. Each deployment reads its own records folder and keeps its counts in its own tenant of the
+memory store (record.tenant): two deployments sharing one memory folder never read each other's counts, and the
+record API serves no file outside its own folder (no link, no `..`). The record API limits each client (record.rate
+requests a second, record.burst at once) and checks every input (knos.record_api, ROUTES).
+
 Standard library at import (tomllib, or tomli before 3.11, as .knos/proof.toml is read).
 """
 from __future__ import annotations
@@ -158,6 +163,13 @@ def check(text: str, base: Path | None = None) -> Checked:
         for k in ("offer", "suppliers"):
             if isinstance(r.get(k), str) and not _file(r[k], base).is_file():
                 c.missing.append(f"record.{k}: {r[k]}")
+        t = r.get("tenant")
+        if t is not None and (not isinstance(t, str) or len(t) > 64 or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", t)):
+            err("record.tenant names this deployment: lower-case letters, digits and single dashes, 64 at most")
+        for k, lo, hi in (("rate", 1, 1000), ("burst", 1, 10000), ("ttl", 60, 86400)):
+            v = r.get(k)
+            if v is not None and (not isinstance(v, int) or isinstance(v, bool) or not lo <= v <= hi):
+                err(f"record.{k} must be a whole number from {lo} to {hi}")
     if "relay" in roles:
         r = cfg["relay"]
         repos = r.get("repos")
@@ -171,7 +183,7 @@ def check(text: str, base: Path | None = None) -> Checked:
 
 
 _ROLE_FIELDS = {
-    "record": {"enabled", "offer", "records", "history", "suppliers", "ttl"},
+    "record": {"enabled", "offer", "records", "history", "suppliers", "ttl", "tenant", "rate", "burst"},
     "relay": {"enabled", "repos", "workers", "every", "serve"},
     "site": {"enabled"},
 }
@@ -280,8 +292,9 @@ def argv_of(c: Checked, role: str, base: Path | None = None, state: Path = STATE
         for k in ("history", "suppliers"):
             if r.get(k):
                 args += [f"--{k}", str(_file(r[k], base))]
-        if r.get("ttl"):
-            args += ["--ttl", str(r["ttl"])]
+        for k in ("ttl", "tenant", "rate", "burst"):
+            if r.get(k):
+                args += [f"--{k}", str(r[k])]
         if keys.get("record"):
             args += ["--key", str(_file(keys["record"], base))]
         return args

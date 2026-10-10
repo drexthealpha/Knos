@@ -103,7 +103,9 @@ def test_a_count_or_a_stage_that_is_not_the_manifests_fails(tree):
     # manifest in which two deployed capabilities have been exercised at their public program ids
     assert not dc._COUNT.search((tree / CRITERIA).read_text(encoding="utf-8"))
     before = dc.value("capabilities.exercised.public", tree)     # what the committed manifest records as exercised already
-    _exercise(tree, "fund_by_comment", "pay_on_merge")
+    two = [c["id"] for c in json.loads((tree / dc.MANIFEST).read_text(encoding="utf-8"))["capabilities"] if c["stage"] == "deployed"][:2]
+    assert len(two) == 2
+    _exercise(tree, *two)
     n = dc.value("capabilities.exercised", tree)
     assert n == dc.value("capabilities.exercised.public", tree) == before + 2 and dc.value("capabilities.exercised.staging", tree) == 0
     dc.write(tree)          # the stage cells that name them follow the manifest
@@ -133,16 +135,17 @@ def test_a_count_or_a_stage_that_is_not_the_manifests_fails(tree):
 def test_a_stage_cell_is_the_manifests_words_and_follows_the_manifest(tree):
     text = (tree / DEMO).read_text(encoding="utf-8")
     # what the rehearsal ran on staging ids is tested locally on the public ids, and no stage cell says otherwise
-    assert "| `ledger_dedup` | tested locally |" in text and "| `pay_on_merge` | deployed on devnet |" in text and "on staging program ids |" not in text
+    assert "| `ledger_dedup` | tested locally |" in text and "| `pay_on_merge` | exercised on devnet |" in text and "on staging program ids |" not in text
     _swap(tree, DEMO, "| `statements` | tested locally |", "| `statements` | deployed on devnet |")
     _found(tree, DEMO, "the stage of statements is 'deployed on devnet'", "'tested locally'")
     assert dc.write(tree) == [DEMO] and dc.problems(tree) == []
     # the manifest moves (a capability gets a devnet transaction at its public id): every document that states its stage or a count fails
     _add(tree, CRITERIA, f"{dc.value('capabilities.exercised')} capabilities are exercised on devnet.")
-    data = _exercise(tree, "pay_on_merge")
-    lines = _found(tree, DEMO, "the stage of pay_on_merge", "'exercised on devnet'")
+    public = next(c for c in json.loads((tree / dc.MANIFEST).read_text(encoding="utf-8"))["capabilities"] if c["id"] == "pay_on_merge")["evidence"]["deployed"]
+    data = _exercise(tree, "statements", deployed=public)
+    lines = _found(tree, DEMO, "the stage of statements", "'exercised on devnet'")
     assert any(CRITERIA in line and "capabilities exercised" in line for line in lines)
-    assert dc.stage_words(["ledger_dedup", "pay_on_merge"], tree) == "`ledger_dedup`: tested locally; `pay_on_merge`: exercised on devnet"
+    assert dc.stage_words(["ledger_dedup", "statements"], tree) == "`ledger_dedup`: tested locally; `statements`: exercised on devnet"
     # a run at any other address than the public id is never said as a plain "exercised on devnet" (capabilities.py refuses it)
     staged = _exercise(tree, "ledger_dedup", deployed={"program": "knos_pay_staging", "id": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH", "version": "2.1"})
     assert dc.stage_words(["ledger_dedup"], tree) == "exercised on devnet, on staging program ids" and dc.value("capabilities.exercised.staging", tree) == 1

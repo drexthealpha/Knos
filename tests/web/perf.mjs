@@ -83,7 +83,7 @@ weight.files.sort((a, b) => b[1] - a[1]);
 check(`weight: the first screen asks for ${weight.js} bytes of JavaScript (under ${BUDGET.js})`, weight.js > 0 && weight.js < BUDGET.js, weight.files.slice(0, 6));
 check(`weight: and ${weight.css} bytes of CSS (under ${BUDGET.css})`, weight.css > 0 && weight.css < BUDGET.css);
 check("weight: the palette is not asked for until it is opened", !weight.files.some(([f]) => f === "palette.js"), weight.files.map(([f]) => f));
-check("weight: nor the files that read Solana, nor the round below the first screen, nor any other page's code", !weight.files.some(([f]) => ["app.js", "settle.js", "demo.js", "buyer.js", "console.js", "mounts.js", "pricing.js", "records.js", "statements.js", "finance_data.js"].includes(f)), weight.files.map(([f]) => f));
+check("weight: nor the files that read Solana, nor the round below the first screen, nor any other page's code", !weight.files.some(([f]) => ["app.js", "settle.js", "demo.js", "buyer.js", "console.js", "mounts.js", "pricing.js", "records.js", "statements.js", "finance_data.js", "install.js"].includes(f)), weight.files.map(([f]) => f));
 
 // ---- answer ------------------------------------------------------------------------------------------------------------------
 const table = {};
@@ -176,6 +176,8 @@ if (out && !fails) {
   const doc = { what: "tests/web/perf.mjs on a build of web/ in headless Chromium. Input to next paint (the new state, or its pending state), in milliseconds, 20 runs, each the best of three presses; bytes as served, unminified and uncompressed.",
     machine: `${cpus().length} CPUs (${cpus()[0]?.model || "unknown"}), shared`, limit_ms: LIMIT_MS, interactions: table,
     first_screen_bytes: { js: weight.js, css: weight.css, budget: BUDGET, files: weight.files.length }, layout_shift: { limit: SHIFT, at_1280: shifts[1280], at_390: shifts[390] }, widths_without_sideways_scroll: WIDTHS };
+  // tests/web/android.mjs writes `android`, tests/web/front_door.mjs `first_verdict`: kept as they are
+  try { const kept = JSON.parse(readFileSync(out, "utf8")); for (const k of ["first_verdict", "android"]) if (kept[k]) doc[k] = kept[k]; } catch { /* no file yet */ }
   writeFileSync(out, JSON.stringify(doc, null, 1) + "\n", "utf8");
   console.log(`wrote ${out}`);
 }

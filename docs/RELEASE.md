@@ -89,7 +89,10 @@ printed as `<name>: exit <code>: <why>` and kept in the evidence file:
 The prerequisites a round may name: a program (`knos_oidc`, `knos_pay`, `knos_meter`, `knos_passkey`: the public id
 runs this version's build), `pay-2.2`, `neutral` (`--neutral` was given), `note:<name>` (`note <name> key=value` was
 run) and `public`. `net-reserve`, `private` and `judge` have a place kept: until a file fills one it ends 3 and
-says so. `run --only <name>` runs one round alone and exits with its code. `tests/test_exercise_public_rounds.py`.
+says so. `run --only <name>` runs one round alone and exits with its code. A round whose `ROUND` says `"alone": True`
+runs only that way: `pause`, which stops new funding at the public knos_pay for everyone while it runs, is passed by
+`run`, `run --resume` and `run --phase after`, each of which says so. With `--phase`, `--only <step>` runs one step of
+the phase and nothing else (`run --phase after --only grace`). `tests/test_exercise_public_rounds.py`.
 
 **Throughput, measured.** Once per release, on devnet, with a wallet that holds devnet SOL:
 
@@ -528,14 +531,14 @@ Two rules, each learned from a release that broke it:
 export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
 python scripts/release.py publish                 # uploads THAT wheel and the sdist, then asks PyPI for the hash and its index for the file
 git push origin main                              # the ONE push, only after `publish` said "Next: git push"
-git tag v0.3.24 && git push origin v0.3.24        # starts release.yml
+git tag v0.3.25 && git push origin v0.3.25        # starts release.yml
 ```
 
 `publish` refuses unless `dist/` holds the locked wheel, the tree is committed and the commit holds the lock. A file
 on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a new version.
 
 The wheel goes up before the push because the moment the commit is public, the workflows it pins install
-`knos==0.3.24` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
+`knos==0.3.25` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
 
 **Push only after `publish` printed "Next: git push".** PyPI answers from two places: the page of a version shows an
 upload at once, and the index an installer resolves from (`https://pypi.org/simple/knos/`) is a cached page that

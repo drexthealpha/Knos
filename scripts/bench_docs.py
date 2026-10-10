@@ -70,7 +70,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ["README.md", "docs/BENCH.md", "docs/submission/NUMBERS.md"]
 # The pitch-facing text (scripts/claims_check.py reads the same list): every number in it needs a fact.
 PITCH = ["README.md", "web/index.html", "docs/submission/SUBMISSION.md", "docs/submission/pitch_script.md",
-         "docs/submission/demo_script.md", "docs/submission/weekly_update.md"]
+         "docs/submission/demo_script.md", "docs/submission/weekly_update.md", "docs/submission/pitch_script_120.md"]
 SUBMISSION = "docs/submission"       # every .md under it may carry [[stat: name]] slots
 # The other files that may carry slots. Everything a judge opens states a release-measured fact through one, so that the
 # release fills them all in one run and no document is left with an older number.
