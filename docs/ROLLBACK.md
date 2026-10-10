@@ -38,7 +38,10 @@ A file on PyPI can never be replaced ([RELEASE.md](RELEASE.md)), so the fix is t
 git revert --no-edit <the release commit>              # on main
 python scripts/bump_version.py <next version>          # writes the version everywhere
 python scripts/bump_version.py --check
-python scripts/release.py publish                      # with UV_PUBLISH_TOKEN set; push only after "Next: git push"
+python scripts/release.py wheel                        # then the order of RELEASE.md ("The commit"): lock, publish,
+python scripts/release.py publish                      # cutoff, workflows, stamp; publish needs UV_PUBLISH_TOKEN set
+git commit                                             # the one commit, after the cutoff and the stamp
+python scripts/release.py pypi-check                   # PyPI's index lists the wheel: only then the push
 git push origin main
 git tag v<next version> && git push origin v<next version>     # starts release.yml
 ```

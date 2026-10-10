@@ -16,7 +16,7 @@
 // The public programs charge the 0.3.14 fee until the upgrade to 2.2 executes. priceConstants(lib, version) gives the
 // constants of the rule the program of `version` applies (web/version.js asks the program; web/fee_live.js asks it
 // and, when devnet does not answer, reads upgrades.json); with no version it gives this tree's own, the 0.3.18 one.
-// The funder pays the fee on top of the amount. Orders funded before the upgrade keep the rate fixed at their funding.
+// An order's funder pays the fee on top of the amount; a job's (a tip's) fee comes out of its amount. Orders funded before the upgrade keep the rate fixed at their funding.
 import * as settle from "./settle.js";
 
 export const RECORDED = Object.freeze({
@@ -126,7 +126,7 @@ export function quote(amount, c, bps = c.feeBps) {
 
 // The price book's numbers. Rates are in basis points, money in whole USD unless a name says cents.
 export const BILL = Object.freeze({
-  meterFree: 100_000, meterPerThousandCents: 200,                        // 0.002 USD an evaluation: 2.00 USD a thousand
+  meterFree: 100_000, meterPerThousandCents: 200,                        // the price book: 0.002 USD an evaluation (2.00 a thousand); the deployed knos_meter takes 0.05 after 10,000
   acceptBps: Object.freeze([30, 20]), acceptAbove: Object.freeze([0, 1_000_000]), acceptFloorCents: 5,      // marginal, by the month; never under 0.20%; no cap
   netBelowCents: 2_000,                                                    // an outcome under 20 USD is netted: one release per payee per period
   recordCents: 10,

@@ -278,7 +278,7 @@ PLAIN = {
     "verify_github": "GitHub token verification", "verify_gitlab": "GitLab token verification", "key_guardian": "the key guardian",
     "fund_by_comment": "funding by one comment", "fund_from_wallet": "funding from a wallet", "pay_on_merge": "pay on merge",
     "hold_and_bind": "holding pay for a payee with no wallet", "refund": "refund at the deadline", "pause": "pause",
-    "work_orders": "work orders", "order_pay": "an order paying up to four payees", "tests_mode": "orders judged by hidden tests",
+    "work_orders": "work orders", "order_pay": "an order paying up to four payees", "tests_mode": "orders judged by the buyer's black-box tests",
     "order_auto_accept": "auto-accepted orders", "top_up": "top-ups", "single_use_tokens": "single-use tokens",
     "meter_single": "one counted evaluation", "meter_batch": "a counted batch of evaluations", "meter_seller_claim": "the seller's own count",
     "passkey_payee_wallet": "a payee's passkey wallet", "passkey_funder": "a passkey funder", "passkey_fund_relay": "the passkey relay",
@@ -427,10 +427,10 @@ def market_tests(ix: dict) -> str:
              f"the {f:,} no failed check had such a name: deploy previews, title and label gates, review bots, "
              f"coverage thresholds, security scanners, and jobs whose names do not say what they run (`check`, "
              f"`validate`). Over every pull request it is {ot:,} of {o['prs']:,} ({_share(ot, o['prs'])}). So \"said "
-             f"tests pass while a check failed\" is {_share(f, n)} of repositories, and \"while a test or build "
+             f"tests pass while a check failed\" is {_share(f, n)} of repositories, and \"while a test, build, lint or type "
              f"check failed\" is {_share(t, n)}; names decide the second, so read it as the cautious figure, not an "
              f"exact one.", "",
-             "| agent | repositories | first claiming PR per repository: any check failed | first claiming PR per repository: a test or build check failed | 95% interval | every claiming PR | every claiming PR: a test or build check failed |",
+             "| agent | repositories | first claiming PR per repository: any check failed | first claiming PR per repository: a test, build, lint or type check failed | 95% interval | every claiming PR | every claiming PR: a test, build, lint or type check failed |",
              "|---|---|---|---|---|---|---|"]
     rows = [(label, a) for label, a in ix["agents"] if a["prs"]] + [("**all**", o)]
     for label, a in rows:
@@ -451,7 +451,7 @@ def backtest(bt: dict, labels: list[str]) -> str:
     n, k, t, c = m["prs"], m["any_check_failed"]["prs"], m["test_or_build_check_failed"]["prs"], m["cancelled_no_failure"]["prs"]
     bad, good = fate["any_check_failed"], fate["no_check_failed"]
     w = s["without_author_owned_repos"]["merged"]["overall"]
-    lines = [f"Of the {s['with_finished_ci']:,} pull requests in the sample read on {s['read']} (created {s['created'][0]} – "
+    lines = [f"The scan's first reading. Of the {s['with_finished_ci']:,} pull requests in the sample read on {s['read']} (created {s['created'][0]} – "
              f"{s['created'][1]}; `docs/agent_pr_ci.json`) whose description said tests or CI pass and whose CI had "
              f"finished, {n:,} had been merged. **{k:,} of those {n:,} ({_share(k, n)})** (95% Wilson interval "
              f"{_interval(k, n)}) had a failed check at the head commit. A Knos bounty whose terms required that "
@@ -463,12 +463,18 @@ def backtest(bt: dict, labels: list[str]) -> str:
              f"was merged less often than one without: {bad['merged']:,} of {bad['prs']:,} ({_share(bad['merged'], bad['prs'])}) "
              f"against {good['merged']:,} of {good['prs']:,} ({_share(good['merged'], good['prs'])}); "
              f"{bad['open']:,} and {good['open']:,} were still open when read.", "",
-             "| agent | merged | any check failed | 95% interval | a test or build check failed |", "|---|---|---|---|---|"]
-    for label, a in [*zip(labels, s["merged"]["agents"].values()), ("**all**", m)]:
+             "| agent | merged | any check failed | 95% interval | a test, build, lint or type check failed |", "|---|---|---|---|---|"]
+    for label, a in [*zip(labels, s["merged"]["agents"].values()), ("**all**, first reading", m)]:
         if a["prs"]:
             ak, at = a["any_check_failed"]["prs"], a["test_or_build_check_failed"]["prs"]
             lines.append(f"| {label} | {a['prs']:,} | {ak:,} ({_share(ak, a['prs'])}) | {_interval(ak, a['prs'])} | "
                          f"{at:,} ({_share(at, a['prs'])}) |")
+    r = bt.get("reviewed", {}).get("overall")
+    if r:
+        ra, rt = r["any_check_failed"]["prs"], r["test_or_build_check_failed"]["prs"]
+        lines += ["", f"A second reading of each page by hand kept {ra:,} of the {r['prs']:,} with a failed check of "
+                      f"any kind ({_share(ra, r['prs'])}) and **{rt:,} with a failed test, build, lint or type-check job "
+                      f"({_share(rt, r['prs'])})**: the lead figure ([INDEX_METHOD.md](INDEX_METHOD.md))."]
     lines += ["", "What this cannot show:", ""] + [f"- {line}." for line in bt["cannot_show"]]
     return "\n".join(lines)
 

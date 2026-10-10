@@ -43,6 +43,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "docs", "agent_pr_ci.json")
 OUT = os.path.join(ROOT, "docs", "backtest.json")
 REVIEW = os.path.join(ROOT, "docs", "index_review.json")
+NEGATIVES = os.path.join(ROOT, "docs", "index_reread_negatives.json")
 METHOD = os.path.join(ROOT, "docs", "INDEX_METHOD.md")
 # Each version of the method and the sha256 of docs/INDEX_METHOD.md at that version. A new version is a new line here.
 METHODS = {1: "8502cc17977108607d404737696a62cb6e69fa9c535beedce1abd3a61fa5dbfb"}
@@ -213,6 +214,8 @@ def method(path=METHOD):
     """{"version", "file", "sha256"} of the method file, and the problems --check reports (empty when it holds)."""
     with open(path, "rb") as f:
         raw = f.read()
+    cut = raw.find(DRAFT)
+    raw = raw if cut < 0 else raw[:cut]                 # the frozen version 1 text ends where the draft begins
     text, digest = raw.decode("utf-8"), hashlib.sha256(raw).hexdigest()
     m = re.search(r"(?m)^Version: (\d+)$", text)
     version = int(m.group(1)) if m else None
@@ -261,9 +264,136 @@ def p_template(p):
     return bool(p["read"].get("template_box"))
 
 
-def build(sample, review, index=None, pulls=None, kept=None):
+# ---- version 2 (draft): the funnel, intervals clustered by repository, the re-read of the negatives ------------------
+# Version 1 stays frozen: method() hashes docs/INDEX_METHOD.md only up to DRAFT, where the version 2 draft begins.
+DRAFT = b"\n## Version 2 (draft"
+SEED = 20261010           # one seed for the cluster bootstrap and the re-read sample, written down before either ran
+RESAMPLES = 2000
+
+
+def _merged_rows(sample):
+    return sorted((r for r in sample["prs"] if r.get("class") in agent_pr_index.COMPLETED and _state(r) == "merged"), key=_key)
+
+
+def _strict_kept(sample, review):
+    """The merged rows, and the keys of those in the reviewed strict count (the lead) and the reviewed any count."""
+    rows = _merged_rows(sample)
+    kept = {p["pr"].lower() for p in review["prs"] if p["decision"] == "counted"}
+    strict = {_key(r) for r in rows if _key(r) in kept and agent_pr_index.FAILED["test_or_build_check_failed"](r)}
+    return rows, strict, {_key(r) for r in rows if _key(r) in kept}
+
+
+def funnel(sample, review):
+    """Every step from the search to the lead number, each with its count and its share of the step before."""
+    rows, strict, kept = _strict_kept(sample, review)
+    done = [r for r in sample["prs"] if r.get("class") in agent_pr_index.COMPLETED]
+    failed = [r for r in rows if _failed(r)]
+    steps = [("searched", sample.get("n_search_hits"), "search hits GitHub returned for the five agents and the claim words"),
+             ("claimed", len(sample["prs"]), "a line of the description says tests or CI pass (the claim)"),
+             ("finished_ci", len(done), "CI had finished at the head commit when read"),
+             ("merged", len(rows), "merged when read: the denominator"),
+             ("any_check_failed", len(failed), "merged with a failed check of any kind (recorded scan)"),
+             ("reread_kept", len(kept), "still counted after the second reading of those (rules R1-R5)"),
+             ("strict", len(strict), "of those, a test, build, lint or type check failed: the lead number")]
+    out, before = [], None
+    for name, n, says in steps:
+        if n is None:
+            continue                                    # a sample that does not record its search hits
+        out.append({"step": name, "prs": n, "of_previous": round(n / before, 4) if before else None, "means": says})
+        before = n
+    return out
+
+
+def _repo(r):
+    return r["repo"].lower()
+
+
+def clustered(rows, hits, seed=SEED, resamples=RESAMPLES):
+    """A share whose pull requests come in groups by repository. Beside the Wilson interval (which treats every pull
+    request as independent): the design effect from the between-repository variance of a ratio estimate, the Wilson
+    interval on the effective sample size n / design effect (never above n), and a percentile interval from
+    resampling whole repositories with a fixed seed."""
+    import random
+    n, k = len(rows), sum(1 for r in rows if _key(r) in hits)
+    if not n:
+        return None
+    groups: dict = {}
+    for r in rows:
+        m, y = groups.get(_repo(r), (0, 0))
+        groups[_repo(r)] = (m + 1, y + (_key(r) in hits))
+    g, p = len(groups), k / n
+    var_c = g / (g - 1) * sum((y - p * m) ** 2 for m, y in groups.values()) / (n * n) if g > 1 else 0.0
+    var_i = p * (1 - p) / n
+    deff = max(1.0, var_c / var_i) if var_i else 1.0
+    n_eff = n / deff
+    rng, sizes = random.Random(seed), list(groups.values())
+    shares = []
+    for _ in range(resamples):
+        pick = rng.choices(sizes, k=g)
+        shares.append(sum(y for _, y in pick) / sum(m for m, _ in pick))
+    shares.sort()
+    hit_repos = [repo for repo, (_, y) in groups.items() if y]
+    return {"prs": k, "of": n, "repositories": g, "repositories_with_one": len(hit_repos),
+            "most_from_one_repository": max((y for _, y in groups.values()), default=0),
+            "wilson_ci95": agent_pr_index.wilson(k, n),
+            "design_effect": round(deff, 3), "effective_n": round(n_eff, 1),
+            "clustered_wilson_ci95": agent_pr_index.wilson(p * n_eff, n_eff),
+            "cluster_bootstrap_ci95": [round(shares[int(0.025 * resamples)], 4), round(shares[int(0.975 * resamples) - 1], 4)],
+            "bootstrap": {"seed": seed, "resamples": resamples}}
+
+
+def reread_draw(sample, review, seed=SEED, negatives=20, controls=5):
+    """The sample for the blind re-read: `negatives` of the merged pull requests outside the strict count, and
+    `controls` from inside it, shuffled together. The same seed always gives the same list."""
+    import random
+    rows, strict, _ = _strict_kept(sample, review)
+    rng = random.Random(seed)
+    neg = rng.sample([r for r in rows if _key(r) not in strict], negatives)
+    ctl = rng.sample([r for r in rows if _key(r) in strict], controls)
+    mix = neg + ctl
+    rng.shuffle(mix)
+    return [{"pr": f"{r['repo']}#{r['number']}", "role": "negative" if r in neg else "control"} for r in mix]
+
+
+def reread(sample, review, record):
+    """The re-read of the negatives, summed. Refused when the list is not the seeded draw."""
+    want = reread_draw(sample, review, record["seed"], record["negatives"], record["controls"])
+    got = [{"pr": p["pr"], "role": p["role"]} for p in record["prs"]]
+    if sorted(map(str, got)) != sorted(map(str, want)):
+        raise SystemExit("docs/index_reread_negatives.json is not the sample its seed draws: the re-read must use the seeded draw")
+    out = {"read": record["read"], "seed": record["seed"]}
+    for role in ("negative", "control"):
+        mine = [p for p in record["prs"] if p["role"] == role]
+        out[role + "s"] = {"prs": len(mine), **{o: sum(1 for p in mine if p["outcome"] == o) for o in record["outcomes"]}}
+    neg = out["negatives"]
+    readable = neg["consistent"] + neg["flipped"]
+    out["flipped_share_ci95"] = agent_pr_index.wilson(neg["flipped"], readable)
+    out["says"] = (f"{neg['flipped']} of {neg['prs']} negatives flipped; {neg['consistent']} read as before, "
+                   f"{neg['inconclusive']} could not be decided without logging in, and {neg['unreadable']} pages did not show the merge "
+                   f"or the checks")
+    return out
+
+
+def version2(sample, review, record=None):
+    """The version 2 draft: none of it changes a version 1 count."""
+    rows, strict, kept = _strict_kept(sample, review)
+    recorded = {_key(r) for r in rows if _failed(r)}
+    recorded_strict = {_key(r) for r in rows if agent_pr_index.FAILED["test_or_build_check_failed"](r)}
+    return {"status": "draft: version 1 stays the method of record; nothing here changes its counts",
+            "funnel": funnel(sample, review),
+            "clustered": {"reviewed_strict": clustered(rows, strict), "reviewed_any": clustered(rows, kept),
+                          "recorded_strict": clustered(rows, recorded_strict), "recorded_any": clustered(rows, recorded)},
+            "reread_negatives": {"protocol": "docs/INDEX_METHOD.md, version 2 draft, 'Reading the negatives again'",
+                                 "population": len(rows) - len(strict),
+                                 "run": reread(sample, review, record) if record else None},
+            "comparison_group": {"status": "planned, not run",
+                                 "plan": "docs/INDEX_METHOD.md, version 2 draft, 'A comparison group of pull requests by people'"}}
+
+
+def build(sample, review, index=None, pulls=None, kept=None, negatives=None):
     """`kept`: the `index` part of an earlier output, carried over when this run was given no index (index.json and its
-    pulls are not in the repository, so a run without them keeps what the run with them wrote)."""
+    pulls are not in the repository, so a run without them keeps what the run with them wrote). `negatives`: the
+    record of the blind re-read (docs/index_reread_negatives.json), for the version 2 draft."""
     out = {"about": "Of merged pull requests by AI coding agents whose description said tests or CI pass, how many had a "
                     "failed check at the head commit. A Knos bounty whose terms required that check would not have "
                     "paid the merge. Written by scripts/backtest.py.",
@@ -277,6 +407,7 @@ def build(sample, review, index=None, pulls=None, kept=None):
     elif kept:
         out["index"] = kept
     out["cannot_show"] = cannot_show(out)
+    out["version2_draft"] = version2(sample, review, negatives)
     return out
 
 
@@ -294,13 +425,16 @@ def main(argv=None):
     ap.add_argument("--out", default=OUT)
     ap.add_argument("--max-seconds", type=int, default=3000)
     ap.add_argument("--review", default=REVIEW)
+    ap.add_argument("--negatives", help="the blind re-read of the negatives (default: docs/index_reread_negatives.json, "
+                                        "with the sample in the repository)")
     ap.add_argument("--check", action="store_true", help="fail if the method changed without a new version, or the output is stale")
     a = ap.parse_args(argv)
+    negatives = _load(a.negatives) if a.negatives else _load(NEGATIVES) if a.sample == SAMPLE and os.path.exists(NEGATIVES) else None
     if a.check:
         _, problems = method()
         if not problems and not a.index:
             was = _load(a.out)
-            if was != json.loads(json.dumps(build(_load(a.sample), _load(a.review), kept=was.get("index")))):
+            if was != json.loads(json.dumps(build(_load(a.sample), _load(a.review), kept=was.get("index"), negatives=negatives))):
                 problems.append(f"{os.path.relpath(a.out, ROOT)} is not what scripts/backtest.py writes: run it")
         for line in problems:
             print("backtest --check: " + line, file=sys.stderr)
@@ -318,13 +452,13 @@ def main(argv=None):
     sample = _load(a.sample)
     pulls = _load(a.pulls) if index and a.pulls and os.path.exists(a.pulls) else None
     was = _load(a.out) if os.path.exists(a.out) else {}
-    out = build(sample, _load(a.review), index, pulls, kept=was.get("index"))
+    out = build(sample, _load(a.review), index, pulls, kept=was.get("index"), negatives=negatives)
     with open(a.out, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=1, ensure_ascii=False)
         f.write("\n")
     m = out["sample"]["merged"]["overall"]
     print(f"backtest: {m['prs']} merged pull requests in the sample, {m['any_check_failed']['prs']} with a failed check "
-          f"({m['test_or_build_check_failed']['prs']} a test or build check); after the second reading "
+          f"({m['test_or_build_check_failed']['prs']} a test, build, lint or type check); after the second reading "
           f"{out['reviewed']['overall']['any_check_failed']['prs']} and {out['reviewed']['overall']['test_or_build_check_failed']['prs']}",
           file=sys.stderr)
     return 0

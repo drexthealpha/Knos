@@ -22,8 +22,9 @@ once:
 4. **Either way, `run --resume`** finishes what 0.3.18's rounds left for the chain's clock, when its time has come: the
    holdback's release, and the refund of the second order of the round `order`. It prints, per round, `due now` or
    `not due before <time>`, and sends only what is due.
-5. **ONE commit**, PyPI, **ONE push**, the tag, by the order below: staging; the wheel; the lock; the workflows; the
-   stamp; the test count; the private gate; ONE commit; PyPI; ONE push; the tag.
+5. **PyPI, ONE commit, ONE push**, the tag, by the order below: the test count; the wheel; the lock; PyPI; the
+   cutoff; the workflows, committed and pushed in their own repository; the stamp; the small repositories; `verify`;
+   the private gate (`ship_check`); ONE commit; ONE push; the tag.
 6. **No `propose`.** `python scripts/exercise_public.py propose ...` refuses in this release, before it reads
    anything: `refused: this release proposes nothing.` The sections below that describe a proposal set are the record
    of how proposals 7 and 8 were made, kept for the next release that changes a program.
@@ -149,13 +150,19 @@ differs (the push did not land, or a cache: wait a minute and run it again) or t
 
 ## Why there is an order
 
-Three things name each other, and only one order satisfies all of them.
+Four things depend on each other, and only one order satisfies all of them.
 
 - The jobs that sign install by hash. Their list is the last line of `requirements/sign.txt`: the knos wheel by
   its sha256.
 - The workflows a repository calls are published at ONE commit of `drexthealpha/knos-workflows`, and that commit
   holds the list. So the commit exists only after the wheel does.
 - This repository names that commit in `examples/`, in its own `knos.yml`, in `docs/` and on the site.
+- The jobs that sign nothing install knos from PyPI with a cutoff, `UV_EXCLUDE_NEWER`. uv takes no file uploaded
+  after that time, knos included. So the cutoff is written only once PyPI has the wheel. The `cutoff` command of
+  `scripts/pinned_workflows.py` asks PyPI when it took the locked wheel and writes that time plus ten minutes. So
+  PyPI comes before the commit of the workflows. 0.3.25 set its cutoff by hand, to midnight. Its wheel
+  reached PyPI at 03:00:44 UTC. uv could not see it, so every job that installs knos from PyPI failed there.
+  `tests/test_release_order.py` fails when a cutoff comes before the upload its note names, or was set by hand.
 
 So the wheel is built first and once, from the final tree, and nothing inside the wheel names the commit of the
 workflows (`src/knos` never does, and `README.md`, which is the wheel's description, is not a file the stamp
@@ -461,17 +468,37 @@ a file afterwards:
 
 In the staging tree that is going to be the release, in this order:
 
+Run `python scripts/diagrams.py render` before the version bump: the bump writes README.pypi.md, which shows each of
+README.md's diagrams as its picture in docs/diagrams/ at the tag (PyPI does not draw Mermaid).
+
 ```
+python scripts/diagrams.py render                # before the version bump: a picture of every Mermaid diagram
 python scripts/bump_version.py --check 0.3.18    # every manifest, lock file and install line names it; the program crates name 0.3.14
 python scripts/bench_docs.py --set tests_passing=<passed> --source "<the run>"    # the test count: see below
 python scripts/release.py wheel                  # dist/knos-0.3.18-py3-none-any.whl and the sdist, built ONCE
 python scripts/pinned_workflows.py lock dist/knos-0.3.18-py3-none-any.whl --write    # its hash, into requirements/sign.txt
-python scripts/release.py workflows <checkout of knos-workflows>     # the published set with that lock, committed there
+export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
+python scripts/release.py publish                 # uploads THAT wheel and the sdist; waits until PyPI's index lists the wheel
+python scripts/pinned_workflows.py cutoff         # UV_EXCLUDE_NEWER: ten minutes after PyPI took the wheel, into the workflows
+python scripts/release.py workflows <checkout of knos-workflows>     # the published set with that lock and cutoff, committed there
 git -C <checkout of knos-workflows> push         # the commit must exist on GitHub before anything names it
 python scripts/pinned_workflows.py stamp <that commit>               # the examples, knos.yml, docs/ and the site name it
 python scripts/small_repos.py build knos-task <checkout>             # and knos-playground, knos-attest, knos-claim-org: commit and push each
-python scripts/release.py verify <checkout of knos-workflows>        # versions, the lock, the wheel built again, the pin
+python scripts/release.py verify <checkout of knos-workflows>        # versions, the lock, the cutoff, the wheel built again, the pin
 ```
+
+**PyPI before the workflows.** The wheel is final once it is locked. Run the checks under "The test count" (below)
+before `publish`. A file on PyPI can never be replaced, so a change inside the wheel (`src/knos`, `terms/`,
+`README.pypi.md`) after `publish` is a new version. The cutoff, the workflows, the stamp and the small repositories change nothing inside the wheel.
+The small repositories are pushed only after `publish`: the workflows they call install the release from PyPI.
+`pinned_workflows.py cutoff` refuses until PyPI serves exactly the locked wheel, and writes nothing then. Until the
+cutoff names this release, `release.py workflows`, `pinned_workflows.py check` and `release.py verify` refuse and say
+"Upload the wheel first".
+
+**0.3.26.** The tree handed over carries the cutoff written for 0.3.25 (`2026-10-10T03:11:00Z`, ten minutes after
+0.3.25's wheel reached PyPI). It is right for the 0.3.25 pin. The 0.3.26 release run writes the new cutoff with
+`python scripts/pinned_workflows.py cutoff`, after `publish` has put the 0.3.26 wheel on PyPI, and before
+`release.py workflows`.
 
 **The test count.** The documents give one count of tests, and it is defined as the tests that passed in CI on the
 staging tree of the release, not a count made on anyone's machine. The tree handed over still carries the count of
@@ -484,6 +511,7 @@ python scripts/bench_docs.py --check && python scripts/doc_claims.py
 python scripts/release_manifest.py --check        # docs/MANIFEST.md is what the tree gives: source, built bytes, capabilities, limits
 python scripts/truth_check.py                     # no document or page contradicts the capability list, the source or the price book
 python scripts/rate_claims.py                     # every latency or throughput figure has its sample size, its program ids and its date
+python scripts/stale_check.py                     # no public file states a retired figure as current
 python scripts/public_face.py --check             # every description of Knos in this tree is the one sentence
 python scripts/judges.py --check                  # docs/JUDGES.md keeps its rules, and docs/judges.json is that page
 python -m knos.enforce --check                    # docs/ENFORCEMENT.md is the table the code gives
@@ -503,7 +531,8 @@ collects 2,639 tests with `pytest --collect-only -q tests`; a collected test is 
 written nowhere else.)
 
 `verify` builds the wheel once more from the stamped tree and compares it with the lock. If it differs, something
-that is part of the wheel changed after the lock: nothing has been published yet, so find it and lock again.
+that is part of the wheel changed after the lock, and PyPI holds the locked wheel already: undo the change (`git
+diff`), or release a new version.
 
 Then the private gate (`ship_check.py`, kept outside the repository) on the tree, the ONE commit, and the gate once
 more on the commit:
@@ -525,26 +554,28 @@ Two rules, each learned from a release that broke it:
   above. 0.3.15's commit carried the flag by mistake; it changed nothing only because that clone had no hooks. A hook
   that stops the commit is a finding: fix what it found.
 
-## The wheel, then the ONE push, then the tag
+## The ONE push, then the tag
 
 ```
-export UV_PUBLISH_TOKEN=<a PyPI token for the knos project>         # read by uv, never printed
-python scripts/release.py publish                 # uploads THAT wheel and the sdist, then asks PyPI for the hash and its index for the file
-git push origin main                              # the ONE push, only after `publish` said "Next: git push"
-git tag v0.3.25 && git push origin v0.3.25        # starts release.yml
+python scripts/release.py pypi-check              # PyPI serves the locked wheel, and its index lists it
+git push origin main                              # the ONE push
+git tag v0.3.26 && git push origin v0.3.26        # starts release.yml
 ```
 
-`publish` refuses unless `dist/` holds the locked wheel, the tree is committed and the commit holds the lock. A file
-on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a new version.
+`publish` ran before the workflows (above). It refuses unless `dist/` holds the locked wheel and this tree builds that
+wheel. A file on PyPI can never be replaced: if PyPI already has this version with another hash, the only way on is a
+new version.
 
 The wheel goes up before the push because the moment the commit is public, the workflows it pins install
-`knos==0.3.25` by that hash. If PyPI did not have the file yet, every signing job would fail until it did.
+`knos==0.3.26` by that hash. If PyPI did not have the file yet, every signing job would fail until it did. It goes up
+before the workflows too, because their cutoff is written from the time PyPI took it ("Why there is an order").
 
-**Push only after `publish` printed "Next: git push".** PyPI answers from two places: the page of a version shows an
+**Push only once PyPI's index lists the wheel.** PyPI answers from two places: the page of a version shows an
 upload at once, and the index an installer resolves from (`https://pypi.org/simple/knos/`) is a cached page that
 showed 0.3.15 a few minutes later. The push went out in between, and the first runs on the new commit failed: the
-index had "no version of" the release they asked for. `publish` now asks that index every 20 seconds, for 10 minutes at most, and ends with
-"Do NOT push yet" when the file is still not listed; `python scripts/release.py pypi-check --wait 600` asks again.
+index had "no version of" the release they asked for. `publish` asks that index every 20 seconds, for 10 minutes at
+most, and ends with "Do NOT push yet" when the file is still not listed; `python scripts/release.py pypi-check --wait
+600` asks again.
 
 ## What the tag starts
 
@@ -793,7 +824,9 @@ None of these runs is written into this release's commit ("Nothing after the pus
 | What | What it means | What to do |
 |---|---|---|
 | step 0: a proposal is still pending, or a program answers with its older version | the four earlier upgrades have not all executed | the exercises and the proposal set wait, the release does not: `bash scripts/schedule_upgrade.sh --show`, then step 0 again |
-| `release.py verify`: the wheel differs from the lock | a file inside the wheel changed after the lock | nothing is published yet: `release.py wheel`, lock again, build the workflows again, stamp again |
+| `release.py verify`: the wheel differs from the lock | a file inside the wheel changed after the lock | before `publish`: `release.py wheel`, lock again, then the order again from `publish`. After `publish`: PyPI holds the locked wheel, so undo the change (`git diff`) or release a new version |
+| `pinned_workflows.py cutoff`: PyPI does not serve the wheel yet | `publish` has not run, or did not finish | `python scripts/release.py publish`, then `cutoff` again; it wrote nothing |
+| `release.py workflows` or `verify`: "Upload the wheel first" | the cutoff was written for an earlier release, so uv would not see this one | `publish`, then `pinned_workflows.py cutoff` |
 | `release.py publish`: PyPI has this version with another hash | a different wheel was uploaded earlier | a new version: bump, and the whole order again |
 | `release.py publish` ends with "Do NOT push yet" | PyPI's index does not list the wheel yet | do not push; `python scripts/release.py pypi-check --wait 600` until it does |
 | `release.yml` build: not the locked wheel | the tagged commit does not build the wheel it names | do not move the tag: fix on main, release a new version |

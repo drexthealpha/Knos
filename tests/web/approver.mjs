@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)), web = join(here, "../../web"), data = join(here, "../data/statement");
 const mod = (name) => import(pathToFileURL(join(web, name)).href);
-const { readOrders, rowsOf, uncheckedRows, partsOf, readReceipts, messageOf, recordOf, checkRecord, group, EXCEPTIONS, WORDS, COLUMNS, PARTS, SAMPLE_ORDERS, POLICY } = await mod("approver.js");
+const { readOrders, rowsOf, billable, ssoOf, uncheckedRows, partsOf, readReceipts, messageOf, recordOf, checkRecord, group, EXCEPTIONS, WORDS, COLUMNS, PARTS, SAMPLE_ORDERS, POLICY } = await mod("approver.js");
 const { fromShadow, approve } = await mod("statement_make.js");
 const { parse } = await mod("shadow.js");
 const { SAMPLE_INVOICE, SAMPLE_BOOK, SAMPLE_META } = await mod("front_door_sample.js");
@@ -38,6 +38,31 @@ same("an invoice with no purchase order column names none", readOrders(SAMPLE_IN
 same("September with no purchase order: the statement's own states", kinds(rowsOf(sept)), [null, "disputed", "insufficient_evidence", "duplicate", null]);
 const over = rowsOf(sept, null, readOrders(INVOICE));
 same("September against a purchase order of 120.00: the line that passes it is held", kinds(over), [null, "disputed", "insufficient_evidence", "duplicate", "over_po"]);
+// the status file approved lines 1 and 5; against the purchase order line 5 is held, so the accounting file bills line 1 only
+same("the accounting file bills approved lines that are not held", billable(rowsOf(sept, septStatus, readOrders(INVOICE))), [sept.lines[0].invoice_line]);
+same("  and with no purchase order both approved lines", billable(rowsOf(sept, septStatus)), [sept.lines[0].invoice_line, sept.lines[4].invoice_line]);
+
+// single sign-on: signed in (the cookie knos_signed_in), each approval and export is one POST /sso/act with the form
+// token; without the cookie nothing is sent
+{
+  const asked = [], answers = { "/sso/me": [200, { signed_in: true, role: "approver", form: "F0rm" }], "/sso/act": [200, { written: { n: 1 } }] };
+  const fake = (table) => async (url, init = {}) => { asked.push([url, init.method || "GET", (init.headers || {})["X-Knos-Form"] || "", init.body || ""]);
+    const [status, body] = table[url] || [404, {}]; return { ok: status < 300, status, json: async () => body }; };
+  const yes = () => true, no = () => false, sha = "ab".repeat(32);
+  const on = ssoOf(fake(answers), yes);
+  same("signed in: an approval is written", await on.act("approve", "invoice 7: 2 lines", sha), { n: 1 });
+  await on.act("export", "invoice 7: statement-7-quickbooks.csv", sha);
+  same("  /sso/me asked once, then one POST /sso/act each with the form token",
+    asked.map(([u, m, f]) => [u, m, f]), [["/sso/me", "GET", ""], ["/sso/act", "POST", "F0rm"], ["/sso/act", "POST", "F0rm"]]);
+  same("  the body names the action, the subject and the statement", JSON.parse(asked[1][3]), { action: "approve", subject: "invoice 7: 2 lines", sha256: sha });
+  asked.length = 0;
+  same("no sign-in cookie: nothing written, nothing said, nothing asked", [await ssoOf(fake(answers), no).act("approve", "x", sha), await ssoOf(fake(answers), no).act("export", "y"), asked.length], [null, null, 0]);
+  const refused = ssoOf(fake({ ...answers, "/sso/act": [403, { error: "your role is viewer: to approve you need approver or admin" }] }), yes);
+  const said = async (s_) => { try { await s_.act("approve", "x", sha); return ""; } catch (e) { return e.message; } };
+  same("a refusal is said in the server's words", await said(refused), "your role is viewer: to approve you need approver or admin");
+  same("signed out since: asks to sign in again", await said(ssoOf(fake({ "/sso/me": [401, { signed_in: false }] }), yes)), "sign in again: this was not written to the audit log");
+  same("a cookie but no sign-in here: said, not hidden", await said(ssoOf(fake({}), yes)), "sign-in did not answer (404)");
+}
 same("the held line says the limit and what was reached, and nothing is authorised", [over[4].reason, over[4].authorised, over[4].payment, over[0].authorised],
   ["Purchase order PO-7 allows 120.00; agreed lines reach 160.00.", "0.00", "held here", "100.00"]);
 same("a line billed on an earlier statement is replayed", [kinds(rowsOf(october)), rowsOf(october)[0].reason], [["replayed", null], "Already billed: invoice INV-2026-09 line 1 agreed this deliverable on 2026-09-30."]);
@@ -199,6 +224,7 @@ async function page() {
     const pain = await downloaded(p, () => p.click("[data-file=pain]"));
     ok("the payment file is the module's, handed the statement, the payer and the approval", pain.name === "statement-INV-2026-09.pain.001.xml" && pain.text === `<pain>${sept.sha256}|Northwind Ltd|GB33BUKB20201555555555|BUKBGB22|1</pain>`, pain);
     ok("nobody but this page's own host was asked", seen.strangers.length === 0, seen.strangers);
+    ok("  and with no sign-in cookie, after an approval and exports, no sign-in address", !seen.asked.some((u) => u.includes("/sso/")), seen.asked.filter((u) => u.includes("/sso/")));
     // six months later: the record dropped back with its statement and invoice file; then with an edited copy
     await p.click("[data-ap=clear]");
     await dropFiles(p, [["approval.json", rec.text], ["sept.json", read("sept.json")], ["invoice.csv", INVOICE]]);

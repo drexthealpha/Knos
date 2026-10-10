@@ -38,10 +38,25 @@ jobs:
       - run: pip install -q -e .
       - name: site = the web app, at the commit it was built from
         run: bash scripts/build_site.sh _site "$GITHUB_SHA"
+      - name: the history the last build read, so this one reads only what is new
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: _history
+          key: knos-history-${{ github.run_id }}
+          restore-keys: knos-history-
       - name: /stats.json, counted from devnet
-        run: python scripts/network_stats.py --out _site/stats.json --events-out _events.json
+        # --budget (seconds a program): a build with no cache to restore (the first, or one after GitHub dropped it)
+        # reads the whole history at once. A runner reads the public RPC at under one transaction a second (10 Oct 2026:
+        # 209 in 300 s, while the second escrow had 1,427); a build that restored the cache asks only for what is new.
+        run: python scripts/network_stats.py --out _site/stats.json --events-out _events.json --cache _history/history.json --budget 3600
         env:
           GH_TOKEN: ${{ github.token }}       # without it GitHub is read unauthenticated, and merge-to-paid has no merges to time
+      - name: keep the history read, for the next build
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: _history
+          key: knos-history-${{ github.run_id }}
       - name: /upgrades.json and /upgrades.xml from the upgrade multisig's proposals (a cluster that does not answer keeps the committed files)
         run: python scripts/upgrade_feed.py --out _site || [ "$?" = 2 ]
       - name: Agent PR Index (/index.json) from the newest index-* release; its root must match its records

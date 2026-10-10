@@ -87,8 +87,8 @@ well. That is a bet.
 
 > "Are the founders communicating the product vision clearly and capable of growing the product's user base?"
 
-One sentence and one number on every surface: of 241 merged agent pull requests that claimed passing tests, 30
-had a failed check. One page tells the story in seven steps with the evidence under each
+One sentence and one number on every surface: of 241 merged agent pull requests that claimed passing tests, 9
+had a failed test, build, lint or type check (3.7%, 95% interval 2.0% to 6.9%; [backtest.json](../backtest.json)). One page tells the story in seven steps with the evidence under each
 ([STORY.md](../STORY.md)); the demonstration follows the same transaction in seven beats and three minutes, and the presentation is a
 separate script ([demo_script.md](demo_script.md), [pitch_script.md](pitch_script.md)), with a caption on any shot that is a
 replay or is played faster than it happened; and every number in them has a source that a script checks

@@ -1,4 +1,8 @@
+<img src="../web/brand/mark.svg" height="40" alt="Knos">
+
 # For judges: one page
+
+**In plain words.** A buyer pays only for work that passes the buyer's tests. It runs on [test money](WORDS.md#test-usdc), and no customer has paid yet. Three links show it working.
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -21,10 +25,18 @@ Why Solana: Money is released with no custodian, and the count is anchored where
    [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/10#issuecomment-6075196710),
    [the record](https://github.com/drexthealpha/knos-witness/blob/acaa854d241c2e030f521b6f5603c8f43c93bab6/witness.json).
    One step fixed by hand; one agreed line, not yet settled. [Run it yourself](../examples/witnessed/README.md).
+3. [Three things to try](submission/FLOWS.md).
 
-## Six criteria and seven factors, one link each
+```mermaid
+flowchart TB
+    c1["Click 1: the release manifest. See which code runs."]
+    c2["Click 2: wrong work refused. See that nothing was paid."]
+    c3["Click 3: paid. See the program pay once the tests passed."]
+    c1 --> c2 --> c3
+```
+*Open the three links above, in this order.*
 
-Six criteria from the rules; seven factors from [Colosseum's page](https://colosseum.com/hackathon).
+## Six criteria from the rules, seven factors from [Colosseum](https://colosseum.com/hackathon)
 
 | judged | in one sentence | evidence |
 |---|---|---|
@@ -37,27 +49,26 @@ Six criteria from the rules; seven factors from [Colosseum's page](https://colos
 | Founder and market fit | The founder placed first of 92 teams at Sibyl Labs in Sep 2026, and has never sold to an invoice approver. | [the team, for and against](TEAM.md) |
 | Insight | Every vendor counts its own outcomes, while the forge already signs a record that neither buyer nor supplier owns. | [why a neutral count](WHY.md) |
 | Product and execution | Sibyl's memory engine, which the founder's first-place Sibyl Labs product ran on, holds Knos's history; each capability has evidence. | [the release manifest](MANIFEST.md) |
-| Potential market size | Not counted: the market is built from qualified organisations, and none has been asked yet. | [the addressable market](MARKET.md) |
+| Potential market size | Not counted: no buyer has been asked, and a formula with sources and labelled assumptions only sizes it. | [the market size](submission/MARKET_SIZE.md) |
 | Founder communication | The presentation fits in three minutes: the finding, one transaction, the founder's record, the limits in one sentence, the ask. | [the presentation](submission/pitch_script.md) |
 | Viability | Each customer's delivery cost is budgeted line by line, only the monthly batch is measured, and nothing has been sold. | [the unit costs](UNIT_COSTS.md) |
 | Traction | Outside funders 0, outside repositories 0, interviews 0, revenue 0; one outside payee was paid on tasks Knos funded. | [the outside-use numbers](submission/NUMBERS.md) |
 
-The public program ids' fee today is read from the chain and shown on the site's pricing page; this
-page prints no rate.
+The site's pricing page reads the fee from the chain; this page prints no rate.
 
 ## Days to approve, not seconds to pay
 
 From merge to paid took 26 seconds at the median, over 51 payments on devnet. Days to approve is defined as the days
 from the day the buyer receives a supplier's invoice to the day a person with authority approves it.
-Not measured. It has not measured it with any buyer, so no figure for it is given here.
+Not measured.
 
 ## What is not real yet
 
-1. Money: Solana devnet and test USDC only. Mainnet is not touched.
+1. Money: Solana devnet and test USDC only.
 2. Buyers: 0 interviews, 0 letters of intent, 0 paying customers, 0 revenue.
 3. Outside use: 0 outside funders and 0 outside repositories. One outside payee was paid 3 times, on tasks Knos funded.
-4. Outside checks: no security review, 0 reproductions by anyone else, 0 outside programs reading the verifier.
+4. Outside checks: no security review, 0 reproductions, 0 outside programs reading the verifier.
 5. Neutrality: one person holds every key, and that person is the whole team.
 
-Counts: [NUMBERS.md](submission/NUMBERS.md). Limits: [DISCLOSURE.md](DISCLOSURE.md). The steps: [STORY.md](STORY.md).
+Limits: [DISCLOSURE.md](DISCLOSURE.md). The steps: [STORY.md](STORY.md).
 Everything else: [the map](README.md).

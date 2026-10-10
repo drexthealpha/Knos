@@ -1,6 +1,6 @@
 {
   "name": "knos",
-  "version": "0.3.25",
+  "version": "0.3.26",
   "description": "The neutral meter for AI agent work: neither side keeps the count. The plugin adds a Stop hook: when the agent says tests pass, CI is green, it shipped or it is done, Knos runs that check itself before the agent may stop. And the knos MCP server: bounties on GitHub issues, paid in test USDC on Solana devnet, and pull request claim checks. The server's work tools let an agent find funded work, reserve it, check its own tree and open the pull request, and bind its own payout address; the ones that post are off until the person who runs the agent turns them on (docs/AGENTS.md).",
   "author": {
     "name": "drexthealpha",

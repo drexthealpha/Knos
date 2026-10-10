@@ -50,7 +50,7 @@ export function knosId(kind, ...parts) {
   }
   return `${PREFIX[kind]}_${h.digest("hex").slice(0, 24)}`;
 }
-const orderScope = (order) => (/^[0-9a-f]{64}$/.test(order) ? order : hex(b58decode(order)));
+export const orderScope = (order) => (/^[0-9a-f]{64}$/.test(order) ? order : hex(b58decode(order)));
 
 // -- the JSON Schema keywords the receipt schemas use ---------------------------------------------------------------
 export function schemaErrors(schema, value, at = "receipt") {
@@ -90,24 +90,42 @@ export function schemaErrors(schema, value, at = "receipt") {
 }
 
 // -- the cluster ----------------------------------------------------------------------------------------------------
-/** JSON-RPC over HTTP to `url`. */
-export function liveRpc(url, timeoutMs = 30000) {
+/** JSON-RPC over HTTP to `url`. Each request gives up after `timeoutMs`; a "too many requests" answer (HTTP 429, which
+ * devnet's public endpoint gives) is asked again after each of `waits` milliseconds, then reported. */
+export function liveRpc(url, timeoutMs = 30000, { fetchFn = fetch, waits = [1000, 2000, 4000, 8000] } = {}) {
   let id = 0;
   return async (method, params) => {
-    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(timeoutMs),
-      body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }) });
-    const body = await res.json();
-    if (body.error) throw new Error(`${method}: ${body.error.message || JSON.stringify(body.error)}`);
-    return body.result;
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetchFn(url, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(timeoutMs),
+        body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }) });
+      const body = await res.json().catch(() => ({ error: { message: `HTTP ${res.status} with no JSON answer` } }));
+      if ((res.status === 429 || body.error?.code === 429) && attempt < waits.length) {
+        await new Promise((done) => setTimeout(done, waits[attempt]));
+        continue;
+      }
+      if (body.error) throw new Error(`${method}: ${body.error.message || JSON.stringify(body.error)}`);
+      return body.result;
+    }
   };
 }
 
-/** Answers recorded as {"<method> <first param>": result}; anything not recorded is what a cluster says of an unknown key. */
+/** Answers recorded as {"<method> <first param>": result}; anything not recorded is what a cluster says of an unknown key.
+ * A recorded transaction of version 0 or 1 is refused, as a cluster refuses it, to a request that does not take its version. */
 export function recordedRpc(answers) {
-  return async (method, params) => (Object.hasOwn(answers, `${method} ${params[0]}`) ? answers[`${method} ${params[0]}`] : method === "getSignaturesForAddress" ? [] : null);
+  return async (method, params) => {
+    const got = Object.hasOwn(answers, `${method} ${params[0]}`) ? answers[`${method} ${params[0]}`] : method === "getSignaturesForAddress" ? [] : null;
+    const most = params[1]?.maxSupportedTransactionVersion;
+    if (method === "getTransaction" && typeof got?.version === "number" && !(most >= got.version)) {
+      throw new Error(`${method}: Transaction version (${got.version}) is not supported by the requesting client. Please try the request again with the following configuration parameter: "maxSupportedTransactionVersion": ${got.version}`);
+    }
+    return got;
+  };
 }
 
-const TX_OPTS = { encoding: "json", commitment: "finalized", maxSupportedTransactionVersion: 0 };
+// Every version a cluster sends: legacy, 0 (accounts may come from address lookup tables: meta.loadedAddresses) and 1
+// (SIMD-0385: limits in the message, no lookup tables), which Knos's relay sends. Asked with 0, a cluster refuses a
+// version 1 transaction with "Transaction version (1) is not supported by the requesting client".
+const TX_OPTS = { encoding: "json", commitment: "finalized", maxSupportedTransactionVersion: 1 };
 
 function keysOf(tx) {
   const m = tx.transaction.message, loaded = tx.meta?.loadedAddresses || {};
@@ -155,15 +173,29 @@ async function payment(rpc, pay, sig) {
   const ix = orderIx(tx, pay, PAYING);
   if (!ix) return { found: false, why: `transaction ${sig} has no ${PAYING.join(", ")} instruction of knos_pay (${pay.program})` };
   const { lines, truncated } = logsOf(tx, pay.program);
-  const paid = [], settled = [];
+  const paid = [], settled = [], prs = [];
   for (const line of lines) {
     const p = fields(line, "knos3:paid") || fields(line, "knos3:released"), s = fields(line, "knos3:settled");
-    if (p && p.order === ix.order) paid.push({ payee: p.payee, amount: p.amount, to: p.to });
+    if (p && p.order === ix.order) {
+      paid.push({ payee: p.payee, amount: p.amount, to: p.to });
+      if (/^\d+$/.test(p.pr || "")) prs.push(Number(p.pr));
+    }
     if (s && s.order === ix.order) settled.push(s);
   }
   if (truncated) return { found: false, why: `the cluster truncated the log of ${sig}: what it paid cannot be read from it` };
   if (paid.length === 0) return { found: false, why: `knos_pay paid nobody in ${sig}: the order was held or refunded, not paid` };
-  return { found: true, tx, ix, paid, settled: settled[settled.length - 1] || null };
+  return { found: true, tx, ix, paid, prs, settled: settled[settled.length - 1] || null };
+}
+
+/** Which milestone of `order` the deliverable id `id` names: {milestone, by} or null. Two published forms name one: the
+ * order as 64 hex characters (a receipt, a meter ledger: docs/CONFORMANCE.md, ids), and an audit export's billing key,
+ * "order:funding transaction:milestone" (`knos audit export`; `knos events ingest --from settle` and a witnessed
+ * statement take their deliverable from it). The milestone is 0, or a standing order's pull request (`pr=` in the log). */
+export function milestoneOf(id, order, fundedSig, prs = []) {
+  const keys = [...new Set([0, ...prs, ...Array.from({ length: 256 }, (_, k) => k)])];
+  const scopes = [[orderScope(order), "the order"], ...(fundedSig ? [[`${order}:${fundedSig}`, `its billing key (the order and its funding ${fundedSig})`]] : [])];
+  for (const [scope, by] of scopes) for (const k of keys) if (knosId("deliverable", scope, k) === id) return { milestone: k, by };
+  return null;
 }
 
 /** The funding of `order` before the payment `paidSig`: {sig, amount, flags, terms_hash, terms_from} or {why}. */
@@ -259,12 +291,12 @@ export async function decideStatus(st, rpc, { idl = load(IDL, "the IDL") } = {})
       line.order = seen.ix.order;
       line.payments = seen.paid;
       line.agrees.push(`transaction ${ev.reference} is knos_pay's ${seen.ix.name} of order ${seen.ix.order}, finalized`);
-      const scope = orderScope(seen.ix.order);
-      const milestone = Array.from({ length: 256 }, (_, k) => k).find((k) => knosId("deliverable", scope, k) === ev.deliverable);
-      ok(milestone !== undefined, `deliverable ${ev.deliverable} is milestone ${milestone} of that order`, `deliverable ${ev.deliverable} is not of order ${seen.ix.order}`);
+      const f = await funding(rpc, pay, seen.ix.order, ev.reference);
+      const m = milestoneOf(ev.deliverable, seen.ix.order, f.sig, seen.prs);
+      ok(m !== null, `deliverable ${ev.deliverable} is milestone ${m?.milestone} of that order, named by ${m?.by}`,
+        `deliverable ${ev.deliverable} is not of order ${seen.ix.order}: neither the order nor its billing key (the order and its funding) gives it`);
       const stl = knosId("settlement", ev.deliverable, "chain", ev.reference);
       ok(ev.settlement === stl, `settlement ${stl} is that deliverable paid by that transaction`, `settlement ${ev.settlement} is not ${stl}`);
-      const f = await funding(rpc, pay, seen.ix.order, ev.reference);
       if (f.why) line.disagrees.push(`terms: ${f.why}`);
       else { line.terms_hash = f.terms_hash; line.agrees.push(`funded in ${f.sig} under terms ${f.terms_hash} (${f.terms_from})`); }
     }

@@ -4,7 +4,8 @@
 #   python -m knos.selfhost check deploy/knos.toml      what will run, and which key files it reads
 #   python -m knos.selfhost plan deploy/knos.toml       the services to start, and the command that starts them
 #
-# Ports are published on 127.0.0.1 only: put the buyer's identity proxy in front of them (docs/SELFHOST.md).
+# Ports are published on 127.0.0.1 only: put the buyer's identity proxy in front of them, or sign in with [sso]
+# (docs/SELFHOST.md).
 # Knos runs none of this and hosts nothing.
 
 x-knos: &knos
@@ -47,7 +48,12 @@ services:
     <<: *knos
     command: ["run", "site", "--config", "/etc/knos/knos.toml"]
     ports: ["127.0.0.1:8080:8080"]
+    volumes:
+      - ./knos.toml:/etc/knos/knos.toml:ro
+      - ./secrets:/run/secrets:ro
+      - site-state:/var/lib/knos      # with [sso]: the audit log of sign-ins, approvals and exports
 
 volumes:
   record-state: {}
   relay-state: {}
+  site-state: {}

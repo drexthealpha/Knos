@@ -360,7 +360,7 @@ jobs:
           enable-cache: false
       # the chain's install, letter for letter, with its timeout and retries. Each retry adds --refresh (as the claims
       # job): in the 0.3.24 release run this job asked five times without it and uv kept its first answer, "no version
-      # of knos==0.3.25", until a person re-ran the job.
+      # of knos==0.3.26", until a person re-ran the job.
       - name: install what the relay needs, each by its hash, and nothing else
         timeout-minutes: 6
         env:

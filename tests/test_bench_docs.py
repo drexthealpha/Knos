@@ -241,7 +241,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     number = f"Of {merged['prs']} merged agent pull requests claiming passing tests, {merged['test_or_build_check_failed']['prs']} failed a test, build, lint or type check."
     # the site's first screen, line for line where they share lines: the one sentence (the one noun leads it), the customer
     # outcome, the one number, one link to the site and one to the judges' page: four lines, forty words at most
-    outcome = "Both sides close invoices on evidence both verify."
+    outcome = "Pay AI agents only when your checks pass."
     assert lines[0] == f"**{cc.SENTENCE}**" and cc.SENTENCE.startswith("The neutral meter ") and lines[1] == outcome and lines[2] == number and len(lines) == 4
     assert lines[3] == "[Check](https://drexthealpha.github.io/Knos/) · [Judges](docs/JUDGES.md)"
     hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
@@ -251,25 +251,28 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     assert re.match(r"`[^`]+`: ", command) and "knos shadow" in command and "&&" not in command and readme.count("`uvx knos shadow invoice.csv`") == 1
     said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
     assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 40, said
-    # under it: the claim in two lines and the limits in one; the meter, the money and the number's source in three lines each
+    # under it, in plain words (tests/test_readme_plain.py reads them): how it works (the bounty is the smallest example),
+    # the ten-second check, why nobody can fudge the count (the meter), then "Is it real?" over the table; the number's
+    # source in three lines below the judges' part
     parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", readme.split("\n---\n", 1)[0])[1:])] * 2))
     assert "17.8%" in parts["The number"] and "](docs/BENCH.md)" in parts["The number"] and "](docs/backtest.json)" in parts["The number"]
-    meter, money = "The meter: two ledgers, one bill", "The money: released on a signature"
-    assert "`/knos fund " in parts[money] and "knos meter reconcile" in parts[meter]
-    for name in ("The claim", "The number", meter, money):
-        assert len([line for line in parts[name].splitlines() if line.strip()]) <= 3, name
-    assert list(parts).index("The claim") == 0 and list(parts).index(meter) < list(parts).index(money) < list(parts).index("What is real today")
-    assert "no company and no oracle in the middle" in parts["The claim"] and parts["The claim"].count("](docs/DISCLOSURE.md)") == 1
+    how, fudge, real = "How it works", "Why nobody can fudge the count", "Is it real?"
+    assert "`/knos fund " in parts[how] and "knos meter reconcile" in parts[fudge] and "](https://drexthealpha.github.io/Knos/#check)" in parts["Try it in ten seconds"]
+    assert len([line for line in parts["The number"].splitlines() if line.strip()]) <= 3
+    assert list(parts).index(how) == 0 and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("For a judge") < list(parts).index("The number")
+    assert parts[real].split("<!-- bench:today -->")[0].count("](docs/DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]
     for zero in ("| 0 |", "Outside funders", "Letters of intent"):                         # no list of zeros above the table
-        assert zero not in readme.split("## What is real today")[0], zero
+        assert zero not in readme.split("## Is it real?")[0], zero
     # one table says what is real, with the numbers of NUMBERS.md in a block this script writes; then one link onward
     bd = _script("bench_docs")
     table = bd.today(json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8")), bd.repo_numbers())
-    assert table in parts["What is real today"] and parts["What is real today"].count("\n| ") == table.count("\n| ") + 1
+    assert table in parts[real] and parts[real].count("\n| ") == table.count("\n| ") + 1
     for row in ("| Outside funders | 0 |", "| Buyer interviews held | 0 |", "| Letters of intent | 0 |", "| Shadow counts published | 0 |",
                 "| Paying customers | 0 |", "| Outside security review | none |"):
         assert row in table, row
-    assert len(readme.splitlines()) < 120 and "first milestone" not in readme
+    # 190: the eight questions people search (tests/test_seo.py) add 34 lines below the first screen, which holds its
+    # forty words above; the readability tests hold the whole page (tests/test_readme_plain.py)
+    assert len(readme.splitlines()) < 190 and "first milestone" not in readme
     assert "](docs/README.md)" in parts["Read more"] and "](docs/submission/NUMBERS.md)" in readme and "](docs/CAPABILITIES.md)" in readme
     # what the front page no longer lists is on the map of the documents
     docs_map = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")

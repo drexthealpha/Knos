@@ -60,7 +60,7 @@ name: knos fund
 #     is needed: a package released tomorrow is not in the list and cannot be installed.
 #   - The jobs that sign nothing and hold no secret (review and judge in prove.yml, and check.yml) install the one exact
 #     release from PyPI with dependencies no newer than UV_EXCLUDE_NEWER, ignoring any uv configuration in the
-#     working directory.
+#     working directory. The release writes that time once PyPI has its wheel (scripts/pinned_workflows.py cutoff).
 # The runner is ubuntu-24.04 by name: its image has Python 3.12, and `ubuntu-latest` is being moved to Ubuntu 26.04. No
 # job here restores or saves an Actions cache (`enable-cache: false`, and `cache-mode: read` on every job): a cache
 # written by a run of pull request code could be read by a job that signs, so every run downloads what it installs.

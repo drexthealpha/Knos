@@ -1,4 +1,29 @@
+<img src="../web/brand/mark.svg" height="40" alt="Knos">
+
 # The meter: what is counted, and who can check it
+
+**In plain words.** The [meter](WORDS.md#meter) counts each time a buyer's tests judge a piece of work. The buyer and the seller each keep their own list, and each puts its totals on [Solana](WORDS.md#solana) (a public record neither side can change). When the two lists agree they make one bill, and when they do not, a command names each item that differs.
+
+```mermaid
+flowchart TB
+    work["The buyer's tests judge a piece of work"]
+    buyer["The buyer's own list"]
+    seller["The seller's own list"]
+    bchain["The buyer's totals, signed by GitHub, kept on Solana"]
+    schain["The seller's totals, signed by GitHub, kept on Solana"]
+    match{"Do the two lists agree?"}
+    bill["One bill, the same on both sides"]
+    diff["A list of each item that differs"]
+    work --> buyer
+    work --> seller
+    buyer --> bchain
+    buyer --> match
+    seller --> match
+    seller --> schain
+    match -->|yes| bill
+    match -->|no| diff
+```
+*Two lists, kept apart, become one bill when they agree.*
 
 `knos_meter` counts **evaluations**. An evaluation is one judgment of one piece of work: a work order, an artifact
 (a commit), the policy it was judged under and a milestone, with a verdict (accepted or rejected) and the rate the
@@ -245,7 +270,10 @@ buyer's file. The files say what:
 The statement counts what both sides have and describe alike, and beside it how many each side has alone and how
 many they dispute. It names the two roles, never "mine" and "theirs", and sorts by id, so the buyer and the seller
 get the same bytes and can compare the last line. `fee` is the price book's Meter line: the first 100,000 evaluations
-of a month are free, then 0.002 USD each (`--rate` takes another, in millionths of a USD), from prepaid credits. The
+of a month are free, then 0.002 USD each (`--rate` takes another, in millionths of a USD), from prepaid credits.
+That is the proposed price. The deployed `knos-meter` program charges 0.05 per evaluation after 10,000 free a month
+(test USDC); changing it waits for a program upgrade. The Meter fee is not the release fee: `knos-pay` takes 0.30%,
+at least 0.05, on top of an order's amount (the funder pays) and out of a job's amount (the payee gets the rest). The
 free allowance is the buyer's for the month across all its sellers; a buyer with several passes what is left with
 `--free`.
 
@@ -292,7 +320,7 @@ A statement gives three numbers for a month and never adds them together.
 
 | number | what it counts | what it is for |
 |---|---|---|
-| **evaluations** | every evaluation that counts once: one run of a policy on one artifact for one deliverable, accepted or rejected | the Meter's billable unit: the first 100,000 a month are free, then 0.002 USD each |
+| **evaluations** | every evaluation that counts once: one run of a policy on one artifact for one deliverable, accepted or rejected | the Meter's billable unit: the price book proposes the first 100,000 a month free, then 0.002 USD each; the deployed program charges 0.05 after 10,000 until an upgrade |
 | **accepted outcomes** | deliverables (work order + milestone) with an accepted evaluation, counted once, in the month it is first accepted | what a vendor's per-outcome price multiplies |
 | **rejected evaluations** | evaluations whose verdict is rejected | the work that was judged and not accepted; billable to the Meter, not an outcome |
 

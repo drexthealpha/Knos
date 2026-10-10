@@ -1,5 +1,5 @@
 """The worker's install step asks PyPI's index again with --refresh on every retry (as the claims job does). In the 0.3.24
-release run the `event` job asked five times without it and uv kept its first answer, "no version of knos==0.3.25",
+release run the `event` job asked five times without it and uv kept its first answer, "no version of knos==0.3.26",
 until a person re-ran the job. The relay chain's install and the event job's are one step, letter for letter."""
 from __future__ import annotations
 

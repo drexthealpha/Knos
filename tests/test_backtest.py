@@ -189,3 +189,64 @@ def test_the_method_is_frozen_at_version_one_and_a_changed_file_fails_the_check(
     assert any("version 2" in p for p in backtest.method(changed)[1])
     changed.write_bytes(text.replace(agent_pr_ci.TESTISH_RE.pattern, "test").encode("utf-8"))
     assert any("TESTISH_RE" in p for p in backtest.method(changed)[1])
+
+
+# ---- version 2 (draft): funnel, clustered intervals, the blind re-read of the negatives -----------------------------
+
+def _repo_files():
+    load = lambda name: json.loads((ROOT / "docs" / name).read_text(encoding="utf-8"))   # noqa: E731
+    return load("agent_pr_ci.json"), load("index_review.json"), load("index_reread_negatives.json"), load("backtest.json")
+
+
+def test_the_draft_is_what_the_script_computes_and_its_funnel_ends_at_the_lead():
+    sample, review, record, out = _repo_files()
+    v2 = out["version2_draft"]
+    assert v2 == json.loads(json.dumps(backtest.version2(sample, review, record)))
+    assert [s["prs"] for s in v2["funnel"]] == [833, 349, 303, 241, 30, 19, 9]
+    assert v2["funnel"][-1]["prs"] == out["reviewed"]["overall"]["test_or_build_check_failed"]["prs"]
+    lead, any_ = v2["clustered"]["reviewed_strict"], v2["clustered"]["reviewed_any"]
+    # the nine come from nine repositories; the four from one repository are in the nineteen, not in the nine
+    assert (lead["prs"], lead["repositories_with_one"], lead["most_from_one_repository"]) == (9, 9, 1)
+    assert (any_["prs"], any_["most_from_one_repository"]) == (19, 4)
+    assert lead["wilson_ci95"] == out["reviewed"]["overall"]["test_or_build_check_failed"]["ci95"]
+    assert v2["reread_negatives"]["population"] == 232 and v2["comparison_group"]["status"] == "planned, not run"
+    run = v2["reread_negatives"]["run"]
+    assert run["negatives"] == {"prs": 20, "consistent": 16, "inconclusive": 2, "unreadable": 2, "flipped": 0}
+    text = (ROOT / "docs" / "INDEX_METHOD.md").read_text(encoding="utf-8")
+    assert "## Version 2 (draft" in text and "| Strict | 9 | 47.4% |" in text and "0 of 20 flipped" in text
+
+
+def test_grouping_by_repository_widens_the_interval_only_when_hits_share_a_repository():
+    spread = [pr(n, repo=f"o/r{n}") for n in range(1, 41)]
+    lumped = [pr(n, repo="o/one" if n <= 4 else f"o/r{n}") for n in range(1, 41)]
+    hits = {"o/r1#1", "o/r2#2", "o/r3#3", "o/r4#4"}
+    a = backtest.clustered(spread, hits)
+    b = backtest.clustered(lumped, {"o/one#1", "o/one#2", "o/one#3", "o/one#4"})
+    # one pull request per repository: only the small-sample factor g / (g - 1) is left
+    assert a["design_effect"] == round(40 / 39, 3) and a["wilson_ci95"] == agent_pr_index.wilson(4, 40)
+    assert b["design_effect"] > 3 * a["design_effect"]
+    assert b["design_effect"] > 1 and b["most_from_one_repository"] == 4 and b["repositories_with_one"] == 1
+    assert b["clustered_wilson_ci95"][1] > b["wilson_ci95"][1]
+    assert backtest.clustered(lumped, hits) == backtest.clustered(lumped, hits)          # a fixed seed: the same answer
+    assert backtest.clustered([], hits) is None
+
+
+def test_the_reread_must_be_the_seeded_draw():
+    import pytest
+    sample, review, record, _ = _repo_files()
+    draw = backtest.reread_draw(sample, review)
+    assert draw == backtest.reread_draw(sample, review) and len(draw) == 25
+    assert sum(p["role"] == "control" for p in draw) == 5
+    assert sorted(p["pr"] for p in draw) == sorted(p["pr"] for p in record["prs"])
+    picked = {**record, "prs": [*record["prs"][1:], {**record["prs"][0], "pr": "someone/else#1"}]}
+    with pytest.raises(SystemExit):
+        backtest.reread(sample, review, picked)
+
+
+def test_the_draft_section_does_not_unfreeze_version_one(tmp_path):
+    text = (ROOT / "docs" / "INDEX_METHOD.md").read_text(encoding="utf-8")
+    changed = tmp_path / "m.md"
+    changed.write_bytes(text.replace("0 of 20 flipped", "1 of 20 flipped").encode("utf-8"))      # the draft may change
+    assert backtest.method(changed)[1] == []
+    changed.write_bytes(text.split("\n## Version 2 (draft")[0].encode("utf-8"))                   # version 1 alone: same hash
+    assert backtest.method(changed)[0]["sha256"] == backtest.METHODS[1]

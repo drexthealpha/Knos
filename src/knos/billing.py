@@ -69,9 +69,10 @@ operating cost is known: every margin this module prints is gross and says so, a
 from __future__ import annotations
 
 import json
+from datetime import date
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from . import netting
 
@@ -136,8 +137,60 @@ RULES = {
              "listed apart, in no line, not in the total."),
     "relayer": ("On a release on chain the relayer's tip and the chain costs it pays are the relayer's: Knos counts the fee owner's part as "
                 "revenue, or, when Knos relays, the whole fee as revenue and the chain costs as its cost; never both."),
+    "notice": ("A price rise is announced 90 days before it starts and never touches an order funded before it starts: each order "
+               "pays the price in force on the day it was funded."),
 }
 HELD = ("reserve", "rent", "principal")   # what `held` may name: money that is never Knos's revenue
+
+NOTICE_DAYS = 90                         # a price rise is announced at least this many days before it starts
+
+
+class Price(NamedTuple):
+    """One version of the Acceptance price. `announced`: the day it was published; `starts`: the first day an order
+    funded on it pays it (both YYYY-MM-DD; "" for the first price, in force from the start); `tiers` and `floor` as
+    ACCEPT_TIERS and ACCEPT_FLOOR."""
+    announced: str
+    starts: str
+    tiers: tuple
+    floor: Decimal
+
+
+PRICES = (Price("", "", ACCEPT_TIERS, ACCEPT_FLOOR),)      # every Acceptance price there has been, oldest first: one so far
+
+
+def _day(text: Any, what: str) -> date:
+    try:
+        return date.fromisoformat(str(text))
+    except ValueError:
+        raise BillingError(f"{what}: a day written YYYY-MM-DD, not {text!r}") from None
+
+
+def _rise(old: Price, new: Price) -> bool:
+    """Whether some order would pay more under `new` than under `old`: a higher floor, or a higher fee at some value.
+    Both fees are straight lines between the tier starts, so comparing at every start and beyond the last is enough."""
+    starts = sorted({s for s, _r in old.tiers} | {s for s, _r in new.tiers})
+    return (new.floor > old.floor or any(_marginal(v, new.tiers) > _marginal(v, old.tiers) for v in starts)
+            or new.tiers[-1][1] > old.tiers[-1][1])
+
+
+def check_prices(prices: tuple = PRICES) -> None:
+    """Raises BillingError when a list of prices breaks the notice rule. Each price after the first names the day it
+    was announced and the day it starts, in order. A rise starts at least 90 days after it was announced."""
+    for n, (old, new) in enumerate(zip(prices, prices[1:]), 2):
+        said, starts = _day(new.announced, f"price {n}, announced"), _day(new.starts, f"price {n}, starts")
+        if old.starts and starts <= _day(old.starts, f"price {n - 1}, starts"):
+            raise BillingError(f"price {n} starts on {new.starts}, not after price {n - 1}")
+        if starts < said:
+            raise BillingError(f"price {n} starts on {new.starts}, before it was announced on {new.announced}")
+        if _rise(old, new) and (starts - said).days < NOTICE_DAYS:
+            raise BillingError(f"price {n} is a rise announced on {new.announced} that starts on {new.starts}: "
+                               f"{(starts - said).days} days of notice, and a rise needs {NOTICE_DAYS}")
+
+
+def price_at(funded: Any, prices: tuple = PRICES) -> Price:
+    """The price in force on the day an order was funded: the newest price that had started by that day."""
+    day = _day(funded, "funded")
+    return next(p for p in reversed(prices) if not p.starts or _day(p.starts, "starts") <= day)
 
 
 class BillingError(ValueError):
@@ -191,21 +244,24 @@ def _marginal(upto: Decimal, tiers: tuple = ACCEPT_TIERS) -> Decimal:
     return fee
 
 
-def acceptance_span(below: Decimal, value: Decimal, volume: bool = True, months: int = 1) -> Decimal:
+def acceptance_span(below: Decimal, value: Decimal, volume: bool = True, months: int = 1, tiers: tuple = ACCEPT_TIERS) -> Decimal:
     """The fee on `value` dollars that lie above the first `below` of a period, not rounded. `volume`: by contract, the
-    marginal rates; otherwise 0.30% of all of it. `months`: 1 for a month, 12 for a year of twelve equal months."""
+    marginal rates; otherwise 0.30% of all of it. `months`: 1 for a month, 12 for a year of twelve equal months.
+    Marginal: 0.20% is charged only on the part of the period's value above 1,000,000, never on all of it."""
     if not volume:
-        return value * ACCEPT_RATE
-    tiers = tuple((start * months, rate) for start, rate in ACCEPT_TIERS)
+        return value * tiers[0][1]
+    tiers = tuple((start * months, rate) for start, rate in tiers)
     return _marginal(below + value, tiers) - _marginal(below, tiers)
 
 
-def acceptance_fee(value: Decimal, below: Decimal = ZERO, volume: bool = False) -> Decimal:
-    """Acceptance on one deliverable: its rate, rounded half up to the cent, at least 0.05. Nothing for no value. No cap."""
-    return max(ACCEPT_FLOOR, cents(acceptance_span(below, value, volume))) if value > 0 else ZERO
+def acceptance_fee(value: Decimal, below: Decimal = ZERO, volume: bool = False, price: Price | None = None) -> Decimal:
+    """Acceptance on one deliverable: its rate, rounded half up to the cent, at least the floor (0.05). Nothing for no
+    value. No cap. `price`: the price in force when its order was funded (`price_at`); the newest when left out."""
+    price = price or PRICES[-1]
+    return max(price.floor, cents(acceptance_span(below, value, volume, tiers=price.tiers))) if value > 0 else ZERO
 
 
-def netted(outcomes: Any, below: Decimal = ZERO, volume: bool = False) -> dict:
+def netted(outcomes: Any, below: Decimal = ZERO, volume: bool = False, price: Price | None = None) -> dict:
     """Small tickets, netted: `outcomes` is [(payee, value)], each value under 20 USD. They accumulate, and each payee's
     settle as ONE release for the period: 0.30% of the netted amount (the contract's rate where the month has reached
     it), and the 0.05 floor once per release. `individually` is what the same outcomes cost one release each."""
@@ -217,13 +273,13 @@ def netted(outcomes: Any, below: Decimal = ZERO, volume: bool = False) -> dict:
     releases, fee, alone = [], ZERO, ZERO
     for who, values in by.items():
         amount = sum(values, ZERO)
-        one = acceptance_fee(amount, below, volume)
+        one = acceptance_fee(amount, below, volume, price)
         micro = amount * netting.MICRO
-        if not volume and micro == micro.to_integral_value():      # the release's fee is the one knos_pay takes for an order of the net (netting.fee_of), to the cent
+        if not volume and (price or PRICES[-1]) == PRICES[-1] and micro == micro.to_integral_value():      # the release's fee is the one knos_pay takes for an order of the net (netting.fee_of), to the cent
             one = cents(Decimal(netting.fee_of(int(micro))) / netting.MICRO)
         releases.append({"payee": who, "outcomes": len(values), "amount": show(amount), "fee": show(one), "share": share(one, amount)})
         fee, below = fee + one, below + amount
-        alone += sum((acceptance_fee(v) for v in values), ZERO)
+        alone += sum((acceptance_fee(v, price=price) for v in values), ZERO)
     return {"releases": releases, "outcomes": sum(len(v) for v in by.values()), "fee": fee, "individually": alone}
 
 
@@ -276,7 +332,7 @@ FIELDS = {"plan", "month", "billed_to", "evaluations", "duplicates", "infrastruc
 RAILS = ("chain", "bank")                # how an accepted deliverable was paid: by the program, or by any other rail
 
 
-def invoice(month: dict) -> dict:
+def invoice(month: dict, prices: tuple = PRICES) -> dict:
     """One customer-month in, one invoice out: every line, the arithmetic that gave it and the rule that produced it.
 
     `month` (all but `plan` optional):
@@ -302,7 +358,9 @@ def invoice(month: dict) -> dict:
                                  was charged: listed apart, in no line and not in `total`; `payable` adds them
         held                     [{"kind": "reserve", "what": "...", "amount": "..."}]  money held or passed on (kind: reserve,
                                  rent or principal): listed apart, in no line, not in `total` and not in `payable`
-    An accepted row may say "rail": "chain" (the same as "on_chain": true) or "bank" (the same as leaving it out).
+    An accepted row may say "rail": "chain" (the same as "on_chain": true) or "bank" (the same as leaving it out), and
+    "funded": "YYYY-MM-DD", the day its order was funded: it pays the price in force that day (`price_at`). Once the
+    price has changed (`prices` holds more than one), a row the invoice charges must say it.
     """
     if not isinstance(month, dict):
         raise BillingError("a customer-month is a JSON object")
@@ -321,6 +379,7 @@ def invoice(month: dict) -> dict:
     brought = money(month.get("credit_brought_forward", "0"), "credit_brought_forward")
     if committed < 0 or drawn < 0 or brought < 0 or drawn > committed:
         raise BillingError("committed, drawn and credit_brought_forward are 0 or more, and drawn is at most committed")
+    check_prices(prices)
     lines: list[dict] = []
 
     # 1. the subscription
@@ -348,6 +407,7 @@ def invoice(month: dict) -> dict:
     # 3. Acceptance: each accepted deliverable once, less what is disputed or reversed this month; never what the chain released
     accepted: dict[str, Decimal] = {}
     payee: dict[str, str] = {}
+    priced: dict[str, Price] = {}               # the price in force when each deliverable's order was funded
     chain: set[str] = set()
     listed_again = banked = 0
     said_rail = False                     # a row named its rail: the invoice then says the once-on-either-rail rule as a line
@@ -367,6 +427,11 @@ def invoice(month: dict) -> dict:
         else:
             banked += 1
         payee[ident] = str(row.get("payee") or "").strip()
+        if "funded" in row:
+            priced[ident] = price_at(row["funded"], prices)
+        elif len(prices) > 1 and rail != "chain":
+            raise BillingError(f"accepted {ident}: funded: the day its order was funded (YYYY-MM-DD). The price changed on "
+                               f"{prices[-1].starts}, and each order pays the price in force on the day it was funded")
     earlier: list[tuple[str, str, Decimal]] = []
     left_out = ZERO
     for kind in ("disputed", "reversed"):
@@ -383,17 +448,25 @@ def invoice(month: dict) -> dict:
     released = sum((v for k, v in accepted.items() if k in chain), ZERO)
     reconciled = sum((v for k, v in accepted.items() if k not in chain), ZERO)
     below, acceptance, deliverables = released, ZERO, 0      # value released on chain lies first in the month
-    small: dict[str, list[Decimal]] = {}                      # payee -> its outcomes under 20 USD: netted, one release each
+    small: dict[tuple[str, Price], list[Decimal]] = {}        # (payee, price) -> its outcomes under 20 USD: netted, one release each
+    older = 0                                                 # deliverables charged at a price older than the newest
     for ident, value in accepted.items():
         if ident in chain or value <= 0:
             continue
         deliverables += 1
+        at = priced.get(ident, prices[-1])
+        older += at != prices[-1]
         if value < NET_BELOW and payee[ident]:
-            small.setdefault(payee[ident], []).append(value)
+            small.setdefault((payee[ident], at), []).append(value)        # one release never mixes two prices
             continue
-        acceptance += acceptance_fee(value, below, volume)
+        acceptance += acceptance_fee(value, below, volume, at)
         below += value
-    net = netted([(who, value) for who, values in small.items() for value in values], below, volume)
+    net: dict = {"releases": [], "outcomes": 0, "fee": ZERO, "individually": ZERO}
+    for at in dict.fromkeys(p for _who, p in small):
+        got = netted([(who, v) for (who, p), values in small.items() if p == at for v in values], below, volume, at)
+        net = {"releases": net["releases"] + got["releases"], "outcomes": net["outcomes"] + got["outcomes"],
+               "fee": net["fee"] + got["fee"], "individually": net["individually"] + got["individually"]}
+        below += sum((v for (_who, p), values in small.items() if p == at for v in values), ZERO)
     acceptance += net["fee"]
     parts = [p for p in acceptance_parts(released + reconciled, volume) if p["of"] > 0]
     how = (f"{show(reconciled)} reconciled off chain over {deliverables:,} deliverables"
@@ -410,6 +483,10 @@ def invoice(month: dict) -> dict:
         lines.append(_line("on_chain", "Released on chain", ZERO, "on_chain",
                            f"{show(released)} over {len([k for k in chain if accepted[k] > 0]):,} deliverables; about {show(paid_there)} was paid to the program at release",
                            released=show(released)))
+    if older:
+        lines.append(_line("price_at_funding", "Price at funding", ZERO, "notice",
+                           f"{older:,} deliverable{'s' if older != 1 else ''} at the price in force when {'their orders were' if older != 1 else 'its order was'} "
+                           f"funded, not the price that started on {prices[-1].starts}"))
     if said_rail and released and banked:
         lines.append(_line("once_any_rail", "Acceptance, once on either rail", ZERO, "once_any_rail",
                            f"{len(chain):,} paid by the program, {banked:,} by another rail; none is charged on both"))

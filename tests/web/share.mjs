@@ -22,7 +22,7 @@ const NOW = Date.parse("2026-10-09T12:00:00Z");
 // what web/check.js readPr answers (the detail of its "knos:check" event)
 const V = { ref: { owner: "octo", repo: "widgets", number: 12 }, url: "https://github.com/octo/widgets/pull/12", title: "Parser", sha: "c".repeat(40),
   claim: { phrase: "All tests pass", line: "- [x] All tests pass locally (`npm test`)" }, cls: "failed", failed: ["jest", "eslint", "vercel"],
-  split: { test: ["jest", "eslint"], other: ["vercel"] }, line: "Claims tests pass; a test or build check failed.", merged: false };
+  split: { test: ["jest", "eslint"], other: ["vercel"] }, line: "Claims tests pass; a test, build, lint or type check failed.", merged: false };
 const PR = V.ref;
 ok("the link carries the pull request", share.shareHash(PR) === "#check=octo/widgets/12" && share.shareUrl(PR) === "https://drexthealpha.github.io/Knos/#check=octo/widgets/12");
 ok("the link reads back", JSON.stringify(share.readShareHash("#check=octo/widgets/12")) === JSON.stringify(PR)
@@ -33,7 +33,7 @@ ok("the counts in one line", share.countsLine(V) === "Failed checks: 2 test, bui
 ok("the claim quoted, or nothing claimed", share.claimLine(V) === "Claimed: “- [x] All tests pass locally (`npm test`)”" && share.claimLine({ claim: null }) === "Claimed nothing about tests.");
 ok("coloured as #check colours it", share.tone(V) === "bad" && share.tone({ ...V, claim: null }) === "ink" && share.tone({ ...V, cls: "passed" }) === "ok");
 const TEXT = share.resultText(V);
-ok("the copied result", TEXT === "octo/widgets#12: Claims tests pass; a test or build check failed.\nClaimed: “- [x] All tests pass locally (`npm test`)”\nFailed checks: 2 test, build, lint or type; 1 other.\nchecked by Knos: https://drexthealpha.github.io/Knos/#check=octo/widgets/12", TEXT);
+ok("the copied result", TEXT === "octo/widgets#12: Claims tests pass; a test, build, lint or type check failed.\nClaimed: “- [x] All tests pass locally (`npm test`)”\nFailed checks: 2 test, build, lint or type; 1 other.\nchecked by Knos: https://drexthealpha.github.io/Knos/#check=octo/widgets/12", TEXT);
 for (const v of [V, { ...V, line: "w".repeat(400) + " long", ref: { owner: "o".repeat(39), repo: "r".repeat(100), number: 123456789 } }]) {
   const u = new URL(share.postUrl(v)), text = u.searchParams.get("text");
   ok(`X's compose box, filled, within 280 (${text.length} + link)`, u.origin + u.pathname === "https://x.com/intent/tweet" && u.searchParams.get("url") === share.shareUrl(v.ref)

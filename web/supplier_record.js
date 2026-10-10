@@ -19,7 +19,7 @@ export const SCHEMA = "knos.supplier-record/1";
 export const TILES = ["accepted", "rejected", "insufficient_evidence", "disputed", "overturned", "reverted"];
 export const WORDS = { accepted: "accepted", rejected: "rejected", insufficient_evidence: "insufficient evidence", disputed: "disputed", appealed: "appealed",
   overturned: "overturned on appeal", reverted: "reverted" };
-export const INSTALL = "uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.25";
+export const INSTALL = "uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.3.26";
 export const slugOf = (name) => String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
 export const slugIn = (hash) => { const m = /^#?record=([^&]*)/.exec(String(hash || "")); return m ? slugOf(decodeURIComponent(m[1])) : ""; };
 

@@ -78,7 +78,7 @@ a file. Nothing sends it anywhere, and nothing keeps it.
 
 | control | what it would take |
 |---|---|
-| Single sign-on | does not exist. Knos has no accounts, so there is nothing to sign on to: identity is GitHub's and a wallet's. The console is a static page with no server and no sign-in: it cannot know who is reading it, and anyone can open it. A company that enforces SAML single sign-on on its GitHub organisation gets that for the comments that fund, the comments that approve and the runs that sign, and for nothing on the console. A console with its own sign-on would take a hosted service that keeps sessions (a server, a SAML or OpenID Connect integration with the company's identity provider, a place to keep which account holds which role), an operator to run it, and a contract. None of that is built. |
+| Single sign-on | Single sign-on through any OpenID Connect provider, tested against a stand-in provider only, in the self-host bundle ([SELFHOST.md](SELFHOST.md)): the buyer runs the site, the approver and the record API in its own cloud, and its staff sign in with their work account. Roles are viewer, approver and admin; each approval and export is a line in a hash-chained audit log. No real provider has been tried, and the bundle has never been deployed. The public site has no sign-in: it is a static page anyone can open, and Knos has no accounts of its own. A company that enforces SAML single sign-on on its GitHub organisation gets that for the comments that fund, the comments that approve and the runs that sign. |
 | Private deployment | does not exist. There is no package to run the console, the relay and the statement files inside a company's own network, no documented way to do it, and nobody has tried. It would take that package, a relay the company runs with its own key, the site's files built from the company's own data, and somebody to support it. The command line and the files in the buyer's repository do run on the buyer's own machines; the programs are on a public chain either way. |
 | A support contract | does not exist. There is no entity to sign one, no response time, no on-call team. Today the founder alone answers. It would take a company, people, and an agreement that names the hours and the time to respond. |
 | Support, with a response time | people, and an agreement that names the time |
@@ -98,7 +98,7 @@ a file. Nothing sends it anywhere, and nothing keeps it.
 | A relayer | carry a signed token to the chain and pay the fee | decide anything: the program checks the signature and the terms | [`src/knos/settle/v2/relay/`](../src/knos/settle/v2/relay/__init__.py) |
 | Knos, outside the two multisigs | nothing on a funded order | | |
 
-What does not exist: single sign-on; private deployment; a support contract; an approval the program enforces (the approval chain of
+What does not exist: single sign-on tried with a real provider (the self-host bundle has single sign-on through any OpenID Connect provider, tested against a stand-in provider only); a private deployment that has run; a support contract; an approval the program enforces (the approval chain of
 0.3.17 is files in the buyer's repository and a command, and a multisig's vault as the funder is the only two-person approval that
 money cannot get past, by the multisig's own rule); an admin console; roles inside the program. Knos has no accounts of its own.
 Identity is GitHub's and a wallet's, so a company's access rules for GitHub are its access rules here. **Every

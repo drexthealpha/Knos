@@ -853,5 +853,185 @@
   "Why a check failed, or whether the maintainer saw it: a failed check is GitHub's record, not a judgment. any_check_failed counts deploy previews and label gates; test_or_build_check_failed is decided from check names",
   "Agent pull requests in general: these are pull requests whose description claims tests or CI pass, the newest per agent and date window that GitHub's search returned, not a random sample",
   "What a bounty would have changed: none of these pull requests had one, so which checks its terms would have required is not known. This counts merges with a failed check, not payments refused"
- ]
+ ],
+ "version2_draft": {
+  "status": "draft: version 1 stays the method of record; nothing here changes its counts",
+  "funnel": [
+   {
+    "step": "searched",
+    "prs": 833,
+    "of_previous": null,
+    "means": "search hits GitHub returned for the five agents and the claim words"
+   },
+   {
+    "step": "claimed",
+    "prs": 349,
+    "of_previous": 0.419,
+    "means": "a line of the description says tests or CI pass (the claim)"
+   },
+   {
+    "step": "finished_ci",
+    "prs": 303,
+    "of_previous": 0.8682,
+    "means": "CI had finished at the head commit when read"
+   },
+   {
+    "step": "merged",
+    "prs": 241,
+    "of_previous": 0.7954,
+    "means": "merged when read: the denominator"
+   },
+   {
+    "step": "any_check_failed",
+    "prs": 30,
+    "of_previous": 0.1245,
+    "means": "merged with a failed check of any kind (recorded scan)"
+   },
+   {
+    "step": "reread_kept",
+    "prs": 19,
+    "of_previous": 0.6333,
+    "means": "still counted after the second reading of those (rules R1-R5)"
+   },
+   {
+    "step": "strict",
+    "prs": 9,
+    "of_previous": 0.4737,
+    "means": "of those, a test, build, lint or type check failed: the lead number"
+   }
+  ],
+  "clustered": {
+   "reviewed_strict": {
+    "prs": 9,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 9,
+    "most_from_one_repository": 1,
+    "wilson_ci95": [
+     0.0198,
+     0.0694
+    ],
+    "design_effect": 1.079,
+    "effective_n": 223.3,
+    "clustered_wilson_ci95": [
+     0.0193,
+     0.071
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0152,
+     0.0644
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   },
+   "reviewed_any": {
+    "prs": 19,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 15,
+    "most_from_one_repository": 4,
+    "wilson_ci95": [
+     0.051,
+     0.1198
+    ],
+    "design_effect": 1.876,
+    "effective_n": 128.5,
+    "clustered_wilson_ci95": [
+     0.0435,
+     0.1386
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0388,
+     0.1336
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   },
+   "recorded_strict": {
+    "prs": 16,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 13,
+    "most_from_one_repository": 2,
+    "wilson_ci95": [
+     0.0413,
+     0.1051
+    ],
+    "design_effect": 1.476,
+    "effective_n": 163.3,
+    "clustered_wilson_ci95": [
+     0.0373,
+     0.1154
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0317,
+     0.1065
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   },
+   "recorded_any": {
+    "prs": 30,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 21,
+    "most_from_one_repository": 4,
+    "wilson_ci95": [
+     0.0886,
+     0.1721
+    ],
+    "design_effect": 1.973,
+    "effective_n": 122.1,
+    "clustered_wilson_ci95": [
+     0.0772,
+     0.1947
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0717,
+     0.1886
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   }
+  },
+  "reread_negatives": {
+   "protocol": "docs/INDEX_METHOD.md, version 2 draft, 'Reading the negatives again'",
+   "population": 232,
+   "run": {
+    "read": "2026-10-10",
+    "seed": 20261010,
+    "negatives": {
+     "prs": 20,
+     "consistent": 16,
+     "inconclusive": 2,
+     "unreadable": 2,
+     "flipped": 0
+    },
+    "controls": {
+     "prs": 5,
+     "consistent": 0,
+     "inconclusive": 4,
+     "unreadable": 1,
+     "flipped": 0
+    },
+    "flipped_share_ci95": [
+     0.0,
+     0.1936
+    ],
+    "says": "0 of 20 negatives flipped; 16 read as before, 2 could not be decided without logging in, and 2 pages did not show the merge or the checks"
+   }
+  },
+  "comparison_group": {
+   "status": "planned, not run",
+   "plan": "docs/INDEX_METHOD.md, version 2 draft, 'A comparison group of pull requests by people'"
+  }
+ }
 }

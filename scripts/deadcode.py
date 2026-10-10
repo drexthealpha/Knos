@@ -17,7 +17,9 @@ SRC = ROOT / "src"
 # network (tests/test_private_path.py runs it the same way).
 # knos.host_judge: `python -m knos.host_judge link|editor|level|says`, what docs/ATTESTOR.md gives a host (tests/test_host_a_judge.py);
 # the round `judge` of scripts/exercise_rounds/ reads a host's level through it.
-ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund", "knos.private", "knos.host_judge"]
+# knos.sources.sigstore: the adapter docs/SOURCES.md gives a caller to use in its own code (verify, then knos.sources.line);
+# nothing in the package calls it yet, and tests/test_sources.py holds it to two recorded npm build records.
+ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund", "knos.private", "knos.host_judge", "knos.sources.sigstore"]
 SCRIPTS = [p for p in list((ROOT / "scripts").glob("*.py")) + list((ROOT / "scripts" / "exercise_rounds").glob("*.py")) + list((ROOT / "examples").glob("*.py"))
            if p.name not in ("deadcode.py", "vulture_whitelist.py")]
 

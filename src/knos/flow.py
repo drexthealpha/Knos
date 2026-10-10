@@ -706,6 +706,19 @@ def _verdict(line: str | None, kind: str, tid: str) -> dict:
             "note": _short(note.group(1)) if note else "", **({"times": at} if at else {}), **({"quorum": quorum, "paid": []} if quorum else {})}
 
 
+def _theirs(r: dict) -> bool:
+    """True when the relay refused a token for a reason of the asker's own (knos.ghwords.RELAY: the issue is funded
+    already, nothing is in escrow, an old workflow): the reply says what to do, and the job does not fail for it."""
+    return not r.get("ok") and not r.get("timeout") and ghwords.user_error(r.get("why"))
+
+
+def _then(why, again: str) -> str:
+    """The one sentence a reply ends with after the relay refused a token: what to do next for that reason
+    (knos.ghwords.RELAY), or `again`, this command's own way to try again, for any other reason."""
+    whose, then = ghwords.relay_reason(why)
+    return again if then == ghwords.RELAY_AGAIN else then
+
+
 def _note(r: dict) -> str:
     """What a token this job relayed did, in a few words."""
     if r.get("kind") == "fund":
@@ -1091,7 +1104,8 @@ def _relayed(run: Run, c: Case, r: dict, after: str, how: str) -> str:
                     f"until an hour after it expires: if one carries it, the payment is made, and `/knos status` shows it. Otherwise "
                     f"{how} for a new token.")
         return (f"not paid yet. {name[0].upper()}{name[1:]} met its terms for {payee} and GitHub signed the token, but Solana did not take "
-                f"it: {_short(r.get('why') or 'no reason was given').rstrip('. ')}. {how[0].upper()}{how[1:]} to try again.")
+                f"it: {_short(r.get('why') or 'no reason was given').rstrip('. ')}. "
+                + _then(r.get("why"), f"{how[0].upper()}{how[1:]} to try again."))
     tx = _link(run, "transaction", "tx", r["sigs"][-1]) if r.get("sigs") else "an earlier token had carried it"
     if c.order and r.get("quorum"):         # an order with a quorum, before its last judge: a marker was written, nothing was paid
         q = r["quorum"]
@@ -1193,6 +1207,8 @@ def _paid_order(run: Run, c: Case, r: dict, tx: str, took: str) -> str:
     if back:
         out.append(f"{_amount(back)} more ({o.holdback_bps / 100:g}%) is held back as the warranty for {_days(o.warranty_s // 86_400)}: after that "
                    "anyone can release it to the same people; if the work is reverted before then, it goes back to the funder.")
+    if r.get("own_quorum"):          # the relay carried a quorum of one controller because every account in it is the operator's own
+        out.append(f"{r['own_quorum']}.")
     if order_auto.quorum_of(o.flags) and r.get("sigs"):       # a quorum whose judges share a controller is said, from the payment's receipt
         from . import statement
         made = r.get("receipt") or _quorum_receipt(run, str(r["sigs"][-1]))
@@ -1634,7 +1650,7 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
         r = deliver("fund", jwt, number, data, run=run, since=since)
     what = "the tip" if tip else "the bounty"
     if not r["ok"]:
-        run.failed = True
+        run.failed = not _theirs(r)
         if r.get("timeout"):
             return (f"Knos: not confirmed yet. GitHub signed the request (it is posted {'in ' + att.run.repo if att is not None else 'above'}) and no relayer carried it to Solana "
                     f"within {RELAY_WAIT // 60} minutes. Solana takes the signed token until an hour after it expires: if one carries it, {what} is funded"
@@ -1647,8 +1663,8 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
                     + ("the relay refused it before anything was sent to Solana" if before else "Solana did not take it") + f": {cause}. Posting the "
                     f"comment again changes nothing until {fix} (it signs knos_pay's SetBalanceX: `knos.settle.v2.pay.set_balance_x_ix` builds "
                     "the instruction)" + (", or a smaller `/knos fund` fits under it." if cause.startswith(pay.ERRORS[100]) else "."))
-        return (f"Knos: nothing was funded. GitHub signed the request and Solana did not take it: {cause}. To try "
-                f"again, {again}.")
+        return (f"Knos: nothing was funded. GitHub signed the request and Solana did not take it: {cause}. "
+                + _then(cause, f"To try again, {again}."))
     money = f"{_amount(r.get('amount') or cmd.units)} {_money(run, mint_)}"
     took = f"{r['seconds']} s after {after}"
     if plan is not None:
@@ -2178,7 +2194,8 @@ def _reserve_order(run: Run, cmd: commands.Reserve, said: dict, on: dict) -> str
         if r.get("timeout"):
             return (f"Knos: not confirmed yet. GitHub signed the request (it is posted above) and no relayer carried it to Solana within "
                     f"{RELAY_WAIT // 60} minutes. If one carries it within the hour, the reserve is locked and `/knos status` shows it. Otherwise {again}.")
-        return stop + f"GitHub signed the request and Solana did not take it: {r['why'].rstrip('. ')}. To try again, {again}."
+        run.failed = not _theirs(r)
+        return stop + f"GitHub signed the request and Solana did not take it: {r['why'].rstrip('. ')}. " + _then(r["why"], f"To try again, {again}.")
     order = str(r.get("order") or pay.order_pda(pay.scope_of(rp["id"], number), balance, seq))
     _onboarded(run, run.repo.split("/")[0], login)
     money, fee_paid = f"{_amount(r.get('amount') or cmd.units)} {_money(run, mint_)}", _amount(r.get("fee") or fee)
@@ -2882,8 +2899,8 @@ def _settle_one(run: Run, rp: dict, pull: dict, since: float, after: str, asked:
                 _prove(run, rp, pull, c, since)
             except Exception as why:  # noqa: BLE001 - one job's trouble is its own: the others are still paid
                 c.unread.append(f"its signed token could not be made ({type(why).__name__}: {_short(why)})")
-    if any(c.verdict() == "unread" or (c.result is not None and not c.result.get("ok")) for c in cases):
-        run.failed = True
+    if any(c.verdict() == "unread" or (c.result is not None and not c.result.get("ok") and not _theirs(c.result)) for c in cases):
+        run.failed = True       # (a refusal of the commenter's own, such as no bounty on the issue, is answered and is no failure)
     parts = [_after(run, c, pull, after, by_tests) for c in cases] + ([] if by_tests else _left_out(run, number))
     if blind and (asked or closes or parts or tips_only):     # a push says nothing about a pull request that closes no issue
         run.failed = True
@@ -4116,7 +4133,8 @@ def _attest_sign(run: Run, kind: str, aud: str, said: str, found: str | None, nu
     late = (" Solana takes it until an hour after it expires: when a relayer carries it, "
             + ("the evaluation is counted." if kind == "eval" else "the payment is made.")) if r.get("timeout") else ""
     run.note(f"Knos attest: GitHub signed that {said}" + (f", and Solana took it ({_link(run, 'transaction', 'tx', r['sigs'][-1]) if r['sigs'] else r['note']})."
-                                                         if r["ok"] else f", but Solana did not take it: {r['why'].rstrip('. ')}.") + posted + late + (found or ""))
+                                                         if r["ok"] else f", but Solana did not take it: {r['why'].rstrip('. ')}."
+                                                         + (" " + _then(r["why"], "")).rstrip()) + posted + late + (found or ""))
     return 0 if r["ok"] else 1
 
 

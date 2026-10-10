@@ -62,3 +62,36 @@ def test_a_bump_rewrites_it_and_check_fails_when_it_is_stale(tmp_path):
     assert "/blob/v1.2.3/" in (tmp_path / "README.pypi.md").read_text(encoding="utf-8")
     (tmp_path / "README.md").write_text("[x](docs/NEW.md)\n", encoding="utf-8")
     assert b.pypi_stale("1.2.3", tmp_path)
+
+
+def test_a_diagram_is_its_picture_at_the_tag_on_pypi(tmp_path):
+    """PyPI does not draw Mermaid: each of README.md's diagrams is its picture (scripts/diagrams.py draws them), and its
+    italic caption is the picture's text and stays under it."""
+    b = _bump()
+    page = ("# Page\n\n```mermaid\nflowchart TB\n    A[You] --> B[Them]\n```\n\n*The money moves on a [check](docs/A.md).*\n\n"
+            "```python\nprint(1)\n```\n\n~~~mermaid\nflowchart LR\n    C --> D\n~~~\n")
+    out = b.pypi_readme(page, "9.8.7", tmp_path)
+    raw = "https://raw.githubusercontent.com/drexthealpha/Knos/v9.8.7" + "/docs/diagrams"     # split: a whole one is a pin a bump moves
+    assert "mermaid" not in out and "flowchart" not in out and "```python\nprint(1)\n```" in out
+    assert f"![The money moves on a check.]({raw}/readme-1.svg)\n\n*The money moves on a [check](" in out
+    assert f"![Diagram]({raw}/readme-2.svg)\n" in out
+    assert b.relative_left(out) == []
+    (tmp_path / "README.md").write_text(page, encoding="utf-8")
+    assert b.missing_pictures(tmp_path) == [f"README.md, diagram {n}: no docs/diagrams/readme-{n}.svg (python scripts/diagrams.py render)"
+                                            for n in (1, 2)]
+    (tmp_path / "docs" / "diagrams").mkdir(parents=True)
+    for n in (1, 2):
+        (tmp_path / "docs" / "diagrams" / f"readme-{n}.svg").write_text("<svg/>", encoding="utf-8")
+    assert b.missing_pictures(tmp_path) == []
+
+
+def test_the_package_description_draws_no_mermaid_and_each_picture_is_at_the_tag_and_exists():
+    b = _bump()
+    text = (ROOT / "README.pypi.md").read_text(encoding="utf-8")
+    assert "```mermaid" not in text and "~~~mermaid" not in text
+    pictures = re.findall(r"https://raw\.githubusercontent\.com/drexthealpha/Knos/([^/\s)]+)/(docs/diagrams/[^)\s\"]+)", text)
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert len(pictures) == readme.count("```mermaid") + readme.count("~~~mermaid")
+    for ref, path in pictures:
+        assert ref == f"v{_version()}" and (ROOT / path).is_file(), (ref, path)
+    assert b.missing_pictures() == []

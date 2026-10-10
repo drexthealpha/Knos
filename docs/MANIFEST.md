@@ -1,4 +1,4 @@
-# Release manifest: Knos 0.3.25
+# Release manifest: Knos 0.3.26
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -16,7 +16,7 @@ deployed there, the transactions recorded, and the fee schedule. The rows behind
 
 ## Source
 
-- Release: Knos 0.3.25 (`pyproject.toml`). Tag: [`v0.3.25`](https://github.com/drexthealpha/Knos/tree/v0.3.25); `git rev-list -n 1 v0.3.25` prints its commit. A file
+- Release: Knos 0.3.26 (`pyproject.toml`). Tag: [`v0.3.26`](https://github.com/drexthealpha/Knos/tree/v0.3.26); `git rev-list -n 1 v0.3.26` prints its commit. A file
   cannot hold the hash of the commit that holds it.
 - Cluster: Solana devnet. The money is test USDC. Mainnet is not touched.
 
@@ -315,6 +315,17 @@ capability is in [CAPABILITIES.md](CAPABILITIES.md).
 | `reproduction_verify` | tested locally | [`src/knos/reproduce.py`](../src/knos/reproduce.py): `def verify_lines` | [`tests/test_reproduce_verify.py`](../tests/test_reproduce_verify.py): `test_verify_refuses_an_edited_report_a_failed_check_another_key_and_calls_an_own_run_what_it_is` | none | none | none |
 | `consumer_node_standalone` | tested locally | [`examples/consumer/consumer.mjs`](../examples/consumer/consumer.mjs): `export async function decideReceipt` | [`tests/test_consumer.py`](../tests/test_consumer.py): `test_the_node_tests_pass_offline` | none | none | none |
 | `erp_bill_import` | tested locally | [`src/knos/erp.py`](../src/knos/erp.py): `TARGETS = {` | [`tests/test_erp.py`](../tests/test_erp.py): `test_disputed_and_owed_lines_go_to_the_held_sheet_never_the_payable` | none | none | none |
+| `pilot_plan` | tested locally | [`scripts/pilot_plan.py`](../scripts/pilot_plan.py): `def assign` | [`tests/test_pilot_plan.py`](../tests/test_pilot_plan.py): `test_the_same_list_and_seed_give_the_same_bytes_and_another_seed_another_draw` | none | none | none |
+| `judged_files_refused` | tested locally | [`src/knos/terms.py`](../src/knos/terms.py): `DENY = ` | [`tests/test_terms_defaults.py`](../tests/test_terms_defaults.py): `test_a_pull_request_that_edits_the_files_that_judge_it_is_refused_by_default` | none | none | none |
+| `price_at_funding` | tested locally | [`src/knos/billing.py`](../src/knos/billing.py): `def price_at` | [`tests/test_billing_defaults.py`](../tests/test_billing_defaults.py): `test_an_order_pays_the_price_in_force_on_the_day_it_was_funded` | none | none | none |
+| `default_holdback_window` | implemented | [`src/knos/terms.py`](../src/knos/terms.py): `def window` | none | none | none | none |
+| `stats_full_history` | tested locally | [`scripts/network_stats.py`](../scripts/network_stats.py): `def read_history` | [`tests/test_network_stats.py`](../tests/test_network_stats.py): `test_the_whole_history_is_read_page_by_page_so_merge_to_paid_times_every_payment` | none | none | none |
+| `index_within_rate_limit` | tested locally | [`scripts/agent_pr_ci.py`](../scripts/agent_pr_ci.py): `def budget` | [`tests/test_agent_pr_index.py`](../tests/test_agent_pr_index.py): `test_the_index_scan_stops_before_the_hourly_limit_then_reads_only_what_is_new` | none | none | none |
+| `receipt_verify_deadline` | tested locally | [`src/knos/receipt.py`](../src/knos/receipt.py): `def from_chain` | [`tests/test_receipt_verify_time.py`](../tests/test_receipt_verify_time.py): `test_a_slow_cluster_gets_one_line_in_the_time_given_and_no_request_after_it` | none | none | none |
+| `workflows_cutoff_after_upload` | tested locally | [`scripts/pinned_workflows.py`](../scripts/pinned_workflows.py): `def write_cutoff` | [`tests/test_release_order.py`](../tests/test_release_order.py): `test_no_cutoff_in_this_tree_is_earlier_than_the_release_it_names` | none | none | none |
+| `seo_pages` | tested locally | [`web/faq.html`](../web/faq.html): `"@type": "FAQPage"` | [`tests/test_seo.py`](../tests/test_seo.py): `test_the_questions_say_the_same_words_on_the_page_in_its_json_ld_and_in_the_readme` | none | none | none |
+| `sources_sigstore` | tested locally | [`src/knos/sources/sigstore.py`](../src/knos/sources/sigstore.py): `class Sigstore` | [`tests/test_sources.py`](../tests/test_sources.py): `test_the_two_recorded_bundles_verify` | none | none | none |
+| `sso_oidc` | tested locally | [`src/knos/sso.py`](../src/knos/sso.py): `def verify_id_token` | [`tests/test_sso.py`](../tests/test_sso.py): `test_whole_flow_over_the_loopback` | none | none | none |
 
 ## Fee schedule of each recorded order
 

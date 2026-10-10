@@ -1486,6 +1486,136 @@ def mirror_find(where: str, target: str, get=None) -> list[dict]:
     return out
 
 
+# ---- `knos receipt verify`: the receipt rebuilt from the chain, with an answer in a time the reader is told -----------------
+# It read the escrow's newest transactions one by one. devnet's public endpoint takes 40 requests of one method per 10 s
+# (https://solana.com/docs/references/clusters), so 1,000 of them take over four minutes, and said nothing all that time.
+# It now reads, of those, only the transactions a receipt is built from.
+VERIFY_SECONDS = 120.0
+TX_VERSION = {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 1}  # what the relay sends: version 1
+
+
+class NoAnswer(OSError):
+    """The cluster did not answer in time. Its text is one line: where, after how long, how far, and what to try."""
+
+
+def from_chain(target: str, url: str, limit: int = 1000, seconds: float = VERIFY_SECONDS, call=None, clock=None) -> dict:
+    """The receipt of `target` (an order's address, or its paying transaction) rebuilt from the cluster at `url`:
+    knos.bundle.gather over the escrow's newest `limit` transactions. Of those it reads only the ones gather takes
+    anything from, found in each account's own list: the order's; the first that names the Balance it was funded from
+    (its opening: no Balance is closed); when that is among them, the last its side account set before the funding
+    (the limits count only then); and the owner's plan set while the order was open. Every other transaction gives
+    gather nothing it uses, so the receipt is the one gather builds over all of them. A paying
+    transaction that names no work order and is an issue's bounty is read against all of them. Every request together
+    gets `seconds`: each one waits at most what is left, and at that time NoAnswer says so in one line, whatever is
+    still waiting. OSError when a transaction it needs could not be read; otherwise what gather raises.
+    `call(method, params, timeout)` and `clock()` stand in for the cluster and the clock in tests."""
+    import threading
+    import time
+
+    from . import bundle, chain, records
+    from .settle.v2 import pay
+    clock = clock or time.monotonic
+    ask = call or (lambda method, params, timeout: chain.call(url, method, params, timeout=timeout))
+    end, seen = clock() + seconds, {"read": 0, "of": -1}      # transactions read, of how many (-1: the list has not come)
+    stop = time.monotonic() + seconds                          # the time the answer is given by, on the wall clock
+
+    def late() -> NoAnswer:
+        of = f"{seen['read']:,} of {seen['of']:,} transactions read" if seen["of"] >= 0 else "the list of transactions did not come"
+        return NoAnswer(f"no answer from {url} within {seconds:g} s ({of}): give your own endpoint (--rpc URL) or fewer transactions (--limit N)")
+
+    def timed(method: str, params: list):
+        left = end - clock()
+        if left <= 0:
+            raise late()
+        try:
+            return ask(method, params, min(30.0, left))
+        except Exception:
+            if clock() >= end:      # the request ran out of the time that was left: say that, not the socket's words
+                raise late() from None
+            raise
+
+    def work() -> dict:
+        got = timed("getSignaturesForAddress", [str(pay.PAY_ID), {"limit": limit}]) or []
+        window = [s["signature"] for s in reversed(got) if s.get("err") is None]      # oldest first, as records.history gives them
+        at = {sig: n for n, sig in enumerate(window)}
+        seen["of"] = 0
+        logged: dict[str, list[dict]] = {}      # each transaction read: its escrow events
+        unread: list[str] = []
+
+        def read(sigs) -> None:
+            new = [s for s in dict.fromkeys(sigs) if s in at and s not in logged and s not in unread]
+            seen["of"] += len(new)
+            for sig in new:
+                try:
+                    tx = timed("getTransaction", [sig, TX_VERSION])
+                except NoAnswer:
+                    raise
+                except Exception:  # noqa: BLE001 - still throttled after the backoff: counted, never guessed
+                    unread.append(sig)
+                    continue
+                seen["read"] += 1
+                logged[sig] = [{**ev, "tx": sig} for ev in records.events_of(tx)]
+
+        def own(address: str, upto: int) -> list[str]:
+            """The transactions of the window that name `address`, oldest first, up to the window's `upto`-th."""
+            listed = timed("getSignaturesForAddress", [address, {"limit": limit}]) or []
+            return sorted((s["signature"] for s in listed if at.get(s.get("signature"), upto + 1) <= upto), key=at.__getitem__)
+
+        def events() -> list[dict]:
+            return [ev for sig in sorted(logged, key=at.__getitem__) for ev in logged[sig]]
+
+        if len(target) > 44:        # a transaction's signature (an address has at most 44 characters)
+            read([target])
+            orders = sorted({str(ev["order"]) for ev in logged.get(target, []) if ev["event"].startswith("order_") and ev.get("order")})
+            if not orders and any(ev["event"] in records.JOB_EVENTS for ev in logged.get(target, [])):
+                read(window)        # an issue's bounty: gather tells it from the whole history, as it did
+        else:
+            orders = [target]
+        for order in orders:
+            read(own(order, len(window) - 1))
+        for order in orders:
+            mine = [ev for ev in events() if str(ev.get("order", "")) == order]
+            last = max((at[ev["tx"]] for ev in mine), default=-1)
+            for funded in [ev for ev in mine if ev["event"] == "order_funded"]:
+                source, at_funding, known = str(funded.get("source", "")), at[funded["tx"]], None
+                try:
+                    side = str(pay.balx_pda(pay.Pubkey.from_string(source)))
+                except Exception:  # noqa: BLE001 - not an address (a test's stand-in name): there is no Balance to read
+                    side = None
+                if side is not None:
+                    read(own(source, at_funding)[:1])       # a Balance's opening is the first transaction that names it
+                    known = records._balances(events()).get(source)
+                if known and side is not None:      # the opening is in the window, so the limits count: the last its side account set before it
+                    for sig in reversed(own(side, at_funding)):
+                        read([sig])
+                        if any(ev["event"] == "balancex" and str(ev.get("balance")) == source for ev in logged.get(sig, [])):
+                            break
+                # the plan of the order's owner (0 when the opening is not in the window) set while it was open
+                read([s for s in own(str(pay.plan_pda(int((known or {}).get("owner") or 0))), last) if at[s] > at_funding])
+        if unread:
+            raise OSError(f"{len(unread)} transactions could not be read (the public RPC throttled); try again, or give --rpc")
+        return bundle.gather(timed, events(), target, None)[0]
+
+    # A request may run past its share (an endpoint that asks to wait and retry), so the whole read runs beside a clock
+    # that answers at the time given, whatever is still waiting.
+    box: dict = {}
+
+    def run() -> None:
+        try:
+            box["receipt"] = work()
+        except BaseException as e:  # noqa: BLE001 - handed to the caller as it was raised
+            box["error"] = e
+
+    worker = threading.Thread(target=run, name="knos-receipt-verify", daemon=True)
+    worker.start()
+    worker.join(max(0.0, stop - time.monotonic()))
+    if worker.is_alive():
+        raise late()
+    if "error" in box:
+        raise box["error"]
+    return box["receipt"]
+
+
 # ---- the Solana Attestation Service attestation, at settlement ---------------------------------------------------------------
 def attest(r: dict, keypair: str | None = None, rpc: str | None = None, timeout: float = 60.0, run=None, call=None, sleep=None) -> dict:
     """Write `r` as an attestation (scripts/sas_receipt.mjs --send). On by default wherever a receipt is issued; the

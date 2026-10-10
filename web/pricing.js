@@ -204,7 +204,7 @@ export function initPricing(ctx) {
     const worked = $("fee-worked")?.querySelector("tbody");
     if (worked) worked.innerHTML = WORKED.map((whole) => `<tr data-amount="${whole}"><th scope="row">${count(whole)}</th><td>${how(whole)}</td><td>${plain(orderFee(whole * 1e6, c.feeBps, c))}</td></tr>`).join("");
     for (const id of ["calc-settle", "arithmetic"]) if ($(id)) $(id).dataset.fee = c.fee.release;
-    set("fee-how", `${c.tiered ? "Each part of the amount pays its tier's rate" : "One rate applies to the whole amount"}, and the fee is never under the floor. The funder pays the fee on top; the payee receives the amount in full.`);
+    set("fee-how", `${c.tiered ? "Each part of the amount pays its tier's rate" : "One rate applies to the whole amount"}, and the fee is never under the floor. On an order the funder pays the fee on top; the payee receives the amount in full. On a tip the fee comes out of the amount.`);
     set("price-honest-now", c.tiered ? `Until knos_pay 2.2 is live the program charges the fee it charges before the upgrade: ${feeRate(c)}. From 2.2: ` : "");
   }
   drawRule();
@@ -232,7 +232,7 @@ export function initPricing(ctx) {
       ${row("tip", "of it, the relay's tip", q.tip, "never more than the fee")}
       ${row("knos", "of it, Knos's fee", q.knos, `${show(q.knosFirst)} on a payee's first payment`)}</tbody></table></div>
       ${next(amount, bps)}
-      <p class="fine">The funder pays the fee on top. The payee pays nothing. Test USDC on devnet.</p>`;
+      <p class="fine">An order: the funder pays the fee on top. A tip: the fee comes out of it. Test USDC on devnet.</p>`;
   }
   // one line when the fee shown is not this tree's: what the same order pays after (or until) the next upgrade
   function next(amount, bps) {

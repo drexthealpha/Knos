@@ -2,6 +2,181 @@
 
 Prices and figures in older entries are superseded; the current price book is [docs/MARKET.md](docs/MARKET.md), section "The price book", and each GitHub release's notes are its entry here.
 
+## 0.3.26 (October 2026)
+
+**Knos in plain words: the README and seven first documents explained for a newcomer, with diagrams and the mark; a
+list of every technical word; and three plans written down before anything is built: an upgrade, the keys and a fair
+test of a paid pilot.**
+
+The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
+Solana devnet, which is test mode: the money is test USDC. Nothing in this release has been used by a person outside
+this repository. **No program changes in this release:** nothing under `programs-v2/knos_*`, `programs/`, `idl/` or
+`tests/fixtures/*.so` moved by a byte. The interface crates stay at 0.3.14.
+
+### Plain words
+
+- **The README is rewritten** for a reader who has never heard of GitHub, Solana or escrow. Under the logo and the
+  sentence, a new line says what a buyer gets: "Pay AI agents only when your checks pass." The site's first screen
+  says the same line. Then four parts: how it works, the ten-second check, why nobody can fudge the
+  count, and whether it is real. Two of them have a diagram.
+- **Seven documents** now open with the mark and three sentences in plain words: the map of the documents, the story,
+  the judges' page, governance, the meter, finance and the one transaction. Six of them have a diagram.
+- **[`docs/WORDS.md`](docs/WORDS.md)** explains 33 words, from "AI agent" to "Warranty", each in under 20 words. The
+  README and the new documents link to it.
+- **Tests keep it plain.** `tests/test_readme_plain.py` measures the README with the Flesch-Kincaid grade: it reads
+  at grade 4.4, with 10.6 words a sentence (the limits are 8 and 16). `tests/test_docs_plain.py` holds each of the
+  seven summaries at grade 8 or lower; they read at 2.3 to 6.9. Both tests also require the mark and an italic caption
+  under every diagram.
+- **Diagrams are Mermaid.** GitHub draws them, in light and dark. `scripts/diagrams.py render` also draws each one as
+  a picture in [`docs/diagrams/`](docs/diagrams), and `--check` fails when a diagram has no picture of its text.
+- **PyPI shows the diagrams as pictures.** PyPI cannot draw Mermaid, so the package's page (`README.pypi.md`, written
+  by `scripts/bump_version.py`) shows each of the README's diagrams as its picture at the tag.
+- **For judges** ([`docs/JUDGES.md`](docs/JUDGES.md)): the 350-word limit now counts what a reader reads; a diagram's
+  source and the mark's HTML are not counted.
+
+### Plans, written down, not built
+
+- **A proposed upgrade, knos_pay 2.3** ([`docs/PROPOSAL-2.3.md`](docs/PROPOSAL-2.3.md)): pay when the checks pass,
+  with a window in which the buyer can object only by posting a bond; a fee charged at funding, so it does not depend
+  on the verdict; the files that judge fixed by their hash at funding, with secret tests committed by their hash; and part of
+  the pay held for a warranty. For each change it names the accounts and instructions, what stays the same for open
+  orders, the migration, the notice and the risks. It is proposed, not built, not tested and not deployed.
+  `tests/test_proposal_docs.py` checks that every name it uses for today's program exists, and that its new names do
+  not.
+- **The keys** ([`docs/KEYS.md`](docs/KEYS.md)): today one person holds every key. The plan, in four steps: a key held
+  by someone who is not the founder, then no change on the founder's word alone, then separate keys for code and for
+  fees, then a guardian that can only pause. None of the steps has been taken, and no outside key holder exists.
+- **A fair test of a paid pilot** ([`docs/PILOT.md`](docs/PILOT.md)): within each buyer, tasks are drawn by chance
+  into Knos terms or the buyer's usual way; the measures, success and failure are written before any task starts; the
+  analysis is to be run again by someone outside Knos. `scripts/pilot_plan.py assign` makes the draw from a published
+  seed and prints its sha256; `power` says how many tasks are needed: 311 in each group to find a fall from 3.7% (9 of
+  241) to 0.5%. Nothing has been run, no buyer has seen it, and nobody outside has agreed to check it.
+
+### Safer defaults
+
+- **The files that judge are protected by default, as before.** A pull request that edits `.github/**` or `.knos/**`
+  is refused, however its checks ended; in tests mode the buyer's acceptance tests are fixed by their hash at funding.
+  `tests/test_terms_defaults.py` now holds both as the default.
+- **A default holdback is written, not switched on.** `knos.terms.window` gives a new work order 10% held back for 14
+  days unless the comment or the policy says otherwise. Funding does not call it in this release, because it would
+  change what public rounds and plain orders pay: a work order still holds nothing back unless someone asks.
+
+### Prices
+
+- **0.20% is marginal.** By contract, 0.20% applies only to the part of a month's value above 1,000,000 USD. A month
+  of 1,500,000 pays 3,000 on the first million and 1,000 on the rest: 4,000 in all. `billing.py` computes it that way,
+  and a test holds it ([`docs/MARKET.md`](docs/MARKET.md)).
+- **The price in force at funding applies.** Off chain, `billing.py` charges each deliverable the price in force on
+  the day its order was funded (`price_at`). A rise needs 90 days' notice, and `check_prices` refuses a list of prices
+  that breaks that. The book has one price so far. The 90 days are a term for contracts; none is signed, and the
+  program cannot enforce them.
+
+### Fixed
+
+- **The workflows' install date hid each new release from the jobs that install it.** Those jobs install knos from
+  PyPI and take nothing uploaded after a cutoff (`UV_EXCLUDE_NEWER`). 0.3.25 set it by hand to midnight, and its
+  wheel reached PyPI three hours later. So the claims check, the review and judge jobs of the acceptance suite, and every attest run
+  failed wherever the 0.3.25 workflows were used; funding and pay on merge still worked. The test meant to catch it
+  compared the cutoff with the date of 0.3.11. Now the release uploads the wheel first, then writes the cutoff ten
+  minutes after the time PyPI took it (`python scripts/pinned_workflows.py cutoff`), then the workflows.
+  `release.py publish` builds the wheel again and uploads it only if it is the locked one.
+  `tests/test_release_order.py` fails when a cutoff comes before the upload of the release it names
+  ([`docs/RELEASE.md`](docs/RELEASE.md)).
+- **The site's numbers read only the newest 1,000 transactions.** So merge to paid timed 8 of 68 payments, and
+  showed a misleading 32 s. The build now reads each program's whole history, a page at a time, within a number of
+  pages and a time it is given, and says so when either stops it. It keeps what it read, so the next build reads only
+  what is new. The documents keep the dated 26 s over 51 payments.
+- **The consumer could not read the relay's transactions.** `examples/consumer` asked devnet in a way that refuses
+  version 1 transactions, and Knos's relay sends version 1. It now reads legacy, version 0 and version 1. It also
+  accepts both ids one deliverable can have, and says which one it met
+  ([`docs/COMPOSE.md`](docs/COMPOSE.md)): changing either id would change ids already written, so neither moved.
+- **`knos receipt verify` seemed never to answer.** It read up to 1,000 transactions one by one, with no limit on the
+  time. Now it reads, of those, only the ones a receipt is built from: the order's own, its Balance's opening and side
+  account, and its owner's plan, each found in that account's own list. All of its requests together get 120 seconds;
+  at that time, it says so in one line. An AUTO order's payment of an open pull request is named as what it is: no
+  receipt version has its judge, so none is built for it.
+- **The index scan ran out of GitHub's hourly limit.** Its workflow had been red since 5 October. The scan now reads
+  only what is new, asks about 20 pull requests in one request, and stops before the limit. The next run goes on from
+  there, and a stop is a note, not a failure. It fits GitHub's own token; a read-only `KNOS_INDEX_TOKEN` stays
+  optional. It has not yet run on GitHub.
+- **The strip check on a personal repository.** Only an organisation on GitHub Enterprise Cloud can have a rule that
+  requires a workflow; on a personal repository GitHub refuses it. So PARTLY is the most such a repository can reach.
+  `knos protect --check-strip` now says that, and what PARTLY still leaves open ([`docs/LAUNCH.md`](docs/LAUNCH.md)).
+- **Who pays the fee, said the way the program does it.** On a work order the funder pays the fee on top, and the
+  payees get the whole amount (`order_fee`). On a job, which a tip makes, the fee comes out of the amount and is never
+  more than it (`fee_of`): the payee gets the rest. Pages that said "the payee pays nothing" now say this, on the
+  pricing view too ([`docs/MARKET.md`](docs/MARKET.md)).
+- **Old figures stated as current are gone.** The backtest table now says it is the scan's first reading, and gives
+  the second reading's 9 of 241 beside it. The security page says the knos_pay 2.2 upgrade has run. The submission
+  counts commits and lines at 0.3.25. `scripts/stale_check.py` finds a retired figure in any public file, the tests
+  run it on the whole tree, and the claims job runs it on every change.
+- **The meter's two prices, side by side.** The price book proposes 100,000 evaluations a month free, then 0.002
+  USD each. The deployed meter program charges 0.05 after 10,000 free. Every page that gives the first now gives the
+  second beside it.
+- **The secret scan asks the right question first.** A key a person reviewed and passed now fails the scan if its
+  address ever becomes one Knos operates with. Launch item 2 is done.
+
+### Found by search engines
+
+- **A title for a person**: "Knos. Pay AI agents only when your checks pass.", the line under the sentence on the
+  first screen. Every description begins with the sentence.
+- **Facts a search engine reads** (JSON-LD): what Knos is, its licence (MIT), and that the software costs nothing to
+  install. No rating or review is claimed: none exists.
+- **Eight questions with short answers**: the same words on [`web/faq.html`](web/faq.html), in its facts for search
+  engines and in the README's new "Questions".
+- **Two pages a search engine can list**: the questions and [the ten-second check](web/check/index.html). Each has its
+  own title, address, heading and links. The first screen's foot links both.
+- **A sitemap and llms.txt** ([`docs/SEO.md`](docs/SEO.md)). Each page's "Last updated" date is stamped by the build
+  from the commit it is built from: nobody types it. Only the founder can submit the sitemap to a search engine.
+
+### For judges and buyers
+
+- **The market's size, on one page** ([`docs/submission/MARKET_SIZE.md`](docs/submission/MARKET_SIZE.md)): a formula,
+  each outside figure with its link, date and label, and every assumption labelled as one. Knos claims no share of
+  it; nothing has been sold.
+- **Three things to try, in order** ([`docs/submission/FLOWS.md`](docs/submission/FLOWS.md)): check one pull request,
+  follow one paid task link by link, and see two copies of a record give one bill. The judges' page starts with it.
+- **The index method, version 2 draft** ([`docs/INDEX_METHOD.md`](docs/INDEX_METHOD.md)): the funnel from search to
+  count, intervals that treat pull requests of one repository as related, and a blind re-read of 20 pull requests the
+  count leaves out. None of the 20 flipped: 16 agreed, 2 could not be told without logging in, 2 could not be read.
+  Version 1 stays frozen, and the lead number is unchanged.
+- **Relay replies that say what to do next.** When a request fails for a reason of the asker's own (the issue is
+  funded already, nothing is in escrow, an old workflow), the reply says what to do. Those are counted apart from
+  failures, and the completion rate is also given over what could have been done
+  ([`docs/OPERATIONS.md`](docs/OPERATIONS.md)).
+- **The charter** ([`docs/CHARTER.md`](docs/CHARTER.md)): 8 rights, each enforced by a named test, and 4 promises
+  that no code holds yet, marked so. Its fingerprint (sha256) is in its footer, and a test checks it.
+- **The standard** ([`docs/STANDARD.md`](docs/STANDARD.md)): the signals, cause codes and steps before a supplier is
+  banned (mostly a plan, marked so), and the supplier's menu of three tiers.
+- **One account is one judge.** The relay no longer completes a quorum when two of its judges' runs were started by
+  one account. The program would count them as two; the refusal is the relay's. Knos's own public quorum rounds still
+  run: when the funder and every run's starter are the operator's own accounts, the relay carries it, and the payment's
+  comment says it is an own round, not independent evidence.
+- **Close one invoice in 30 seconds.** On the approver, Enter approves, "Go to approval" jumps there, and one button
+  saves the accounting file of the approved lines. A script measured it at 360 and 1280 px: at most 4 clicks, under 30
+  seconds on a slowed phone with a person's pace added. No person was timed ([`docs/FINANCE.md`](docs/FINANCE.md)).
+  The accounting file bills only approved lines that nothing holds: a line over its purchase order is left out.
+- **Signed results from beyond CI** ([`docs/SOURCES.md`](docs/SOURCES.md)): a result counts only when anyone can check
+  its signature. The Sigstore adapter checks a build record against Sigstore's published keys. It is tested on two real
+  npm records, kept in the tests; no outside source feeds a meter yet.
+- **Single sign-on for the self-host bundle**: through any OpenID Connect provider, with roles viewer, approver and
+  admin. Each approval and export is a line in a hash-chained audit log in the memory engine, and the approver writes
+  it when sign-in is on. Tested against a stand-in provider only: no real provider has been tried, and the bundle has
+  never been deployed ([`docs/SELFHOST.md`](docs/SELFHOST.md)).
+
+### Capabilities
+
+- **Eleven new rows** in [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md): the pilot's draw, the judged files refused,
+  the price at funding, the whole history read, the index scan within the hourly limit, receipt verify's time limit,
+  the cutoff written after the upload, the pages for search engines, the Sigstore adapter and single sign-on (each
+  tested here), and the default holdback (written, not wired). Nothing new went to exercised (26 of 271): the same 26
+  as before; 3 are deployed only, 238 tested here only and 4 written, not tested.
+- **Five rows said "not exercised at the public id" under evidence that they were**: the passkey payee wallet,
+  funding by one comment, pay on merge, the pause and one counted evaluation. The notes now agree with the stage.
+- **Tests mode, said plainly.** The README called it "orders judged by hidden tests", and its row said the author
+  cannot see the tests. The buyer's acceptance tests sit in the repository, so anyone can read them in a public one.
+  Both now say what is true: the buyer's black-box tests, fixed by their hash at funding.
+
 ## 0.3.25 (October 2026)
 
 **Check any public agent pull request in the browser in about ten seconds and share the result; and ready for a

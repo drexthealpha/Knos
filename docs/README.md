@@ -1,9 +1,31 @@
+<img src="../web/brand/mark.svg" height="40" alt="Knos">
+
 # The documents, under six questions
+
+**In plain words.** This page lists every Knos document under six questions. Start with [the story](STORY.md): one task in seven steps, or [the judges' page](JUDGES.md) if you have ten minutes. When a word is new to you, look it up in [the word list](WORDS.md).
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
-A judge with ten minutes reads [JUDGES.md](JUDGES.md). Otherwise start with [STORY.md](STORY.md): the number, one task in seven steps, and what the project needs next. Every other
-document is listed once below. `tests/test_docs_map.py` fails when a file in this folder is missing from this page.
+```mermaid
+flowchart LR
+    you(["You have a question"])
+    q1["1. Does it work? Start with STORY.md"]
+    q2["2. Why does it matter? Start with WHY.md"]
+    q3["3. What is new? Start with COMPARE.md"]
+    q4["4. How do I use it? Start with INSTALL.md"]
+    q5["5. How do I build on it? Start with COMPOSE.md"]
+    q6["6. How is it run and paid for? Start with GOVERNANCE.md"]
+    you --> q1
+    you --> q2
+    you --> q3
+    you --> q4
+    you --> q5
+    you --> q6
+```
+*Pick your question; each one has a first page to read.*
+
+Every other document is listed once below. `tests/test_docs_map.py` fails when a file in this folder is missing from
+this page.
 
 ## 1. Does it work?
 
@@ -28,6 +50,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [submission/NUMBERS.md](submission/NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
 | [submission/TRANSACTION.md](submission/TRANSACTION.md) | one order told end to end for a finance reader: terms, a rejection, an acceptance, payment, a refused replay |
 | [submission/CHECKLIST.md](submission/CHECKLIST.md) | what each entry needs: the form's fields and each track's, checked off |
+| [submission/FLOWS.md](submission/FLOWS.md) | three things to try, in order: check one pull request, follow one paid task, two copies give one bill |
 
 ## 2. Why does it matter?
 
@@ -36,9 +59,10 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [WHY.md](WHY.md) | why a signed run and not a description |
 | [VENDORS.md](VENDORS.md) | a page per rated agent vendor: its numbers, its right of reply, and how to earn the badge |
 | [INDEX.md](INDEX.md) | the Agent PR Index: how often "tests pass" agrees with the checks, by agent and week |
-| [INDEX_METHOD.md](INDEX_METHOD.md) | the frozen count method, version 1: what counts as merged, claimed and failed, checked by its hash |
+| [INDEX_METHOD.md](INDEX_METHOD.md) | the frozen count method, version 1, and a version 2 draft (funnel, clustered intervals, re-read of the negatives) |
 | [MARKET.md](MARKET.md) | who buys, the price book, the costs, and what can stop this |
-| [PILOT.md](PILOT.md) | the one offer for money: one buyer, its suppliers, 30 days |
+| [submission/MARKET_SIZE.md](submission/MARKET_SIZE.md) | how big the market could be: a formula, its sources and labelled assumptions; no share claimed |
+| [PILOT.md](PILOT.md) | the one offer for money, and the fair test written before it starts |
 | [UNIT_COSTS.md](UNIT_COSTS.md) | what one unit costs Knos to deliver, measured or a budget, and the ceilings at a 90% and a 95% gross margin |
 | [SHADOW.md](SHADOW.md) | a neutral count beside an invoice a buyer already receives |
 | [SHARE.md](SHARE.md) | share a check: link, copied result, X post box, PNG card, README badge |
@@ -63,6 +87,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 
 | document | what it answers |
 |---|---|
+| [WORDS.md](WORDS.md) | every technical word in one plain line |
 | [INSTALL.md](INSTALL.md) | every way to install the command, the check and the workflows |
 | [PLAYGROUND.md](PLAYGROUND.md) | fund a test order with one comment, with a GitHub account and nothing else |
 | [CONSOLE.md](CONSOLE.md) | the console, for whoever authorises a payment |
@@ -89,14 +114,19 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [INTEGRATIONS.md](INTEGRATIONS.md) | what a bounty or work platform can take; no platform uses it |
 | [ADAPTERS.md](ADAPTERS.md) | other systems' events, and what the chain can check of them |
 | [RELAY.md](RELAY.md) | the relay: anyone can run one |
+| [SOURCES.md](SOURCES.md) | signed results from systems other than CI: which can be neutral evidence |
 
 ## 6. How is it run and paid for?
 
 | document | what it answers |
 |---|---|
 | [GOVERNANCE.md](GOVERNANCE.md) | who can change what today, and three plans that are not done |
+| [CHARTER.md](CHARTER.md) | the rights Knos gives you: each enforced by a named test, or marked a promise |
+| [STANDARD.md](STANDARD.md) | how work should be judged and rule-breakers treated: what runs today, what is only a plan |
+| [KEYS.md](KEYS.md) | who holds the keys today, and the plan |
+| [PROPOSAL-2.3.md](PROPOSAL-2.3.md) | the proposed knos_pay 2.3 upgrade, in plain words |
 | [KEYHOLDER.md](KEYHOLDER.md) | hold a member key: what it can do, and three steps to ask; outside holders today: 0 |
-| [SELFHOST.md](SELFHOST.md) | the record API, relay and approver in the buyer's own cloud: one image, one config file, no single sign-on yet |
+| [SELFHOST.md](SELFHOST.md) | the record API, relay and approver in your cloud; single sign-on through any OpenID Connect provider, tested against a stand-in provider only |
 | [OPERATOR.md](OPERATOR.md) | a second person runs it from a clean machine; the drill nobody has run yet |
 | [TEAM.md](TEAM.md) | who builds it, and the three roles needed first, none filled |
 | [SECURITY.md](SECURITY.md) | who is trusted for what, every command and term, and every limit |
@@ -110,6 +140,7 @@ document is listed once below. `tests/test_docs_map.py` fails when a file in thi
 | [DISCLOSURE.md](DISCLOSURE.md) | what was built when, what came from elsewhere, what does not exist |
 | [RELEASE.md](RELEASE.md) | how a release is made: one commit, one push |
 | [LAUNCH.md](LAUNCH.md) | the twenty pre-launch checks, each with its status and evidence |
+| [SEO.md](SEO.md) | what a search engine reads of the site, and what only the founder can do |
 | [ROLLBACK.md](ROLLBACK.md) | how to take a release back on launch day, surface by surface |
 | [submission/](submission/SUBMISSION.md) | the form's fields, the two scripts, the criteria and the interview kit |
 

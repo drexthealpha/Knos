@@ -39,6 +39,8 @@ def test_the_page_is_one_page_thirteen_rows_five_zeros_and_the_file_is_the_page(
     page, data = read("docs/JUDGES.md"), json.loads(read("docs/judges.json"))
     assert len(j.WORD.findall(j.prose(page))) <= 350 and page.count("\n|---") == 1
     lines = [line for line in page.splitlines() if line.strip()]
+    assert lines[0].startswith("<img ") and lines[2].startswith(j.PLAIN) and j.head(page) == lines[1:2] + lines[3:]   # the mark, the summary
+    lines = j.head(page)
     assert lines[1] == "**The neutral meter for AI agent work: neither side keeps the count.**"
     assert lines[2] == j.PITCH == data["pitch"]                                          # the pitch line is the second line
     assert lines[3] == "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check."
@@ -94,7 +96,7 @@ def test_the_zeros_are_the_numbers_page_and_no_fee_or_missing_thing_is_claimed()
     # the measured time is said with its sample, and the wait a buyer has is said to be unmeasured
     bench = json.loads(read("docs/bench.json"))
     assert "From merge to paid took 26 seconds at the median, over 51 payments on devnet." in page and "25" in json.dumps(bench)
-    assert "It has not measured it with any buyer, so no figure for it is given here." in page
+    assert "it with any buyer" not in page and "Not measured." in page and not re.search(r"\d+(\.\d+)? days", page)
     for word in ("audit", "customer says", "pilot customer", "immutable", "trustless"):
         assert word not in page.lower(), word
 
@@ -120,7 +122,8 @@ def test_the_check_fails_when_the_page_and_the_file_part(tmp_path):
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "submission").mkdir()
     for name in ("JUDGES.md", "judges.json", "BENCH.md", "TAMPER.md", "COMPOSE.md", "MARKET.md", "TEAM.md", "WHY.md", "MANIFEST.md",
-                 "UNIT_COSTS.md", "submission/NUMBERS.md", "submission/pitch_script.md"):
+                 "UNIT_COSTS.md", "submission/NUMBERS.md", "submission/pitch_script.md",
+                 "submission/MARKET_SIZE.md"):
         shutil.copy(ROOT / "docs" / name, tmp_path / "docs" / name)
     assert j.problems(tmp_path) == []
     page = tmp_path / "docs" / "JUDGES.md"
@@ -131,7 +134,7 @@ def test_the_check_fails_when_the_page_and_the_file_part(tmp_path):
     assert any("the rows are" in line for line in j.problems(tmp_path))
     page.write_text(text.replace("5. Neutrality:", "Neutrality:"), encoding="utf-8")
     assert any("4 lines under" in line for line in j.problems(tmp_path))
-    page.write_text(text.replace("Not measured. ", "It took 3 days. "), encoding="utf-8")
+    page.write_text(text.replace("Not measured.", "It took 3 days."), encoding="utf-8")
     assert any("days to approve" in line for line in j.problems(tmp_path))
     page.write_text(text.replace("| Traction |", "| Demand |"), encoding="utf-8")
     assert any("the rows are" in line for line in j.problems(tmp_path))

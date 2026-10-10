@@ -151,8 +151,8 @@ jobs:
           ignore-empty-workdir: true
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
-          UV_EXCLUDE_NEWER: "2026-10-10T00:00:00Z"
-        run: uv tool install --no-config --with pytest --with pip "knos==0.3.25"
+          UV_EXCLUDE_NEWER: "2026-10-10T09:46:00Z"   # knos 0.3.26 reached PyPI at 2026-10-10T09:35:20Z
+        run: uv tool install --no-config --with pytest --with pip "knos==0.3.26"
       - name: the plan (which two commits, which suite, which image), from the order on Solana and GitHub's record
         id: plan
         env:

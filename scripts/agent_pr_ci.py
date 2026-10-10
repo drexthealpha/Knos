@@ -116,9 +116,10 @@ def _limited(headers, attempt, kind, err):
         wait = _core_reset() or wait    # the hourly budget is spent: it comes back at a known time, wait for it
     if (NO_WAIT and not PATIENT) or attempt >= MAX_RETRIES or time_left() < wait + 15:
         COME_BACK[0] = time.time() + wait
+        what = f"GitHub refused a {kind} request for {'a secondary rate limit' if secondary else 'a rate limit'}"
         if NO_WAIT:
-            _stop(f"GitHub refused a {kind} request for {'a secondary rate limit' if secondary else 'a rate limit'}", OutOfBudget)
-        raise OutOfTime()
+            _stop(what, OutOfBudget)
+        _stop(f"{what} and the wait it named does not fit in the run's minutes", OutOfTime)
     print(f"  rate-limited, sleeping {wait:.0f}s", file=sys.stderr)
     time.sleep(wait)
 
@@ -226,13 +227,44 @@ def _stop(why, exc):
     raise exc()
 
 
-def _spend():
-    """Count one request about to be sent; a bounded run that has none left stops here, before sending it."""
+def _spend(kind="core"):
+    """Count one request about to be sent; a bounded run that has none left stops here, before sending it. LEFT holds,
+    for a kind of request (core, graphql), how many this run may still send of GitHub's hourly budget (budget())."""
     if time_left() < 15:
         _stop("its minutes were spent", OutOfTime)
     if MAX_REQUESTS is not None and ASKED[0] >= MAX_REQUESTS:
         _stop("its requests were spent", OutOfBudget)
+    if LEFT.get(kind, 1) <= 0:
+        _stop(f"it used the {kind} requests this hour's budget leaves it (the rest is kept for the other jobs)", OutOfBudget)
+    if kind in LEFT:
+        LEFT[kind] -= 1
     ASKED[0] += 1
+
+
+# What one run may spend of each hourly budget GitHub keeps for the token, by kind: the REST API (`core`) and GraphQL
+# each give a workflow's GITHUB_TOKEN 1,000 an hour for the repository (docs.github.com/en/rest/using-the-rest-api/
+# rate-limits-for-the-rest-api, docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api),
+# and every other workflow of the repository draws on the same hour. Search has its own limit, a minute long (30), kept
+# by SEARCH_PAUSE. Empty: no such budget (the bounded weekly sample counts its own, MAX_REQUESTS).
+LEFT = {}
+TOKEN_HOUR = 1000       # assumed when GitHub does not say: the GITHUB_TOKEN's hourly budget, the smallest a run can have
+
+
+def budget(reserve, read=None):
+    """Set LEFT from what GitHub says remains of this hour (reading rate_limit does not count against it), less
+    `reserve` of each kind for the rest of the job and the repository's other workflows. Returns LEFT."""
+    code, out, _ = (read or _gh)(["gh", "api", "-X", "GET", "rate_limit"])
+    try:
+        res = json.loads(out)["resources"] if code == 0 else {}
+    except (ValueError, KeyError, TypeError):
+        res = {}
+    for kind in ("core", "graphql"):
+        try:
+            left = int(res[kind]["remaining"])
+        except (KeyError, TypeError, ValueError):
+            left = TOKEN_HOUR
+        LEFT[kind] = max(0, left - reserve)
+    return LEFT
 
 
 def time_left():
@@ -312,7 +344,7 @@ def gh_get(path, params=None, kind="core", max_age=None):
     cmd.append("-i")            # the status line and the headers: retry-after, x-ratelimit-*, etag
     resp = None
     for attempt in range(6):
-        _spend()
+        _spend(kind)
         if kind == "search":
             _search_slot()  # 30 req/min search limit; complex OR queries trip secondary limits faster
         code, out, err = _send(cmd)
@@ -358,7 +390,7 @@ def prune(days):
     """Forget the answers read more than `days` days ago; returns how many. With `days` longer than the scan's window
     they are all about pull requests that have left it, so the cache a scheduled run carries stays one window large."""
     cutoff, gone = time.time() - days * 86400, 0
-    for kind in ("core", "search"):
+    for kind in ("core", "search", "verdict"):
         for folder, _, names in os.walk(os.path.join(CACHE, kind)):
             for name in names:
                 fn = os.path.join(folder, name)
@@ -521,7 +553,7 @@ def gh_graphql(query):
     {"ok": True, "data", "errors"} when GitHub answered, also when it answered null for some of it; otherwise
     {"ok": False, "error", "transient"}: transient when the failure says nothing about the query."""
     for attempt in range(MAX_RETRIES + 1):
-        _spend()
+        _spend("graphql")
         code, out, err = _send(["gh", "api", "graphql", "-f", f"query={query}", "-i"])
         _status, headers, out = _answer(out)
         try:
@@ -535,9 +567,9 @@ def gh_graphql(query):
             return {"ok": False, "error": text[:300], "transient": code == 0 or bool(_NO_ANSWER.search(text))}
         if not (PATIENT and attempt < MAX_RETRIES and time_left() >= limit_wait(headers, attempt) + 15):
             COME_BACK[0] = time.time() + limit_wait(headers, attempt)
-            raise OutOfBudget()
+            _stop("GitHub refused a GraphQL request for a rate limit", OutOfBudget)
         time.sleep(limit_wait(headers, attempt))
-    raise OutOfBudget()
+    _stop("GitHub refused a GraphQL request for a rate limit", OutOfBudget)
 
 
 def read_rollup(cands):
@@ -611,6 +643,101 @@ def run_checks(cands, workers=8):
     return True
 
 
+# ---- the scan's checks: twenty pull requests a request, each verdict kept --------------------------------------------
+# The index's scan reads its checks through read_rollup (one GraphQL point for ROLLUP_BATCH pull requests) where REST
+# takes three or four requests for each one, and keeps every verdict on disk (CACHE/verdict), so a later run asks only
+# for pull requests that are new since, and for the young ones whose verdict could still change (UNSETTLED). REST
+# (classify, whose answers are kept and asked for again with their ETag) reads what GraphQL does not settle.
+VERDICT_KEYS = ("class", "sha", "failed_checks", "other_conclusions", "n_check_runs", "n_statuses", "n_agent_runs_excluded",
+                "awaiting_approval_suites", "detail", "merged")
+
+
+def _verdict_file(c):
+    h = hashlib.sha1(f"{c['repo']}#{c['number']}".lower().encode()).hexdigest()
+    return os.path.join(CACHE, "verdict", h[:2], h + ".json")
+
+
+def kept_verdict(c, now=None):
+    """The verdict kept for `c`, or None when there is none or it is due to be read again: it could still change
+    (UNSETTLED), the pull request is young, and the verdict is RECHECK_AFTER old."""
+    got = _kept(_verdict_file(c))
+    if not got or not isinstance(got["resp"], dict):
+        return None
+    if got["resp"].get("class") in UNSETTLED and _young(c, now):
+        try:
+            age = ((now or _now()) - dt.datetime.fromisoformat(got["fetched"])).total_seconds()
+        except (KeyError, TypeError, ValueError):
+            return None
+        if age > RECHECK_AFTER:
+            return None
+    return got["resp"]
+
+
+def keep_verdict(c, got, fetched=None):
+    """Keep a verdict GitHub will give again (not an error that said nothing about the pull request), in one step."""
+    if got.get("class") is None or (got.get("class") == "error" and got.get("transient")):
+        return
+    fn = _verdict_file(c)
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
+    tmp = f"{fn}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"key": f"{c['repo']}#{c['number']}", "fetched": fetched or _now().isoformat(),
+                   "resp": {k: got[k] for k in VERDICT_KEYS if k in got}}, f)
+    os.replace(tmp, fn)
+
+
+def seed_verdicts(previous):
+    """Keep the verdicts of the last published index (its `prs`) for the pull requests that have none on disk: a run
+    whose cache was lost starts from what the index already counted, not from nothing. Returns how many."""
+    n = 0
+    for r in (previous or {}).get("prs") or []:
+        if r.get("class") in ("failed", "passed", "other") and r.get("repo") and r.get("number") is not None \
+                and _kept(_verdict_file(r)) is None:
+            keep_verdict(r, {k: r.get(k) for k in ("class", "sha", "failed_checks")}, fetched=(previous.get("date") or "") + "T00:00:00+00:00")
+            n += 1
+    return n
+
+
+def read_checks(cands):
+    """The verdict of every claimed pull request in `cands`: kept, or read twenty at a time over GraphQL (REST for one
+    GraphQL did not settle, and for all of them once GraphQL refuses the token). Each one read is kept at once, so a
+    run that stops (out of minutes, or out of this hour's budget: OutOfTime) leaves it for the next. Returns True
+    when every one was read."""
+    todo, graphql = [], True
+    for c in cands:
+        if not c.get("phrase"):
+            continue
+        got = kept_verdict(c)
+        if got is not None:
+            c.update(got)
+        else:
+            todo.append(c)
+    try:
+        while todo:
+            batch, todo = todo[:ROLLUP_BATCH], todo[ROLLUP_BATCH:]
+            got = read_rollup(batch) if graphql else None
+            if isinstance(got, dict) and got.get("transient"):
+                got = read_rollup(batch)                # once more; a second failure leaves the batch to the next run
+                if isinstance(got, dict) and got.get("transient"):
+                    print(f"GraphQL did not answer for {len(batch)} pull requests: {got['error']}", file=sys.stderr)
+                    continue
+            if isinstance(got, dict):
+                print(f"GraphQL refused ({got['error']}): reading the checks over REST from here", file=sys.stderr)
+                graphql, got = False, None
+            for i, c in enumerate(batch):
+                one = got[i] if got is not None else None
+                if one is None:
+                    one = classify(c)
+                    if one.get("class") in UNSETTLED and _young(c):
+                        one = classify(c, max_age=RECHECK_AFTER)
+                c.update(one)
+                keep_verdict(c, one)
+    except OutOfTime:
+        print("stopped before every check was read: the next run continues", file=sys.stderr)
+        return False
+    return True
+
+
 # ---- scan: the >=2,000-PR market sample (search pages x date windows x agents) ---------------
 def excluded_self(item):
     """True when the PR sits on a repo its author owns, or one owned by the human who triggered the agent (an
@@ -641,6 +768,7 @@ def scan_windows(end, days, width):
 SCAN_WIDTH = {"copilot": 5, "devin": 1, "claude-bot": 5, "claude-code": 1, "codex": 10}
 
 
+SEARCH_ERRORS = []   # "<agent>: <error>" for each query GitHub refused for itself (a 4xx that is not a rate limit)
 NO_CLAIM = []   # [agent, created_at] of every search hit whose description, read closely, claims nothing (list.append is atomic)
 
 
@@ -692,6 +820,8 @@ def scan_agent(agent, qual, end, days, per_agent, width=None):
                 return kept, n, False
             if not r["ok"]:
                 print("search error:", q, r["error"], file=sys.stderr)
+                if re.search(r"HTTP 4\d\d", r["error"]):     # GitHub refused the query or the token itself: no later run fixes it
+                    SEARCH_ERRORS.append(f"{agent}: {r['error'][:200]}")
                 return kept, n, False
             items = r["json"]["items"]
             if page == 1 and (r["json"].get("total_count") or 0) > 1000:

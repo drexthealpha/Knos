@@ -489,12 +489,26 @@ not sign) reach no level until a receipt is recorded for them.
 A buyer who controls the repository can remove or edit the Knos workflow in the very pull request it merges, so the
 check never runs and nothing is signed. `knos protect --check-strip OWNER/REPO` (`src/knos/strip_check.py`) reads
 GitHub's rules for the default branch (GET /repos/{owner}/{repo}/rules/branches/{branch}, rule shapes in
-[GitHub's REST reference](https://docs.github.com/en/rest/repos/rules), read 2026-10-09) and says one of: **closed** (a
-ruleset's `workflows` rule requires the Knos workflow, which then runs from the pinned file; requiring workflows
-through rulesets is a [GitHub Enterprise Cloud feature](https://github.blog/changelog/2023-10-11-requiring-workflows-with-repository-rules-is-generally-available/)),
-**partly** (a required status check names a Knos check: the merge waits for it, but a pull request can change the
-workflow behind it and an admin can remove the requirement) or **open**. Closed never holds against those who can
-edit or bypass the ruleset: organisation owners for an organisation ruleset, repository admins for a repository one.
+[GitHub's REST reference](https://docs.github.com/en/rest/repos/rules), read 2026-10-09) and says one of three things.
+
+- **closed**: a ruleset (a set of GitHub rules for a branch) requires the Knos workflow. The workflow then runs from
+  the file the rule pins, not the pull request's copy. Closed never holds against those who can edit or bypass the
+  ruleset: organisation owners for an organisation ruleset, repository admins for a repository one.
+- **partly**: a required check names a Knos check. The merge waits for that check, so removing the workflow alone
+  blocks the merge. Still open: a pull request can change the workflow that runs that check, and an admin can remove
+  the requirement.
+- **open**: neither. Nothing on GitHub stops the buyer removing the workflow.
+
+**On a personal repository, PARTLY is the most GitHub allows.** Only an organisation or enterprise ruleset on GitHub
+Enterprise Cloud can require a workflow ([GitHub's list of rules, Enterprise Cloud edition](https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-workflows-to-pass-before-merging),
+read 2026-10-10; the [Free, Pro and Team edition](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)
+has no such rule). On a personal repository GitHub refuses the rule with HTTP 422 "Invalid rule 'workflows'". That
+happened on `drexthealpha/knos-witness` on 10 October 2026: its ruleset now requires the check `check / claims`, and
+`knos protect --check-strip drexthealpha/knos-witness` reads PARTLY there.
+
+A required check has a side effect. GitHub wants it to pass before any change reaches the branch
+([GitHub](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)),
+so a direct push to that branch is refused too. To push straight to it, add yourself to the ruleset's bypass list.
 
 ## The order Knos intends, and why
 

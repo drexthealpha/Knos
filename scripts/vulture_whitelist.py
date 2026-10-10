@@ -205,3 +205,12 @@ _.complete_                     # knos.statement.register: knos statement comple
 # Public functions with no caller inside src/knos or scripts, each held by the tests that name it.
 billing_.review_budget                              # the arithmetic of an exceptional review (docs/UNIT_COSTS.md); tests/test_billing_review.py
 _.relative_left                                     # scripts/bump_version.py: no link of README.pypi.md leans on the repository; tests/test_pypi_readme.py
+
+# 0.3.26. knos.sources: a library a caller uses in its own code (docs/SOURCES.md); nothing in the package calls it yet.
+from knos import sources as sources_
+from knos.sources import der as der_
+
+sources_.adapter                                    # the adapter by its name, and a plain refusal for any other; tests/test_sources.py
+_.signed_at                                         # Evidence: when the log recorded the signature; tests/test_sources.py
+_.sig_alg                                           # Cert: the certificate's signature algorithm, as its bytes give it
+der_.ECDSA_SHA256, der_.ECDSA_SHA384                # the two signature algorithms' ids, named for the reader beside the key ids

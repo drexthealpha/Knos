@@ -1,4 +1,24 @@
+<img src="../../web/brand/mark.svg" height="40" alt="Knos">
+
 # One transaction, end to end, for a finance reader
+
+**In plain words.** This page follows one small task from start to finish, paid in [test money](../WORDS.md#test-usdc). The first try failed the buyer's tests and got nothing, and the fixed work passed and was paid 5.00. Sending the same proof again was refused, so nothing was paid twice.
+
+```mermaid
+stateDiagram-v2
+    state "Funded: 5.00 test USDC locked" as funded
+    state "Wrong work refused: nothing paid" as refused
+    state "Right work accepted" as accepted
+    state "Paid: 5.00 test USDC to the supplier" as paid
+    state "Same proof sent again: refused" as replay
+    [*] --> funded
+    funded --> refused
+    refused --> accepted
+    accepted --> paid
+    paid --> replay
+    replay --> [*]
+```
+*One order, step by step: wrong work is refused, right work is paid once.*
 
 Two records, both public, both test money. The first is one order on Solana devnet, run on 9 Oct 2026 with Knos
 0.3.23 in Knos's own repository `drexthealpha/knos-witness`: there is no outside buyer, and the buyer and the supplier

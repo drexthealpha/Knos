@@ -405,6 +405,7 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
     said, mine = {k: _data(marks, order_auto.q_pda(order, k)) for k in range(3)}, order_auto.KINDS.get(judge, 0)      # (the arbiter is no kind: his ruling needs no quorum)
     again: list[int] = []
     lone: list[str] = []
+    own = False
     if not need:
         have = 0
     elif a.v >= fees.NEW_VERSION:       # 2.2 counts owners: this token's run beside the runs the other markers name
@@ -412,6 +413,10 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
         have = order_auto.passed(said, o, t.aud, mine, run=ran)
         again = order_auto.stale(said, o, t.aud, mine)      # a judge who passed under 2.1: his marker names no run and counts for nothing now
         lone = order_auto.uncounted(o.owner_id, order_auto.spoke(said, o, t.aud, mine, ran)) if have < need else []
+        if have >= need and order_auto.controllers(o.owner_id, order_auto.spoke(said, o, t.aud, mine, ran)) < need:
+            if not order_auto.own_round(o.funder_id, order_auto.counted(o.owner_id, order_auto.spoke(said, o, t.aud, mine, ran)), order_auto.own_ids()):
+                raise _no(kind, order_auto.ONE_STARTER)     # off chain: judges that share a starting account are one judge
+            own = True                                     # the operator's own round: carried, and the reply says so
     else:                               # 2.1 counts markers
         have = order_auto.passed21(said, o, t.aud, mine)
     waits = have < need
@@ -436,7 +441,7 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
         paid = [{"id": i, "payee_id": i, "amount": share, "to": str(w), "held_until": None} for (i, w), share in zip(wallets, _shares(due, payees))]
         more = ({"left": after.amount if after is not None else 0} if standing else
                 {"held_back": left - due, "warranty_until": after.hold_until} if after is not None and after.state == "warranty" else {})
-        return {"ok": True, **result, "sigs": sigs, "paid": paid, **more}
+        return {"ok": True, **result, "sigs": sigs, "paid": paid, **more, **({"own_quorum": order_auto.OWN_ROUND} if own else {})}
     extra = (_CU["terms"] if standing or o.holdback_bps else 0) + (_CU["quorum"] if need else 0)
     soon = ("the order was funded in this very block, and its first payment or judge's word is taken from the next one on; "
             "the same token is carried again on the next pass") if fresh else None

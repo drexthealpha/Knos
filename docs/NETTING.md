@@ -140,8 +140,8 @@ runs one reserved period on the same built programs: a reserve of 10.00 in tranc
 | after the deadline | that draw is refused; `RefundOrder` to another account is refused (error 88); sent properly it returns 2.01 to the Balance |
 | in all | 10.05 locked = 8.00 drawn + 0.04 of fee on the draws + 2.01 returned |
 
-Past the free 100,000 evaluations a month, anchoring costs the buyer 0.002 for each line of the batch, from prepaid
-credits: on a 0.32 outcome that is 0.6% beside the 0.30% acceptance fee.
+Past the free 100,000 evaluations a month, the price book proposes that anchoring costs the buyer 0.002 for each line
+of the batch, from prepaid credits (the deployed knos_meter charges 0.05 after 10,000 free): on a 0.32 outcome that is 0.6% beside the 0.30% acceptance fee.
 
 ## Not built
 

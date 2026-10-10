@@ -46,22 +46,21 @@ def test_every_document_is_on_the_map_once_under_one_of_six_questions():
         assert target.startswith("https://") or (DOCS / target).exists(), target
 
 
-def test_the_front_page_has_seven_parts_above_the_line_and_three_links_onward():
+def test_the_front_page_has_nine_parts_above_the_line_and_three_links_onward():
     readme = read("README.md")
     above, below = readme.split("\n---\n", 1)
-    # the claim and the meter lead; the bounty is the smallest example of the money; a judge's one entry (tests/test_judges.py);
-    # the table of today's numbers is lower
-    assert re.findall(r"(?m)^## (.+)$", above) == ["The claim", "The meter: two ledgers, one bill", "The money: released on a signature", "The number",
-                                                    "For a judge", "What is real today", "Read more"]
+    # in plain words: how it works (the bounty is the smallest example), the ten-second check, why nobody can fudge the
+    # count, whether it is real (the table of today's numbers); a judge's one entry (tests/test_judges.py), the number, words,
+    # the questions people search (tests/test_seo.py)
+    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works", "Try it in ten seconds", "Why nobody can fudge the count", "Is it real?",
+                                                    "For a judge", "The number", "Words", "Questions", "Read more"]
     more = above.split("## Read more")[1]
     assert links(more) == ["docs/STORY.md", "docs/MANIFEST.md", "docs/README.md"]
-    claim = [line for line in above.split("## The claim")[1].split("\n## ")[0].splitlines() if line.strip()]
-    assert claim[:2] == ["Two parties who distrust each other compute the same bill from evidence a third party signed.",
-                         "The program releases the money on that signature, with no company and no oracle in the middle."]
-    assert len(claim) == 3 and claim[2].startswith("Limits, in one line: ") and links(claim[2]) == ["docs/DISCLOSURE.md"]      # ONE line of limits
-    for said in ("devnet", "test USDC", "no outside users yet"):
-        assert said in claim[2], said
-    assert above.index("## The claim") < above.index("<!-- bench:today -->") and "smallest example is a bounty" in above
+    real = [line for line in above.split("## Is it real?")[1].split("<!-- bench:today -->")[0].splitlines() if line.strip()]
+    assert len(real) == 3 and [links(line) for line in real].count(["docs/DISCLOSURE.md"]) == 1      # three plain lines, one link to the limits
+    for said in ("devnet", "test USDC", "test money only", "no customers yet", "One person holds every key today"):
+        assert said in " ".join(real), said
+    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "`/knos fund " in above.split("## How it works")[1].split("\n## ")[0]
     table = above[above.index("<!-- bench:today -->"):above.index("<!-- /bench:today -->")]
     numbers = read("docs/submission/NUMBERS.md")
     printed = re.findall(r"(?m)^\| \d \| ([^:|]+)[^|]*\| (\d+) \|", numbers)
@@ -76,8 +75,9 @@ def test_the_front_page_has_seven_parts_above_the_line_and_three_links_onward():
 def test_the_story_is_seven_beats_each_with_evidence_that_exists_and_asks_for_three_things():
     story = read("docs/STORY.md")
     lines = [line for line in story.splitlines() if line.strip()]
-    assert lines[1] == "**The neutral meter for AI agent work: neither side keeps the count.**"
-    assert lines[2] == "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check."
+    assert lines[0].startswith("<img ") and lines[2].startswith("**In plain words.**")      # the mark and the summary (tests/test_docs_plain.py)
+    assert lines[3] == "**The neutral meter for AI agent work: neither side keeps the count.**"
+    assert lines[4] == "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check."
     steps = re.findall(r"(?m)^(\d)\. \*\*(.+?)\*\* (.+)\n   Evidence: \[([^\]]+)\]\(([^)]+)\)", story)
     assert [int(s[0]) for s in steps] == list(range(1, STEPS + 1))
     for _n, title, said, _name, target in steps:

@@ -45,7 +45,9 @@ KEY = "sentence"
 REPO = "drexthealpha/Knos"
 SITE = "https://drexthealpha.github.io/Knos/"
 SERVER = "io.github.drexthealpha/knos"
-TOPICS = ("ai-agents", "coding-agents", "metering", "invoice-reconciliation", "attestation", "oidc", "github-actions", "solana", "escrow", "mcp")
+# the repository's topics as GitHub lists them: what Knos is and what it serves (docs/X402.md, server.json)
+TOPICS = ("ai-agents", "coding-agents", "metering", "invoice-reconciliation", "oidc", "github-actions", "solana", "escrow", "mcp",
+          "mcp-server", "x402")
 STALE = ("Bounties that pay", "Paid GitHub bounties", "Hire any AI agent", "shared memory", "local memory", "memory every coding agent",
          "memory for every coding agent", "memory for coding agents")
 
@@ -117,9 +119,15 @@ def sentence(root: Path = ROOT) -> str:
     return got.strip()
 
 
+# The line under the sentence on the site's first screen and the README's (tests/test_bench_docs.py): what a person
+# searching reads first, so it is the title (60 characters at most: tests/test_seo.py).
+OUTCOME = "Pay AI agents only when your checks pass."
+
+
 def title(said: str) -> str:
-    """The site's title: the name, then the one sentence whole (tests/web/site.mjs holds the page to the same words)."""
-    return "Knos. " + said
+    """The site's title: the name, then the line under the sentence on the first screen (tests/web/site.mjs holds the
+    page to the same words). The descriptions begin with the sentence `said` itself."""
+    return "Knos. " + OUTCOME
 
 
 def _judge(where: str, got: str | None, rule: str, said: str) -> list[str]:

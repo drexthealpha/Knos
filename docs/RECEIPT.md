@@ -519,8 +519,10 @@ The rules of version 1 hold for version 2 (they are checked by the same code), a
 
 A receipt is built from chain facts only (`knos.bundle.gather`), for a public order paid by a judge's pay token.
 What is not built here: a receipt for a private order (its terms and repository are not public), for a payment an
-arbiter's ruling made (a ruling names no commit), and for a holdback released after its warranty (it has no token
-of its own). A version 1 receipt still checks, and `knos.receipt.upgrade` writes it as version 2.
+arbiter's ruling made (a ruling names no commit), for a holdback released after its warranty (it has no token
+of its own), and for an AUTO order's payment of an open pull request (the program's judge e, which no receipt
+version names). `knos receipt verify` reads, of the escrow's newest transactions, only the ones a receipt is built
+from: the order's own, its Balance's opening and side account, and its owner's plan. A version 1 receipt still checks, and `knos.receipt.upgrade` writes it as version 2.
 
 ## The evidence bundle
 

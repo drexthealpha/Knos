@@ -103,7 +103,7 @@ export const byClass = (failed) => ({ test: failed.filter(isTestish), other: fai
 /** The answer in one line, from a claim (findClaim) and a class (verdict) and its failed checks split (byClass). */
 export function sentence(claim, cls, split) {
   const said = claim ? "Claims tests pass" : "Claims nothing about tests";
-  if (cls === "failed" && split.test.length) return `${said}; a test or build check failed.`;
+  if (cls === "failed" && split.test.length) return `${said}; a test, build, lint or type check failed.`;
   if (cls === "failed") return `${said}; only checks that test nothing failed.`;
   if (cls === "passed") return `${said}; every check passed.`;
   if (cls === "pending") return `${said}; checks still running. Check again soon.`;

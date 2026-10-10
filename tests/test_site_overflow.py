@@ -25,7 +25,7 @@ ONE = "The neutral meter for AI agent work: neither side keeps the count."
 WORD = re.compile(r"[A-Za-z0-9][\w'’%.,/-]*")
 
 
-OUTCOME = "Both sides close invoices on evidence both verify."       # the customer outcome, under the sentence
+OUTCOME = "Pay AI agents only when your checks pass."       # the customer outcome, under the sentence
 
 
 def _words(html: str) -> list[str]:

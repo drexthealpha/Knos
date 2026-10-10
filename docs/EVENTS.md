@@ -245,7 +245,7 @@ METER.md sources for the same day.
 | 5,080 (both clusters, 4 Oct 2026) | 1,097,280 lamports | 0.1333 | 109.7 SOL (13,332 USD) | 1,097 SOL (133,320 USD) |
 | 696 (the target of the last step) | 150,336 lamports | 0.0183 | 15.0 SOL (1,827 USD) | 150 SOL (18,266 USD) |
 
-At today's rate the deposit for one marker is about 67 times the 0.002 USD an evaluation is priced at (0.1333 / 0.002). A marker with
+At today's rate the deposit for one marker is about 67 times the 0.002 USD an evaluation the price book proposes (0.1333 / 0.002); the deployed knos_meter charges 0.05 after 10,000 free. A marker with
 no data at all is still held against 128 bytes: 890,880, 650,240 and 89,088 lamports at the three rates. Ask a
 node for its cluster's figure: `getMinimumBalanceForRentExemption` with the size.
 

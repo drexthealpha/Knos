@@ -425,6 +425,18 @@ def test_with_no_data_the_operations_document_says_so_and_shows_nothing_invented
     assert committed == md, "docs/OPERATIONS.md is the document for no data: run python scripts/pages_data.py --docs docs/OPERATIONS.md --empty --out <dir> with nothing measured"
 
 
+def test_the_operations_document_says_the_relays_attempts_with_the_askers_own_apart_from_failures():
+    ops = pages_data.operations_json(None, 0, OWN, {"source": {"summary": ""}, "generated": "2026-10-10T00:00:00Z"})
+    ops["relay"] = {"pay": {"asked": 10, "completed": 6, "completion": 0.6, "never": 4, "user_errors": 2, "failures": 2, "completion_possible": 0.75},
+                    "fund": {"asked": 0, "completed": 0, "completion": None, "never": 0, "user_errors": 0, "failures": 0, "completion_possible": None}}
+    md = pages_data.render_operations_md(ops)
+    assert "- pay: 10 asked, 6 completed (60.0%). Not completed: 2 the asker's own (the reply said what to do), 2 failures. " \
+           "Completed of what could have been done: 75.0%." in md
+    assert "- fund: nothing asked." in md
+    for field in ("user_errors", "failures", "completion_possible"):
+        assert f"- **{field}**: " in md, field
+
+
 def test_the_site_build_and_the_pages_workflow_write_these_files():
     net = (ROOT / ".github" / "workflows" / "network.yml").read_text(encoding="utf-8")
     assert net.index("scripts/network_stats.py --out") < net.index("scripts/pages_data.py --out _site --events _events.json --index _site/index.json")

@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos. The neutral meter for AI agent work: neither side keeps the count.</title>
-<meta name="description" content="The neutral meter for AI agent work: neither side keeps the count.">
+<!-- What a search engine shows (tests/test_seo.py): a title of 60 characters at most, written for a person (the line under
+     the sentence on the first screen), and a description of 155 at most that begins with the sentence (scripts/public_face.py). -->
+<title>Knos. Pay AI agents only when your checks pass.</title>
+<meta name="description" content="The neutral meter for AI agent work: neither side keeps the count. Paste an agent's pull request to see if its checks really passed.">
+<meta name="author" content="drexthealpha">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/">
 <!-- the colour of the browser's own bar: the page's paper (web/app.css --paper), dark first, light for a light system -->
@@ -15,10 +18,10 @@
 <!-- The card of a shared link is a file of this site (web/brand/card.png, drawn by scripts/brand.py); the page itself asks for nothing here. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos. The neutral meter for AI agent work: neither side keeps the count.">
-<meta name="twitter:title" content="Knos. The neutral meter for AI agent work: neither side keeps the count.">
-<meta name="twitter:description" content="The neutral meter for AI agent work: neither side keeps the count.">
-<meta property="og:description" content="The neutral meter for AI agent work: neither side keeps the count.">
+<meta property="og:title" content="Knos. Pay AI agents only when your checks pass.">
+<meta name="twitter:title" content="Knos. Pay AI agents only when your checks pass.">
+<meta name="twitter:description" content="The neutral meter for AI agent work: neither side keeps the count. Paste an agent's pull request to see if its checks really passed.">
+<meta property="og:description" content="The neutral meter for AI agent work: neither side keeps the count. Paste an agent's pull request to see if its checks really passed.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta property="og:image:type" content="image/png">
@@ -28,6 +31,16 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:image:alt" content="The Knos wordmark, a raven whose body and tail are the letter K, above the sentence: The neutral meter for AI agent work: neither side keeps the count.">
+<!-- What the page is, for a search engine (schema.org SoftwareApplication). No rating and no review: none exists. The
+     questions and their answers are on faq.html, with their own FAQPage. -->
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Knos",
+ "description": "The neutral meter for AI agent work: neither side keeps the count.",
+ "applicationCategory": "DeveloperApplication", "operatingSystem": "Any: a web browser, or Python 3.10 or later for the command line",
+ "url": "https://drexthealpha.github.io/Knos/", "license": "https://opensource.org/licenses/MIT",
+ "author": {"@type": "Person", "name": "drexthealpha", "url": "https://github.com/drexthealpha"},
+ "sameAs": ["https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/"]}
+</script>
 <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="app.css">
@@ -98,7 +111,7 @@
     <div class="hero k-stage">
       <div class="hero-words">
         <h1 id="check">The neutral meter for AI agent work: neither side keeps the count.</h1>
-        <p class="hero-outcome" id="hero-outcome">Both sides close invoices on evidence both verify.</p>
+        <p class="hero-outcome" id="hero-outcome">Pay AI agents only when your checks pass.</p>
         <p class="hero-fact" id="hero-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/backtest.json">241</a> merged agent “tests pass” pull requests: <span class="k-num">9</span> failed tests or builds.</p>
         <form id="front-door" class="fd">
           <textarea id="fd-in" rows="2" spellcheck="false" autocomplete="off" aria-label="An agent's pull request, an invoice, or owner/repo" placeholder="Paste an agent's pull request"></textarea>
@@ -628,7 +641,7 @@
       <h3>The price book</h3>
       <div class="table-wrap"><table id="price-book"><thead><tr><th>Line</th><th>Unit</th><th>Price</th><th>Who pays</th><th>Where it is enforced</th></tr></thead><tbody>
         <tr><th scope="row">Check</th><td>pull request or artifact checked</td><td>free, forever</td><td>nobody</td><td>nowhere</td></tr>
-        <tr><th scope="row">Meter</th><td>evaluation</td><td>100,000 a month free per organisation, then 0.002 USD</td><td>buyer</td><td>prepaid credits</td></tr>
+        <tr><th scope="row">Meter</th><td>evaluation</td><td>100,000 a month free per organisation, then 0.002 USD</td><td>buyer</td><td>prepaid credits</td></tr><!-- proposed; the deployed knos_meter charges 0.05 after 10,000 free (#price-honest) -->
         <tr><th scope="row">Acceptance</th><td>dollar released or reconciled against a signed acceptance</td><td>0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the 0.05 floor once per release; no cap</td><td>funder, on top of the amount</td><td>knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)</td></tr>
         <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the machine-priced API</td><td>0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free</td><td>the buyer, marketplace or insurer reading it</td><td><code>knos record serve</code> (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it</td></tr>
         <tr><th scope="row">Control</th><td>organisation, per year</td><td>Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)</td><td>buyer</td><td>contract</td></tr>
@@ -641,7 +654,8 @@
 <p class="fine" id="price-tip">Relayer tip: 0.05, or 0.30 on a payee's first payment, out of the fee. An order holds from
   <span id="price-bounds">5 to 100,000</span> test USDC on devnet; a build for real money sets its own cap.</p>
 <p class="fine" id="price-honest"><span id="price-honest-now"></span>The program enforces the Acceptance line at release: 0.30% and the floor. Volume rates
-  are a rebate by contract, off chain. Meter is charged from prepaid credits. Control and the Pilot are contract prices that
+  are a rebate by contract, off chain. Meter is charged from prepaid credits. The Meter line is proposed: the
+  deployed meter program charges 0.05 an evaluation after 10,000 free a month. Control and the Pilot are contract prices that
   nothing on chain enforces (<a href="#pilot">what the Pilot is</a>). Under a Plan the program only lets the Acceptance rate
   be lowered, never raised.</p>
 </details>
@@ -668,8 +682,8 @@
       <h3>The fee, worked</h3>
       <details class="k-more">
 <summary>How the rate applies</summary>
-<p id="fee-how">One rate applies to the whole amount, and the fee is never under the floor. The funder pays the fee on top; the payee
-  receives the amount in full.</p>
+<p id="fee-how">One rate applies to the whole amount, and the fee is never under the floor. On an order the funder pays the fee on top; the payee
+  receives the amount in full. On a tip the fee comes out of the amount.</p>
 </details>
       <div class="table-wrap"><table id="fee-worked"><thead><tr><th>Amount</th><th>How</th><th>Fee</th></tr></thead><tbody></tbody></table></div>
       <h3>The effective fee, before you fund</h3>
@@ -802,6 +816,7 @@
   <span>Devnet is test mode: the money is test USDC.
     <a href="https://github.com/drexthealpha/Knos/blob/main/docs/GOVERNANCE.md">Who can change the programs</a></span>
   <span><a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
+  <span><a href="faq.html">Questions</a> · <a href="check/">The ten-second check</a></span>
   <span><a href="privacy.html">Privacy and terms</a></span>
 </footer>
 <!-- One script for the first screen. The code of every other page is asked for when that page is first opened (web/front.js, PAGES). -->

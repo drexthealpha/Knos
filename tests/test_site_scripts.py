@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NUMBER = "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check."
-OUTCOME = "Both sides close invoices on evidence both verify."
+OUTCOME = "Pay AI agents only when your checks pass."
 LIMITS = "Solana devnet, test money, one person holds every key, no outside review, and nobody has paid."
 STEPS = ["one", "two", "three", "four", "five", "six", "seven"]
 WHY_SOLANA = "Money is released with no custodian, and the count is anchored where neither side can alter it."

@@ -17,7 +17,10 @@ two files taken from the release tag. Exit 0: paid, and every claim it checked a
 ## What it checks
 
 1. The receipt fits its version's published schema (versions 4 and 5), and names knos_pay at the IDL's address.
-2. The cluster has the receipt's transaction at `finalized` commitment, and it did not fail.
+2. The cluster has the receipt's transaction at `finalized` commitment, and it did not fail. It reads every version a
+   cluster sends: legacy, version 0 (some accounts come from an address lookup table) and version 1, which Knos's
+   relay sends. It asks with `"maxSupportedTransactionVersion": 1`; asked with 0, devnet refuses a version 1
+   transaction ("Transaction version (1) is not supported by the requesting client").
 3. One of its instructions is knos_pay's PayOrder, SettleOrder or Release (the IDL's tags), and the account in the
    IDL's `order` place is the receipt's order.
 4. knos_pay itself logged the payments (`knos3:paid`, `knos3:released`) and the settlement (`knos3:settled`): a line
@@ -31,7 +34,10 @@ two files taken from the release tag. Exit 0: paid, and every claim it checked a
    (`docs/CONFORMANCE.md`; the published vectors in `conformance/vectors/ids.v1.json` are in its tests).
 
 For a status file it does 2 to 4 and 6 for each payment on chain, and checks that the line's deliverable is of the
-order paid and that its settlement id is that deliverable paid by that transaction.
+order paid and that its settlement id is that deliverable paid by that transaction. A deliverable id names an order's
+milestone in one of two published ways: by the order (a receipt, a meter ledger), or by an audit export's billing key,
+the order and the transaction that funded it (`knos audit export`; a witnessed statement takes its line from it). The
+milestone is 0, or a standing order's pull request, which the payment logs.
 
 ## What it trusts
 
@@ -50,4 +56,5 @@ are numbered stand-ins, since a LiteSVM run has no cluster. `record.py` writes t
 
 devnet's public endpoint is rate limited and "not intended for production applications"
 ([Solana clusters](https://solana.com/docs/references/clusters)); an order with a long history takes one request
-per transaction read.
+per transaction read. Each request gives up after 30 seconds; a "too many requests" answer is asked again four times,
+after 1, 2, 4 and 8 seconds, then reported.

@@ -327,7 +327,7 @@ def _search_page(numbers, agent="x"):
     return {"items": [dict(item("acme", "bot"), number=n, body="All tests pass.", created_at="2026-10-01T00:00:00Z") for n in numbers]}
 
 
-def test_a_search_that_runs_out_of_time_keeps_what_the_others_found_and_the_gate_refuses_it(github, monkeypatch, tmp_path):
+def test_a_search_that_runs_out_of_time_keeps_what_the_others_found_and_the_gate_holds_it_back(github, monkeypatch, tmp_path):
     def search(path, params=None, kind="core", max_age=None):
         if "codex" in params["q"]:
             raise agent_pr_ci.OutOfTime()
@@ -340,18 +340,28 @@ def test_a_search_that_runs_out_of_time_keeps_what_the_others_found_and_the_gate
     assert sorted(r["number"] for r in got["rows"]) == [1, 2]              # Copilot's rows are not thrown away
     index = agent_pr_index.build(got["rows"], "2026-10-02", got["window"], got["counts"]["excluded"])
     why = agent_pr_index.gate(got, index)
-    assert len(why) == 1 and "did not finish for codex" in why[0] and "run the workflow again" in why[0]
-    # the same through the command the workflow runs: it exits 1 and says why
+    assert len(why) == 1 and "did not finish for codex" in why[0] and "the next run continues" in why[0]
+    assert agent_pr_index.errors(got, index) == []                         # out of time is not an error
+    # the same through the command the workflow runs: it publishes nothing, exits 0 and says why in a note
     (tmp_path / "rows.json").write_text(json.dumps(got), encoding="utf-8")
     (tmp_path / "index.json").write_text(json.dumps(index), encoding="utf-8")
     cli = [sys.executable, str(ROOT / "scripts" / "agent_pr_index.py"), "gate", "--rows", str(tmp_path / "rows.json"),
            "--out", str(tmp_path / "index.json"), "--previous", str(tmp_path / "none.json")]
-    r = subprocess.run(cli, capture_output=True, text=True, check=False)
-    assert r.returncode == 1 and "not published: the search did not finish for codex" in r.stderr
+    env = {**os.environ, "GITHUB_OUTPUT": str(tmp_path / "out.txt")}
+    r = subprocess.run(cli, capture_output=True, text=True, encoding="utf-8", check=False, env=env)
+    assert r.returncode == 0 and "not published: the search did not finish for codex" in r.stderr
+    assert "::notice title=Agent PR Index not published yet::" in r.stdout
+    assert (tmp_path / "out.txt").read_text(encoding="utf-8") == "publish=false\n"
     got["unfinished_search"] = []
     (tmp_path / "rows.json").write_text(json.dumps(got), encoding="utf-8")
-    r = subprocess.run(cli, capture_output=True, text=True, check=False)
+    r = subprocess.run(cli, capture_output=True, text=True, encoding="utf-8", check=False, env=env)
     assert r.returncode == 0 and "publish it" in r.stderr
+    assert (tmp_path / "out.txt").read_text(encoding="utf-8") == "publish=false\npublish=true\n"
+    # a query GitHub refuses for itself is a real error: the run fails
+    got["search_errors"], got["unfinished_search"] = ["codex: gh: Validation Failed (HTTP 422)"], ["codex"]
+    (tmp_path / "rows.json").write_text(json.dumps(got), encoding="utf-8")
+    r = subprocess.run(cli, capture_output=True, text=True, encoding="utf-8", check=False, env=env)
+    assert r.returncode == 1 and "error: GitHub refused the search query itself for codex" in r.stderr
 
 
 def test_the_gate_publishes_a_finished_scan_and_names_what_an_unfinished_one_lacks():
@@ -397,7 +407,7 @@ def test_answers_about_pull_requests_that_left_the_window_are_forgotten(github, 
     assert agent_pr_ci.prune(127) == 1 and not kept.exists()
 
 
-def test_the_scheduled_run_publishes_or_fails_and_keeps_its_answers_either_way():
+def test_the_scheduled_run_publishes_waits_with_a_note_or_fails_and_keeps_its_answers_either_way():
     yaml = pytest.importorskip("yaml")
     doc = yaml.safe_load((ROOT / ".github" / "workflows" / "index.yml").read_text(encoding="utf-8"))
     assert doc[True]["schedule"] == [{"cron": "17 */6 * * *"}, {"cron": "43 7,9 * * 1"}]   # `on`: every 6 hours, as the docs say; Mondays, twice, for the week
@@ -409,14 +419,20 @@ def test_the_scheduled_run_publishes_or_fails_and_keeps_its_answers_either_way()
     release = next(i for i, r in enumerate(runs) if "gh release create" in r)
     save = next(i for i, s in enumerate(steps) if str(s.get("uses", "")).startswith("actions/cache/save@"))
     restore = next(i for i, s in enumerate(steps) if str(s.get("uses", "")).startswith("actions/cache/restore@"))
-    assert restore < scan < save < gate < release
-    assert steps[save]["if"] == "always()"                                    # a run that fails still leaves its answers
+    previous = next(i for i, r in enumerate(runs) if "-O previous.json" in r)
+    pages = next(i for i, r in enumerate(runs) if "gh workflow run network.yml" in r)
+    assert restore < previous < scan < save < gate < release < pages
+    assert steps[save]["if"] == "always()"                                    # a run that stops early still leaves its answers
     assert steps[save]["with"]["path"] == steps[restore]["with"]["path"] == "~/.cache/knos-agent-pr-ci"
     assert not any(str(s.get("uses", "")).startswith("actions/cache@") for s in steps)    # that one saves only on success
-    # no step decides, quietly, to publish nothing: a step that does not publish fails
+    # the scan takes what the last index counted, and stops 200 short of this hour's budget
+    assert "--previous previous.json" in runs[scan] and "--reserve 200" in runs[scan]
+    # only the gate decides to publish nothing, and it says so (its note: test above); nothing else is skipped quietly
     for r in runs:
         assert "exit 0" not in r and "|| true" not in r, r
-    assert "if" not in steps[gate] and "if" not in steps[release] and "continue-on-error" not in json.dumps(steps)
+    assert "if" not in steps[gate] and steps[gate]["id"] == "gate" and "continue-on-error" not in json.dumps(steps)
+    assert steps[release]["if"] == steps[pages]["if"] == "steps.gate.outputs.publish == 'true'"
+    assert [i for i, s in enumerate(steps) if "if" in s] == [save, release, pages]
     # and the gate asks for nothing the scan cannot reach: before, 480 an agent could keep 2,400 and 2,000 had to have
     # finished CI; now the floor is half the last index (1,216 after the 2,431 one) and the scan may keep 4,000
     per_agent = int(runs[scan].split("--per-agent")[1].split()[0])
@@ -1316,3 +1332,152 @@ def test_a_patient_run_waits_out_a_secondary_limit_and_finishes_the_week_and_a_w
     state = agent_pr_index.sample_week(SAMPLE_WEEK, str(tmp_path / "long.json"), read="2026-10-05", max_requests=5000, max_minutes=50, patient=True)
     assert len(api.asked) == asked and slept == [] and state["runs"][-1]["stopped"].startswith("GitHub said to come back at ") and state["runs"][-1]["requests"] == 0
     assert state["cursor"]["come_back"] is not None
+
+
+# ---- the index scan inside the default GITHUB_TOKEN's hour -------------------------------------------------------------
+
+class HourlyGithub:
+    """`gh` as the index scan sees it, for a token with an hourly REST and GraphQL budget (1,000 each for a workflow's
+    GITHUB_TOKEN). Search answers from `prs` by the `created:` range; GraphQL answers the checks of each pull request
+    it names; a request past the budget is refused as GitHub refuses it (HTTP 403, x-ratelimit-remaining 0)."""
+
+    def __init__(self, prs, core=1000, graphql=1000):
+        self.prs, self.left, self.asked, self.refused = prs, {"core": core, "graphql": graphql}, [], 0
+
+    def __call__(self, cmd):
+        if cmd[2] == "graphql":
+            return self._spend("graphql") or self._graphql(cmd[4].partition("=")[2])
+        path, fields = cmd[4], dict(cmd[i + 1].split("=", 1) for i, x in enumerate(cmd) if x == "-f")
+        if path == "rate_limit":
+            return 0, json.dumps({"resources": {k: {"remaining": v, "reset": int(time.time()) + 1800} for k, v in self.left.items()}}), ""
+        if path == "search/issues":
+            self.asked.append(("search", fields["q"]))
+            lo, hi = re.search(r"created:(\S+)\.\.(\S+)", fields["q"]).groups()
+            hits = sorted((n for n, day in self.prs.items() if lo[:10] <= day <= hi[:10]), reverse=True)
+            page = int(fields.get("page", 1))
+            items = [{"repository_url": "https://api.github.com/repos/acme/app", "number": n, "user": {"login": "Copilot"},
+                      "assignees": [], "body": "All tests pass.", "created_at": f"{self.prs[n]}T12:00:00Z"}
+                     for n in hits[(page - 1) * 100:page * 100]]
+            return 0, json.dumps({"total_count": len(hits), "incomplete_results": False, "items": items}), ""
+        return self._spend("core") or (1, "", "gh: Not Found (HTTP 404)")
+
+    def _spend(self, kind):
+        self.asked.append((kind, None))
+        if self.left[kind] <= 0:
+            self.refused += 1
+            reset = int(time.time()) + 1800
+            return 1, _headers(403, '{"message": "API rate limit exceeded"}', **{"x-ratelimit-remaining": "0", "x-ratelimit-reset": str(reset)}), \
+                "gh: API rate limit exceeded for installation ID 1. (HTTP 403)"
+        self.left[kind] -= 1
+        return None
+
+    def _graphql(self, query):
+        named = re.findall(r'p(\d+): repository\(owner: "([^"]+)", name: "([^"]+)"\) \{ pullRequest\(number: (\d+)\)', query)
+        self.asked[-1] = ("graphql", sorted(int(n) for *_, n in named))
+        run = lambda n: {"__typename": "CheckRun", "name": "test", "status": "COMPLETED", "conclusion": "FAILURE" if n % 3 == 0 else "SUCCESS"}  # noqa: E731
+        data = {f"p{i}": {"pullRequest": {"merged": int(n) % 2 == 0, "commits": {"nodes": [{"commit": {
+            "oid": f"{int(n):040x}", "statusCheckRollup": {"contexts": {"pageInfo": {"hasNextPage": False}, "nodes": [run(int(n))]}},
+            "checkSuites": {"nodes": []}}}]}}} for i, _, _, n in named}
+        return 0, json.dumps({"data": data}), ""
+
+    def count(self, kind):
+        return sum(1 for k, _ in self.asked if k == kind)
+
+
+@pytest.fixture()
+def hourly(tmp_path, monkeypatch):
+    slept = []
+    monkeypatch.setattr(agent_pr_ci, "CACHE", str(tmp_path / "cache"))
+    monkeypatch.setattr(agent_pr_ci, "AGENTS", [("copilot", "author:app/copilot-swe-agent")])
+    monkeypatch.setattr(agent_pr_ci.time, "sleep", slept.append)
+    monkeypatch.setattr(agent_pr_ci, "START", time.time())
+    return slept
+
+
+def _run(api, monkeypatch, tmp_path, end, days, previous=None, now=None):
+    """One scheduled run of the index job's scan and gate: (scan, index, why not published, errors)."""
+    monkeypatch.setattr(agent_pr_ci, "_gh", api)
+    got = agent_pr_index.scan(end, days, 800, 1200, previous=previous, reserve=200)
+    got = agent_pr_index.track(got, str(tmp_path / "cache" / "unfinished_since.json"), now=now)
+    index = agent_pr_index.build(got["rows"], end, got["window"], got["counts"]["excluded"])
+    return got, index, agent_pr_index.gate(got, index, previous), agent_pr_index.errors(got, index, previous, now=now)
+
+
+def test_the_index_scan_stops_before_the_hourly_limit_then_reads_only_what_is_new(hourly, monkeypatch, tmp_path):
+    """What kept index.yml red from 5 October: the scan ran into the hourly limit of the workflow's token. Now it reads
+    rate_limit (free), stops 200 short of the budget without being refused, and the job stays green; the next run
+    continues from the cache, and a run a day later asks only about the pull requests opened since."""
+    prs = {n: "2026-10-04" if n <= 50 else "2026-10-05" for n in range(1, 101)}
+    # run 1: someone else spent most of this hour's GraphQL budget: 3 requests are left above the reserve
+    api = HourlyGithub(prs, core=1000, graphql=203)
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 2)
+    assert api.refused == 0 and api.count("graphql") == 3 and api.count("core") == 0       # it stopped before the limit
+    assert got["kept"] == 100 and got["unread"] == 40 and len(got["rows"]) == 60
+    assert "used the graphql requests this hour's budget leaves it" in got["stopped"]
+    assert why and "the next run continues" in why[0] and bad == []                           # green: held back, no error
+    assert got["unfinished_since"] is not None and max(hourly, default=0) < 3     # and it never slept on a limit
+    # run 2, the next hour: nothing is searched again, and only the 40 left are read, 20 to a request
+    searched = api.count("search")
+    api.left = {"core": 1000, "graphql": 1000}
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 2)
+    assert api.count("search") == searched and api.count("graphql") == 5 and api.count("core") == 0
+    assert got["unread"] == 0 and index["n_prs"] == 100 and why == [] and bad == [] and got["unfinished_since"] is None
+    assert sum(r["class"] == "failed" for r in got["rows"]) == 33 and all(isinstance(r["merged"], bool) for r in got["rows"])
+    first = index
+    # run 3, a day later: ten new pull requests; only they are read, in one request
+    prs.update({n: "2026-10-06" for n in range(101, 111)})
+    before = len(api.asked)
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-06", 3)
+    assert [x for k, x in api.asked[before:] if k == "graphql"] == [list(range(101, 111))] and api.count("core") == 0
+    assert index["n_prs"] == 110 and why == bad == []
+    # the cache lost (evicted): the last published index fills in what it counted, so again only the new are read
+    shutil.rmtree(tmp_path / "cache")
+    prs.update({n: "2026-10-06" for n in range(111, 116)})
+    before = len(api.asked)
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-06", 3, previous=first)
+    assert got["seeded"] == 100 and [x for k, x in api.asked[before:] if k == "graphql"] == [list(range(101, 116))]
+    assert index["n_prs"] == 115 and why == bad == []
+    assert {json.dumps(r, sort_keys=True) for r in first["prs"]} <= {json.dumps(r, sort_keys=True) for r in index["prs"]}
+
+
+def test_a_refusal_for_the_hourly_limit_ends_the_run_with_a_time_to_come_back_and_only_stalling_is_an_error(hourly, monkeypatch, tmp_path):
+    """Another workflow of the repository spent the hour after the scan read rate_limit: GitHub refuses. The scan does
+    not wait the half hour out inside its 20 minutes: it stops, keeps what it read, and says when to come back. Runs
+    that stop early for two days are not catching up: that, and not one early stop, fails the job."""
+    import datetime as dt
+    prs = {n: "2026-10-05" for n in range(1, 61)}
+    api = HourlyGithub(prs, graphql=1000)
+    monkeypatch.setattr(agent_pr_ci, "budget", lambda reserve, read=None: agent_pr_ci.LEFT.update(core=800, graphql=800) or agent_pr_ci.LEFT)
+    api.left["graphql"] = 1                          # what GitHub really has left, whatever rate_limit said a moment ago
+    t0 = dt.datetime(2026, 10, 6, 0, 17, tzinfo=dt.timezone.utc)
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 1, now=t0)
+    assert api.refused == 1 and max(hourly, default=0) < 3 and got["unread"] == 40 and len(got["rows"]) == 20
+    assert got["stopped"] == "GitHub refused a GraphQL request for a rate limit"
+    back = dt.datetime.fromisoformat(got["come_back"]).timestamp() - time.time()
+    assert 1700 < back <= 1802 and why and bad == []
+    # still stopped early six hours on and a day on: green; two days on: an error that says what to do
+    for hours, failing in ((6, False), (24, False), (48, True)):
+        api.left["graphql"] = 0
+        got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 1, now=t0 + dt.timedelta(hours=hours))
+        assert got["unfinished_since"] == t0.isoformat(timespec="seconds") and bool(bad) is failing, (hours, bad)
+    assert "not catching up" in bad[0] and "KNOS_INDEX_TOKEN" in bad[0]
+    # and one finished run clears it
+    api.left["graphql"] = 1000
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 1, now=t0 + dt.timedelta(hours=54))
+    assert got["unfinished_since"] is None and why == bad == [] and index["n_prs"] == 60
+
+
+def test_the_budget_is_what_github_says_is_left_less_the_reserve_and_the_token_s_hour_when_it_does_not_say(monkeypatch):
+    monkeypatch.setattr(agent_pr_ci, "LEFT", {})
+    said = json.dumps({"resources": {"core": {"remaining": 950}, "graphql": {"remaining": 120}, "search": {"remaining": 30}}})
+    assert agent_pr_ci.budget(200, read=lambda cmd: (0, said, "")) == {"core": 750, "graphql": 0}
+    assert agent_pr_ci.budget(200, read=lambda cmd: (1, "", "gh: Bad Gateway (HTTP 502)")) == {"core": 800, "graphql": 800}
+    # a run with no budget left sends nothing and says why
+    monkeypatch.setattr(agent_pr_ci, "ARGS", SimpleNamespace(max_seconds=10_000))
+    monkeypatch.setattr(agent_pr_ci, "START", time.time())
+    monkeypatch.setattr(agent_pr_ci, "STOPPED", [None])
+    agent_pr_ci.LEFT.update(graphql=0)
+    with pytest.raises(agent_pr_ci.OutOfBudget):
+        agent_pr_ci._spend("graphql")
+    assert "graphql" in agent_pr_ci.STOPPED[0]
+    agent_pr_ci._spend("search")                     # search has its own limit, a minute long, kept by its pause

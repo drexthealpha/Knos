@@ -10,10 +10,14 @@ order_terms.rs, section 5), and what a relay needs to carry their tokens:
             Distinct (2.2, `distinct`): judges whose runs were in repositories of one owner are one judge, and a
             neutral run counts only when its owner is not the order repository's owner and its actor did not start
             the run in the order's repository. Different forge accounts and owners: not different people.
+            Off chain (`controllers`): a relay also refuses to carry the word that completes a quorum when two of
+            the counted judges were started by one account, though their repositories have different owners. The
+            program would count them as two; the refusal is the relay's, until a program upgrade makes it the rule.
 """
 from __future__ import annotations
 
 import hashlib
+import os
 
 from solders.instruction import AccountMeta, Instruction
 from solders.pubkey import Pubkey
@@ -81,6 +85,55 @@ def distinct(order_owner: int, who: list[tuple[int, int] | None]) -> int:
         own is None or (neutral[0] != own[0] and neutral[1] != own[1]))
     owners = [w[0] for w in (own, neutral if third_party else None, named) if w is not None]
     return len(set(owners))
+
+
+def counted(order_owner: int, who: list[tuple[int, int] | None]) -> list[tuple[int, int]]:
+    """The runs `distinct` counts, one for each owner, in kind order: the presenting kind's run where its owner is
+    already counted is not added twice."""
+    own, neutral, named = who
+    third_party = neutral is not None and (order_owner != 0 or own is not None) and neutral[0] != order_owner and (
+        own is None or (neutral[0] != own[0] and neutral[1] != own[1]))
+    out: list[tuple[int, int]] = []
+    for w in (own, neutral if third_party else None, named):
+        if w is not None and all(w[0] != x[0] for x in out):
+            out.append(w)
+    return out
+
+
+def controllers(order_owner: int, who: list[tuple[int, int] | None]) -> int:
+    """How many different controllers the counted judges have: two runs share a controller when they share an owner
+    or the account that started them (`actor_id`), directly or through a third run. Never more than `distinct`."""
+    runs = counted(order_owner, who)
+    groups: list[set[int]] = []
+    for owner, actor in runs:
+        mine = {owner, actor}
+        for g in [g for g in groups if g & mine]:
+            mine |= g
+            groups.remove(g)
+        groups.append(mine)
+    return len(groups)
+
+
+ONE_STARTER = ("two of the judges that passed this commit were started by one account, in repositories of different owners: "
+               "one account is one judge, so the relay does not carry the word that would complete this quorum")
+
+# Knos's own GitHub accounts: the "ids" of scripts/own_github_ids.json, which the records label "own" (a test holds the two equal)
+OWN_IDS = frozenset({142920951})
+
+OWN_ROUND = ("An own round: the funder and the account that started each judge's run are the relay operator's own, so "
+             "the judges share one controller and are not independent evidence")
+
+
+def own_ids() -> frozenset[int]:
+    """The relay operator's own GitHub account ids: KNOS_OWN_IDS (comma-separated) when it is set, else Knos's own."""
+    got = {int(x) for x in os.environ.get("KNOS_OWN_IDS", "").replace(" ", "").split(",") if x.isdigit()}
+    return frozenset(got) or OWN_IDS
+
+
+def own_round(funder_id: int, runs: list[tuple[int, int]], own: frozenset[int]) -> bool:
+    """True when the order's funder and the account that started each counted run (`counted`) are all the operator's
+    own: the one-starter refusal is for outside orders, and an own round runs, labelled own (`OWN_ROUND`)."""
+    return bool(own) and bool(runs) and funder_id in own and all(actor in own for _owner, actor in runs)
 
 
 def passed(markers: dict[int, bytes | None], o: pay.Order, audience: str, kind: int, run: tuple[int, int] | None = None) -> int:

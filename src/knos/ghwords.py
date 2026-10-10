@@ -97,6 +97,47 @@ def failed(path: str, why: BaseException) -> str:
     return f"GitHub did not answer for {path}: {first_line(why)}."
 
 
+# ---- why the relay did not carry a token: whose it is, and what to do next ---------------------------------------------
+# A relay's `fail <why>` is one of two things. "user": the request cannot be done as asked, and asking again the same way
+# changes nothing (the issue is funded already, nothing is in escrow, the workflow is out of date). "knos": Knos, the
+# network or a release did not finish it; asking again may work. The reply on GitHub ends with `next` (one sentence),
+# and scripts/network_stats.py counts the two apart, so the completion rate is honest both ways.
+RELAY: tuple[tuple[str, str, str], ...] = (
+    (r"already has (?:the repository's|a) bounty", "user",
+     "This issue has its bounty already; `/knos status` shows it, so fund another issue instead."),
+    (r"^no (?:open )?bounty|^nothing is in escrow", "user",
+     "Nothing is in escrow for this issue; a maintainer funds it with `/knos fund <amount>` first."),
+    (r"^not an audience of the second deployment", "user",
+     "This repository runs an old Knos workflow; replace it with examples/knos-workflow.yml, then retry."),
+    (r"^for an order with a quorum a neutral run", "user",
+     "Ask someone who is not the funder, outside this repository, to run `knos settle --neutral`."),
+    (r"^this token was used already", "user",
+     "That request was carried already; `/knos status` shows what it did."),
+    (r"^an older fund token", "knos",
+     "Another funding in this repository went first; post the same comment again."),
+    (r"escrow on this cluster is version|^ProgramVersionError", "knos",
+     "Knos's escrow is being upgraded; post the same comment again after the upgrade."),
+    (r"token too long|^the token is \d+ bytes", "knos",
+     "The signed token was too large for the verifier; open an issue on drexthealpha/Knos."),
+)
+RELAY_AGAIN = "Post the same comment again; if it fails twice, open an issue on drexthealpha/Knos."
+
+
+def relay_reason(why) -> tuple[str, str]:
+    """(whose, next) for a relay's reason: whose is "user" or "knos" (the table above), next is one sentence saying what
+    to do. A reason the table does not hold is Knos's: an error of Knos's own code, the network, the cluster."""
+    text = " ".join(str(why or "").split())
+    for pattern, whose, then in RELAY:
+        if re.search(pattern, text):
+            return whose, then
+    return "knos", RELAY_AGAIN
+
+
+def user_error(why) -> bool:
+    """True when the relay's reason means the request cannot be done as asked (see RELAY)."""
+    return relay_reason(why)[0] == "user"
+
+
 # ---- refusals in plain words -------------------------------------------------------------------------------------------
 # Every refusal the judge, the workflow and the programs can give, by code: ONE sentence saying what happened and ONE
 # saying what to do, each of 12 words at most. The command line, the comment writer, docs/SUPPLIER.md and the site's

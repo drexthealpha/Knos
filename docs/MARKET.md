@@ -60,7 +60,8 @@ What each of them gets today:
 | Supplier | Terms nobody can change after funding. Settlement without the buyer after a merge in a public repository. Its own count of the month on chain, beside the buyer's. | `knos settle --neutral`; `ClaimBatch` in `knos-meter` |
 | Maintainer | One comment funds an issue; one merge pays it. | `/knos fund` |
 
-What neither gets yet: private repositories under a contract, money a bank accepts, single sign-on, a company
+What neither gets yet: private repositories under a contract, money a bank accepts, single sign-on tried with a real provider (the self-host bundle has
+single sign-on through any OpenID Connect provider, tested against a stand-in provider only), a company
 that answers for the service, an outside security review. [CONTROLS.md](CONTROLS.md) has the list. Some rows of
 the table above name instructions of the 2.1 and 1.1 builds; whether those are live on the public program ids is
 in `web/upgrades.json`, and [CAPABILITIES.md](CAPABILITIES.md) gives each capability's stage.
@@ -199,7 +200,7 @@ that side's vendor.
 
 **Generic agent metering will face price pressure.** A cloud lists an evaluation at 0.0015 USD and a policy
 decision at 0.000025; a billing company includes a hundred million metered events a month in its percentage; a
-payment on merge is sold with no platform fee. The Meter's 0.002 is a third more than the cloud's evaluation
+payment on merge is sold with no platform fee. The Meter's proposed 0.002 is a third more than the cloud's evaluation
 call and will not hold as a price for counting alone. Knos does not plan on it holding.
 
 What Knos sells beyond each, one line each:
@@ -231,6 +232,15 @@ is a count both sides can recompute, deduplication, retention, and a signed acce
 | Record | lookup of a supplier's delivery record through the machine-priced API | 0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free | the buyer, marketplace or insurer reading it | `knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it |
 | Control | organisation, per year | Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist) | buyer | contract |
 | Pilot | one buyer, two suppliers, 30 days, one reconciled invoice | 2,500 USD, credited against year one | buyer | contract |
+
+**The Meter on chain today differs from the price book.** The deployed `knos-meter` program on devnet charges
+0.05 per evaluation after the first 10,000 of a month per owner (0.02 at the least under a Plan), in test USDC
+(`programs-v2/knos_meter/src/lib.rs`, `FEE` and `FREE_PER_MONTH`). The price book proposes 100,000 free, then 0.002
+USD. Changing the program waits for an upgrade; until then the off-chain statement (`knos meter`) uses the price
+book's numbers and the program uses its own.
+
+**Who bears the Acceptance fee on chain.** On an order the funder pays it on top of the amount; on a job it comes out
+of the amount (section 3, "What the program takes at release").
 
 These are proposed prices. Nobody has paid any of them, and nobody has been asked whether they would. Nothing has
 been sold; there is no legal entity to invoice from; on devnet every fee is test money and zero revenue.
@@ -268,6 +278,18 @@ Three things changed in this book, each because the arithmetic of the last one d
   laid end to end, value released on chain first: the first 1,000,000 USD pays 0.30% and what lies above it pays
   0.20%. No rate is lower than 0.20%. Each deliverable pays the rate of the part of the month it lies in, and at
   least 0.05 USD. There is no cap.
+- **0.20% is paid only on the part above 1,000,000.** It never applies to the whole month. A worked month under
+  contract: 1,500,000 USD accepted. The first 1,000,000 pays 0.30%, which is 3,000. The other 500,000 pays 0.20%,
+  which is 1,000. The month pays 4,000, or 0.27% of its value. It does not pay 0.20% of 1,500,000 (3,000). A
+  test holds the code to this month (`tests/test_billing_defaults.py`).
+- **No price rise without 90 days' notice, and never on an order already funded.** A rise is announced at least
+  90 days before it starts. An order funded before that day pays the price in force on the day it was funded. On
+  chain the program keeps each work order's fee as it was at funding: an order funded under knos_pay 2.1 keeps
+  its fee after the upgrade to 2.2. Off chain, `billing.py` charges each deliverable the price in force on the
+  day its order was funded (`price_at`), and refuses a list of prices with a rise on shorter notice
+  (`check_prices`). The program cannot enforce the 90 days: a fee change on chain is an upgrade, and an upgrade
+  waits only for its [time lock](WORDS.md#time-lock). The 90 days are a term Knos would write into each contract; none is signed yet.
+  `PRICES` in `billing.py` lists one price today: this book.
 - **Small tickets are netted.** An accepted outcome under 20 USD that names its payee is not charged by itself.
   A payee's small outcomes of a period are one release: 0.30% of the netted amount, and the 0.05 floor once for
   the release. A hundred outcomes of 0.99 to one payee pay 0.30 netted, where one by one they would pay 5.00. One
@@ -304,7 +326,13 @@ Meter. Acceptance is charged on the dollar, once, when a signed acceptance relea
 would be the rate on the first and the floor makes it 0.05; the second pays 120 USD.
 
 **What the program takes at release, shown before funding.** One rate and a floor, for jobs and orders alike:
-`fee = max(0.05, floor(amount × 30 / 10,000))` in the token's base units. The funder pays it on top of the amount.
+`fee = max(0.05, floor(amount × 30 / 10,000))` in the token's base units. Who bears it depends on what was funded
+(`programs-v2/knos_pay/src/lib.rs`):
+
+- **An order** (a work order: what `/knos fund` makes): the funder pays the fee on top of the amount
+  (`order_fee`). The payees get the whole amount.
+- **A job** (a bounty funded from a Balance or a wallet: what `/knos tip` makes): the fee comes out of the amount
+  (`fee_of`), and is never more than it. The payee gets the amount minus the fee; the funder pays the amount only.
 
 | release | fee | as a share |
 |---|---|---|
@@ -328,8 +356,9 @@ Where each price is fixed:
   the count. It does not cover running the customer's tests or an agent's inference: those run in the customer's
   own CI, on the customer's bill. `knos-meter` on devnet is unchanged in this release and still holds the last
   price book's constants in test credits ([METER.md](METER.md)); the price here is the contract's.
-- **Acceptance.** In `knos-pay`, at release: 0.30% and the floor, taken on top of the amount when someone is paid;
-  a refund returns amount and fee. Under a contract a `Plan` can lower the rate for one owner; the program's own
+- **Acceptance.** In `knos-pay`, at release: 0.30% and the floor, taken when someone is paid. An order's funder
+  pays it on top of the amount, and a refund returns amount and fee; a job's comes out of its amount, and a refund
+  returns the amount. Under a contract a `Plan` can lower the rate for one owner; the program's own
   bound is 0.10%, and the price book's contracts go no lower than 0.20%. No such contract exists. Netting is
   reconciled off chain: on chain the least order is 5 test USDC, and each release pays the floor. Value a buyer and a supplier reconcile off chain is invoiced off chain at the
   same rate, by `src/knos/billing.py`, and needs no customer money on chain. On devnet an order holds between 5
@@ -389,7 +418,8 @@ of them exists yet and none is measured.
 
 ### 1 million metered evaluations in a month
 
-A customer with 1,000,000 evaluations in a month has 900,000 billable ones: 1,800 USD at 0.002.
+A buyer with 1,000,000 evaluations in a month (an example: Knos has no customers) has 900,000 billable ones: 1,800 USD at the proposed 0.002. (The deployed `knos-meter` program, at
+0.05 after 10,000 free, would take 49,500 in test USDC until an upgrade changes it.)
 
 | | individual mode (`Record`) | batch mode (`RecordBatch`) |
 |---|---|---|
@@ -408,7 +438,7 @@ the same signatures and one more Ledger account, and no fee. Neither mode's cost
 gross: revenue less the direct cost of delivering it. Operating margin also subtracts building, selling and
 administering, and none of those costs is known, so none is printed.
 
-**The gross-margin budget.** At 0.002 per evaluation, a gross margin of 90% **[assumption: a target]** leaves
+**The gross-margin budget.** At the proposed 0.002 per evaluation, a gross margin of 90% **[assumption: a target]** leaves
 0.0002 USD per evaluation to deliver it, and 95% leaves 0.0001. The monthly batch is the default delivery: one
 anchored batch for each buyer and supplier, 0.14 USD a month whatever the count, so the chain's cost per
 evaluation tends to zero. The budget for the rest is 0.00005 USD an evaluation, and it is not measured: storing
@@ -490,6 +520,27 @@ No input is measured, so this page multiplies no count of customers.
 billion USD in 2025, 4.0 billion of it on coding ([Menlo Ventures, 9 Dec 2025](https://menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise/),
 read again 8 Oct 2026). That is spend on the tools and models, mostly by the seat and the token, not purchased
 work accepted per outcome: none of it is eligible work until a buyer pays a supplier per outcome for it.
+
+### Market size
+
+The total above stays unprinted: no qualified organisation has been counted. What can be printed is a size under
+labelled assumptions, on one page: [submission/MARKET_SIZE.md](submission/MARKET_SIZE.md). In short:
+
+**fee a year = what companies pay coding agents × the share paid per accepted outcome × the fee rate.**
+
+- **What three coding agents earn a year: 7,400 million USD.**
+  Cursor above 4 billion USD (early June 2026, **[press]**, [Dealroom](https://dealroom.co/news/134107-cursor-tops-4b-annualized-revenue/)),
+  Claude Code over 2.5 billion USD (12 Feb 2026, **[company-reported]**, [Anthropic](https://www.anthropic.com/news/anthropic-raises-30-billion-series-g-funding-380-billion-post-money-valuation)),
+  Devin about 900 million USD (August 2026, **[press]**, [Crypto Briefing](https://cryptobriefing.com/cognition-900m-arr-800m-cash-burn/)).
+  Codex and Copilot do not disclose theirs.
+- **Share paid per accepted outcome: 1%, 10% or 27%**, an **[assumption]**. 27% is the share of buyers who say
+  they favour paying by outcome ([Futurum, 12 May 2026](https://futurumgroup.com/press-release/are-outcome-based-and-hybrid-ai-pricing-models-rewriting-the-vendor-playbook/)):
+  a preference, not a measured share.
+- **Rate: 0.30%** (the price book, section 3), **or 0.15%** (not offered: the price book's lowest is 0.20%).
+
+Top-down, that is 222,000 to 5,994,000 USD a year at 0.30%, and 111,000 to 2,997,000 at 0.15%. Bottom-up, 50 to
+1,000 buyers paying 1 to 2 million USD a year each per outcome (every input an **[assumption]**) gives 150,000 to
+6,000,000 at 0.30%. These size a pool, not Knos's part of it: Knos has no share, no buyer and no revenue.
 
 ## 6. One customer, worked; how one customer expands; the first steps
 

@@ -8,7 +8,8 @@ docs/RELEASE.md is the plan; this is what it runs.
     python scripts/release.py verify [DIR]      everything the one commit must hold, checked: versions, the lock, the
                                                 wheel built again, the pin (and DIR: the checkout whose HEAD is the pin)
     python scripts/release.py publish           upload THAT wheel (and the sdist) to PyPI: `uv publish`, token from the
-                                                environment (UV_PUBLISH_TOKEN). Before the push
+                                                environment (UV_PUBLISH_TOKEN), once this tree builds the locked
+                                                wheel again. Before the cutoff, the workflows, the commit and the push
     python scripts/release.py pypi-check [--dist DIR] [--wait SECONDS]
                                                 exit 1 unless PyPI serves the wheel with exactly the locked hash, and
                                                 its index (what an installer reads) lists that file
@@ -35,7 +36,8 @@ what PyPI serves to the lock.
 
 PyPI answers from two places. The JSON page of a version shows an upload at once; the index an installer resolves from
 (https://pypi.org/simple/knos/) is cached and showed 0.3.15 a few minutes later, so the first runs after that push
-found "no version of" the release they asked for. `publish` therefore says "git push" only once the index lists the locked wheel.
+found "no version of" the release they asked for. `publish` therefore names the next step (the cutoff, written from the time
+PyPI took the wheel: scripts/pinned_workflows.py cutoff) only once the index lists the locked wheel.
 
 A package is published at ITS OWN version. The Python package and the JavaScript client move with every release. The
 program crates and the two interface crates stay at FROZEN_AT while scripts/bump_version.py names them in
@@ -481,10 +483,11 @@ def publish_cmd() -> int:
     wheel, sdist = (ROOT / "dist" / n for n in names(version))
     if not wheel.is_file() or sha256(wheel) != want:
         raise SystemExit(f"refused: dist/{wheel.name} is not the locked wheel ({want}). Nothing was uploaded.")
-    if git("status", "--porcelain", cwd=ROOT):
-        raise SystemExit("refused: the working tree is not committed. The wheel goes to PyPI after the one commit and before the push. Nothing was uploaded.")
-    if git("show", "HEAD:requirements/sign.txt", cwd=ROOT) != (ROOT / "requirements" / "sign.txt").read_text(encoding="utf-8").strip():
-        raise SystemExit("refused: the commit does not hold this lock. Nothing was uploaded.")
+    with tempfile.TemporaryDirectory() as tmp:
+        got = sha256(build(Path(tmp))[0])
+    if got != want:
+        raise SystemExit(f"refused: this tree builds a wheel with sha256 {got}, and requirements/sign.txt locks {want}. Something inside the wheel "
+                         "changed after the lock: find it (git diff), or build and lock again. Nothing was uploaded.")
     files = on_pypi(version)
     if files and wheel.name in files:
         ok, said = pypi_check()
@@ -503,9 +506,9 @@ def publish_cmd() -> int:
 
 
 def _pushable() -> int:
-    """The last word of `publish`: push only once the index an installer reads lists the wheel (at most 10 minutes)."""
+    """The last word of `publish`: the cutoff is written only once the index an installer reads lists the wheel (at most 10 minutes)."""
     ok, said = index_check(wait=600)
-    print(said + (" Next: git push, then the tag." if ok else ""))
+    print(said + (" Next: python scripts/pinned_workflows.py cutoff" if ok else ""))
     return 0 if ok else 1
 
 
@@ -515,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("wheel", help="build the wheel and the sdist reproducibly into dist/").add_argument("--check", action="store_true", help="exit 1 unless the wheel is the locked one")
     sub.add_parser("workflows", help="write and commit the pinned workflows in a checkout of knos-workflows").add_argument("dir")
     sub.add_parser("verify", help="check everything the one commit must hold").add_argument("dir", nargs="?")
-    sub.add_parser("publish", help="upload the locked wheel to PyPI (UV_PUBLISH_TOKEN), before the push")
+    sub.add_parser("publish", help="upload the locked wheel to PyPI (UV_PUBLISH_TOKEN), before the cutoff, the workflows and the push")
     check = sub.add_parser("pypi-check", help="exit 1 unless PyPI serves the wheel with exactly the locked hash")
     check.add_argument("--dist", help="a folder whose wheel must be that file too")
     check.add_argument("--wait", type=int, default=0, help="seconds to keep asking while PyPI does not show the release")

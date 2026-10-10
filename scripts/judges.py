@@ -4,9 +4,11 @@
     python scripts/judges.py            write docs/judges.json from docs/JUDGES.md
     python scripts/judges.py --check    fail when the file differs from the page, or the page breaks its own rules
 
-The page is typed by hand and is the source. Its rules: the one sentence, then the winning claim, then the one number;
-at most 350 words outside the table; thirteen rows (the six criteria in the rules, then the seven factors Colosseum's
-hackathon page lists), each one sentence and one link; a definition of days to approve that gives no figure; five
+The page is typed by hand and is the source. It opens with the mark (an <img> line) and an "In plain words" summary of
+three sentences; after them, its rules: the one sentence, then the winning claim, then the one number; at most 350
+words outside the table, counting what a reader reads: the summary and every caption count, while a ```mermaid block
+(a diagram's source, which GitHub draws as a picture) and HTML markup such as the mark do not; thirteen rows (the six
+criteria in the rules, then the seven factors Colosseum's hackathon page lists), each one sentence and one link; a definition of days to approve that gives no figure; five
 lines under "What is not real yet". The shape of the file, which the site's "For judges" page (web/judges.js) reads
 as it is (scripts/build_site.sh copies it into the build):
 
@@ -53,6 +55,9 @@ WITNESSED = ["funded", "wrong work refused", "paid", "replay paid nothing more",
 WORD = re.compile(r"[A-Za-z0-9][\w'%.,-]*")
 LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 MAIN = "https://github.com/drexthealpha/Knos/blob/main/"
+MERMAID = re.compile(r"(?ms)^```mermaid\n.*?^```[ \t]*$")
+TAG = re.compile(r"<[^>\n]+>")
+PLAIN = "**In plain words.**"
 
 
 def flat(text: str) -> str:
@@ -60,9 +65,16 @@ def flat(text: str) -> str:
 
 
 def prose(page: str) -> str:
-    """The page without its table and without link targets: what the 350 words count."""
+    """The page without its table, its Mermaid blocks, its HTML tags and its link targets: what the 350 words count."""
+    page = MERMAID.sub("", page)
     kept = [line for line in page.splitlines() if not line.startswith("|")]
-    return re.sub(r"\]\([^)]*\)", "]", "\n".join(kept))
+    return re.sub(r"\]\([^)]*\)", "]", TAG.sub("", "\n".join(kept)))
+
+
+def head(page: str) -> list[str]:
+    """The page's non-empty lines without the mark and the "In plain words" summary: the title is the first."""
+    lines = [line for line in page.splitlines() if line.strip()]
+    return [line for line in lines if not line.startswith(("<img ", PLAIN))]
 
 
 def _plain(cell: str) -> str:
@@ -121,7 +133,7 @@ def entry(page: str, root: Path = ROOT) -> dict:
 
 def build(root: Path = ROOT) -> dict:
     page = (root / PAGE).read_text(encoding="utf-8")
-    lines = [line for line in page.splitlines() if line.strip()]
+    lines = head(page)
     got = read(page, root)
     rows = [{"id": re.sub(r"[^a-z]+", "_", r["thing"].lower()).strip("_"), **r} for r in got["rows"]]
     wait = flat(page.split("## Days to approve, not seconds to pay")[1].split("\n## ")[0])

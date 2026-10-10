@@ -1,0 +1,24 @@
+# Knos
+
+> The neutral meter for AI agent work: neither side keeps the count. Pay AI agents only when your checks pass. It runs on Solana devnet, so every payment is test USDC, which is worth nothing.
+
+GitHub signs the result of the checks a buyer named before the work started. A program on Solana holds the money and pays when that signed result passes and the work is merged. Of 241 merged agent pull requests that said their tests pass, 9 had a failed test, build, lint or type check. Knos is open source under the MIT licence.
+
+## Start here
+
+- [The ten-second check](https://drexthealpha.github.io/Knos/check/): paste a public pull request; see whether its checks really passed
+- [Questions](https://drexthealpha.github.io/Knos/faq.html): eight short answers, from what Knos is to who holds the money
+- [README](https://raw.githubusercontent.com/drexthealpha/Knos/main/README.md): how it works, in plain words, with diagrams
+- [Words](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/WORDS.md): every technical word in one line
+
+## Docs
+
+- [Story](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/STORY.md): one task in seven steps, each with its evidence
+- [Release manifest](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/MANIFEST.md): the code, what runs on devnet, the limits
+- [What is not real yet](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/DISCLOSURE.md): no customers, no revenue, test money only
+- [Map of the documents](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/README.md): every document, under six questions
+
+## Optional
+
+- [Source](https://github.com/drexthealpha/Knos): the repository
+- [Package](https://pypi.org/project/knos/): `pip install knos`

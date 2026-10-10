@@ -12,7 +12,7 @@ From [colosseum.com/hackathon](https://colosseum.com/hackathon) (read 9 Oct 2026
 - [ ] The chains and tools it integrates: Solana devnet, GitHub Actions OIDC (`chains`, `chainUsage`).
 - [ ] Every teammate, with background, and the team's location: one person ([../TEAM.md](../TEAM.md)).
 - [ ] A logo: `web/brand/`.
-- [ ] The GitHub repository at the release tag, opened signed out: [`github.com/drexthealpha/Knos/tree/v0.3.25`](https://github.com/drexthealpha/Knos/tree/v0.3.25).
+- [ ] The GitHub repository at the release tag, opened signed out: [`github.com/drexthealpha/Knos/tree/v0.3.26`](https://github.com/drexthealpha/Knos/tree/v0.3.26).
       Never the bare repository address: a cached copy of its front page can show an older release.
 - [ ] A presentation video: the render of [`pitch_script_120.md`](pitch_script_120.md), which ends before two minutes.
       The form's help text says `Up to 2 minutes`; Colosseum's page says two to three. At just under two
@@ -25,8 +25,8 @@ From [colosseum.com/hackathon](https://colosseum.com/hackathon) (read 9 Oct 2026
 ## Links, field by field
 
 Which link goes in which field is in [SUBMISSION.md](SUBMISSION.md) ("Which link goes in which field"): the
-repository field gets the tag, [`github.com/drexthealpha/Knos/tree/v0.3.25`](https://github.com/drexthealpha/Knos/tree/v0.3.25); `liveProductLink` names the site first; any other
-place for a link gets the judges' page at the tag, [`docs/JUDGES.md` at `v0.3.25`](https://github.com/drexthealpha/Knos/blob/v0.3.25/docs/JUDGES.md).
+repository field gets the tag, [`github.com/drexthealpha/Knos/tree/v0.3.26`](https://github.com/drexthealpha/Knos/tree/v0.3.26); `liveProductLink` names the site first; any other
+place for a link gets the judges' page at the tag, [`docs/JUDGES.md` at `v0.3.26`](https://github.com/drexthealpha/Knos/blob/v0.3.26/docs/JUDGES.md).
 
 ## What only the founder fills in
 

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos. Check an AI agent's pull request in ten seconds</title>
+<meta name="description" content="Paste a public GitHub pull request. In ten seconds, see whether the agent's tests, build, lint and type checks really passed. No sign-up.">
+<meta name="author" content="drexthealpha">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/check/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Knos">
+<meta property="og:title" content="Knos. Check an AI agent's pull request in ten seconds">
+<meta property="og:description" content="Paste a public GitHub pull request. In ten seconds, see whether the agent's tests, build, lint and type checks really passed. No sign-up.">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/check/">
+<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="../app.css">
+<!-- THE TEN-SECOND CHECK as a page of its own, for a search engine: the app keeps it at #check=owner/repo/123, which no
+     crawler indexes. The box and its answer are web/check.js itself (renderCheck), so this page and the first screen's
+     check give the same answer; it reads only api.github.com, from the reader's browser. The page is one folder down
+     (/Knos/check/), so every file of the site is named from "../". The date at the end is the build's
+     (scripts/build_site.sh stamps it). -->
+<style>.check-page h2 { margin-top: 48px; } .check-page #check-how { margin-top: 32px; } .check-page #check-one h2 { margin-top: 24px; } .check-page ul { padding-left: 1.2em; } .check-page li { margin: 6px 0; }</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="../" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+</header>
+<main>
+  <section class="view check-page" id="check-page">
+    <h1>The ten-second check</h1>
+    <div id="check-one"></div>
+    <details class="k-more" id="check-how"><summary>What the check reads</summary>
+    <ul id="check-reads">
+      <li>Reads the pull request's description on GitHub.</li>
+      <li>Reads the <a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks" rel="noopener">checks GitHub ran</a> on its last commit.</li>
+      <li>Says whether a test, build, lint or type check failed.</li>
+      <li>Asks GitHub alone, <a href="https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api" rel="noopener">60 reads an hour</a> per address.</li>
+      <li>Sends nothing to Knos. Needs no sign-up.</li>
+    </ul>
+    </details>
+    <h2>Next</h2>
+    <ul id="check-next">
+      <li><a href="../faq.html">Read the questions</a></li>
+      <li><a href="../#demo">Watch the demo</a></li>
+      <li><a href="../#pricing">See the prices</a></li>
+    </ul>
+    <p class="fine" id="updated">Last updated <time datetime="KNOS_BUILD_DATE">KNOS_BUILD_DATE</time></p>
+  </section>
+</main>
+<footer class="foot">
+  <span>Devnet is test mode: the money is test USDC.</span>
+  <span><a href="../">Knos home</a> · <a href="../privacy.html">Privacy and terms</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
+</footer>
+<script type="module">
+// The box and its answer (web/check.js). An address ending #check=owner/repo/123 is checked at once, as on the first screen.
+import { renderCheck } from "../check.js";
+const asked = /^#check=(.+)$/.exec(location.hash);
+renderCheck(document.getElementById("check-one"), { arg: asked ? decodeURIComponent(asked[1]) : "" });
+</script>
+</body>
+</html>

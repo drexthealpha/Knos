@@ -46,8 +46,8 @@ Who is not a customer, today:
 - A team that pays by the seat or by the token and is content to: there is no outcome to count.
 - A buyer with one supplier it trusts, or with work done only by its own staff.
 - A buyer whose acceptance is a person's taste, decided after delivery.
-- A buyer who needs money moved on a mainnet, a bank payout from Knos, single sign-on, a private deployment or a
-  support contract: none of these exists.
+- A buyer who needs money moved on a mainnet, a bank payout from Knos, single sign-on tried with a real provider, a private
+  deployment that has run or a support contract: none of these exists. The self-host bundle has single sign-on through any OpenID Connect provider, tested against a stand-in provider only.
 - A supplier, as the payer: Knos never charges the party being rated.
 - Anyone who needs a company to sign with: there is no legal entity.
 

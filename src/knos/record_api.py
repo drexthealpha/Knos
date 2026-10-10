@@ -26,7 +26,9 @@ WHO MAY CALL WHAT (ROUTES). Only GET; any other method is 405, any other path 40
 except /lookup, which needs the payment above. Each client (its address) has a token bucket: RATE requests a second,
 BURST at once (`--rate`, `--burst`); past it, 429 with Retry-After. Every input is checked before anything is read:
 the path's length and characters, a slug's charset, an order's address, each header's size and its JSON's shape; a
-bad one is 400 with one line saying why. No answer carries a stack trace: an unforeseen error is a 500 with one line;
+bad one is 400 with one line saying why. With
+single sign-on (`--sso CONFIG`, the self-host bundle's knos.toml with [sso]; knos.sso) the PRIVATE routes, the record
+files and the order counts, also need a signed-in person (the site's session cookie; any role): else 401. No answer carries a stack trace: an unforeseen error is a 500 with one line;
 `--debug` or KNOS_DEBUG=1 prints the trace to the operator's terminal, never to the caller. The server keeps the
 count of each order in the memory engine (knos.proof.history's store) when it is given one, so a restart does not
 sell a lookup twice. The escrow pays the server when the order's pinned judge signs an acceptance (PayOrder), or
@@ -65,6 +67,7 @@ ROUTES = (      # (path, who may call it, why): the server answers these and not
     ("/orders/<order>", "public", "how many of an order's lookups are used: the order, its funder and its amount are public on chain"),
     ("/health", "public", "whether the server can answer; no key, no RPC address"),
 )
+PRIVATE = ("/records/", "/orders/")                     # what --sso puts behind sign-in; /lookup keeps its payment, /health stays open
 _SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _B58 = re.compile(r"[1-9A-HJ-NP-Za-km-z]+")
 _PATH = re.compile(r"/[A-Za-z0-9._/-]*")
@@ -247,7 +250,8 @@ class Server:
     seconds an answer stays fresh."""
 
     def __init__(self, off: dict, chain, records: Path, store=None, now: Callable[[], int] | None = None, *, key=None, history: Path | None = None,
-                 suppliers: dict[str, str] | None = None, ttl: int | None = None, limiter: Limiter | None = None, debug: bool | None = None):
+                 suppliers: dict[str, str] | None = None, ttl: int | None = None, limiter: Limiter | None = None, debug: bool | None = None,
+                 gate=None):
         from . import record_answer
         self.offer, self.chain, self.records, self.store = off, chain, Path(records), store
         self.limiter = limiter or Limiter()
@@ -257,6 +261,7 @@ class Server:
         self.key, self.history, self.suppliers = key, Path(history) if history else None, dict(suppliers or {})
         self.ttl = int(ttl if ttl is not None else off.get("ttlSeconds") or record_answer.TTL)
         self.promise = {**record_answer.PROMISE, **(off.get("availability") or {})}
+        self.gate = gate                                                 # a knos.sso.Gate: PRIVATE routes need its session
 
     def read_chain(self) -> tuple[int, int | None]:
         """(the cluster's time, its slot) from one read of the Clock account; the slot is None where the chain gives
@@ -297,6 +302,7 @@ class Server:
         return {"ok": bool(n) and chain["ok"], "records": n, "chain": chain, "signing": self.key is not None,
                 "key": str(self.key.pubkey()) if self.key is not None else None, "ttl_seconds": self.ttl,
                 "history": self.history is not None, "suppliers_with_a_key": len(self.suppliers), "counts_survive_restart": self.store is not None,
+                "sign_in": self.gate is not None,
                 "promise": self.promise, "note": NO_HOST}
 
     def used(self, order: str) -> int:
@@ -327,6 +333,8 @@ class Server:
                 return 429, {"Retry-After": str(max(1, math.ceil(wait)))}, {"error": f"too many requests from this client: try again in {max(1, math.ceil(wait))} s"}
         if method.upper() != "GET":
             return 405, {"Allow": "GET"}, {"error": f"{one_line(method, 20)} is not served: every route is GET"}
+        if self.gate is not None and path.startswith(PRIVATE) and self.gate.who(headers) is None:
+            return 401, {}, {"error": "sign in first: open /sso/login on this deployment's site", "login": "/sso/login"}
         try:
             return self._route(path, {str(k).lower(): str(v) for k, v in headers.items()})
         except Bad as why:
@@ -520,13 +528,13 @@ def serve(server: Server, host: str = "127.0.0.1", port: int = 8402):
 
 def build_server(offer_file: Path | None, records: Path = Path("docs/records"), memory: Path | None = None, key: Path | None = None,
                  history: Path | None = None, suppliers: Path | None = None, ttl: int | None = None, ledger=None, *, tenant: str | None = None,
-                 rate: float = RATE, burst: int = BURST, debug: bool | None = None) -> Server:
+                 rate: float = RATE, burst: int = BURST, debug: bool | None = None, gate=None) -> Server:
     """The server `knos record serve` runs: the seller's offer (the JSON `offer` writes), the chain from KNOS_RPC as
     every command does. `memory`: the folder of a Sibyl store that keeps each order's count. `key`: the operator's
     signing key file. `history`: the folder of history files. `suppliers`: a JSON file {slug: supplier's public key}.
     `tenant`: whose deployment this is (the self-host bundle names it): its counts live in a tenant of their own in
     the store, so two deployments sharing a memory folder never read each other's. `rate`, `burst`: each client's
-    limit."""
+    limit. `gate`: a knos.sso.Gate (PRIVATE routes then need a signed-in person)."""
     from . import chain, record_answer
     off = json.loads(Path(offer_file).read_text(encoding="utf-8")) if offer_file else {}
     store = None
@@ -535,7 +543,7 @@ def build_server(offer_file: Path | None, records: Path = Path("docs/records"), 
         store = memory_engine.SibylStore.local(memory, tenant_id=tenant_id(tenant))
     known = json.loads(Path(suppliers).read_text(encoding="utf-8")) if suppliers else {}
     return Server(off, ledger or chain.ledger(), records, store, key=record_answer.load_key(key) if key else None, history=history,
-                  suppliers={str(k): str(v) for k, v in known.items()}, ttl=ttl, limiter=Limiter(rate, burst), debug=debug)
+                  suppliers={str(k): str(v) for k, v in known.items()}, ttl=ttl, limiter=Limiter(rate, burst), debug=debug, gate=gate)
 
 
 def tenant_id(tenant: str | None) -> str:
@@ -563,6 +571,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rate", type=float, default=RATE, help=f"requests a second each client may make on average (default {RATE:g}); past it, 429")
     ap.add_argument("--burst", type=int, default=BURST, help=f"requests a client may make at once (default {BURST})")
     ap.add_argument("--tenant", default=None, help="whose deployment this is: its counts are kept apart from any other's in the same --memory")
+    ap.add_argument("--sso", type=Path, default=None, help="the self-host knos.toml with [sso]: the record files and order counts need a signed-in person")
     ap.add_argument("--debug", action="store_true", help="print the trace of an unforeseen error here (KNOS_DEBUG=1 does the same); callers never see one")
     a = ap.parse_args(argv)
     if a.offer is None and not a.health:
@@ -571,7 +580,17 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--rate must be above 0 and --burst at least 1")
     debug = a.debug or debugging()
     try:
-        server = build_server(a.offer, a.records, a.memory, a.key, a.history, a.suppliers, a.ttl, tenant=a.tenant, rate=a.rate, burst=a.burst, debug=debug)
+        gate = None
+        if a.sso is not None:
+            from . import selfhost, sso
+            c = selfhost._load(a.sso)
+            if c.errors:
+                raise ValueError(c.errors[0])
+            gate = sso.gate_of(c.config, a.sso.parent)
+            if gate is None:
+                raise ValueError(f"{a.sso} has no [sso] table")
+        server = build_server(a.offer, a.records, a.memory, a.key, a.history, a.suppliers, a.ttl, tenant=a.tenant, rate=a.rate, burst=a.burst, debug=debug,
+                              gate=gate)
         if a.health:
             got = server.health()
             print(json.dumps(got, indent=1))
@@ -584,7 +603,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     signs = "signed answers" if a.key else "UNSIGNED answers (no --key)"
     print(f"Serving on http://{a.host}:{httpd.server_address[1]}  paid: /lookup/<slug> ({signs})  free: /records/<slug>.json  health: /health  "
-          f"limit: {a.rate:g}/s, {a.burst} at once per client. {NO_HOST}", flush=True)
+          f"limit: {a.rate:g}/s, {a.burst} at once per client{'; sign-in on /records/ and /orders/' if gate else ''}. {NO_HOST}", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

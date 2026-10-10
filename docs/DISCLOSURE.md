@@ -10,7 +10,7 @@ every count.
 
 Completed before 13:00 UTC on 14 Sep 2026: Knos 0.1.0 to 0.1.8 and unreleased work on it, a shared local memory for
 coding agents (83 commits, 1 to 14 Sep 2026). That is a different product from the one submitted. Of the lines at
-Knos 0.3.11, 1.1% date from it; the table further down lists them. The verifier, the escrow, the meter, the ledger,
+Knos 0.3.25, 0.1% (412 of 428,405) date from it; the table further down lists them. The verifier, the escrow, the meter, the ledger,
 the judge and the site were written after that moment.
 
 ## What existed before the competition and what was built during it
@@ -35,10 +35,12 @@ commit's. The sections after this one give the detail and the line counts.
 | 6 Oct 2026 | Knos 0.3.17 (20:00, commit `f03ec51`) | during |
 | 7 Oct 2026 | Knos 0.3.18 (07:40, commit `f8bcd9d`) and 0.3.19 (15:47, commit `155b570`) | during |
 | 8 Oct 2026 | Knos 0.3.20 (01:04, commit `fb77f4f`); the interface crates published on crates.io and the JavaScript client on npm (`npm install knos-settle`, [knos-settle](https://www.npmjs.com/package/knos-settle) 0.3.20) | during |
-| after 8 Oct 2026 | Knos 0.3.21 | during |
+| 8 Oct 2026 | Knos 0.3.21 (09:59, commit `042b7dea`) and 0.3.22 (19:28, commit `c4350c97`) | during |
+| 9 Oct 2026 | Knos 0.3.23 (04:59, commit `852e6135`) and 0.3.24 (13:20, commit `fb4217c1`) | during |
+| 10 Oct 2026 | Knos 0.3.25 (02:43, commit `095f52ae`) | during |
 
 **Everything the product is today was built during the contest period.** What predates it is a different product,
-of which 1.1% of the lines at Knos 0.3.11 remain (the table below says which).
+of which 0.1% of the lines at Knos 0.3.25 remain (the table below says which).
 
 To list the releases with their times from a full clone:
 
@@ -48,8 +50,8 @@ TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep 
 
 ## What existed before the hackathon
 
-The public repository's history starts on 1 Sep 2026. Of its 209 commits up to Knos 0.3.11 (commit `f3dfd3d`,
-2 Oct 2026), 83 were made before the contest period began.
+The public repository's history starts on 1 Sep 2026. Of its 229 commits up to Knos 0.3.25 (commit `095f52ae`,
+10 Oct 2026), 83 were made before the contest period began.
 
 - **Knos 0.1.0 to 0.1.8**, 1–7 Sep 2026: a shared local memory for coding agents, with claims on topics and a guard
   on edits, built on Sibyl. It won the Sibyl Labs hackathon.
@@ -67,27 +69,27 @@ The public repository's history starts on 1 Sep 2026. Of its 209 commits up to K
 Almost none of Knos 0.1 is in the tree. Its memory server, claims, edit guard, payment gate and integrations were
 removed in 0.2.0 and 0.3.10. They remain in the git history.
 
-At commit `f3dfd3d`, `git blame` attributes 423 of the 39,778 lines in the 158 text files to commits made before the
-hackathon. That is 1.1% of all lines, or 1.7% when three data files are left out (the index sample and two
-test-vector files, 15,356 lines). Counting lines that git traces to an earlier copy (`git blame -w -M -C -C`), it is
-612 lines, 1.5%. The other 39,355 lines (98.9%) were last changed between 30 Sep and 2 Oct 2026.
+At commit `095f52ae` (Knos 0.3.25), `git blame` attributes 412 of the 428,405 lines in the 1,564 text files to
+commits made before the hackathon: 0.1% of all lines. The other 427,993 lines were last changed during it.
+`python scripts/disclosure_counts.py --repo <full clone> --commit 095f52ae` prints these counts and the table.
+(At Knos 0.3.11, commit `f3dfd3d`, the same count was 423 of 39,778 lines in 158 files.)
 
 | lines | file | what they are |
 |---|---|---|
 | 150 | `CHANGELOG.md` | the entries for 0.1 |
-| 44 | `pyproject.toml` | package metadata |
+| 41 | `pyproject.toml` | package metadata |
 | 38 | `CODE_OF_CONDUCT.md` | |
-| 29 | `src/knos/cli.py` | the imports and the output-encoding guard of the command line |
 | 29 | `tests/conftest.py` | test fixtures |
+| 28 | `src/knos/cli.py` | the imports and the output-encoding guard of the command line |
 | 21 | `LICENSE` | |
 | 21 | `.gitignore` | |
 | 21 | `tests/test_sibyl_is_load_bearing.py` | imports, blank lines and one line of a test |
-| 16 | `src/knos/__init__.py` | `version()` |
+| 13 | `src/knos/__init__.py` | `version()` |
 | 15 | `CONTRIBUTING.md` | |
 | 12 | `src/knos/paths.py` | `home()` |
 | 12 | `.github/ISSUE_TEMPLATE/` | two templates |
 | 9 | `.github/workflows/tests.yml` | the workflow's header |
-| 6 | `README.md` | the title and blank lines |
+| 2 | `README.md` | blank lines |
 
 One dependency also carries over: Sibyl's memory client, which the judge and the local hook still use.
 
@@ -132,12 +134,12 @@ One dependency also carries over: Sibyl's memory client, which the judge and the
   by image digest; a feed of upgrade proposals; and the documents [INVARIANTS.md](INVARIANTS.md) and
   [GOVERNANCE.md](GOVERNANCE.md).
 
-- **Knos 0.3.16 to 0.3.21** (5 Oct 2026 onward): [CHANGELOG.md](../CHANGELOG.md) has each list.
+- **Knos 0.3.16 to 0.3.25** (5 Oct 2026 onward): [CHANGELOG.md](../CHANGELOG.md) has each list.
 - **Knos 0.3.15**: no program changed. Clients, workflows, the site, documents and tests only;
   [CHANGELOG.md](../CHANGELOG.md) has the list. The offer of a paid [Pilot](PILOT.md) and the page on who builds
   Knos ([TEAM.md](TEAM.md)) were written for it.
 
-In commits: 18 between the start of the hackathon and 29 Sep, and 108 from 30 Sep to Knos 0.3.11.
+In commits: 18 between the start of the hackathon and 29 Sep, and 128 from 30 Sep to Knos 0.3.25.
 
 The story in one line: we measured how often an agent's "tests pass" is false (in 17.8% of repositories, on the
 first such pull request), tried several products around that fact between 29 Sep and 2 Oct 2026, and kept the one
@@ -205,15 +207,15 @@ copies these lines into [MANIFEST.md](MANIFEST.md).
 
 ```
 git clone https://github.com/drexthealpha/Knos && cd Knos
-C=f3dfd3dca73b91d7b3b503e61edc0575e351b99d
+C=095f52ae
 T=$(date -u -d '2026-09-14T13:00:00Z' +%s)                      # 06:00 Pacific time on 14 Sep 2026
-git rev-list --count $C                                         # 209 commits
+git rev-list --count $C                                         # 229 commits
 git log $C --format=%at | awk -v t=$T '$1 < t' | wc -l          # 83 of them before the hackathon
 TZ=UTC git log $C --reverse --date=format-local:%Y-%m-%d --format=%ad | head -1     # the first: 2026-09-01
 git ls-tree -r --name-only $C | while read -r f; do             # every text file at that commit
   git diff --numstat 4b825dc642cb6eb9a060e54bf8d69288fbee4904 $C -- "$f" | grep -q '^-' && continue
   git blame --line-porcelain $C -- "$f" | awk -v t=$T '/^author-time /{n++; if ($2 < t) o++} END {print n+0, o+0}'
-done | awk '{n += $1; o += $2} END {print o, "of", n}'           # 423 of 39778
+done | awk '{n += $1; o += $2} END {print o, "of", n}'           # 412 of 428405
 ```
 
 Counted by commit time before 00:00 UTC on 14 Sep 2026 instead, 82 commits predate the hackathon; the line count

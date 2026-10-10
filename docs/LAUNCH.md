@@ -15,7 +15,7 @@ Status words: **done**; **partly** (what exists, and the rest is in the last col
 | # | item | status | evidence | not done |
 |---|---|---|---|---|
 | 1 | no API key in the frontend or in git | done | `scripts/secret_scan.py`, `tests/test_secret_scan.py::test_a_key_deleted_from_the_tree_is_still_found_in_history_by_kind_without_its_value`, `.gitignore`; the site holds no key: `web/` is scanned with the tree | nothing |
-| 2 | rotate any key ever committed | partly | `python scripts/secret_scan.py --history`: one real key in history, a Solana program keypair, see "Keys found in history" | never deploy a program at its address |
+| 2 | rotate any key ever committed | done | `python scripts/secret_scan.py --history`: one real key in history, a Solana program keypair, see "Keys found in history". It is spent, and the scan fails if its address ever becomes one Knos operates with, review or not: `tests/test_secret_scan.py::test_a_reviewed_key_whose_address_becomes_operated_must_be_rotated` | the key stays in history: git history cannot be changed for everyone |
 | 3 | rate limiting, so one user cannot burn the bill | done | `knos record serve` keeps a token bucket per client and answers 429 with Retry-After: `tests/test_record_api_safe.py::test_past_the_limit_a_client_gets_429_with_retry_after_and_others_are_served`, `tests/test_record_api_safe.py::test_a_token_bucket_per_client_refills_at_its_rate`; the faucet: `tests/test_faucet.py::test_the_daily_cap_holds_for_everyone_together`, `tests/test_faucet.py::test_one_grant_per_account_and_per_address_in_seven_days`; the relay: `tests/test_ghrelay.py::test_a_passkey_funding_line_on_an_issue_is_sent_by_the_worker_and_answered` (20 a day per repository) | nothing |
 | 4 | auth on every route, not just the UI | done | every route of `knos record serve` is listed with who may call it, and anything else is 404: `tests/test_record_api_safe.py::test_every_route_is_stated_and_answers_as_stated_and_nothing_else_is_served`; the programs check every signer: `tests/test_pay_chain.py::test_nobody_can_claim_another_accounts_money`, `tests/test_pay_chain.py::test_every_wrong_proof_is_refused` | nothing |
 | 5 | data rules, so users see only their own data | done | there are no user accounts; one self-hosted tenant never reads another's records: `tests/test_record_api_safe.py::test_two_tenants_sharing_a_memory_folder_see_only_their_own_records_and_counts`; money is held per account: `tests/test_pay_chain.py::test_nobody_can_claim_another_accounts_money`. The public record page shows public chain data and public pull requests by design: `docs/PRIVACY.md` | nothing |
@@ -30,10 +30,41 @@ Status words: **done**; **partly** (what exists, and the rest is in the last col
 | 14 | meta tags and an OG image so links look good on X | done | `web/index.html`, `web/brand/card.png`, `tests/test_site_launch.py::test_a_shared_link_has_every_tag_and_one_address`, `tests/test_site_launch.py::test_the_card_is_a_1200_by_630_png_of_the_site_drawn_from_the_brand` | nothing |
 | 15 | privacy policy and terms | done | `web/privacy.html` (no cookies, no third-party request, nothing stored; devnet test software, MIT, no warranty, test USDC only), linked from every page's foot: `tests/test_site_launch.py::test_each_privacy_line_agrees_with_the_code`; `docs/PRIVACY.md` (what a payment makes public), `LICENSE` | no lawyer has read either |
 | 16 | analytics to see where people drop off | partly | no analytics script, by design. Measured: the funnel in the site's `stats.json` (`scripts/network_stats.py`, `tests/test_network_stats.py::test_installed_is_the_public_repositories_whose_workflows_call_knos_and_not_knos_own`), the relay log (the issue labelled `knos-relay`, `.github/workflows/worker.yml`), PyPI download counts (pypistats.org, read by hand) | page views: not measured, and no tracker will be added |
-| 17 | signup, payment and password reset tested end to end | not applicable | there is no signup and no password: a GitHub account and a comment fund work. Nearest, fund, pay, refund and the passkey wallet's withdrawal: `tests/test_pay_chain.py::test_a_comment_funds_a_devnet_bounty_with_test_usdc_and_no_wallet`, `tests/test_pay_chain.py::test_a_merged_pull_request_is_paid_to_its_authors_github_account_and_claimed_without_a_wallet_at_work_time`, `tests/test_pay_chain.py::test_with_no_proof_by_the_deadline_the_money_goes_back`, `tests/test_passkey_chain.py::test_a_wallet_is_paid_before_it_exists_and_one_transaction_opens_it_and_withdraws`; the passkey payee round the release runs on devnet: `tests/test_exercise_deployed_rounds.py::test_a_passkey_wallet_is_paid_before_it_exists_and_one_transaction_signed_by_the_passkey_opens_it_and_withdraws` | the passkey payee round is not yet run at the public ids |
+| 17 | signup, payment and password reset tested end to end | not applicable | there is no signup and no password: a GitHub account and a comment fund work. Nearest, fund, pay, refund and the passkey wallet's withdrawal: `tests/test_pay_chain.py::test_a_comment_funds_a_devnet_bounty_with_test_usdc_and_no_wallet`, `tests/test_pay_chain.py::test_a_merged_pull_request_is_paid_to_its_authors_github_account_and_claimed_without_a_wallet_at_work_time`, `tests/test_pay_chain.py::test_with_no_proof_by_the_deadline_the_money_goes_back`, `tests/test_passkey_chain.py::test_a_wallet_is_paid_before_it_exists_and_one_transaction_opens_it_and_withdraws`; the passkey payee round the release runs on devnet: `tests/test_exercise_deployed_rounds.py::test_a_passkey_wallet_is_paid_before_it_exists_and_one_transaction_signed_by_the_passkey_opens_it_and_withdraws`, run at the public ids (`docs/capabilities.json`, `passkey_payee_wallet`: transaction 321WqsCL...) | the round's passkey was a key held in software, not a person's phone |
 | 18 | emails do not land in spam | not applicable | Knos sends no email: every message is a comment on the forge, posted with the repository's own token (`src/knos/ghwords.py`); `scripts/launch_check.py` fails if the package gains an email sender | nothing |
-| 19 | a way to contact the maker | partly | `SECURITY.md`: private vulnerability reporting, and issues for everything else; a contact line in `README.md`; on the site, `web/privacy.html`: report a problem in GitHub issues | the founder confirms private reporting is switched on (Settings, Advanced Security) |
+| 19 | a way to contact the maker | done | `SECURITY.md`: private vulnerability reporting, switched on 10 October 2026 for this repository and for the 16 other public repositories of its owner whose name begins with knos (GitHub's API answers `enabled: true` for each), and issues for everything else; a contact line in `README.md`; on the site, `web/privacy.html`: report a problem in GitHub issues | nothing |
 | 20 | a rollback plan for launch day | done | `docs/ROLLBACK.md`: PyPI, npm, the tag, the site, the relay and the programs, with the commands and who can run them | no drill of the whole page has been run |
+
+## Launch day
+
+`python scripts/launch_check.py --launch-day` fails today, and it should: three rows are partly. The check itself
+holds (`python scripts/launch_check.py` exits 0). Each row closes only when its last column is done:
+
+- **9, error tracking.** Closes when the watchdog tells a person each time it restarts the relay (a comment on the
+  relay's issue), not only restarts it.
+- **12, a cheap Android phone.** Closes when the founder opens the site on a real cheap phone and writes the times
+  here.
+- **16, analytics.** Stays partly by choice: Knos adds no tracker, so page views are not measured.
+
+Row 19, contact, closed on 10 October 2026: private vulnerability reporting is switched on.
+
+## The workflow-strip check on a personal repository
+
+`knos protect --check-strip OWNER/REPO` (`src/knos/strip_check.py`) says closed, partly or open. Closed needs a
+ruleset (a set of GitHub rules for a branch) that requires the Knos workflow. Partly means a required check names a
+Knos check. The merge waits for that check, so removing the workflow alone blocks the merge. Still open: a pull
+request can change the workflow that runs that check, and an admin can remove the requirement.
+
+**On a personal repository, PARTLY is the most GitHub allows.** Only an organisation or enterprise ruleset on GitHub
+Enterprise Cloud can require a workflow ([GitHub's list of rules, Enterprise Cloud edition](https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-workflows-to-pass-before-merging),
+read 2026-10-10; the [Free, Pro and Team edition](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)
+has no such rule). On a personal repository GitHub refuses the rule with HTTP 422 "Invalid rule 'workflows'". That
+happened on `drexthealpha/knos-witness` on 10 October 2026: its ruleset now requires the check `check / claims`, and
+`knos protect --check-strip drexthealpha/knos-witness` reads PARTLY there. The same is said in `docs/ATTESTOR.md`.
+
+A required check has a side effect. GitHub wants it to pass before any change reaches the branch
+([GitHub](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)),
+so a direct push to that branch is refused too. To push straight to it, add yourself to the ruleset's bypass list.
 
 ## Keys found in history
 
@@ -47,6 +78,7 @@ working copy (8,712 text blobs read; binary blobs and blobs over 20 MB skipped):
 
 The keypair was never on `main` or on any published tag. Its address is named nowhere in the repository and holds no
 role. It is treated as spent: no program is deployed at that address. Its blob id is
-listed in `scripts/secret_scan.py` (`REVIEWED`), so a later scan names it as reviewed; any new hit fails the scan.
+listed in `scripts/secret_scan.py` (`REVIEWED`), so a later scan names it as reviewed. The scan asks first whether its
+address is one Knos operates with: if it ever becomes one, the scan fails, review or not. Any new hit fails the scan.
 
 No GitHub, npm, PyPI or cloud token, and no PEM private key, was found in any blob ever committed.

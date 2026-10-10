@@ -457,8 +457,16 @@ def test_the_site_says_nothing_it_may_not():
 
 def test_the_site_asks_nobody_but_github_and_devnet():
     hosts = {"api.github.com", "api.devnet.solana.com", "github.com", "explorer.solana.com", "faucet.circle.com", "drexthealpha.github.io"}
+    # The facts for search engines (JSON-LD, tests/test_seo.py) name schema.org's vocabulary, the licence and the package's
+    # page: identifiers a search engine reads, which no browser asks for. They are held to exactly these three hosts, and
+    # everything else on the page to the list above (tests/web/seo.mjs counts the requests the pages make in a browser).
+    ld = re.compile(r'<script type="application/ld\+json">.*?</script>', re.S)
     for name in ("app.js", "front.js", "index.html"):
-        found = set(re.findall(r"https?://([\w.-]+)", (WEB / name).read_text(encoding="utf-8")))
+        text = (WEB / name).read_text(encoding="utf-8")
+        named = set(re.findall(r"https?://([\w.-]+)", "".join(ld.findall(text))))
+        assert named <= hosts | {"schema.org", "opensource.org", "pypi.org"}, (name, named - hosts)
+        assert len(ld.findall(text)) == (1 if name == "index.html" else 0), name
+        found = set(re.findall(r"https?://([\w.-]+)", ld.sub("", text)))
         assert found <= hosts, (name, found - hosts)
     app = (WEB / "app.js").read_text(encoding="utf-8")
     assert 'const RPC = "https://api.devnet.solana.com"' in app and 'const CHAIN = "solana:devnet"' in app

@@ -62,8 +62,9 @@ def test_the_attempts_count_the_failed_and_the_retried_beside_the_ones_that_work
     doc, _get, _when = sample()
     a = ns.attempts(doc["comments"])
     assert a == {"asked": 10, "completed": 9, "completion": 0.9, "lines": 11, "failed": 2, "retried": 1, "tries": 16, "misposted": 1,
-                 "after_failure": 1, "never": 1,
-                 "reasons": {"no open bounty for this issue:": 1, "the terms the token names are": 1}}
+                 "after_failure": 1, "never": 1, "user_errors": 1, "failures": 0, "completion_possible": 1.0,
+                 "reasons": {"no open bounty for this issue:": 1, "the terms the token names are": 1},
+                 "user_reasons": {"no open bounty for this issue:": 1}}
     assert ns.attempts(doc["comments"], ns.ATTEMPTS["fund"])["asked"] == 1 and ns.attempts([])["completion"] is None
     # a line anyone else wrote into the note of an ok line is not a field: `tries=` is read before `note=`
     odd = [{"created_at": "2026-10-04T00:00:00Z", "body": "knos-relay proof o/r#1 " + "ab" * 8 + " ok sig=s wait=1 chain=2 note=paid tries=9 to W t=3"}]

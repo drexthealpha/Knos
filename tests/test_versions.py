@@ -111,8 +111,10 @@ def test_a_bump_holds_the_frozen_crates_puts_back_one_that_was_moved_and_check_n
 
 
 def _copy(tmp_path: Path) -> Path:
-    """The files that are places, and nothing else, as a tree of their own."""
-    for rel in {rel for rel, _l, _g in (*b.places(), *b.frozen_places())} | {"CHANGELOG.md"}:
+    """The files that are places, and nothing else, as a tree of their own; with the pictures of README.md's diagrams,
+    which a bump's check asks for (README.pypi.md shows them on PyPI)."""
+    pictures = {p.relative_to(ROOT).as_posix() for p in (ROOT / "docs" / "diagrams").glob("*.svg")}
+    for rel in {rel for rel, _l, _g in (*b.places(), *b.frozen_places())} | {"CHANGELOG.md"} | pictures:
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / rel, tmp_path / rel)
     b.bump(b.project(), tmp_path)             # the copy starts consistent, whatever this tree is in the middle of

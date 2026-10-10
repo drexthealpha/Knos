@@ -73,8 +73,10 @@ def own(c, order: Pubkey, payees, raw: bytes, **over) -> str:
 
 
 def named(c, order: Pubkey, payees, raw: bytes, owner: int) -> str:
-    """A run in the judge repository the comment named, which `owner` owns."""
-    return order_pay_jwt(c, order, payees, terms=raw, file="attest.yml", event_name="push", repository_id=JUDGE["id"], repository_owner_id=owner)
+    """A run in the judge repository the comment named, which `owner` owns and whose run `owner` started (a run that
+    the account starting the order's own run also started is refused: tests/test_quorum_controller.py)."""
+    return order_pay_jwt(c, order, payees, terms=raw, file="attest.yml", event_name="push", repository_id=JUDGE["id"], repository_owner_id=owner,
+                         actor_id=owner)
 
 
 def the_comment(tmp_path, v: int, r: dict) -> str:

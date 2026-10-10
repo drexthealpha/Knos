@@ -1450,7 +1450,7 @@ dependencies = [
 
 [[package]]
 name = "knos-handler-tests"
-version = "0.3.25"
+version = "0.3.26"
 dependencies = [
  "bincode",
  "hex",

@@ -93,6 +93,43 @@ OUTCOMES = {t.name: t for t in (       # the comment that funds each example of 
 ALL = {**TEMPLATES, **OUTCOMES}
 
 
+# ---- the supplier's menu: three tiers a supplier may ask a buyer to fund (docs/STANDARD.md, "The supplier's menu") ----
+# A tier is a template plus what holds its promise. Standard and Assured are whole on chain: the holdback and its
+# warranty are options of the order (pay.opts), which the fund token signs and knos_pay keeps. Bonded adds a stake
+# the supplier puts up; knos_pay has no field for a supplier's stake, so that part is off chain only: a promise
+# between the two parties that no program enforces and Knos does not hold.
+
+@dataclass(frozen=True)
+class Tier:
+    template: Template
+    held_by: str                # who holds each promise of the tier, in plain words
+    off_chain: str = ""         # what no program enforces yet; empty when the whole tier is on chain
+
+
+MENU = {t.template.name: t for t in (
+    Tier(Template("standard", "/knos fund 50 checks: unit", "an issue", assumes={"checks": _ACTIONS}),
+         "the program: it pays the whole amount when the checks pass, or refunds the buyer at the deadline"),
+    Tier(Template("assured", "/knos fund 50 checks: unit holdback 10 warranty 14", "an issue", assumes={"checks": _ACTIONS}),
+         "the program: it holds 10% back for 14 days, and returns it to the buyer if the change is reverted in that time"),
+    Tier(Template("bonded", "/knos fund 50 checks: unit holdback 10 warranty 14", "an issue", assumes={"checks": _ACTIONS}),
+         "the program holds the 10% holdback, as in assured",
+         "the supplier's own stake: the program has no field for it, so the two parties hold it by contract, and Knos holds none of it"),
+)}
+
+
+def tier(name: str) -> dict:
+    """One tier of the supplier's menu: its comment, its sentence, the terms it funds and their hash, the order's
+    options the fund token signs (holdback in percent, warranty in days), who holds each promise, and what is off chain."""
+    if name not in MENU:
+        raise KeyError(f"there is no tier named {name}: the tiers are {', '.join(MENU)}")
+    m = MENU[name]
+    t, cmd = m.template, command(m.template)
+    raw = terms.canonical(terms_of(t))
+    return {"name": name, "comment": t.comment, "sentence": sentence(t), "terms_hash": terms.terms_hash(raw),
+            "options": {"holdback": getattr(cmd, "holdback", None) or 0, "warranty_days": getattr(cmd, "warranty", None) or 0},
+            "held_by": m.held_by, "off_chain": m.off_chain, "on_chain": not m.off_chain}
+
+
 def get(name: str) -> Template:
     if name not in ALL:
         raise KeyError(f"there is no template named {name}: the templates are {', '.join(ALL)}")

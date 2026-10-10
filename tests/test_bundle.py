@@ -261,6 +261,10 @@ def test_the_mirror_is_deterministic_keeps_what_the_chain_lost_and_verify_reads_
     state = Chain()
     monkeypatch.setattr(bundle, "_caller", lambda rpc: ("http://test", state.call))
     monkeypatch.setattr(bundle, "_history", lambda url, limit: state.events())
+    # `receipt verify` reads the chain through receipt.from_chain (one time budget for every request:
+    # tests/test_receipt_verify_time.py); here it reads the same stand-in cluster
+    asked = []
+    monkeypatch.setattr(receipt, "from_chain", lambda target, url, limit=1000: asked.append((target, url, limit)) or bundle.gather(state.call, state.events(), target, None)[0])
     monkeypatch.setenv("KNOS_NO_SAS", "1")
     run = CliRunner()
     done = run.invoke(cli.app, ["receipt", "mirror", "--out", str(tmp_path / "c")])
@@ -268,6 +272,7 @@ def test_the_mirror_is_deterministic_keeps_what_the_chain_lost_and_verify_reads_
     assert (tmp_path / "c" / f"{ORDER}.json").read_bytes() == (b / f"{ORDER}.json").read_bytes()
     live = run.invoke(cli.app, ["receipt", "verify", ORDER, "--mirror", str(a)])
     assert live.exit_code == 0 and "from the chain, and the mirror holds the same receipt" in live.output and receipt.FROM_MIRROR not in live.output
+    assert asked == [(ORDER, "http://test", 1000)]
     state.reset = True
     again = run.invoke(cli.app, ["receipt", "mirror", "--out", str(tmp_path / "c")])
     assert again.exit_code == 0 and "1 receipts of 1 orders (0 from the chain now)" in again.output

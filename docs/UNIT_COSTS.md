@@ -65,8 +65,9 @@ rows have 5 samples each, so a p95 is one payment.
 
 **[measured]** are the seconds. The USD column is arithmetic at GitHub's list price; no bill was read. The
 public relay runs in a public repository, where a standard runner is free. A relay for private repositories
-would be paid for, and what it costs is **[budget, not measured]**: 0.0007 USD a token is 35% of the Meter's 0.002
-if every evaluation is relayed by itself, and a 5,000th of that in a batch.
+would be paid for, and what it costs is **[budget, not measured]**: 0.0007 USD a token is 35% of the Meter's proposed 0.002
+if every evaluation is relayed by itself, and a 5,000th of that in a batch. (The deployed knos_meter charges 0.05 an
+evaluation after 10,000 free a month.)
 
 ## 3. Storage per evidence bundle
 

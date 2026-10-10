@@ -84,7 +84,8 @@ def test_example_config_is_good():
     (('workers = 2', 'workers = 0'), "relay.workers must be"),
     (('github_token = "secrets/gh"\n', ''), "relay needs keys.github_token"),
     (('workers = 2', 'workers = 2\napi_token = "' + "gh" + "p_" + "x" * 36 + '"'), "not a setting of relay"),
-    (('[site]', '[sso]\nissuer = "x"\n\n[site]'), "[sso] is not a table"),
+    (('[site]', '[sso]\nissuer = "x"\n\n[site]'), "sso.issuer must be"),
+    (('[site]', '[auth]\nissuer = "x"\n\n[site]'), "[auth] is not a table"),
     (('offer = "offer.json"', 'offer = 3'), "record.offer must be"),
     (('[chain]', 'x = = 1\n[chain]'), "not TOML"),
 ])
@@ -232,6 +233,6 @@ def test_site_server_serves_files_and_no_listing(tmp_path):
 
 def test_selfhost_doc_states_the_limits():
     doc = (ROOT / "docs" / "SELFHOST.md").read_text(encoding="utf-8")
-    for must in ("not been run in any cloud", "no single sign-on", "oauth2-proxy", "Pomerium", "127.0.0.1", "knos selfhost check",
+    for must in ("not been run in any cloud", "fake sign-in provider only", "oauth2-proxy", "Pomerium", "127.0.0.1", "knos selfhost check",
                  "05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f"):
         assert must in doc, must

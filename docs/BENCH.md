@@ -23,9 +23,9 @@ its source differ.
 <!-- /bench:market -->
 
 <!-- bench:market-tests -->
-**Counting only failed tests and builds:** a failed check is not always a failed test. In **80 of the 826 repositories (9.7%)** (95% Wilson interval 7.9%–11.9%) one of the failed checks was, by its name, a test, build, lint or type-check job. In the other 67 of the 147 no failed check had such a name: deploy previews, title and label gates, review bots, coverage thresholds, security scanners, and jobs whose names do not say what they run (`check`, `validate`). Over every pull request it is 440 of 2,431 (18.1%). So "said tests pass while a check failed" is 17.8% of repositories, and "while a test or build check failed" is 9.7%; names decide the second, so read it as the cautious figure, not an exact one.
+**Counting only failed tests and builds:** a failed check is not always a failed test. In **80 of the 826 repositories (9.7%)** (95% Wilson interval 7.9%–11.9%) one of the failed checks was, by its name, a test, build, lint or type-check job. In the other 67 of the 147 no failed check had such a name: deploy previews, title and label gates, review bots, coverage thresholds, security scanners, and jobs whose names do not say what they run (`check`, `validate`). Over every pull request it is 440 of 2,431 (18.1%). So "said tests pass while a check failed" is 17.8% of repositories, and "while a test, build, lint or type check failed" is 9.7%; names decide the second, so read it as the cautious figure, not an exact one.
 
-| agent | repositories | first claiming PR per repository: any check failed | first claiming PR per repository: a test or build check failed | 95% interval | every claiming PR | every claiming PR: a test or build check failed |
+| agent | repositories | first claiming PR per repository: any check failed | first claiming PR per repository: a test, build, lint or type check failed | 95% interval | every claiming PR | every claiming PR: a test, build, lint or type check failed |
 |---|---|---|---|---|---|---|
 | GitHub Copilot coding agent | 341 | 85 (24.9%) | 46 (13.5%) | 10.3%–17.5% | 787 | 98 (12.5%) |
 | Devin | 78 | 13 (16.7%) | 8 (10.3%) | 5.3%–19.0% | 520 | 229 (44.0%) |
@@ -56,16 +56,18 @@ description is not evidence.
 `python scripts/backtest.py --index index.json` writes `docs/backtest.json`.
 
 <!-- bench:backtest -->
-Of the 303 pull requests in the sample read on 2026-10-01 (created 2026-07-03 – 2026-09-30; `docs/agent_pr_ci.json`) whose description said tests or CI pass and whose CI had finished, 241 had been merged. **30 of those 241 (12.4%)** (95% Wilson interval 8.9%–17.2%) had a failed check at the head commit. A Knos bounty whose terms required that check would not have paid the merge. In 16 of them (6.6% of the merged) a failed check was a test or a build by its name. 6 more had no failed check but a cancelled one, which a bounty that required it counts as failed. Without the repositories the pull request's author owns it is 29 of 199 (14.6%). A pull request with a failed check was merged less often than one without: 30 of 55 (54.5%) against 211 of 248 (85.1%); 12 and 21 were still open when read.
+The scan's first reading. Of the 303 pull requests in the sample read on 2026-10-01 (created 2026-07-03 – 2026-09-30; `docs/agent_pr_ci.json`) whose description said tests or CI pass and whose CI had finished, 241 had been merged. **30 of those 241 (12.4%)** (95% Wilson interval 8.9%–17.2%) had a failed check at the head commit. A Knos bounty whose terms required that check would not have paid the merge. In 16 of them (6.6% of the merged) a failed check was a test or a build by its name. 6 more had no failed check but a cancelled one, which a bounty that required it counts as failed. Without the repositories the pull request's author owns it is 29 of 199 (14.6%). A pull request with a failed check was merged less often than one without: 30 of 55 (54.5%) against 211 of 248 (85.1%); 12 and 21 were still open when read.
 
-| agent | merged | any check failed | 95% interval | a test or build check failed |
+| agent | merged | any check failed | 95% interval | a test, build, lint or type check failed |
 |---|---|---|---|---|
 | GitHub Copilot coding agent | 44 | 15 (34.1%) | 21.9%–48.9% | 7 (15.9%) |
 | Devin | 43 | 5 (11.6%) | 5.1%–24.5% | 3 (7.0%) |
 | Claude GitHub app | 85 | 5 (5.9%) | 2.5%–13.0% | 3 (3.5%) |
 | Claude Code | 22 | 2 (9.1%) | 2.5%–27.8% | 0 (0.0%) |
 | OpenAI Codex | 47 | 3 (6.4%) | 2.2%–17.2% | 3 (6.4%) |
-| **all** | 241 | 30 (12.4%) | 8.9%–17.2% | 16 (6.6%) |
+| **all**, first reading | 241 | 30 (12.4%) | 8.9%–17.2% | 16 (6.6%) |
+
+A second reading of each page by hand kept 19 of the 241 with a failed check of any kind (7.9%) and **9 with a failed test, build, lint or type-check job (3.7%)**: the lead figure ([INDEX_METHOD.md](INDEX_METHOD.md)).
 
 What this cannot show:
 

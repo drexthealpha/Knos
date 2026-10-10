@@ -233,7 +233,7 @@ export function renderPilot(el, esc = escHtml) {
     <div class="card" id="pilot-blockers">
       <details class="k-more"><summary>What stands in the way, plainly</summary>
       <ul>${PILOT_BLOCKERS.map(([head, what]) => `<li><strong>${esc(head)}</strong> ${esc(what)}</li>`).join("")}</ul></details>
-      <p class="fine">Not included: private repositories under a contract, single sign-on, a service-level agreement, payment of suppliers in real money (mainnet is not touched), a second person to call, or a security review of Knos by anyone outside it. There has been none.</p>
+      <p class="fine">Not included: private repositories under a contract, single sign-on tried with a real provider, a service-level agreement, Knos paying the suppliers (the buyer pays from its own bank; mainnet is not touched), a second person to call, or a security review of Knos by anyone outside it. There has been none.</p>
       <p class="fine">This page has no form and collects nothing. What the buyer and each supplier do, what is measured and how: <a href="${DOCS}/PILOT.md" target="_blank" rel="noopener">docs/PILOT.md</a>.</p>
     </div>`;
   return el;

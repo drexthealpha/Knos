@@ -308,7 +308,7 @@
      ]
     }
    },
-   "note": "Not exercised at the public id: with knos_pay 2.2 live, `/knos fund` makes a work order, and only `/knos tip` on a merged pull request still funds a job from the Balance. The round `tip` reads that funding from a tip in the maintainer's own repository; one owner can do it."
+   "note": "With knos_pay 2.2 live, `/knos fund` makes a work order, and only `/knos tip` on a merged pull request still funds a job from the Balance. The round `tip` reads that funding from a tip in the maintainer's own repository; one owner can do it."
   },
   {
    "id": "fund_from_wallet",
@@ -365,7 +365,7 @@
      ]
     }
    },
-   "note": "Not exercised at the public id: a job is paid only on a tip now. The round `tip` reads the payment of a tip to a pull request whose author has a wallet bound (the maintainer's own); one owner can do it."
+   "note": "A job is paid only on a tip now. The round `tip` reads the payment of a tip to a pull request whose author has a wallet bound (the maintainer's own); one owner can do it."
   },
   {
    "id": "hold_and_bind",
@@ -453,7 +453,7 @@
      ]
     }
    },
-   "note": "Not exercised at the public id. The round `pause` has the guardian multisig (2 of 3 keys, all the founder's) pause new funding for 120 s, holds one funding of its own to error 96, and lifts the pause at once."
+   "note": "The round `pause` has the guardian multisig (2 of 3 keys, all the founder's) pause new funding for 120 s, holds one funding of its own to error 96, and lifts the pause at once."
   },
   {
    "id": "work_orders",
@@ -517,7 +517,7 @@
   },
   {
    "id": "tests_mode",
-   "what": "An order in tests mode is paid only when a black-box test run the author cannot see passes.",
+   "what": "An order in tests mode is paid only when the buyer's black-box acceptance tests, fixed by their hash at funding, pass.",
    "stage": "exercised",
    "evidence": {
     "implemented": {
@@ -959,7 +959,7 @@
      ]
     }
    },
-   "note": "Not exercised at the public id. The round `meter-single` relays one evaluation token from attest.yml in the maintainer's own repository, reads its mark, and sends the token again to show the retry is free."
+   "note": "The round `meter-single` relays one evaluation token from attest.yml in the maintainer's own repository, reads its mark, and sends the token again to show the retry is free."
   },
   {
    "id": "meter_batch",
@@ -1048,7 +1048,7 @@
      ]
     }
    },
-   "note": "Not exercised at the public id. The round `passkey-payee` pays 0.10 test USDC to a passkey wallet that has no account yet, then opens it and withdraws in one transaction. The passkey is a P-256 key the round holds in software, not a platform authenticator, and the record says so."
+   "note": "The round `passkey-payee` pays 0.10 test USDC to a passkey wallet that has no account yet, then opens it and withdraws in one transaction. The passkey is a P-256 key the round holds in software, not a platform authenticator, and the record says so."
   },
   {
    "id": "passkey_funder",
@@ -4162,7 +4162,7 @@
      "names": "test_compose_parses_and_names_only_pinned_images"
     }
    },
-   "note": "Never deployed: not run in any cloud, and no single sign-on (docs/SELFHOST.md)."
+   "note": "Never deployed: not run in any cloud. Single sign-on through any OpenID Connect provider, tested against a stand-in provider only (sso_oidc; docs/SELFHOST.md)."
   },
   {
    "id": "contention_scenarios",
@@ -4577,7 +4577,7 @@
      "names": "test_the_node_tests_pass_offline"
     }
    },
-   "note": "Tested on recorded devnet answers; no run against devnet recorded, and no outsider has used it."
+   "note": "Tested on recorded devnet answers; no run against devnet recorded, and no outsider has used it. It reads version 1 transactions, which Knos's relay sends, and version 0 with address lookup tables."
   },
   {
    "id": "erp_bill_import",
@@ -4594,6 +4594,178 @@
     }
    },
    "note": "A file export, never imported into any product; Xero's columns were read in a published guide, not on Xero's own page."
+  },
+  {
+   "id": "pilot_plan",
+   "what": "The pilot's fair test is fixed before it starts: `scripts/pilot_plan.py assign` draws each task into one of two groups from a published seed, in even blocks, and prints the file's sha256; `power` says how many tasks each group needs.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/pilot_plan.py",
+     "names": "def assign"
+    },
+    "tested": {
+     "test": "tests/test_pilot_plan.py",
+     "names": "test_the_same_list_and_seed_give_the_same_bytes_and_another_seed_another_draw"
+    }
+   },
+   "note": "A plan on paper (docs/PILOT.md): no pilot has run, no buyer has seen it, and nobody outside has agreed to run the analysis again."
+  },
+  {
+   "id": "judged_files_refused",
+   "what": "By default a pull request that edits the files that judge it (.github/** and .knos/**) is refused, however its checks ended.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/terms.py",
+     "names": "DENY = "
+    },
+    "tested": {
+     "test": "tests/test_terms_defaults.py",
+     "names": "test_a_pull_request_that_edits_the_files_that_judge_it_is_refused_by_default"
+    }
+   },
+   "note": "As before this release: every bounty and order has had it; a test now holds it as the default."
+  },
+  {
+   "id": "price_at_funding",
+   "what": "Off chain, each deliverable pays the Acceptance price in force on the day its order was funded, and a price rise needs 90 days' notice; 0.20% applies only to the part of a month above 1,000,000.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/billing.py",
+     "names": "def price_at"
+    },
+    "tested": {
+     "test": "tests/test_billing_defaults.py",
+     "names": "test_an_order_pays_the_price_in_force_on_the_day_it_was_funded"
+    }
+   },
+   "note": "The book has one price so far. The 90 days are a term Knos would write into each contract; none is signed, and the program cannot enforce them."
+  },
+  {
+   "id": "default_holdback_window",
+   "what": "A default warranty window for new work orders: 10% kept back for 14 days unless the comment or the policy says otherwise.",
+   "stage": "implemented",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/terms.py",
+     "names": "def window"
+    }
+   },
+   "note": "NOT wired into flow.py in this release, so no order gets it: the default 10% / 14-day holdback would change what public rounds and plain orders pay. Funding still holds nothing back unless the comment or .knos/policy.yml asks. tests/test_terms_defaults.py checks the function alone."
+  },
+  {
+   "id": "stats_full_history",
+   "what": "The site's numbers read each program's whole history, a page of 1,000 transactions at a time, and say when a bound stopped them.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/network_stats.py",
+     "names": "def read_history"
+    },
+    "tested": {
+     "test": "tests/test_network_stats.py",
+     "names": "test_the_whole_history_is_read_page_by_page_so_merge_to_paid_times_every_payment"
+    }
+   },
+   "note": "Tested with a stand-in cluster of 2,500 transactions. The site's build keeps what it read in the Actions cache, so the next build reads only what is new. Not yet run in the build on GitHub."
+  },
+  {
+   "id": "index_within_rate_limit",
+   "what": "The Agent PR Index scan fits GitHub's own token: it reads only what is new, stops before the hourly limit, and goes on at the next run.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/agent_pr_ci.py",
+     "names": "def budget"
+    },
+    "tested": {
+     "test": "tests/test_agent_pr_index.py",
+     "names": "test_the_index_scan_stops_before_the_hourly_limit_then_reads_only_what_is_new"
+    }
+   },
+   "note": "Tested with a stand-in GitHub that runs out of requests. Not yet run on GitHub."
+  },
+  {
+   "id": "receipt_verify_deadline",
+   "what": "`knos receipt verify` answers within a set time, or says in one line why it could not.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/receipt.py",
+     "names": "def from_chain"
+    },
+    "tested": {
+     "test": "tests/test_receipt_verify_time.py",
+     "names": "test_a_slow_cluster_gets_one_line_in_the_time_given_and_no_request_after_it"
+    }
+   },
+   "note": "Tested with a stand-in cluster and a stand-in clock."
+  },
+  {
+   "id": "workflows_cutoff_after_upload",
+   "what": "The date the workflows install from PyPI up to is written from the time PyPI took the release's wheel, so those jobs can see that release.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "scripts/pinned_workflows.py",
+     "names": "def write_cutoff"
+    },
+    "tested": {
+     "test": "tests/test_release_order.py",
+     "names": "test_no_cutoff_in_this_tree_is_earlier_than_the_release_it_names"
+    }
+   },
+   "note": "The cutoff in this tree was written for 0.3.25. The 0.3.26 release run writes its own after the upload (docs/RELEASE.md)."
+  },
+  {
+   "id": "seo_pages",
+   "what": "Search engines get a title for a person, facts in JSON-LD, a page of questions, a page for the ten-second check, a sitemap and llms.txt.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "web/faq.html",
+     "names": "\"@type\": \"FAQPage\""
+    },
+    "tested": {
+     "test": "tests/test_seo.py",
+     "names": "test_the_questions_say_the_same_words_on_the_page_in_its_json_ld_and_in_the_readme"
+    }
+   },
+   "note": "Not yet submitted to a search engine: only the founder can do that (docs/SEO.md)."
+  },
+  {
+   "id": "sources_sigstore",
+   "what": "A result signed outside CI counts only when anyone can check its signature: the Sigstore adapter checks SLSA provenance, the Fulcio certificate and the Rekor inclusion proof against Sigstore's published keys.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/sources/sigstore.py",
+     "names": "class Sigstore"
+    },
+    "tested": {
+     "test": "tests/test_sources.py",
+     "names": "test_the_two_recorded_bundles_verify"
+    }
+   },
+   "note": "Tested on two real npm records recorded here (knos-settle 0.3.25 and sigstore 3.0.0); no outside source feeds a meter yet (docs/SOURCES.md)."
+  },
+  {
+   "id": "sso_oidc",
+   "what": "The self-host bundle signs people in through any OpenID Connect provider (PKCE, ID token checked against its keys), with roles, and logs each approval and export in a hash chain in the memory engine.",
+   "stage": "tested",
+   "evidence": {
+    "implemented": {
+     "path": "src/knos/sso.py",
+     "names": "def verify_id_token"
+    },
+    "tested": {
+     "test": "tests/test_sso.py",
+     "names": "test_whole_flow_over_the_loopback"
+    }
+   },
+   "note": "Tested against a stand-in provider only: no real provider has been tried, and the bundle has never been deployed (docs/SELFHOST.md)."
   }
  ],
  "public_round": {

@@ -54,6 +54,8 @@ export const PRIVATE_PATH = "https://github.com/drexthealpha/Knos/blob/main/docs
 // The sample's purchase orders: made up, like its invoice. Both limits cover what is agreed, so the sample can be paid.
 export const SAMPLE_ORDERS = "pull_request,po_number,po_amount\nexample-co/storefront#101,PO-1001,1500.00\nexample-co/storefront#102,PO-1001,1500.00\nexample-co/storefront#103,PO-1001,1500.00\n"
   + "example-co/storefront#104,PO-1001,1500.00\nexample-co/storefront#105,PO-1001,1500.00\nexample-co/billing-internal#7,PO-1002,500.00\n";
+// the accounting systems a bill-import file is written for (web/finance_data.js statementExport; docs/FINANCE.md)
+const SYSTEMS = { quickbooks: "QuickBooks", netsuite: "NetSuite" };
 const REMEDY = { disputed: "Send the passing run for this change, or appeal.", duplicate: "Withdraw the line, or name the separate deliverable it is for.",
   replayed: "Withdraw the line: an earlier invoice was agreed for this deliverable.", insufficient_evidence: "Send evidence that this line was accepted.",
   over_po: "Ask for the purchase order to be raised, or bill this line later.", over_limit: "Ask an approver whose limit covers this amount." };
@@ -138,6 +140,41 @@ function rowsFrom(lines, scale, orders, receipts, limit = null) {
       parts: receipt ? receipt.parts : null, ln };
   });
 }
+// SINGLE SIGN-ON (docs/SELFHOST.md, section 4). Served by the self-host bundle with [sso], each approval and each export
+// is written to the audit log: POST /sso/act, with the form token GET /sso/me gives. Sign-in sets the cookie
+// knos_signed_in (it holds no secret); without it (the public site, a page opened from disk, a bundle without [sso])
+// nothing is sent and nothing changes. `signedIn()` reads that cookie when it is asked.
+export function ssoOf(fetchFn, signedIn) {
+  let me;                               // the person /sso/me gave, with the form token, until an old token is refused
+  async function who() {
+    if (typeof fetchFn !== "function" || !signedIn()) return null;
+    if (me) return me;
+    const r = await fetchFn("/sso/me", { credentials: "same-origin", headers: { Accept: "application/json" } });
+    if (r.status === 401) return { out: true };
+    const j = r.ok ? await r.json().catch(() => null) : null;
+    if (!j || !j.signed_in || typeof j.form !== "string") throw new Error(`sign-in did not answer (${r.status})`);
+    me = j;
+    return me;
+  }
+  return {
+    /** Writes one audit line; null when sign-in is off here. Throws, in plain words, when the line was not written. */
+    async act(action, subject, sha256 = "") {
+      const m = await who();
+      if (!m) return null;
+      if (m.out) throw new Error("sign in again: this was not written to the audit log");
+      const r = await fetchFn("/sso/act", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Knos-Form": m.form },
+        body: JSON.stringify({ action, subject: String(subject).replace(/[^\x20-\x7e]/g, " ").slice(0, 200), sha256: /^[0-9a-f]{64}$/.test(sha256 || "") ? sha256 : "" }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 403 && /form token/.test(j.error || "")) me = undefined;     // an old form token: read it again next time
+      if (!r.ok) throw new Error(j.error || `the audit log answered ${r.status}`);
+      return j.written || true;
+    },
+  };
+}
+
+/** The invoice lines the accounting file bills: approved, and held by no exception here (over the purchase order or
+ *  over the approver's limit). A line a status file approved is still held when the purchase order no longer covers it. */
+export const billable = (rows) => rows.filter((r) => r.approved && !r.kind).map((r) => r.id);
 /** The rows of a statement as they stand with its status file: each line's purchase order, what is authorised, its
  *  exception (one of EXCEPTIONS, or null) and the reason in one sentence. */
 export const rowsOf = (st, status = null, orders = {}, receipts = [], limit = null, today = "") => rowsFrom(statementLines(st, status, today), st.scale, orders, receipts, limit);
@@ -212,7 +249,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const STYLE = `.approver{min-width:0}.approver [hidden]{display:none}.approver .ap-drop{display:block;position:relative;border:1.5px dashed var(--line);border-radius:var(--radius,12px);padding:20px 16px;background:var(--paper-2);cursor:pointer;font-weight:600;transition:border-color var(--dur-1) var(--ease)}
 .approver .ap-drop[data-over],.approver .ap-drop:hover{border-color:var(--accent)}.approver .ap-drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .approver .ap-drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
-.approver textarea{width:100%;min-height:56px;margin:12px 0 0;resize:vertical;box-sizing:border-box}.approver .actions{align-items:center;margin:12px 0}
+.approver .ap-system{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--ink-2)}.approver textarea{width:100%;min-height:56px;margin:12px 0 0;resize:vertical;box-sizing:border-box}.approver .actions{align-items:center;margin:12px 0}
 .ap-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.ap-sum>div{border:1px solid var(--line);border-radius:var(--radius,12px);padding:12px 14px;background:var(--paper-2);min-width:0;overflow-wrap:anywhere}
 .ap-sum .k-kicker{margin:0}.ap-sum .k-num{display:block;font-size:clamp(22px,5vw,34px);font-weight:700;line-height:1.15}
 .ap-table table{width:100%;border-collapse:collapse;table-layout:fixed}.ap-table th{text-align:left;font-size:12px;font-weight:600;color:var(--ink-2);padding:6px 9px;vertical-align:bottom}
@@ -273,17 +310,18 @@ export function renderApprover(el, ctx = {}) {
     <p data-ap="check" role="status" aria-live="polite" hidden></p>
     <div data-ap="out" hidden>
       <p data-ap="mark" class="fine" hidden>Sample: a made-up invoice from a made-up supplier.</p>
+      <p class="actions" data-ap="go" hidden><button type="button" class="k-btn quiet" data-ap="skip">Go to approval</button></p>
       <div class="ap-sum" data-ap="sum"></div>
       <div class="k-table ap-table" data-ap="table"></div>
       <section class="ap-decide" data-ap="decide" aria-label="Approve">
-        <div class="ap-sign" data-ap="sign"><label>Your name<input type="text" id="ap-by" autocomplete="name" maxlength="120"></label><label>Your role<input type="text" id="ap-role" autocomplete="organization-title" maxlength="120"></label>
+        <form class="ap-sign" data-ap="sign" novalidate><label>Your name<input type="text" id="ap-by" autocomplete="name" maxlength="120"></label><label>Your role<input type="text" id="ap-role" autocomplete="organization-title" maxlength="120"></label>
           <label>Your limit, if any<input type="text" id="ap-limit" inputmode="decimal" autocomplete="off" maxlength="24" spellcheck="false" placeholder="5,000.00"></label>
           <label>Why, if not the policy<input type="text" id="ap-why" autocomplete="off" maxlength="200"></label>
-          <button type="button" class="k-btn" data-ap="approve" disabled>Approve ordinary lines</button></div>
+          <button type="submit" class="k-btn" data-ap="approve" disabled>Approve ordinary lines</button></form>
         <p data-ap="approved" role="status" aria-live="polite"></p>
       </section>
-      <section class="ap-queue" data-ap="queue" aria-label="Exceptions"></section>
       <section data-ap="files" aria-label="Files" hidden></section>
+      <section class="ap-queue" data-ap="queue" aria-label="Exceptions"></section>
       <div data-ap="recall" hidden></div>
     </div>
     <p class="fine" data-ap="account">No account system exists. This screen works signed out.</p>
@@ -291,17 +329,21 @@ export function renderApprover(el, ctx = {}) {
     <p class="fine" data-ap="time" hidden></p>
     <p class="fine"><a href="${PRIVATE_PATH}" target="_blank" rel="noopener">Private repositories: read the private path</a></p>`;
   const $ = (name) => el.querySelector(`[data-ap="${name}"]`), said = (text) => { $("said").textContent = text; };
-  const state = { st: null, status: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, rails: undefined, recall: null, limit: null, record: null, checks: [], decisions: [] };
+  const state = { system: "quickbooks", st: null, status: null, invoice: null, orders: {}, receipts: [], sample: false, whole: true, rows: [], open: null, rails: undefined, recall: null, limit: null, record: null, checks: [], decisions: [] };
   let motion = null;
   import("./motion.js").then((m) => { motion = m; }).catch(() => { /* the page is whole without it */ });
   const toast = (text, kind) => { if (motion && motion.toast) motion.toast(text, kind); };
   const today = () => (ctx.now || new Date()).toISOString().slice(0, 10);
-  const save = (text, name, type = "text/csv;charset=utf-8") => {
+  const keep = (text, name, type = "text/csv;charset=utf-8") => {
     const url = URL.createObjectURL(new Blob([text], { type })), a = doc.createElement("a");
     a.href = url; a.download = name; doc.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
     toast(`Downloaded ${name}`);
   };
   const fileName = () => `statement-${String(state.st.invoice).replace(/[^\w.-]+/g, "-")}`;
+  const sso = ssoOf(ctx.fetch || (typeof fetch === "function" ? fetch.bind(globalThis) : null),
+    () => /(?:^|;\s*)knos_signed_in=1(?:;|$)/.test(ctx.cookie !== undefined ? ctx.cookie : doc.cookie || ""));
+  const audit = (action, subject, where) => sso.act(action, subject, state.st ? state.st.sha256 : "")
+    .catch((e) => { if (where) where.textContent = `${where.textContent} Not in the audit log: ${e.message}.`.trim(); toast("Not in the audit log", "bad"); });
 
   // ---- drawing ---------------------------------------------------------------------------------------------------------
   // under the payment status: the line's four steps; a line owed to the supplier says so with the appeal; and what memory
@@ -360,7 +402,7 @@ export function renderApprover(el, ctx = {}) {
     $("table").innerHTML = `<table><thead><tr>${COLUMNS.map(([, name]) => `<th scope="col">${name}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr class="ap-row" data-line="${row.line}"${row.kind ? ` data-kind="${row.kind}"` : ""}${row.approved ? " data-approved" : ""}>
       ${COLUMNS.map(([key, name]) => `<td><button type="button" class="ap-cell" data-col="${key}" data-label="${name}" aria-expanded="false" aria-label="Line ${row.line}, ${name.toLowerCase()}: ${esc(key === "amount" ? group(row.authorised) || "none" : cellHtml(row, key).replace(/<small>.*$/, "").replace(/<[^>]+>/g, ""))}"><span>${cellHtml(row, key)}</span></button>${key === "payment" ? afterHtml(row) : ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     const can = Boolean(st) && state.whole && waiting.length > 0;
-    $("sign").hidden = !st;
+    $("sign").hidden = !st; $("go").hidden = !can;
     const go = $("approve");
     go.disabled = !can; go.textContent = waiting.length ? `Approve ${plural(waiting.length, "ordinary line")}` : "No ordinary line waiting";
     $("approved").textContent = !st ? "Add the statement file to approve." : !state.whole ? "Changed after it was made. Do not approve it." : !agreed.length ? "No line is ordinary."
@@ -373,15 +415,17 @@ export function renderApprover(el, ctx = {}) {
     const files = $("files"); files.hidden = !st;
     if (st) {
       const approvedNow = agreed.some((r) => r.approved);
+      // the close: once lines are approved, one press saves the file the accounting system imports (its bills: the approved lines)
       files.innerHTML = `<h3>Files</h3>
-        <p class="actions"><button type="button" class="k-btn" data-file="record"${state.record ? "" : " hidden"}>Download approval record</button> <button type="button" class="k-btn quiet" data-file="csv">Download statement</button> <button type="button" class="k-btn quiet" data-file="generic">Download audit file</button></p>
+        <p class="actions"><button type="button" class="k-btn" data-file="record"${state.record ? "" : " hidden"}>Download approval record</button> <button type="button" class="k-btn" data-file="accounting"${approvedNow ? "" : " disabled"}>Download accounting file</button>
+          <label class="ap-system">For <select id="ap-system">${Object.entries(SYSTEMS).map(([k, name]) => `<option value="${k}"${k === state.system ? " selected" : ""}>${name}</option>`).join("")}</select></label></p>
+        <p class="actions"><button type="button" class="k-btn quiet" data-file="csv">Download statement</button> <button type="button" class="k-btn quiet" data-file="generic">Download audit file</button></p>
         <div data-ap="pay" hidden><div class="ap-pay"><label>Paying account name<input type="text" id="ap-payer" autocomplete="organization" maxlength="70"></label><label>IBAN<input type="text" id="ap-iban" autocomplete="off" maxlength="34" spellcheck="false"></label>
           <label>BIC<input type="text" id="ap-bic" autocomplete="off" maxlength="11" spellcheck="false"></label><button type="button" class="k-btn" data-file="pain">Download payment file</button></div>
           <p class="fine">No bank has taken this file.</p></div>
         <p data-ap="filed" role="status" aria-live="polite"></p>
         <details class="k-more"><summary>More files</summary><p class="actions"><button type="button" class="k-btn quiet" data-file="status"${approvedNow || state.status ? "" : " disabled"}>Status file</button>
-          <button type="button" class="k-btn quiet" data-file="json">Statement file</button> <button type="button" class="k-btn quiet" data-file="quickbooks">QuickBooks file</button>
-          <button type="button" class="k-btn quiet" data-file="netsuite">NetSuite file</button></p><p class="fine">File exports, not integrations.</p></details>`;
+          <button type="button" class="k-btn quiet" data-file="json">Statement file</button></p><p class="fine">File exports, not integrations.</p></details>`;
       if (approvedNow) offerPayment();
     }
     if (kept && rows.some((r) => r.line === kept.line)) openCell(kept.line, kept.key);
@@ -500,6 +544,7 @@ export function renderApprover(el, ctx = {}) {
     refresh();
     const held = state.rows.filter((r) => r.kind).length;
     $("approved").textContent = `Approved ${plural(mine.length, "line")}, ${group(total)}. ${plural(held, "exception")} stay open.`;
+    audit("approve", `invoice ${state.st.invoice}: ${plural(mine.length, "line")} approved by ${by.value.trim()}`, $("approved"));
     toast(`Approved ${plural(mine.length, "line")}`);
     (el.querySelector('[data-file="record"]') || $("queue")).focus?.();          // the focus is not left on a button that no longer works
     if (state.sample || state.st === HANDED.st) Object.assign(HANDED, { st: state.st, status: state.status });      // the Statement page opens the same approval
@@ -516,11 +561,20 @@ export function renderApprover(el, ctx = {}) {
   }
   async function file(kind) {
     const { st, status } = state, name = fileName(), note = $("filed");
+    const save = (text, saved, type) => { keep(text, saved, type); audit("export", `invoice ${st.invoice}: ${saved}`, note); };
     try {
       if (kind === "csv") save(await statementCsv(st, status), `${name}.csv`);
       else if (kind === "json") save(canonicalText(st), `${name}.json`, "application/json");
       else if (kind === "status") save(canonicalText(status), `${name}.status.json`, "application/json");
       else if (kind === "record") save(canonicalText(state.record), `${name}.approval.json`, "application/json");
+      else if (kind === "accounting") {
+        const fmt = doc.getElementById("ap-system").value, ok = new Set(billable(state.rows));
+        if (!ok.size) throw new Error("approve the ordinary lines first");
+        const file_ = `${name}-${fmt}.csv`;
+        save(await statementExport(fmt, { ...st, lines: st.lines.filter((ln) => ok.has(ln.invoice_line)) }, status), file_);
+        if (note) note.textContent = `Approved and exported: ${file_}.`;
+        return;
+      }
       else if (kind === "pain") {
         const iban = doc.getElementById("ap-iban").value.replace(/\s+/g, "").toUpperCase();
         const payer = { name: doc.getElementById("ap-payer").value.trim(), account: iban, iban, bic: doc.getElementById("ap-bic").value.trim().toUpperCase(), on: today() };
@@ -533,6 +587,7 @@ export function renderApprover(el, ctx = {}) {
   // ---- what is pressed ---------------------------------------------------------------------------------------------------
   const texts = (list) => Promise.all([...list].map(async (f) => ({ name: f.name, text: await f.text() })));
   const form = $("in"), drop = $("drop"), box = doc.getElementById("ap-paste"), picker = doc.getElementById("ap-file");
+  $("sign").addEventListener("submit", (ev) => { ev.preventDefault(); if (!$("approve").disabled) approve(); });
   form.addEventListener("submit", (ev) => { ev.preventDefault(); if (box.value.trim()) take([{ name: "what was pasted", text: box.value }]).then(() => { box.value = ""; }); else said("Nothing to read. Drop a file, or try the sample."); });
   doc.getElementById("ap-limit").addEventListener("input", (ev) => {
     const text = ev.target.value.replace(/[,\s]/g, "");
@@ -541,6 +596,7 @@ export function renderApprover(el, ctx = {}) {
     state.limit = limit;
     if (state.st || state.invoice) refresh();
   });
+  el.addEventListener("change", (ev) => { if (ev.target.id === "ap-system") state.system = ev.target.value; });
   picker.addEventListener("change", async () => { if (picker.files.length) { await take(await texts(picker.files)); picker.value = ""; } });
   for (const name of ["dragenter", "dragover"]) el.addEventListener(name, (ev) => { ev.preventDefault(); drop.dataset.over = ""; });
   for (const name of ["dragleave", "drop"]) el.addEventListener(name, (ev) => { ev.preventDefault(); delete drop.dataset.over; });
@@ -554,8 +610,8 @@ export function renderApprover(el, ctx = {}) {
     if (what === "sample") sample().catch((e) => said(`Not read: ${e.message}`));
     if (what === "last") last();
     if (what === "clear") { reset(); $("out").hidden = true; $("clear").hidden = true; said("Cleared."); picker.focus(); }
-    if (what === "approve") approve();
     if (what === "shut") shut(true);
+    if (what === "skip") { const by = doc.getElementById("ap-by"); by.focus(); by.scrollIntoView?.({ block: "center" }); }
     if (what === "open" && li) openCell(Number(li.dataset.line), "exception", true);
     if (what === "message" && li) message(li);
     if (what === "copy" && li) {

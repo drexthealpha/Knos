@@ -1,4 +1,8 @@
+<img src="../web/brand/mark.svg" height="40" alt="Knos">
+
 # The story: one task, seven steps
+
+**In plain words.** A buyer puts money on a task, and someone does the work. The money moves only when the work passes the buyer's own tests. This page follows one task, paid in [test money](WORDS.md#test-usdc), in seven steps, each with its proof.
 
 **The neutral meter for AI agent work: neither side keeps the count.**
 
@@ -26,6 +30,19 @@ same seven ([`web/story.js`](../web/story.js)), the round on its first screen le
 ([`web/demo.js`](../web/demo.js): Agree, Fails, Passes, Statement, Replay, Pay, Verify), and
 [the demonstration's script](submission/demo_script.md) tells the same seven on one clock of three minutes. The
 script opens on the refusal of step 2.
+
+```mermaid
+flowchart TB
+    s1["1. The buyer and the supplier agree on one task and its price"]
+    s2["2. A first try fails the tests, so no money moves"]
+    s3["3. The fixed work passes the same tests"]
+    s4["4. Both sides write the same bill"]
+    s5["5. Sending the same proof again pays nothing"]
+    s6["6. The money is paid to the supplier"]
+    s7["7. Anyone checks the record on their own computer"]
+    s1 --> s2 --> s3 --> s4 --> s5 --> s6 --> s7
+```
+*Seven steps: a failed try pays nothing, and good work is paid once.*
 
 1. **Buyer and supplier agree one task.** Price and acceptance terms come first.
    Evidence: [The funding transaction (devnet, public program ids)](https://explorer.solana.com/tx/177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet)

@@ -85,5 +85,5 @@ runs:
           exit 2;;
         esac
         fail=--fail; [ "$FAIL" = "false" ] && fail=--no-fail
-        uv run --quiet --no-config --no-project --python 3.12 --with "knos==0.3.25" \
+        uv run --quiet --no-config --no-project --python 3.12 --with "knos==0.3.26" \
           python "$SCRIPT" --pr "$REPO#$NUM" --checks "$CHECKS" --commit "$AT" --out "$RUNNER_TEMP/knos-verify.json" "$fail"

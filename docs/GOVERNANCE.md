@@ -1,4 +1,28 @@
+<img src="../web/brand/mark.svg" height="40" alt="Knos">
+
 # Governance: who can change what, today
+
+**In plain words.** One person, the founder, holds every key that can change the [programs](WORDS.md#program) (the code that holds the money). Each change is public for 48 hours before it runs; a longer wait of 8 days is approved, not yet applied. Other keys can pause new funding for 7 days at most, but cannot move money.
+
+```mermaid
+flowchart TB
+    subgraph today["Today"]
+        founder["One person, the founder, holds every key"]
+        upgrade["Upgrade keys: 2 of 3 can change a program"]
+        wait["The change waits 48 hours in public, then it can run"]
+        guardian["Guardian keys: 2 of 3 can pause new funding for up to 7 days, and approve or refuse a signing key"]
+        nomoney["The guardian keys cannot move money"]
+        founder --> upgrade --> wait
+        founder --> guardian --> nomoney
+    end
+    subgraph plan["Planned, not done"]
+        eight["The wait grows to 8 days: approved, not yet applied"]
+        outside["A key holder who is not the founder: nobody asked yet"]
+    end
+    wait --> eight
+    founder --> outside
+```
+*Who can change the programs today, and the two changes that are planned.*
 
 This page says who can change the programs and the keys they trust, what stands between that power and a user's
 money, and what is planned. It describes the programs as devnet holds them, with test USDC; the pending proposals

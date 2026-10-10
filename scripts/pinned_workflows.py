@@ -5,6 +5,7 @@ repository that everything here names.
     python scripts/pinned_workflows.py build DIR [--lock FILE]      write the published set into DIR (default lock: requirements/sign.txt)
     python scripts/pinned_workflows.py build DIR --source REQ       a rehearsal variant: knos installed from REQ
     python scripts/pinned_workflows.py tree [--lock FILE]           the git tree id of the published set: what a commit of it must hold
+    python scripts/pinned_workflows.py cutoff [--pypi FILE]         after the upload: write UV_EXCLUDE_NEWER from the time PyPI took the wheel
     python scripts/pinned_workflows.py stamp SHA                    name the published commit everywhere it is named
     python scripts/pinned_workflows.py check [DIR [--lock FILE | --source REQ]]   exit 1 unless all of it is consistent
 
@@ -28,19 +29,25 @@ by mistake.
 
 The wheel's hash exists only once the wheel is built, and the commit of the workflows exists only once the list is in
 them. So the wheel is built FIRST and ONCE, from the final tree, and nothing the wheel contains may name that commit:
-src/knos never does, and README.md (the wheel's description on PyPI) is not a file `stamp` writes. The order, which
-docs/RELEASE.md gives with every command (scripts/release.py runs it):
+src/knos never does, and README.md (the wheel's description on PyPI) is not a file `stamp` writes.
+
+The jobs that sign nothing take knos from PyPI with a cutoff, UV_EXCLUDE_NEWER: uv takes no file uploaded after that
+time, knos itself included. So the cutoff can only be written once PyPI has the wheel, and the workflows can only be
+committed after that. `cutoff` asks PyPI when it took the locked wheel and writes that time plus MARGIN, with a note
+naming the release and the time. Until the note names the release the workflows install, a locked tree publishes
+nothing (`published`). 0.3.25 set its cutoff by hand to midnight; its wheel went up three hours later, and uv could
+not see it. The order, which docs/RELEASE.md gives with every command (scripts/release.py runs it):
 
     1. Build the wheel once, reproducibly (`release.py wheel`): SOURCE_DATE_EPOCH fixed, the build backend pinned by
        hash. `lock WHEEL --write`: requirements/sign.txt gets the line `knos==X.Y.Z --hash=sha256:<this wheel>`.
        (`lock` refuses a wheel that is not the release the workflows name.)
-    2. `build DIR` into a checkout of drexthealpha/knos-workflows and commit it there: its sha, S, is the one commit
+    2. That wheel goes to PyPI (`release.py publish`). Then `cutoff`: UV_EXCLUDE_NEWER from the time PyPI took it.
+    3. `build DIR` into a checkout of drexthealpha/knos-workflows and commit it there: its sha, S, is the one commit
        everything names; its tree is `tree`. Nothing signs from these workflows before this commit exists.
-    3. `stamp S` here, then `check DIR`. The wheel built again from the stamped tree has the same hash (tested), so
-       the ONE commit of the release holds the lock, the pin and the sources of the wheel at once.
-    4. That wheel goes to PyPI before the push (`release.py publish`); then the push and the tag. release.yml uploads
-       nothing to PyPI: it builds the wheel again, holds it to the locked hash, and fails unless PyPI serves a file
-       with exactly that hash.
+    4. `stamp S` here, then `check DIR`. The wheel built again from the stamped tree has the same hash (tested), so
+       the ONE commit of the release holds the lock, the cutoff, the pin and the sources of the wheel at once. Then
+       the push and the tag. release.yml uploads nothing to PyPI: it builds the wheel again, holds it to the locked
+       hash, and fails unless PyPI serves a file with exactly that hash.
     A new third-party release changes nothing that is published: the list names what it names. Moving a dependency
     is a new requirements/sign.txt, a new release and the four steps again.
 
@@ -49,7 +56,7 @@ and knos-check.yml, in docs/ and in the JavaScript client's README, and regenera
 web/front.js from the examples). `check` says every place that disagrees.
 
 The jobs that sign nothing (review and judge in prove.yml, and check.yml) install knos as the exact PyPI release they
-name, with dependencies no newer than UV_EXCLUDE_NEWER. Before that release exists nothing can install it, so a staging
+name, with dependencies no newer than UV_EXCLUDE_NEWER (step 2). Before that release exists nothing can install it, so a staging
 repository rehearses with --source: REQ is one requirement uv can install, such as
 "git+https://github.com/drexthealpha/Knos@<commit>" or the URL of a wheel. The variant differs from the published
 workflows in that requirement and in how the signing jobs get it: their list holds the third-party packages by hash
@@ -61,9 +68,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.util
+import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +96,13 @@ KNOS_LINE = re.compile(r"knos==(?P<release>\d+\.\d+\.\d+) --hash=sha256:(?P<hash
 RAW = re.compile(re.escape(REPO) + r"/(\w+)/" + re.escape(SIGN))      # the published lock, as a file at a commit
 RUNS = re.compile(r"-m (knos(?:\.\w+)+)(?: (\w+))?")    # a module of the installed release that a published job runs: `python -m knos.x cmd`
 NAMED = re.compile(re.escape(REPO) + r"/\.github/workflows/([\w.-]+)@(\w+)")
+# The cutoff of a job that signs nothing, and the note beside it: which release reached PyPI when. uv takes no file
+# uploaded after the cutoff (https://docs.astral.sh/uv/reference/settings/#exclude-newer), knos itself included.
+CUTOFF = re.compile(r'^(?P<lead> +UV_EXCLUDE_NEWER: )"(?P<cutoff>[^"\n]*)"(?P<note>[^\n]*)$', re.M)
+NOTE = re.compile(r" +# knos (?P<release>\d+\.\d+\.\d+) reached PyPI at (?P<at>\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)")
+MARGIN = timedelta(minutes=10)                      # the cutoff: this long after PyPI took the wheel, then up to a whole minute
+STAMP = "%Y-%m-%dT%H:%M:%SZ"
+PYPI = "https://pypi.org/pypi/knos/{version}/json"  # one release's page: each file, its sha256 and when PyPI took it
 
 
 def _front():
@@ -109,6 +127,134 @@ def release(texts: dict[str, str]) -> str:
         raise SystemExit(f"the install lines of {', '.join(WORKFLOWS)} must all name one release as \"knos==X.Y.Z\"; "
                          f"they name {sorted(named) or 'none'}")
     return named.pop()
+
+
+# ---- the cutoff: written after PyPI took the wheel, never by hand ------------------------------------------------------
+
+def _time(text: str) -> datetime:
+    return datetime.strptime(text, STAMP).replace(tzinfo=timezone.utc)
+
+
+def _say(when: datetime) -> str:
+    return when.astimezone(timezone.utc).strftime(STAMP)
+
+
+def _numbers(version: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in version.split("."))
+
+
+def cutoff_after(uploaded: datetime) -> datetime:
+    """The cutoff for a release whose wheel PyPI took at `uploaded`: MARGIN later, rounded up to a whole minute."""
+    when = uploaded + MARGIN
+    return when if (when.second, when.microsecond) == (0, 0) else when.replace(second=0, microsecond=0) + timedelta(minutes=1)
+
+
+def cutoff(texts: dict[str, str]) -> tuple[str, str, str]:
+    """(cutoff, release, uploaded): the one UV_EXCLUDE_NEWER the workflows set, and its note: which release reached
+    PyPI at what time."""
+    found = {(m.group("cutoff"), m.group("note")) for text in texts.values() for m in CUTOFF.finditer(text)}
+    if len(found) != 1:
+        raise SystemExit(f"every UV_EXCLUDE_NEWER of {', '.join(WORKFLOWS)} must say the same thing, with the same note; they say "
+                         f"{sorted(found) or 'nothing'}: write them with `python scripts/pinned_workflows.py cutoff`")
+    [(value, note)] = found
+    said = NOTE.fullmatch(note)
+    if not said:
+        raise SystemExit(f'UV_EXCLUDE_NEWER: "{value}" has no note "# knos X.Y.Z reached PyPI at <time>", so nothing says which release it lets '
+                         "through: write it with `python scripts/pinned_workflows.py cutoff` once the wheel is on PyPI")
+    return value, said.group("release"), said.group("at")
+
+
+def cutoff_wrong(texts: dict[str, str]) -> list[str]:
+    """Why the cutoff is wrong at any stage of a release, one line each: it is earlier than the upload its note names
+    (uv would not see that release), it is not the time `cutoff` writes for that upload, or the note names a release
+    newer than the one the workflows install. Empty when it is right."""
+    try:
+        value, named, at = cutoff(texts)
+        uploaded = _time(at)
+        when = _time(value)
+    except SystemExit as why:
+        return [str(why)]
+    except ValueError:
+        return [f'UV_EXCLUDE_NEWER: "{value}" is not a time like 2026-10-10T03:11:00Z: write it with `python scripts/pinned_workflows.py cutoff`']
+    said = []
+    if when <= uploaded:
+        said.append(f"UV_EXCLUDE_NEWER {value} is not after {at}, when knos {named} reached PyPI: uv would not see that release, and every job "
+                    "that installs it from PyPI would fail. Write it with `python scripts/pinned_workflows.py cutoff`")
+    elif when != cutoff_after(uploaded):
+        said.append(f"UV_EXCLUDE_NEWER {value} is not {_say(cutoff_after(uploaded))}, the time `cutoff` writes for an upload at {at}: "
+                    "write it with `python scripts/pinned_workflows.py cutoff`, not by hand")
+    try:
+        installs = release(texts)
+    except SystemExit as why:
+        return [*said, str(why)]
+    if _numbers(named) > _numbers(installs):
+        said.append(f"the note beside UV_EXCLUDE_NEWER names knos {named}, and the workflows install knos {installs}, an older release")
+    return said
+
+
+def cutoff_pending(texts: dict[str, str]) -> str | None:
+    """Why these workflows cannot be published for the release they install yet: their cutoff was written for an
+    earlier release, so uv would not see this one. None once `cutoff` wrote it for this release."""
+    value, named, _at = cutoff(texts)
+    installs = release(texts)
+    if named == installs:
+        return None
+    return (f'UV_EXCLUDE_NEWER: "{value}" was written for knos {named}, and the workflows install knos {installs}: uv would not see it. '
+            f"Upload the wheel first (python scripts/release.py publish), then: python scripts/pinned_workflows.py cutoff")
+
+
+def uploaded(answer: dict, version: str, sha: str) -> datetime:
+    """When PyPI took the wheel of `version` with this sha256, from PyPI's JSON page of that release; rounded up to a
+    whole second."""
+    name = f"knos-{version}-py3-none-any.whl"
+    files = {u.get("filename"): u for u in answer.get("urls") or []}
+    if name not in files:
+        raise SystemExit(f"PyPI does not serve {name} yet: upload it first (python scripts/release.py publish), then run this again. Nothing was written.")
+    got = files[name].get("digests", {}).get("sha256")
+    if got != sha:
+        raise SystemExit(f"PyPI serves {name} with sha256 {got}, and {SIGN} locks {sha}: they are different files. A file on PyPI cannot be "
+                         "replaced: release a new version. Nothing was written.")
+    at = re.fullmatch(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(?:Z|\+00:00)", str(files[name].get("upload_time_iso_8601", "")))
+    if not at:
+        raise SystemExit(f"PyPI gives no upload time for {name} in a form this reads: {files[name].get('upload_time_iso_8601')!r}. Nothing was written.")
+    when = _time(at.group(1) + "Z")
+    return when + timedelta(seconds=1) if (at.group(2) or "0").strip("0") else when
+
+
+def write_cutoff(answer: dict) -> tuple[str, list[str]]:
+    """Write UV_EXCLUDE_NEWER into the workflows from PyPI's page of the locked release: MARGIN after PyPI took the
+    locked wheel, with a note naming the release and that time. Returns (the line's value and note, the files changed).
+    It refuses before the lock, and unless PyPI serves exactly the locked wheel."""
+    held = locked()
+    if not held:
+        raise SystemExit(f"{SIGN} holds no line for the knos wheel yet: lock the release, upload the wheel, then write the cutoff. Nothing was written.")
+    texts = sources()
+    version = release(texts)
+    if held.group("release") != version:
+        raise SystemExit(f"{SIGN} locks knos {held.group('release')}, and the workflows install knos {version}: lock this release first. Nothing was written.")
+    at = uploaded(answer, version, held.group("hash"))
+    value, note = _say(cutoff_after(at)), f"   # knos {version} reached PyPI at {_say(at)}"
+    changed = []
+    for name, text in texts.items():
+        new = CUTOFF.sub(lambda m: f'{m.group("lead")}"{value}"{note}', text)
+        if new != text:
+            (ROOT / ".github" / "workflows" / name).write_text(new, encoding="utf-8", newline="\n")
+            changed.append(name)
+    return f'"{value}"{note}', changed
+
+
+def ask_pypi(version: str) -> dict:
+    """PyPI's JSON page of one release of knos."""
+    url = PYPI.format(version=version)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "knos-release"}), timeout=30) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as why:
+        if why.code == 404:
+            raise SystemExit(f"PyPI has no knos {version} yet: upload the wheel first (python scripts/release.py publish). Nothing was written.") from None
+        raise SystemExit(f"PyPI answered {why.code} for {url}. Nothing was written: run this again.") from None
+    except (urllib.error.URLError, TimeoutError, OSError) as why:
+        raise SystemExit(f"PyPI did not answer ({why}). Nothing was written: run this again.") from None
 
 
 def readme(version: str, spec: str | None) -> str:
@@ -212,17 +358,24 @@ def published(lock_text: str | None = None, spec: str | None = None) -> dict[str
     version = release(texts)
     if (lock_text is None) == (spec is None):
         raise SystemExit("name the lock the release wrote (--lock FILE), or a rehearsal source (--source REQ), and not both")
+    wrong = cutoff_wrong(texts)
+    if wrong:
+        raise SystemExit("\n".join(wrong))
+    if spec is None and locked():       # a release's own set: its cutoff must let the release it installs through
+        pending = cutoff_pending(texts)
+        if pending:
+            raise SystemExit(pending)
     if spec is not None:
         if not REQ.fullmatch(spec) or ": " in spec or spec != spec.rstrip(" :"):
             raise SystemExit("--source takes one requirement, such as git+https://github.com/drexthealpha/Knos@<commit> "
                              "or a wheel's URL: letters, digits and @+:/._=<>~!,[]- only")
         texts = {name: rehearsal(text, spec) for name, text in texts.items()}
-        locked = third_party()
+        listed = third_party()
     else:
-        locked = lock_is_right(lock_text)
-    texts = {name: written_in(text, locked) for name, text in texts.items()}
+        listed = lock_is_right(lock_text or "")
+    texts = {name: written_in(text, listed) for name, text in texts.items()}
     files = {f".github/workflows/{name}": text.encode("utf-8") for name, text in texts.items()}
-    files[SIGN] = locked.encode("utf-8")
+    files[SIGN] = listed.encode("utf-8")
     files["README.md"] = readme(version, spec).encode("utf-8")
     files["LICENSE"] = (ROOT / "LICENSE").read_bytes()
     return files
@@ -358,9 +511,14 @@ def inconsistencies() -> list[str]:
         return [*said, str(why)]
     said += in_the_wheel()
     said += modules_run()
-    if locked() and locked().group("release") != want:
-        said.append(f"{SIGN} locks the wheel of knos {locked().group('release')}, and the workflows install knos {want}: build the wheel and lock it again "
+    wrong = cutoff_wrong(sources())
+    said += wrong
+    held = locked()
+    if held and held.group("release") != want:
+        said.append(f"{SIGN} locks the wheel of knos {held.group('release')}, and the workflows install knos {want}: build the wheel and lock it again "
                     "(python scripts/release.py wheel, then lock)")
+    elif held and not wrong:                    # a locked release is published only once its cutoff lets it through
+        said += [line for line in [cutoff_pending(sources())] if line]
     if named != PLACEHOLDER and not re.fullmatch(r"[0-9a-f]{40}", named):
         said.append(f"the examples name {REPO} at {named}: a full commit sha, or {PLACEHOLDER} until the release")
     for path in [*naming(), front.FRONT]:
@@ -397,6 +555,8 @@ def main(argv: list[str] | None = None) -> int:
     build.add_argument("--source", metavar="REQ", help="rehearsal variant: install knos from REQ instead of the PyPI release")
     sub.add_parser("tree", help="print the git tree id of the published set: a commit of it has this tree"
                    ).add_argument("--lock", metavar="FILE", help=f"the lock (default: {SIGN})")
+    sub.add_parser("cutoff", help="after the wheel is on PyPI: write UV_EXCLUDE_NEWER, MARGIN after PyPI took the locked wheel, into the workflows"
+                   ).add_argument("--pypi", metavar="FILE", help="PyPI's JSON page of the release, saved (default: ask PyPI)")
     sub.add_parser("stamp", help="name the published commit in the examples, Knos's own files, the site and the documents"
                    ).add_argument("sha", help=f"the commit of {REPO} that holds the published set")
     check = sub.add_parser("check", help="exit 1 unless every file names one commit and the copies are their sources")
@@ -414,6 +574,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if a.command == "tree":
         print(tree_id(published(_read(a.lock or _own_lock()), None)))
+        return 0
+    if a.command == "cutoff":
+        try:
+            answer = json.loads(Path(a.pypi).read_text(encoding="utf-8")) if a.pypi else ask_pypi(release(sources()))
+        except (OSError, ValueError) as why:
+            raise SystemExit(f"cannot read PyPI's page from {a.pypi}: {why}. Nothing was written.") from None
+        line, changed = write_cutoff(answer)
+        print(f"UV_EXCLUDE_NEWER: {line}" + (f", written into {', '.join(changed)}." if changed else ", as the workflows say already."))
+        print("Next: python scripts/release.py workflows <a checkout of knos-workflows>")
         return 0
     if a.command == "stamp":
         changed = stamp(a.sha)

@@ -385,7 +385,8 @@ jobs:
   # only: no statement contradicts the capability list, the source or the price book (scripts/truth_check.py); every
   # description of Knos is the one sentence (scripts/public_face.py); the judges' page and its file are one
   # (scripts/judges.py); docs/ENFORCEMENT.md is the table the code gives (knos.enforce); and the recorded run of the
-  # stand-alone verifier is what a run gives now (scripts/archive_verify.py).
+  # stand-alone verifier is what a run gives now (scripts/archive_verify.py). Since 0.3.26 no public file states a
+  # retired figure as current (scripts/stale_check.py).
   claims:
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -401,6 +402,7 @@ jobs:
       - run: python scripts/doc_claims.py
       - run: python scripts/truth_check.py
       - run: python scripts/rate_claims.py
+      - run: python scripts/stale_check.py
       - run: python scripts/public_face.py --check
       - run: python scripts/judges.py --check
       - run: python -m knos.enforce --check

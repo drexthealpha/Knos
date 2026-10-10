@@ -235,11 +235,12 @@ replaces a binding a person made himself (`test_a_collaborator_cannot_rebind_a_p
 The funder cannot take it back in that time. When they bind a wallet, anyone can send `SettleOrder`. After 180
 days it goes back to the funder.
 
-**The fee.** The funder pays it on top of the amount: 0.30% of the amount, at least 0.05 of a whole unit of the
-mint, no maximum; one rate, no tiers, jobs and orders alike (a job's comes out of its amount). That is the rule of
-knos_pay 2.2, the build in this tree. **The public program charges the 0.3.14 fee until the upgrade to knos_pay 2.2
-executes**: 2.5% of the first 1,000 whole units, 1% to 50,000, and 0.5% above; at least 0.40; no maximum (a job: 2.5%,
-at least 0.05). Which rule is charged is the program's own answer to its Version instruction (2 from knos_pay 2.2
+**The fee.** 0.30% of the amount, at least 0.05 of a whole unit of the mint, no maximum; one rate, no tiers, jobs
+and orders alike. On an order the funder pays it on top of the amount. On a job it comes out of the amount and is
+never more than it. That is the rule of
+knos_pay 2.2, the build in this tree. The public program has run it since the upgrade to knos_pay 2.2 executed
+([`web/upgrades.json`](../web/upgrades.json) has the time). Before that it was the 0.3.14 fee: 2.5% of the first 1,000 whole units, 1% to 50,000, and 0.5% above; at
+least 0.40; no maximum (a job: 2.5%, at least 0.05). Which rule is charged is the program's own answer to its Version instruction (2 from knos_pay 2.2
 on): `knos status` says which build runs, and the site, the client ([`fees.py`](../src/knos/fees.py)) and the SDK
 (`v2.feeRule`) show the fee of the build that is live. Orders funded before the upgrade keep the rate fixed at their
 funding. The fee is one pure function in

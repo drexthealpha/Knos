@@ -15,8 +15,14 @@ THE CONFIG. TOML. Chain (cluster, RPC, program ids), keys BY FILE PATH (never in
 is refused), and one table per role. Nothing here holds a secret: `run` reads each key file when the container starts
 and hands it to the role in the variable the role already reads (KNOS_RELAY_KEY, KNOS_RELAY_KEYS, GH_TOKEN).
 
-Knos runs none of this and hosts nothing: the buyer runs it. It has not been run in any cloud. There is no single
-sign-on in it: the ports are bound to 127.0.0.1 and docs/SELFHOST.md says how to put an identity proxy in front.
+Knos runs none of this and hosts nothing: the buyer runs it. It has not been run in any cloud. The ports are bound
+to 127.0.0.1, for the buyer's own HTTPS front (a reverse proxy or a load balancer).
+
+SINGLE SIGN-ON, when the config has [sso] (knos.sso): OpenID Connect against the buyer's provider. The site asks every
+visitor to sign in, and writes each sign-in, approval and export to the audit log with the person's identity; the
+record API asks for the same session on its private routes (/records/, /orders/). Roles: viewer, approver, admin,
+from the provider's groups. keys.sso_session signs the session (the site and the record API read the same file).
+Tested with a fake provider only. Without [sso], nobody is asked to sign in: put an identity proxy in front.
 
 ONE BUYER A DEPLOYMENT. Each deployment reads its own records folder and keeps its counts in its own tenant of the
 memory store (record.tenant): two deployments sharing one memory folder never read each other's counts, and the
@@ -47,8 +53,11 @@ KEYS = {    # name in [keys]: (which role needs it, what it is for)
     "relay_more": ("relay", "more fee payers (a list of keypair files): one fee account per order in flight"),
     "github_token": ("relay", "a file with a GitHub token that may read the buyer's repositories' comments"),
     "record": ("record", "the operator's signing key for paid answers (a keypair file); without it answers are unsigned"),
+    "sso_session": ("sso", "32 or more random characters that sign the sign-in session; the site and the record API read the same file"),
+    "sso_client_secret": ("sso", "the client secret your sign-in provider gave, when it gave one"),
 }
-_TABLES = {"chain", "keys", *ROLES}
+SSO_ROLES = ("site", "record")             # the roles [sso] protects
+_TABLES = {"chain", "keys", "sso", *ROLES}
 _SECRETISH = re.compile(r"(key|token|secret|password)", re.I)
 _B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
@@ -145,6 +154,16 @@ def check(text: str, base: Path | None = None) -> Checked:
         for k, v in body.items():
             if _SECRETISH.search(k) and isinstance(v, str) and _inline(v):
                 err(f"{table}.{k} looks like a secret written inline: keys go in [keys], by file path")
+    if "sso" in cfg:
+        from . import sso
+        for e in sso.errors_of(cfg["sso"]):
+            err(e)
+        if "sso_session" not in keys:
+            err(f"[sso] needs keys.sso_session: {KEYS['sso_session'][1]}")
+    else:
+        for name in ("sso_session", "sso_client_secret"):
+            if name in keys:
+                err(f"keys.{name} is read only with [sso]: add [sso], or remove it")
     roles = c.roles()
     if not roles:
         err("no role is enabled: add [record], [relay] or [site]")
@@ -200,9 +219,10 @@ def needs(c: Checked) -> list[tuple[str, str, str]]:
     keys = c.config.get("keys", {})
     got = []
     for name, (role, _what) in KEYS.items():
-        if role in c.roles() and name in keys:
-            for one in keys[name] if isinstance(keys[name], list) else [keys[name]]:
-                got.append((role, name, one))
+        for r in ([x for x in SSO_ROLES if x in c.roles()] if role == "sso" and "sso" in c.config else [role]):
+            if r in c.roles() and name in keys:
+                for one in keys[name] if isinstance(keys[name], list) else [keys[name]]:
+                    got.append((r, name, one))
     return got
 
 
@@ -211,7 +231,7 @@ def services(c: Checked) -> list[dict[str, Any]]:
     out = []
     for role in c.roles():
         out.append({"service": role, "command": ["run", role, "--config", CONFIG.as_posix()],
-                    "port": PORTS.get(role), "state": f"knos-{role}:{STATE}" if role != "site" else None,
+                    "port": PORTS.get(role), "state": f"knos-{role}:{STATE}" if role != "site" or "sso" in c.config else None,
                     "keys": [path for r, _n, path in needs(c) if r == role]})
     return out
 
@@ -235,7 +255,15 @@ def describe(c: Checked, files: bool = False) -> list[str]:
         lines.append(f"  {role:<7} keys.{name:<13} {path}")
     for m in c.missing:
         lines.append(f"  {'MISSING' if files else 'not on this machine'}: {m}")
-    lines.append("Knos hosts none of this. No single sign-on: put the ports behind your identity proxy (docs/SELFHOST.md).")
+    s = c.config.get("sso")
+    if isinstance(s, dict):
+        who = ", ".join(f"{r} {len(s.get(r, []))} group(s)" for r in ("viewer", "approver", "admin"))
+        lines.append(f"Sign-in: OpenID Connect through {s.get('issuer')}; domains: {', '.join(s.get('domains', [])) or 'any'}; {who}"
+                     + (f"; anyone else in those domains is {s['default_role']}" if s.get("default_role") else "") + ".")
+        lines.append("  It protects the site (the approver) and the record API's /records/ and /orders/. Tested with a fake provider only.")
+        lines.append("Knos hosts none of this.")
+    else:
+        lines.append("Knos hosts none of this. No sign-in: add [sso], or put the ports behind your identity proxy (docs/SELFHOST.md).")
     return lines
 
 
@@ -304,8 +332,9 @@ def argv_of(c: Checked, role: str, base: Path | None = None, state: Path = STATE
     return [str(site), str(PORTS["site"])]
 
 
-def serve_site(folder: Path, port: int, host: str = "0.0.0.0"):
-    """The built site, as files: no directory listing, nothing sniffed, no referrer sent on."""
+def serve_site(folder: Path, port: int, host: str = "0.0.0.0", gate: Any = None):
+    """The built site, as files: no directory listing, nothing sniffed, no referrer sent on. `gate`: a knos.sso.Gate:
+    then /sso/... is sign-in, and every other path needs a signed-in person (a page asked for goes to sign in first)."""
     import functools
     from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
@@ -314,7 +343,50 @@ def serve_site(folder: Path, port: int, host: str = "0.0.0.0"):
             self.send_error(404, "Not found")
             return None
 
+        def _gated(self, method: str) -> bool:
+            """True when the gate answered this request itself."""
+            if gate is None:
+                return False
+            headers = dict(self.headers.items())
+            if self.path == "/sso" or self.path.startswith("/sso/"):
+                try:
+                    n = int(self.headers.get("content-length") or 0)
+                except ValueError:
+                    n = -1
+                if not 0 <= n <= 4096:
+                    got = (400, [("Content-Type", "application/json")], b'{"error": "a body here is 4096 bytes at most"}')
+                else:
+                    got = gate.route(method, self.path, headers, self.rfile.read(n) if n else b"")
+            else:
+                got = gate.guard(method, self.path, headers)
+                if got is None:
+                    return False
+            status, extra, raw = got
+            self.send_response(status)
+            for k, v in extra:
+                if k.lower() != "cache-control":        # end_headers sends it
+                    self.send_header(k, v)
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            if method != "HEAD":
+                self.wfile.write(raw)
+            return True
+
+        def do_GET(self) -> None:
+            if not self._gated("GET"):
+                super().do_GET()
+
+        def do_HEAD(self) -> None:
+            if not self._gated("HEAD"):
+                super().do_HEAD()
+
+        def do_POST(self) -> None:
+            if not self._gated("POST"):
+                self.send_error(405, "Method not allowed")
+
         def end_headers(self) -> None:
+            if gate is not None:
+                self.send_header("Cache-Control", "private, no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("X-Frame-Options", "DENY")
@@ -342,14 +414,34 @@ def run(role: str, config: Path) -> int:
         return 2
     os.environ.update(environment(c, role, config.parent))
     args = argv_of(c, role, config.parent)
+    gate = None
+    if "sso" in c.config and role in SSO_ROLES:
+        from . import sso
+        if role == "record":
+            args += ["--sso", str(config)]
+        else:
+            from .proof import history as memory_engine
+            try:
+                (STATE / "sso-memory").mkdir(parents=True, exist_ok=True)
+                probe = STATE / "sso-memory" / ".written"
+                probe.write_text("ok\n", encoding="utf-8")
+            except OSError as why:
+                print(f"sign-in keeps its audit log in {STATE}, which must be a writable volume for the site ({why.strerror})", file=sys.stderr)
+                return 2
+            try:
+                gate = sso.gate_of(c.config, config.parent, memory_engine.SibylStore.local(STATE / "sso-memory", tenant_id="knos-sso"))
+            except sso.Refused as why:
+                print(f"sign-in is refused: {why}", file=sys.stderr)
+                return 2
     if role == "record":
         from . import record_api
         return record_api.main(args)
     if role == "relay":
         from . import flow
         return flow.main(args)
-    httpd = serve_site(Path(args[0]), int(args[1]))
-    print(f"Serving the site from {args[0]} on port {args[1]} (the approver is #approve). Knos hosts none of this.", flush=True)
+    httpd = serve_site(Path(args[0]), int(args[1]), gate=gate)
+    print(f"Serving the site from {args[0]} on port {args[1]} (the approver is #approve; "
+          f"{'sign-in through ' + gate.cfg.issuer if gate else 'no sign-in'}). Knos hosts none of this.", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

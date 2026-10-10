@@ -1,0 +1,119 @@
+{
+ "about": "Written by scripts/diagrams.py render: a picture of every Mermaid diagram in README.md and docs/, for pages that cannot draw Mermaid (PyPI). Do not edit.",
+ "diagrams": [
+  {
+   "source": "README.md",
+   "block": 1,
+   "sha256": "06a8408a56c85e7029eb50477a6bb1177977f73e50192e740edbe6a6d9fea9de",
+   "svg": "docs/diagrams/readme-1.svg"
+  },
+  {
+   "source": "README.md",
+   "block": 2,
+   "sha256": "4864a15b88a8605dddf3c2405499b34791051b5612eb9056aa159732a68e4073",
+   "svg": "docs/diagrams/readme-2.svg"
+  },
+  {
+   "source": "docs/CHARTER.md",
+   "block": 1,
+   "sha256": "45d62a2656c8024c7754e819ff61cfac9b88c4f4f68eae6fdca20fa731acd616",
+   "svg": "docs/diagrams/docs-charter-1.svg"
+  },
+  {
+   "source": "docs/GOVERNANCE.md",
+   "block": 1,
+   "sha256": "ffa67db6070e188a769942cdfc51c2aae2b183582744a5dca85848b2d0b039b6",
+   "svg": "docs/diagrams/docs-governance-1.svg"
+  },
+  {
+   "source": "docs/INDEX_METHOD.md",
+   "block": 1,
+   "sha256": "66d0379e576b4da16c5286079d08f0bccf9ebcb1da88e59cca3c759900ac6317",
+   "svg": "docs/diagrams/docs-index-method-1.svg"
+  },
+  {
+   "source": "docs/JUDGES.md",
+   "block": 1,
+   "sha256": "844b5d47a0cf0bc55a5d50b89b969ce4a207461ce611946f0950703b0a1d90ee",
+   "svg": "docs/diagrams/docs-judges-1.svg"
+  },
+  {
+   "source": "docs/KEYS.md",
+   "block": 1,
+   "sha256": "0ffb8f1c877558eeaa026c70ea4e334e5074487cb17282557edd62bad3e96ded",
+   "svg": "docs/diagrams/docs-keys-1.svg"
+  },
+  {
+   "source": "docs/METER.md",
+   "block": 1,
+   "sha256": "0ae69021955a14687721538f90aef0b666c618f36325b946de5e8cd6f4bfe99e",
+   "svg": "docs/diagrams/docs-meter-1.svg"
+  },
+  {
+   "source": "docs/PILOT.md",
+   "block": 1,
+   "sha256": "6e39a659a0446ea1a317b3543cd1ffaaf8678dbfa3c2bc4d83178557dfb74f2a",
+   "svg": "docs/diagrams/docs-pilot-1.svg"
+  },
+  {
+   "source": "docs/PROPOSAL-2.3.md",
+   "block": 1,
+   "sha256": "b80b3ea2f1f95d4d1ab81d8db1fea5c63c4ebe0474fe6e2b18e0b471a537efd4",
+   "svg": "docs/diagrams/docs-proposal-2-3-1.svg"
+  },
+  {
+   "source": "docs/PROPOSAL-2.3.md",
+   "block": 2,
+   "sha256": "34d02c3521d6091a304cb6766a0702488241976db4cd76ef49fae3993948caf8",
+   "svg": "docs/diagrams/docs-proposal-2-3-2.svg"
+  },
+  {
+   "source": "docs/README.md",
+   "block": 1,
+   "sha256": "f1610bdb73fc78b840c8e3eec12a9661ba0c06c19ccef26fdd51d8c7b44acb48",
+   "svg": "docs/diagrams/docs-readme-1.svg"
+  },
+  {
+   "source": "docs/SELFHOST.md",
+   "block": 1,
+   "sha256": "501bd0ed68601ec9df3b671047ef10465dfe28134d8ac861b085b679575b97ba",
+   "svg": "docs/diagrams/docs-selfhost-1.svg"
+  },
+  {
+   "source": "docs/SOURCES.md",
+   "block": 1,
+   "sha256": "6e83a3e80fda34104413fea903224cd990711c44d170290046c0b6c49478d9f9",
+   "svg": "docs/diagrams/docs-sources-1.svg"
+  },
+  {
+   "source": "docs/STANDARD.md",
+   "block": 1,
+   "sha256": "8a1a64b856e67fb4716dd06e3c5e984b9005d3e4ff79fbbab08dc243e07cc593",
+   "svg": "docs/diagrams/docs-standard-1.svg"
+  },
+  {
+   "source": "docs/STORY.md",
+   "block": 1,
+   "sha256": "fd11dc1c89852e6cdf9dd043e6aa3e2f9878e4d5d5b03ccee61665d6f71e1a53",
+   "svg": "docs/diagrams/docs-story-1.svg"
+  },
+  {
+   "source": "docs/submission/FLOWS.md",
+   "block": 1,
+   "sha256": "887b77ca85d2b3f4a819ddf732a89320183a7ff4c35f66614067e9b2a0e7052d",
+   "svg": "docs/diagrams/docs-submission-flows-1.svg"
+  },
+  {
+   "source": "docs/submission/MARKET_SIZE.md",
+   "block": 1,
+   "sha256": "c7c4aaacbf632e8fe30ab8145c24e9a750662fc48d6a3025d4a4f58123da72bf",
+   "svg": "docs/diagrams/docs-submission-market-size-1.svg"
+  },
+  {
+   "source": "docs/submission/TRANSACTION.md",
+   "block": 1,
+   "sha256": "9a542c754b43dace01cc11f8877ef3adf8b59788276cdbe894a982da3d7c194c",
+   "svg": "docs/diagrams/docs-submission-transaction-1.svg"
+  }
+ ]
+}

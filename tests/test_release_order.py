@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import re
 import shutil
 import subprocess
@@ -37,12 +38,51 @@ def _copy(tmp_path: Path) -> Path:
     return root
 
 
+def _pypi(tmp_path: Path, wheel: str, data: bytes, at: str = "2026-10-11T09:14:07.512345Z", sha: str | None = None) -> Path:
+    """PyPI's JSON page of a release, as `cutoff` reads it: the wheel (and an sdist taken a moment later), each with its
+    sha256 and the time PyPI took it."""
+    page = {"urls": [{"filename": wheel, "digests": {"sha256": sha or hashlib.sha256(data).hexdigest()}, "upload_time_iso_8601": at},
+                     {"filename": wheel.replace("-py3-none-any.whl", ".tar.gz"), "digests": {"sha256": "0" * 64}, "upload_time_iso_8601": "2026-10-11T09:14:09.000001Z"}]}
+    path = tmp_path / "pypi.json"
+    path.write_text(json.dumps(page), encoding="utf-8")
+    return path
+
+
+def _before_its_cutoff(root: Path, pub) -> None:
+    """The copy as the release's tree is before `cutoff` runs: its cutoff's note names the release before this one. On
+    the release's own commit, after `cutoff`, the note names this release; these tests replay the order from the start."""
+    this = pub.release(pub.sources())
+    major, minor, patch = (int(x) for x in this.split("."))
+    before = f"{major}.{minor}.{patch - 1}" if patch else f"{major}.{minor - 1}.99" if minor else "0.0.1"
+    for name in pub.WORKFLOWS:
+        path = root / ".github" / "workflows" / name
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text.replace(f"# knos {this} reached PyPI at ", f"# knos {before} reached PyPI at "), encoding="utf-8", newline="\n")
+    assert pub.cutoff_pending(pub.sources()), "the copy is not before its cutoff"
+
+
 @pytest.fixture()
 def tree(tmp_path, monkeypatch):
     root = _copy(tmp_path)
     pub, rel = _load("pinned_workflows"), _load("release")
     monkeypatch.setattr(pub, "ROOT", root)
+    _before_its_cutoff(root, pub)
     return root, pub, rel
+
+
+def test_the_copy_is_put_back_before_its_cutoff_when_the_tree_has_its_own(tmp_path, monkeypatch):
+    # the release's commit carries the cutoff `cutoff` wrote for it; the order above is replayed from before that step
+    root = _copy(tmp_path)
+    pub = _load("pinned_workflows")
+    monkeypatch.setattr(pub, "ROOT", root)
+    this = pub.release(pub.sources())
+    for name in pub.WORKFLOWS:
+        path = root / ".github" / "workflows" / name
+        path.write_text(pub.CUTOFF.sub(lambda m: f'{m.group("lead")}"2026-10-10T09:46:00Z"   # knos {this} reached PyPI at 2026-10-10T09:35:20Z',
+                                       path.read_text(encoding="utf-8")), encoding="utf-8", newline="\n")
+    assert pub.cutoff_pending(pub.sources()) is None
+    _before_its_cutoff(root, pub)
+    assert "Upload the wheel first" in pub.cutoff_pending(pub.sources())
 
 
 @pytest.mark.skipif(not shutil.which("uv"), reason="builds the wheel with uv, as a release does")
@@ -52,6 +92,10 @@ def test_the_wheel_built_before_the_stamp_is_the_wheel_built_after_it(tree, tmp_
     locked = pub.lock(first)
     (root / "requirements" / "sign.txt").write_text(locked, encoding="utf-8")
     assert pub.locked().group("hash") == hashlib.sha256(first.read_bytes()).hexdigest() and rel.lock_hash(root) == (pub.release(pub.sources()), pub.locked().group("hash"))
+    # the wheel goes to PyPI, and the cutoff is written from the time PyPI took it: before that nothing is published
+    with pytest.raises(SystemExit, match="Upload the wheel first"):
+        pub.published(locked)
+    assert pub.main(["cutoff", "--pypi", str(_pypi(tmp_path, first.name, first.read_bytes()))]) == 0
     # the workflows with that lock; their commit, as a release makes it
     out = tmp_path / "knos-workflows"
     files = pub.published(locked)
@@ -108,7 +152,10 @@ def test_the_lock_is_the_last_line_of_sign_txt_and_the_rest_is_the_third_party_l
     assert (root / "requirements" / "sign.txt").read_text(encoding="utf-8") == before + line + "\n"
     assert pub.locked().group(0) == line and pub.third_party() == before          # locking twice adds one line, not two
     assert pub.main(["lock", str(wheel), "--write"]) == 0 and (root / "requirements" / "sign.txt").read_text(encoding="utf-8") == before + line + "\n"
-    # build and check take the tree's own lock when none is named
+    # build and check take the tree's own lock when none is named, once the cutoff lets that release through
+    with pytest.raises(SystemExit, match="Upload the wheel first"):
+        pub.main(["build", str(tmp_path / "out")])
+    assert pub.main(["cutoff", "--pypi", str(_pypi(tmp_path, wheel.name, b"PK a wheel"))]) == 0
     capsys.readouterr()
     assert pub.main(["build", str(tmp_path / "out")]) == 0 and pub.main(["check", str(tmp_path / "out")]) == 0
     assert (tmp_path / "out" / "requirements" / "sign.txt").read_text(encoding="utf-8") == before + line + "\n"
@@ -123,10 +170,115 @@ def test_the_lock_is_the_last_line_of_sign_txt_and_the_rest_is_the_third_party_l
 
 def test_the_plan_names_every_step_in_the_order_the_tools_enforce():
     plan = (ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")
-    order = ["scripts/bump_version.py --check", "scripts/release.py wheel", "pinned_workflows.py lock", "scripts/release.py workflows", "pinned_workflows.py stamp",
-             "scripts/release.py verify", "ship_check.py", "git commit", "scripts/release.py publish", "git push origin main", "git tag v"]
+    # PyPI before the workflows: their cutoff is written from the time PyPI took the wheel (pinned_workflows.py cutoff)
+    order = ["scripts/bump_version.py --check", "scripts/release.py wheel", "pinned_workflows.py lock", "scripts/release.py publish", "pinned_workflows.py cutoff",
+             "scripts/release.py workflows", "pinned_workflows.py stamp", "scripts/small_repos.py build", "scripts/release.py verify", "ship_check.py", "git commit",
+             "git push origin main", "git tag v"]
     at = [plan.index(step) for step in order]
     assert at == sorted(at), [step for step, a, b in zip(order, at, sorted(at)) if a != b]
     assert "ONE commit" in plan and "ONE push" in plan and "`release.yml` uploads nothing to PyPI" in plan
     for script in re.findall(r"scripts/([\w.]+\.(?:py|sh|mjs))", plan):
         assert (ROOT / "scripts" / script).is_file(), script
+
+
+# ---- the cutoff of the jobs that sign nothing: written from the time PyPI took the wheel -------------------------------
+
+def _set(pub, texts: dict[str, str], value: str, note: str, release: str | None = None) -> dict[str, str]:
+    """The workflows with every UV_EXCLUDE_NEWER line set to `value` and `note` (and installing `release`)."""
+    out = {name: pub.CUTOFF.sub(lambda m: f'{m.group("lead")}"{value}"{note}', text) for name, text in texts.items()}
+    return out if release is None else {name: re.sub(r'"knos==\d+\.\d+\.\d+"', f'"knos=={release}"', text) for name, text in out.items()}
+
+
+def test_no_cutoff_in_this_tree_is_earlier_than_the_release_it_names():
+    """0.3.25 published workflows whose cutoff was midnight of the day its wheel reached PyPI, three hours later: uv
+    could not see knos 0.3.25, and every job that installs it from PyPI failed. The test meant to catch it read the
+    newest DATED heading of CHANGELOG.md, which was 0.3.11's. Here the cutoff carries a note: the release it was written
+    for, and the time PyPI took that wheel. The cutoff comes after that time, and the release is the one the workflows
+    install, or (before its upload) an earlier one, with which a locked tree publishes nothing."""
+    pub = _load("pinned_workflows")
+    texts = pub.sources()
+    assert pub.cutoff_wrong(texts) == []
+    value, named, at = pub.cutoff(texts)
+    assert pub._time(value) > pub._time(at) and pub._time(value) == pub.cutoff_after(pub._time(at))
+    assert len(re.findall(r'(?m)^ +UV_EXCLUDE_NEWER: "', "".join(texts.values()))) == len(pub.CUTOFF.findall("".join(texts.values()))) >= 4
+    installs = pub.release(texts)
+    assert pub._numbers(named) <= pub._numbers(installs)
+    if pub.locked():          # the release's own commit: the cutoff lets the locked release through
+        assert named == installs == pub.locked().group("release") and pub.cutoff_pending(texts) is None
+    elif named != installs:   # a tree between releases: it says what comes first
+        assert "Upload the wheel first" in pub.cutoff_pending(texts)
+
+
+def test_a_cutoff_set_by_hand_is_refused_wherever_the_workflows_are_checked_or_published(monkeypatch):
+    pub = _load("pinned_workflows")
+    real = pub.sources()
+    spec = "git+https://github.com/drexthealpha/Knos@" + "a" * 40
+    cases = {
+        # the 0.3.25 pin as it was: midnight, no note
+        "has no note": _set(pub, real, "2026-10-10T00:00:00Z", "", "0.3.25"),
+        # the same with a note: the cutoff is before the upload it names
+        "is not after 2026-10-10T03:00:43Z": _set(pub, real, "2026-10-10T00:00:00Z", "   # knos 0.3.25 reached PyPI at 2026-10-10T03:00:43Z", "0.3.25"),
+        "is not 2026-10-10T03:11:00Z": _set(pub, real, "2026-10-12T00:00:00Z", "   # knos 0.3.25 reached PyPI at 2026-10-10T03:00:43Z", "0.3.25"),
+        "is not a time": _set(pub, real, "10 Oct 2026", "   # knos 0.3.25 reached PyPI at 2026-10-10T03:00:43Z", "0.3.25"),
+        "an older release": _set(pub, real, "2026-10-10T03:11:00Z", "   # knos 0.3.25 reached PyPI at 2026-10-10T03:00:43Z", "0.3.24"),
+        "must say the same thing": {**real, "check.yml": _set(pub, {"c": real["check.yml"]}, "2026-10-10T03:12:00Z", "   # knos 0.3.25 reached PyPI at 2026-10-10T03:01:43Z")["c"]},
+    }
+    for why, texts in cases.items():
+        assert [line for line in pub.cutoff_wrong(texts) if why in line], why
+        monkeypatch.setattr(pub, "sources", lambda texts=texts: texts)
+        assert [line for line in pub.inconsistencies() if why in line], why
+        with pytest.raises(SystemExit, match=re.escape(why)):
+            pub.published(spec=spec)                        # not even a rehearsal is written with it
+    # and the cutoff `cutoff` writes for that upload is right
+    monkeypatch.setattr(pub, "sources", lambda: _set(pub, real, "2026-10-10T03:11:00Z", "   # knos 0.3.25 reached PyPI at 2026-10-10T03:00:43Z", "0.3.25"))
+    assert pub.cutoff_wrong(pub.sources()) == [] and pub.cutoff_pending(pub.sources()) is None
+
+
+def test_the_cutoff_is_ten_minutes_after_the_upload_rounded_up_to_a_minute():
+    pub = _load("pinned_workflows")
+    for at, want in (("2026-10-10T03:00:43Z", "2026-10-10T03:11:00Z"), ("2026-10-10T03:00:00Z", "2026-10-10T03:10:00Z"),
+                     ("2026-10-10T23:59:01Z", "2026-10-11T00:10:00Z")):
+        assert pub._say(pub.cutoff_after(pub._time(at))) == want
+        assert pub.cutoff_after(pub._time(at)) > pub._time(at)
+
+
+def test_the_release_writes_the_cutoff_only_from_pypis_answer_for_the_locked_wheel(tree, tmp_path, capsys):
+    root, pub, _rel = tree
+    (root / "requirements" / "sign.txt").write_text(pub.third_party(), encoding="utf-8")     # the tree before its lock
+    version = pub.release(pub.sources())
+    wheel = tmp_path / f"knos-{version}-py3-none-any.whl"
+    wheel.write_bytes(b"PK the wheel")
+    before = {name: (root / ".github" / "workflows" / name).read_text(encoding="utf-8") for name in pub.WORKFLOWS}
+    with pytest.raises(SystemExit, match="holds no line for the knos wheel yet"):
+        pub.main(["cutoff", "--pypi", str(_pypi(tmp_path, wheel.name, b"PK the wheel"))])
+    assert pub.main(["lock", str(wheel), "--write"]) == 0
+    # locked, not on PyPI: nothing is published, and check says what comes first
+    if pub.cutoff(pub.sources())[1] != version:
+        assert [line for line in pub.inconsistencies() if "Upload the wheel first" in line]
+        with pytest.raises(SystemExit, match="Upload the wheel first"):
+            pub.main(["build", str(tmp_path / "out")])
+    # PyPI has no such wheel, or another file under its name: nothing is written
+    with pytest.raises(SystemExit, match="does not serve"):
+        pub.main(["cutoff", "--pypi", str(_pypi(tmp_path, f"knos-{version}-py3-none-any.whl".replace(version, "0.0.1"), b"PK the wheel"))])
+    with pytest.raises(SystemExit, match="different files"):
+        pub.main(["cutoff", "--pypi", str(_pypi(tmp_path, wheel.name, b"PK the wheel", sha="e" * 64))])
+    with pytest.raises(SystemExit, match="cannot read PyPI's page"):
+        pub.main(["cutoff", "--pypi", str(tmp_path / "missing.json")])
+    assert {name: (root / ".github" / "workflows" / name).read_text(encoding="utf-8") for name in pub.WORKFLOWS} == before
+    # the locked wheel on PyPI at 09:14:07.5: the note says 09:14:08 and the cutoff is 09:25
+    capsys.readouterr()
+    assert pub.main(["cutoff", "--pypi", str(_pypi(tmp_path, wheel.name, b"PK the wheel"))]) == 0
+    line = f'"2026-10-11T09:25:00Z"   # knos {version} reached PyPI at 2026-10-11T09:14:08Z'
+    assert f"UV_EXCLUDE_NEWER: {line}, written into prove.yml, check.yml, attest.yml." in capsys.readouterr().out
+    after = {name: (root / ".github" / "workflows" / name).read_text(encoding="utf-8") for name in pub.WORKFLOWS}
+    assert after["fund.yml"] == before["fund.yml"]                       # fund.yml installs by hash only: no cutoff there
+    for name in ("prove.yml", "check.yml", "attest.yml"):
+        old, new = before[name].splitlines(), after[name].splitlines()
+        changed = [b for a, b in zip(old, new) if a != b]
+        assert len(old) == len(new) and changed and all(b.strip() == f"UV_EXCLUDE_NEWER: {line}" for b in changed), name
+    assert pub.cutoff_wrong(pub.sources()) == [] and pub.cutoff_pending(pub.sources()) is None and pub.inconsistencies() == []
+    # written again from the same answer: the same bytes
+    assert pub.main(["cutoff", "--pypi", str(_pypi(tmp_path, wheel.name, b"PK the wheel"))]) == 0 and "as the workflows say already" in capsys.readouterr().out
+    # the published set carries it
+    assert pub.main(["build", str(tmp_path / "out")]) == 0
+    assert f"UV_EXCLUDE_NEWER: {line}" in (tmp_path / "out" / ".github" / "workflows" / "check.yml").read_text(encoding="utf-8")

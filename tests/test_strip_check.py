@@ -46,10 +46,30 @@ def test_a_bypass_list_not_shown_is_said():
     assert "its bypass list was not read" in K.check("acme/app", _get(case))["says"]
 
 
-def test_a_required_check_alone_is_partly():
+def test_a_required_check_alone_is_partly_and_says_what_it_leaves_open_and_that_a_personal_repository_gets_no_more():
     got = K.check("acme/app", _get(FIX["partly"]))
     assert got["evidence"] == [{"source": "ruleset 9", "context": "prove / prove"}]
     assert "an admin can remove the requirement" in got["says"]
+    assert f"Still open: {K.STILL_OPEN}." in got["says"]
+    assert "On a personal repository, or an organization without GitHub Enterprise Cloud, PARTLY is the most GitHub allows" in got["says"]
+    # an open repository is told the step that makes it partly
+    assert "makes it PARTLY" in K.check("acme/app", _get(FIX["open"]))["says"]
+
+
+def _flat(rel: str) -> str:
+    return " ".join((ROOT / rel).read_text(encoding="utf-8").split())
+
+
+def test_the_launch_list_and_the_attestor_page_say_what_the_check_says_about_a_personal_repository():
+    source = ("https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/"
+              "managing-rulesets/available-rules-for-rulesets#require-workflows-to-pass-before-merging")
+    assert source in (ROOT / "src" / "knos" / "strip_check.py").read_text(encoding="utf-8")
+    for rel in ("docs/LAUNCH.md", "docs/ATTESTOR.md"):
+        text = _flat(rel)
+        assert "**On a personal repository, PARTLY is the most GitHub allows.**" in text, rel
+        assert f"Still open: {K.STILL_OPEN}." in text, rel
+        assert f"({source})" in text and "HTTP 422 \"Invalid rule 'workflows'\"" in text, rel
+        assert "add yourself to the ruleset's bypass list" in text, rel
 
 
 def test_unreadable_is_not_open():
@@ -71,3 +91,5 @@ def test_the_command_exit_codes(monkeypatch):
         monkeypatch.setattr(judge, "github", _get(FIX[name]))
         got = CliRunner().invoke(app, ["protect", "--check-strip", "acme/app"])
         assert got.exit_code == code and got.output.startswith(f"acme/app main: {name.upper()}")
+        if name == "partly":
+            assert "PARTLY is the most GitHub allows" in " ".join(got.output.split())

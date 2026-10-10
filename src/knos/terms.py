@@ -22,6 +22,26 @@ at most 600 bytes.
 Globs are GitHub's own, as in a workflow's `paths:` filter: `*` stays inside one directory, `**` crosses them, `?` is
 one character, and a pattern ending in `/` means everything under that directory.
 
+The defaults a newcomer gets. Each one blocks a way to game the count. The first two are always on. The third is
+written and tested here, and nothing calls it yet: knos.flow still funds a work order with no holdback unless the
+comment or the repository's .knos/policy.yml asks for one. Wiring it in would change what public rounds and plain
+orders pay, so it waits for a release that says so.
+
+    deny      A pull request may not edit the files that judge it: .github/** (the workflows that run the checks)
+              and .knos/** (the acceptance checks and the policy). Such a pull request is refused, however its
+              checks ended. Every bounty and order has this (`build`; knos.terms3 adds its own protected paths).
+              The workflows are protected this way; their bytes are not hashed into the terms.
+    accept    When the default branch holds black-box acceptance checks for the issue (.knos/acceptance/<issue>/),
+              they decide, and their hash is fixed at funding. A judge whose copy has another hash refuses to
+              pay (knos.flow). These checks are the buyer's own and anyone can read them. Tests the worker cannot
+              see do not exist yet.
+    window    The proposed default: a work order keeps 10% back for 14 days (`window`). If the change is reverted
+              in that time and a judge of the order signs the revert, that share goes back to the funder.
+              Otherwise the relay sends it to the payee when the 14 days end. The program holds it
+              for work orders (knos_pay 2.1 and later). A tip, and a bounty on the older escrow, hold nothing
+              back. Value paid off the chain (a bank transfer, small outcomes netted) has no holdback unless
+              the contract between the two sides writes one; nothing enforces that one but the contract.
+
 What decides a payment is `accepted`: every required check `passed` at that commit and no changed file out of scope.
 The words of a pull request's description never change what is required. The readers of GitHub are at the bottom,
 each with an injected `get(path)` (knos.judge.github): they are the only functions here that are not pure.
@@ -380,6 +400,25 @@ def tip() -> dict:
     """The terms of a `/knos tip`: a small bounty on a merged pull request, funded and paid at once. They ask for
     nothing: the one who tips has seen the work, and it is their money."""
     return {"accept": "", "checks": [], "deny": [], "mode": "merge", "paths": [], "reserve": 0, "v": 1}
+
+
+HOLDBACK_PERCENT, WARRANTY_DAYS = 10, 14      # the default window of a work order: the share kept back, and for how long
+
+
+def window(holdback: int | None = None, warranty: int | None = None, policy_holdback_bps: int | None = None,
+           policy_warranty_days: int | None = None, orders: bool = True) -> tuple[int, int]:
+    """(holdback in basis points, warranty in days) for a new work order. None means "not said".
+
+    The comment's words come first (`holdback N` in percent, `warranty N` in days), then .knos/policy.yml. When
+    neither says a word about either, the default: 10% kept back for 14 days. `holdback 0` in the comment, or
+    `holdback_percent: 0` in the policy, turns it off. `orders`: whether the escrow holds work orders; with no work
+    orders there is no holdback on chain, so nothing is kept back by default."""
+    if holdback is not None or warranty is not None:
+        return (holdback * 100 if holdback is not None else policy_holdback_bps or 0,
+                warranty if warranty is not None else policy_warranty_days or 0)
+    if policy_holdback_bps is not None or policy_warranty_days is not None:
+        return policy_holdback_bps or 0, policy_warranty_days or 0
+    return (HOLDBACK_PERCENT * 100, WARRANTY_DAYS) if orders else (0, 0)
 
 
 def _ran(runs: list, notes: list) -> list[tuple[str, int]]:

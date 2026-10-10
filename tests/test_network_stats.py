@@ -332,11 +332,17 @@ class Rpc:
     def __init__(self, transactions: dict[str, list], accounts: dict[str, list] | None = None, throttled: frozenset = frozenset()):
         self.by_program, self.accounts, self.throttled = transactions, accounts or {}, throttled
         self.by_sig = {t["signature"]: t for txs in transactions.values() for t in txs}
+        self.calls: list[tuple[str, list]] = []
+        self.clock = 0          # seconds the calls took: one each
 
     def __call__(self, url, method, params, timeout=10.0):
-        if method == "getSignaturesForAddress":
-            newest_first = list(reversed(self.by_program.get(params[0], [])))[:params[1]["limit"]]
-            return [{"signature": t["signature"], "err": t["meta"]["err"]} for t in newest_first]
+        self.calls.append((method, params))
+        self.clock += 1
+        if method == "getSignaturesForAddress":     # newest first, `limit` of them, older than `before` (which is left out)
+            newest_first = list(reversed(self.by_program.get(params[0], [])))
+            if "before" in params[1]:
+                newest_first = newest_first[[t["signature"] for t in newest_first].index(params[1]["before"]) + 1:]
+            return [{"signature": t["signature"], "err": t["meta"]["err"], "blockTime": t["blockTime"]} for t in newest_first[:params[1]["limit"]]]
         if method == "getTransaction":
             if params[0] in self.throttled:
                 raise OSError("429")
@@ -430,8 +436,10 @@ def test_what_could_not_be_read_is_said_and_never_guessed(monkeypatch):
     assert s["totals"]["completed"] == 5 and "1 transactions unread" in s["error"] and "lower bound" in s["error"]
     # more history than was read: said too
     monkeypatch.setattr(chain, "call", Rpc({PAY1: first}))
-    s = network_stats.collect("rpc", None, None, limit=10)
+    s = network_stats.collect("rpc", None, None, limit=10, pages=1)
     assert f"only the newest 10 transactions of {PAY1} were read" in s["error"] and s["totals"]["unmatched_paid"] > 0
+    assert s["error"].endswith("the bound of 1 page of 10 signatures was hit")
+    assert "error" not in network_stats.collect("rpc", None, None, limit=10)       # pages of 10 reach the first transaction
     # the cluster does not answer at all: the file still ships, with the reason and no numbers
     def dead(*_a, **_k):
         raise OSError("no route")
@@ -449,6 +457,155 @@ def test_what_could_not_be_read_is_said_and_never_guessed(monkeypatch):
     assert s["latency"]["note"] == "not measured: the relay log could not be read (OSError)" and s["latency"]["comment_to_funded"]["count"] == 0
     assert s["latency"]["relay"]["fund"]["count"] == s["latency"]["relay"]["pay"]["count"] == 0
     assert s["funnel"]["installed"] is None and "did not answer" in s["funnel"]["installed_note"]
+
+
+# ---- the whole history, page by page --------------------------------------------------------------------------------
+LONG_AT = 1_790_000_000
+
+
+def long_history(n: int = 2500, payments: int = 68, prefix: str = "S") -> tuple[list[dict], list[dict]]:
+    """(`n` transactions of the second escrow, oldest first, one a minute; the relay log that paid them). `payments`
+    jobs are funded and paid, spread over the whole history; every other transaction logs nothing of the escrow's.
+    Each relay line carries its start: the merge, 26 seconds before the paying block."""
+    step, txs, log = n // payments, [], []
+    for i in range(n):
+        at, (k, r) = LONG_AT + 60 * i, divmod(i, step)
+        if k < payments and r == 0:
+            t = funded2(at, 7001, k + 1, 5 * USDC, 6001, "Bal1")
+        elif k < payments and r == 1:
+            t = paid2(at, 7001, k + 1, 8001, 5 * USDC)
+            log.append({"created_at": at + 30, "body": f"knos-relay pay octo/widgets#{1000 + k} {k:016x} ok asked={at - 26} sig={prefix}{i:05d} note=paid t=5"})
+        else:
+            t = tx(at, "relayer", program=PAY2)
+        txs.append({**t, "signature": f"{prefix}{i:05d}"})
+    return txs, log
+
+
+def relay_of(log: list[dict]):
+    """GitHub, answering only the relay log (one issue): every other question is refused."""
+    def get(path):
+        if path == "repos/drexthealpha/Knos/issues?labels=knos-relay&state=all&per_page=100":
+            return [{"number": 1}]
+        if path == "repos/drexthealpha/Knos/issues/1/comments?per_page=100&page=1":
+            return log
+        raise OSError(f"GitHub has no {path}")
+    return get
+
+
+def pages_of(rpc: Rpc, program: str = PAY2) -> list[dict]:
+    return [p[1] for m, p in rpc.calls if m == "getSignaturesForAddress" and p[0] == program]
+
+
+def test_the_whole_history_is_read_page_by_page_so_merge_to_paid_times_every_payment(monkeypatch):
+    txs, log = long_history()
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    s = network_stats.collect("rpc", relay_of(log), None, now=SAMPLED_AT)
+    assert "error" not in s
+    # 2,500 signatures: two full pages and a short one, each older than the last one read
+    assert pages_of(rpc) == [{"limit": 1000}, {"limit": 1000, "before": "S01500"}, {"limit": 1000, "before": "S00500"}]
+    assert sum(1 for m, _ in rpc.calls if m == "getTransaction") == 2500
+    assert (s["totals"]["funded"], s["totals"]["completed"], s["totals"]["unmatched_paid"]) == (68, 68, 0)
+    m = s["latency"]["merge_to_paid"]
+    assert (m["n"], m["p50"], m["lines"], m["not_timed"]) == (68, 26, 68, 0)
+    assert m["window"] == {"from": network_stats._day(LONG_AT + 60), "to": network_stats._day(LONG_AT + 60 * (36 * 67 + 1))}
+    # what the newest 1,000 transactions alone gave: 26 of the 68 payments timed, and 42 not
+    newest = network_stats.history("rpc", PAY2, 1000)[0]
+    assert (lambda m: (m["n"], m["not_timed"]))(network_stats.latency(network_stats.relay_lines(log), newest)["merge_to_paid"]) == (26, 42)
+
+
+def test_a_bound_that_stops_the_reading_is_said(monkeypatch):
+    txs, log = long_history()
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    # the page bound: 2,000 of 2,500 listed, and the error says how far back
+    s = network_stats.collect("rpc", relay_of(log), None, pages=2)
+    back = network_stats._day(LONG_AT + 60 * 500)
+    assert s["error"] == f"only the newest 2000 transactions of {PAY2} were read (back to {back}): the bound of 2 pages of 1000 signatures was hit"
+    assert s["totals"]["completed"] < 68 and s["latency"]["merge_to_paid"]["not_timed"] > 0
+    # the time budget while listing (each call takes a second here): two pages in 2 s, and nothing left to read them
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    s = network_stats.collect("rpc", None, None, budget=2, clock=lambda: rpc.clock)
+    assert s["error"] == (f"2000 transactions of {PAY2} were not read within the time budget of 2 s; counts are a lower bound; "
+                          f"only the newest 2000 transactions of {PAY2} were read (back to {back}): the time budget of 2 s ran out")
+    # the time budget while reading transactions: all 2,500 listed in 3 s, the newest 97 read, 2,403 not
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    s = network_stats.collect("rpc", None, None, budget=100, clock=lambda: rpc.clock)
+    assert s["error"] == f"2403 transactions of {PAY2} were not read within the time budget of 100 s; counts are a lower bound"
+    assert sum(1 for m, p in rpc.calls if m == "getTransaction") == 97
+    # a cluster that stops answering after the first page: what was read is kept, and the rest is said to be missing
+    rpc = Rpc({PAY2: txs})
+
+    def tired(url, method, params, timeout=10.0):
+        if method == "getSignaturesForAddress" and "before" in params[1]:
+            raise OSError("429")
+        return rpc(url, method, params, timeout)
+    monkeypatch.setattr(chain, "call", tired)
+    s = network_stats.collect("rpc", None, None)
+    assert s["error"].endswith("were read (back to " + network_stats._day(LONG_AT + 60 * 1500) + "): the cluster stopped answering for older signatures (OSError)")
+
+
+def test_the_cache_keeps_what_was_read_so_the_next_build_reads_only_what_is_new(monkeypatch, tmp_path, capsys):
+    txs, log = long_history()
+    cache = str(tmp_path / "history.json")
+    fresh = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", fresh)
+    whole = network_stats.collect("rpc", relay_of(log), None, now=SAMPLED_AT)
+    # a build with 2,400 transactions, then one with 100 more: one page listed, the 100 new ones read, the same numbers
+    monkeypatch.setattr(chain, "call", Rpc({PAY2: txs[:2400]}))
+    capsys.readouterr()
+    assert "error" not in network_stats.collect("rpc", None, None, cache=cache)
+    # the build's log says it (stderr: stdout is the file)
+    assert f"{PAY2}: 2400 signatures listed in 3 pages; 2400 transactions read now, 0 from the cache, 0 left for the next build\n" in capsys.readouterr().err
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    assert network_stats.collect("rpc", relay_of(log), None, now=SAMPLED_AT, cache=cache) == whole
+    assert pages_of(rpc) == [{"limit": 1000}] and [p[0] for m, p in rpc.calls if m == "getTransaction"] == [f"S{i:05d}" for i in range(2499, 2399, -1)]
+    said = capsys.readouterr()
+    assert f"{PAY2}: 2500 signatures listed in 1 page; 100 transactions read now, 2400 from the cache, 0 left for the next build\n" in said.err and not said.out
+    # a build cut short by the page bound: the next one goes on below what the cache holds, and finishes
+    cache = str(tmp_path / "cut.json")
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    assert "the bound of 2 pages" in network_stats.collect("rpc", relay_of(log), None, pages=2, cache=cache)["error"]
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    capsys.readouterr()
+    assert network_stats.collect("rpc", relay_of(log), None, now=SAMPLED_AT, pages=2, cache=cache) == whole
+    assert pages_of(rpc) == [{"limit": 1000}, {"limit": 1000, "before": "S00500"}] and sum(1 for m, _ in rpc.calls if m == "getTransaction") == 500
+    assert f"{PAY2}: 2500 signatures listed in 2 pages; 500 transactions read now, 2000 from the cache, 0 left for the next build\n" in capsys.readouterr().err
+    # a cluster that was reset: its history never meets the cache, which is dropped
+    other, other_log = long_history(prefix="R")
+    monkeypatch.setattr(chain, "call", Rpc({PAY2: other}))
+    again = network_stats.collect("rpc", relay_of(other_log), None, now=SAMPLED_AT, cache=cache)
+    monkeypatch.setattr(chain, "call", Rpc({PAY2: other}))
+    assert again == network_stats.collect("rpc", relay_of(other_log), None, now=SAMPLED_AT)
+    kept = json.loads(Path(cache).read_text(encoding="utf-8"))["programs"][PAY2]
+    assert kept["complete"] and len(kept["sigs"]) == 2500 and all(s.startswith("R") for s in kept["events"])
+    # a file that is not a cache of this version is ignored
+    Path(cache).write_text("not json", encoding="utf-8")
+    monkeypatch.setattr(chain, "call", Rpc({PAY2: txs}))
+    assert network_stats.collect("rpc", relay_of(log), None, now=SAMPLED_AT, cache=cache) == whole
+
+
+def test_the_pages_build_has_the_time_to_read_the_whole_history_when_it_has_no_cache(monkeypatch, capsys):
+    """The first build with the cache (10 Oct 2026) had none to restore, and read 209 transactions in a budget of
+    300 s, of the 1,427 the second escrow had: the rest waited for later builds, and its stats.json counted 93 jobs
+    funded of the 476 the site then showed. The Pages build's budget reads that history at the rate that runner read,
+    with half of it again to spare; a build that restores the cache asks only for what is new."""
+    net = (ROOT / ".github" / "workflows" / "network.yml").read_text(encoding="utf-8")
+    run = next(line for line in net.splitlines() if "scripts/network_stats.py --out" in line)
+    assert "--cache _history/history.json" in run and "--budget " in run
+    assert float(run.split("--budget ", 1)[1].split()[0]) * 209 / 300 >= 1.5 * 1427
+    # a build that runs out of time says so in its log, as in the file
+    txs, _ = long_history()
+    rpc = Rpc({PAY2: txs})
+    monkeypatch.setattr(chain, "call", rpc)
+    capsys.readouterr()
+    assert network_stats.collect("rpc", None, None, budget=100, clock=lambda: rpc.clock)["error"].startswith(f"2403 transactions of {PAY2} were not read")
+    assert f"{PAY2}: 2500 signatures listed in 3 pages; 97 transactions read now, 0 from the cache, 2403 left for the next build\n" in capsys.readouterr().err
 
 
 # ---- the second deployment's own log lines, from the program itself --------------------------------------------------

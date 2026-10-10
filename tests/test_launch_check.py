@@ -102,3 +102,13 @@ def test_security_gives_a_private_path_and_a_public_one():
     text = read("SECURITY.md")
     assert "Report a vulnerability" in text and "private vulnerability reporting" in text and "open an issue" in text
     assert "docs/ROLLBACK.md" in text and "scripts/secret_scan.py --history" in text
+
+
+def test_the_launch_day_section_names_exactly_the_rows_the_check_leaves_and_says_how_each_closes():
+    page = read("docs/LAUNCH.md")
+    section = page.split("## Launch day\n", 1)[1].split("\n## ", 1)[0]
+    named = {int(n) for n in re.findall(r"^- \*\*(\d+), ", section, re.M)}
+    rows, _problems = lc.check(ROOT, launch_day=True)
+    assert named == {n for n, _i, s in rows if s in ("partly", "not done")}
+    count = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")[len(named)]
+    assert f"{count} rows are partly" in " ".join(section.split())

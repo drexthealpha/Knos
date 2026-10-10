@@ -78,6 +78,14 @@ the funding logged, or a private order's hash from its funding instruction. The 
 the ones the order and the transaction give. For a status file, each payment on chain is checked the same way and
 tied to its line's deliverable and settlement ids.
 
+**One deliverable, two ids.** A deliverable id is made from a scope and a milestone ([CONFORMANCE.md](CONFORMANCE.md)).
+Two published forms give the same milestone different scopes. A receipt and a meter ledger use the order's address,
+as 64 hex characters. An audit export (`knos audit export`) uses the line's billing key: the order and the transaction
+that funded it. A witnessed statement takes its lines from that export. So one paid milestone can carry two
+deliverable ids. Changing either form would change ids already written in receipts and statements, so this release
+changes neither. The consumer accepts both, and says which form named the line. The milestone is 0, or a standing
+order's pull request, which the payment logs.
+
 **What it trusts.** The cluster's answers (ask a second endpoint to remove that); that the program at the IDL's
 address is knos_pay as published, whose upgrades pass a multisig with a public delay; and the acceptance itself, which
 the forge signed and knos_oidc checked on chain before knos_pay paid, and which this program does not re-read.

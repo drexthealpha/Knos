@@ -163,7 +163,11 @@
     "misposted": 0,
     "after_failure": 0,
     "never": 0,
-    "reasons": {}
+    "user_errors": 0,
+    "failures": 0,
+    "completion_possible": 1.0,
+    "reasons": {},
+    "user_reasons": {}
    },
    "pay": {
     "asked": 4,
@@ -176,7 +180,11 @@
     "misposted": 0,
     "after_failure": 0,
     "never": 0,
-    "reasons": {}
+    "user_errors": 0,
+    "failures": 0,
+    "completion_possible": 1.0,
+    "reasons": {},
+    "user_reasons": {}
    }
   },
   "comment_to_funded": {

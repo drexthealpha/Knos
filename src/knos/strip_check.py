@@ -3,14 +3,21 @@
 A buyer who controls a repository can delete or edit the Knos workflow in the merging pull request itself, so the
 check that would have refused the work never runs. What closes it is GitHub's, not Knos's:
 
-    closed   a ruleset requires the Knos workflow (a `workflows` rule: "Require workflows to pass before merging",
-             organization rulesets on GitHub Enterprise Cloud). The workflow runs from the file the rule pins, not the
-             pull request's copy. Closed only for people who cannot edit or bypass that ruleset: an organization
-             owner (for an organization ruleset) or a repository admin (for a repository one) can still remove it.
+    closed   a ruleset requires the Knos workflow (a `workflows` rule: "Require workflows to pass before merging").
+             The workflow runs from the file the rule pins, not the pull request's copy. Only an organization or
+             enterprise ruleset on GitHub Enterprise Cloud can carry that rule: a personal repository, or an
+             organization on another plan, cannot (GitHub answers HTTP 422 "Invalid rule 'workflows'"). Closed only for
+             people who cannot edit or bypass that ruleset: an organization owner (for an organization ruleset) or a
+             repository admin (for a repository one) can still remove it.
     partly   a required status check names a Knos check (rulesets or classic branch protection). The merge waits for
-             a check of that name, but a pull request can change the workflow that produces it, and an admin can
-             remove the requirement.
+             a check of that name, so removing the workflow alone blocks the merge. Still open: a pull request can change
+             the workflow that produces the check, and an admin can remove the requirement. On a personal repository,
+             or an organization without Enterprise Cloud, partly is the most GitHub allows.
     open     neither: nothing on GitHub stops the workflow being removed before the merge.
+
+Source, read 2026-10-10: the rule is only in the Enterprise Cloud edition of GitHub's "Available rules for rulesets",
+set "at the organization or enterprise level"; the Free, Pro and Team edition has no such rule:
+https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-workflows-to-pass-before-merging
 
 GitHub's API: GET /repos/{owner}/{repo}/rules/branches/{branch} (every active rule on the branch, from repository and
 organization rulesets, each with `ruleset_source_type`), GET /repos/{owner}/{repo}/rulesets/{id} (its
@@ -24,6 +31,10 @@ import urllib.parse
 WORKFLOW = re.compile(r"(?:^|/)\.github/workflows/(?:knos[\w.-]*|prove|fund|attest|claims)\.ya?ml$")
 STATES = ("closed", "partly", "open")
 DOCS = "https://docs.github.com/en/rest/repos/rules"
+# said with every PARTLY: what it still leaves open, and why a personal repository cannot do better
+STILL_OPEN = "a pull request can change the workflow that runs that check, and an admin can remove the requirement"
+MOST = ("on a personal repository, or an organization without GitHub Enterprise Cloud, PARTLY is the most GitHub allows: "
+        "only an organization or enterprise ruleset on Enterprise Cloud can require the workflow itself")
 
 
 def knos_check(name) -> bool:
@@ -64,10 +75,11 @@ def classify(rules: list | None, classic: dict | None = None, bypass: dict[int, 
                          + ("" if bypass is not None else "; its bypass list was not read"))}
     if checks:
         return {"state": "partly", "evidence": checks,
-                "says": (f"a required status check names a Knos check ({checks[0]['context']}): the merge waits for it, but a pull request "
-                         "can change the workflow that reports it, and an admin can remove the requirement")}
+                "says": (f"a required check names a Knos check ({checks[0]['context']}): the merge waits for it, so removing the workflow "
+                         f"alone blocks the merge. Still open: {STILL_OPEN}. {MOST[0].upper()}{MOST[1:]}")}
     return {"state": "open", "evidence": [],
-            "says": "no ruleset requires the Knos workflow and no required check names it: the buyer can remove the workflow before merging"}
+            "says": ("no ruleset requires the Knos workflow and no required check names it: the buyer can remove the workflow before merging. "
+                     "A ruleset that requires a Knos check makes it PARTLY")}
 
 
 def check(repo: str, get, branch: str | None = None) -> dict:
@@ -108,7 +120,7 @@ def register(app, help_lines: list | None = None) -> None:
     @app.command("protect")
     def protect_(check_strip: str = typer.Option(..., "--check-strip", metavar="OWNER/REPO", help="the repository to read"),
                  branch: str = typer.Option("", "--branch", help="the branch (default: the repository's default branch)")) -> None:
-        """Read the repository's rulesets and branch protection and say whether the workflow-strip hole is closed (a ruleset requires the Knos workflow), partly closed (a required status check only) or open. Never closed for those who can edit the ruleset. Exit code 1 when open."""
+        """Read the repository's rulesets and branch protection and say whether the workflow-strip hole is closed (a ruleset requires the Knos workflow), partly closed (a required status check only) or open. Never closed for those who can edit the ruleset. On a personal repository partly is the most GitHub allows. Exit code 1 when open."""
         from .judge import github
         got = check(check_strip, github, branch or None)
         typer.echo(f"{got['repository']} {got['branch']}: {got['state'].upper()}. {got['says'][0].upper()}{got['says'][1:]}.")

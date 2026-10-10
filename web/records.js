@@ -183,7 +183,7 @@ export function initRecords(ctx) {
       earners: () => table(["rank", "account", "USDC received", "paid merges", "distinct funders", "first", "last"], r.entries.map((x) => [esc(x.rank), who(x.login, x.github_id), esc(show(x.paid_amount)), esc(x.paid_merges), esc(x.distinct_funders), esc(stamp(x.first)), esc(stamp(x.last))])),
       funders: () => table(["rank", "funder", "USDC paid out", "paid", "refunded", "open", "reliability (paid of paid + refunded)", "merged but unpaid"],
         r.entries.map((x) => [esc(x.rank), x.github_id ? who(x.login, x.github_id) : esc(x.funder), esc(show(x.paid_amount)), esc(x.paid_jobs), esc(x.refunded_jobs), esc(x.open_jobs), esc(rateWords(x.reliability)), esc(x.merged_unpaid === null ? "not measured" : x.merged_unpaid)])),
-      agents: () => table(["rank", "agent", "repositories", "a check had failed", "95% interval", "a test or build check failed", "95% interval"],
+      agents: () => table(["rank", "agent", "repositories", "a check had failed", "95% interval", "a test, build, lint or type check failed", "95% interval"],
         r.entries.map((x) => [esc(x.rank), esc(x.name), esc(x.repositories), esc(x.false_claim_rate === null ? "n/a" : percent(x.false_claim_rate)), esc(x.ci95 ? `${percent(x.ci95[0])}-${percent(x.ci95[1])}` : "n/a"),
           esc(x.test_or_build_rate === null ? "n/a" : percent(x.test_or_build_rate)), esc(x.test_or_build_ci95 ? `${percent(x.test_or_build_ci95[0])}-${percent(x.test_or_build_ci95[1])}` : "n/a")])),
     }[name]();

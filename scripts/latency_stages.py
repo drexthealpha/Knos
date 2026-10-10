@@ -567,7 +567,7 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     elif a.rpc:
         from knos.settle import pay
         from knos.settle.v2 import pay as pay2
-        events = sorted((ev for program in (pay.PAY_ID, pay2.PAY_ID) for ev in ns.history(a.rpc, program, 1000)[0]), key=lambda ev: ev["at"])
+        events = sorted((ev for program in (pay.PAY_ID, pay2.PAY_ID) for ev in ns.read_history(a.rpc, program)["events"]), key=lambda ev: ev["at"])
     else:
         say("stopped: give --events FILE (python scripts/network_stats.py --events-out FILE) or --rpc URL: the paying blocks' times are the chain's.")
         return 1

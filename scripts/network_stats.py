@@ -1,10 +1,13 @@
 """The public Knos numbers, counted from Solana devnet and written to the site's stats.json.
 
-    python scripts/network_stats.py --out _site/stats.json
+    python scripts/network_stats.py --out _site/stats.json [--cache history.json] [--pages 50] [--budget 300]
 
 Three sources, nothing self-reported:
 
-  1. The escrow's own log lines in the transaction history of both deployments (read by knos.records): `knos:` lines of the first
+  1. The escrow's own log lines in the WHOLE transaction history of both deployments, read a page of 1,000 signatures
+     at a time back to the first transaction (read_history; at most --pages pages and --budget seconds a program, and
+     "error" says when a bound stopped it; --cache keeps what was read, so the next build reads only what is new;
+     the lines are read by knos.records): `knos:` lines of the first
      (programs/), `knos2:` lines of the second (programs-v2/) and its `knos3:` lines, which are work orders (knos_pay
      2.1). A line counts only when the escrow itself logged it in a transaction that succeeded: a line another program
      prints in the same transaction is not one. knos_meter's `knosm:eval` lines are read the same way and counted
@@ -72,7 +75,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from knos import chain  # noqa: E402
+from knos import chain, ghwords  # noqa: E402
 from knos.settle import oidc, pay  # noqa: E402
 from knos.settle.v2 import oidc as oidc2  # noqa: E402
 from knos.settle.v2 import pay as pay2  # noqa: E402
@@ -385,11 +388,18 @@ def attempts(comments: list[dict], kinds: tuple = ATTEMPTS["pay"]) -> dict:
         after_failure asked for again after a failed line and then completed (a fresh token)
         never         asked, and no line says ok
         misposted     lines with `-` for the id: a comment that could not carry its token (they answer nobody)
+        user_errors   of `never`, the ones whose every failed line is the asker's own (knos.ghwords.RELAY: the issue
+                      is funded already, nothing is in escrow, an old workflow): asking again the same way changes
+                      nothing, and the reply said what to do; `user_reasons` are their reasons
+        failures      `never` less `user_errors`: asked, possible, and not done
+        completion_possible  completed / (asked - user_errors): the rate over what could have been done (null for none)
 
     The log holds only what a relay answered: a token no relay ever picked up has no line and is not counted here."""
     asked: dict[tuple[str, int], list[bool]] = {}
     out = {"lines": 0, "failed": 0, "retried": 0, "tries": 0, "misposted": 0}
     reasons: dict[str, int] = {}
+    mine: dict[str, int] = {}       # the reasons that are the asker's own
+    theirs: dict[tuple[str, int], list[bool]] = {}         # per ask: whether each failed line was the asker's own
     for c in sorted(comments, key=lambda c: _unix(c.get("created_at")) or 0):
         for line in (c.get("body") or "").splitlines():
             m = _ANY.match(line.strip())
@@ -408,10 +418,19 @@ def attempts(comments: list[dict], kinds: tuple = ATTEMPTS["pay"]) -> dict:
             if not ok:
                 why = " ".join(m.group(6).split()[:6])
                 reasons[why] = reasons.get(why, 0) + 1
+                user = ghwords.user_error(m.group(6))
+                theirs.setdefault((m.group(2), int(m.group(3))), []).append(user)
+                if user:
+                    mine[why] = mine.get(why, 0) + 1
     done = [k for k, oks in asked.items() if any(oks)]
+    gave_up = [k for k, oks in asked.items() if not any(oks) and all(theirs.get(k) or [False])]
+    possible = len(asked) - len(gave_up)
+    order = lambda d: dict(sorted(d.items(), key=lambda kv: (-kv[1], kv[0])))        # noqa: E731
     return {"asked": len(asked), "completed": len(done), "completion": round(len(done) / len(asked), 4) if asked else None, **out,
             "after_failure": sum(1 for k in done if not asked[k][0]), "never": len(asked) - len(done),
-            "reasons": dict(sorted(reasons.items(), key=lambda kv: (-kv[1], kv[0])))}
+            "user_errors": len(gave_up), "failures": len(asked) - len(done) - len(gave_up),
+            "completion_possible": round(len(done) / possible, 4) if possible else None,
+            "reasons": order(reasons), "user_reasons": order(mine)}
 
 
 # ---- GitHub ----------------------------------------------------------------------------------------------------------
@@ -473,22 +492,137 @@ def live(ledger) -> dict:
                                   "in_warranty": count(orders, "warranty"), "held_back": left("warranty")}}}
 
 
-def collect(url: str, get=None, token: str | None = None, limit: int = 1000, now: float | None = None, events_out: str | None = None) -> dict:
-    """stats.json. `get(path)` reads GitHub (None: do not ask it). Whatever could not be read is said in "error" or in
-    a note beside the number; a number that could not be measured is null, never a guess."""
+# ---- a program's whole history, page by page -------------------------------------------------------------------------
+PAGE = 1000         # signatures one getSignaturesForAddress call returns at most (the cluster's own maximum)
+PAGES = 50          # pages of signatures read per program in one build, at most
+BUDGET = 300.0      # seconds one program's history may take in one build, at most
+CACHE_VERSION = 1
+
+
+def read_history(url: str, program, page: int = PAGE, pages: int = PAGES, budget: float = BUDGET, cache: dict | None = None,
+                 clock=time.monotonic) -> dict:
+    """One program's whole history, newest to oldest, a page of `page` signatures at a time (each page asks for the
+    ones `before` the oldest signature read so far), until a page comes back short: the program's first transaction.
+
+    Two bounds stop it early, and the output says which: `pages` pages, or `budget` seconds. `cache` is what the last
+    build kept for this program (the "cache" of the output): its signatures, newest first, and the events of every
+    transaction it read. Reading stops at the first signature the cache holds, and goes on below the cache's oldest
+    only when the cache did not reach the first transaction. A transaction the cache holds is never asked for again.
+    A history that ends without meeting the cache (the cluster was reset) is read as new, and the cache is dropped.
+
+    Output: {"events": oldest first, "unread": transactions the RPC refused (throttled), "late": transactions not
+    asked for because the budget ran out, "cut": None when the whole history was listed, else why not, "listed":
+    signatures listed, "oldest": the block time of the oldest one (None when unknown), "asked": pages asked for,
+    "read": transactions asked for in this build, "cached": transactions the cache gave, "cache": what the next build
+    needs}."""
+    deadline = clock() + budget
+    old = cache or {}
+    held = old.get("sigs") or []
+    known = {s[0]: i for i, s in enumerate(held)}
+    store: dict = dict(old.get("events") or {})
+    sigs: list[list] = []
+    seen: set = set()
+    asked, cut, ended, joined, before = 0, None, False, False, None
+    while True:
+        if asked >= pages:
+            cut = f"the bound of {pages} page{'s' if pages != 1 else ''} of {page} signatures was hit"
+            break
+        if clock() >= deadline:
+            cut = f"the time budget of {budget:g} s ran out"
+            break
+        try:
+            got = chain.call(url, "getSignaturesForAddress", [str(program), {"limit": page, **({"before": before} if before else {})}], timeout=30) or []
+        except Exception as e:  # noqa: BLE001 - the first page is the history itself; a later one is said and the rest kept
+            if not asked:
+                raise
+            cut = f"the cluster stopped answering for older signatures ({type(e).__name__})"
+            break
+        asked += 1
+        for s in got:
+            sig = s["signature"]
+            if sig in seen:             # a cluster that counts `before` itself in: read once
+                continue
+            if not joined and sig in known:
+                joined = True           # the rest is what the cache holds
+                sigs += [list(x) for x in held[known[sig]:]]
+                seen.update(x[0] for x in held)
+                break
+            seen.add(sig)
+            sigs.append([sig, s.get("err") is None, s.get("blockTime")])
+        if (joined and old.get("complete")) or len(got) < page:
+            ended = True                # the program's first transaction (a cache it never met is from another history)
+            break
+        before = sigs[-1][0]
+    unread = late = read = cached = 0
+    for sig, ok, _ in sigs:             # newest first: the newest payments matter most when the budget runs out
+        if not ok or sig in store:
+            cached += ok
+            continue
+        if clock() >= deadline:
+            late += 1
+            continue
+        read += 1
+        try:
+            # version 1: what the relay sends to a 2.1 cluster. Asked with 0, the cluster refuses each of those, and
+            # every payment and evaluation a relay carried would be counted as unread
+            tx = chain.call(url, "getTransaction", [sig, {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 1}], timeout=30)
+        except Exception:  # noqa: BLE001 - still throttled after the backoff: counted, never guessed
+            unread += 1
+            continue
+        store[sig] = events_of(tx)
+    events = [{**ev, "tx": sig} for sig, ok, _ in reversed(sigs) if ok for ev in store.get(sig, [])]
+    if ended:                           # the whole history is listed: what it does not name is from another
+        store = {sig: store[sig] for sig, _, _ in sigs if sig in store}
+    return {"events": events, "unread": unread, "late": late, "cut": None if ended else cut, "listed": len(sigs),
+            "oldest": sigs[-1][2] if sigs else None, "asked": asked, "read": read, "cached": cached,
+            "cache": {"sigs": sigs, "complete": ended, "events": store}}
+
+
+def _load_cache(path: str | None) -> dict:
+    """{program: cache entry} from the file the last build wrote; {} when there is none or it is not this version's."""
+    try:
+        got = json.loads(Path(path).read_text(encoding="utf-8")) if path else {}
+    except (OSError, ValueError):
+        return {}
+    return got.get("programs") or {} if isinstance(got, dict) and got.get("version") == CACHE_VERSION else {}
+
+
+def _save_cache(path: str | None, programs: dict) -> None:
+    if path:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        part = Path(path).with_suffix(".part")
+        part.write_text(json.dumps({"version": CACHE_VERSION, "programs": programs}), encoding="utf-8")
+        part.replace(path)
+
+
+def collect(url: str, get=None, token: str | None = None, limit: int = PAGE, now: float | None = None, events_out: str | None = None,
+            pages: int = PAGES, budget: float = BUDGET, cache: str | None = None, clock=time.monotonic) -> dict:
+    """stats.json. `get(path)` reads GitHub (None: do not ask it). Each program's history is read whole, `limit`
+    signatures a page, within `pages` pages and `budget` seconds (read_history); `cache` is a file that keeps what was
+    read for the next build. Whatever could not be read is said in "error" or in a note beside the number; a number
+    that could not be measured is null, never a guess."""
     data: dict = {"updated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(now)), "cluster": "devnet",
                   "programs": {"first": {"knos_oidc": str(oidc.OIDC_ID), "knos_pay": str(pay.PAY_ID)},
                                "second": {"knos_oidc": str(oidc2.OIDC_ID), "knos_pay": str(pay2.PAY_ID), "knos_meter": str(meter.METER_ID)}}}
     events: list[dict] = []
     try:
         problems = []
+        kept = _load_cache(cache)
         for program in (pay.PAY_ID, pay2.PAY_ID, meter.METER_ID):     # (a program that is not deployed yet has no history: nothing is read)
-            got, unread, cut = history(url, program, limit)
-            events += got
-            if unread:
-                problems.append(f"{unread} transactions unread (the public RPC throttled); counts are a lower bound")
-            if cut:
-                problems.append(f"only the newest {limit} transactions of {program} were read")
+            got = read_history(url, program, limit, pages, budget, kept.get(str(program)), clock)
+            # the build's log says what the cache saved: a build after a full one asks only for what is new
+            print(f"{program}: {got['listed']} signatures listed in {got['asked']} page{'s' if got['asked'] != 1 else ''}; "
+                  f"{got['read']} transactions read now, {got['cached']} from the cache, {got['late']} left for the next build", file=sys.stderr)
+            events += got["events"]
+            kept[str(program)] = got["cache"]
+            if got["unread"]:
+                problems.append(f"{got['unread']} transactions unread (the public RPC throttled); counts are a lower bound")
+            if got["late"]:
+                problems.append(f"{got['late']} transactions of {program} were not read within the time budget of {budget:g} s; counts are a lower bound")
+            if got["cut"]:
+                back = f" (back to {_day(got['oldest'])})" if got["oldest"] else ""
+                problems.append(f"only the newest {got['listed']} transactions of {program} were read{back}: {got['cut']}")
+        _save_cache(cache, kept)
         events.sort(key=lambda ev: ev["at"])        # stable: one transaction's lines stay in order
         if events_out:      # what scripts/pages_data.py counts from, so the chain is read once per build
             Path(events_out).write_text(json.dumps(events), encoding="utf-8")
@@ -530,13 +664,17 @@ def collect(url: str, get=None, token: str | None = None, limit: int = 1000, now
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="_site/stats.json")
-    ap.add_argument("--limit", type=int, default=1000, help="the newest transactions of each program to read")
+    ap.add_argument("--limit", type=int, default=PAGE, help="signatures asked for in one page (the cluster gives 1000 at most)")
+    ap.add_argument("--pages", type=int, default=PAGES, help="pages of signatures read per program, at most")
+    ap.add_argument("--budget", type=float, default=BUDGET, help="seconds one program's history may take, at most")
+    ap.add_argument("--cache", help="a file that keeps the history read, so the next build reads only what is new")
     ap.add_argument("--no-github", action="store_true", help="count from the chain only")
     ap.add_argument("--events-out", help="also write the log events that were read, for scripts/pages_data.py")
     a = ap.parse_args()
     url = os.environ.get("KNOS_RPC") or chain.CLUSTERS["devnet"]
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or None
-    data = collect(url, None if a.no_github else (lambda path: github(path, token)), token, a.limit, events_out=a.events_out)
+    data = collect(url, None if a.no_github else (lambda path: github(path, token)), token, min(a.limit, PAGE), events_out=a.events_out,
+                   pages=a.pages, budget=a.budget, cache=a.cache)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(data, indent=1), encoding="utf-8")
     print(json.dumps(data, indent=1))

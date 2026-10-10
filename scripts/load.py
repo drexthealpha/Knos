@@ -312,8 +312,9 @@ class Sent:
 
 @dataclass
 class Sender:
-    """Signs, submits and waits. A transaction that does not land before `within` seconds is signed over a new
-    blockhash and sent again (a retry), `tries` times in all; one the cluster refuses is a failure, with its words."""
+    """Signs, submits and waits. A transaction that does not land before `within` seconds (its status asked once more
+    when they have passed) is signed over a new blockhash and sent again (a retry), `tries` times in all; one the
+    cluster refuses is a failure, with its words."""
     rpc: object
     payer: Keypair
     tries: int = 4
@@ -350,13 +351,18 @@ class Sender:
                 if "blockhash" in why.lower().replace(" ", "") and "notfound" in why.lower().replace(" ", ""):
                     continue                    # the endpoint has not seen that block yet, or it has aged out: sign again
                 return Sent(False, sig, first, attempt, why, blockhash=recent)
+            # The status is asked once more when the window has passed, before anything is signed again: a sender held
+            # up past its window (the clock is shared, and on a cluster it is the wall clock) would otherwise send a
+            # transaction that landed a second time.
             end = self.clock() + self.within
-            while self.clock() < end:
+            while True:
                 st = self.statuses([sig])[0]
                 if st and st.get("err"):
                     return Sent(False, sig, first, attempt, f"failed on chain: {st['err']}", blockhash=recent)
                 if st and st.get("confirmationStatus") in ("confirmed", "finalized"):
                     return Sent(True, sig, first, attempt, blockhash=recent)
+                if self.clock() >= end:
+                    break
                 self.sleep(self.poll)
             why = f"not confirmed within {self.within:.0f}s"
         return Sent(False, sig, first, self.tries - 1, why)
@@ -366,13 +372,14 @@ class Sender:
         One that the cluster dropped after confirming it becomes a failure."""
         end = self.clock() + 2 * self.within
         waiting = [s for s in sent if s.ok]
-        while waiting and self.clock() < end:
+        while waiting:              # asked once more when the time has passed, as in `send`
             for s, st in zip(waiting, self.statuses([s.signature for s in waiting])):
                 if st and st.get("confirmationStatus") == "finalized":
                     s.finalized = self.clock()
             waiting = [s for s in waiting if s.finalized is None]
-            if waiting:
-                self.sleep(self.poll)
+            if not waiting or self.clock() >= end:
+                break
+            self.sleep(self.poll)
         for s in waiting:
             s.ok, s.why = False, "confirmed but not finalized in time"
 

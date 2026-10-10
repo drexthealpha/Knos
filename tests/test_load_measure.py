@@ -47,6 +47,41 @@ def test_relays_with_their_own_fee_payers_fund_apart_and_through_one_shared_acco
     assert load.token_balance(sim, Pubkey.from_string(got["shared_account"])) == 7
 
 
+
+def test_a_transaction_that_landed_while_its_relay_waited_past_its_window_is_asked_about_not_signed_again():
+    """The relays share one clock (on a cluster, the wall clock). A relay that was held up between landing a transaction
+    and asking its status, while another relay's polling moved the clock past its window, signed it again and sent it
+    a second time: run 38039594436 refunded 13 of 14 (the order had gone back; the second refund was refused), and a
+    transfer would have been paid twice. Now the status is asked once more when the window has passed, before anything
+    is signed again; and the same in `finalize`."""
+    from solders.keypair import Keypair
+    from solders.system_program import TransferParams, transfer
+    sim = SimRpc()
+    payer, to = sim.c.fund(), Keypair().pubkey()
+    landed, read = sim.methods["sendTransaction"], sim.clock
+
+    def held_up_after_landing(raw, cfg):
+        sig = landed(raw, cfg)
+        jump.append(31.0)
+        return sig
+
+    def clock():                    # the relay reads the time; then another relay's polling moves it 31 s on
+        now = read()
+        if jump:
+            sim.t += jump.pop()
+        return now
+
+    jump: list[float] = []
+    sim.methods["sendTransaction"] = held_up_after_landing
+    sender = load.Sender(sim, payer, within=30.0, poll=1.0, clock=clock, sleep=sim.sleep)
+    got = sender.send([transfer(TransferParams(from_pubkey=payer.pubkey(), to_pubkey=to, lamports=1_000_000))])
+    assert got.ok and got.retries == 0 and sim.submissions == 1, got
+    assert sim.call("getBalance", [str(to), {}])["value"] == 1_000_000                            # paid once
+    sim.asked[got.signature] = 2    # by now the cluster has finalized it (the simulator says so at the third ask)
+    jump.append(61.0)               # held up again, past the whole wait for `finalized`, before the first status is asked
+    sender.finalize([got])
+    assert got.ok and got.finalized is not None, got
+
 def test_the_fee_payers_are_the_same_every_run_so_a_run_that_died_is_swept_by_the_next():
     from solders.keypair import Keypair
     wallet = Keypair.from_seed(bytes(range(32)))

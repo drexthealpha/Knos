@@ -632,7 +632,11 @@ def operations_json(get, now: float, own: frozenset, meta: dict, workflow: str =
     return {**meta, "canary": {**canary_block(runs, now), "workflow": workflow, "repository": repository}, "response": response_block(get, own),
             "definitions": {"success_rate": "successful runs of the canary over its finished runs (failure, timed out and startup failure are failures; cancelled runs are not counted), with the 95% Wilson interval",
                             "incident": "a finished canary run that did not succeed, with its run's link",
-                            "response": "from an outside issue or pull request being opened to the first comment of a team member who is not its author, over the newest 200 of the repository"}}
+                            "response": "from an outside issue or pull request being opened to the first comment of a team member who is not its author, over the newest 200 of the repository",
+                            "asked": "one funding of one issue, or one payment of one pull request, that the relay log shows a line for",
+                            "user_errors": "asked, never done, and every failed line was the asker's own (the issue is funded already, nothing is in escrow, an old workflow): the reply said what to do, and asking again the same way changes nothing",
+                            "failures": "asked, possible, and never done: asked less completed less user_errors",
+                            "completion_possible": "completed over what could have been done (asked less user_errors)"}}
 
 
 def _pct(r: dict) -> str:
@@ -672,6 +676,20 @@ def render_operations_md(ops: dict) -> str:
     else:
         lines += [f"- Median time to a first answer from the team: {_dur(r['p50'])} (95th percentile {_dur(r['p95'])}, slowest {_dur(r['slowest'])}), over {r['n']} answered.",
                   f"- Still waiting for an answer: {r['waiting']} of {r['of']}.", ""]
+    lines += ["## The relay's attempts", ""]
+    tried = ops.get("relay") or {}
+    if not tried:
+        lines += ["Not measured: the relay log was not read.", ""]
+    for name, a in tried.items():
+        if not a.get("asked"):
+            lines += [f"- {name}: nothing asked.", ""]
+            continue
+        rate = lambda x: "n/a" if x is None else f"{x * 100:.1f}%"  # noqa: E731
+        lines += [f"- {name}: {a['asked']} asked, {a['completed']} completed ({rate(a.get('completion'))}). "
+                  f"Not completed: {a.get('user_errors', 0)} the asker's own (the reply said what to do), {a.get('failures', a.get('never', 0))} failures. "
+                  f"Completed of what could have been done: {rate(a.get('completion_possible'))}."]
+    if tried:
+        lines += [""]
     lines += ["## How these are counted", ""] + [f"- **{k}**: {v}" for k, v in (ops.get("definitions") or {}).items()] + [""]
     return "\n".join(lines)
 
@@ -1056,7 +1074,7 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
                                            [[esc(r["rank"]), who(r["login"], r["github_id"]) if r["github_id"] else esc(r["funder"]), esc(_usd(r["paid_amount"])), esc(r["paid_jobs"]), esc(r["refunded_jobs"]), esc(r["open_jobs"]),
                                              esc(_pct(r["reliability"])), esc("not measured" if r["merged_unpaid"] is None else r["merged_unpaid"])] for r in funders["entries"]],
                                            note.replace("not counted", "not counted in a rank"), meta, "rank/funders.json")
-    files["rank/agents.html"] = rank_page(f"Agents by false-claim rate{', ' + agents['month'] if agents['month'] else ''}", ["rank", "agent", "repositories", "a check had failed", "95% interval", "a test or build check failed", "95% interval"],
+    files["rank/agents.html"] = rank_page(f"Agents by false-claim rate{', ' + agents['month'] if agents['month'] else ''}", ["rank", "agent", "repositories", "a check had failed", "95% interval", "a test, build, lint or type check failed", "95% interval"],
                                           [[esc(r["rank"]), esc(r["name"]), esc(r["repositories"]), esc("n/a" if r["false_claim_rate"] is None else f"{r['false_claim_rate'] * 100:.1f}%"),
                                             esc("n/a" if not r["ci95"] else f"{r['ci95'][0] * 100:.1f}%-{r['ci95'][1] * 100:.1f}%"),
                                             esc("n/a" if r["test_or_build_rate"] is None else f"{r['test_or_build_rate'] * 100:.1f}%"),
@@ -1072,6 +1090,8 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
     note = None if get else "not measured: GitHub was not asked, so a line of the relay log that does not carry its own start time is not measured"
     dump("latency.json", latency_json(samples, now, {"source": meta["source"], "generated": gen}, note))
     ops = operations_json(get, now, own, {"source": meta["source"], "generated": gen}, canary, canary_repo)
+    if ns and comments is not None:      # the relay's attempts, counted as stats.json counts them
+        ops["relay"] = {name: ns.attempts(comments, kinds) for name, kinds in ns.ATTEMPTS.items()}
     dump("operations.json", ops)
     files["OPERATIONS.md"] = render_operations_md(ops if (events or comments or get) else {**ops, "generated": None})      # a build that read nothing says so
     return files
@@ -1099,7 +1119,7 @@ def main(argv=None) -> int:
     ap.add_argument("--events", help="the log events scripts/network_stats.py --events-out wrote; without it the chain is read here")
     ap.add_argument("--index", help="the Agent PR Index (index.json), already checked")
     ap.add_argument("--docs", help="also write OPERATIONS.md here (docs/OPERATIONS.md)")
-    ap.add_argument("--limit", type=int, default=1000, help="the newest transactions of each program to read when --events is not given")
+    ap.add_argument("--limit", type=int, default=1000, help="signatures asked for in one page when --events is not given (the whole history is read, page by page)")
     ap.add_argument("--canary", default=CANARY, help=f"the canary workflow's file in the repository it is installed in (default: {CANARY})")
     ap.add_argument("--canary-repo", default=CANARY_REPO, help=f"OWNER/NAME of the repository the canary runs in (default: {CANARY_REPO})")
     ap.add_argument("--no-github", action="store_true")
@@ -1120,9 +1140,9 @@ def main(argv=None) -> int:
         else:
             events = []
             for program in (ns.pay.PAY_ID, ns.pay2.PAY_ID, ns.meter.METER_ID):
-                got, lost, short = ns.history(url, program, a.limit)
-                events += got
-                partial = partial or (program == ns.pay2.PAY_ID and bool(lost or short))      # the work orders' history was not read whole
+                got = ns.read_history(url, program, min(a.limit, ns.PAGE))      # the whole history, page by page, within its bounds
+                events += got["events"]
+                partial = partial or (program == ns.pay2.PAY_ID and bool(got["unread"] or got["late"] or got["cut"]))      # the work orders' history was not read whole
             events.sort(key=lambda ev: ev["at"])
         index = None
         if a.index and Path(a.index).exists():

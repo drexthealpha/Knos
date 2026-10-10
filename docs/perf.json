@@ -100,5 +100,66 @@
    "max": 2564
   },
   "first_screen_kb": 273
+ },
+ "close": {
+  "what": "tests/web/close30.mjs: a build of web/ opened at #approve; the sample statement; mouse: Try the sample, name and role typed, Approve, Download accounting file (QuickBooks); keyboard: the same by Tab and Enter, with Go to approval; milliseconds from the navigation's start to the file saved. android: 360 x 740, CPU slowed 4x, 1.6 Mbps down, 750 kbps up, 150 ms round trip, cache empty. desktop: 1280 x 800, no slowing. A script's time; with a person's pace adds 300 ms a key and 1 s a click. No person was timed.",
+  "machine": "2 CPUs (Intel(R) Xeon(R) Processor @ 2.80GHz), shared",
+  "limit_ms": 30000,
+  "most_clicks": 4,
+  "runs": 3,
+  "key_ms": 300,
+  "click_ms": 1000,
+  "android_mouse": {
+   "clicks": 4,
+   "key_presses": 1,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 5762,
+    "max": 6002
+   },
+   "with_person_pace_ms": {
+    "median": 16062,
+    "max": 16302
+   }
+  },
+  "android_keyboard": {
+   "clicks": 0,
+   "key_presses": 12,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 5455,
+    "max": 6078
+   },
+   "with_person_pace_ms": {
+    "median": 15055,
+    "max": 15678
+   }
+  },
+  "desktop_mouse": {
+   "clicks": 4,
+   "key_presses": 1,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 1127,
+    "max": 1174
+   },
+   "with_person_pace_ms": {
+    "median": 11427,
+    "max": 11474
+   }
+  },
+  "desktop_keyboard": {
+   "clicks": 0,
+   "key_presses": 12,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 990,
+    "max": 1089
+   },
+   "with_person_pace_ms": {
+    "median": 10590,
+    "max": 10689
+   }
+  }
  }
 }

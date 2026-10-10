@@ -1,4 +1,8 @@
+<img src="../web/brand/mark.svg" height="40" alt="Knos">
+
 # Finance: one record for whoever approves the bill
+
+**In plain words.** This page is for the person who approves a bill. For each piece of work, it shows who asked for it, what was delivered, why it passed, and what was paid. All of it uses [test money](WORDS.md#test-usdc), and nothing is owed until the buyer and the supplier agree that it is.
 
 For a controller, and for the finance operator on the supplier's side. Everything here is on devnet: the money is
 test USDC, and nothing is a payable until a buyer and a supplier agree off chain that it is.
@@ -251,6 +255,32 @@ In a browser: `renderStatements` in [`web/statements.js`](../web/statements.js) 
 hash, downloads the same CSV and the same export files (`tests/web/statement.mjs` holds the bytes equal to the
 Python's), and prints the statement alone to paper or PDF.
 
+## 4b. Close in 30 seconds
+
+You can close one invoice on the site alone; a script, not a person, was timed. Open the Approve page (`#approve`). Then:
+
+1. Press **Try the sample**, or drop your invoice and its statement on the page.
+2. Type your name and your role. Press **Approve** (or Enter).
+3. Press **Download accounting file**. Pick QuickBooks or NetSuite beside it first, if you need to.
+
+The page then says "Approved and exported". The file holds one bill for each line you approved. A line the page held
+back (over its purchase order, or over your limit) is not in it. With the keyboard alone, **Go to approval** takes you
+past the table to your name.
+
+How long it takes. A script did it on the sample statement, from opening the page to the file saved
+([`tests/web/close30.mjs`](../tests/web/close30.mjs); the figures are in [`perf.json`](perf.json), under `close`):
+
+| Screen | How | Clicks | Script | With a person's pace |
+| --- | --- | --- | --- | --- |
+| Slow phone, 360 px wide | mouse | 4 | 5.8 s | 16.1 s |
+| Slow phone, 360 px wide | keyboard | 0 | 5.5 s | 15.1 s |
+| Laptop, 1280 px wide | mouse | 4 | 1.1 s | 11.4 s |
+| Laptop, 1280 px wide | keyboard | 0 | 1.0 s | 10.6 s |
+
+The slow phone is the profile of `tests/web/android.mjs`: a processor 4 times slower and a slow mobile network. A
+script types faster than you, so the last column adds 0.3 s a key (about 40 words a minute) and 1 s a click. No person
+was timed. The test fails if a close takes more than 4 clicks, or more than 30 s on the slow phone.
+
 ## 5. Month-end close in one command
 
     knos audit export --owner acme --from 2026-09-01 --to 2026-09-30 --format generic --refs refs.csv --out acme-2026-09.csv
@@ -337,7 +367,8 @@ was not exercised on the public program ids.
 
 ## 7. What does not exist
 
-- **Single sign-on.** Knos has no accounts. Identity is GitHub's and a wallet's.
+- **Single sign-on on the public site.** Knos has no accounts. Identity is GitHub's and a wallet's. The self-host bundle
+  has single sign-on through any OpenID Connect provider, tested against a stand-in provider only ([SELFHOST.md](SELFHOST.md)).
 - **An approver Knos can vouch for.** `knos statement approve` writes down a name and a role as stated. Nothing checks them.
 - **A payment Knos can vouch for when it is made by bank.** `knos statement pay` records the payer's reference; no bank is asked.
 - **An approval workflow inside Knos.** One comment funds an order. The only two-person approval is a multisig's

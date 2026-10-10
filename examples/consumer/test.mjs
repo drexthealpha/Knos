@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { b58decode, decideReceipt, decideStatus, knosId, logsOf, main, recordedRpc, schemaErrors } from "./consumer.mjs";
+import { b58decode, decideReceipt, decideStatus, knosId, liveRpc, logsOf, main, milestoneOf, orderScope, recordedRpc, schemaErrors } from "./consumer.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "fixtures", "order_paid.json");
@@ -113,10 +113,91 @@ test("the status file's payments on chain are decided line by line", async () =>
 
 test("the ids follow the published vectors (conformance/vectors/ids.v1.json)", () => {
   const vectors = JSON.parse(readFileSync(join(HERE, "..", "..", "conformance", "vectors", "ids.v1.json"), "utf8")).cases;
-  const run = { "ids.deliverable": (i) => knosId("deliverable", i.scope, i.key), "ids.settlement": (i) => knosId("settlement", i.deliverable, i.method, i.reference) };
+  const run = { "ids.deliverable": (i) => knosId("deliverable", i.scope, i.key), "ids.settlement": (i) => knosId("settlement", i.deliverable, i.method, i.reference),
+    "ids.order_scope": (i) => orderScope(i.order) };
   const cases = vectors.filter((c) => c.op in run && c.expect.output);
-  assert.ok(cases.length >= 3);
+  assert.ok(cases.length >= 3 && cases.some((c) => c.op === "ids.order_scope"));
   for (const c of cases) assert.equal(run[c.op](c.input), c.expect.output, c.id);
+});
+
+// -- what devnet answers: transactions of version 1 (what the relay sends) and 0 (address lookup tables) ---------------
+const BUDGET = "ComputeBudget111111111111111111111111111111";
+
+/** `tx` as a cluster gives a version 1 transaction (SIMD-0385): its limits in the message, no compute budget instruction. */
+function asVersion1(tx) {
+  const m = tx.transaction.message, keys = m.accountKeys;
+  m.instructions = m.instructions.filter((ix) => keys[ix.programIdIndex] !== BUDGET);
+  m.transactionConfig = { computeUnitLimit: 1400000, heapSize: null, loadedAccountsDataSizeLimit: 67108864, priorityFee: null };
+  m.header = { numRequiredSignatures: 1, numReadonlySignedAccounts: 0, numReadonlyUnsignedAccounts: 3 };
+  tx.meta.logMessages = tx.meta.logMessages.filter((l) => !l.startsWith(`Program ${BUDGET} `));
+  tx.version = 1;
+}
+
+/** `tx` as a cluster gives a version 0 transaction that loads `address` from an address lookup table. */
+function asVersion0(tx, address) {
+  const m = tx.transaction.message, before = [...m.accountKeys];
+  m.accountKeys = before.filter((k) => k !== address);
+  const after = [...m.accountKeys, address], at = (i) => after.indexOf(before[i]);
+  for (const ix of [...m.instructions, ...(tx.meta.innerInstructions || []).flatMap((x) => x.instructions)]) {
+    ix.programIdIndex = at(ix.programIdIndex);
+    ix.accounts = ix.accounts.map(at);
+  }
+  m.addressTableLookups = [{ accountKey: "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T", writableIndexes: [0], readonlyIndexes: [] }];
+  tx.meta.loadedAddresses = { writable: [address], readonly: [] };
+  tx.version = 0;
+}
+
+test("a payment sent as a version 1 transaction, as the relay sends it, is read; asked with version 0, the cluster refuses", async () => {
+  const d = await decide((f) => { asVersion1(paying(f)); asVersion1(fundingTx(f)); });
+  assert.equal(d.paid, true, JSON.stringify(d.disagrees));
+  const f = fresh();
+  asVersion1(paying(f));
+  const sig = f.receipt.transaction.signature, rpc = recordedRpc(f.rpc);
+  await assert.rejects(rpc("getTransaction", [sig, { encoding: "json", maxSupportedTransactionVersion: 0 }]), /Transaction version \(1\) is not supported/);
+  await assert.rejects(rpc("getTransaction", [sig, { encoding: "json" }]), /maxSupportedTransactionVersion/);
+  const s = await decideStatus(f.status, rpc);
+  assert.equal(s.paid, true, JSON.stringify(s));
+});
+
+test("a version 0 transaction whose order comes from an address lookup table is read", async () => {
+  const d = await decide((f) => {
+    asVersion0(paying(f), f.receipt.order);
+    assert.ok(!paying(f).transaction.message.accountKeys.includes(f.receipt.order));
+  });
+  assert.equal(d.paid, true, JSON.stringify(d.disagrees));
+  no(await decide((f) => { asVersion0(paying(f), f.receipt.order); paying(f).meta.loadedAddresses.writable = [f.receipt.payees[0].to]; }), "paid nobody");
+});
+
+test("a status line named by the audit export's billing key (a witnessed statement's) is the order's deliverable", async () => {
+  const f = fresh(), order = f.receipt.order, funded = f.receipt.commercial_authorisation.funded, ev = f.status.events[0];
+  ev.deliverable = knosId("deliverable", `${order}:${funded}`, 0);
+  ev.settlement = knosId("settlement", ev.deliverable, "chain", ev.reference);
+  const d = await decideStatus(f.status, recordedRpc(f.rpc));
+  assert.equal(d.paid, true, JSON.stringify(d));
+  assert.ok(d.lines[0].agrees.some((x) => x.includes(`milestone 0 of that order, named by its billing key (the order and its funding ${funded})`)));
+  // the same key with another funding transaction is another order's: not this one
+  ev.deliverable = knosId("deliverable", `${order}:${f.receipt.transaction.signature}`, 0);
+  ev.settlement = knosId("settlement", ev.deliverable, "chain", ev.reference);
+  const bad = await decideStatus(f.status, recordedRpc(f.rpc));
+  assert.ok(!bad.paid && bad.lines[0].disagrees.some((x) => x.includes("is not of order")));
+});
+
+test("a standing order's deliverable is its pull request, as the payment logged it", () => {
+  const order = "5vTDcEUuQhkxbntCzyJjYZc4kvsKbqEmyDoe9r8o9Pq3", funded = "5zsTQHHcqHDm7dZYAvFdhVG1CzWKDnXGsRdbvtkCM3GqSRjYiR4yhxgcwAJpahjbUUZsHPec53r1b6aAJ1vETu5B";
+  assert.deepEqual(milestoneOf(knosId("deliverable", orderScope(order), 1574), order, funded, [1574]), { milestone: 1574, by: "the order" });
+  assert.equal(milestoneOf(knosId("deliverable", orderScope(order), 1574), order, funded, []), null);
+  assert.equal(milestoneOf(knosId("deliverable", `${order}:${funded}`, 1574), order, funded, [1574]).milestone, 1574);
+  assert.equal(milestoneOf(knosId("deliverable", `${order}:${funded}`, 0), order, undefined, []), null);
+});
+
+test("a busy endpoint (HTTP 429) is asked again, then reported", async () => {
+  const answers = (statuses) => {
+    let n = 0;
+    return async () => { const status = statuses[Math.min(n++, statuses.length - 1)];
+      return { status, json: async () => (status === 429 ? { jsonrpc: "2.0", error: { code: 429, message: "Too many requests" } } : { jsonrpc: "2.0", result: "ok" }) }; };
+  };
+  assert.equal(await liveRpc("http://rpc.invalid", 1000, { fetchFn: answers([429, 429, 200]), waits: [0, 0, 0] })("getSlot", []), "ok");
+  await assert.rejects(liveRpc("http://rpc.invalid", 1000, { fetchFn: answers([429]), waits: [0, 0] })("getSlot", []), /getSlot: Too many requests/);
 });
 
 test("the schema keywords are read as JSON Schema reads them", () => {

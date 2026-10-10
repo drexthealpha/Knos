@@ -10,7 +10,9 @@ client, the Rust crates and their lock files, the IDLs) or a PIN: a line somewhe
 one release (`knos==X`, `tag = "vX"`, `drexthealpha/Knos@vX`, `drexthealpha/Knos/.github/actions/knos-verify@vX`, `releases/download/vX/knos-settle-X.tgz`,
 `drexthealpha/Knos/.github/workflows/supplier.yml@vX`, `git tag vX && git push origin vX`, the README's logo at
 `raw.githubusercontent.com/drexthealpha/Knos/vX/`: PyPI shows only an absolute image). A bump also writes README.pypi.md,
-the package's description: README.md with every relative link pinned to the tag (PyPI shows the page alone). Pins are found by pattern in every file git tracks, so a new document that
+the package's description: README.md with every relative link pinned to the tag (PyPI shows the page alone), and each
+Mermaid diagram replaced by its picture at the tag (PyPI does not draw Mermaid; scripts/diagrams.py draws the pictures,
+and --check fails when one is missing). Pins are found by pattern in every file git tracks, so a new document that
 installs a release is covered the day it is written.
 
 The lock is not a pin: requirements/sign.txt ends with `knos==X --hash=sha256:<the wheel>` once a release is locked,
@@ -31,6 +33,8 @@ file and the IDLs that describe them, whatever version is written elsewhere: a b
 from __future__ import annotations
 
 import argparse
+import functools
+import importlib.util
 import re
 import subprocess
 import sys
@@ -133,8 +137,38 @@ def whole(target: str, version: str, image: bool = False, root: Path = ROOT) -> 
     return f"{GITHUB}/{kind}/v{version}/{path.rstrip('/')}" + (f"#{anchor}" if anchor else "")
 
 
+@functools.lru_cache(maxsize=None)
+def _diagrams():
+    """scripts/diagrams.py, by its path (a package named `diagrams` may be installed)."""
+    spec = importlib.util.spec_from_file_location("knos_scripts_diagrams", Path(__file__).with_name("diagrams.py"))
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _alt(caption: str | None) -> str:
+    """A diagram's caption as an image's text: its words, without the marks of a link or of emphasis."""
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", caption or "")
+    return re.sub(r"\s+", " ", re.sub(r"[\[\]*_`]", "", text)).strip() or "Diagram"
+
+
+def pictures(text: str, version: str) -> str:
+    """README.md's text with each ```mermaid block replaced by its picture at tag v<version>: PyPI does not draw
+    Mermaid. The italic caption under the block stays, under the picture."""
+    return _diagrams().swap(text, "README.md", lambda b: f"![{_alt(b.caption)}]({RAW}/v{version}/{b.svg})")
+
+
+def missing_pictures(root: Path = ROOT) -> list[str]:
+    """README.md's diagrams with no picture in docs/diagrams/: PyPI's page would show a broken image."""
+    readme = root / "README.md"
+    found = _diagrams().parse(_text(readme) or "", "README.md") if readme.is_file() else []
+    return [f"README.md, diagram {b.n}: no {b.svg} (python scripts/diagrams.py render)" for b in found if not (root / b.svg).is_file()]
+
+
 def pypi_readme(text: str, version: str, root: Path = ROOT) -> str:
-    """README.md's text with every relative link made whole at tag v<version>, under a line saying where it comes from."""
+    """README.md's text with every relative link made whole at tag v<version> and every diagram a picture, under a line
+    saying where it comes from."""
     def one(m: re.Match) -> str:
         if m.group("target") is not None:
             return f"{m.group('img')}[{m.group('text')}]({whole(m.group('target'), version, bool(m.group('img')), root)}{m.group('title') or ''})"
@@ -142,7 +176,7 @@ def pypi_readme(text: str, version: str, root: Path = ROOT) -> str:
             return m.group("ref") + whole(m.group("reftarget"), version, root=root)
         return m.group("attr") + whole(m.group("attrtarget"), version, "src" in m.group("attr"), root) + '"'
     head = "<!-- Written by scripts/bump_version.py from README.md, with links pinned to the tag: edit README.md. -->\n"
-    return head + _LINK.sub(one, text)
+    return head + _LINK.sub(one, pictures(text, version))
 
 
 def relative_left(text: str) -> list[str]:
@@ -260,6 +294,7 @@ def disagreements(version: str | None = None, root: Path = ROOT, changelog: bool
     said += found(root)[1]
     if pypi_stale(want, root):
         said.append(f"{PYPI_README}: not README.md with its links pinned to v{want} (python scripts/bump_version.py {want} writes it)")
+    said += missing_pictures(root)
     if self_pin(want, root, write=False):
         said.append(f"{SELF_PINS}: no key drexthealpha/Knos@v{want} (a bump adds it with {SELF_PIN}; the commit is written after the tag)")
     if changelog:

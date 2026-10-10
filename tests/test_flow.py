@@ -1001,6 +1001,12 @@ def test_a_proof_the_chain_refuses_or_nobody_relays_is_said_with_what_to_do(tmp_
     w.relay.refusals = [{"ok": False, "kind": "pay", "why": "no open job on this issue accepted the token"}]
     assert flow.settle(w.run(w.hub.merge(12))) == 1
     assert "but Solana did not take it: no open job on this issue accepted the token. Comment `/knos settle` to try again." in only(w, 12)
+    # a refusal of the asker's own (knos.ghwords.RELAY): the reply says what to do instead, and the job does not fail for it
+    w = bounty(tmp_path, relay_key=False)
+    w.chain.bind(MONA)
+    w.relay.refusals = [{"ok": False, "kind": "pay", "why": "no bounty is in escrow for this issue (never funded, or already paid or refunded)"}]
+    assert flow.settle(w.run(w.hub.merge(12))) == 0
+    assert only(w, 12).endswith("already paid or refunded). Nothing is in escrow for this issue; a maintainer funds it with `/knos fund <amount>` first.")
 
 
 def test_a_push_says_nothing_about_a_pull_request_with_nothing_in_escrow_and_a_person_who_asks_is_answered(tmp_path, capsys):

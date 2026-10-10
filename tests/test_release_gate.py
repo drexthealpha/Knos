@@ -175,10 +175,12 @@ def test_the_release_fails_loudly_unless_pypi_serves_the_wheel_with_exactly_the_
     assert not ok and "locks no release" in said and r.lock_hash(bare) is None and r.lock_hash(root) == ("9.8.7", want)
 
 
-def test_publish_uploads_only_the_locked_wheel_from_a_committed_tree_with_a_token_from_the_environment():
+def test_publish_uploads_only_the_locked_wheel_this_tree_builds_with_a_token_from_the_environment():
+    """`publish` runs before the one commit (the cutoff is written from PyPI's time), so it holds the tree to the lock by
+    building the wheel again: the same bytes as the locked hash, or nothing is uploaded."""
     text = (ROOT / "scripts" / "release.py").read_text(encoding="utf-8")
     body = text[text.index("def publish_cmd"):text.index("def main")]
-    order = ["is not the locked wheel", "the working tree is not committed", "the commit does not hold this lock", "on_pypi(version)", "UV_PUBLISH_TOKEN", '"uv", "publish"', "pypi_check(wait=300)"]
+    order = ["is not the locked wheel", "build(Path(tmp))", "if got != want", "changed after the lock", "on_pypi(version)", "UV_PUBLISH_TOKEN", '"uv", "publish"', "pypi_check(wait=300)"]
     assert [body.index(x) for x in order] == sorted(body.index(x) for x in order)
     assert "--check-url" in body and "print(os.environ" not in text and "UV_PUBLISH_TOKEN\"]" not in text      # the token is read by uv, never by this script
     r = _release_script()
@@ -335,8 +337,9 @@ def test_publish_says_push_only_once_the_index_an_installer_reads_lists_the_lock
     # `publish` ends with it, after PyPI took the upload; and the release's own check asks the index too
     text = (ROOT / "scripts" / "release.py").read_text(encoding="utf-8")
     body = text[text.index("def publish_cmd"):text.index("def main")]
-    assert body.index("pypi_check(wait=300)") < body.index("index_check(wait=600)") < body.index("Next: git push, then the tag.")
-    assert body.count("Next: git push") == 1 and "return _pushable() if ok else 1" in body
+    assert body.index("pypi_check(wait=300)") < body.index("index_check(wait=600)") < body.index("Next: python scripts/pinned_workflows.py cutoff")
+    assert body.count("Next:") == 1 and "git push" not in body and "return _pushable() if ok else 1" in body
+    assert "not committed" not in body and "does not hold this lock" not in body
     assert "ok, said = index_check(wait=a.wait)" in text[text.index("def main"):]
 
 

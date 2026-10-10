@@ -119,6 +119,27 @@ def test_a_reviewed_blob_passes_and_a_changed_one_is_read_again(repo: Path, monk
     assert sorted(h["verdict"] for h in out["hits"]) == ["look", "reviewed"]
 
 
+def test_a_reviewed_key_whose_address_becomes_operated_must_be_rotated(repo: Path, monkeypatch):
+    """The review of a spent key does not outlive its address becoming one Knos operates with (docs/LAUNCH.md, row 2)."""
+    pytest.importorskip("solders")
+    (repo / "target").mkdir()
+    (repo / "target" / "spent-keypair.json").write_text(json.dumps(list(keypair_bytes(9))), encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "a build output, read and passed")
+    oid = git(repo, "rev-parse", "HEAD:target/spent-keypair.json").strip()
+    monkeypatch.setattr(scan, "REVIEWED", {oid: "a spent build key"})
+    key = lambda out: [h["verdict"] for h in out["hits"] if h["path"] == "target/spent-keypair.json"]  # noqa: E731
+    out = scan.scan(scan.history_blobs(repo), scan.operational(repo))
+    assert key(out) == ["reviewed"] and "Solana keypair (64-byte array)" not in out["rotate"]
+    ids = repo / "src" / "knos" / "settle" / "v2"
+    ids.mkdir(parents=True)
+    (ids / "program_ids.json").write_text(json.dumps({"knos_pay": address(9)}), encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "its address becomes a program id")
+    out = scan.scan(scan.history_blobs(repo), scan.operational(repo))
+    assert key(out) == ["operational"] and "Solana keypair (64-byte array)" in out["rotate"]
+
+
 def test_binary_blobs_are_skipped_and_counted(repo: Path):
     (repo / "blob.bin").write_bytes(b"\0" + GH_TOKEN.encode())
     git(repo, "add", "-A")

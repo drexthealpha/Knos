@@ -37,7 +37,7 @@ def _sub(path: Path, old: str, new: str) -> None:
 
 def test_this_tree_says_the_one_sentence_everywhere_it_describes_itself():
     pf = _tool()
-    assert pf.sentence() == SENTENCE and pf.title(SENTENCE) == "Knos. " + SENTENCE
+    assert pf.sentence() == SENTENCE and pf.title(SENTENCE) == "Knos. Pay AI agents only when your checks pass." and len(pf.title(SENTENCE)) <= 60
     assert pf.problems() == []
     said: list[str] = []
     assert pf.main(["--check"], say=said.append) == 0 and said == [f"every description says: {SENTENCE}"]
@@ -56,7 +56,7 @@ def test_any_other_description_of_the_product_fails_the_check_place_by_place(tmp
     _sub(root / "server.json", SENTENCE, "Bounties that pay when the pull request is merged.")
     _sub(root / "plugin" / ".claude-plugin" / "plugin.json", SENTENCE, "A plugin.")
     _sub(root / "action.yml", "description: ", "description: One shared memory for every coding agent. ")
-    _sub(root / "web" / "index.html", f"<title>Knos. {SENTENCE}</title>", "<title>Knos: bounties</title>")
+    _sub(root / "web" / "index.html", f"<title>{pf.title(SENTENCE)}</title>", "<title>Knos: bounties</title>")
     _sub(root / "web" / "index.html", f'<meta property="og:description" content="{SENTENCE}', '<meta property="og:description" content="Escrow for agents.')
     _sub(root / "README.md", f"**{SENTENCE}**", "**Pay agents on merge.**")
     found = pf.problems(root)
@@ -123,7 +123,8 @@ def test_remote_prints_what_each_place_serves_and_the_exact_command_that_correct
     assert "STALE  GitHub About: description: One local memory every coding agent on your machine shares" in text
     assert f'fix: gh repo edit drexthealpha/Knos --description "{SENTENCE}"' in text
     assert "fix: gh repo edit drexthealpha/Knos --homepage https://drexthealpha.github.io/Knos/" in text
-    assert "--add-topic ai-agents" in text and "--add-topic mcp" not in text and "--remove-topic memory" in text
+    assert "--add-topic ai-agents" in text and not re.search(r"--add-topic mcp(?=\s|$)", text) and "--remove-topic memory" in text
+    assert "--add-topic mcp-server" in text and "--add-topic x402" in text                      # served "mcp" only
     assert "STALE  PyPI: knos 0.3.12: Bounties that pay" in text and "python scripts/release.py publish" in text
     assert "STALE  PyPI: knos-hermes 0.1.0: A memory." in text
     assert "STALE  MCP registry: io.github.drexthealpha/knos 0.3.12: Bounties that pay." in text and "0.1.2" not in text     # only the latest is what a reader gets
@@ -145,6 +146,9 @@ def test_remote_passes_when_every_place_serves_the_sentence():
     assert pf.main(["--remote"], say=said.append, fetch=_fetch(good)) == 0 and said[-1] == f"all 7 places say: {SENTENCE}"
     assert all(line.startswith("same  ") for line in said[:-1])
     assert all(re.fullmatch(r"[a-z0-9][a-z0-9-]{0,49}", t) for t in pf.TOPICS) and len(pf.TOPICS) <= 20      # GitHub's rules for a topic
+    # each topic names what the tree has: the MCP server, the x402 page; none is an older pitch
+    assert (ROOT / "server.json").is_file() and (ROOT / "docs" / "X402.md").is_file() and {"mcp-server", "x402"} <= set(pf.TOPICS)
+    assert "attestation" not in pf.TOPICS
 
 
 def test_glama_is_read_from_its_page_logged_out_because_its_api_asks_for_a_key():

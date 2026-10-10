@@ -46,9 +46,14 @@ network.yml downloads the newest one into the Pages site.
 
 The scan searches each agent over date windows (GitHub caps a query at 1,000 results), drops PRs on repos owned by
 the PR's author or the human who assigned the agent (self repos are not a market observation; the count is kept),
-and classifies CI at each head SHA. It says whether it finished: `gate` refuses a scan that did not (a search that
-ran out of time or was refused, pull requests GitHub did not answer for), so a partial sample is never published
-and the run that made it fails where it can be seen. The build writes:
+and classifies CI at each head SHA, twenty pull requests to one GraphQL request (agent_pr_ci.read_checks). It is
+incremental: search pages and verdicts are kept in the cache, the last published index (`--previous`) fills in what a
+lost cache no longer holds, and a run asks only about what is new. With `--reserve` it reads what is left of this
+hour's REST and GraphQL budgets (rate_limit, which costs nothing) and stops that many short of each. It says whether
+it finished: `gate` holds back a scan that did not (out of minutes or of the hour's budget: nothing is published, the
+job stays green with a note, the next run continues), and `errors` fails the run on a real error (a query GitHub
+refused for itself, a finished scan that found nothing or shrank to under half, or runs that have stopped early for
+two days). A partial sample is never published. The build writes:
 
     {"date", "window", "n_prs", "excluded_self_repo", "definitions": {...},
      "overall": COUNTS, "agents": {name: COUNTS}, "prs": [...], "root"}
@@ -216,19 +221,36 @@ def scan_week(monday, max_seconds, read=None):
     return {**got, "week": monday, "read": read or dt.datetime.now(dt.timezone.utc).date().isoformat()}
 
 
-def scan(end, days, per_agent, max_seconds, width=None, prune_days=0):
+def scan(end, days, per_agent, max_seconds, width=None, prune_days=0, previous=None, reserve=None):
     """Search, then read CI for what the search kept. Never throws work away: an agent whose search ran out of time
-    keeps what it found, and the result says what is missing (`unfinished_search`, `unread`) so `gate` can refuse it."""
+    keeps what it found, and the result says what is missing (`unfinished_search`, `unread`) so `gate` can hold it
+    back. Incremental: search pages and verdicts already read are kept on disk (agent_pr_ci.CACHE), and `previous`
+    (the last published index) fills in the verdicts a lost cache no longer holds, so a run asks GitHub only for what
+    is new. `reserve`: the run spends this hour's REST and GraphQL budgets down to that many of each and stops there
+    (`stopped` says why, `come_back` when GitHub said to); None: no hourly budget is read."""
     agent_pr_ci.ARGS = SimpleNamespace(max_seconds=max_seconds)
     agent_pr_ci.SEARCH_PAUSE = 2.1  # concurrent agents share one 30/min search pacing; gh_get backs off on 403/429
-    del agent_pr_ci.NO_CLAIM[:]
+    agent_pr_ci.STOPPED[0], agent_pr_ci.COME_BACK[0] = None, None
+    del agent_pr_ci.NO_CLAIM[:], agent_pr_ci.SEARCH_ERRORS[:]
     if prune_days is not None:      # the week's scan shares the index's cache and must not empty it
         agent_pr_ci.prune(prune_days or days + 7)     # answers about pull requests that have left the window
-    kept, n, unfinished = agent_pr_ci.scan_collect(end, days, per_agent, width)
-    agent_pr_ci.run_checks(kept)
+    seeded = agent_pr_ci.seed_verdicts(previous) if previous else 0
+    if reserve is not None:
+        left = dict(agent_pr_ci.budget(reserve))
+        print(f"this hour's budget for the scan: {left['core']} REST and {left['graphql']} GraphQL requests "
+              f"({reserve} of each kept for the rest of the job and the other workflows)", file=sys.stderr)
+    try:
+        kept, n, unfinished = agent_pr_ci.scan_collect(end, days, per_agent, width)
+        agent_pr_ci.read_checks(kept)
+    finally:
+        agent_pr_ci.LEFT.clear()
     start = (dt.date.fromisoformat(end) - dt.timedelta(days=days - 1)).isoformat()
     unread = sum(1 for c in kept if c.get("class") is None or (c["class"] == "error" and c.get("transient")))
+    come = agent_pr_ci.COME_BACK[0]
     return {"window": [start, end], "counts": n, "kept": len(kept), "unfinished_search": unfinished, "unread": unread,
+            "search_errors": list(agent_pr_ci.SEARCH_ERRORS), "seeded": seeded,
+            "stopped": agent_pr_ci.STOPPED[0] if unfinished or unread else None,
+            "come_back": dt.datetime.fromtimestamp(come, dt.timezone.utc).isoformat(timespec="seconds") if come and (unfinished or unread) else None,
             "no_claim": sorted(agent_pr_ci.NO_CLAIM),
             "rows": [c for c in kept if c.get("class") not in (None, "error")]}
 
@@ -920,6 +942,8 @@ def weekly_main(a):
     else:
         got = _load(a.rows)
         agent_pr_ci.ARGS = SimpleNamespace(max_seconds=a.max_seconds)
+        if a.reserve is not None:                          # the merge states it asks for stay inside this hour's budget
+            agent_pr_ci.budget(a.reserve)
         if a.add_sample:                                  # a capped scan, cut by week, into the published series
             if got.get("week"):
                 raise SystemExit(f"{a.rows} is one whole week's scan: add it with --into")
@@ -959,27 +983,80 @@ def weekly_main(a):
 
 MAX_UNREAD = 0.02       # of the pull requests a scan kept, the share GitHub may leave unanswered in a scan that goes out
 MIN_OF_PREVIOUS = 0.5   # a scan with under half the last index's pull requests means the search broke, not the world
+STALE_AFTER = dt.timedelta(days=2)   # runs that stop early for this long (8 runs) are not catching up: that is an error
+
+
+def finished(scanned):
+    """Every agent's search finished and GitHub answered for (nearly) every pull request the search kept."""
+    kept, unread = scanned.get("kept", len(scanned["rows"])), scanned.get("unread", 0)
+    return not scanned.get("unfinished_search") and unread <= MAX_UNREAD * kept
 
 
 def gate(scanned, index, previous=None):
     """Why this scan must not be published; an empty list means publish it. A scan goes out when every agent's search
     finished, GitHub answered for (nearly) every pull request it kept, and it did not shrink to under half of the
-    last published index. Each reason says what to do."""
+    last published index. Each reason says what to do. `errors` says which of them make the run fail."""
     why = []
     kept, unread = scanned.get("kept", len(scanned["rows"])), scanned.get("unread", 0)
+    stopped = f" It stopped because {scanned['stopped']}." if scanned.get("stopped") else ""
     if scanned.get("unfinished_search"):
-        why.append(f"the search did not finish for {', '.join(scanned['unfinished_search'])} (out of time, or GitHub "
-                   "refused a query: see the scan step's log). What it read is cached: run the workflow again")
+        why.append(f"the search did not finish for {', '.join(scanned['unfinished_search'])} (out of time or out of this "
+                   f"hour's budget, or GitHub refused a query: see the scan step's log).{stopped} What it read is cached: "
+                   "the next run continues from there")
     if unread > MAX_UNREAD * kept:
         why.append(f"GitHub did not answer for {unread:,} of the {kept:,} pull requests the search kept (out of time "
-                   "or over the hourly limit). What it read is cached: the next run continues from here. A "
+                   f"or out of this hour's budget).{stopped} What it read is cached: the next run continues from here. A "
                    "KNOS_INDEX_TOKEN secret (a read-only token) has five times the hourly limit")
+    if not finished(scanned):
+        return why
     if not index["n_prs"]:
         why.append("no pull request with finished CI was found: the search or the token is broken")
     elif previous and index["n_prs"] < MIN_OF_PREVIOUS * previous.get("n_prs", 0):
         why.append(f"{index['n_prs']:,} pull requests, under half of the last index's {previous['n_prs']:,}: check "
                    "the search queries in scripts/agent_pr_ci.py before publishing this")
     return why
+
+
+def errors(scanned, index, previous=None, now=None):
+    """What makes the run fail where it can be seen: a search GitHub refused for itself (a bad query or token, which no
+    later run fixes), a finished scan that found nothing or shrank to under half of the last index, or runs that have
+    stopped early for STALE_AFTER and so are not catching up. A scan that only stopped early (out of minutes, or out
+    of this hour's budget) is not an error: nothing is published and the next run continues from the cache."""
+    bad = [f"GitHub refused the search query itself for {e}: fix the query or the token" for e in scanned.get("search_errors") or []]
+    if finished(scanned):
+        return bad + gate(scanned, index, previous)
+    since = scanned.get("unfinished_since")
+    if since and (now or dt.datetime.now(dt.timezone.utc)) - dt.datetime.fromisoformat(since) >= STALE_AFTER:
+        bad.append(f"every run since {since} stopped before it finished: the scan is not catching up within the hourly "
+                   "budget. Lower --per-agent in .github/workflows/index.yml, or add the KNOS_INDEX_TOKEN secret")
+    return bad
+
+
+def track(scanned, path, now=None):
+    """When the scans began to stop early, kept in `path` (in the cache, so the next run knows): the first unfinished
+    run since the last finished one; None once a run finishes. Written into `scanned` as `unfinished_since`."""
+    now = (now or dt.datetime.now(dt.timezone.utc)).isoformat(timespec="seconds")
+    try:
+        since = _load(path).get("unfinished_since")
+    except (OSError, ValueError, AttributeError):
+        since = None
+    scanned["unfinished_since"] = None if finished(scanned) else (since or now)
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"unfinished_since": scanned["unfinished_since"]}, f)
+    return scanned
+
+
+def _github_says(publish, note=None):
+    """Tell the workflow whether to publish (the step output `publish`), and put a note on the run's page."""
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"publish={'true' if publish else 'false'}\n")
+    if note:
+        print(f"::notice title=Agent PR Index not published yet::{note}")
+        if os.environ.get("GITHUB_STEP_SUMMARY"):
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+                f.write(f"**Agent PR Index not published yet.** {note}\n")
 
 
 def main():
@@ -1006,7 +1083,9 @@ def main():
     ap.add_argument("--paid", help='weekly: a JSON list of "owner/repo#number", the pull requests paid through Knos under terms with a black-box check')
     ap.add_argument("--rows", default="rows.json")
     ap.add_argument("--out", default="_site/index.json")
-    ap.add_argument("--previous", help="gate: the index published last, when there is one")
+    ap.add_argument("--previous", help="gate, scan: the index published last, when there is one (the scan takes the verdicts it lacks from it)")
+    ap.add_argument("--reserve", type=int, help="scan, weekly: stop when this hour's REST or GraphQL budget is down to this many "
+                                               "(kept for the rest of the job and the repository's other workflows)")
     ap.add_argument("--end", default=(dt.date.today() - dt.timedelta(days=1)).isoformat())
     ap.add_argument("--days", type=int, default=120)
     ap.add_argument("--per-agent", type=int, default=480)
@@ -1036,11 +1115,17 @@ def main():
         if a.week:
             got = scan_week(last_week() if a.week == "last" else a.week, a.max_seconds)
         else:
-            got = scan(a.end, a.days, a.per_agent, a.max_seconds)
+            previous = None
+            if a.previous and os.path.exists(a.previous):
+                previous = _load(a.previous)
+            got = track(scan(a.end, a.days, a.per_agent, a.max_seconds, previous=previous, reserve=a.reserve),
+                        os.path.join(agent_pr_ci.CACHE, "unfinished_since.json"))
         with open(a.rows, "w", encoding="utf-8") as f:
             json.dump(got, f, ensure_ascii=False)
         print(f"scanned {len(got['rows'])} PRs of {got['kept']} kept, counts {got['counts']}, "
-              f"search unfinished for {got['unfinished_search'] or 'none'}, {got['unread']} unread", file=sys.stderr)
+              f"search unfinished for {got['unfinished_search'] or 'none'}, {got['unread']} unread"
+              + (f"; {got['seeded']} verdicts taken from the last index" if got.get("seeded") else "")
+              + (f"; stopped early: {got['stopped']}" if got.get("stopped") else ""), file=sys.stderr)
         return 0
     if a.step == "check":
         index = check(a.out)
@@ -1059,12 +1144,22 @@ def main():
         if a.previous and os.path.exists(a.previous):
             with open(a.previous, encoding="utf-8") as f:
                 previous = json.load(f)
-        why = gate(got, check(a.out), previous)
+        index = check(a.out)
+        why, bad = gate(got, index, previous), errors(got, index, previous)
         for line in why:
             print(f"not published: {line}", file=sys.stderr)
-        if not why:
-            print("the scan finished: publish it", file=sys.stderr)
-        return 1 if why else 0
+        for line in bad:
+            print(f"error: {line}", file=sys.stderr)
+        if bad:
+            _github_says(False)
+            return 1
+        if why:     # it stopped early: nothing goes out, the last release stays live, and the next run continues
+            _github_says(False, f"the scan stopped early ({got.get('stopped') or 'see the scan step'}) and continues in the "
+                                "next run (every 6 hours); the last index stays live")
+            return 0
+        print("the scan finished: publish it", file=sys.stderr)
+        _github_says(True)
+        return 0
     index = build(got["rows"], dt.date.today().isoformat(), got["window"], got["counts"]["excluded"])
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as f:
@@ -1072,7 +1167,7 @@ def main():
     o = index["overall"]["first_pr_per_repo"]
     print(f"agent PR index: {index['n_prs']} PRs, {index['excluded_self_repo']} self-repo PRs excluded, "
           f"{o['repos']} repositories: any check failed in {o['any_check_failed']['repos']}, "
-          f"a test or build check in {o['test_or_build_check_failed']['repos']}; root {index['root']}",
+          f"a test, build, lint or type check in {o['test_or_build_check_failed']['repos']}; root {index['root']}",
           file=sys.stderr)
     return 0
 

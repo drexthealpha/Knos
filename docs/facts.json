@@ -167,21 +167,22 @@
   },
   {
    "say": [
-    "209",
+    "229",
     "83"
    ],
-   "what": "commits in the public repository up to Knos 0.3.11 (commit f3dfd3d), and how many were made before the contest period began (06:00 Pacific time, 14 Sep 2026); counted from the cloned history with the commands in docs/DISCLOSURE.md",
-   "source": "https://github.com/drexthealpha/Knos/commits/f3dfd3dca73b91d7b3b503e61edc0575e351b99d",
-   "read": "2026-10-02"
+   "what": "commits in the public repository up to Knos 0.3.25 (commit 095f52ae), and how many were made before the contest period began (06:00 Pacific time, 14 Sep 2026); counted from the cloned history with the commands in docs/DISCLOSURE.md (scripts/disclosure_counts.py)",
+   "source": "https://github.com/drexthealpha/Knos/commits/095f52ae",
+   "read": "2026-10-10"
   },
   {
    "say": [
-    "1.1%",
-    "98.9%"
+    "0.1%",
+    "412",
+    "428,405"
    ],
-   "what": "lines at commit f3dfd3d by git blame: 423 of 39,778 last changed before the contest period (1.1%), the other 39,355 between 30 Sep and 2 Oct 2026 (98.9%); commands in docs/DISCLOSURE.md",
-   "source": "https://github.com/drexthealpha/Knos/commits/f3dfd3dca73b91d7b3b503e61edc0575e351b99d",
-   "read": "2026-10-02"
+   "what": "lines at commit 095f52ae (Knos 0.3.25) by git blame: 412 of 428,405 last changed before the contest period (0.1%); the other 427,993 during it; scripts/disclosure_counts.py and the commands in docs/DISCLOSURE.md",
+   "source": "https://github.com/drexthealpha/Knos/commits/095f52ae",
+   "read": "2026-10-10"
   },
   {
    "say": [
@@ -1097,12 +1098,12 @@
   },
   {
    "say": [
-    "4,092"
+    "4,323"
    ],
-   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 38016450266 on drexthealpha/knos-rc dd9cd1d766091597c5b74bd05807123c4fd47aee, the staging tree of this release: 4092 passed, 61 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/38016450266",
+   "what": "tests that passed in the release's own run of the suite (`pytest -q` on the release commit). Measured: pytest (ubuntu-latest, 3.12) of tests.yml run 38040556602 on drexthealpha/knos-rc 01bb84ea3a99298d7e24b07d0d409cca03587118, the staging tree of this release: 4323 passed, 65 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/38040556602",
    "json": "docs/bench.json",
    "path": "release.tests_passing.value",
-   "equals": 4092
+   "equals": 4323
   }
  ]
 }

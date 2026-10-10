@@ -699,6 +699,9 @@ def gather(call, events: list[dict], target: str, get, published=None, verdict: 
     mine = [e for e in records.events_of(tx) if e.get("order") == o["order"]]
     settled = next((e for e in mine if e["event"] == "order_settled"), None)
     spent = next((keys for data, keys in _ixs(tx, str(pay2.PAY_ID)) if data[:1] == b"\x11"), None)
+    if settled is not None and settled.get("judge") == 4:      # the program's Judge::Auto (programs-v2/knos_pay/src/order_pay.rs)
+        raise ValueError(f"transaction {sig} paid an AUTO order's open pull request (the program's judge e: the order's own black-box checks, "
+                         "with no merge): a receipt is built for a payment by a judge a to d, so none is built for it here")
     if settled is None or spent is None or settled.get("judge") not in (0, 1, 2, 3):
         raise ValueError(f"transaction {sig} is not a payment a judge's token made (a release after a warranty has no token of its own)")
     token, verified_tx = token_of(call, spent[1], str(oidc.OIDC_ID))
@@ -900,9 +903,9 @@ def register(app, help_lines: list | None = None) -> None:
                     typer.echo(f"{rc.FROM_MIRROR}: no cluster was asked. The receipt keeps the rules of docs/RECEIPT.md and is the one the mirror's index lists; "
                                "its bundle (knos bundle verify --no-chain) is what proves the issuer's signature.")
                 return
-            url, call = _caller(rpc)
+            url = _caller(rpc)[0]
             try:
-                r = gather(call, _history(url, limit), target, None)[0]
+                r = rc.from_chain(target, url, limit)          # every request together within its time; NoAnswer is an OSError
                 held = rc.mirror_find(mirror, target) if mirror else []
                 if held and rc.digest(r) not in {rc.digest(h) for h in held}:
                     stop("the mirror's receipt is not the one the chain gives: trust the chain's, printed by `knos receipt verify` without --mirror.")

@@ -78,9 +78,9 @@
   {
    "id": "potential_market_size",
    "thing": "Potential market size",
-   "sentence": "Not counted: the market is built from qualified organisations, and none has been asked yet.",
-   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/MARKET.md",
-   "label": "the addressable market"
+   "sentence": "Not counted: no buyer has been asked, and a formula with sources and labelled assumptions only sizes it.",
+   "link": "https://github.com/drexthealpha/Knos/blob/main/docs/submission/MARKET_SIZE.md",
+   "label": "the market size"
   },
   {
    "id": "founder_communication",
@@ -104,12 +104,12 @@
    "label": "the outside-use numbers"
   }
  ],
- "wait": "From merge to paid took 26 seconds at the median, over 51 payments on devnet. Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person with authority approves it. Not measured. It has not measured it with any buyer, so no figure for it is given here.",
+ "wait": "From merge to paid took 26 seconds at the median, over 51 payments on devnet. Days to approve is defined as the days from the day the buyer receives a supplier's invoice to the day a person with authority approves it. Not measured.",
  "not_real": [
-  "Money: Solana devnet and test USDC only. Mainnet is not touched.",
+  "Money: Solana devnet and test USDC only.",
   "Buyers: 0 interviews, 0 letters of intent, 0 paying customers, 0 revenue.",
   "Outside use: 0 outside funders and 0 outside repositories. One outside payee was paid 3 times, on tasks Knos funded.",
-  "Outside checks: no security review, 0 reproductions by anyone else, 0 outside programs reading the verifier.",
+  "Outside checks: no security review, 0 reproductions, 0 outside programs reading the verifier.",
   "Neutrality: one person holds every key, and that person is the whole team."
  ],
  "entry": {

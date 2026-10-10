@@ -96,8 +96,8 @@ const verdictOf = (page) => page.waitForSelector("#check-verdict", { timeout: 15
   ok(`android: first verdict in ${Math.round(ms)} ms from the link (under 10000)`, ms < 10_000, ms);
   const v = await verdictOf(page);
   ok("answer: a claim, quoted", v.claimed.startsWith("Yes") && v.quote === CASES.failed.claim_line, v);
-  ok("answer: one test or build check failed, no other", v.test === 1 && v.other === 0, v);
-  ok("answer: the verdict in one line", v.line === "Claims tests pass; a test or build check failed.", v.line);
+  ok("answer: one test, build, lint or type check failed, no other", v.test === 1 && v.other === 0, v);
+  ok("answer: the verdict in one line", v.line === "Claims tests pass; a test, build, lint or type check failed.", v.line);
   ok("answer: the failed check is named in the table", (await page.textContent("#check-failed")).includes("All Other Providers / Run tests"));
   ok("android 360px: no sideways scroll", await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await ctx.close();
