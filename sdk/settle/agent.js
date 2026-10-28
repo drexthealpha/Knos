@@ -315,3 +315,12 @@ export async function statement(connection, seller, month, { most = 1000, pageSi
     + `and ${payments.length} payment${payments.length === 1 ? "" : "s"} from the payment program.`;
   return { seller: Number(sellerId), month: when.label, from: when.from, to: when.to, meter: { buyers, ...sums }, escrow, said: text, notes };
 }
+
+/** Which one do you mean? The first step of the valley: the hosted demand check (POST /api/check) asked about an idea or
+ * a paper's DOI. With no `picked`, it answers with the readings to choose from (`kind: "which_one"`); with `picked: true`
+ * the idea is checked exactly as given. The one call of this module that asks a server, the one every Knos surface asks. */
+export async function demand(idea, { base = "https://knos.onrender.com", picked = false, fetch: get = globalThis.fetch } = {}) {
+  const r = await get(`${base}/api/check`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, ...(picked ? { picked: true } : {}) }) });
+  if (!r.ok) throw new Error(`the demand check answered HTTP ${r.status}`);
+  return r.json();
+}

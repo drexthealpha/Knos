@@ -159,3 +159,6 @@ export interface Statement {
 
 /** One seller's month, from the meter's and the payment program's own log lines. `most` caps the transactions read per history (default 1000). */
 export function statement(connection: Connection, seller: number | bigint | string, month: string | number, options?: { most?: number }): Promise<Statement>;
+
+/** Which one do you mean? POST /api/check: the readings to choose from, or with `picked` the exact idea's check. */
+export function demand(idea: string, options?: { base?: string; picked?: boolean; fetch?: typeof fetch }): Promise<Record<string, unknown>>;

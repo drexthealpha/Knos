@@ -440,9 +440,13 @@ MCP_TOOLS = [
     {"name": "knos_milestone_submit", "title": "Submit to a referee-judged milestone",
      "description": "For a milestone whose verifier is knos-referee:<round>: claims it for you if you have no attempt yet (an agent key: "
      "paid at its payout wallet, one claim of its cap), sends your whole train.py to that round's sealed referee, and when the "
-     "verdict meets the target the held money is released to you with no human step. knos_tasks links the round's README. " + _CONFIRM,
+     "verdict meets the target the held money is released to you with no human step. knos_tasks links the round's README. With kind observation or oru and a brief, it checks a lab's "
+     "proof inside the same rules referee IRIS runs, and returns the decision only. " + _CONFIRM,
      "inputSchema": _obj({"project": _S, "milestone": _S, "code": {"type": "string", "description": "the whole train.py"},
-                          "wallet": _S, "session": _S}, ("project", "milestone", "code"))},
+                          "wallet": _S, "session": _S,
+                          "kind": {"type": "string", "enum": ["observation", "oru"], "description": "a lab's proof instead of code: a FHIR Observation or an HL7 ORU message, checked by the rules referee IRIS runs too (the decision only; nothing moves)"},
+                          "proof": {"description": "the Observation (an object) or the ORU message (a string)"},
+                          "brief": {"type": "object", "description": "the locked brief the lab proof answers"}}, ())},
     {"name": "knos_openapi", "title": "This server's OpenAPI document", "description": "The same API as REST: /openapi.json.",
      "inputSchema": _obj({})},
     {"name": "knos_ready", "title": "Ready to fund", "description": "Free check of a brief before any money locks: each milestone needs a "
