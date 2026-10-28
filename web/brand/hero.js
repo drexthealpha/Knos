@@ -449,13 +449,18 @@ ${src(h, price.src)}</section>
     const rows = box.querySelector("[data-rows]"), counter = box.querySelector("[data-counter]");
     const decides = new Set((r.signals && r.signals.decides) || []);
     const list = r.calls.filter((c) => c && typeof c === "object");
+    const row = (c) => `${esc(c.call || "")} · ${esc(c.what || c.effect || "")} · ${decides.size ? (decides.has(c.n) ? "decides" : "context") : "the verdict"} · ${
+        Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.cached ? "cached" : "live"}`;
     let live = 0, cached = 0, i = 0;
+    // every row is in place from the start, unseen, so revealing one moves nothing (sweep M1.md 4.5)
+    rows.innerHTML = list.map((c) => `<li data-call="${esc(c.n)}" style="opacity:0">${row(c)}</li>`).join("");
+    const items = [...rows.children];
     const step = () => {
       if (!box.isConnected || i >= list.length) return;
-      const c = list[i++];
+      const c = list[i];
+      items[i++].style.opacity = "";
       c.cached ? cached++ : live++;
-      rows.insertAdjacentHTML("beforeend", `<li data-call="${esc(c.n)}">${esc(c.call || "")} · ${esc(c.what || c.effect || "")} · ${decides.size ? (decides.has(c.n) ? "decides" : "context") : "the verdict"} · ${
-        Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.cached ? "cached" : "live"}</li>`);
+      if (still()) { items.forEach((li) => { li.style.opacity = ""; }); live = list.filter((x) => !x.cached).length; cached = list.length - live; i = list.length; }
       counter.textContent = `Qloo calls this check: ${i} (live ${live}, cached ${cached})`;
       setTimeout(step, 90);
     };
@@ -565,5 +570,5 @@ ${src(h, price.src)}</section>
   try { carried = JSON.parse(document.getElementById("k-proof")?.textContent || "null"); } catch { carried = null; }
   if (carried) shown({ proof: carried });                      // in the page: at the first paint
   // the Open sample, asked as soon as the box is in view (no stored answer in the page; a hidden box asks nobody)
-  if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));
+  if (!asked && !carried) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
 })();
