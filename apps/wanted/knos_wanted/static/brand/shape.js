@@ -34,6 +34,9 @@
     const h = (pr.ready && pr.ready.criteria_hash) || pr.criteria_hash || pr.hash;
     if (h) fig.dataset.n2 = nums[2] = String(h).slice(0, 8);
     if (pr.idea) fig.dataset.n0 = nums[0] = String(pr.idea).slice(0, 40);
+    // the paid signature: the newest payout the page carries (#k-paid, written from the chain at the build)
+    const paid = (document.querySelector("#k-paid a")?.href || "").match(/tx\/([1-9A-HJ-NP-Za-km-z]{8})/);
+    if (paid) fig.dataset.n4 = nums[4] = paid[1];
     fig.dataset.ready = "1";
     play();
   };

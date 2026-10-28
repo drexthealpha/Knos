@@ -498,8 +498,8 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
   <p class="k-why">With every Qloo answer removed there is no launch city and no pre-order target, so pre-orders cannot open.</p>
   <button type="button" class="k-chip" data-without aria-pressed="true">Without Qloo</button></header></article>`;
   slot.addEventListener("click", (ev) => {        // With Qloo / Model alone: the panel beside the card's own answer
-    const v = ev.target instanceof Element && ev.target.closest("[data-view]");
-    if (!v) return;
+    const v = ev.target instanceof Element && ev.target.closest(".k-switch [data-view]");   // the app's own views carry data-view too
+    if (!v || !v.closest(".k-card")) return;
     const k = v.closest(".k-card"), model = v.dataset.view === "model";
     const was = k.querySelector('[data-view][aria-pressed="true"]');
     k.querySelectorAll("[data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.view === v.dataset.view)));

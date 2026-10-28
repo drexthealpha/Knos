@@ -17,7 +17,11 @@ const NAMED = { "10.1038/nature14539": "a photo search app that finds any pictur
 const lines = [], fails = [];
 const log = (s) => { console.log(s); lines.push(s); };
 const ok = (c, what) => { log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails.push(what); return c; };
-const post = async (path, body) => { const r = await fetch(APP + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return r.json(); };
+// the app allows 30 checks per client in 10 minutes: every check here waits its turn, so none is refused
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let last = 0;
+const pace = async (n = 1) => { const wait = last + 22000 * n - Date.now(); if (wait > 0) await sleep(wait); last = Date.now(); };
+const post = async (path, body) => { await pace(); const r = await fetch(APP + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return r.json(); };
 const mcp = async (args) => { const r = await post("/mcp", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "knos_demand_check", arguments: args } });
   return r.result?.structuredContent || JSON.parse(r.result?.content?.[0]?.text || "{}"); };
 // what a surface picks from its readings: the exact text of an idea; a paper's first product, else the named product
@@ -25,7 +29,7 @@ const pickOf = (input, w) => (w.paper || w.of === "paper" ? ((w.readings || [])[
 const qc = (r) => r.qloo_calls || {};
 const pairs = [];
 // knos demand's JSON, or its error as an answer with nothing in it (the check then fails, the run goes on)
-const cli = (args) => { try { return JSON.parse(execFileSync(KNOS[0], [...KNOS.slice(1), "demand", ...args, "--json"], { encoding: "utf8", env: { ...process.env, PYTHONIOENCODING: "utf-8" } })); }
+const cli = async (args) => { await pace(); try { return JSON.parse(execFileSync(KNOS[0], [...KNOS.slice(1), "demand", ...args, "--json"], { encoding: "utf8", env: { ...process.env, PYTHONIOENCODING: "utf-8" } })); }
   catch (e) { return { error: String(e.stderr || e.message).slice(0, 200) }; } };
 
 function judgeReadings(surface, input, w) {
@@ -63,10 +67,10 @@ for (const input of INPUTS) {
   judgeReadings("mcp", input, mw);
   counts[input].mcp = judgeAnswer("mcp", input, pickOf(input, mw), await mcp({ idea: pickOf(input, mw), picked: true }));
   // the CLI
-  const cliW = cli([input]);
+  const cliW = await cli([input]);
   judgeReadings("cli", input, cliW);
   const cliPick = pickOf(input, cliW);
-  counts[input].cli = judgeAnswer("cli", input, cliPick, cli([cliPick, "--picked"]));
+  counts[input].cli = judgeAnswer("cli", input, cliPick, await cli([cliPick, "--picked"]));
 }
 
 const browser = await chromium.launch();
@@ -79,6 +83,7 @@ try {
       await page.goto(url + "?t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 120000 });
       for (const input of INPUTS) {
         if (width === 390 && input.startsWith("10.")) continue;     // the papers at one width: Qloo is out, each costs nothing but time
+        await pace(2);
         await page.fill("#k-q", input);
         await page.click("#k-go");
         const which = await page.waitForSelector("#k-card [data-which]", { timeout: 90000 }).catch(() => null);
@@ -90,6 +95,8 @@ try {
         if (w.readings.find((r) => r.kind === "recorded")) w.readings.find((r) => r.kind === "recorded").differs = { theirs: differs[0] || "", yours: differs[0] ? "x" : "" };
         judgeReadings(`${surface} ${width}`, input, w);
         let picked = input;
+        if (!which) { ok(false, `${surface} ${width} ${input}: no readings card came`); continue; }
+        await pace(2);
         if (input.startsWith("10.") && !shown.length) { picked = NAMED[input]; await page.fill("#k-name", picked); await page.click("#k-card [data-name-box] button"); }
         else { picked = input.startsWith("10.") ? shown[0].text : input; await page.click(`#k-card [data-reading="${picked.replace(/"/g, '\\"')}"]`); }
         await page.waitForSelector("#k-card [data-queued], #k-card .k-card:not([data-which])", { timeout: 120000 }).catch(() => null);
