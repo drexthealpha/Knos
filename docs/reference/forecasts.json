@@ -1,91 +1,119 @@
 {
- "about": "derived values only: each recorded idea's three forecast cities, Knos's target and the date made",
- "plan": "docs/reference/forecast_plan.md",
- "plan_sha256": "5333fd2a12c1691aad488fb2fc4366ca65abc29e6037243f8909b1eecd674c52",
+ "about": "the forecast ledger's public part: Knos's picks are read from the app's server (GET /api/forecasts)",
+ "plan": "docs/reference/forecast_plan_v2.md",
+ "plan_sha256": "1bed3b1f9cde4fc0e1848158c2461de4ddfec9006bd9050379c9a53674bf8580",
+ "rows_sha256": "4be20f1e926259eb7ed2013465a702aeb377c0cd03603dfa12798b6453976401",
+ "grading_day": "2 Dec 2026",
  "rows": [
   {
    "idea": "a solar powered music festival",
    "made": "2026-10-22",
-   "knos": {
-    "city": "Las Vegas-Henderson-North Las Vegas, NV",
-    "target": 23,
-    "from": "launch terms"
+   "naics": "711320",
+   "naics_name": "Promoters of performing arts, sports, and similar events without facilities",
+   "graded": true,
+   "model": {
+    "city": "Indio, California",
+    "fips": "06065",
+    "county": "Riverside County, CA"
    },
-   "model": "Indio, California",
-   "placebo": "Los Angeles-Long Beach-Anaheim, CA",
-   "candidates": 4
+   "placebo": {
+    "fips": "48113",
+    "county": "Dallas County, TX"
+   }
   },
   {
    "idea": "an ai recipe planner for families",
    "made": "2026-10-22",
-   "knos": {
-    "city": "Pittsburgh",
-    "target": null,
-    "from": "Qloo's first named city"
+   "naics": "513210",
+   "naics_name": "Software publishers",
+   "graded": true,
+   "model": {
+    "city": "Columbus, Ohio",
+    "fips": "39049",
+    "county": "Franklin County, OH"
    },
-   "model": "Columbus, Ohio",
-   "placebo": "North Myrtle Beach",
-   "candidates": 5
+   "placebo": {
+    "fips": "06065",
+    "county": "Riverside County, CA"
+   }
   },
   {
    "idea": "a crypto podcast for beginners",
    "made": "2026-10-22",
-   "knos": {
-    "city": "Tampa",
-    "target": null,
-    "from": "Qloo's first named city"
+   "naics": "516210",
+   "naics_name": "Media streaming distribution services, social networks, and other media networks and content providers",
+   "graded": true,
+   "model": {
+    "city": "Miami, Florida",
+    "fips": "12086",
+    "county": "Miami-Dade County, FL"
    },
-   "model": "Miami, Florida",
-   "placebo": "Atlanta",
-   "candidates": 5
+   "placebo": {
+    "fips": "04013",
+    "county": "Maricopa County, AZ"
+   }
   },
   {
    "idea": "a probiotic kombucha brand",
    "made": "2026-10-22",
-   "knos": {
-    "city": "Bend",
-    "target": null,
-    "from": "Qloo's first named city"
+   "naics": "312111",
+   "naics_name": "Soft drink manufacturing",
+   "graded": true,
+   "model": {
+    "city": "Austin, Texas",
+    "fips": "48453",
+    "county": "Travis County, TX"
    },
-   "model": "Austin, Texas",
-   "placebo": "Sedona",
-   "candidates": 5
+   "placebo": {
+    "fips": "36103",
+    "county": "Suffolk County, NY"
+   }
   },
   {
    "idea": "a recycled ocean plastic swimwear brand",
    "made": "2026-10-22",
-   "knos": {
-    "city": "Philo",
-    "target": null,
-    "from": "Qloo's first named city"
+   "naics": "315250",
+   "naics_name": "Cut and sew apparel manufacturing (except contractors)",
+   "graded": true,
+   "model": {
+    "city": "San Diego, CA",
+    "fips": "06073",
+    "county": "San Diego County, CA"
    },
-   "model": "San Diego, CA",
-   "placebo": "Philo",
-   "candidates": 5
+   "placebo": {
+    "fips": "32003",
+    "county": "Clark County, NV"
+   }
   },
   {
    "idea": "a quantum physics book for kids",
    "made": "2026-10-22",
-   "knos": {
-    "city": "New York",
-    "target": null,
-    "from": "Qloo's first named city"
+   "naics": "513130",
+   "naics_name": "Book publishers",
+   "graded": true,
+   "model": {
+    "city": "Boulder, Colorado",
+    "fips": "08013",
+    "county": "Boulder County, CO"
    },
-   "model": "Boulder, Colorado",
-   "placebo": "Los Angeles",
-   "candidates": 5
+   "placebo": {
+    "fips": "48029",
+    "county": "Bexar County, TX"
+   }
   },
   {
    "idea": "a smart water bottle that glows to remind you to drink",
    "made": "2026-10-22",
-   "knos": {
-    "city": "Lagos",
-    "target": null,
-    "from": "Qloo's first named city"
+   "naics": "326160",
+   "naics_name": "Plastics bottle manufacturing",
+   "graded": false,
+   "model": {
+    "city": "Scottsdale, Arizona",
+    "fips": "04013",
+    "county": "Maricopa County, AZ"
    },
-   "model": "Scottsdale, Arizona",
-   "placebo": "Lagos",
-   "candidates": 1
+   "placebo": null,
+   "not_graded": "outside US data, not graded"
   }
  ]
 }
