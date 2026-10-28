@@ -990,7 +990,9 @@ def make_handler(state: State):
                 idea = body.get("idea")
                 if not isinstance(idea, str) or not idea.strip():
                     raise ValueError("describe the idea")
-                privacy.check({"idea": idea, "place": body.get("place"), "leader": body.get("leader")})
+                from knos import readings as _readings      # a paper's DOI is digits by its nature: it names a paper, never a person
+                doi = _readings.doi_of(idea)
+                privacy.check({"idea": "" if doi and doi == idea.strip() else idea, "place": body.get("place"), "leader": body.get("leader")})
                 ex = body.get("exclude") or []
                 if not isinstance(ex, list) or len(ex) > 20 or not all(isinstance(x, str) and len(x) < 80 for x in ex):
                     raise ValueError("exclude: a list of up to 20 Qloo entity ids the maker unticked")

@@ -24,6 +24,9 @@ const mcp = async (args) => { const r = await post("/mcp", { jsonrpc: "2.0", id:
 const pickOf = (input, w) => (w.paper || w.of === "paper" ? ((w.readings || [])[0]?.text || NAMED[input]) : input);
 const qc = (r) => r.qloo_calls || {};
 const pairs = [];
+// knos demand's JSON, or its error as an answer with nothing in it (the check then fails, the run goes on)
+const cli = (args) => { try { return JSON.parse(execFileSync(KNOS[0], [...KNOS.slice(1), "demand", ...args, "--json"], { encoding: "utf8", env: { ...process.env, PYTHONIOENCODING: "utf-8" } })); }
+  catch (e) { return { error: String(e.stderr || e.message).slice(0, 200) }; } };
 
 function judgeReadings(surface, input, w) {
   if (TITLES[input]) {
@@ -60,10 +63,10 @@ for (const input of INPUTS) {
   judgeReadings("mcp", input, mw);
   counts[input].mcp = judgeAnswer("mcp", input, pickOf(input, mw), await mcp({ idea: pickOf(input, mw), picked: true }));
   // the CLI
-  const cliW = JSON.parse(execFileSync(KNOS[0], [...KNOS.slice(1), "demand", input, "--json"], { encoding: "utf8", env: { ...process.env, PYTHONIOENCODING: "utf-8" } }));
+  const cliW = cli([input]);
   judgeReadings("cli", input, cliW);
   const cliPick = pickOf(input, cliW);
-  counts[input].cli = judgeAnswer("cli", input, cliPick, JSON.parse(execFileSync(KNOS[0], [...KNOS.slice(1), "demand", cliPick, "--picked", "--json"], { encoding: "utf8", env: { ...process.env, PYTHONIOENCODING: "utf-8" } })));
+  counts[input].cli = judgeAnswer("cli", input, cliPick, cli([cliPick, "--picked"]));
 }
 
 const browser = await chromium.launch();

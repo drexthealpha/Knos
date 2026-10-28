@@ -548,7 +548,9 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
         if name == "knos_demand_check":
             from . import privacy
             try:
-                privacy.check({"idea": (params.get("arguments") or {}).get("idea"), "place": (params.get("arguments") or {}).get("place")})
+                from knos import readings as _readings      # a paper's DOI is digits by its nature: it names a paper, never a person
+                _idea = str((params.get("arguments") or {}).get("idea") or "")
+                privacy.check({"idea": "" if _readings.doi_of(_idea) == _idea.strip() else _idea, "place": (params.get("arguments") or {}).get("place")})
             except ValueError as why:
                 return {"jsonrpc": "2.0", "id": mid, "result": {"isError": True, "content": [{"type": "text", "text": str(why)[:300]}]}}
 
