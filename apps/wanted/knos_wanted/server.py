@@ -70,7 +70,7 @@ LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match")                                           # demo pre-orders, all clients
+DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
@@ -106,7 +106,7 @@ GET_ROUTES = {"/actions.json": "Solana Actions rules", "/api/refuse": "What Knos
               "/api/x402/report": "A demand report, paid per read over x402", "/api/commitments": "Pre-orders and funders' held money",
               "/mcp": "MCP discovery page (POST JSON-RPC here)", "/mcp/store": "The app-store MCP profile: read-only tools, no sign-in, a daily call cap (POST JSON-RPC here)", "/auth/orcid": "Sign in with ORCID", "/auth/orcid/callback": "ORCID callback",
               "/": "301 to the front door, https://drexthealpha.github.io/Knos/", "/app": "301 to /app/",
-              "/quality": "301 to the front door's quality page", "/quality/": "301 to the front door's quality page", "/app/": "The app", "/status/qloo": "Qloo as this server met it today: calls, cache hits, last success, last 429", "/api/qloo/status": "The same as JSON, with the line the front door shows while Qloo limits requests", "/api/calls": "The last 200 Qloo requests this server made or recorded: time, endpoint, parameters, status, ms, cached; never a body", "/api/match": "The products Qloo matched to a recorded idea (?idea=), for the step that asks whether this is what you mean", "/paid": "301 to /app/?all=1: the app with the passkey wallet, pre-orders, pools, company sign-in and accounting files", "/api/status": "Server status", "/api/ops/memory": "The operator's: this process's memory now and at its peak", "/api/agent/payout/latest": "The newest payout to an agent, read from devnet", "/api/usage": "Demand checks run, Ready briefs made, and the knos_pay program's devnet transactions", "/api/taste/movie": "The films a film's fans also love, from Qloo (?title=&year=): names and years only", "/api/products": "Listed products", "/api/quote": "Fee quote",
+              "/quality": "301 to the front door's quality page", "/quality/": "301 to the front door's quality page", "/app/": "The app", "/status/qloo": "Qloo as this server met it today: calls, cache hits, last success, last 429", "/api/qloo/status": "The same as JSON, with the line the front door shows while Qloo limits requests", "/api/record/head": "The Knos record's newest line in Sibyl: its sequence number, time and kind", "/api/calls": "The last 200 Qloo requests this server made or recorded: time, endpoint, parameters, status, ms, cached; never a body", "/api/match": "The products Qloo matched to a recorded idea (?idea=), for the step that asks whether this is what you mean", "/paid": "301 to /app/?all=1: the app with the passkey wallet, pre-orders, pools, company sign-in and accounting files", "/api/status": "Server status", "/api/ops/memory": "The operator's: this process's memory now and at its peak", "/api/agent/payout/latest": "The newest payout to an agent, read from devnet", "/api/usage": "Demand checks run, Ready briefs made, and the knos_pay program's devnet transactions", "/api/taste/movie": "The films a film's fans also love, from Qloo (?title=&year=): names and years only", "/api/products": "Listed products", "/api/quote": "Fee quote",
               "/api/pool": "A report's pre-order pool", "/healthz": "Health check", "/api/report": "A demand report",
               "/api/receipts": "A result's receipts (?id=, the first 16 hex of its hash): each Qloo call with its time and hash, the target's rule, the model's answer, the brief's criteria hash, the Sibyl record line, devnet transactions",
               "/api/commitment": "One commitment", "/api/auth/config": "Sign-in providers", "/api/fees": "Fees (config/fees.yaml)",
@@ -680,6 +680,13 @@ def make_handler(state: State):
             if u.path == "/status/qloo":                    # Qloo as this server met it today, from its own traffic: no call made
                 from . import qloo_status
                 return self._send(200, inline_css(qloo_status.page()).encode("utf-8"), "text/html; charset=utf-8")
+            if u.path == "/api/record/head":                # the Knos record's newest line (Sibyl): its sequence number and time
+                try:
+                    from knos.record import journal
+                    h = journal.head(company.root()) or {}
+                    return self._send(200, {"seq": h.get("seq"), "at": h.get("ts"), "kind": h.get("kind")}, headers={"Cache-Control": "no-store"})
+                except Exception as why:  # noqa: BLE001 - a record that cannot be read is said, never guessed
+                    return self._send(503, {"seq": None, "why": f"the Knos record could not be read here ({type(why).__name__})"})
             if u.path == "/api/calls":                      # the last 200 Qloo requests: no body, no key (the front door's /calls/)
                 from . import qloo_rest
                 return self._send(200, {"calls": qloo_rest.recent(), "most": qloo_rest.RECENT.maxlen,

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos. Status</title>
+<meta name="description" content="Each part Knos runs on, read live: Qloo, the app, Solana devnet, the Sibyl record and GitHub, and what happens when one fails.">
+<meta name="author" content="drexthealpha">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/status/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Knos">
+<meta property="og:title" content="Knos. Status">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/status/">
+<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="../brand/tokens.css">
+<link rel="stylesheet" href="../app.css">
+<!-- THE STATUS PAGE: each part read live from this page (Qloo through the app's /api/qloo/status, the app's /healthz with
+     its time, devnet's latest slot, the Sibyl record's latest sequence number through /api/record/head, GitHub's newest
+     check run on main), each with what Knos does while it is down. The parts and their failure lines are in the page. -->
+<style>
+:where(a[href]){padding-block:max(0px,calc((24px - 1em) / 2))}
+.st-list{list-style:none;margin:24px 0 0;padding:0;display:grid;gap:12px;max-width:760px}
+.st-row{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:var(--card);display:grid;grid-template-columns:9em minmax(0,1fr);gap:4px 16px;min-height:96px}
+.st-row h2{grid-row:span 2;margin:0;font-size:var(--s1)}
+.st-now{margin:0;font-weight:600;min-height:1.5em}
+.st-now::before{content:"";display:inline-block;width:.6em;height:.6em;border-radius:50%;margin-right:.5em;background:var(--muted);vertical-align:.05em}
+.st-row[data-state=up] .st-now::before{background:var(--ok)}
+.st-row[data-state=down] .st-now::before{background:var(--bad)}
+.st-fail{margin:0;color:var(--muted);font-size:var(--s0)}
+@media (max-width:479.98px){.st-row{grid-template-columns:1fr}.st-row h2{grid-row:auto}}
+</style>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="../" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+</header>
+<main>
+  <section class="view">
+    <h1>Status</h1>
+    <ul class="st-list">
+      <li class="st-row" data-part="qloo"><h2>Qloo</h2><p class="st-now" data-now>Reading…</p>
+        <p class="st-fail">When it is down: cards show Qloo's last real answers with their date, and new ideas wait for its reset.</p></li>
+      <li class="st-row" data-part="app"><h2>The app</h2><p class="st-now" data-now>Reading…</p>
+        <p class="st-fail">When it is down: the front door keeps its recorded sample, and checks wait until the app wakes.</p></li>
+      <li class="st-row" data-part="devnet"><h2>Solana devnet</h2><p class="st-now" data-now>Reading…</p>
+        <p class="st-fail">When it is down: no money is held or paid, and nothing is signed until devnet answers.</p></li>
+      <li class="st-row" data-part="sibyl"><h2>Sibyl record</h2><p class="st-now" data-now>Reading…</p>
+        <p class="st-fail">When it is down: checks still run, and each receipt says its line is not recorded yet.</p></li>
+      <li class="st-row" data-part="github"><h2>GitHub</h2><p class="st-now" data-now>Reading…</p>
+        <p class="st-fail">When it is down: pull request checks wait, and nothing is paid on proof until GitHub answers.</p></li>
+    </ul>
+    <p class="fine">Read now by this page. <a href="../calls/">Every Qloo call</a> · <a href="../proof/">Proof</a></p>
+  </section>
+</main>
+<footer class="foot">
+  <span>Devnet is test mode: the money is test USDC.</span>
+  <span><a href="../">Knos home</a> · <a href="../proof/">Proof</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
+</footer>
+<script>
+(() => {
+  const API = "https://knos.onrender.com";
+  const row = (p) => document.querySelector(`.st-row[data-part="${p}"]`);
+  const set = (p, up, text) => { const r = row(p); r.dataset.state = up ? "up" : "down"; r.querySelector("[data-now]").textContent = text; };
+  const timed = async (url, opts) => { const t = performance.now(); const r = await fetch(url, opts); const j = await r.json().catch(() => ({})); return [r, j, Math.round(performance.now() - t)]; };
+  const n = (x) => Number(x).toLocaleString("en-US");
+  timed(`${API}/api/qloo/status`).then(([r, j]) => {
+    if (!r.ok) return set("qloo", false, `The app did not say (${r.status}).`);
+    const left = j.month_left, reset = j.month_reset ? String(j.month_reset).slice(0, 10) : "";
+    set("qloo", !j.limited, j.limited ? `Limited: ${left != null ? n(left) : "no"} calls left this month${reset ? `, back on ${reset}` : ""}.` : `Answering: ${left != null ? n(left) + " calls left this month" : "its month is not read yet"}.`);
+  }).catch(() => set("qloo", false, "No answer from the app."));
+  timed(`${API}/healthz`).then(([r, , ms]) => set("app", r.ok, r.ok ? `Up: answered in ${n(ms)} ms.` : `Answered ${r.status} in ${n(ms)} ms.`))
+    .catch(() => set("app", false, "No answer."));
+  timed("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSlot" }) })
+    .then(([r, j, ms]) => set("devnet", Number.isFinite(j.result), Number.isFinite(j.result) ? `Up: slot ${n(j.result)}, read in ${n(ms)} ms.` : "No slot came back."))
+    .catch(() => set("devnet", false, "No answer."));
+  timed(`${API}/api/record/head`).then(([r, j]) => set("sibyl", r.ok && j.seq != null, r.ok && j.seq != null ? `Up: line ${n(j.seq)} is the newest${j.at ? `, ${String(j.at).slice(0, 16).replace("T", " ")} UTC` : ""}.` : (j.why || "The record did not answer.")))
+    .catch(() => set("sibyl", false, "No answer from the app."));
+  timed("https://api.github.com/repos/drexthealpha/Knos/commits/main/check-runs?per_page=1").then(([r, j]) => {
+    const c = (j.check_runs || [])[0];
+    set("github", r.ok, r.ok ? (c ? `Up: newest check on main, ${c.name}, ${c.conclusion || c.status}.` : "Up: no check on main yet.")
+      : r.status === 403 ? "Limited: GitHub's 60 reads an hour for this address are used." : `Answered ${r.status}.`);
+  }).catch(() => set("github", false, "No answer."));
+})();
+</script>
+</body>
+</html>
