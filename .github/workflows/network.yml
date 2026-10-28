@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0        # the sitemap's lastmod: each page's own last commit (scripts/sitemap_dates.py)
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -112,6 +114,24 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+
+  # after a deploy from a push: the changed pages of web/ go to IndexNow (scripts/indexnow.py, keyLocation web/indexnow.txt)
+  indexnow:
+    needs: deploy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Send the changed pages to IndexNow
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: python scripts/indexnow.py $(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- web 2>/dev/null)
 
   # after a deploy from a push: the live front door in Chromium. Every page beside it raises no page error, and each of
   # the 8 chips, pressed at 390 and 1280 px, draws a verdict card within 20 s (scripts/test_front_door_live.mjs).

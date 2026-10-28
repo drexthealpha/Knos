@@ -1,0 +1,35 @@
+{
+ "about": "the sample results' static pages (scripts/results_pages.py)",
+ "results": [
+  {
+   "id": "ebb83ba34dc00095",
+   "idea": "An AI recipe planner for families",
+   "path": "results/ebb83ba34dc00095/"
+  },
+  {
+   "id": "3a10ddd6cfccb78e",
+   "idea": "a crypto podcast for beginners",
+   "path": "results/3a10ddd6cfccb78e/"
+  },
+  {
+   "id": "f756f4e373a1a144",
+   "idea": "a quantum physics book for kids",
+   "path": "results/f756f4e373a1a144/"
+  },
+  {
+   "id": "14d68eb782caff05",
+   "idea": "a solar powered music festival",
+   "path": "results/14d68eb782caff05/"
+  },
+  {
+   "id": "630583f679a5530f",
+   "idea": "a probiotic kombucha brand",
+   "path": "results/630583f679a5530f/"
+  },
+  {
+   "id": "8b9b9e8d4f46b0fe",
+   "idea": "a recycled ocean plastic swimwear brand",
+   "path": "results/8b9b9e8d4f46b0fe/"
+  }
+ ]
+}

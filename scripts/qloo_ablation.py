@@ -34,7 +34,7 @@ def table(rs: list[dict]) -> str:
     moved = lambda r: r["city"][0] != r["city"][1] or r["target"][0] != r["target"][1] or r["label"][0] != r["label"][1]  # noqa: E731
     one = [r for r in rs if r["removed"] != "every Qloo answer"]
     every = [r for r in rs if r["removed"] == "every Qloo answer"]
-    return (f'{START}\n    <section class="t" id="ablation">\n      <h2>What each Qloo signal changes</h2>\n'
+    return (f'{START}\n    <section class="t" id="ablation">\n      <h2>What does each Qloo signal change?</h2>\n'
             f'      <p class="t-n" data-one="{sum(map(moved, one))}" data-of="{len(one)}">On 6 recorded samples, removing one Qloo signal changes the city, the target or the verdict in {sum(map(moved, one))} of {len(one)} removals; removing every answer, in {sum(map(moved, every))} of {len(every)}.</p>\n'
             f'      <details><summary>The table</summary><div class="k-table"><table>\n'
             f'        <thead><tr><th scope="col">Sample</th><th scope="col">Removed</th><th scope="col">Launch city</th><th scope="col">Target</th><th scope="col">Verdict</th></tr></thead>\n'

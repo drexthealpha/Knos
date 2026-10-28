@@ -50,6 +50,7 @@
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
+<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Knos", "item": "https://drexthealpha.github.io/Knos/"}, {"@type": "ListItem", "position": 2, "name": "Proof", "item": "https://drexthealpha.github.io/Knos/proof/"}]}</script><!-- ld:end -->
 </head>
 <body>
 <header class="bar">
@@ -78,7 +79,8 @@
     <p class="fine">Each bar opens the file its number comes from.</p>
 <!-- k-board -->
     <section class="t" id="board">
-      <h2>Every outside test</h2>
+      <h2>How did Knos do in each outside test?</h2>
+      <p>Knos lost 1 of 7 outside tests and won 1; the rest are ties or not run yet.</p>
       <div class="k-table"><table>
         <thead><tr><th scope="col">Test</th><th scope="col">Question</th><th scope="col">Arms</th><th scope="col">Numbers</th><th scope="col">95% interval</th><th scope="col">Result</th></tr></thead>
         <tbody><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/where_truth.json" rel="noopener">Where demand is</a></td><td>Where is a kind of business most common per person?</td><td>Knos with Qloo, Claude alone</td><td>0.193 against 0.407 (n 30)</td><td>[-0.360, -0.060]</td><td data-label="loss">loss</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/taste_truth.json" rel="noopener">Films fans also love</a></td><td>Which films do a film's fans also love?</td><td>Knos with Qloo, Claude alone</td><td>0.320 against 0.307 (n 30)</td><td>[-0.060, +0.087]</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/kickstarter_truth.json" rel="noopener">Kickstarter, 250 held out</a></td><td>Did a past project reach its goal?</td><td>open signals with Qloo, always success</td><td>78.0% tuned (59.6% as one verdict) against 78.8% (n 250)</td><td>[-0.063, +0.039]*</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/qloo_lift_ranked.json" rel="noopener">Kickstarter, 300 ranked</a></td><td>Does the score rank projects by money raised?</td><td>open signals with Qloo, open signals alone</td><td>Spearman 0.108 against 0.113 (n 300)</td><td>[-0.037, +0.025]</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/outside_truth.json" rel="noopener">200 research awards</a></td><td>Did a past award succeed?</td><td>open signals, a coin</td><td>47.5% against 50% (n 200)</td><td>[-0.093, +0.044]*</td><td data-label="tie">tie</td></tr>
@@ -89,7 +91,8 @@
     </section>
 <!-- /k-board -->
     <section class="t" id="devnet">
-      <h2>Devnet transactions by program</h2>
+      <h2>How many devnet transactions has each program made?</h2>
+      <p>Each row below is read now from devnet, at most 1,000 per program.</p>
       <div class="k-table"><table>
         <thead><tr><th scope="col">Program</th><th scope="col">Transactions</th><th scope="col">Newest</th></tr></thead>
         <tbody id="p-tx"><tr><td colspan="3">Reading devnet…</td></tr></tbody>

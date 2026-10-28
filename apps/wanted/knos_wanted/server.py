@@ -70,7 +70,7 @@ LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head")                                           # demo pre-orders, all clients
+DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/healthz")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
@@ -683,7 +683,7 @@ def make_handler(state: State):
             if u.path == "/api/record/head":                # the Knos record's newest line (Sibyl): its sequence number and time
                 try:
                     from knos.record import journal
-                    h = journal.head(company.root()) or {}
+                    h = journal.head(company.root()) or (journal.remembered(journal.sibyl(company.root())) or [{}])[-1]
                     return self._send(200, {"seq": h.get("seq"), "at": h.get("ts"), "kind": h.get("kind")}, headers={"Cache-Control": "no-store"})
                 except Exception as why:  # noqa: BLE001 - a record that cannot be read is said, never guessed
                     return self._send(503, {"seq": None, "why": f"the Knos record could not be read here ({type(why).__name__})"})

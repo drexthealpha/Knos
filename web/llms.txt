@@ -13,6 +13,22 @@ Step 4, paid on proof, also pays AI agents for verified pull requests. GitHub si
 - [README](https://raw.githubusercontent.com/drexthealpha/Knos/main/README.md): how it works, in plain words, with diagrams
 - [Words](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/WORDS.md): every technical word in one line
 
+## Evidence
+
+- [Proof](https://drexthealpha.github.io/Knos/proof/): every published number against its baseline, each linked to its source
+- [Forecasts](https://drexthealpha.github.io/Knos/forecasts/): three forecasts for each recorded idea, fixed before the Census counts the businesses
+- [Status](https://drexthealpha.github.io/Knos/status/): each part Knos runs on, read live, and what happens when one fails
+- [Hosted MCP server](https://knos.onrender.com/mcp): `claude mcp add --transport http knos https://knos.onrender.com/mcp`
+
+## Sample results
+
+- [An AI recipe planner for families](https://drexthealpha.github.io/Knos/results/ebb83ba34dc00095/): the recorded card's verdict, cities and reasons
+- [A crypto podcast for beginners](https://drexthealpha.github.io/Knos/results/3a10ddd6cfccb78e/): the recorded card's verdict, cities and reasons
+- [A quantum physics book for kids](https://drexthealpha.github.io/Knos/results/f756f4e373a1a144/): the recorded card's verdict, cities and reasons
+- [A solar powered music festival](https://drexthealpha.github.io/Knos/results/14d68eb782caff05/): the recorded card's verdict, cities and reasons
+- [A probiotic kombucha brand](https://drexthealpha.github.io/Knos/results/630583f679a5530f/): the recorded card's verdict, cities and reasons
+- [A recycled ocean plastic swimwear brand](https://drexthealpha.github.io/Knos/results/8b9b9e8d4f46b0fe/): the recorded card's verdict, cities and reasons
+
 ## Docs
 
 - [Story](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/STORY.md): one task in seven steps, each with its evidence

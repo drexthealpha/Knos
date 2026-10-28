@@ -51,10 +51,12 @@ for f in 404.html privacy.html retry.js; do [ -s "$out/$f" ] || { echo "web/$f i
 for f in faq.html how-we-test.html pricing.html check/index.html proof/index.html sitemap.xml llms.txt; do [ -s "$out/$f" ] || { echo "web/$f is missing"; exit 1; }; done
 stamp=$(git show -s --format=%cs "$sha" 2>/dev/null || git log -1 --format=%cs 2>/dev/null || date -u +%Y-%m-%d)
 printf '%s' "$stamp" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || { echo "no build date: $stamp"; exit 1; }
-for f in faq.html how-we-test.html pricing.html check/index.html sitemap.xml; do
+for f in faq.html how-we-test.html pricing.html check/index.html; do
   sed -i.bak "s/KNOS_BUILD_DATE/$stamp/g" "$out/$f" && rm -f "$out/$f.bak"
   if grep -q KNOS_BUILD_DATE "$out/$f"; then echo "web/$f: the build date was not stamped"; exit 1; fi
 done
+# each page's lastmod in the sitemap: the date of the last commit that changed its source file
+"${PYTHON:-python3}" scripts/sitemap_dates.py "$out" "$stamp"
 cp src/knos/settle/v2/program_ids.json "$out/program_ids.json"
 cp sdk/settle/index.js "$out/settle.js"
 cp sdk/settle/passkey.js "$out/passkey.js"

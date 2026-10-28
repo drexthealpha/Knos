@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The pages a search engine can index (https://www.sitemaps.org/protocol.html). The app's other pages are # routes of
-     the first one. A sitemap at /Knos/ may list only addresses under /Knos/. lastmod is the build's date
-     (scripts/build_site.sh stamps it); tests/test_seo.py holds every address to a page the build has. -->
+<!-- Every public page of the front door (https://www.sitemaps.org/protocol.html). A sitemap at /Knos/ may list only
+     addresses under /Knos/. Each lastmod names the page's source file; scripts/sitemap_dates.py writes the date of the
+     last commit that changed it when the site is built. tests/test_seo.py holds every address to a page the build has. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://drexthealpha.github.io/Knos/</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
-  <url><loc>https://drexthealpha.github.io/Knos/check/</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
-  <url><loc>https://drexthealpha.github.io/Knos/faq.html</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
-  <url><loc>https://drexthealpha.github.io/Knos/privacy.html</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/</loc><lastmod>git:web/home.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/check/</loc><lastmod>git:web/check/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/faq.html</loc><lastmod>git:web/faq.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/privacy.html</loc><lastmod>git:web/privacy.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/proof/</loc><lastmod>git:web/proof/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/forecasts/</loc><lastmod>git:web/forecasts/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/status/</loc><lastmod>git:web/status/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/calls/</loc><lastmod>git:web/calls/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/demo/</loc><lastmod>git:web/demo/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/how-we-test.html</loc><lastmod>git:web/how-we-test.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/pricing.html</loc><lastmod>git:web/pricing.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/docs/</loc><lastmod>git:web/docs/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/results/ebb83ba34dc00095/</loc><lastmod>git:web/results/ebb83ba34dc00095/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/results/3a10ddd6cfccb78e/</loc><lastmod>git:web/results/3a10ddd6cfccb78e/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/results/f756f4e373a1a144/</loc><lastmod>git:web/results/f756f4e373a1a144/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/results/14d68eb782caff05/</loc><lastmod>git:web/results/14d68eb782caff05/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/results/630583f679a5530f/</loc><lastmod>git:web/results/630583f679a5530f/index.html</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/results/8b9b9e8d4f46b0fe/</loc><lastmod>git:web/results/8b9b9e8d4f46b0fe/index.html</lastmod></url>
 </urlset>

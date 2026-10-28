@@ -78,5 +78,5 @@ def test_the_published_ablation_table_is_its_json():
     doc = json.loads((ROOT / "docs" / "reference" / "qloo_ablation.json").read_text(encoding="utf-8"))
     page = (ROOT / "web" / "how-we-test.html").read_text(encoding="utf-8")
     sec = page.split("<!-- ablation:start -->")[1].split("<!-- ablation:end -->")[0]
-    assert doc["samples"] == 6 and sec.count("<tr><td>") == len(doc["rows"]) and "What each Qloo signal changes" in sec
+    assert doc["samples"] == 6 and sec.count("<tr><td>") == len(doc["rows"]) and "What does each Qloo signal change?" in sec
     assert all(set(r) == {"chip", "removed", "city", "target", "label"} for r in doc["rows"])          # derived values only

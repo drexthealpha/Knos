@@ -223,13 +223,28 @@ def built_file(url: str) -> str:
     return path + "index.html" if path == "" or path.endswith("/") else path
 
 
-def test_the_sitemap_lists_the_pages_to_index_and_each_is_a_file():
+def test_the_sitemap_lists_every_public_page_and_names_each_ones_source_for_its_date():
     urls = sitemap()
-    assert [u for u, _d in urls] == [SITE, SITE + "check/", SITE + "faq.html", SITE + "privacy.html"]
-    assert all(d == "KNOS_BUILD_DATE" for _u, d in urls)
-    for url, _d in urls:
-        assert (WEB / built_file(url)).is_file(), url
-        assert [h for r, h in page(built_file(url)).links if r == "canonical"] == [url]
+    assert [u for u, _d in urls][:4] == [SITE, SITE + "check/", SITE + "faq.html", SITE + "privacy.html"] and len(urls) >= 18
+    for want in ("proof/", "forecasts/", "status/", "calls/", "demo/", "how-we-test.html", "pricing.html", "docs/"):
+        assert SITE + want in [u for u, _d in urls], want
+    assert sum(u.startswith(SITE + "results/") for u, _d in urls) == 6
+    for url, d in urls:
+        src = d.removeprefix("git:")
+        assert d.startswith("git:web/") and (ROOT / src).is_file(), (url, d)          # scripts/sitemap_dates.py dates it from git
+        built = "home.html" if url == SITE else built_file(url)
+        assert (WEB / built).is_file() and [h for r, h in page(built).links if r == "canonical"] == [url], url
+
+
+def test_the_front_door_says_what_it_is_and_what_it_costs_in_json_ld():
+    (doc,) = [d for d in page("home.html").ld if "@graph" in d]
+    app = next(x for x in doc["@graph"] if x["@type"] == "SoftwareApplication")
+    org = next(x for x in doc["@graph"] if x["@type"] == "Organization")
+    assert app["name"] == "Knos" and app["description"] == sentence() and app["url"] == SITE and app["publisher"] == {"@id": org["@id"]}
+    assert org["sameAs"] == ["https://github.com/drexthealpha/Knos"]
+    offer = app["offers"]
+    pricing = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", (WEB / "pricing.html").read_text(encoding="utf-8")))
+    assert offer["@type"] == "Offer" and offer["price"] == "0" and offer["description"] in pricing and offer["url"] == SITE + "pricing.html"
 
 
 def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere():
@@ -247,7 +262,7 @@ def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere():
         elif url.startswith(raw):
             assert (ROOT / url.removeprefix(raw)).is_file(), url
         else:
-            assert url in ("https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/"), url
+            assert url in ("https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/", "https://knos.onrender.com/mcp"), url
 
 
 # ---- a build ------------------------------------------------------------------------------------------------------------
@@ -262,10 +277,9 @@ def built(tmp_path_factory) -> Path:
     return site
 
 
-def test_the_build_stamps_one_date_on_every_page_and_in_the_sitemap(built: Path):
-    dates = {d for _u, d in sitemap(built)}
-    (stamp,) = dates
-    assert DATE.match(stamp)
+def test_the_build_stamps_one_date_on_every_page_and_dates_the_sitemap_from_git(built: Path):
+    assert all(DATE.match(d) for _u, d in sitemap(built))                     # each page's own last commit (scripts/sitemap_dates.py)
+    stamp = re.search(r'Last updated <time datetime="(\d{4}-\d{2}-\d{2})">', (built / "faq.html").read_text(encoding="utf-8")).group(1)
     head = subprocess.run(["git", "log", "-1", "--format=%cs"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False)
     if head.returncode == 0 and DATE.match(head.stdout.strip()):
         assert stamp == head.stdout.strip()                 # a commit this clone does not have ("c" * 40) gives HEAD's date
