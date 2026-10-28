@@ -1,0 +1,23 @@
+{
+ "source": "https://knos.onrender.com/api/qloo-diff",
+ "made": "2026-10-23 07:14 UTC",
+ "summary": {
+  "rows": 20,
+  "changed": 20,
+  "verdict": 10,
+  "audience": 9,
+  "cities": 9,
+  "tier": 13,
+  "claude": {
+   "rows": 20,
+   "verdict_same_as_qloo": 9,
+   "audience_same_as_qloo": 0,
+   "cities_same_as_qloo": 0,
+   "tier_same_as_qloo": 3,
+   "verdict_same_as_open_signals": 7
+  }
+ },
+ "rule": "Changed = with Qloo added, the verdict differs from the open signals' verdict, or Qloo names an audience (age and gender), launch cities or a price tier that the open signals do not (scripts/qloo_vs_open_signals.py).",
+ "baseline": "open signals, and Claude alone (claude -p: no tools, no data)",
+ "about": "the counts only, from the app's published table: each idea's Qloo answers stay on the server"
+}

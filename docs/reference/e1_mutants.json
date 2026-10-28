@@ -1,0 +1,642 @@
+{
+ "plan": "docs/reference/evidence_plan.md, section 2",
+ "made": "2026-10-28T19:32:16Z",
+ "n": 60,
+ "ci_caught": 31,
+ "knos_caught": 60,
+ "per_operator": {
+  "deleted test": {
+   "n": 12,
+   "ci_caught": 10,
+   "knos_caught": 12
+  },
+  "skipped test": {
+   "n": 12,
+   "ci_caught": 11,
+   "knos_caught": 12
+  },
+  "weakened assert": {
+   "n": 12,
+   "ci_caught": 10,
+   "knos_caught": 12
+  },
+  "renamed check": {
+   "n": 12,
+   "ci_caught": 0,
+   "knos_caught": 12
+  },
+  "forged check name": {
+   "n": 12,
+   "ci_caught": 0,
+   "knos_caught": 12
+  }
+ },
+ "knos_misses": [],
+ "ci_misses": 29,
+ "rows": [
+  {
+   "repo": "Python, pytest",
+   "operator": "deleted test",
+   "variant": "own:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "deleted test",
+   "variant": "own:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "deleted test",
+   "variant": "own:all",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "deleted test",
+   "variant": "acceptance:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "deleted test",
+   "variant": "acceptance:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "deleted test",
+   "variant": "acceptance:all",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "skipped test",
+   "variant": "own:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "skipped test",
+   "variant": "own:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "skipped test",
+   "variant": "own:all",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "skipped test",
+   "variant": "acceptance:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "skipped test",
+   "variant": "acceptance:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "skipped test",
+   "variant": "acceptance:all",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "weakened assert",
+   "variant": "own:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "weakened assert",
+   "variant": "own:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "weakened assert",
+   "variant": "own:all",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path tests/test_calc.py: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "weakened assert",
+   "variant": "acceptance:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "weakened assert",
+   "variant": "acceptance:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "weakened assert",
+   "variant": "acceptance:all",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "renamed check",
+   "variant": "tests",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "renamed check",
+   "variant": "unit",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "renamed check",
+   "variant": "check",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "renamed check",
+   "variant": "test-suite",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "renamed check",
+   "variant": "verify",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "renamed check",
+   "variant": "ci-test",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "forged check name",
+   "variant": "tests",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "forged check name",
+   "variant": "unit",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "forged check name",
+   "variant": "check",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "forged check name",
+   "variant": "test-suite",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "forged check name",
+   "variant": "verify",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "Python, pytest",
+   "operator": "forged check name",
+   "variant": "ci-test",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "deleted test",
+   "variant": "own:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "deleted test",
+   "variant": "own:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "deleted test",
+   "variant": "own:all",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "deleted test",
+   "variant": "acceptance:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "deleted test",
+   "variant": "acceptance:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "deleted test",
+   "variant": "acceptance:all",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "skipped test",
+   "variant": "own:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "skipped test",
+   "variant": "own:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "skipped test",
+   "variant": "own:all",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "skipped test",
+   "variant": "acceptance:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "skipped test",
+   "variant": "acceptance:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "skipped test",
+   "variant": "acceptance:all",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "weakened assert",
+   "variant": "own:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "weakened assert",
+   "variant": "own:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "weakened assert",
+   "variant": "own:all",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path test/slug.test.js: an existing protected test was edited; a new test file beside it is allowed"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "weakened assert",
+   "variant": "acceptance:first",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "weakened assert",
+   "variant": "acceptance:second",
+   "ci_green": false,
+   "ci_caught": true,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "weakened assert",
+   "variant": "acceptance:all",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "renamed check",
+   "variant": "tests",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "renamed check",
+   "variant": "unit",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "renamed check",
+   "variant": "check",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "renamed check",
+   "variant": "test-suite",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "renamed check",
+   "variant": "verify",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "renamed check",
+   "variant": "ci-test",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "forged check name",
+   "variant": "tests",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "forged check name",
+   "variant": "unit",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "forged check name",
+   "variant": "check",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "forged check name",
+   "variant": "test-suite",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "forged check name",
+   "variant": "verify",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  },
+  {
+   "repo": "JavaScript, node:test",
+   "operator": "forged check name",
+   "variant": "ci-test",
+   "ci_green": true,
+   "ci_caught": false,
+   "knos_passed": false,
+   "knos_caught": true,
+   "why": "touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the judge cannot replace"
+  }
+ ],
+ "measured_with": {
+  "python": "Python 3.12.0 and pytest 9.1.1",
+  "node": "Node 24.15.0 and npm ?"
+ }
+}

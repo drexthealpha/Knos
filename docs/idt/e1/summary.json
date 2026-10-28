@@ -1,0 +1,315 @@
+{
+ "v": 1,
+ "tasks": 20,
+ "model": "sonnet",
+ "effort": "medium",
+ "measured_with": "claude -p --output-format json (Claude Code print mode, the operator's subscription); usage as the API returned it",
+ "vague_output_tokens": 14860,
+ "ready_output_tokens": 7029,
+ "ratio_vague_to_ready": 2.11,
+ "saved_share": 0.527,
+ "vague_pass_rate": 0.05,
+ "ready_pass_rate": 0.85,
+ "vague_cost_usd": 0.7788,
+ "ready_cost_usd": 0.3662,
+ "transcripts_match": true,
+ "rows": [
+  {
+   "task": "c01",
+   "kind": "code",
+   "vague_output_tokens": 2085,
+   "ready_output_tokens": 67,
+   "saved_output_tokens": 2018,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.244694,
+   "ready_cost_usd": 0.0143532,
+   "transcript_matches": true
+  },
+  {
+   "task": "c02",
+   "kind": "code",
+   "vague_output_tokens": 217,
+   "ready_output_tokens": 53,
+   "saved_output_tokens": 164,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0154692,
+   "ready_cost_usd": 0.0141892,
+   "transcript_matches": true
+  },
+  {
+   "task": "c03",
+   "kind": "code",
+   "vague_output_tokens": 1328,
+   "ready_output_tokens": 63,
+   "saved_output_tokens": 1265,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0440254,
+   "ready_cost_usd": 0.014313200000000002,
+   "transcript_matches": true
+  },
+  {
+   "task": "c04",
+   "kind": "code",
+   "vague_output_tokens": 1060,
+   "ready_output_tokens": 107,
+   "saved_output_tokens": 953,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0390054,
+   "ready_cost_usd": 0.015468200000000001,
+   "transcript_matches": true
+  },
+  {
+   "task": "c05",
+   "kind": "code",
+   "vague_output_tokens": 465,
+   "ready_output_tokens": 58,
+   "saved_output_tokens": 407,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0179652,
+   "ready_cost_usd": 0.0304962,
+   "transcript_matches": true
+  },
+  {
+   "task": "c06",
+   "kind": "code",
+   "vague_output_tokens": 316,
+   "ready_output_tokens": 93,
+   "saved_output_tokens": 223,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.022335400000000002,
+   "ready_cost_usd": 0.0147132,
+   "transcript_matches": true
+  },
+  {
+   "task": "c07",
+   "kind": "code",
+   "vague_output_tokens": 79,
+   "ready_output_tokens": 72,
+   "saved_output_tokens": 7,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.014740199999999998,
+   "ready_cost_usd": 0.0149862,
+   "transcript_matches": true
+  },
+  {
+   "task": "c08",
+   "kind": "code",
+   "vague_output_tokens": 1291,
+   "ready_output_tokens": 237,
+   "saved_output_tokens": 1054,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0488382,
+   "ready_cost_usd": 0.016776199999999998,
+   "transcript_matches": true
+  },
+  {
+   "task": "c09",
+   "kind": "code",
+   "vague_output_tokens": 332,
+   "ready_output_tokens": 118,
+   "saved_output_tokens": 214,
+   "vague_passed": true,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0313614,
+   "ready_cost_usd": 0.0154862,
+   "transcript_matches": true
+  },
+  {
+   "task": "c10",
+   "kind": "code",
+   "vague_output_tokens": 77,
+   "ready_output_tokens": 114,
+   "saved_output_tokens": -37,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0147002,
+   "ready_cost_usd": 0.0148872,
+   "transcript_matches": true
+  },
+  {
+   "task": "r01",
+   "kind": "brief",
+   "vague_output_tokens": 1647,
+   "ready_output_tokens": 1093,
+   "saved_output_tokens": 554,
+   "vague_passed": false,
+   "ready_passed": false,
+   "vague_cost_usd": 0.0500274,
+   "ready_cost_usd": 0.0254162,
+   "transcript_matches": true
+  },
+  {
+   "task": "r02",
+   "kind": "brief",
+   "vague_output_tokens": 627,
+   "ready_output_tokens": 866,
+   "saved_output_tokens": -239,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0195972,
+   "ready_cost_usd": 0.0224952,
+   "transcript_matches": true
+  },
+  {
+   "task": "r03",
+   "kind": "brief",
+   "vague_output_tokens": 708,
+   "ready_output_tokens": 195,
+   "saved_output_tokens": 513,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0264782,
+   "ready_cost_usd": 0.0157412,
+   "transcript_matches": true
+  },
+  {
+   "task": "r04",
+   "kind": "brief",
+   "vague_output_tokens": 646,
+   "ready_output_tokens": 207,
+   "saved_output_tokens": 439,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0197512,
+   "ready_cost_usd": 0.0158612,
+   "transcript_matches": true
+  },
+  {
+   "task": "r05",
+   "kind": "brief",
+   "vague_output_tokens": 705,
+   "ready_output_tokens": 183,
+   "saved_output_tokens": 522,
+   "vague_passed": false,
+   "ready_passed": false,
+   "vague_cost_usd": 0.0210042,
+   "ready_cost_usd": 0.0163002,
+   "transcript_matches": true
+  },
+  {
+   "task": "r06",
+   "kind": "brief",
+   "vague_output_tokens": 729,
+   "ready_output_tokens": 814,
+   "saved_output_tokens": -85,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.027816600000000004,
+   "ready_cost_usd": 0.0226182,
+   "transcript_matches": true
+  },
+  {
+   "task": "r07",
+   "kind": "brief",
+   "vague_output_tokens": 856,
+   "ready_output_tokens": 825,
+   "saved_output_tokens": 31,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0218952,
+   "ready_cost_usd": 0.022033200000000003,
+   "transcript_matches": true
+  },
+  {
+   "task": "r08",
+   "kind": "brief",
+   "vague_output_tokens": 478,
+   "ready_output_tokens": 615,
+   "saved_output_tokens": -137,
+   "vague_passed": false,
+   "ready_passed": false,
+   "vague_cost_usd": 0.038543,
+   "ready_cost_usd": 0.0200012,
+   "transcript_matches": true
+  },
+  {
+   "task": "r09",
+   "kind": "brief",
+   "vague_output_tokens": 674,
+   "ready_output_tokens": 1054,
+   "saved_output_tokens": -380,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0418212,
+   "ready_cost_usd": 0.0243472,
+   "transcript_matches": true
+  },
+  {
+   "task": "r10",
+   "kind": "brief",
+   "vague_output_tokens": 540,
+   "ready_output_tokens": 195,
+   "saved_output_tokens": 345,
+   "vague_passed": false,
+   "ready_passed": true,
+   "vague_cost_usd": 0.0186952,
+   "ready_cost_usd": 0.0157372,
+   "transcript_matches": true
+  }
+ ],
+ "control": {
+  "tasks": 20,
+  "ratio_vague_to_ready": 2.114,
+  "interval_vague_to_ready": [
+   1.372,
+   3.753
+  ],
+  "ratio_control_to_ready": 1.594,
+  "interval_control_to_ready": [
+   0.994,
+   2.902
+  ],
+  "pass_rate": {
+   "vague": 0.05,
+   "ready": 0.85,
+   "control": 0.05
+  },
+  "ready_lost": [
+   {
+    "task": "c10",
+    "vague_output_tokens": 77,
+    "ready_output_tokens": 114,
+    "vague_passed": false,
+    "ready_passed": true
+   },
+   {
+    "task": "r02",
+    "vague_output_tokens": 627,
+    "ready_output_tokens": 866,
+    "vague_passed": false,
+    "ready_passed": true
+   },
+   {
+    "task": "r06",
+    "vague_output_tokens": 729,
+    "ready_output_tokens": 814,
+    "vague_passed": false,
+    "ready_passed": true
+   },
+   {
+    "task": "r08",
+    "vague_output_tokens": 478,
+    "ready_output_tokens": 615,
+    "vague_passed": false,
+    "ready_passed": false
+   },
+   {
+    "task": "r09",
+    "vague_output_tokens": 674,
+    "ready_output_tokens": 1054,
+    "vague_passed": false,
+    "ready_passed": true
+   }
+  ],
+  "resamples": 10000,
+  "seed": 7
+ }
+}

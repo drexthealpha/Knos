@@ -1,0 +1,150 @@
+{
+ "plan": "docs/reference/evidence_plan.md",
+ "plan_commit": "04be87ca544b57c325cfad12134ea5a832995fad",
+ "plan_url": "https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md",
+ "idt": {
+  "tasks": 20,
+  "vague_to_ready": 2.114,
+  "vague_to_ready_95": [
+   1.372,
+   3.753
+  ],
+  "control_to_ready": 1.594,
+  "control_to_ready_95": [
+   0.994,
+   2.902
+  ],
+  "pass_rate": {
+   "vague": 0.05,
+   "ready": 0.85,
+   "control": 0.05
+  },
+  "ready_lost": [
+   "c10",
+   "r02",
+   "r06",
+   "r08",
+   "r09"
+  ],
+  "claim_held": false,
+  "raw": [
+   "docs/idt/e1/runs.json",
+   "docs/idt/e1/summary.json"
+  ]
+ },
+ "proof_checking": {
+  "n": 60,
+  "knos_caught": 60,
+  "ci_caught": 31,
+  "knos_misses": [],
+  "ci_misses": [
+   "Python, pytest: deleted test, acceptance:all",
+   "Python, pytest: weakened assert, acceptance:all",
+   "Python, pytest: renamed check, tests",
+   "Python, pytest: renamed check, unit",
+   "Python, pytest: renamed check, check",
+   "Python, pytest: renamed check, test-suite",
+   "Python, pytest: renamed check, verify",
+   "Python, pytest: renamed check, ci-test",
+   "Python, pytest: forged check name, tests",
+   "Python, pytest: forged check name, unit",
+   "Python, pytest: forged check name, check",
+   "Python, pytest: forged check name, test-suite",
+   "Python, pytest: forged check name, verify",
+   "Python, pytest: forged check name, ci-test",
+   "JavaScript, node:test: deleted test, acceptance:all",
+   "JavaScript, node:test: skipped test, acceptance:all",
+   "JavaScript, node:test: weakened assert, acceptance:all",
+   "JavaScript, node:test: renamed check, tests",
+   "JavaScript, node:test: renamed check, unit",
+   "JavaScript, node:test: renamed check, check",
+   "JavaScript, node:test: renamed check, test-suite",
+   "JavaScript, node:test: renamed check, verify",
+   "JavaScript, node:test: renamed check, ci-test",
+   "JavaScript, node:test: forged check name, tests",
+   "JavaScript, node:test: forged check name, unit",
+   "JavaScript, node:test: forged check name, check",
+   "JavaScript, node:test: forged check name, test-suite",
+   "JavaScript, node:test: forged check name, verify",
+   "JavaScript, node:test: forged check name, ci-test"
+  ],
+  "per_operator": {
+   "deleted test": {
+    "n": 12,
+    "ci_caught": 10,
+    "knos_caught": 12
+   },
+   "skipped test": {
+    "n": 12,
+    "ci_caught": 11,
+    "knos_caught": 12
+   },
+   "weakened assert": {
+    "n": 12,
+    "ci_caught": 10,
+    "knos_caught": 12
+   },
+   "renamed check": {
+    "n": 12,
+    "ci_caught": 0,
+    "knos_caught": 12
+   },
+   "forged check name": {
+    "n": 12,
+    "ci_caught": 0,
+    "knos_caught": 12
+   }
+  },
+  "raw": [
+   "docs/reference/e1_mutants.json"
+  ]
+ },
+ "qloo": [
+  {
+   "test": "the verdict against a free-data baseline",
+   "made": "2026-10-23 07:14 UTC",
+   "result": "changed on 10 of 20 ideas",
+   "said": "Qloo changed the verdict",
+   "raw": "docs/reference/e1_qloo_diff.json (from https://knos.onrender.com/api/qloo-diff)"
+  },
+  {
+   "test": "where demand is (Census business counts)",
+   "made": "2026-10-25 11:38 UTC",
+   "result": "0.1933 with Qloo against 0.4067 for the model alone, difference -0.2133 (95% interval -0.36 to -0.06)",
+   "said": "Qloo lost",
+   "raw": "docs/reference/where_truth.json"
+  },
+  {
+   "test": "taste (film fans)",
+   "made": "2026-10-25 14:54 UTC",
+   "result": "0.32 against 0.3067, difference 0.0133 (95% interval -0.06 to 0.0867)",
+   "said": "a tie",
+   "raw": "docs/reference/taste_truth.json"
+  },
+  {
+   "test": "a public dataset of crowdfunded product launches",
+   "made": "2026-10-24 23:06 UTC",
+   "result": "rank correlation 0.1076 with Qloo against 0.1133 without, difference -0.0057 (95% interval -0.0371 to 0.0252)",
+   "said": "no lift",
+   "raw": "docs/reference/qloo_lift_ranked.json"
+  }
+ ],
+ "preorders": {
+  "projects": 100,
+  "held": 2,
+  "released": 10,
+  "founders": {
+   "held": 2,
+   "released": 10
+  },
+  "others": {
+   "held": 0,
+   "released": 0
+  },
+  "owner_labels": {
+   "Knos (operator)": 12
+  },
+  "rule": "an order counts as the founder's when its project was opened by the founder or by one of Knos's own test runs (owner label empty, or starting test, knos, guest, founder or e2e)"
+ },
+ "qloo_calls_spent": 0
+}

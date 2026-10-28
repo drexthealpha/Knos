@@ -93,6 +93,21 @@ def transcript_usage(session: str) -> dict | None:
     return None
 
 
+FILLER = "This line adds nothing to the request. "
+
+
+def control(task: dict) -> str:
+    """The vague brief padded with neutral filler to the Ready brief's length in characters (evidence_plan.md): length
+    alone then cannot explain a difference between the vague and the Ready brief."""
+    v, n = task["vague"], len(task["ready"])
+    pad = (FILLER * (n // len(FILLER) + 2))[: max(0, n - len(v) - 2)]
+    return (v + "\n\n" + pad)[:n] if n > len(v) else v
+
+
+def brief_of(task: dict, arm: str) -> str:
+    return control(task) if arm == "control" else task[arm]
+
+
 def run(brief: str, model: str, effort: str, cwd: Path) -> dict:
     t = time.time()
     p = subprocess.run(["claude.cmd" if os.name == "nt" else "claude", "-p", "--output-format", "json", "--model", model, "--effort", effort, "--tools", ""],
@@ -116,6 +131,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", default="")
     ap.add_argument("--out", default=str(ROOT / "docs" / "idt"))
     ap.add_argument("--recheck", action="store_true", help="score the stored replies again; no model call")
+    ap.add_argument("--arms", default="vague,ready", help="the arms to run, of vague, ready and control")
     a = ap.parse_args(argv)
     tasks = json.loads((ROOT / "bench" / "idt" / "tasks.json").read_text(encoding="utf-8"))["tasks"]
     if a.only:
@@ -136,10 +152,10 @@ def main(argv=None) -> int:
     cwd = Path(tempfile.gettempdir()) / "knos-idt-bench"
     cwd.mkdir(exist_ok=True)
     for t in tasks:
-        for which in ("vague", "ready"):
+        for which in a.arms.split(","):
             if any(r["task"] == t["id"] and r["brief"] == which and not r.get("error") and not r.get("is_error") for r in runs):
                 continue
-            r = run(t[which], a.model, a.effort, cwd)
+            r = run(brief_of(t, which), a.model, a.effort, cwd)
             if not r.get("error") and not r.get("is_error"):
                 r["passed"], r["check"] = check(t, r["reply"])
                 r["transcript"] = transcript_usage(r["session_id"]) if r.get("session_id") else None
@@ -151,6 +167,41 @@ def main(argv=None) -> int:
             print(t["id"], which, r.get("output_tokens"), r.get("passed"), r.get("check") or r.get("error") or "", flush=True)
     (out / "summary.json").write_text(json.dumps(summary(runs), indent=1), encoding="utf-8")
     return 0
+
+
+def interval(pairs: list[tuple[int, int]], n: int = 10_000, seed: int = 7) -> list[float] | None:
+    """The 95% bootstrap interval of sum(a) / sum(b) over tasks: n resamples with random.Random(seed), the 2.5th and
+    97.5th percentiles."""
+    import random
+    if not pairs:
+        return None
+    rng, k, got = random.Random(seed), len(pairs), []
+    for _ in range(n):
+        pick = [pairs[rng.randrange(k)] for _ in range(k)]
+        b = sum(x[1] for x in pick)
+        got.append(sum(x[0] for x in pick) / b if b else float("inf"))
+    got.sort()
+    return [round(got[int(0.025 * n)], 3), round(got[int(0.975 * n) - 1], 3)]
+
+
+def with_control(runs: list[dict]) -> dict:
+    """The control arm against the Ready brief, and the losses, over the tasks that have all three arms."""
+    by: dict = {}
+    for r in runs:
+        if not r.get("error") and not r.get("is_error"):
+            by.setdefault(r["task"], {})[r["brief"]] = r
+    rows = [(tid, b) for tid, b in sorted(by.items()) if {"vague", "ready", "control"} <= set(b)]
+    vr = [(b["vague"]["output_tokens"], b["ready"]["output_tokens"]) for _t, b in rows]
+    cr = [(b["control"]["output_tokens"], b["ready"]["output_tokens"]) for _t, b in rows]
+    tot = lambda xs, i: sum(x[i] for x in xs)  # noqa: E731
+    lost = [{"task": t, "vague_output_tokens": b["vague"]["output_tokens"], "ready_output_tokens": b["ready"]["output_tokens"],
+             "vague_passed": b["vague"]["passed"], "ready_passed": b["ready"]["passed"]}
+            for t, b in rows if b["ready"]["output_tokens"] > b["vague"]["output_tokens"] or (b["vague"]["passed"] and not b["ready"]["passed"])]
+    n = len(rows)
+    return {"tasks": n, "ratio_vague_to_ready": round(tot(vr, 0) / tot(vr, 1), 3) if n and tot(vr, 1) else None, "interval_vague_to_ready": interval(vr),
+            "ratio_control_to_ready": round(tot(cr, 0) / tot(cr, 1), 3) if n and tot(cr, 1) else None, "interval_control_to_ready": interval(cr),
+            "pass_rate": {a: round(sum(b[a]["passed"] for _t, b in rows) / n, 3) if n else None for a in ("vague", "ready", "control")},
+            "ready_lost": lost, "resamples": 10_000, "seed": 7}
 
 
 def summary(runs: list[dict]) -> dict:
@@ -177,7 +228,8 @@ def summary(runs: list[dict]) -> dict:
             "vague_pass_rate": round(sum(r["vague_passed"] for r in rows) / n, 3) if n else None,
             "ready_pass_rate": round(sum(r["ready_passed"] for r in rows) / n, 3) if n else None,
             "vague_cost_usd": round(sum(r["vague_cost_usd"] or 0 for r in rows), 4), "ready_cost_usd": round(sum(r["ready_cost_usd"] or 0 for r in rows), 4),
-            "transcripts_match": all(r["transcript_matches"] for r in rows), "rows": rows}
+            "transcripts_match": all(r["transcript_matches"] for r in rows), "rows": rows,
+            **({"control": with_control(runs)} if any(r.get("brief") == "control" for r in runs) else {})}
 
 
 if __name__ == "__main__":
