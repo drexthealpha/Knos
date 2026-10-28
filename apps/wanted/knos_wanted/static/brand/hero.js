@@ -649,7 +649,8 @@ ${src(h, price.src)}</section>
   });
   // the past result, drawn last: every chip and the box already answer, and a snapshot the card cannot read leaves
   // the first screen as it is (the chips still check)
-  const shown = (r) => cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } });
+  const shown = (r) => { document.dispatchEvent(new CustomEvent("knos:proof", { detail: r }));   // the shape under the box reads it too
+    return cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } }); };
   // the Open sample, asked of the server as soon as the box is in view (no Qloo answer is ever in the page)
   if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
 })();

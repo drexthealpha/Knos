@@ -26,22 +26,18 @@
     const tick = (now) => { const t = now - t0; frame(Math.min(t, T - 1)); if (t < T) raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick);
   };
-  // the live record's numbers: the latest real verdict and its hash (GET /api/proof), the held units (GET /api/money)
-  const api = fig.dataset.api || "https://knos.onrender.com";
-  const get = (p) => fetch(api + p).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  // asked after the page has loaded and gone quiet, so the first paint and the box never wait for it
-  const ask = () => Promise.all([get("/api/proof"), get("/api/money")]).then(([p, m]) => {
-    const pr = (p && (p.proof || p)) || {};
+  // the live record's numbers: the latest real verdict and its hash, from the proof the box itself reads (hero.js sends
+  // it as knos:proof; this asks nobody); the held units are the crossing's record, carried in the page (data-n3)
+  const take = (p) => {
+    const pr = (p && (p.sample || p.proof || p)) || {};
     if (pr.decision && pr.decision.verdict) fig.dataset.n1 = nums[1] = String(pr.decision.verdict).replace("_", " ").toLowerCase();
     const h = (pr.ready && pr.ready.criteria_hash) || pr.criteria_hash || pr.hash;
     if (h) fig.dataset.n2 = nums[2] = String(h).slice(0, 8);
-    if (m && m.totals && Number.isFinite(m.totals.held)) fig.dataset.n3 = nums[3] = `${m.totals.held} test units`;
     if (pr.idea) fig.dataset.n0 = nums[0] = String(pr.idea).slice(0, 40);
     fig.dataset.ready = "1";
     play();
-  });
-  const later = () => (globalThis.requestIdleCallback ? requestIdleCallback(ask, { timeout: 2500 }) : setTimeout(ask, 1200));
-  if (document.readyState === "complete") later(); else addEventListener("load", later, { once: true });
+  };
+  document.addEventListener("knos:proof", (e) => take(e.detail), { once: true });
   fig.addEventListener("mouseenter", play);
   fig.addEventListener("focusin", play);
 })();

@@ -33,7 +33,7 @@
         <a href="https://drexthealpha.github.io/Knos/pricing.html">Pricing</a>
         <a href="/with-without">With and without Qloo</a>
         <a href="/qloo-safe-use">How Knos uses Qloo safely</a>
-        <a href="https://drexthealpha.github.io/Knos/#paid-on-proof" id="go-check">Paid on proof</a>
+        <a href="https://drexthealpha.github.io/Knos/check/" id="go-check">Paid on proof</a>
         <a href="https://drexthealpha.github.io/Knos/faq.html">Questions</a>
         <a href="https://drexthealpha.github.io/Knos/how-we-test.html">How we test</a>
         <a href="https://github.com/drexthealpha/Knos/tree/main/docs" rel="noopener">Docs</a>
@@ -75,19 +75,19 @@
 <div class="k-hero" id="k-hero" data-api="" data-app="/app/">
   <p class="k-for" id="k-for">For anyone about to build or fund a product: see who wants it and where, then get paid only on proof.</p>
   <h1 id="k-mission" class="k-mission">See who wants your product, and where, before you build it</h1>
-  <input id="k-guess" class="k-guess" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Where would you launch it? (optional)" aria-label="Where would you launch it? (optional)">
-  <input id="k-who" class="k-guess" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Who buys it? (optional)" aria-label="Who buys it? (optional)">
   <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand">
     <input id="k-q" name="q" type="text" aria-label="What are you about to build? An idea, or a paper's DOI" maxlength="500" placeholder="What are you about to build?" enterkeyhint="go" spellcheck="false">
     <button id="k-go" type="submit"><span>Check demand</span></button> <span class="k-fine k-wait" data-wait>about 2 s</span>
   </form>
   <p class="k-fine k-limit" data-qloo-limit hidden></p>
-  <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose data-api="" data-n4="zCxgsXmA" data-state="4" aria-label="From idea or paper to paid on proof: demand, Ready brief, money held">
+  <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose data-api="" data-n3="10 pre-orders" data-n4="zCxgsXmA" data-state="4" aria-label="From idea or paper to paid on proof: demand, Ready brief, money held">
     <svg viewBox="0 0 180 64" width="180" height="64" aria-hidden="true"><path data-shape d="M10 34 C40 34 60 56 80 56 C100 56 140 12 170 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
       <circle data-dot r="5" fill="currentColor" style="offset-path:path('M10 34 C40 34 60 56 80 56 C100 56 140 12 170 12');offset-distance:100%"/></svg>
     <figcaption><b data-state data-i="4">Paid on proof</b> <span data-num>zCxgsXmA</span></figcaption>
   </figure>
   <script src="/static/brand/shape.js" defer></script>
+  <input id="k-guess" class="k-guess" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Where would you launch it? (optional)" aria-label="Where would you launch it? (optional)">
+  <input id="k-who" class="k-guess" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Who buys it? (optional)" aria-label="Who buys it? (optional)">
   <ul class="k-proofs" data-proof-lines data-not-prose>
     <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-proof-line="caught">Altered pull requests caught: Knos 60 of 60, plain CI 31 of 60</a></li>
     <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-proof-line="ready">Ready briefs passed 85%, vague 5%, padded 5%</a></li>
@@ -756,7 +756,8 @@ ${src(h, price.src)}</section>
   });
   // the past result, drawn last: every chip and the box already answer, and a snapshot the card cannot read leaves
   // the first screen as it is (the chips still check)
-  const shown = (r) => cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } });
+  const shown = (r) => { document.dispatchEvent(new CustomEvent("knos:proof", { detail: r }));   // the shape under the box reads it too
+    return cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } }); };
   // the Open sample, asked of the server as soon as the box is in view (no Qloo answer is ever in the page)
   if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
 })();
