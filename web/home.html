@@ -672,7 +672,7 @@ ${src(h, price.src)}</section>
   const shown = (r) => cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } });
   let carried = null;
   try { carried = JSON.parse(document.getElementById("k-proof")?.textContent || "null"); } catch { carried = null; }
-  if (carried) shown({ proof: carried });                      // in the page: at the first paint
+  if (carried) shown(carried.proof ? carried : { proof: carried });   // in the page: the Open sample (else the last check), at the first paint
   // the Open sample, asked as soon as the box is in view (no stored answer in the page; a hidden box asks nobody)
   if (!asked && !carried) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
 })();

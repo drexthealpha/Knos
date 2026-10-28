@@ -21,8 +21,9 @@ def fetch(app: str) -> dict | None:
     for _ in range(3):
         try:
             with urllib.request.urlopen(urllib.request.Request(app + "/api/proof", headers={"User-Agent": "knos proof_snapshot"}), timeout=60) as r:
-                p = json.loads(r.read()).get("proof")
-                return p if isinstance(p, dict) and p.get("hash") else None
+                doc = json.loads(r.read())
+                p = doc.get("proof")
+                return doc if isinstance(p, dict) and p.get("hash") else None
         except (OSError, ValueError):
             time.sleep(10)
     return None
@@ -47,10 +48,11 @@ def main(argv: list[str]) -> int:
     if p is None:
         print("proof snapshot: the app gave none; the page asks for it when shown")
         return 0
-    p = shape(p)
-    data = json.dumps(p, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    doc = {"proof": shape(p["proof"]), **({"sample": shape(p["sample"])} if isinstance(p.get("sample"), dict) else {})}
+    p = doc["proof"]
+    data = json.dumps(doc, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     page.write_text(html.replace(SLOT, f'<script type="application/json" id="k-proof">{data}</script>', 1), encoding="utf-8", newline="\n")
-    print(f"proof snapshot: {p.get('idea')!r}, checked {p.get('checked_at')}")
+    print(f"proof snapshot: {p.get('idea')!r}, checked {p.get('checked_at')}; sample {'carried' if 'sample' in doc else 'none'}")
     try:                                             # and the measured numbers of the page's vectors (/api/vectors)
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "wanted"))
         from knos_wanted import vectors
