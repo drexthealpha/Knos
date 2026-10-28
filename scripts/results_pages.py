@@ -32,7 +32,7 @@ def cards(file: str) -> list[dict]:
             continue
         t = metros.launch_terms(r)
         v = (r.get("decision") or {}).get("verdict")
-        word = "Not yet: Qloo sets no launch city for this idea" if v == "OPEN" and not t else WORD.get(v, str(v))
+        word = "Not yet: Qloo sets no launch city for this idea" if v == "OPEN" and not t else WORD.get(str(v), str(v))
         g = r.get("gap") or {}
         who = r.get("who") or {}
         out.append({"id": str(r.get("hash") or "")[:16], "idea": r.get("idea") or chip, "made": str(r.get("made") or "")[:10], "word": word,

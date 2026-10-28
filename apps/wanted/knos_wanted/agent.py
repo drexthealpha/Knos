@@ -650,7 +650,10 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                 rows, said = got.get("rows", [])[:20], got.get("said")
                 if not rows and q.strip():           # as /api/memory/search: the crossings and checks that name it
                     from .server import named
-                    rows = named(state, q)
+                    try:
+                        rows = named(state, q)
+                    except (AttributeError, TypeError):  # a server state without its reports (a test's): Sibyl's answer stands
+                        rows = []
                     if rows:                         # none found either: Sibyl's own words stand
                         said = f"{len(rows)} crossing{'s' if len(rows) != 1 else ''} and checks name \"{q}\"."
                 # Sibyl's verdict object and its code, as Sibyl gave them (why these rows, or why none)

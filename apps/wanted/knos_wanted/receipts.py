@@ -102,7 +102,11 @@ main{max-width:860px;margin:0 auto;padding:16px 16px 40px}a{color:#2b3aa8}h1{fon
 table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;vertical-align:top;padding:6px 8px;border-top:1px solid #d6d6cf;overflow-wrap:anywhere}
 tr:target{background:#fff3b0}code{font-size:.82rem;overflow-wrap:anywhere}.fine{font-size:.85rem;color:#5a5d68}
 @media (prefers-color-scheme:dark){body{background:#07080c;color:#e8e9ee}a{color:#9fb0ff}th,td{border-color:#2a2c35}tr:target{background:#3a3410}.fine{color:#a3a6b3}}
-@media (max-width:560px){thead{display:none}table,tbody,tr,td{display:block}tr{border-top:1px solid #d6d6cf;padding:6px 0}td{border:0;padding:2px 0}}"""
+@media (max-width:560px){thead{display:none}table,tbody,tr,td{display:block}tr{border-top:1px solid #d6d6cf;padding:6px 0}td{border:0;padding:2px 0}}
+.k-draw{vertical-align:-3px;margin-right:4px;color:#17703f}.k-draw path{stroke-dasharray:24;stroke-dashoffset:0}
+@media (prefers-color-scheme:dark){.k-draw{color:#5fd28f}}
+@media (prefers-reduced-motion:no-preference){.k-draw path{stroke-dashoffset:24;animation:k-draw .32s cubic-bezier(.2,.8,.2,1) .12s forwards}@keyframes k-draw{to{stroke-dashoffset:0}}}"""
+CHECK = '<svg class="k-draw" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 
 
 def page(rep: dict | None, rid: str) -> str:
@@ -125,11 +129,11 @@ def page(rep: dict | None, rid: str) -> str:
                 cell, val = e(r["what"]), f'{e(r["value"])}: {e(r.get("who") or "")} <span class="fine">{e(str(r.get("model") or ""))}, {e(str(r.get("at") or "")[:10])}</span>'
             elif r["source"] == "record":
                 cell = e(r["what"])
-                val = (f'Line {e(str(r["seq"]))}, {e(str(r.get("kind")))}, {e(str(r.get("at") or ""))} <span class="fine">claim {e(str(r["claim"])[:16])}</span>'
+                val = (f'{CHECK}Line {e(str(r["seq"]))}, {e(str(r.get("kind")))}, {e(str(r.get("at") or ""))} <span class="fine">claim {e(str(r["claim"])[:16])}</span>'
                        if r.get("recorded") else e(r.get("why") or ""))
             else:
                 cell = e(r["what"])
-                val = " ".join(f'<a href="https://explorer.solana.com/tx/{e(s)}?cluster=devnet">{e(s[:12])}</a>' for s in r["transactions"]) or e(r["said"])
+                val = (CHECK if r["transactions"] else "") + (" ".join(f'<a href="https://explorer.solana.com/tx/{e(s)}?cluster=devnet">{e(s[:12])}</a>' for s in r["transactions"]) or e(r["said"]))
             trs.append(f'<tr id="{e(r["id"])}" data-source="{e(r["source"])}"><td>{e(r["source"])}</td><td>{cell}</td><td>{val}</td></tr>')
         title = f"Receipts: {rep.get('idea') or 'this result'}"
         body = (f'<h1>Receipts</h1><p>{e(str(rep.get("idea") or ""))} · <a href="/r/{e(rid)}">the result</a> · '

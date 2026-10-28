@@ -33,3 +33,6 @@
 .k-part{border-right:0;border-bottom:1px solid var(--line);}
 .k-part:last-child{border-bottom:0;}
 }
+:root{--dur-0:80ms;--dur-4:720ms;--stagger:40ms;--ease-exit:cubic-bezier(.4,0,1,1);--ease-move:cubic-bezier(.65,0,.35,1);--spring:linear(0,.054,.181,.339,.499,.644,.766,.862,.933,.982,1.013,1.03,1.038,1.038,1.034,1.029,1.023,1.017,1.012,1.007,1)}
+@supports not (transition-timing-function:linear(0,1)){:root{--spring:var(--ease)}}
+@media (prefers-reduced-motion:no-preference){.k-card .k-verdict{animation:k-rise 360ms var(--ease) 80ms both}@keyframes k-rise{from{clip-path:inset(0 0 100% 0);translate:0 .35em}}.k-switch{position:relative}.k-switch i{position:absolute;z-index:-1;inset-block:0;border-radius:99px;background:var(--soft);pointer-events:none}.k-cities li{position:relative}.k-cities li::before{content:"";position:absolute;left:-14px;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--accent);opacity:0;translate:-4px 0;transition:opacity var(--dur-1) var(--ease),translate var(--dur-2) var(--ease-move)}.k-cities li:hover::before,.k-cities li:focus-within::before{opacity:1;translate:0 0}.k-tiers li[aria-current]{animation:k-tier var(--dur-3) var(--spring) 400ms both}@keyframes k-tier{from{translate:-100% 0;opacity:.4}}}

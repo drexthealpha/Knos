@@ -46,11 +46,11 @@
   .t .k-table td[data-h]::before { content: attr(data-h) ": "; color: var(--muted); }
 }
 </style>
+<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Knos", "item": "https://drexthealpha.github.io/Knos/"}, {"@type": "ListItem", "position": 2, "name": "Proof", "item": "https://drexthealpha.github.io/Knos/proof/"}]}</script><!-- ld:end -->
 <link rel="preconnect" href="https://drexthealpha.github.io" crossorigin>
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
-<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Knos", "item": "https://drexthealpha.github.io/Knos/"}, {"@type": "ListItem", "position": 2, "name": "Proof", "item": "https://drexthealpha.github.io/Knos/proof/"}]}</script><!-- ld:end -->
 </head>
 <body>
 <header class="bar">
@@ -77,6 +77,13 @@
       </div>
     </div>
     <p class="fine">Each bar opens the file its number comes from.</p>
+    <figure class="p-quota" data-quota style="display:flex;gap:12px;align-items:center;margin:16px 0 0">
+      <svg width="64" height="80" viewBox="0 0 64 80" role="img" aria-labelledby="p-quota-t"><title id="p-quota-t">Qloo's month</title>
+        <path d="M6 6h52l-5 70H11z" fill="none" stroke="currentColor" stroke-width="2"/>
+        <rect data-quota-fill x="12" y="8" width="40" height="66" fill="var(--accent)" style="transform-origin:32px 74px;transform:scaleY(0)"/></svg>
+      <figcaption data-quota-said>Qloo's month: read from the app when this page opens.</figcaption>
+    </figure>
+
 <!-- k-board -->
     <section class="t" id="board">
       <h2>How did Knos do in each outside test?</h2>
@@ -105,6 +112,32 @@
   <span>Devnet is test mode: the money is test USDC.</span>
   <span><a href="../">Knos home</a> · <a href="../how-we-test.html">How we test Knos</a> · <a href="../status/">Status</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
 </footer>
+<script>
+// motion (sweep M1.md 4.8): the bars fill once, when the chart comes into view; with reduced motion they are drawn final
+(() => {
+  const chart = document.getElementById("p-chart"), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const FLAT = "linear(0,.047,.154,.287,.423,.549,.658,.749,.822,.878,.92,.951,.972,.987,.996,1.002,1.005,1.006,1.006,1.006,1)";
+  if (chart && !still && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver((es) => { if (!es.some((e) => e.isIntersecting)) return; io.disconnect();
+      chart.querySelectorAll(".p-row").forEach((row) => row.querySelectorAll(".p-bar").forEach((bar, i) => {
+        bar.querySelector(".p-fill")?.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 720, delay: i * 80, easing: FLAT, fill: "backwards" });
+        bar.querySelector(".p-val")?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, delay: 430 + i * 80, fill: "backwards" });
+      })); }, { threshold: 0.35, rootMargin: "0px 0px -10% 0px" });
+    chart.querySelectorAll(".p-fill").forEach((f) => { f.style.transformOrigin = "left"; });
+    io.observe(chart);
+  }
+  // P8: Qloo's month, a pure function of calls left and the month's limit
+  const q = document.querySelector("[data-quota]");
+  fetch("https://knos.onrender.com/api/qloo/status").then((r) => r.json()).then((j) => {
+    const left = j.month_left, limit = j.month_limit || 50000, rect = q.querySelector("[data-quota-fill]"), said = q.querySelector("[data-quota-said]");
+    const n = (x) => Number(x).toLocaleString("en-US"), share = left == null ? 0 : Math.max(0, Math.min(1, left / limit));
+    said.textContent = left == null ? "Qloo's month: not read since the app started; the bucket is drawn empty."
+      : `Qloo's month: ${n(left)} of ${n(limit)} calls left${j.month_reset ? `, back ${String(j.month_reset).slice(0, 10)}` : ""}.`;
+    if (still || !rect.animate) { rect.style.transform = `scaleY(${share})`; return; }
+    rect.animate([{ transform: "scaleY(0)" }, { transform: `scaleY(${share})` }], { duration: 720, easing: FLAT, fill: "forwards" });
+  }).catch(() => { q.querySelector("[data-quota-said]").textContent = "Qloo's month: the app did not answer."; });
+})();
+</script>
 <script>
 // each Knos program's devnet transactions, read live (the ids from the program_ids.json the build ships)
 (() => {

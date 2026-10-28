@@ -572,7 +572,7 @@ def test_the_verified_build_and_its_stamp_need_no_sha256sum_where_the_system_has
     no_sha256sum.mkdir()
     for d_ in ("/usr/bin", "/bin"):
         for f in Path(d_).iterdir():
-            if f.name != "sha256sum" and not (no_sha256sum / f.name).exists():
+            if f.name != "sha256sum" and not os.path.lexists(no_sha256sum / f.name):      # lexists: a dangling link in /bin too
                 (no_sha256sum / f.name).symlink_to(f)
     assert shutil.which("sha256sum", path=str(no_sha256sum)) is None
     first = run()

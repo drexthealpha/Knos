@@ -10,6 +10,9 @@ from knos.settle import pay as settle_pay
 
 _ = object()
 
+# html.parser.HTMLParser calls this for each tag it reads (scripts/test_one_product.py Links).
+_.handle_starttag
+
 # Typer registers these with decorators and calls them when a person types the command.
 cli._main, cli.bounty, cli.due, cli.mainnet_check_cmd, cli.status_cmd
 cli.balance_show, cli.balance_open, cli.balance_deposit, cli.balance_set, cli.balance_withdraw      # knos balance show | open | deposit | set | withdraw

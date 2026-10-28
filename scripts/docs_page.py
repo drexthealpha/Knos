@@ -36,9 +36,15 @@ def page(ss: list[dict]) -> str:
     e = html.escape
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": "Knos", "item": SITE}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": SITE + "docs/"}]}
-    body = "\n".join(
-        f'    <section data-q="{e(s["q"])}">\n      <h2>{e(s["q"])}</h2>\n      <p>Read <a href="{e(s["docs"][0]["href"])}">{e(s["docs"][0]["name"])}</a> first: {e(s["docs"][0]["what"])}.</p>\n'
-        f'      <ul>{"".join(f"<li><a href=\"{e(d["href"])}\">{e(d["name"])}</a>: {e(d["what"])}</li>" for d in s["docs"][1:])}</ul>\n    </section>' for s in ss)
+    def item(d: dict) -> str:
+        return '<li><a href="' + e(d["href"]) + '">' + e(d["name"]) + "</a>: " + e(d["what"]) + "</li>"
+
+    def section(s: dict) -> str:
+        first = s["docs"][0]
+        return (f'    <section data-q="{e(s["q"])}">\n      <h2>{e(s["q"])}</h2>\n'
+                f'      <p>Read <a href="{e(first["href"])}">{e(first["name"])}</a> first: {e(first["what"])}.</p>\n'
+                f'      <ul>{"".join(item(d) for d in s["docs"][1:])}</ul>\n    </section>')
+    body = "\n".join(section(s) for s in ss)
     n = sum(len(s["docs"]) for s in ss)
     return f"""<!doctype html>
 <html lang="en">

@@ -16,10 +16,13 @@ not a sales forecast.
 ## The decision check (Qloo's harness first, since 22 Oct 2026)
 
 `POST /api/check {idea, place?, leader?}` (web page, or `knos mcp` tool `knos_demand_check` with
-`KNOS_MCP_TOOLS=demand`, which POSTs to the hosted app at `KNOS_WANTED_URL`). Code: `apps/wanted/knos_wanted/check.py`
+`KNOS_MCP_TOOLS=demand`, which POSTs to the hosted app at `KNOS_WANTED_URL`).
+
+Code: `apps/wanted/knos_wanted/check.py`
 over `qloo_rest.py` (key in the request header only, from the server's environment; answers cached privately with
-no time limit; at most 4 calls per second; a monthly budget, `QLOO_MONTHLY_BUDGET`, default 9,000 uncached calls; at most
-1,500 calls on one UTC day, `DAY_CAP`; nothing sent once Qloo's month has under 2,000 calls left, `MONTH_FLOOR`).
+no time limit; at most 4 calls per second; a monthly budget, `QLOO_MONTHLY_BUDGET`, default 9,000 uncached calls).
+
+It sends at most 1,500 calls on one UTC day (`DAY_CAP`), and none once Qloo's month has under 2,000 calls left (`MONTH_FLOOR`).
 
 Each call goes first to Qloo's harness: one long-lived `qloo api mcp` process (`qloo_harness.py`), a surface the kit
 supports. A call goes there only when every parameter it sends maps onto a harness tool's argument, so its answer is

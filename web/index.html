@@ -327,7 +327,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
   <input id="k-guess" class="k-guess" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Where would you launch it? (optional)" aria-label="Where would you launch it? (optional)">
   <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand">
     <input id="k-q" name="q" type="text" aria-label="What are you about to build? An idea, or a paper's DOI" maxlength="500" placeholder="What are you about to build?" enterkeyhint="go" spellcheck="false">
-    <button id="k-go" type="submit">Check demand</button> <span class="k-fine k-wait" data-wait>about 2 s</span>
+    <button id="k-go" type="submit"><span>Check demand</span></button> <span class="k-fine k-wait" data-wait>about 2 s</span>
   </form>
   <p class="k-fine k-limit" data-qloo-limit hidden></p>
   <ul class="k-proofs" data-proof-lines data-not-prose>
@@ -375,6 +375,28 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
     tileIO.unobserve(e.target); for (const i of e.target.querySelectorAll("img[data-src]")) { i.src = i.dataset.src; i.removeAttribute("data-src"); } } }) : null;
   new MutationObserver(() => { for (const m of slot.querySelectorAll(".k-osm:not([data-watched])")) { m.dataset.watched = "";
     if (tileIO) tileIO.observe(m); else for (const i of m.querySelectorAll("img[data-src]")) i.src = i.dataset.src; } }).observe(slot, { childList: true, subtree: true });
+  // motion (sweep M1.md 4.3 and 4.7): one move per change, transform and opacity only; with reduced motion nothing moves
+  const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const SPRING = "linear(0,.054,.181,.339,.499,.644,.766,.862,.933,.982,1.013,1.03,1.038,1.038,1.034,1.029,1.023,1.017,1.012,1.007,1)";
+  const busy = (on) => {                 // P1: the button keeps its box; its label leaves upward and a spinner springs in where it was
+    const label = go.querySelector("span:not(.k-spin)") || go;
+    if (!on) { go.innerHTML = "<span>Check demand</span>"; go.style.minWidth = ""; return; }
+    go.style.minWidth = `${go.offsetWidth}px`;
+    const swap = () => { go.innerHTML = still() ? "<span>Checking</span>" : '<span class="k-spin" aria-hidden="true" style="display:inline-block;vertical-align:middle"></span><span class="k-sr">Checking</span>';
+      if (!still()) go.firstChild.animate([{ opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1 }], { duration: 240, easing: SPRING }); };
+    if (still() || !label.animate) return swap();
+    label.animate([{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "0 -4px" }], { duration: 120, easing: "cubic-bezier(.4,0,1,1)" }).finished.then(swap, swap);
+  };
+  const slide = (sw, to) => {           // P2: the indicator rides to the pressed tab, its leading edge stretched ahead
+    let i = sw.querySelector("i");
+    if (!i) { i = document.createElement("i"); i.setAttribute("aria-hidden", "true"); sw.prepend(i); }
+    const from = i.offsetWidth ? i.offsetLeft : to.offsetLeft;
+    Object.assign(i.style, { left: `${to.offsetLeft}px`, width: `${to.offsetWidth}px` });
+    const d = to.offsetLeft - from;
+    if (!d || still() || !i.animate) return;
+    i.style.transformOrigin = d > 0 ? "left" : "right";
+    i.animate([{ translate: `${-d}px 0`, scale: "1 1" }, { offset: 0.5, scale: `${1 + Math.abs(d) / to.offsetWidth * 0.3} 1` }, { translate: "0 0", scale: "1 1" }], { duration: 320, easing: SPRING });
+  };
   const said = (t) => { slot.innerHTML = `<p class="k-status" role="status"><span class="k-spin" aria-hidden="true"></span>${esc(t)}</p>`; };
 
   async function crossing(ref) {
@@ -472,6 +494,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
     if (!v) return;
     const k = v.closest(".k-card"), model = v.dataset.view === "model";
     k.querySelectorAll("[data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.view === v.dataset.view)));
+    slide(v.closest(".k-switch"), v);
     k.querySelector("[data-model-panel]")?.toggleAttribute("hidden", !model);
   });
   slot.addEventListener("click", (ev) => {
@@ -489,7 +512,9 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
     const tokens = document.querySelector('link[rel="stylesheet"][href*="tokens.css"]');
     if (document.getElementById("k-card-sheet")) return done();
     // both front doors write tokens.css into the page (server.inline_css, scripts/inline_css.py): the app's static path, else beside the page
-    const href = tokens ? tokens.href.replace(/tokens\.css(\?.*)?$/, "card.css") : location.pathname.startsWith("/app") ? "/static/brand/card.css" : new URL("brand/card.css", document.baseURI).href;
+    let href = null;
+    try { href = tokens ? tokens.href.replace(/tokens\.css(\?.*)?$/, "card.css") : location.pathname.startsWith("/app") ? "/static/brand/card.css" : new URL("brand/card.css", document.baseURI).href; } catch { href = null; }
+    if (!href) return done();                // a page with no address of its own (a test's): the card is drawn without it
     const l = Object.assign(document.createElement("link"), { rel: "stylesheet", id: "k-card-sheet", href });
     l.onload = l.onerror = () => done();
     document.head.append(l);
@@ -664,7 +689,7 @@ ${src(h, price.src)}</section>
       const m = await get(`/api/match?idea=${encodeURIComponent(v)}`).catch(() => null);
       if (m && (m.matches || []).length) { await cardCss(); slot.dataset.idea = v; slot.innerHTML = confirmCard(v, m.matches); return; }
     }
-    go.disabled = true; root.setAttribute("aria-busy", "true");
+    go.disabled = true; root.setAttribute("aria-busy", "true"); busy(true);
     const ref = paper(v), t0 = performance.now();
     slot.dataset.guess = (document.getElementById("k-guess")?.value || "").trim().slice(0, 60);
     said(ref ? "Reading the paper…" : "Asking Qloo…");
@@ -693,7 +718,7 @@ ${src(h, price.src)}</section>
       }
     } catch (e) {
       slot.innerHTML = `<p class="k-err" role="alert">${esc(e.message || e)}. Try again, or <a href="${esc(APP)}#research">open the full crossing</a>.</p>`;
-    } finally { go.disabled = false; root.removeAttribute("aria-busy"); }
+    } finally { go.disabled = false; root.removeAttribute("aria-busy"); busy(false); }
   }
   // a link that names an idea (?q=, from the fields page) runs its check at once: one press, already pressed
   const asked = new URLSearchParams(location.search).get("q");

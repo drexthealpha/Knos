@@ -10,7 +10,7 @@ permissions:
 concurrency: {group: quality, cancel-in-progress: false}
 jobs:
   live:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04        # Playwright 1.56 installs no Chromium on 26.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

@@ -21,7 +21,7 @@ KEEP_WHOLE = ("docs/reference/LOAD.md", "docs/reference/BENCH.md",
               "docs/reference/QLOO-COVERAGE.md")
 # a test's plan is committed with its sha256 before the test runs (scripts/test_taste_truth.py, test_where_truth.py):
 # its bytes stay as recorded, so it is neither split nor counted
-FIXED_PLANS = ("docs/reference/taste_truth_plan.md", "docs/reference/where_truth_plan.md")
+FIXED_PLANS = ("docs/reference/taste_truth_plan.md", "docs/reference/where_truth_plan.md", "docs/reference/forecast_plan.md")
 SENT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[(`\"'0-9])")
 
 

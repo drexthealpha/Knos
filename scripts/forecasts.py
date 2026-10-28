@@ -49,8 +49,9 @@ def rows(file: str) -> list[dict]:
 
 def page(rs: list[dict], sha: str) -> str:
     e = lambda v: html.escape("none" if v is None else str(v))  # noqa: E731
+    target = lambda r: "" if r["knos"]["target"] is None else " (target " + e(r["knos"]["target"]) + " pre-orders)"  # noqa: E731
     body = "\n".join(f'        <tr data-idea="{e(r["idea"])}"><td data-h="Idea">{e(r["idea"])}</td><td data-h="Knos with Qloo">{e(r["knos"]["city"])}'
-                     f'{"" if r["knos"]["target"] is None else f" (target {e(r["knos"]["target"])} pre-orders)"}</td><td data-h="Model alone">{e(r["model"])}</td>'
+                     f'{target(r)}</td><td data-h="Model alone">{e(r["model"])}</td>'
                      f'<td data-h="Placebo">{e(r["placebo"])}</td><td data-h="Made">{e(r["made"])}</td></tr>' for r in rs)
     return f"""<!doctype html>
 <html lang="en">
