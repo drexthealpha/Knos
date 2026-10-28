@@ -19,6 +19,7 @@ import urllib.parse
 import urllib.request
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from .porter import stem
 
@@ -51,7 +52,7 @@ def nearest(text: str, index: list[dict], k: int = 2) -> list[dict]:
     sharing none is never offered. Each: {idea, made, shared, differs: {theirs, yours}}."""
     asked = content(text)
     mine = {s for _w, s in asked}
-    rows = []
+    rows: list[dict[str, Any]] = []
     for r in index:
         idea = str(r.get("idea") or "")
         if not idea or norm(idea) == norm(text):
@@ -60,8 +61,8 @@ def nearest(text: str, index: list[dict], k: int = 2) -> list[dict]:
         shared = len(mine & {s for _w, s in theirs})
         if shared:
             rows.append({"idea": idea, "made": str(r.get("made") or ""), "shared": shared, "differs": _differs(asked, theirs)})
-    rows.sort(key=lambda r: r["made"], reverse=True)          # stable: within a shared count, the newest first
-    rows.sort(key=lambda r: r["shared"], reverse=True)
+    rows.sort(key=lambda r: str(r["made"]), reverse=True)          # stable: within a shared count, the newest first
+    rows.sort(key=lambda r: int(r["shared"]), reverse=True)
     return rows[:k]
 
 
@@ -125,7 +126,7 @@ def which(text: str, index: list[dict], products: list[str] | None = None, found
         rs = [{"text": p, "kind": "product"} for p in (products or []) if p]
         return {"asked": asked, "kind": "paper", "skip": False, "paper": found, "readings": rs[:4], "name_box": not rs,
                 "name_prompt": "Name the product this result enables"}
-    if any(norm(r.get("idea")) == norm(asked) for r in index):
+    if any(norm(str(r.get("idea") or "")) == norm(asked) for r in index):
         return {"asked": asked, "kind": "idea", "skip": True, "readings": [{"text": asked, "kind": "exact"}]}
     rs = [{"text": asked, "kind": "exact"}]
     for n in nearest(asked, index):

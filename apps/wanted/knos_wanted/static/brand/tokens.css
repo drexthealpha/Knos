@@ -153,8 +153,6 @@ code, pre, kbd, .mono { font-family: var(--code); }
 main p,main li,main dd{max-width:65ch}
 .k-big,.mx-need{line-height:1.5}
 
-/* motion, sweep 4.3 to 4.11 (each under 150 ms or none with reduced motion): the ask box, the press, the chips, the
-   links, the card's call to action, the price tier, the calls rows, the dialog; the error never shakes */
 @media (prefers-reduced-motion: no-preference) {
   .k-ask { transition: border-color 120ms var(--ease, ease), box-shadow 120ms var(--ease, ease); }
   .k-ask:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
@@ -170,7 +168,6 @@ main p,main li,main dd{max-width:65ch}
   dialog[open] { animation: k-dialog-in 120ms var(--ease, ease) both; } @keyframes k-dialog-in { from { opacity: 0; scale: .98; } to { opacity: 1; scale: 1; } }
 }
 
-/* the crossing as one shape, under the box (web/brand/shape.js) */
 #k-shape{display:flex;align-items:center;gap:12px;height:64px;margin:8px 0 4px;color:var(--accent);outline-offset:4px}#k-shape svg{flex:none;overflow:visible}
 #k-shape figcaption{color:var(--ink);font-size:var(--s-1);min-width:0}#k-shape [data-num]{font-family:var(--mono);color:var(--muted)}
 @media (prefers-reduced-motion: reduce){#k-shape *{animation:none!important;transition:none!important}}

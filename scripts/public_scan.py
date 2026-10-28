@@ -63,6 +63,10 @@ class _Text(HTMLParser):
             self.out.append(d)
 
 
+# HTMLParser's own callbacks, named here so a dead-code reader sees them used
+_CALLBACKS = (_Text.handle_starttag, _Text.handle_endtag, _Text.handle_data)
+
+
 def html_text(s: str) -> str:
     p = _Text()
     p.feed(s)
