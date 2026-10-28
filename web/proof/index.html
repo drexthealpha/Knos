@@ -34,6 +34,7 @@
 .p-base .p-fill{background:var(--muted)}
 .p-val{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-weight:600;font-size:var(--s0);color:var(--fg);mix-blend-mode:normal;white-space:nowrap}
 .p-fill+.p-val{text-shadow:0 0 3px var(--paper)}
+.p-bar:not(.p-base) .p-val{color:var(--accent-fg);text-shadow:none}
 .p-who{font-size:var(--s0);overflow-wrap:anywhere}
 .p-src{font-size:var(--s0)}
 .t .k-table{overflow-x:auto}
@@ -59,6 +60,8 @@
 <main>
   <section class="view proof-page" id="proof-page">
     <h1>Proof</h1>
+    <h2>What do the published numbers show?</h2>
+    <p>Each bar sets Knos against its baseline and opens the file its number comes from.</p>
     <div class="p-chart" id="p-chart" role="list">
       <div class="p-row" role="listitem" data-row="tamper">
         <h3>Cheating pull requests caught</h3>
@@ -76,7 +79,6 @@
         <a class="p-bar p-base" href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/qloo_ablation.json" data-n="6" data-of="6"><span class="p-who">Every answer removed</span><span class="p-track"><span class="p-fill" style="width:100%"></span><span class="p-val">6 of 6 cards</span></span></a>
       </div>
     </div>
-    <p class="fine">Each bar opens the file its number comes from.</p>
     <figure class="p-quota" data-quota style="display:flex;gap:12px;align-items:center;margin:16px 0 0">
       <svg width="64" height="80" viewBox="0 0 64 80" role="img" aria-labelledby="p-quota-t"><title id="p-quota-t">Qloo's month</title>
         <path d="M6 6h52l-5 70H11z" fill="none" stroke="currentColor" stroke-width="2"/>

@@ -387,10 +387,10 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
     if (still() || !label.animate) return swap();
     label.animate([{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "0 -4px" }], { duration: 120, easing: "cubic-bezier(.4,0,1,1)" }).finished.then(swap, swap);
   };
-  const slide = (sw, to) => {           // P2: the indicator rides to the pressed tab, its leading edge stretched ahead
+  const slide = (sw, to, was) => {      // P2: the indicator rides to the pressed tab, its leading edge stretched ahead
     let i = sw.querySelector("i");
     if (!i) { i = document.createElement("i"); i.setAttribute("aria-hidden", "true"); sw.prepend(i); }
-    const from = i.offsetWidth ? i.offsetLeft : to.offsetLeft;
+    const from = i.offsetWidth ? i.offsetLeft : (was || to).offsetLeft;
     Object.assign(i.style, { left: `${to.offsetLeft}px`, width: `${to.offsetWidth}px` });
     const d = to.offsetLeft - from;
     if (!d || still() || !i.animate) return;
@@ -437,7 +437,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
     const heat = where.filter((w) => Number.isFinite(w.lat) && Number.isFinite(w.lon)).map((w) => { const [x, y] = px(w.lat, w.lon, z);
       return `<span class="k-heat" style="left:${(x - x0).toFixed(0)}px;top:${(y - y0).toFixed(0)}px"></span>`; }).join("");
     const pins = pts.map((c, i) => `<span class="k-pin" title="${esc(c.name)}" style="left:${(xy[i][0] - x0).toFixed(0)}px;top:${(xy[i][1] - y0).toFixed(0)}px">${i + 1}</span>`).join("");
-    return `<div class="k-osm" role="img" aria-label="Launch cities on a map: ${esc(pts.map((c) => c.name).join(", "))}">${tiles.join("")}${heat}${pins}` +
+    return `<div class="k-osm" role="group" aria-label="Launch cities on a map: ${esc(pts.map((c) => c.name).join(", "))}">${tiles.join("")}${heat}${pins}` +
       `<a class="k-osm-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a></div>` +
       (pts.some((c) => c.coords_from === "Wikidata") ? `<p class="k-fine">Coordinates: Wikidata</p>` : "");
   }
@@ -493,8 +493,9 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
     const v = ev.target instanceof Element && ev.target.closest("[data-view]");
     if (!v) return;
     const k = v.closest(".k-card"), model = v.dataset.view === "model";
+    const was = k.querySelector('[data-view][aria-pressed="true"]');
     k.querySelectorAll("[data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.view === v.dataset.view)));
-    slide(v.closest(".k-switch"), v);
+    slide(v.closest(".k-switch"), v, was);
     k.querySelector("[data-model-panel]")?.toggleAttribute("hidden", !model);
   });
   slot.addEventListener("click", (ev) => {
@@ -510,7 +511,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
   let cardSheet = null;
   const cardCss = () => cardSheet || (cardSheet = new Promise((done) => {
     const tokens = document.querySelector('link[rel="stylesheet"][href*="tokens.css"]');
-    if (document.getElementById("k-card-sheet")) return done();
+    if (document.getElementById("k-card-sheet") || document.querySelector('link[rel="stylesheet"][href$="card.css"]')) return done();   // in the page's head: there already
     // both front doors write tokens.css into the page (server.inline_css, scripts/inline_css.py): the app's static path, else beside the page
     let href = null;
     try { href = tokens ? tokens.href.replace(/tokens\.css(\?.*)?$/, "card.css") : location.pathname.startsWith("/app") ? "/static/brand/card.css" : new URL("brand/card.css", document.baseURI).href; } catch { href = null; }
@@ -538,7 +539,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
       return `<li data-call="${esc(c.n)}"><a href="${esc(API)}/trace.html?hash=${encodeURIComponent(r.hash || "")}#call-${esc(c.n)}" target="_blank" rel="noopener">#${esc(c.n)}</a> ${
         esc(c.call || "")} <span class="k-fine">${esc(keys)}</span> · ${Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.cached ? "cached" : "live"}${c.error ? " · failed" : ""} · ${esc([...(fed[c.n] || [])].join(", ") || String(c.effect || "").slice(0, 60) || "the verdict")}${r.signals ? ` · <span data-role="${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}">${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}</span>` : ""}</li>`; });
     const first = (Array.isArray(r.calls) && r.calls[0] && r.calls[0].n) || 1;
-    return rows.length ? `<details class="k-calls" data-part="calls"><summary>Qloo calls (${rows.length})${chip("qloo", `call-${first}`)}</summary><ol>${rows.join("")}</ol></details>` : "";
+    return rows.length ? `<details class="k-calls" data-part="calls"><summary>Qloo calls (${rows.length})</summary><p class="k-fine">${chip("qloo", `call-${first}`)}</p><ol>${rows.join("")}</ol></details>` : "";
   }
 
   // a number's source as a chip at most 16 px tall (Qloo, rule, model or chain), opening its row of the result's receipts
@@ -647,7 +648,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
   ${terms ? `<p class="k-terms" data-part="terms" data-city="${esc(terms.city)}" data-target="${esc(terms.target)}">Launch in <b>${esc(terms.city)}</b>: ${esc(terms.target)} pre-orders.${chip("rule", "rule-target")} Every pre-order is refunded if the target is missed.</p>${terms.by_population ? `<p class="k-fine" data-part="by-population" data-pop-city="${esc(terms.by_population.city)}" data-pop-target="${esc(terms.by_population.target)}">By population: ${esc(terms.by_population.city)}, ${esc(terms.by_population.target)}.${chip("rule", "rule-population")} By Qloo taste: ${esc(terms.city)}, ${esc(terms.target)}.${chip("rule", "rule-target")}</p>` : ""}` : ""}
   ${r.signals && r.signals.line ? `<p class="k-fine" data-part="signals">${esc(r.signals.line)}</p>` : ""}${gapClose(r)}
   ${read}${why ? `<p class="k-why"><b>Knos rule:</b> ${esc(why)}</p>` : ""}${trendLine(r)}
-  ${Array.isArray(r.calls) && r.calls.length ? `<section class="k-timeline" data-timeline aria-live="polite"><p class="k-fine" data-counter>Qloo calls this check: 0 (live 0, cached 0)</p><ol data-rows></ol></section>` : ""}
+  ${Array.isArray(r.calls) && r.calls.length ? `<section class="k-timeline" data-timeline aria-live="polite"><p class="k-fine" data-counter>Qloo calls this check: 0 (live 0, cached 0)</p><ol data-rows tabindex="0" aria-label="Qloo calls, as they answered"></ol></section>` : ""}
   ${r.decision ? `<button type="button" class="k-chip" data-without aria-pressed="false">Without Qloo</button>` : ""}
   ${r.decision ? `<span class="k-switch" role="group" aria-label="With Qloo or the model alone"><button type="button" class="k-chip" data-view="qloo" aria-pressed="true">With Qloo</button><button type="button" class="k-chip" data-view="model" aria-pressed="false">Model alone</button></span>` : ""}</header>
   ${r.decision ? modelPanel(r, terms, [age, gender].filter(Boolean).join(", ") || segs.join(", ")) : ""}
@@ -685,11 +686,14 @@ ${src(h, price.src)}</section>
     if (!v) { q.focus(); return; }
     const { sure, ...send } = extra;
     extra = send;
+    go.disabled = true; root.setAttribute("aria-busy", "true"); busy(true);
     if (!sure && !extra.leader && !extra.exclude && !paper(v)) {          // a recorded idea: its matched product first
       const m = await get(`/api/match?idea=${encodeURIComponent(v)}`).catch(() => null);
-      if (m && (m.matches || []).length) { await cardCss(); slot.dataset.idea = v; slot.innerHTML = confirmCard(v, m.matches); return; }
+      if (m && (m.matches || []).length) {
+        await cardCss(); slot.dataset.idea = v; slot.innerHTML = confirmCard(v, m.matches);
+        go.disabled = false; root.removeAttribute("aria-busy"); busy(false); return;
+      }
     }
-    go.disabled = true; root.setAttribute("aria-busy", "true"); busy(true);
     const ref = paper(v), t0 = performance.now();
     slot.dataset.guess = (document.getElementById("k-guess")?.value || "").trim().slice(0, 60);
     said(ref ? "Reading the paper…" : "Asking Qloo…");
