@@ -13,4 +13,5 @@ echo
 out=$(curl -fsS -u "$auth" -H 'Content-Type: application/json' -X POST "$base/api/knos/proof" \
   -d "{\"id\":\"github:example/shop\",\"kind\":\"checkrun\",\"payload\":$(cat "$here/fixtures/checkruns/pass.json")}")
 echo "decision: $out"
-printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("gate:", d["gate"]); print("visual trace:", d["visual_trace"])'
+PY=python3; "$PY" -c "" 2>/dev/null || PY=py
+printf '%s' "$out" | "$PY" -c 'import json,sys; d=json.load(sys.stdin); print("gate:", d["gate"]); print("visual trace:", d["visual_trace"])'

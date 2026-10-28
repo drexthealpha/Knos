@@ -20,7 +20,8 @@ while [ $(( $(date +%s) - start )) -lt 180 ]; do
   sleep 5
 done
 waited=$(( $(date +%s) - start ))
-ok=$(printf '%s' "$health" | python3 -c 'import json,sys
+PY=python3; "$PY" -c "" 2>/dev/null || PY=py
+ok=$(printf '%s' "$health" | "$PY" -c 'import json,sys
 try: h=json.load(sys.stdin)
 except Exception: print("no"); sys.exit()
 print("yes" if h.get("production")=="Running" and h.get("fhir")=="ok" and h.get("java")=="ok" and h.get("vector")=="ok" else "no")' 2>/dev/null || echo no)
