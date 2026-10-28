@@ -35,4 +35,4 @@ def test_the_card_reads_calls_only_as_a_list_and_draws_the_past_result_last_insi
     js = (ROOT / "web" / "brand" / "hero.js").read_text(encoding="utf-8")
     assert "(r.calls || []).map" not in js and "Array.isArray(r.calls)" in js
     tail = js[js.index('root.addEventListener("click"'):]
-    assert re.search(r"try \{ draw\(r\); \} catch", tail) and "if (carried) shown({ proof: carried });" in tail
+    assert re.search(r"try \{ draw\(r\); \} catch", tail) and "if (carried) shown(carried.proof ? carried : { proof: carried });" in tail
