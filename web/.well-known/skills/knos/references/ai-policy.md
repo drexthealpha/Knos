@@ -1,6 +1,6 @@
 # How Knos reads a repository's AI policy
 
-Files, in this order, read at the BASE commit (a change cannot rewrite the policy it is judged by):
+Files, in this order, read at the BASE commit (a change cannot rewrite the policy it is checked against):
 `AI_POLICY.md`, `AI-POLICY.md`, `AI_POLICY.txt`, `.github/AI_POLICY.md`, `docs/AI_POLICY.md`, `CONTRIBUTING.md`,
 `CONTRIBUTING.rst`, `CONTRIBUTING.txt`, `.github/CONTRIBUTING.md`, `docs/CONTRIBUTING.md`. The first file that says
 anything about AI decides.

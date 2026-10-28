@@ -1,6 +1,6 @@
 #!/bin/sh
 # Install the official MCP SDK beside qloo_bridge.mjs, at the exact version Qloo's starter pins
-# (qloo-hackathon-kit starter/mcp-client/package.json: @modelcontextprotocol/sdk 1.30.1). Nothing is saved to a
+# (Qloo's starter kit, starter/mcp-client/package.json: @modelcontextprotocol/sdk 1.30.1). Nothing is saved to a
 # package.json (the repository keeps no JSON files under apps/wanted); node_modules/ is git-ignored.
 set -eu
 cd "$(dirname "$0")"

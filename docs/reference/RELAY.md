@@ -88,7 +88,7 @@ timestamp, and each timestamp says whose clock it is read from.
 
 | State | What has happened | Its timestamp is taken from | The wait before it is |
 | --- | --- | --- | --- |
-| `received` | the event (a merge, a `/knos settle` comment, the judge's success) reached `knos settle` | the job's clock when the command starts (`Run.began`) | GitHub's: starting a runner for the push, and the install step. Nobody but GitHub shortens the first; no Knos code runs before it |
+| `received` | the event (a merge, a `/knos settle` comment, the referee's success) reached `knos settle` | the job's clock when the command starts (`Run.began`) | GitHub's: starting a runner for the push, and the install step. Nobody but GitHub shortens the first; no Knos code runs before it |
 | `accepted` | the terms were checked against the pull request's last commit and passed, and GitHub signed the token for this run | the job's clock, right after GitHub's OIDC endpoint answered | Knos's reads of GitHub and Solana, a required check that has not finished (GitHub's), and GitHub's signature |
 | `submitted` | the relay handed the first transaction to the cluster | the relay's clock at its first send: the job's own when it relays its token (`KNOS_RELAY_KEY`), else the `sent_at` of the public worker's log line | the relay's: for the public worker, a pass reading the comment (see "Where a token waits") |
 | `confirmed` | the paying transaction reached Solana's `confirmed` commitment | the relay's clock when its last transaction confirmed (`confirmed_at`) | the cluster's |

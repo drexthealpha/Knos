@@ -88,7 +88,7 @@ def test_meter_constants_match_what_the_documents_say() -> None:
     free = re.search(r"pub const FREE_PER_MONTH: u64 = ([\d_]+);", src)
     assert fee and free
     assert (int(fee.group(1).replace("_", "")), int(free.group(1).replace("_", ""))) == (50_000, 10_000)
-    for name in ("docs/PRICING.md", "docs/reference/METER.md"):
+    for name in ("docs/reference/METER.md",):              # docs/PRICING.md prices the crossing; the meter and tips are METER.md's
         text = (ROOT / name).read_text(encoding="utf-8")
         assert "0.05" in text and "10,000" in text, name
 
@@ -98,6 +98,6 @@ def test_who_pays_matches_knos_pay() -> None:
     assert "let net = j.amount - fee;" in src  # a job's fee comes out of the amount
     order = (ROOT / "programs-v2" / "knos_pay" / "src" / "order.rs").read_text(encoding="utf-8")
     assert "n.amount.checked_add(fee)" in order  # an order's fee is paid on top
-    for name in ("docs/PRICING.md", "docs/reference/METER.md"):
+    for name in ("docs/reference/METER.md",):              # docs/PRICING.md prices the crossing; the meter and tips are METER.md's
         text = (ROOT / name).read_text(encoding="utf-8")
         assert "on top" in text and "out of" in text, name

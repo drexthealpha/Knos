@@ -32,7 +32,7 @@ record at `["done", sha256(claims)]` under your program, and the system program.
 The test fixture was built with `cargo build-sbf` from the v0.3.14 tag (crates.io has the same version). The test
 runs it in a simulator against the verifier (`tests/test_reader_template.py`, 2 tests). It has not been deployed to devnet, and no program outside this
 repository is known to use it. Built something on it? [docs/reference/COMPOSE.md](../../docs/reference/COMPOSE.md) says how to be listed, and the playground's `compose` task
-([tasks/outside/compose.json](../../tasks/outside/compose.json)) pays 5 test USDC for one devnet transaction of it.
+pays 5 test USDC for one devnet transaction of it.
 
 ## Five mistakes a reader can make, and the line that prevents each
 

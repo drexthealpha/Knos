@@ -430,7 +430,7 @@ after the transaction was sent (one run, not a benchmark).
 ## Token safety: mints that can be held, accounts a payout can reach
 
 knos_pay holds a bounty in a token account of its own and pays it with one transfer. Token-2022 lets a mint carry
-extensions that change what a transfer does, and some of them let somebody other than the funder and the judge decide
+extensions that change what a transfer does, and some of them let somebody other than the funder and the referee decide
 what happens to held money.
 
 Since 0.3.31 Knos reads a mint's extensions before it holds a bounty in it (`knos fund-wallet` refuses), and anyone

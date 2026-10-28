@@ -103,9 +103,9 @@ Campaign sizes from a published formula, not a sales forecast.
 Qloo's error text is never shown; a refused (4xx) question is cached a
   day so repeats do not spend the budget.
 
-**Paid on proof.** On an OPEN report a signed-in user pre-orders (`POST /api/preorder`): the app's demo devnet wallet
-(demo buyer, test money) locks the units through `knos.ideas.commit` as one stage "milestone" (oracle `referee_pass`)
-judged by a 2-of-3 panel on the knos_pay 0.3.34 test program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4`; the
+**Paid on proof.** On an OPEN report a signed-in user pre-orders (`POST /api/preorder`): the app's sample devnet wallet
+(sample buyer, test money) locks the units through `knos.ideas.commit` as one stage "milestone" (oracle `referee_pass`)
+checked by a 2-of-3 panel on the knos_pay 0.3.34 test program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4`; the
 payee is the maker's devnet wallet.
 
 The panel's keys are held by the server (`KNOS_WANTED_REFEREE_KEYS`): one server is
@@ -129,7 +129,7 @@ The water bottle's 45-unit pre-order: lock `5mCZbS5MLXD9sjQiXXMpQXGWGELwWeadKzms
 without the claim id refused (HTTP 422); referee PASS + release
 `4HhTwWcC6tMwtYYzaHNmYByPUDadZUuMQpthfwenw5fjr58jBJyrxw7SUUc89NUddzABSebZJT28Y8p3UwwhkzJm`,
 `5H7WmpNZDWpeBh1PWWqso65WZjognA7JkXXJCSLmLSceAtgbaGfU1sZTBDmY6ZGhFnpUCBL8aT9k6oSTw7Uoski`; the maker's wallet then held 45 test units. The evidence
-page in that run was an echo service showing the claim id (a demo, not a product page).
+page in that run was an echo service showing the claim id (a sample, not a product page).
 
 **Two more Qloo calls, used only where they change the target** (never the verdict):
 
@@ -173,7 +173,7 @@ abstract with its DOI, OpenAlex `cited_by_count`, year, retraction status, Nobel
 `apps/wanted/knos_wanted/data/nobel.toml` (rows quote and link nobelprize.org press releases), and the product it enables.
 
 After the demand check, "why it never crossed" flags the three walls only with evidence: money before proof (>= 5 years,
-Nobel or >= 1,000 citations, and no Qloo product for it), slow judges (an OpenAlex field or topic that is clinical or
+Nobel or >= 1,000 citations, and no Qloo product for it), slow referees (an OpenAlex field or topic that is clinical or
 regulated), failed attempts (Qloo products like it with popularity < 0.3); otherwise "no evidence".
 
 ## Sibyl is the agent's memory; the chain holds the money rules
@@ -194,7 +194,7 @@ on devnet (read from the chain)`. The program would refuse it too, because the o
 
 **Pre-orders are reported available only when they work.** At start and every 10 minutes the server builds the
 transaction a 5-unit pre-order sends (test-mint top-up and the stage's PANEL order with its three referee keys, through
-config/fees.yaml and config/referees.yaml) and runs devnet `simulateTransaction` with the demo buyer (nothing is sent);
+config/fees.yaml and config/referees.yaml) and runs devnet `simulateTransaction` with the sample buyer (nothing is sent);
 `/api/status` `preorders` is `available: false` with the reason otherwise.
 
 An unexpected error reaches the user as
@@ -246,7 +246,7 @@ The idea's text never leaves the Knos server: only the planner's search words do
    existing product its maker confirmed as its proxy, one call per product type (Qloo ranks one option type per call
    and says scores from separate calls are not comparable).
 5. Pre-order: the existing Knos graduation pre-order (`knos.graduation.preorder_ix`, a knos_pay FundOrderWallet),
-   by the demo buyer (the app's devnet test wallet) or the buyer's own wallet.
+   by the sample buyer (the app's devnet test wallet) or the buyer's own wallet.
 
 Knos keeps no copy of a buyer's tastes: the session lives in the server's memory for 30 minutes and is not recorded.
 
@@ -301,4 +301,4 @@ PYTHONPATH=src:apps/wanted python -m pytest -q apps/wanted/tests     # no networ
 ```
 
 With a key: `qloo setup --qloo` (typed once into the hidden prompt), then `qloo setup --status` must say "Qloo data:
-ready" before a live demo.
+ready" before a live sample.

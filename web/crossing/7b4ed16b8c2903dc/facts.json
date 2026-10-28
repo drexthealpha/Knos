@@ -146,7 +146,6 @@
  "demand": {
   "idea": "a graphene-coated cycling jacket",
   "city": "Boulder, CO",
-  "affinity": 0.9986,
   "cells": 3,
   "population": 326831,
   "target": 10,

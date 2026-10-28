@@ -1,5 +1,4 @@
-"""One Knos: the evidence repositories (evidence/<repo>/), the rehearsal
-repositories (rehearsals/<repo>/) and knos-hermes (hermes/knos-hermes/) are folders of Knos. Each folder holds the files
+"""One Knos: the evidence repositories (evidence/<repo>/) are folders of Knos. Each folder holds the files
 of one commit of the old repository byte for byte, and its SOURCE.json names that repository, the commit, the git
 tree id and every file with its git blob id. These tests recompute the blob of every file and the git tree of the
 folder from the bytes in this checkout (SOURCE.json left out), so a copy that drifts by one byte fails, and the copies
@@ -14,9 +13,8 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = sorted([*ROOT.glob("evidence/*/SOURCE.json"), *ROOT.glob("rehearsals/*/SOURCE.json"), ROOT / "hermes" / "knos-hermes" / "SOURCE.json"])
+SOURCES = sorted(ROOT.glob("evidence/*/SOURCE.json"))
 EVIDENCE = ("knos-witness", "knos-load", "knos-v0329-gate", "knos-v0329-outcomes")
-REHEARSALS = ("knos-e2e", "knos-e2e-202610020610")
 
 
 def _obj(kind: bytes, body: bytes) -> bytes:
@@ -44,9 +42,6 @@ def test_every_repository_of_the_task_has_a_folder():
     names = {(_load(s)["repository"], s.parent.relative_to(ROOT).as_posix()) for s in SOURCES}
     for repo in EVIDENCE:
         assert (f"drexthealpha/{repo}", f"evidence/{repo}") in names, repo
-    for repo in REHEARSALS:
-        assert (f"drexthealpha/{repo}", f"rehearsals/{repo}") in names, repo
-    assert ("drexthealpha/knos-hermes", "hermes/knos-hermes") in names
 
 
 @pytest.mark.parametrize("source", SOURCES, ids=lambda s: s.parent.relative_to(ROOT).as_posix())
@@ -99,13 +94,3 @@ def test_the_outcome_demo_names_its_commits_and_they_are_here():
     page = (ROOT / "docs" / "reference" / "OUTCOMES.md").read_text(encoding="utf-8")
     assert "evidence/knos-v0329-outcomes" in page and "evidence/knos-v0329-outcomes-b59b30f3" in page
 
-
-def test_knos_hermes_is_source_here_not_a_second_package():
-    meta = _load(ROOT / "hermes" / "knos-hermes" / "SOURCE.json")
-    assert set(meta.get("changed_here", {})) == {"pyproject.toml"}
-    pyproject = (ROOT / "hermes" / "knos-hermes" / "pyproject.toml").read_text(encoding="utf-8")
-    urls = pyproject.split("[project.urls]", 1)[1].split("\n\n", 1)[0]
-    assert "drexthealpha/knos-hermes" not in urls and "https://github.com/drexthealpha/Knos/tree/knos-0.3.34/hermes/knos-hermes" in urls
-    root = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'packages = ["src/knos"]' in root and "knos_hermes" not in root      # Knos builds one package
-    assert "hermes/knos-hermes" in (ROOT / "docs" / "reference" / "AGENTS.md").read_text(encoding="utf-8")

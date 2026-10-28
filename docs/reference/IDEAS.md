@@ -1,6 +1,6 @@
 # Idea in, then wanted? (steps 1 and 2 of the one flow)
 
-Research dies in the valley of death on three walls: money comes before proof, judges are slow, and single attempts
+Research dies in the valley of death on three walls: money comes before proof, referees are slow, and single attempts
 fail. Schmidhuber's machine economy, growing toward Kardashev II ([arXiv 2212.11279](https://arxiv.org/abs/2212.11279),
 Sec 20), needs a layer that says which research is real and pays for it. Knos is that layer. Every crossing starts
 with two steps, in every field of science:
@@ -89,7 +89,7 @@ milestone k of the claim in `knos.graduation`'s scope.
 
 `knos.ideas.release_schedule` splits N x P into whole units
 that sum exactly to it. The payout fee of `config/fees.yaml` goes on top of each order. Each stage is released when its
-milestone oracle is met and the judge signs, and refunded to the buyer after its deadline otherwise (anyone may send
+milestone oracle is met and the referee signs, and refunded to the buyer after its deadline otherwise (anyone may send
 `RefundOrder`):
 
 | oracle | met when (read live) |
@@ -130,7 +130,7 @@ ACCEPTED, and no verdict can be signed or released on it.
 
 **Pre-orders** go in the claim's pre-order pool (scope 0), paid to the makers when the product is delivered.
 
-**Who releases a stage.** knos_pay pays an order on proof its judge accepts. Two judges work for a stage:
+**Who releases a stage.** knos_pay pays an order on proof its referee accepts. Two referees work for a stage:
 
 - **A referee panel (knos_pay 0.3.34).** The buyer locks the stage as a PANEL order pinning m of n referee keys
   (`wanted.fund_panel_ix`). Each referee reads the stage's oracle (`wanted.check`) and signs the verdict over its
@@ -138,13 +138,13 @@ ACCEPTED, and no verdict can be signed or released on it.
   The relayer sends one signature per transaction (`wanted.stage_verdict_ixs`); at the m-th the program pays the stage
   to the payees, or refunds a missed stage to the buyer at once. A pending oracle gives no verdict to sign. Tested in
   the Solana runtime in `tests/test_ideas_panel.py`, and run on devnet (below).
-- **GitHub.** The judge repository's pinned `prove.yml`, signed by GitHub: `wanted.release_audience` gives the
-  audience with the evidence hash. The staged path with this judge runs in `tests/test_ideas_litesvm.py` (test issuer).
+- **GitHub.** The referee repository's pinned `prove.yml`, signed by GitHub: `wanted.release_audience` gives the
+  audience with the evidence hash. The staged path with this referee runs in `tests/test_ideas_litesvm.py` (test issuer).
 
 ## On devnet: three ideas, three fields (14 Oct 2026)
 
 `python -m knos.ideas.devnet --wallets DIR --out FILE`: real API reads, real transactions on the public knos_pay
-program, in the demo's own **test** mint `GnQv5a8QAmWMhAcKreMkJaS2p9j2LZzrRdsNsdjQq22z` (6 decimals, no freeze
+program, in the sample's own **test** mint `GnQv5a8QAmWMhAcKreMkJaS2p9j2LZzrRdsNsdjQq22z` (6 decimals, no freeze
 authority; test money, 0 revenue). Buyer `Hm36fQuLeD1vQAL4W8HiMTkCw5nhvohDQC9ycBRpzPsE`, payer
 `GFN1cHD9Yvde5B9pbhLbUriD32MupJL5LPd5PkhCqnk7`. Each idea: a pull commitment of 10 units at 4 test units, three stages
 locked, one 5-unit pre-order. Demand check: MOCK.
@@ -161,17 +161,17 @@ while its other stages stay locked. Pre-orders: A ([tx](https://explorer.solana.
 B ([tx](https://explorer.solana.com/tx/4FLNgoLGJ1dnm1yyVgrbJ5WHveBrGpWdhzQWbDkP7pwVJAvcgj2MFPzTgdodcMviCD6G4V41XV2t2GxDW1ARmcjX?cluster=devnet)),
 C ([tx](https://explorer.solana.com/tx/2yEjidBojssFJp1UFRoBmTtvphbzqAmhRngrDZzgZRHy3u8NfPCArNVEJDYJn4V3nB1UngrAwHLEWmDJPubbmhr9?cluster=devnet)).
 
-These GitHub-judged stages are not released on devnet: that needs a GitHub-signed run of the judge repository's
-workflow, which this demo does not fake. Their release audiences (with the evidence hash) are in the demo's output
-file. The panel-judged stages below are released on devnet.
+These GitHub-checked stages are not released on devnet: that needs a GitHub-signed run of the referee repository's
+workflow, which this sample does not fake. Their release audiences (with the evidence hash) are in the sample's output
+file. The panel-checked stages below are released on devnet.
 
-### Released on proof: idea C's stages judged by a 2-of-3 referee panel (15 Oct 2026)
+### Released on proof: idea C's stages checked by a 2-of-3 referee panel (15 Oct 2026)
 
 `python -m knos.ideas.devnet_panel --wallets DIR --claim FILE --program ID --mint MINT --out FILE` locks two stages of
 idea C as PANEL orders on the knos_pay 0.3.34 devnet test program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4`,
 pinning three fresh devnet referee keys, two of which must agree. Then it reads both oracles live.
 
-The payee is a wallet of the demo's own; ORCID's public test iD stands in for the researcher's.
+The payee is a wallet of the sample's own; ORCID's public test iD stands in for the researcher's.
 
 | stage | oracle, read live | lock | referee verdicts | result |
 |---|---|---|---|---|
@@ -190,7 +190,7 @@ release | refund`.
 It handles every stage kind: automatic oracles are read live, and review stages are signed by each referee on a SYNTHETIC review
 report. The referees' folder is refused when it is the buyer's folder or inside it.
 
-In this demo one machine plays all three referees, so they are **not independent**, and their keys are off Knos's registry
+In this sample one machine plays all three referees, so they are **not independent**, and their keys are off Knos's registry
 (UNLISTED PANEL, labelled). The payee is `orcid:0000-0002-1825-0097@8wGdFZWAwi1N1xicR2yKPqr5K8nDcQHSarCXEEdfVLSd` (ORCID's test
 iD standing in for the researcher). Each result is read back from the chain.
 
@@ -215,7 +215,7 @@ The payee's account held 8 test units before these runs (idea C's stage 1). It h
 
 ## Limits
 
-- The demand check's candidates are confirmed first-pick in the CLI, the MCP tool and the demo; a maker confirms each
+- The demand check's candidates are confirmed first-pick in the CLI, the MCP tool and the sample; a maker confirms each
   match in the demand-check page.
 - A claim's statement for a paper is its title; extracting the quantitative claim (metric, value, interval) from full
   text is not built.

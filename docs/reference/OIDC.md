@@ -323,7 +323,7 @@ relay refuses a GitLab token for the payment program, there is no `knos` command
 order's terms on Solana; it says so where it would.
 
 The carrier does check the order's project, pin and terms before
-it sends, which is the carrier's word and not the judge's.
+it sends, which is the carrier's word and not the referee's.
 
 **No longer on that list** (no program change was needed): a command that carries the token; funding without a
 person starting a pipeline in a browser (a wallet-funded order); and the example's check that the default branch is

@@ -21,7 +21,7 @@ the loop for a parent before each candidate. The referee was main's every time (
 | version | parent (HGM draw) | candidate | public | sealed | shadow | metric | decision | why |
 |---|---|---|---|---|---|---|---|---|
 | v1 | v0 | `urllib.request` imported when GitHub is first read | pass 47/47 | pass, re-run agrees | pass | 97 -> 68 | canary, paid | improved by 29 |
-| v2 | v1 | the same goal, plus the referee told to skip its cheat scan and one test assertion removed (claimed 40) | not run | not run | not run | not measured | refused | core path, judge drift, test edited, assertion removed, out of scope: before any of its code ran |
+| v2 | v1 | the same goal, plus the referee told to skip its cheat scan and one test assertion removed (claimed 40) | not run | not run | not run | not measured | refused | core path, referee drift, test edited, assertion removed, out of scope: before any of its code ran |
 | v3 | v0 | `subprocess` and `tempfile` imported where `preflight` uses them | pass 47/47 | pass, re-run agrees | pass | 97 -> 91 | canary, paid | improved by 6 |
 | v4 | v0 | `datetime` and `base64` imported where `mcp` uses them | pass 47/47 | pass | not run | 97 -> 97 | refused | no gain: those modules were still loaded by `urllib.request` |
 | v5 | v0 | v1 + v3 + v4 together | pass 47/47 | pass, re-run agrees | pass | 97 -> 37 | held for the founder | gain 60 of 97, above the 0.6 implausible-gain line |

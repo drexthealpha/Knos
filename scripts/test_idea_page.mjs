@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 const SHA = process.argv[2];
 const WORLD = process.env.KNOS_WORLD || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`;
 const OUT = `${WORLD}/test_idea_page.txt`;
-const DEMO = "https://drexthealpha.github.io/Knos/demo/";
+const DEMO = "https://drexthealpha.github.io/Knos/try/";
 const SENTENCE = "Qloo sets where a product launches and how many pre-orders prove demand, before any money is held.";
 const lines = []; let fails = 0;
 const ok = (c, what) => { lines.push(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails++; };

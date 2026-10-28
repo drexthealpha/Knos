@@ -2,31 +2,22 @@
 
 # The meter: what is counted, and who can check it
 
-**In plain words.** The [meter](../WORDS.md#meter) counts each time a buyer's tests judge a piece of work. Buyer and seller each keep a list and put its totals on [Solana](../WORDS.md#solana), a public record neither side can change. When the lists agree they make one bill; when not, a command names each item that differs.
+**In plain words.** The [meter](../WORDS.md#meter) counts each time a buyer's tests check a piece of work. Buyer and seller each keep a list and put its totals on [Solana](../WORDS.md#solana), a public record neither side can change. When the lists agree they make one bill; when not, a command names each item that differs.
 
 ```mermaid
 flowchart TB
-    work["The buyer's tests judge a piece of work"]
-    buyer["The buyer's own list"]
-    seller["The seller's own list"]
-    bchain["The buyer's totals, signed by GitHub, kept on Solana"]
-    schain["The seller's totals, signed by GitHub, kept on Solana"]
-    match{"Do the two lists agree?"}
-    bill["One bill, the same on both sides"]
-    diff["A list of each item that differs"]
-    work --> buyer
-    work --> seller
-    buyer --> bchain
-    buyer --> match
-    seller --> match
-    seller --> schain
-    match -->|yes| bill
-    match -->|no| diff
+    idea["An idea or a paper"] --> demand["Demand check on Qloo"]
+    demand --> ready["Ready brief: milestones locked by a hash"]
+    ready --> held["Money held on Solana devnet"]
+    held --> proof["The proof for one milestone"]
+    proof -->|verified| paid["Paid on verified proof"]
+    proof -->|not verified by the deadline| back["Refunded to the backers"]
+    proof --> meter["The meter counts each GitHub-signed check, once"]
 ```
-*Two lists, kept apart, become one bill when they agree.*
+*The meter sits beside the crossing: it counts each signed check once.*
 
 `knos_meter` counts **evaluations**. An evaluation is one judgment of one piece of work. It names a work order, an artifact (a commit), the policy
-it was judged under and a milestone. It carries a verdict (accepted or rejected) and the rate the seller bills if it is accepted.
+it was checked under and a milestone. It carries a verdict (accepted or rejected) and the rate the seller bills if it is accepted.
 
 The buyer's pinned workflow asks GitHub to sign that judgment; the program checks the signature on chain and counts it. Those four fields give the
 evaluation its id: a fingerprint (sha256) of the four joined end to end (`||` means "followed by"):
@@ -106,7 +97,7 @@ Under format 2 the two roots differ
 **The event, byte for byte.** It is eighteen texts in this order: `deliverable_id`, `evaluation_id`, `invoice_line_id`,
 `settlement_id` (the four ids of [`src/knos/ids.py`](../../src/knos/ids.py)), `verdict` (one of the four words), `amount`
 (the line's rate), `currency`, `buyer`, `seller`, `order`, `milestone` and `policy` (the hash of the policy or terms it
-was judged under).
+was checked under).
 
 Then come `artifact` (the commit), `evidence` (sha256 of the issuer-signed token or receipt, as hex),
 `evaluator`, `run`, `month` (six digits) and `seq` (the batch it is counted in).
@@ -193,7 +184,7 @@ Solana say so). Tests: `tests/test_ledger.py`, `tests/test_ledger_periods.py`.
 | `knos meter verify <ledger> [--rpc <url>] [--claim]` | recomputes every root, every total and the running hash; with `--rpc` it reads the Ledger account of every month in the file from that node and holds the file to it (the buyer's account, or with `--claim` the seller's), and prints the two on-chain counts side by side; exit 1 if anything differs. `--onchain totals.json` takes the account's five values from a file instead |
 | `knos meter prove <ledger> <id>` | the inclusion proof of one evaluation, as JSON, in the batch's commitment format; `knos meter prove --check <proof>` checks one without the ledger and says what the format binds |
 | `knos meter migrate <ledger> [--month YYYY-MM]` | re-commits each format 1 batch as a new format 2 batch at the end of the file that names the batch it supersedes; no line already in the file changes. `--dry-run` writes nothing |
-| `knos meter reconcile <buyer ledger> <seller ledger> [--rpc <url>]` | what only one side has, what they judged differently, what was entered twice, and the statement; with `--rpc`, each month's two on-chain counts side by side and how far apart they are |
+| `knos meter reconcile <buyer ledger> <seller ledger> [--rpc <url>]` | what only one side has, what they checked differently, what was entered twice, and the statement; with `--rpc`, each month's two on-chain counts side by side and how far apart they are |
 | `knos meter correct <ledger> <id> --batch <yyyymm>.<seq> --kind duplicate\|verdict\|withdrawn` | writes a correction of one anchored entry to `<ledger>.corrections`; the next `knos meter batch` carries it in its root. Nothing is sent to the chain. With `--kind verdict`: `--accepted 1\|0`, or `--verdict` and one of the four words |
 | `knos meter close <buyer ledger> <seller ledger> --month YYYY-MM` | writes the month's close record, `agreed` or `disputed` with every line in dispute; exit 1 when disputed. `--sign <record> --as buyer\|seller` has GitHub sign it in a run of that party; `--check <record>` checks the tokens kept beside it, with no network |
 | `knos meter statement <ledger> --month YYYY-MM [--close <record>]` | the month's three numbers, the Meter fee, every repeat and correction; refuses a disputed month without `--disputed`. `--json`: the same month as JSON, with the four verdicts counted and one line per evaluation with its four ids and whether it is the billed outcome |
@@ -273,7 +264,7 @@ Nobody can say *which* evaluations differ from the chain alone. That takes both 
 
 ## A buyer who leaves events out
 
-[`examples/meter/`](../../examples/meter) holds a buyer's ledger and a seller's for October 2026. The seller judged
+[`examples/meter/`](../../examples/meter) holds a buyer's ledger and a seller's for October 2026. The seller checked
 seven evaluations. The buyer anchored six, and recorded one of those as rejected. Each file holds on its own:
 
     $ knos meter verify examples/meter/buyer.jsonl
@@ -346,7 +337,7 @@ file, that each evaluation under the root is exactly the line the party holds (`
   see one repeated in two batches, or recorded both singly (`Record`) and in a batch: the marker of the single mode
   and the root of a batch do not know of each other, and the buyer is billed for both. This is decided off chain, by
   one function ([below](#one-function-decides-what-counts-once)).
-- That the verdict was right. That is the judge's and the policy's, named in each line.
+- That the verdict was right. That is the referee's and the policy's, named in each line.
 - That the data still exists. If both files are lost, the totals remain and the evaluations behind them do not.
 - That the two parties agree. A buyer's count and a seller's claim are two statements by two parties. The chain
   records both and takes neither side. Agreement is the close record, and it is off chain.
@@ -361,7 +352,7 @@ A statement gives three numbers for a month and never adds them together.
 |---|---|---|
 | **evaluations** | every evaluation that counts once: one run of a policy on one artifact for one deliverable, accepted or rejected | the Meter's billable unit: the price book proposes the first 100,000 a month free, then 0.002 USD each; the deployed program charges 0.05 after 10,000 until an upgrade |
 | **accepted outcomes** | deliverables (work order + milestone) with an accepted evaluation, counted once, in the month it is first accepted | what a vendor's per-outcome price multiplies |
-| **rejected evaluations** | evaluations whose verdict is rejected | the work that was judged and not accepted; billable to the Meter, not an outcome |
+| **rejected evaluations** | evaluations whose verdict is rejected | the work that was checked and not accepted; billable to the Meter, not an outcome |
 
 The third counts the verdict `rejected` and no other. A month that holds either of the two newer verdicts states them
 on two more lines, `insufficient_evidence_evaluations` and `disputed_evaluations`, and its first line says `knos
@@ -372,7 +363,7 @@ An evaluation that could not tell is billable to the Meter like any other run, a
 supplier's failure.
 
 The first and the second differ whenever work is split. A deliverable carried by ten pull requests is at most ten
-evaluations (ten artifacts were judged) and one accepted outcome: the identity of what was bought is the order and
+evaluations (ten artifacts were checked) and one accepted outcome: the identity of what was bought is the order and
 the milestone, not the pull request.
 
 The same holds across months: a deliverable accepted in October and evaluated again in November is no second
@@ -478,7 +469,7 @@ true` and every other `false`.
 
 | what happened | what it is | what the ledger makes of it | what it adds to the accepted outcomes |
 |---|---|---|---|
-| a retry | the same deliverable and artifact, judged again | a new evaluation | nothing: the deliverable is billed once |
+| a retry | the same deliverable and artifact, checked again | a new evaluation | nothing: the deliverable is billed once |
 | an alternate branch | the same deliverable, another artifact | a new evaluation | nothing: the first accepted one stands |
 | a reopened ticket, inside the warranty | the same deliverable, contested after it was accepted | a correction of the accepted evaluation's verdict | nothing new: the correction takes the outcome back, or leaves it |
 | a reopened ticket, after the warranty | the same work, asked for again | a new deliverable only when the terms say so | one outcome when the terms say so, else nothing |

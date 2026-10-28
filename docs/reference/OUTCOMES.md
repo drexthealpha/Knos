@@ -8,8 +8,8 @@ request".
 
 What the artifact is, and what a suite must do to deserve the word "accepted", differs for every kind of work, and somebody who knows the work has to write it.
 
-This page shows four such models that run in this repository: three whose deliverable is a file a suite judges, and [support
-resolutions](#support-resolutions), judged from a ticket's own record on made-up tickets. One of the first three is also signed by an issuer that is not a
+This page shows four such models that run in this repository: three whose deliverable is a file a suite referees, and [support
+resolutions](#support-resolutions), checked from a ticket's own record on made-up tickets. One of the first three is also signed by an issuer that is not a
 forge: [a Kubernetes cluster](#a-kubernetes-cluster-signs-an-outcome).
 
 A fifth kind pays for a result only data can show (more tickets solved without a person, more trial users who buy),
@@ -19,7 +19,7 @@ measured against a control group chosen by a hash and paid in tiers under a cap:
 
 | Kind of work | An outcome | The evidence an acceptance needs | Runs today |
 |---|---|---|---|
-| Software delivery | a merged pull request | the forge's own record: the merge, the head commit, the named checks' results; for tests mode, a black-box suite run by the judge | Yes, on devnet at the public program ids: [CAPABILITIES.md](CAPABILITIES.md) |
+| Software delivery | a merged pull request | the forge's own record: the merge, the head commit, the named checks' results; for tests mode, a black-box suite run by the referee | Yes, on devnet at the public program ids: [CAPABILITIES.md](CAPABILITIES.md) |
 | Customer operations | a support ticket resolved | the help desk's own record of the ticket: who solved it, whether a person took over, whether the customer came back inside a stated window | In part: the rule, the count, the signed run and the statement run on made-up tickets ([below](#support-resolutions)). No help desk is read |
 | Data operations | a labelled dataset; a transformation | held-out gold items; seeded inputs with invariants to the cent | Yes, as examples in the simulator: [data-labelling](../../examples/outcomes/data-labelling/), [data-transformation](../../examples/outcomes/data-transformation/). Never on devnet |
 | Back-office processing | an invoice matched, a claim adjudicated, a record reconciled | the system of record's entry before and after, a control total that must tie, and a sample a person reads | No. Nothing is built |
@@ -69,7 +69,7 @@ The comment funds a work order whose terms are byte for byte the example's. The 
 answers copied) passes the naive check and is refused by the suite, so nothing is signed and nothing is paid.
 
 The
-honest file passes, the job after the judge signs for its commit, and the order pays 40 test USDC in full.
+honest file passes, the job after the referee signs for its commit, and the order pays 40 test USDC in full.
 
 The test
 then names what the meter would count: one deliverable, `sha256(order || milestone)`, and two evaluations under one
@@ -77,7 +77,7 @@ policy version (the hash of the terms), one rejected and one accepted, with the 
 
 **What was not run.** GitHub and the relay in that test are stand-ins (`tests/_flow.py`), and the program is the
 real `knos_pay` build in a simulator (LiteSVM), funded there with the same terms bytes and paid on a token with the
-same fields. The pull requests are stand-ins too: the judge ran on the example's folders, not on commits.
+same fields. The pull requests are stand-ins too: the referee ran on the example's folders, not on commits.
 
 All of it ran in tests:
 never on devnet, and never by a customer. The transformation and research examples have a template and a verdict
@@ -85,29 +85,29 @@ test (`tests/test_outcomes.py`) and no flow test of their own. No evaluation of 
 
 ## A Kubernetes cluster signs an outcome
 
-Every outcome above is judged in a workflow, and the forge signs for the run. The verifier takes any RS256 issuer
+Every outcome above is checked in a workflow, and the forge signs for the run. The verifier takes any RS256 issuer
 ([VERIFIER.md](VERIFIER.md)), so the signer does not have to be a forge. This section takes the data-transformation
 example and has a Kubernetes cluster sign its evaluation: a workload identity, and no code under review.
 
 | Step | What happens | Where it is | State |
 |---|---|---|---|
 | 1. The cluster | A kind (Kubernetes in Docker) cluster starts on a GitHub-hosted runner with the service-account issuer `https://kind.knos-outcome.invalid` | [`outcome-k8s.yml`](../../.github/workflows/outcome-k8s.yml) | run in Knos: [run 38701801687](https://github.com/drexthealpha/Knos/actions/runs/38701801687) of drexthealpha/Knos (branch knos-0.3.34, commit 511fb84b, 15 Oct 2026) started the kind cluster on a GitHub-hosted runner; nothing of it is on devnet |
-| 2. The Job | The example's black-box suite judges `transform.sql` in a Kubernetes Job under the service account `knos-judge` | [`outcome_k8s_job.yaml`](../../scripts/outcome_k8s_job.yaml), `scripts/outcome_k8s.py job` | the judging step is tested here outside a cluster; the Job ran in the kind cluster of [run 38701801687](https://github.com/drexthealpha/Knos/actions/runs/38701801687) |
+| 2. The Job | The example's black-box suite referees `transform.sql` in a Kubernetes Job under the service account `knos-judge` | [`outcome_k8s_job.yaml`](../../scripts/outcome_k8s_job.yaml), `scripts/outcome_k8s.py job` | the checking step is tested here outside a cluster; the Job ran in the kind cluster of [run 38701801687](https://github.com/drexthealpha/Knos/actions/runs/38701801687) |
 | 3. The token | The pod asks its own cluster (the TokenRequest API, Kubernetes's way to issue a signed token to a pod) for a token of `knos-judge` whose audience is the evaluation, `knosm:eval:...`, the meter's audience | `scripts/outcome_k8s.py job` | the kind cluster of [run 38701801687](https://github.com/drexthealpha/Knos/actions/runs/38701801687) issued it |
 | 4. Offline check | The token is checked against the cluster's key set (`kubectl get --raw /openid/v1/jwks`) by the on-chain verifier's rule, and a receipt is written | `scripts/outcome_k8s.py verify` | tested here on a token of the same shape signed by a test key; the kind cluster's token of [run 38701801687](https://github.com/drexthealpha/Knos/actions/runs/38701801687) verified offline against that cluster's key set (verdict: accepted) |
 | 5. Devnet | A wallet registers the cluster's key as a private key, the token is written and stepped, and its account is VERIFIED | `scripts/outcome_k8s.py chain` | implemented; tested here in the test build of the verifier (LiteSVM); sent to devnet only by the release run (the `issuer` round of `scripts/exercise_public.py`) |
 | 6. The count | The evaluation is one line of the seller's ledger | `knos meter batch --claim` | the line is written by step 5; see "What the meter does with it" |
 
 The run uploads one artifact, `outcome-k8s`: `token`, `jwks.json`, `openid-configuration.json`, `issuer`,
-`verdict.json` (the verdict, the suite's hash, the hash of each file judged), `receipt.json`, `cluster.txt` (the
+`verdict.json` (the verdict, the suite's hash, the hash of each file checked), `receipt.json`, `cluster.txt` (the
 versions of kind and Kubernetes and the image's id) and `SHA256SUMS`.
 
 **What the receipt says.** `issuer_authenticated` names the cluster as the issuer (`provider: kubernetes`,
 `forge: false`), the key's size and hash, and the claims: which service account, which pod, which audience.
-`evaluator_observed` is the verdict and what was judged. `ids` are the deliverable's and the evaluation's
+`evaluator_observed` is the verdict and what was checked. `ids` are the deliverable's and the evaluation's
 (`knos.ids`). And `limitations`, always:
 
-- The cluster ran on a runner that Knos started: one party ran the cluster, the Job and the judge.
+- The cluster ran on a runner that Knos started: one party ran the cluster, the Job and the referee.
 - The issuer is self-hosted. Its URL does not resolve and its key set was read from the cluster's own API server, so
   nobody outside that run can fetch the key and compare it.
 - This shows that the path works for a workload identity that is not a forge. It does not show that an independent
@@ -203,14 +203,14 @@ this cluster's key is RSA. The workflow fails in plain words on either (the key 
 and size).
 
 The Job's base image is `python:3.12-slim`: the run pulls the tag, builds the Job's image from the digest that pull
-got, and records that digest in `cluster.txt`. The pod runs with extra rights (privileged), because the judge's
+got, and records that digest in `cluster.txt`. The pod runs with extra rights (privileged), because the referee's
 sandbox cuts the submission off from the network (`unshare -n`); the cluster is deleted when the job ends.
 
 ## What is the same in every domain
 
 - **The terms are fixed before the work.** Each example's `terms.json` holds the hash of its suite (`accept`). Change a
-  threshold, a gold label or a seed and the hash changes, so the suite funded is the suite that judges.
-- **The run is the judge's.** The suite runs outside the submission's tree and reaches it only through `$KNOS_RUN`,
+  threshold, a gold label or a seed and the hash changes, so the suite funded is the suite that referees.
+- **The run is the referee's.** The suite runs outside the submission's tree and reaches it only through `$KNOS_RUN`,
   in the sandbox: a file is read out, a script is run, a SQL file is executed, and only the output is compared. The
   suite's own data (gold labels, the reference, the trial's rows) are taken out of the tree first.
 - **The count is the meter's.** An evaluation is identified by four fields whatever was delivered, and is billed once:
@@ -221,7 +221,7 @@ Each example's `evaluations.jsonl` holds two lines in the ledger format of [METE
 submission (accepted) and one for the cheating one (rejected). They share the order, the policy (the hash of the
 terms) and the milestone, and differ in the artifact, so they are two evaluations.
 
-Judging the same artifact again under the same policy is the same evaluation and is not counted twice.
+Checking the same artifact again under the same policy is the same evaluation and is not counted twice.
 
 ## What is different, and stays the buyer's work
 
@@ -234,7 +234,7 @@ through its output. A suite can be black-box and still be a poor model of "done"
 each example's own list of that.
 
 One limit of the count is the program's and is not changed here: the meter's artifact field holds 40 characters, the
-size of a commit id. A deliverable that is a file is judged in a commit, and the commit is the artifact.
+size of a commit id. A deliverable that is a file is checked in a commit, and the commit is the artifact.
 
 The examples are folders, not commits, so their ledger lines carry the first 40 hex characters of a hash of the
 submission's files.
@@ -279,13 +279,13 @@ count and nothing is billed on it. A resolution that can still be undone is neve
 The example holds ten made-up tickets, one of them exported twice, terms at 0.99 a resolution (one vendor's published
 price, used as a sample), and a supplier's invoice of eight lines.
 
-What the commands print: 4 accepted, 5 rejected, 1 not judged yet; a batch of 9 evaluations worth 3.96; and a
+What the commands print: 4 accepted, 5 rejected, 1 not checked yet; a batch of 9 evaluations worth 3.96; and a
 statement in which 4 lines are agreed (3.96 of 7.92 billed), 2 are disputed (a reopened ticket, an escalated one), 1
 is a duplicate and 1 has insufficient evidence (its window is open).
 
 `tests/test_outcome_support.py` holds each of those numbers and each rule.
 
-**The signed run.** [`outcome-support.yml`](../../.github/workflows/outcome-support.yml) has three jobs. `count` judges
+**The signed run.** [`outcome-support.yml`](../../.github/workflows/outcome-support.yml) has three jobs. `count` checks
 the tickets and prints the batch's audience, `knosm:claim:<buyer>:<seller>:<yyyymm>:<seq>:<count>:<accepted>:<value>:<root>`,
 with the repository's owner as the seller. `sign` asks GitHub to sign that audience and runs nothing from the
 repository. `receipt` makes the count again, holds the token to it with the on-chain verifier's rule, and writes the
@@ -304,7 +304,7 @@ a test key.
    is that party's count with a signature on the envelope.
 2. **Whether the answer was right.** No ticket state says so. A customer who got a wrong answer and gave up looks
    like one who was helped. A buyer who pays per resolution reads a sample; the terms here do not say how large.
-3. **Reversal after the fact.** Judging after the window needs none. A correction of an accepted evaluation exists
+3. **Reversal after the fact.** Checking after the window needs none. A correction of an accepted evaluation exists
    in the ledger ([METER.md](METER.md)) and is not used here.
 4. **A customer.** The buyer, the seller and every ticket are sample values. Nobody bought this.
 
@@ -450,13 +450,13 @@ entry with its devnet signature, through Knos Record's API ([SUPPLIER.md](SUPPLI
 Entries hold hashes, amounts and signatures only: no item ids, no rows, no token, no key, and `synthetic: true` for
 made-up data.
 
-### The devnet demo (SYNTHETIC)
+### The devnet sample (SYNTHETIC)
 
 [`examples/outcomes/measured-support`](../../examples/outcomes/measured-support) runs the whole path: 300 made-up
 tickets before the window and 10,000 inside it, an "AI agent" handling the treated ones, three tiers (relative lift of
 5%, 10% and 20%; 5, 10 and 15 test units).
 
-The chances of success are chosen parameters of the generator, so the lift is chosen too: the demo shows the
+The chances of success are chosen parameters of the generator, so the lift is chosen too: the sample shows the
 mechanics, and says nothing about any real agent. `demo.json` beside it holds every transaction signature and what the
 chain said when it was read.
 
@@ -495,8 +495,8 @@ The fees were the payment program's own (`knos_pay` order fee, 0.05 per order at
 - It cannot tell whether the data are true. It reads what the buyer's repository or endpoint serves; the buyer owns
   that record. The checks catch edits to the history, moved items and a drifting control share, not a fabricated feed.
 - A tier is all or nothing. A result between two tiers is paid the lower tier.
-- The parties must agree on the metric before the window. Knos does not judge whether the metric is the right one.
-- No buyer has used it. The demo's buyer and seller were one person's own accounts.
-- The buyer can block a payment by not measuring (see "Who can stop a payment"). The demo's signed spec says
+- The parties must agree on the metric before the window. Knos does not check whether the metric is the right one.
+- No buyer has used it. The sample's buyer and seller were one person's own accounts.
+- The buyer can block a payment by not measuring (see "Who can stop a payment"). The sample's signed spec says
   `dispute_window_days: 7`, but it was funded before funding checked it, with a deadline 30 minutes after a window of
-  minutes; `demo.py` now writes 0 into a new demo's spec so that the check and the demo agree.
+  minutes; `demo.py` now writes 0 into a new sample's spec so that the check and the sample agree.

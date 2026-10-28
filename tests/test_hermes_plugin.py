@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 from knos import hermes_plugin as P
 
@@ -77,17 +75,10 @@ def test_bounty_claim_asks_the_mcp_server_and_sends_nothing():
     assert any("Fixes #7" in s for s in got["steps"]) and any("knos_verify" in s for s in got["steps"])
 
 
-def test_the_entry_point_and_the_directory_plugin_reach_the_same_register():
+def test_the_entry_point_reaches_register():
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     block = text.split('[project.entry-points."hermes_agent.plugins"]', 1)[1]
     assert re.search(r'^knos = "knos\.hermes_plugin:register"$', block, re.M)
-    manifest = yaml.safe_load((ROOT / "hermes" / "plugin" / "knos" / "plugin.yaml").read_text(encoding="utf-8"))
-    assert manifest["name"] == "knos" and manifest["provides_tools"] == FOUR and manifest["python_dependencies"] == ["knos==0.4.0"]
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("knos_hermes_dir_plugin", ROOT / "hermes" / "plugin" / "knos" / "__init__.py")
-    plugin = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(plugin)
-    assert plugin.register is P.register and "knos" in sys.modules
 
 
 @pytest.mark.parametrize("name", FOUR)

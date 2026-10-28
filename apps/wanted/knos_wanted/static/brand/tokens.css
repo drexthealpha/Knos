@@ -152,3 +152,20 @@ code, pre, kbd, .mono { font-family: var(--code); }
 .k-real{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--fg);font-weight:600}
 main p,main li,main dd{max-width:65ch}
 .k-big,.mx-need{line-height:1.5}
+
+/* motion, sweep 4.3 to 4.11 (each under 150 ms or none with reduced motion): the ask box, the press, the chips, the
+   links, the card's call to action, the price tier, the calls rows, the dialog; the error never shakes */
+@media (prefers-reduced-motion: no-preference) {
+  .k-ask { transition: border-color 120ms var(--ease, ease), box-shadow 120ms var(--ease, ease); }
+  .k-ask:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  #k-go:active, .k-chip:active { scale: .97; transition: scale 80ms var(--ease, ease); }
+  .k-chip { transition: background-color 120ms var(--ease, ease), border-color 120ms var(--ease, ease); }
+  .k-chip[aria-pressed="true"] { background: var(--soft); border-color: var(--accent); }
+  .k-proofs a, .k-fine a { text-decoration-color: transparent; transition: text-decoration-color 120ms; }
+  .k-proofs a:hover, .k-fine a:hover, .k-proofs a:focus-visible { text-decoration-color: currentColor; }
+  .k-cta { transition: background-color 120ms; } .k-cta:hover { translate: 3px 0; transition: translate 120ms var(--ease, ease), background-color 120ms; }
+  .k-tiers [aria-current="true"] { transition: background-color 120ms; }
+  .k-timeline [data-rows] > li { animation: k-row-in 120ms var(--ease, ease) both; }
+  @keyframes k-row-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+  dialog[open] { animation: k-dialog-in 120ms var(--ease, ease) both; } @keyframes k-dialog-in { from { opacity: 0; scale: .98; } to { opacity: 1; scale: 1; } }
+}

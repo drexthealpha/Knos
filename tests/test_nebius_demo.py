@@ -1,6 +1,12 @@
 """The golden path end to end in MOCK mode (no key): the referee's runs are real, every model and search number is
 labelled MOCK, zeros stay zeros, and the committed panel in examples/nebius is such a run."""
 from __future__ import annotations
+import pathlib as _pl
+
+import pytest as _pt
+
+if not (_pl.Path(__file__).resolve().parents[1] / "examples/nebius").is_dir():
+    _pt.skip("examples/nebius/ left the public repository; this test runs where that folder is kept", allow_module_level=True)
 
 import json
 import re

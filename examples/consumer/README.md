@@ -48,7 +48,7 @@ request, which the payment logs.
 - That the program at the IDL's address is knos_pay as published: its upgrade authority is a multisig with a time
   lock, so a change is public 8 days before it runs (since 11 Oct 2026; 48 hours before). Today one person holds
   every key of that multisig, so this is a delay, not a second opinion.
-- Which work was accepted, and why. The forge signs the judge's run, and knos_oidc checks that signature on chain
+- Which work was accepted, and why. The forge signs the referee's run, and knos_oidc checks that signature on chain
   before knos_pay pays; this program does not re-read the token.
 
 ## Its tests

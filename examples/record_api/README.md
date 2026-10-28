@@ -13,7 +13,7 @@ paid through `knos-order`, Knos's proposed scheme for x402 (paying over HTTP wit
 The second line is `knos record serve`. It reads the chain from the RPC URL every Knos command uses. It has been run
 against devnet once, by Knos on its own machine while releasing version 0.3.19: a wallet of that run [funded a pack](https://explorer.solana.com/tx/2Z9NtBn78XRfLaY928d34qZQxTFxZrGDxcEbBjwpWm9bqjTjcNgPtSrtFZDC3snMCvuWpWWPWqYnVWRkjZSj5rrd?cluster=devnet)
 at the public knos_pay and got lookup 0 of 50; the same call again and another wallet's call got `402`. The order
-stays held until its deadline, because no judge for lookups exists.
+stays held until its deadline, because no referee for lookups exists.
 
 | path | price | answer |
 |---|---|---|
@@ -59,13 +59,13 @@ live on devnet since 9 October 2026).
 
 ## When the seller is paid
 
-The payment program pays the seller when the order's pinned judge signs an acceptance (`PayOrder`), the pack whole, and
+The payment program pays the seller when the order's pinned referee signs an acceptance (`PayOrder`), the pack whole, and
 returns everything to the caller after the deadline when none arrives (`RefundOrder`). The test runs both.
 
 ## What is not built
 
-- **A judge for lookups.** No workflow exists that signs "these lookups were served". In the test a test key that
-  only a test build trusts signs the acceptance. Until a judge exists a seller is paid only if the caller's chosen
+- **A referee for lookups.** No workflow exists that signs "these lookups were served". In the test a test key that
+  only a test build trusts signs the acceptance. Until a referee exists a seller is paid only if the caller's chosen
   workflow accepts, so this is a demonstration of the flow and not a way to earn.
 - **A refund of unused lookups.** `PayOrder` pays the order whole.
 - **Netting across orders**, and any price below a pack.
@@ -77,7 +77,7 @@ returns everything to the caller after the deadline when none arrives (`RefundOr
 ## The offer file
 
 What `knos.record_api.offer(...)` returns, as JSON: the seller's wallet and GitHub id, the token, the repository id
-and issue the orders are scoped to, the workflow repository and commit that judges them, and the terms.
+and issue the orders are scoped to, the workflow repository and commit that referees them, and the terms.
 
 Fill in your own values, then run this with Python:
 

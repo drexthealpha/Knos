@@ -35,7 +35,7 @@ One JSON object. The first seven fields are always there; the last four only whe
 | `deny` | No changed file may match one of these globs. |
 | `accept` | `tests` mode: the sha256 of the acceptance suite's folder. Empty in `merge` mode. |
 | `reserve` | Days a reservation of the issue lasts, 0 to 90. 0: it cannot be reserved. |
-| `image` | Optional, `tests` mode only: the judge's container image, pinned by digest. |
+| `image` | Optional, `tests` mode only: the referee's container image, pinned by digest. |
 | `policy` | Optional: the sha256 of the repository's policy file as it was at funding. |
 | `vendor` | Optional: the GitHub account id of the one account a standing offer pays. |
 | `contract` | Optional: the sha256 of the Knos Terms 3 document the order is funded under (below). |
@@ -114,7 +114,7 @@ compare with the hash in the contract.
 # Knos Terms 3
 
 Acceptance as a versioned contract. The 600 bytes above say which checks decide. They do not say what one
-deliverable is, who may judge, who may appeal and to whom, or who may change the terms. A Knos Terms 3 document says
+deliverable is, who may check, who may appeal and to whom, or who may change the terms. A Knos Terms 3 document says
 all of it, in ten required fields, and an order points at one version of it by hash.
 
 Nothing published as Knos Terms 1 changes. Those files keep their bytes and their hashes, and an order funded on
@@ -136,7 +136,7 @@ facts and one plain line under `says`.
 | `window` | How long can it be reopened? | `warranty_days` and `holdback_percent`; both zero, or both not. Optional (0.3.21): `period_close`, with `buyer_key` and `supplier_key` (two different Ed25519 keys, in base 58) and `silence_days`: a month closes when both keys signed its last line, or one did and closed it alone after that many days of silence (`src/knos/events.py`). Terms without the key keep the hash they had |
 | `changes` | What may change? | `paths` allowed, `protected` paths, and `may_add`: what a contributor may add without asking |
 | `dispute` | Who may appeal, and to whom? | `who` (the supplier), the `evaluator` (one of `evaluators.list`, or `arbiter`), `within_days`, where the `money` stays, and what happens with `no_answer` |
-| `evaluators` | Who may judge? | `quorum`, and a `list`: each a `name`, an `issuer`, a `repository`, a `workflow` and an `owner`. Optional: `related`, the accounts the parties declare to be one party, as groups of numeric account ids (`[[7001, 8002]]`); two evaluators declared related never count as two ([RECEIPT.md](RECEIPT.md), assurance). Terms without the key keep the hash they had |
+| `evaluators` | Who may check? | `quorum`, and a `list`: each a `name`, an `issuer`, a `repository`, a `workflow` and an `owner`. Optional: `related`, the accounts the parties declare to be one party, as groups of numeric account ids (`[[7001, 8002]]`); two evaluators declared related never count as two ([RECEIPT.md](RECEIPT.md), assurance). Terms without the key keep the hash they had |
 | `price` | What does it pay? | `amount` and `currency` |
 | `deadline` | When does it end? | `days`, and what happens to a token presented `late` |
 | `policy` | Who may change these terms? | `may_change`: the logins or teams who may publish a new version, and `how` |
@@ -150,7 +150,7 @@ Four rules keep a document from promising what the code does not do:
   `dispute.no_answer` is `refund-at-deadline`, `price.currency` is `test USDC`, `policy.how` is `new-version`. Each
   has one permitted value, because that is what happens whatever a document says.
 - **A quorum needs different owners.** With `quorum` 2 or 3 the list must hold that many evaluators whose owners
-  differ. Two judges with one owner are one judge.
+  differ. Two referees with one owner are one referee.
 - **An appeal goes where it can be heard.** An order decided by an acceptance suite is appealed to an evaluator who
   runs it again. An order paid on a merge has nothing to run again, so its appeal goes to `arbiter`, named or not
   ([DISPUTES.md](DISPUTES.md)).
@@ -200,7 +200,7 @@ and the comment that funds it. The files are `terms/3/<name>/<version>.json`.
 | `dataset-batch` | a batch of labelled data | an acceptance suite decides, on items never shown; an appeal is a neutral run of the same suite |
 | `support-resolution` | a resolved support ticket | not built: needs a signing system of record. It is published to say exactly that, and it funds nothing |
 
-The defaults are the cautious choice in each field: the order's own repository judges, no arbiter is named, the
+The defaults are the cautious choice in each field: the order's own repository referees, no arbiter is named, the
 checks and the terms themselves are protected paths, and only the repository's owner may publish a new version.
 They were made with sample facts (a repository named `acme/widgets`); a real repository's terms name its own.
 
@@ -243,7 +243,7 @@ which checks decide today. The date of the last merge is in every proposal and i
   the single use of a token. It does not read `evaluators`, `dispute` or `policy`; those bind through the hash and
   through the workflow that signs.
 - The time to appeal (`dispute.within_days`): `/knos appeal` refuses a late appeal of such an order and says why,
-  counting from the rejection the judge's memory holds. `knos appeal open` on the command line does not check it.
+  counting from the rejection the referee's memory holds. `knos appeal open` on the command line does not check it.
 - `support-resolution` cannot be used. No system of record signs that a ticket was resolved.
 
 ## Attestations as inputs: pay when an issuer you trust has attested a fact

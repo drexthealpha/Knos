@@ -20,9 +20,9 @@
 
 Numbers, method and sources: [outside_truth.json](outside_truth.json). Run it again: `python scripts/outside_truth.py <sample.json> --public` (the sample is built from the two public datasets above).
 
-## Kickstarter: 250 held-out projects
+## Crowdfunded launches: 250 held-out projects
 
-**In plain words.** The same question on crowdfunding: did a past Kickstarter project reach its goal? Here 78.8% of the held-out projects succeeded, so always guessing "successful" scores 78.8%. A predictor has to beat that, not 50%. Run 24 Oct 2026, 500 of 500 rows answered.
+**In plain words.** The same question on a public dataset of crowdfunded product launches: did a past project reach its goal? Here 78.8% of the held-out projects succeeded, so always guessing "successful" scores 78.8%. A predictor has to beat that, not 50%. Run 24 Oct 2026, 500 of 500 rows answered.
 
 | Measure, held-out (n=250) | (a) Open signals | (b) Open signals + Qloo |
 |---|---|---|
@@ -37,9 +37,9 @@ Numbers, method and sources: [outside_truth.json](outside_truth.json). Run it ag
 - **Sample:** 500 successful or failed projects launched 2019 to 2023, from the webrobots.io dump of 2026-10-12, drawn per main category in proportion (seed 0).
 - **Split:** 250 tune, 250 held-out, half of each outcome on each side. The tune half picks one thing per predictor: whether OPEN means success or failure.
 - **What Knos saw:** the name, the blurb and the category, at most about 200 characters. A refused idea counts as not OPEN.
-- **Reading:** the dump is a scrape of Kickstarter's pages, not the full archive. Open signals measure attention today, not a 2021 campaign's backers.
+- **Reading:** the dump is a scrape of the crowdfunding site's pages, not the full archive. Open signals measure attention today, not a 2021 campaign's backers.
 
-Numbers, method and source: [kickstarter_truth.json](kickstarter_truth.json).
+Numbers, method and source: [the result file](kickstarter_truth.json).
 
 ### Tuned on the 250, scored once on the held-out 250
 
@@ -58,13 +58,13 @@ A logistic model was fit on the 250 tune rows only, its cut-off set there too, a
 
 - **Result:** tuning lifts both, and Qloo adds 1.2 points over the open signals, but neither beats always guessing "successful". Past funding outcomes are not what a demand check measures.
 
-Numbers, weights and method: [kickstarter_truth_tuned.json](kickstarter_truth_tuned.json).
+Numbers, weights and method: [the tuned result file](kickstarter_truth_tuned.json).
 
 Run it again: `python scripts/test_kickstarter_truth.py <ks-sample.json>` (build the sample with `--build` from the dump above).
 
 The tuned one: `--collect <ks-sample.json> <features.json>`, then `--tuned <ks-sample.json> <features.json>`.
 
-## Kickstarter: 300 projects ranked
+## Crowdfunded launches: 300 projects ranked
 
 **In plain words.** A ranking question this time: does the demand score put the projects that raised the most (pledged over goal) near the top? 300 new projects, none from the earlier 500. The rules were committed before the run, and it ran once.
 

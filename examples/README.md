@@ -13,7 +13,7 @@ that the tests run, to show that the checks refuse them ([docs/reference/TAMPER.
 | [knos-check.yml](knos-check.yml) | The free Knos check on every pull request; reads only, needs no secret. | any repository |
 | [knos-claim.yml](knos-claim.yml) | Names the Solana address Knos pays your GitHub account at. | a person who gets paid |
 | [knos-claim-org.yml](knos-claim-org.yml) | The same, for an organisation's account. | an organisation that gets paid |
-| [knos-attest.yml](knos-attest.yml) | Asks GitHub to sign that an order's terms were met, so you can ask for your payment yourself. | a seller, or someone hosting a judge |
+| [knos-attest.yml](knos-attest.yml) | Asks GitHub to sign that an order's terms were met, so you can ask for your payment yourself. | a seller, or someone hosting a referee |
 | [knos-attestor.yml](knos-attestor.yml) | Knos for an organisation's private repositories, from one attestor repository. | an organisation with private code |
 | [knos-meter-batch.yml](knos-meter-batch.yml) | Has GitHub sign one batch of a meter ledger, so the meter program counts it. | a buyer or seller using the meter |
 | [knos-supplier.yml](knos-supplier.yml) | The supplier's kit in one line: the free check, its result and its receipt. | a supplier |
@@ -28,10 +28,10 @@ that the tests run, to show that the checks refuse them ([docs/reference/TAMPER.
 | example | what it shows | for |
 |---|---|---|
 | [acceptance/](acceptance) | Three tasks (classify, clean-csv, summarise), each with the buyer's repository, a black-box check and an honest solution. | a buyer writing a task an agent can be paid for |
-| [acceptance/hermetic/](acceptance/hermetic) | What to add so the check runs in a container pinned by digest, and can be run again with the same verdict. | a buyer who wants a repeatable judge |
+| [acceptance/hermetic/](acceptance/hermetic) | What to add so the check runs in a container pinned by digest, and can be run again with the same verdict. | a buyer who wants a repeatable referee |
 | [outcomes/](outcomes) | Orders whose deliverable is not merged code: data labelling, a data transformation, a reproducible result, support tickets. | a buyer paying for outcomes |
 | [terms/](terms) | Ready terms for common orders: a bug fix, a feature with a black-box check, a milestone, a standing rate. | a buyer writing terms |
-| [host_a_judge/](host_a_judge) | Run an order's checks again in your own repository and have GitHub sign the result. | someone who wants to be an independent judge |
+| [host_a_judge/](host_a_judge) | Run an order's checks again in your own repository and have GitHub sign the result. | someone who wants to be an independent referee |
 | [witnessed/](witnessed) | One whole transaction, from funding to payment, run and recorded by you. | anyone who wants to see it work end to end |
 
 ## Agents paying agents

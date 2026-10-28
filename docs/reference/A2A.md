@@ -1,4 +1,4 @@
-# Knos as an A2A agent: other platforms hire it as their judge
+# Knos as an A2A agent: other platforms hire it as their referee
 
 [A2A](https://github.com/a2aproject/A2A) 1.0.0 (`docs/specification.md`, `specification/a2a.proto`, read 14 Oct 2026) is
 how one agent finds another and hands it a task. An agent publishes an Agent Card at

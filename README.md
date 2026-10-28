@@ -22,66 +22,56 @@ Devnet, test money, no customers yet.
 flowchart TB
     idea["A paper or an idea"] --> demand["Demand check on Qloo: who wants it, the launch city and the pre-order target"]
     demand --> ready["Ready brief: each milestone has a target, a checker and a deadline, locked by a hash"]
-    ready --> held["Backers pre-order or fund milestones; the money is held on Solana until the proof passes"]
-    held --> proof["The maker sends the proof: GitHub-signed checks, verified on chain, or 2 of 3 referees"]
+    ready --> held["Backers pre-order or fund milestones; the money is held on Solana devnet"]
+    held --> proof["The maker sends the proof for one milestone"]
     proof -->|verified| paid["The maker is paid for that milestone"]
-    proof -->|not verified in time| back["Nobody is paid; the money goes back to the backers"]
-    paid --> record["Each payment and refund is kept in the Knos record in Sibyl, anchored on Solana"]
-    back --> record
+    proof -->|not verified by the deadline| back["Nobody is paid; the money goes back to the backers"]
 ```
 
 *No money locks on a vague brief. Each step is paid only when its proof is verified.*
 
-1. **Check demand.** A [demand check](docs/reference/DEMAND_CHECK.md) asks Qloo's taste data who would buy the product and where. Qloo's heatmap names the launch city.
-2. **Ready brief.** That city and the pre-order target its Qloo affinity sets become the brief's terms, inside its criteria hash. If the city falls short by the first deadline, every pre-order is refunded.
-3. **Money held.** Pre-orders and milestone funding wait in a program on [Solana](docs/WORDS.md#solana), not with Knos.
-4. **Paid on proof.** A pull request's checks pass and the program pays. Example: an agent was paid [5 test units for verified work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet) on devnet. Released by the referee's verdict. [The newest payout](https://knos.onrender.com/api/agent/payout/latest), read from chain, says what released it.
+1. **Check demand.** A [demand check](docs/reference/DEMAND_CHECK.md) asks [Qloo](docs/WORDS.md#qloo) who would buy the product and where. Qloo's heatmap names the launch city.
+2. **Ready brief.** That city and the pre-order target become the terms of a [Ready brief](docs/WORDS.md#ready-brief). Each [milestone](docs/WORDS.md#milestone) has a target, a checker and a deadline. A [criteria hash](docs/WORDS.md#criteria-hash) locks them. If the city falls short by the first deadline, every pre-order is refunded.
+3. **Money held.** [Pre-orders](docs/WORDS.md#pre-order) and milestone funding wait in a program on [Solana](docs/WORDS.md#solana), not with Knos.
+4. **Paid on proof.** The maker sends the proof. When it is verified, the program pays for that milestone. Example: an agent was paid [5 test units for verified work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet) on devnet. [The newest payout](https://knos.onrender.com/api/agent/payout/latest), read from chain, says what released it.
 
 Add Knos to Claude Code with one command: `claude mcp add --transport http knos https://knos.onrender.com/mcp`
 
-An agent with a capped key from Knos puts `{"mcpServers":{"knos":{"type":"http","url":"https://knos.onrender.com/mcp","headers":{"Authorization":"Bearer ${KNOS_AGENT_KEY}"}}}}` in `.mcp.json` and the key in `KNOS_AGENT_KEY`.
-
 **Open call:** have research waiting for a market? [Cross it on Knos](https://knos.onrender.com/invite): the page counts every crossing and pre-order by people outside Knos, live.
 
-## Paid on proof: when the proof is a pull request
+## Paid on proof
 
-The same held money pays for code. One comment on a GitHub issue posts the task, your checks and the pay (`/knos fund 20 checks: test`); an [AI agent](docs/WORDS.md#ai-agent) or a person sends the work as a [pull request](docs/WORDS.md#pull-request); when the [checks](docs/WORDS.md#checks-ci) pass and you [merge](docs/WORDS.md#merge), a program pays the worker.
+The proof is checked before any money moves. A milestone names its checker in the brief. The proof can be:
+
+- a lab result or a public evidence page, read by the milestone's checker;
+- checks that GitHub signs, verified on chain;
+- the same verdict signed by two of three [referees](docs/WORDS.md#referee);
+- a verdict from [IRIS](https://github.com/drexthealpha/Knos/tree/main/iris) inside a lab's own walls. Its agent can only say no or ask a person.
 
 ```mermaid
 flowchart TB
-    task["You post a task, your checks and the pay; the money is held on Solana"] --> work["An AI agent or a person sends a pull request"]
-    work --> checks["GitHub runs your checks and signs what ran"]
-    checks -->|pass, and you merge| paid["A program on Solana checks GitHub's signature and pays the worker"]
-    checks -->|fail| back["Nobody is paid; at the deadline the money comes back to you"]
+    held["The money is held on Solana devnet"] --> proof["The maker sends the proof for one milestone"]
+    proof -->|verified| paid["The program pays the maker for that milestone"]
+    proof -->|not verified by the deadline| back["The program refunds every backer"]
 ```
 
-*You set the rules first. The money moves only when the work passes them.*
-
-[Proof checked inside IRIS for Health](https://github.com/drexthealpha/Knos/tree/main/iris): a lab result or a referee verdict can be the proof as well, decided by an IRIS agent that can only say no or ask a person.
+*Nothing is paid on a promise. A missed deadline sends the money back.*
 
 ## Try it in ten seconds
 
-Open [the demand check](https://drexthealpha.github.io/Knos/) in your browser. Type what you are about to build, or press one of the samples. Qloo's taste data says who wants it, where to launch it and at what price.
-
-To check an AI agent's pull request instead, [it has its own page](https://drexthealpha.github.io/Knos/check/).
-
-There is nothing to install and no sign-up.
+Open [the demand check](https://drexthealpha.github.io/Knos/) in your browser. Type what you are about to build, or press one of the samples. Qloo's taste data says who wants it and where to launch it. The whole crossing runs in [the app](https://knos.onrender.com/app/), with nothing to install and no sign-up.
 
 ## Why nobody can fudge the count
 
-GitHub (where your code lives) [signs](docs/WORDS.md#signed) a [token](docs/WORDS.md#token-oidc) for each run of your checks. The token proves which workflow ran, on which commit. Nobody else can make it.
+The terms of a brief are locked by a [hash](docs/WORDS.md#hash) before any money moves. A changed target or deadline gives a different hash. So a change cannot hide.
 
-A workflow is the script that runs your checks. A commit is one saved version of the code.
+The money waits in a program on [Solana](docs/WORDS.md#solana), not with Knos. That program pays only on a verified proof. At the deadline it refunds the backers instead.
 
-You and the other side each keep a copy of those signed runs. Each side rebuilds the bill from its own copy (the command is `knos meter reconcile`).
+**Neither the maker nor Knos can move the money alone.**
 
-**The two bills match line for line, so neither side can change the count alone.**
+Today one person can still change that program, after a public wait ([who holds the keys](docs/TRUST.md)).
 
-The money waits in a program on [Solana](docs/WORDS.md#solana), not with Knos. That program checks GitHub's signature before it pays. Today one person can still change that program, after a public wait ([who holds the keys](docs/TRUST.md)).
-
-Today Knos earns its fee only when work is accepted. When you get a refund, the fee goes back to you. So Knos gains when work passes, and the meter is not yet fully neutral ([what is enforced and what is a promise](docs/reference/CHARTER.md)).
-
-Why Solana: Money is released with no custodian, and neither buyer nor supplier can change the count. One person holds every upgrade key today; a program change waits 8 days in public. A custodian is a company that holds your money for you.
+Today Knos earns its fee only when work is accepted. When you get a refund, the fee goes back to you. So Knos gains when work passes, and it is not yet fully neutral ([what is enforced and what is a promise](docs/reference/CHARTER.md)).
 
 ## Is it real?
 
@@ -116,11 +106,25 @@ One person holds every key today. Any change to the programs waits in public for
 | Network and money | Solana devnet, test USDC; mainnet is not touched | [docs/reference/SECURITY.md](docs/reference/SECURITY.md) |
 <!-- /bench:today -->
 
+## From a terminal
+
+```sh
+knos demand "a vegan ramen food truck" --place London     # Qloo's demand check: who, where, price tier
+knos idea get arxiv:<id> --out idea.json                  # a paper as one claim record
+knos idea wanted idea.json                                # demand evidence and the stage plan; sends nothing
+knos idea commit idea.json --units <n> --price <n>        # lock the stages on devnet, one order a stage
+knos idea check idea.json <oracle>                        # is one stage met right now?
+knos idea release <commitment> <stage> --sig <verdict>    # pay a met stage on the referees' signed verdicts
+knos idea refund <commitment> <stage> --wallet <keypair>  # refund a missed stage; anyone may send it
+```
+
+Install with `pip install knos`. The app answers the same steps over HTTP: `POST /api/check` (the demand check), `POST /api/ready` (the Ready brief) and `POST /api/preorder` (a pre-order on devnet). Run `knos idea --help` for every option.
+
 ## Check every claim yourself
 
 Start at [the release page](docs/reference/MANIFEST.md): the code, how it is built, what runs on devnet, the payments and the fees.
 
-One task from start to end, on 9 Oct 2026 with Knos 0.3.23, in a repository Knos owns, with test USDC (one step fixed by hand): [funded](https://explorer.solana.com/tx/3UaY22WKexigMpkVhibfeMdNgBiyybWm2Z4LuLskKGbNUDXV34yYWyH42atxFjELbrqSgoVs6TwpFzSQwhfXqzgM?cluster=devnet) · [wrong work refused](https://github.com/drexthealpha/knos-witness/actions/runs/37890511112/job/113690226126) · [paid](https://explorer.solana.com/tx/2PtmKUrQHKPARZE4nr35Te559NGQSG7tSHUfwzcKCAjL7gzvQ76fNTVLMWvq8mcZLxd27tbyTe31mCk2PxEGfAqa?cluster=devnet) (by the order's own black-box checks, with no merge) · [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/10#issuecomment-6075196710) · [the record](https://github.com/drexthealpha/Knos/blob/main/evidence/knos-witness-acaa854d/witness.json).
+One payment from start to end, on 9 Oct 2026 with Knos 0.3.23, in a repository Knos owns, with test USDC (one step fixed by hand): [funded](https://explorer.solana.com/tx/3UaY22WKexigMpkVhibfeMdNgBiyybWm2Z4LuLskKGbNUDXV34yYWyH42atxFjELbrqSgoVs6TwpFzSQwhfXqzgM?cluster=devnet) · [wrong work refused](https://github.com/drexthealpha/knos-witness/actions/runs/37890511112/job/113690226126) · [paid](https://explorer.solana.com/tx/2PtmKUrQHKPARZE4nr35Te559NGQSG7tSHUfwzcKCAjL7gzvQ76fNTVLMWvq8mcZLxd27tbyTe31mCk2PxEGfAqa?cluster=devnet) (on verified proof) · [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/10#issuecomment-6075196710) · [the record](https://github.com/drexthealpha/Knos/blob/main/evidence/knos-witness-acaa854d/witness.json).
 
 Rebuild knos_oidc and knos_pay, the programs that check the proof and pay, and compare: the hash devnet runs equals the verified build hash recorded for each ([PROVENANCE](docs/reference/PROVENANCE.md)). Read on 27 Oct 2026.
 
@@ -129,19 +133,9 @@ solana-verify get-program-hash -u devnet FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVW
 solana-verify get-program-hash -u devnet 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k   # knos_pay: 8b3c044024eac6e00cf10930c325465d5682c3fb7273fe2f0d59c6e01f99867c
 ```
 
-Every capability, with the file or transaction that shows it: [docs/reference/CAPABILITIES.md](docs/reference/CAPABILITIES.md).
-
-## The number
-
-Knos read 241 merged pull requests by AI agents whose description said the tests pass. **In 9 of them, a test, build, lint or type-check job had failed at the last commit** (3.7%; the true share is very likely between 2.0% and 6.9%; [docs/backtest.json](docs/backtest.json)). 19 had a failed check of any kind (7.9%).
-
-A first, automatic scan counted 16 and 30. A person then re-read each one and took out 11 of the 30: they were not merged into the main branch, or the failure or the claim did not hold ([docs/index_review.json](docs/index_review.json), method [version 1](docs/INDEX_METHOD.md), counted by `scripts/backtest.py`).
-
-A second, larger count: in 147 of 826 repositories (17.8%), the first such pull request by an AI agent had a failed check of any kind ([docs/reference/BENCH.md](docs/reference/BENCH.md)). A failed check is GitHub's record, not a judgment of why it failed.
-
 ## Words
 
-Pull request, devnet, multisig and more, each in one plain line: [docs/WORDS.md](docs/WORDS.md).
+Qloo, Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](docs/WORDS.md).
 
 ## Questions
 
@@ -177,17 +171,16 @@ Neither side alone. A program checks GitHub's [signature](docs/WORDS.md#signed) 
 
 Open [the front door](https://drexthealpha.github.io/Knos/) and type the product you want to build. It says who wants it and where, with no sign-up.
 
+
 ## Read more
 
-`uvx knos shadow invoice.csv`: the same check from a terminal, on a bill of your own (it needs uv, a tool for Python).
+- [Get started](docs/START.md): check demand, write a Ready brief, then hold the money and pay on proof.
 
-- [Get started](docs/START.md): check demand, write a Ready brief, then check a pull request and fund a task.
+- [Pricing](docs/PRICING.md): what Knos costs. Demand checks are free, 10 a month. The maker keeps 100%; the company pays the 1% release fee and the payment costs on top. Nobody is charged today.
 
-- [Pricing](docs/PRICING.md): what Knos costs. Demand checks are free, 10 a month. The solver keeps 100%; the company pays the 1% release fee and the payment costs on top. Nobody is charged today.
+- [Trust](docs/TRUST.md): who holds the keys, and what is tested.
 
-- [Trust](docs/TRUST.md): who holds the keys, what is tested, and what is not.
-
-- [The story](docs/STORY.md): one task in seven steps, each with its evidence.
+- [The story](docs/STORY.md): one crossing, step by step, each with its evidence.
 
 - [Every other document](docs/README.md): the map of the documents.
 

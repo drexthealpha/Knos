@@ -2,6 +2,12 @@
 fixes what fails; the Knos referee judges that code on sealed tests (and refuses a cheater whose own tests pass); the
 payout is labelled LiteSVM; every step is metered; live mode sends real requests to Token Factory and Tavily."""
 from __future__ import annotations
+import pathlib as _pl
+
+import pytest as _pt
+
+if not (_pl.Path(__file__).resolve().parents[1] / "examples/nebius").is_dir():
+    _pt.skip("examples/nebius/ left the public repository; this test runs where that folder is kept", allow_module_level=True)
 
 import json
 import os

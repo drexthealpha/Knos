@@ -1,6 +1,6 @@
 // Knos's demand check talks to Qloo through this sidecar: it starts Qloo's canonical local MCP server (`qloo mcp`,
 // @qloo/qloo-harness >= 0.1.26) with the OFFICIAL MCP SDK, exactly as Qloo's starter does
-// (github.com/qloo/qloo-hackathon-kit, starter/mcp-client/backend.mjs, SDK @modelcontextprotocol/sdk 1.30.1), and
+// (Qloo's starter kit on github.com/qloo, starter/mcp-client/backend.mjs, SDK @modelcontextprotocol/sdk 1.30.1), and
 // relays tool calls from the Python service over stdin/stdout, one JSON object per line.
 //
 //   in : {"id": 1, "op": "init"}                                      -> server info, tool names, qloo_capabilities

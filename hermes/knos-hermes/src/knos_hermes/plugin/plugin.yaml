@@ -1,5 +1,0 @@
-name: knos
-version: 0.1.0
-description: "Knos — one local memory every coding agent on the machine shares, with claim/withhold so two agents do not work the same thing. No server, no key, no model."
-pip_dependencies:
-  - knos>=0.1.1

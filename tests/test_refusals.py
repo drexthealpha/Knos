@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,8 @@ import pytest
 from knos import ghwords, terms
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from public_scan import plain  # noqa: E402
 SRC = ROOT / "src" / "knos"
 
 
@@ -134,9 +137,9 @@ def test_each_row_is_two_sentences_of_twelve_words_at_most_and_every_pattern_nam
 
 def test_the_document_and_the_site_print_the_table_from_the_module():
     doc = (ROOT / "docs" / "reference" / "SUPPLIER.md").read_text(encoding="utf-8")
-    assert ghwords.refusal_table() in doc, "docs/reference/SUPPLIER.md is behind the table: python scripts/supplier_docs.py"
+    assert plain(ghwords.refusal_table()) in doc, "docs/reference/SUPPLIER.md is behind the table: python scripts/supplier_docs.py"
     site = json.loads((ROOT / "web" / "refusals.json").read_text(encoding="utf-8"))
-    assert site["rows"] == ghwords.refusal_rows(), "web/refusals.json is behind the table: python scripts/supplier_docs.py"
+    assert site["rows"] == plain(ghwords.refusal_rows()), "web/refusals.json is behind the table: python scripts/supplier_docs.py"
 
 
 @pytest.mark.parametrize("code", ["judge.protected-path", "pay.83", "appeal.nothing"])

@@ -70,7 +70,7 @@ LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/healthz")                                           # demo pre-orders, all clients
+DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/healthz")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
@@ -91,6 +91,7 @@ GET_ROUTES = {"/actions.json": "Solana Actions rules", "/api/refuse": "What Knos
               "/api/money": "The money page: what is held, released and charged, and the price list",
               "/api/vectors": "The seven product-value vectors, measured: cost, speed, friction, trust, capability, access, status",
               "/api/proof": "The latest real verdict this server reached (shown first on both front doors)",
+              "/api/forecasts": "The forecast ledger's rows, Knos's picks with them (docs/reference/forecast_plan_v2.md)",
               "/api/ready/card": "A Ready card, read back from its devnet attestation (?hash= the criteria hash)",
               "/api/solvers": "Proven solvers first: wallets by verified milestones, each read back from devnet",
               "/fields": "Fields", "/money": "The money", "/with-without": "With and without Qloo: the 20 ideas, the table in the page", "/companies": "Companies", "/api/trace": "A demand report's Qloo calls, redacted: endpoint, params, ids, excerpt, limit",
@@ -677,6 +678,11 @@ def make_handler(state: State):
                 rid = u.path[3:]
                 rep = result_page.find(state, rid)
                 return self._send(200 if rep else 404, result_page.page(rep, self._base() + u.path, rid).encode("utf-8"), "text/html; charset=utf-8")
+            if u.path == "/api/forecasts":                 # the forecast ledger's rows, Knos's picks with them (forecast_plan_v2.md)
+                from . import recorded
+                with recorded._lock:
+                    fc = dict(recorded._forecasts)
+                return self._send(200 if fc else 404, fc or {"error": "no forecast rows on this server"}, headers={"Cache-Control": "no-store"})
             if u.path == "/status/qloo":                    # Qloo as this server met it today, from its own traffic: no call made
                 from . import qloo_status
                 return self._send(200, inline_css(qloo_status.page()).encode("utf-8"), "text/html; charset=utf-8")
@@ -802,7 +808,8 @@ def make_handler(state: State):
             hz = qloo_harness.harness()
             rest = {**rest, "harness_first": {"surface": qloo_harness.SURFACE, "on": hz.enabled(), "answered": hz.answered,
                                               "rule": "a call goes through the harness when every parameter maps onto a harness tool; else REST"}}
-            return {**mcp, **top, "qloo_rest": rest, "preorders": pf, "record_anchor": state.last_anchor,
+            from . import status_deps
+            return {**mcp, **top, "qloo_rest": rest, "preorders": pf, "record_anchor": state.last_anchor, "deps": status_deps.deps(),
                     "x402": {"ready": x402.ready(), "route": "/api/x402/report?hash=<report>", "price": f"{x402.PRICE_UNITS} test unit per read"},
                     "fees": preorder.fee_line(), "auth": auth.config(),
                     "framing": demand.FRAMING, "escrow": escrow.available(),
@@ -993,6 +1000,12 @@ def make_handler(state: State):
                     opts["exclude"] = ",".join(ex)
                 privacy.check({k: v for k, v in opts.items() if isinstance(v, str) and k != "exclude"})   # exclude: Qloo ids, checked above
                 without = body.get("without_qloo") is True        # the same check with the key unset (the comparison)
+                picked = body.get("picked") is True              # the reader picked this exact reading (which.py)
+                if not picked and not without and not ex:
+                    from . import which                         # which one do you mean? before any Qloo call
+                    w = which.step(idea)
+                    if w:
+                        return w
                 t0 = time.perf_counter()
                 stage = "verdict" if body.get("stage") == "verdict" else None
                 if stage:
@@ -1003,15 +1016,18 @@ def make_handler(state: State):
                     rep["without_qloo"] = True
                 else:
                     from . import recorded                   # Qloo not answering: said, or the sample's last real card
-                    rep = recorded.honest(idea, rep)
+                    rep = recorded.honest(idea, rep, picked=picked)
                 rep["fees"] = preorder.fee_line()
                 card = state.cards.get(str(body.get("research") or ""))
                 if card:
                     rep["research"] = {**card, "why_never_crossed": research.why_never_crossed(card, rep)}
                 rep["elapsed_ms"] = round((time.perf_counter() - t0) * 1000)
-                rep["record"] = {"recorded": False, "why": "a last real card, already recorded"} if rep.get("stale") else company.record_check(rep)
+                if isinstance(rep.get("qloo_calls"), dict):
+                    rep["qloo_calls"] = {**rep["qloo_calls"], "ms": rep["elapsed_ms"]}
+                if not rep.get("queued"):
+                    rep["record"] = {"recorded": False, "why": "a last real card, already recorded"} if rep.get("stale") else company.record_check(rep)
                 state.keep_check(rep)
-                if not rep.get("stale"):
+                if not rep.get("stale") and not rep.get("queued"):
                     from . import vectors
                     vectors.note("check", rep["elapsed_ms"], rep, state)   # speed and cost, measured; a real verdict is the proof shown first
                 return rep

@@ -26,7 +26,5 @@ tests/test_suite_speed.py::test_the_committed_primes_are_the_ones_the_seeds_of_t
 
 # knos verify and the sealed-task judge run a real pytest in a throwaway copy, several times per test (measured 13 Oct
 # 2026 in WSL on a 4-CPU machine: 30 s, 19 s, 7 s, 6 s)
-tests/test_hermes_gepa.py::test_a_correct_patch_scores_one_a_wrong_one_zero_and_a_cheat_zero_with_its_category
 tests/test_agents_verify.py::test_a_correct_fix_passes_with_real_tests_run_twice_and_a_signed_receipt
 tests/test_agents_verify.py::test_the_command_line_writes_the_receipt_prints_the_markdown_and_exits_by_verdict
-tests/test_hermes_atropos.py::test_without_atroposlib_the_pure_parts_work_and_rewards_come_from_the_judge

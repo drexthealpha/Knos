@@ -7,7 +7,7 @@ A researcher's folder for `knos.autoresearch`. Everything here is a demonstratio
     task.json             the terms: the one editable file, metric, time budget, keep / re-run / graduation bars, data
     train.py              the ONE file an agent edits (the baseline: linear logistic regression, standard library)
     referee/sealed.json   the referee's sealed seed for the hidden sets; task.json commits to its sha256.
-                          DEMO ONLY: it is in the repository so anyone can reproduce the run, which means anyone who
+                          SAMPLE ONLY: it is in the repository so anyone can reproduce the run, which means anyone who
                           reads it can see the hidden sets. A real referee keeps it off the agent's machine.
 
 Run it (no key, no network; the default proposer is deterministic):

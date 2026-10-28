@@ -1,6 +1,6 @@
 # Outcomes that are not a merged pull request
 
-Three orders whose deliverable is not code to merge, each as a complete bundle the existing judge runs:
+Three orders whose deliverable is not code to merge, each as a complete bundle the existing referee runs:
 
 | folder | the deliverable | what the black-box suite does |
 |---|---|---|
@@ -19,20 +19,20 @@ Each folder has the same parts:
     solution/              an honest submission, laid over base/
     cheats/<name>/         a submission that passes the naive check without doing the work
 
-Run one through the judge, from `examples/outcomes/` with Knos installed (`pip install knos`). This is the command
+Run one through the referee, from `examples/outcomes/` with Knos installed (`pip install knos`). This is the command
 the pinned workflow runs:
 
     cp -r data-labelling/base work-base && cp -r data-labelling/base work-pr && cp -r data-labelling/solution/. work-pr/
-    knos proof judge --base work-base --pr work-pr --issue 1     # the black-box suite
-    knos proof judge --base work-base --pr work-pr --issue 2     # the naive check
+    knos proof referee --base work-base --pr work-pr --issue 1     # the black-box suite
+    knos proof referee --base work-base --pr work-pr --issue 2     # the naive check
 
 `tests/test_outcomes.py` does that for every submission: the honest one is accepted by both bundles, the cheating one
 is accepted by bundle 2 and refused by bundle 1. `python examples/outcomes/evaluation.py` prints each example's terms
-and ledger lines. Standard library only; nothing is random at judging time, so a rerun gives the same verdict.
+and ledger lines. Standard library only; nothing is random at checking time, so a rerun gives the same verdict.
 
 A real order would hold one bundle, the black-box one. Bundle 2 sits in the same repository here only so that the
 difference can be run. [docs/reference/OUTCOMES.md](../../docs/reference/OUTCOMES.md) says what each suite cannot check.
 
 A fourth folder is of another kind: [support-resolution](support-resolution/) has no suite and no submission. Its
-outcome is a support ticket resolved, judged from the ticket's own record under terms, on made-up tickets
+outcome is a support ticket resolved, checked from the ticket's own record under terms, on made-up tickets
 (`python scripts/outcome_support.py evaluate`).

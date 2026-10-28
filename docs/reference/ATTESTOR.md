@@ -5,7 +5,7 @@ to a machine nobody signed for, and the five ways of narrowing that gap: what ea
 trusted, and how mature it is today. Two of the five exist in this repository.
 
 Three do not, and the last section says in which order Knos intends to take them. For the fifth there is one
-experiment outside the product: a judge for one small task whose run was proved and the proof verified, with the
+experiment outside the product: a referee for one small task whose run was proved and the proof verified, with the
 time, memory and size measured here.
 
 Outside pages were read on 2026-10-06 unless a line says otherwise (the proved run and its sources: 2026-10-07);
@@ -50,7 +50,7 @@ of 21 to 24 August 2026; [community discussion 205732](https://github.com/orgs/c
 Custom images are for organisations and enterprises on the
 Team and Enterprise Cloud plans
 ([GitHub's documentation](https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images)),
-which is why the neutral judge accepts only a run in a repository a personal account owns. That rule is GitHub's
+which is why the neutral referee accepts only a run in a repository a personal account owns. That rule is GitHub's
 product boundary, not a signature: [SECURITY.md](SECURITY.md) says what breaks if it moves.
 
 For Knos the same move would be an organisation's runner that makes `prove.yml` report a passing suite, or answer
@@ -66,19 +66,19 @@ the workflow files, and it is held by tests ([SECURITY.md](SECURITY.md), "Where 
   it installs `knos` by the hash of every file and runs none of that code. What crosses between them is one line of
   fixed fields with no free text, which the signing job reads strictly, holds to its own run, pull request, issue
   and two commits, and checks again against the forge's record (the head commit, the acceptance bundle's hash, the
-  judge's rule on every changed path) before the command that can sign starts. Every action is named by a full
+  referee's rule on every changed path) before the command that can sign starts. Every action is named by a full
   commit.
 - **Not enforced by shape.**
   - *A compromised runner image.* The label `ubuntu-24.04` is not a digest and the token does not name the image
     (the example above). The verdict records the image's version as the machine reports it; nothing signs it.
   - *The forge itself.* It runs both jobs, carries the output between them, answers the API the second job checks
     against, and signs. A forge that lies is outside every rung of the ladder below
-    except d (a proof of what the API returned) and e (a proof of what the judge executed).
-  - *The judge's own code being wrong.* The signing job proves which `knos` it installed, not that `classify_path`
+    except d (a proof of what the API returned) and e (a proof of what the referee executed).
+  - *The referee's own code being wrong.* The signing job proves which `knos` it installed, not that `classify_path`
     or the sandbox is right. That is what the tamper corpus ([TAMPER.md](TAMPER.md)) and a second, different
-    judge are for.
+    referee are for.
   - *That the suite passed.* One bit, for one pull request at one commit against one bundle, is still the word of
-    the machine that ran the code. Rungs a (a quorum of judges) and b (a second run of the
+    the machine that ran the code. Rungs a (a quorum of referees) and b (a second run of the
     suite), below, are how a second machine says it too.
 
 **Escape and substitution tests a reviewer should run.** Each is independent of Knos's own tests; a reviewer should
@@ -86,15 +86,15 @@ write the hostile input rather than reuse ours.
 
 1. *Out of the sandbox.* In a fork, open a pull request whose code, under the acceptance suite, tries: a TCP
    connection by address, a DNS lookup, reading `/proc/1/environ` and `$GITHUB_*`, `sudo -n true`, writing outside
-   its tree, and reading the runner's work folder. Expect every one to fail and the judge job's log to hold no token.
-2. *From the judge to the signer.* With a copy of the workflows in a staging repository, replace the judge's last
+   its tree, and reading the runner's work folder. Expect every one to fail and the referee job's log to hold no token.
+2. *From the referee to the signer.* With a copy of the workflows in a staging repository, replace the referee's last
    step with one that prints a verdict for another pull request, another head commit, another issue, another run id;
    then one with a key twice, one of 1 MB, one whose `image` is a shell command. Expect the signing job to end at
    the step before `knos settle`, and no token comment.
 3. *Past the rule.* A pull request that edits an existing test, one that renames it away, one that adds a workflow
-   file, each with a judge patched to say "passed". Expect the signing job to refuse by the path's code.
-4. *A stale verdict.* Push a commit to the pull request between the judge and the signer (hold the signer with the
-   `knos-settle` line). Expect "no longer the one that was judged".
+   file, each with a referee patched to say "passed". Expect the signing job to refuse by the path's code.
+4. *A stale verdict.* Push a commit to the pull request between the referee and the signer (hold the signer with the
+   `knos-settle` line). Expect "no longer the one that was checked".
 5. *Across runs.* Start two runs for two pull requests at once and confirm neither signer accepts the other's
    verdict; run a failed `rerun` job of `attest.yml` again and confirm the second attempt's artifact has its own
    name.
@@ -108,7 +108,7 @@ name no image in `DEFAULT_IMAGE` (Python 3.12 on Alpine, pinned by digest) when 
 network, a read-only root, the tree read-only, another user, no capabilities, memory, CPU, process and time limits
 (`container_argv`).
 
-Terms that name an image always run in that image, or not at all. Everywhere else the host sandbox judges, the
+Terms that name an image always run in that image, or not at all. Everywhere else the host sandbox referees, the
 verdict's `judged_in` says `host sandbox (fallback: <why>)`, and its `assurance` stays `black-box`, never `hermetic`.
 
 The fallbacks: a machine that is not Linux, an in-process runner (pytest, node:test, go test, cargo test, minitest
@@ -127,7 +127,7 @@ The host sandbox (`Box.wrap`), on Linux with `setpriv`, `unshare`, `prlimit` and
 | filling memory | RLIMIT_DATA 4 GiB per process (heap and private writable mappings; a container's limit is per container) |
 | filling the disk | RLIMIT_FSIZE 1 GiB per file, then "File too large" |
 | calling out | a network namespace with only a loopback (the dependency install alone has the network) |
-| reading the judge's secrets | another user, an empty environment |
+| reading the referee's secrets | another user, an empty environment |
 
 tests/test_judge_box.py runs a fork bomb, an outside write, a file past the size limit, a CPU loop and a run past
 its time limit, and checks each is stopped and nothing outlives the run; the escape table in [TAMPER.md](TAMPER.md)
@@ -135,50 +135,50 @@ measures the same places.
 
 What other runners can enforce. GitHub runs container jobs and service containers on Linux runners only ([Use Docker service
 containers](https://docs.github.com/en/actions/tutorials/use-containerized-services/use-docker-service-containers)), so on macOS and
-Windows the judge is never hermetic.
+Windows the referee is never hermetic.
 
 On **macOS** without the sandbox the command gets the CPU and file size limits (`setrlimit`, which POSIX defines) and a session that is
 killed whole on the time limit.
 
-There is no mount or network namespace, so it can write wherever the judge's user can and can call out. A process count limit is not
-set because RLIMIT_NPROC there counts every process of the judge's own user.
+There is no mount or network namespace, so it can write wherever the referee's user can and can call out. A process count limit is not
+set because RLIMIT_NPROC there counts every process of the referee's own user.
 
-On **Windows** the judge sets none of these: a job object could limit processes, memory and CPU, and Knos does not create one yet; writes
-are bounded only by the account's file permissions. `--sandbox require`, and `hermetic`, which falls back to it, refuse to judge on
+On **Windows** the referee sets none of these: a job object could limit processes, memory and CPU, and Knos does not create one yet; writes
+are bounded only by the account's file permissions. `--sandbox require`, and `hermetic`, which falls back to it, refuse to check on
 either.
 
 ## The ladder
 
 | Rung | Closes | Still trusted | Today |
 |---|---|---|---|
-| a. Quorum of judges in repositories different parties control | one runner, one maintainer | the forge; that the parties are different people | built and tested in a simulator; no quorum has paid on the public program ids yet (one was funded and recorded its first judge there). In each judge, the job that runs the code cannot sign (shape, above) |
-| b. Re-execution by a neutral judge from pinned inputs | a check result that lies | the forge's hosted runner for a personal account; the suite itself; that the re-execution's one bit is true | built; one public payment was judged again this way, by Knos's own account, so its receipt reads `reported` ([RECEIPT.md](RECEIPT.md)). No outside account has hosted the judge. Its verdict is read strictly and held to the order by the job that signs (shape, above) |
-| c. Build provenance of the judge | what code the judge installed | the forge as builder and signer; the machine (see the example above) | not built here; the parts exist at GitHub and Sigstore |
+| a. Quorum of referees in repositories different parties control | one runner, one maintainer | the forge; that the parties are different people | built and tested in a simulator; no quorum has paid on the public program ids yet (one was funded and recorded its first referee there). In each referee, the job that runs the code cannot sign (shape, above) |
+| b. Re-execution by a neutral referee from pinned inputs | a check result that lies | the forge's hosted runner for a personal account; the suite itself; that the re-execution's one bit is true | built; one public payment was checked again this way, by Knos's own account, so its receipt reads `reported` ([RECEIPT.md](RECEIPT.md)). No outside account has hosted the referee. Its verdict is read strictly and held to the order by the job that signs (shape, above) |
+| c. Build provenance of the referee | what code the referee installed | the forge as builder and signer; the machine (see the example above) | not built here; the parts exist at GitHub and Sigstore |
 | d. Proof of what the forge's API returned | the answers | a notary or a proxy, or the proof system | not built; no system we found checks a transcript on Solana |
-| e. Proof of what the judge executed: an attested enclave, or a proved run | the machine | enclave: the chip vendor's root key, side channels, the cloud. Proved run: the proof system and its setup; that the checks are the right ones | not built in the product; GitHub offers no attested runner. One experiment: a judge for one task, proved and verified off chain (below) |
+| e. Proof of what the referee executed: an attested enclave, or a proved run | the machine | enclave: the chip vendor's root key, side channels, the cloud. Proved run: the proof system and its setup; that the checks are the right ones | not built in the product; GitHub offers no attested runner. One experiment: a referee for one task, proved and verified off chain (below) |
 
-### a. A quorum of judges
+### a. A quorum of referees
 
-**What exists.** `/knos fund ... quorum 2`: `PayOrder` pays only when that many distinct judges have each passed the
+**What exists.** `/knos fund ... quorum 2`: `PayOrder` pays only when that many distinct referees have each passed the
 same head commit, terms, mode, pull request and payees ([SECURITY.md](SECURITY.md), section 19).
 
-**What the chain enforces.** The judges are of different kinds (the order's own repository, a neutral run, a judge
+**What the chain enforces.** The referees are of different kinds (the order's own repository, a neutral run, a referee
 repository), each from the pinned workflow at the pinned commit on a first attempt. A neutral run counts only when
 it is outside the order's repository and was not started by the account that funded the order or owns its Balance.
 
 Two tokens of one kind count once.
 
-**What only the receipt records.** Whether the judges share a controller. One forge account that can start the run
+**What only the receipt records.** Whether the referees share a controller. One forge account that can start the run
 in the order's repository and the run in the neutral repository satisfied a quorum of 2 under knos_pay 2.1; the
 receipt then says
 `same_controller: true` and `knos receipt` prints `SAME CONTROLLER.` ([RECEIPT.md](RECEIPT.md)). Before knos_pay
 2.2 the chain did not refuse it.
 
 This is the first of the two findings in [SECURITY.md](SECURITY.md); knos_pay 2.2, live at the
-public ids since 9 Oct 2026, fixes it: judges are counted by repository owner, and the neutral judge must differ
+public ids since 9 Oct 2026, fixes it: referees are counted by repository owner, and the neutral referee must differ
 from both sides in owner and in who started the run.
 
-**Cost.** A second run by hand (`knos settle --neutral`) and about 120,000 compute units for the judge who is
+**Cost.** A second run by hand (`knos settle --neutral`) and about 120,000 compute units for the referee who is
 recorded ([SECURITY.md](SECURITY.md), section 19, measured in the simulator).
 
 **What it proves.** That two runners in two repositories reached the same verdict. Against the larger-runner move
@@ -188,9 +188,9 @@ that matters: an organisation's image decides its own run and not a stranger's.
 person.
 
 **Maturity.** Tested in a simulator on builds made for testing. No quorum has paid on the public program ids yet
-(one was funded and recorded its first judge there).
+(one was funded and recorded its first referee there).
 
-### b. Re-execution by a neutral judge
+### b. Re-execution by a neutral referee
 
 **What exists.** [`attest.yml`](../../.github/workflows/attest.yml) has a `rerun` job with a read-only token and no
 signing permission. For an order paid by its acceptance checks it fetches the two commits by their ids, checks that
@@ -206,7 +206,7 @@ The `attest` job asks for the token only when that verdict passed
 hash: a commit id is a hash of its content, and the bundle is checked against the terms.
 
 So rung b removes most of
-gap (2) for a tests-mode order: the judge no longer believes an API's "success", it believes a hash it recomputed.
+gap (2) for a tests-mode order: the referee no longer believes an API's "success", it believes a hash it recomputed.
 
 **What it does not.** An order paid on its merge is not re-executed: its checks are the repository's own, and the
 neutral run still reads their conclusions (`reexecuted: false`). The order itself and the pull request's state are
@@ -217,11 +217,11 @@ Knos's own account ([RECEIPT.md](RECEIPT.md), "Version 5"). The verdict it write
 workflow's own account of how it decided.
 
 **Who hosts it.** A receipt's level is computed from account ids (`knos.receipt.assurance_of`). It reads `rerun`
-only when the judge that ran the suite is owned and started by an account that is not a payee, and `agreed` only
-when two such judges have different owners.
+only when the referee that ran the suite is owned and started by an account that is not a payee, and `agreed` only
+when two such referees have different owners.
 
 One account that funds, delivers and evaluates reads `reported`
-however often it runs the suite: that is every receipt so far. So the judge has to be hosted by someone else, and
+however often it runs the suite: that is every receipt so far. So the referee has to be hosted by someone else, and
 [`examples/host_a_judge`](../../examples/host_a_judge/README.md) makes that one link and one button:
 
 - **The host** makes an empty repository and adds one file, [`examples/knos-attest.yml`](../../examples/knos-attest.yml)
@@ -229,7 +229,7 @@ however often it runs the suite: that is every receipt so far. So the judge has 
   workflow after the merge. `python -m knos.host_judge link` prints the first link, `editor <you>/knos-judge` the second.
 - **The buyer** names it: `/knos fund 20 checks: unit quorum 2 judge: <host>/knos-judge`. An order funded without
   `judge:` and without `neutral off` takes the host's run as its neutral run.
-- **What the host is paid.** Nothing by the order: the program has no judge's share. The relayer's tip (0.05 test
+- **What the host is paid.** Nothing by the order: the program has no referee's share. The relayer's tip (0.05 test
   USDC out of the fee; 0.30 when the paying transaction creates a payee's token account: `TIP` and `TIP_FIRST` in
   [`knos_pay/src/lib.rs`](../../programs-v2/knos_pay/src/lib.rs)) goes to whoever paid for the paying transaction,
   which is the host only if the host also runs a relay.
@@ -250,11 +250,11 @@ between them is held to one reading (small, plain characters, each key once, onl
 
 Not enforced: that `rerun`'s
 "passed" is true. A pull request that escaped the sandbox there could write it; it could not make it name another
-order, and the same escape would have to work in every judge of a quorum.
+order, and the same escape would have to work in every referee of a quorum.
 
-### c. Build provenance of the judge itself
+### c. Build provenance of the referee itself
 
-**What it is.** A signed statement that an artifact (the `knos` wheel, a judge's container image) was built by a
+**What it is.** A signed statement that an artifact (the `knos` wheel, a referee's container image) was built by a
 named workflow at a named commit. GitHub's artifact attestations are Sigstore bundles: a short-lived certificate
 whose identity GitHub's OIDC issuer sets, over an in-toto statement with a SLSA provenance predicate.
 
@@ -269,17 +269,17 @@ the run and the token's claims. It is the cheapest step on this page, and it say
 never what that workflow computed.
 
 **What a verifier could check off chain.** `gh attestation verify <file> --repo <owner>/<repo>`, with
-`--signer-workflow` to require the reusable workflow, before a judge installs or runs anything. For a release:
+`--signer-workflow` to require the reusable workflow, before a referee installs or runs anything. For a release:
 immutable releases, generally available since 28 October 2025, fix a release's assets and tag and carry a release
 attestation that any Sigstore tool can check
 ([GitHub changelog](https://github.blog/changelog/2025-10-28-immutable-releases-are-now-generally-available/)).
 
 **What a verifier could check on chain.** Less than it seems. A Sigstore bundle is an X.509 chain and an inclusion
-proof; the practical form on chain is a digest. An order's terms can already name the judge's image by its sha256
-digest (the hermetic judge, [SECURITY.md](SECURITY.md), section 13), and the order already records the workflows'
+proof; the practical form on chain is a digest. An order's terms can already name the referee's image by its sha256
+digest (the hermetic referee, [SECURITY.md](SECURITY.md), section 13), and the order already records the workflows'
 commit.
 
-What provenance would add is a second fact beside that digest, checked by the judge and written in the
+What provenance would add is a second fact beside that digest, checked by the referee and written in the
 verdict: "this digest was built by this workflow at this commit".
 
 **Pinned digests and pinned actions.** Every action in every workflow here is named by a full commit
@@ -294,13 +294,13 @@ within months of that date; when read it said nothing about signing the runner o
 
 **Cost.** One reusable workflow and one verification step. No program change.
 
-**What it proves.** Gap (3): which source the judge's code came from.
+**What it proves.** Gap (3): which source the referee's code came from.
 
 **What stays trusted.** GitHub, twice: as the builder and as the issuer of the signing identity. And the machine:
 the August 2026 finding is a build whose provenance verified and whose bytes were wrong. Provenance from a
-repository a personal account owns stands on the same product boundary as the neutral judge.
+repository a personal account owns stands on the same product boundary as the neutral referee.
 
-**Maturity.** Knos publishes no artifact attestation today and no judge checks one. The parts are generally
+**Maturity.** Knos publishes no artifact attestation today and no referee checks one. The parts are generally
 available at GitHub.
 
 ### d. Proof of what the forge's API returned
@@ -345,10 +345,10 @@ changes from "GitHub, about a workflow" to "an attestor, about a response".
 **Proof sizes and verification cost.** We found no published size for a TLSNotary presentation or a Reclaim proof
 in a primary source, and no measured cost of verifying either inside a Solana program. This page gives none.
 
-**Cost for Knos.** A prover beside every judge run, an attestor or notary somebody operates, and a new instruction
-that accepts the attestor's signature. For a quorum it would be one more kind of judge.
+**Cost for Knos.** A prover beside every referee run, an attestor or notary somebody operates, and a new instruction
+that accepts the attestor's signature. For a quorum it would be one more kind of referee.
 
-**What it proves.** That the response the judge acted on came from GitHub's server, as far as the notary or proxy
+**What it proves.** That the response the referee acted on came from GitHub's server, as far as the notary or proxy
 is honest.
 
 **What stays trusted.** The notary or the proxy; GitHub's record itself (a truthful transcript of a wrong record is
@@ -356,12 +356,12 @@ still wrong); the request (a proof of the wrong question's answer proves nothing
 
 **Maturity.** Research and early products. Nothing in Knos.
 
-### e. Proof of what the judge executed
+### e. Proof of what the referee executed
 
-Two routes answer gap (1) for a judge in an organisation's hands. In the first the machine signs for itself. In the
+Two routes answer gap (1) for a referee in an organisation's hands. In the first the machine signs for itself. In the
 second no machine is believed: the run carries a proof that anyone checks.
 
-#### An attested enclave runs the judge
+#### An attested enclave runs the referee
 
 Hardware measures what was loaded and signs the measurement with a key the chip vendor certifies.
 
@@ -369,7 +369,7 @@ Hardware measures what was loaded and signs the measurement with a key the chip 
 |---|---|---|---|
 | [AWS Nitro Enclaves](https://docs.aws.amazon.com/enclaves/latest/user/verify-root.html) | a CBOR attestation document: the enclave image's measurements (PCRs), up to 1,024 bytes each of `user_data`, `nonce` and `public_key` | COSE_Sign1 with ECDSA P-384 (ES384, header `{1: -35}`), digest SHA384 | the AWS Nitro Enclaves root certificate, 30 years, through a chain carried in the document |
 | Intel TDX | a quote: the measurements of the trust domain and 64 bytes of report data | ECDSA P-256 by the quoting enclave's attestation key ([`tdx-quote`](https://docs.rs/tdx-quote), quote versions 4 and 5) | Intel's provisioning certification key chain |
-| AMD SEV-SNP | an attestation report: the guest's launch measurement and report data | by the chip's VCEK; ECDSA P-384 in AMD's specification (not re-read on this date) | AMD Root CA, then AMD SEV CA, then the VCEK ([Edgeless Systems](https://docs.edgeless.systems/contrast/architecture/snp)) |
+| AMD SEV-SNP | an attestation report: the guest's launch measurement and report data | by the chip's VCEK; ECDSA P-384 in AMD's specification (not re-read on this date) | AMD Root CA, then AMD SEV CA, then the VCEK ([Edgeless Systems](https://docs.edgeless.systems/contrast/)) |
 | [Azure confidential VMs](https://learn.microsoft.com/en-us/azure/confidential-computing/guest-attestation-confidential-virtual-machines-design) | a virtual TPM quote, with a SEV-SNP (1,184 bytes) or TDX (1,024 bytes) hardware report beneath it | the TPM quote by an RSA attestation key Azure certifies | AMD's or Intel's chain, and Azure's CA for the virtual TPM |
 
 **GitHub's position.** We found none. GitHub documents no attested or confidential hosted runner, its 2026 roadmap
@@ -380,7 +380,7 @@ attestation of the runner; the standard Linux runner for a public repository has
 ([GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)).
 
 An
-attested judge today would be a self-hosted runner inside an enclave, and `knos_pay` refuses self-hosted runners,
+attested referee today would be a self-hosted runner inside an enclave, and `knos_pay` refuses self-hosted runners,
 rightly: without the attestation a self-hosted runner is the operator's word.
 
 **How the verifier could check an attestation.** `knos_oidc` verifies RS256 by doing the RSA arithmetic itself,
@@ -415,13 +415,13 @@ side channel or a physical attack that the vendor's threat model excludes; and t
 
 **Maturity.** The platforms are generally available. Nothing in Knos uses one.
 
-#### A proved run of the judge
+#### A proved run of the referee
 
 A zero-knowledge virtual machine runs a program compiled for RISC-V and produces a proof that this program, on some
 input, wrote this output. The program is named by a hash (the image id); the output (the journal) is public; the
 verifier needs neither the machine nor its operator.
 
-For a judge that is a fixed program this is gap (1) closed with no signer added.
+For a referee that is a fixed program this is gap (1) closed with no signer added.
 
 **The two systems with a verifier written for Solana**, as their own pages stood on 2026-10-07:
 
@@ -442,7 +442,7 @@ Neither verifier repository changed in the 30 days before this was read, so Knos
 recommends neither as maintained: building on one means carrying its verifier here.
 
 **What existed here.** An experiment, outside the package and
-outside every wheel, now kept out of this repository. Its guest program is a judge for one task of the playground's kind (`count_words`): seven
+outside every wheel, now kept out of this repository. Its guest program is a referee for one task of the playground's kind (`count_words`): seven
 fixed cases, each an input and the output a correct function returns. The input is the submission: the outputs a
 supplier's function gave, one line a case.
 
@@ -454,7 +454,7 @@ gives the same 70 bytes, and a test holds the two together.
 **Measured on 2026-10-07**: RISC Zero 3.0.6, its
 `r0vm` prover, 2 CPUs of a shared virtual machine with 8 GB of memory, no GPU. The machine was busy with other
 work, so the wall-clock seconds are an upper figure and the CPU seconds the steadier one. The run is 6,941 cycles
-of the judge in one segment of 32,768.
+of the referee in one segment of 32,768.
 
 Image id
 `e95d5440dce55f43c566b0ee20f8fc08b2fd6c1cf7f5d1722c31ea54b4325617`.
@@ -500,16 +500,16 @@ them), over this submission (by hash), gave this verdict. Nothing about who ran 
   more statement inside the proof.
 - *That the proof system is sound.* The verifier trusts the circuits, and for the on-chain form a trusted setup.
 
-**The order of work to an on-chain `attested` level.** No receipt of Knos's says `attested` today, and no judge of
+**The order of work to an on-chain `attested` level.** No receipt of Knos's says `attested` today, and no referee of
 Knos's is attested: the level stays out of the product until a verifier is live on the public program ids.
 
 1. Make the Groth16 receipt of this same run on an x86 machine with the memory it needs, and measure it.
 2. Verify it in the simulator the handler tests use, with the Groth16 verifier's code vendored at a pinned commit,
    and measure the compute units. One transaction is the bound: 256 bytes of proof and 70 of journal fit.
-3. Name the judge in the terms: the image id and the checks' hash go into the hash a funding commits to, so a
+3. Name the referee in the terms: the image id and the checks' hash go into the hash a funding commits to, so a
    proof for other checks pays nothing.
 4. A program change, proposed and time-locked like any other: an instruction that takes the proof and the journal,
-   recomputes the journal's hash, asks the verifier, and records a judge of a new kind for a quorum. No program has
+   recomputes the journal's hash, asks the verifier, and records a referee of a new kind for a quorum. No program has
    been changed for this yet.
 5. Run the supplier's function inside the guest for one language with a small interpreter, and measure again.
    Until then the level could only say "these outputs met these checks".
@@ -584,18 +584,18 @@ These are intentions. None of them is a date, and none exists beyond what the se
    what is missing is a run on the public ids, not a missing technology.
 2. **Widen rung b.** Re-execution already replaces "the API said success" with "the suite passed here" for
    tests-mode orders. The intention is to make that the recommended mode for any order above a size the buyer
-   chooses, and to have the neutral judge read `runner_group_id` and write it in the verdict, said plainly as the
+   chooses, and to have the neutral referee read `runner_group_id` and write it in the verdict, said plainly as the
    API's word and not a signature.
-3. **Add rung c for the judge's own code.** Build the release through a reusable workflow, publish its
-   attestation, and have the hermetic judge verify it before it runs. Small, no program change, and it makes gap
+3. **Add rung c for the referee's own code.** Build the release through a reusable workflow, publish its
+   attestation, and have the hermetic referee verify it before it runs. Small, no program change, and it makes gap
    (3) checkable by a stranger.
-4. **Prototype rung d as a third kind of judge, off chain first.** One proof of one API response (the pull
+4. **Prototype rung d as a third kind of referee, off chain first.** One proof of one API response (the pull
    request's merge state), kept beside the verdict and checked by `knos receipt`. A program accepts an attestor's
    signature only after the transcript proof has been useful off chain, because on chain it would add a trusted
    signer, and the reason for the whole ladder is to have fewer of those.
 5. **Rung e last.** It is the only complete answer to gap (1) and the most expensive, and the forge offers nothing
-   to build on. For a judge that is a fixed, small program the intention is the proved run, in the order the
-   section above gives, because it adds no signer. For a judge that runs a repository's own suite the intention is
+   to build on. For a referee that is a fixed, small program the intention is the proved run, in the order the
+   section above gives, because it adds no signer. For a referee that runs a repository's own suite the intention is
    the indirect shape of the enclave: an attestation checked off chain, a small token on chain. If GitHub puts the
    runner group or an image measurement into the token, most of the enclave route becomes a one-line rule in
    `knos_pay`, which is one more reason not to build it first.

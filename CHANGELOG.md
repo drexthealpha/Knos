@@ -1,6 +1,6 @@
 # Changelog
 
-Prices and figures in older entries are superseded; the current price book is [docs/reference/MARKET.md](docs/reference/MARKET.md), section "The price book", and each GitHub release's notes are its entry here.
+Prices and figures in older entries are superseded; the current price book is docs/reference/MARKET.md, section "The price book", and each GitHub release's notes are its entry here.
 
 Each entry starts with what changed for you, in one or two plain lines ("In short"); the full notes follow.
 
@@ -24,9 +24,9 @@ says so. **No program changes in this release:** nothing under `programs-v2/knos
   reserve, all set by Qloo's evidence. A pre-order locks test units in a PANEL order released by a 2-of-3 referee panel.
 - **Funder (Fund):** a funder's money is held on its own for the milestone (its own order and claim id, beside
   the pre-orders), paid to the maker on proof and refunded after the deadline.
-- **Contributor (Contribute):** a demo game round is always open. Submit the whole `train.py` of
-  `examples/autoresearch`; the sealed referee judges it at once; several attempts per round; a scored attempt can be
-  paid a demo prize in test units.
+- **Contributor (Contribute):** a sample game round is always open. Submit the whole `train.py` of
+  `examples/autoresearch`; the sealed referee checks it at once; several attempts per round; a scored attempt can be
+  paid a sample payment in test units.
 - **Maker (Make):** post a public page that contains the claim id as evidence; two referee signatures release the
   money; a second release is refused because the order is closed on chain.
 - **Agent (MCP over HTTP at /mcp):** the knos_* tools for every role, and the official qloo-harness MCP server's
@@ -145,7 +145,7 @@ moved by a byte. The interface crates stay at 0.3.14. Nothing new went to exerci
   new to all of it: short sentences, no internal shorthand, and each technical word explained once or linked to
   [`docs/WORDS.md`](docs/WORDS.md). The documents in `docs/reference/` moved with their links fixed; some are
   unchanged.
-- **[`docs/WORDS.md`](docs/WORDS.md)** explains 45 words.
+- **[`docs/WORDS.md`](docs/WORDS.md)** explains 51 words.
 - **The site's first screen** says what Knos does and for whom. The page that lists the evidence is now called "Check
   every claim yourself".
 - **New READMEs** for [`programs/`](programs-v2/README.md#the-first-deployment-in-programs-nobody-can-change-it), [`programs-v2/`](programs-v2/README.md),
@@ -157,7 +157,7 @@ moved by a byte. The interface crates stay at 0.3.14. Nothing new went to exerci
 
 ### Removed from the repository
 
-- **Preparation material** is no longer in the repository: the pitch and demo scripts, the launch and search-engine
+- **Preparation material** is no longer in the repository: the pitch and sample scripts, the launch and search-engine
   lists, the video tools and the zkVM experiment, with their scripts and tests. The documents a reader of the product
   needs moved up to [`docs/`](docs/) and [`docs/reference/`](docs/reference/): the numbers, the flows, the one
   transaction and the dependency on one GitHub account.
@@ -197,17 +197,17 @@ this repository. **No program changes in this release:** nothing under `programs
 
 ### Plans, written down, not built
 
-- **A proposed upgrade, knos_pay 2.3** ([`docs/reference/PROPOSAL-2.3.md`](docs/reference/PROPOSAL-2.3.md)): pay when the checks pass,
+- **A proposed upgrade, knos_pay 2.3** (`docs/reference/PROPOSAL-2.3.md`): pay when the checks pass,
   with a window in which the buyer can object only by posting a bond; a fee charged at funding, so it does not depend
-  on the verdict; the files that judge fixed by their hash at funding, with secret tests committed by their hash; and part of
+  on the verdict; the files that referee fixed by their hash at funding, with secret tests committed by their hash; and part of
   the pay held for a warranty. For each change it names the accounts and instructions, what stays the same for open
   orders, the migration, the notice and the risks. It is proposed, not built, not tested and not deployed.
   `tests/test_proposal_docs.py` checks that every name it uses for today's program exists, and that its new names do
   not.
-- **The keys** ([`docs/reference/KEYS.md`](docs/reference/KEYS.md)): today one person holds every key. The plan, in four steps: a key held
+- **The keys** (`docs/reference/KEYS.md`): today one person holds every key. The plan, in four steps: a key held
   by someone who is not the founder, then no change on the founder's word alone, then separate keys for code and for
   fees, then a guardian that can only pause. None of the steps has been taken, and no outside key holder exists.
-- **A fair test of a paid pilot** ([`docs/reference/PILOT.md`](docs/reference/PILOT.md)): within each buyer, tasks are drawn by chance
+- **A fair test of a paid pilot** (`docs/reference/PILOT.md`): within each buyer, tasks are drawn by chance
   into Knos terms or the buyer's usual way; the measures, success and failure are written before any task starts; the
   analysis is to be run again by someone outside Knos. `scripts/pilot_plan.py assign` makes the draw from a published
   seed and prints its sha256; `power` says how many tasks are needed: 311 in each group to find a fall from 3.7% (9 of
@@ -215,7 +215,7 @@ this repository. **No program changes in this release:** nothing under `programs
 
 ### Safer defaults
 
-- **The files that judge are protected by default, as before.** A pull request that edits `.github/**` or `.knos/**`
+- **The files that referee are protected by default, as before.** A pull request that edits `.github/**` or `.knos/**`
   is refused, however its checks ended; in tests mode the buyer's acceptance tests are fixed by their hash at funding.
   `tests/test_terms_defaults.py` now holds both as the default.
 - **A default holdback is written, not switched on.** `knos.terms.window` gives a new work order 10% held back for 14
@@ -226,7 +226,7 @@ this repository. **No program changes in this release:** nothing under `programs
 
 - **0.20% is marginal.** By contract, 0.20% applies only to the part of a month's value above 1,000,000 USD. A month
   of 1,500,000 pays 3,000 on the first million and 1,000 on the rest: 4,000 in all. `billing.py` computes it that way,
-  and a test holds it ([`docs/reference/MARKET.md`](docs/reference/MARKET.md)).
+  and a test holds it (`docs/reference/MARKET.md`).
 - **The price in force at funding applies.** Off chain, `billing.py` charges each deliverable the price in force on
   the day its order was funded (`price_at`). A rise needs 90 days' notice, and `check_prices` refuses a list of prices
   that breaks that. The book has one price so far. The 90 days are a term for contracts; none is signed, and the
@@ -236,13 +236,13 @@ this repository. **No program changes in this release:** nothing under `programs
 
 - **The workflows' install date hid each new release from the jobs that install it.** Those jobs install knos from
   PyPI and take nothing uploaded after a cutoff (`UV_EXCLUDE_NEWER`). 0.3.25 set it by hand to midnight, and its
-  wheel reached PyPI three hours later. So the claims check, the review and judge jobs of the acceptance suite, and every attest run
+  wheel reached PyPI three hours later. So the claims check, the review and referee jobs of the acceptance suite, and every attest run
   failed wherever the 0.3.25 workflows were used; funding and pay on merge still worked. The test meant to catch it
   compared the cutoff with the date of 0.3.11. Now the release uploads the wheel first, then writes the cutoff ten
   minutes after the time PyPI took it (`python scripts/pinned_workflows.py cutoff`), then the workflows.
   `release.py publish` builds the wheel again and uploads it only if it is the locked one.
   `tests/test_release_order.py` fails when a cutoff comes before the upload of the release it names
-  ([`docs/reference/RELEASE.md`](docs/reference/RELEASE.md)).
+  (`docs/reference/RELEASE.md`).
 - **The site's numbers read only the newest 1,000 transactions.** So merge to paid timed 8 of 68 payments, and
   showed a misleading 32 s. The build now reads each program's whole history, a page at a time, within a number of
   pages and a time it is given, and says so when either stops it. It keeps what it read, so the next build reads only
@@ -255,7 +255,7 @@ this repository. **No program changes in this release:** nothing under `programs
   time. Now it reads, of those, only the ones a receipt is built from: the order's own, its Balance's opening and side
   account, and its owner's plan, each found in that account's own list. All of its requests together get 120 seconds;
   at that time, it says so in one line. An AUTO order's payment of an open pull request is named as what it is: no
-  receipt version has its judge, so none is built for it.
+  receipt version has its referee, so none is built for it.
 - **The index scan ran out of GitHub's hourly limit.** Its workflow had been red since 5 October. The scan now reads
   only what is new, asks about 20 pull requests in one request, and stops before the limit. The next run goes on from
   there, and a stop is a note, not a failure. It fits GitHub's own token; a read-only `KNOS_INDEX_TOKEN` stays
@@ -266,7 +266,7 @@ this repository. **No program changes in this release:** nothing under `programs
 - **Who pays the fee, said the way the program does it.** On a work order the funder pays the fee on top, and the
   payees get the whole amount (`order_fee`). On a job, which a tip makes, the fee comes out of the amount and is never
   more than it (`fee_of`): the payee gets the rest. Pages that said "the payee pays nothing" now say this, on the
-  pricing view too ([`docs/reference/MARKET.md`](docs/reference/MARKET.md)).
+  pricing view too (`docs/reference/MARKET.md`).
 - **Old figures stated as current are gone.** The backtest table now says it is the scan's first reading, and gives
   the second reading's 9 of 241 beside it. The security page says the knos_pay 2.2 upgrade has run. The disclosure of
   earlier work counts commits and lines at 0.3.25 ([`docs/reference/DISCLOSURE.md`](docs/reference/DISCLOSURE.md)). `scripts/stale_check.py` finds a retired figure in any public file, the tests
@@ -292,7 +292,7 @@ this repository. **No program changes in this release:** nothing under `programs
 
 ### For buyers
 
-- **Three things to try, in order** ([`docs/reference/FLOWS.md`](docs/reference/FLOWS.md)): check one pull request,
+- **Three things to try, in order** (`docs/reference/FLOWS.md`): check one pull request,
   follow one paid task link by link, and see two copies of a record give one bill. The page that checks every claim
   starts with it.
 - **The index method, version 2 draft** ([`docs/INDEX_METHOD.md`](docs/INDEX_METHOD.md)): the funnel from search to
@@ -302,37 +302,37 @@ this repository. **No program changes in this release:** nothing under `programs
 - **Relay replies that say what to do next.** When a request fails for a reason of the asker's own (the issue is
   funded already, nothing is held, an old workflow), the reply says what to do. Those are counted apart from
   failures, and the completion rate is also given over what could have been done
-  ([`docs/reference/OPERATIONS.md`](docs/reference/OPERATIONS.md)).
+  (`docs/reference/OPERATIONS.md`).
 - **The charter** ([`docs/reference/CHARTER.md`](docs/reference/CHARTER.md)): 8 rights, each enforced by a named test, and 4 promises
   that no code holds yet, marked so. Its fingerprint (sha256) is in its footer, and a test checks it.
-- **The standard** ([`docs/reference/STANDARD.md`](docs/reference/STANDARD.md)): the signals, cause codes and steps before a supplier is
+- **The standard** (`docs/reference/STANDARD.md`): the signals, cause codes and steps before a supplier is
   banned (mostly a plan, marked so), and the supplier's menu of three tiers.
-- **One account is one judge.** The relay no longer completes a quorum when two of its judges' runs were started by
+- **One account is one referee.** The relay no longer completes a quorum when two of its referees' runs were started by
   one account. The program would count them as two; the refusal is the relay's. Knos's own public quorum rounds still
   run: when the funder and every run's starter are the operator's own accounts, the relay carries it, and the payment's
   comment says it is an own round, not independent evidence.
 - **Close one invoice in 30 seconds.** On the approver, Enter approves, "Go to approval" jumps there, and one button
   saves the accounting file of the approved lines. A script measured it at 360 and 1280 px: at most 4 clicks, under 30
-  seconds on a slowed phone with a person's pace added. No person was timed ([`docs/reference/FINANCE.md`](docs/reference/FINANCE.md)).
+  seconds on a slowed phone with a person's pace added. No person was timed (`docs/reference/FINANCE.md`).
   The accounting file bills only approved lines that nothing holds: a line over its purchase order is left out.
-- **Signed results from beyond CI** ([`docs/reference/SOURCES.md`](docs/reference/SOURCES.md)): a result counts only when anyone can check
+- **Signed results from beyond CI** (`docs/reference/SOURCES.md`): a result counts only when anyone can check
   its signature. The Sigstore adapter checks a build record against Sigstore's published keys. It is tested on two real
   npm records, kept in the tests; no outside source feeds a meter yet.
 - **Single sign-on for the self-host bundle**: through any OpenID Connect provider, with roles viewer, approver and
   admin. Each approval and export is a line in a hash-chained audit log in the memory engine, and the approver writes
   it when sign-in is on. Tested against a stand-in provider only: no real provider has been tried, and the bundle has
-  never been deployed ([`docs/reference/SELFHOST.md`](docs/reference/SELFHOST.md)).
+  never been deployed (`docs/reference/SELFHOST.md`).
 
 ### Capabilities
 
-- **Eleven new rows** in [`docs/reference/CAPABILITIES.md`](docs/reference/CAPABILITIES.md): the pilot's draw, the judged files refused,
+- **Eleven new rows** in [`docs/reference/CAPABILITIES.md`](docs/reference/CAPABILITIES.md): the pilot's draw, the checked files refused,
   the price at funding, the whole history read, the index scan within the hourly limit, receipt verify's time limit,
   the cutoff written after the upload, the pages for search engines, the Sigstore adapter and single sign-on (each
   tested here), and the default holdback (written, not wired). Nothing new went to exercised (26 of 271): the same 26
   as before; 3 are deployed only, 238 tested here only and 4 written, not tested.
 - **Five rows said "not exercised at the public id" under evidence that they were**: the passkey payee wallet,
   funding by one comment, pay on merge, the pause and one counted evaluation. The notes now agree with the stage.
-- **Tests mode, said plainly.** The README called it "orders judged by hidden tests", and its row said the author
+- **Tests mode, said plainly.** The README called it "orders checked by hidden tests", and its row said the author
   cannot see the tests. The buyer's acceptance tests sit in the repository, so anyone can read them in a public one.
   Both now say what is true: the buyer's black-box tests, fixed by their hash at funding.
 
@@ -361,7 +361,7 @@ outside this repository. **No program changes in this release:** nothing under `
   are the index's own: [`web/check_rules.js`](web/check_rules.js) is a port of `scripts/agent_pr_ci.py`, and
   `tests/test_check_rules.py` runs both on all 349 recorded pull requests of
   [`docs/agent_pr_ci.json`](docs/agent_pr_ci.json): they agree on every one.
-- **Sharing** ([`docs/reference/SHARE.md`](docs/reference/SHARE.md), [`web/share.js`](web/share.js)): the link
+- **Sharing** (`docs/reference/SHARE.md`, [`web/share.js`](web/share.js)): the link
   `#check=owner/repo/123` checks the same pull request again for whoever opens it; "Copy the result" copies the
   verdict, the claim, the counts and the link; "Post on X" opens X's own compose box with them filled in (nothing is
   posted automatically: the reader presses X's own button, or not); "Download the card" draws a 1200 x 630 PNG in the
@@ -385,7 +385,7 @@ outside this repository. **No program changes in this release:** nothing under `
 - **Keys in history.** `scripts/secret_scan.py --history` reads every blob ever committed and reports hits by kind,
   never by value. It found one real key, a program keypair from a build of an example, never on `main` or on any
   published tag, whose address holds no role; it is treated as spent. No GitHub, npm, PyPI or cloud token was found.
-- **Rollback.** [`docs/reference/ROLLBACK.md`](docs/reference/ROLLBACK.md): PyPI yank, npm deprecate, the tag, the site, the relay and the
+- **Rollback.** `docs/reference/ROLLBACK.md`: PyPI yank, npm deprecate, the tag, the site, the relay and the
   programs (a guardian pause of new funding, at most 7 days; an upgrade back waits for the time lock), with the
   commands from the tree. No drill of the whole page has been run.
 - **Contact.** `SECURITY.md` gives a private reporting path; the README and the site's privacy page give a public one.
@@ -431,7 +431,7 @@ outside this repository. **No program changes in this release:** nothing under `
   per agreed line with its four steps and assurance in the memo, and a held sheet beside it for every disputed, owed,
   duplicate or unsupported line. The statement page has one control: Download for your accounting system. A file
   export: nobody has imported one into any of these products, and Xero's columns were read in a published guide, not
-  on Xero's own page ([`docs/reference/FINANCE.md`](docs/reference/FINANCE.md)).
+  on Xero's own page (`docs/reference/FINANCE.md`).
 - **Fixed: an owed line was billed.** `--format quickbooks`, `netsuite` and `ariba` billed a line whose policy was met
   but the buyer refused (owed to the supplier). Owed and disputed lines never go into a payable now, on the site too.
 
@@ -533,7 +533,7 @@ outside this repository. **No program changes in this release:** nothing under `
 - **The settlement goes into the statement.** `knos statement settle-sync` reads the PayOrder transaction, checks
   amount, payee and order, and records it as the line's settled step. Offline only: the run of 9 Oct, whose line
   still shows "settled" open, predates it.
-- **Installs are retried.** The settle job, the worker's claims job and the attest and refused jobs of the neutral judge try the
+- **Installs are retried.** The settle job, the worker's claims job and the attest and refused jobs of the neutral referee try the
   install 3 times, the second and third with `--refresh`, because PyPI's index can lag a release's upload.
 
 ### Capacity
@@ -554,7 +554,7 @@ outside this repository. **No program changes in this release:** nothing under `
   phrase), open one link to create the claim repository, and start its run with the address pasted. That is 8 clicks,
   4 when the repository exists; it was 13. It is not one click because the program binds a wallet only from a run the
   owner starts; fewer clicks safely needs a program change, which this release does not make
-  ([`docs/reference/PAYEE.md`](docs/reference/PAYEE.md)). Not exercised at the public ids. The supplier finance page moved to `#finance`.
+  (`docs/reference/PAYEE.md`). Not exercised at the public ids. The supplier finance page moved to `#finance`.
 
 ### Pages
 
@@ -603,7 +603,7 @@ at 0.3.14.
 
 - **The witnessed script makes a statement with a line.** The 0.3.22 run's statements had no lines because the
   settle mode carries only the settlement; the script now takes the paid line from `knos audit export` with the
-  judge's verdict and the supplier's invoice line into a log of events, and stops with a sentence when the payment
+  referee's verdict and the supplier's invoice line into a log of events, and stops with a sentence when the payment
   is not on chain yet. It reads the faucet's replies by their exact sentences, and when the faucet has already given
   the account its weekly grant it moves 10 test USDC from a key the operator names (`--fund-from KEYFILE`, never
   printed) or stops and says so. A command's limit is `--timeout` (600 s by default). It has not been run again on
@@ -650,7 +650,7 @@ at 0.3.14.
   with the approver, configured from one `knos.toml` that names keys by file path. `knos selfhost check` validates
   the file and says which keys it needs; `knos selfhost plan` prints the services. It has not been run in any cloud,
   and it has no single sign-on: it listens on 127.0.0.1 for the buyer's own identity proxy
-  ([`docs/reference/SELFHOST.md`](docs/reference/SELFHOST.md)).
+  (`docs/reference/SELFHOST.md`).
 
 ### One story
 
@@ -717,8 +717,8 @@ publishing with provenance).
 - **Knos is paid on acceptance and does not decide it.** [`docs/reference/DISPUTES.md`](docs/reference/DISPUTES.md) says what keeps Knos
   out of the verdict, and `tests/test_neutrality.py` checks it on the source: the fee account only receives fees and
   lowers a rate, the modules that make verdicts know no fee, and the fee reads the amount and the rate only. The
-  founder still writes the pinned judge and holds every upgrade key; the separation is in the code and in public.
-- **What came before.** [`docs/reference/TEAM.md`](docs/reference/TEAM.md) states the founder's earlier memory product, and
+  founder still writes the pinned referee and holds every upgrade key; the separation is in the code and in public.
+- **What came before.** `docs/reference/TEAM.md` states the founder's earlier memory product, and
   [`docs/reference/DISCLOSURE.md`](docs/reference/DISCLOSURE.md) says what was built before this work began, with the commands to check it.
 
 ### Memory that changes a decision
@@ -726,7 +726,7 @@ publishing with provenance).
 - **Preflight recommends from memory.** When the memory engine recalls that work under these terms, or by this
   supplier, ended in a dispute, was won on appeal or was accepted late, `knos preflight`, its MCP tool and the
   supplier's page say "Recommended from memory: ..." with the protection that covers it and the recalled evidence.
-  With no memory it recommends nothing ([`docs/reference/DEPENDENCY.md`](docs/reference/DEPENDENCY.md)).
+  With no memory it recommends nothing (`docs/reference/DEPENDENCY.md`).
 - **The approver's queue is ranked from memory.** An exception that ended the same way before is ranked first and
   labelled ("ended accepted on appeal 3 of 3 times before"); with no memory, no label.
 
@@ -745,7 +745,7 @@ can leave before any upgrade. The relay restarts itself more reliably.
 
 **What exists made true, enforceable and usable by strangers: a checker that catches the contradictions it missed,
 every rate with its denominator, a spending boundary a program enforces for an organisation's money, a reserve by
-comment, a way out before every upgrade, a judge that holds a fork bomb, and a relay that counts a run alive only by
+comment, a way out before every upgrade, a referee that holds a fork bomb, and a relay that counts a run alive only by
 its heartbeat.**
 
 The sentence is unchanged: the neutral meter for AI agent work, where neither side keeps the count. Everything is on
@@ -777,25 +777,25 @@ crates.io (knos-oidc-interface 0.3.14, knos-pay-interface 0.3.14) and the JavaSc
   members, threshold, time lock and a separate config authority; an approval binds one commitment (terms hash,
   policy version, amount, payee, expiry), and the funding workflow refuses it for another order, after its expiry,
   under a changed policy or for another payee; a budget is reserved atomically before work starts. Squads v4 is
-  Squads Labs' deployed program, not Knos's; no buyer has set up such a vault ([`docs/reference/BOUNDARY.md`](docs/reference/BOUNDARY.md),
-  [`docs/reference/ENFORCEMENT.md`](docs/reference/ENFORCEMENT.md)).
+  Squads Labs' deployed program, not Knos's; no buyer has set up such a vault (`docs/reference/BOUNDARY.md`,
+  `docs/reference/ENFORCEMENT.md`).
 - **The five parts everywhere a receipt leaves Knos.** Every export carries a parts file beside it, the paid record
   answer and every statement line carry identity, execution, acceptance, consequence and assurance, and Knos Terms 3
   can require a minimum assurance level for payment (`checks.min_assurance`). A month closes only with both parties'
   signed acknowledgements, or one and the silence the terms allow (`window.period_close`)
-  ([`docs/reference/RECEIPT.md`](docs/reference/RECEIPT.md), [`docs/reference/EVENTS.md`](docs/reference/EVENTS.md), [`docs/reference/TERMS.md`](docs/reference/TERMS.md)).
-- **The judge holds a fork bomb.** On Linux the host sandbox now caps processes, CPU time, memory and file size,
+  ([`docs/reference/RECEIPT.md`](docs/reference/RECEIPT.md), `docs/reference/EVENTS.md`, [`docs/reference/TERMS.md`](docs/reference/TERMS.md)).
+- **The referee holds a fork bomb.** On Linux the host sandbox now caps processes, CPU time, memory and file size,
   keeps everything outside the work folder read-only and kills the whole tree at the time limit. The hermetic
-  container is the default judge where the runner has one; the host sandbox is the fallback and the verdict says so
-  ([`docs/reference/ATTESTOR.md`](docs/reference/ATTESTOR.md)). `docs/reference/TAMPER.md` was measured again with this judge: the results are
-  unchanged, and every cheat in it was still written by the people who wrote the judge. The `tamper` task pays 5 test
-  USDC to an outsider whose cheat the judge accepts; none has.
+  container is the default referee where the runner has one; the host sandbox is the fallback and the verdict says so
+  ([`docs/reference/ATTESTOR.md`](docs/reference/ATTESTOR.md)). `docs/reference/TAMPER.md` was measured again with this referee: the results are
+  unchanged, and every cheat in it was still written by the people who wrote the referee. The `tamper` task pays 5 test
+  USDC to an outsider whose cheat the referee accepts; none has.
 
 ### Usable by strangers
 
 - **A reserve by comment.** `/knos reserve <amount> for @supplier until <date>` locks a reserve through the pinned
   funding workflow and says its id, amount, deadline and how the supplier checks it. It works once the pinned
-  workflows are republished at 0.3.21 ([`docs/reference/NETTING.md`](docs/reference/NETTING.md)).
+  workflows are republished at 0.3.21 (`docs/reference/NETTING.md`).
 - **A way out before every upgrade.** `knos exit --before-upgrade` lists every order and Balance an owner holds, the
   instruction that takes the money out and whether it lands before a pending upgrade can run; the upgrade feed and
   banner say "N hours to leave". Held and warranty money cannot leave before an upgrade, and it says so.
@@ -804,11 +804,11 @@ crates.io (knos-oidc-interface 0.3.14, knos-pay-interface 0.3.14) and the JavaSc
 - **The approver's question on one row.** Ordinary lines resolve in one action; approving writes an approval record
   (policy version, who, when, why, the evidence's hashes) that the page checks again later, and the buyer's memory
   answers `knos recall approval` from the store alone. A supplier's finance lead sees what is funded, the acceptance
-  countdown, appeal rights and the payment date with no wallet ([`docs/reference/CONSOLE.md`](docs/reference/CONSOLE.md),
-  [`docs/reference/FINANCE.md`](docs/reference/FINANCE.md)).
+  countdown, appeal rights and the payment date with no wallet (`docs/reference/CONSOLE.md`,
+  `docs/reference/FINANCE.md`).
 - **Vendors get a page.** Each agent the Agent PR Index rates has a page with its sample, a right of reply, its
-  disputes and how to earn the supplier badge; supplier reuse is counted (0 today) ([`docs/reference/VENDORS.md`](docs/reference/VENDORS.md)).
-  The upgrade gate is one pull request for a Solana program team ([`docs/reference/GATE.md`](docs/reference/GATE.md)).
+  disputes and how to earn the supplier badge; supplier reuse is counted (0 today) (`docs/reference/VENDORS.md`).
+  The upgrade gate is one pull request for a Solana program team (`docs/reference/GATE.md`).
 - **Tasks a stranger can complete.** Five more kinds: `compose`, `gate`, `keyholder`, `tamper` and `witness`, the
   last an independently witnessed transaction a stranger runs end to end from a fork (`examples/witnessed`).
   Completed by an outside account: 0.
@@ -844,24 +844,24 @@ nothing under `programs-v2/knos_*`, `programs/` or `idl/` moved by a byte.
   order, deliverable, evidence, amount, exception, payment status) and one queue of exceptions. The approver
   approves the agreed lines, or sends an exception to the supplier as a message that is already written. The time
   the page states is a script's in a headless browser; no person was timed
-  ([`docs/reference/CONSOLE.md`](docs/reference/CONSOLE.md), "The approver's screen").
+  (`docs/reference/CONSOLE.md`, "The approver's screen").
 - **What enforces each rule, as a table made from the code.** `knos controls matrix` prints every route that can
   set money aside or move it against every restriction, and says of each cell whether a program enforces it, the
   pinned workflow does, it is advice, or it is outside Knos. Each enforced cell names a test that tries to get round
   it. The approval gate is now asked on every funding by comment, and the documents that said nothing called it are
-  corrected ([`docs/reference/ENFORCEMENT.md`](docs/reference/ENFORCEMENT.md), [`docs/reference/CONTROLS.md`](docs/reference/CONTROLS.md)).
+  corrected (`docs/reference/ENFORCEMENT.md`, `docs/reference/CONTROLS.md`).
 - **A receipt reads in five parts.** Identity, execution, acceptance, consequence, assurance, one line each
   (`knos receipt explain`). A valid signature on a weak test reads as weak. It is a reading of the receipts that
   exist and adds no version ([`docs/reference/RECEIPT.md`](docs/reference/RECEIPT.md)).
 - **Memory of how the same exception ended before.** `knos recall exception` answers from the buyer's memory: how
   often the same exception under the same terms was seen, how each ended and how long it took. Appeals, statement
   lines that were set aside, corrections and closed months are written there when `--remember` names the buyer.
-  No buyer has used it ([`docs/reference/DEPENDENCY.md`](docs/reference/DEPENDENCY.md)).
+  No buyer has used it (`docs/reference/DEPENDENCY.md`).
 - **Pay by bank.** `knos statement pay --rail bank` writes a payment instruction file (ISO 20022 pain.001) for the
   lines that are agreed, approved and still payable, and `knos statement status` reads the bank's answer back: paid,
   or returned and payable again. The site writes the same file. Two more exports: every line with its purchase
   order and its match, and a cXML invoice. No bank has taken a file and no system has loaded an export
-  ([`docs/reference/RAILS.md`](docs/reference/RAILS.md), [`docs/reference/FINANCE.md`](docs/reference/FINANCE.md)).
+  (`docs/reference/RAILS.md`, `docs/reference/FINANCE.md`).
 
 ### For a supplier
 
@@ -872,12 +872,12 @@ nothing under `programs-v2/knos_*`, `programs/` or `idl/` moved by a byte.
   no more than it holds, is paid by draws on it, and what no draw took returns to the buyer after the deadline. A
   period with no reserve says it is unsecured and prints what the supplier carries. A financier can buy a closed,
   reserved period through the program's existing assignment; Knos lends nothing. Run on the simulator only
-  ([`docs/reference/NETTING.md`](docs/reference/NETTING.md), [`docs/reference/ADVANCE.md`](docs/reference/ADVANCE.md)).
+  (`docs/reference/NETTING.md`, `docs/reference/ADVANCE.md`).
 - **Take a funded task as an agent.** `knos task list | show | take | submit | why`, and three read-only MCP tools.
   A merged pull request that was not paid gets one sentence saying why: an order funded through a staging copy of
   the workflows never pays, and the board now funds only through the public ones. Five tasks that are not code
-  (reproduce, shadow count, fund from the faucet, install, host a judge) each state the evidence that completes
-  them. None has been completed by an outside account ([`tasks/README.md`](tasks/README.md)).
+  (reproduce, shadow count, fund from the faucet, install, host a referee) each state the evidence that completes
+  them. None has been completed by an outside account (`tasks/README.md`).
 
 ### Evidence and neutrality
 
@@ -888,14 +888,14 @@ nothing under `programs-v2/knos_*`, `programs/` or `idl/` moved by a byte.
   founder's own account on both sides, its batches anchored at the public knos_meter; its log of events starts at
   number 1, so the strict check fails on it, and both acknowledgements that close its month are signed by keys the
   founder holds. No outside party holds an archive
-  ([`docs/reference/RETENTION.md`](docs/reference/RETENTION.md), [`docs/reference/EVENTS.md`](docs/reference/EVENTS.md)).
+  (`docs/reference/RETENTION.md`, `docs/reference/EVENTS.md`).
 - **The paid record answer is worth more than the free file.** The server signs each answer with an expiry, adds a
   summary, and gives the history a supplier granted to one reader. Its revenue is budgeted at zero and Knos hosts
-  no server ([`docs/reference/RECORD.md`](docs/reference/RECORD.md)).
-- **Host a judge from one link; the private path as one command; a drill for a second operator.** Each is a
+  no server (`docs/reference/RECORD.md`).
+- **Host a referee from one link; the private path as one command; a drill for a second operator.** Each is a
   command a person outside can run, and nobody outside has: outside hosts, private repositories and second
-  operators are all zero ([`docs/reference/ATTESTOR.md`](docs/reference/ATTESTOR.md), [`docs/reference/PRIVATE.md`](docs/reference/PRIVATE.md),
-  [`docs/reference/OPERATOR.md`](docs/reference/OPERATOR.md)).
+  operators are all zero ([`docs/reference/ATTESTOR.md`](docs/reference/ATTESTOR.md), `docs/reference/PRIVATE.md`,
+  `docs/reference/OPERATOR.md`).
 - **GitLab as one command, and a support resolution as an outcome.** `python scripts/gitlab_round.py run` carries
   the whole GitLab round and needs a token and a project this tree has not had. A support ticket counts when it
   stayed resolved through the window the terms fix. Neither has run on its forge
@@ -916,8 +916,8 @@ nothing under `programs-v2/knos_*`, `programs/` or `idl/` moved by a byte.
   reading of that day and not a capacity ([`docs/reference/RELAY.md`](docs/reference/RELAY.md),
   [`docs/reference/LOAD.md`](docs/reference/LOAD.md)).
 - **The rounds of the release run are files.** `scripts/exercise_rounds/` holds the reserve, GitLab, the private
-  path and a hosted judge; each runs on the simulator, and at the public ids each ends with its own code and stops
-  no other ([`docs/reference/RELEASE.md`](docs/reference/RELEASE.md)).
+  path and a hosted referee; each runs on the simulator, and at the public ids each ends with its own code and stops
+  no other (`docs/reference/RELEASE.md`).
 - **One transaction in seven steps.** The story, the
   first screen's round and the demonstration's script tell the same seven: agree, fails, passes, statement, replay,
   pay, verify ([`docs/STORY.md`](docs/STORY.md)).
@@ -929,8 +929,8 @@ nothing under `programs-v2/knos_*`, `programs/` or `idl/` moved by a byte.
   and no outside program that reads the verifier.
 - Nothing this release adds has run at the public program ids but the throughput measurement, which funded
   Knos's own orders in a mint made for the run and left none open. The reserve, GitLab, the private path and a hosted
-  judge are commands of the release run (`python scripts/exercise_public.py run --only <round>`): GitLab needs a
-  token and a project, a hosted judge needs a repository of another owner, and the private path needs someone with
+  referee are commands of the release run (`python scripts/exercise_public.py run --only <round>`): GitLab needs a
+  token and a project, a hosted referee needs a repository of another owner, and the private path needs someone with
   a private repository.
 - Whether proposals 7 and 8 have executed is what `knos status` and [`web/upgrades.json`](web/upgrades.json) say;
   until they have, the public programs charge the earlier fee, and every page shows the fee that is live.
@@ -963,12 +963,12 @@ moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
   outcomes of 0.32 (one sent twice and refused, one disputed) settle as one release of 319.68 for a fee of 0.95904
   in 24 transactions; the payment program takes no single job under 1.00 at all. The cap, the release, the root and the fee
   are enforced on chain; each line, and the buyer's credit inside the period, are not (`knos net`,
-  [`docs/reference/NETTING.md`](docs/reference/NETTING.md)).
+  `docs/reference/NETTING.md`).
 - **The price book says what it charges.** The 0.10% tier is withdrawn: by contract the rate is 0.20% on monthly
   value above 1,000,000 and never lower. A record lookup through the machine-priced API is 0.10 a call, paid by the
   caller; the public record page and its file stay free. The pricing page's rows are the book's own, its on-chain
   cell follows the build that is live, and `knos bill` nets small outcomes the same way
-  ([`docs/reference/MARKET.md`](docs/reference/MARKET.md), section 3).
+  (`docs/reference/MARKET.md`, section 3).
 - **A receipt says how much was verified.** Every receipt and statement line carries an assurance level computed
   from its evidence, never typed: `reported`, `rerun`, `agreed` or `attested`, each with who a reader still
   trusts. `attested` is defined and no receipt reaches it. Terms may declare accounts that are one party
@@ -977,26 +977,26 @@ moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
   ([`docs/reference/RECEIPT.md`](docs/reference/RECEIPT.md)).
 - **A goods-received note for a statement line.** `knos statement grn` puts the order, the acceptance and the
   invoice line side by side and says whether the three match, with the line's assurance level. No buyer's
-  accounts-payable system has taken one ([`docs/reference/FINANCE.md`](docs/reference/FINANCE.md)).
+  accounts-payable system has taken one (`docs/reference/FINANCE.md`).
 - **A supplier completes while the buyer does nothing.** The path that exists is written down and walked in the
   simulator: the buyer funds and goes quiet, the supplier's own wallet sends the forge's signed proof and is paid,
   and with no accepted work by the deadline the money goes back to its funder
-  ([`docs/reference/FINANCE.md`](docs/reference/FINANCE.md), "When the buyer goes quiet").
+  (`docs/reference/FINANCE.md`, "When the buyer goes quiet").
 - **Test USDC for a first task of your own.** `/knos faucet <address>` on the playground's faucet issue gives 20
   test USDC, once per account and per address in 7 days, 200 a day for everyone together, to an account at least 30
   days old. A grant is journaled before anything is signed, so a retry never sends twice, and of two runs that
   overlap one sends. Test USDC has no monetary value ([`docs/reference/FAUCET.md`](docs/reference/FAUCET.md)).
 - **A board of funded tasks anyone may take.** 24 small tasks, 5 test USDC each, every one with a reference answer
-  the judge accepts and wrong answers it refuses; a script keeps a set number open in the playground inside a daily
+  the referee accepts and wrong answers it refuses; a script keeps a set number open in the playground inside a daily
   budget and approves nothing. A claim of payment that no order stands behind now links the funded tasks
-  ([`tasks/README.md`](tasks/README.md)).
+  (`tasks/README.md`).
 - **An advance by a third party, never by Knos.** An advancer pays a supplier now, less its discount, and takes
   the supplier's place as payee of the funded order in one transaction that does both or neither; a rejection or
   an expiry is the advancer's loss. Knos lends nothing and charges nothing for it, and no advancer exists
-  (`knos advance`, [`docs/reference/ADVANCE.md`](docs/reference/ADVANCE.md)).
+  (`knos advance`, `docs/reference/ADVANCE.md`).
 - **The record, sold per lookup by whoever runs the server.** `knos record serve` answers a lookup without payment
   with a 402 that names the order to fund, serves fifty lookups for one order of 5.00, and refuses a replay. Knos
-  hosts no such server ([`docs/reference/RECORD.md`](docs/reference/RECORD.md), [`docs/reference/X402.md`](docs/reference/X402.md)).
+  hosts no such server (`docs/reference/RECORD.md`, [`docs/reference/X402.md`](docs/reference/X402.md)).
 - **The first screen says the customer's outcome,** "Buyers and suppliers close invoices on evidence both can
   verify.", inside the same 40 words, and the README opens with the same lines. The demonstration leads with a
   refusal: a submission that claims success fails the condition and is not paid
@@ -1023,7 +1023,7 @@ moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
   37608154723 (8,360 s), Kani 0.68.0 and CBMC 6.11.0 with Kani's default solver, on this tree's `knos_pay` source.
   It bounds the fee by the program's own `bps_of(amount, 30)`; that this is at most 0.30% of the amount is the cvc5
   result above. `scripts/kani_fee_record.py --program-ci <run>` records such a run from GitHub's log of it.
-- **A first proof of what a judge executed, as an experiment.** One judge for one task runs inside a zkVM, and its
+- **A first proof of what a referee executed, as an experiment.** One referee for one task runs inside a zkVM, and its
   run is proved and then verified in a separate process: 54 s to prove an honest submission as a composite
   receipt, 217 s as a succinct one, under 0.05 s to verify. It is in no package and no workflow, nothing on any chain
   verifies it, and no receipt reads it ([`experiments/judge_proof`](https://github.com/drexthealpha/Knos/tree/v0.3.26/experiments/judge_proof),
@@ -1039,11 +1039,11 @@ moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
   7 and 8 executed, and `run --phase after` then exercises the one-rate fee, a stored fee, the quorum by owner, the
   grace, strict JSON and ES256 at the public ids; on the simulator every one of those rounds passes. A client for
   ES256 exists: a wallet registers a P-256 key and a token of up to 780 bytes is verified in one transaction
-  ([`docs/reference/RELEASE.md`](docs/reference/RELEASE.md), [`docs/reference/ES256.md`](docs/reference/ES256.md)).
+  (`docs/reference/RELEASE.md`, [`docs/reference/ES256.md`](docs/reference/ES256.md)).
 - **The upgrade gate for another program.** One script sets it up for a program that is not Knos's (init, expect,
   record, check), and the upgrade feed is written for any multisig's programs with `--ids` and `--gate`. The
   adopters list has zero rows. `python scripts/release.py registry-plan` prints what a release would publish to
-  crates.io and npm and publishes nothing ([`docs/reference/GATE.md`](docs/reference/GATE.md), [`docs/reference/COMPOSE.md`](docs/reference/COMPOSE.md)).
+  crates.io and npm and publishes nothing (`docs/reference/GATE.md`, [`docs/reference/COMPOSE.md`](docs/reference/COMPOSE.md)).
 - **Knos's own reproduction runs to its end.** A run of `knos reproduce` by Knos itself is verified like anyone's
   and filed under `reproductions/own/`, where it counts for nothing; the folder holds 0 files
   ([`docs/reference/REPRODUCE.md`](docs/reference/REPRODUCE.md)).
@@ -1055,7 +1055,7 @@ moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
   and no outside program that reads the verifier.
 - Proposals 7 (`knos_oidc`: strict JSON and ES256) and 8 (`knos_pay` 2.2) are approved and have not executed.
   Until they do, the public programs charge the earlier fee (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at
-  least 0.40) and count the judges of a quorum by repository. Proposal 7 was proposed and approved on 2026-10-07
+  least 0.40) and count the referees of a quorum by repository. Proposal 7 was proposed and approved on 2026-10-07
   08:14 UTC and proposal 8 on 2026-10-07 08:15 UTC, and the multisig's time lock lets each run 48 hours after its
   approval. Whether they have is what `knos status` and [`web/upgrades.json`](web/upgrades.json) say.
 - The faucet has paid no one. Its key and its token account exist on devnet, but the account holds no test USDC:
@@ -1064,7 +1064,7 @@ moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
   run on GitHub in the staging repository only (run 37624637427: 3 open items read, none with a claim of payment).
   Netting, an advance and a paid record lookup have run once each on devnet, between wallets of Knos's
   own release run and on tokens of its own workflows: none with an outside party.
-- The proof of a judge's execution is an experiment with no on-chain verifier, and `attested` stays unreachable.
+- The proof of a referee's execution is an experiment with no on-chain verifier, and `attested` stays unreachable.
 - No workflow keeps the issuers' key lists on its runner, so on GitHub the provisional line is still the relay's
   whole precheck. On devnet the split was timed once on each of 24 real tokens: a median of 356 ms offline, 854 ms
   for the chain check and 9.1 s for the whole precheck, and 23 of the 24 had been carried before they were decided
@@ -1081,7 +1081,7 @@ moved by a byte, and `scripts/deploy_v2.sh --propose` refuses in this tree.
 
 ## 0.3.18 (October 2026)
 
-**In short:** One fee on accepted work, a kit for suppliers, and two flaws fixed in how several judges agree on a
+**In short:** One fee on accepted work, a kit for suppliers, and two flaws fixed in how several referees agree on a
 result. The two program changes go live only after a public wait.
 
 **Priced like a protocol: one fee on accepted value, a kit for the supplier, a commitment that binds every event,
@@ -1100,12 +1100,12 @@ the release, and neither is live at its public id until its proposal executes.
   funder on top; it replaces the percentage on settlement and the percentage on reconciled invoice value. Value
   released on chain pays the fee there and is never invoiced again. Lower rates above 1,000,000 and 10,000,000 a
   month are a rebate by contract, off chain. There is no fee for connecting a supplier, and the rated party never
-  pays. These are proposed prices: nobody has paid one ([`docs/reference/MARKET.md`](docs/reference/MARKET.md), section 3).
+  pays. These are proposed prices: nobody has paid one (`docs/reference/MARKET.md`, section 3).
 - **A kit for the supplier, at no cost to the supplier.** A public record for an agent or a vendor
   (`knos record build`), a badge that always carries its sample, one `uses:` line that runs the free check on every
   pull request and none of the pull request's code, and one page to send with an invoice
   (`knos record receipt`), which restates an acceptance receipt and names the command that checks it with no
-  network. Knos wrote these records and nobody outside has reviewed them ([`docs/reference/RECORD.md`](docs/reference/RECORD.md)).
+  network. Knos wrote these records and nobody outside has reviewed them (`docs/reference/RECORD.md`).
 - **Acceptance is a versioned contract.** Knos Terms 3 is one document of ten fields, cited by the sha256 of its
   canonical bytes; an order's terms hash names one version and no other, and `knos terms diff` says what changed
   between two versions by meaning. `knos terms propose <owner/repo>` drafts one from the checks that passed on a
@@ -1115,7 +1115,7 @@ the release, and neither is live at its public id until its proposal executes.
 - **Disputes and liability, written down.** Who can do what at each state of an appeal, which clock runs and
   where the money is ([`docs/reference/DISPUTES.md`](docs/reference/DISPUTES.md)); and, for each way the count can be wrong, who
   notices, what evidence exists and where the loss falls today: with the parties, never with Knos, because there
-  is no legal entity, no warranty and no service commitment ([`docs/reference/LIABILITY.md`](docs/reference/LIABILITY.md)).
+  is no legal entity, no warranty and no service commitment (`docs/reference/LIABILITY.md`).
 - **Agent pays agent, only when the work is accepted.** Two agents with keys of their own and an evaluator that
   is neither, under the proposed x402 `knos-order` scheme: right work is paid the amount whole; wrong work is not,
   and at expiry the buyer has the amount and the fee back. Both runs are tests on the simulator with the program
@@ -1141,8 +1141,8 @@ the release, and neither is live at its public id until its proposal executes.
   it twice ([`docs/reference/METER.md`](docs/reference/METER.md), "What a root commits to").
 - **`knos_pay` 2.2: one rate, and the two quorum findings fixed.** The fee on an order is
   `max(0.05, floor(amount x 30 / 10,000))` in place of three tiers, and a Plan may lower the rate to no less than
-  10 basis points. Judges of a quorum are counted by repository owner, and a neutral judge must differ from the
-  order's side in owner and in the account that started the run. A judge's marker is bound to the funding of the
+  10 basis points. Referees of a quorum are counted by repository owner, and a neutral referee must differ from the
+  order's side in owner and in the account that started the run. A referee's marker is bound to the funding of the
   order it was made under. Both findings' tests are no longer ignored and run with the others. What no program
   can enforce: that two accounts are two people ([`docs/reference/SECURITY.md`](docs/reference/SECURITY.md),
   [`docs/reference/INVARIANTS.md`](docs/reference/INVARIANTS.md)).
@@ -1184,11 +1184,11 @@ the release, and neither is live at its public id until its proposal executes.
   and no outside program that reads the verifier.
 - Both new program builds, `knos_oidc` (strict JSON and ES256) and `knos_pay` 2.2, are proposed after the release
   as one set and are live only when they execute. Until then the public programs charge the earlier fee (2.5% of
-  the first 1,000, 1% to 50,000, 0.5% above, at least 0.40) and count the judges of a quorum by repository. The
+  the first 1,000, 1% to 50,000, 0.5% above, at least 0.40) and count the referees of a quorum by repository. The
   live state is in [`web/upgrades.json`](web/upgrades.json).
 - Terms 3, the supplier workflow, `knos terms propose` and the claim guard ran for the first time in this release,
   in Knos's own repositories only: `knos terms propose` drafted the terms of `drexthealpha/knos-e2e` from its merged
-  pull requests, the supplier workflow judged two test pull requests in a staging repository, and the claim guard
+  pull requests, the supplier workflow checked two test pull requests in a staging repository, and the claim guard
   answered a claim of payment by an outside account on a staging issue. None has run for another owner's repository.
 - One format 2 batch is anchored, at the public `knos_meter`: four evaluations of Knos's own pull requests, with
   one account as buyer and seller.
@@ -1216,44 +1216,44 @@ anyone else.
   screen: a neutral count and every mismatch, with no install, no wallet and no sign-up. The recorded round moved
   below it, and one page tells it in eight steps, each with one piece of evidence
   ([`docs/STORY.md`](docs/STORY.md)).
-- **Correct work is accepted.** The black-box judge used to refuse a correct fix that added its own regression
+- **Correct work is accepted.** The black-box referee used to refuse a correct fix that added its own regression
   test in a protected place: 39 of 48 honest submissions passed. It now accepts 61 of 61, and still accepts 0 of 63
   cheats on the sample project, 0 of 102 on six real tasks, 0 of 25 on tasks that are not code and 0 of 14 aimed
-  at what a pull request may add, all from one run of the whole benchmark with this judge. Both rates are measured on
-  Knos's own tasks, by the people who wrote the judge ([`docs/reference/TAMPER.md`](docs/reference/TAMPER.md)).
+  at what a pull request may add, all from one run of the whole benchmark with this referee. Both rates are measured on
+  Knos's own tasks, by the people who wrote the referee ([`docs/reference/TAMPER.md`](docs/reference/TAMPER.md)).
 - **Four verdicts, four ids.** A verdict is accepted, rejected, insufficient evidence or disputed. A deliverable, an
   evaluation, an invoice line and a settlement each have an id of their own, built the same way everywhere
-  (`src/knos/ids.py`). A judge that did not reach an answer says insufficient evidence, never rejected.
+  (`src/knos/ids.py`). A referee that did not reach an answer says insufficient evidence, never rejected.
 - **A statement for accounts payable.** `knos statement` turns a checked invoice into a statement whose lines are
   agreed, disputed, duplicate or insufficient evidence, as JSON, CSV and PDF with the same content, and records who
   approved it and how it was paid. It needs no chain and no wallet
-  ([`docs/reference/FINANCE.md`](docs/reference/FINANCE.md), section 4a).
+  (`docs/reference/FINANCE.md`, section 4a).
 - **It looks like procurement.** Rate cards that cite terms by hash, standing offers, budget envelopes, roles and
   approval chains are files in the buyer's own repository, read by the command line and the console with the same
-  code. The program does not enforce them ([`docs/reference/CONTROLS.md`](docs/reference/CONTROLS.md), section 9).
+  code. The program does not enforce them (`docs/reference/CONTROLS.md`, section 9).
 - **The supplier is a user.** `knos preflight` says before a pull request is opened what the terms protect and what
   the change would be refused for. Every refusal has a code and two plain sentences. `/knos appeal <reason>` makes
-  a verdict disputed and has the neutral judge run the checks again, at no cost to the supplier; the workflow does
+  a verdict disputed and has the neutral referee run the checks again, at no cost to the supplier; the workflow does
   not act on that comment yet. `knos keep` writes the supplier's own copy of the evidence
   ([`docs/reference/SUPPLIER.md`](docs/reference/SUPPLIER.md)).
 - **The price book has seven lines and one billing rule:** a month's invoice is the subscription, plus the greater
   of Meter charges and Verify charges, plus anything agreed separately. Meter and Verify are never added for the
   same activity, and the rated party never pays. These are proposed prices: nobody has paid one
-  ([`docs/reference/MARKET.md`](docs/reference/MARKET.md), section 3).
+  (`docs/reference/MARKET.md`, section 3).
 
 ### Underneath
 
 - **One ledger of events.** Recording singly, in a batch, by settlement, in shadow mode and by import now pass
   through one function. An id that arrives twice is counted once and both arrivals stay on record; the same id with
   different content is refused. A correction names the event it changes, and the other party signs the log up to a
-  head with a GitHub token, checked off chain ([`docs/reference/EVENTS.md`](docs/reference/EVENTS.md)).
+  head with a GitHub token, checked off chain (`docs/reference/EVENTS.md`).
 - **Evidence that outlives devnet.** `knos vault` seals a bundle to the buyer, the supplier and an auditor, exports
   a plain archive, applies a retention policy and writes a checkpoint. A test deletes the working copy and the
   chain's record and restores from the archive alone. No customer keeps a vault
-  ([`docs/reference/VAULT.md`](docs/reference/VAULT.md)).
+  (`docs/reference/VAULT.md`).
 - **A path for private repositories.** The acceptance runs inside the customer's network; only the verdict, hashes
   and the forge's signed token leave, and what a dispute needs is sealed to both parties. No private-repository
-  customer has run it, and its record pays nothing yet ([`docs/reference/PRIVATE.md`](docs/reference/PRIVATE.md)).
+  customer has run it, and its record pays nothing yet (`docs/reference/PRIVATE.md`).
 - **A signer that is not a forge.** A Kubernetes cluster's service-account token signs one evaluation of the
   data-transformation example. The check is tested on a token of the same shape, and a kind cluster's token was
   verified offline in staging run 37483745385; nothing of it is on chain, and the meter does not count it
@@ -1273,8 +1273,8 @@ anyone else.
 - **A program of your own that reads the verifier:** `examples/reader_template` is a whole program in a workspace of
   its own, built against the interface crate by tag ([`docs/reference/COMPOSE.md`](docs/reference/COMPOSE.md)).
 - **Hold a key, run it without the founder.** One page for a first outside key holder: make a key, keep it, ask;
-  adding it is then one command ([`docs/reference/KEYHOLDER.md`](docs/reference/KEYHOLDER.md)). And a checklist and a drill for a
-  second operator ([`docs/reference/OPERATOR.md`](docs/reference/OPERATOR.md)). Nobody has done either.
+  adding it is then one command (`docs/reference/KEYHOLDER.md`). And a checklist and a drill for a
+  second operator (`docs/reference/OPERATOR.md`). Nobody has done either.
 - **Types.** mypy checks `src/knos` in full except one module named in `pyproject.toml`, `knos.settle.v2.relay`,
   which is to come out after this release.
 - **No program crate moved.** The four programs and the two interface crates stay at the version their builds were
@@ -1290,7 +1290,7 @@ anyone else.
 - ES256 and strict JSON are tested, not deployed: their build will be proposed through the multisig after the
   pending upgrades execute.
 - Two findings of this release's adversarial tests are open: a quorum counts repositories, not people, and a
-  judge's marker outlives its order by a second. Both are fixed in the next `knos_pay` build, which is not in this
+  referee's marker outlives its order by a second. Both are fixed in the next `knos_pay` build, which is not in this
   release ([`docs/reference/SECURITY.md`](docs/reference/SECURITY.md)).
 - Single sign-on, private deployment and a support contract do not exist, so the Control plans cannot be delivered.
 - Nothing has been sold.
@@ -1316,13 +1316,13 @@ locally" in [`docs/reference/CAPABILITIES.md`](docs/reference/CAPABILITIES.md); 
   live until its repository is published. [`docs/reference/PLAYGROUND.md`](docs/reference/PLAYGROUND.md).
 - **A console with the four records.** Each deliverable shows its authorisation, acceptance, commercial record and
   settlement status, and exports as a bill line for accounting products. The SAP and Coupa files are best effort and
-  unverified. [`docs/reference/FINANCE.md`](docs/reference/FINANCE.md).
+  unverified. `docs/reference/FINANCE.md`.
 - **One payment, five named states:** received, accepted, submitted, confirmed, finalized, the same in the comment,
   the relay log and the site.
 - **Fewer words.** Every page leads with what you can do there, every fold says what is inside it, and the README's
   first screen is the sentence, one figure and three links.
 - **The price book** has eight lines, with Verify and Supplier connection new and both unsold, and one rule: Knos
-  never charges the party being rated. [`docs/reference/MARKET.md`](docs/reference/MARKET.md).
+  never charges the party being rated. `docs/reference/MARKET.md`.
 
 ### The verifier
 
@@ -1351,7 +1351,7 @@ locally" in [`docs/reference/CAPABILITIES.md`](docs/reference/CAPABILITIES.md); 
   to the hash on chain to its upgrade proposal. A link the repository does not record is printed as MISSING.
 - **The model checker's record, as it is.** One run is in `docs/kani.json`: four of five harnesses verified, fee
   conservation among them. The fee-bounds harness timed out and is not proved.
-- **Honest work is measured too.** The black-box judge accepted 39 of 48 honest submissions. All 9 refusals are a
+- **Honest work is measured too.** The black-box referee accepted 39 of 48 honest submissions. All 9 refusals are a
   correct fix that also adds a test in the protected test directory: a known false rejection, with its workaround in
   [`docs/reference/ASSURANCE.md`](docs/reference/ASSURANCE.md).
 - **The weekly index** is a bounded sample that always publishes and resumes from its checkpoint.
@@ -1389,7 +1389,7 @@ capability's note: only a public program id counts for "deployed" or "exercised"
 - **The console.** The site's Buy page answers on one screen what was bought, from whom and at what price; which
   evidence establishes acceptance; whether this deliverable was billed before; whether the approver had the authority;
   and who answers when the service fails (today the founder alone, and the page says so). It reads GitHub and devnet
-  in the browser and sends nothing. [`docs/reference/CONSOLE.md`](docs/reference/CONSOLE.md). `knos budget show|who|check|set` is the same
+  in the browser and sends nothing. `docs/reference/CONSOLE.md`. `knos budget show|who|check|set` is the same
   set of limits from a terminal; `check` names the rule that would refuse an order first.
 - **Billing by deliverable.** A deliverable is an order and a milestone, and it is one accepted outcome whatever number
   of pull requests carried it. An evaluation is one run of one policy version on one artifact for one deliverable:
@@ -1408,15 +1408,15 @@ capability's note: only a public program id counts for "deployed" or "exercised"
   evaluator observed, which policy produced the verdict, who authorised the money and under which limit, and what
   remains trusted. It records whether each evaluator's run was the buyer's own, the seller's own or neither.
 - **A second run of the acceptance check, in another environment.** For an order with a black-box suite, the neutral
-  judge now runs the funded suite again itself, in a job that cannot sign, and signs only on its own result. A check
+  referee now runs the funded suite again itself, in a job that cannot sign, and signs only on its own result. A check
   in the buyer's repository that wrongly says "success" is then not repeated. For an order paid on its merge there is
   no suite to run: the neutral run still reads the checks' conclusions, and its verdict says so. The changed
   `attest.yml` is published with this release and has never run on GitHub.
   [`docs/reference/SECURITY.md`](docs/reference/SECURITY.md), section 20.
 - **Prices, said once.** The price book is the same table in the README, on the site and in
-  [`docs/reference/MARKET.md`](docs/reference/MARKET.md), with the effective fee by order size shown before funding (5 pays the 0.40
+  `docs/reference/MARKET.md`, with the effective fee by order size shown before funding (5 pays the 0.40
   minimum, which is 8%). One offer is new: the Pilot, 30 days for one buyer and its suppliers, 2,500 USD invoiced off
-  chain ([`docs/reference/PILOT.md`](docs/reference/PILOT.md)). Nobody has bought it, nobody has been asked, and there is no legal entity
+  chain (`docs/reference/PILOT.md`). Nobody has bought it, nobody has been asked, and there is no legal entity
   to invoice from yet. Advance and Assurance are not offered.
 - **Outcomes that are not a merged pull request.** Three worked examples (a labelled dataset, a transformation, a
   reconciliation), each with a black-box suite that refuses a cheat a naive check passes
@@ -1448,7 +1448,7 @@ capability's note: only a public program id counts for "deployed" or "exercised"
 - **The `knos-verify` action, a receipt verifier and the badge** for a bounty or work platform: one composite step
   with a read-only token; `verify(evidence, jwks)` in one Python file and one TypeScript file that answer every case
   the same. No platform uses them, and the action has never run on GitHub.
-  [`docs/reference/INTEGRATIONS.md`](docs/reference/INTEGRATIONS.md).
+  `docs/reference/INTEGRATIONS.md`.
 - **Routes for ten agent hosts.** `knos init` writes the hook each host reads, into the project only. Each route is
   tested against the event its host documents; none was run inside a real host
   ([`integrations/hosts/README.md`](integrations/hosts/README.md)).
@@ -1491,7 +1491,7 @@ capability's note: only a public program id counts for "deployed" or "exercised"
   the slowest payment spent 1,208 of its 1,220 s there. The relay cannot shorten that; it measures it.
   [`docs/reference/RELAY.md`](docs/reference/RELAY.md), "Where a token waits".
 - The first real runs are still to come: the two-job `attest.yml`, the `knos-verify` action, the reproduce workflow
-  and the weekly index scan have run in tests only ([`docs/reference/RELEASE.md`](docs/reference/RELEASE.md), "After the tag").
+  and the weekly index scan have run in tests only (`docs/reference/RELEASE.md`, "After the tag").
 
 ## 0.3.14 (October 2026)
 
@@ -1538,7 +1538,7 @@ copy, of the time it names).
   it is 25 + 490 = 515. A Plan still lowers the first tier's rate.
 - **An order holds from 5 to 100,000 test USDC** on devnet. A mainnet build sets its own cap.
 - The price book has six lines (Check, Meter, Settle, Control, Advance, Assurance) and reads the same in the README,
-  [`docs/reference/MARKET.md`](docs/reference/MARKET.md) and the site's Pricing page. Nobody has bought anything.
+  `docs/reference/MARKET.md` and the site's Pricing page. Nobody has bought anything.
 
 ### The count (`knos_meter 1.1`)
 
@@ -1557,7 +1557,7 @@ copy, of the time it names).
 - **GitLab.** A gitlab.com project funds an order and is paid on a merge to a protected branch. Its ids are in
   ranges of their own, so a GitLab project is never a GitHub repository. Not yet: binding a wallet, reserve, cancel
   and revert, the faucet, self-managed GitLab, and any relayer, command or page ([`docs/reference/OIDC.md`](docs/reference/OIDC.md)).
-- **Adapters** ([`docs/reference/ADAPTERS.md`](docs/reference/ADAPTERS.md)): workflow files that turn a signed event (a release, a
+- **Adapters** (`docs/reference/ADAPTERS.md`): workflow files that turn a signed event (a release, a
   deployment, an attestation, a tracker's webhook) into a settlement or a count.
 - **x402.** The example's `knos-order` scheme funds a real order over RPC. On devnet, on the staging deployment, it
   funded an order and the seller was paid on acceptance ([`docs/reference/X402.md`](docs/reference/X402.md)). The interface crates and
@@ -1568,7 +1568,7 @@ copy, of the time it names).
 - **Receipts in four parts**, an **evidence bundle** that verifies with no network, and a **mirror** that keeps
   what the chain's history no longer serves ([`docs/reference/RECEIPT.md`](docs/reference/RECEIPT.md), `knos bundle`, `knos receipt`).
 - **An audit export** per organisation and period: one hash-chained file that two parties can compare.
-- **A hermetic judge.** In tests mode a submission runs in a container named by image digest. Its end-to-end test
+- **A hermetic referee.** In tests mode a submission runs in a container named by image digest. Its end-to-end test
   ran in a real container on GitHub's runner, in the staging repository's run 37217535106
   ([`docs/reference/ASSURANCE.md`](docs/reference/ASSURANCE.md)).
 - **A badge** ("paid on proof") that states its scope, its money and its date, `knos record` for a payee's record,
@@ -1585,9 +1585,9 @@ challenge, the quorum, the agent's tools and the Buy page on a staging deploymen
 
 - **Auto-accept.** A funder can make an order paid by the black-box suite `auto` at funding: the first pull request
   the suite passes is paid, with no merge and no comment (`tests/test_order_auto.py`).
-- **The challenge.** Inside the warranty of an order that allows a neutral run, anyone who runs the pinned judge
+- **The challenge.** Inside the warranty of an order that allows a neutral run, anyone who runs the pinned referee
   again and finds the paid head failing returns the holdback to the funder. What was paid at acceptance stays paid.
-- **A quorum of judges.** An order can require two or three distinct judges to pass the same artifact before it pays
+- **A quorum of referees.** An order can require two or three distinct referees to pass the same artifact before it pays
   (`tests/test_order_quorum.py`).
 - **Tools for an agent** ([`docs/reference/AGENTS.md`](docs/reference/AGENTS.md)): find funded work, take it, submit it after the
   order's acceptance passes locally, collect; with a key of the agent's own. The tools that post are off until the
@@ -1643,7 +1643,7 @@ it could have run: it never ran ([`docs/reference/GOVERNANCE.md`](docs/reference
 |---|---|
 | The workflows of this release (installs by hash, `attest.yml`), the command line, the MCP tools that act, the site, records, statements and exports, the policy file, screening, the interface crates and examples | with the release |
 | `knos-meter` and `knos-passkey`: new programs at new addresses | once the release run has deployed them |
-| Everything below that names a work order: the fee on top, the four judges and the seller's own settlement, warranty, arbiter, split, standing offers, cancellation, top-up, assignment, organisation wallets, private orders | when the upgrade executes |
+| Everything below that names a work order: the fee on top, the four referees and the seller's own settlement, warranty, arbiter, split, standing offers, cancellation, top-up, assignment, organisation wallets, private orders | when the upgrade executes |
 | The fixes to 0.3.12 bounties: whole-unit limits, the extension list, a Balance's limits, single-use pay tokens | when the upgrade executes |
 | Any-issuer keys, Refresh by anyone, private keys | when the upgrade executes |
 
@@ -1700,7 +1700,7 @@ the new paths carry audiences that start `knos3:`, so a token of one generation 
   there is the verdict (merged: accepted; closed unmerged: rejected), and it is posted as `knos-eval:` for the relay,
   which carries it from the moment the meter is deployed, whatever the payment program's version. `knos statement --meter
   --buyer X --seller Y --month YYYY-MM` recomputes one buyer's and one seller's month from the program's logs.
-- **Private orders.** Funded from your organisation's Balance by a comment in a judge repository you choose. The
+- **Private orders.** Funded from your organisation's Balance by a comment in a referee repository you choose. The
   chain shows the amounts, the payees and that repository, and no name, issue number, check name or path of the
   private one ([SECURITY.md](docs/reference/SECURITY.md), section 12).
 - **Your own issuer.** A wallet registers the key of a server no public runner can reach, such as GitHub
@@ -1833,8 +1833,8 @@ Defects in the first deployment, and what the second does instead:
   a merge makes, a run by hand. A second, optional file puts the check on every pull request.
 - **No `pull_request_target`.** From 2 Nov 2026 GitHub blocks workflows it triggers on public repositories unless an
   admin allows them, and a fork's `pull_request` run gets no token. A merge is now read from the push it makes.
-- **The workflows are published at one commit of `drexthealpha/knos-workflows`** and install the judge as the exact
-  PyPI release. They take no inputs, so a calling repository cannot change which code judges. A bounty records
+- **The workflows are published at one commit of `drexthealpha/knos-workflows`** and install the referee as the exact
+  PyPI release. They take no inputs, so a calling repository cannot change which code referees. A bounty records
   that commit and is paid only by it.
 - **The check's memory is an issue.** Since 26 Jun 2026 GitHub denies cache saves to the runs that could write it,
   so what the check learned is kept as comments in an issue labelled `knos-memory`, written by GitHub Actions and
@@ -1874,7 +1874,7 @@ Defects in the first deployment, and what the second does instead:
 ### Measured
 
 - The tamper benchmark now has three sample repositories, in Python, JavaScript and Ruby: 63 cheating pull
-  requests. Plain CI passed 56, the in-process judge 7, the black-box check none ([docs/reference/TAMPER.md](docs/reference/TAMPER.md)).
+  requests. Plain CI passed 56, the in-process referee 7, the black-box check none ([docs/reference/TAMPER.md](docs/reference/TAMPER.md)).
 - Of 241 merged agent pull requests whose description said tests pass, 30 had a failed check at the head commit
   ([docs/reference/BENCH.md](docs/reference/BENCH.md), "Merged anyway").
 - Compute units of every instruction of the second deployment, four random walks of 2,500 steps over its payment program,
@@ -1884,7 +1884,7 @@ Defects in the first deployment, and what the second does instead:
 
 Three pull requests by another GitHub account, `jaystay-bot`, written for bounties Knos funded on this repository:
 `knos_bounties` says what each bounty is about (#32), a repository's own record in the Agent PR Index on the site
-(#33), and a Ruby runner for the judge (#34).
+(#33), and a Ruby runner for the referee (#34).
 
 ### Not done
 
@@ -1956,11 +1956,11 @@ One product. Everything else moved to [the tag `archive/labs` of drexthealpha/Kn
   hook's check at the place an agent cannot remove it.
 - **Tests mode, hardened.** Python, Node, Go, Rust, any command, and a black-box runner whose verdict the pull
   request's code cannot touch. Pull request code runs in a sandbox: another user, an empty environment, no network
-  during tests. The judge is the code at the workflow's own commit; the calling repository cannot swap it.
+  during tests. The referee is the code at the workflow's own commit; the calling repository cannot swap it.
 - **The real tokens fit.** Tokens up to 8,192 bytes (0.3.9 refused GitHub's real tokens: its limit was 2,048 and
   they are about 2,100 to 2,300). RSA-4096 for GitLab.
 - **Tested like something that will not be changed.** 517 Wycheproof vectors, a differential test against OpenSSL,
-  a 10,000-step random walk over the payment program, 21 cheating pull requests against three judges
+  a 10,000-step random walk over the payment program, 21 cheating pull requests against three referees
   ([docs/reference/BENCH.md](docs/reference/BENCH.md), [docs/reference/TAMPER.md](docs/reference/TAMPER.md)).
 - **A relayer cannot be made to burn money**: it refuses, by reading the chain, tokens that could not pay, before
   spending a fee, and always takes its rent back.
@@ -1990,7 +1990,7 @@ AI agent work gets paid only when GitHub's own signature, checked by Solana, pro
   `knos mainnet-check` adds two gates that fail until an outside signer joins and the time lock is at least 24 h
   ([docs/reference/SECURITY.md](docs/reference/SECURITY.md)). Mainnet stays locked.
 - **IDL on chain.** The payment program's IDL is published as a Program Metadata account.
-- **Sibyl store in the judge.** The judge reads the repo's rules and past rejections from the Sibyl store before it
+- **Sibyl store in the referee.** The referee reads the repo's rules and past rejections from the Sibyl store before it
   rules.
 - **Claims check.** `python scripts/claims_check.py` checks every number in the README's opening, the home page hero
   and the public documents against devnet, GitHub or a file in the repo, and fails on any sentence with a
@@ -2134,7 +2134,7 @@ until the proof is real.
 - **One benchmark source.** Every benchmark number in the docs is generated from `docs/bench.json`, and a test fails
   on drift. This fixes the 14→22 and 19/24 figures that disagreed between pages. Modelled baselines are labelled as
   models.
-- **Licence.** Everything that can be judged is MIT: the hooks, the proof engine, the payment program, the SDKs, the receipts
+- **Licence.** Everything that can be checked is MIT: the hooks, the proof engine, the payment program, the SDKs, the receipts
   and the web app. Only the paid conveniences in `src/knos/pro/` are FSL-1.1-MIT.
 - **Disclosure.**
   - Knos 0.1.0–0.1.8 (shared local memory for coding agents, with topic claims) was written and released 1–7 Sep
@@ -2423,7 +2423,7 @@ Claims are deliberately not restored: a hold rebuilt elsewhere would assert a
 collision that is not happening.
 
 Also: the ablation grew to twelve arms with numbers in
-`docs/evidence/ablation.json`, and a judge guide, verification, architecture,
+`docs/evidence/ablation.json`, and a referee guide, verification, architecture,
 memory-model and evidence ledger under `docs/`.
 
 Fixed: the gate served the wrong asset. It searched rather than reading the
@@ -2459,7 +2459,7 @@ stopping mid-word.
 Cursor and OpenCode each run a hook before a tool call, and a hook can say no,
 so an agent about to edit work another agent has claimed is stopped and told
 who holds it. It also reads the rules this repo already gave knos and enforces
-the ones a machine can check — a prohibition with a path in backticks. Off
+the ones a machine can check, a prohibition with a path in backticks. Off
 until you run it, and `knos guard --uninstall` takes it back out. It fails
 open: an unreadable store allows the edit.
 
@@ -2484,7 +2484,7 @@ decisions as well as claims, takes a `github-token` input, and documents its
 seconds; `pytest -m ""` runs all of it.
 
 `knos --version` prints the installed version, the same number the MCP
-handshake reports — one value, read from package metadata, so the two cannot
+handshake reports, one value, read from package metadata, so the two cannot
 drift apart.
 
 `knos export` keeps the shared file to the readable part of a note. What an

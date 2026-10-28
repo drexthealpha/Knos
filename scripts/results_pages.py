@@ -1,7 +1,8 @@
 """The six sample results as static pages, /results/<id>/ on the front door: each card's text in the served HTML (the
 verdict, the model's city beside Qloo's, the launch terms, what would flip it, what Knos rejected), so a reader or a
 crawler with no JavaScript reads it. Read from the private recordings as the app loads them (knos_wanted.recorded);
-derived values only, never a Qloo answer.
+the idea, the verdict and the date only: Qloo's part of each card (its cities, audiences and
+the options Knos weighed) is read from the app's server when the page is viewed (web/results.js), never stored here.
 
     python scripts/results_pages.py <private recordings file>            write web/results/<id>/index.html and web/results/index.json
     python scripts/results_pages.py <private recordings file> --check    exit 1 when any differs
@@ -33,19 +34,9 @@ def cards(file: str) -> list[dict]:
         t = metros.launch_terms(r)
         v = (r.get("decision") or {}).get("verdict")
         word = "Not yet: Qloo sets no launch city for this idea" if v == "OPEN" and not t else WORD.get(str(v), str(v))
-        g = r.get("gap") or {}
-        who = r.get("who") or {}
         out.append({"id": str(r.get("hash") or "")[:16], "idea": r.get("idea") or chip, "made": str(r.get("made") or "")[:10], "word": word,
-                    "sentence": g.get("sentence"), "flip": (g.get("flip") or {}).get("said"), "rejected": g.get("rejected") or [],
-                    "terms": {"city": t["city"], "target": t["target"], "rule": t["rule"]} if t else None,
-                    "cities": [c.get("name") for c in r.get("cities") or [] if isinstance(c, dict) and c.get("name")][:5],
-                    "who": ", ".join(x for x in (str(who.get("top_age") or "").replace("_", " "), str(who.get("top_gender") or "")) if x),
-                    "calls": len(r.get("calls") or []), "headline": g.get("headline")})
+                    "calls": len(r.get("calls") or [])})
     return out
-
-
-def _cap(t: str) -> str:
-    return t[:1].upper() + t[1:]
 
 
 def page(c: dict) -> str:
@@ -55,17 +46,13 @@ def page(c: dict) -> str:
         {"@type": "ListItem", "position": 1, "name": "Knos", "item": SITE},
         {"@type": "ListItem", "position": 2, "name": "Results", "item": f"{SITE}results/"},
         {"@type": "ListItem", "position": 3, "name": c["idea"], "item": url}]}
-    where = (f"Launch in {e(c['terms']['city'])}: {e(str(c['terms']['target']))} pre-orders. {e(c['terms']['rule'])}" if c["terms"]
-             else "No launch city: Qloo gave no heatmap for this idea, so pre-orders cannot open." + (f" The cities Qloo named: {e(', '.join(c['cities']))}." if c["cities"] else ""))
-    rej = "; ".join(f"{e(o['name'])} ({e(o['code'])}: {e(o['why'])})" for o in c["rejected"]) or "none, as Qloo offered no city or product to weigh"
-    head = c.get("headline") or {}
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Knos. {e(c['idea'])}</title>
-<meta name="description" content="{e(c['word'])}. {e(c['sentence'] or '')}">
+<meta name="description" content="{e(c['word'])}. A demand check recorded {e(c['made'])}.">
 <meta name="author" content="drexthealpha">
 <link rel="canonical" href="{url}">
 <meta name="color-scheme" content="light dark">
@@ -87,19 +74,11 @@ def page(c: dict) -> str:
   <article class="view" data-result="{e(c['id'])}">
     <h1>{e(c['idea'])}</h1>
     <p class="k-verdict-line"><b>{e(c['word'])}.</b> Recorded {e(c['made'])} from {c['calls']} Qloo calls.</p>
-    <h2>What does Qloo say beside the model alone?</h2>
-    <p>{e(c['sentence'] or 'No model answer was recorded for this idea.')}</p>
-    {f'<p class="fine"><a href="{e(head["href"])}">{e(head["said"])}</a></p>' if head else ''}
-    <h2>Where would it launch?</h2>
-    <p>{where}</p>
-    <h2>Who wants it?</h2>
-    <p>{e(('Qloo reads ' + c['who'] + ' as the core audience.') if c['who'] else 'Qloo named no age or gender for it.')}</p>
-    <h2>What would flip this verdict?</h2>
-    <p>{e(_cap((c['flip'] or '').removeprefix('What would flip this verdict: ')))}</p>
-    <h2>What did Knos reject?</h2>
-    <p>{rej}.</p>
-    <p><a href="https://knos.onrender.com/r/{e(c['id'])}">The full card, its calls and its receipt</a></p>
+    <section id="r-live" data-idea="{e(c['idea'])}" aria-live="polite">
+      <p><a href="https://knos.onrender.com/r/{e(c['id'])}">The full card, its calls and its receipt</a></p>
+    </section>
   </article>
+  <script src="../../results.js" defer></script>
 </main>
 <footer class="foot">
   <span>Devnet is test mode: the money is test USDC. Aggregate taste from Qloo, never about one person.</span>

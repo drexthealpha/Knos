@@ -17,6 +17,7 @@ dependencies = []   # the report and the web app use the Python standard library
 # install Knos from the same checkout beside it (`pip install . "./apps/wanted[escrow]"` at the root), so the app and
 # the escrow code are always one commit.
 escrow = ["knos", "solders>=0.29"]
+hold = ["knos", "solders>=0.29"]   # the same, under the name the README uses
 config = ["pyyaml==6.0.3"]   # config/fees.yaml + config/referees.yaml on the money path (the uv.lock pin)
 auth = ["cryptography>=42"]   # passkey sign-in (ES256 signature check)
 evidence = ["c2pa-python==0.38.0"]   # C2PA-signed photo/video evidence (knos_wanted.provenance)

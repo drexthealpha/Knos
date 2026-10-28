@@ -166,7 +166,7 @@ def test_the_answers_agree_with_the_tree():
     from knos.settle.v2 import pay
     assert "0.30%, at least 0.05 test USDC" in answers["What does Knos cost?"]
     assert pay.FEE_BPS == 30 and pay.order_fee(100_000_000) == 300_000 and pay.order_fee(5_000_000) == 50_000 == pay.fee_of(5_000_000)
-    assert "Checking a pull request costs nothing, and stays free." in (ROOT / "docs" / "PRICING.md").read_text(encoding="utf-8")
+    assert "demand check" in (ROOT / "docs" / "PRICING.md").read_text(encoding="utf-8")
     assert answers["What is Knos?"] == "Knos takes research from a paper to a product people want. It pays each step only on verified proof."
     assert "valley of death" in sentence() and "paid only on proof" in sentence()             # the one sentence, as two short answers
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -226,7 +226,7 @@ def built_file(url: str) -> str:
 def test_the_sitemap_lists_every_public_page_and_names_each_ones_source_for_its_date():
     urls = sitemap()
     assert [u for u, _d in urls][:4] == [SITE, SITE + "check/", SITE + "faq.html", SITE + "privacy.html"] and len(urls) >= 18
-    for want in ("proof/", "forecasts/", "status/", "calls/", "demo/", "how-we-test.html", "pricing.html", "docs/"):
+    for want in ("proof/", "forecasts/", "status/", "calls/", "try/", "how-we-test.html", "pricing.html", "docs/"):
         assert SITE + want in [u for u, _d in urls], want
     assert sum(u.startswith(SITE + "results/") for u, _d in urls) == 6
     for url, d in urls:
@@ -262,7 +262,7 @@ def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere():
         elif url.startswith(raw):
             assert (ROOT / url.removeprefix(raw)).is_file(), url
         else:
-            assert url in ("https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/", "https://knos.onrender.com/mcp") or url.startswith("https://github.com/drexthealpha/Knos/tree/main/"), url
+            assert url in ("https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/", "https://knos.onrender.com/mcp", "https://knos.onrender.com/app/") or url.startswith("https://github.com/drexthealpha/Knos/tree/main/"), url
 
 
 # ---- a build ------------------------------------------------------------------------------------------------------------

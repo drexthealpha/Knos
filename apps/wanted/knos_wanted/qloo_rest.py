@@ -144,6 +144,9 @@ _SECRET = re.compile(r"key|token|secret|auth", re.I)
 
 
 def note(call: str, params: dict | None, status, ms: float | None, cached: bool, at: str | None = None, origin: str = "live") -> None:
+    # "live" only when Qloo answered this call with HTTP 200 now; a cached answer, a 429 or a call not sent is said as such
+    if origin == "live" and not (status == 200 and not cached):
+        origin = "cached" if cached else "not sent" if status == "not sent" else "refused"
     RECENT.append({"at": at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "call": call,
                    "params": {k: v for k, v in (params or {}).items() if not _SECRET.search(str(k))},
                    "status": status, "ms": None if ms is None else round(ms), "cached": bool(cached), "origin": origin})

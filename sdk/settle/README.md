@@ -117,7 +117,7 @@ console.log((await statement(RPC, 142920951, "2026-10")).said);          // what
   private RPC address, or run it where a few minutes are fine.
 
 A `connection` is the RPC address, or `{ url, programs, names, now }` to name other program ids, call a mint's money something,
-or fix the time deadlines are judged by.
+or fix the time deadlines are checked by.
 
 ## What is in it
 

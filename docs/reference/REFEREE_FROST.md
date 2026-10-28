@@ -97,8 +97,8 @@ claims none.
 
 ## Limits
 
-- The game's demo prizes (`apps/wanted/knos_wanted/tasks.py`, funded by the round's sponsor) use the FROST group too:
-  the round's verdict is published at `/api/prize/evidence?id=`, and 2 of the 3 hosts fetch and re-check that page
+- The game's sample payments (`apps/wanted/knos_wanted/tasks.py`, paid from Knos's own devnet test wallet) use the
+  FROST group too: the round's verdict is published on its evidence page, and 2 of the 3 hosts fetch and re-check that page
   before they sign. Without the FROST group configured, 2 of the server's 3 keys sign as before.
 - Project milestones (`apps/wanted/knos_wanted/valley.py`) pin the FROST group too: once the result and the
   independent check are in, the review (both pages' URLs and sha256s, every funded order's claim id) is published at
@@ -111,7 +111,7 @@ claims none.
 Until 0.3.34 every Knos work order was released by a forge: a workflow at a pinned commit, run on GitHub or
 gitlab.com, whose token `knos_oidc` verified on chain. Research does not all live on a forge.
 
-This page is what knos_pay 0.3.34 adds so that the machine judge pays on proof from any source, and what it
+This page is what knos_pay 0.3.34 adds so that the machine referee pays on proof from any source, and what it
 does not do yet.
 
 **Status.** Built and tested in LiteSVM (test builds). The referee-panel path ran on devnet at a test program id this
@@ -142,7 +142,7 @@ A private key registered under Google's or ORCID's URL stays PRIVATE: the number
 data, and Bind (8) with an ORCID id_token. One account kind is new: a verdict's tally (80 bytes).
 
 **Compatibility.** GitHub and GitLab tokens pass the same checks in the same order with the same error codes; orders of
-earlier builds have zero in the new judge byte and take the old path.
+earlier builds have zero in the new referee byte and take the old path.
 
 Checked three ways: the Rust replay vectors of
 2.2's scenarios (`programs-v2/testdata/*.json`, answers and account bytes) regenerate byte-identical against the
@@ -151,7 +151,7 @@ tests of the program pass unchanged.
 
 ### 3. Referees for evidence no issuer signs (m of n)
 
-An order funded with judge 2 pins a panel: `sha256("knos3:panel" || m || n || n Ed25519 keys)`, 1 <= m <= n <= 10.
+An order funded with referee 2 pins a panel: `sha256("knos3:panel" || m || n || n Ed25519 keys)`, 1 <= m <= n <= 10.
 Each referee signs the 32-byte verdict digest
 
     sha256("knos3:verdict" || program id || order || order stamp i64 LE || terms hash || evidence sha256 || verdict)
@@ -204,7 +204,7 @@ What Knos's client tools do about it:
 - **The panel rule** (`knos.platform.referees.panel_rule`), applied by `knos.platform.verdict.check`, the idea panel
   tools (`knos.ideas.wanted.fund_panel_ix`, `stage_verdict_ixs`, `python -m knos.ideas.devnet_panel`) and the MCP tool
   `knos_graduate`:
-  - a panel holding the funder's or a payee's own key is refused (that party would judge itself);
+  - a panel holding the funder's or a payee's own key is refused (that party would check itself);
   - a panel with keys outside the registry is refused by the command-line and MCP tools;
   - `--unlisted-panel` (`unlisted_panel=True` in Python, `"unlisted_panel": true` in a graduation verdict) uses such a
     panel anyway, and every output then says `UNLISTED PANEL`. Python callers written before the registry, which pass
@@ -232,10 +232,10 @@ guide](https://github.com/ORCID/ORCID-Source/blob/main/orcid-web/ORCID_AUTH_WITH
 until it cannot be fresh; a Bind is replaced only by a later sign-in. Knos's ORCID public API client is not
 registered and `orcid.rs` `ORCID_CLIENTS` pins none, so a real build binds nothing today.
 
-### 5. What a judged order cannot have
+### 5. What a checked order cannot have
 
-No forge judge (its workflows repository is zero bytes), quorum, neutral run, standing rate, AUTO, holdback, kill
-fee, reservation, arbiter, judge repository or privacy salt: each needs a forge token. The presentation grace is
+No forge referee (its workflows repository is zero bytes), quorum, neutral run, standing rate, AUTO, holdback, kill
+fee, reservation, arbiter, referee repository or privacy salt: each needs a forge token. The presentation grace is
 allowed. A Balance funds none. Money moves as for any wallet's order: in by the funder's transfer, out to payees, tip
 and fee, back by RefundOrder.
 
@@ -274,7 +274,7 @@ ORCID's example iD with an address.
 
 | step | signature | bytes | knos_pay CU |
 |---|---|---|---|
-| fund an order judged by a 2-of-3 panel | `2Fw9aQZS59v4eaYo41suAHavYLwSQrhSVjrfPBajHGLZtBHkA3qnpHn6krQpcbBu8dhTVXnx955gyKKjx5cArnr9` | 681 | 45,167 |
+| fund an order checked by a 2-of-3 panel | `2Fw9aQZS59v4eaYo41suAHavYLwSQrhSVjrfPBajHGLZtBHkA3qnpHn6krQpcbBu8dhTVXnx955gyKKjx5cArnr9` | 681 | 45,167 |
 | PASS, referee 1 of 2: recorded | `2AZVrYsELBNSACYCFnG3XeydRDK5VTrvBG9H7LRAjwgQpVobhYtx9haxvEXrYZyMY7AsBPEy5j2LycFxM9EAgHXn` | 1,157 | 34,657 |
 | PASS, referee 2 of 2: 5.00 test units paid | `MDntcyKymFgrcUeZTkWg2JKtwxCzXGPvd8Ph3HXLjhQTKwEMh7z3TPoq7cS8LKEZ4d2WARFKXRdHtQxwqnbG2di` | 1,157 | 81,043 |
 | fund a second order (the fail case) | `2oAntj2KHZZgPtwAMuQcP9LbNxxkPAprcZRLMU7xfeq5zRkq4Jonu2SUHdcR2rRwWZrQqkHBm8s9caFRKQXvPPxw` | 681 | 45,178 |

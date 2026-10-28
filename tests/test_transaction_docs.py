@@ -1,12 +1,9 @@
-"""The one transaction (docs/TRANSACTION.md): every link leads to a file, the invoice figures are what
-`knos shadow` gives on the sample, and the witnessed links are the ones the README gives."""
+"""The one transaction (docs/TRANSACTION.md): every link leads to a file, and the witnessed links are the ones the
+README gives."""
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,17 +22,6 @@ def test_every_relative_link_of_the_transaction_leads_to_a_file():
     for name in ("TRANSACTION.md",):
         for target in _relative(_read(DOCS / name)):
             assert (DOCS / target).resolve().exists(), f"{name}: {target}"
-
-
-def test_the_invoice_figures_are_what_shadow_gives_on_the_sample():
-    done = subprocess.run([sys.executable, "-m", "knos", "shadow", "examples/shadow/invoice.csv", "--recorded",
-                           "examples/shadow/recorded.json"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-                          env={**os.environ, "PYTHONPATH": str(ROOT / "src"), "NO_COLOR": "1"}, timeout=120)
-    out = done.stdout
-    sha = re.search(r"sha256 ([0-9a-f]{64})", out).group(1)
-    text = _read(DOCS / "TRANSACTION.md")
-    assert sha in text
-    assert "In dispute: 1750.00 of 2900.00" in out and "In dispute: 1,750.00 of 2,900.00" in text
 
 
 def test_the_witnessed_links_agree_with_the_readme():

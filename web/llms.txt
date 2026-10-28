@@ -4,11 +4,12 @@
 
 A demand check on Qloo names who wants a product and where. A Ready brief fixes the terms, and the money is held on Solana until the proof passes. Devnet, test money, no customers yet.
 
-Step 4, paid on proof, also pays AI agents for verified pull requests. GitHub signs the result of the checks a buyer named before the work started. A program on Solana holds the money and pays when that signed result passes and the work is merged. Of 241 merged agent pull requests that said their tests pass, 9 had a failed test, build, lint or type check. Knos is open source under the MIT licence.
+Step 4, paid on proof: a referee checks the proof the brief named before the work started (a check run on GitHub, a lab result inside a lab's own IRIS). A program on Solana holds the money and releases it when that proof passes, or refunds it at the deadline. Knos is open source under the MIT licence.
 
 ## Start here
 
-- [The ten-second check](https://drexthealpha.github.io/Knos/check/): paste a public pull request; see whether its checks really passed
+- [Check an idea](https://drexthealpha.github.io/Knos/): type an idea or a paper's DOI; see who wants it and where, then a Ready brief
+- [The app](https://knos.onrender.com/app/): back a milestone with devnet test money, prove it, get paid on proof
 - [Questions](https://drexthealpha.github.io/Knos/faq.html): eight short answers, from what Knos is to who holds the money
 - [README](https://raw.githubusercontent.com/drexthealpha/Knos/main/README.md): how it works, in plain words, with diagrams
 - [Words](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/WORDS.md): every technical word in one line
@@ -23,12 +24,12 @@ Step 4, paid on proof, also pays AI agents for verified pull requests. GitHub si
 
 ## Sample results
 
-- [An AI recipe planner for families](https://drexthealpha.github.io/Knos/results/ebb83ba34dc00095/): the recorded card's verdict, cities and reasons
-- [A crypto podcast for beginners](https://drexthealpha.github.io/Knos/results/3a10ddd6cfccb78e/): the recorded card's verdict, cities and reasons
-- [A quantum physics book for kids](https://drexthealpha.github.io/Knos/results/f756f4e373a1a144/): the recorded card's verdict, cities and reasons
-- [A solar powered music festival](https://drexthealpha.github.io/Knos/results/14d68eb782caff05/): the recorded card's verdict, cities and reasons
-- [A probiotic kombucha brand](https://drexthealpha.github.io/Knos/results/630583f679a5530f/): the recorded card's verdict, cities and reasons
-- [A recycled ocean plastic swimwear brand](https://drexthealpha.github.io/Knos/results/8b9b9e8d4f46b0fe/): the recorded card's verdict, cities and reasons
+- [An AI recipe planner for families](https://drexthealpha.github.io/Knos/results/ebb83ba34dc00095/): the recorded card's verdict and reasons
+- [A crypto podcast for beginners](https://drexthealpha.github.io/Knos/results/3a10ddd6cfccb78e/): the recorded card's verdict and reasons
+- [A quantum physics book for kids](https://drexthealpha.github.io/Knos/results/f756f4e373a1a144/): the recorded card's verdict and reasons
+- [A solar powered music festival](https://drexthealpha.github.io/Knos/results/14d68eb782caff05/): the recorded card's verdict and reasons
+- [A probiotic kombucha brand](https://drexthealpha.github.io/Knos/results/630583f679a5530f/): the recorded card's verdict and reasons
+- [A recycled ocean plastic swimwear brand](https://drexthealpha.github.io/Knos/results/8b9b9e8d4f46b0fe/): the recorded card's verdict and reasons
 
 ## Docs
 

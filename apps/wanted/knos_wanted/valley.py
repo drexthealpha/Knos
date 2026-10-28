@@ -562,6 +562,24 @@ def public_project(p: dict) -> dict:
 _list_cache: dict[int, tuple[float, list[dict]]] = {}
 
 
+def _one_each(ps: list[dict]) -> list[dict]:
+    """Each idea once in the public list: of the projects with the same title, the one furthest along (released
+    milestones, then units held), else the newest. The others stay readable by their own id."""
+    def ahead(p: dict) -> tuple[int, int]:
+        ms = p.get("milestones") or []
+        return (sum(m.get("status") == "released" for m in ms), sum(int(m.get("locked_units") or 0) for m in ms))
+    best: dict[str, dict] = {}
+    order: list[str] = []
+    for p in ps:
+        k = " ".join(str(p.get("title") or p.get("id") or "").lower().split())
+        if k not in best:
+            best[k] = p
+            order.append(k)
+        elif ahead(p) > ahead(best[k]):
+            best[k] = p
+    return [best[k] for k in order]
+
+
 def projects(n: int = 50) -> list[dict]:
     """The public list: every project not archived, newest first. An archived one stays readable by its id. Built at
     most once every 30 s (it read every project file and made ~800 KB; under a page test's load that took 17 s), and
@@ -569,7 +587,7 @@ def projects(n: int = 50) -> list[dict]:
     hit = _list_cache.get(n)
     if hit and time.time() - hit[0] < 30:
         return hit[1]
-    out = [public_project(p) for p in _all("projects") if not p.get("unlisted")][:n]
+    out = _one_each([public_project(p) for p in _all("projects") if not p.get("unlisted")])[:n]
     _list_cache[n] = (time.time(), out)
     _json_cache.pop(n, None)
     return out
@@ -634,7 +652,7 @@ def list_html(take: int = 10) -> str:
 
 
 def _build_summaries(take: int) -> bytes:
-    rows = [summary(p) for p in _all("projects") if not p.get("unlisted")][:take]
+    rows = _one_each([summary(p) for p in _all("projects") if not p.get("unlisted")])[:take]
     body = json.dumps({"projects": rows, "take": take, "shape": "summary", "one": "/api/project?id=<id>"}, default=str).encode()
     _sum_stale.discard(take)
     _sum_cache[take] = (time.time(), body)

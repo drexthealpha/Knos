@@ -357,7 +357,7 @@ What it cannot do:
 - Be changed by a pull request: it runs from the default branch, it does not use `pull_request_target`, and a pull
   request that edits `.github/` or `.knos/` is out of a task's scope.
 - Vouch for more than its repository can: GitHub signs which workflow ran, at which commit, in which repository, not
-  what it read there. So a task's checks are judged in the funder's own repository, about the funder's own money.
+  what it read there. So a task's checks are checked in the funder's own repository, about the funder's own money.
 
 No secret is needed. The signed statements are posted as comments, and Knos's public relay carries them to Solana and
 pays the fees. Optional: a repository secret `KNOS_RELAY_KEY`, a Solana key with a little SOL for fees and never a

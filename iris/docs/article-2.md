@@ -1,6 +1,6 @@
-# Interoperability as an LLM trace tool (DPI-I-689): tokens, cost and tool calls in Visual Trace
+# Interoperability as an LLM trace tool: tokens, cost and tool calls in the trace view
 
-The Community Opportunity idea DPI-I-689 asks whether interoperability can do the traceability job of an LLM pipeline.
+Can interoperability do the traceability job of an LLM pipeline?
 In Knos Referee on IRIS every step of an agent's decision is an interoperability message, so Visual Trace already shows
 the pipeline, and SQL can read it.
 

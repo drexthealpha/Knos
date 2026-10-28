@@ -22,7 +22,7 @@ SITE = "https://drexthealpha.github.io/Knos/"
 # the front door names no other host in its pages (tests/test_settle_fixtures.py): its links to the app go through its own
 # wake page, which wakes the free server and forwards (web/wanted.html: the hash, and ?to= one of the app's pages)
 WAKE = "wanted.html"
-COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js")}
+COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js", "valley.js")}
 COPIES |= {f: STATIC / "fonts" / f.name for f in sorted((WEB / "fonts").iterdir()) if f.suffix in (".woff2", ".txt")}
 # the crow icon set (scripts/make_icons.py) on every Knos page, the app's included
 COPIES |= {WEB / "icon.svg": STATIC / "icon.svg", WEB / "favicon.ico": STATIC / "favicon.ico",
@@ -58,13 +58,14 @@ PAGES = {
     WEB / "privacy.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "404.html": (SITE, SITE, SITE + WAKE, "brand/tokens.css", True),        # its <base href="/Knos/"> holds at any depth
     WEB / "wanted.html": ("./", "./", WAKE, "brand/tokens.css", True),
+    WEB / "start" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),
     STATIC / "index.html": ("", SITE, "", "/static/brand/tokens.css", True),
     **{STATIC / n: ("/app/", SITE, "/app/", "/static/brand/tokens.css", True)
        for n in ("trace.html", "with_without.html", "qloo_safe_use.html", "invite.html", "verify.html", "ready.html",
                  "fields.html", "money.html", "companies.html")},
 }
 MARK = re.compile(r"<!-- k-bar -->.*?<!-- /k-bar -->", re.S)
-PROOF_SLOT = '<script type="application/json" id="k-proof">null</script>'
+PROOF_SLOT = '<div id="k-card" class="k-slot" aria-live="polite"></div>'   # hero.js runs right after the card slot
 HERO = re.compile(r"<!-- k-hero -->.*?<!-- /k-hero -->", re.S)
 VECTORS = re.compile(r"<!-- k-vectors -->.*?<!-- /k-vectors -->", re.S)
 STEPS = re.compile(r"<!-- k-steps -->.*?<!-- /k-steps -->", re.S)
@@ -105,6 +106,7 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
         api, app_pages, js = HEROES[path]
         t = (WEB / "brand" / "hero.html").read_text(encoding="utf-8").strip().replace("{API}", api).replace("{APP}", app_pages).replace("{SP}", site or "./")
         t = t.replace("<!-- k-vectors -->", vectors(api, js.replace("hero.js", "vectors.js")))
+        t = t.replace("{VALLEY}", js.replace("hero.js", "valley.js"))
         # hero.js runs in place, right after the proof slot: the past result is drawn before anything below it is laid
         # out (run deferred, the card arrived after the first paint and moved the page under the reader: CLS)
         code = (WEB / "brand" / "hero.js").read_text(encoding="utf-8").strip()
@@ -130,7 +132,7 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
         api = "" if tokens.startswith("/static/") else "@app"
         js = "/static/brand/vectors.js" if tokens.startswith("/static/") else tokens.replace("tokens.css", "vectors.js")
         s = VECTORS.sub(lambda _: f"<!-- k-vectors -->\n{vectors(api, js)}\n<!-- /k-vectors -->", s, count=1)
-    s = icons(s, "/static/" if tokens.startswith("/static/") else "", preconnect=path.is_relative_to(WEB))
+    s = icons(s, "/static/" if tokens.startswith("/static/") else tokens.split("brand/tokens.css")[0], preconnect=path.is_relative_to(WEB))
     link = f'<link rel="stylesheet" href="{tokens}">'
     if link not in s:
         s = re.sub(r'(<link rel="stylesheet")', lambda m: f"{link}\n{m.group(1)}", s, count=1) if "<link rel=\"stylesheet\"" in s \

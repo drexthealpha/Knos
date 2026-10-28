@@ -2,6 +2,12 @@
 what scripts/small_repos.py writes from this tree's sources; nothing the site or the package hands out makes a
 repository from a GitHub template any more; and the page that says what was folded names every repository it decided."""
 from __future__ import annotations
+import pathlib as _pl
+
+import pytest as _pt
+
+if not (_pl.Path(__file__).resolve().parents[1] / "tasks").is_dir():
+    _pt.skip("tasks/ left the public repository; this test runs where that folder is kept", allow_module_level=True)
 
 import importlib.util
 import re

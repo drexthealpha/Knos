@@ -13,14 +13,14 @@ Changes that delete something are the most welcome kind.
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-pytest -q -n auto                          # offline; runs both sets of programs in LiteSVM (a local Solana simulator) and the judge in five languages
+pytest -q -n auto                          # offline; runs both sets of programs in LiteSVM (a local Solana simulator) and the referee in five languages
 node sdk/settle/test.mjs                   # the JavaScript client against the Python client's fixtures
 python scripts/deadcode.py && vulture src/knos scripts --min-confidence 60     # nothing unused ships
 python scripts/claims_check.py --offline   # every number in the README and on the site has a source
 ```
 
 The suite refuses every non-loopback connection and gives each test its own home. It runs the real programs, real
-git repositories and real test runners rather than mocks. Please keep it that way. The Go and Rust judge tests are
+git repositories and real test runners rather than mocks. Please keep it that way. The Go and Rust referee tests are
 skipped when those toolchains are not installed.
 
 ## Change a program
@@ -45,7 +45,7 @@ If you change an instruction's bytes, update four places in this order: the note
 `tests/test_idl.py` tell you whether they still agree. `scripts/build_programs.sh` rebuilds the first
 deployment's test binaries from its unchanged source.
 
-## Add a language to the judge
+## Add a language to the referee
 
 `src/knos/judge.py`: a runner is one function that takes a sandbox `Box` and returns a `Run` (test ids and states,
 which ids are the acceptance checks, and the ids of the hidden tests that catch a cheat: the sentinel and canary tests). Add its test directories and protected paths
@@ -431,7 +431,7 @@ sign in.
    replaces it with what `git rev-parse '<the tag>^{commit}'` prints, and only that commit may move the action step of
    [`.github/workflows/supplier.yml`](.github/workflows/supplier.yml) to it. Until then a supplier who calls
    `supplier.yml` at this release's tag runs the workflow of this release and, inside it, the action at the earlier
-   tag's commit the file names: say so if asked which code judged a pull request.
+   tag's commit the file names: say so if asked which code checked a pull request.
 
 None of these runs is written into this release's commit ("Nothing after the push goes into a commit").
 

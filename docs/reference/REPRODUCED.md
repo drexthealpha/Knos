@@ -103,7 +103,7 @@ python -m knos.repro.example /tmp/bad --tamper && knos reproduce /tmp/bad       
 On 13 Oct 2026 the same command ran on a read-only checkout of the Knos repository itself (commit 99cc4e3e), with a spec
 kept outside it.
 
-It claimed that the playground judge's generated inputs catch every wrong solution in `tasks/` (72 of 72) and that every
+It claimed that the playground referee's generated inputs catch every wrong solution in `tasks/` (72 of 72) and that every
 reference passes its public examples (24 of 24): reproduced on the re-run and on a held-out seed.
 
 The result file, the spec, its two scripts and `run.sh` to make them again are in

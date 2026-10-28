@@ -27,7 +27,7 @@ published definitions this mirrors.
 | T-1002 | solved, the customer left (in the file twice: one ticket) | accepted |
 | T-1003 | reopened 20 hours after solved | rejected |
 | T-1004 | the customer asked for a person | rejected |
-| T-1005 | solved 30 hours before the export | not judged yet: the window is open |
+| T-1005 | solved 30 hours before the export | not checked yet: the window is open |
 | T-1006 | the customer wrote again 50 hours after solved | rejected |
 | T-1007 | reopened 200 hours after solved, after the window | accepted |
 | T-1008 | a human agent answered before it was solved | rejected |

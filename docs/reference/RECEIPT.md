@@ -13,9 +13,9 @@ Version 2 lacks the fourth; `knos receipt` still prints its heading and says it 
 1. **What the issuer authenticated** (`issuer_authenticated`). GitHub or GitLab signed: which workflow file, at which
    commit, ran in which repository, for which event, and when. `verified` names the `knos_oidc` program, the key
    account and the transaction in which that signature was verified on chain.
-2. **What the evaluator observed** (`evaluator_observed`). The pinned judge's verdict, the named checks and their
-   conclusions, the accepted commit and pull request, and the judge's version (the commit of its workflow). And who
-   controls each judge that spoke, recorded and not asserted ([Evaluator independence](#evaluator-independence)).
+2. **What the evaluator observed** (`evaluator_observed`). The pinned referee's verdict, the named checks and their
+   conclusions, the accepted commit and pull request, and the referee's version (the commit of its workflow). And who
+   controls each referee that spoke, recorded and not asserted ([Evaluator independence](#evaluator-independence)).
 3. **Which policy produced the verdict** (`policy`). The hash of the terms fixed at funding, the mode, the allowed
    and denied paths, and the terms' version.
 4. **Who authorised the money, and under which limit** (`commercial_authorisation`). Who funded, from what, under
@@ -23,9 +23,9 @@ Version 2 lacks the fourth; `knos receipt` still prints its heading and says it 
    deliverable (the order and its milestone) was paid before ([Version 3](#version-3)).
 5. **What trust remains** (`trust_remaining`). The list, in plain words: the host's signing key and its runner; the
    code of the pinned workflow; the repository's administrators for a merge-mode order; the account that ran the
-   judge when it was not the order's own repository; and Knos's upgrade multisig (the programs are upgradeable only
+   referee when it was not the order's own repository; and Knos's upgrade multisig (the programs are upgradeable only
    through a multisig with a public 8-day time lock, until an outside review). The list follows from the provider, the
-   mode and the judge, and a receipt that leaves one out is not valid. Versions 2 to 5 say the delay as it was when
+   mode and the referee, and a receipt that leaves one out is not valid. Versions 2 to 5 say the delay as it was when
    their words were fixed, 48 hours; since 11 Oct 2026 it is 8 days ([GOVERNANCE.md](GOVERNANCE.md), section 2), and
    version 6 says so ([Version 6](#version-6)). `knos receipt FILE` checks each version's words word for word, so a
    receipt already made still checks.
@@ -94,7 +94,7 @@ any of these holds, each computed and none typed:
 - the evaluators that spoke are one party.
 
 Every receipt, weak or not, also lists what stayed outside the evaluation: that the workflow file decides what it
-reads (the issuer signed which workflow ran, not what it ran), that the order's own repository judged when it did,
+reads (the issuer signed which workflow ran, not what it ran), that the order's own repository checked when it did,
 and that nothing shows the terms asked for the right thing.
 
 A receipt that is not weak is not a proof that the work is right: its Assurance part still names who is trusted at
@@ -184,7 +184,7 @@ evaluator entry carries a re-execution reads as `rerun`).
 version 5 one holds. A mirror's copy, made from the chain alone, does not carry the runs' own words and reads
 `reported` (`chain_only`).
 
-A disputed version 5 receipt contests the version 5 form of the receipt it contests; a
+A disputed version 5 receipt disputes the version 5 form of the receipt it disputes; a
 dispute does not move the level, which is of the evidence.
 
 Version 5 is what is written since 0.3.19: `knos bundle make`, `knos receipt mirror`, the relay's attestation of a payment and the receipt `knos attest` leaves for a run that paid
@@ -194,7 +194,7 @@ nothing all write it (`build5` over the version 4 receipt, so the level is compu
 attest` reads them from the repository's own copy of that document. Without one, nothing is declared.
 
 `knos bundle verify` takes versions 2 to 5, and so do the webhook verifiers (`integrations/webhook`). One version 5 receipt of a public payment has been written (0.3.19): `knos bundle
-make` of an order a neutral attest.yml run in drexthealpha/knos-attest judged again and
+make` of an order a neutral attest.yml run in drexthealpha/knos-attest checked again and
 [paid](https://explorer.solana.com/tx/3i37jK6P7hWyMntNgEKT3TsiSQQcHzNh7Dku4zsZC3m1E53ynAJZvzBgKUyahH7C9eH2A6ctRHwuSdTSqFkWfGND?cluster=devnet).
 
 Its evaluator entry says `reexecuted: true`, and its level is `reported`, not `rerun`: the run's owner and starter and the payee are one GitHub account, the only one Knos's release run
@@ -273,7 +273,7 @@ second and the fourth again from the receipt's own fields, and refuses an id of 
 contested:
 
     "disputed": {"by": {"role": "buyer", "id": "424242"}, "at": 1790090000, "reason": "...",
-                 "contests": {"sha256": "<the contested receipt's digest>", "verdict": "accepted"}}
+                 "disputes": {"sha256": "<the contested receipt's digest>", "verdict": "accepted"}}
 
 `role` is buyer, supplier, evaluator or other. A disputed receipt is the contested one with the verdict replaced, so
 `check` rebuilds the contested receipt from it and holds `contests.sha256` to its digest (`knos.receipt.contested`
@@ -334,7 +334,7 @@ Service script takes versions 1 to 5.
 
 A version 3 receipt is a version 2 receipt (below) of the same payment with two additions: the fifth part,
 `commercial_authorisation`, between `policy` and `trust_remaining`, and inside `evaluator_observed` the record of who
-controls each judge.
+controls each referee.
 
 Versions 1 and 2 still verify; `knos.receipt.build3` writes a version 2 receipt as version 3 and `knos.receipt.as2`
 gives back the version 2 one it holds (the Solana Attestation Service attestation is still written from that version
@@ -392,8 +392,8 @@ their company to do so is not something a chain can know.
 ### Evaluator independence
 
 Two accounts run by one person are one judge. A receipt cannot know who is behind an account, so it does not say
-that judges are independent: it records who controls each judge that spoke, from the ids its issuer signed, and
-computes two flags from them. The judges of the third version 3 vector, a quorum of two:
+that referees are independent: it records who controls each referee that spoke, from the ids its issuer signed, and
+computes two flags from them. The referees of the third version 3 vector, a quorum of two:
 
 ```json
 {
@@ -424,16 +424,16 @@ computes two flags from them. The judges of the third version 3 vector, a quorum
 
 | field | what it is |
 |---|---|
-| `kind` | which judge: `repository` (a run in the buyer's repository, the order's own), `neutral` (a run its starter owns), `attestor` (the judge repository the order named), `arbiter` |
+| `kind` | which referee: `repository` (a run in the buyer's repository, the order's own), `neutral` (a run its starter owns), `attestor` (the referee repository the order named), `arbiter` |
 | `repository_id`, `owner_id` | the repository the run was in, and the id of its owner (`repository_owner_id` in the token) |
 | `actor_id` | who started the run |
 | `runner` | the token's `runner_environment`: `github-hosted`, or `self-hosted` (the program pays only on a hosted runner's token, so a receipt of a payment says hosted; the field is the signed value, not an assumption) |
 | `independent_of_buyer` | `true` when neither the owner nor the starter is the funder or the Balance's owner. Always `false` for the order's own repository: the buyer chose it and its administrators can accept. `null` when the funder is a wallet, which has no account id to compare with |
 | `independent_of_seller` | `true` when neither the owner nor the starter is a payee |
-| `same_controller` | on the quorum: `true` when two judges share an owner or a starter (or the starter of one owns the other). `knos receipt` then prints `SAME CONTROLLER.` and the sentence in `independence`: count the quorum as one judge |
+| `same_controller` | on the quorum: `true` when two referees share an owner or a starter (or the starter of one owns the other). `knos receipt` then prints `SAME CONTROLLER.` and the sentence in `independence`: count the quorum as one referee |
 
 The flags are computed, not chosen: `check` computes them again and refuses a receipt whose flags differ, and the
-last entry must be the judge whose token paid, with the ids that token carries. A flag that says `true` says two
+last entry must be the referee whose token paid, with the ids that token carries. A flag that says `true` says two
 ids differ. It does not say two people differ.
 
 ## Version 2
@@ -549,9 +549,9 @@ Its digest is `e6a72d9d5760a99a824c48a7923a7a771d2cd26d54253fbe61005a236d711add`
 | `issuer_authenticated.claims` | the claims as the issuer signed them. GitHub: the eleven of version 1. GitLab: `ci_config_ref_uri`, `ci_config_sha`, `exp`, `iat`, `namespace_id`, `pipeline_id`, `pipeline_source`, `project_id`, `project_path`, `ref`, `ref_path`, `ref_protected`, `ref_type`, `runner_environment`, `sha`, `user_id`: every claim the program reads (`programs-v2/knos_pay/src/gl.rs`). The program reads a GitLab project and user as 900000000000000000 + id and a namespace as 800000000000000000 + id, so a GitLab receipt's `repository.id`, its `scope` and its payees carry those ids, and `check` holds the claims to them | the token |
 | `issuer_authenticated.token_sha256` | sha256 of the token's signature bytes | the token |
 | `issuer_authenticated.verified` | the `knos_oidc` program, its key account that verified the signature, and the transaction of the last verification step | the token account's transactions |
-| `evaluator_observed.judge` | `kind` as in version 1, and `version`: the commit of the judge's workflow, the same the issuer signed | the `knos3:settled` log line, the token |
+| `evaluator_observed.judge` | `kind` as in version 1, and `version`: the commit of the referee's workflow, the same the issuer signed | the `knos3:settled` log line, the token |
 | `evaluator_observed.verdict` | `accepted`: a receipt exists only for a payment | |
-| `evaluator_observed.checks` | the checks the terms name, each `{name, conclusion}`. The judge signs only when each passed at the accepted commit, so each is `passed`; the conclusions as fetched are in the evidence bundle | the terms |
+| `evaluator_observed.checks` | the checks the terms name, each `{name, conclusion}`. The referee signs only when each passed at the accepted commit, so each is `passed`; the conclusions as fetched are in the evidence bundle | the terms |
 | `evaluator_observed.artifact` | the accepted commit and the pull request that carried it | the token's audience |
 | `policy` | `terms_hash`, `mode`, `allowed_paths`, `denied_paths`, `version`. The last three are `null` when the terms are not public | the Order account, the `knos3:terms` log line |
 | `trust_remaining` | the list above | `knos.receipt.trust_of` |
@@ -560,13 +560,13 @@ Its digest is `e6a72d9d5760a99a824c48a7923a7a771d2cd26d54253fbe61005a236d711add`
 
 The rules of version 1 hold for version 2 (they are checked by the same code), and these too:
 
-1. `trust_remaining` is exactly the list for this provider, mode and judge.
+1. `trust_remaining` is exactly the list for this provider, mode and referee.
 2. `evaluator_observed.judge.version` is the workflow commit in the signed claims.
 3. Checks are in order of name, each once; amendments are oldest first.
 4. A GitLab receipt is for a pipeline of the order's own project on a protected branch (`ref_protected` is `true`).
    Its `scope` is not recomputed by a reader, since the program namespaces GitLab's ids by issuer.
 
-A receipt is built from chain facts only (`knos.bundle.gather`), for a public order paid by a judge's pay token.
+A receipt is built from chain facts only (`knos.bundle.gather`), for a public order paid by a referee's pay token.
 
 What is not built here: a receipt for a private order (its terms and repository are not public), and one for a payment an arbiter's ruling made (a ruling names no
 commit).
@@ -589,25 +589,25 @@ owner's plan. A version 1 receipt still checks, and `knos.receipt.upgrade` write
 | `key.json` | the issuer's public key that verified it (`issuer`, `kid`, `n`, `e`) and its key account |
 | `terms.json` | the order's terms: the bytes hashed at funding |
 | `checks.json` | the check runs, commit statuses and changed files of the accepted commit, as fetched, reduced to the fields a verdict reads and put in one order |
-| `judge.json` | the judge's kind and version, and `inputs_sha256`: the sha256 of `checks.json` |
-| `verdict.json` | optional, for an order in tests mode: the judge's verdict, added by `--verdict FILE` (below) |
+| `judge.json` | the referee's kind and version, and `inputs_sha256`: the sha256 of `checks.json` |
+| `verdict.json` | optional, for an order in tests mode: the referee's verdict, added by `--verdict FILE` (below) |
 | `chain.json` | the archived copy of the chain record: the paying transaction, the funding transaction and the one that verified the token, each as the cluster gave it (logs, instructions, accounts) with its slot, block time and blockhash; and the verifier's key account |
 | `keys.json` | the list of keys the issuer published (GitHub: `https://token.actions.githubusercontent.com/.well-known/jwks`), as fetched, with `retrieved_at`. Left out when the list could not be fetched |
 
 A bundle that holds `chain.json` or `keys.json` says version 2 in its manifest; a bundle without them is version 1,
 the layout earlier releases wrote, and both verify.
 
-`knos bundle make <order> --verdict FILE` puts the judge's own verdict in the bundle as `verdict.json`. `FILE` is what
-`knos proof judge --evidence` wrote: the hashes of the two trees the judge ran on, the hash of the acceptance checks,
+`knos bundle make <order> --verdict FILE` puts the referee's own verdict in the bundle as `verdict.json`. `FILE` is what
+`knos proof judge --evidence` wrote: the hashes of the two trees the referee ran on, the hash of the acceptance checks,
 its assurance (in-process, black-box or hermetic), and the image digest when it ran in one.
 
 The trees are not in the bundle.
 
 `verify` refuses a `verdict.json` that is not a passed verdict on the acceptance checks hashed at funding, or that
-names another image than the terms do, and `knos judge rerun <bundle> --base DIR --pr DIR` runs the judge again on
+names another image than the terms do, and `knos judge rerun <bundle> --base DIR --pr DIR` runs the referee again on
 trees you check out and says when they are not the ones the verdict names.
 
-Without `--verdict`, a bundle of a tests-mode order says "assurance: not said by this bundle"; in merge mode no judge
+Without `--verdict`, a bundle of a tests-mode order says "assurance: not said by this bundle"; in merge mode no referee
 ran the code and it says that none is claimed.
 
 The tar is deterministic: names in order, times zero, mode 0644, no owner.
@@ -808,8 +808,8 @@ Example values from the test vectors: the fee shown is 1%. Today's fee is 0.30%,
 | `scope` | the order's scope, 64 hex characters | the Order account |
 | `repository` | `{id, issue}` of the issue the order was for, by GitHub's ids; `null` for a private order, whose scope hides them | the Order account |
 | `artifact` | the commit that was accepted (`commit`, the head sha) and the pull request that carried it | the pay token's audience |
-| `terms` | the sha256 of the terms the order was funded under, and how they were judged (`merge` or `tests`). The terms themselves are in the funding transaction's `knos3:terms` log line | the Order account |
-| `judge.kind` | who was entitled to sign: `repository` (a run in the order's own repository), `neutral` (the pinned attest workflow run by hand in a repository its starter owns), `attestor` (a private order's judge repository), `arbiter` (the arbiter the order named) | the `knos3:settled` log line |
+| `terms` | the sha256 of the terms the order was funded under, and how they were checked (`merge` or `tests`). The terms themselves are in the funding transaction's `knos3:terms` log line | the Order account |
+| `judge.kind` | who was entitled to sign: `repository` (a run in the order's own repository), `neutral` (the pinned attest workflow run by hand in a repository its starter owns), `attestor` (a private order's referee repository), `arbiter` (the arbiter the order named) | the `knos3:settled` log line |
 | `judge.issuer`, `judge.claims` | the signer's claims as the issuer signed them: which repository and owner, which actor, which workflow file at which commit, which run. Ids are strings, as GitHub sends them; `iat` and `exp` are numbers | the verified token account |
 | `judge.token_sha256` | sha256 of the token's signature bytes: the same token can be recognised without being republished | the token |
 | `judge.key` | the `knos-oidc` key account that verified the signature on chain | the token account |
@@ -827,9 +827,9 @@ A valid receipt also holds these (all are in `knos.receipt.check`, and each has 
 1. The payees' shares add up to 10000 basis points, and what they received adds up to `amounts.paid`, which is more
    than zero and at most `amounts.of`.
 2. A public receipt's `scope` is `sha256("knos3:scope" || repository id || issue)`, both as 64-bit little-endian.
-3. A `repository` judge's `repository_id` is the order's repository. A `neutral` judge and an `arbiter` ran
+3. A `repository` referee's `repository_id` is the order's repository. A `neutral` referee and an `arbiter` ran
    `workflow_dispatch` in a repository the actor owns (`repository_owner_id` equals `actor_id`). A private order is
-   judged by its `attestor`.
+   checked by its `attestor`.
 4. The run was a first attempt on a GitHub-hosted runner, and the workflow is pinned by a 40-character commit.
 5. The payment is not earlier than the token's `iat`.
 6. No field is missing and none is unknown.
@@ -839,7 +839,7 @@ token and the payment, with every named check passed. A rejected or insufficient
 `ids` are the ones the receipt's own fields give, each of its own kind.
 
 `evidence_source` names the token when there is one and nothing signed when there is none. `limitations` begins
-with the sentences the evidence leaves. A disputed receipt contests exactly the receipt its `contests.sha256`
+with the sentences the evidence leaves. A disputed receipt disputes exactly the receipt its `contests.sha256`
 names, after any payment it records.
 
 ## The digest

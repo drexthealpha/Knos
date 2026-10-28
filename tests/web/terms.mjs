@@ -101,9 +101,9 @@ const names = [...new Set(index.templates.map((t) => t.name))], newest = page0.n
   const cards = await page.$$eval("[data-template]", (els) => els.map((e) => ({ kicker: e.querySelector(".k-kicker").textContent, sentence: e.querySelector(".terms-sentence").textContent,
     trust: e.querySelector(".terms-trust").textContent, hash: e.querySelector(".terms-hash").textContent, card: e.classList.contains("k-card") })));
   check("each shows its version, its one sentence and its hash, on a .k-card", cards.every((c, i) => c.card && c.kicker === `Version ${newest[i].version}` && c.sentence === `${newest[i].sentence.replace(/`/g, "")}.` && c.hash === newest[i].hash), cards);
-  check("each says what it trusts: the judge and the quorum", cards.every((c, i) => c.trust === page0.trustOf(newest[i]) && /^Judge: (a maintainer's merge|in-process|black-box|hermetic)\. Quorum: [123]\.$/.test(c.trust)), cards.map((c) => c.trust));
+  check("each says what it trusts: the referee and the quorum", cards.every((c, i) => c.trust === page0.trustOf(newest[i]) && /^Referee: (a maintainer's merge|in-process|black-box|hermetic)\. Quorum: [123]\.$/.test(c.trust)), cards.map((c) => c.trust));
   const blackbox = newest.findIndex((t) => t.name === "feature-blackbox");
-  check("the black-box template says black-box, a merge template says a merge", cards[blackbox].trust.startsWith("Judge: black-box") && cards[0].trust.startsWith("Judge: a maintainer's merge"));
+  check("the black-box template says black-box, a merge template says a merge", cards[blackbox].trust.startsWith("Referee: black-box") && cards[0].trust.startsWith("Referee: a maintainer's merge"));
   const clip = () => page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
   const first = page.locator("[data-template]").first();
   await first.locator('button[data-copy="cite"]').click();

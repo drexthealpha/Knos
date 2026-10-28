@@ -54,9 +54,7 @@ services:
         sync: false
       - key: KNOS_WANTED_MINT
         sync: false
-      # SAML single sign-on through SAML Jackson (the knos-sso service: image boxyhq/jackson, DB_ENGINE=mem)
-      - key: KNOS_SSO_URL
-        value: https://knos-sso.onrender.com
+      # SAML single sign-on: KNOS_SSO_URL (a SAML Jackson service) is set by hand when one runs; this blueprint defines none
       - key: KNOS_SSO_TEST_TENANT
         value: knos-test
       - key: KNOS_SSO_API_KEY

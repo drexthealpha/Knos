@@ -195,7 +195,7 @@ def test_release_findings_version_fee_funder_label_and_translations():
     # a funder's money is its own escrow, labelled as funder money; a pre-order stays a pre-order
     assert "funder" in preorder.FUNDER_VIA and "held for this milestone" in preorder.FUNDER_VIA
     js = (STATIC / "app.js").read_text(encoding="utf-8")
-    assert "viaLabel(c)" in js and "factorNote(" in js
+    assert "viaLabel(c)" in js and "factorNote(" not in js
     i18n = (STATIC / "i18n.js").read_text(encoding="utf-8")
     assert "same devnet escrow" not in i18n
     for key in ("skip:", "factoring_sim:", "factoring_ready:", "via_preorder:", "via_funder:", "via_blink:"):

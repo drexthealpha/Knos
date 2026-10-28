@@ -113,7 +113,7 @@ def call(base, path, body=None, token=None):
 
 
 def test_check_without_key_cannot_decide_and_preorder_is_gated(app):
-    st, r = call(app, "/api/check", {"idea": "A smart water bottle that glows to remind you to drink", "place": "Lagos"})
+    st, r = call(app, "/api/check", {"idea": "A smart water bottle that glows to remind you to drink", "place": "Lagos", "picked": True})
     assert st == 200 and r["decision"]["verdict"] == "CANNOT_DECIDE" and r["decision"]["target_units"] is None
     assert call(app, "/api/check", {"idea": "mail me at jane@example.com about a bottle"})[0] == 400
     assert call(app, "/api/preorder", {"report": r["hash"], "units": 5})[0] == 401

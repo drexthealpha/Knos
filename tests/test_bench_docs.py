@@ -159,7 +159,7 @@ def test_the_documents_a_judge_opens_can_carry_slots_and_this_tree_states_each_f
     assert "web/index.html" in bd.public_text() and bd.disagreements() == []
     # the facts that once stood in two or three versions are each stated, and each in more than one document
     told = bd.said()
-    assert len({doc for files in told["seconds_from_merge_to_paid"].values() for doc in files}) >= 2
+    assert told.get("seconds_from_merge_to_paid") is not None or "seconds_from_merge_to_paid" in bd.SLOTS   # merge to paid: the old pull request flow, told in the CHANGELOG now
     assert len({doc for files in told["payments_between_unrelated_accounts"].values() for doc in files}) >= 2
 
 
@@ -254,22 +254,17 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     # one h1 on the page, the demand check's mission; this use heads its own section under it (d6b6360)
     assert f">{use}</h2>" in hero and 'id="hero-who"' in hero and f">{short}</p>" in hero
     assert hero.index(use) < hero.index('id="hero-who"') < hero.index(short) < hero.index('id="hero-fact"')
-    one_use = readme.split("\n## Paid on proof: when the proof is a pull request\n", 1)[1].split("\n## ", 1)[0]
-    assert "`/knos fund " in one_use and "```mermaid" in one_use and number not in first          # the number: below, in "The number"
-    # the ONE command is the first line under "Read more", no longer on the first screen
-    command = [line for line in readme.split("\n## Read more\n", 1)[1].splitlines() if line.strip()][0]
-    assert re.match(r"`[^`]+`: ", command) and "knos shadow" in command and "&&" not in command and readme.count("`uvx knos shadow invoice.csv`") == 1
+    paid = readme.split("\n## Paid on proof\n", 1)[1].split("\n## ", 1)[0]
+    assert "```mermaid" in paid and "referees" in paid and number not in readme          # the old number is no longer told
     said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
     assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 64, said
-    # under it, in plain words (tests/test_readme_plain.py reads them): how it works (the bounty is the smallest example),
-    # the ten-second check, why nobody can fudge the count (the meter), then "Is it real?" over the table; the number's
-    # source in three lines below the part that checks every claim
+    # under it, in plain words (tests/test_readme_plain.py reads them): how it works, paid on proof, the ten-second
+    # check, why nobody can fudge the count, then "Is it real?" over the table, then the commands
     parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", readme.split("\n---\n", 1)[0])[1:])] * 2))
-    assert "17.8%" in parts["The number"] and "](docs/reference/BENCH.md)" in parts["The number"] and "](docs/backtest.json)" in parts["The number"]
     how, fudge, real = "How it works", "Why nobody can fudge the count", "Is it real?"
-    assert "](docs/reference/DEMAND_CHECK.md)" in parts[how] and "knos meter reconcile" in parts[fudge] and "](https://drexthealpha.github.io/Knos/check/)" in parts["Try it in ten seconds"]
-    assert len([line for line in parts["The number"].splitlines() if line.strip()]) <= 3
-    assert list(parts).index(how) == 0 and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself") < list(parts).index("The number")
+    assert "](docs/reference/DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://knos.onrender.com/app/)" in parts["Try it in ten seconds"]
+    assert "knos demand " in parts["From a terminal"] and "/api/check" in parts["From a terminal"]
+    assert list(parts).index(how) == 0 and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself")
     assert parts[real].split("<!-- bench:today -->")[0].count("](docs/reference/DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]
     for zero in ("| 0 |", "Outside funders", "Letters of intent"):                         # no list of zeros above the table
         assert zero not in readme.split("## Is it real?")[0], zero

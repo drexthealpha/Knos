@@ -37,7 +37,7 @@ signed token (JWT).
 It also means an e-mail address; a home-folder path; an array of 32 or 64 bytes; or 64 bytes in base58 or hex under a
 name that does not say it is a signature or a hash.
 
-Demo data says `"synthetic": true` in its payload.
+Sample data says `"synthetic": true` in its payload.
 
 ## Sibyl holds every line too
 
@@ -104,7 +104,7 @@ the key of someone you choose to believe.
 `knos record anchor`, `journal` and `prove` need something after them (a folder, a seq or an option). On its own,
 `knos record anchor` is still the record of the GitHub login `anchor`. `python -m knos.record anchor` needs no argument.
 
-## The demo record (synthetic)
+## The sample record (synthetic)
 
 `src/knos/record/demo/journal.jsonl` is a synthetic record of ten lines: a paper, a claim, two experiments, a caught
 cheat (`test_edited`), its refusal, a verdict, a payout line (synthetic: no transaction was sent for it), the claim's
@@ -262,7 +262,7 @@ What it does not check, and prints as a note:
 - **A batch with no token in the archive.** Its root is recomputed, and is the holder's word until a signed token
   for it is added. The note is marked `UNSIGNED`.
 - **A missing number.** Named, and marked `INCOMPLETE` unless an acknowledged correction explains it.
-- **A receipt.** Kept and checked by hash. Its judge's token is checked when that token is in the archive.
+- **A receipt.** Kept and checked by hash. Its referee's token is checked when that token is in the archive.
 - **A meter statement** (`knos meter statement --json`): its counts, its fee and that its lines are in an archived
   ledger. The rule that picks one billed outcome per deliverable is not run again; `knos meter verify` runs it.
 - **What nobody ever recorded.** If neither party's sender numbered it and neither kept it, nothing can show it.

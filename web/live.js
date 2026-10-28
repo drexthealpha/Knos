@@ -35,7 +35,9 @@ export const clock = (t) => (t === null || t === undefined ? "" : `${new Date(t)
 export const took = (s) => (s === null || s === undefined ? "" : s < 120 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, "0")} s`);
 // when the timer is next due: the next half hour of the clock, UTC. GitHub may start it late.
 export const nextDue = (now) => (Math.floor(now / (EVERY * 1000)) + 1) * EVERY * 1000;
-const knosSays = (comments, ...marks) => (comments || []).find((c) => String(c.body || "").startsWith("Knos") && marks.some((m) => c.body.includes(m))) || null;
+// the funding comment as an older Knos worded it (today's says "is held for issue"): both are read
+const OLDER_FUNDED = /is in escrow/;
+const knosSays = (comments, ...marks) => (comments || []).find((c) => String(c.body || "").startsWith("Knos") && marks.some((m) => (m instanceof RegExp ? m.test(c.body) : c.body.includes(m)))) || null;
 // the links to devnet's explorer a comment of Knos's carries: [{ kind: "tx" | "address", id, text }]
 export const explorerLinks = (body) => [...String(body || "").matchAll(/\[([^\]]{1,80})\]\(https:\/\/explorer\.solana\.com\/(tx|address)\/([1-9A-HJ-NP-Za-km-z]{32,90})(?:\?cluster=devnet)?\)/g)]
   .map((m) => ({ text: m[1], kind: m[2], id: m[3] }));
@@ -72,7 +74,7 @@ export function newestRound(items) {
 export function roundOf({ issue, comments = [], pull = null, pullComments = [], runs = [], chain = [] }, now, explorer) {
   const link = (text, href) => ({ text, href });
   const started = ms(issue.created_at);
-  const funded = knosSays(comments, "is in escrow", "is held for issue"), refused = !funded && knosSays(comments, "nothing was funded", "not confirmed", "stopped");
+  const funded = knosSays(comments, OLDER_FUNDED, "is held for issue"), refused = !funded && knosSays(comments, "nothing was funded", "not confirmed", "stopped");
   const escrow = explorerLinks(funded?.body).find((l) => l.kind === "address") || null;
   const paid = knosSays(pullComments, "paid.", "held for"), unpaid = !paid && knosSays(pullComments, "not paid", "nothing to pay", "stopped");
   const merged = ms(pull?.merged_at);
@@ -123,7 +125,7 @@ export async function readRound(env, found) {
   const [comments, pr, pullComments] = await Promise.all([gh(`/repos/${repo}/issues/${issue.number}/comments?per_page=100`),
     pull ? gh(`/repos/${repo}/pulls/${pull.number}`) : null, pull ? gh(`/repos/${repo}/issues/${pull.number}/comments?per_page=100`) : []]);
   const sha = pr?.merged_at ? pr.merge_commit_sha : null;
-  const escrow = explorerLinks(knosSays(comments, "is in escrow", "is held for issue")?.body).find((l) => l.kind === "address");
+  const escrow = explorerLinks(knosSays(comments, OLDER_FUNDED, "is held for issue")?.body).find((l) => l.kind === "address");
   const [runs, chain] = await Promise.all([
     sha ? gh(`/repos/${repo}/actions/runs?head_sha=${sha}&per_page=20`).then((r) => r.workflow_runs || [], () => []) : [],
     escrow ? rpc("getSignaturesForAddress", [escrow.id, { limit: 20, commitment: "confirmed" }]).then((r) => r || [], () => []) : []]);
@@ -134,7 +136,7 @@ export async function readRound(env, found) {
 // devnet for the escrow account's transactions once the funding comment has named it.
 export async function advance(env, raw) {
   const { gh, rpc, repo } = env, r = { ...raw }, n = r.issue.number;
-  const funded = knosSays(r.comments, "is in escrow", "is held for issue");
+  const funded = knosSays(r.comments, OLDER_FUNDED, "is held for issue");
   if (!funded) { r.comments = await gh(`/repos/${repo}/issues/${n}/comments?per_page=100`); return r; }
   const escrow = explorerLinks(funded.body).find((l) => l.kind === "address");
   if (escrow) r.chain = await rpc("getSignaturesForAddress", [escrow.id, { limit: 20, commitment: "confirmed" }]).then((x) => x || r.chain, () => r.chain);

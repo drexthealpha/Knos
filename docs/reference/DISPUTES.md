@@ -1,6 +1,6 @@
 # Disputes
 
-A supplier who thinks a rejection is wrong can contest it, and nobody from Knos is needed for any step. This page says
+A supplier who thinks a rejection is wrong can dispute it, and nobody from Knos is needed for any step. This page says
 what each party can do at each state, which clock runs, where the money is, and what happens when the evaluator the
 terms name never answers.
 
@@ -19,26 +19,26 @@ rejected one that runs to its deadline pays it nothing, because the refund retur
 "The buyer funds it" does not make that interest go away. What keeps Knos out of the verdict:
 
 1. **Knos never evaluates or adjudicates.** A verdict comes from the checks the terms fixed and hashed before the
-   work, run by the buyer's own repository, by the neutral judge in a repository whose owner is neither party, or
-   by an independent host's judge, and the forge signs that run ([ATTESTOR.md](ATTESTOR.md) says what that
+   work, run by the buyer's own repository, by the neutral referee in a repository whose owner is neither party, or
+   by an independent host's referee, and the forge signs that run ([ATTESTOR.md](ATTESTOR.md) says what that
    signature covers). No key of Knos's signs a verdict.
 2. **Knos's account cannot accept anything.** In the programs, `FEE_OWNER` (Knos's fee account) can do two
    things: receive fees, and sign `SetPlan`, which lowers one repository owner's rate and never raises it. It is
-   never a judge, never a signer of a verdict, and never chooses a payee. The relay only carries a token; the
+   never a referee, never a signer of a verdict, and never chooses a payee. The relay only carries a token; the
    payee comes from the signed token and the order, and the program refuses any other.
 3. **The verdict reads no price, and the fee reads no verdict but "accepted".** The modules that make verdicts
    (`knos.judge`, `knos.accept`, `knos.policy`, `knos.verdict_gate`, `knos.host_judge`) import nothing that knows a
    fee, and the fee function takes the amount and the rate only. Every accepted unit of money pays the same rate
    whoever accepted it, and a supplier is never charged.
 4. **Verdicts are reproducible.** `knos judge rerun` runs a verdict again from its file or evidence bundle, and
-   anyone can start the neutral judge from a repository of their own when the order allows it.
+   anyone can start the neutral referee from a repository of their own when the order allows it.
 5. **Appeals go to whoever the terms name.** The evaluator or arbiter in the terms' `dispute` field rules, and
    there is no default: Knos is never named unless the parties name it.
 
 `tests/test_neutrality.py` checks points 2 and 3 on every build: each line of the programs that names `FEE_OWNER`,
 each import of the verdict modules, and the fee function's arguments.
 
-What is still not separate: the founder writes the pinned judge workflow and holds every upgrade key. A new judge
+What is still not separate: the founder writes the pinned referee workflow and holds every upgrade key. A new referee
 is a new pinned commit, which binds only orders funded under it; a program change waits through a public 8-day
 delay ([GOVERNANCE.md](GOVERNANCE.md)).
 
@@ -72,25 +72,25 @@ rejected                           they did not pass there: the rejection stands
 
 Two orders have two evaluators, and the terms say which ([TERMS.md](TERMS.md), the `dispute` field):
 
-- **An order decided by an acceptance suite.** The evaluator is the neutral judge: the pinned `attest.yml`, started
+- **An order decided by an acceptance suite.** The evaluator is the neutral referee: the pinned `attest.yml`, started
   in a repository whose owner is neither party. Its first job fetches the two commits and runs the funded suite
   again under another account. Its verdict ends the appeal.
-- **An order paid on a merge.** There is no suite to run again: the neutral judge reads the repository's check
+- **An order paid on a merge.** There is no suite to run again: the neutral referee reads the repository's check
   results and runs nothing. The appeal is ruled by the arbiter the order named at funding. An order that named no
   arbiter has nobody to rule: the rejection stands unless both sides agree on an arbiter and fund a new order.
 
-A re-run that could not run (the judge's machine, an image, GitHub) decides nothing. The appeal goes back to
+A re-run that could not run (the referee's machine, an image, GitHub) decides nothing. The appeal goes back to
 `disputed (open)` and the evaluator is asked again.
 
 ## Who can do what, at each state
 
 | State | Supplier (the pull request's author) | Buyer (the funder) | The evaluator the terms name | Anyone else |
 |---|---|---|---|---|
-| rejected, or insufficient evidence | open an appeal with one sentence of reason, at no cost; or push a new commit and be judged again | nothing is asked of them; they may cancel the order, which takes 7 days' notice | nothing yet | read the verdict and its reasons |
-| disputed (open) | start the neutral judge themselves (`knos settle --neutral <pull request>`), from a repository that is not the buyer's; export the appeal's record | start the neutral judge too; they cannot close the appeal, and cannot take the money before the deadline | be started, by either side or by a third party | start the neutral judge from a repository of their own, when the order allows a neutral run |
+| rejected, or insufficient evidence | open an appeal with one sentence of reason, at no cost; or push a new commit and be checked again | nothing is asked of them; they may cancel the order, which takes 7 days' notice | nothing yet | read the verdict and its reasons |
+| disputed (open) | start the neutral referee themselves (`knos settle --neutral <pull request>`), from a repository that is not the buyer's; export the appeal's record | start the neutral referee too; they cannot close the appeal, and cannot take the money before the deadline | be started, by either side or by a third party | start the neutral referee from a repository of their own, when the order allows a neutral run |
 | disputed (re-running) | wait; a second appeal of the same verdict is refused | wait | run the funded checks again and sign the verdict; or, as arbiter, rule | read the run's public log |
-| accepted | be paid: the neutral judge's signed token is carried to the program by any relay (`knos settle`) | nothing can stop a token that is valid before the deadline | nothing more | carry the token (a payment tips whoever relays it) |
-| rejected (the appeal ended) | open a new pull request, judged again at no cost; a second appeal of the ended one is refused | nothing | nothing more | read the reasons |
+| accepted | be paid: the neutral referee's signed token is carried to the program by any relay (`knos settle`) | nothing can stop a token that is valid before the deadline | nothing more | carry the token (a payment tips whoever relays it) |
+| rejected (the appeal ended) | open a new pull request, checked again at no cost; a second appeal of the ended one is refused | nothing | nothing more | read the reasons |
 | past the order's deadline, no verdict | nothing on chain: a pay token is refused now | send the refund, as anyone can | a verdict signed now pays nothing | send the refund: the money goes back to the funder |
 
 Only the supplier can open an appeal. An accepted verdict cannot be appealed by the supplier, because nothing was
@@ -102,14 +102,14 @@ Each clock is in the terms or in the order, and none is kept by Knos.
 
 | Clock | Where it is fixed | What the code enforces today |
 |---|---|---|
-| time to appeal | terms 3, `dispute.within_days` | for an order funded under terms 3, `/knos appeal` refuses a late appeal with the sentence (`knos.terms3.appeal_open`, counted from the rejection the judge's memory holds); an order with no terms 3 has no such window |
+| time to appeal | terms 3, `dispute.within_days` | for an order funded under terms 3, `/knos appeal` refuses a late appeal with the sentence (`knos.terms3.appeal_open`, counted from the rejection the referee's memory holds); an order with no terms 3 has no such window |
 | the order's deadline | the order, at funding (terms 3 `deadline.days`) | the program refuses a pay token after it, and anyone can then send the refund |
 | a cancel's notice | the program: 7 days | a funder's cancel moves the deadline to at most 7 days away; a valid token inside the notice still pays |
 | the warranty | the order, at funding (terms 3 `window`) | the holdback stays in the order until it ends; a signed revert inside it returns the holdback to the funder |
 
 The practical consequence: an appeal must be opened, re-run and paid before the order's deadline. An appeal opened
 on the last day can be right and still pay nothing, because the token would arrive late. The supplier's protection
-is to appeal early and to start the neutral judge themselves, which needs nobody's permission.
+is to appeal early and to start the neutral referee themselves, which needs nobody's permission.
 
 ## Where the money is
 
@@ -126,10 +126,10 @@ is to appeal early and to start the neutral judge themselves, which needs nobody
 
 Nothing forces an evaluator to run, and nothing replaces one that does not.
 
-- **The neutral judge** is a workflow file, not a person. Either party, or anyone, can start it in a repository of
+- **The neutral referee** is a workflow file, not a person. Either party, or anyone, can start it in a repository of
   their own, when the order allows a neutral run. It "never answers" only if nobody starts it, or if GitHub or the
-  pinned workflow repository cannot be reached. An order funded with `neutral off` can be judged only from its own
-  repository or its named judge's, so there the buyer can decline to start it.
+  pinned workflow repository cannot be reached. An order funded with `neutral off` can be checked only from its own
+  repository or its named referee's, so there the buyer can decline to start it.
 - **An arbiter** is one GitHub account. They can rule wrongly, or not at all.
 - **In both cases the on-chain rule decides:** an order with no payment by its deadline goes back to its funder,
   amount and fee. Anyone can send that refund. So the default when no evaluator answers is that the buyer keeps the
@@ -158,7 +158,7 @@ A buyer cannot appeal an acceptance. What they have is fixed at funding:
 | supplier | the appeal's record: who, when, why, the ids of the deliverable and the evaluation, the terms' hash, every step | `knos appeal "<reason>" ... --out FILE`, or the reply on the pull request |
 | supplier | their record in a repository: accepted, rejected, appealed, overturned | `knos appeal --record <login> --repo <owner/name>` |
 | either | the terms the order was funded on, and which published version they are | `knos terms verify <file or hash>` |
-| either | the neutral judge's verdict and its run log | the run's page on GitHub; `verdict.json` in its artifacts |
+| either | the neutral referee's verdict and its run log | the run's page on GitHub; `verdict.json` in its artifacts |
 | either | a month's statement with every disputed line marked | `knos statement make`, then `knos statement export` ([COMPANIES.md](COMPANIES.md#statements)) |
 | anyone | what the order held, paid and returned | the order's account and the program's log lines on Solana devnet |
 

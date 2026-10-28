@@ -2,6 +2,12 @@
 reference passes its own checks, plausible wrong answers and a tampering pull request do not, and the board opens,
 funds and reports within its limits against a forge and a chain that are both made up here."""
 from __future__ import annotations
+import pathlib as _pl
+
+import pytest as _pt
+
+if not (_pl.Path(__file__).resolve().parents[1] / "tasks").is_dir():
+    _pt.skip("tasks/ left the public repository; this test runs where that folder is kept", allow_module_level=True)
 
 import base64
 import calendar

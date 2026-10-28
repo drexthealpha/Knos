@@ -228,9 +228,12 @@
       ? rej.map((o) => `<span data-reject data-code="${esc(o.code)}">${esc(o.name)} <abbr title="${esc(o.why)}">${esc(o.code)}</abbr></span>`).join("; ")
       : "none, as Qloo offered no city or product to weigh"}.</p>` : ""; };
   // the run's Qloo calls in one line: live, cached, and the time the check took (its own clock, else the calls' sum)
+  // live: this request got HTTP 200 from Qloo; recorded: answered on an earlier day (the server's qloo_calls says which)
   const callsHead = (r) => { const c = Array.isArray(r.calls) ? r.calls : []; if (!c.length) return "";
-    const ms = Number.isFinite(r.elapsed_ms) ? r.elapsed_ms : c.reduce((n, x) => n + (Number.isFinite(x.ms) ? x.ms : 0), 0);
-    return `<p class="k-fine" data-part="calls-head">Qloo calls: ${c.filter((x) => !x.cached).length} live, ${c.filter((x) => x.cached).length} cached, ${Math.round(ms).toLocaleString("en-US")} ms</p>`; };
+    const q = r.qloo_calls || { live: c.filter((x) => x.live).length, recorded: c.filter((x) => x.recorded).length, days: [...new Set(c.map((x) => x.recorded).filter(Boolean))] };
+    const ms = Number.isFinite(q.ms) ? q.ms : Number.isFinite(r.elapsed_ms) ? r.elapsed_ms : 0;
+    const days = (q.days || []).length ? ` · recorded ${(q.days || []).map(esc).join(", ")}` : "";
+    return `<p class="k-fine" data-part="calls-head" data-live="${q.live}" data-recorded="${q.recorded}">Qloo calls: ${q.live} live, ${q.recorded} recorded, ${Math.round(ms).toLocaleString("en-US")} ms${days}</p>`; };
   // before a check runs: the product Qloo matched to this idea, to confirm (Yes runs it; No offers the next 3)
   const confirmCard = (v, ms) => `<article class="k-card k-unknown" data-confirm data-not-prose><header class="k-card-head"><p class="k-kick">${esc(v)}</p>
   <h2 class="k-verdict">Is this what you mean? ${esc(ms[0])}</h2>
@@ -257,8 +260,68 @@
   <header class="k-card-head"><p class="k-kick">${esc(r.idea || "")}</p><h2 class="k-verdict">Qloo has not answered an idea close to this yet.</h2>${r.qloo_reset ? `<p class="k-why" data-qloo-reset>Its monthly limit resets on ${esc(r.qloo_reset)}.</p>` : ""}
   ${(r.nearest_options || []).length ? `<p class="k-why">The closest ideas it has answered:</p><p>${ideaButtons(r.nearest_options)}</p>` : ""}
   <p class="k-next">A Ready brief needs no Qloo: <a href="${esc(APP)}#projects" data-ready-path>write the brief for this idea</a>.</p></header></article>`;
+  // which one do you mean? (apps/wanted which.py): 2 to 4 readings built in code, each one line that becomes the checked
+  // idea when picked; a paper shows itself first and its products as readings, or a box to name one
+  const whichCard = (w) => { const pp = w.paper;
+    const paperLine = pp ? `<p class="k-why" data-paper>${esc(pp.title)}${pp.year ? ` (${esc(pp.year)})` : ""}${Number.isFinite(pp.cited_by_count) ? `, cited ${Number(pp.cited_by_count).toLocaleString("en-US")} times` : ""}${(pp.concepts || []).length ? ` · ${esc(pp.concepts.slice(0, 3).join(", "))}` : ""}</p>` : "";
+    const rows = (w.readings || []).map((x) => `<li><button type="button" class="k-chip" data-reading="${esc(x.text)}" data-kind="${esc(x.kind)}">${esc(x.text)}</button>${x.differs && (x.differs.theirs || x.differs.yours) ? ` <span class="k-fine" data-differs>${esc(x.differs.theirs || "no word")} against ${esc(x.differs.yours || "no word")}</span>` : ""}</li>`).join("");
+    const box = w.name_box ? `<form data-name-box class="k-row"><label class="k-fine" for="k-name">${esc(w.name_prompt || "Name the product this result enables")}</label> <input id="k-name" name="name" maxlength="200" required> <button type="submit" class="k-chip">Check it</button></form>` : "";
+    return `<article class="k-card k-unknown" data-which data-not-prose><header class="k-card-head"><p class="k-kick">${esc(w.asked)}</p><h2 class="k-verdict">Which one do you mean?</h2>${paperLine}${rows ? `<ul class="k-readings" data-readings>${rows}</ul>` : ""}${box}</header></article>`; };
+  // the picked reading Qloo has not answered and cannot today: the one line, the Ready brief built with no Qloo, its
+  // hold on devnet, and under it the nearest recorded answer as a labelled stand-in
+  const queuedCard = (r) => { const b = r.brief || {}, ms = b.milestones || [], rd = r.ready || {}, st = r.stand_in;
+    return `<article class="k-card k-unknown" data-queued data-not-prose><header class="k-card-head"><p class="k-kick" data-read-as>${esc(r.result_line || `Read as ${r.read_as || r.idea}`)}</p>
+  <h2 class="k-verdict">${esc(r.queued.line)}</h2>
+  <p class="k-why" data-brief>Ready brief: ${ms.map((m) => `${esc(m.name)}, ${esc(m.target)}`).join("; ")}${rd.criteria_hash ? ` · criteria hash <code>${esc(String(rd.criteria_hash).slice(0, 12))}</code>` : ""}</p>
+  <p class="k-next"><a href="${esc(APP)}#projects" data-ready-path data-idea="${esc(r.read_as || r.idea)}">Hold devnet test money on this brief</a></p>${callsHead(r)}</header></article>
+  ${st ? `<p class="k-fine" data-stand-in>${esc(st.said)}.</p>${card(st.card, `Stand-in, recorded ${st.made}`)}` : ""}`; };
+  // ---- the recorded card's own parts (U1): every number is the recorded answer's; nothing is estimated ----------------
+  // E1's place test (docs/reference/where_truth.json, plan committed before it ran): how sure a launch place can be
+  const SURE = { said: "How sure is this? On 30 ideas the top 5 launch places overlapped the Census top 10 by 0.19 with Qloo, against 0.41 for the model alone (95% interval of the difference -0.36 to -0.06). Limit: one outcome measure, business counts.", href: "https://github.com/drexthealpha/Knos/blob/afa6c9640c6f9ab1609ac053a3b5cfd2a0e90c69/docs/reference/where_truth_plan.md" };
+  const plainOf = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const rankIn = (guess, names) => { const g = plainOf(guess); if (!g) return 0; const i = names.findIndex((n) => { const v = plainOf(n); return v && (v.includes(g) || g.includes(v.split(" ")[0])); }); return i + 1; };
+  // supported: in the answer's top 5; challenged: outside its top 20, or absent from an answer that lists 20 or more
+  const verdictOf = (guess, names) => { const k = rankIn(guess, names);
+    return k && k <= 5 ? ["Supported", k] : (k && k > 20) || (!k && names.length >= 20) ? ["Challenged", k] : ["Not established", k]; };
+  const strengthOf = (n) => (n >= 5 ? "strong" : n >= 2 ? "moderate" : "weak");
+  const OPEN_Q = ["no buyer count", "no price paid", "no outcome yet"];
+  const u1 = (r) => { const q = r.qloo_calls || {}, ents = (r.matches || []).filter((m) => m && m.name), n = ents.length, st = strengthOf(n);
+    const places = [...(r.where || []), ...(r.cities || []).map((c) => c && c.name)].filter(Boolean);
+    const auds = (r.audiences || []).map((a) => a && (a.name || a)).filter(Boolean);
+    const guess = slot.dataset.guess || "", who = (document.getElementById("k-who")?.value || "").trim();
+    const asum = [guess ? ["Launch place", guess, verdictOf(guess, places)] : null, who ? ["Who buys it", who, verdictOf(who, auds)] : null].filter(Boolean);
+    const sig = (r.signals && Array.isArray(r.signals.rows) ? r.signals.rows : []);
+    const without = sig.length ? sig.filter((x) => x.changes || x.moved).length : null;
+    let conf = { strong: 3, moderate: 2, weak: 1 }[st];
+    const steps = OPEN_Q.map((w) => { conf = Math.max(0, conf - 1); return `<li>${esc(w)}: confidence ${["none", "low", "medium", "high"][conf]}</li>`; });
+    const rej = (r.gap && r.gap.rejected) || [];
+    const day = String((r.stale && r.stale.from) || r.made || "").slice(0, 10), reset = r.qloo_reset || "";
+    return `<section class="k-u1" data-u1 data-not-prose>
+  <p class="k-fine" data-part="recorded">Recorded ${esc(day)}${reset ? ` · Run live when Qloo resets ${esc(reset)}` : ""}</p>
+  <p class="k-fine" data-part="without-count" data-without-count="${without == null ? "" : without}">Without Qloo: ${without == null ? "this card's parts are each Qloo's" : `${without} of ${sig.length} of this card's signals change`}</p>
+  <p class="k-fine" data-part="strength" data-strength="${st}" data-entities="${n}">Signal strength: ${st}, ${n} entit${n === 1 ? "y" : "ies"} Qloo confirmed</p>
+  <div class="k-modeled" data-part="modeled"><p class="k-fine"><b>Qloo modeled:</b> taste affinity by audience, place and tag.</p><p class="k-fine"><b>Not modeled:</b> income, politics, education, job title and the price people paid.</p></div>
+  ${asum.length ? `<ul class="k-fine" data-part="assumptions">${asum.map(([what, said, [v, k]]) => `<li data-assumption="${esc(what)}" data-verdict="${esc(v)}" data-rank="${k}">${esc(what)} "${esc(said)}": ${esc(v)}${k ? `, rank ${k}` : ", not in the answer"}</li>`).join("")}</ul>` : ""}
+  <p class="k-fine" data-part="rejected-signals">Signals Knos rejected: ${rej.length ? rej.map((o) => `${esc(o.name)} (${esc(o.code)}: ${esc(o.why)})`).join("; ") : "none"}</p>
+  <div data-part="cannot"><p class="k-fine"><b>What this cannot tell you</b></p><ul class="k-fine">${steps.join("")}</ul></div>
+  <p class="k-fine" data-part="exports"><button type="button" class="k-chip" data-export="md">Markdown</button> <button type="button" class="k-chip" data-export="json">Evidence JSON</button> <button type="button" class="k-chip" data-export="print">One-page memo</button></p>
+  <p class="k-fine" data-part="closing" data-calls="${(r.calls || []).length}">${(r.calls || []).length} Qloo calls (${q.live || 0} live, ${q.recorded || 0} recorded), ${Math.round(q.ms || r.elapsed_ms || 0).toLocaleString("en-US")} ms</p>
+</section>`; };
+  const sureLine = () => `<p class="k-fine" data-part="sure"><a href="${SURE.href}" rel="noopener">${esc(SURE.said)}</a></p>`;
+  // the exports: the card as Markdown, its evidence as JSON (the recorded answer's own fields), a printable memo
+  const exportCard = (kind) => { const r = slot.last; if (!r) return;
+    if (kind === "print") { document.documentElement.classList.add("k-print"); print(); document.documentElement.classList.remove("k-print"); return; }
+    const art = slot.querySelector("article.k-card");
+    const text = kind === "json" ? JSON.stringify({ idea: r.idea, made: r.made, decision: r.decision, terms: r.terms, qloo_calls: r.qloo_calls, calls: (Array.isArray(r.calls) ? r.calls : []).map((c) => ({ call: c.call, live: c.live, recorded: c.recorded })), label: r.label }, null, 1)
+      : `# ${r.idea}\n\n` + [...(art ? art.querySelectorAll("h2, p, li") : [])].map((e) => (e.tagName === "LI" ? "- " : "") + e.textContent.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n\n") + "\n";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: kind === "json" ? "application/json" : "text/markdown" }));
+    a.download = `knos-${String(r.hash || "card").slice(0, 16)}.${kind === "json" ? "json" : "md"}`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+  const recordedCard = (r, label) => !!(r && r.decision && (label || r.stale || (r.qloo_calls && r.qloo_calls.live === 0 && (r.qloo_calls.recorded || 0) > 0)));
   function card(r, label) {
     style();
+    if (r.kind === "which_one") return whichCard(r);
+    if (r.queued) return queuedCard(r);
     if (r.nearest_options || (r.qloo_down && !r.stale && !r.nearest)) return options(r);
     const d = r.decision || {}, p = d.plan || {}, h = r.hash;
     rcpt = /^[0-9a-f]{16}/.test(h || "") ? h.slice(0, 16) : "";
@@ -296,7 +359,7 @@
   ${gapOpen(r)}
   ${guess ? yourCall(guess, terms, cities) : ""}
   ${down ? `<p class="k-terms" data-qloo-down>${esc(down)}</p>` : ""}${r.nearest && reset ? `<p class="k-fine k-terms" data-qloo-limit-line>${esc(reset.trim())}</p>` : ""}
-  <header class="k-card-head"><p class="k-kick">${label ? `<span class="k-real">${esc(label)}</span> · ` : ""}${esc(r.idea || r.label || "")}</p><h2 class="k-verdict" data-part="verdict" data-qloo>${esc(word)}${src(h)}</h2>${callsHead(r)}
+  <header class="k-card-head"><p class="k-kick">${label ? `<span class="k-real">${esc(label)}</span> · ` : ""}${esc(r.idea || r.label || "")}</p><h2 class="k-verdict" data-part="verdict" data-qloo>${esc(word)}${src(h)}</h2>${recordedCard(r, label) ? sureLine() : ""}${callsHead(r)}
   ${terms ? `<p class="k-terms" data-part="terms" data-city="${esc(terms.city)}" data-target="${esc(terms.target)}">Launch in <b>${esc(terms.city)}</b>: ${esc(terms.target)} pre-orders.${chip("rule", "rule-target")} Every pre-order is refunded if the target is missed.</p>${terms.by_population ? `<p class="k-fine" data-part="by-population" data-pop-city="${esc(terms.by_population.city)}" data-pop-target="${esc(terms.by_population.target)}">By population: ${esc(terms.by_population.city)}, ${esc(terms.by_population.target)}.${chip("rule", "rule-population")} By Qloo taste: ${esc(terms.city)}, ${esc(terms.target)}.${chip("rule", "rule-target")}</p>` : ""}` : ""}
   ${r.signals && r.signals.line ? `<p class="k-fine" data-part="signals">${esc(r.signals.line)}</p>` : ""}${gapClose(r)}
   ${read}${why ? `<p class="k-why"><b>Knos rule:</b> ${esc(why)}</p>` : ""}${trendLine(r)}
@@ -323,6 +386,7 @@
 ${src(h, price.src)}</section>
     ${more(r)}
   </div>`}
+  ${recordedCard(r, label) ? u1(r) : ""}
   ${calls(r)}
   ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
   <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
@@ -339,20 +403,31 @@ ${src(h, price.src)}</section>
     const { sure, ...send } = extra;
     extra = send;
     go.disabled = true; root.setAttribute("aria-busy", "true"); busy(true);
-    if (!sure && !extra.leader && !extra.exclude && !paper(v)) {          // a recorded idea: its matched product first
+    let pre = null;
+    if (!extra.picked && !extra.leader && !extra.exclude) {               // which one do you mean? asked before any check
+      said(paper(v) ? "Reading the paper…" : "Reading what you typed…");
+      const w = await post("/api/check", { idea: v, stage: "verdict" }).catch(() => null);
+      if (w && w.kind === "which_one") {
+        await cardCss(); slot.dataset.idea = v; slot.innerHTML = whichCard(w); slot.last = w; slot.dataset.ms = "0";
+        go.disabled = false; root.removeAttribute("aria-busy"); busy(false); return;
+      }
+      extra = { ...extra, picked: true };                                 // a recorded idea, word for word: no step
+      if (w && w.decision) pre = w;                                       // and its verdict card already came back
+    }
+    if (!sure && !extra.picked && !extra.leader && !extra.exclude && !paper(v)) {          // a recorded idea: its matched product first
       const m = await get(`/api/match?idea=${encodeURIComponent(v)}`).catch(() => null);
       if (m && (m.matches || []).length) {
         await cardCss(); slot.dataset.idea = v; slot.innerHTML = confirmCard(v, m.matches);
         go.disabled = false; root.removeAttribute("aria-busy"); busy(false); return;
       }
     }
-    const ref = paper(v), t0 = performance.now();
+    const ref = extra.picked ? null : paper(v), t0 = performance.now();
     slot.dataset.guess = (document.getElementById("k-guess")?.value || "").trim().slice(0, 60);
     said(ref ? "Reading the paper…" : "Asking Qloo…");
     try {
       // the verdict card first (verdict, matched product, audience); the map, also-loved and the launch terms follow
       // from the full check, whose Qloo questions the first one already sent
-      const r = ref ? await crossing(ref) : await post("/api/check", { idea: v, ...extra, stage: "verdict" });
+      const r = ref ? await crossing(ref) : pre || await post("/api/check", { idea: v, ...extra, stage: "verdict" });
       await cardCss();
       slot.innerHTML = card(r);
       slot.last = r;
@@ -543,10 +618,19 @@ ${src(h, price.src)}</section>
     const like = String(new FormData(f).get("like") || "").trim();
     if (like) ask(slot.dataset.idea || q.value, { leader: like });
   });
+  root.addEventListener("click", (ev) => { const x = ev.target.closest && ev.target.closest("[data-export]"); if (x) exportCard(x.dataset.export); });
+  root.addEventListener("submit", (ev) => {
+    const f = ev.target.closest("[data-name-box]");
+    if (!f) return;
+    ev.preventDefault();
+    const name = String(new FormData(f).get("name") || "").trim();
+    if (name) { q.value = name; ask(name, { picked: true, sure: true }); }
+  });
   root.addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-q]"), pick = ev.target.closest("[data-pick]"), none = ev.target.closest("[data-none]");
-    const sure = ev.target.closest("[data-sure]"), other = ev.target.closest("[data-other]");
-    if (sure) ask(slot.dataset.idea || q.value, { sure: true });
+    const sure = ev.target.closest("[data-sure]"), other = ev.target.closest("[data-other]"), reading = ev.target.closest("[data-reading]");
+    if (reading) { q.value = reading.dataset.reading; ask(reading.dataset.reading, { picked: true, sure: true }); }
+    else if (sure) ask(slot.dataset.idea || q.value, { sure: true });
     else if (other) {
       let next = [];
       try { next = JSON.parse(other.dataset.other || "[]"); } catch { next = []; }
@@ -566,9 +650,6 @@ ${src(h, price.src)}</section>
   // the past result, drawn last: every chip and the box already answer, and a snapshot the card cannot read leaves
   // the first screen as it is (the chips still check)
   const shown = (r) => cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } });
-  let carried = null;
-  try { carried = JSON.parse(document.getElementById("k-proof")?.textContent || "null"); } catch { carried = null; }
-  if (carried) shown(carried.proof ? carried : { proof: carried });   // in the page: the Open sample (else the last check), at the first paint
-  // the Open sample, asked as soon as the box is in view (no stored answer in the page; a hidden box asks nobody)
-  if (!asked && !carried) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
+  // the Open sample, asked of the server as soon as the box is in view (no Qloo answer is ever in the page)
+  if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
 })();

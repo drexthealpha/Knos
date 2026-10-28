@@ -27,6 +27,8 @@ _lock = threading.Lock()
 _last: dict[str, dict] = {}
 _answered: dict[str, dict] = {}          # every other idea Qloo answered, kept the same private way (nearest.py reads them)
 _model: dict[str, dict] = {}             # the model's own answer for an idea, with no Qloo (claude -p), kept the same way
+_forecasts: dict = {}                    # the forecast ledger's rows (docs/reference/forecast_plan_v2.md): Knos's picks stay here
+_index: list[dict] = []                  # more answered ideas, names only (idea, day, entities, tags): the file's "index" (which.py)
 MODEL_KEYS = ("city", "who", "why", "model", "at")
 _write = {"at": 0.0, "timer": None}
 
@@ -90,9 +92,17 @@ def load(file: str | None = None) -> int:
         for c, v in calls[-200:]:
             qloo_rest.note(str(c.get("call") or ""), c.get("params") if isinstance(c.get("params"), dict) else {}, "recorded", c.get("ms"),
                            bool(c.get("cached")), at=str(c.get("at") or v.get("made") or ""), origin="recorded")
+    extra = [{"idea": str(r.get("idea")), "made": str(r.get("made") or ""), "entities": [str(e) for e in r.get("entities") or []][:12],
+              "tags": [str(t) for t in r.get("tags") or []][:12], "source": str(r.get("source") or "")}
+             for r in doc.get("index") or [] if isinstance(r, dict) and r.get("idea")]
     with _lock:
         _model.update(model)
         _answered.update(answered)
+        _index[:] = extra
+        fc = doc.get("forecasts")
+        _forecasts.clear()
+        if isinstance(fc, dict) and isinstance(fc.get("rows"), list):
+            _forecasts.update({"rows": fc["rows"], "sha256": fc.get("sha256")})
         for k, v in cards.items():
             if k not in _last or (v.get("made") or "") > (_last[k].get("made") or ""):
                 _last[k] = v
@@ -150,15 +160,54 @@ def recording(text: str) -> dict | None:
     return copy.deepcopy(r) if r else None
 
 
-def honest(text: str, rep: dict) -> dict:
-    """The report as the card should show it (_honest), with Qloo's month line on every limited answer."""
+def honest(text: str, rep: dict, picked: bool = False) -> dict:
+    """The report as the card should show it (_honest), with Qloo's month line on every limited answer, and each call
+    said as it is (live_or_recorded). picked: the reader picked this exact reading (which.py), so no other idea's answer
+    stands in for it: with Qloo out and nothing recorded for it, its check is queued (which.queued)."""
+    if picked and failure(rep) is not None and not (recording(text) or answered(text)):
+        from . import which
+        out = which.queued(text, rep)
+        from . import qloo_status
+        line = qloo_status.limit_line()
+        return live_or_recorded({**out, **({"qloo_limit": line, "qloo_reset": qloo_status.reset_day()} if line else {})})
     out = _honest(text, rep)
     if failure(rep) is not None:
         from . import qloo_status
         line = qloo_status.limit_line()
         if line:
             out = {**out, "qloo_limit": line, "qloo_reset": qloo_status.reset_day()}
-    return out
+    return live_or_recorded(out)
+
+
+RECORDED_LABEL = "Recorded Qloo data (Qloo REST API, answered on {day}, kept privately on the server)"
+
+
+def live_or_recorded(rep: dict) -> dict:
+    """A Qloo call is live only when this request got HTTP 200 from Qloo: a call made now, not served from the cache and
+    with no error. Every other answered call is "recorded <date>", the day Qloo answered it. A card served from a
+    recording has no live call at all. The report carries the counts the card and the MCP both show."""
+    served = bool(rep.get("stale"))
+    calls, live, recorded_n, failed, ms = [], 0, 0, 0, 0
+    for c in rep.get("calls") or []:
+        if not isinstance(c, dict):
+            continue
+        c = dict(c)
+        ok = not c.get("error")
+        is_live = ok and not served and not c.get("cached")
+        day = str(c.get("at") or rep.get("made") or "")[:10] or None
+        c["live"] = is_live
+        c["recorded"] = None if is_live or not ok else day
+        live += is_live
+        recorded_n += bool(ok and not is_live)
+        failed += not ok
+        ms += c.get("ms") if isinstance(c.get("ms"), (int, float)) else 0
+        calls.append(c)
+    days = sorted({c["recorded"] for c in calls if c.get("recorded")})
+    label = rep.get("label")
+    if not live and str(label or "").startswith("LIVE"):
+        label = RECORDED_LABEL.format(day=days[-1] if days else str(rep.get("made") or "")[:10])
+    return {**rep, "calls": calls, "label": label,
+            "qloo_calls": {"total": len(calls), "live": live, "recorded": recorded_n, "failed": failed, "ms": round(ms), "days": days}}
 
 
 def _honest(text: str, rep: dict) -> dict:

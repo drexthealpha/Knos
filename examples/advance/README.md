@@ -19,7 +19,7 @@ separate transfer.
   signs (`knos claim <address>` binds one). After that only the current assignee can change it: the payee cannot take
   it back, and cannot assign the same order to a second financier.
 - It covers one order. Another order of the same seller is not assigned.
-- From then on every payment of that order to that payee goes to the assignee, whatever address the judge's token
+- From then on every payment of that order to that payee goes to the assignee, whatever address the referee's token
   names: the part paid at acceptance, and the holdback at release.
 - **The assignment has to be made before the order is paid.** A holdback is recorded with the wallets of the payment
   that created it, and `Release` pays those wallets and no other. An `Assign` sent after acceptance, inside the
@@ -45,7 +45,7 @@ The numbers are the test's: an order of 100 test USDC, 20% held back for 30 days
 
 ## What the financier risks
 
-- **A revert inside the warranty.** If the accepted change is reverted in those 30 days, a judge of the order signs
+- **A revert inside the warranty.** If the accepted change is reverted in those 30 days, a referee of the order signs
   `Revert` and the whole holdback, with the fee on it, goes back to the funder. The financier advanced 98 and
   collected 80: it is out 18 test USDC. The program gives it no claim on the seller; getting that back is a matter
   between the two of them, off chain.

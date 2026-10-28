@@ -18,6 +18,8 @@ Some words are about the code: [AI agent](#ai-agent), [pull request](#pull-reque
 
 Some are about the money: [Solana](#solana), [devnet](#devnet), [test USDC](#test-usdc) and [money held until the proof passes](#money-held-until-the-proof-passes).
 
+Some are about the crossing: [Qloo](#qloo), [Ready brief](#ready-brief), [milestone](#milestone) and [referee](#referee).
+
 Some are about trust: [signed](#signed), [program](#program), [upgrade](#upgrade) and [multisig](#multisig).
 
 ### AI agent
@@ -40,9 +42,17 @@ A test that runs the work as a separate program and only compares its answers.
 
 Tests and other automatic checks that run on every change to code. CI means "continuous integration".
 
+### Criteria hash
+
+A short fingerprint of a Ready brief's terms. Change one target or deadline and it changes.
+
 ### Custodian
 
 A company or person that holds your money for you.
+
+### Demand check
+
+A look at Qloo's taste data: who would want a product, and where to launch it.
 
 ### Devnet
 
@@ -76,10 +86,6 @@ Part of a payment kept back for the warranty. The worker gets it if nothing goes
 
 A bill that asks to be paid for work.
 
-### Judge
-
-The run that decides whether the work met the terms.
-
 ### Lamport
 
 The smallest unit of SOL: one billionth of a SOL.
@@ -95,6 +101,10 @@ To accept a pull request. Its change joins the main code.
 ### Meter
 
 What counts the work both sides agree on. Neither side keeps that count alone.
+
+### Milestone
+
+One step of a project, with a target, a checker and a deadline. Each is paid alone.
 
 ### Money held until the proof passes
 
@@ -112,6 +122,10 @@ An outside service that tells a program what happened in the world.
 
 A login kept on your phone or computer, opened with your face, finger or PIN. No password.
 
+### Pre-order
+
+A backer pays now for a product not made yet. The money is held until the proof passes.
+
 ### Program
 
 Code that runs on Solana. It does only what its code says, until someone upgrades it.
@@ -124,9 +138,17 @@ The address of a program on Solana. Anyone can look it up.
 
 A proposed change to code on GitHub. It waits for someone to accept it.
 
+### Qloo
+
+A company whose taste data says what people like, by place. Knos asks it about demand.
+
 ### Quorum
 
-Two or three judges who must all pass the same work before it is paid.
+Two or three referees who must all pass the same work before it is paid.
+
+### Ready brief
+
+A plan whose every milestone can be checked. Knos holds money only on a Ready brief.
 
 ### Receipt
 
@@ -135,6 +157,10 @@ One file that ties together the order, the signed result and the payment.
 ### Reconcile
 
 To compare two records line by line, until they agree or the differences are listed.
+
+### Referee
+
+Who checks that a proof met the terms. Knos often asks two of three referees to agree.
 
 ### Refund
 

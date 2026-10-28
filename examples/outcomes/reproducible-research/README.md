@@ -12,7 +12,7 @@ Budget: 90 test USDC, paid when the result is reproduced.
 
 **What we give you.** `data/trial.csv`: 240 tickets, 120 in each arm, minutes to first reply.
 
-**How it is judged.** The suite in `.knos/acceptance/1/` keeps its own copy of the trial and runs `analysis.py` in the
+**How it is checked.** The suite in `.knos/acceptance/1/` keeps its own copy of the trial and runs `analysis.py` in the
 sandbox:
 
 - reproduced: with seed 20261005 it prints the claimed estimate, within 0.000001 minutes;
@@ -36,4 +36,4 @@ artifact, so two ids, one accepted and one rejected.
 measurements, or that the seed and the method were not chosen after looking at many. It establishes that this script
 gives this number on these rows and reacts to them; whether the number means what the claim says is a reader's
 judgment. The same sandbox limits apply as to any black-box bundle (no network, standard library); an analysis that
-needs other packages needs a judge image that holds them (examples/acceptance/hermetic).
+needs other packages needs a referee image that holds them (examples/acceptance/hermetic).

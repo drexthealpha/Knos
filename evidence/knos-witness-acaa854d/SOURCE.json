@@ -179,5 +179,27 @@
    "blob": "76f38626e7e608a0ffc51a433e772578cdb8b9bb",
    "size": 2269
   }
- ]
+ ],
+ "changed_here": {
+  ".knos/acceptance/2/README.md": {
+   "blob": "2716a819be05720b90e099b613d9dd04ca630899",
+   "why": "Public wording only: banned words of the old products replaced (\"escrow\" by \"hold\", \"judge\" by \"referee\" or \"check\", \"demo\" by \"sample\") and a dead link to docs/REPRODUCE.md pointed at docs/reference/REPRODUCE.md; nothing else changed. The original blob is the one under files."
+  },
+  ".knos/acceptance/5/README.md": {
+   "blob": "49fe1f9fcfc6bc95b6fff37842c76eb7023699b4",
+   "why": "Public wording only: banned words of the old products replaced (\"escrow\" by \"hold\", \"judge\" by \"referee\" or \"check\", \"demo\" by \"sample\") and a dead link to docs/REPRODUCE.md pointed at docs/reference/REPRODUCE.md; nothing else changed. The original blob is the one under files."
+  },
+  ".knos/acceptance/7/README.md": {
+   "blob": "77fb415dec305fe2a25048154d93e74db2eb6e6b",
+   "why": "Public wording only: banned words of the old products replaced (\"escrow\" by \"hold\", \"judge\" by \"referee\" or \"check\", \"demo\" by \"sample\") and a dead link to docs/REPRODUCE.md pointed at docs/reference/REPRODUCE.md; nothing else changed. The original blob is the one under files."
+  },
+  ".knos/acceptance/9/README.md": {
+   "blob": "d924b25a79e0245d135247046d40d01a0b13fbf2",
+   "why": "Public wording only: banned words of the old products replaced (\"escrow\" by \"hold\", \"judge\" by \"referee\" or \"check\", \"demo\" by \"sample\") and a dead link to docs/REPRODUCE.md pointed at docs/reference/REPRODUCE.md; nothing else changed. The original blob is the one under files."
+  },
+  "README.md": {
+   "blob": "1f54a99e817ae12fcbeef37bfacfc2068e05c389",
+   "why": "Public wording only: banned words of the old products replaced (\"escrow\" by \"hold\", \"judge\" by \"referee\" or \"check\", \"demo\" by \"sample\") and a dead link to docs/REPRODUCE.md pointed at docs/reference/REPRODUCE.md; nothing else changed. The original blob is the one under files."
+  }
+ }
 }

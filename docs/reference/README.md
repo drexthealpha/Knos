@@ -30,14 +30,14 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | document | what it answers |
 |---|---|
-| [STORY.md](../STORY.md) | one task in seven steps on one page, each with its evidence |
+| [STORY.md](../STORY.md) | one crossing on one page, step by step, each with its evidence |
 | [MANIFEST.md](MANIFEST.md) | this release on one page: source, the build live at each public id, every capability's stage, the limits |
 | [CAPABILITIES.md](CAPABILITIES.md) | every capability, the stage it has reached, and the file or transaction that shows it |
 | [BENCH.md](BENCH.md) | every measured number, with the command that reproduces it |
-| [TAMPER.md](TAMPER.md) | which cheating submissions each judge refuses, and how much correct work each accepts |
+| [TAMPER.md](TAMPER.md) | which cheating submissions each referee refuses, and how much correct work each accepts |
 | [KNOS_RECORD.md](KNOS_RECORD.md) | every check, cheat caught and payout as one hash-chained public file, anchored on devnet, and how to verify it |
 | [REFEREE_FROST.md](REFEREE_FROST.md) | the referee panel as one FROST key (2 of 3 hosts sign), and m of n referees on chain |
-| [REFEREE.md](REFEREE.md) | the referee: Works (sealed tests, a locked judge, the cheat library, re-runs), Wanted and Makeable, and the free maintainer mode |
+| [REFEREE.md](REFEREE.md) | the referee: Works (sealed tests, a locked referee, the cheat library, re-runs), Wanted and Makeable, and the free maintainer mode |
 | [LOAD.md](LOAD.md) | many orders open at once, in the local simulator |
 | [DRILLS.md](DRILLS.md) | the safety paths, tested on the same program files that run on devnet |
 | [drills_recovery.md](drills_recovery.md) | what a funder does in three failures, with a key of their own |
@@ -49,7 +49,7 @@ The documents in this folder are listed below, with the seven front pages too.
 | [REPRODUCE.md](REPRODUCE.md) | how someone else runs it and files a signed report |
 | [REPRODUCED.md](REPRODUCED.md) | knos.yml: a research repository's claims re-run on a second machine and held-out data; contested results stay private |
 | [NUMBERS.md](../NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
-| [TRANSACTION.md](../TRANSACTION.md) | one order told end to end for a finance reader: terms, a rejection, an acceptance, payment, a refused replay |
+| [TRANSACTION.md](../TRANSACTION.md) | one held payment told end to end for a finance reader: the terms, a refused proof, a verified one, a refused replay |
 
 ## 2. Why does it matter?
 
@@ -77,7 +77,7 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | document | what it answers |
 |---|---|
-| [START.md](../START.md) | get started in five minutes: check demand, a Ready brief, a pull request check, one funded task |
+| [START.md](../START.md) | get started in five minutes: check demand, a Ready brief, money held, paid on proof |
 | [WORDS.md](../WORDS.md) | every technical word in one plain line |
 | [INSTALL.md](INSTALL.md) | every way to install the command, the check and the workflows |
 | [PLAYGROUND.md](PLAYGROUND.md) | fund a test order with one comment, with a GitHub account and nothing else |
@@ -88,10 +88,12 @@ The documents in this folder are listed below, with the seven front pages too.
 | [REFUSE.md](REFUSE.md) | what Knos will not fund: the refuse list every Ready check applies |
 | [MCP_STORE.md](MCP_STORE.md) | Knos in AI assistants: the read-only app-store MCP, its tools, limits and privacy |
 | [OUTSIDE_TRUTH.md](OUTSIDE_TRUTH.md) | Open signals scored against 200 past SBIR awards with known outcomes: no better than chance |
-| [qloo_lift_ranked_plan.md](qloo_lift_ranked_plan.md) | The rules of the ranked Kickstarter test, committed before it ran |
+| [qloo_lift_ranked_plan.md](qloo_lift_ranked_plan.md) | The rules of the ranked test on a public dataset of crowdfunded product launches, committed before it ran |
 | [taste_truth_plan.md](taste_truth_plan.md) | The rules of the MovieLens taste test, committed before it ran |
 | [where_truth_plan.md](where_truth_plan.md) | The rules of the where-demand test, committed before it ran |
 | [forecast_plan.md](forecast_plan.md) | How the forecast ledger is graded, committed before /forecasts/ was published |
+| [forecast_plan_v2.md](forecast_plan_v2.md) | The second forecast plan: county establishment counts (QCEW), fixed before any outcome |
+| [evidence_plan.md](evidence_plan.md) | Knos's own claims, each tested against a real outcome with a control, fixed before any run |
 | [QLOO-COVERAGE.md](QLOO-COVERAGE.md) | every Qloo parameter, type and endpoint the docs list, and where a person sets it on each interface |
 | [IDEAS.md](IDEAS.md) | an idea in from anyone or any research source, every field; demand, then pull commitments released in stages |
 
@@ -111,7 +113,7 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | document | what it answers |
 |---|---|
-| [PRICING.md](../PRICING.md) | what it costs: the check is free, the fee on a paid task, the meter's price |
+| [PRICING.md](../PRICING.md) | what it costs: demand checks and Ready briefs are free, the fee when held money is released |
 | [TRUST.md](../TRUST.md) | who holds the keys today, how to ask for one, and what is tested |
 | [GOVERNANCE.md](GOVERNANCE.md) | who can change what today, and what waits in public |
 | [MONEY.md](MONEY.md) | the one fee config, graduation held money and pre-orders, contributor splits, x402, the revenue data |
@@ -125,32 +127,28 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | folder | what it holds |
 |---|---|
-| [`programs-v2`](../../programs-v2) | The four programs. Each file's first lines say what it does. |
+| [`programs-v2`](../../programs-v2) | The programs: knos_pay, knos_oidc, knos_meter, knos_passkey and knos_zk. The transfer hook is in [`programs-hook`](../../programs-hook). Each file's first lines say what it does. |
 | [`programs`](../../programs) | The first deployment, exactly as deployed. |
 | [`.github/workflows`](../../.github/workflows) | The workflows a repository calls, published at one pinned commit of the `workflows-<sha12>` tags of `drexthealpha/Knos` (`drexthealpha/knos-workflows` before the 0.3.34 branch). |
-| [`src/knos`](../../src/knos) | What the workflows run: the judge, the relay, receipts, statements, the Stop hook, the MCP server. |
+| [`src/knos`](../../src/knos) | What the workflows run: the referee, the relay, receipts, statements, the Stop hook, the MCP server. |
 | [`crates`](../../crates), [`idl`](../../idl), [`sdk/settle`](../../sdk/settle), [`examples`](../../examples), [`conformance`](../../conformance) | What another team builds on. |
 | [`web`](../../web) | The site. It reads GitHub and Solana in the browser; there is no Knos server. |
 | [`terms`](../../terms) | The terms registry: each set of terms, by hash. |
 
-## The round in full
+## The crossing in full
 
-A work order is a task, its budget and the terms that decide whether it is done, fixed before the work starts. A
-bounty on an issue is the smallest one.
+An idea or a paper gets a demand check, then a Ready brief, then money held on devnet, then a payment on verified proof.
 
-- A buyer who pays by invoice uses the count alone: `knos-meter` records each signed evaluation once, and moves no money.
-- The seller can settle without the buyer, after a merge in a public repository: `knos settle --neutral <pull request URL>`.
-- With no payment by the deadline, the amount and the fee go back, and that needs no token.
-- Work can be paid without a merge only when the buyer's check runs the work as a separate program and compares its answers: of 63 cheating pull requests, plain CI passed 56 and that check passed none ([TAMPER.md](TAMPER.md)).
-- Every command and term (`checks`, `paths`, `days`, `warranty`, `holdback`, `arbiter`, `/knos offer`, `/knos split`): `/knos help`, and [SECURITY.md](SECURITY.md), section 3.
-- The recording of a round: [demo.mp4](https://github.com/drexthealpha/Knos/releases/latest/download/demo.mp4) (a release with no recording has no such file).
+- Each milestone of a Ready brief has a target, a checker and a deadline, locked by its criteria hash ([IDEAS.md](IDEAS.md)).
+- With no verified proof by the deadline, the amount and the fee go back, and that needs no token.
+- A proof checked by code that runs the work apart from it is harder to cheat: of 63 cheating submissions, plain CI passed 56 and that check passed none ([TAMPER.md](TAMPER.md)).
 
 ## History
 
-Knos 0.1 (1–7 Sep 2026) was shared memory for coding agents, built on Sibyl Labs' memory engine. 0.2 and 0.3.0–0.3.9 (30 Sep – 2 Oct) tried
-coordination, budgets and a jobs market before the measurement showed where the problem was ([the tag `archive/labs` of
+Knos 0.1 (1–7 Sep 2026) was shared memory for coding agents, built on Sibyl Labs' memory engine. 0.2 and 0.3.0 to 0.3.9 (30 Sep to 2 Oct) tried
+coordination and budgets before the measurement showed where the problem was ([the tag `archive/labs` of
 drexthealpha/Knos](https://github.com/drexthealpha/Knos/tree/archive/labs)). 0.3.10 to 0.3.15 are the two deployments, work orders, the count and the
 console.
 
-0.3.16 put an invoice check on the site. [DISCLOSURE.md](DISCLOSURE.md) says what was built when and what came from elsewhere; [the
+Later releases moved to one product: carrying research to a product on verified proof. [DISCLOSURE.md](DISCLOSURE.md) says what was built when and what came from elsewhere; [the
 changelog](../../CHANGELOG.md) has every release.

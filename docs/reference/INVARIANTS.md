@@ -553,9 +553,9 @@ the second before, at and after a deadline, the end of a hold and the end of a w
 Paired moves: a payment and a refund, a settlement and a refund, a release and a challenge in one transaction in both
 orders and in two (5).
 
-Token and judge cases: one token twice in one transaction, in two, and a meter's token shown to `PayOrder` and a
-payment's to the meter (3, 4); one judge alone under a quorum of 2 and of 3; one account and one owner behind two
-judges.
+Token and referee cases: one token twice in one transaction, in two, and a meter's token shown to `PayOrder` and a
+payment's to the meter (3, 4); one referee alone under a quorum of 2 and of 3; one account and one owner behind two
+referees.
 
 Stale state cases: a marker of the order that was at an address before; a token shown after a deadline it was issued
 before; and orders and markers in accounts as `knos_pay` 2.1 wrote them.
@@ -565,32 +565,32 @@ both, and they now run with the rest.
 
 ### A quorum counts owners of repositories, not repositories
 
-An order with a quorum of 2 or 3 pays when that many distinct judges have passed the same artifact: the order's own
-repository, a neutral run, the judge repository.
+An order with a quorum of 2 or 3 pays when that many distinct referees have passed the same artifact: the order's own
+repository, a neutral run, the referee repository.
 
 The finding (`finding_one_account_that_starts_both_runs_is_one_judge_not_two`): on a wallet's order, the account
 that started the run in the order's repository could start the neutral run in another repository it owned, and the
 order paid.
 
 The rule now, the same for an order funded by a wallet, by a passkey, by a comment on a forge or from a Balance
-(`order_terms::distinct`; each judge's marker records the `repository_owner_id` and the `actor_id` of its run):
+(`order_terms::distinct`; each referee's marker records the `repository_owner_id` and the `actor_id` of its run):
 
-1. Judges whose runs were in repositories of one owner are one judge.
+1. Referees whose runs were in repositories of one owner are one referee.
 2. A neutral run counts only when its owner is not the owner of the order's repository and the account that
    started it is not the account that started the run in the order's repository. A wallet names a repository and
    no owner, so on a wallet's order a neutral run counts only once the order's own repository has passed the same
    artifact; before that its token is recorded and nothing is paid.
 
-**What this enforces:** that the judges counted are different forge accounts and different owners of repositories,
+**What this enforces:** that the referees counted are different forge accounts and different owners of repositories,
 as the forge signed them. **What it cannot:** that two accounts are two people.
 
 One person with two accounts, an
-owner and a friend, or two parties who agreed, are two judges here; a forge signs account ids and nothing about who
+owner and a friend, or two parties who agreed, are two referees here; a forge signs account ids and nothing about who
 is behind them. The receipt's `same_controller` field ([RECEIPT.md](RECEIPT.md)) is still what a buyer reads for
 that.
 
-Two costs of the rule: a judge repository that belongs to the owner of the order's repository no longer
-counts as a second judge, and on a wallet's order a neutral run and a judge repository cannot pay without the
+Two costs of the rule: a referee repository that belongs to the owner of the order's repository no longer
+counts as a second referee, and on a wallet's order a neutral run and a referee repository cannot pay without the
 order's own repository.
 
 Checked by `finding_one_account_that_starts_both_runs_is_one_judge_not_two`,
@@ -601,7 +601,7 @@ Checked by `finding_one_account_that_starts_both_runs_is_one_judge_not_two`,
 `test_one_account_or_one_owner_behind_two_judges_is_one_judge` in `tests/test_order_quorum.py`; the unit test of
 `distinct` in [`order_terms.rs`](../../programs-v2/knos_pay/src/order_terms.rs). An order funded through a passkey is
 a wallet's order on chain (the passkey's wallet signs `FundOrderWallet`), so it takes the wallet's path; no test
-funds one through the passkey program and then judges it under a quorum.
+funds one through the passkey program and then checks it under a quorum.
 
 ### A marker does not outlive its order
 
@@ -623,10 +623,10 @@ markers and assignments, which before `knos_pay` 2.2 were tied to the second (an
 outlived its order until someone closed it).
 
 Markers that `knos_pay` 2.1 wrote are shorter and are told apart by their length: a quorum marker of that build names no run and
-counts for nothing until its judge signs again; its `done` marker counts for an order of that build and for no other.
+counts for nothing until its referee signs again; its `done` marker counts for an order of that build and for no other.
 
 Checked by `finding_a_marker_of_the_order_before_does_not_count_for_one_funded_again_in_the_same_second` (the same
-second, another slot; and a funding and a judge in one transaction, refused whole),
+second, another slot; and a funding and a referee in one transaction, refused whole),
 `an_assignment_of_the_order_before_does_not_route_the_payment_of_one_funded_again_in_the_same_second`,
 `a_quorum_marker_of_2_1_counts_for_nothing_until_its_judge_signs_again` and
 `a_done_marker_of_2_1_counts_for_an_order_of_2_1_and_for_no_other` in `adversarial.rs`;

@@ -150,7 +150,7 @@ async function passkeyUse() {
 // ---- researcher ----------------------------------------------------------------------------------------------------
 const KIND = { memory: "Memory", paper: "Paper", qloo: "Qloo", decision: "Decision" };
 function stepHtml(s) {
-  // a Qloo call, or a decision made from Qloo's answers (who, where, the price tier, the escrow): each links to its trace
+  // a Qloo call, or a decision made from Qloo's answers (who, where, the price tier, the hold): each links to its trace
   return `<li class="step ${esc(s.kind)}"${s.kind === "qloo" || s.kind === "decision" ? ` data-qloo data-call="${esc(s.call || "")}"` : ""}><div class="row"><span class="tag">${KIND[s.kind] || s.kind}</span><b>${esc(s.title)}</b><span class="muted small">${esc(s.at)}</span></div>` +
     (s.tool ? `<p class="small mono muted">${esc(s.tool)}</p>` : "") + (s.output ? `<p>${esc(s.output)}</p>` : "") +
     (s.effect ? `<p class="effect">→ ${esc(s.effect)}</p>` : "") +
@@ -201,7 +201,7 @@ function outcome(r) {
   const src = window.KnosDemand ? KnosDemand.src("", r.hash) : "";
   $("outcome").innerHTML = `<div class="decision ${esc((d.verdict || "").toLowerCase())}"><h3 data-qloo>${esc(word)}${src}</h3>` +
     (p ? `<p data-qloo><b>${t("for_l")}:</b> ${esc((p.who.age || "").replace(/_/g, " "))}, ${esc(p.who.gender)} · ${esc((p.who.segments || []).slice(0, 3).join(", "))}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>
-      <p data-qloo><b>${t("where_l")}:</b> ${esc((p.where || []).join(", ") || "—")}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p><p data-qloo><b>${t("price_l")}:</b> ${p.unit_price} ${esc(status.money_word || "test units")} (${esc(p.tier)})${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>
+      <p data-qloo><b>${t("where_l")}:</b> ${esc((p.where || []).join(", ") || "-")}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p><p data-qloo><b>${t("price_l")}:</b> ${p.unit_price} ${esc(status.money_word || "test units")} (${esc(p.tier)})${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>
       <p data-qloo><b>${t("goal_l")}:</b> ${p.target_units} · ${t("reserve")} ${p.reserve_units}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>
       <p><a class="button" href="#buy=${r.hash}">${t("open_product")}</a></p>` : `<ul>${(d.reasons || []).map((x) => `<li data-qloo>${esc(x)}${src}</li>`).join("")}</ul>`) + "</div>" +
     (window.KnosDemand ? KnosDemand.answers(r, "") : "") +
@@ -331,31 +331,7 @@ async function loadFund(focus) {
       btn.onclick = inCard(btn, (cardEl) => fundMilestone(p, parseInt(cardEl.querySelector(".fu").value, 10))); });
     const f = focus && document.querySelector(`#fundList li[data-slug="${focus}"]`);
     if (f) f.scrollIntoView({ block: "center" });
-    loadLend();
   } catch (e) { err(e); }
-}
-// ---- lender: the receivable sale, as PayFi receivable financing (advance rate, fee, due date, repaid by the release) --
-// Two taps: "Offer cash now" (an advance at 90%; the rate can be changed), then, once the maker's passkey sold the
-// receivable, "Send the advance" (the lender's passkey). After the release, "Collect the repayment".
-async function loadLend() {
-  const { receivables } = await api("/api/receivables");
-  $("lendList").innerHTML = receivables.map((r) => { const f = r.factoring || {}; const st = f.status || "open";
-    const q = (r.quotes || []).slice(-1)[0];
-    const act = st === "assigned" ? `<button class="lendGo" data-go="advance" data-c="${esc(r.commitment)}" type="button">${t("pay_adv")}: ${esc(f.advance_units)}</button>` :
-      st === "advanced" ? `<button class="lendGo" data-go="collect" data-c="${esc(r.commitment)}" type="button">${t("collect_btn")}</button>` :
-      st === "repaid" ? `<p class="small">✓ ${t("repaid_l")}: ${esc(f.repaid_units)}</p>` :
-      r.status !== "locked" ? "" : st === "quoted" && q ? `<p class="small muted">${t("offered_l")}: ${esc(q.advance_units)} (${esc(q.advance_bps / 100)}%) · ${t("wait_maker")}</p>` :
-      `<button class="lendGo" data-go="quote" data-c="${esc(r.commitment)}" type="button">${t("offer_btn")}: ${esc(Math.round(r.face_units * 90) / 100)}</button>
-       <details class="small"><summary>${t("adv_rate")}</summary><input class="ar" type="number" min="50" max="98" value="90" aria-label="${t("adv_rate")}" style="max-width:80px">%</details>`;
-    return `<li class="card" data-c="${esc(r.commitment)}"><b>${esc((r.idea || "").slice(0, 70))}</b>
-      <p class="small muted">${t("face_l")} ${esc(r.face_units)} · ${t("due_l")} ${esc(r.due)}${q ? ` · ${t("fee_l")} ${esc(q.fee_units)} (${esc(q.fee_pct)}%)` : ""}</p>${act}</li>`; }).join("") ||
-    `<li class="empty">${t("empty")}</li>`;
-  document.querySelectorAll(".lendGo").forEach((b) => b.onclick = () => busy(b, t("pk_sign"), async () => {
-    if (!session) { $("signin").hidden = false; throw new Error(t("err_signin")); }
-    const c = b.dataset.c;
-    if (b.dataset.go === "quote") { const ar = b.closest("li").querySelector(".ar"); await api("/api/lend/quote", { commitment: c, advance_bps: Math.round(parseFloat(ar ? ar.value : "90") * 100) }); }
-    else receipt(await KnosPasskey.approve(await api("/api/lend/" + b.dataset.go, { commitment: c }), api));
-    loadLend(); }));
 }
 // the wallet's track-record badges (Token-2022, non-transferable), read from devnet: getTokenAccountsByOwner, then each
 // one's balance with getTokenAccountBalance
@@ -377,11 +353,6 @@ async function loadWallet() {
 }
 // server notes the page knows are shown in the reader's language (the server's English stays in the API)
 function viaLabel(c) { return { preorder: t("via_preorder"), funder: t("via_funder"), blink: t("via_blink") }[c.via_kind] || c.via || ""; }
-function factorNote(f) {
-  if (f.status === "quoted") return t("factoring_sim");
-  if (["assigned", "advanced", "repaid"].includes(f.status)) return `${t("factoring_ready")} (${f.status})`;
-  return `${f.status || ""}. ${f.note || ""}`;
-}
 function receiptInto(el, p) {
   el.insertAdjacentHTML("beforeend", `<p class="small">✓ ${esc(p.units)} → <a href="${X(p.commitment, "address")}" target="_blank" rel="noopener">${short(p.commitment)}</a>${(p.signatures || {}).lock ? ` · <a href="${X(p.signatures.lock)}" target="_blank" rel="noopener">${short(p.signatures.lock)}</a>` : ""}</p>`);
 }
@@ -444,12 +415,7 @@ async function loadMaker() {
     $("makeList").innerHTML = commitments.map((c) => `<li class="card"><b>${esc((c.idea || "").slice(0, 80))}</b> · ${esc(c.units)} × ${esc(c.unit_price)} · <b>${esc(c.status)}</b>
       <p class="small"><a href="${X(c.commitment, "address")}" target="_blank" rel="noopener">${short(c.commitment)}</a> · <span class="mono">${esc(c.claim_id)}</span> · ${esc(viaLabel(c))}</p>
       ${Object.entries(c.signatures || {}).map(([k, s]) => `<span class="small">${esc(k.replace(/_/g, " "))}: <a href="${X(s)}" target="_blank" rel="noopener">${short(s)}</a></span>`).join(" · ")}
-      ${c.status === "locked" ? `<label>${t("evidence_url")}</label><div class="row"><input class="ev" data-c="${esc(c.commitment)}" type="url" placeholder="https://…"><button class="msBtn" data-c="${esc(c.commitment)}" type="button">${t("milestone_prove")}</button></div>` : ""}
-      ${c.factoring ? `<p class="small muted">${t("factoring_t")}: ${esc(factorNote(c.factoring))}</p>` : ""}
-      ${c.status === "locked" && c.factoring && c.factoring.status === "quoted" ? (c.factoring.quotes || []).map((q) => `<button class="acBtn quiet" data-c="${esc(c.commitment)}" data-q="${esc(q.id)}" type="button">${t("accept_btn")}: ${esc(q.advance_units)} (${esc(q.advance_bps / 100)}%)</button>`).join(" ") : ""}</li>`).join("") || `<li class="empty">${t("empty")}</li>`;
-    document.querySelectorAll(".acBtn").forEach((b) => b.onclick = () => busy(b, t("pk_sign"), async () => {
-      if (!session) { $("signin").hidden = false; throw new Error(t("err_signin")); }
-      receipt(await KnosPasskey.approve(await api("/api/factor", { commitment: b.dataset.c, quote: b.dataset.q }), api)); loadMaker(); }));
+      ${c.status === "locked" ? `<label>${t("evidence_url")}</label><div class="row"><input class="ev" data-c="${esc(c.commitment)}" type="url" placeholder="https://…"><button class="msBtn" data-c="${esc(c.commitment)}" type="button">${t("milestone_prove")}</button></div>` : ""}</li>`).join("") || `<li class="empty">${t("empty")}</li>`;
     document.querySelectorAll(".msBtn").forEach((b) => b.onclick = () => busy(b, t("loading"), async () => {
       if (!session) { $("signin").hidden = false; throw new Error(t("err_signin")); }
       const url = document.querySelector(`.ev[data-c="${b.dataset.c}"]`).value;

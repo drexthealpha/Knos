@@ -40,8 +40,6 @@ jobs:
       - run: pip install -q -e .
       - name: site = the web app, at the commit it was built from
         run: bash scripts/build_site.sh _site "$GITHUB_SHA"
-      - name: The proof shown first, from the app (its latest real check; none when it does not answer)
-        run: python scripts/proof_snapshot.py _site/index.html
       - name: The newest agent payout and the usage counter, from the app (the committed line stays when it does not answer)
         run: python scripts/live_snapshot.py _site/index.html && python scripts/live_snapshot.py _site/app.html
       - name: The public pages' stylesheets in the page (no render-blocking request before the first paint)

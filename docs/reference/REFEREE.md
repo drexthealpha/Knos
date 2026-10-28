@@ -6,7 +6,7 @@
 want it, and can it be made at a profit. A verdict passes only when all three do.
 
 The person or agent doing the work
-cannot see the tests that judge it, cannot change the judge, and is refused when it tries one of the known cheats.
+cannot see the tests that referee it, cannot change the referee, and is refused when it tries one of the known cheats.
 Every verdict and every cheat caught can be written to Knos Record ([SUPPLIER.md](SUPPLIER.md)).
 
 Code: `src/knos/referee/` and `src/knos/cheats/`. Tests: `tests/test_referee_*.py`.
@@ -18,7 +18,7 @@ Code: `src/knos/referee/` and `src/knos/cheats/`. Tests: `tests/test_referee_*.p
 | step | what it checks | refused as |
 | --- | --- | --- |
 | sealed tests | the hidden bundle's hash is the `spec_hash` sealed before work began (`referee.seal`) | `sealed_tests_changed` |
-| locked judge | the hash of the judging code that runs (`knos/judge.py`, `knos/referee/`, `knos/cheats/`) is the sealed `judge_hash` | `judge_drift` |
+| locked referee | the hash of the checking code that runs (`knos/judge.py`, `knos/referee/`, `knos/cheats/`) is the sealed `judge_hash` | `judge_drift` |
 | cheat rules | the cheat library on the change; no code of the change has run yet | the rule's category |
 | hidden tests | `knos.judge.judge` on the hidden bundle, unchanged: fail-to-pass, sentinel and canary, sandbox, the base's tests overlaid | `rejected` or `insufficient_evidence` |
 | re-run | the same judgment again, fresh; the verdicts agree, and a number agrees within the sealed tolerance (`abs`, `rel`) | `rerun_mismatch` |
@@ -27,10 +27,10 @@ The hidden bundle is kept outside the repository (a private repository or a secr
 of the base only for the run, so the worker's tree never holds it. What a worker is shown (`referee.judge_candidate`)
 is pass or fail and the rule's name; what the sealed suite printed is withheld.
 
-A second machine is a `judge_fn` that judges there; the re-run on this machine already uses fresh inputs, because a
+A second machine is a `judge_fn` that referees there; the re-run on this machine already uses fresh inputs, because a
 black-box bundle draws its own.
 
-The referee is never weaker than the judge: the judge's own path rule is the first rule of the library, and the judge
+The referee is never weaker than the referee: the referee's own path rule is the first rule of the library, and the referee
 still runs on everything the rules let through.
 
 ## The cheat library
@@ -45,7 +45,7 @@ Ruby ([TAMPER.md](TAMPER.md)). Each names the rule that refuses it, and `tests/t
 and checks that rule fires before any code runs.
 
 The cases that no text rule could see in principle (a no-op claim, constants for the visible examples, forgery from
-inside the test process) are also judged with the rules switched off, and the sealed black-box tests refuse each of
+inside the test process) are also checked with the rules switched off, and the sealed black-box tests refuse each of
 them on their own.
 
 The 63 cases by the category of the rule that refuses them:
@@ -64,7 +64,7 @@ The rules on a change:
 
 | rule | category | what it catches |
 | --- | --- | --- |
-| spec_file_edited, workflow_edited, test_edited, test_deleted, unrestored_test_config | spec_tampering, workflow_edited, test_edited, runner_tampering | the judge's own path rule (`knos.judge.classify_path`), word for word |
+| spec_file_edited, workflow_edited, test_edited, test_deleted, unrestored_test_config | spec_tampering, workflow_edited, test_edited, runner_tampering | the referee's own path rule (`knos.judge.classify_path`), word for word |
 | detects_test_runner | runner_forgery | code that checks whether a test runner loaded it |
 | references_sealed_bundle | runner_forgery | code that names the acceptance bundle's folder |
 | runner_patch | runner_forgery | code that patches pytest, minitest or node:test |
@@ -141,7 +141,7 @@ Fees come from the one fee config (MONEY), passed in.
 entry and one `cheat` entry per cheat caught to Knos Record when the install has it.
 
 `referee.reward(check)` gives an evolving agent 1 for work that passed, 0 for work that failed, and -1 for work a
-cheat rule refused, so cheating is never better than failing (the referee as a judge for skill evolution and training
+cheat rule refused, so cheating is never better than failing (the referee as a referee for skill evolution and training
 environments).
 
 ## Free maintainer mode
@@ -230,7 +230,7 @@ curl ended its bug bounty on 31 Jan 2026 after valid reports fell below 5%; Goog
 Others: tldraw auto-closes external pull requests; Ghostty bans drive-by AI pull requests and
 uses Vouch; GitHub shipped settings to disable or cap outside pull requests (13 Feb and 17 Jun 2026).
 
-Every filter shipped so far judges WHO sent the work (Vouch, collaborator-only, pull request caps). None checks whether
+Every filter shipped so far referees WHO sent the work (Vouch, collaborator-only, pull request caps). None checks whether
 the work is CORRECT against tests the sender could not see. Gate does that, and works beside those filters: a passing
 Gate check can be the bypass signal a maintainer opts into (`pass_label`).
 
@@ -257,7 +257,7 @@ The GitHub App (two clicks: install, pick repositories) is built but not registe
 | step | runs pull request code? | refuses when |
 |---|---|---|
 | config | no | `.knos/gate.yml` on the BASE commit is missing or invalid |
-| outside only | no | (an owner, member or collaborator is not judged with `outside_only: true`; the check says so) |
+| outside only | no | (an owner, member or collaborator is not checked with `outside_only: true`; the check says so) |
 | cheat checks | no | a rule of the cheat library refuses (REFEREE's `knos.cheats` when installed, else Gate's local rules: test edited, workflow edited, `.knos/` edited, hidden folder written, runner tampering, out of scope, data tampering, core path, no change) |
 | hidden tests | yes, sandboxed | the bundle is not the sealed one, or a hidden test fails, or the re-run disagrees |
 | public tests | yes, sandboxed | a public test fails |
@@ -298,7 +298,7 @@ It is signed with Ed25519. `knos gate receipt verify FILE` checks it with Python
 (`src/knos/receipt2/ed25519.py`, RFC 8032), from the JSON or from the saved receipt page. A valid signature by a key not
 in `src/knos/receipt2/issuers.json` shows only that its holder signed.
 
-The one listed key was generated for the v0.3.29 demo. It holds no money.
+The one listed key was generated for the v0.3.29 sample. It holds no money.
 
 An author can get a receipt for their own pull request to a repository without Gate: `knos gate receipt self` runs the
 repository's own public tests and the cheat checks and signs with the author's own key. That receipt says "public
@@ -317,32 +317,32 @@ Squads vault.
 bounty treasury MINT` names the fee account. Gate signs no payment and holds no key. There is no fiat on-ramp or
 off-ramp.
 
-### The demo, 13 Oct 2026 (synthetic tasks, devnet test tokens)
+### The sample, 13 Oct 2026 (synthetic tasks, devnet test tokens)
 
 In the owner's new private test repository `drexthealpha/knos-v0329-gate` (a synthetic `slug()` task, three hidden
 tests), with the Action alone. Every run used the `nonet,user` sandbox:
 
 | pull request | Gate | run |
 |---|---|---|
-| #2 edits the public test | refused, `gate.test_edited`, closed; no test ran | [run 38432746562](https://github.com/drexthealpha/knos-v0329-gate/actions/runs/38432746562) |
-| #3 correct fix plus `setup.py` | refused, `gate.out_of_scope`, closed | [run 38432754483](https://github.com/drexthealpha/knos-v0329-gate/actions/runs/38432754483) |
-| #4 passes the public test only (claims #1) | refused, `gate.hidden_tests_failed` (1 of 3 hidden passed), closed | [run 38432762375](https://github.com/drexthealpha/knos-v0329-gate/actions/runs/38432762375) |
-| #5 correct fix, then a second commit | passed (3/3 hidden, 1/1 public, re-run agreed), signed receipt; one comment, edited in place | [run 38432780017](https://github.com/drexthealpha/knos-v0329-gate/actions/runs/38432780017) |
+| #2 edits the public test | refused, `gate.test_edited`, closed; no test ran | run 38432746562 |
+| #3 correct fix plus `setup.py` | refused, `gate.out_of_scope`, closed | run 38432754483 |
+| #4 passes the public test only (claims #1) | refused, `gate.hidden_tests_failed` (1 of 3 hidden passed), closed | run 38432762375 |
+| #5 correct fix, then a second commit | passed (3/3 hidden, 1/1 public, re-run agreed), signed receipt; one comment, edited in place | run 38432780017 |
 
 The repository is private, so those links open for its owner only; its files (its main, ccf45c30) are in Knos as
-[evidence/knos-v0329-gate](../../evidence/knos-v0329-gate) (with the demo pull requests' heads in its SOURCE.json).
+[evidence/knos-v0329-gate](../../evidence/knos-v0329-gate) (with the sample pull requests' heads in its SOURCE.json).
 
 The bounty ran in the public test repository `drexthealpha/knos-e2e`, issue [#273](https://github.com/drexthealpha/knos-e2e/issues/273), with a test token minted on
 devnet (no value), whose terms require the `Knos Gate` check and allow only `gate_slug.py`:
 
 | step | evidence |
 |---|---|
-| 5.00 held from the Gate demo wallet `H3iUwqY9aKKD1H9m5MmTYNcwcv8xUkGDDDfps6XjXtBP` | [funding transaction](https://explorer.solana.com/tx/4xurN74ZuqE8Uz9dqUhomSLMA5ko8LAr1gnS2Btafe9oiUHJwz2StfmF6dWBxGqX7VDDr9J1iKc2d242LiTV33fG?cluster=devnet) |
+| 5.00 held from the Gate sample wallet `H3iUwqY9aKKD1H9m5MmTYNcwcv8xUkGDDDfps6XjXtBP` | [funding transaction](https://explorer.solana.com/tx/4xurN74ZuqE8Uz9dqUhomSLMA5ko8LAr1gnS2Btafe9oiUHJwz2StfmF6dWBxGqX7VDDr9J1iKc2d242LiTV33fG?cluster=devnet) |
 | a claim that fails the hidden tests is closed | [#274](https://github.com/drexthealpha/knos-e2e/pull/274), [run 38433820579](https://github.com/drexthealpha/knos-e2e/actions/runs/38433820579) |
 | the correct claim passes Gate and is merged | [#275](https://github.com/drexthealpha/knos-e2e/pull/275), [run 38433833108](https://github.com/drexthealpha/knos-e2e/actions/runs/38433833108) |
 | paid 51 s after the merge: 4.95 to the author's bound wallet, 0.05 fee to the treasury account `DkEX9RMi4NvJJTTr8463hctJo2tnS83g9Ti6sqEPCHT9` (owner: the Squads vault) | [payment transaction](https://explorer.solana.com/tx/2MbUhEUKdzLvyHe4WEd8cLqv1HGcKV91GGTNqF8y8EWN4jYTAw36n2nvsLBTsCw8ep9BBZLs3279TaN9Zobt9h1x?cluster=devnet) |
 
-The author of both claims is the repository's owner (`outside_only: false` for the demo); there is no outside user.
+The author of both claims is the repository's owner (`outside_only: false` for the sample); there is no outside user.
 
 ### Register the App
 
@@ -425,8 +425,8 @@ Reward on the referee's scale: 1.0 pass, 0.0 fail, -1.0 cheat.
 
 `knos taskpack rows PACK... --out tasks.jsonl` writes one row per package: the statement, repository, base commit,
 scope and sealed hashes. `knos.taskpack.atropos.score(row, clone, patch)` returns the reward, for a Hermes Atropos
-environment. `knos.taskpack.atropos.referee_spec(pack)` gives the referee the spec hash, hidden-test hash, judge and
-rules. Devnet and demo use only.
+environment. `knos.taskpack.atropos.referee_spec(pack)` gives the referee the spec hash, hidden-test hash, referee and
+rules. Devnet and sample use only.
 
 ### Shown on the owner's own repository
 

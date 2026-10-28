@@ -10,7 +10,7 @@ How the money moves:
 
 1. A verdict passes (works, wanted, makeable).
 2. It opens held money for the milestone and a pre-order pool: knos_pay orders.
-3. The judge workflow signs acceptance: the split is paid to the researcher, agent, lab and referee, and the fee goes to the treasury.
+3. The referee workflow signs acceptance: the split is paid to the researcher, agent, lab and referee, and the fee goes to the treasury.
 4. If the deadline passes first, the money and the fee go back to whoever paid.
 
 **Revenue today: 0.** Knos runs on Solana devnet only. Every fee the program takes there is test money, and nothing
@@ -106,7 +106,7 @@ Every payout is shared among four roles, by fixed basis points (`splits.roles`, 
 | lab | 1000 |
 | referee | 500 |
 
-One knos_pay order pays one to four payees, so the split is the payee list of the judge's pay token
+One knos_pay order pays one to four payees, so the split is the payee list of the referee's pay token
 (`knos.splits.payees`). The program divides the amount: each share rounded down, the last payee the rest. A role that
 took no part leaves its share to the others in proportion.
 
@@ -123,7 +123,7 @@ three checks of the referee. For one that did, it plans two kinds of knos_pay wo
 - **the pre-order pool**: each buyer funds one order in the claim's pool scope. `graduation.pool(ledger, plan)` reads
   the pool from the chain (distinct buyers, amount locked in open orders still in time, and whether the bar of N buyers
   and X locked is met). It counts only the plan's own orders, in the mint the makers accept: the scope is public, so an
-  order funded there with a worthless mint, other terms, another judge or other pinned workflows is listed as ignored; `graduation.demand_orders` hands it to the referee's demand book.
+  order funded there with a worthless mint, other terms, another referee or other pinned workflows is listed as ignored; `graduation.demand_orders` hands it to the referee's demand book.
 
 Both are **private** orders (`F_PRIVATE`, salted scope): they store no repository and no issue, so a claim never shows
 up as a bounty on a GitHub issue. The salt is `sha256("knos-grad:" + claim id)`, derived from the public claim id on
@@ -146,10 +146,10 @@ back.
 | claim B: pre-order with a 60 s deadline | `wf7AxxrXXAJT26BbX8WJwzNYZBn1ogxs6AtdVRRZ2eXYFEYrcpHYs3docaLw45TsGSK2bojxM578WLc9gnf8YwW` |
 | claim B: refunded by another relayer, amount and fee | `4hoBffMGkCzDKWfNdr95VJd9odDF26RV3fps994B9tmtGRxEncQaqujXQuKmdqW7dkbc8MNtvfjMk6DdJ54RAwcs` |
 | claim B again: pre-order | `62xKk3w85zrFNawRK97JTy7MMgSUnjCn8pjjUaTagnWxqNbdGj3A8VK2BNEYaRY7dPF1fQ1rVyihBNY4w89Pq4cJ` |
-| claim B again: refunded by the demo | `2iHXMseNnNXhD3zcp9tKAtqqFv7wDzFdUsF6Fm7ZCZ3vKchvQFiYAdLRnjFffF5nqH2DmuH3cu2zictJkMv4ueNZ` |
+| claim B again: refunded by the sample | `2iHXMseNnNXhD3zcp9tKAtqqFv7wDzFdUsF6Fm7ZCZ3vKchvQFiYAdLRnjFffF5nqH2DmuH3cu2zictJkMv4ueNZ` |
 
-The first refund of claim B was sent by a relayer the demo does not run, before the demo's own: anyone may refund an
-order past its deadline. The payout of claim A needs a GitHub-signed token from the judge repository; the demo does
+The first refund of claim B was sent by a relayer the sample does not run, before the sample's own: anyone may refund an
+order past its deadline. The payout of claim A needs a GitHub-signed token from the referee repository; the sample does
 not fake one.
 
 The payout path, with the four-way split and the fee, runs against the program's test build in LiteSVM
@@ -175,7 +175,7 @@ Knos hosts none), on the proposed `knos-order` scheme of [X402.md](X402.md):
 
 `python -m knos.money.revenue --out <file>` writes the revenue data, in three parts kept apart:
 
-- **measured**: the treasury's fee accounts and the demo's held money and pool, read from devnet when the file was
+- **measured**: the treasury's fee accounts and the sample's held money and pool, read from devnet when the file was
   written. All of it is test money. A part that was not read says so; it is never guessed.
 - **schedule**: this config, each line with its status.
 - **model**: revenue for volumes the reader types, at the config's rates. It is labelled a MODEL, its inputs start at

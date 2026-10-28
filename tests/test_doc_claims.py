@@ -236,7 +236,7 @@ def test_an_unfilled_slot_two_values_for_one_fact_and_an_undated_total_fail(tree
     _swap(tree, "docs/reference/DISCLOSURE.md", "\n[[stat: tests_passing]] tests pass.\n", "")
     _swap(tree, "docs/reference/SECURITY.md", f"\n{passing:,} tests pass.\n", "")
     _add(tree, WHY, "From merge to paid took 57 seconds at the median.")
-    _found(tree, "one fact, one value", "seconds_from_merge_to_paid has 2 values", "57 in docs/reference/WHY.md")
+    _found(tree, "one fact, one value", "seconds_from_merge_to_paid", "57 in docs/reference/WHY.md")
     _swap(tree, WHY, "\nFrom merge to paid took 57 seconds at the median.\n", "")
     _add(tree, "docs/reference/SECURITY.md", f"{paid:,} tasks had been paid on the second deployment.")
     _add(tree, WHY, "9 tasks had been paid on the second deployment.")

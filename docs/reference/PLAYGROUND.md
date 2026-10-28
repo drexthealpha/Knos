@@ -24,11 +24,11 @@ An agent does the same with no browser: `knos task list | show | take | submit`,
 payment is listed on the board with the one comment that releases it, and `knos task why owner/repo#N` says in one sentence why a merged pull request
 was not paid.
 
-Ten more tasks are not code puzzles: reproduce, shadow, fund, install, host a judge, compose, gate, keyholder, tamper and witness. `witness` runs one
-whole payment in a repository of your own: [examples/witnessed](../../examples/witnessed). All of it: [`tasks/README.md`](../../tasks/README.md).
+Ten more tasks are not code puzzles: reproduce, shadow, fund, install, host a referee, compose, gate, keyholder, tamper and witness. `witness` runs one
+whole payment in a repository of your own: [examples/witnessed](../../examples/witnessed). The task files that were under `tasks/` are no longer in this repository.
 
-The 24 tasks are [`tasks/`](../../tasks/README.md); [`scripts/task_board.py`](../../scripts/task_board.py) keeps 8 of them
-open and funded, within a daily budget it prints. Each task's reference solution is public, so copying it passes:
+[`scripts/task_board.py`](../../scripts/task_board.py) kept 8 of the 24 tasks open and funded, within a daily budget it
+printed. Each task's reference solution is public, so copying it passes:
 that is accepted for money worth nothing. The rest of this page is the starter task, which is paid with no merge.
 
 ## What a stranger does with the starter task

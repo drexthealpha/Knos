@@ -28,22 +28,14 @@ export const STEP_MS = 480;                         // --dur-3: how long a step 
 // ran on staging program ids instead; none does today.
 export const STAGING = "Staging program ids";
 export const STEPS = [
-  { title: "Buyer and supplier agree one task.", says: "Price and acceptance terms come first.", ends: "done",
-    evidence: "The funding transaction (devnet, public program ids)", url: `${TX}177CEpZ8N4r5CGNjSEWBEouTTqMDwAao9LFzwSNYiFjJZUfJdtLDeusHbmmawWxzKLp1SozNAyNCEeGxSvvBm5s?cluster=devnet` },
-  { title: "A claimed success fails the condition.", says: "Payment is withheld, with the reason.", ends: "bad",
-    evidence: "The tamper benchmark", path: "docs/reference/TAMPER.md" },
-  { title: "Valid work passes.", says: "The corrected submission meets the same check.", ends: "done",
-    evidence: "The test that accepts correct work", path: "tests/test_tamper_bench.py" },
-  { title: "Both sides make the same statement.", says: "Two records give one bill.", ends: "done",
-    evidence: "The test that reconciles two ledgers", path: "tests/test_ledger.py" },
-  { title: "A replay pays nothing.", says: "No second payment.", ends: "done",
-    evidence: "The refused replay (devnet, public program ids)", url: `${TX}4hCf7a3FpKiTexPUxX4jvPbYUUQMvgHmyjHSVjbUJ2yqe3srzxLJrsZ8QY4dpT2pt4VFSRJ4j4kQMwEcapvk3Rrp?cluster=devnet` },
-  { title: "The payment executes.", says: "The supplier gets a portable receipt.", ends: "done",
-    evidence: "The paying transaction (devnet, public program ids)", url: `${TX}59AfaYHTvWHhbAhiiNHCbCfEcGCxG1kCydJwfRNjZqry9bCnMF3ox6bd4P7favA9hjgzB5nk283g2Mdq3LruyNWV?cluster=devnet` },
-  { title: "A verifier checks it offline.", says: "One page lists the live code.", ends: "done",
-    evidence: "The release manifest", path: "docs/reference/MANIFEST.md" },
+  {"title": "An idea comes in.", "says": "A trial record becomes one claim record.", "ends": "done", "evidence": "Ideas from research sources", "path": "docs/reference/IDEAS.md"},
+  {"title": "The demand check runs.", "says": "Qloo says who wants it and where.", "ends": "done", "evidence": "The demand check's rules", "path": "docs/reference/DEMAND_CHECK.md"},
+  {"title": "The Ready brief is locked.", "says": "Each stage has a target, a checker and a deadline.", "ends": "done", "evidence": "The Ready check and the criteria hash", "path": "src/knos/ready.py"},
+  {"title": "The money is held.", "says": "A pre-order locks test units on devnet.", "ends": "done", "evidence": "The pre-order transaction (devnet)", "url": "https://explorer.solana.com/tx/2yEjidBojssFJp1UFRoBmTtvphbzqAmhRngrDZzgZRHy3u8NfPCArNVEJDYJn4V3nB1UngrAwHLEWmDJPubbmhr9?cluster=devnet"},
+  {"title": "Paid on proof.", "says": "Two of three referees signed PASS, so the program paid 8 test units.", "ends": "done", "evidence": "The second PASS verdict, which released the stage (devnet)", "url": "https://explorer.solana.com/tx/3MJ9kGhWwKgkqGHDzeYRA7aycv8knci3oHHbWadvnARC5DVwj2pgbbndpWssuqjvjgKVVMFhELssGvAJ5VpCuuj8?cluster=devnet"},
+  {"title": "Refunded at the deadline.", "says": "No results were posted in time, so the backer was refunded.", "ends": "done", "evidence": "The refund transaction (devnet)", "url": "https://explorer.solana.com/tx/5FtL36bLPvQhS7z8h8gq6ZGkiSS5LDkLJWd7gPnwrYdo7GP5q8G7DuqGdCLdysvmfSjoGtERZQCmVo8uA47dFDkg?cluster=devnet"},
 ];
-export const NEXT = "Check your own invoice";      // after the last beat: the reader's own invoice, at the front door
+export const NEXT = "Check your own idea";      // after the last beat: the reader's own idea, at the front door
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export const linkOf = (step, ctx = {}) => step.url || (ctx.repo || REPO) + step.path;

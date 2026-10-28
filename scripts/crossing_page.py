@@ -21,33 +21,33 @@ APP = "https://knos.onrender.com"
 TX = "https://explorer.solana.com/tx/{}?cluster=devnet"
 ADDR = "https://explorer.solana.com/address/{}?cluster=devnet"
 # what the demand check said for this idea: the D2 run (scripts/test_qloo_sets_terms.py, live Qloo, 24-25 Oct 2026)
-DEMAND = {"7b4ed16b8c2903dc": {"idea": "a graphene-coated cycling jacket", "city": "Boulder, CO", "affinity": 0.9986, "cells": 3,
+DEMAND = {"7b4ed16b8c2903dc": {"idea": "a graphene-coated cycling jacket", "city": "Boulder, CO", "cells": 3,
                                "population": 326_831, "target": 10, "when": "24-25 Oct 2026",
                                "script": "https://github.com/drexthealpha/Knos/blob/main/scripts/test_qloo_sets_terms.py"}}
 
 
 # Qloo's launch cities for the idea as the D2 run kept them (its log keeps each idea's top metro only), and the second
 # worked example: of the D2 run's ideas, the largest target at or below 200 where the floor of 10 does not bind
-LAUNCH = {"7b4ed16b8c2903dc": [{"city": "Boulder, CO", "affinity": 0.9986, "cells": 3, "population": 326_831}]}
+LAUNCH = {"7b4ed16b8c2903dc": [{"city": "Boulder, CO", "raw": 3, "cells": 3, "population": 326_831}]}
 SECOND = {"idea": "a smart water bottle that glows to remind you to drink", "city": "New York-Newark-Jersey City, NY-NJ",
-          "affinity": 0.9984, "cells": 3, "population": 19_498_249}
+          "raw": 195, "cells": 3, "population": 19_498_249}
 
 
-def target(population: int, affinity: float) -> tuple[int, int]:
-    """D2's pre-order target, max(10, round(population / 100,000 x mean affinity)), and the formula's own value."""
-    raw = round(population / 100_000 * affinity)
+def target(raw: int) -> tuple[int, int]:
+    """D2's pre-order target, max(10, round(population / 100,000 x mean affinity)), from the formula's own value as the
+    run recorded it (Qloo's affinity stays on the app's server, never in the site)."""
     return max(10, raw), raw
 
 
 def targets_table(rows: list[dict]) -> str:
-    """One row per launch city: its mean affinity, population and target; "floor" where max(10, ...) binds."""
+    """One row per launch city: its population and target; "floor" where max(10, ...) binds."""
     body = []
     for r in rows:
-        t, raw = target(r["population"], r["affinity"])
+        t, raw = target(r["raw"])
         mark = f' <span class="floor" title="the formula gives {raw}; the floor of 10 binds">floor</span>' if raw < 10 else ""
-        body.append(f'<tr data-pop="{r["population"]}" data-aff="{r["affinity"]}" data-t="{t}"><td>{html.escape(r["city"])}</td>'
-                    f'<td>{r["affinity"]}</td><td>{r["population"]:,}</td><td><b>{t}</b>{mark}</td></tr>')
-    return ('<div class="tw"><table class="targets"><thead><tr><th scope="col">Launch city</th><th scope="col">Mean affinity</th>'
+        body.append(f'<tr data-pop="{r["population"]}" data-t="{t}"><td>{html.escape(r["city"])}</td>'
+                    f'<td>{r["population"]:,}</td><td><b>{t}</b>{mark}</td></tr>')
+    return ('<div class="tw"><table class="targets"><thead><tr><th scope="col">Launch city</th>'
             f'<th scope="col">Population</th><th scope="col">Target</th></tr></thead><tbody>{"".join(body)}</tbody></table></div>')
 
 
@@ -84,7 +84,7 @@ def facts(pid: str) -> dict:
 def page(f: dict) -> str:
     e = html.escape
     d, m = f["demand"], f["milestone"]
-    t = max(10, round(d["population"] / 100_000 * d["affinity"]))
+    t = d["target"]
     rows = "".join(
         f'<tr><td>{i}</td><td><a href="{ADDR.format(r["wallet"])}">{e(r["wallet"][:6])}…</a></td><td>{r["units"]}</td>'
         f'<td><a href="{TX.format(r["lock"])}">held</a></td>'
@@ -109,11 +109,11 @@ table{{border-collapse:collapse;width:100%;font-size:var(--s-1)}}td,th{{border-b
 </head>
 <body>
 <main>
-<p class="fine"><a href="../../">Knos</a> · <a href="../../demo/">The demo</a></p>
+<p class="fine"><a href="../../">Knos</a> · <a href="../../try/">Try it</a></p>
 <h1>{e(d["idea"])}</h1>
 <ol>
-<li id="demand"><h2>Demand</h2><p>Qloo's heatmap: <b>{e(d["city"])}</b>, mean affinity {d["affinity"]} over {d["cells"]} cells, population {d["population"]:,}.
-Target = max(10, round({d["population"]:,} / 100,000 × {d["affinity"]})) = <b>{t}</b> pre-orders.</p>
+<li id="demand"><h2>Demand</h2><p>Qloo's heatmap: <b>{e(d["city"])}</b> over {d["cells"]} cells, population {d["population"]:,}.
+Target = max(10, round({d["population"]:,} / 100,000 × mean affinity)) = <b>{t}</b> pre-orders.</p>
 <p class="fine">Recorded from a live demand check, {e(d["when"])} (<a href="{e(d["script"])}">the run</a>). Qloo has refused Knos's key since 25 Oct.</p></li>
 <li><h2>Ready brief</h2><p>{e(m["name"])}: {e(m["target"])}. Checked by <span class="mono">{e(m["verifier"]["check"])}</span>.</p>
 <p>Criteria hash <span class="mono">{e(f["criteria_hash"])}</span>. {"Recomputed here from the brief: the same." if same else "Recomputed here from the brief: different."}</p></li>
@@ -123,7 +123,7 @@ Target = max(10, round({d["population"]:,} / 100,000 × {d["affinity"]})) = <b>{
 <section id="targets"><h2>Targets in Qloo's launch cities</h2>{targets_table(LAUNCH.get(f["project"], []))}
 <p class="fine">The run kept the top launch city for each idea. A larger city raises the target: the same formula in the next example.</p>
 <h3>{e(SECOND["idea"])}</h3>{targets_table([SECOND])}
-<p class="fine">Target = max(10, round({SECOND["population"]:,} / 100,000 × {SECOND["affinity"]})) = {target(SECOND["population"], SECOND["affinity"])[0]}, from the same run.</p></section>
+<p class="fine">Target = max(10, round({SECOND["population"]:,} / 100,000 × mean affinity)) = {target(SECOND["raw"])[0]}, from the same run.</p></section>
 <div class="tw"><table><thead><tr><th>#</th><th>Wallet</th><th>Units</th><th>Held</th><th>Released</th></tr></thead><tbody>{rows}</tbody></table></div>
 <p class="fine">Devnet, test money. The wallets are Knos's own test wallets; where their owners live is not checked on chain.</p>
 </main>

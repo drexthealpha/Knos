@@ -5,7 +5,6 @@ name the same public round as the site. Everything here reads files.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,11 +21,6 @@ def test_the_first_screen_and_the_story_say_the_same_things():
     hero = page.split('<div class="hero-words">')[1].split("</form>")[0]
     assert page.count("<h1") == 1 and '<h1 id="k-mission"' in page        # one h1: the demand check's mission (d6b6360)
     assert hero.index('<h2 id="check"') < hero.index(OUTCOME) < hero.index('id="hero-fact"') < hero.index('id="front-door"')
-    story = read("docs/STORY.md")
-    titles = re.findall(r"(?m)^\d\. \*\*(.+?)\*\*", story.split("## The ask")[0])
-    assert titles == ["Buyer and supplier agree one task.", "A claimed success fails the condition.", "Valid work passes.",
-                      "Both sides make the same statement.", "A replay pays nothing.", "The payment executes.", "A verifier checks it offline."]
-    assert len(titles) == len(STEPS)                                        # seven beats
     round_ = json.loads(read("web/demo_data.json"))
     for tx in (round_["fund"]["tx"], round_["paid"]["tx"], round_["replay"]["tx"]):
-        assert tx in story and tx in read("web/story.js")
+        assert tx in read("web/story.js")

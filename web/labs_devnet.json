@@ -1,5 +1,5 @@
 {
- "what": "the Knos lab's money, held on Solana devnet until the proof passes: real transactions, TEST money (the demo's own mint), lab replies from FIXTURES; the LAB verdict pays the lab even though the science failed, the OUTCOME verdict does not pay the researcher",
+ "what": "the Knos lab's money, held on Solana devnet until the proof passes: real transactions, TEST money (the sample's own mint), lab replies from FIXTURES; the LAB verdict pays the lab even though the science failed, the OUTCOME verdict does not pay the researcher",
  "synthetic": true,
  "cluster": "devnet",
  "mint": "5XJJTDxBF1LqbQ9MAURyYUnHCPcd4JHxjdy9or2gWjsX",
@@ -193,7 +193,7 @@
      "invalidReason": "invalid_exact_evm_insufficient_balance",
      "payer": "0x2BaebeAa648C4F00a3a9951ceDc59C892c699fFa"
     },
-    "note": "no money moves: /verify only; the demo's Base Sepolia address holds no USDC"
+    "note": "no money moves: /verify only; the sample's Base Sepolia address holds no USDC"
    },
    "lab_state": "done",
    "balances_after": {
@@ -491,7 +491,7 @@
  ],
  "signatures": [
   {
-   "step": "setup: the demo's own test mint (6 decimals, no freeze authority)",
+   "step": "setup: the sample's own test mint (6 decimals, no freeze authority)",
    "signature": "5dBTWRKUbeY98CCBhq5vGo7stELcHt2W48SVRqgXfkg9857jtaiEUu9aqabD8hfwFMZn3eRDKMAiGNPNDpwgmGU4",
    "explorer": "https://explorer.solana.com/tx/5dBTWRKUbeY98CCBhq5vGo7stELcHt2W48SVRqgXfkg9857jtaiEUu9aqabD8hfwFMZn3eRDKMAiGNPNDpwgmGU4?cluster=devnet"
   },

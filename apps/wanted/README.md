@@ -1,19 +1,21 @@
 # Knos: proven research, funded products (apps/wanted/)
 
-**Live:** https://knos.onrender.com. It runs on a free instance that sleeps, so open it through the wake page
-https://drexthealpha.github.io/Knos/wanted.html. Phone or desktop, nothing to install. **License:** MIT ([LICENSE](LICENSE)).
+**Live:** https://knos.onrender.com/app/. It runs on a free instance that sleeps, so the first visit can take a minute.
+Phone or desktop, nothing to install. **License:** MIT ([LICENSE](LICENSE)).
 
 Landmark research often never becomes a product: "the overall failure rate of drugs that passed into phase 1 trials to
 final approval is 90%" ([Errington, J Clin Invest 2024](https://www.jci.org/articles/view/177383)). Regulatory T cells were
-described in 1995 and won the 2025 Nobel Prize, and "Several of these treatments are now undergoing clinical trials"
-([nobelprize.org](https://www.nobelprize.org/prizes/medicine/2025/press-release/)). Knos takes such a result to a product
-people pre-order, with the money held in escrow and paid to the maker only on proof.
+described in 1995 and earned the 2025 Nobel award in medicine, and "Several of these treatments are now undergoing
+clinical trials" (the Nobel Assembly's 2025 press release, [nobelprize.org](https://www.nobelprize.org/)). Knos takes such a result to a product
+people pre-order, with the money held by the program and paid to the maker only on proof.
 
 **Directional demand evidence, not a sales forecast.** Every Qloo result describes
 aggregate taste, not a prediction about one person.
 Target, reserve and price come from published rules over Qloo's numbers, not from a forecast.
 
-## The three views
+## The app
+
+One app at `/app/`, with a step for each person in the crossing.
 
 1. **Researcher.** Paste a DOI, arXiv, PubMed or OpenAlex id. Knos's agent runs the whole crossing on the server and the
    page shows each step live, with the Qloo call, its input, a summary of its output, and how it changed the decision.
@@ -21,8 +23,8 @@ Target, reserve and price come from published rules over Qloo's numbers, not fro
    - read the paper and quote its proven result;
    - name the product the result enables;
    - ask Qloo who, where, at what price, and against which leader;
-   - decide OPEN or REFUSE by code, and set the escrow target and reserve;
-   - say why the result never crossed (money before proof, slow judges, failed attempts), each only with evidence.
+   - decide OPEN or REFUSE by code, and set the hold target and reserve;
+   - say why the result never crossed (money before proof, slow referees, failed attempts), each only with evidence.
 2. **Buyer.** A product page targeted by Qloo: who it is for, the launch cities, the price tier and the funding goal.
    There are two ways to pre-order:
    - **A Solana Action (Blink):** `GET/POST /api/actions/preorder`, with rules at `/actions.json`. Any wallet signs, and
@@ -31,15 +33,10 @@ Target, reserve and price come from published rules over Qloo's numbers, not fro
      devnet test units in it, and your passkey signs the pre-order (secp256r1 precompile). The server relays and pays fees;
      no server key buys for anyone.
 
-   Then come an escrow receipt with explorer links and a milestone tracker.
+   Then come a hold receipt with explorer links and a milestone tracker.
 3. **Maker / funder.** Open milestones are listed here. The maker proves one with a public evidence page, code checks
-   it, and two of three referee keys release the escrow on devnet. A second release of the same order is refused by the
+   it, and two of three referee keys release the hold on devnet. A second release of the same order is refused by the
    chain: the order account is closed.
-   - **Factoring (real, on devnet):** the maker claims the milestone with a passkey; each pre-order pays a wallet made
-     for that one receivable and owned by the maker's passkey. A lender quotes an advance rate (the fee is face less
-     advance, due at the milestone deadline); the maker's passkey hands the receivable's wallet to the lender's passkey
-     (LazorKit TransferOwnership), the lender's passkey pays the advance, and the release repays the lender. knos_pay's own
-     Assign (0x18) needs a payee bound by a GitHub or ORCID token, which a wallet-only payee has not (E_PAYEE 88).
 
 Everything runs on Solana devnet with test units: no real money.
 
@@ -62,7 +59,7 @@ answer is "cannot decide: no Qloo evidence", and pre-orders never open.
 
 Sibyl is the agent's **working memory**. Before a crossing the agent recalls what it learned about the same paper,
 such as the product phrase it settled on and the last decision. After the crossing it remembers this one. Memory never
-moves or blocks money; the escrow rules live in knos_pay on chain.
+moves or blocks money; the hold rules live in knos_pay on chain.
 
 ## For other agents: MCP over HTTP
 
@@ -74,7 +71,7 @@ an optional door; the product is the web page.
 
 ```sh
 # from the root of the Knos checkout (Python 3.12)
-pip install . "./apps/wanted[escrow,auth,config]"
+pip install . "./apps/wanted[hold,auth,config]"
 export QLOO_API_KEY=... QLOO_BASE_URL=...   # the key and the API host Qloo gave you
 PYTHONPATH=apps/wanted python -m knos_wanted serve        # http://127.0.0.1:8080
 ```
@@ -83,8 +80,8 @@ Docker: `docker build -f apps/wanted/Dockerfile -t knos .` (python:3.12-slim). `
 
 | Variable | What |
 |---|---|
-| `QLOO_API_KEY`, `QLOO_BASE_URL`, `QLOO_MONTHLY_BUDGET` | Qloo, server side only (cached privately with no time limit, 4 calls/s, monthly cap) |
-| `KNOS_WANTED_DEVNET_KEYPAIR`, `KNOS_WANTED_REFEREE_KEYS`, `KNOS_WANTED_MAKER_WALLET`, `KNOS_WANTED_MINT` | devnet escrow: relayer (fees, rents) and test-mint authority (the faucet), 3 referee keys (one server: not an independent panel), payee, test mint |
+| `QLOO_API_KEY`, `QLOO_BASE_URL`, `QLOO_MONTHLY_BUDGET` | Qloo, server side only (4 calls/s, monthly cap; the cache rule is under "Qloo data and personal data") |
+| `KNOS_WANTED_DEVNET_KEYPAIR`, `KNOS_WANTED_REFEREE_KEYS`, `KNOS_WANTED_MAKER_WALLET`, `KNOS_WANTED_MINT` | devnet hold: relayer (fees, rents) and test-mint authority (the faucet), 3 referee keys (one server: not an independent panel), payee, test mint |
 | `GOOGLE_CLIENT_ID` | Google sign-in (shown only when set) |
 | `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `ORCID_BASE` | ORCID sign-in (OAuth code flow; `ORCID_BASE=https://sandbox.orcid.org` for the sandbox) |
 | `RESEND_API_KEY`, `KNOS_WANTED_EMAIL_FROM` | email magic links; without them, an email is only a display label |
@@ -93,16 +90,16 @@ Docker: `docker build -f apps/wanted/Dockerfile -t knos .` (python:3.12-slim). `
 ## Updates since 30 Sep 2026
 
 - The researcher view and the server-side agent: a paper id becomes a live crossing, and every step names its Qloo call.
-- Qloo's evidence now sets who, where (launch cities), the price tier, and the escrow target and reserve. The calibrated
+- Qloo's evidence now sets who, where (launch cities), the price tier, and the hold target and reserve. The calibrated
   gates are relevance, clone, owned/served and contradiction. Explainability is on wherever Qloo returns it.
 - Landmark research intake (OpenAlex, Crossref, PubMed, arXiv), with sourced Nobel and "no product yet" rows.
 - Pre-orders: a Solana Action (Blink) for any wallet; a passkey-signed pre-order (LazorKit smart wallet); a devnet
   preflight in `/api/status`; the 1,232-byte transaction limit checked; milestones released by a 2-of-3 panel; a double
   release refused by the chain.
-- Factoring signed by passkeys (maker sells, lender advances and collects). The wake page. MCP over HTTP.
-- Fixes: the legacy `/api/preorder/{demo,faucet,tx,submit}` routes need a signed-in session; PyYAML is pinned in the
+- MCP over HTTP.
+- Fixes: the legacy pre-order routes under `/api/preorder/` (faucet, tx, submit and the sample route) need a signed-in session; PyYAML is pinned in the
   image; Python 3.12; no raw errors are shown to users.
-- v0.4.0: six roles on one phone page in seven languages (ar is RTL); the official qloo-harness MCP server runs LIVE on
+- Six roles on one phone page in seven languages (ar is RTL); the official qloo-harness MCP server runs LIVE on
   the server (its ten tools answer at /mcp as `qloo_*`; REST carries the decision, labelled); launch cities scoped to
   the market; taste persona, brand ladder, venue price levels, audience signals, explainability shown at their steps;
   x402 pays for a report per use on devnet; receipts show measured finality and the verifier; the record root anchors
@@ -152,7 +149,7 @@ Qloo is reached only from the server, only through Qloo's canonical local MCP se
 In this flow `qloo api` is not used: the workflows cover every question (the decision check asks `qloo api mcp`
 first). Not Qloo-powered: the planner that proposes search words
 (keyword rules by default, or any OpenAI-compatible LLM you configure; it proposes words only, never numbers), the
-one-word lean, the page, the Knos Record and the pre-order escrow (Knos).
+one-word lean, the page, the Knos Record and the pre-order hold (Knos).
 
 ## How the lean is decided (Knos's rule, not Qloo's)
 
@@ -171,7 +168,7 @@ Two or more points: "leans wanted". 0 or 1: "mixed". Below 0: "weak". Fewer than
   `python -m knos_wanted anchor` does it on demand. The record holds hashes, statuses, tool names, addresses and
   amounts: never the idea text (only its sha256), never a buyer's tastes, never a Qloo result.
 - Pre-orders use Knos's graduation pre-order pool (`knos.graduation.preorder_ix`, knos_pay FundOrderWallet): money
-  is paid to the maker only on delivery through Knos's judge, and refunded after the deadline (14 days) otherwise.
+  is paid to the maker only on delivery through Knos's referee, and refunded after the deadline (14 days) otherwise.
 - Fees come from `config/fees.yaml` (`knos.money.fees_config`): `funding` 0 at lock, `payout` taken by knos_pay at
   release, `graduation` decided and collected off chain. The demand report has no fee line: it is free until the
   founder sets one. Devnet only, test units of a mint this app creates, no real money.
@@ -183,8 +180,9 @@ Two or more points: "leans wanted". 0 or 1: "mixed". Below 0: "weak". Fewer than
 - No personal data goes to Qloo: `knos_wanted.privacy` refuses e-mails, phone numbers, handles, links, addresses
   and sentences about a person before any call. Buyers name things they like, never who they are.
 - Smallest requests (limits of 3 to 12), bounded retries (only when Qloo says `retryable`, at most 2 more, with
-  backoff), and a minimal private cache (live answers only, 15 minutes, at most 200 files under `.cache/`,
-  git-ignored; the decision check's client keeps an answer with no time limit, a refused question 1 day). No Qloo response is ever committed; the tests use synthetic bodies only.
+  backoff), and a private cache on the server only. The demand check (`/api/check`, the REST client) keeps a live
+  answer with no time limit and a refused question for 1 day. The older MCP flow keeps live answers for 15 minutes, at
+  most 200 files under `.cache/` (git-ignored). MOCK answers are never cached. No Qloo response is ever committed; the tests use synthetic bodies only.
 
 ## Deploy (one service)
 
@@ -197,7 +195,7 @@ docker run -p 8080:8080 --env-file apps/wanted/.env knos-demand
 | Variable | Needed for | Without it |
 |---|---|---|
 | `QLOO_API_KEY` (+ `QLOO_BASE_URL`, the API host Qloo gave you; `QLOO_TRUSTED_BASE_URL` defaults to it) | live Qloo data | the check answers CANNOT_DECIDE (no Qloo evidence); the MCP flow runs MOCK (synthetic), labelled |
-| `KNOS_WANTED_DEVNET_KEYPAIR` | pre-orders and anchoring (a devnet test wallet with a little devnet SOL; path or JSON byte array) | escrow buttons explain what is missing |
+| `KNOS_WANTED_DEVNET_KEYPAIR` | pre-orders and anchoring (a devnet test wallet with a little devnet SOL; path or JSON byte array) | hold buttons explain what is missing |
 | `KNOS_WANTED_MINT` | the same test mint across restarts | a test mint is created on first use |
 | `KNOS_WANTED_RECORD` | where the Knos Record lives | `~/.knos/record` |
 | `KNOS_WANTED_LLM_BASE_URL`, `_API_KEY`, `_MODEL` | LLM planner (OpenAI-compatible) | keyword planner |

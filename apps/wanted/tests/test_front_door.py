@@ -116,13 +116,12 @@ def test_sign_in_is_a_passkey_for_everyone_and_shows_only_what_works():
     assert "accounts.google.com" not in js and "/api/auth/guest" not in js and "/api/auth/email\"" not in js
 
 
-def test_the_receivable_sale_is_two_taps_for_the_funder_and_never_says_assign():
+def test_the_app_keeps_the_valley_flow_and_never_says_assign():
     js = (STATIC / "app.js").read_text(encoding="utf-8")
-    lend = js[js.index("async function loadLend()"):js.index("async function loadWallet()")]
-    assert 'data-go="quote"' in lend and t_of(lend, "offer_btn") and 'data-go="advance"' in lend and t_of(lend, "pay_adv")
-    assert 'data-go="collect"' in lend and "<table" not in lend                          # cards, not a seven-column table
+    page = (STATIC / "index.html").read_text(encoding="utf-8")
+    assert "loadLend" not in js and "lendList" not in page and "/api/factor" not in js     # no lending against pre-orders
     for f in ("index.html", "app.js", "i18n.js", "valley.js", "verify.html"):
-        assert not re.search(r"\bAssign\b", (STATIC / f).read_text(encoding="utf-8")), f
+        assert not re.search(r"Assign", (STATIC / f).read_text(encoding="utf-8")), f
     import knos_wanted.wallets as w
     assert "Assign" not in (w.__doc__ or "")
 

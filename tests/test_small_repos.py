@@ -1,6 +1,12 @@
 """The four small repositories a release publishes (scripts/small_repos.py): each is this repository's own files and a
 README, the same bytes every time, and what the site, `knos settle --neutral` and the escrow expect of them."""
 from __future__ import annotations
+import pathlib as _pl
+
+import pytest as _pt
+
+if not (_pl.Path(__file__).resolve().parents[1] / "tasks").is_dir():
+    _pt.skip("tasks/ left the public repository; this test runs where that folder is kept", allow_module_level=True)
 
 import importlib.util
 import json

@@ -284,8 +284,8 @@ textarea:focus-visible, input:focus-visible, select:focus-visible { box-shadow: 
 .k-step[data-state="done"] { color: var(--ink); } .k-step[data-state="done"]::before { border-color: var(--ok); background: var(--ok); }
 .k-step[data-state="done"]::after { background: var(--ok); }
 .k-step[data-state="bad"] { color: var(--bad); } .k-step[data-state="bad"]::before { border-color: var(--bad); background: var(--bad); }
-.k-step[data-state="bad"], .k-shake { animation: k-shake var(--dur-2) linear 1; }
-@keyframes k-shake { 20% { translate: -5px 0; } 40% { translate: 5px 0; } 60% { translate: -3px 0; } 80% { translate: 3px 0; } }
+.k-step[data-state="bad"], .k-shake { animation: k-fade-in 120ms linear 1; }   /* the error never shakes: shaking reads as blame */
+@keyframes k-fade-in { from { opacity: .4; } to { opacity: 1; } }
 
 /* .k-stage: where depth happens. Its children keep their own z */
 .k-stage { perspective: 1100px; perspective-origin: 50% 40%; }

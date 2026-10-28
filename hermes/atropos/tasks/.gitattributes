@@ -1,2 +1,0 @@
-# the synthetic tasks' files keep LF line ends on every checkout, as the diffs a model writes have
-* text eol=lf

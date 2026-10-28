@@ -23,7 +23,7 @@ only when enough of its keys agree.
 
 | Key | What it can do |
 |---|---|
-| The upgrade multisig, 2 of 3 keys | Change the code of all four programs, after the public wait |
+| The upgrade multisig, 2 of 3 keys | Change the code of every program it holds (both knos-pay builds, knos-oidc, knos-meter, knos-passkey, knos-hook), after the public wait |
 | The guardian multisig, the same 3 keys | Pause new funding for 7 days at most, and approve or refuse a GitHub signing key |
 | `FEE_OWNER` | Receive the fees, and lower one owner's fee rate until a date |
 | The deploy key | Write a new build for the upgrade multisig to vote on |

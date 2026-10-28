@@ -5,7 +5,6 @@ tap, a well-known endpoint) is blocked at `caution` or `dangerous`, so everythin
 
 from __future__ import annotations
 
-import shutil
 import sys
 import types
 from pathlib import Path
@@ -29,8 +28,8 @@ def guard():
     return mod
 
 
-@pytest.mark.parametrize("folder", ["hermes/knos", "plugin/skills/knos-verify", "integrations/skills/openclaw/knos-verify",
-                                    "hermes/plugin/knos", "web/.well-known/skills/knos"])
+@pytest.mark.parametrize("folder", ["plugin/skills/knos-verify", "integrations/skills/openclaw/knos-verify",
+                                    "web/.well-known/skills/knos"])
 def test_each_skill_and_the_plugin_scan_safe_as_a_community_source(guard, folder):
     result = guard.scan_skill(ROOT / folder, source="drexthealpha/Knos")
     assert result.trust_level == "community"
@@ -38,20 +37,6 @@ def test_each_skill_and_the_plugin_scan_safe_as_a_community_source(guard, folder
     assert result.verdict == "safe" and worst == [], worst
     allowed, why = guard.should_allow_install(result)
     assert allowed is True, why
-
-
-def test_the_plugin_code_scans_safe(guard, tmp_path):
-    stage = tmp_path / "knos"
-    shutil.copytree(ROOT / "hermes" / "plugin" / "knos", stage)
-    shutil.copy(ROOT / "src" / "knos" / "hermes_plugin.py", stage / "hermes_plugin.py")
-    shutil.copytree(ROOT / "src" / "knos" / "verify", stage / "verify", ignore=shutil.ignore_patterns("__pycache__"))
-    shutil.copy(ROOT / "src" / "knos" / "mcp_http.py", stage / "mcp_http.py")
-    for name in ("knos_judge.py",):
-        shutil.copy(ROOT / "hermes" / "gepa" / name, stage / name)
-    shutil.copy(ROOT / "hermes" / "atropos" / "knos_env.py", stage / "knos_env.py")
-    result = guard.scan_skill(stage, source="drexthealpha/Knos")
-    worst = [(f.pattern_id, f.severity, f.file, f.line, f.match) for f in result.findings if f.severity in ("critical", "high")]
-    assert result.verdict == "safe" and worst == [], worst
 
 
 def test_the_scanner_is_live_a_hostile_skill_is_blocked(guard, tmp_path):

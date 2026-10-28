@@ -373,7 +373,8 @@ TOOLS = [
                     "who (age, gender, audiences), gaps (hide_leader, exclude, popularity_max), where (near, radius, location, geohash, "
                     "region names), price tier (price_level, price range), who serves it (references_brand, quality, sort, ratings), "
                     "product kind and years (film/TV/book/person), look up (lookup, entity_id), and `qloo` for any other documented parameter.",
-     "inputSchema": {"type": "object", "properties": {"idea": {"type": "string", "description": "the product idea (8-500 characters)"},
+     "inputSchema": {"type": "object", "properties": {"idea": {"type": "string", "description": "the product idea or a paper's DOI (8-500 characters)"},
+                                                      "picked": {"type": "boolean", "description": "true when idea is the exact reading picked from the readings a first call returned (which one do you mean?)"},
                                                       "place": {"type": "string", "description": "the launch market"},
                                                       "leader": {"type": "string", "description": "the market leader to compare"},
                                                       **{k: qloo_families.schema(k) for k in qloo_families.FIELDS}},
@@ -604,6 +605,18 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
             except QlooUnavailable as e:
                 return ok({"isError": True, "content": [{"type": "text", "text": str(e)[:300]}]})
             return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)[:60_000]}], "structuredContent": got})
+        if name == "knos_milestone_submit" and isinstance(args, dict) and args.get("kind") in ("observation", "oru"):
+            # a lab's proof (a FHIR Observation, or an HL7 ORU message) checked by the one rules referee IRIS runs too
+            # (knos.referee_rules): the decision only, against the brief given; nothing is signed and no money moves
+            import json as _json
+            from knos import ready, referee_rules
+            brief = args.get("brief") if isinstance(args.get("brief"), dict) else None
+            if brief is None:
+                return ok({"isError": True, "content": [{"type": "text", "text": "brief: the locked brief the proof answers (its milestones and verifiers)"}]})
+            proof = args.get("proof")
+            payload = proof if isinstance(proof, str) else _json.dumps(proof or {})
+            got = _json.loads(referee_rules.decide(_json.dumps(brief), args["kind"], payload, ready.criteria_hash(brief)))
+            return ok({"content": [{"type": "text", "text": _json.dumps(got)}], "structuredContent": got})
         who: dict = {}
         if isinstance(name, str) and name not in READ_ONLY | OPEN and name in {t["name"] for t in TOOLS} | _product_tools():
             from . import agentkeys, auth, tasks
@@ -628,14 +641,22 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                     out = {**out, "product": None, "suggested_product": None, "product_line": "Name the product this result enables"}
             elif name == "knos_demand_check":
                 opts = {k: args[k] for k in qloo_families.FIELDS if k in args}
-                idea = str(args.get("idea") or "")
-                rep = check.demand_check(idea, args.get("place"), args.get("leader"), client=state.rest, options=opts)
-                from . import recorded                   # Qloo not answering: the recording, as the REST route gives it
-                rep = recorded.honest(idea, rep)
-                state.keep_check(rep)
-                out = {"report": rep["hash"], "idea": rep.get("idea"), "decision": rep["decision"], "families": rep.get("families") or {},
-                       "grounding": rep.get("grounding") or {}, "calls": rep["calls"],
-                       **{k: rep[k] for k in ("stale", "nearest", "nearest_next", "nearest_options", "qloo_limit", "qloo_reset") if rep.get(k)}}
+                idea = " ".join(str(args.get("idea") or "").split())
+                picked = args.get("picked") is True
+                from . import recorded, which            # which one do you mean? asked first, as on the front door
+                w = None if picked else which.step(idea)
+                if w:
+                    out = {**w, "next": "call knos_demand_check again with idea set to the text of the reading you mean and picked: true"}
+                else:
+                    t0 = time.perf_counter()
+                    rep = check.demand_check(idea, args.get("place"), args.get("leader"), client=state.rest, options=opts)
+                    rep = recorded.honest(idea, rep, picked=picked)
+                    rep["qloo_calls"] = {**rep.get("qloo_calls", {}), "ms": round((time.perf_counter() - t0) * 1000)}
+                    state.keep_check(rep)
+                    out = {"report": rep["hash"], "idea": rep.get("idea"), "decision": rep["decision"], "families": rep.get("families") or {},
+                           "grounding": rep.get("grounding") or {}, "calls": rep["calls"], "label": rep.get("label"), "qloo_calls": rep.get("qloo_calls"),
+                           **{k: rep[k] for k in ("stale", "nearest", "nearest_next", "nearest_options", "qloo_limit", "qloo_reset", "queued", "stand_in",
+                                                  "read_as", "also_matched", "result_line", "brief", "ready") if rep.get(k)}}
             elif name == "knos_crossings":
                 out = {"crossings": crossings(state)}
             elif name == "knos_milestones":

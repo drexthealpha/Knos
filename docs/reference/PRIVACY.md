@@ -17,7 +17,7 @@ Hiding the repository's name does not hide the business. Whatever the mode, a pa
 | **Amounts** | the order's amount, the fee, the relayer's tip, every top-up and every refund | Add up what an organisation spends, and what a seller earns. |
 | **Timing** | the block time of the funding, of each amendment, of the payment; the deadline | Count orders per week, see how long work takes, see when a team is busy. |
 | **The payee's wallet** | the address each share was paid to | Follow that wallet: its other income, its balance, where the money goes next. |
-| **Counterparties** | funder and payee in one transaction; the judge's repository; the arbiter's id if one was named | List a company's vendors and a vendor's customers. |
+| **Counterparties** | funder and payee in one transaction; the referee's repository; the arbiter's id if one was named | List a company's vendors and a vendor's customers. |
 | **The signed token** | the whole token is written to `knos_oidc` to be verified, and stays in the history of those transactions after the account is closed | Read every claim the host signed: for a public order, the repository's name, the branch, the commit, the workflow path and the account that acted. |
 
 A public order adds the repository's id, the issue's number, the pull request's number, the accepted commit and the
@@ -25,9 +25,9 @@ terms as JSON (the names of the required checks and the allowed paths).
 
 Never on chain, in any mode: code, the text of an issue or a pull request, a check's output or logs.
 
-## 2. What the private mode (judged by an outside "attestor" repository) hides, and what it does not
+## 2. What the private mode (checked by an outside "attestor" repository) hides, and what it does not
 
-A private order is judged by one attestor repository the organisation chose, which reads the private repository
+A private order is checked by one attestor repository the organisation chose, which reads the private repository
 with a token the organisation gave it.
 
 It hides:
@@ -49,7 +49,7 @@ It does not hide:
 It also changes who is trusted: nobody outside the organisation can check what the attestor read. That is on the
 receipt, under "What trust remains".
 
-A buyer who cannot let even an attestor's tokens name its repositories, or a supplier who will not rely on a judge the
+A buyer who cannot let even an attestor's tokens name its repositories, or a supplier who will not rely on a referee the
 buyer alone controls, has another path: the acceptance runs on a runner inside the network, only a verdict, hashes and
 the forge's signed token leave, and the evidence is sealed to both parties ([COMPANIES.md](COMPANIES.md#private-repositories)).
 
@@ -209,7 +209,7 @@ before.
 So a private order still tells an outsider: which organisation paid, which GitHub account was paid and at which
 wallet, how much, the fee, and when it was funded and when it was accepted.
 
-It also tells which attestor repository judged it and who started that run, the commit that was accepted (as a
+It also tells which attestor repository checked it and who started that run, the commit that was accepted (as a
 hash), and that it came from the same Balance as the organisation's other orders.
 
 Two orders of similar size to one payee a day apart are a supplier relationship, whatever the repository is called.
@@ -238,7 +238,7 @@ Each of these puts less on a public chain. None of them is a privacy guarantee, 
 | **A fresh payee wallet per supplier**: the supplier binds (`knos claim`) a wallet it uses for nothing else | The link from these payments to the supplier's other income and spending through the wallet. | One wallet is bound to a GitHub account at a time, so it is one wallet for all of that account's customers, not one per customer. The program can send one order's payment to another wallet, but the bound wallet signs that, so the link between the two is public, and no `knos` command does it yet. Moving the money on to a known wallet joins them again. | The payee's GitHub id on every payment, which links them all whatever the wallet. |
 
 What none of these hide: the GitHub ids of the two parties wherever the programs record them, the wallet of
-whoever pays the transaction fees, the attestor or judge repository of any token that reaches the chain, and the
+whoever pays the transaction fees, the attestor or referee repository of any token that reaches the chain, and the
 fact, the time and the size of every transaction that does.
 
 A chain is the wrong place for a relationship whose existence is the secret.

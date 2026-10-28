@@ -15,7 +15,7 @@ can have no refund, one, or several. `charges` is how many distinct charges the 
 
 **What we give you.** `examples/`: seven charge rows, three refunds and the ledger they make.
 
-**How it is judged.** The suite in `.knos/acceptance/1/` makes 40 pairs of tables from fixed seeds (5 to 24 customers,
+**How it is checked.** The suite in `.knos/acceptance/1/` makes 40 pairs of tables from fixed seeds (5 to 24 customers,
 24 to 148 charge rows each), runs `transform.sql` on each in the sandbox and checks properties of the result:
 
 - schema: the five columns, the customer as text, the rest whole numbers;

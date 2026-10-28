@@ -18,7 +18,8 @@
    "what": "repositories in the index with an agent pull request that claims tests or CI pass",
    "json": "docs/bench.json",
    "path": "market.index.overall.first_pr_per_repo.repos",
-   "equals": 826
+   "equals": 826,
+   "doc": "docs/reference/BENCH.md"
   },
   {
    "say": [
@@ -27,7 +28,8 @@
    "what": "of those, the ones whose first such pull request had a failed check of any kind at its head commit (any_check_failed)",
    "json": "docs/bench.json",
    "path": "market.index.overall.first_pr_per_repo.any_check_failed.repos",
-   "equals": 147
+   "equals": 147,
+   "doc": "docs/reference/BENCH.md"
   },
   {
    "say": [
@@ -36,7 +38,8 @@
    "what": "147 of 826",
    "json": "docs/bench.json",
    "path": "market.index.overall.first_pr_per_repo.any_check_failed.share",
-   "equals": 0.178
+   "equals": 0.178,
+   "doc": "docs/reference/BENCH.md"
   },
   {
    "say": [
@@ -60,80 +63,12 @@
   },
   {
    "say": [
-    "241"
-   ],
-   "what": "merged agent pull requests whose description said tests or CI pass, in the sample that records merges",
-   "json": "docs/backtest.json",
-   "path": "sample.merged.overall.prs",
-   "equals": 241
-  },
-  {
-   "say": [
-    "30"
-   ],
-   "what": "of those 241, the ones the scan recorded with a failed check of any kind at the head commit, before the second reading (docs/index_review.json)",
-   "json": "docs/backtest.json",
-   "path": "sample.merged.overall.any_check_failed.prs",
-   "equals": 30
-  },
-  {
-   "say": [
     "9"
    ],
    "what": "THE LEAD NUMBER: of the 241, the ones with a failed test, build, lint or type-check job at the head commit, after the second reading of docs/index_review.json (method version 1, docs/INDEX_METHOD.md)",
    "json": "docs/backtest.json",
    "path": "reviewed.overall.test_or_build_check_failed.prs",
    "equals": 9
-  },
-  {
-   "say": [
-    "3.7%"
-   ],
-   "what": "9 of 241 (0.0373)",
-   "json": "docs/backtest.json",
-   "path": "reviewed.overall.test_or_build_check_failed.share",
-   "equals": 0.0373
-  },
-  {
-   "say": [
-    "95%",
-    "2.0%",
-    "6.9%"
-   ],
-   "what": "the 95% Wilson interval of 9 of 241",
-   "json": "docs/backtest.json",
-   "path": "reviewed.overall.test_or_build_check_failed.ci95",
-   "equals": [
-    0.0198,
-    0.0694
-   ]
-  },
-  {
-   "say": [
-    "19"
-   ],
-   "what": "stated second: of the 241, the ones with a failed check of any kind at the head commit, after the second reading",
-   "json": "docs/backtest.json",
-   "path": "reviewed.overall.any_check_failed.prs",
-   "equals": 19
-  },
-  {
-   "say": [
-    "7.9%"
-   ],
-   "what": "19 of 241 (0.0788)",
-   "json": "docs/backtest.json",
-   "path": "reviewed.overall.any_check_failed.share",
-   "equals": 0.0788
-  },
-  {
-   "say": [
-    "16"
-   ],
-   "what": "of the 241, the ones the scan recorded with a failed test, build, lint or type-check job, before the second reading",
-   "json": "docs/backtest.json",
-   "path": "sample.merged.overall.test_or_build_check_failed.prs",
-   "equals": 16
   },
   {
    "say": [
@@ -191,14 +126,6 @@
   },
   {
    "say": [
-    "30"
-   ],
-   "what": "days after which a signing key expires unless it is attested again",
-   "file": "programs-v2/knos_oidc/src/pins.rs",
-   "has": "pub const KEY_TTL: i64 = 30 * 86_400;"
-  },
-  {
-   "say": [
     "8"
    ],
    "what": "days of public delay before an upgrade of the second deployment can execute: the time lock (691,200 seconds, in force since 11 Oct 2026) of the Squads multisig `upgrade_multisig` in programs-v2/program_ids.json, whose vault is the programs' upgrade authority",
@@ -233,16 +160,6 @@
    "what": "the fee the program takes at release: 0.30% of the amount, at least 0.05, paid by the funder on top (knos_pay FEE_BPS and FEE_MIN)",
    "file": "programs-v2/knos_pay/src/lib.rs",
    "has": "pub const FEE_BPS: u64 = 30;"
-  },
-  {
-   "say": [
-    "0.05",
-    "10,000"
-   ],
-   "doc": "docs/PRICING.md",
-   "what": "the Meter as deployed: knos_meter on devnet charges 0.05 per evaluation after an owner's first 10,000 of a month, in test USDC (FEE and FREE_PER_MONTH)",
-   "file": "programs-v2/knos_meter/src/lib.rs",
-   "has": "pub const FREE_PER_MONTH: u64 = 10_000;"
   },
   {
    "say": [
@@ -709,15 +626,6 @@
    "what": "days of the time lock of the upgrade multisig: 691,200 seconds (192 hours), set by proposal 9, one action SetTimeLock { new_time_lock: 691200 } (docs/reference/GOVERNANCE.md). It executed on 11 Oct 2026, so the lock in force is 8 days; it was 48 hours before",
    "file": "src/knos/mainnet_check.py",
    "has": "TIME_LOCK = 691_200"
-  },
-  {
-   "say": [
-    "180"
-   ],
-   "doc": "docs/START.md",
-   "what": "days at most that a proven job's money waits for its payee to bind a wallet (HOLD in knos_pay)",
-   "file": "programs-v2/knos_pay/src/lib.rs",
-   "has": "pub const HOLD: i64 = 180 * 86_400;"
   },
   {
    "say": [

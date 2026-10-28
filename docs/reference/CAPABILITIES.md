@@ -306,12 +306,12 @@ On 10 October 2026 `scripts/exercise_public.py` ran the rounds below on devnet a
 | a second fund token funds the same address again | [h7kPjbND...](https://explorer.solana.com/tx/h7kPjbNDJ39W7evbHMb1V8EAkbvEtgRaY64BWh89mPydfykikPm9Qg76t9pJn98hGgjhQp3Hb1BTGQXAzJ6exbb?cluster=devnet) | succeeded at knos_pay |
 | the first proof, sent again against the second funding | [5pCAy8Ja...](https://explorer.solana.com/tx/5pCAy8JahhTnAcqjjVYDNLaWUMoAaBxHoQ2GYSwmjwt29atfPew6nPi8rKRt8hp58wYQP3g3EaoHS22tSZSUtV2Q?cluster=devnet) | refused, error 83: too early or too late: the job is not in the state this needs |
 
-**quorum.** An order that pays on two judges and holds a fifth back: one judge moves nothing, the second pays, and a neutral judge's revert inside the warranty returns what was held back.
+**quorum.** An order that pays on two referees and holds a fifth back: one referee moves nothing, the second pays, and a neutral referee's revert inside the warranty returns what was held back.
 
 | Step | Transaction | Result |
 | --- | --- | --- |
-| a comment funds an order that needs two judges and holds a fifth back | [aMUsxXyQ...](https://explorer.solana.com/tx/aMUsxXyQNop1FcsB91eGv2qBnMFpt7FyV37ziHM5EVQHEycYtQKFsurZG55N1WZXeSaZA7HNMMvvntXt2rWLVgQ?cluster=devnet) | succeeded at knos_pay |
-| the first judge's token is recorded: one of two, nothing is paid | [1UMcoSzj...](https://explorer.solana.com/tx/1UMcoSzj8NaG56njncqZxpTS43DXSCM3H14hB2X5AyujSHiLeVkmP7jAg3zBVQiPyWuhvxrfn3jsbm1nqbc4gPZ?cluster=devnet) | succeeded at knos_pay |
+| a comment funds an order that needs two referees and holds a fifth back | [aMUsxXyQ...](https://explorer.solana.com/tx/aMUsxXyQNop1FcsB91eGv2qBnMFpt7FyV37ziHM5EVQHEycYtQKFsurZG55N1WZXeSaZA7HNMMvvntXt2rWLVgQ?cluster=devnet) | succeeded at knos_pay |
+| the first referee's token is recorded: one of two, nothing is paid | [1UMcoSzj...](https://explorer.solana.com/tx/1UMcoSzj8NaG56njncqZxpTS43DXSCM3H14hB2X5AyujSHiLeVkmP7jAg3zBVQiPyWuhvxrfn3jsbm1nqbc4gPZ?cluster=devnet) | succeeded at knos_pay |
 
 **auto.** An order that pays the first pull request its black-box suite passes, with no merge.
 
@@ -377,17 +377,17 @@ On 10 October 2026 `scripts/exercise_public.py` ran the rounds below on devnet a
 | the order funded under 2.1 went back whole: 5.00 and its stored fee of 0.40, in a refund 5zGQCyrtK4gv61EYpUvoKApWAxvbPucpHABA1vdhAJ9V sent (RefundOrder is anyone's once the deadline has passed) | [3mLgRvbV...](https://explorer.solana.com/tx/3mLgRvbVNPZhQVmnSbJdnth2U5acVLvehFTCgmuDZALTU759bdDgW34nYJYCdspeg4bufHGe4n1ciRL7HvtaPtrc?cluster=devnet) | succeeded at knos_pay |
 | the order funded under 2.1 went back whole: 5.00 and its stored fee of 0.40, in a refund 5zGQCyrtK4gv61EYpUvoKApWAxvbPucpHABA1vdhAJ9V sent (RefundOrder is anyone's once the deadline has passed) | [RUCGXJ3R...](https://explorer.solana.com/tx/RUCGXJ3RdZNsaStY3kwRwbmSnUuc7owtguj5RWBgPFBJJmGJsakrtoFSaGgmVeRcavcD3vHhtFFQWas5v3rzZcc?cluster=devnet) | succeeded at knos_pay |
 
-**one_owner.** A quorum of two, and ONE owner behind both judges (the order's own repository, and a neutral run in another repository of that owner): the second is recorded and counts for nothing, no money moves, and the relay's answer, which the workflow posts as its comment, says why.
+**one_owner.** A quorum of two, and ONE owner behind both referees (the order's own repository, and a neutral run in another repository of that owner): the second is recorded and counts for nothing, no money moves, and the relay's answer, which the workflow posts as its comment, says why.
 
 | Step | Transaction | Result |
 | --- | --- | --- |
-| a wallet funds an order that needs two judges | [2qq3ssUM...](https://explorer.solana.com/tx/2qq3ssUMxKwokiTfRjWQ2As4euNgErw6WrrSiAbtohPDMjkToPJYizwWKU2YojGws6ne9XzxkYtbQuWYQBg5AAHV?cluster=devnet) | succeeded at knos_pay |
+| a wallet funds an order that needs two referees | [2qq3ssUM...](https://explorer.solana.com/tx/2qq3ssUMxKwokiTfRjWQ2As4euNgErw6WrrSiAbtohPDMjkToPJYizwWKU2YojGws6ne9XzxkYtbQuWYQBg5AAHV?cluster=devnet) | succeeded at knos_pay |
 
 **two_owners.** A quorum of two with two owners: the order's own run, and a neutral run another account started in a repository of its own. That pays.
 
 | Step | Transaction | Result |
 | --- | --- | --- |
-| a wallet funds an order that needs two judges | [5taBH8i6...](https://explorer.solana.com/tx/5taBH8i6GNVw9SoP39SETcZkZp7YYEdscHTwYtXgcnert37nh34LqWuAtShGbCWm1qTa7qzbmb9xoAuvR1hPbZSv?cluster=devnet) | succeeded at knos_pay |
+| a wallet funds an order that needs two referees | [5taBH8i6...](https://explorer.solana.com/tx/5taBH8i6GNVw9SoP39SETcZkZp7YYEdscHTwYtXgcnert37nh34LqWuAtShGbCWm1qTa7qzbmb9xoAuvR1hPbZSv?cluster=devnet) | succeeded at knos_pay |
 
 **grace.** An order funded with the presentation grace and a two-minute deadline: right after the deadline its refund is refused on chain, because a token the forge issued by the deadline can still be shown; when the grace is over it goes back whole. On the simulator a second such order is paid inside its grace.
 
@@ -528,7 +528,7 @@ BindOrg was not exercised: no organisation account exists on the staging deploym
   with `knos_take_work` and opened pull request #143 with `knos_submit_work` after the acceptance passed on its tree. The
   black-box suite passed on the pull request and it was accepted with no merge ([9zUVa8nk...](https://explorer.solana.com/tx/9zUVa8nkpCuizDnLNVZCVVS8FPPoEy6KhXz8RYDUPHH2vNEcvD9fuBtrSTxDKhTNi84e6yuMGcoj6uNAxuaeECd?cluster=devnet)); with no wallet bound yet,
   the payment was held for the account, and after `knos_collect` bound one it was paid ([JEsK7q8Q...](https://explorer.solana.com/tx/JEsK7q8QrP9YU9G4Y2veBrq7pGuc9QMh2MhrMj39qJKLxMAr6YGtkRvkSHB3qCpxpsAnJ4RJ5ayxgs7GUXPFWwn?cluster=devnet)).
-- A `quorum 2` order with a 20% holdback ([3cFN1bc3...](https://explorer.solana.com/tx/3cFN1bc364DgUMoKzScFgXA6sz16Meo5eQXKFqL2sAukdX2BLhkG2TS3NDsVugutuFMUQRCPWtU6dWRqeonpdCN8?cluster=devnet), issue #173) recorded its first judge ([gV95kGyN...](https://explorer.solana.com/tx/gV95kGyNPGYrKSFu385Fm1VkXP1mr6u8yZvPzbCRTNPDL5NuymeHHqqD2oBTYeYGGRqXJ5HFcZsQfY675UdKQDc?cluster=devnet)) and paid
+- A `quorum 2` order with a 20% holdback ([3cFN1bc3...](https://explorer.solana.com/tx/3cFN1bc364DgUMoKzScFgXA6sz16Meo5eQXKFqL2sAukdX2BLhkG2TS3NDsVugutuFMUQRCPWtU6dWRqeonpdCN8?cluster=devnet), issue #173) recorded its first referee ([gV95kGyN...](https://explorer.solana.com/tx/gV95kGyNPGYrKSFu385Fm1VkXP1mr6u8yZvPzbCRTNPDL5NuymeHHqqD2oBTYeYGGRqXJ5HFcZsQfY675UdKQDc?cluster=devnet)) and paid
   8.00 on the second ([2R5DKU5g...](https://explorer.solana.com/tx/2R5DKU5gCiuppGkXpNnegZfeCVfPbHpWTWTcj9QYzE3nAc4P5jCMaNPjGJUA1fwwzwn37Wm97bD62CKBG6DgCxuT?cluster=devnet)), holding 2.00 back for the warranty. The merge was then reverted, a neutral run in
   another repository than the order's signed the revert inside the warranty, and Revert returned the holdback and its
   fee, 2.08, to the funder ([5H6mrHjg...](https://explorer.solana.com/tx/5H6mrHjgLhRxgFNWLa8p1R5BVhgzsU22Yj2b6AGbqzANCiaHLKRN6XuVYziRaTiQaqTL4pFwpfTnnRMS3csi3EL5?cluster=devnet)).
@@ -562,7 +562,7 @@ The state machine (`KNOS_MACHINE_STEPS=2000`): 3 seeds of 2,001 steps
 each, 0 broken invariants, and on the 0.3.13 build it found the pay token accepted twice. `bash scripts/mutants.sh
 chain`: 22 passed.
 
-The hermetic judge ran end to end in a real container on GitHub's runner (Docker 28.0.4, 11 containers
+The hermetic referee ran end to end in a real container on GitHub's runner (Docker 28.0.4, 11 containers
 of the image pinned by digest): run 37217535106 of the staging repository, on the commit whose tests passed in run
 37217535009 (1,905 passed on ubuntu-latest with Python 3.12) and whose program workflow passed in run 37217535042.
 

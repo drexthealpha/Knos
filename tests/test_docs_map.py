@@ -75,16 +75,16 @@ def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
     # verified pull requests; the bounty is the smallest example), the ten-second check, why nobody can fudge the
     # count, whether it is real (the table of today's numbers); where to check every claim (the release page), the number, words,
     # the questions people search (tests/test_seo.py)
-    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works", "Paid on proof: when the proof is a pull request", "Try it in ten seconds",
-                                                    "Why nobody can fudge the count", "Is it real?",
-                                                    "Check every claim yourself", "The number", "Words", "Questions", "Read more"]
+    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works", "Paid on proof", "Try it in ten seconds",
+                                                    "Why nobody can fudge the count", "Is it real?", "From a terminal",
+                                                    "Check every claim yourself", "Words", "Questions", "Read more"]
     more = above.split("## Read more")[1]
     assert links(more) == ["docs/START.md", "docs/PRICING.md", "docs/TRUST.md", "docs/STORY.md", "docs/README.md"]
     real = [line for line in above.split("## Is it real?")[1].split("<!-- bench:today -->")[0].splitlines() if line.strip()]
     assert len(real) == 3 and [links(line) for line in real].count(["docs/reference/DISCLOSURE.md"]) == 1      # three plain lines, one link to the limits
     for said in ("devnet", "test USDC", "test money only", "no customers yet", "One person holds every key today"):
         assert said in " ".join(real), said
-    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "`/knos fund " in above.split("## Paid on proof: when the proof is a pull request")[1].split("\n## ")[0]
+    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "```mermaid" in above.split("## Paid on proof\n")[1].split("\n## ")[0]
     table = above[above.index("<!-- bench:today -->"):above.index("<!-- /bench:today -->")]
     numbers = read("docs/NUMBERS.md")
     printed = re.findall(r"(?m)^\| \d \| ([^:|]+)[^|]*\| (\d+) \|", numbers)
@@ -96,41 +96,29 @@ def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
         assert rel.startswith("https://") or (ROOT / rel).exists(), rel
 
 
-def test_the_story_is_seven_beats_each_with_evidence_that_exists_and_asks_for_three_things():
+def test_the_story_is_one_crossing_each_step_with_evidence_that_exists_and_asks_for_three_things():
     story = read("docs/STORY.md")
     lines = [line for line in story.splitlines() if line.strip()]
     assert lines[0].startswith("<img ") and lines[2].startswith("**In plain words.**")      # the mark and the summary (tests/test_docs_plain.py)
     assert lines[3] == "**Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.**"
-    assert lines[4] == "Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check."
     steps = re.findall(r"(?m)^(\d)\. \*\*(.+?)\*\* (.+)\n   Evidence: \[([^\]]+)\]\(([^)]+)\)", story)
-    assert [int(s[0]) for s in steps] == list(range(1, STEPS + 1))
+    assert [int(s[0]) for s in steps] == list(range(1, 7))
     for _n, title, said, _name, target in steps:
-        assert len(WORDS.findall(f"{title} {said}")) <= 12, (title, said)
+        assert len(WORDS.findall(f"{title} {said}")) <= 16, (title, said)
         assert target.startswith("https://") or (DOCS / target.split("#")[0]).exists(), target
-    assert [s[1] for s in steps] == ["Buyer and supplier agree one task.", "A claimed success fails the condition.", "Valid work passes.",
-                                     "Both sides make the same statement.", "A replay pays nothing.", "The payment executes.",
-                                     "A verifier checks it offline."]            # Agree, Fails, Passes, Statement, Replay, Pay, Verify
-    assert "Agree, Fails, Passes, Statement, Replay, Pay, Verify" in story and "](../web/demo.js)" in story
-    after = story.split(steps[-1][4])[1].split("\n## ")[0]                                  # what follows the last beat claims nobody
-    assert "Then your own invoice: [check it](https://drexthealpha.github.io/Knos/). Nobody has paid for this yet." in after
-    for _n, title, said, _name, _target in steps:
         for word in ("customer", "paid us", "pilot"):
             assert word not in f"{title} {said}".lower()
-    # a link to a run on staging program ids says so in its own words, and the page says which beats
-    staged = [int(n) for n, _t, _s, name, _target in steps if "staging program ids" in name]
-    assert staged == [] and "The transactions of steps 1, 5 and 6 are one round on the public program ids" in " ".join(story.split())
-    assert "](reference/MANIFEST.md)" in story and "](../web/demo.js)" in story
+    assert "](reference/MANIFEST.md)" in story or "](reference/CAPABILITIES.md)" in story
     ask = story.split("## The ask")[1].split("\n## ")[0]
     needs = re.findall(r"(?m)^\d\. (.+)$", ask)
     assert len(needs) == 3 and all(n.startswith("Needed: ") for n in needs)
-    assert "outside key holder" in needs[0] and "shadow count" in needs[1] and "outside review" in needs[2]
+    assert "outside key holder" in needs[0] and "outside review" in needs[2]
 
 
 def test_the_front_pages_point_where_a_stranger_can_go_and_name_no_removed_folder():
     """The story's demo is the site's #demo view, not its first screen (the first screen is the check box); and
     docs/submission/ is gone, so no front page calls itself "the submission" or links there."""
     story = read("docs/STORY.md")
-    assert "Its [demo](https://drexthealpha.github.io/Knos/#demo) lets you drive them" in story
     assert "first screen lets you drive" not in " ".join(story.split())
     index = read("web/index.html")
     assert re.search(r'<section id="demo"[^>]*\bhidden\b', index) and index.index('id="demo"') > index.index('id="front-door"')

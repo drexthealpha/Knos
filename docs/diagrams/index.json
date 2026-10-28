@@ -4,13 +4,13 @@
   {
    "source": "README.md",
    "block": 1,
-   "sha256": "e5e135e4779e0cce7cd1bed5ab82a95c828d6a4721b00fd46c088647bf80e294",
+   "sha256": "0fe431dd6649f0153e33aa13e4fcbc4b2ea7c2ab06e4ce5dc9f14b9976bb69aa",
    "svg": "docs/diagrams/readme-1.svg"
   },
   {
    "source": "README.md",
    "block": 2,
-   "sha256": "5d9b7cd0b85e8dccbdb234feae1294a05f08a7136690c49b0b5bf3a513bf668d",
+   "sha256": "64221352a086bb96cb93a46699a922a0be296495e3ee3268579edca8afcbdc5d",
    "svg": "docs/diagrams/readme-2.svg"
   },
   {
@@ -40,19 +40,19 @@
   {
    "source": "docs/START.md",
    "block": 1,
-   "sha256": "a4e2eaea720fb1f0f973f0bf1c09e5735bedb55f95af1ddf9bde663ce3af49d2",
+   "sha256": "d7a02dbff98b4343a7e9dc56e848e763ba5576adf5912c947507300e8494fa4c",
    "svg": "docs/diagrams/docs-start-1.svg"
   },
   {
    "source": "docs/STORY.md",
    "block": 1,
-   "sha256": "38ab04c73b0026490c59fa16070d9a718a665e90f4868075bc824e47313794ec",
+   "sha256": "ed87245a4e9dcd39975594f4ca58f5e71751eb9e1a18bb265bfd8ae49995a958",
    "svg": "docs/diagrams/docs-story-1.svg"
   },
   {
    "source": "docs/TRANSACTION.md",
    "block": 1,
-   "sha256": "4cff7d16865cd6ec2fe84e557df5558f8ca84bd754013be1a94707b03614200f",
+   "sha256": "f186e7b9656a4fa562bcefca32384a32bda843ab4cfbb8a16b1dca58e91fa113",
    "svg": "docs/diagrams/docs-transaction-1.svg"
   },
   {
@@ -82,7 +82,7 @@
   {
    "source": "docs/reference/METER.md",
    "block": 1,
-   "sha256": "0ae69021955a14687721538f90aef0b666c618f36325b946de5e8cd6f4bfe99e",
+   "sha256": "03a988dd2cb74cc46256a8cd84a1360e79f5e2cf3b7ac01cbe929ddcaafcb049",
    "svg": "docs/diagrams/docs-reference-meter-1.svg"
   },
   {

@@ -247,9 +247,6 @@ def test_every_kind_states_its_evidence_and_counter_and_only_an_outside_actor_is
     assert host_judge.WORKFLOW_PATH in tasks.KINDS["judge"]["evidence"] and (ROOT / "examples" / "knos-attest.yml").is_file()
     assert tasks.accepts("judge", {"actor_id": 7, "repository_owner_id": 7, "workflow": f"ada/knos-judge/{host_judge.WORKFLOW_PATH}", "signed_run": 1})[0]
     for kind, spec in tasks.KINDS.items():
-        file = ROOT / "tasks" / "outside" / f"{kind}.json"
-        if kind not in JUDGEBOX_FILES or file.exists():
-            assert file.read_text(encoding="utf-8") == tasks.kind_file(kind)                                          # the file is the code's text
         assert spec["statement"].splitlines()[0] == "Test USDC, no monetary value." and spec["currency"] == "test USDC" and spec["amount"] == 5_000_000
         assert spec["evidence"] and spec["counter"] in out.TASK_DEFINITIONS and "on tasks Knos funded itself" in spec["counted_when"]
         assert not any(word in json.dumps(spec).lower() for word in ("salary", "hire", "employ", "job offer", "$", "earn", "income", "wage"))

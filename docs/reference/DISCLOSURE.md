@@ -41,7 +41,7 @@ TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep 
   on edits, built on Sibyl. It is a different product from the one here.
 - Almost none of Knos 0.1 is in the tree. Its memory server, claims, edit guard, payment gate and integrations were
   removed in 0.2.0 and 0.3.10. They remain in the git history.
-- One dependency carries over: Sibyl's memory client, which the judge and the local hook still use.
+- One dependency carries over: Sibyl's memory client, which the referee and the local hook still use.
 
 ## The releases since
 
@@ -50,10 +50,10 @@ TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep 
   the Stop hook, the Agent PR Index, and a first payment program that verified GitHub's signature on chain but whose keys
   and workflows were registered by an admin. They are kept as they stood at 0.3.9 in
   [the tag `archive/labs` of drexthealpha/Knos](https://github.com/drexthealpha/Knos/tree/archive/labs), unmaintained. The Stop hook, the index and
-  the judge are here.
+  the referee are here.
 - **Knos 0.3.10** (2 Oct 2026): the first deployment. Its two programs have no admin (`knos-oidc`, `knos-pay`), were deployed
   on devnet with no upgrade authority, and nobody can change them; payment to a GitHub account; the claim; the merge and tests modes with a veto
-  window; the gate on every bounty pull request; the sandboxed judge for Python, Node, Go and Rust and its
+  window; the gate on every bounty pull request; the sandboxed referee for Python, Node, Go and Rust and its
   black-box mode; the relay; the JavaScript client; the site.
 - **Knos 0.3.11** (2 Oct 2026): no change to the programs. A merge pays only when the pull request's claims hold
   at the merged commit; an agent's pull request pays the person who ran it; the check alone, with no money;
@@ -76,7 +76,7 @@ TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep 
   build ran, and that release withdrew that proposal and proposed a corrected one, in which every signed token is
   accepted once by one marker rule ([SECURITY.md](SECURITY.md), section 15). Also: overflow checks in release
   builds of every program; fee tiers in place of one rate, and a devnet cap of 100,000 per order; a batch mode of
-  the meter with a seller's own count; funding from a passkey wallet; orders of GitLab projects; a hermetic judge
+  the meter with a seller's own count; funding from a passkey wallet; orders of GitLab projects; a hermetic referee
   by image digest; a feed of upgrade proposals; and the documents [INVARIANTS.md](INVARIANTS.md) and
   [GOVERNANCE.md](GOVERNANCE.md).
 - **Knos 0.3.15**: no program changed. Clients, workflows, the site, documents and tests only;
@@ -107,7 +107,7 @@ The commit history shows those turns.
   programs here are written for Solana from scratch.
 - **Three pull requests by another GitHub account.** `jaystay-bot` wrote pull requests #32, #33 and #34 for
   bounties Knos funded on this repository on 2 Oct 2026: what `knos_bounties` says about each bounty, a
-  repository's own record on the site, and a Ruby runner for the judge. That code is in the tree from 0.3.12, in
+  repository's own record on the site, and a Ruby runner for the referee. That code is in the tree from 0.3.12, in
   commits under that account's name. The three were merged on 3 Oct 2026 and paid 48.75 test USDC in all.
 - **Squads v4** is the multisig program that holds the second deployment's upgrade authority and its guardian
   role.
@@ -170,9 +170,9 @@ devnet is test USDC, which is why this is acceptable today and would not be with
 
 | What went wrong | Who notices | What evidence exists | What the software does | What it does not do |
 |---|---|---|---|---|
-| **A judge accepted bad work** | the buyer, later: a revert, a failing build, an audit | the signed token (which workflow, which commit, which terms hash), the run's log, the order's log lines on chain | inside the warranty, a signed revert of the paid merge returns the holdback to the funder. In the meter, either side adds a `verdict` or `withdrawn` correction; it is recorded on chain with the next batch and subtracted in the monthly statement. A quorum, chosen at funding, asks two or three evaluators with different owners | return what was already paid. Outside the warranty, or with no holdback, nothing comes back. No one judges whether the work was good: the checks the buyer named did |
-| **A judge rejected good work** | the supplier, at once: the verdict and its reasons are posted | the verdict with its reason codes, the commit, the terms hash, the run's log | `/knos appeal <reason>`: the verdict becomes disputed and the evaluator the terms name runs the work again; an overturned rejection can be paid ([DISPUTES.md](DISPUTES.md)). An appeal costs the supplier nothing | pay after the order's deadline. An appeal that ends too late, or one no evaluator hears, pays nothing: the money goes back to the funder. Nothing compensates the supplier for the delay |
-| **Insufficient evidence** (a run could not tell) | both: the verdict is its own word, never read as a rejection or an acceptance | which check or file could not be read, by reason code | counts nothing and bills nothing. The work can be judged again at no cost; the supplier can appeal it | decide. A check that stays unreadable until the deadline leaves the work unpaid |
+| **A referee accepted bad work** | the buyer, later: a revert, a failing build, an audit | the signed token (which workflow, which commit, which terms hash), the run's log, the order's log lines on chain | inside the warranty, a signed revert of the paid merge returns the holdback to the funder. In the meter, either side adds a `verdict` or `withdrawn` correction; it is recorded on chain with the next batch and subtracted in the monthly statement. A quorum, chosen at funding, asks two or three evaluators with different owners | return what was already paid. Outside the warranty, or with no holdback, nothing comes back. No one referees whether the work was good: the checks the buyer named did |
+| **A referee rejected good work** | the supplier, at once: the verdict and its reasons are posted | the verdict with its reason codes, the commit, the terms hash, the run's log | `/knos appeal <reason>`: the verdict becomes disputed and the evaluator the terms name runs the work again; an overturned rejection can be paid ([DISPUTES.md](DISPUTES.md)). An appeal costs the supplier nothing | pay after the order's deadline. An appeal that ends too late, or one no evaluator hears, pays nothing: the money goes back to the funder. Nothing compensates the supplier for the delay |
+| **Insufficient evidence** (a run could not tell) | both: the verdict is its own word, never read as a rejection or an acceptance | which check or file could not be read, by reason code | counts nothing and bills nothing. The work can be checked again at no cost; the supplier can appeal it | decide. A check that stays unreadable until the deadline leaves the work unpaid |
 | **A duplicate** (one deliverable counted twice) | whoever reconciles: `knos meter reconcile` lists entries made more than once, per side | the evaluation's id in both batches; the deliverable's id, which a retry shares | on chain, a token is used once and an order pays once. In the meter, a `duplicate` correction is anchored in the next batch and the statement nets it; an accepted deliverable is billed once | undo a batch that was already anchored: the program's counters only go up, so the repeat stays on chain and is corrected beside it. A duplicate nobody reconciles is never found |
 | **An issuer's signing key is compromised** | the issuer, or anyone watching its published keys | the key's id in every token it signed | the guardian revokes the key, for ever; a token under a revoked key counts nothing from then on. A new key waits a day and needs the guardian's approval | take back a payment the key already made. Tokens are not re-examined after the fact. If the guardian does not act, nothing revokes the key before it expires |
 | **A relay outage past a deadline** | the supplier: the token was signed and nothing was paid | the token itself, posted as a comment, with its signing time | a token is not a secret: anyone can carry it with `knos relay`, and a repository can hold its own relay key | extend a deadline. The program refuses a token presented after the deadline, whoever was at fault, and the money goes back to the funder. Proof that the token existed in time changes nothing on chain |
@@ -226,7 +226,7 @@ money:
 2. **Terms of service** that say what the service is, with a limit of liability stated as an amount.
 3. **A liability position for each row of the table above:** which errors the operator makes good, up to what
    amount, and which stay with the parties.
-4. **A service commitment:** availability of the relay and the judge, a time to respond to an incident, and a
+4. **A service commitment:** availability of the relay and the referee, a time to respond to an incident, and a
    remedy when it is missed. Above all, what the operator owes when its own outage makes a token late.
 5. **A data-processing agreement,** a list of subprocessors, retention periods and a way to answer a deletion
    request, given that an on-chain record cannot be deleted.
@@ -234,7 +234,7 @@ money:
    answer, within what time, and under which law.
 7. **Control of the upgrade and guardian keys by people who answer for them:** independent holders, a tested
    succession, and notice of every upgrade ([GOVERNANCE.md](GOVERNANCE.md)).
-8. **An outside security review** of the programs and the judge, with its report published.
+8. **An outside security review** of the programs and the referee, with its report published.
 9. **Licensed handling of real money:** legal advice on held money and money transmission, and a regulated partner
    where the law asks for one ([DISCLOSURE.md](DISCLOSURE.md)).
 10. **Insurance** for errors and for loss of funds, or a stated reason for having none.

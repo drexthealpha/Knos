@@ -81,7 +81,7 @@ The same warning applies: these rows run test builds in a simulator. Which instr
 | An order is held for a payee with no wallet and settled when he binds one; it goes back to its funder after the deadline and not before; tokens sent to its account cannot stop it from closing. | `::test_an_order_is_held_for_one_payee_without_a_wallet_and_settled_when_he_binds_one`, `::test_an_order_goes_back_to_its_funder_after_the_deadline_and_not_before`, `::test_tokens_sent_to_an_orders_account_cannot_stop_it_from_closing` |
 | Only `FEE_OWNER` sets a Plan, and only to lower the rate. A top-up adds amount and fee from where the money came. | `::test_only_the_fee_owner_sets_a_plan_and_only_to_lower_the_rate`, `::test_top_up_adds_to_the_amount_and_the_fee_from_where_the_money_came` |
 | **Random walks.** After every step each order's account holds exactly what the order is owed, over funding, paying, holding, settling, refunding and topping up; and again over holdbacks, standing orders, reservations, cancellations and assignments. | `::test_a_random_walk_conserves_every_orders_money`; `tests/test_order_terms.py::test_a_random_walk_over_every_promise_conserves_every_orders_money` |
-| **The judges.** A seller pays himself after the buyer's repository deleted its workflow; what a neutral run cannot do; a judge repository; the arbiter's ruling and what it cannot do; the arbiter is neither the funder nor a payee. | `tests/test_order_judges.py::test_a_seller_pays_himself_after_the_buyers_repository_deleted_its_workflow`, `::test_what_a_neutral_run_cannot_do`, `::test_the_owner_of_the_orders_repository_may_be_the_neutral_attestor`, `::test_a_public_order_that_names_a_judge_repository_is_paid_from_it_too`, `::test_the_arbiter_an_order_named_rules_who_is_paid`, `::test_what_a_ruling_cannot_do`, `::test_the_arbiter_is_neither_the_funder_nor_a_payee` |
+| **The referees.** A seller pays himself after the buyer's repository deleted its workflow; what a neutral run cannot do; a referee repository; the arbiter's ruling and what it cannot do; the arbiter is neither the funder nor a payee. | `tests/test_order_judges.py::test_a_seller_pays_himself_after_the_buyers_repository_deleted_its_workflow`, `::test_what_a_neutral_run_cannot_do`, `::test_the_owner_of_the_orders_repository_may_be_the_neutral_attestor`, `::test_a_public_order_that_names_a_judge_repository_is_paid_from_it_too`, `::test_the_arbiter_an_order_named_rules_who_is_paid`, `::test_what_a_ruling_cannot_do`, `::test_the_arbiter_is_neither_the_funder_nor_a_payee` |
 | A private order stores no repository, no issue and only a hash of its terms, and nothing of the repository is in its account, its tokens or its logs. | `tests/test_order_chain.py::test_a_private_order_stores_no_repository_no_issue_and_a_hash_of_its_terms`; `tests/test_order_judges.py::test_a_balance_funds_a_private_order_from_its_judge_repository_and_nothing_of_the_repository_is_public`, `::test_what_the_funding_of_a_private_order_cannot_do` |
 | A token under a key that is not GitHub's pays only a private order of the Balance its registrant opened. | `tests/test_order_judges.py::test_a_private_order_of_a_balance_is_paid_under_the_key_its_authority_registered`, `::test_what_a_token_under_a_key_that_is_not_githubs_cannot_do` |
 | An organisation's wallet is bound only from its own `knos-claim`, by a member, by hand, and never over a binding a person made. | `tests/test_order_judges.py::test_a_pull_request_by_a_bot_is_paid_to_its_organisations_wallet`, `::test_what_an_organisations_bind_token_cannot_do`, `::test_a_collaborator_cannot_rebind_a_person_who_bound_his_own_wallet` |
@@ -116,7 +116,7 @@ This is the code that decides, before anything is signed, whether a merge earns 
 | Where the money goes: the bound wallet, else the payee's own unedited address comment, else it is held. | `tests/test_who.py::test_the_payout_address_is_the_bound_wallet_else_the_payees_own_unedited_comment`; `tests/test_flow.py::test_where_the_money_goes_a_bound_wallet_else_the_authors_address_else_it_is_held` |
 | The gate holds a bounty's pull request to the terms and to who is paid. A claim on a commit with no check runs is refused. | `tests/test_gate.py::test_the_gate_holds_a_bountys_pull_request_to_the_terms_and_to_who_is_paid`, `::test_a_claim_on_a_commit_with_no_check_runs_is_refused_at_the_merge` |
 | Only a person GitHub says can write funds from a comment, and a balance in a made-up token is never spent by a comment. | `tests/test_flow.py::test_only_someone_with_write_access_may_fund`, `::test_a_strangers_balance_in_a_token_of_their_own_is_never_spent_by_a_comment` |
-| Only what a push to the default branch merged is settled. In tests mode, the job after the judge signs nothing it has not read again itself. | `tests/test_flow.py::test_only_what_a_push_to_the_default_branch_merged_is_settled`, `::test_the_job_after_the_judge_signs_nothing_it_has_not_read_again_itself` |
+| Only what a push to the default branch merged is settled. In tests mode, the job after the referee signs nothing it has not read again itself. | `tests/test_flow.py::test_only_what_a_push_to_the_default_branch_merged_is_settled`, `::test_the_job_after_the_judge_signs_nothing_it_has_not_read_again_itself` |
 | A relayer refuses what the chain would refuse before it spends a fee, and a token carried twice or by two relayers is done once. | `tests/test_relay2.py::test_a_fund_token_costs_nothing_with` (27 cases), `::test_a_proof_costs_nothing_with` (13), `::test_a_claim_costs_nothing_with` (12), `::test_a_token_relayed_twice_or_by_two_relayers_is_done_once` |
 | A job's terms are the ones its hash names, whatever else was logged at its address. | `tests/test_relay2.py::test_a_jobs_terms_are_the_ones_its_hash_names_whatever_else_was_logged_at_its_address` |
 
@@ -126,7 +126,7 @@ This is the code that decides, before anything is signed, whether a merge earns 
 |---|---|
 | No job that runs pull request code can mint a token. The job that runs it can only read, hands nothing on, and has no secret. The job that signs checks nothing out and runs no git. | `tests/test_workflows2.py::test_a_token_is_asked_for_only_by_jobs_that_run_no_pull_request_code_and_check_nothing_out`, `::test_the_job_that_runs_pull_request_code_can_only_read_and_hands_nothing_on` |
 | No workflow is started by `pull_request_target`. | `tests/test_workflows2.py::test_every_workflow_parses_and_none_is_started_by_pull_request_target` |
-| No caller can change which code judges: no inputs, one exact release of `knos`, dependencies no newer than one date. | `tests/test_workflows2.py::test_no_caller_can_change_which_code_judges`, `::test_the_release_the_workflows_install_is_this_one`, `tests/test_release_order.py::test_no_cutoff_in_this_tree_is_earlier_than_the_release_it_names` |
+| No caller can change which code referees: no inputs, one exact release of `knos`, dependencies no newer than one date. | `tests/test_workflows2.py::test_no_caller_can_change_which_code_judges`, `::test_the_release_the_workflows_install_is_this_one`, `tests/test_release_order.py::test_no_cutoff_in_this_tree_is_earlier_than_the_release_it_names` |
 | Every action is a full commit from the pin list, and every called workflow is a pinned commit. | `tests/test_workflows2.py::test_every_action_is_a_commit_listed_in_action_pins_and_every_called_workflow_is_a_pinned_one` |
 | Permissions start empty and each job gets the least. Nothing of Knos's can write to code, releases or settings. | `tests/test_workflows2.py::test_permissions_start_empty_and_each_job_gets_the_least` |
 | Text a person wrote never reaches a shell except through the event file or an environment variable. | `tests/test_workflows2.py::test_untrusted_text_reaches_a_shell_only_through_the_event_file_or_env` |
@@ -137,19 +137,19 @@ This is the code that decides, before anything is signed, whether a merge earns 
 
 ## How much a verdict can carry
 
-A bounty in tests mode is paid on a judge's verdict, and there are three ways the judge can run the pull request's code. Every verdict says which one it was (`assurance` in the verdict's JSON, with one sentence, `assurance_means`), and so do the terms when they are shown to the funder.
+A bounty in tests mode is paid on a referee's verdict, and there are three ways the referee can run the pull request's code. Every verdict says which one it was (`assurance` in the verdict's JSON, with one sentence, `assurance_means`), and so do the terms when they are shown to the funder.
 
-The counts are from [TAMPER.md](TAMPER.md): 63 cheating pull requests, written by the person who wrote the judge. They are counts for that suite. They are not a proof: the claim is "0 of 63 in this suite", never "cannot be cheated".
+The counts are from [TAMPER.md](TAMPER.md): 63 cheating pull requests, written by the person who wrote the referee. They are counts for that suite. They are not a proof: the claim is "0 of 63 in this suite", never "cannot be cheated".
 
 | `assurance` | How the pull request's code runs | Measured | What it does not stop |
 |---|---|---|---|
 | `in-process` | The acceptance tests import it: it shares a process with the test runner (the python, node, go, rust, ruby and command runners). On a machine with the sandbox, as another user with no network. | 7 of 63 attacks in this suite were accepted. | Code written to forge the runner's report from inside, and code that answers the fixed examples. On the second deployment (`programs-v2`, the one in use) a bounty is never paid on this mode alone: it waits for a maintainer's merge. |
-| `black-box` | As a separate process on the judge's machine; the check never loads it and compares only what it prints (`$KNOS_RUN`). On a machine with the sandbox, as another user with an empty environment and no network. | 0 of 63 in this suite were accepted. | What the machine leaves open to any of its users: writing to shared directories, using all of its memory and processes ([TAMPER.md](TAMPER.md), "Escapes": measured). Two machines can differ, so a rerun elsewhere is the same judge and not the same environment. |
-| `hermetic` | Black-box, with `image` in the terms: each `$KNOS_RUN` call is a new container of that image, pulled by digest, with no network, a read-only root, a tmpfs work directory, uid 65534, no capabilities, no host mount but the pull request's tree (read-only) and the bundle's `public/` folder if it has one (read-only), and limits on memory, CPUs, processes and time. The check, its reference answers and the judge stay outside. | 0 of 63 in this suite were accepted by the black-box check it runs. The container itself has not been measured on the machine that wrote TAMPER.md: its five escape probes are listed there as "not run here". | A fault in the container runtime or the kernel. A registry that stops serving the digest: then nobody can run the judge again. A check that is wrong: the image fixes where the code runs, not what the buyer wrote. |
+| `black-box` | As a separate process on the referee's machine; the check never loads it and compares only what it prints (`$KNOS_RUN`). On a machine with the sandbox, as another user with an empty environment and no network. | 0 of 63 in this suite were accepted. | What the machine leaves open to any of its users: writing to shared directories, using all of its memory and processes ([TAMPER.md](TAMPER.md), "Escapes": measured). Two machines can differ, so a rerun elsewhere is the same referee and not the same environment. |
+| `hermetic` | Black-box, with `image` in the terms: each `$KNOS_RUN` call is a new container of that image, pulled by digest, with no network, a read-only root, a tmpfs work directory, uid 65534, no capabilities, no host mount but the pull request's tree (read-only) and the bundle's `public/` folder if it has one (read-only), and limits on memory, CPUs, processes and time. The check, its reference answers and the referee stay outside. | 0 of 63 in this suite were accepted by the black-box check it runs. The container itself has not been measured on the machine that wrote TAMPER.md: its five escape probes are listed there as "not run here". | A fault in the container runtime or the kernel. A registry that stops serving the digest: then nobody can run the referee again. A check that is wrong: the image fixes where the code runs, not what the buyer wrote. |
 
 What `hermetic` adds beyond isolation is that the judgment can be repeated. The image's digest is in the terms, so it is in the terms hash that is funded. The verdict records the digest the runtime reported after the pull, the runtime and its version, the limits, and a hash of each of the two trees.
 
-`knos judge rerun <verdict file or bundle folder> --base DIR --pr DIR` checks that the trees are the ones judged, runs the same judge in the same image and prints `agree` or `disagree` (exit 0 or 1). A local image under that name with another digest stops the judge before any of the pull request's code runs.
+`knos judge rerun <verdict file or bundle folder> --base DIR --pr DIR` checks that the trees are the ones checked, runs the same referee in the same image and prints `agree` or `disagree` (exit 0 or 1). A local image under that name with another digest stops the referee before any of the pull request's code runs.
 
 A check that draws its inputs at random draws new ones on a rerun: the verdict is expected to be the same, the inputs are not.
 
@@ -161,17 +161,17 @@ The end-to-end test in the last row below ran in a real container on GitHub's ru
 |---|---|
 | The container's command line is exactly the documented one: no network, read-only root, tmpfs work directory, uid 65534, no capabilities, the tree and the public suite as the only mounts and both read-only, the four limits. | `tests/test_judge_hermetic.py::test_the_command_line_is_exactly_this`, `::test_the_only_host_paths_in_the_command_line_are_the_tree_and_the_public_suite_both_read_only` |
 | An image is taken only as `<registry>/<name>@sha256:<64 hex>`. A tag is refused at funding, in the terms and in the command line, with what to write instead. The image is part of the terms hash. | `tests/test_terms.py::test_an_image_is_part_of_the_terms_and_of_their_hash`, `::test_a_tag_without_a_digest_is_refused_at_funding_with_what_to_write` (4 cases); `tests/test_judge_hermetic.py::test_an_image_that_is_not_pinned_by_digest_is_refused` (12 cases) |
-| The judge runs the image in the terms or does not run: another digest on the machine, a failed or slow pull, no runtime, a daemon that does not answer, an in-process bundle and a setup command are each refused before pull request code runs. | `tests/test_judge_hermetic.py::test_pull_refuses_another_digest_a_failed_pull_a_slow_one_and_a_tag`, `::test_a_local_image_with_another_digest_stops_the_judge_before_any_pull_request_code_runs`, `::test_an_image_is_never_swapped_for_the_host` |
+| The referee runs the image in the terms or does not run: another digest on the machine, a failed or slow pull, no runtime, a daemon that does not answer, an in-process bundle and a setup command are each refused before pull request code runs. | `tests/test_judge_hermetic.py::test_pull_refuses_another_digest_a_failed_pull_a_slow_one_and_a_tag`, `::test_a_local_image_with_another_digest_stops_the_judge_before_any_pull_request_code_runs`, `::test_an_image_is_never_swapped_for_the_host` |
 | With an image, every run of the pull request's code goes through the container command line (checked against a stand-in runtime that records it), each call is killed after its time limit, and the verdict records the digest. | `tests/test_judge_hermetic.py::test_with_an_image_the_submission_runs_only_through_the_container_and_the_verdict_records_the_digest`, `::test_the_script_runs_each_call_in_its_own_container_and_kills_it_after_the_time_limit` |
 | Every verdict names its assurance, and the sentences say "of 63", never more. | `tests/test_judge_hermetic.py::test_every_verdict_names_its_assurance_and_what_it_means`; `tests/test_terms.py::test_the_terms_say_which_assurance_they_buy` |
 | `knos judge rerun` agrees with an honest verdict, disagrees with a changed one, and refuses other trees. | `tests/test_judge_hermetic.py::test_rerun_judges_the_same_artifact_in_the_same_image_and_says_agree_or_disagree`, `::test_rerun_refuses_other_trees_another_image_and_a_file_that_is_no_verdict` |
 | In a real container: the honest fix passes, a pull request that changes nothing does not, a rerun agrees, and the five escapes are held. Skipped where no container runtime answers, which includes the machine these documents were written on; run in a real container by the staging repository's run 37217535106. | `tests/test_judge_hermetic.py::test_end_to_end_in_a_real_container` |
 
-## A second execution: what a neutral judge runs itself
+## A second execution: what a neutral referee runs itself
 
 A signed token says which workflow ran. It does not say what the workflow read.
 
-For an order paid by its black-box acceptance suite, the neutral judge (`attest.yml`, started by hand in the
+For an order paid by its black-box acceptance suite, the neutral referee (`attest.yml`, started by hand in the
 attester's own repository) therefore does not read the buyer repository's result for the suite.
 
 Its first job fetches the two commits and runs the suite again. Only the second job, which runs none of that code,
@@ -184,10 +184,10 @@ configure, with a verdict file that says so (`reexecuted: true`, the assurance, 
 tree, the runner's environment).
 
 What it does not add: another suite (a suite that is wrong is wrong twice), another GitHub (both runs are GitHub's
-runners and GitHub's copy of the commits), or another person (two accounts of one person are one judge).
+runners and GitHub's copy of the commits), or another person (two accounts of one person are one referee).
 
-An order paid on the merge cannot be re-executed, because its checks are the repository's own: the neutral judge
-reads their results and its verdict says "this judge read the buyer repository's check results; it did not run
+An order paid on the merge cannot be re-executed, because its checks are the repository's own: the neutral referee
+reads their results and its verdict says "this referee read the buyer repository's check results; it did not run
 them".
 
 Not done: no run of this on GitHub or on a cluster. The table is what is tested here, against stand-ins for GitHub
@@ -199,9 +199,9 @@ and the chain and, for the last row but one, the program in a simulator.
 | The honest case is signed with the audience the program takes today, and the verdict is posted beside the token. | `tests/test_attest_rerun.py::test_the_honest_case_is_signed_on_the_run_the_attester_made_and_the_verdict_is_posted_beside_the_token` |
 | The verdict is untrusted text: another order, pull request, issue, repository, base, head or bundle, a failed or in-process run, an unknown field, a wrong type and an oversized or malformed text are each refused. | `tests/test_attest_rerun.py::test_a_verdict_is_untrusted_text_held_to_this_order_this_commit_and_these_terms` |
 | Terms that name an image are signed only for a run in that image, and the verdict records the digest. | `tests/test_attest_rerun.py::test_terms_that_name_an_image_are_signed_only_for_a_run_in_that_image_and_the_verdict_records_the_digest` |
-| The bundle that is run is the one that was funded; a judge that cannot run is a suite that did not pass. | `tests/test_attest_rerun.py::test_the_bundle_that_is_run_is_the_one_that_was_funded_and_a_judge_that_cannot_run_is_a_suite_that_did_not_pass` |
+| The bundle that is run is the one that was funded; a referee that cannot run is a suite that did not pass. | `tests/test_attest_rerun.py::test_the_bundle_that_is_run_is_the_one_that_was_funded_and_a_judge_that_cannot_run_is_a_suite_that_did_not_pass` |
 | An order paid on the merge is not re-executed, and its verdict says the results were read and not run. | `tests/test_attest_rerun.py::test_an_order_paid_on_the_merge_has_no_suite_to_run_so_the_run_reads_the_check_results_and_says_so` |
-| The real judge, run again on a sample tree, passes the fix and fails a pull request that changes nothing (not on Windows). | `tests/test_attest_rerun.py::test_the_real_judge_run_again_passes_the_fix_and_fails_a_pull_request_that_changes_nothing` |
+| The real referee, run again on a sample tree, passes the fix and fails a pull request that changes nothing (not on Windows). | `tests/test_attest_rerun.py::test_the_real_judge_run_again_passes_the_fix_and_fails_a_pull_request_that_changes_nothing` |
 | With `quorum 2`, the buyer's token alone pays nothing when the second run fails, and pays when it passes (the program, in a simulator). | `tests/test_attest_rerun.py::test_with_a_quorum_of_two_the_buyers_green_checks_alone_pay_nothing_when_the_second_run_fails` |
 | The job that runs the suite has no `id-token` permission, no secret and one output; the job that signs checks nothing out, runs no git, takes no artifact and starts only after it. | `tests/test_workflows2.py::test_attests_first_job_runs_the_suite_again_with_no_way_to_sign_and_hands_on_one_verdict`, `::test_attest_takes_facts_never_code_reads_the_public_record_and_asks_for_one_signed_statement` |
 
@@ -211,34 +211,34 @@ An order can ask that more than one reader pass the same pull request at the sam
 (`quorum 2`, `quorum 3`). There are three kinds of reader, and a funding comment can name all
 three:
 
-    /knos fund 20 checks: test quorum 3 judge: owner/repo
+    /knos fund 20 checks: test quorum 3 referee: owner/repo
 
 | Reader | Who it is | What makes it separate |
 |---|---|---|
 | a | The buyer repository's own run (`prove.yml`). | It is the buyer's. |
 | b | A neutral run (`attest.yml`) that someone starts by hand in a repository they own. For an order paid by its suite it runs the suite again (the section above). | The program refuses one in the order's own repository and, for an order funded from a Balance, one started by the funder or the Balance's owner. |
-| c | A run in the judge repository the comment names. | Its id is fixed at funding, in the options the fund token signs (`judge_repo_id`); the program takes reader c's word from that repository and no other. |
+| c | A run in the referee repository the comment names. | Its id is fixed at funding, in the options the fund token signs (`judge_repo_id`); the program takes reader c's word from that repository and no other. |
 
 The name is resolved to its id through GitHub's API when the comment is answered.
 
-The program cannot see who owns a repository, so the funding flow refuses, in words, a judge repository that is the
+The program cannot see who owns a repository, so the funding flow refuses, in words, a referee repository that is the
 buyer's own, or whose owner is the buyer repository's owner, the funder, or the account the issue is assigned to:
-two accounts of one owner are one judge.
+two accounts of one owner are one referee.
 
 `judge:` without a quorum is refused too, because that repository's run alone could then have the order paid.
 
 What this does not give: three suites (all three run or read the same one), three hosts (all three are GitHub's
 runners) or proof that three owners are three people. Not checked at funding: that whoever later starts the neutral
-run is not the judge repository's owner, since nobody knows at funding who that will be.
+run is not the referee repository's owner, since nobody knows at funding who that will be.
 
-Not done: no order with three readers has been funded or paid on GitHub or on a cluster; the judge repository's run is
-the pinned `attest.yml` or `prove.yml` there, and no caller workflow for a judge repository is published.
+Not done: no order with three readers has been funded or paid on GitHub or on a cluster; the referee repository's run is
+the pinned `attest.yml` or `prove.yml` there, and no caller workflow for a referee repository is published.
 
 | Invariant | Test |
 |---|---|
-| The comment's judge repository becomes the id in the options the fund token signs; the terms bytes hash to what the token names; the program takes both. | `tests/test_flow_quorum3.py::test_a_fund_comment_names_the_third_reader_and_the_program_takes_exactly_what_it_signed` |
-| The order pays only after a, b and c have each passed the same pull request; one reader twice counts once; a run in another repository is no judge (the program, in a simulator). | the same test; `tests/test_order_quorum.py::test_a_quorum_of_three_needs_the_judge_repository_too` |
-| A neutral run that is the buyer's again is refused and the order is not paid; a judge repository owned by a side of the order is refused at funding, and the reply says why. | `tests/test_flow_quorum3.py::test_two_readers_of_one_owner_are_one_and_the_order_is_not_paid` |
+| The comment's referee repository becomes the id in the options the fund token signs; the terms bytes hash to what the token names; the program takes both. | `tests/test_flow_quorum3.py::test_a_fund_comment_names_the_third_reader_and_the_program_takes_exactly_what_it_signed` |
+| The order pays only after a, b and c have each passed the same pull request; one reader twice counts once; a run in another repository is no referee (the program, in a simulator). | the same test; `tests/test_order_quorum.py::test_a_quorum_of_three_needs_the_judge_repository_too` |
+| A neutral run that is the buyer's again is refused and the order is not paid; a referee repository owned by a side of the order is refused at funding, and the reply says why. | `tests/test_flow_quorum3.py::test_two_readers_of_one_owner_are_one_and_the_order_is_not_paid` |
 | The reply to the funder says who the readers are and how many must agree. | `tests/test_terms.py::test_the_sentence_about_a_quorum_names_each_reader_and_how_many_must_agree` |
 
 ## Acceptance policies: versions, changes, appeals, defects
@@ -274,7 +274,7 @@ edited under an open order: that is the next question.
 2. The arbiter. If the funder named one (`arbiter @login`), that person's ruling pays whom it names, without a pull
    request and without waiting for a quorum. The arbiter is neither the funder nor a payee. With no arbiter named
    there is nobody to rule: the reply to the funding comment says "No arbiter is named".
-3. The challenge window, which runs the other way: inside the warranty anyone can run the pinned judge again on the
+3. The challenge window, which runs the other way: inside the warranty anyone can run the pinned referee again on the
    commit that was paid, and a run that fails returns what the order still holds to the funder.
 
 What an appeal cannot do: change the suite. A suite that is wrong is wrong for every reader; only the arbiter's
@@ -283,7 +283,7 @@ ruling pays against it.
 **A defect found after acceptance.** If the order has a warranty (`warranty N`, with `holdback N` percent), that
 share of the payment stays in the order for N days.
 
-A revert token from one of the order's judges inside that time
+A revert token from one of the order's referees inside that time
 sends it back to the funder; after it, the share is released to the payee and no challenge is heard. With no
 holdback, a payment is final when it is made, and the reply to the funding comment says so.
 
@@ -298,7 +298,7 @@ reversal either: an accepted evaluation stays accepted, and a later defect is a 
 | The repository's policy file is hashed into the terms of an order funded under it. | `tests/test_flow_orders.py::test_the_repositorys_policy_decides_who_may_fund_how_much_and_what_an_order_asks_when_its_funder_does_not_say` |
 | The arbiter an order named rules who is paid; a ruling cannot do more than that. | `tests/test_order_judges.py::test_the_arbiter_an_order_named_rules_who_is_paid`, `::test_what_a_ruling_cannot_do` |
 | A stranger's failing neutral run inside the window stops the release, and after it does not. | `tests/test_order_auto.py::test_a_strangers_neutral_failing_run_inside_the_window_stops_the_release_and_after_it_does_not` |
-| A holdback stays through the warranty; a revert inside it returns the holdback and its fee to the funder; judges a, b and c sign a revert and nobody else. | `tests/test_order_terms.py::test_a_holdback_stays_in_the_order_through_the_warranty_and_then_goes_to_the_wallets_it_recorded`, `::test_a_revert_inside_the_warranty_returns_the_holdback_and_its_fee_to_the_funder`, `::test_judges_a_b_and_c_sign_a_revert_and_nobody_else` |
+| A holdback stays through the warranty; a revert inside it returns the holdback and its fee to the funder; referees a, b and c sign a revert and nobody else. | `tests/test_order_terms.py::test_a_holdback_stays_in_the_order_through_the_warranty_and_then_goes_to_the_wallets_it_recorded`, `::test_a_revert_inside_the_warranty_returns_the_holdback_and_its_fee_to_the_funder`, `::test_judges_a_b_and_c_sign_a_revert_and_nobody_else` |
 
 ## Drills on the deployed bytes
 
@@ -527,7 +527,7 @@ python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
 python -m pytest -q tests
 ```
 
-Tests that need a toolchain skip and say so: the Go and Rust judge tests, the Node tests of the multisig scripts (Node 20 and `npm ci --prefix scripts`), and the check of every workflow with `actionlint`. To repeat the random walk with another seed: `KNOS_FUZZ_N=2500 KNOS_FUZZ_SEED=1 python -m pytest -q -s tests/test_pay2_chain.py -k random_walk`.
+Tests that need a toolchain skip and say so: the Go and Rust referee tests, the Node tests of the multisig scripts (Node 20 and `npm ci --prefix scripts`), and the check of every workflow with `actionlint`. To repeat the random walk with another seed: `KNOS_FUZZ_N=2500 KNOS_FUZZ_SEED=1 python -m pytest -q -s tests/test_pay2_chain.py -k random_walk`.
 
 The Rust tests, with the Wycheproof vectors: `cd programs-v2 && cargo test --release`.
 
@@ -618,7 +618,7 @@ Its other gates read the upgrade authority, the multisigs and the guardian from 
 - **Coverage-guided fuzzing.** `programs-v2/knos_oidc/fuzz` holds two cargo-fuzz targets. `claims`: any bytes at all, read by both copies of the claim reader and by `serde_json`. Since `knos_oidc` 2.2 the program's reader must accept exactly the documents `serde_json` reads as one object (less a name twice at the top level, more than 64 levels and more than 128 members; a number too large for `serde_json`, such as `1E400`, is the one case left to the program alone), every wanted claim must agree, and the interface crate, which reads only what the program verified, must read every document the program accepts the same way. `rsa_verify` (added in Knos 0.3.15, 5 Oct 2026): any bytes as a modulus, a digest and a signature, put to the program's `rsa.rs`, to big integers and to the `rsa` crate; the three verdicts must agree, and where the program takes the modulus the whole value s^65537 mod n is compared; in its second form the fuzzer writes the encoded message and a test key signs it, which is how a wrong encoding is reached. Both start from committed seeds (`fuzz/seeds`, 575 files: every kind of the differential test, the thirteen shapes of not-JSON that 2.1 accepted among them, and Wycheproof's vectors), which `cargo test` also runs on stable. The `fuzz-claims` job of `program.yml` runs each target for five minutes on the nightly schedule and when started by hand, and publishes, as artifacts of that run and not as commits, a line per target (executions, files in the corpus, crashes) in `fuzz_targets.jsonl` and `fuzz.json`, the corpus (`fuzz-claims-corpus`) and any crash (`fuzz-claims-crash`). The latest run tried 5,410,436 inputs against the claim parser and 19,873 against `rsa_verify`, 300 seconds a target, with no crash: [run 38701807179](https://github.com/drexthealpha/Knos/actions/runs/38701807179) of Knos, started by hand on this release's branch (15 Oct 2026, commit 511fb84b, the 2.2 reader); the nightly run on `main` of 14 Oct 2026 ([run 38539299723](https://github.com/drexthealpha/Knos/actions/runs/38539299723)) tried 5,238,385 and 21,806. The first runs of `rsa_verify` were by hand, here, on 2026-10-05 (120 seconds a target: `rsa_verify` tried 8,406 inputs and `claims` 4,413,242, with no crash; the numbers are in [fuzz.json](../fuzz.json)), of the 2.1 reader. Besides those runs, the 2.2 reader has had the target's own check under `cargo test` on stable (1,260,000 documents made at random from fixed seeds, 200,000 strings of noise and the 575 seeds, no disagreement), and the differential run above. `rsa_verify` is slow, about 70 inputs a second under the sanitizer, because every input costs several big-integer powers. No target has been run for longer than five minutes at a time.
 - **Random walks.** Not coverage-guided: random instructions with a conservation check after every step. Four walks of 2,500 steps over `knos_pay`'s 2.0 instructions run in `program.yml` on every change and nightly ([BENCH.md](BENCH.md)); the walks over work orders run in the default suite.
 - **Wycheproof through the on-chain path.** `tests/test_wycheproof_chain.py` runs the vectors through the compiled program's `Step`, not only through the one-call form.
-- **Mutation testing.** `scripts/mutants.sh` runs cargo-mutants over `knos_pay` and `knos_oidc` (it changes the source one small piece at a time and runs the Rust unit tests on each). It takes hours, so it is not in the default suite; the release run starts it and publishes the count of mutants caught and missed in [BENCH.md](BENCH.md). Until that run finishes there is no number, and none is claimed. One hand-run of 16 mutations of the judge rule was caught 16 of 16 by `tests/test_order_judges.py`.
+- **Mutation testing.** `scripts/mutants.sh` runs cargo-mutants over `knos_pay` and `knos_oidc` (it changes the source one small piece at a time and runs the Rust unit tests on each). It takes hours, so it is not in the default suite; the release run starts it and publishes the count of mutants caught and missed in [BENCH.md](BENCH.md). Until that run finishes there is no number, and none is claimed. One hand-run of 16 mutations of the referee rule was caught 16 of 16 by `tests/test_order_judges.py`.
 - **Model checking.** `programs-v2/knos_pay/src/proofs.rs` holds Kani harnesses (run nightly by `program.yml`). All five are verified in docs/kani.json (Kani 0.68.0, CBMC 6.11.0). Four were verified in one run here, each harness alone within a 180-second limit, among them fee conservation. The fee-bounds harness over every amount does not finish in 180 seconds; `program.yml` runs it in a job of its own (`kani-fee-bounds`, a 350-minute limit), and that job verified it twice, at commits whose `knos_pay` source is this tree's: run 37575047633 in 8,296 seconds (2 h 19 m for the job) and the nightly run 37608154723 in 8,360 seconds (2 h 21 m). The harness names no solver and the job installs none, so Kani's default, CaDiCaL, answered it, not cvc5.
 
 What they state: a payment's tip and fee bookkeeping creates and loses nothing, and for every u64 amount and every rate from 10 to 30 basis points the order fee is at least its floor and at most the larger of the floor and `bps_of(amount, 30)`, the program's own 0.30% rounded down.
@@ -639,24 +639,24 @@ None is committed, and no real token has been replayed by the tests.
 
 ## A fix that adds a test is accepted
 
-Until Knos 0.3.17 (6 Oct 2026) the black-box judge refused any pull request that touched a protected path, so it refused a correct fix
+Until Knos 0.3.17 (6 Oct 2026) the black-box referee refused any pull request that touched a protected path, so it refused a correct fix
 that also added a regression test where the repository keeps its tests.
 
 It now tells an added test from a changed one: an added test file runs and is not counted, and the funder's suite alone decides.
 
-Measured in [TAMPER.md](TAMPER.md) with the judge in this tree: the black-box judge accepted 61 of 61 honest
+Measured in [TAMPER.md](TAMPER.md) with the referee in this tree: the black-box referee accepted 61 of 61 honest
 submissions, of which the 48 that were the whole set before, 48 of 48.
 
 Cheating submissions it accepted: 0 of 63 attacks on slugify, 0 of 102 on the six real tasks, 0 of 25 on the tasks
-that are not code (each judged five times) and 0 of 14 new cheats aimed at what a pull request may now add.
+that are not code (each checked five times) and 0 of 14 new cheats aimed at what a pull request may now add.
 
 Every figure on that page is from one run of `python scripts/tamper_bench.py`, dated on that page. These are Knos's
 own tasks and submissions; nobody outside has run either set.
 
-Still refused, by rule: a pull request that changes the funder's suite itself, or a path the judge cannot take from
+Still refused, by rule: a pull request that changes the funder's suite itself, or a path the referee cannot take from
 the base (3 of 3 such honest submissions in TAMPER.md, outside the count above). For those:
 
-- say what is protected yourself: `protected = [...]` in `.knos/proof.toml` replaces the judge's list (the acceptance
+- say what is protected yourself: `protected = [...]` in `.knos/proof.toml` replaces the referee's list (the acceptance
   checks in `.knos/acceptance/` stay protected only if the list names `.knos/**`);
 - or ask for the change to the suite in a second pull request;
 - or fund the task in merge mode, where a maintainer's merge and the named checks decide.

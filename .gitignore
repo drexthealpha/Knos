@@ -41,3 +41,4 @@ mutants/
 # private working notes of this machine
 CLAUDE.local.md
 !iris/.env.example
+.cache/

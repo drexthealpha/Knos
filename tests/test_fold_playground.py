@@ -2,6 +2,12 @@
 and knos-labs as the tag `archive/labs` (section 3): every constant and page names drexthealpha/Knos, and the files a
 stranger's issue and pull request need are in this tree, written by `python scripts/small_repos.py fold`."""
 from __future__ import annotations
+import pathlib as _pl
+
+import pytest as _pt
+
+if not (_pl.Path(__file__).resolve().parents[1] / "tasks").is_dir():
+    _pt.skip("tasks/ left the public repository; this test runs where that folder is kept", allow_module_level=True)
 
 import importlib.util
 import re

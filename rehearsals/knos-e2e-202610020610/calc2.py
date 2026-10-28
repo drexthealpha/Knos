@@ -1,6 +1,0 @@
-def mul(a, b):
-    return a + b
-
-
-def double(x):
-    return 2 * x

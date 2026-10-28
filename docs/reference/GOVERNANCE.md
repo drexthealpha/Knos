@@ -88,7 +88,7 @@ accounts. On devnet the Squads program itself has an upgrade authority, which is
   | an open order whose deadline is inside the 8 days | `RefundOrder` after the deadline | yes |
   | an open order whose deadline is later | `Cancel` moves the deadline to at most 7 days away (`NOTICE`), then `RefundOrder`; a wallet's order is cancelled by its wallet, a Balance's by a `/knos cancel` comment, which needs GitHub | yes, since 11 Oct 2026: 7 days and 2 hours of notice are shorter than 8 days (before, with 48 hours, **no**) |
   | an order held for a payee who has bound no wallet | `RefundOrder` after the 180-day hold | **no** |
-  | a holdback in its warranty (up to 90 days) | `Release` to the seller when it ends; back to the funder only by a judge's revert token | **no** |
+  | a holdback in its warranty (up to 90 days) | `Release` to the seller when it ends; back to the funder only by a referee's revert token | **no** |
 
 **Where an order cannot be left, and why.** The notice protects the seller who is working on the order: a funder
   who could take the money back at once could cancel after the work was done.

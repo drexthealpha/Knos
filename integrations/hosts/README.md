@@ -81,7 +81,7 @@ answer. It exits 0 for every host but aider, whose only signal is the exit code.
 | `aider` | none | the text, and exit code 1 |
 
 A stop a person interrupted (`status` other than `completed` in Cursor, `stopReason: user_interrupt` in Copilot) is
-not judged. After three blocks on the same evidence Knos lets the agent stop and says what is unproven, in every
+not checked. After three blocks on the same evidence Knos lets the agent stop and says what is unproven, in every
 host, so a check the agent cannot fix never traps it.
 
 ## Sibyl in every route

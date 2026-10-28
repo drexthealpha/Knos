@@ -554,9 +554,3 @@ def test_an_outside_case_is_judged_again_and_listed_with_its_author(monkeypatch)
     assert "| a cheat from outside | 4242 | https://github.com/o/r/pull/1 | python | refused | accepted |" in text
 
 
-def test_the_tamper_task_file_states_its_evidence_and_its_counter():
-    import json
-    task = json.loads((ROOT / "tasks" / "outside" / "tamper.json").read_text(encoding="utf-8"))
-    assert task["kind"] == "tamper" and task["counter"] == "outside_cheats" and task["amount"] == 5_000_000
-    assert task["currency"] == "test USDC" and "verdict" in task["needs"] and task["doc"] == "docs/reference/TAMPER.md"
-    assert "nothing is paid" in task["statement"] and "accepted" in task["evidence"]

@@ -17,7 +17,7 @@ Try it:
 5. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
 6. Open the URL it prints (user `_SYSTEM`, password `SYS`).
 
-## 2. Why it is technically interesting
+## 2. How it works
 
 - **Hash-locked criteria.** The brief is locked with Knos's own `knos.ready.criteria_hash`, run in Embedded Python from
   the same `src/knos` the Knos web app, MCP server and CLI use. Proof against a brief whose hash changed is rejected
@@ -27,18 +27,17 @@ Try it:
 - **Rule, Workflow, then the chain.** A deterministic gate (`Knos.Iris.Rule.PayoutGate`) turns the decision into PAY,
   HUMAN, REFUND_AT_DEADLINE or REJECT; HUMAN goes to a person in IRIS Workflow; the chain still needs Knos's signed
   token or the referee panel's signature to release anything.
-- **Every LLM step as an interop message (DPI-I-689).** Each referee call, tool call, rule and approval is a
+- **Every LLM step as an interop message** (an [InterSystems community idea](https://ideas.intersystems.com/ideas/DPI-I-689)). Each referee call, tool call, rule and approval is a
   `Knos.Iris.Msg.Span` in the decision's own session, kept in a Langfuse-style SQL view.
 
 ## 3. Requirements
 
-Docker with 6 GB of memory for its VM, the build 154 image tar from the InterSystems Early Access portal, and (for live
-mode) one LLM key.
+Docker with 6 GB of memory for its VM, the build 154 image tar from InterSystems, and (for live mode) one LLM key.
 
 ## 4. The image used
 
 `irishealth-community:2026.3.0AI.154.0` (InterSystems IRIS for Health, AI Hub build 154,
-`IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2026.3.0AI (Build 154U)`), from the Early Access portal file
+`IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2026.3.0AI (Build 154U)`), from the InterSystems file
 `irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64).
 
 ```sh
@@ -109,9 +108,9 @@ Workflow) and the Decision. `GET /api/knos/traces/<session>` returns them as JSO
 table (trace, span, parent, type, name, model, tokens, cost, latency, score, start); `docs/trace-schema.md` maps it to
 Langfuse's trace and observation fields.
 
-## 12. Contest bonuses
+## 12. Where each part lives
 
-| Bonus | Where it lives | How to see it |
+| Part | Where it lives | How to see it |
 |---|---|---|
 | Java PEX | `java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java`, item SolanaSubmit | its messages in Visual Trace |
 | Workflow | item PayoutApprovers (`EnsLib.Workflow.Operation`), `BP/ProofDecision.cls` | Workflow Inbox |
@@ -120,7 +119,7 @@ Langfuse's trace and observation fields.
 | Vector Search | `Data/Criterion.cls` (`VECTOR(DOUBLE,384)`), `BO/BriefLock.cls` | the health route's `vector` |
 | Docker | `Dockerfile`, `docker-compose.yml` | section 6 |
 | ZPM | `module.xml` | section 14 |
-| Community idea DPI-I-689 | `Msg/Span.cls`, `AI/TraceAudit.cls`, `Trace.cls` | section 11 |
+| LLM trace as interop messages | `Msg/Span.cls`, `AI/TraceAudit.cls`, `Trace.cls` | section 11 |
 
 ## 13. Platform findings
 
@@ -163,7 +162,6 @@ flowchart LR
 This folder is part of the one Knos product: Knos checks demand, writes the Ready brief, holds the money on Solana and
 pays only on verified proof; here the proof is checked inside IRIS for Health. The Knos code is imported, not forked.
 
-## 18. Developer Community profile and license
+## 18. License
 
-Developer Community profile: the founder's link goes here before the entry is filed.
-License: MIT, the repository's own.
+MIT, the repository's own.

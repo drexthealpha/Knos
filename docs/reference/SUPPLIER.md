@@ -1,7 +1,7 @@
 # For the supplier: know the rules before you are refused
 
 You did the work, or your agent did. This page is what Knos owes you before, during and after a verdict: the rules
-said up front, every refusal in plain words, a way to contest one that costs you nothing, and your own copy of the
+said up front, every refusal in plain words, a way to dispute one that costs you nothing, and your own copy of the
 evidence. Money on devnet is test USDC.
 
 ## 1. Before you open a pull request: `knos preflight`
@@ -19,10 +19,10 @@ It answers five things:
 
 | It says | Where it comes from |
 | --- | --- |
-| Which paths are protected | the terms' `deny`; for an order paid on acceptance checks, also what the judge protects |
+| Which paths are protected | the terms' `deny`; for an order paid on acceptance checks, also what the referee protects |
 | Which checks are named | the terms' `checks`. They run on your pull request. Preflight cannot pass them for you |
 | What your change touches that would be refused | each file, the refusal's code, its two sentences, and the exact line of the terms that says so |
-| What is allowed and not counted | a test file you add. The judge runs the buyer's tests, so yours is welcome and decides nothing |
+| What is allowed and not counted | a test file you add. The referee runs the buyer's tests, so yours is welcome and decides nothing |
 | `Ready`, or the list of fixes | exit code 0 only when ready |
 
 What it does not do: it does not run the acceptance checks (it names the command that does), and it cannot know
@@ -91,7 +91,7 @@ test fails when a refusal exists without its two sentences.
 <!-- refusals: begin (scripts/supplier_docs.py) -->
 | Code | What happened | What to do |
 | --- | --- | --- |
-| `judge.protected-path` | The change touches a path the judge protects. | Take that file out; add new tests as new files. |
+| `judge.protected-path` | The change touches a path the referee protects. | Take that file out; add new tests as new files. |
 | `judge.existing-test-edited` | The change edits or deletes a test that already existed. | Restore that test; put your own tests in a new file. |
 | `judge.test-config` | The change edits a file that decides how tests run. | Restore that file; ask the buyer to change it. |
 | `judge.terms` | The change touches the terms or the acceptance checks. | Take that file out; both were fixed at funding. |
@@ -100,15 +100,15 @@ test fails when a refusal exists without its two sentences.
 | `judge.scripts` | The change edits the scripts of `package.json`. | Restore the scripts; ask the buyer to change them. |
 | `judge.protected-test-edited` | The change edits a test that already existed. | Restore that test; put your own tests in a new file. |
 | `judge.protected-test-deleted` | The change deletes a test that already existed. | Restore that test; put your own tests in a new file. |
-| `judge.bad-issue` | The issue given to the judge is not an issue number. | Run the judge again with the issue's number. |
+| `judge.bad-issue` | The issue given to the referee is not an issue number. | Run the referee again with the issue's number. |
 | `judge.no-bundle` | The default branch holds no acceptance checks for this issue. | Ask the buyer to restore `.knos/acceptance/<issue>/`. |
 | `judge.runner` | The repository names a test runner Knos does not have. | Ask the buyer to fix `runner` in `.knos/proof.toml`. |
-| `judge.image` | The judge's container image could not be pulled or run. | Run it again; nothing is held against you. |
+| `judge.image` | The referee's container image could not be pulled or run. | Run it again; nothing is held against you. |
 | `judge.no-sandbox` | This machine has no sandbox to run your code in. | Run on Linux with setpriv and unshare, or in the workflow. |
 | `judge.sandbox-python` | The sandbox user cannot run this Python. | Install knos where every user can reach it. |
 | `judge.no-report` | The test run ended without writing a report. | Look for a crash or a timeout, then submit again. |
-| `judge.sentinel` | The judge's own passing test did not run and pass. | Remove whatever changes which tests are collected. |
-| `judge.canary` | The judge's own failing test did not fail. | Remove whatever makes every test pass. |
+| `judge.sentinel` | The referee's own passing test did not run and pass. | Remove whatever changes which tests are collected. |
+| `judge.canary` | The referee's own failing test did not fail. | Remove whatever makes every test pass. |
 | `judge.no-acceptance-ran` | No acceptance check ran on your change. | Make sure your change does not break test collection. |
 | `judge.acceptance-missing` | Acceptance checks that ran on the base did not run here. | Restore what those checks need to be collected. |
 | `judge.acceptance-failed` | Your change does not pass the acceptance checks. | Read the named checks, fix the code, submit again. |
@@ -119,7 +119,7 @@ test fails when a refusal exists without its two sentences.
 | `judge.false-claim` | The description claims passing checks, and GitHub's record disagrees. | Fix the failed check, or correct the description. |
 | `judge.merge-mode` | This order pays on a merge, not on acceptance checks. | Wait for a maintainer to merge. |
 | `judge.bundle-changed` | The acceptance checks on the base are not the funded ones. | Ask the buyer to restore them, or to fund again. |
-| `terms.check-failed` | A check the order names failed at your last commit. | Fix it and push; the newest commit is judged. |
+| `terms.check-failed` | A check the order names failed at your last commit. | Fix it and push; the newest commit is checked. |
 | `terms.check-pending` | A check the order names has not finished. | Wait for it to finish, then ask again. |
 | `terms.check-skipped` | A check the order names was skipped; skipped is not passed. | Make that check run on your pull request. |
 | `terms.check-absent` | A check the order names did not run on your commit. | Push a commit that starts it, or ask a maintainer. |
@@ -137,20 +137,20 @@ test fails when a refusal exists without its two sentences.
 | `command.malformed` | The command was not written in its form. | Type it the way the reply shows. |
 | `command.not_allowed` | This command belongs to someone else. | Use the command the reply offers instead. |
 | `command.misplaced` | The command was written in the wrong place. | Comment it on the issue or pull request named. |
-| `rerun.other` | The neutral judge's run was about another order or commit. | Start the neutral judge again for this pull request. |
-| `rerun.failed` | The acceptance suite did not pass when the neutral judge ran it. | Read its reasons; appeal if they are wrong. |
-| `rerun.no-trees` | The neutral judge's verdict does not name the two trees judged. | Start the neutral judge again. |
-| `rerun.image` | The neutral judge did not run the suite in the funded image. | Start the neutral judge again on a runner with containers. |
-| `rerun.not-black-box` | The neutral judge did not run your code black-box. | Start the neutral judge again. |
+| `rerun.other` | The neutral referee's run was about another order or commit. | Start the neutral referee again for this pull request. |
+| `rerun.failed` | The acceptance suite did not pass when the neutral referee ran it. | Read its reasons; appeal if they are wrong. |
+| `rerun.no-trees` | The neutral referee's verdict does not name the two trees checked. | Start the neutral referee again. |
+| `rerun.image` | The neutral referee did not run the suite in the funded image. | Start the neutral referee again on a runner with containers. |
+| `rerun.not-black-box` | The neutral referee did not run your code black-box. | Start the neutral referee again. |
 | `rerun.bundle-changed` | The acceptance checks at the base commit are not the funded ones. | Ask the buyer which commit holds the funded checks. |
-| `rerun.cannot-run` | The neutral judge could not run on its machine. | Run it again; nothing is held against you. |
+| `rerun.cannot-run` | The neutral referee could not run on its machine. | Run it again; nothing is held against you. |
 | `rerun.insufficient-evidence` | This run could not decide (insufficient evidence). | Run the workflow again; nothing is paid or held against you. |
 | `appeal.nothing` | An accepted verdict leaves nothing to appeal. | Read `/knos status` for when the money moves. |
 | `appeal.unjudged` | No verdict on this pull request is on record yet. | Comment it again once the pull request is settled. |
 | `appeal.not-supplier` | Only the account that did the work can appeal. | Ask the pull request's author to comment it. |
 | `appeal.no-reason` | The appeal gives no reason. | Comment `/knos appeal <reason>` with one sentence. |
-| `appeal.open` | An appeal of this verdict is open already. | Wait for the neutral judge's run to end. |
-| `appeal.closed` | This appeal has ended, and its verdict stands. | Open a new pull request to be judged again. |
+| `appeal.open` | An appeal of this verdict is open already. | Wait for the neutral referee's run to end. |
+| `appeal.closed` | This appeal has ended, and its verdict stands. | Open a new pull request to be checked again. |
 | `pay.76` | The signing key is not active on chain yet. | Try again after its delay and the guardian's approval. |
 | `pay.77` | The signing key has expired on chain. | Run the rotate workflow, then relay the token again. |
 | `pay.78` | The signing key was revoked on chain. | Run the workflow again for a token from another key. |
@@ -251,10 +251,10 @@ Comment it on your pull request, or run `knos appeal "<reason>" --repo owner/nam
 
 1. The verdict becomes **disputed**. Who appealed, when and why are recorded.
 2. The money stays where the order's terms put it: held, until the appeal ends or the order's deadline.
-3. The neutral judge runs the funded acceptance checks again, itself, on a runner the buyer does not configure
+3. The neutral referee runs the funded acceptance checks again, itself, on a runner the buyer does not configure
    (`knos settle --neutral <pull request URL>`, or knos-attest.yml by hand with kind `pay`).
 4. The appeal ends **accepted** (the rejection is overturned) or **rejected** (it stands), with the reason in the
-   words of the table above. A judge that could not run decides nothing: the verdict stays disputed until someone starts the neutral judge again.
+   words of the table above. A referee that could not run decides nothing: the verdict stays disputed until someone starts the neutral referee again.
 
 An order paid on a merge has no suite to run again. The arbiter the order names rules instead (kind `rule`).
 
@@ -289,7 +289,7 @@ and who decides, and the payment date (with a holdback, the part kept back and t
   starts it (section 3).
 - No order's options are read by `knos preflight` from the chain: `--auto`, `--arbiter` and `--netted --reserve` are
   told to it, and what is not told is printed as lacked or not checked.
-- The judge's refusals reach the supplier's memory when the workflow records them with
+- The referee's refusals reach the supplier's memory when the workflow records them with
   `knos.proof.history.refused`; until then preflight recalls only what this machine saw.
 
 ## Collecting a held payout
@@ -450,7 +450,7 @@ jobs:
 
 The last line is the install. It runs the free check on every pull request and none of the pull request's code, posts
 the result as one comment that later runs rewrite, and attaches the receipt as the artifact `knos-receipt-<pull
-request>` (`knos.check-receipt/1`: the repository, the pull request, the head commit, the result, the judge's
+request>` (`knos.check-receipt/1`: the repository, the pull request, the head commit, the result, the referee's
 evidence and its sha256).
 
 A pull request from a fork runs with a token that can only read: no comment is posted then, and the result is the
@@ -487,7 +487,7 @@ One order buys fifty lookups (50 x 0.10 = 5.00), because the program takes no or
 wallet that funded the order, and a replayed call is refused. The reader pays. The rated supplier never pays, for its record
 or for a grant.
 
-**budget: zero revenue until someone buys it.** Knos hosts no such server, no judge signs for lookups served, and
+**budget: zero revenue until someone buys it.** Knos hosts no such server, no referee signs for lookups served, and
 nobody outside has paid for one. The paid answer below is built and tested here; it has not been served on devnet.
 
 #### The free file and the paid answer, row by row
@@ -578,7 +578,7 @@ only when the server can answer.
 - A failed check is not always a failed test or a false claim; the interval and the dispute link stay beside a rate.
 - Accepted means the agreed checks passed. It does not show that the work has no defect.
 - Nothing recorded is not the same as nothing done.
-- The supplier's memory is kept by whoever ran the judge: a record built from it is as complete as that memory.
+- The supplier's memory is kept by whoever ran the referee: a record built from it is as complete as that memory.
 
 ### Search (0.3.31)
 

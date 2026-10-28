@@ -160,5 +160,11 @@
   "main": "509485fb3b690a946e2a260079cf51cca307f1b5",
   "outcome-data": "b59b30f3706987ea7a3426917add1ac9a19662d2"
  },
- "pull_request_heads": {}
+ "pull_request_heads": {},
+ "changed_here": {
+  "README.md": {
+   "blob": "dc012c50c27bf1cc874e4609e815175493ea921f",
+   "why": "Public wording only: banned words of the old products replaced (\"escrow\" by \"hold\", \"judge\" by \"referee\" or \"check\", \"demo\" by \"sample\") and a dead link to docs/REPRODUCE.md pointed at docs/reference/REPRODUCE.md; nothing else changed. The original blob is the one under files."
+  }
+ }
 }
