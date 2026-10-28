@@ -154,6 +154,15 @@ def with_terms(rep: dict) -> dict:
     return {**rep, "terms": t, "no_map": None if t else NO_MAP}
 
 
+def brief_without_qloo(idea: str) -> dict:
+    """The Ready brief of an idea Qloo has not answered yet: the same shape as brief(), one pre-order milestone at the
+    formula's floor of 10, with no launch city (Qloo sets the city when it answers; the brief can be edited then)."""
+    return {"title": f"Pre-orders for {idea}"[:160],
+            "milestones": [{"key": "preorders", "name": "Pre-orders", "target": "10 pre-order customers",
+                            "verifier": {"kind": "machine", "check": "test_preorders"}, "deadline_days": DEADLINE_DAYS}],
+            "kill_fee_bps": 0, "challenge_s": 86_400}
+
+
 def brief(idea: str, t: dict, persona: list[str] | None = None) -> dict:
     """The Ready brief whose money terms Qloo set: one pre-order milestone in the launch city. The taste persona's tags
     ride in the launch block, inside the criteria hash."""

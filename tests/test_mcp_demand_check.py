@@ -46,7 +46,7 @@ def local_app(monkeypatch, tmp_path):
 
 def test_calls_the_hosted_check(monkeypatch, local_app):
     monkeypatch.setenv("KNOS_WANTED_URL", local_app)
-    got = demand_tool.demand_check({"idea": "A smart water bottle that glows to remind you to drink", "place": "Lagos"})
+    got = demand_tool.demand_check({"idea": "A smart water bottle that glows to remind you to drink", "place": "Lagos", "picked": True})
     assert got["decision"] == "CANNOT_DECIDE" and got["reasons"][0] == "cannot decide: no Qloo evidence"
     assert got["target_units"] is None and len(got["report_hash"]) == 64 and got["report_url"].startswith(local_app)
     json.dumps(got)

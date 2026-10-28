@@ -27,7 +27,8 @@ MCP_TOOLS: list[dict[str, Any]] = [{
                     "segments, rising or falling, and overlap vs the leader. Returns a decision made by code: OPEN pre-orders "
                     "(target units and reserve) or REFUSE with reasons; without Qloo evidence it says 'cannot decide'. "
                     "Every number names the Qloo call that produced it. Directional demand evidence, not a sales forecast."),
-    "properties": {"idea": {"type": "string", "description": "the product idea in plain words (8 to 500 characters)"},
+    "properties": {"idea": {"type": "string", "description": "the product idea in plain words, or a paper's DOI (8 to 500 characters)"},
+                   "picked": {"type": "boolean", "description": "true when idea is the exact reading picked from the readings a first call returned"},
                    "place": {"type": "string", "description": "where to look for demand (a city or country); default United States"},
                    "leader": {"type": "string", "description": "the market leader to compare against; default Qloo's top match"},
                    **{k: qloo_families.schema(k) for k in qloo_families.FIELDS}},
@@ -52,7 +53,8 @@ def demand_check(args: dict) -> dict:
         opts = qloo_families.options({k: args[k] for k in qloo_families.FIELDS if k in args})
     except ValueError as why:
         _fail(str(why))
-    body = {"idea": idea.strip(), **{k: args[k] for k in ("place", "leader") if isinstance(args.get(k), str) and args[k].strip()}, **opts}
+    body = {"idea": idea.strip(), **{k: args[k] for k in ("place", "leader") if isinstance(args.get(k), str) and args[k].strip()}, **opts,
+            **({"picked": True} if args.get("picked") is True else {})}
     url = base_url()
     if not url.startswith(("https://", "http://127.0.0.1", "http://localhost")):
         _fail("KNOS_WANTED_URL must be an https URL (or a local server)")
@@ -69,8 +71,11 @@ def demand_check(args: dict) -> dict:
         _fail(f"the demand check at {url} answered HTTP {e.code}{': ' + said if said else ''}")
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
         _fail(f"the demand check at {url} could not be reached ({type(e).__name__}); set KNOS_WANTED_URL to the hosted app")
+    if rep.get("kind") == "which_one":           # which one do you mean? the readings first, as on the front door
+        return {**rep, "next": "call knos_demand_check again with idea set to the text of the reading you mean and picked: true"}
     d = rep.get("decision") or {}
-    return {"decision": d.get("verdict"), "reasons": d.get("reasons"), "target_units": d.get("target_units"),
+    return {"decision": d.get("verdict"), "qloo_calls": rep.get("qloo_calls"),
+            **{k: rep[k] for k in ("queued", "stand_in", "read_as", "result_line", "brief", "ready") if rep.get(k)}, "reasons": d.get("reasons"), "target_units": d.get("target_units"),
             "reserve_units": d.get("reserve_units"), "formula": d.get("formula"), "report_hash": rep.get("hash"),
             "label": rep.get("label"), "leader": (rep.get("leader") or {}).get("name"),
             "who": rep.get("who"), "where": rep.get("where"), "audiences": rep.get("audiences"), "trend": rep.get("trend"),

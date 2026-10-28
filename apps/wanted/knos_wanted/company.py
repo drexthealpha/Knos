@@ -175,6 +175,19 @@ def record_check(rep: dict, store=None) -> dict:
     return _safe(go)
 
 
+def record_queued(idea: str, reset: str, store=None) -> dict:
+    """COLD `queued_check`: a picked reading Qloo could not answer, waiting for Qloo's reset (the idea's sha256, no text)."""
+    rec = _record()
+    if rec is None:
+        return {"recorded": False, "why": "the knos package is not installed"}
+
+    def go():
+        cold = rec.append("queued_check", {"idea_sha256": sha(idea), "until": reset, "why": "Qloo's monthly limit"},
+                          claim=claim_id(sha(idea)), domain=DOMAIN, root=root(), store=store)
+        return {"recorded": True, "queued": True, "cold_seq": cold["seq"]}
+    return _safe(go)
+
+
 def record_state(report_hash: str, store=None) -> dict:
     """The decision as the agent remembers it (Sibyl, WARM). Raises NotInRecord when Sibyl is absent or holds none."""
     rec = _record()

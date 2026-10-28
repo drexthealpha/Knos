@@ -66,12 +66,12 @@ def flags_help() -> str:
     return "\n\n".join(rows)
 
 
-def ask(idea: str, place: str | None, leader: str | None, opts: dict) -> dict:
+def ask(idea: str, place: str | None, leader: str | None, opts: dict, picked: bool = False) -> dict:
     from .demand_tool import TIMEOUT_S, base_url
     url = base_url()
     if not url.startswith(("https://", "http://127.0.0.1", "http://localhost")):
         raise ValueError("KNOS_WANTED_URL must be an https URL (or a local server)")
-    body = {"idea": idea, **({"place": place} if place else {}), **({"leader": leader} if leader else {}), **opts}
+    body = {"idea": idea, **({"place": place} if place else {}), **({"leader": leader} if leader else {}), **opts, **({"picked": True} if picked else {})}
     req = urllib.request.Request(url + "/api/check", data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "User-Agent": "knos-cli"})
     try:
@@ -89,16 +89,38 @@ def summary(rep: dict) -> dict:
     fam = rep.get("families") or {}
     # the reason in one plain sentence: Qloo's month line while it is used up, else the verdict's first reason
     reason = rep.get("qloo_limit") or next(iter((rep.get("decision") or {}).get("reasons") or []), None)
-    return {"report": rep.get("hash"), "verdict": (rep.get("decision") or {}).get("verdict"), "reason": reason, "label": rep.get("label"),
+    return {"report": rep.get("hash"), "verdict": (rep.get("decision") or {}).get("verdict"), "reason": reason, "label": rep.get("label"), "qloo_calls": rep.get("qloo_calls"),
             "options": rep.get("options"), "grounding": rep.get("grounding"),
             "families": {f: {k: v for k, v in a.items() if k in ("question", "call", "answer", "hot", "by_id", "places", "brand_id")}
                          for f, a in fam.items()},
             "calls": len(rep.get("calls") or [])}
 
 
+def which_lines(w: dict) -> list[str]:
+    """Which one do you mean? The readings, numbered, and how to pick one."""
+    out = ["Which one do you mean?"]
+    pp = w.get("paper")
+    if pp:
+        out.append(f"Paper: {pp.get('title')} ({pp.get('year')}), cited {pp.get('cited_by_count')} times; {', '.join(pp.get('concepts') or [])}")
+    for i, r in enumerate(w.get("readings") or [], 1):
+        d = r.get("differs") or {}
+        out.append(f"  {i}. {r['text']}" + (f"  ({d.get('theirs') or 'no word'} against {d.get('yours') or 'no word'})" if d else ""))
+    if w.get("name_box"):
+        out.append(f"  {w.get('name_prompt') or 'Name the product this result enables'}: knos demand \"<product>\" --picked")
+    out.append("Run again with --pick N, or --picked to check your words exactly.")
+    return out
+
+
 def lines(rep: dict) -> list[str]:
     """The answer in three plain lines: the verdict, the reason (Qloo's month, else the first call's error, else the
-    verdict's first reason) and the report with its page."""
+    verdict's first reason) and the report with its page. A queued check: what it was read as, when Qloo answers,
+    and its Ready brief's criteria hash."""
+    if rep.get("kind") == "which_one":
+        return which_lines(rep)
+    if rep.get("queued"):
+        rd = rep.get("ready") or {}
+        return [rep.get("result_line") or f"Read as {rep.get('idea')}", rep["queued"]["line"],
+                f"Ready brief: criteria hash {rd.get('criteria_hash') or 'none'}" + (f"; stand-in: {rep['stand_in']['said']}" if rep.get("stand_in") else "")]
     d = rep.get("decision") or {}
     err = next((c.get("error") for c in rep.get("calls") or [] if isinstance(c, dict) and c.get("error")), None)
     reason = rep.get("qloo_limit") or err or next(iter(d.get("reasons") or []), "") or "no reason given"
@@ -124,10 +146,17 @@ def register(app, help_lines: list | None = None) -> None:
                 idea: str = typer.Argument(..., help="the product idea in plain words (8 to 500 characters)"),
                 place: str = typer.Option("", "--place", help="the launch market (city or country)"),
                 leader: str = typer.Option("", "--leader", help="the market leader to compare against"),
-                as_json: bool = typer.Option(False, "--json", help="the whole report, not the three lines")) -> None:
+                as_json: bool = typer.Option(False, "--json", help="the whole report, not the three lines"),
+                pick: int = typer.Option(0, "--pick", help="check reading N of the ones `knos demand` listed (which one do you mean?)"),
+                picked: bool = typer.Option(False, "--picked", help="check the words exactly as typed, with no readings step")) -> None:
         try:
             opts = parse(list(ctx.args))
-            rep = ask(idea, place or None, leader or None, opts)
+            rep = ask(idea, place or None, leader or None, opts, picked=picked)
+            if rep.get("kind") == "which_one" and pick:
+                rs = rep.get("readings") or []
+                if not 1 <= pick <= len(rs):
+                    raise ValueError(f"--pick 1 to {len(rs)}")
+                rep = ask(rs[pick - 1]["text"], place or None, leader or None, opts, picked=True)
         except ValueError as why:
             typer.echo(str(why), err=True)
             raise typer.Exit(2) from None
