@@ -30,9 +30,9 @@ def test_the_package_description_is_the_pinned_readme_and_no_relative_link_remai
     assert not b.pypi_stale(_version())
     # README.md itself keeps the relative links GitHub follows
     assert b.relative_left((ROOT / "README.md").read_text(encoding="utf-8"))
-    # pinned to the release, or (a file added after it, linked whole in README.md) to main: never a ref that is gone
+    # pinned to the release, or (a file or folder added after it, linked whole in README.md) to main: never a ref that is gone
     for url in re.findall(r"https://github\.com/drexthealpha/Knos/(?:blob|tree)/[^)\s\"#]+", text):
-        assert f"/v{_version()}/" in url or "/blob/main/" in url, url
+        assert f"/v{_version()}/" in url or "/blob/main/" in url or "/tree/main/" in url, url
 
 
 def test_each_kind_of_link_becomes_whole_at_the_tag(tmp_path):
