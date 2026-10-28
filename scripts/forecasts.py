@@ -21,7 +21,7 @@ PLAN = ROOT / "docs" / "reference" / "forecast_plan_v2.md"
 DATA = ROOT / "docs" / "reference" / "forecasts.json"
 PAGE = ROOT / "web" / "forecasts" / "index.html"
 GRADE_DAY = "2 Dec 2026"
-SOURCE = "https://data.bls.gov/cew/data/api/2026/2/industry/{naics}.csv"
+SOURCE = "https://data.bls.gov/cew/data/api/2025/2/industry/{naics}.csv"   # the baseline, published; the 2026 file of the same path comes on the grading day
 CALENDAR = "https://www.bls.gov/cew/release-calendar.htm"
 CRUMBS = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
     {"@type": "ListItem", "position": 1, "name": "Knos", "item": "https://drexthealpha.github.io/Knos/"},
@@ -53,7 +53,7 @@ def build(private: dict) -> tuple[str, str]:
         body.append(f'<tr data-idea="{e(r["idea"])}"><td>{e(r["idea"])}</td><td><span class="mono">{e(r["naics"])}</span> {e(r["naics_name"])}</td>'
                     f'<td data-knos>read from the app</td><td>{e((r.get("model") or {}).get("county") or "outside US data")}</td>'
                     f'<td>{e((r.get("placebo") or {}).get("county") or "not graded")}</td>'
-                    f'<td>{e(GRADE_DAY) if r["graded"] else e(r.get("not_graded") or "not graded")}</td><td><a href="{e(src)}" rel="noopener">QCEW {e(r["naics"])}</a></td></tr>')
+                    f'<td>{e(GRADE_DAY) if r["graded"] else e(r.get("not_graded") or "not graded")}</td><td><a href="{e(src)}" rel="noopener">QCEW {e(r["naics"])}, 2025</a>; 2026 on {e(GRADE_DAY)}</td></tr>')
     page = f"""<!doctype html>
 <html lang="en">
 <head>
