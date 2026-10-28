@@ -1,0 +1,91 @@
+{
+ "about": "derived values only: each recorded idea's three forecast cities, Knos's target and the date made",
+ "plan": "docs/reference/forecast_plan.md",
+ "plan_sha256": "5333fd2a12c1691aad488fb2fc4366ca65abc29e6037243f8909b1eecd674c52",
+ "rows": [
+  {
+   "idea": "a solar powered music festival",
+   "made": "2026-10-22",
+   "knos": {
+    "city": "Las Vegas-Henderson-North Las Vegas, NV",
+    "target": 23,
+    "from": "launch terms"
+   },
+   "model": "Indio, California",
+   "placebo": "Los Angeles-Long Beach-Anaheim, CA",
+   "candidates": 4
+  },
+  {
+   "idea": "an ai recipe planner for families",
+   "made": "2026-10-22",
+   "knos": {
+    "city": "Pittsburgh",
+    "target": null,
+    "from": "Qloo's first named city"
+   },
+   "model": "Columbus, Ohio",
+   "placebo": "North Myrtle Beach",
+   "candidates": 5
+  },
+  {
+   "idea": "a crypto podcast for beginners",
+   "made": "2026-10-22",
+   "knos": {
+    "city": "Tampa",
+    "target": null,
+    "from": "Qloo's first named city"
+   },
+   "model": "Miami, Florida",
+   "placebo": "Atlanta",
+   "candidates": 5
+  },
+  {
+   "idea": "a probiotic kombucha brand",
+   "made": "2026-10-22",
+   "knos": {
+    "city": "Bend",
+    "target": null,
+    "from": "Qloo's first named city"
+   },
+   "model": "Austin, Texas",
+   "placebo": "Sedona",
+   "candidates": 5
+  },
+  {
+   "idea": "a recycled ocean plastic swimwear brand",
+   "made": "2026-10-22",
+   "knos": {
+    "city": "Philo",
+    "target": null,
+    "from": "Qloo's first named city"
+   },
+   "model": "San Diego, CA",
+   "placebo": "Philo",
+   "candidates": 5
+  },
+  {
+   "idea": "a quantum physics book for kids",
+   "made": "2026-10-22",
+   "knos": {
+    "city": "New York",
+    "target": null,
+    "from": "Qloo's first named city"
+   },
+   "model": "Boulder, Colorado",
+   "placebo": "Los Angeles",
+   "candidates": 5
+  },
+  {
+   "idea": "a smart water bottle that glows to remind you to drink",
+   "made": "2026-10-22",
+   "knos": {
+    "city": "Lagos",
+    "target": null,
+    "from": "Qloo's first named city"
+   },
+   "model": "Scottsdale, Arizona",
+   "placebo": "Lagos",
+   "candidates": 1
+  }
+ ]
+}
