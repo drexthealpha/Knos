@@ -51,6 +51,7 @@ PLACES: list[tuple[str, str]] = [
     ("pyproject.toml", r'(?m)\A(?:.*\n)*?\[project\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
     ("uv.lock", r'\[\[package\]\]\r?\nname = "knos"\r?\nversion = "' + V + '"'),
     ("server.json", JSON_VERSION),                              # twice: the server, and the PyPI package it runs
+    ("server.hosted.json", JSON_VERSION),                       # the hosted server at knos.onrender.com/mcp
     ("gemini-extension.json", JSON_VERSION),
     ("plugin/.claude-plugin/plugin.json", JSON_VERSION),
     ("plugin/.codex-plugin/plugin.json", JSON_VERSION),

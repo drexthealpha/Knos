@@ -1,0 +1,16 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.drexthealpha/knos-hosted",
+  "description": "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.",
+  "repository": {
+    "url": "https://github.com/drexthealpha/Knos",
+    "source": "github"
+  },
+  "version": "0.4.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://knos.onrender.com/mcp"
+    }
+  ]
+}

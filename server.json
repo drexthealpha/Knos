@@ -22,11 +22,5 @@
         }
       ]
     }
-  ],
-  "remotes": [
-    {
-      "type": "streamable-http",
-      "url": "https://knos.onrender.com/mcp"
-    }
   ]
 }
