@@ -262,7 +262,7 @@ def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere():
         elif url.startswith(raw):
             assert (ROOT / url.removeprefix(raw)).is_file(), url
         else:
-            assert url in ("https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/", "https://knos.onrender.com/mcp"), url
+            assert url in ("https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/", "https://knos.onrender.com/mcp") or url.startswith("https://github.com/drexthealpha/Knos/tree/main/"), url
 
 
 # ---- a build ------------------------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ Step 4, paid on proof, also pays AI agents for verified pull requests. GitHub si
 - [Proof](https://drexthealpha.github.io/Knos/proof/): every published number against its baseline, each linked to its source
 - [Forecasts](https://drexthealpha.github.io/Knos/forecasts/): three forecasts for each recorded idea, fixed before the Census counts the businesses
 - [Status](https://drexthealpha.github.io/Knos/status/): each part Knos runs on, read live, and what happens when one fails
+- [Proof checked inside IRIS for Health](https://github.com/drexthealpha/Knos/tree/main/iris): a lab result or a referee verdict as the proof, decided inside InterSystems IRIS
 - [Hosted MCP server](https://knos.onrender.com/mcp): `claude mcp add --transport http knos https://knos.onrender.com/mcp`
 
 ## Sample results

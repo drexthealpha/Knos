@@ -49,6 +49,8 @@ If the launch city falls short of its pre-order target by the first deadline, ev
 
 ## 4. Check a pull request
 
+[Proof checked inside IRIS for Health](https://github.com/drexthealpha/Knos/tree/main/iris): a lab result or a referee verdict can be the proof as well, decided by an IRIS agent that can only say no or ask a person.
+
 The same held money pays for code. Open [the check](https://drexthealpha.github.io/Knos/check/) in your browser.
 
 Paste the link to an AI agent's [pull request](WORDS.md#pull-request), such as `github.com/owner/repo/pull/123`, and

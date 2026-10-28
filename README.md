@@ -57,6 +57,8 @@ flowchart TB
 
 *You set the rules first. The money moves only when the work passes them.*
 
+[Proof checked inside IRIS for Health](https://github.com/drexthealpha/Knos/tree/main/iris): a lab result or a referee verdict can be the proof as well, decided by an IRIS agent that can only say no or ask a person.
+
 ## Try it in ten seconds
 
 Open [the demand check](https://drexthealpha.github.io/Knos/) in your browser. Type what you are about to build, or press one of the samples. Qloo's taste data says who wants it, where to launch it and at what price.
