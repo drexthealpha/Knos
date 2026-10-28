@@ -1,0 +1,18 @@
+{
+ "action": "completed",
+ "check_run": {
+  "id": 4242004,
+  "name": "test_checkout_latency",
+  "head_sha": "9f1c000000000000000000000000000000000000",
+  "status": "completed",
+  "conclusion": "success",
+  "html_url": "https://github.com/example/shop/runs/4242004",
+  "output": {
+   "title": "p95 212 ms",
+   "summary": "test_checkout_latency passed: p95 212 ms over 400 requests"
+  }
+ },
+ "repository": {
+  "full_name": "example/shop"
+ }
+}

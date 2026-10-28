@@ -1,0 +1,36 @@
+{
+ "milestones": [
+  {
+   "key": "m1",
+   "name": "Checkout p95 latency under 300 ms",
+   "target": "p95 under 300 ms on test_checkout_latency",
+   "verifier": {
+    "kind": "machine",
+    "check": "ci / test_checkout_latency"
+   },
+   "deadline_days": 14
+  },
+  {
+   "key": "m2",
+   "name": "Payment API error rate under 0.5 percent",
+   "target": "error rate under 0.5 % on test_payment_errors",
+   "verifier": {
+    "kind": "machine",
+    "check": "ci / test_payment_errors"
+   },
+   "deadline_days": 21
+  },
+  {
+   "key": "m3",
+   "name": "Signup page accessibility score at least 95",
+   "target": "Lighthouse accessibility at least 95 on test_signup_a11y",
+   "verifier": {
+    "kind": "machine",
+    "check": "ci / test_signup_a11y"
+   },
+   "deadline_days": 21
+  }
+ ],
+ "kill_fee_bps": 1000,
+ "challenge_s": 259200
+}

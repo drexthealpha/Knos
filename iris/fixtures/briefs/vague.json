@@ -1,0 +1,9 @@
+{
+ "milestones": [
+  {
+   "key": "m1",
+   "name": "Make the checkout faster",
+   "target": "better performance"
+  }
+ ]
+}

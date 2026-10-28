@@ -1,0 +1,28 @@
+{
+ "resourceType": "Observation",
+ "status": "final",
+ "code": {
+  "coding": [
+   {
+    "system": "http://loinc.org",
+    "code": "2345-7",
+    "display": "Glucose"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/knos-sample-1"
+ },
+ "effectiveDateTime": "2026-10-27T10:00:00Z",
+ "valueQuantity": {
+  "value": 5.6,
+  "unit": "mmol/L",
+  "system": "http://unitsofmeasure.org",
+  "code": "mmol/L"
+ },
+ "performer": [
+  {
+   "display": "Independent Lab A"
+  }
+ ]
+}

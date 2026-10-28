@@ -1,0 +1,6 @@
+zn "USER"
+write $zv,!
+do ##class(%SYS.Python).Run("import iris; print('top:', len(list(iris.sql.exec('SELECT TOP 3 Name FROM %Dictionary.ClassDefinition ORDER BY Name'))))")
+do ##class(%SYS.Python).Run("import iris; print('fetch first:', len(list(iris.sql.exec('SELECT Name FROM %Dictionary.ClassDefinition ORDER BY Name FETCH FIRST 3 ROWS ONLY'))))")
+write "session alive after the query",!
+halt

@@ -1,0 +1,6 @@
+zn "USER"
+write $zv,!
+do ##class(%SYS.Python).Run("import iris; print('positional:', len(list(iris.sql.exec('SELECT TOP 2 Name FROM %Dictionary.ClassDefinition WHERE Name %STARTSWITH ?', '%AI'))))")
+do ##class(%SYS.Python).Run("import iris"_$char(10)_"try:"_$char(10)_"    print('keyword:', len(list(iris.sql.exec('SELECT TOP 2 Name FROM %Dictionary.ClassDefinition WHERE Name %STARTSWITH ?', name='%AI'))))"_$char(10)_"except Exception as e:"_$char(10)_"    print('keyword raised:', type(e).__name__, e)")
+write "session alive after the query",!
+halt

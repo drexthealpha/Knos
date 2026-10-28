@@ -1,0 +1,23 @@
+{
+ "code": {
+  "ready": true,
+  "criteria_hash": "b6e5ee2886201aaf4406a6bcf700c46f614b0da82ed8338a7b1fdb8d0eecfd77",
+  "missing": []
+ },
+ "lab": {
+  "ready": true,
+  "criteria_hash": "616868c8cbd5ea66406a2d01bcaa5249cdb9cebf87a1b299d3740cf63c5d341e",
+  "missing": []
+ },
+ "vague": {
+  "ready": false,
+  "criteria_hash": null,
+  "missing": [
+   "m1.target: a number with its unit, or a named test",
+   "m1.verifier",
+   "m1.deadline: 60 seconds to 90 days",
+   "m1: vague word 'better', say a number and unit instead",
+   "m1: vague word 'faster', say a number and unit instead"
+  ]
+ }
+}

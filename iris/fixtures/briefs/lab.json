@@ -1,0 +1,19 @@
+{
+ "milestones": [
+  {
+   "key": "m1",
+   "name": "Sweat glucose assay against blood reference",
+   "target": "12 samples within 5% of the blood reference, glucose under 7.0 mmol/L",
+   "verifier": {
+    "kind": "human",
+    "what": "glucose in each sample (LOINC 2345-7)",
+    "how": "the published assay protocol",
+    "who": "an independent lab",
+    "where": "a FHIR Observation from the lab"
+   },
+   "deadline_days": 30
+  }
+ ],
+ "kill_fee_bps": 500,
+ "challenge_s": 259200
+}

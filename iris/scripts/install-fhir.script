@@ -1,0 +1,4 @@
+zn "KNOS"
+set sc = ##class(Knos.Iris.Setup).Install(1)
+if 'sc { do $system.Status.DisplayError(sc) }
+halt

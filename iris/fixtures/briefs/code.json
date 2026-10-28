@@ -1,0 +1,16 @@
+{
+ "milestones": [
+  {
+   "key": "m1",
+   "name": "Checkout p95 latency under 300 ms",
+   "target": "p95 under 300 ms on test_checkout_latency",
+   "verifier": {
+    "kind": "machine",
+    "check": "ci / test_checkout_latency"
+   },
+   "deadline_days": 14
+  }
+ ],
+ "kill_fee_bps": 1000,
+ "challenge_s": 259200
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+  <Document name="knos-iris.ZPM">
+    <Module>
+      <Name>knos-iris</Name>
+      <Version>0.1.0</Version>
+      <Description>Knos Referee on IRIS: proof against a hash-locked Knos Ready brief, decided by an AI Hub agent that can only say no or ask a person.</Description>
+      <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
+      <Packaging>module</Packaging>
+      <SourcesRoot>src</SourcesRoot>
+      <Resource Name="Knos.Iris.PKG"/>
+      <FileCopy Name="python/" Target="${mgrdir}../knos/iris/python/"/>
+      <FileCopy Name="fixtures/" Target="${mgrdir}../knos/iris/fixtures/"/>
+      <Invoke Class="Knos.Iris.Setup" Method="Install"/>
+    </Module>
+  </Document>
+</Export>

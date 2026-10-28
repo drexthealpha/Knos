@@ -1,0 +1,17 @@
+# docker compose up -d --build   (from iris/, after: cp .env.example .env and bash scripts/load-image.sh <tar>)
+services:
+  iris:
+    build:
+      context: ..
+      dockerfile: iris/Dockerfile
+    image: knos-iris:local          # local only: built on the EAP image, never pushed
+    container_name: knos-iris
+    env_file: .env
+    ports:
+      - "52773:52773"
+      - "1972:1972"
+    healthcheck:
+      test: ["CMD", "python3", "-I", "/home/irisowner/knos/iris/scripts/knos_http.py", "http://localhost:52773/api/knos/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 40

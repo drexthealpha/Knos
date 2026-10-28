@@ -1,0 +1,3 @@
+write $zv,!
+set sc = 1 try { set p = ##class(%AI.Provider).Create("anthropic", {"api_key":"not-a-key","model":"claude-sonnet-5-5"}) write "Create returned: ", $select($isobject(p):$classname(p), 1:p), ! } catch e { write "Create failed: ", e.DisplayString(), ! }
+halt
