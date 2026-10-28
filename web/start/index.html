@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos. Start</title>
+<meta name="description" content="Knos in three minutes: a recorded check, your own idea or a paper, a Ready brief with devnet test money held, and a payment on proof.">
+<meta name="author" content="drexthealpha">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/start/">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Knos">
+<meta property="og:title" content="Knos. Start">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/start/">
+<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
+<link rel="stylesheet" href="../brand/tokens.css">
+<link rel="stylesheet" href="../app.css">
+<style>
+main{max-width:880px;margin:0 auto;padding:16px 16px 48px}
+.s-blocks{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:12px;counter-reset:s}
+.s-block{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:var(--card);counter-increment:s;display:grid;grid-template-columns:4.5em minmax(0,1fr);gap:2px 12px;min-height:84px}
+.s-block .s-t{grid-row:span 2;font:600 var(--s1)/1.2 var(--head);color:var(--accent)}
+.s-block h2{margin:0;font-size:var(--s1)}.s-block p{margin:0;overflow-wrap:anywhere}
+.s-deps{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:8px}
+.s-dep{display:grid;grid-template-columns:9em minmax(0,1fr);gap:2px 12px;border-bottom:1px solid var(--line);padding:6px 0;min-height:3.2em}
+.s-dep b{font-weight:600}.s-dep [data-state]{font-weight:600}
+.s-cmd{display:flex;gap:8px;align-items:center;margin:8px 0;min-width:0}
+.s-cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);font-size:var(--s-1)}
+@media (max-width:480px){.s-block{grid-template-columns:3.5em minmax(0,1fr)}.s-dep{grid-template-columns:7em minmax(0,1fr)}}
+</style>
+<script>document.documentElement.classList.add("js");try { const t = localStorage.getItem("knos-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="preconnect" href="https://drexthealpha.github.io" crossorigin>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
+</head>
+<body>
+<!-- k-bar -->
+<header class="bar k-bar" id="k-bar">
+  <a class="brand" href="../#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+  <nav id="nav" aria-label="Knos">
+    <a href="../start/" id="go-start">Start</a>
+    <a href="../#home">Check demand</a>
+    <a href="../wanted.html?to=/companies">Companies</a>
+    <a href="../wanted.html?to=/fields">Fields</a>
+    <a href="../wanted.html#projects">Projects</a>
+    <a href="https://github.com/drexthealpha/Knos/tree/main/docs" rel="noopener">Docs</a>
+    <div class="more" id="more">
+      <button id="more-button" class="more-button" type="button" aria-expanded="false" aria-controls="more-list">More</button>
+      <div class="more-list" id="more-list">
+        <a href="../wanted.html?to=/money">The money</a>
+        <a href="../pricing.html">Pricing</a>
+        <a href="../wanted.html?to=/with-without">With and without Qloo</a>
+        <a href="../wanted.html?to=/qloo-safe-use">How Knos uses Qloo safely</a>
+        <a href="../#paid-on-proof" id="go-check">Paid on proof</a>
+        <a href="../faq.html">Questions</a>
+        <a href="../how-we-test.html">How we test</a>
+      </div>
+    </div>
+  </nav>
+  <div class="tools">
+    <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+    <a class="proof" href="../proof/" data-proof>Proof</a>
+    <button id="theme" type="button" aria-label="Switch light or dark">◐</button>
+  </div>
+</header>
+<script>addEventListener("load", () => { const s = document.createElement("script"); s.src = "../brand/bar.js"; document.head.append(s); }, { once: true });</script>
+<!-- /k-bar -->
+<main id="main">
+<h1>Knos in three minutes</h1>
+<ol class="s-blocks">
+  <li class="s-block" id="s-chip"><span class="s-t">30 s</span><h2>Press a recorded check</h2>
+    <p><a href="../?q=a%20probiotic%20kombucha%20brand" data-step="chip">A probiotic kombucha brand</a>: Qloo's recorded answer, its date and every call.</p></li>
+  <li class="s-block" id="s-own"><span class="s-t">60 s</span><h2>Type your own idea or a DOI</h2>
+    <p><a href="../?q=a%20late%20night%20ramen%20spot" data-step="own">a late night ramen spot</a> or <a href="../?q=10.1126%2Fscience.1225829" data-step="doi">10.1126/science.1225829</a>, then pick the reading you mean.</p></li>
+  <li class="s-block" id="s-brief"><span class="s-t">60 s</span><h2>Open the Ready brief and hold test money</h2>
+    <p><a href="https://knos.onrender.com/app/#projects" data-step="brief">The app's projects</a>: back a milestone with devnet test money, held until the proof passes.</p></li>
+  <li class="s-block" id="s-paid"><span class="s-t">30 s</span><h2>Open the paid-on-proof record</h2>
+    <p><a href="../crossing/7b4ed16b8c2903dc/" data-step="paid">One crossing</a>, released by <a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" rel="noopener">the referee's verdict on devnet</a>.</p></li>
+</ol>
+<h2>What Knos runs on, now</h2>
+<ul class="s-deps" id="s-deps" aria-live="polite">
+  <li class="s-dep" data-dep="qloo"><b>Qloo</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
+  <li class="s-dep" data-dep="solana_devnet"><b>Solana devnet</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
+  <li class="s-dep" data-dep="sibyl"><b>Sibyl</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
+  <li class="s-dep" data-dep="iris_referee"><b>IRIS referee</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
+  <li class="s-dep" data-dep="openalex"><b>OpenAlex</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
+</ul>
+<h2>Check it yourself</h2>
+<div class="s-cmd"><code data-cmd="mcp">claude mcp add --transport http knos https://knos.onrender.com/mcp</code><button type="button" class="k-chip" data-copy="mcp">Copy</button></div>
+<div class="s-cmd"><code data-cmd="pip">pip install knos</code><button type="button" class="k-chip" data-copy="pip">Copy</button></div>
+<div class="s-cmd"><code data-cmd="program">curl -s https://api.devnet.solana.com -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"getAccountInfo","params":["5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",{"encoding":"base64","dataSlice":{"offset":0,"length":0}}]}'</code><button type="button" class="k-chip" data-copy="program">Copy</button></div>
+<p class="fine">Devnet, test money only. The last command answers "executable": true for the payment program.</p>
+</main>
+<script>
+(() => {
+  const WORD = { answering: "answering", limited: "limited", up: "up", down: "down", unknown: "not read" };
+  fetch("https://knos.onrender.com/api/status").then((r) => (r.ok ? r.json() : null)).then((s) => {
+    const deps = (s && s.deps) || {};
+    for (const li of document.querySelectorAll("[data-dep]")) {
+      const d = deps[li.dataset.dep];
+      const st = li.querySelector("[data-state]");
+      st.textContent = d ? `${WORD[d.state] || d.state}: ${d.said}` : "the app did not answer";
+      st.dataset.state = d ? d.state : "none";
+      li.querySelector("[data-down]").textContent = d ? `When it is down: ${d.when_down}` : "";
+    }
+  }).catch(() => { for (const st of document.querySelectorAll("[data-dep] [data-state]")) st.textContent = "the app did not answer"; });
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest && ev.target.closest("[data-copy]");
+    if (!b) return;
+    const text = document.querySelector(`[data-cmd="${b.dataset.copy}"]`).textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy"; }, 1600); }).catch(() => {});
+  });
+})();
+</script>
+</body>
+</html>
