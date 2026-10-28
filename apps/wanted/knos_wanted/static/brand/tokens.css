@@ -169,3 +169,8 @@ main p,main li,main dd{max-width:65ch}
   @keyframes k-row-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
   dialog[open] { animation: k-dialog-in 120ms var(--ease, ease) both; } @keyframes k-dialog-in { from { opacity: 0; scale: .98; } to { opacity: 1; scale: 1; } }
 }
+
+/* the crossing as one shape, under the box (web/brand/shape.js) */
+#k-shape{display:flex;align-items:center;gap:12px;height:64px;margin:8px 0 4px;color:var(--accent);outline-offset:4px}#k-shape svg{flex:none;overflow:visible}
+#k-shape figcaption{color:var(--ink);font-size:var(--s-1);min-width:0}#k-shape [data-num]{font-family:var(--mono);color:var(--muted)}
+@media (prefers-reduced-motion: reduce){#k-shape *{animation:none!important;transition:none!important}}

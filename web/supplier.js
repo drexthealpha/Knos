@@ -6,7 +6,7 @@
 //   readTerms(text)               an order's terms from their JSON (the `knos-terms:` line's, or a file of terms/)
 //   termsLink(text)               what a pasted link asks for: { url, issue } or null
 //   rules(terms)                  { checks, protected, allowed, notCounted }: what src/knos/preflight.py says, for the
-//                                 default (Python) judge; an order's own `.knos/proof.toml` can replace the referee's list
+//                                 default (Python) judge; an order's own `.knos/proof.toml` can replace the judge's list
 //   classify(terms, path, status) { class, code }: allowed, allowed_not_counted or refused, as `knos preflight` decides it
 //   tree(rows)                    the paths as nested folders
 //   PROTECTIONS, owed(terms, funded)  the four things a supplier is owed before starting, how each is enforced (program,
@@ -182,7 +182,7 @@ const treeHtml = (nodes) => `<ul>${nodes.map((n) => `<li${n.class ? ` data-class
 export function rulesHtml(terms) {
   const r = rules(terms);
   const checks = r.checks.length ? r.checks.map((c) => `<li><code>${esc(c)}</code> must pass.</li>`).join("") : "<li>No check is named.</li>";
-  const paid = r.mode === "tests" ? "<li>The buyer's acceptance checks must pass.</li><li>A neutral referee runs them again.</li>" : "<li>A maintainer must merge it.</li>";
+  const paid = r.mode === "tests" ? "<li>The buyer's acceptance checks must pass.</li><li>A neutral judge runs them again.</li>" : "<li>A maintainer must merge it.</li>";
   return `<h3>What will be checked</h3><ul class="sp-checks">${checks}${paid}</ul>
     <h3>Paths</h3><div class="sp-tree" data-sp="tree">${treeHtml(tree(r.rows))}</div>
     <p class="sp-legend">${CLASSES.map((c) => `<span data-class="${c}"><span class="sp-tag">${esc(LABELS[c])}</span></span>`).join(" ")}</p>`;
@@ -250,7 +250,7 @@ export function renderSupplier(el, ctx = {}) {
     const got = classify(terms, path, $("new").checked), row = byCode(got.code);
     out.dataset.class = got.class;
     out.innerHTML = got.class === "refused" ? `Refused. ${esc(row ? `${row.happened} ${row.do}` : "")} <code>${esc(got.code)}</code>`
-      : got.class === "allowed_not_counted" ? "Allowed, not counted. The referee runs the buyer's tests." : "Allowed.";
+      : got.class === "allowed_not_counted" ? "Allowed, not counted. The judge runs the buyer's tests." : "Allowed.";
   };
   const show = (t, what, funded = false) => {
     terms = t;

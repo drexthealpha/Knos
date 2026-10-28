@@ -173,7 +173,7 @@ const O = {
   mergeToo: "A merge was required beside the named checks: whoever may merge decides when, and whether.",
   seller: (id, kind) => `The evaluator's account is the payee's: account ${id} owns or started the ${kind} run, and is paid by it.`,
   buyer: (id, kind) => `The evaluator's account is the buyer's: account ${id} owns or started the ${kind} run, and funded the order.`,
-  ownRepo: "The order's own repository checked: the buyer chose it, and its administrators can accept.",
+  ownRepo: "The order's own repository judged: the buyer chose it, and its administrators can accept.",
   oneParty: (why) => `The evaluators are one party: ${why}`,
   terms: "Whether the terms asked for the right thing is outside the evaluation: a passing weak test is a weak acceptance.",
   disputed: "The verdict is contested and not resolved: which side is right is outside this receipt.",

@@ -197,8 +197,8 @@ export function renderIndex(el, weekly, esc = escHtml, feed = null) {
 // ---- Pilot ------------------------------------------------------------------------------------------------------------
 // The Pilot offer. The price is the price book's Pilot row (price.js), so the page and the book cannot differ.
 export const PILOT_DELIVERABLES = [
-  ["One reconciled invoice", "The buyer's accepted work for the 30 days, from both suppliers, set against what each billed, as one list of deliverables: the order, the milestone, the artifact, the policy version that checked it and the verdict. A deliverable is counted once, whatever number of pull requests carried it."],
-  ["A mismatch list", "Every difference between what was accepted and what was billed, named: billed and not accepted; accepted and not billed; billed twice; checked differently by the two sides. A mismatch is a dispute line, never an invoice line."],
+  ["One reconciled invoice", "The buyer's accepted work for the 30 days, from both suppliers, set against what each billed, as one list of deliverables: the order, the milestone, the artifact, the policy version that judged it and the verdict. A deliverable is counted once, whatever number of pull requests carried it."],
+  ["A mismatch list", "Every difference between what was accepted and what was billed, named: billed and not accepted; accepted and not billed; billed twice; judged differently by the two sides. A mismatch is a dispute line, never an invoice line."],
   ["A statement both sides verify", "For each supplier, one statement that the buyer computes from its ledger and the supplier computes from its own, to the same totals. It counts only what both sides have and describe alike."],
   ["Quantified findings", "Invoice preparation time, disputed lines, acceptance-to-approval time and repeat use, before and after, written down with their sample sizes and given to the buyer whether or not they flatter Knos."],
 ];

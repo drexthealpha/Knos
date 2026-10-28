@@ -3,9 +3,9 @@
  "money": "test USDC",
  "default_days": 14,
  "assurance": {
-  "in-process": "The checks load the pull request's code into the process that referees it: 7 of 63 cheating pull requests in Knos's tamper suite passed this mode (docs/reference/TAMPER.md).",
-  "black-box": "The pull request's code runs as a separate process on the referee's machine and only its output is compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a proof for every attack.",
-  "hermetic": "The pull request's code runs black-box inside a container image pinned by digest, with no network, a read-only root, no host files but its own tree, and memory, CPU, process and time limits: 0 of 63 in that suite passed black-box, and anyone can run the same referee again on the same image. That is a count for that suite, not a proof for every attack."
+  "in-process": "The checks load the pull request's code into the process that judges it: 7 of 63 cheating pull requests in Knos's tamper suite passed this mode (docs/reference/TAMPER.md).",
+  "black-box": "The pull request's code runs as a separate process on the judge's machine and only its output is compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a proof for every attack.",
+  "hermetic": "The pull request's code runs black-box inside a container image pinned by digest, with no network, a read-only root, no host files but its own tree, and memory, CPU, process and time limits: 0 of 63 in that suite passed black-box, and anyone can run the same judge again on the same image. That is a count for that suite, not a proof for every attack."
  },
  "templates": [
   {
@@ -67,7 +67,7 @@
    },
    "assurance": "black-box",
    "trusted": [
-    "The pull request's code runs as a separate process on the referee's machine and only its output is compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a proof for every attack.",
+    "The pull request's code runs as a separate process on the judge's machine and only its output is compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a proof for every attack.",
     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
     "Knos's upgrade multisig: the programs are upgradeable only through a multisig with a public 8-day time lock, until an outside review."

@@ -1,10 +1,10 @@
-// The valley as one shape (the front door, under the box): one path morphs through idea or paper, demand, Ready brief,
+// The crossing as one shape (the front door, under the box): one path morphs through idea or paper, demand, Ready brief,
 // money held and paid on proof, one dot travels it, and each state shows one real number from the live record (the
 // latest real check's verdict, its criteria hash, the devnet hold, the paid signature). It plays once in 6 s, then holds
 // still; hover or focus plays it again. Every frame is a function of the time since it started. With reduced motion,
 // or with no script, the last frame is shown as the page carries it.
 (() => {
-  const fig = document.getElementById("k-valley");
+  const fig = document.getElementById("k-shape");
   if (!fig || !fig.animate) return;
   const path = fig.querySelector("[data-shape]"), dot = fig.querySelector("[data-dot]"), word = fig.querySelector("[data-state]"), num = fig.querySelector("[data-num]");
   // five shapes of one path: the same 6 points each time, so the browser morphs it (an idea, a peak, a block, a vault, a tick)
@@ -29,7 +29,8 @@
   // the live record's numbers: the latest real verdict and its hash (GET /api/proof), the held units (GET /api/money)
   const api = fig.dataset.api || "https://knos.onrender.com";
   const get = (p) => fetch(api + p).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  Promise.all([get("/api/proof"), get("/api/money")]).then(([p, m]) => {
+  // asked after the page has loaded and gone quiet, so the first paint and the box never wait for it
+  const ask = () => Promise.all([get("/api/proof"), get("/api/money")]).then(([p, m]) => {
     const pr = (p && (p.proof || p)) || {};
     if (pr.decision && pr.decision.verdict) fig.dataset.n1 = nums[1] = String(pr.decision.verdict).replace("_", " ").toLowerCase();
     const h = (pr.ready && pr.ready.criteria_hash) || pr.criteria_hash || pr.hash;
@@ -39,6 +40,8 @@
     fig.dataset.ready = "1";
     play();
   });
+  const later = () => (globalThis.requestIdleCallback ? requestIdleCallback(ask, { timeout: 2500 }) : setTimeout(ask, 1200));
+  if (document.readyState === "complete") later(); else addEventListener("load", later, { once: true });
   fig.addEventListener("mouseenter", play);
   fig.addEventListener("focusin", play);
 })();

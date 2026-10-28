@@ -77,7 +77,7 @@ def test_the_first_screen_says_forty_words_at_most() -> None:
     # the first screen ends where "How it works" begins (since 0.3.22 it stands under the hero, before the demo's mount)
     hero = page[page.index('<div class="hero'):min(page.index('<section id="demo"'), page.index('<h2 id="how-it-works">'))]
     assert f'<h2 id="check">{OUTCOME}</h2>' in hero
-    assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 5      # the one bar of Knos: Check demand, Companies, Fields, Projects, Docs
+    assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 5      # the one bar of Knos: Start, Check demand, Companies, Fields, Projects
     fact = re.search(r'<p class="hero-fact"[^>]*>(.*?)</p>', hero, re.S)
     assert fact and len(_words(fact[1])) <= 18 and re.sub(r"<[^>]+>", "", fact[1]) == "Of 241 merged agent “tests pass” pull requests: 9 failed a test, build, lint or type check."
     merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]

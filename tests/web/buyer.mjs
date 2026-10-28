@@ -203,7 +203,7 @@ for (const name of offered) {
   const t = byName[name];
   check(`template ${name}: its ONE sentence, as knos terms show says it`, (await text(page, "#buy-sentence")) === `${t.sentence.replace(/`/g, "")}.`, await text(page, "#buy-sentence"));
   check(`  the comment that funds it is the template's own`, (await text(page, "#buy-comment")) === t.comment, await text(page, "#buy-comment"));
-  check(`  it says how it is checked (${t.assurance}) and what is still trusted`, (await text(page, "#buy-mode")) === `checked ${t.assurance}`
+  check(`  it says how it is judged (${t.assurance}) and what is still trusted`, (await text(page, "#buy-mode")) === `judged ${t.assurance}`
     && JSON.stringify(await page.$$eval("#buy-trusted li", (l) => l.map((e) => e.textContent))) === JSON.stringify(t.trusted));
   check(`  a passkey ${t.passkey ? "can" : "cannot"} fund it, and the page says so`, (await page.isVisible("#buy-pk")) === t.passkey && (t.passkey || (await text(page, "#buy-pk-why")).includes(t.passkey_why_not)));
 }

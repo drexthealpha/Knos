@@ -26,8 +26,6 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from knos import approvals, commands, controls, receipt, terms_templates as tt  # noqa: E402
 from knos.terms import ASSURANCE  # noqa: E402
-sys.path.insert(0, str(ROOT / "scripts"))
-from public_scan import plain  # noqa: E402
 
 OUT = ROOT / "web" / "buyer_templates.json"
 TITLES = {"bugfix": "A bug fix", "feature-blackbox": "A feature, checked black-box", "milestone": "A milestone with a warranty",
@@ -60,7 +58,7 @@ def build() -> str:
            "default_days": 14, "assurance": dict(ASSURANCE), "templates": [one(name) for name in tt.TEMPLATES],
            "procurement": {"directory": controls.PROCUREMENT, "files": dict(controls.FILES), "terms": controls.published_terms(),
                            "sample": {**controls.sample(), "approvals": approvals.sample_events(), "deliverable": approvals.sample_deliverable()}}}
-    return json.dumps(plain(doc), indent=1, ensure_ascii=True) + "\n"
+    return json.dumps(doc, indent=1, ensure_ascii=True) + "\n"
 
 
 if __name__ == "__main__":

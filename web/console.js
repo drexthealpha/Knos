@@ -68,7 +68,7 @@ export const RULE_WORDS = { owner: "the repository's owner", spender: "who may s
 const asPct = (p) => (typeof p === "number" ? `${p.toFixed(2)}%` : p ? `${String(p).replace(/%$/, "")}%` : "");
 
 /** Whether funding `amount` from this Balance would pass, and the rule that decides: { ok, rule, sentence, fee, effectivePct }.
- *  `byId`: the GitHub id of whoever posts the comment (0: not known, so that rule is not checked). `holds`: the Balance's money. */
+ *  `byId`: the GitHub id of whoever posts the comment (0: not known, so that rule is not judged). `holds`: the Balance's money. */
 export function explainLocal({ balance, balx, repoId, amount, byId = 0, holds = null, now = Math.floor(Date.now() / 1000) }, c) {
   const q = quote(amount, c), total = q.funderPays, left = remaining(balance, balx, now), m = (u) => `${show(u)} test USDC`;
   const out = (ok, rule, sentence) => ({ ok, rule, sentence, fee: q.fee, effectivePct: share(q.fee, amount) });
@@ -176,7 +176,7 @@ export function exceptionsOf({ lines, live = new Map(), now, refused = null, rep
       const over = o?.holdUntil && o.holdUntil <= now, share_ = show(Number(o ? o.amount - o.paid : paidHeld.held_units));
       add("review", `Paid, with ${share_} test USDC held back in the review window${o?.holdUntil ? `, which ${over ? "ended" : "ends"} ${when(o.holdUntil)}` : ""}.`,
         over ? "Release the held share to the supplier." : "If the accepted change is reverted before the window ends, run the revert so the held share comes back. Otherwise do nothing.",
-        over ? "anyone" : "a signed run of the order's repository, or of its referee", paidHeld?.transaction);
+        over ? "anyone" : "a signed run of the order's repository, or of its judge", paidHeld?.transaction);
     }
     const reverted = has("reverted");
     if (reverted) add("reverted", `Reverted inside the warranty: ${show(Number(reverted.reverted_units))} test USDC went back to the funder.`,
@@ -213,7 +213,7 @@ export function exceptionsHtml(rows, explorer, scope) {
 export const PARTS = ["What the issuer authenticated", "What the evaluator observed", "Which policy produced the verdict", "Who authorised the money, and under which limit", "What trust remains"];
 export const ANSWERS = "Today the founder alone. There is no support contract, no on-call team and no service-level agreement, and nobody else to call. "
   + "The money does not wait on that person: a refund after the deadline, the release of a holdback and the settling of a held payment can each be sent by anyone.";
-const JUDGES = { 0: "the order's own repository", 1: "a neutral run, started by hand by the owner of the repository it ran in", 2: "the referee repository the order named",
+const JUDGES = { 0: "the order's own repository", 1: "a neutral run, started by hand by the owner of the repository it ran in", 2: "the judge repository the order named",
   3: "the arbiter the order named", 9: "no token: a payment the program had already accepted" };
 
 /** The five parts of an accepted order's receipt, one line each, from its account (`o`, null when closed) and its log
@@ -227,7 +227,7 @@ export function receiptParts(o, events, tx, trusted = null) {
       : `The wallet <span class="mono">${esc(short(source))}</span> signed the funding itself${funded ? `, in ${tx(funded.tx)}` : ""}. No organisation's budget was involved: the limit was what that wallet held.`;
   return [
     [PARTS[0], `GitHub signed a token for one run of the pinned workflow${o ? ` at commit <code>${esc(o.wfSha.slice(0, 7))}</code>` : ""}. The verifier program checked that signature on chain before the money moved, in ${tx(accepted.tx)}.`],
-    [PARTS[1], `Verdict: accepted${Number(accepted.pr) ? `, for pull request #${esc(accepted.pr)}` : ""}. Judged by ${esc(JUDGES[settled?.judge] || "the order's referee")}. The run's own log stays on GitHub; the chain holds the verdict.`],
+    [PARTS[1], `Verdict: accepted${Number(accepted.pr) ? `, for pull request #${esc(accepted.pr)}` : ""}. Judged by ${esc(JUDGES[settled?.judge] || "the order's judge")}. The run's own log stays on GitHub; the chain holds the verdict.`],
     [PARTS[2], `The terms fixed at funding${o ? `, hash <span class="mono">${esc(o.terms)}</span>` : funded ? `, in ${tx(funded.tx)}` : ""}. Nobody could change them after.`],
     [PARTS[3], authorised],
     [PARTS[4], trusted?.length ? `<ul>${trusted.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "GitHub's signing key, the pinned workflow's code, and Knos's upgrade multisig. Today one person holds every key of that multisig; no outside key holder has joined."],
@@ -290,7 +290,7 @@ export function objectValues(rec, explorer) {
 /** What a reader still has to trust for this acceptance, in sentences: the record's own words about its evaluators. */
 export function trustedOf(rec) {
   const c = rec.acceptance, own = c.evaluators.some((e) => e.independent_of_buyer === false);
-  return [c.independence || "Nothing has checked this order yet.", ...(own ? ["The evaluator ran in the buyer's own repository."] : []), "GitHub's signing key, and the workflow the order pinned."];
+  return [c.independence || "Nothing has judged this order yet.", ...(own ? ["The evaluator ran in the buyer's own repository."] : []), "GitHub's signing key, and the workflow the order pinned."];
 }
 
 /** The four cards of one record, side by side where there is room. */
@@ -415,7 +415,7 @@ export function sevenHtml(rows, title) {
       <details class="k-more"><summary>Evidence</summary><ul class="plain">${r.more.map((m) => `<li class="fine">${esc(m)}</li>`).join("")}</ul></details></dd>`).join("")}</dl>`;
 }
 /** A deliverable for `sevenOf` out of one record of web/finance_data.js recordsOf, where the statement has one. The
- *  record names the policy that checked, not each requirement, so `requirements` holds the verdict alone. */
+ *  record names the policy that judged, not each requirement, so `requirements` holds the verdict alone. */
 export function deliverableOfRecord(rec, offerName = "") {
   const m = rec.commercial, s = rec.settlement, whole = (u) => proc.typed(Number(u) || 0), accepted = Boolean(rec.acceptance.accepted);
   return { id: rec.id, offer: offerName, outcome: "", supplier: rec.authorisation.supplier.map((x) => x.github_id).join(", "), artifact: rec.acceptance.artifact || "nothing yet",

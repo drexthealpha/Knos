@@ -25,7 +25,7 @@ WORDS = {
     "escrow": r"(?<![\w.])escrow(?:s|ed)?\b", "em dash": "—", "marketplace": r"market ?places?", "Kickstarter": r"kickstarter",
     "Upwork": r"upwork", "Algora": r"algora", "hackathon": r"hackathons?", "contest": r"\bcontests?\b",
     "Devpost": r"devpost", "Colosseum": r"colosseum", "prize": r"\bprizes?\b", "judge": r"\bjudg(?:e|es|ed|ing)\b",
-    "demo": r"\bdemos?\b", "k-proof": r"k-proof",
+    "demo": r"\bdemos?\b",
 }
 QLOO_RAW = {
     "Qloo affinity number": r'"affinity"\s*:\s*-?\d|affinity[^<\n]{0,12}\b0\.\d{3,}',

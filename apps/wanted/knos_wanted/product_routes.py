@@ -70,7 +70,7 @@ ROUTES = [
       "units": "integer", "wallet": "string"}),
     ("POST", "/api/project/ci", False, "Release a milestone whose check passed in CI: GitHub's record of the commit decides it",
      {"project": "string", "milestone": "string", "sha": "string"}),
-    ("POST", "/api/project/solve", True, "A referee-judged milestone (knos-referee:<round>): claim it if needed, submit code to its round, released on a passing verdict "
+    ("POST", "/api/project/solve", True, "A referee-checked milestone (knos-referee:<round>): claim it if needed, submit code to its round, released on a passing verdict "
      "(an agent key or its OAuth token is enough)", {"project": "string", "milestone": "string", "code": "string", "wallet": "string"}),
     ("GET", "/api/agent/keys", True, "Your agent keys: caps, counters and state (never a secret)", {}),
     ("POST", "/api/agent/keys", True, "Make a capped, revocable agent key (shown once): an OAuth 2.0 client for /oauth/token",
@@ -437,7 +437,7 @@ MCP_TOOLS = [
      "else, another site): a public https page containing the milestone's claim id. Both in: the referee panel releases (the FROST group: 2 of 3 independent hosts re-check and sign). " + _CONFIRM,
      "inputSchema": _obj({"project": _S, "milestone": _S, "attempt": _S, "url": _S, "role": _S, "session": _S},
                          ("project", "milestone", "attempt", "url", "role"))},
-    {"name": "knos_milestone_submit", "title": "Submit to a referee-judged milestone",
+    {"name": "knos_milestone_submit", "title": "Submit to a referee-checked milestone",
      "description": "For a milestone whose verifier is knos-referee:<round>: claims it for you if you have no attempt yet (an agent key: "
      "paid at its payout wallet, one claim of its cap), sends your whole train.py to that round's sealed referee, and when the "
      "verdict meets the target the held money is released to you with no human step. knos_tasks links the round's README. With kind observation or oru and a brief, it checks a lab's "

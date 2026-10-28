@@ -22,7 +22,7 @@ SITE = "https://drexthealpha.github.io/Knos/"
 # the front door names no other host in its pages (tests/test_settle_fixtures.py): its links to the app go through its own
 # wake page, which wakes the free server and forwards (web/wanted.html: the hash, and ?to= one of the app's pages)
 WAKE = "wanted.html"
-COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js", "valley.js")}
+COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js", "shape.js")}
 COPIES |= {f: STATIC / "fonts" / f.name for f in sorted((WEB / "fonts").iterdir()) if f.suffix in (".woff2", ".txt")}
 # the crow icon set (scripts/make_icons.py) on every Knos page, the app's included
 COPIES |= {WEB / "icon.svg": STATIC / "icon.svg", WEB / "favicon.ico": STATIC / "favicon.ico",
@@ -106,7 +106,7 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
         api, app_pages, js = HEROES[path]
         t = (WEB / "brand" / "hero.html").read_text(encoding="utf-8").strip().replace("{API}", api).replace("{APP}", app_pages).replace("{SP}", site or "./")
         t = t.replace("<!-- k-vectors -->", vectors(api, js.replace("hero.js", "vectors.js")))
-        t = t.replace("{VALLEY}", js.replace("hero.js", "valley.js"))
+        t = t.replace("{SHAPE}", js.replace("hero.js", "shape.js"))
         # hero.js runs in place, right after the proof slot: the past result is drawn before anything below it is laid
         # out (run deferred, the card arrived after the first paint and moved the page under the reader: CLS)
         code = (WEB / "brand" / "hero.js").read_text(encoding="utf-8").strip()

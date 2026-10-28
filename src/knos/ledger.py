@@ -1236,7 +1236,7 @@ def numbers(c: Canon, month: int) -> Numbers:
 # The rules, as docs/reference/METER.md prints them (tests hold the two together). `case`: what happened. `is`: what the ledger
 # makes of it. `billed`: what it adds to the accepted outcomes, the number a per-outcome price multiplies.
 RULES = (
-    ("a retry", "the same deliverable and artifact, judged again", "a new evaluation", "nothing: the deliverable is billed once"),
+    ("a retry", "the same deliverable and artifact, checked again", "a new evaluation", "nothing: the deliverable is billed once"),
     ("an alternate branch", "the same deliverable, another artifact", "a new evaluation", "nothing: the first accepted one stands"),
     ("a reopened ticket, inside the warranty", "the same deliverable, contested after it was accepted",
      "a correction of the accepted evaluation's verdict", "nothing new: the correction takes the outcome back, or leaves it"),

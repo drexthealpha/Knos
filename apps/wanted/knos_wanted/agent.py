@@ -386,7 +386,7 @@ TOOLS = [
      "description": "Every commitment on this server: held order, units, status, claim id. A locked one needs an evidence page.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "knos_tasks", "title": "Open work for contributors",
-     "description": "Open game rounds and milestones a person or agent can work on; judged and paid on devnet (test money).",
+     "description": "Open game rounds and milestones a person or agent can work on; checked and paid on devnet (test money).",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "knos_memory_search", "title": "Search everything this Knos remembers",
      "description": "FTS5 search (multilingual) over the agents' memory and the Knos Record: papers, crossings, decisions, events.",
@@ -411,8 +411,8 @@ TOOLS = [
                      "additionalProperties": False}},
     {"name": "knos_task_submit", "title": "Submit work to an open round",
      "description": "Submits the whole train.py to the open round (knos_tasks says what to change and links the task's README); "
-                    "the sealed referee judges it at once; several attempts per round. A scored attempt with a devnet `wallet` "
-                    "is paid a demo prize in test units. " + CONFIRM,
+                    "the sealed referee checks it at once; several attempts per round. A scored attempt with a devnet `wallet` "
+                    "is paid in test units. " + CONFIRM,
      "inputSchema": {"type": "object", "properties": {"round": {"type": "string"}, "name": {"type": "string"}, "code": {"type": "string"},
                                                        "wallet": {"type": "string"},
                                                        "session": {"type": "string"}}, "required": ["round", "code"],
@@ -450,7 +450,7 @@ DESCRIPTIONS = {
     "knos_sign_in": "Returns a guest session token that the tools moving devnet test money accept; ask your human first.",
     "knos_preorder": "Prepares a pre-order of an OPEN report and returns the page where your human's passkey approves it with devnet test money; ask your human first.",
     "knos_evidence": "Posts a milestone's public evidence page, whose verified evidence releases the held devnet test money to the maker; ask your human first.",
-    "knos_task_submit": "Submits a whole train.py to the open round's sealed referee and returns its verdict, with a prize in devnet test money when it scores; ask your human first.",
+    "knos_task_submit": "Submits a whole train.py to the open round's sealed referee and returns its verdict, with a payout in devnet test money when it scores; ask your human first.",
     "knos_templates": "Returns the brief templates Knos offers, from AI model evals to regulatory milestones taken from OpenRegulatory's open templates.",
     "knos_project_open": "Opens a project whose milestones each hold devnet test money until a result and an independent check arrive; ask your human first.",
     "knos_project_claim": "Claims a milestone as its maker and binds the wallet it pays in devnet test money; ask your human first.",

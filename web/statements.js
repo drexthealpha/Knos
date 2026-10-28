@@ -111,7 +111,7 @@ export function initStatements(ctx) {
 export const AUTHORISED = "authorised_by";
 export const AUDIT_COLUMNS = ["seq", "date", "time", "kind", "order", "funded_transaction", "owner_id", "funder", "commenter_id", AUTHORISED, "repository_id", "issue",
   "private", "standing", "mode", "price_units", "price", "funder_fee_units", "currency", "terms_hash", "pull_request", "artifact",
-  "supplier_ids", "wallets", "referee", "evaluator", "verdict", "paid_units", "paid", "held_units", "refunded_units", "reverted_units",
+  "supplier_ids", "wallets", "judge", "evaluator", "verdict", "paid_units", "paid", "held_units", "refunded_units", "reverted_units",
   "fee_units", "fee", "transaction", "billing_key", "billed_before", "exception", "resolved_by", "prev"];
 /** The columns of an export of these lines (or rows): all of them, or without `authorised_by` for a file written before it. */
 export const auditColumns = (lines) => (lines.some((r) => r[AUTHORISED] === undefined) ? AUDIT_COLUMNS.filter((c) => c !== AUTHORISED) : AUDIT_COLUMNS);

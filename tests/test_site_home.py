@@ -50,6 +50,7 @@ def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each(
     prose = re.sub(r'<p class="fine" id="home-when" data-not-prose>.*?</p>', " ", prose, flags=re.S)
     prose = re.sub(r'<details[^>]*data-not-prose>.*?</details>', " ", prose, flags=re.S)       # the IDT benchmark's rows
     prose = re.sub(r'<ul[^>]*data-not-prose[^>]*>.*?</ul>', " ", prose, flags=re.S)          # the measured numbers (web/brand/vectors.html)
+    prose = re.sub(r'<figure[^>]*data-not-prose[^>]*>.*?</figure>', " ", prose, flags=re.S)       # the crossing's shape: a state and its number
     prose = re.sub(r"<(button)\b[^>]*>.*?</\1>", " ", re.sub(r"<!--.*?-->", " ", prose, flags=re.S), flags=re.S)
     n = len(_words(re.sub(r"<button\b[^>]*>.*?</button>", " ", bar, flags=re.S))) + len(_words(prose))
     assert 12 <= n <= 64, n
@@ -57,7 +58,7 @@ def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each(
     # what is technical and the check of agent work are one press away, under "More" (web/brand/bar.html)
     bar_all = PAGE[PAGE.index('<header class="bar k-bar"'):PAGE.index("</header>")]
     # "More" holds 7 at most (How we verify and the role pages stay at their own addresses, #verify and the rest)
-    assert '<a href="#check-a-pull-request" id="go-check">Check a pull request</a>' in bar_all and 'how-we-test.html">How we test</a>' in bar_all
+    assert 'id="go-check">Paid on proof</a>' in bar_all and 'how-we-test.html">How we test</a>' in bar_all
     assert len(re.findall(r"<a", bar_all[bar_all.index('id="more-list"'):])) <= 7 + 1          # the 7 and the Sign in link after them
 
 

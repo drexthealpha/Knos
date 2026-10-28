@@ -15,8 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from knos import ghwords, preflight  # noqa: E402
-sys.path.insert(0, str(ROOT / "scripts"))
-from public_scan import plain  # noqa: E402
 
 BEGIN, END = "<!-- refusals: begin (scripts/supplier_docs.py) -->\n", "<!-- refusals: end -->\n"
 OWED_BEGIN, OWED_END = "<!-- protections: begin (scripts/supplier_docs.py) -->\n", "<!-- protections: end -->\n"
@@ -41,10 +39,10 @@ def main(argv: list[str]) -> int:
     doc_path, site_path = ROOT / "docs" / "reference" / "SUPPLIER.md", ROOT / "web" / "refusals.json"
     doc = doc_path.read_text(encoding="utf-8")
     head, rest = doc.split(BEGIN, 1)
-    new_doc = head + BEGIN + plain(ghwords.refusal_table()) + END + rest.split(END, 1)[1]
+    new_doc = head + BEGIN + ghwords.refusal_table() + END + rest.split(END, 1)[1]
     head, rest = new_doc.split(OWED_BEGIN, 1)
     new_doc = head + OWED_BEGIN + protections_table() + OWED_END + rest.split(OWED_END, 1)[1]
-    new_site = json.dumps({"kind": "knos-refusals", "v": 1, "rows": plain(ghwords.refusal_rows())}, indent=1, ensure_ascii=False) + "\n"
+    new_site = json.dumps({"kind": "knos-refusals", "v": 1, "rows": ghwords.refusal_rows()}, indent=1, ensure_ascii=False) + "\n"
     behind = [str(p.relative_to(ROOT)) for p, want in ((doc_path, new_doc), (site_path, new_site))
               if not p.is_file() or p.read_text(encoding="utf-8") != want]
     if "--check" in argv:

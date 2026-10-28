@@ -53,7 +53,7 @@ export function financeOf(o, now, given = {}) {
   rows.push({ id: "window", title: "Acceptance window", value: open ? (now < until ? `${left(until - now)} left` : "Closed") : "Accepted",
     detail: open ? `${o.mode === TESTS ? "Passing checks pay without a merge" : "Merged passing work is paid"} until ${when(until)}. Then unpaid money returns to the funder.`
       : "The work was accepted; the window no longer applies.", countdown: open && now < until ? until : 0 });
-  rows.push({ id: "appeal", title: "Appeal", value: o.arbiterId ? "An arbiter decides" : o.flags & F_NEUTRAL ? "A neutral referee decides" : "The checks run again",
+  rows.push({ id: "appeal", title: "Appeal", value: o.arbiterId ? "An arbiter decides" : o.flags & F_NEUTRAL ? "A neutral judge decides" : "The checks run again",
     detail: `Refused? Comment /knos appeal with your reason, free.${o.arbiterId ? ` GitHub user id ${o.arbiterId} decides.` : o.flags & F_NEUTRAL ? " Another account runs the agreed checks again." : ""}` });
   let pay;
   if (open) {

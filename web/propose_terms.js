@@ -17,7 +17,7 @@ export const MERGES = 10, FRESH_DAYS = 30, FILE = ".knos/terms.json";
 export const FIELDS = [
   ["deliverable", "What is one deliverable?"], ["evidence", "Whose signature counts?"], ["checks", "What decides?"],
   ["window", "How long can it be reopened?"], ["changes", "What may change?"], ["dispute", "Who may appeal, and to whom?"],
-  ["evaluators", "Who may referee?"], ["price", "What does it pay?"], ["deadline", "When does it end?"], ["policy", "Who may change these terms?"],
+  ["evaluators", "Who may judge?"], ["price", "What does it pay?"], ["deadline", "When does it end?"], ["policy", "Who may change these terms?"],
 ];
 const GITHUB = "https://token.actions.githubusercontent.com";
 const ISSUERS = { [GITHUB]: "GitHub Actions", "https://gitlab.com": "GitLab CI" };
@@ -29,7 +29,7 @@ const KNOS_JOBS = /^(?:prove|fund)(?:-relay|-refused)? \/ |^knos| \/ claims$/;
 const REPO = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}$/, NAMED = /^[a-z0-9][a-z0-9._-]{0,39}\/[a-z0-9][a-z0-9._-]{0,39}$/i;
 const OWNER = /^@[A-Za-z0-9][A-Za-z0-9-]{0,38}(?:\/[A-Za-z0-9._-]{1,60})?$/;
 const KINDS = {
-  "pull-request": "One deliverable is the accepted pull request for one issue. A new commit, or another pull request for the same issue, is a retry: the same deliverable, checked again and counted once.",
+  "pull-request": "One deliverable is the accepted pull request for one issue. A new commit, or another pull request for the same issue, is a retry: the same deliverable, judged again and counted once.",
   batch: "One deliverable is one batch file, named by its sha256. The same bytes sent again are a duplicate and counted once; changed bytes are a new attempt at the same batch number.",
   resolution: "One deliverable is one ticket resolved. A ticket reopened inside the window is the same deliverable, not a new one.",
 };
@@ -68,7 +68,7 @@ export function say(field, d) {
   }
   if (field === "evaluators") {
     const rows = d.list.map((e) => `\`${e.name}\` (${ISSUERS[e.issuer]}, workflow ${e.workflow}, in ${e.repository === "*" ? "any repository that neither party owns" : `${e.repository}, owned by ${e.owner}`})`).join("; ");
-    return `These may referee: ${rows}. ${d.quorum === 1 ? "One of them is enough." : `${d.quorum} of them must accept the same work, and their owners differ.`}`;
+    return `These may judge: ${rows}. ${d.quorum === 1 ? "One of them is enough." : `${d.quorum} of them must accept the same work, and their owners differ.`}`;
   }
   if (field === "price") return `Pays ${d.amount} ${d.currency}, once, for an accepted deliverable. The funder pays the fee on top.`;
   if (field === "deadline") return `The order is open for ${days(d.days)} from funding, or less if the funder cancels, which takes 7 days' notice. A token presented after that is refused, and the money goes back to its funder.`;
@@ -215,7 +215,7 @@ export async function proposeTerms(repoGiven, env = {}) {
   src.policy = [who.length ? `\`${ownersFile}\` names ${who.join(", ")} for every file.`
     : ownersFile ? `\`${ownersFile}\` names nobody for every file, so the owner, @${owner}, is proposed.` : `${repo} has no CODEOWNERS file, so the owner, @${owner}, is proposed.`];
   src.dispute = ["Template default: no arbiter is named. Name one neither side controls, or a rejection can only be undone by agreement."];
-  src.evaluators = [`Template default: the order's own repository, ${repo}, referees. Add a second owner and \`quorum 2\` if the supplier does not trust it.`];
+  src.evaluators = [`Template default: the order's own repository, ${repo}, judges. Add a second owner and \`quorum 2\` if the supplier does not trust it.`];
   const doc = {
     name: repo.toLowerCase(), version: 1,
     deliverable: { kind: "pull-request", one_per: "issue" },

@@ -4,7 +4,7 @@
  "rows": [
   {
    "code": "judge.protected-path",
-   "happened": "The change touches a path the referee protects.",
+   "happened": "The change touches a path the judge protects.",
    "do": "Take that file out; add new tests as new files."
   },
   {
@@ -49,8 +49,8 @@
   },
   {
    "code": "judge.bad-issue",
-   "happened": "The issue given to the referee is not an issue number.",
-   "do": "Run the referee again with the issue's number."
+   "happened": "The issue given to the judge is not an issue number.",
+   "do": "Run the judge again with the issue's number."
   },
   {
    "code": "judge.no-bundle",
@@ -64,7 +64,7 @@
   },
   {
    "code": "judge.image",
-   "happened": "The referee's container image could not be pulled or run.",
+   "happened": "The judge's container image could not be pulled or run.",
    "do": "Run it again; nothing is held against you."
   },
   {
@@ -84,12 +84,12 @@
   },
   {
    "code": "judge.sentinel",
-   "happened": "The referee's own passing test did not run and pass.",
+   "happened": "The judge's own passing test did not run and pass.",
    "do": "Remove whatever changes which tests are collected."
   },
   {
    "code": "judge.canary",
-   "happened": "The referee's own failing test did not fail.",
+   "happened": "The judge's own failing test did not fail.",
    "do": "Remove whatever makes every test pass."
   },
   {
@@ -145,7 +145,7 @@
   {
    "code": "terms.check-failed",
    "happened": "A check the order names failed at your last commit.",
-   "do": "Fix it and push; the newest commit is checked."
+   "do": "Fix it and push; the newest commit is judged."
   },
   {
    "code": "terms.check-pending",
@@ -234,28 +234,28 @@
   },
   {
    "code": "rerun.other",
-   "happened": "The neutral referee's run was about another order or commit.",
-   "do": "Start the neutral referee again for this pull request."
+   "happened": "The neutral judge's run was about another order or commit.",
+   "do": "Start the neutral judge again for this pull request."
   },
   {
    "code": "rerun.failed",
-   "happened": "The acceptance suite did not pass when the neutral referee ran it.",
+   "happened": "The acceptance suite did not pass when the neutral judge ran it.",
    "do": "Read its reasons; appeal if they are wrong."
   },
   {
    "code": "rerun.no-trees",
-   "happened": "The neutral referee's verdict does not name the two trees checked.",
-   "do": "Start the neutral referee again."
+   "happened": "The neutral judge's verdict does not name the two trees judged.",
+   "do": "Start the neutral judge again."
   },
   {
    "code": "rerun.image",
-   "happened": "The neutral referee did not run the suite in the funded image.",
-   "do": "Start the neutral referee again on a runner with containers."
+   "happened": "The neutral judge did not run the suite in the funded image.",
+   "do": "Start the neutral judge again on a runner with containers."
   },
   {
    "code": "rerun.not-black-box",
-   "happened": "The neutral referee did not run your code black-box.",
-   "do": "Start the neutral referee again."
+   "happened": "The neutral judge did not run your code black-box.",
+   "do": "Start the neutral judge again."
   },
   {
    "code": "rerun.bundle-changed",
@@ -264,7 +264,7 @@
   },
   {
    "code": "rerun.cannot-run",
-   "happened": "The neutral referee could not run on its machine.",
+   "happened": "The neutral judge could not run on its machine.",
    "do": "Run it again; nothing is held against you."
   },
   {
@@ -295,12 +295,12 @@
   {
    "code": "appeal.open",
    "happened": "An appeal of this verdict is open already.",
-   "do": "Wait for the neutral referee's run to end."
+   "do": "Wait for the neutral judge's run to end."
   },
   {
    "code": "appeal.closed",
    "happened": "This appeal has ended, and its verdict stands.",
-   "do": "Open a new pull request to be checked again."
+   "do": "Open a new pull request to be judged again."
   },
   {
    "code": "pay.76",

@@ -16,7 +16,7 @@
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ticked = (s) => esc(s).replace(/`([^`]*)`/g, "<code>$1</code>");
 const QUESTIONS = { deliverable: "One deliverable", evidence: "Whose signature counts", checks: "What decides", window: "Reopened for", changes: "What may change",
-  dispute: "Who may appeal", evaluators: "Who referees", price: "What it pays", deadline: "When it ends", policy: "Who changes terms" };
+  dispute: "Who may appeal", evaluators: "Who judges", price: "What it pays", deadline: "When it ends", policy: "Who changes terms" };
 const ORDER = ["checks", "changes", "policy", "evaluators", "deliverable", "price", "deadline", "window", "dispute", "evidence"];
 const STYLE = `.pt{display:grid;gap:10px;min-width:0;margin:16px 0 8px;padding:16px;border:1px solid var(--line);border-radius:var(--radius,12px);background:var(--paper-2)}
 .pt[hidden]{display:none}.pt>*{margin:0;min-width:0}.pt ol{list-style:none;padding:0;display:grid;gap:0}

@@ -26,4 +26,4 @@ def test_the_card_reads_calls_only_as_a_list_and_draws_the_past_result_last_insi
     js = (ROOT / "web" / "brand" / "hero.js").read_text(encoding="utf-8")
     assert "(r.calls || []).map" not in js and "Array.isArray(r.calls)" in js
     tail = js[js.index('root.addEventListener("click"'):]
-    assert re.search(r"try { draw(r); } catch", tail) and "if (!asked) seen(root, () => get(\"/api/proof\")" in tail and "k-proof\"" not in js   # asked at view time: no answer in the page
+    assert re.search(r"try \{ draw\(r\); \} catch", tail) and "if (!asked) seen(root, () => get(\"/api/proof\")" in tail and "k-proof\"" not in js   # asked at view time: no answer in the page

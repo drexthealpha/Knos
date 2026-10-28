@@ -70,7 +70,7 @@ That older fee was higher, with a floor of 0.40. It was stored with the order, s
 
 ## One rule
 
-**Knos never charges the maker for being checked.** The funder pays the fee, or nobody does.
+**The rule: Knos never charges the party being rated.** The maker is never charged for being checked. The funder pays the fee, or nobody does.
 
 ## What devnet can show
 
