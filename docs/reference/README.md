@@ -91,6 +91,7 @@ The documents in this folder are listed below, with the seven front pages too.
 | [qloo_lift_ranked_plan.md](qloo_lift_ranked_plan.md) | The rules of the ranked Kickstarter test, committed before it ran |
 | [taste_truth_plan.md](taste_truth_plan.md) | The rules of the MovieLens taste test, committed before it ran |
 | [where_truth_plan.md](where_truth_plan.md) | The rules of the where-demand test, committed before it ran |
+| [forecast_plan.md](forecast_plan.md) | How the forecast ledger is graded, committed before /forecasts/ was published |
 | [QLOO-COVERAGE.md](QLOO-COVERAGE.md) | every Qloo parameter, type and endpoint the docs list, and where a person sets it on each interface |
 | [IDEAS.md](IDEAS.md) | an idea in from anyone or any research source, every field; demand, then pull commitments released in stages |
 
