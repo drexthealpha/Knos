@@ -63,8 +63,8 @@
   const H = ["Time (UTC)", "Endpoint", "Parameters", "Status", "ms", "Cached"];
   fetch("https://knos.onrender.com/api/calls").then((r) => r.json()).then((j) => {
     const rows = j.calls || [];
-    const live = rows.filter((x) => x.origin !== "recorded").length;
-    sum.textContent = `${rows.length} requests, newest first: ${live} since the server started, ${rows.length - live} from its recordings. No answer is shown.`;
+    const live = rows.filter((x) => x.origin === "live").length, rec = rows.filter((x) => x.origin === "recorded" || x.origin === "cached").length;
+    sum.textContent = `${rows.length} requests, newest first: ${live} live (Qloo answered HTTP 200), ${rec} recorded, ${rows.length - live - rec} refused or not sent. No answer is shown.`;
     out.innerHTML = rows.map((x) => `<tr data-origin="${esc(x.origin)}">` + [
       esc(String(x.at || "").replace("T", " ").replace("Z", "")),
       `<code>${esc(x.call)}</code>`,
