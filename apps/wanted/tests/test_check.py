@@ -318,3 +318,11 @@ def test_named_places_are_asked_by_country_and_stay_in_the_market():
     asks = [p for path, p in fake.seen if p.get("filter.type") == "urn:entity:place"]
     assert asks and all(p.get("filter.geocode.country_code") == "US" and "filter.location.query" not in p for p in asks)
     assert [x["name"] for x in r["places"]] == ["Austin Cafe (synthetic)"]
+
+
+def test_lifts_that_do_not_separate_the_segments_are_shown_and_never_counted(monkeypatch):
+    monkeypatch.setattr(FakeQloo, "lifts", lambda self: {"running": -0.1, "video_gamer": -0.1, "a": -0.1, "b": -0.1, "gourmand": 0.0, "discount": 0.0})
+    r = run()[0]
+    assert all(a.get("flat") for a in r["audiences"]) and len(r["audiences"]) >= 3       # shown, each marked flat
+    d = r["decision"]
+    assert d["verdict"] == "REFUSE" and any("alike" in x and "none counts" in x for x in d["reasons"])
