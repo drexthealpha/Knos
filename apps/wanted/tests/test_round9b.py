@@ -142,7 +142,7 @@ def test_memory_search_over_http_and_the_harness_proxy(app, monkeypatch):
 
 
 def test_the_hosted_mcp_is_registered_and_the_report_states_qloos_limits():
-    doc = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))
+    doc = json.loads((ROOT / "server.hosted.json").read_text(encoding="utf-8"))   # the hosted server, by its own name
     assert doc["remotes"] == [{"type": "streamable-http", "url": "https://knos.onrender.com/mcp"}]
     rep = __import__("knos_wanted.check", fromlist=["demand_check"]).demand_check(IDEA, client=FakeQloo())
     assert "no prices, no market sizes" in rep["limits"] and "willingness to pay" in rep["limits"]

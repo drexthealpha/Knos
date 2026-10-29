@@ -36,7 +36,7 @@ try {
         let r = await fetch(href, { redirect: "follow" }).catch(() => null), how = "";
         const tx = href.match(/explorer\.solana\.com\/tx\/([1-9A-HJ-NP-Za-km-z]{64,90})/);
         if (tx && r && r.status === 429) {      // the explorer limits scripts: the transaction is read from devnet itself
-          const j = await fetch("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getTransaction", params: [tx[1], { maxSupportedTransactionVersion: 0 }] }) }).then((x) => x.json()).catch(() => ({}));
+          const j = await fetch("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getTransaction", params: [tx[1], { maxSupportedTransactionVersion: 1 }] }) }).then((x) => x.json()).catch(() => ({}));
           r = { status: j.result ? 200 : 404 }; how = " (the explorer answered 429; devnet holds the transaction)";
         }
         ok(r && r.status < 400, `block link ${href.slice(0, 90)}: HTTP ${r ? r.status : "no answer"}${how}`);
