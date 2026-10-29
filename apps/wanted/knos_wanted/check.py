@@ -8,10 +8,11 @@ The Qloo calls (every number in the report names the call that produced it, by i
   /v2/tags                the idea's own taste tags (tag search on its content words, tags of that kind)
   /v2/insights urn:demographics   WHO: age and gender affinity of the matched products (at the place, when given)
   /v2/insights urn:heatmap + urn:entity:place   WHERE: the areas and named places where that taste clusters
-  /v2/insights urn:entity:audience audience segments ranked by affinity
+  /v2/audiences + /v2/insights signal.demographics.audiences   WHO BUYS: candidate segments (50 a page), each scored by
+                          its lift on the products nearest this taste; the spending-habit segments set the price tier
   /v2/trending            weekly population percentile of the leader (Qloo's series ends ~24 Jul 2026: "data through")
-  /v2/analysis/compare    the idea's other matches (a) vs the leader (b): shared taste tags = overlap; else the
-                          leader's own audience segments vs the idea's (one more /v2/insights call)
+  /v2/analysis/compare    the idea's other matches (a) vs the leader (b): shared taste tags = overlap; else the share
+                          of the leader's nearest products that are also nearest this taste (one more /v2/insights call)
 
 The DECISION is deterministic code over those numbers (RULES below; why each threshold: docs/reference/DEMAND_CHECK.md).
 No language model decides. Without Qloo (no key, the budget spent, an essential call failing) the verdict is
@@ -37,7 +38,7 @@ KIND = "knos-demand-check"
 FRAMING = "Directional demand evidence, not a sales forecast."
 AGGREGATE = "aggregate taste, not a prediction about one person"
 NO_EVIDENCE = "cannot decide: no Qloo evidence"
-NO_MATCH = "no product in Qloo matches this idea"
+NOTHING_CLOSE = "Qloo knows nothing close to"    # the only refusal for a new idea: no Qloo tag shares a content word with it
 OWNED = "an existing product already owns this"
 SERVED = "the incumbent already serves this taste"
 DATA_END = "2026-07-24"     # the newest week in Qloo's /v2/trending series (measured 16 Oct 2026)
@@ -127,11 +128,13 @@ RULES = {
     "relevance": "a Qloo product counts only when its name shares 2 content words with the idea, or 1 in its name and 1 more "
                  "in its description or tags, or 3 anywhere in its name, description and tags (content words: the idea minus filler, "
                  "pitch, instruction and kind words such as podcast); "
-                 "none -> REFUSE " + NO_MATCH,
+                 "none -> a new idea, answered from the Qloo tags that share a content word with it (OPEN on its own taste, "
+                 "else not yet); no such tag -> REFUSE '" + NOTHING_CLOSE + " <its words>'",
     "clone": "the leader's name is in the idea together with a clone phrase ('exactly like', 'clone of', ...) or is "
              "the idea's whole subject -> REFUSE " + OWNED,
-    "informative_affinity": 0.55,     # a segment counts when its affinity is above Qloo's neutral 0.5 by this margin
-    "min_informative_segments": 3,    # of the top 6 segments
+    "informative_affinity": 0.55,     # a product or place counts as informative above Qloo's neutral 0.5 by this margin
+    "min_scored_segments": 3,         # audience segments whose lift Qloo answered live (documented calls, sweep 22 section 4)
+    "price_lift": 0.005,              # premium minus budget spending-segment lift above this -> premium, below minus this -> budget
     "served_overlap": 0.85,           # overlap with the leader at or above this -> REFUSE on its own (a me-too)
     "owned_overlap": 0.6,             # overlap with the leader at or above this ...
     "owned_popularity": 0.95,         # ... while the leader's Qloo popularity is at or above this -> REFUSE (owned)
@@ -141,8 +144,8 @@ RULES = {
                                       # between this and 0 it halves the target
     "falling_delta": -0.02,           # trend percentile change at or below: REFUSE (falling); a flat or missing series
     "rising_delta": 0.02,             # counts neither for nor against
-    "group_confirmed": 1.2,           # the idea names a buyer group (a /v2/audiences segment) that Qloo ranks in this
-    "group_refuted": 0.6,             # taste's top 20 above 0.55 -> target x 1.2; named but absent or neutral -> x 0.6
+    "group_confirmed": 1.2,           # the idea names a buyer group (a /v2/audiences segment) whose lift on this taste ranks in
+    "group_refuted": 0.6,             # the top half of the scored segments -> target x 1.2; named but lower or unread -> x 0.6
     "adjacent_affinity": 0.94,        # a recommended product (/v2/insights of the idea's kind) at or above this affinity
                                       # (top-10 recommendations measured 0.93-0.955 on 16 Oct 2026: 0.94 keeps the strongest),
     "adjacent_many": 5,               # not already matched, is adjacent demand: >= 5 -> target x 1.2,
@@ -151,7 +154,8 @@ RULES = {
     "adjacent_few_factor": 0.8,
     "base_units": 100,
     "units_formula": "target = round10(base x (1 + 2 x strength) x (1 - overlap/2) x audience_factor x trend_factor), "
-                     "strength = mean (affinity - 0.5) x 2 of the informative segments, trend_factor 1.25 rising else 1, "
+                     "strength = (mean affinity of the 10 products nearest the taste - 0.5) x 2, clamped to [0, 1], "
+                     "trend_factor 1.25 rising else 1, "
                      "audience_factor = 0.5 when the named audience leans mildly away (else 1) x the buyer-group factor x the "
                      "recommendations factor (see group_* and adjacent_*), clamped to [20, 1000]; "
                      "reserve = ceil(target x (0.3 + 0.2 x overlap)) units pre-ordered before the maker is paid",
@@ -177,18 +181,44 @@ def content_words(idea: str, place: str | None = None) -> list[str]:
     return out
 
 
+def _place_nouns() -> frozenset[str]:
+    from pathlib import Path
+
+    import knos
+    p = Path(knos.__file__).with_name("place_nouns.txt")
+    return frozenset(w.strip().lower() for w in p.read_text(encoding="utf-8").splitlines() if w.strip() and not w.startswith("#"))
+
+
+PLACE_NOUNS = _place_nouns()
+_HEAD_END = re.compile(r"\b(?:for|with|in|near|on|at|like|to|from|that|which|who|where|and)\b|[,;:!?.()$]")
+
+
+def head_noun(idea: str) -> str:
+    """The idea's last noun before what qualifies it: "a board game cafe with vegan snacks for students" -> "cafe"."""
+    chunk = _HEAD_END.split(f" {idea.lower()} ", 1)[0]
+    words = re.findall(r"[a-zà-ÿ]+", chunk)
+    return words[-1] if words else ""
+
+
 def kind_of(idea: str) -> str:
+    """A place (urn:entity:place) when the idea's last noun is in src/knos/place_nouns.txt; else the kind its nouns name
+    (podcast, show, film, book, video game, artist); else a brand. /search asks a place idea and a brand idea as both
+    kinds and keeps the better match (gather)."""
+    if head_noun(idea) in PLACE_NOUNS:
+        return "urn:entity:place"
     low = f" {idea.lower()} "
     for nk in NOT_KIND:
         low = low.replace(nk, " ")
     for t, words in KINDS:
-        if any(re.search(rf"\b{re.escape(w)}s?\b", low) for w in words):
+        if t != "urn:entity:place" and any(re.search(rf"\b{re.escape(w)}s?\b", low) for w in words):
             return t
     return "urn:entity:brand"
 
 
 def kind_words() -> set[str]:
-    return {_norm(x) for _, ws in KINDS for w in ws for x in w.split()}
+    """The one-word kind names, dropped from the search query ("podcast"); a multi-word kind ("night market", "food
+    truck") is never split into single words, which took "night", "food" or "coffee" out of every query."""
+    return {_norm(w) for _, ws in KINDS for w in ws if " " not in w}
 
 
 def audience_named(idea: str) -> list[tuple[str, str, str]]:
@@ -308,6 +338,7 @@ class _Run:
                  "Qloo's rate limit for this key was reached (HTTP 429): Knos waits as long as Qloo asks before asking again" if code == "429" else
                  f"Qloo could not answer this part (HTTP {code})" if code else
                  "Qloo's monthly call budget is spent" if "budget" in str(err) else
+                 "not sent: " + str(err).split("not sent: ", 1)[1][:160] if "not sent: " in str(err) else
                  "Qloo did not answer in time" if "did not answer" in str(err) else "Qloo could not be reached")
         self._add({"call": f"GET {path}", "what": what, "params": params, "ms": _ms(t0), "error": short})
         return None, None
@@ -479,31 +510,94 @@ GROUP_GENERIC = {"with", "young", "and", "professional", "enthusiast", "enthusia
                  "health", "beauty", "home", "art", "arts"}
 
 
-def _buyer_group(run: _Run, idea: str, every: list[dict]) -> dict | None:
-    """The buyer group the idea names ("for runners", "gamers"), found in Qloo's audience list (/v2/audiences), and
-    whether Qloo's ranked segments for this taste (top 20) confirm it. None when the idea names no Qloo segment."""
+AUDIENCE_TAKE = 50          # /v2/audiences takes 1 to 50 a page (Qloo's docs); a second page only when the named group is not on the first
+SEGMENTS_SCORED = 4         # segments whose lift is read for one check (one /v2/insights call each), besides the named group
+NEAREST = 10                # the products nearest the taste whose affinity the lift is measured on
+SPENDING = "urn:audience:spending_habits"
+
+
+def _named_stems(idea: str) -> set[str]:
     low = f" {idea.lower()} "
     named = low.split(" for ", 1)[1] if " for " in low else ""         # the buyers are named after "for": "... for runners"
-    stems = {_stem(w) for w in tokens(named) if len(w) > 3 and w not in STOP}
-    if not stems:
-        return None
-    kinds, _st = run.get("/v2/audiences/types", {"take": 50}, "Qloo's audience types")
-    live = [t.get("type") or t.get("id") for t in (((kinds or {}).get("results") or {}).get("audience_types") or []) if isinstance(t, dict)]
-    types = [t for t in live if isinstance(t, str) and t.startswith("urn:audience:") and t not in SENSITIVE_TYPES] or list(AUDIENCE_TYPES)
-    body, src = run.get("/v2/audiences", {"filter.audience.types": ",".join(types), "take": 300},
-                        "the named buyer group: Qloo's audience segments")
-    for a in (((body or {}).get("results") or {}).get("audiences") or []):
-        if not safe_segment(a):
-            continue
-        name = str(a.get("name") or "")
-        seg = {_stem(w) for w in tokens(name) if w not in GROUP_GENERIC}
-        if seg and seg & stems:
-            hit = next((x for x in every if str(x.get("name") or "").lower().startswith(name.lower())), None)
-            aff = hit.get("affinity") if hit else None
-            ok = isinstance(aff, (int, float)) and aff > RULES["informative_affinity"]
-            return {"segment": name, "id": a.get("id"), "affinity": aff, "rank": every.index(hit) + 1 if hit else None,
-                    "status": "confirmed" if ok else "refuted", "src": src, "src_rank": hit.get("src") if hit else None}
-    return None
+    return {_stem(w) for w in tokens(named) if len(w) > 3 and w not in STOP}
+
+
+def _seg_list(run: _Run, types: list[str], what: str, page: int = 1) -> tuple[list[dict], int | None]:
+    body, src = run.get("/v2/audiences", {"filter.audience.types": ",".join(types), "take": AUDIENCE_TAKE, "page": page}, what)
+    return [{"name": str(a.get("name") or ""), "id": a.get("id") or a.get("entity_id"), "type": a.get("parent_type") or a.get("type")}
+            for a in (((body or {}).get("results") or {}).get("audiences") or []) if safe_segment(a) and (a.get("id") or a.get("entity_id"))], src
+
+
+def _segments(run: _Run, idea: str, kind: str, via: list[str], key: str, words: list[str], tags: list[dict],
+              spending: bool = True) -> dict:
+    """Who buys and the price tier, from Qloo's documented audience calls only (sweep 22 section 4: the ranked-segment
+    value filter.type=urn:entity:audience is deprecated and the hackathon API answers it HTTP 400).
+    1. Candidate segments: GET /v2/audiences, the non-sensitive types, 50 a page.
+    2. The baseline: /v2/insights of the idea's kind with this taste as the signal (the matched products, or the top
+       products of its tags), its NEAREST products and their affinity.
+    3. One call per segment: the same question with signal.demographics.audiences=<segment> at weight high, its results
+       pinned to those products (filter.results.entities). Lift = their mean affinity with the segment minus without it.
+    A refused call is missing evidence, never counted. Measured 29 Oct 2026: Qloo answers the lift only with an interest
+    signal beside the audience (an audience alone gives every product the same 0.765), and leaves the signal's own
+    products out of the results, so the lift is read on the products nearest them."""
+    out: dict = {"rows": [], "taste": None, "group": None, "spending": [], "src": None}
+    if not via:
+        return out
+    types = [t for t in AUDIENCE_TYPES if t not in SENSITIVE_TYPES and t != SPENDING]
+    q0 = {"filter.type": kind, key: ",".join(via), "take": NEAREST}
+    run.prefetch([("/v2/audiences", {"filter.audience.types": ",".join(types), "take": AUDIENCE_TAKE, "page": 1}), ("/v2/insights", q0)]
+                 + ([("/v2/audiences", {"filter.audience.types": SPENDING, "take": AUDIENCE_TAKE, "page": 1})] if spending else []))
+    segs, s_list = _seg_list(run, types, "audience segments: Qloo's segment list (non-sensitive types, 50 a page)")
+    stems = _named_stems(idea)
+    group = None
+    for page in (1, 2):
+        group = next((a for a in segs if {_stem(w) for w in tokens(a["name"]) if w not in GROUP_GENERIC} & stems), None) if stems else None
+        if group or not stems or page == 2 or len(segs) < AUDIENCE_TAKE:
+            break
+        more, _s = _seg_list(run, types, "audience segments: Qloo's segment list, page 2 (the named buyer group)", page=2)
+        segs += more
+    body, s0 = run.get("/v2/insights", q0, f"audience segments: the {NEAREST} products nearest this taste (the lift's baseline)")
+    near = {e.get("entity_id"): (e.get("query") or {}).get("affinity") for e in (((body or {}).get("results") or {}).get("entities") or [])
+            if e.get("entity_id") and isinstance((e.get("query") or {}).get("affinity"), (int, float))}
+    if s0 is None or not near:
+        return out
+    out["taste"] = {"mean_affinity": round(sum(near.values()) / len(near), 4), "products": len(near), "src": s0}
+    out["near_ids"] = list(near)
+    idea_words = set(words) | {w for t in tags for w in _path_words(t.get("id"))}
+    own = [a for a in segs if ({_norm(w) for w in tokens(a["name"])} | _path_words(a["id"])) & idea_words]
+    pick = list({a["id"]: a for a in ([group] if group else []) + own + segs}.values())[:SEGMENTS_SCORED + (1 if group else 0)]
+    spend_segs = _seg_list(run, [SPENDING], "audience segments: Qloo's spending-habit segments (the price tier)")[0] if spending else []
+    prem = next((a for n in PREMIUM for a in spend_segs if a["name"] == n), None)
+    budg = next((a for n in BUDGET for a in spend_segs if a["name"] == n), None)
+    spend = [a for a in (prem, budg) if a]
+    pinned = {**q0, "filter.results.entities": ",".join(near)}
+
+    def q(a):
+        return {**pinned, "signal.demographics.audiences": a["id"], "signal.demographics.audiences.weight": "high"}
+    run.prefetch([("/v2/insights", q(a)) for a in pick + spend])
+
+    def lift(a, what):
+        b, s = run.get("/v2/insights", q(a), what, broaden=False)
+        got = {e.get("entity_id"): (e.get("query") or {}).get("affinity") for e in (((b or {}).get("results") or {}).get("entities") or [])}
+        both = [k for k in near if isinstance(got.get(k), (int, float))]
+        return (round(sum(got[k] - near[k] for k in both) / len(both), 4) if both else None), s, len(both)
+    for a in pick:
+        v, s, n = lift(a, f"audience segments: lift of {a['name']} on this taste")
+        if v is not None:
+            out["rows"].append({"name": a["name"], "id": a["id"], "type": a.get("type"), "lift": v, "products": n, "src": s})
+    for a in spend:
+        v, s, n = lift(a, f"audience segments: lift of {a['name']} (spending habits, the price tier)")
+        if v is not None:
+            out["spending"].append({"name": a["name"], "id": a["id"], "lift": v, "premium": a is prem, "src": s})
+    out["rows"].sort(key=lambda r: -r["lift"])
+    if group:
+        hit = next((r for r in out["rows"] if r["id"] == group["id"]), None)
+        rank = out["rows"].index(hit) + 1 if hit else None
+        ok = hit is not None and rank is not None and rank <= max(1, len(out["rows"]) // 2)
+        out["group"] = {"segment": group["name"], "id": group["id"], "lift": hit["lift"] if hit else None, "rank": rank,
+                        "of": len(out["rows"]), "status": "confirmed" if ok else "refuted", "src": hit["src"] if hit else s_list}
+    out["src"] = s0
+    return out
 
 
 def _recommend(run: _Run, kind: str, signal: dict, known: set, tags: list[dict] | None = None) -> dict | None:
@@ -528,14 +622,6 @@ def _recommend(run: _Run, kind: str, signal: dict, known: set, tags: list[dict] 
     return {"items": rows, "adjacent": [r["name"] for r in adj], "strong": len(adj), "src": src}
 
 
-def _audience(run: _Run, signal: dict, what: str, take: int = 6) -> tuple[list[dict], int | None]:
-    body, src = run.get("/v2/insights", {"filter.type": "urn:entity:audience", "take": take, **signal}, what)
-    rows = [{"name": a.get("disambiguation") or a.get("name"), "id": a.get("entity_id") or a.get("id"),
-             "affinity": (a.get("query") or {}).get("affinity"), "src": src}
-            for a in (((body or {}).get("results") or {}).get("entities") or [])[:take] if safe_segment(a)]
-    return rows, src
-
-
 # words of a Qloo id path that say nothing about the idea ("urn:audience:hobbies_and_interests:sneakerheads")
 PATH_GENERIC = {"urn", "tag", "audience", "qloo", "keyword", "genre", "category", "subtype", "and", "the", "of", "interest",
                 "hobbie", "hobby", "lifestyle", "preference", "communitie", "community", "global", "issue", "investing", "entity"}
@@ -553,37 +639,31 @@ def tied(row: dict, words: list[str], tags: list[dict]) -> bool:
     return bool(own & idea)
 
 
-def _who_wants(run: _Run, tags: list[dict], ents: list[dict], kind: str = "urn:entity:brand", per: int = 6) -> list[dict]:
-    """"Who wants it": Qloo's audiences of products, read with signal.interests.entities (a tag alone as the signal
-    answers Qloo's neutral 0.5 for every idea: Wrestling, Sneakerheads, Golf). The products are the idea's matched ones,
-    and, for each of its own taste tags, the tag's top products in the idea's kind (/v2/insights filter.tags): an idea
-    no product matches still reaches the people of its taste. Only audiences above neutral (rules: informative_affinity)
-    are shown, each tied to the matched product, or to the tag and the product it came through. Shown only; the
-    verdict does not read them."""
+def _tag_tops(run: _Run, tags: list[dict], ents: list[dict], kind: str = "urn:entity:brand") -> list[dict]:
+    """The products that carry this taste: the idea's matched ones, and for each of its own taste tags the tag's top
+    products in the idea's kind (/v2/insights filter.tags), so an idea no product matches still reaches the people of
+    its taste. Each keeps what ties it to the idea (the product itself, or the tag it came through)."""
     tags = [t for t in tags if t.get("id")]
     run.prefetch([("/v2/insights", {"filter.type": kind, "filter.tags": t["id"], "take": 2}) for t in tags])
-    asks = [("product", m, None) for m in ents if m and m.get("id")]
-    known = {m["id"] for _, m, _ in asks}
+    asks = [{"name": m.get("name"), "id": m["id"], "tie": {"kind": "product", "name": m.get("name"), "id": m["id"]}} for m in ents if m and m.get("id")]
+    known = {a["id"] for a in asks}
     for t in tags:
         body, _ = run.get("/v2/insights", {"filter.type": kind, "filter.tags": t["id"], "take": 2},
                           f"who wants it: the top products of the tag {t.get('name')}", broaden=False)
         for e in (((body or {}).get("results") or {}).get("entities") or [])[:2]:
             if e.get("entity_id") and e["entity_id"] not in known:
                 known.add(e["entity_id"])
-                asks.append(("tag", {"name": e.get("name"), "id": e["entity_id"]}, t))
-    asks = asks[:6]
-    run.prefetch([("/v2/insights", {"filter.type": "urn:entity:audience", "take": per, "signal.interests.entities": m["id"]}) for _, m, _ in asks])
-    out, seen = [], set()
-    for how, m, tag in asks:
-        rows, src = _audience(run, {"signal.interests.entities": m["id"]}, f"who wants it: audiences of the product {m.get('name')}"
-                              + (f" (top in the tag {tag.get('name')})" if tag else ""), take=per)
-        tie = ({"kind": "tag", "name": tag.get("name"), "id": tag["id"], "via": m.get("name"), "via_id": m["id"]} if tag else
-               {"kind": "product", "name": m.get("name"), "id": m["id"]})
-        for a in _informative(rows):
-            if a.get("name") and a["name"] not in seen:
-                seen.add(a["name"])
-                out.append({**a, "tie": tie, "src": src})
-    return sorted(out, key=lambda a: -a["affinity"])[:6]
+                asks.append({"name": e.get("name"), "id": e["entity_id"],
+                             "tie": {"kind": "tag", "name": t.get("name"), "id": t["id"], "via": e.get("name"), "via_id": e["entity_id"]}})
+    return asks[:6]
+
+
+def _who_wants(seg: dict, tops: list[dict]) -> list[dict]:
+    """"Who wants it": the scored segments (_segments) with the highest lift, each tied to the products the lift was read
+    through. Shown only; the verdict reads the segments through decide()."""
+    tie = (tops[0]["tie"] if len(tops) == 1 else {"kind": "products", "name": ", ".join(str(a["name"]) for a in tops[:3]),
+                                                   "id": ",".join(a["id"] for a in tops[:3])}) if tops else None
+    return [{**r, "tie": tie} for r in (seg.get("rows") or [])[:6]]
 
 
 ALSO_LOVE = (("music", "urn:entity:artist"), ("film", "urn:entity:movie"))
@@ -670,8 +750,61 @@ def _tag_map(run: _Run, tag: str, place: str | None) -> list[dict]:
             for h in (((body or {}).get("results") or {}).get("heatmap") or [])[:HEAT_CELLS]]
 
 
-def _informative(rows: list[dict]) -> list[dict]:
-    return [a for a in rows if isinstance(a.get("affinity"), (int, float)) and a["affinity"] > RULES["informative_affinity"]]
+def _new_idea(run: _Run, ev: dict, idea: str, kind: str, place: str | None, words: list[str], verdict_only: bool) -> dict:
+    """A new idea has no existing product, so it is answered from its own taste (N1), never refused for being new:
+    1. the Qloo tags that share a content word with it (gather's /v2/tags search);
+    2. /v2/insights of its kind with those tags as signal.interests.tags (and signal.location.query when a place is
+       given): the products or places Qloo ties to that taste, each with its affinity;
+    3. who buys: Qloo's demographics and the audience lift (_segments) on those products;
+    4. where to launch (the full card): the destinations, heatmap and named places of that taste.
+    With no tag sharing a word, decide() says "Qloo knows nothing close to <words>"."""
+    tags = [t for t in ev["tags"] if t.get("id")][:3]
+    if not tags:
+        return ev
+    q_t = {"filter.type": kind, "signal.interests.tags": ",".join(t["id"] for t in tags), "take": NEAREST,
+           **({"signal.location.query": place} if place else {})}
+    body, s_t = run.get("/v2/insights", q_t, f"the idea's own taste: {kind.split(':')[-1]}s Qloo ties to the tags "
+                        + ", ".join(str(t["name"]) for t in tags), broaden=False)
+    items = []
+    for e in (((body or {}).get("results") or {}).get("entities") or []):
+        if not e.get("entity_id"):
+            continue
+        geo = (e.get("properties") or {}).get("geocode") or {}
+        items.append({"name": e.get("name"), "id": e["entity_id"], "affinity": (e.get("query") or {}).get("affinity"),
+                      "area": ", ".join(str(x) for x in (geo.get("name"), geo.get("admin1_region")) if x) or None,
+                      "price_level": (e.get("properties") or {}).get("price_level"), "src": s_t})
+    ev["taste_answer"] = {"kind": kind, "tags": [{"name": t["name"], "id": t["id"], "src": t.get("src")} for t in tags],
+                          "items": items[:6], "src": s_t}
+    via, key, said = [x["id"] for x in items[:3]], "signal.interests.entities", "the products nearest its taste tags"
+    if not via:
+        via, key, said = [t["id"] for t in tags], "signal.interests.tags", "its taste tags"
+    loc = place or DEFAULT_PLACE
+    q_who = {"filter.type": "urn:demographics", key: ",".join(via), **({"signal.location.query": place} if place else {})}
+    run.prefetch([("/v2/insights", q_who)])
+    seg = _segments(run, idea, kind, via, key, words, ev["tags"], spending=not verdict_only)
+    body, s5 = run.get("/v2/insights", q_who, "who: age and gender affinity of the people of this taste")
+    demo = ((body or {}).get("results") or {}).get("demographics") or []
+    q = ((demo[0] or {}).get("query") or {}) if demo else {}
+    if q.get("age") or q.get("gender"):
+        age, gender = q.get("age") or {}, q.get("gender") or {}
+        ev["who"] = {"age": age, "gender": gender, "top_age": max(age, key=age.get) if age else None,
+                     "top_gender": max(gender, key=gender.get) if gender else None, "src": s5}
+    ev["audiences"] = [{**r, "tied": tied(r, words, ev["tags"])} for r in seg["rows"][:6]]
+    ev["taste"], ev["spending"], ev["buyer_group"] = seg["taste"], seg["spending"], seg["group"]
+    ev["near_ids"] = seg.get("near_ids") or []
+    ev["place"] = loc
+    if kind == "urn:entity:place":
+        ev["places"] = [{"name": x["name"], "area": x["area"] or "", "price_level": x["price_level"], "src": s_t} for x in items[:5]]
+    if verdict_only:
+        return ev
+    tops = [{"name": x["name"], "id": x["id"], "tie": {"kind": "tag", "name": tags[0]["name"], "id": tags[0]["id"],
+                                                        "via": x["name"], "via_id": x["id"]}} for x in items[:3]]
+    ev["who_wants"] = _who_wants(seg, tops)
+    run.prefetch(_also_love_q(via, key) + _launch_q(via, place, key))
+    ev["also_love"] = _also_love(run, via, said, key=key)
+    ev["launch"] = _launch(run, via, place, key=key)
+    ev["price"] = price_tier(ev["spending"], [x["price_level"] for x in items])
+    return ev
 
 
 # a demand check's time budget: past it, a question that is not essential is left out, said so. Off: at 8 s, 20 cold
@@ -696,21 +829,33 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
     if not words:
         return ev
     kind = ev["product_type"] = kind_of(idea)
-    q_words = [w for w in words if w not in kind_words()] or words
-    query = " ".join(q_words[:5]) + (f" {place}" if place and kind == "urn:entity:place" else "")
-    q_fams = {"filter.parents.types": kind, "take": 10}
-    q_tags = {"filter.query": " ".join(q_words[:6]), "feature.semantic_search": "true", "feature.typo_tolerance": "true",
-              "filter.parents.types": kind, "take": 8}
-    run.prefetch([("/v2/tags/types", q_fams), ("/v2/tags", q_tags)])     # they need only the idea's words: asked with the search
-    body, src = run.get("/search", {"query": query, "types": kind, "take": 12, "sort_by": "match"}, "closest existing products")
+    drop = kind_words() | {_norm(w) for w in PLACE_NOUNS}
+    q_words = [w for w in words if w not in drop] or words
+    rel = q_words
+    both = kind in ("urn:entity:place", "urn:entity:brand")           # a place or a brand idea is searched as both kinds
+    other = ("urn:entity:brand" if kind == "urn:entity:place" else "urn:entity:place") if both else None
+
+    def q_search(k):
+        return {"query": " ".join(q_words[:5]) + (f" {place}" if place and k == "urn:entity:place" else ""), "types": k, "take": 12, "sort_by": "match"}
+    q_tags = {"filter.query": " ".join(q_words[:6]), "feature.semantic_search": "true", "feature.typo_tolerance": "true", "take": 8}
+    run.prefetch([("/v2/tags", q_tags)] + ([("/search", q_search(other))] if other else []))   # asked with the search
+    body, src = run.get("/search", q_search(kind), "closest existing products")
     if src is None:
         return ev
-    rel = [w for w in words if w not in kind_words()] or words
     found = _dedupe([_ent(r, src, rel) for r in _results(body) if r.get("entity_id")])
+    if other:
+        b_o, s_o = run.get("/search", q_search(other), f"closest existing products, asked as a {other.split(':')[-1]}", broaden=False)
+        alt = _dedupe([_ent(r, s_o, rel) for r in _results(b_o) if r.get("entity_id")]) if s_o else []
+        if sum(m["relevant"] for m in alt) > sum(m["relevant"] for m in found):          # the better match decides the kind
+            kind, found, body, src = other, alt, b_o, s_o
+            ev["product_type"] = kind
+            ev["kind_switched"] = {"from": kind_of(idea), "to": kind, "why": "more relevant matches as this kind"}
+    query = q_search(kind)["query"]
+    q_fams = {"filter.parents.types": kind, "take": 10}
     # Qloo's text search reads a long query as one phrase: when nothing relevant comes back, ask again with the idea's
     # word pairs (at most 2 more calls), keeping only what passes the same relevance gate.
     if not any(m["relevant"] for m in found) and len(_results(body)) >= 12:     # the next page of the same answer first
-        b2, s2 = run.get("/search", {"query": query, "types": kind, "take": 12, "offset": 12, "sort_by": "match"},
+        b2, s2 = run.get("/search", {"query": query, "types": kind, "take": 12, "page": 2, "sort_by": "match"},   # Qloo documents page, not offset
                          "closest existing products (the next 12)")
         found = _dedupe(found + [_ent(r, s2, rel) for r in _results(b2) if r.get("entity_id")]) if s2 else found
     if not any(m["relevant"] for m in found) and len(q_words) > 2:
@@ -742,8 +887,9 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
         lead = max(ev["matches"], key=lambda m: len(m["matched_words"]) + 2 * len(m["name_words"]) + (m.get("popularity") or 0))
     near = [m for m in ev["matches"] if lead is None or m["id"] != lead["id"]][:3]
     ev["leader"] = lead
-    fams, _sf = run.get("/v2/tags/types", q_fams, f"tag families Qloo keeps for {kind.split(':')[-1]}s")
-    ev["tag_families"] = [t.get("type") for t in ((fams or {}).get("results") or {}).get("tag_types") or []][:8]
+    if not verdict_only:                             # shown on the full card only
+        fams, _sf = run.get("/v2/tags/types", q_fams, f"tag families Qloo keeps for {kind.split(':')[-1]}s")
+        ev["tag_families"] = [t.get("type") for t in ((fams or {}).get("results") or {}).get("tag_types") or []][:8]
     sig_ents = [m["id"] for m in near] or ([lead["id"]] if lead else [])
     # every question that needs only the matched products (or, with none, the top tag's map for the retry) goes out now,
     # before "who wants it": the verdict waits on the slowest of them, not on their sum
@@ -765,23 +911,23 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
         # every question that needs only the matched products, at once: the first verdict waits on the slowest of them,
         # not on their sum; the in-order calls below are then answered from the cache, numbered as always
         run.prefetch([("/v2/insights", {"filter.type": "urn:demographics", **signal}), ("/v2/insights", q6), ("/v2/insights", q6_broad),
-                      ("/v2/insights", q7), ("/v2/insights", q11), ("/v2/insights", q10),
-                      ("/v2/insights", {"filter.type": "urn:entity:audience", "take": 20, **signal})])
+                      ("/v2/insights", q7), ("/v2/insights", q11), ("/v2/insights", q10)])
         run.prefetch(_also_love_q(sig_ents, "signal.interests.entities"))
     elif ev["tags"]:
         run.prefetch([("/v2/insights", _tag_map_q(ev["tags"][0]["id"], place))])
+    if not sig_ents:                                 # no existing product matches: answered from the idea's own taste (N1)
+        return _new_idea(run, ev, idea, kind, place, words, verdict_only)
     # the verdict card (verdict_only) reads none of who-wants-it, also-loved, the map or the launch: they come with the full card
-    ev["who_wants"] = [] if verdict_only else _who_wants(run, ev["tags"][:3], [m for m in (near or ([lead] if lead else []))][:2], kind)
-    via = sig_ents or list(dict.fromkeys(a["tie"]["via_id"] for a in ev["who_wants"] if (a.get("tie") or {}).get("via_id")))[:3]
-    key, said = "signal.interests.entities", "the products it matched" if sig_ents else "the top products of its taste tags"
-    if not via:                                      # no product carries the taste: the idea's own tags are the signal
-        via, key, said = [t["id"] for t in ev["tags"][:3]], "signal.interests.tags", "its taste tags"
-    if not sig_ents and via and not verdict_only:
-        run.prefetch(_also_love_q(via, key) + _launch_q(via, place, key))
+    mine = [m for m in (near or ([lead] if lead else []))][:2]
+    tops = _tag_tops(run, ev["tags"][:3], mine, kind) if not verdict_only else \
+        [{"name": m.get("name"), "id": m["id"], "tie": {"kind": "product", "name": m.get("name"), "id": m["id"]}} for m in mine]
+    via, key, said = sig_ents, "signal.interests.entities", "the products it matched"
+    seg = _segments(run, idea, kind, via, key, words, ev["tags"], spending=not verdict_only)   # who buys and the price tier
+    ev["audiences"] = [{**r, "tied": tied(r, words, ev["tags"])} for r in seg["rows"][:6]]
+    ev["taste"], ev["spending"], ev["buyer_group"] = seg["taste"], seg["spending"], seg["group"]
+    ev["near_ids"] = seg.get("near_ids") or []
+    ev["who_wants"] = [] if verdict_only else _who_wants(seg, tops)
     ev["also_love"] = None if verdict_only else _also_love(run, via, said, key=key)
-    if not sig_ents:
-        ev["launch"] = _launch(run, via, place, key=key) if via and not verdict_only else None
-        return ev
     body, s5 = run.get("/v2/insights", {"filter.type": "urn:demographics", **signal}, "who: age and gender affinity")
     demo = ((body or {}).get("results") or {}).get("demographics") or []
     q = ((demo[0] or {}).get("query") or {}) if demo else {}
@@ -790,9 +936,6 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
         ev["who"] = {"age": age, "gender": gender, "top_age": max(age, key=age.get) if age else None,
                      "top_gender": max(gender, key=gender.get) if gender else None, "src": s5}
     signal_before = dict(signal)
-    every, _ = _audience(run, signal, "audience segments ranked by affinity", take=20)
-    ev["audiences"] = [{**a, "tied": tied(a, words, ev["tags"])} for a in every[:6]]
-    ev["buyer_group"] = _buyer_group(run, idea, every)
     if ev["buyer_group"] and ev["buyer_group"].get("id"):
         signal = {**signal, "signal.demographics.audiences": ev["buyer_group"]["id"]}       # the named group steers the later calls
     ev["place"] = loc
@@ -861,12 +1004,12 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
 
     def versus():
         if lead:
-            ev["versus"] = _versus(run, near, lead, signal, ev["audiences"])
+            ev["versus"] = _versus(run, near, lead, signal, ev.get("near_ids") or [], kind)
     # the independent parts, at once (each its own Qloo calls; the call list is numbered as each answer lands)
     with ThreadPoolExecutor(max_workers=7) as ex:
         for f in [ex.submit(x) for x in ((recommended, trend, versus) if verdict_only else (places, persona, cities, ladder, recommended, trend, versus))]:
             f.result()
-    ev["price"] = price_tier(every, [p_.get("price_level") for p_ in ev["places"]])
+    ev["price"] = price_tier(ev.get("spending") or [], [p_.get("price_level") for p_ in ev["places"]])
     # the verdict reads no `where` (the brief's launch terms do) and Qloo's heatmap is its slowest answer: read last,
     # so its wait overlaps everything above (it was asked at the start, with the other independent questions)
     if verdict_only:
@@ -878,8 +1021,9 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
     return ev
 
 
-def _versus(run: _Run, near: list[dict], lead: dict, signal: dict, idea_aud: list[dict]) -> dict | None:
-    """Overlap with the leader: shared taste tags when both sides have enough, else shared informative segments.
+def _versus(run: _Run, near: list[dict], lead: dict, signal: dict, mine_near: list[str], kind: str = "urn:entity:brand") -> dict | None:
+    """Overlap with the leader: shared taste tags when both sides have enough, else the share of the leader's nearest
+    products that are also nearest this taste (/v2/insights of the idea's kind, NEAREST each).
     Needs at least one matched product besides the leader (else there is nothing to compare: None)."""
     if not near:
         return None
@@ -896,15 +1040,18 @@ def _versus(run: _Run, near: list[dict], lead: dict, signal: dict, idea_aud: lis
             return {"leader": lead["name"], "method": "shared taste tags (compare)", "overlap": round(len(shared) / min(len(a), len(b)), 3),
                     "shared": sorted(shared)[:8], "whitespace": sorted(set(a) - set(b))[:8], "leader_only": sorted(set(b) - set(a))[:8],
                     "sizes": [len(a), len(b)], "src": s8}
-    loc = {k: v for k, v in signal.items() if k == "signal.location.query"}
-    rows, s9 = _audience(run, {"signal.interests.entities": lead["id"], **loc}, f"the leader's ({lead['name']}) audience segments", take=6)
-    mine, theirs = {a["name"] for a in _informative(idea_aud)}, {a["name"] for a in _informative(rows)}
-    if s9 is None or len(mine) < RULES["min_informative_segments"] or len(theirs) < RULES["min_informative_segments"]:
+    if len(mine_near) < RULES["min_compare_tags"]:
         return None
+    body, s9 = run.get("/v2/insights", {"filter.type": kind, "signal.interests.entities": lead["id"], "take": NEAREST},
+                       f"the leader's ({lead['name']}) {NEAREST} nearest products", broaden=False)
+    rows = {e.get("entity_id"): e.get("name") for e in (((body or {}).get("results") or {}).get("entities") or []) if e.get("entity_id")}
+    if s9 is None or len(rows) < RULES["min_compare_tags"]:
+        return None
+    mine, theirs = set(mine_near), set(rows)
     shared = mine & theirs
-    return {"leader": lead["name"], "method": "shared audience segments (Qloo has too few tags to compare)",
-            "overlap": round(len(shared) / min(len(mine), len(theirs)), 3), "shared": sorted(shared), "whitespace": sorted(mine - theirs),
-            "leader_only": sorted(theirs - mine), "sizes": [len(mine), len(theirs)], "src": s9}
+    return {"leader": lead["name"], "method": "shared nearest products (Qloo has too few tags to compare)",
+            "overlap": round(len(shared) / min(len(mine), len(theirs)), 3), "shared": sorted(str(rows[k]) for k in shared)[:8],
+            "whitespace": [], "leader_only": sorted(str(rows[k]) for k in theirs - mine)[:8], "sizes": [len(mine), len(theirs)], "src": s9}
 
 
 def _clone(idea: str, lead: dict | None, words: list[str]) -> str | None:
@@ -925,11 +1072,13 @@ def decide(ev: dict, live: bool, idea: str = "") -> dict:
     none = {"target_units": None, "reserve_units": None}
     if not live:
         return {"verdict": "CANNOT_DECIDE", "reasons": [NO_EVIDENCE], **none}
-    if not ev["matches"]:
-        why = f"{NO_MATCH}" + (f" (content words: {', '.join(ev['words'][:6])})" if ev["words"] else " (no content words)")
+    if not ev["matches"] and not ev.get("tags"):
+        why = (f"{NOTHING_CLOSE} {', '.join(ev['words'][:6])}" if ev["words"] else f"{NOTHING_CLOSE} these words (no content words)")
         if ev.get("unrelated"):
             why += f"; Qloo's nearest results share too few of its content words: {', '.join(u['name'] for u in ev['unrelated'][:3])}"
         return {"verdict": "REFUSE", "reasons": [why], **none}
+    if not ev["matches"]:
+        return _decide_new(ev)
     reasons = []
     lead, vs = ev["leader"], ev["versus"]
     c = _clone(idea, lead, ev["words"])
@@ -947,11 +1096,11 @@ def decide(ev: dict, live: bool, idea: str = "") -> dict:
     elif vs["overlap"] >= RULES["owned_overlap"] and (lead.get("popularity") or 0) >= RULES["owned_popularity"]:
         reasons.append(f"{OWNED}: {lead['name']} (popularity {lead['popularity']:.2f}) shares {vs['overlap']:.0%} "
                        f"({vs['method']}, >= {RULES['owned_overlap']:.0%})")
-    info = _informative(ev["audiences"])
-    if len(info) < RULES["min_informative_segments"] or not ev["who"]:
-        reasons.append(f"audience too thin: {len(info)} of {len(ev['audiences'])} segments above Qloo's neutral 0.5 by "
-                       f"{RULES['informative_affinity'] - NEUTRAL:.2f} (needs {RULES['min_informative_segments']})"
-                       + ("" if ev["who"] else "; no demographic signal"))
+    info = [a for a in ev["audiences"] if isinstance(a.get("lift"), (int, float))]
+    taste = ev.get("taste") or {}
+    if len(info) < RULES["min_scored_segments"] or not ev["who"] or not taste:
+        reasons.append(f"audience too thin: {len(info)} audience segments scored live by Qloo (needs {RULES['min_scored_segments']})"
+                       + ("" if ev["who"] else "; no demographic signal") + ("" if taste else "; no products near this taste"))
     factor_a = 1.0
     for na in ev["named_audience"]:
         v = ((ev["who"] or {}).get(na["dimension"]) or {}).get(na["key"])
@@ -967,7 +1116,7 @@ def decide(ev: dict, live: bool, idea: str = "") -> dict:
     if reasons:
         return {"verdict": "REFUSE", "reasons": reasons, **none}
     overlap = vs["overlap"]
-    strength = sum((a["affinity"] - NEUTRAL) * 2 for a in info) / len(info)
+    strength = round(max(0.0, min(1.0, (taste["mean_affinity"] - NEUTRAL) * 2)), 4)
     factor_t = 1.25 if t.get("direction") == "rising" else 1.0
     bg, rec = ev.get("buyer_group"), ev.get("recommended")
     factor_g = (RULES["group_confirmed"] if bg["status"] == "confirmed" else RULES["group_refuted"]) if bg else 1.0
@@ -979,15 +1128,16 @@ def decide(ev: dict, live: bool, idea: str = "") -> dict:
     target = int(min(1000, max(20, round(raw / 10) * 10)))
     reserve = int(math.ceil(round(target * (0.3 + 0.2 * overlap), 6)))
     why = [f"{len(ev['matches'])} Qloo products match the idea's words ({', '.join(ev['matches'][0]['matched_words'][:4])})",
-           f"audience: {len(info)} informative segments, strength {strength:.2f}",
+           f"audience: {len(info)} segments scored, highest lift {info[0]['name']} {info[0]['lift']:+.4f}; taste strength "
+           f"{strength:.2f} (mean affinity {taste['mean_affinity']:.3f} of the {taste['products']} products nearest it)",
            f"vs {vs['leader']}: overlap {overlap:.0%} ({vs['method']}); room: {', '.join(vs['whitespace'][:3]) or 'none named'}",
            (f"trend: {t.get('direction')} (data through {t.get('data_through')})" if t.get("counted") else f"trend: {t.get('why') or TREND_NOTE}")]
     if any(isinstance(((ev["who"] or {}).get(na["dimension"]) or {}).get(na["key"]), (int, float)) and
            ((ev["who"] or {}).get(na["dimension"]) or {}).get(na["key"]) < 0 for na in ev["named_audience"]):
         why.append("the stated audience leans mildly away in Qloo's demographics: target halved")
     if bg:
-        why.append(f"buyer group '{bg['segment']}' (/v2/audiences) {bg['status']} by Qloo's ranked segments"
-                   + (f" (rank {bg['rank']}, affinity {bg['affinity']:.2f})" if bg.get("rank") else " (not in the top 20)")
+        why.append(f"buyer group '{bg['segment']}' (/v2/audiences) {bg['status']} by its lift on this taste"
+                   + (f" (rank {bg['rank']} of {bg['of']} scored, lift {bg['lift']:+.4f})" if bg.get("rank") else " (no lift read)")
                    + f": target x {factor_g}")
     if rec is not None and factor_r != 1.0:
         why.append(f"recommendations: {rec['strong']} strong adjacent products ({', '.join(rec['adjacent'][:3]) or 'none'}): target x {factor_r}")
@@ -996,12 +1146,45 @@ def decide(ev: dict, live: bool, idea: str = "") -> dict:
                        f"reserve ceil({target} x (0.3 + 0.2 x {overlap:.3f})) = {reserve}"}
 
 
+def _decide_new(ev: dict) -> dict:
+    """A new idea (no existing product, N1): OPEN on its own taste when Qloo ties products or places to its tags, scores
+    at least min_scored_segments audience segments live and answers its demographics; else not yet, with what is
+    missing. No leader to compare against, so the overlap is 0 and the reserve its floor."""
+    none = {"target_units": None, "reserve_units": None}
+    ta, taste = ev.get("taste_answer") or {}, ev.get("taste") or {}
+    info = [a for a in ev.get("audiences") or [] if isinstance(a.get("lift"), (int, float))]
+    tags = ", ".join(str(t["name"]) for t in (ta.get("tags") or ev.get("tags") or [])[:3])
+    reasons = []
+    if not ta.get("items"):
+        reasons.append(f"Qloo ties no {str(ta.get('kind') or 'product').split(':')[-1]}s to its taste tags ({tags}) yet")
+    if len(info) < RULES["min_scored_segments"] or not ev.get("who") or not taste:
+        reasons.append(f"audience too thin: {len(info)} audience segments scored live by Qloo (needs {RULES['min_scored_segments']})"
+                       + ("" if ev.get("who") else "; no demographic signal") + ("" if taste else "; no products near this taste"))
+    if reasons:
+        return {"verdict": "REFUSE", "reasons": [f"a new idea, read through its taste tags ({tags})"] + reasons, **none}
+    strength = round(max(0.0, min(1.0, (taste["mean_affinity"] - NEUTRAL) * 2)), 4)
+    bg = ev.get("buyer_group")
+    factor_g = (RULES["group_confirmed"] if bg["status"] == "confirmed" else RULES["group_refuted"]) if bg else 1.0
+    raw = RULES["base_units"] * (1 + 2 * strength) * factor_g
+    target = int(min(1000, max(20, round(raw / 10) * 10)))
+    reserve = int(math.ceil(round(target * 0.3, 6)))
+    why = [f"a new idea: no existing product in Qloo yet, answered from its taste tags ({tags}): "
+           f"{', '.join(str(x['name']) for x in ta['items'][:3])}",
+           f"audience: {len(info)} segments scored, highest lift {info[0]['name']} {info[0]['lift']:+.4f}; taste strength "
+           f"{strength:.2f} (mean affinity {taste['mean_affinity']:.3f} of the {taste['products']} products nearest it)",
+           "no leader to compare against: overlap 0"]
+    if bg:
+        why.append(f"buyer group '{bg['segment']}' (/v2/audiences) {bg['status']} by its lift on this taste: target x {factor_g}")
+    return {"verdict": "OPEN", "reasons": why, "target_units": target, "reserve_units": reserve, "new_idea": True,
+            "formula": f"round10({RULES['base_units']} x (1 + 2 x {strength:.3f}) x {factor_g}) = {target}; reserve ceil({target} x 0.3) = {reserve}"}
+
+
 def report_hash(rep: dict) -> str:
     keep = {k: v for k, v in rep.items() if k not in ("hash", "calls", "made", "fees")}
     return hashlib.sha256(json.dumps(keep, sort_keys=True, default=str).encode()).hexdigest()
 
 
-ESSENTIAL = ("closest existing products", "who:", "audience segments")
+ESSENTIAL = ("closest existing products", "who:")    # a refused audience call is missing evidence, not counted (sweep 22 s4)
 
 
 PREMIUM = ("Gourmand Fine Dining", "Boutique Hotels", "High Fashion", "Watch Collecting", "Art Collectibles", "Angel Start Up Investing",
@@ -1010,28 +1193,33 @@ BUDGET = ("Discount Shoppers",)
 TIERS = {"budget": 1, "mid": 2, "premium": 4}       # test units per pre-ordered unit (devnet test money; a scale, not a price)
 
 
-def price_tier(every: list[dict], venue_levels: list | None = None) -> dict | None:
-    """The price tier from Qloo's spending-habit segments in this taste's top 20 (/v2/insights urn:audience): the best
-    premium segment vs Discount Shoppers, each absent one at Qloo's neutral 0.5. Difference > +0.05 -> premium,
-    < -0.05 -> budget, else mid. The tier sets the pre-order's unit price in test units (TIERS)."""
-    if not every:
-        return None
-    aff = {str(a.get("name") or "").split(" (")[0]: a.get("affinity") for a in every if isinstance(a.get("affinity"), (int, float))}
-    score = round(max(aff.get(n, NEUTRAL) for n in PREMIUM) - max(aff.get(n, NEUTRAL) for n in BUDGET), 3)
-    tier = "premium" if score > 0.05 else "budget" if score < -0.05 else "mid"
-    seen = [n for n in (*PREMIUM, *BUDGET) if n in aff]
+def price_tier(spending: list[dict], venue_levels: list | None = None) -> dict | None:
+    """The price tier from Qloo's spending-habit segments scored the same way as the audience (_segments: their lift on
+    this taste): a premium segment's lift minus Discount Shoppers'. Above +price_lift -> premium, below -price_lift ->
+    budget, else mid. Without both lifts, the places' median price_level (1-4) decides: 3-4 premium, 1 budget, 2 mid.
+    The tier sets the pre-order's unit price in test units (TIERS)."""
     lv = sorted(v for v in (venue_levels or []) if isinstance(v, (int, float)))
     venue = lv[len(lv) // 2] if lv else None            # the venues' median price_level (1-4), the price cross-check
-    return {"tier": tier, "unit_price": TIERS[tier], "score": score, "segments_seen": seen,
-            "venue_price_level": venue, "venue_check": (None if venue is None else
-            "agrees" if (venue >= 3) == (tier == "premium") or venue == 2 else "differs"), "src": every[0].get("src")}
+    prem = [s for s in spending if s.get("premium") and isinstance(s.get("lift"), (int, float))]
+    budg = [s for s in spending if not s.get("premium") and isinstance(s.get("lift"), (int, float))]
+    if prem and budg:
+        score = round(prem[0]["lift"] - budg[0]["lift"], 4)
+        tier = "premium" if score > RULES["price_lift"] else "budget" if score < -RULES["price_lift"] else "mid"
+        how, src = f"spending-habit segments: {prem[0]['name']} minus {budg[0]['name']} lift", prem[0].get("src")
+    elif venue is not None:
+        score, tier, how, src = None, "premium" if venue >= 3 else "budget" if venue <= 1 else "mid", "the places' median price level", None
+    else:
+        return None
+    return {"tier": tier, "unit_price": TIERS[tier], "score": score, "from": how, "segments_seen": [s["name"] for s in prem + budg],
+            "venue_price_level": venue, "venue_check": (None if venue is None or score is None else
+            "agrees" if (venue >= 3) == (tier == "premium") or venue == 2 else "differs"), "src": src}
 
 
 EFFECTS = (("closest existing products", "relevance gate and the market leader"), ("the named market leader", "the leader to compare against"),
            ("details of", "popularity of the leader (owned-space rule)"), ("taste tags", "the idea's taste tags (shown, not counted)"),
            ("who:", "sets WHO: the age and gender to target; checks a named audience"),
            ("where: named places", "sets WHERE: named places in the launch area"), ("where: map points", "sets WHERE: map hot spots"),
-           ("audience segments", "audience gate, target strength and the PRICE TIER (spending-habit segments)"),
+           ("audience segments", "WHO BUYS: the audience gate (3 segments scored live), the taste strength and the PRICE TIER (spending-habit segments)"),
            ("the named buyer group", "confirms or refutes the buyer group named after 'for': target x1.2 / x0.6"),
            ("launch cities", "sets WHERE: the launch cities"), ("recommendations", "adjacent demand: target x1.2 / x0.8; the brand ladder"),
            ("weekly trend", "rising or falling (not counted when Qloo's series does not move)"),
@@ -1053,14 +1241,19 @@ _running_lock = threading.Lock()
 
 def demand_check(idea: str, place: str | None = None, leader: str | None = None, client: Client | None = None,
                  today: dt.date | None = None, exclude: list[str] | None = None, on_call=None, options: dict | None = None,
-                 stage: str | None = None) -> dict:
+                 stage: str | None = None, only_cache: str | None = None) -> dict:
     """One demand check (_demand_check), CHECKS_AT_ONCE at a time: six at once ran the free instance (512 MB) out of
-    memory in champion runs of 24 Oct 2026; the seventh visitor waits seconds instead of every visitor getting a 502."""
+    memory in champion runs of 24 Oct 2026; the seventh visitor waits seconds instead of every visitor getting a 502.
+    Each check sees the shared client through its own CheckBudget (qloo_rest.PER_CHECK live calls at most);
+    `only_cache` (a reason, e.g. the visitor's hourly cap) answers it from the private cache only."""
+    from .qloo_rest import CheckBudget
+    budget = client if isinstance(client, CheckBudget) else CheckBudget(client or Client(), only_cache=only_cache)
     with _checks:
         with _running_lock:
             running[0] += 1
         try:
-            rep = _demand_check(idea, place, leader, client, today, exclude, on_call, options, stage)
+            rep = _demand_check(idea, place, leader, budget, today, exclude, on_call, options, stage)
+            rep["qloo_request"] = {"req": budget.req, "sent": budget.sent, **({"cache_only": only_cache} if only_cache else {})}
             if stage != "verdict":                    # the verdict card and its full card are one check
                 from . import usage
                 usage.bump(checks=1, briefs=1 if rep.get("brief") else 0)
@@ -1123,7 +1316,8 @@ def _demand_check(idea: str, place: str | None = None, leader: str | None = None
         pr = ev.get("price") or {"tier": "mid", "unit_price": TIERS["mid"]}
         vs = ev.get("versus") or {}
         d["plan"] = {"who": {"age": (ev.get("who") or {}).get("top_age"), "gender": (ev.get("who") or {}).get("top_gender"),
-                             "segments": [a["name"] for a in _informative(ev.get("audiences") or []) if a.get("tied")][:4]},
+                             "segments": [a["name"] for a in (ev.get("audiences") or []) if a.get("tied")][:4]
+                                         or [a["name"] for a in (ev.get("audiences") or [])][:3]},
                      "where": [c["name"] + (f" ({c['country']})" if c.get("country") else "") for c in ev.get("cities") or []][:4],
                      "tier": pr["tier"], "unit_price": pr["unit_price"], "target_units": d["target_units"], "reserve_units": d["reserve_units"],
                      "escrow_target": d["target_units"] * pr["unit_price"], "escrow_reserve": d["reserve_units"] * pr["unit_price"],

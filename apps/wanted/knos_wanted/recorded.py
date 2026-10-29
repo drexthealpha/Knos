@@ -179,14 +179,21 @@ def honest(text: str, rep: dict, picked: bool = False) -> dict:
     return live_or_recorded(out)
 
 
-RECORDED_LABEL = "Recorded Qloo data (Qloo REST API, answered on {day}, kept privately on the server)"
+RECORDED_LABEL = "Recorded {day}: Qloo data (Qloo REST API, answered on {day}, kept privately on the server)"
 
 
-def live_or_recorded(rep: dict) -> dict:
+def stored(rep: dict) -> dict:
+    """A report read back later (the trace page, /api/report): none of its calls is live now, whatever its old label
+    said; it is "recorded <the day it was made>"."""
+    return live_or_recorded(rep, served=True)
+
+
+def live_or_recorded(rep: dict, served: bool = False) -> dict:
     """A Qloo call is live only when this request got HTTP 200 from Qloo: a call made now, not served from the cache and
     with no error. Every other answered call is "recorded <date>", the day Qloo answered it. A card served from a
-    recording has no live call at all. The report carries the counts the card and the MCP both show."""
-    served = bool(rep.get("stale"))
+    recording, or a stored report read back later (`served`), has no live call at all. The report carries the counts
+    the card and the MCP both show."""
+    served = served or bool(rep.get("stale"))
     calls, live, recorded_n, failed, ms = [], 0, 0, 0, 0
     for c in rep.get("calls") or []:
         if not isinstance(c, dict):
@@ -205,7 +212,7 @@ def live_or_recorded(rep: dict) -> dict:
     days = sorted({c["recorded"] for c in calls if c.get("recorded")})
     label = rep.get("label")
     if not live and str(label or "").startswith("LIVE"):
-        label = RECORDED_LABEL.format(day=days[-1] if days else str(rep.get("made") or "")[:10])
+        label = RECORDED_LABEL.format(day=(str(rep.get("made") or "")[:10] if served else None) or (days[-1] if days else str(rep.get("made") or "")[:10]))
     return {**rep, "calls": calls, "label": label,
             "qloo_calls": {"total": len(calls), "live": live, "recorded": recorded_n, "failed": failed, "ms": round(ms), "days": days}}
 

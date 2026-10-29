@@ -13,7 +13,6 @@ urn:tag	signal.location.query	docs/taste-analysis
 urn:tag	filter.tag.types	docs/taste-analysis
 urn:tag	filter.parents.types	docs/taste-analysis
 urn:tag	diversify.by	reference/insights-api-deep-dive (applies to filter.type=urn:tag only)
-urn:entity:audience	filter.type	reference/insights-api-deep-dive (in the filter.type enum, marked deprecated)
 *	backfill.cross_domain.take	reference/insights-api-deep-dive (no entity type named)
 /v2/analysis/compare	a.signal.interests.entities	reference/analysis-compare
 /v2/analysis/compare	b.signal.interests.entities	reference/analysis-compare

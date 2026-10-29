@@ -70,7 +70,7 @@ LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
+DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
@@ -107,7 +107,7 @@ GET_ROUTES = {"/actions.json": "Solana Actions rules", "/api/refuse": "What Knos
               "/api/x402/report": "A demand report, paid per read over x402", "/api/commitments": "Pre-orders and funders' held money",
               "/mcp": "MCP discovery page (POST JSON-RPC here)", "/mcp/store": "The app-store MCP profile: read-only tools, no sign-in, a daily call cap (POST JSON-RPC here)", "/auth/orcid": "Sign in with ORCID", "/auth/orcid/callback": "ORCID callback",
               "/": "301 to the front door, https://drexthealpha.github.io/Knos/", "/app": "301 to /app/",
-              "/quality": "301 to the front door's quality page", "/quality/": "301 to the front door's quality page", "/app/": "The app", "/status/qloo": "Qloo as this server met it today: calls, cache hits, last success, last 429", "/api/qloo/status": "The same as JSON, with the line the front door shows while Qloo limits requests", "/api/record/head": "The Knos record's newest line in Sibyl: its sequence number, time and kind", "/api/calls": "The last 200 Qloo requests this server made or recorded: time, endpoint, parameters, status, ms, cached; never a body", "/api/match": "The products Qloo matched to a recorded idea (?idea=), for the step that asks whether this is what you mean", "/paid": "301 to /app/?all=1: the app with the passkey wallet, pre-orders, pools, company sign-in and accounting files", "/api/status": "Server status", "/api/ops/memory": "The operator's: this process's memory now and at its peak", "/api/agent/payout/latest": "The newest payout to an agent, read from devnet", "/api/usage": "Demand checks run, Ready briefs made, and the knos_pay program's devnet transactions", "/api/taste/movie": "The films a film's fans also love, from Qloo (?title=&year=): names and years only", "/api/products": "Listed products", "/api/quote": "Fee quote",
+              "/quality": "301 to the front door's quality page", "/quality/": "301 to the front door's quality page", "/app/": "The app", "/status/qloo": "Qloo as this server met it today: calls, cache hits, last success, last 429", "/api/qloo/status": "The same as JSON, with the line the front door shows while Qloo limits requests", "/api/record/head": "The Knos record's newest line in Sibyl: its sequence number, time and kind", "/api/calls": "The last 200 Qloo requests this server made or recorded: time, endpoint, parameters, status, ms, cached; never a body", "/api/match": "The products Qloo matched to a recorded idea (?idea=), for the step that asks whether this is what you mean", "/paid": "301 to /app/?all=1: the app with the passkey wallet, pre-orders, pools, company sign-in and accounting files", "/api/status": "Server status", "/api/ops/memory": "The operator's: this process's memory now and at its peak", "/api/agent/payout/latest": "The newest payout to an agent, read from devnet", "/api/usage": "Demand checks run, Ready briefs made, and the knos_pay program's devnet transactions", "/api/counter": "Live checks today and this week, checks by others, devnet pre-orders held and released, feedback answers", "/api/taste/movie": "The films a film's fans also love, from Qloo (?title=&year=): names and years only", "/api/products": "Listed products", "/api/quote": "Fee quote",
               "/api/pool": "A report's pre-order pool", "/healthz": "Health check", "/api/report": "A demand report",
               "/api/receipts": "A result's receipts (?id=, the first 16 hex of its hash): each Qloo call with its time and hash, the target's rule, the model's answer, the brief's criteria hash, the Sibyl record line, devnet transactions",
               "/api/commitment": "One commitment", "/api/auth/config": "Sign-in providers", "/api/fees": "Fees (config/fees.yaml)",
@@ -174,9 +174,12 @@ def _sum_totals(fee: dict) -> None:
     try:
         bps, floor = int(fee.get("rate_bps") or 0), float(fee.get("floor") or 0.05)
         held = released = charged = 0.0
+        held_n = released_n = 0
         for p in valley.projects(100):
             for ms in p.get("milestones") or []:
                 for o in ms.get("orders") or []:
+                    held_n += o.get("status") == "locked"
+                    released_n += o.get("status") == "released"
                     if o.get("units") is None:
                         continue
                     v = float(o["units"]) * float(o.get("unit_price") or 1)
@@ -186,7 +189,7 @@ def _sum_totals(fee: dict) -> None:
                         released += v
                         charged += max(v * bps / 1e4, floor)
         out = {"held": round(held, 2), "released": round(released, 2), "charged": round(charged, 2), "unit": "test units",
-               "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+               "held_n": held_n, "released_n": released_n, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         _totals_cache.update(at=time.time(), v=out)
     except Exception:  # noqa: BLE001 - the price list still answers; the page says the totals are not readable now
         _totals_cache.update(at=time.time())
@@ -350,20 +353,39 @@ class State:
             t = self.__dict__.setdefault("pairs", {}).pop(key, None)
         return t is not None and time.monotonic() - t < 300
 
+    HITS_IDLE_S = 3_600          # a client key with no call for an hour is dropped (every window here is an hour or less)
+    HITS_KEYS = 10_000           # and at most this many keys are held, the longest idle going first
+
     def allow(self, client: str, kind: str) -> bool:
         n, window = LIMITS[kind]
         now = time.monotonic()
         with self.lock:
+            self._sweep(now)
             checks = [((client, kind), n, window)] + ([(("*", "demo"), *GLOBAL_DEMO)] if kind == "demo" else [])
             for key, cap, win in checks:
-                d = self.hits[key]
+                d = self.hits.get(key)
                 while d and now - d[0] > win:
                     d.popleft()
-                if len(d) >= cap:
+                if d is not None and not d:
+                    del self.hits[key]
+                    d = None
+                if d is not None and len(d) >= cap:
                     return False
             for key, _, _ in checks:
                 self.hits[key].append(now)
             return True
+
+    def _sweep(self, now: float) -> None:
+        """Bounded memory: keys idle for HITS_IDLE_S go, then the longest idle beyond HITS_KEYS (a key per address and
+        kind, and addresses are the caller's to choose). Called under self.lock, at most once a second."""
+        if now - self.__dict__.get("_swept", -1e9) < 1 and len(self.hits) <= self.HITS_KEYS:
+            return
+        self._swept = now
+        for key in [k for k, d in self.hits.items() if not d or now - d[-1] > self.HITS_IDLE_S]:
+            del self.hits[key]
+        if len(self.hits) > self.HITS_KEYS:
+            for key, _ in sorted(self.hits.items(), key=lambda kv: kv[1][-1])[:len(self.hits) - self.HITS_KEYS]:
+                del self.hits[key]
 
     def keep(self, r: dict) -> None:
         with self.lock:
@@ -733,6 +755,9 @@ def make_handler(state: State):
             if u.path == "/api/usage":                       # the public counter: checks and briefs from the store, payouts from devnet
                 from . import usage
                 return self._send(200, usage.counts())
+            if u.path == "/api/counter":                     # live checks today and this week, others' checks, pre-orders, feedback
+                from . import usage
+                return self._send(200, usage.counter(_money_totals({"rate_bps": 0}) or {}), headers={"Cache-Control": "no-store"})
             if u.path == "/api/agent/payout/latest":         # the newest payout to an agent, as the chain has it
                 return self._send(200, latest_agent_payout())
             if u.path == "/api/ops/memory":                  # the operator's: this process's memory now and at its peak
@@ -764,6 +789,8 @@ def make_handler(state: State):
                 rep = state.report((qs.get("hash") or [""])[0])
                 if rep is None:
                     return self._send(404, {"error": "unknown report"})
+                from . import recorded                       # read back later: "recorded <its day>", never LIVE
+                rep = recorded.stored(rep)
                 return self._send(200, {**rep, "preorders": preorder.of_report(rep["hash"]),
                                         "reserve": preorder.reserve_status(rep) if rep.get("kind") == check.KIND else None})
             if u.path == "/api/commitment":
@@ -847,6 +874,7 @@ def make_handler(state: State):
                     return self._send(400, {"error": str(why)[:200]})
                 pair = (self._client(), " ".join(str(pb.get("idea") or "").split()).lower()[:200])
                 free = pb.get("stage") != "verdict" and state.paired(pair)
+            self._free_check = free                         # the full card after its verdict: one live check, not two
             # the operator's own measured runs (scripts/qloo_vs_open_signals.py) carry its key and skip the per-address limits
             if not product_routes._admin(self.headers.get("X-Knos-Admin")) and not free and not state.allow(self._client(), kind):
                 return self._send(429, {"error": "too many requests from this address; try again in a few minutes"})
@@ -903,7 +931,12 @@ def make_handler(state: State):
             spends = msg.get("method") == "tools/call" and (name in MCP_CHECK_TOOLS or name.startswith("qloo_"))
             if not state.allow(self._client(), "check" if spends else "mcp"):
                 return self._send(429, {"jsonrpc": "2.0", "id": msg.get("id"), "error": {"code": -32000, "message": "rate limited"}})
-            out = agent.mcp(state, msg, profile)
+            from . import qloo_rest
+            qloo_rest.set_visitor(qloo_rest.visitor_hash(self._client()))   # an MCP demand check counts against the same visitor
+            try:
+                out = agent.mcp(state, msg, profile)
+            finally:
+                qloo_rest.set_visitor(None)
             if out is None:
                 return self._send(202, b"", "text/plain")
             hdr = {"Mcp-Session-Id": "knos"} if msg.get("method") == "initialize" else {}
@@ -1012,13 +1045,19 @@ def make_handler(state: State):
                 stage = "verdict" if body.get("stage") == "verdict" else None
                 if stage:
                     state.pair((self._client(), " ".join(idea.split()).lower()[:200]))
+                from . import qloo_rest                     # 10 live checks per visitor an hour (a salted hash, never the address)
+                capped = None if without or getattr(self, "_free_check", False) else qloo_rest.visitor_take(qloo_rest.visitor_hash(self._client()))
                 rep = check.demand_check(idea, _text(body.get("place")), _text(body.get("leader"), 80),
-                                         client=Client(key="") if without else state.rest, exclude=ex, options=opts, stage=stage)
+                                         client=Client(key="") if without else state.rest, exclude=ex, options=opts, stage=stage,
+                                         only_cache=capped)
                 if without:
                     rep["without_qloo"] = True
                 else:
                     from . import recorded                   # Qloo not answering: said, or the sample's last real card
                     rep = recorded.honest(idea, rep, picked=picked)
+                    if stage or not getattr(self, "_free_check", False):     # the verdict and its full card: one check
+                        from . import usage
+                        usage.bump_live(int((rep.get("qloo_calls") or {}).get("live") or 0))
                 rep["fees"] = preorder.fee_line()
                 card = state.cards.get(str(body.get("research") or ""))
                 if card:

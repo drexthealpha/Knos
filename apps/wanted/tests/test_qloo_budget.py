@@ -61,11 +61,14 @@ def test_under_2000_left_in_the_month_nothing_is_sent_unless_the_run_is_reserved
     assert op.n == 2
 
 
-def test_past_1500_calls_on_the_day_nothing_is_sent(tmp_path):
+def test_past_the_day_cap_nothing_is_sent_and_a_restart_keeps_the_count(tmp_path):
     op = Opener()
-    qloo_rest._today()["calls"] = qloo_rest.DAY_CAP
-    with pytest.raises(QlooError, match="1,500 calls to Qloo today"):
-        client(tmp_path, op).get("/search", {"query": "tea", "take": 3})
+    c = client(tmp_path, op)
+    day = time.strftime("%Y-%m-%d", time.gmtime(c.clock()))
+    (tmp_path / "day.txt").write_text(f"{day} {qloo_rest.DAY_CAP}", encoding="utf-8")      # the count on disk, not in memory
+    assert qloo_rest.DAY_CAP == 3_000
+    with pytest.raises(QlooError, match="Qloo limit for today reached; resets 00:00 UTC"):
+        c.get("/search", {"query": "tea", "take": 3})
     assert op.n == 0
 
 

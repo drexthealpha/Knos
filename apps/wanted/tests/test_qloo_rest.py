@@ -116,12 +116,12 @@ def test_a_refused_question_is_cached_for_a_day_and_its_text_not_passed_on(tmp_p
     c = client(tmp_path, op, clk)
     for _ in range(3):
         with pytest.raises(QlooError) as e:
-            c.get("/v2/insights", {"filter.type": "urn:entity:audience", "signal.interests.tags": "urn:tag:bad"})
+            c.get("/v2/insights", {"filter.type": "urn:entity:brand", "signal.interests.tags": "urn:tag:bad"})
         assert "bad" not in str(e.value).replace("urn:tag:bad", "") and "errors" not in str(e.value)
     assert op.n == 1 and c.used() == 1                     # asked once, budget spent once
     clk.t += qloo_rest.ERROR_TTL_S + 1
     with pytest.raises(QlooError):
-        c.get("/v2/insights", {"filter.type": "urn:entity:audience", "signal.interests.tags": "urn:tag:bad"})
+        c.get("/v2/insights", {"filter.type": "urn:entity:brand", "signal.interests.tags": "urn:tag:bad"})
     assert op.n == 2
 
 

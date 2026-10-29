@@ -1,13 +1,14 @@
 """Which one do you mean? Before any demand check, the input becomes the exact thing to check. Built in code, with no
 model call:
 
-- an idea: (a) the input as typed; (b) up to 2 nearest recorded ideas, nearest meaning the most shared content words
-  (lower-cased, the stop words of stopwords.txt dropped, Porter-stemmed), ties to the most recent recording, never one
-  that shares no content word, each with the words that differ; (c) one broader reading, the input without its first
-  content word before the last noun, when it has 3 or more content words. An input that is a recorded idea word for
-  word (lower-cased) needs no step.
-- a DOI or a paper title: the paper from OpenAlex (Crossref when OpenAlex has no answer), its title, year, citations and
-  top concepts; the products it enables are the readings (the caller adds them); with none, the reader names one.
+- an idea: (a) the input as typed, always first; (b) up to 2 nearest recorded ideas, nearest meaning the most shared
+  content words (lower-cased, the stop words of stopwords.txt dropped, Porter-stemmed), ties to the most recent
+  recording, each sharing 2 or more content words and the input's last noun, with the words that differ; (c) one
+  broader reading, the input without its first content word before the last noun, when it has 3 or more content words.
+  An input that is a recorded idea word for word (lower-cased) needs no step.
+- a paper (a DOI, an arXiv id, a doi.org or arxiv.org URL, or text starting with "paper:"; nothing else is a paper):
+  the paper from OpenAlex (Crossref when OpenAlex has no answer), its title, year, citations and top concepts; the input
+  itself first, then the products it enables (the caller adds them); with none, the reader names one.
 
     readings.which("a vegan ramen food truck", [{"idea": "a vegan ramen meal kit for college students", "made": "..."}])
 """
@@ -42,24 +43,54 @@ def norm(text: str) -> str:
     return " ".join(str(text or "").lower().split())
 
 
+ARXIV = re.compile(r"(?:arxiv\.org/(?:abs|pdf)/|arxiv:\s*|^)(\d{4}\.\d{4,5})(?:v\d+)?\b", re.I)
+_HEAD_END = re.compile(r"\b(?:for|with|in|near|on|at|like|to|from|that|which|who|where|and)\b|[,;:!?.()$]")
+
+
+def arxiv_of(text: str) -> str | None:
+    m = ARXIV.search(str(text or "").strip())
+    return m.group(1) if m else None
+
+
+def is_paper(text: str) -> bool:
+    """A paper, and only then a paper: a DOI, an arXiv id, a doi.org or arxiv.org URL, or text starting with "paper:".
+    A plain idea is never sent to a paper search (a long idea was read as a 2016 paper on Prohibition)."""
+    t = str(text or "").strip()
+    return bool(doi_of(t) or arxiv_of(t) or re.match(r"(?:https?://)?(?:dx\.)?(?:doi\.org|arxiv\.org)/", t, re.I)
+                or t.lower().startswith("paper:"))
+
+
+def last_noun(text: str) -> str | None:
+    """The stem of the input's last noun before what qualifies it ("a late night ramen spot for students" -> "spot")."""
+    chunk = _HEAD_END.split(f" {str(text or '').lower()} ", 1)[0]
+    words = content(chunk)
+    return words[-1][1] if words else None
+
+
 def _differs(asked: list[tuple[str, str]], other: list[tuple[str, str]]) -> dict:
     a, o = {s for _w, s in asked}, {s for _w, s in other}
     return {"theirs": " ".join(w for w, s in other if s not in a), "yours": " ".join(w for w, s in asked if s not in o)}
 
 
+MIN_SHARED = 2               # a recorded idea is offered only when it shares this many content words with the input
+
+
 def nearest(text: str, index: list[dict], k: int = 2) -> list[dict]:
-    """Up to k recorded ideas sharing the most content words with text; ties go to the most recent recording; an idea
-    sharing none is never offered. Each: {idea, made, shared, differs: {theirs, yours}}."""
+    """Up to k recorded ideas sharing the most content words with text; ties go to the most recent recording. One is
+    offered only when it shares MIN_SHARED or more content words AND the input's last noun ("spot", "truck", "brand"):
+    one shared word ("night") offered a bakery for a ramen spot. Each: {idea, made, shared, differs: {theirs, yours}}."""
     asked = content(text)
     mine = {s for _w, s in asked}
+    head = last_noun(text)
     rows: list[dict[str, Any]] = []
     for r in index:
         idea = str(r.get("idea") or "")
         if not idea or norm(idea) == norm(text):
             continue
         theirs = content(idea)
-        shared = len(mine & {s for _w, s in theirs})
-        if shared:
+        stems = {s for _w, s in theirs}
+        shared = len(mine & stems)
+        if shared >= MIN_SHARED and head is not None and head in stems:
             rows.append({"idea": idea, "made": str(r.get("made") or ""), "shared": shared, "differs": _differs(asked, theirs)})
     rows.sort(key=lambda r: str(r["made"]), reverse=True)          # stable: within a shared count, the newest first
     rows.sort(key=lambda r: int(r["shared"]), reverse=True)
@@ -95,14 +126,18 @@ def _get(url: str) -> dict | None:
 def paper(text: str, get=_get, mailto: str | None = None) -> dict | None:
     """A DOI or a paper title as the paper: OpenAlex first (no key; a mailto only when the caller's config names one),
     Crossref when OpenAlex has no answer. {doi, title, year, cited_by_count, concepts, source}."""
-    doi = doi_of(text)
+    if not is_paper(text):                        # a plain idea is never a paper search
+        return None
+    ax = arxiv_of(text)
+    doi = doi_of(text) or (f"10.48550/arXiv.{ax}" if ax else None)
     q = f"&mailto={urllib.parse.quote(mailto)}" if mailto else ""
     if doi:
         w = get(f"https://api.openalex.org/works/doi:{urllib.parse.quote(doi)}{'?' + q[1:] if q else ''}")
     else:
-        if len(content(text)) < 4:
+        title = re.sub(r"^\s*paper:\s*", "", str(text), flags=re.I)
+        if len(content(title)) < 2:
             return None
-        hit = get(f"https://api.openalex.org/works?search={urllib.parse.quote(str(text))}&per-page=1{q}")
+        hit = get(f"https://api.openalex.org/works?search={urllib.parse.quote(title)}&per-page=1{q}")
         w = ((hit or {}).get("results") or [None])[0]
     if w and w.get("title"):
         cs = sorted(w.get("concepts") or [], key=lambda c: -(c.get("score") or 0))
@@ -122,9 +157,9 @@ def which(text: str, index: list[dict], products: list[str] | None = None, found
     """The step itself. {asked, kind: idea|paper, skip, readings: [{text, kind, differs?, made?}], paper?, name_box?}.
     `products`: what the research card says the paper enables (the caller's knos_research_card); `found`: the paper."""
     asked = " ".join(str(text or "").split())
-    if found:
-        rs = [{"text": p, "kind": "product"} for p in (products or []) if p]
-        return {"asked": asked, "kind": "paper", "skip": False, "paper": found, "readings": rs[:4], "name_box": not rs,
+    if found:                                     # the exact reading first, always pickable; then what the paper enables
+        rs = [{"text": asked, "kind": "exact"}] + [{"text": p, "kind": "product"} for p in (products or []) if p and norm(p) != norm(asked)]
+        return {"asked": asked, "kind": "paper", "skip": False, "paper": found, "readings": rs[:4], "name_box": len(rs) == 1,
                 "name_prompt": "Name the product this result enables"}
     if any(norm(str(r.get("idea") or "")) == norm(asked) for r in index):
         return {"asked": asked, "kind": "idea", "skip": True, "readings": [{"text": asked, "kind": "exact"}]}

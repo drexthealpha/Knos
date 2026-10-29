@@ -50,7 +50,13 @@ def doc() -> dict:
     line = month or (f"Qloo is limiting requests right now. Cards show the last live answer from {_when(live_at)}." if t["limited"] and live_at else (
         "Qloo is limiting requests right now." if t["limited"] else None))
     lim = dict(qloo_rest.LIMITS)
+    try:
+        today_n = qloo_rest.Client().day_used()       # every call this server sent today, from the counter on disk
+    except Exception:  # noqa: BLE001 - this process's own count instead
+        today_n = t["calls"]
     return {"month_left": lim.get("x-month-ratelimit-remaining"), "month_limit": lim.get("x-month-ratelimit-limit"),
+            "calls_today": today_n, "per_check": qloo_rest.PER_CHECK, "reserve": qloo_rest.RESERVE,
+            "visitor_cap": {"checks": qloo_rest.VISITOR_CAP[0], "seconds": qloo_rest.VISITOR_CAP[1]}, "past_cap": qloo_rest.LIMIT_LINE,
             "month_reset": lim.get("month_reset_at") or lim.get("x-month-ratelimit-reset"), "second_left": lim.get("x-second-ratelimit-remaining"),
             "limits_read": lim.get("read"), "day_cap": qloo_rest.DAY_CAP, "month_floor": qloo_rest.MONTH_FLOOR,
             "day": t["day"], "calls": t["calls"], "cache_hits": t["hits"], "recorded": t.get("recorded", 0), "hit_rate": t["hit_rate"], "last_ok": t.get("last_ok"),
@@ -71,7 +77,11 @@ def _answered() -> dict:
 def page() -> str:
     d, e = doc(), html.escape
     rate = f"{round(d['hit_rate'] * 100)}%" if d["hit_rate"] is not None else "none yet"
-    rows = [("Calls sent today", str(d["calls"])), ("Answered from the cache", f"{d['cache_hits']} ({rate})"),
+    rows = [("Calls left this month", f"{d['month_left']}" if d["month_left"] is not None else "not read yet"),
+            ("Calls today", f"{d['calls_today']:,}"), ("Day cap", f"{d['day_cap']:,}"),
+            ("Past the cap", f"{d['past_cap']}; answers come from the private cache"),
+            ("Per check, per visitor", f"{d['per_check']} calls a check, {d['visitor_cap']['checks']} live checks a visitor an hour"),
+            ("Answered from the cache", f"{d['cache_hits']} ({rate})"),
             ("Served from recordings", str(d["recorded"])),
             *([("Answered ideas held privately", f"{d['answered']['ideas']} ({d['answered']['cards']} full cards)"),
                ("Entities and tags Qloo confirmed", f"{d['answered']['entities']} entities, {d['answered']['tags']} tags")] if d.get("answered") else []),

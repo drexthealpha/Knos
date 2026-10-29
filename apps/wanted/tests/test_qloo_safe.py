@@ -126,7 +126,16 @@ def test_boot_sends_no_qloo_request(monkeypatch):
     assert sent == [] and not front._started and not {"knos-recorded", "knos-front-seeds"} & set(started), started
 
 
-def test_the_audience_filter_is_the_value_qloo_documents():
+def test_the_deprecated_audience_filter_is_never_sent():
     import inspect
+
+    from knos_wanted import qloo_guard
     src = inspect.getsource(check)
-    assert '"filter.type": "urn:entity:audience"' in src and '"filter.type": "urn:audience"' not in src
+    assert '"filter.type": "urn:entity:audience"' not in src and '"filter.type": "urn:audience"' not in src
+    for t in ("urn:entity:audience", "urn:audience"):
+        assert qloo_guard.problems("/v2/insights", {"filter.type": t, "take": 6}), t
+    # the documented route: segments from /v2/audiences (1 to 50 a page), scored with signal.demographics.audiences
+    assert '"take": AUDIENCE_TAKE' in src and check.AUDIENCE_TAKE <= 50
+    assert not qloo_guard.problems("/v2/insights", {"filter.type": "urn:entity:brand", "signal.interests.entities": "x",
+                                                     "filter.results.entities": "y", "signal.demographics.audiences": "z",
+                                                     "signal.demographics.audiences.weight": "high", "take": 10})

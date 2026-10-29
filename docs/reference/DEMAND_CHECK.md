@@ -38,7 +38,7 @@ filter). They go to the REST API as before. The trace page says, for every call,
 | taste tags | `/v2/tags` (`filter.parents.types` = that kind) | the idea's tags |
 | who | `/v2/insights` `filter.type=urn:demographics` | age and gender affinity |
 | where | `/v2/insights` `filter.type=urn:entity:place` and `urn:heatmap`, `filter.location.query` = place (default United States) | named places and map hot spots |
-| segments | `/v2/insights` `filter.type=urn:audience` | audience segments by affinity (`/v2/audiences` lists the same segments unranked) |
+| segments | `/v2/audiences` (non-sensitive types, `take` 50 a page), then `/v2/insights` of the idea's kind with `signal.demographics.audiences` at weight high, results pinned to the 10 products nearest the taste | each segment's lift: their mean affinity with the segment minus without it; the spending-habit segments set the price tier |
 | rising or falling | `/v2/trending` (`filter.type`, `signal.interests.entities`, 12-week windows going back until Qloo has data) | weekly population percentile |
 | vs the leader | `/v2/analysis/compare` (a = the idea's neighbours, b = the leader) | shared tags (overlap), whitespace |
 
@@ -61,7 +61,7 @@ Why: single-word name hits were namesakes ("Swimsuits For All" for "all", "Road 
 - **Clone gate.** The leader's name is in the idea with a clone phrase ("exactly like", "clone of", ...) or is the
   idea's whole subject: REFUSE "an existing product already owns this".
 - **Leader check, never skipped.** Overlap = shared taste tags / the smaller side (compare, when both sides have >= 3
-  distinct tags), else shared informative audience segments of the idea's other matches vs the leader's own.
+  distinct tags), else the share of the leader's 10 nearest products that are also nearest the idea's taste.
 
 No
   comparison possible: REFUSE ("an existing product already owns this" when the leader's popularity is >= 0.9, else

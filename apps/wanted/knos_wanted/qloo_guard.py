@@ -7,8 +7,10 @@ The tables (src/knos/qloo_docs/, each with the docs page and the day it was read
   endpoints.tsv               the lookup, analysis and trends endpoints' own parameters
   use_case_parameters.tsv     what the use-case pages document beside them (demographics, taste analysis, compare)
 
-A filter.type the docs list with no section of its own (urn:entity:audience) takes the parameters the docs document
-for /v2/insights; a filter.type value the docs do not list at all (urn:audience) is refused.
+A filter.type value the docs do not list (urn:audience) is refused, and so is one they mark deprecated
+(urn:entity:audience: "deprecated and should not be used for new integrations", Insights API Deep Dive, updated
+2026-07-08; the hackathon API answers it HTTP 400). Audiences are asked through /v2/audiences and the
+signal.demographics.audiences signal instead.
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from pathlib import Path
 from . import families as F
 
 USE_CASES = F.GUIDE.with_name("use_case_parameters.tsv")
+DEPRECATED = {"urn:entity:audience"}       # filter.type values Qloo's docs mark deprecated: never sent
 
 
 class InvalidParameter(ValueError):
@@ -46,6 +49,8 @@ def problems(path: str, params: dict) -> list[str]:
     uses, untyped, every, types = _tables()
     if path == "/v2/insights":
         t = str(params.get("filter.type") or "")
+        if t in DEPRECATED:
+            return [f"filter.type={t}: deprecated in docs.qloo.com and refused by the API; use /v2/audiences and signal.demographics.audiences"]
         if t not in types:
             return [f"filter.type={t}: not a value docs.qloo.com lists"]
         own = uses.get(t, set()) | uses.get("*", set()) | untyped

@@ -33,6 +33,8 @@ def _dir():
 
 
 def build(rep: dict) -> dict:
+    from . import recorded                     # a stored report is "recorded <its day>", never LIVE, whatever its old label
+    rep = recorded.stored(rep)
     d = rep.get("decision") or {}
     calls = [{"n": c.get("n"), "endpoint": c.get("call"), "params": c.get("params") or {}, "at": c.get("at"), "cached": bool(c.get("cached")), "surface": c.get("surface"),
               "what": c.get("what"), "used_for": c.get("effect"), "excerpt": c.get("body_digest") or c.get("out")}

@@ -4,7 +4,7 @@ from test_product_routes import app, call  # noqa: F401 - the fixture
 
 from knos_wanted import recorded, which
 
-CARD = {"idea": "a vegan ramen meal kit for college students", "made": "2026-10-22T13:26:44Z", "hash": "a" * 64, "stage": "full",
+CARD = {"idea": "a vegan ramen truck for festivals", "made": "2026-10-22T13:26:44Z", "hash": "a" * 64, "stage": "full",
         "label": "LIVE Qloo data (Qloo REST API, read for this report, cached privately on the server)",
         "decision": {"verdict": "OPEN", "reasons": ["r"]}, "calls": [{"n": 1, "call": "GET /search", "cached": False, "at": "2026-10-22T13:26:29Z"}]}
 

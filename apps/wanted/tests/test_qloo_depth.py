@@ -67,7 +67,8 @@ def test_status_qloo_says_todays_traffic_and_asks_qloo_nothing(monkeypatch):
         with urllib.request.urlopen(base + "/api/qloo/status", timeout=10) as r:
             d = json.loads(r.read())
         assert r.status == 200 and sent == []
-        assert "Calls sent today" in page and ">3<" in page and "9 (75%)" in page and "08:14 UTC" in page and "07:00 UTC" in page
+        assert "Calls left this month" in page and "Calls today" in page and "Day cap" in page and "3,000" in page
+        assert "9 (75%)" in page and "08:14 UTC" in page and "07:00 UTC" in page
         assert d["calls"] == 3 and d["cache_hits"] == 9 and d["hit_rate"] == 0.75 and d["limited"] is True
         assert d["line"].startswith("Qloo is limiting requests right now. Cards show the last live answer from ") and d["line"] in page
     finally:

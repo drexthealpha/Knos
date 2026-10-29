@@ -231,12 +231,12 @@ def run(job: dict, state) -> None:
         plan = d.get("plan") or {}
         if plan:
             w = plan["who"]
-            _step(job, "decision", "WHO: the target audience", tool="from /v2/insights urn:demographics + urn:audience",
+            _step(job, "decision", "WHO: the target audience", tool="from /v2/insights urn:demographics + each /v2/audiences segment's lift (signal.demographics.audiences)",
                   out=f"{(w.get('age') or '').replace('_', ' ')}, {w.get('gender')}; segments: {', '.join(w.get('segments') or [])}",
                   effect="the product page and the Blink speak to this audience")
             _step(job, "decision", "WHERE: the launch cities", tool="from /v2/insights urn:entity:destination (explainability on)",
                   out=", ".join(plan.get("where") or []) or "none returned", effect="pre-orders open first in these cities")
-            _step(job, "decision", "PRICE: the tier", tool="from Qloo's spending-habit segments (urn:audience)",
+            _step(job, "decision", "PRICE: the tier", tool="from the lift of Qloo's spending-habit segments, else the places' price level",
                   out=f"{plan['tier']}: {plan['unit_price']} test units per unit", effect="sets the pre-order's unit price")
             _step(job, "decision", "HELD: target and reserve", tool="check.RULES units_formula", inp=d.get("formula"),
                   out=f"target {plan['target_units']} units ({plan['escrow_target']} test units), reserve {plan['reserve_units']} "
@@ -651,8 +651,12 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                     out = {**w, "next": "call knos_demand_check again with idea set to the text of the reading you mean and picked: true"}
                 else:
                     t0 = time.perf_counter()
-                    rep = check.demand_check(idea, args.get("place"), args.get("leader"), client=state.rest, options=opts)
+                    from . import qloo_rest
+                    rep = check.demand_check(idea, args.get("place"), args.get("leader"), client=state.rest, options=opts,
+                                             only_cache=qloo_rest.visitor_take(qloo_rest.current_visitor()))
                     rep = recorded.honest(idea, rep, picked=picked)
+                    from . import usage
+                    usage.bump_live(int((rep.get("qloo_calls") or {}).get("live") or 0))
                     rep["qloo_calls"] = {**rep.get("qloo_calls", {}), "ms": round((time.perf_counter() - t0) * 1000)}
                     state.keep_check(rep)
                     out = {"report": rep["hash"], "idea": rep.get("idea"), "decision": rep["decision"], "families": rep.get("families") or {},

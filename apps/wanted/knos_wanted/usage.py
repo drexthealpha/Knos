@@ -52,6 +52,63 @@ def bump(checks: int = 0, briefs: int = 0, outside_use: bool | None = None) -> N
         print(f"knos usage: not counted: {type(why).__name__}: {str(why)[:120]}", flush=True)
 
 
+def bump_live(live_calls: int) -> None:
+    """A check that Qloo answered live (at least one HTTP 200 during its request): counted on its UTC day, whoever ran it."""
+    from . import valley
+    if live_calls <= 0:
+        return
+    try:
+        with _lock:
+            d = _doc()
+            today = dt.datetime.now(dt.timezone.utc).date()
+            live = {k: v for k, v in (d.get("live_days") or {}).items() if k >= (today - dt.timedelta(days=30)).isoformat()}
+            live[today.isoformat()] = int(live.get(today.isoformat()) or 0) + 1
+            d["live_days"] = live
+            valley._save("pages", KEY, d)
+    except Exception as why:  # noqa: BLE001
+        print(f"knos usage: live check not counted: {type(why).__name__}: {str(why)[:120]}", flush=True)
+
+
+def feedback(check_hash: str, useful: bool, note: str, visitor: str) -> dict:
+    """One "Was this useful?" answer, kept with the check's hash and a salted visitor hash (never an address or an email);
+    one answer per visitor and check, the latest kept. The note is at most 280 characters."""
+    from . import valley
+    if not isinstance(check_hash, str) or not (8 <= len(check_hash) <= 80) or not check_hash.isalnum():
+        raise ValueError("check: the result's hash")
+    note = " ".join(str(note or "").split())[:280]
+    with _lock:
+        d = _doc()
+        fb = d.get("feedback") or {}
+        fb[f"{check_hash}:{visitor[:16]}"] = {"check": check_hash, "visitor": visitor[:16], "useful": bool(useful), "note": note,
+                                              "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        while len(fb) > 5_000:
+            fb.pop(next(iter(fb)))
+        d["feedback"] = fb
+        valley._save("pages", KEY, d)
+    return {"saved": True, **feedback_counts(fb)}
+
+
+def feedback_counts(fb: dict | None = None) -> dict:
+    fb = _doc().get("feedback") or {} if fb is None else fb
+    return {"feedback_yes": sum(1 for v in fb.values() if v.get("useful")), "feedback_no": sum(1 for v in fb.values() if not v.get("useful"))}
+
+
+def counter(orders: dict | None = None) -> dict:
+    """The public live counter (/api/counter, /proof/, /status/qloo): live checks today and this week, checks by people
+    other than the founder this week, devnet pre-orders held and released, and the feedback answers. Zeros are zeros."""
+    d = _doc()
+    today = dt.datetime.now(dt.timezone.utc).date()
+    live = d.get("live_days") or {}
+    week = {(today - dt.timedelta(days=i)).isoformat() for i in range(7)}
+    others, _ = week_counts(d.get("days") or {})
+    o = orders or {}
+    return {"checks_today": int(live.get(today.isoformat()) or 0), "checks_week": sum(int(v or 0) for k, v in live.items() if k in week),
+            "checks_by_others": others, "preorders_held": o.get("held_n"), "preorders_released": o.get("released_n"),
+            "released_on_proof": o.get("released_n"), **feedback_counts(),
+            "day": today.isoformat(), "counted": "live: a check Qloo answered with at least one HTTP 200 during its request; others: no operator key, "
+            "no automated client, no test session; pre-orders: the app's devnet orders, held and released on proof"}
+
+
 def week_counts(days: dict, today: dt.date | None = None) -> tuple[int, int]:
     """Outside demand checks this week (today and the 6 days before) and the week before."""
     today = today or dt.datetime.now(dt.timezone.utc).date()

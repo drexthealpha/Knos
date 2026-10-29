@@ -45,12 +45,15 @@ def test_the_crossing_streams_steps_sets_the_plan_and_remembers(st):
 
 
 def test_price_tier_from_spending_segments():
-    seg = lambda n, a: {"name": n + " (Spending Habits)", "affinity": a, "src": 3}   # noqa: E731
-    assert check.price_tier([seg("Gourmand Fine Dining", 0.8), seg("Discount Shoppers", 0.5)])["tier"] == "premium"
-    assert check.price_tier([seg("Discount Shoppers", 0.8)])["tier"] == "budget"
-    assert check.price_tier([seg("Yoga", 0.9)]) == {"tier": "mid", "unit_price": 2, "score": 0.0, "segments_seen": [],
-                                                    "venue_price_level": None, "venue_check": None, "src": 3}
-    assert check.price_tier([seg("Gourmand Fine Dining", 0.8)], [3, 4, 2])["venue_check"] == "agrees"
+    seg = lambda n, lift, premium: {"name": n, "lift": lift, "premium": premium, "src": 3}   # noqa: E731
+    # the spending-habit segments scored like the audience: a premium segment's lift minus Discount Shoppers'
+    assert check.price_tier([seg("Gourmand Fine Dining", 0.02, True), seg("Discount Shoppers", 0.0, False)])["tier"] == "premium"
+    assert check.price_tier([seg("Gourmand Fine Dining", -0.01, True), seg("Discount Shoppers", 0.0, False)])["tier"] == "budget"
+    assert check.price_tier([seg("Gourmand Fine Dining", 0.001, True), seg("Discount Shoppers", 0.0, False)])["tier"] == "mid"
+    # without both lifts, the places' median price level decides
+    assert check.price_tier([seg("Discount Shoppers", 0.0, False)], [3, 4, 2])["tier"] == "premium"
+    assert check.price_tier([], [1, 1, 2])["tier"] == "budget" and check.price_tier([]) is None
+    assert check.price_tier([seg("Gourmand Fine Dining", 0.02, True), seg("Discount Shoppers", 0.0, False)], [3, 4, 2])["venue_check"] == "agrees"
 
 
 @pytest.fixture
