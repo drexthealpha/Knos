@@ -452,10 +452,26 @@ jobs:
   # One check for branch protection to require: it passes only when every job above passed. It runs when one of them
   # failed too (a job that is skipped because what it needs failed counts as passed for a required check, which is the
   # hole this condition closes), and not when the run was cancelled.
+  iris:
+    # the IRIS referee's rules with no IRIS image: knos_iris.referee is knos.referee_rules, exact names and codes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv pip install --system -e . pytest
+      - run: python -m pytest -q iris/tests/test_referee_rules.py
+
   all-green:
     name: all-green
     if: ${{ !cancelled() }}
-    needs: [pytest, wheel, sdk, site, conformance, claims, lint, deadcode]
+    needs: [pytest, wheel, sdk, site, conformance, claims, lint, deadcode, iris]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
