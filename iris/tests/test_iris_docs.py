@@ -31,14 +31,14 @@ def readme(lines, i1: str) -> int:
     items = {"the image name": "irishealth-community:2026.3.0AI.154.0" in t, "load and retag": "scripts/load-image.sh" in t and "retag" in t,
              "the LLM provider and its variable": "KNOS_LLM_PROVIDER" in t and "ANTHROPIC_API_KEY" in t,
              "start": "docker compose up -d --build" in t, "health check": "/api/knos/health" in t,
-             "IRIS never releases money alone": "IRIS never releases money alone" in t}
+             "IRIS never releases money alone": "IRIS never releases money alone" in t,
+             "the Developer Community profile": "https://community.intersystems.com/user/zulqarnain-abubakar" in t,
+             "the idea DPI-I-689, linked": "https://ideas.intersystems.com/ideas/DPI-I-689" in t,
+             "the measured memory": bool(re.search(r"peak[^.\n]{0,80}\d+ MiB", t)),
+             "the rules-against-agent table, the agent column needing a model key": "needs a model key" in t and "| Rules referee |" in t}
     for k, v in items.items():
         fails += not v
         lines.append(f"{'ok  ' if v else 'FAIL'} the rules' item: {k}")
-    dc = re.search(r"https://community\.intersystems\.com/user/\S+", t)
-    if not dc:
-        fails += 1
-        lines.append("FAIL BLOCKED: every team member's Developer Community profile: the founder's profile URL is not on this PC")
     fresh = i1.startswith("PASS")
     fails += not fresh
     lines.append(f"{'ok  ' if fresh else 'FAIL'} a fresh clone followed by the README alone reaches I1's pass: {i1 or 'I1 not given'}")

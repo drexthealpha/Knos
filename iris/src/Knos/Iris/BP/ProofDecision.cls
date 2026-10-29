@@ -13,6 +13,8 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <property name='Kind' type='%String' instantiate='0'/>
 <property name='Threshold' type='%Numeric' instantiate='0'/>
 <property name='Slot' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
+<property name='Tx' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
+<property name='Sim' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
 </context>
 <sequence>
 <code name='The brief, as locked'><![CDATA[
@@ -43,8 +45,15 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set q = ##class(Knos.Iris.Py.Embed).Vector($extract(request.PayloadJSON, 1, 4000))
  set h = context.Locked, key = "", score = 0
  &sql(SELECT TOP 1 MKey, VECTOR_COSINE(Vec, TO_VECTOR(:q, DOUBLE, 384)) INTO :key, :score FROM Knos_Iris_Data.Criterion WHERE BriefHash = :h ORDER BY VECTOR_COSINE(Vec, TO_VECTOR(:q, DOUBLE, 384)) DESC)
+ // the two nearest criteria: when the referee's cited milestone is neither, its confidence is capped at 0.6 (a person decides)
+ set top = "", rs = ##class(%SQL.Statement).%ExecDirect(, "SELECT TOP 2 MKey FROM Knos_Iris_Data.Criterion WHERE BriefHash = ? ORDER BY VECTOR_COSINE(Vec, TO_VECTOR(?, DOUBLE, 384)) DESC", h, q)
+ while rs.%Next() { set top = top_","_rs.MKey }
+ set cited = "", ms = {}.%FromJSON($select(context.Verdict.MilestonesJSON'="":context.Verdict.MilestonesJSON, 1:"[]"))
+ if ms.%IsA("%DynamicArray") && ms.%Size() { set cited = ms.%Get(0).key }
+ set capped = (cited '= "") && ((top_",") '[ (","_cited_","))
+ if capped && (context.Verdict.Confidence > 0.6) { set context.Verdict.Confidence = 0.6 }
  set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "rag", s.Name = "nearest locked criterion", s.Score = +score
- set s.OutputJSON = "{""milestone"":"""_key_""",""cosine"":"_(+score)_"}"
+ set s.OutputJSON = "{""milestone"":"""_key_""",""cosine"":"_(+score)_",""top2"":"""_$extract(top,2,*)_""",""cited"":"""_cited_""",""capped"":"_$select(capped:"true",1:"false")_"}"
  do ..%Process.SendRequestAsync("TraceSink", s, 0)
 ]]></code>
 <assign property='context.Gate' value='##class(Knos.Iris.Rule.PayoutGate).Decide(context.Verdict.Decision,context.Verdict.Confidence,request.AmountUSDC,context.Threshold,context.Kind,1)' action='set'/>
@@ -57,7 +66,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 </if>
 <code name='The answer'><![CDATA[
  set response.BriefId = request.BriefId, response.Decision = context.Verdict.Decision, response.Gate = context.Gate
- set response.Confidence = context.Verdict.Confidence, response.Reason = context.Verdict.MilestonesJSON, response.SessionId = ..%Process.%SessionId
+ set response.Confidence = context.Verdict.Confidence, response.Reason = context.Verdict.MilestonesJSON, response.SessionId = ..%Process.%SessionId, response.Referee = context.Verdict.Model
  set response.Outcome = $case(context.Gate, "PAY":"pay: the relayer may send the signed pay instruction", "HUMAN":"held: waiting for an approver",
    "REFUND_AT_DEADLINE":"not met: refunded to the funder at the deadline", :"rejected: the brief no longer matches its lock")
  set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "rule", s.Name = "PayoutGate", s.OutputJSON = "{""gate"":"""_context.Gate_"""}"
@@ -81,10 +90,21 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 </response>
 </call>
 <sync name='Wait for the approver' calls='Approve' timeout='"P2D"' type='all'/>
+<code name='The decision, as the approver left it'><![CDATA[
+ set sid = ..%Process.%SessionId, g = context.Gate, o = $select(context.Gate="PAY":"pay: approved by a person", 1:"held: rejected by a person")
+ &sql(UPDATE Knos_Iris_Data.Decision SET Gate = :g, Outcome = :o WHERE SessionId = :sid)
+]]></code>
 </case>
 </switch>
 <if condition='context.Gate="PAY"'>
 <true>
+<code name='TxBuilder'><![CDATA[
+ set context.Tx = ##class(Knos.Iris.Py.Tx).Build(request.BriefId, request.AmountUSDC)
+]]></code>
+<call name='SolanaSubmit' target='SolanaSubmit' async='0'>
+<request type='Knos.Iris.Msg.SignedTx'><assign property='callrequest.TxB64' value='context.Tx' action='set'/><assign property='callrequest.Mode' value='"simulate"' action='set'/><assign property='callrequest.Kind' value='"pay"' action='set'/></request>
+<response type='EnsLib.PEX.Message'><assign property='context.Sim' value='callresponse.%jsonObject.%ToJSON()' action='set'/></response>
+</call>
 <call name='Devnet slot' target='SolanaRead' async='0'>
 <request type='Knos.Iris.Msg.RpcRequest'><assign property='callrequest.Method' value='"getSlot"' action='set'/></request>
 <response type='Knos.Iris.Msg.RpcResponse'><assign property='context.Slot' value='callresponse.ResultJSON' action='set'/></response>

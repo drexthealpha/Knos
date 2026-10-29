@@ -1,0 +1,6 @@
+# the build context of iris/Dockerfile: only what the image copies (Knos's package and iris/), never secrets or caches
+*
+!src/knos
+!iris
+iris/.env
+**/__pycache__

@@ -4,9 +4,15 @@ services:
     build:
       context: ..
       dockerfile: iris/Dockerfile
+      args:
+        KNOS_FHIR: "${KNOS_FHIR:-0}"
     image: knos-iris:local          # local only: built on the EAP image, never pushed
     container_name: knos-iris
+    hostname: knos-iris
+    mem_limit: 2g
     env_file: .env
+    environment:
+      - ISC_CPF_MERGE_FILE=/home/irisowner/knos/iris/merge.cpf
     ports:
       - "52773:52773"
       - "1972:1972"

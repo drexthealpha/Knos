@@ -10,11 +10,17 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
 {
     set t0 = $zhorolog
     set hash = ##class(Knos.Iris.Py.Ready).Hash(pRequest.BriefJSON)
-    set mode = $select(..Mode="live":"live", 1:"replay")
+    set mode = $select($get(^Knos.LLM("mode"), ..Mode)="live":"live", 1:"replay")   // ^Knos.LLM("mode"): the tests' override
     set out = ""
-    if mode = "live" { set out = ##class(Knos.Iris.AI.Referee).Ask(pRequest, hash) set:out="" mode = "replay" }
+    set refused = ""
+    if mode = "live" { set out = ##class(Knos.Iris.AI.Referee).Ask(pRequest, hash, .refused) set:out="" mode = "replay" }
+    if refused '= "" {
+        // live mode was asked for and cannot ask a model: said in one plain sentence, decided by nobody, sent to a person
+        set out = {"criteria_hash": (hash), "decision": "insufficient", "milestones": [], "confidence": 0, "model": ("refused: "_refused), "referee": "nobody (live mode refused)"}.%ToJSON()
+        set mode = "live refused"
+    }
     if out = "" {
-        set file = "/home/irisowner/knos/iris/fixtures/replay/"_hash_"-"_##class(Knos.Iris.Util).Sha(pRequest.PayloadJSON)_".json"
+        set file = ##class(Knos.Iris.Util).Home()_"iris/fixtures/replay/"_hash_"-"_##class(Knos.Iris.Util).Sha(pRequest.PayloadJSON)_".json"
         if ##class(%File).Exists(file) {
             set f = ##class(%Stream.FileCharacter).%New(), f.Filename = file, out = f.Read(1000000)
         } else {

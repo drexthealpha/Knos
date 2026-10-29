@@ -1,16 +1,18 @@
 /// Installs Knos Referee on IRIS in namespace KNOS: the web app /api/knos, the SSL client config for devnet, the
-/// payout threshold, the approver role, the Java server, the FHIR R4 endpoint, the production (started, and started
+/// payout threshold, the approver role, the Java server's memory cap (it starts on first use, with the production),
+/// the FHIR R4 endpoint only when asked (KNOS_FHIR=1: about 2 GB more at build), the production (started, and started
 /// again with IRIS).
 Class Knos.Iris.Setup
 {
-ClassMethod Install(fhir As %Boolean = 1) As %Status
+ClassMethod Install(fhir As %Boolean = 0) As %Status
 {
     set ns = $namespace
     zn "%SYS"
     set props("NameSpace") = ns, props("DispatchClass") = "Knos.Iris.REST.Api", props("AutheEnabled") = 32, props("Enabled") = 1
     if '##class(Security.Applications).Exists("/api/knos") { set sc = ##class(Security.Applications).Create("/api/knos", .props) }
     if '##class(Security.SSLConfigs).Exists("knos") { set ssl("Enabled") = 1 do ##class(Security.SSLConfigs).Create("knos", .ssl) }
-    do ##class(%Net.Remote.Service).StartGateway("%Java Server")
+    // the Java gateway: capped at 192 MB, never started here (the production's PEX operation starts it on first use)
+    if ##class(Config.Gateways).Get("%Java Server", .gw) { set gw("JVMArgs") = "-Xmx192m" do ##class(Config.Gateways).Modify("%Java Server", .gw) }
     zn ns
     do ##class(Ens.Util.LookupTable).%UpdateValue("KnosPayoutThreshold", "usdc", +$system.Util.GetEnviron("KNOS_PAYOUT_THRESHOLD_USDC") + ($system.Util.GetEnviron("KNOS_PAYOUT_THRESHOLD_USDC") = "" * 50))
     do ##class(EnsLib.Workflow.RoleDefinition).CreateRole("PayoutApprovers")
@@ -23,8 +25,21 @@ ClassMethod Install(fhir As %Boolean = 1) As %Status
             }
         } catch e { write "FHIR: ", e.DisplayString(), ! }
     }
+    do ..Paths()
     do ##class(Ens.Director).SetAutoStart("Knos.Iris.Production")
     if ##class(Ens.Director).IsProductionRunning() return $$$OK
     return ##class(Ens.Director).StartProduction("Knos.Iris.Production")
+}
+
+/// The production's folders and the PEX jar, from Knos.Iris.Util.Home(): the same code runs in this image and in an
+/// IPM install anywhere else
+ClassMethod Paths() As %Status
+{
+    set h = ##class(Knos.Iris.Util).Home()
+    for d = "inbox/checkruns", "inbox/oru", "inbox/verdicts" { do ##class(%File).CreateDirectoryChain(h_d) }
+    set s("GitHubCheckRunPoller", "Adapter", "Dir") = h_"inbox/checkruns"
+    set s("HL7LabIn", "Adapter", "FilePath") = h_"inbox/oru/"
+    set s("SolanaSubmit", "Host", "%gatewayExtraClasspaths") = h_"java/knos-iris-pex.jar"
+    return ##class(Ens.Production).ApplySettings("Knos.Iris.Production", .s)
 }
 }

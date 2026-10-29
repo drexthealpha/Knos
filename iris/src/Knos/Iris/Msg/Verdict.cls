@@ -5,7 +5,7 @@ Property Decision As %String(VALUELIST = ",met,not_met,insufficient");
 Property MilestonesJSON As %String(MAXLEN = "");
 Property Confidence As %Numeric(SCALE = 2);
 Property CriteriaHash As %String(MAXLEN = 64);
-Property Model As %String(MAXLEN = 128);
+Property Model As %String(MAXLEN = 512);
 Property InTok As %Integer;
 Property OutTok As %Integer;
 Property CostUSD As %Numeric(SCALE = 6);

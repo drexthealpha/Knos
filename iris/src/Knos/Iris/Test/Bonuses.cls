@@ -4,7 +4,7 @@ Class Knos.Iris.Test.Bonuses
 /// Embedded Python: Knos's hash inside IRIS equals the golden one made by Knos outside it; a vague brief lists what is missing
 ClassMethod Python() As %String
 {
-    set dir = "/home/irisowner/knos/iris/fixtures/briefs/"
+    set dir = ##class(Knos.Iris.Util).Home()_"iris/fixtures/briefs/"
     set golden = {}.%FromJSON(..File(dir_"golden.json"))
     set h = ##class(Knos.Iris.Py.Ready).Hash(..File(dir_"code.json"))
     set v = {}.%FromJSON(##class(Knos.Iris.Py.Ready).Check(..File(dir_"vague.json")))
@@ -14,7 +14,7 @@ ClassMethod Python() As %String
 /// Vector Search: three milestones locked, three queries, each one's nearest criterion and its cosine
 ClassMethod Vector() As %String
 {
-    set brief = ..File("/home/irisowner/knos/iris/fixtures/briefs/three.json")
+    set brief = ..File(##class(Knos.Iris.Util).Home()_"iris/fixtures/briefs/three.json")
     set hash = ##class(Knos.Iris.Py.Ready).Hash(brief)
     set sc = ##class(Knos.Iris.BO.BriefLock).Store("vector-test", brief, hash, 10)
     if $$$ISERR(sc) return {"error": ($system.Status.GetErrorText(sc))}.%ToJSON()

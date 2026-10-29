@@ -27,6 +27,7 @@ ClassMethod Health() As %Status
 
 ClassMethod Fhir() As %String
 {
+    if '$system.Util.GetEnviron("KNOS_FHIR") return "off"
     try {
         set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint("/csp/healthshare/knos/fhir/r4")
         return $select($isobject(strategy):"ok", 1:"no endpoint")
@@ -74,7 +75,7 @@ ClassMethod Proof() As %Status
     if $$$ISERR(sc) return ..Fail(sc)
     set sc = svc.ProcessInput(m, .d)
     if $$$ISERR(sc) return ..Fail(sc)
-    write {"decision": (d.Decision), "gate": (d.Gate), "outcome": (d.Outcome), "confidence": (+d.Confidence), "session": (d.SessionId),
+    write {"decision": (d.Decision), "gate": (d.Gate), "outcome": (d.Outcome), "confidence": (+d.Confidence), "session": (d.SessionId), "referee": (d.Referee),
       "milestones": ({}.%FromJSON($select(d.Reason="":"[]",1:d.Reason))),
       "visual_trace": ("http://localhost:52773/csp/healthshare/knos/EnsPortal.VisualTrace.zen?SESSIONID="_d.SessionId)}.%ToJSON()
     return $$$OK

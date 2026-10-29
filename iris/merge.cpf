@@ -1,0 +1,6 @@
+[config]
+globals=0,0,192,0,0,0
+routines=48
+gmheap=98304
+[Startup]
+SystemMode=KNOS REFEREE
