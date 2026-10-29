@@ -104,6 +104,7 @@ The documents in this folder are listed below, with the seven front pages too.
 | [COMPOSE.md](COMPOSE.md) | the verifier, the payment program and the record, from another program |
 | [MCP_SERVER.md](MCP_SERVER.md) | knos mcp's resources, prompts, output schema, tasks and skills, and the person's confirmation before each post |
 | [ES256.md](ES256.md) | a second kind of signed token (ES256), checked in one transaction; live on devnet since 9 Oct 2026 |
+| [ZK.md](ZK.md) | the score proof's toy setup, why it is devnet only, and what a real setup needs |
 | [PLATFORM.md](PLATFORM.md) | the programs on today's Solana: sBPF v3 builds, a GitHub token verified in one transaction, v1 transactions, finality, and the upgrade steps |
 | [CONFORMANCE.md](CONFORMANCE.md) | the formats, with test vectors and a runner |
 | [RELAY.md](RELAY.md) | the relay: anyone can run one |

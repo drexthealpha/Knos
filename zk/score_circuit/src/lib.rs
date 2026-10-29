@@ -229,5 +229,5 @@ pub const SAMPLE_N: usize = 64;
 pub const SAMPLE_CORRECT: usize = 52;
 pub const SAMPLE_THRESHOLD: u64 = 48;
 /// the toy setup's seed. A FIXED seed means anyone can recompute the toxic waste: this setup is for tests and the
-/// devnet demo only. A deployment that pays real money needs a multi-party setup ceremony (docs/ZK.md).
+/// devnet demo only. A deployment that pays real money needs a multi-party setup ceremony (docs/reference/ZK.md).
 pub const TOY_SETUP_SEED: u64 = 0x4b4e_4f53_5a4b_0329;

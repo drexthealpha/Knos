@@ -26,8 +26,16 @@ UA = {"User-Agent": "knos-n1-test", "Content-Type": "application/json"}
 
 
 def post(path: str, body: dict) -> dict:
-    with urllib.request.urlopen(urllib.request.Request(APP + path, json.dumps(body).encode(), UA), timeout=300) as r:
-        return json.loads(r.read())
+    """One request to the app; a connection the app drops is sent once more after 30 s (the app, never Qloo, retried)."""
+    for attempt in (1, 2):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(APP + path, json.dumps(body).encode(), UA), timeout=300) as r:
+                return json.loads(r.read())
+        except (OSError, ValueError):
+            if attempt == 2:
+                raise
+            time.sleep(30)
+    return {}
 
 
 def get(path: str) -> dict:
@@ -52,7 +60,12 @@ def main() -> int:
     lines, fails, times = [], [], []
 
     def ok(c, what):
-        lines.append(f"{'ok  ' if c else 'FAIL'} {what}")
+        line = f"{'ok  ' if c else 'FAIL'} {what}"
+        lines.append(line)
+        print(line, flush=True)
+        if OUT:                                               # each line kept at once: a crash loses nothing
+            with OUT.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
         if not c:
             fails.append(what)
 
@@ -62,9 +75,14 @@ def main() -> int:
         if i and i % PER_HOUR == 0:                           # the visitor cap: 10 live checks an hour
             time.sleep(max(0.0, burst_at + 3_610 - time.time()))
             burst_at = time.time()
-        chosen = pick(text)
-        t = time.time()
-        rep = post("/api/check", {"idea": chosen, "picked": True, "stage": "verdict"})
+        try:
+            chosen = pick(text)
+            t = time.time()
+            rep = post("/api/check", {"idea": chosen, "picked": True, "stage": "verdict"})
+        except (OSError, ValueError) as e:
+            ok(False, f"{text[:60]}: the app did not answer ({type(e).__name__})")
+            time.sleep(30)
+            continue
         secs = round(time.time() - t, 1)
         times.append(secs)
         d = rep.get("decision") or {}
@@ -84,10 +102,10 @@ def main() -> int:
     ok(0 <= spent <= BUDGET, f"Qloo calls spent by this run: {spent} (the server's day counter; at most {BUDGET})")
     lines.append(f"PASS test_new_idea_answered: 24 of 24 Open or Not yet with 3+ live Qloo calls, median {med} s, {spent} Qloo calls"
                  if not fails else f"FAIL test_new_idea_answered: {len(fails)} of {len(lines)} checks failed; {spent} Qloo calls; first: {fails[0][:150]}")
-    print("\n".join(lines))
+    print(lines[-1])
     if OUT:
         with OUT.open("a", encoding="utf-8") as f:
-            f.write(f"\n{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n" + "\n".join(lines) + "\n")
+            f.write(lines[-1] + "\n")
     return 1 if fails else 0
 
 

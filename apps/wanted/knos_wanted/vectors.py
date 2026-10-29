@@ -39,7 +39,7 @@ def _load() -> None:
         _loaded[0] = True
         if not _runs:
             _runs.extend(doc.get("runs") or [])
-        if _proof is None and public(doc.get("proof") or {}):
+        if _proof is None and public(doc.get("proof") or {}) and ((doc.get("proof") or {}).get("decision") or {}).get("verdict") == "OPEN":
             _proof = shape(doc.get("proof"))
 
 
@@ -96,14 +96,14 @@ def _card(rep: dict) -> dict:
 
 
 def note(kind: str, ms: float, rep: dict, state=None) -> None:
-    """One measured run. A real verdict (OPEN or REFUSE, with Qloo's cities) on a public example becomes the proof shown first."""
+    """One measured run. A real Open verdict (with Qloo's cities) on a public example becomes the proof shown first."""
     global _proof
     _load()
     calls = rep.get("calls") or []
     verdict = (rep.get("decision") or {}).get("verdict")
     row = {"kind": kind, "ms": round(ms), "calls": len(calls), "cached": bool(calls) and all(c.get("cached") for c in calls),
            "verdict": verdict, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-    real = verdict in ("OPEN", "REFUSE") and rep.get("cities") and not rep.get("without_qloo") and not rep.get("private") and public(rep)
+    real = verdict == "OPEN" and rep.get("cities") and not rep.get("without_qloo") and not rep.get("private") and public(rep)   # a Wanted verdict leads
     with _lock:
         _runs.append(row)
         del _runs[:-KEEP]

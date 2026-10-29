@@ -14,9 +14,9 @@
 //!                  marker by the signature (knos_pay: ["used", sha256(signature)]) and (r, n - s) verifies
 //!                  whenever (r, s) does. With the upper half refused, a token has one accepted signature. An
 //!                  issuer's library may write the upper one: whoever carries the token replaces s by n - s, which
-//!                  needs no secret and changes nothing that is signed (docs/ES256.md).
+//!                  needs no secret and changes nothing that is signed (docs/reference/ES256.md).
 //! So the token rides in the transaction, and a legacy transaction is 1,232 bytes: the signing input can be at most
-//! 780 bytes (measured by programs-v2/handlers/tests/knos_oidc_es256.rs; docs/ES256.md has the arithmetic).
+//! 780 bytes (measured by programs-v2/handlers/tests/knos_oidc_es256.rs; docs/reference/ES256.md has the arithmetic).
 //!
 //! WHAT IT WRITES. The token account ["tok", payer, id] that Step writes for an RS256 token, with the same
 //! layout: stage VERIFIED, the issuer number, the key account, the expiry, the payload decoded in place, and at

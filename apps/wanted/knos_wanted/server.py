@@ -1118,6 +1118,8 @@ def make_handler(state: State):
                     state.pair((self._client(), " ".join(idea.split()).lower()[:200]))
                 from . import qloo_rest                     # 10 live checks per visitor an hour (a salted hash, never the address)
                 capped = None if without or getattr(self, "_free_check", False) else qloo_rest.visitor_take(qloo_rest.visitor_hash(self._client()))
+                if str(body.get("qloo") or "").lower() == "off":    # Start's "Qloo off" state: this request from the cache only
+                    capped = "Qloo switched off for this request: answered from the private cache only"
                 rep = check.demand_check(idea, _text(body.get("place")), _text(body.get("leader"), 80),
                                          client=Client(key="") if without else state.rest, exclude=ex, options=opts, stage=stage,
                                          only_cache=capped)
