@@ -41,4 +41,5 @@
   body * { visibility: hidden; } #k-card, #k-card * { visibility: visible; }
   #k-card { position: absolute; left: 0; top: 0; width: 100%; font-size: 10pt; }
   #k-card details:not([open]) > :not(summary), #k-card [data-timeline], #k-card .k-switch, #k-card [data-export], #k-card .k-map, #k-card form { display: none !important; }
-  #k-card .k-card { break-inside: avoid; box-shadow: none; border: 1px solid #888; } }
+  #k-card .k-card { box-shadow: none; border: 1px solid #888; zoom: .62; }
+  #k-card [data-part=calls], #k-card [data-claude], #k-card .k-where svg, #k-card .k-osm, #k-card [data-model], #k-card .k-card-foot, #k-card details { display: none !important; } }

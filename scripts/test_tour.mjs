@@ -33,8 +33,13 @@ try {
     if (width === 1280 && scheme === "light") {
       const links = await page.$$eval(".s-block a", (as) => as.map((a) => a.href));
       for (const href of links) {
-        const r = await fetch(href, { redirect: "follow" }).catch(() => null);
-        ok(r && r.status < 400, `block link ${href.slice(0, 90)}: HTTP ${r ? r.status : "no answer"}`);
+        let r = await fetch(href, { redirect: "follow" }).catch(() => null), how = "";
+        const tx = href.match(/explorer\.solana\.com\/tx\/([1-9A-HJ-NP-Za-km-z]{64,90})/);
+        if (tx && r && r.status === 429) {      // the explorer limits scripts: the transaction is read from devnet itself
+          const j = await fetch("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getTransaction", params: [tx[1], { maxSupportedTransactionVersion: 0 }] }) }).then((x) => x.json()).catch(() => ({}));
+          r = { status: j.result ? 200 : 404 }; how = " (the explorer answered 429; devnet holds the transaction)";
+        }
+        ok(r && r.status < 400, `block link ${href.slice(0, 90)}: HTTP ${r ? r.status : "no answer"}${how}`);
       }
       cmds = await page.$$eval("[data-cmd]", (cs) => cs.map((c) => ({ k: c.dataset.cmd, t: c.textContent })));
     }
@@ -51,7 +56,7 @@ const tmp = mkdtempSync(join(tmpdir(), "knos-t1-"));
 try {
   for (const c of cmds) {
     try {
-      if (c.k === "mcp") { const out = execSync(c.t, { cwd: tmp, encoding: "utf8", shell: true, timeout: 120000 }); execSync("claude mcp remove knos", { cwd: tmp, shell: true, timeout: 120000 }); ok(/knos/i.test(out), `ran: ${c.t} (then removed)`); }
+      if (c.k === "mcp") { const out = execSync(c.t, { cwd: tmp, encoding: "utf8", shell: true, timeout: 120000 }); execSync("claude mcp remove knos -s local", { cwd: tmp, shell: true, timeout: 120000 }); ok(/knos/i.test(out), `ran: ${c.t} (then removed)`); }
       else if (c.k === "pip") { execSync(`py -3 -m venv "${join(tmp, "v")}"`, { shell: true, timeout: 300000 }); execSync(`"${join(tmp, "v", "Scripts", "python.exe")}" -m ${c.t}`, { shell: true, timeout: 600000, stdio: "ignore" });
         const v = execSync(`"${join(tmp, "v", "Scripts", "python.exe")}" -m pip show knos`, { shell: true, encoding: "utf8" }); ok(/Name: knos/.test(v), `ran: ${c.t} (${(v.match(/Version: (\S+)/) || [])[1]})`); }
       else { const out = execSync(c.t, { encoding: "utf8", shell: "bash", timeout: 120000 }); ok(/"executable":\s*true/.test(out), `ran: the devnet program check: executable ${/"executable":\s*true/.test(out)}`); }

@@ -15,7 +15,11 @@ const CHIPS = ["a solar powered music festival", "an AI recipe planner for famil
 const PARTS = ["recorded", "without-count", "strength", "modeled", "rejected-signals", "cannot", "exports", "closing", "sure"];
 const lines = [], fails = [];
 const ok = (c, w) => { lines.push(`${c ? "ok  " : "FAIL"} ${w}`); console.log(lines.at(-1)); if (!c) fails.push(w); };
-const post = (body) => fetch(APP + "/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+// the app allows 30 checks per client in 10 minutes: each check here waits its turn
+let last = 0;
+const pace = async (n = 1) => { const wait = last + 22000 * n - Date.now(); if (wait > 0) await new Promise((r) => setTimeout(r, wait)); last = Date.now(); };
+const post = async (body) => { await pace(); return postNow(body); };
+const postNow = (body) => fetch(APP + "/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
 const browser = await chromium.launch();
 const errors = [];
 let cards = 0;
@@ -28,6 +32,7 @@ try {
       await page.goto(SITE + "?t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 90000 });
       await page.fill("#k-guess", "Austin");
       await page.fill("#k-who", "college students");
+      await pace(2);
       await page.click(`.k-try [data-q="${chip}"]`);
       const got = await page.waitForSelector("#k-card [data-u1]", { timeout: 120000 }).catch(() => null);
       if (!got) { ok(false, `${width} ${chip}: no recorded card parts`); continue; }

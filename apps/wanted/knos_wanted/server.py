@@ -70,7 +70,7 @@ LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/healthz")                                           # demo pre-orders, all clients
+DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
