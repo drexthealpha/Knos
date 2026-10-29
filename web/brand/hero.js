@@ -189,7 +189,7 @@
     const rows = (Array.isArray(r.calls) ? r.calls : []).map((c) => { const p = c.params || {};
       const keys = Object.keys(p).filter((k) => p[k] != null && p[k] !== "").map((k) => `${k}=${own(String(p[k])).slice(0, 40)}`).join(", ");
       return `<li data-call="${esc(c.n)}"><a href="${esc(API)}/trace.html?hash=${encodeURIComponent(r.hash || "")}#call-${esc(c.n)}" target="_blank" rel="noopener">#${esc(c.n)}</a> ${
-        esc(c.call || "")} <span class="k-fine">${esc(keys)}</span> · ${Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.cached ? "cached" : "live"}${c.error ? " · failed" : ""} · ${esc([...(fed[c.n] || [])].join(", ") || String(c.effect || "").slice(0, 60) || "the verdict")}${r.signals ? ` · <span data-role="${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}">${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}</span>` : ""}</li>`; });
+        esc(c.call || "")} <span class="k-fine">${esc(keys)}</span> · ${Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.live ? "live" : c.recorded ? `recorded ${esc(c.recorded)}` : c.error ? "not answered" : "recorded"}${c.error ? " · failed" : ""} · ${esc([...(fed[c.n] || [])].join(", ") || String(c.effect || "").slice(0, 60) || "the verdict")}${r.signals ? ` · <span data-role="${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}">${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}</span>` : ""}</li>`; });
     const first = (Array.isArray(r.calls) && r.calls[0] && r.calls[0].n) || 1;
     return rows.length ? `<details class="k-calls" data-part="calls"><summary>Qloo calls (${rows.length})</summary><p class="k-fine">${chip("qloo", `call-${first}`)}</p><ol>${rows.join("")}</ol></details>` : "";
   }
@@ -363,7 +363,7 @@
   ${terms ? `<p class="k-terms" data-part="terms" data-city="${esc(terms.city)}" data-target="${esc(terms.target)}">Launch in <b>${esc(terms.city)}</b>: ${esc(terms.target)} pre-orders.${chip("rule", "rule-target")} Every pre-order is refunded if the target is missed.</p>${terms.by_population ? `<p class="k-fine" data-part="by-population" data-pop-city="${esc(terms.by_population.city)}" data-pop-target="${esc(terms.by_population.target)}">By population: ${esc(terms.by_population.city)}, ${esc(terms.by_population.target)}.${chip("rule", "rule-population")} By Qloo taste: ${esc(terms.city)}, ${esc(terms.target)}.${chip("rule", "rule-target")}</p>` : ""}` : ""}
   ${r.signals && r.signals.line ? `<p class="k-fine" data-part="signals">${esc(r.signals.line)}</p>` : ""}${gapClose(r)}
   ${read}${why ? `<p class="k-why"><b>Knos rule:</b> ${esc(why)}</p>` : ""}${trendLine(r)}
-  ${Array.isArray(r.calls) && r.calls.length ? `<section class="k-timeline" data-timeline aria-live="polite"><p class="k-fine" data-counter>Qloo calls this check: 0 (live 0, cached 0)</p><ol data-rows tabindex="0" aria-label="Qloo calls, as they answered"></ol></section>` : ""}
+  ${Array.isArray(r.calls) && r.calls.length ? `<section class="k-timeline" data-timeline aria-live="polite"><p class="k-fine" data-counter>Qloo calls this check: 0 (live 0, recorded 0)</p><ol data-rows tabindex="0" aria-label="Qloo calls, as they answered"></ol></section>` : ""}
   ${r.decision ? `<button type="button" class="k-chip" data-without aria-pressed="false">Without Qloo</button>` : ""}
   ${r.decision ? `<span class="k-switch" role="group" aria-label="With Qloo or the model alone"><button type="button" class="k-chip" data-view="qloo" aria-pressed="true">With Qloo</button><button type="button" class="k-chip" data-view="model" aria-pressed="false">Model alone</button></span>` : ""}</header>
   ${r.decision ? modelPanel(r, terms, [age, gender].filter(Boolean).join(", ") || segs.join(", ")) : ""}
@@ -525,7 +525,7 @@ ${src(h, price.src)}</section>
     const decides = new Set((r.signals && r.signals.decides) || []);
     const list = r.calls.filter((c) => c && typeof c === "object");
     const row = (c) => `${esc(c.call || "")} · ${esc(c.what || c.effect || "")} · ${decides.size ? (decides.has(c.n) ? "decides" : "context") : "the verdict"} · ${
-        Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.cached ? "cached" : "live"}`;
+        Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.live ? "live" : c.recorded ? `recorded ${esc(c.recorded)}` : c.error ? "not answered" : "recorded"}`;
     let live = 0, cached = 0, i = 0;
     // every row is in place from the start, unseen, so revealing one moves nothing (sweep M1.md 4.5)
     rows.innerHTML = list.map((c) => `<li data-call="${esc(c.n)}" style="opacity:0">${row(c)}</li>`).join("");
@@ -534,9 +534,9 @@ ${src(h, price.src)}</section>
       if (!box.isConnected || i >= list.length) return;
       const c = list[i];
       items[i++].style.opacity = "";
-      c.cached ? cached++ : live++;
-      if (still()) { items.forEach((li) => { li.style.opacity = ""; }); live = list.filter((x) => !x.cached).length; cached = list.length - live; i = list.length; }
-      counter.textContent = `Qloo calls this check: ${i} (live ${live}, cached ${cached})`;
+      c.live ? live++ : cached++;
+      if (still()) { items.forEach((li) => { li.style.opacity = ""; }); live = list.filter((x) => x.live).length; cached = list.length - live; i = list.length; }
+      counter.textContent = `Qloo calls this check: ${i} (live ${live}, recorded ${cached})`;
       setTimeout(step, 90);
     };
     step();

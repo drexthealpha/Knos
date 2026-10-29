@@ -69,7 +69,7 @@ const browser = await chromiumOrSkip();
       for (const [p, rows] of Object.entries(want))
         ok(`report ${i}: "${p}" renders each value, linked to the call it came from in the trace`, JSON.stringify(got.parts[p]) === JSON.stringify(rows), got.parts[p]);
       const fed = { 3: ["launch cities", "because"], 4: ["taste persona"], 5: ["brand ladder"], 6: ["next to it"], 7: ["room against the leader"], 2: ["who wants it"] };
-      ok(`report ${i}: the calls panel lists 7 calls, each live or cached`, got.summary === "Qloo calls (7)" && got.rows.length === 7 && got.rows.every((r) => / \u00b7 (live|cached)( \u00b7 |$)/.test(r)), got.summary);
+      ok(`report ${i}: the calls panel lists 7 calls, each live or recorded`, got.summary === "Qloo calls (7)" && got.rows.length === 7 && got.rows.every((r) => / \u00b7 (live|recorded( \d{4}-\d\d-\d\d)?)( \u00b7 |$)/.test(r)), got.summary);
       // the card lists launch cities only from the launch terms (apps/wanted metros.launch_terms); this report has none
       ok(`report ${i}: the trend line, and no launch-city list without launch terms`, got.trend === `Trend of Leader ${i}: flat, data through 2026-05-07 source` && got.city === undefined, [got.trend, got.city]);
       await page.click("#k-card [data-without]");
