@@ -1,0 +1,37 @@
+# Knos
+
+> Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.
+
+A demand check on Qloo names who wants a product and where. A Ready brief fixes the terms, and a program on Solana holds the money until the proof passes. Devnet, test money, no customers yet.
+
+## Start here
+
+- [The app]({base}/app/): type an idea or a paper's DOI and see who wants it and where
+- [Check from a link]({base}/app/?q=a%20late%20night%20ramen%20spot): the app runs the check named in `q`
+- [Start](https://drexthealpha.github.io/Knos/start/): the first steps, on the front door
+
+## Agents
+
+- [Hosted MCP server]({base}/mcp): Streamable HTTP; `claude mcp add --transport http knos {base}/mcp`
+- [MCP Server Card]({base}/mcp/server-card): name, version and supported protocol versions, before you connect
+- [AI catalog]({base}/.well-known/ai-catalog.json): every agent document on this host
+- [OpenAPI]({base}/openapi.json): the HTTP API as OpenAPI 3.1
+- [A2A Agent Card]({base}/.well-known/agent-card.json): the MCP endpoint and the OAuth client-credentials flow
+
+## Evidence
+
+- [Qloo today]({base}/status/qloo): calls, cache hits and the last 429, as this server met them
+- [Trace pages]({base}/trace.html): each Qloo call behind a verdict, with a Markdown twin at `/trace.md?hash=`
+- [Proof](https://drexthealpha.github.io/Knos/proof/): every published number against its baseline, each linked to its source
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/drexthealpha/Knos/main/README.md): how it works, in plain words
+- [Words](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/WORDS.md): every technical word in one line
+- [What is not real yet](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/reference/DISCLOSURE.md): test money only, on devnet
+
+## Optional
+
+- [Source](https://github.com/drexthealpha/Knos): the repository, MIT licence
+- [Package](https://pypi.org/project/knos/): `pip install knos`
+- [Front door llms.txt](https://drexthealpha.github.io/Knos/llms.txt): the same map for the Pages site

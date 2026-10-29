@@ -69,6 +69,7 @@ LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish"
           "live": (120, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
+PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
 DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
@@ -87,7 +88,7 @@ SIGNED_IN = ("/api/preorder", "/api/milestone", "/api/refund", "/api/factor", "/
 # every GET route below (do_GET), for the OpenAPI document (knos_wanted.openapi); the product routes list their own
 PAGES = {"/fields": "fields.html", "/money": "money.html", "/companies": "companies.html", "/trace": "trace.html", "/trace.html": "trace.html", "/with-without": "with_without.html", "/with-without.html": "with_without.html",
          "/qloo-safe-use": "qloo_safe_use.html", "/qloo-safe-use.html": "qloo_safe_use.html", "/invite": "invite.html", "/invite.html": "invite.html"}
-GET_ROUTES = {"/actions.json": "Solana Actions rules", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
+GET_ROUTES = {"/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the Start page on the front door", "/start/": "301 to the Start page on the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
               "/api/money": "The money page: what is held, released and charged, and the price list",
               "/api/vectors": "The seven product-value vectors, measured: cost, speed, friction, trust, capability, access, status",
               "/api/proof": "The latest real verdict this server reached (shown first on both front doors)",
@@ -467,7 +468,8 @@ def make_handler(state: State):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Cache-Control", "no-store")
+            if not any(k.lower() == "cache-control" for k in (headers or {})):
+                self.send_header("Cache-Control", "no-store")
             self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
             self.wfile.write(data)
@@ -533,6 +535,13 @@ def make_handler(state: State):
                         page = page.replace(DATA_SLOT, f'<script type="application/json" id="k-data">{data}</script>', 1)
                     except valley.Refused:
                         pass                                 # not published yet: the page asks and says so
+                if u.path in ("/trace", "/trace.html") and (qs.get("hash") or [""])[0]:   # the verdict in the HTML, for readers with no script
+                    from . import agent_files as _af, trace as _trace
+                    t = _trace.load(state, (qs.get("hash") or [""])[0])
+                    if t:
+                        ssr = _af.trace_html_head(t, base=PUBLIC_BASE)
+                        page = page.replace("</head>", ssr["head"] + "</head>", 1).replace("<main", ssr["section"] + "<main", 1) \
+                            if "<main" in page else page.replace("</head>", ssr["head"] + "</head>", 1).replace("</body>", ssr["section"] + "</body>", 1)
                 return self._send(200, inline_css(vectors.filled(page)).encode("utf-8"), "text/html; charset=utf-8")
             if u.path == "/api/trace":                       # a report's Qloo calls, redacted (knos_wanted.trace)
                 from . import trace as _trace
@@ -676,6 +685,8 @@ def make_handler(state: State):
                     data = json.dumps(pr, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
                     page = page.replace('<script type="application/json" id="k-proof">null</script>',
                                         f'<script type="application/json" id="k-proof">{data}</script>', 1)
+                from . import agent_files as _af               # SoftwareApplication + WebSite with its ?q= search action
+                page = page.replace("</head>", _af.app_jsonld_script(PUBLIC_BASE) + "</head>", 1)
                 return self._send(200, inline_css(vectors.filled(page)).encode("utf-8"), "text/html; charset=utf-8")
             if re.fullmatch(r"/receipts/[0-9a-f]{16}", u.path) or u.path == "/api/receipts":   # each number's source, row by row
                 from . import receipts, result_page
@@ -783,6 +794,9 @@ def make_handler(state: State):
                     return self._send(400, {"error": f"{type(why).__name__}: {why}"[:300]})
             if u.path == "/healthz":
                 return self._send(200, {"ok": True})
+            agent_file = self._agent_file(u, qs)
+            if agent_file:
+                return self._send(*agent_file)
             if u.path in ("/quality", "/quality/"):          # the quality page is the front door's, measured at each build
                 return self._send(301, b"", "text/plain", headers={"Location": "https://drexthealpha.github.io/Knos/quality/"})
             if u.path == "/api/report":
@@ -812,10 +826,45 @@ def make_handler(state: State):
             if u.path == "/api/project/evidence":             # a project attempt's public review (both pages, claim ids)
                 page = valley.project_evidence((qs.get("id") or [""])[0])
                 return self._send(200, page, "application/json") if page else self._send(404, {"error": "unknown evidence"})
-            if u.path == "/api/prize/evidence":               # a demo prize's public evidence: the round's verdict
+            if u.path == "/api/prize/evidence":               # a round's public evidence: its verdict
                 page = tasks.prize_evidence((qs.get("id") or [""])[0])
                 return self._send(200, page, "application/json") if page else self._send(404, {"error": "unknown prize"})
+            if "text/html" in (self.headers.get("Accept") or ""):   # a person's browser: a page with the way back
+                from . import agent_files as _af
+                return self._send(*_af.not_found_html())
             return self._send(404, {"error": "not found"})
+
+        def _agent_file(self, u, qs) -> tuple | None:
+            """The files agents and search engines read (knos_wanted.agent_files): llms.txt, robots.txt, the sitemap, the
+            AI catalog and the MCP Server Card, the trace's Markdown twin, the IndexNow key, and /start's 301 to Pages."""
+            from . import agent_files as af
+            if u.path in ("/start", "/start/"):
+                return af.start_redirect()
+            if u.path == "/llms.txt":
+                return af.llms_txt(base=PUBLIC_BASE)
+            if u.path == "/robots.txt":
+                return af.robots_txt(base=PUBLIC_BASE)
+            if u.path == "/sitemap.xml":
+                from . import trace as _trace
+                try:
+                    kept = sorted(p.stem for p in _trace._dir().glob("*.json"))[-2000:]
+                except OSError:
+                    kept = []
+                return af.sitemap_xml(base=PUBLIC_BASE, trace_hashes=kept)
+            if u.path == "/.well-known/ai-catalog.json":
+                return af.ai_catalog(base=PUBLIC_BASE)
+            if u.path == "/mcp/server-card":
+                from . import __version__
+                return af.server_card(base=PUBLIC_BASE, version=__version__, protocol_versions=list(agent.PROTOCOLS))
+            if u.path == "/trace.md":
+                from . import trace as _trace
+                t = _trace.load(state, (qs.get("hash") or [""])[0])
+                return af.trace_markdown(t, base=PUBLIC_BASE) if t else (404, {"error": "unknown report: no trace kept for it"}, "application/json", {})
+            if u.path.endswith(".txt") and len(u.path) > 5:
+                key = af.read_key()
+                if key and u.path[1:-4] == key:
+                    return af.key_file(key)
+            return None
 
         def status(self) -> dict:
             pf = preorder.preflight_status()

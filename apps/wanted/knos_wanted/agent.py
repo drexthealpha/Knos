@@ -339,7 +339,8 @@ def poll(job_id: str, since: int = 0) -> dict | None:
 
 
 # ---- MCP over HTTP (an optional door for other agents) ----------------------------------------------------------------
-PROTOCOL = "2025-06-18"
+PROTOCOLS = ("2025-11-25", "2025-06-18", "2025-03-26")   # the MCP revisions this server speaks, newest first
+PROTOCOL = PROTOCOLS[0]
 CONFIRM = ("CONFIRM FIRST: this moves devnet TEST money or posts work. Ask the human you work for before calling. Needs "
            "Authorization: Bearer in the HTTP header (an agent key's OAuth token), or the session token knos_sign_in returned. "
            "Test money only; no real funds.")
@@ -386,7 +387,7 @@ TOOLS = [
      "description": "Every commitment on this server: held order, units, status, claim id. A locked one needs an evidence page.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "knos_tasks", "title": "Open work for contributors",
-     "description": "Open game rounds and milestones a person or agent can work on; checked and paid on devnet (test money).",
+     "description": "Open milestones and tasks a person or agent can work on; each is checked by its referee and paid on devnet (test money).",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "knos_memory_search", "title": "Search everything this Knos remembers",
      "description": "FTS5 search (multilingual) over the agents' memory and the Knos Record: papers, crossings, decisions, events.",
@@ -409,9 +410,9 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"commitment": {"type": "string"}, "evidence_url": {"type": "string"},
                                                        "session": {"type": "string"}}, "required": ["commitment", "evidence_url"],
                      "additionalProperties": False}},
-    {"name": "knos_task_submit", "title": "Submit work to an open round",
-     "description": "Submits the whole train.py to the open round (knos_tasks says what to change and links the task's README); "
-                    "the sealed referee checks it at once; several attempts per round. A scored attempt with a devnet `wallet` "
+    {"name": "knos_task_submit", "title": "Submit work to an open task",
+     "description": "Submits the whole train.py to the open task (knos_tasks says what to change and links the task's README); "
+                    "the sealed referee checks it at once; several attempts per task. A scored attempt with a devnet `wallet` "
                     "is paid in test units. " + CONFIRM,
      "inputSchema": {"type": "object", "properties": {"round": {"type": "string"}, "name": {"type": "string"}, "code": {"type": "string"},
                                                        "wallet": {"type": "string"},
@@ -556,8 +557,9 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
 
     def ok(result):
         return {"jsonrpc": "2.0", "id": mid, "result": result}
-    if method == "initialize":
-        return ok({"protocolVersion": PROTOCOL, "capabilities": {"tools": {"listChanged": False}},
+    if method == "initialize":                     # the client's revision when this server speaks it, else the newest
+        asked = str(((msg.get("params") or {}) if isinstance(msg.get("params"), dict) else {}).get("protocolVersion") or "")
+        return ok({"protocolVersion": asked if asked in PROTOCOLS else PROTOCOL, "capabilities": {"tools": {"listChanged": False}},
                    "serverInfo": {"name": "knos", "version": _knos_version()},
                    "instructions": "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof. Start with knos_demand_check (is it wanted: who, where, at what price) or "
                                                    "knos_cross with a paper id; every step names the Qloo call behind it. knos_ready says whether a brief is "
