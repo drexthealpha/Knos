@@ -72,7 +72,7 @@ FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front do
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
 DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
-ROUTES = {"/api/trace/keep": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
+ROUTES = {"/api/trace/keep": "product", "/api/ask": "check", "/api/feedback": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
           "/api/check": "check", "/api/test/record": "check", "/api/research": "check", "/api/cross": "check", "/api/factor": "lock",
@@ -799,6 +799,14 @@ def make_handler(state: State):
                 return self._send(*agent_file)
             if u.path in ("/quality", "/quality/"):          # the quality page is the front door's, measured at each build
                 return self._send(301, b"", "text/plain", headers={"Location": "https://drexthealpha.github.io/Knos/quality/"})
+            if u.path.startswith("/api/card/"):             # an Open card's downloads: pre-order text, outreach draft, refund date
+                from . import story
+                rep = state.report((qs.get("hash") or [""])[0])
+                got = story.download(rep, u.path[len("/api/card/"):]) if rep else None
+                if not got:
+                    return self._send(404, {"error": "no such download: an Open card's preorder, outreach or refund.ics"})
+                body, ctype, name = got
+                return self._send(200, body.encode("utf-8"), ctype, {"Content-Disposition": f'attachment; filename="{name}"'})
             if u.path == "/api/report":
                 rep = state.report((qs.get("hash") or [""])[0])
                 if rep is None:
@@ -867,6 +875,7 @@ def make_handler(state: State):
             return None
 
         def status(self) -> dict:
+            from . import model as _model                # "on" or "off": whether the founder set a model key, never the key
             pf = preorder.preflight_status()
             rest = state.rest.status()
             mcp = state.q.status()
@@ -885,7 +894,7 @@ def make_handler(state: State):
             rest = {**rest, "harness_first": {"surface": qloo_harness.SURFACE, "on": hz.enabled(), "answered": hz.answered,
                                               "rule": "a call goes through the harness when every parameter maps onto a harness tool; else REST"}}
             from . import status_deps
-            return {**mcp, **top, "qloo_rest": rest, "preorders": pf, "record_anchor": state.last_anchor, "deps": status_deps.deps(),
+            return {**mcp, **top, "model": _model.state(), "qloo_rest": rest, "preorders": pf, "record_anchor": state.last_anchor, "deps": status_deps.deps(),
                     "x402": {"ready": x402.ready(), "route": "/api/x402/report?hash=<report>", "price": f"{x402.PRICE_UNITS} test unit per read"},
                     "fees": preorder.fee_line(), "auth": auth.config(),
                     "framing": demand.FRAMING, "escrow": escrow.available(),
@@ -1068,6 +1077,19 @@ def make_handler(state: State):
                 return tasks.submit(str(body.get("round", "")), str(body.get("name", "")), str(body.get("code", "")),
                                     f"{user.get('kind')}: {user.get('label')}", sub=str(user.get("sub") or ""),
                                     wallet=_text(body.get("wallet"), 44), base=self._base())
+            if path == "/api/feedback":                   # "Was this useful?": the result's hash, yes or no, a note; a salted visitor hash
+                from . import qloo_rest, usage
+                return usage.feedback(str(body.get("hash") or ""), body.get("useful") is True, str(body.get("note") or ""),
+                                      qloo_rest.visitor_hash(self._client()))
+            if path == "/api/ask":                        # one question about a result: the model, under its caps, only with a key
+                from . import model as _model
+                rep = state.report(str(body.get("hash") or ""))
+                if rep is None:
+                    raise ValueError("unknown result: send the result's hash")
+                try:
+                    return _model.follow_up(rep, str(body.get("question") or ""))
+                except _model.Refused as why:
+                    return {"refused": str(why), "model": _model.state()}
             if path == "/api/check":
                 idea = body.get("idea")
                 if not isinstance(idea, str) or not idea.strip():
@@ -1114,6 +1136,8 @@ def make_handler(state: State):
                 rep["elapsed_ms"] = round((time.perf_counter() - t0) * 1000)
                 if isinstance(rep.get("qloo_calls"), dict):
                     rep["qloo_calls"] = {**rep["qloo_calls"], "ms": rep["elapsed_ms"]}
+                from . import story                          # the decision first: sentence, tiles, used words, reruns
+                rep["story"] = story.build(rep)
                 if not rep.get("queued"):
                     rep["record"] = {"recorded": False, "why": "a last real card, already recorded"} if rep.get("stale") else company.record_check(rep)
                 state.keep_check(rep)
