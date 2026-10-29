@@ -3,6 +3,7 @@ and what Knos does when that part is down. GET /api/status carries it as `deps`;
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 import urllib.request
@@ -13,7 +14,8 @@ TTL_S = 60
 DOWN = {"qloo": "the card shows the last recorded answer with its date, and a new check is queued until Qloo answers",
         "solana_devnet": "nothing is held or paid; the brief and the check still work",
         "sibyl": "checks still run; the record line is written when Sibyl is back",
-        "iris_referee": "the rules referee on this server checks a lab's proof with the same code",
+        "rules_referee": "a lab's proof waits; nothing is paid on it until the referee answers",
+        "iris": "the rules referee on this server checks a lab's proof with the same code",
         "openalex": "a DOI is read from Crossref instead"}
 
 
@@ -40,15 +42,25 @@ def _read() -> dict:
         from knos.record import journal
 
         from . import company
-        h = journal.head(company.root())
-        out["sibyl"] = {"state": "up", "said": f"record line {h.get('seq')}" if h else "the record is empty here"}
+        h = journal.head(company.root())               # the server's own copy of the record, said as that
+        url = os.environ.get("KNOS_SIBYL_HEALTH_URL")    # Sibyl itself, asked only when its address is configured
+        ok, said = _get(url) if url else (None, "")
+        out["sibyl"] = {"state": ("up" if ok else "down") if url else "not asked",
+                        "said": (f"{said}; " if url else "Sibyl's own address is not configured on this server; ")
+                        + (f"the server's copy of the record is at line {h.get('seq')}" if h else "the server's copy of the record is empty")}
     except Exception as why:  # noqa: BLE001
         out["sibyl"] = {"state": "down", "said": type(why).__name__}
     try:
         from knos import referee_rules
-        out["iris_referee"] = {"state": "up", "said": f"{referee_rules.MODEL} on this server; IRIS runs it inside a lab's own walls"}
+        out["rules_referee"] = {"state": "up", "said": f"{referee_rules.MODEL}, the code on this server"}
     except Exception as why:  # noqa: BLE001
-        out["iris_referee"] = {"state": "down", "said": type(why).__name__}
+        out["rules_referee"] = {"state": "down", "said": type(why).__name__}
+    url = os.environ.get("KNOS_IRIS_HEALTH_URL")         # IRIS only when an IRIS health route is configured, asked live
+    if url:
+        ok, said = _get(url)
+        out["iris"] = {"state": "up" if ok else "down", "said": said}
+    else:
+        out["iris"] = {"state": "not asked", "said": "no IRIS health route is configured on this server; IRIS runs inside a lab's own walls"}
     ok, said = _get("https://api.openalex.org/works?per-page=1&select=id")
     out["openalex"] = {"state": "up" if ok else "down", "said": said}
     for k, v in out.items():

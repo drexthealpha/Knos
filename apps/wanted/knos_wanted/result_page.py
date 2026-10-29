@@ -11,7 +11,7 @@ import re
 
 from . import escrow, metros, qr, recorded
 
-WORD = {"OPEN": "Open for pre-orders", "REFUSE": "Not yet: pre-orders stay closed", "CANNOT_DECIDE": "Qloo cannot decide this one"}
+WORD = {"OPEN": "Open for pre-orders", "REFUSE": "Not yet: pre-orders stay closed", "CANNOT_DECIDE": "Not enough evidence to decide"}
 SITE = "https://drexthealpha.github.io/Knos/"
 ID = re.compile(r"/r/([0-9a-f]{16})")
 # the one plain sentence for each state that is not a full answer

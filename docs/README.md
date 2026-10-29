@@ -9,7 +9,7 @@
 ```mermaid
 flowchart TB
     new(["New here?"])
-    story["STORY: one task in seven steps"]
+    story["STORY: one task in six steps"]
     start["START: try it in five minutes"]
     cost["PRICING: what it costs"]
     trust["TRUST: who holds the keys"]
@@ -24,7 +24,7 @@ flowchart TB
 
 | page | what it answers |
 |---|---|
-| [STORY.md](STORY.md) | one task in seven steps, each with its evidence |
+| [STORY.md](STORY.md) | one task in six steps, each with its evidence |
 | [START.md](START.md) | five minutes: check demand, write a Ready brief, check a pull request, fund a task |
 | [PRICING.md](PRICING.md) | what it costs: the check is free; the fee on a paid task; the meter |
 | [TRUST.md](TRUST.md) | who holds the keys today, how to ask for one, and what is tested |

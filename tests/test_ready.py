@@ -46,3 +46,11 @@ def test_knos_pay_client_refuses_a_not_ready_brief():
     from knos.ideas import commit as C
     with pytest.raises(C.IdeaError, match="Not ready"):
         C.commit({}, units=1, price=1, payee={}, funder=None, funder_token=None, mint=None, led=None, criteria=VAGUE)
+
+
+def test_a_brief_that_is_not_an_object_is_refused_in_one_plain_sentence():
+    import pytest
+    for bad in ([], "x", None, 3):
+        with pytest.raises(ValueError, match=ready.NOT_A_BRIEF):
+            ready.criteria_hash(bad)
+        assert ready.check(bad)["ready"] is False                   # the check answers Not ready, naming its fields

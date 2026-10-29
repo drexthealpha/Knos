@@ -10,7 +10,7 @@ readme = "README.pypi.md"   # README.md with its links pinned to the tag (script
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [{ name = "drexthealpha" }]
-keywords = ["metering", "ai-agents", "coding-agents", "attestation", "verification", "pay-on-proof", "solana", "oidc", "github-actions", "agent-payments", "sibyl", "claude-code-hooks"]
+keywords = ["research", "demand", "qloo", "valley-of-death", "pay-on-proof", "ready-brief", "solana", "attestation", "verification", "ai-agents", "sibyl", "oidc"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",

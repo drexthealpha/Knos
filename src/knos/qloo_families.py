@@ -7,7 +7,7 @@ A field names the Qloo parameter it sets, as docs.qloo.com spells it; where Qloo
 live API acts on is the one used, and NOTES says so. Nothing here calls Qloo: knos_wanted.families does, server side.
 
 F8 is the rest of the Entity Type Parameter Guide: `qloo` takes any documented parameter for the call's filter.type
-(checked against docs/qloo/entity_type_guide.tsv on the server), so nothing in the guide is out of reach.
+(checked against src/knos/qloo_docs/entity_type_guide.tsv on the server), so nothing in the guide is out of reach.
 """
 from __future__ import annotations
 

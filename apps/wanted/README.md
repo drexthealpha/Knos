@@ -168,10 +168,10 @@ Two or more points: "leans wanted". 0 or 1: "mixed". Below 0: "weak". Fewer than
   `python -m knos_wanted anchor` does it on demand. The record holds hashes, statuses, tool names, addresses and
   amounts: never the idea text (only its sha256), never a buyer's tastes, never a Qloo result.
 - Pre-orders use Knos's graduation pre-order pool (`knos.graduation.preorder_ix`, knos_pay FundOrderWallet): money
-  is paid to the maker only on delivery through Knos's referee, and refunded after the deadline (14 days) otherwise.
+  is paid to the maker only on delivery through Knos's referee, and refunded after the deadline (30 days, metros.DEADLINE_DAYS) otherwise.
 - Fees come from `config/fees.yaml` (`knos.money.fees_config`): `funding` 0 at lock, `payout` taken by knos_pay at
-  release, `graduation` decided and collected off chain. The demand report has no fee line: it is free until the
-  founder sets one. Devnet only, test units of a mint this app creates, no real money.
+  release, `graduation` decided and collected off chain. The demand report has no fee line: ten checks a month are
+  free (docs/PRICING.md). Devnet only, test units of a mint this app creates, no real money.
 
 ## Qloo data and personal data
 

@@ -27,6 +27,11 @@ def _limit(target: str):
     return None
 
 
+def _unit(u) -> str:
+    """A unit compared as written, without case or spaces ('mmol/L' == 'mmol / l'; 'mg/dL' != 'mmol/L')."""
+    return "".join(str(u or "").split()).lower().replace("µ", "u")
+
+
 MODEL = "rules referee (no model key set)"
 
 
@@ -61,9 +66,12 @@ def decide(brief_json: str, kind: str, payload: str, criteria_hash: str) -> str:
                 reason = f"the brief's verifier names '{what}'; the Observation's codes are {codes}"
             else:
                 op, n, unit = lim
-                met = vq["value"] < n if op == "<" else vq["value"] > n
-                ev = [f"observation:{o.get('id') or codes[0]}"]
-                reason = f"value {vq['value']} {vq.get('unit')} against the target {op} {n} {unit}"
+                if unit and _unit(vq.get("unit")) != _unit(unit):       # 5.5 mmol/L never passes "< 100 mg/dL"
+                    reason = f"the value's unit {vq.get('unit')!r} is not the target's {unit!r}, so they are not compared"
+                else:
+                    met = vq["value"] < n if op == "<" else vq["value"] > n
+                    ev = [f"observation:{o.get('id') or codes[0]}"]
+                    reason = f"value {vq['value']} {vq.get('unit')} against the target {op} {n} {unit}"
         elif kind == "verdict":
             try:
                 v = verdict_gate.strict(payload)

@@ -464,3 +464,11 @@ def test_knos_builds_knos_releases_a_milestone_only_on_its_passing_ci_check(mone
     page = json.loads(valley.project_evidence(eid))
     assert page["claims"] and page["check_run"] == run["html_url"] and page["sha"] == sha
     assert valley.ci_release(p["id"], key, sha, get=get, led=money.led)["status"] == "released"
+
+
+def test_test_rows_and_old_product_rows_stay_off_the_public_list():
+    from knos_wanted import valley as v
+    for t in ("Survives a redeploy (test)", "Knos: proof first, every bottleneck reachable, every number sourced",
+              "Beat the sealed classifier: the autoresearch round, funded", "We need an API integration that syncs our invoices to the ledger"):
+        assert not v.listed({"title": t}), t
+    assert v.listed({"title": "a fitness watch with a sweat glucose sensor"}) and not v.listed({"title": "x", "unlisted": {"at": "t"}})

@@ -5,7 +5,7 @@
 PATH is a research repository (a folder) holding knos.yml. The spec (knos.repro.spec) names the entry point, each claim
 (metric, expected value, tolerance) and the compute budget. Knos runs it (knos.repro.run), judges each claim, and writes
 the result to the PRIVATE folder first (knos.repro.publish). Only a reproduced result is published, with a badge and a
-result page per claim; a contested one goes to the authors privately and is never published. docs/REPRODUCE.md.
+result page per claim; a contested one goes to the authors privately and is never published. docs/reference/REPRODUCE.md.
 """
 from __future__ import annotations
 

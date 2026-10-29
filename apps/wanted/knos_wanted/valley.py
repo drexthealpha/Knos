@@ -580,6 +580,15 @@ def _one_each(ps: list[dict]) -> list[dict]:
     return [best[k] for k in order]
 
 
+# kept off the public list (each still opens by its id): test rows, Knos's own plan, and the older products' rows (the
+# sealed-classifier round, a company's ledger integration), which no research idea crossed into (sweep 22, CODE.md 2.16)
+OFF_LIST = re.compile(r"\(test\)\s*$|^Knos:|sealed classifier|autoresearch|syncs our invoices to the ledger", re.I)
+
+
+def listed(p: dict) -> bool:
+    return not p.get("unlisted") and not OFF_LIST.search(str(p.get("title") or ""))
+
+
 def projects(n: int = 50) -> list[dict]:
     """The public list: every project not archived, newest first. An archived one stays readable by its id. Built at
     most once every 30 s (it read every project file and made ~800 KB; under a page test's load that took 17 s), and
@@ -587,7 +596,7 @@ def projects(n: int = 50) -> list[dict]:
     hit = _list_cache.get(n)
     if hit and time.time() - hit[0] < 30:
         return hit[1]
-    out = _one_each([public_project(p) for p in _all("projects") if not p.get("unlisted")])[:n]
+    out = _one_each([public_project(p) for p in _all("projects") if listed(p)])[:n]
     _list_cache[n] = (time.time(), out)
     _json_cache.pop(n, None)
     return out
@@ -652,7 +661,7 @@ def list_html(take: int = 10) -> str:
 
 
 def _build_summaries(take: int) -> bytes:
-    rows = _one_each([summary(p) for p in _all("projects") if not p.get("unlisted")])[:take]
+    rows = _one_each([summary(p) for p in _all("projects") if listed(p)])[:take]
     body = json.dumps({"projects": rows, "take": take, "shape": "summary", "one": "/api/project?id=<id>"}, default=str).encode()
     _sum_stale.discard(take)
     _sum_cache[take] = (time.time(), body)

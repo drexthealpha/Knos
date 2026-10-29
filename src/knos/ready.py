@@ -216,11 +216,19 @@ def launch(brief) -> dict | None:
     return out
 
 
+NOT_A_BRIEF = "a brief is a JSON object with a list of milestones"
+
+
 def criteria_hash(brief: dict) -> str:
-    long = science_brief(clean(brief))
-    ms = [normal(m, i, long) for i, m in enumerate(clean(brief)["milestones"])]
-    body = {"v": 1, "milestones": ms, **terms(brief)}
-    lt = launch(brief)
+    """The brief's criteria hash. A brief that is not an object (a list, a string, null) is refused in one plain sentence
+    (ValueError, a 400 on every route), never an AttributeError."""
+    if not isinstance(brief, dict):
+        raise ValueError(NOT_A_BRIEF)
+    b = clean(brief)
+    long = science_brief(b)
+    ms = [normal(m, i, long) for i, m in enumerate(b["milestones"])]
+    body = {"v": 1, "milestones": ms, **terms(b)}
+    lt = launch(b)
     if lt is not None:
         body["launch"] = lt
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()

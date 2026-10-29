@@ -7,7 +7,7 @@ can be funded before any maker claims them (the payee is bound when a maker clai
 crossing does not decide OPEN is not listed, and every number on the list is read from this server's own files.
 
 Every product is named by a SLUG that outlives a restart (the report's hash changes when Qloo's data does), so the
-front door's static snapshot (web/products.json) and its links (#back=<slug>) keep working.
+front door's links (#back=<slug>) keep working.
 Each product carries ONE-TAP actions: back it (pre-order, or the first milestone's escrow while no maker has
 claimed it), fund a milestone (the project), contribute (the open work).
 """
