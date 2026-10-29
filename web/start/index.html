@@ -16,12 +16,16 @@
 <link rel="stylesheet" href="../brand/tokens.css">
 <link rel="stylesheet" href="../app.css">
 <style>
-main{max-width:880px;margin:0 auto;padding:16px 16px 48px}
+main{max-width:1200px;margin:0 auto;padding:clamp(48px,8vw,96px) clamp(16px,4vw,40px) 48px;font-size:var(--s1);line-height:1.55}
+main>h1{margin-top:0}
 .s-blocks{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:12px;counter-reset:s}
 .s-block{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:var(--card);counter-increment:s;display:grid;grid-template-columns:4.5em minmax(0,1fr);gap:2px 12px;min-height:84px}
-.s-block .s-t{grid-row:span 2;font:600 var(--s1)/1.2 var(--head);color:var(--accent)}
+.s-block .s-t{grid-row:span 2;align-self:start;justify-self:start;padding:3px 8px;border:1px solid var(--line);border-radius:99px;font:500 13px/1.2 var(--code);color:var(--ink-2)}
+@media (min-width:1000px){.s-blocks{grid-template-columns:repeat(4,minmax(0,280px));justify-content:start;position:relative}.s-block{grid-template-columns:minmax(0,1fr);align-content:start;gap:8px}.s-block .s-t{grid-row:auto}}
+.s-dep [data-state] i{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:var(--muted);vertical-align:1px}.s-dep [data-state="answering"] i,.s-dep [data-state="up"] i{background:var(--ok)}.s-dep [data-state="limited"] i{background:var(--warn)}.s-dep [data-state="down"] i{background:var(--bad)}
 .s-block h2{margin:0;font-size:var(--s1)}.s-block p{margin:0;overflow-wrap:anywhere}
 .s-deps{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:8px}
+.s-states{list-style:none;margin:12px 0;padding:0;display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}.s-states a{display:block;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:inherit;text-decoration:none}.s-states a:hover{background:var(--soft)}
 .s-dep{display:grid;grid-template-columns:9em minmax(0,1fr);gap:2px 12px;border-bottom:1px solid var(--line);padding:6px 0;min-height:3.2em}
 .s-dep b{font-weight:600}.s-dep [data-state]{font-weight:600}
 .s-cmd{display:flex;gap:8px;align-items:center;margin:8px 0;min-width:0}
@@ -61,9 +65,9 @@ main{max-width:880px;margin:0 auto;padding:16px 16px 48px}
   <div class="tools">
     <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
     <a class="proof" href="../proof/" data-proof>Proof</a>
-    <button id="theme" type="button" aria-label="Switch light or dark">◐</button>
+    <button id="theme" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
   </div>
-</header>
+</header><script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/Knos/*"},{"not":{"href_matches":"/Knos/wanted.html*"}}]},"eagerness":"moderate"}]}</script>
 <script>addEventListener("load", () => { const s = document.createElement("script"); s.src = "../brand/bar.js"; document.head.append(s); }, { once: true });</script>
 <!-- /k-bar -->
 <main id="main">
@@ -72,18 +76,27 @@ main{max-width:880px;margin:0 auto;padding:16px 16px 48px}
   <li class="s-block" id="s-chip"><span class="s-t">30 s</span><h2>Press a recorded check</h2>
     <p><a href="../?q=a%20probiotic%20kombucha%20brand" data-step="chip">A probiotic kombucha brand</a>: Qloo's recorded answer, its date and every call.</p></li>
   <li class="s-block" id="s-own"><span class="s-t">60 s</span><h2>Type your own idea or a DOI</h2>
-    <p><a href="../?q=a%20late%20night%20ramen%20spot" data-step="own">a late night ramen spot</a> or <a href="../?q=10.1126%2Fscience.1225829" data-step="doi">10.1126/science.1225829</a>, then pick the reading you mean.</p></li>
+    <p><a href="https://knos.onrender.com/app/?q=a%20late%20night%20ramen%20spot" data-step="own">a late night ramen spot</a> or <a href="../?q=10.1126%2Fscience.1225829" data-step="doi">10.1126/science.1225829</a>, then pick the reading you mean.</p></li>
   <li class="s-block" id="s-brief"><span class="s-t">60 s</span><h2>Open the Ready brief and hold test money</h2>
     <p><a href="https://knos.onrender.com/app/#projects" data-step="brief">The app's projects</a>: back a milestone with devnet test money, held until the proof passes.</p></li>
   <li class="s-block" id="s-paid"><span class="s-t">30 s</span><h2>Open the paid-on-proof record</h2>
     <p><a href="../crossing/7b4ed16b8c2903dc/" data-step="paid">One crossing</a>, released by <a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" rel="noopener">the referee's verdict on devnet</a>.</p></li>
 </ol>
+<h2>Four states, one press each</h2>
+<ul class="s-states" data-not-prose>
+  <li><a href="https://knos.onrender.com/app/?q=a%20vegan%20ramen%20food%20truck" data-state-link="live">A chip, answered live</a></li>
+  <li><a href="https://knos.onrender.com/app/?q=ramen" data-state-link="which">A vague input: which one do you mean?</a></li>
+  <li><a href="https://knos.onrender.com/app/?q=a%20smart%20water%20bottle%20that%20glows%20to%20remind%20you%20to%20drink" data-state-link="refuse">A refusal, its reason and its reruns</a></li>
+  <li><a href="https://knos.onrender.com/app/?q=a%20vegan%20ramen%20food%20truck&amp;qloo=off" data-state-link="off">Qloo off for one request: the cache only</a></li>
+</ul>
+<p class="fine" id="s-cap" hidden></p>
 <h2>What Knos runs on, now</h2>
 <ul class="s-deps" id="s-deps" aria-live="polite">
   <li class="s-dep" data-dep="qloo"><b>Qloo</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
   <li class="s-dep" data-dep="solana_devnet"><b>Solana devnet</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
   <li class="s-dep" data-dep="sibyl"><b>Sibyl</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
-  <li class="s-dep" data-dep="iris_referee"><b>IRIS referee</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
+  <li class="s-dep" data-dep="rules_referee"><b>Rules referee</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
+  <li class="s-dep" data-dep="iris"><b>IRIS</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
   <li class="s-dep" data-dep="openalex"><b>OpenAlex</b><span data-state>Reading…</span><span></span><span class="fine" data-down></span></li>
 </ul>
 <h2>Check it yourself</h2>
@@ -94,17 +107,25 @@ main{max-width:880px;margin:0 auto;padding:16px 16px 48px}
 </main>
 <script>
 (() => {
-  const WORD = { answering: "answering", limited: "limited", up: "up", down: "down", unknown: "not read" };
+  const WORD = { answering: "answering", limited: "limited", up: "up", down: "down", unknown: "not read", "not asked": "not asked" };
   fetch("https://knos.onrender.com/api/status").then((r) => (r.ok ? r.json() : null)).then((s) => {
     const deps = (s && s.deps) || {};
     for (const li of document.querySelectorAll("[data-dep]")) {
       const d = deps[li.dataset.dep];
       const st = li.querySelector("[data-state]");
-      st.textContent = d ? `${WORD[d.state] || d.state}: ${d.said}` : "the app did not answer";
+      // a dependency that answers says so in two words beside a green dot; any other state says what it is and why
+      const ok = d && (d.state === "answering" || d.state === "up");
+      st.innerHTML = '<i aria-hidden="true"></i>';
+      st.append(d ? (ok ? (li.dataset.dep === "qloo" ? "Qloo live" : "up") : `${WORD[d.state] || d.state}: ${d.said}`) : "the app did not answer");
       st.dataset.state = d ? d.state : "none";
-      li.querySelector("[data-down]").textContent = d ? `When it is down: ${d.when_down}` : "";
+      li.querySelector("[data-down]").textContent = d && !ok && d.state !== "not asked" ? `When it is down: ${d.when_down}` : "";
     }
   }).catch(() => { for (const st of document.querySelectorAll("[data-dep] [data-state]")) st.textContent = "the app did not answer"; });
+  // the day's cap on live Qloo calls, and what Knos does past it, read from the app at view time
+  fetch("https://knos.onrender.com/api/qloo/status").then((r) => (r.ok ? r.json() : null)).then((q) => {
+    const cap = document.getElementById("s-cap"); if (!q || !Number.isFinite(q.day_cap) || !cap) return;
+    cap.textContent = `Up to ${q.day_cap.toLocaleString("en-US")} live Qloo calls a day (${Number(q.calls || 0).toLocaleString("en-US")} today); past that, answers come from the cache with their time.`;
+    cap.hidden = false; }).catch(() => {});
   document.addEventListener("click", (ev) => {
     const b = ev.target.closest && ev.target.closest("[data-copy]");
     if (!b) return;

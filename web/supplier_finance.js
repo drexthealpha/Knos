@@ -12,7 +12,7 @@
 //                                     left out), { rpc } the devnet URL, { ids } program_ids.json's object, { now } a Date.
 //
 // What each row rests on (sdk/settle/index.js readOrder; programs-v2/knos_pay): the amount is what the payees receive,
-// escrowed at funding with the fee on top, so the supplier is never charged; `payUntil` is the last moment a passing run
+// held at funding with the fee on top, so the supplier is never charged; `payUntil` is the last moment a passing run
 // is paid, after which a refund returns the money to the funder; a holdback keeps holdbackBps of each payment for
 // warrantyS seconds and then releases it unless the buyer reverts it inside that time with a signed failing run; an
 // arbiter (arbiterId) or the neutral judge (F_NEUTRAL) hears an appeal (`/knos appeal <reason>`, src/knos/commands.py).

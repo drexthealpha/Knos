@@ -52,12 +52,18 @@ def _products(ref: str) -> list[str]:
     return [card["product"]]
 
 
+GENERIC_CONCEPTS = {"computer science", "biology", "medicine", "chemistry", "physics", "mathematics", "engineering",
+                    "artificial intelligence", "psychology", "economics"}     # a field, not a product a buyer looks for
+
+
 def step(text: str, paper_of=readings.paper) -> dict | None:
     asked = " ".join(str(text or "").split())
     found = paper_of(asked) if readings.is_paper(asked) else None      # OpenAlex for a paper only, never a plain idea
     if found:
         ref = readings.doi_of(asked) or (found.get("doi") or "").replace("https://doi.org/", "") or asked
-        w = readings.which(asked, [], products=_products(ref), found=found)
+        prods = _products(ref) or [f"an app built on {c.lower()}" for c in (found.get("concepts") or [])[:3]
+                                   if c and c.lower() not in GENERIC_CONCEPTS][:2]     # the paper's own concepts reach Qloo's tags
+        w = readings.which(asked, [], products=prods, found=found)
     else:
         w = readings.which(asked, index())
     return None if w.get("skip") else {**w, "kind": "which_one", "of": w["kind"]}

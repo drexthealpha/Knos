@@ -48,7 +48,7 @@ const world = async (o = {}) => {
   // GitHub and devnet are what the page reads when a reader asks it something; they are refused here, and counted apart
   // besides GitHub and devnet, the one host the bare address may ask: the app (its research products, web/home.js; the
   // newest payout and the usage counter, web/brand/hero.js), on a reader's first move
-  await ctx.route("**/*", (route) => { const u = route.request().url(); if (u.startsWith(base)) return route.continue(); if (!/^https:\/\/(api\.github\.com|api\.devnet\.solana\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors|usage|agent\/payout\/latest)$/.test(u)) strangers.push(u); return route.abort(); });
+  await ctx.route("**/*", (route) => { const u = route.request().url(); if (u.startsWith(base)) return route.continue(); if (!/^https:\/\/(api\.github\.com|api\.devnet\.solana\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors|usage|agent\/payout\/latest|counter|qloo\/status)$/.test(u)) strangers.push(u); return route.abort(); });
   return ctx;
 };
 const open = async (ctx, hash = "#check") => { const page = await ctx.newPage(); await page.goto(base + hash, { waitUntil: "load" }); await page.evaluate(() => document.fonts.ready); await page.waitForSelector("#mark3d .face", { state: "attached" }); return page; };

@@ -156,7 +156,7 @@ export const amountWords = (units) => `${Math.trunc(units / 1_000_000)}${units %
 // What the person typed, as a task, or the first thing wrong with it as a sentence: { task } or { error }.
 // `limits`: { min, max } of the amount, in millionths: a work order's, which is what `/knos fund` opens (5 to 100,000 on
 // devnet). `limits.job`, when given, is { min, max } of the older kind of bounty (a 2.0 job: from 1), which keeps its own
-// limits where the escrow holds no work orders yet; the refusal then names each kind's bound.
+// limits where the holding program has no work orders yet; the refusal then names each kind's bound.
 const said = (units) => amountWords(units).replace(/^\d+/, (whole) => Number(whole).toLocaleString("en-US"));
 export const boundsWords = (limits) => `A work order holds from ${said(limits.min)} to ${said(limits.max)} test USDC, and \`/knos fund\` opens a work order.`
   + (limits.job ? ` An older bounty (program version 2.0) takes from ${said(limits.job.min)} to ${said(limits.job.max)}. This page writes the comment for a work order.` : "");

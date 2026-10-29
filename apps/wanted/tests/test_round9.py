@@ -198,6 +198,6 @@ def test_release_findings_version_fee_funder_label_and_translations():
     assert "viaLabel(c)" in js and "factorNote(" not in js
     i18n = (STATIC / "i18n.js").read_text(encoding="utf-8")
     assert "same devnet escrow" not in i18n
-    for key in ("skip:", "factoring_sim:", "factoring_ready:", "via_preorder:", "via_funder:", "via_blink:"):
+    for key in ("skip:", "via_preorder:", "via_funder:", "via_blink:"):          # the factoring strings left with the page that read them
         assert i18n.count(key) == 7, key                                      # every language
     assert 'data-i18n="skip"' in (STATIC / "index.html").read_text(encoding="utf-8")

@@ -160,7 +160,7 @@ def vectors() -> dict:
                   "paper_median_s": med([r["ms"] for r in runs if r["kind"] == "crossing"]),
                   "papers": sum(1 for r in runs if r["kind"] == "crossing")},
         "friction": {"steps_to_verdict": 2, "steps": ["paste", "press"], "sign_up": False},
-        "trust": {"escrow_program": _program(escrow), "cluster": "devnet",
+        "trust": {"escrow_program": _program(escrow), "held_program": _program(escrow), "cluster": "devnet",
                   "proof": "every Qloo value links to its call (/trace.html)"},
         "capability": {"idt_ratio": idt.get("ratio_vague_to_ready"), "ready_pass": idt.get("ready_pass_rate"),
                        "vague_pass": idt.get("vague_pass_rate"), "tasks": tasks},

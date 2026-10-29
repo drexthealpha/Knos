@@ -3,13 +3,14 @@
   #k-steps .k-step-list > li { counter-increment: k-step; font-size: var(--s-1); line-height: 1.35; min-width: 0; }
   #k-steps .k-step-list h3 { font: 600 var(--s0)/1.25 var(--head); margin: 0 0 2px; } #k-steps .k-step-list h3::before { content: counter(k-step) " "; color: var(--muted); }
   #k-steps .k-step-list p { margin: 0; overflow-wrap: anywhere; } #k-steps a { color: var(--accent); }
+  #k-steps .k-step-list p + p { margin-top: 8px; }
   @media (max-width: 699px) { #k-steps .k-step-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }</style>
   <h2 class="k-sr" id="k-steps-h">How does Knos work?</h2>
   <p class="k-sr">In four steps, from a demand check to a payout on proof.</p>
   <ol class="k-step-list">
     <li id="step-demand"><h3>Check demand</h3><p><a href="{SP}?q=a%20probiotic%20kombucha%20brand" id="step-chip">A sample: kombucha</a></p></li>
     <li id="step-brief"><h3>Ready brief</h3><p><a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p></li>
-    <li id="step-held"><h3>Money held</h3><p><a href="{SP}crossing/7b4ed16b8c2903dc/" id="step-crossing">10 pre-orders, Boulder</a></p></li>
+    <li id="step-held"><h3>Money held</h3><p><a href="{SP}crossing/7b4ed16b8c2903dc/" id="step-crossing">One crossing, held then released</a></p></li>
     <li id="paid-on-proof"><h3>Paid on proof</h3><p><a href="{SP}check/#sample" id="steps-check">Checked by the referee</a></p>
       <p class="k-paid" id="k-paid" data-not-prose><a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" target="_blank" rel="noopener">Released by the referee's verdict</a></p></li>
   </ol>

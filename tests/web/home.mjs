@@ -49,7 +49,7 @@ async function open(width, height, app = "off") {
     const u = route.request().url();
     if (u.startsWith(base)) return route.continue();
     // the proof shown first and the measured numbers come from Knos's own app (web/brand/hero.js, vectors.js): by design
-    if (/^https:\/\/knos\.onrender\.com\/api\/(proof|vectors)$/.test(u)) return route.abort();
+    if (/^https:\/\/knos\.onrender\.com\/api\/(proof|vectors|counter|qloo\/status)$/.test(u)) return route.abort();   // and the proof strip's live numbers, and Qloo's limits (H1)
     asked.push(u);
     if (app !== "off" && u.startsWith(`${APP}/api/front`)) return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(app === "live" ? LIVE : { products: [], crossing_now: ["sweat-glucose-watch"] }) });
     if (app !== "off" && u.startsWith(`${APP}/healthz`)) return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "{\"ok\":true}" });

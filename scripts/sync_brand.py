@@ -109,7 +109,7 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
         t = t.replace("{SHAPE}", js.replace("hero.js", "shape.js"))
         # hero.js runs in place, right after the proof slot: the past result is drawn before anything below it is laid
         # out (run deferred, the card arrived after the first paint and moved the page under the reader: CLS)
-        code = (WEB / "brand" / "hero.js").read_text(encoding="utf-8").strip()
+        code = lean((WEB / "brand" / "hero.js").read_text(encoding="utf-8").strip())   # inlined without its comments and indentation
         t = t.replace(PROOF_SLOT, f'{PROOF_SLOT}\n<script data-src="{js}">\n{code}\n</script>', 1)
         s = HERO.sub(lambda _: f'<!-- k-hero -->\n{t}\n<!-- /k-hero -->', s, count=1)
         # the four steps under the first screen (web/brand/steps.html): check demand, Ready brief, money held, paid on proof
@@ -146,6 +146,12 @@ def board() -> str:
     sec = BOARD_SECTION.search(BOARD_FROM.read_text(encoding="utf-8"))
     assert sec, "how-we-test.html has no results board"
     return BOARD.sub(lambda _: f"<!-- k-board -->\n    {sec.group(0)}\n<!-- /k-board -->", s, count=1)
+
+
+def lean(code: str) -> str:
+    """hero.js as the pages inline it: whole-line comments, blank lines and each line's leading indentation dropped (the
+    first load stays under its 200 KB budget, apps/wanted/tests/test_round9.py); hero.js itself keeps them."""
+    return "\n".join(line.lstrip() for line in code.splitlines() if line.strip() and not line.lstrip().startswith("//"))
 
 
 def main(argv: list[str]) -> int:

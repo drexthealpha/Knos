@@ -25,7 +25,7 @@ export function initClaim(ctx) {
   $("pk-rp").textContent = rpId;
   let me = null;                 // { credentialId: Uint8Array | null, key: Uint8Array(33), wallet: address, held: [what each mint's account holds], nonce }
   // The two test mints a payment reaches a passkey wallet in on devnet: Circle's devnet USDC (a bounty funded from a
-  // wallet), and the escrow's own faucet mint (a bounty funded by comment from the devnet faucet), whose address follows
+  // wallet), and the holding program's own faucet mint (a bounty funded by comment from the devnet faucet), whose address follows
   // from the knos_pay of program_ids.json. knos_passkey and the relay take any mint: the person picks which to withdraw.
   let mintsP = null;
   const mints = () => (mintsP ||= (async () => [

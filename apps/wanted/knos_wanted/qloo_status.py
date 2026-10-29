@@ -74,6 +74,18 @@ def _answered() -> dict:
         return {}
 
 
+def _counter_rows() -> list[tuple[str, str]]:
+    """The public live counter (usage.counter, the same numbers as /api/counter and /proof/): zeros said as zeros."""
+    try:
+        from . import usage
+        c = usage.counter()
+    except Exception:  # noqa: BLE001 - the counter is said, or left out, never guessed
+        return []
+    return [("Live checks today", str(c["checks_today"])), ("Live checks this week", str(c["checks_week"])),
+            ("Checks by others this week", str(c["checks_by_others"])),
+            ("Was this useful?", f"{c['feedback_yes']} yes, {c['feedback_no']} no")]
+
+
 def page() -> str:
     d, e = doc(), html.escape
     rate = f"{round(d['hit_rate'] * 100)}%" if d["hit_rate"] is not None else "none yet"
@@ -81,6 +93,7 @@ def page() -> str:
             ("Calls today", f"{d['calls_today']:,}"), ("Day cap", f"{d['day_cap']:,}"),
             ("Past the cap", f"{d['past_cap']}; answers come from the private cache"),
             ("Per check, per visitor", f"{d['per_check']} calls a check, {d['visitor_cap']['checks']} live checks a visitor an hour"),
+            *_counter_rows(),
             ("Answered from the cache", f"{d['cache_hits']} ({rate})"),
             ("Served from recordings", str(d["recorded"])),
             *([("Answered ideas held privately", f"{d['answered']['ideas']} ({d['answered']['cards']} full cards)"),

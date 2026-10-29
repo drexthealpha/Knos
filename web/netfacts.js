@@ -10,7 +10,7 @@ export const ENDPOINTS = ["https://api.devnet.solana.com", "https://devnet.rpcpo
 export const WSS = ["wss://api.devnet.solana.com", "wss://devnet.rpcpool.com"];
 const FEATURE = "Feature111111111111111111111111111111111111";
 const MEMO = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
-const TEST_MINT = "5XJJTDxBF1LqbQ9MAURyYUnHCPcd4JHxjdy9or2gWjsX";   // the lab escrow's test-unit mint (labs_devnet.json)
+const TEST_MINT = "5XJJTDxBF1LqbQ9MAURyYUnHCPcd4JHxjdy9or2gWjsX";   // the lab holding program's test-unit mint (labs_devnet.json)
 const RELAYER = "FRXXJkfpwasEpttH5dvDwkySuJzL5D5swjA52U7TMeRD";  // the app's relayer: buyers' AMC allowances are approved to it
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -96,7 +96,7 @@ export async function facts(payer, call = rpc) {
   };
   const holders = call("getTokenLargestAccounts", [TEST_MINT]).then((tl) => [["largest holders of the Knos test units",
     tl.error ? no(tl.error) : `${num(tl.result?.value?.length ?? 0)} listed`, "getTokenLargestAccounts"]]);
-  // the ledger and the node behind this RPC, and the escrow's own token reads: the test units' supply, and the buyer
+  // the ledger and the node behind this RPC, and the holding program's own token reads: the test units' supply, and the buyer
   // allowances delegated to the relayer (each AMC commitment is an approve() to it)
   // a block's vote tally is kept only until it is rooted: asked of the newest processed slot
   const tip = (await call("getSlot", [{ commitment: "processed" }])).result ?? slot;
@@ -152,7 +152,7 @@ export function live(el, programs, WS = globalThis.WebSocket) {
     ws.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "slotSubscribe" }));
     ws.send(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "rootSubscribe" }));
     programs.forEach((p, i) => ws.send(JSON.stringify({ jsonrpc: "2.0", id: 3 + i, method: "logsSubscribe", params: [{ mentions: [p] }, { commitment: "finalized" }] })));
-    // a new or changed escrow account of the first program, pushed as it happens (the data itself is not needed here)
+    // a new or changed holding account of the first program, pushed as it happens (the data itself is not needed here)
     // block and slot-update streams: asked for, and the clock says when this RPC does not offer them
     ws.send(JSON.stringify({ jsonrpc: "2.0", id: 10, method: "blockSubscribe", params: ["all", { commitment: "finalized", transactionDetails: "none", rewards: false }] }));
     ws.send(JSON.stringify({ jsonrpc: "2.0", id: 11, method: "slotsUpdatesSubscribe" }));

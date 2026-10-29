@@ -13,7 +13,6 @@ import os
 import re
 import threading
 import time
-import urllib.request
 
 MODEL = os.environ.get("KNOS_MODEL") or "claude-sonnet-5-5"
 PER_CHECK, PER_DAY = 1, 200
@@ -47,18 +46,13 @@ def take(check_hash: str) -> None:
 
 
 def _anthropic(prompt: str) -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
-        raise Refused(NEEDS_KEY)
-    body = json.dumps({"model": MODEL, "max_tokens": 400, "messages": [{"role": "user", "content": prompt}]}).encode()
-    req = urllib.request.Request("https://api.anthropic.com/v1/messages", body,
-                                 {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+    from knos import anthropic_http
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            out = json.loads(r.read())
+        return anthropic_http.messages(prompt, MODEL)
+    except anthropic_http.NoKey:
+        raise Refused(NEEDS_KEY) from None
     except Exception as why:  # noqa: BLE001 - said in one sentence, never the request or the key
         raise Refused(f"The model did not answer ({type(why).__name__}).") from None
-    return "".join(b.get("text", "") for b in out.get("content") or [] if b.get("type") == "text")
 
 
 def ask(prompt: str, check_hash: str, provider=None) -> str:

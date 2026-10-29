@@ -195,7 +195,7 @@ export function recordHtml(rep) {
     ? `<p class="record-headline"><strong>Paid ${esc(h.paid)} time${s(h.paid)}</strong> by <strong>${esc(h.distinct_funders)} distinct funder${s(h.distinct_funders)}</strong>: ${esc(h.total)} ${esc(rep.money)} in all, first ${esc(h.first)}, last ${esc(h.last)}.</p>`
     : `<p class="record-headline">No payment from someone else is recorded. Nothing recorded is not the same as nothing done.</p>`;
   const demo = rep.cluster === "devnet"
-    ? `<p class="record-demo"><strong>Devnet demonstration.</strong> Every amount here is test USDC on Solana devnet: it shows how a record reads, and is not a record of money earned.</p>` : "";
+    ? `<p class="record-demo"><strong>Devnet, test money.</strong> Every amount here is test USDC on Solana devnet: it shows how a record reads, and is not a record of money earned.</p>` : "";
   const scope = opted ? "" : ` Anyone can read this from the chain, so it is shown as it stands: no profile, no place in any list. This account has not opted in to a profile${rep.profile && rep.profile.why ? ` (${esc(rep.profile.why)})` : ""}.`;
   const how = opted ? "" : `<p class="fine record-optin">To show a profile here (accepted work, repeat funders, disputes and reverts), the account adds the file <code>${esc(PROFILE_FILE)}</code> with <code>{"public_record": true}</code> to its public repository named after itself${rep.login ? ` (<code>${esc(profileRepo(rep.login))}</code>)` : ""}.</p>`;
   return `<div class="card paid-record" data-profile="${opted ? "opted-in" : "chain-only"}">

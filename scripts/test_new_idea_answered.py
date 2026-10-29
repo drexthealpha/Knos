@@ -17,6 +17,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")       # an answer in any script never stops the run
+
 INPUTS = Path(sys.argv[1])
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else None
 APP = (sys.argv[3] if len(sys.argv) > 3 else "https://knos.onrender.com").rstrip("/")

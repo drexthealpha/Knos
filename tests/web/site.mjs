@@ -193,6 +193,8 @@ async function mock(ctx) {
     // the latest real check and the measured numbers (web/brand/hero.js, vectors.js ask the app when they are on screen):
     // nothing to show here, so the first screen keeps what it ships
     if (u.href === "https://knos.onrender.com/api/proof") return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: '{"proof":null}' });
+    // the proof strip's live numbers and Qloo's limits (web/brand/hero.js, read at view time): the app does not answer here
+    if (u.href === "https://knos.onrender.com/api/counter" || u.href === "https://knos.onrender.com/api/qloo/status") return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "{}" });
     if (u.href === "https://knos.onrender.com/api/vectors") return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "{}" });
     // devnet's second free RPC (web/netfacts.js asks it once the mocked devnet refuses a call): refused here, as if down
     if (u.host === "devnet.rpcpool.com") return route.abort();

@@ -1,4 +1,4 @@
-// The pages of Knos that read Solana: add money to a Balance from your wallet, read an escrow, look up a GitHub account,
+// The pages of Knos that read Solana: add money to a Balance from your wallet, read what is held, look up a GitHub account,
 // the public numbers and who can change the programs. Everything is read in the browser from GitHub's public API and
 // Solana devnet. The only writes are links to GitHub (where GitHub asks you to confirm) and the transactions your own
 // wallet signs, each built by sdk/settle (settle.js here). No link carries an address: binding a wallet is done by hand
@@ -45,7 +45,7 @@ async function route() {
     showRecords(raw === "records" || raw === "statement" || !arg ? "records" : raw, arg);
     if (raw === "statement") showStatement(arg);
   }
-  if (view === "fund" && arg && raw !== "anyissue") { $("st-issue").value = arg; readEscrow(); }
+  if (view === "fund" && arg && raw !== "anyissue") { $("st-issue").value = arg; readHeld(); }
   if (view === "claim" && arg) { $("due-login").value = arg; readAccount(); }
   if (raw === "money") $("money").scrollIntoView?.();
   if (raw === "task") $("task").scrollIntoView?.();
@@ -306,7 +306,7 @@ async function send() {
   }
 }
 
-// ---- what is in escrow for an issue ----------------------------------------------------------------------------------
+// ---- what is held for an issue ---------------------------------------------------------------------------------------
 async function jobHtml(address, j, now) {
   const d = 6, words = moneyName(j.mint, j.faucet), fee = knos.v2.feeOf(j.amount);
   const state = j.state === "held"
@@ -323,7 +323,7 @@ async function jobHtml(address, j, now) {
   </dl>`;
 }
 
-async function readEscrow(ev) {
+async function readHeld(ev) {
   ev?.preventDefault();
   const out = $("st-result"), ref = parseIssue($("st-issue").value);
   if (!ref) return say(out, "Enter the issue as owner/repo#7.", "bad");
@@ -340,7 +340,7 @@ async function readEscrow(ev) {
     out.innerHTML = (await Promise.all(found.map((f) => jobHtml(f.address, f.job, now)))).join("<hr>");
   } catch (e) { say(out, esc(e.message), "bad"); }
 }
-$("status-form").onsubmit = readEscrow;
+$("status-form").onsubmit = readHeld;
 
 // How long a comment took to become money, as measured (stats.json), in the sentence on the Fund view.
 let statsP;

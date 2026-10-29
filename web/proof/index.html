@@ -60,6 +60,25 @@
 <main>
   <section class="view proof-page" id="proof-page">
     <h1>Proof</h1>
+    <section class="t" id="counter" aria-labelledby="counter-h">
+      <h2 id="counter-h">Live, from the app</h2>
+      <dl class="k-counter" data-not-prose>
+        <div><dt>Live checks today</dt><dd data-c="checks_today">n/a</dd></div>
+        <div><dt>Live checks this week</dt><dd data-c="checks_week">n/a</dd></div>
+        <div><dt>Devnet pre-orders held</dt><dd data-c="preorders_held">n/a</dd></div>
+        <div><dt>Devnet pre-orders released</dt><dd data-c="preorders_released">n/a</dd></div>
+        <div><dt>Checks by people other than the founder</dt><dd data-c="checks_by_others">n/a</dd></div>
+        <div><dt>Was it useful? Yes / No</dt><dd data-c="feedback">n/a</dd></div>
+      </dl>
+      <style>.k-counter{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:1px;margin:8px 0;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}.k-counter div{padding:12px 14px;background:var(--paper)}.k-counter dt{font-size:var(--s-1);color:var(--muted)}.k-counter dd{margin:4px 0 0;font:600 24px/1.1 var(--head);font-variant-numeric:tabular-nums}</style>
+      <script>
+      // read at view time (GET /api/counter): zeros shown as zeros, "n/a" when the app does not answer
+      fetch("https://knos.onrender.com/api/counter").then((r) => (r.ok ? r.json() : null)).then((c) => {
+        for (const d of document.querySelectorAll("#counter [data-c]")) { const k = d.dataset.c;
+          const v = k === "feedback" ? (c && Number.isFinite(c.feedback_yes) ? `${c.feedback_yes} / ${c.feedback_no}` : null) : c && Number.isFinite(c[k]) ? c[k].toLocaleString("en-US") : null;
+          d.textContent = v ?? "n/a"; } }).catch(() => {});
+      </script>
+    </section>
     <h2>What do the published numbers show?</h2>
     <p>Each bar sets Knos against its baseline and opens the file its number comes from.</p>
     <div class="p-chart" id="p-chart" role="list">
@@ -92,9 +111,9 @@
       <p>Knos lost 1 of 7 outside tests and won 1; the rest are ties or not run yet.</p>
       <div class="k-table"><table>
         <thead><tr><th scope="col">Test</th><th scope="col">Question</th><th scope="col">Arms</th><th scope="col">Numbers</th><th scope="col">95% interval</th><th scope="col">Result</th></tr></thead>
-        <tbody><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/where_truth.json" rel="noopener">Where demand is</a></td><td>Where is a kind of business most common per person?</td><td>Knos with Qloo, Claude alone</td><td>0.193 against 0.407 (n 30)</td><td>[-0.360, -0.060]</td><td data-label="loss">loss</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/taste_truth.json" rel="noopener">Films fans also love</a></td><td>Which films do a film's fans also love?</td><td>Knos with Qloo, Claude alone</td><td>0.320 against 0.307 (n 30)</td><td>[-0.060, +0.087]</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/kickstarter_truth.json" rel="noopener">Crowdfunded launches, 250 held out</a></td><td>Did a past project reach its goal?</td><td>open signals with Qloo, always success</td><td>78.0% tuned (59.6% as one verdict) against 78.8% (n 250)</td><td>[-0.063, +0.039]*</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/qloo_lift_ranked.json" rel="noopener">Crowdfunded launches, 300 ranked</a></td><td>Does the score rank projects by money raised?</td><td>open signals with Qloo, open signals alone</td><td>Spearman 0.108 against 0.113 (n 300)</td><td>[-0.037, +0.025]</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/outside_truth.json" rel="noopener">200 research awards</a></td><td>Did a past award succeed?</td><td>open signals, a coin</td><td>47.5% against 50% (n 200)</td><td>[-0.093, +0.044]*</td><td data-label="tie">tie</td></tr>
+        <tbody><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/where_truth.json" rel="noopener">Where demand is</a></td><td>Where is a kind of business most common per person?</td><td>Knos with Qloo, Claude alone</td><td>0.193 against 0.407 (n 30)</td><td>[-0.360, -0.060]</td><td data-label="loss">loss</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/taste_truth.json" rel="noopener">Films fans also love</a></td><td>Which films do a film's fans also love?</td><td>Knos with Qloo, Claude alone</td><td>0.320 against 0.307 (n 30)</td><td>[-0.060, +0.087]</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/kickstarter_truth.json" rel="noopener">Backer-funded launches, 250 held out</a></td><td>Did a past project reach its goal?</td><td>open signals with Qloo, always success</td><td>78.0% tuned (59.6% as one verdict) against 78.8% (n 250)</td><td>[-0.063, +0.039]*</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/qloo_lift_ranked.json" rel="noopener">Backer-funded launches, 300 ranked</a></td><td>Does the score rank projects by money raised?</td><td>open signals with Qloo, open signals alone</td><td>Spearman 0.108 against 0.113 (n 300)</td><td>[-0.037, +0.025]</td><td data-label="tie">tie</td></tr><tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/outside_truth.json" rel="noopener">200 research awards</a></td><td>Did a past award succeed?</td><td>open signals, a coin</td><td>47.5% against 50% (n 200)</td><td>[-0.093, +0.044]*</td><td data-label="tie">tie</td></tr>
 <tr><td><a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/qloo_ablation.json" rel="noopener">Each Qloo signal removed</a></td><td>Does one Qloo answer change the launch city, the target or the verdict?</td><td>each recorded card with every Qloo answer, then with one call family removed</td><td>18 of 59 removals change one; all removed, 6 of 6 (6 cards)</td><td>[+0.203, +0.431]&dagger;</td><td data-label="win">win</td></tr>
-<tr><td><a href="https://knos.onrender.com/status/qloo" rel="noopener">Launch cities, pre-registered</a></td><td>Do Qloo's lifts find the metros where a kind of business is densest?</td><td>top 15 metros by people reranked by lift, people alone, Claude alone, shuffled lift</td><td>not run: Qloo has refused every call since 25 Oct (HTTP 429)</td><td>none</td><td data-label="none">not run</td></tr></tbody>
+<tr><td><a href="https://knos.onrender.com/status/qloo" rel="noopener">Launch cities, pre-registered</a></td><td>Do Qloo's lifts find the metros where a kind of business is densest?</td><td>top 15 metros by people reranked by lift, people alone, Claude alone, shuffled lift</td><td>not run yet</td><td>none</td><td data-label="none">not run</td></tr></tbody>
       </table></div>
       <p class="fine">An interval above 0 is a win and one below 0 a loss. One that holds 0 is a tie. * Wilson interval of the accuracy, less the base rate, from the published counts. &dagger; Wilson interval of the share of removals that change one. A test that has not run has no result.</p>
     </section>

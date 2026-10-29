@@ -15,7 +15,10 @@
   const ARXIV = /^(?:arxiv:\s*|https?:\/\/arxiv\.org\/(?:abs|pdf)\/)?(\d{4}\.\d{4,5}(?:v\d+)?)(?:\.pdf)?$/i;
   const paper = (v) => { const d = v.match(DOI); if (d) return d[1]; const a = v.match(ARXIV); return a ? "arXiv:" + a[1] : null; };
   const src = (hash, n) => hash ? ` <a class="k-src" href="${esc(API)}/trace.html?hash=${encodeURIComponent(hash)}${n ? "#call-" + encodeURIComponent(n) : ""}" target="_blank" rel="noopener" title="The Qloo request, its result and its limit">source</a>` : "";
+  // ?qloo=off on the page (Start's fourth state): this one request is answered from the server's cache only, and says so
+  const QOFF = new URLSearchParams(location.search).get("qloo") === "off";
   const post = async (path, body) => {
+    if (QOFF && /^\/api\/(check|cross)/.test(path)) { path += (path.includes("?") ? "&" : "?") + "qloo=off"; body = { ...body, qloo: "off" }; }
     const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.message || j.error || `the server answered ${r.status}`);
@@ -30,14 +33,20 @@
   // motion (sweep M1.md 4.3 and 4.7): one move per change, transform and opacity only; with reduced motion nothing moves
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const SPRING = "linear(0,.054,.181,.339,.499,.644,.766,.862,.933,.982,1.013,1.03,1.038,1.038,1.034,1.029,1.023,1.017,1.012,1.007,1)";
-  const busy = (on) => {                 // P1: the button keeps its box; its label leaves upward and a spinner springs in where it was
-    const label = go.querySelector("span:not(.k-spin)") || go;
-    if (!on) { go.innerHTML = "<span>Check demand</span>"; go.style.minWidth = ""; return; }
+  // SOTA gap 8: the busy button keeps its label and its width ("Checking…" after a 14 px spinner, no tint), the 2 px bar
+  // runs along the box's bottom edge, and the line under the box (a polite live region) says who is being asked and for
+  // how long. Nothing covers the bar at the top.
+  const live = document.getElementById("k-live"), liveSaid = live && live.querySelector("[data-said]"), liveT = live && live.querySelector("[data-t]");
+  let clock = 0, since = 0;
+  const tick = () => { if (liveT && since) liveT.textContent = `· ${((performance.now() - since) / 1000).toFixed(still() ? 0 : 1)} s`; };
+  const busy = (on) => {
+    const label = go.querySelector("[data-label]") || go;
+    clearInterval(clock);
+    if (!on) { label.textContent = "Check demand"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
+      since = 0; if (liveSaid) liveSaid.textContent = ""; if (liveT) liveT.textContent = ""; return; }
     go.style.minWidth = `${go.offsetWidth}px`;
-    const swap = () => { go.innerHTML = still() ? "<span>Checking</span>" : '<span class="k-spin" aria-hidden="true" style="display:inline-block;vertical-align:middle"></span><span class="k-sr">Checking</span>';
-      if (!still()) go.firstChild.animate([{ opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1 }], { duration: 240, easing: SPRING }); };
-    if (still() || !label.animate) return swap();
-    label.animate([{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "0 -4px" }], { duration: 120, easing: "cubic-bezier(.4,0,1,1)" }).finished.then(swap, swap);
+    label.textContent = "Checking…"; go.setAttribute("aria-busy", "true"); form.setAttribute("aria-busy", "true");
+    since = performance.now(); tick(); clock = setInterval(tick, still() ? 1000 : 100);
   };
   const slide = (sw, to, was) => {      // P2: the indicator rides to the pressed tab, its leading edge stretched ahead
     let i = sw.querySelector("i");
@@ -49,7 +58,33 @@
     i.style.transformOrigin = d > 0 ? "left" : "right";
     i.animate([{ translate: `${-d}px 0`, scale: "1 1" }, { offset: 0.5, scale: `${1 + Math.abs(d) / to.offsetWidth * 0.3} 1` }, { translate: "0 0", scale: "1 1" }], { duration: 320, easing: SPRING });
   };
-  const said = (t) => { slot.innerHTML = `<p class="k-status" role="status"><span class="k-spin" aria-hidden="true"></span>${esc(t)}</p>`; };
+  const said = (t) => { if (liveSaid) liveSaid.textContent = t; };
+  // R2 item 7: while a crossing runs, each Qloo call appears under the box as it finishes (the job's steps, polled every
+  // 500 ms): endpoint, HTTP status, ms, live or recorded. Cleared when the next check starts.
+  const flowRows = (steps) => { const box = document.getElementById("k-flow"); if (!box) return;
+    const calls = steps.filter((x) => x && (x.call || x.endpoint || x.path));
+    box.hidden = !calls.length;
+    box.innerHTML = calls.map((x) => `<li data-flow-row>${esc(x.call || x.endpoint || x.path)}${x.status != null ? ` · ${esc(x.status)}` : ""}${Number.isFinite(x.ms) ? ` · ${esc(x.ms)} ms` : ""} · ${x.live ? "live" : x.recorded ? `recorded ${esc(x.recorded)}` : x.error ? "not answered" : "recorded"}</li>`).join(""); };
+  // SOTA gap 3: a new result replaces the card in place, revealed from the box by a shared-element view transition
+  // (k-ask to k-result, 320 ms, cubic-bezier(.16,1,.3,1)), its rows staggered 40 ms and capped at 280 ms; then the card is
+  // scrolled into view only when its top is below 60% of the window. Reduced motion: the swap is instant.
+  const reveal = (html, after) => {
+    const swap = () => { slot.innerHTML = html; delete slot.dataset.empty;
+      const rows = slot.querySelector(".k-card, .k-past-card");
+      if (rows && !still()) { [...rows.children].forEach((c, i) => c.style.setProperty("--i", String(i))); slot.dataset.reveal = "1"; }
+      if (after) after(); };
+    const done = () => {
+      const top = slot.getBoundingClientRect().top;
+      if (top > innerHeight * 0.6 || top < 0) scrollTo({ top: Math.max(0, scrollY + top - 88), behavior: still() ? "auto" : "smooth" });   // 88 px: under the sticky bar
+      setTimeout(() => { delete slot.dataset.reveal; }, 600);
+    };
+    if (!still() && document.startViewTransition && document.visibilityState === "visible") {
+      const html = document.documentElement; html.classList.add("k-revealing");
+      try { const vt = document.startViewTransition(swap); vt.updateCallbackDone.then(done, done); return vt.finished.catch(() => {}).finally(() => html.classList.remove("k-revealing")); }
+      catch { html.classList.remove("k-revealing"); /* an engine that refuses: swap at once */ }
+    }
+    swap(); done(); return Promise.resolve();
+  };
 
   async function crossing(ref) {
     const j = await post("/api/cross", { ref });
@@ -59,6 +94,7 @@
       since = p.total ?? since;
       const last = (p.steps || []).at(-1);
       if (last && last.title) said(last.title);
+      flowRows(p.steps || []);
       if (p.status === "error") throw new Error(p.error || "the crossing stopped");
       if (p.report) return get("/api/report?hash=" + encodeURIComponent(p.report));
       if (p.status !== "running") throw new Error("the crossing ended without a demand check");
@@ -140,11 +176,16 @@
   const without = (r) => `<article class="k-card k-unknown" data-verdict="CANNOT_DECIDE" data-without-qloo data-not-prose>
   <header class="k-card-head"><p class="k-kick">${esc(r.idea || "")} · without Qloo</p><h2 class="k-verdict">${esc(WORD.CANNOT_DECIDE[0])}</h2>
   <p class="k-why">With every Qloo answer removed there is no launch city and no pre-order target, so pre-orders cannot open.</p>
-  <button type="button" class="k-chip" data-without aria-pressed="true">Without Qloo</button></header></article>`;
+  <button type="button" class="k-chip" data-without aria-pressed="true">Without Qloo</button><span class="k-switch" role="group" aria-label="With Qloo or the model alone"><button type="button" class="k-chip" data-view="qloo" aria-pressed="false">With Qloo</button><button type="button" class="k-chip" data-view="model" aria-pressed="false">Model alone</button></span></header></article>`;
   slot.addEventListener("click", (ev) => {        // With Qloo / Model alone: the panel beside the card's own answer
     const v = ev.target instanceof Element && ev.target.closest(".k-switch [data-view]");   // the app's own views carry data-view too
     if (!v || !v.closest(".k-card")) return;
     const k = v.closest(".k-card"), model = v.dataset.view === "model";
+    if (k.matches("[data-without-qloo]") && slot.last) {            // from the card without Qloo: the whole card again, then the view asked for
+      slot.innerHTML = card(slot.last); const c = slot.querySelector(".k-card"); if (!c) return;
+      c.querySelectorAll("[data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.view === v.dataset.view)));
+      c.querySelector("[data-model-panel]")?.toggleAttribute("hidden", !model); c.querySelector(`[data-view="${v.dataset.view}"]`)?.focus(); return;
+    }
     const was = k.querySelector('[data-view][aria-pressed="true"]');
     k.querySelectorAll("[data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.view === v.dataset.view)));
     slide(v.closest(".k-switch"), v, was);
@@ -238,7 +279,33 @@
   const confirmCard = (v, ms) => `<article class="k-card k-unknown" data-confirm data-not-prose><header class="k-card-head"><p class="k-kick">${esc(v)}</p>
   <h2 class="k-verdict">Is this what you mean? ${esc(ms[0])}</h2>
   <p data-confirm-row><button type="button" class="k-chip" data-sure>Yes</button> <button type="button" class="k-chip" data-other="${esc(JSON.stringify(ms.slice(1, 4)))}">No</button></p></header></article>`;
-  const WORD = { OPEN:["Open for pre-orders", "open"], REFUSE: ["Not yet: pre-orders stay closed", "refuse"], CANNOT_DECIDE: ["Qloo cannot decide this one", "unknown"] };
+  const WORD = { OPEN:["Open for pre-orders", "open"], REFUSE: ["Not yet: pre-orders stay closed", "refuse"], CANNOT_DECIDE: ["Not enough evidence to decide", "unknown"] };
+  // CODE.md 2.12: what an undecided verdict lacks, read from the rule's own reasons ("cannot decide: no Qloo evidence")
+  const missing = (rs) => { const r = String((rs || [])[0] || "").replace(/^cannot decide:\s*/i, "").replace(/^no\s+/i, "").trim(); return r || "the evidence the rule needs"; };
+  // Qloo's audience segments with their lift (check.py: the segment's mean change in affinity on the products nearest
+  // the taste), signed to 4 decimals, highest first, up to 6; a lift is shown as Qloo's number, never weighed against a threshold
+  const lifts = (r) => { const rows = (r.audiences || []).filter((a) => a && a.name && Number.isFinite(Number(a.lift))).slice(0, 6);
+    if (!rows.length) return "";
+    const f = (n) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n).toFixed(4);
+    return `<ul class="k-lifts" data-part="lifts">${rows.map((a) => `<li data-call="${esc(a.src ?? "")}"><span>${esc(qlabel(a.name))}</span> <span class="k-lift">lift ${f(Number(a.lift))}</span>${Number.isFinite(Number(a.products)) ? ` <span class="k-fine">on ${esc(a.products)} products</span>` : ""}</li>`).join("")}</ul>`; };
+  // R2 items 5, 6, 9, 11, 14, 15: the card opens with the check's one sentence and its 3 or 4 tiles (rep.story, the
+  // server's), then what of the input it used; after the parts, the reruns a refusal offers, what was rejected and by which
+  // rule, the downloads of an Open card, one question ("Was this useful?") and, only while the server's model is on, a box to ask
+  const lift4 = (n) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n).toFixed(4);
+  const storyHead = (r) => { const st = r.story; if (!st || !st.sentence) return "";
+    const tiles = (st.tiles || []).slice(0, 4).map((t) => `<li><span>${esc(t.label)}</span><b>${esc(t.value)}</b>${t.lift != null && Number.isFinite(Number(t.lift)) ? `<i class="k-lift">lift ${lift4(Number(t.lift))}</i>` : ""}</li>`).join("");
+    return `<p class="k-sentence" data-part="sentence">${esc(st.sentence)}</p>${tiles ? `<ul class="k-tiles" data-part="tiles">${tiles}</ul>` : ""}${st.used && st.used.line ? `<p class="k-fine k-used" data-part="used">${esc(st.used.line)}</p>` : ""}`; };
+  const storyFoot = (r) => { const st = r.story || {}, h = /^[0-9a-f]{16,64}$/.test(r.hash || "") ? r.hash : "", out = [], id = esc(h.slice(0, 8));
+    if ((st.reruns || []).length) out.push(`<p class="k-reruns" data-part="reruns">${st.reruns.slice(0, 3).map((x) => `<button type="button" class="k-chip" data-rerun="${esc(x.idea || r.idea || "")}" data-place="${esc(x.place || "")}">${esc(x.label)}</button>`).join(" ")}</p>`);
+    if ((st.rejected || []).length) out.push(`<p class="k-fine" data-part="rejected-story">Rejected: ${st.rejected.map((x) => `${esc(x.name)} (${esc(x.rule)})`).join("; ")}</p>`);
+    if ((r.decision || {}).verdict === "OPEN" && (st.downloads || []).length) out.push(`<p class="k-fine" data-part="downloads">${st.downloads.map((x) => `<a href="${esc(/^https?:/.test(x.url) ? x.url : API + x.url)}" download data-download="${esc(x.kind)}">${esc(x.label)}</a>`).join(" · ")}</p>`);
+    if (h) out.push(`<form class="k-useful" data-useful data-hash="${esc(h)}"><span>Was this useful?</span> <button type="submit" class="k-chip" name="useful" value="yes">Yes</button> <button type="submit" class="k-chip" name="useful" value="no">No</button> <label class="k-sr" for="k-note-${id}">A note, optional</label><input id="k-note-${id}" name="note" maxlength="280" placeholder="A note (optional)"> <span class="k-fine" data-useful-said role="status"></span></form>`);
+    if (h) out.push(`<form class="k-askit" data-ask-box data-hash="${esc(h)}"${modelOn ? "" : " hidden"}><label for="k-askq-${id}">Ask about this result</label> <input id="k-askq-${id}" name="question" maxlength="300" required> <button type="submit" class="k-chip">Ask</button><span class="k-fine" data-ask-said role="status"></span></form>`);
+    return out.length ? `<section class="k-story-foot" data-part="story-foot">${out.join("")}</section>` : ""; };
+  // the model's state, read once when a card is first drawn (GET /api/status "model"); the ask box shows only while it is "on"
+  let modelOn = false, modelAsked = false;
+  const askModel = () => { if (modelAsked) return; modelAsked = true;
+    get("/api/status").then((st) => { modelOn = !!(st && st.model === "on"); if (modelOn) slot.querySelectorAll("[data-ask-box][hidden]").forEach((f) => { f.hidden = false; }); }).catch(() => {}); };
   const TIERS = ["budget", "mid", "premium", "luxury"];
   const HEALTH = /\b(health\w*|patient\w*|medic\w*|clinic\w*|disease\w*|drug\w*|therap\w*|diagnos\w*|supplement\w*|glucose|diabet\w*)\b/i;
   // the model's own answer for the idea (claude -p, no Qloo, recorded with the card), beside Knos's; what differs is marked
@@ -264,7 +331,7 @@
   // idea when picked; a paper shows itself first and its products as readings, or a box to name one
   const whichCard = (w) => { const pp = w.paper;
     const paperLine = pp ? `<p class="k-why" data-paper>${esc(pp.title)}${pp.year ? ` (${esc(pp.year)})` : ""}${Number.isFinite(pp.cited_by_count) ? `, cited ${Number(pp.cited_by_count).toLocaleString("en-US")} times` : ""}${(pp.concepts || []).length ? ` · ${esc(pp.concepts.slice(0, 3).join(", "))}` : ""}</p>` : "";
-    const rows = (w.readings || []).map((x) => `<li><button type="button" class="k-chip" data-reading="${esc(x.text)}" data-kind="${esc(x.kind)}">${esc(x.text)}</button>${x.differs && (x.differs.theirs || x.differs.yours) ? ` <span class="k-fine" data-differs>${esc(x.differs.theirs || "no word")} against ${esc(x.differs.yours || "no word")}</span>` : ""}</li>`).join("");
+    const rows = (w.readings || []).map((x) => `<li><button type="button" class="k-chip" data-reading="${esc(x.text)}" data-kind="${esc(x.kind)}">${esc(x.text)}</button>${x.type ? ` <span class="k-type" data-type>${esc(x.type)}</span>` : ""}${x.description || x.line ? ` <span class="k-fine" data-line>${esc(x.description || x.line)}</span>` : ""}</li>`).join("");
     const box = w.name_box ? `<form data-name-box class="k-row"><label class="k-fine" for="k-name">${esc(w.name_prompt || "Name the product this result enables")}</label> <input id="k-name" name="name" maxlength="200" required> <button type="submit" class="k-chip">Check it</button></form>` : "";
     return `<article class="k-card k-unknown" data-which data-not-prose><header class="k-card-head"><p class="k-kick">${esc(w.asked)}</p><h2 class="k-verdict">Which one do you mean?</h2>${paperLine}${rows ? `<ul class="k-readings" data-readings>${rows}</ul>` : ""}${box}</header></article>`; };
   // the picked reading Qloo has not answered and cannot today: the one line, the Ready brief built with no Qloo, its
@@ -276,8 +343,6 @@
   <p class="k-next"><a href="${esc(APP)}#projects" data-ready-path data-idea="${esc(r.read_as || r.idea)}">Hold devnet test money on this brief</a></p>${callsHead(r)}</header></article>
   ${st ? `<p class="k-fine" data-stand-in>${esc(st.said)}.</p>${card(st.card, `Stand-in, recorded ${st.made}`)}` : ""}`; };
   // ---- the recorded card's own parts (U1): every number is the recorded answer's; nothing is estimated ----------------
-  // E1's place test (docs/reference/where_truth.json, plan committed before it ran): how sure a launch place can be
-  const SURE = { said: "How sure is this? On 30 ideas the top 5 launch places overlapped the Census top 10 by 0.19 with Qloo, against 0.41 for the model alone (95% interval of the difference -0.36 to -0.06). Limit: one outcome measure, business counts.", href: "https://github.com/drexthealpha/Knos/blob/afa6c9640c6f9ab1609ac053a3b5cfd2a0e90c69/docs/reference/where_truth_plan.md" };
   const plainOf = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
   const rankIn = (guess, names) => { const g = plainOf(guess); if (!g) return 0; const i = names.findIndex((n) => { const v = plainOf(n); return v && (v.includes(g) || g.includes(v.split(" ")[0])); }); return i + 1; };
   // supported: in the answer's top 5; challenged: outside its top 20, or absent from an answer that lists 20 or more
@@ -294,7 +359,7 @@
     const without = sig.length ? sig.filter((x) => x.changes || x.moved).length : null;
     let conf = { strong: 3, moderate: 2, weak: 1 }[st];
     const steps = OPEN_Q.map((w) => { conf = Math.max(0, conf - 1); return `<li>${esc(w)}: confidence ${["none", "low", "medium", "high"][conf]}</li>`; });
-    const rej = (r.gap && r.gap.rejected) || [];
+    const rej = (r.gap && r.gap.rejected) || ((r.story && r.story.rejected) || []).map((x) => ({ name: x.name, code: "rule", why: x.rule }));
     const day = String((r.stale && r.stale.from) || r.made || "").slice(0, 10), reset = r.qloo_reset || "";
     return `<section class="k-u1" data-u1 data-not-prose>
   <p class="k-fine" data-part="recorded">Recorded ${esc(day)}${reset ? ` · Run live when Qloo resets ${esc(reset)}` : ""}</p>
@@ -302,12 +367,11 @@
   <p class="k-fine" data-part="strength" data-strength="${st}" data-entities="${n}">Signal strength: ${st}, ${n} entit${n === 1 ? "y" : "ies"} Qloo confirmed</p>
   <div class="k-modeled" data-part="modeled"><p class="k-fine"><b>Qloo modeled:</b> taste affinity by audience, place and tag.</p><p class="k-fine"><b>Not modeled:</b> income, politics, education, job title and the price people paid.</p></div>
   ${asum.length ? `<ul class="k-fine" data-part="assumptions">${asum.map(([what, said, [v, k]]) => `<li data-assumption="${esc(what)}" data-verdict="${esc(v)}" data-rank="${k}">${esc(what)} "${esc(said)}": ${esc(v)}${k ? `, rank ${k}` : ", not in the answer"}</li>`).join("")}</ul>` : ""}
-  <p class="k-fine" data-part="rejected-signals">Signals Knos rejected: ${rej.length ? rej.map((o) => `${esc(o.name)} (${esc(o.code)}: ${esc(o.why)})`).join("; ") : "none"}</p>
+  ${rej.length ? `<p class="k-fine" data-part="rejected-signals">Signals Knos rejected: ${rej.map((o) => `${esc(o.name)} (${esc(o.code)}: ${esc(o.why)})`).join("; ")}</p>` : ""}
   <div data-part="cannot"><p class="k-fine"><b>What this cannot tell you</b></p><ul class="k-fine">${steps.join("")}</ul></div>
   <p class="k-fine" data-part="exports"><button type="button" class="k-chip" data-export="md">Markdown</button> <button type="button" class="k-chip" data-export="json">Evidence JSON</button> <button type="button" class="k-chip" data-export="print">One-page memo</button></p>
   <p class="k-fine" data-part="closing" data-calls="${(r.calls || []).length}">${(r.calls || []).length} Qloo calls (${q.live || 0} live, ${q.recorded || 0} recorded), ${Math.round(q.ms || r.elapsed_ms || 0).toLocaleString("en-US")} ms</p>
 </section>`; };
-  const sureLine = () => `<p class="k-fine" data-part="sure"><a href="${SURE.href}" rel="noopener">${esc(SURE.said)}</a></p>`;
   // the exports: the card as Markdown, its evidence as JSON (the recorded answer's own fields), a printable memo
   const exportCard = (kind) => { const r = slot.last; if (!r) return;
     if (kind === "print") { document.documentElement.classList.add("k-print"); print(); document.documentElement.classList.remove("k-print"); return; }
@@ -319,7 +383,7 @@
     a.download = `knos-${String(r.hash || "card").slice(0, 16)}.${kind === "json" ? "json" : "md"}`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
   const recordedCard = (r, label) => !!(r && r.decision && (label || r.stale || (r.qloo_calls && r.qloo_calls.live === 0 && (r.qloo_calls.recorded || 0) > 0)));
   function card(r, label) {
-    style();
+    style(); askModel();
     if (r.kind === "which_one") return whichCard(r);
     if (r.queued) return queuedCard(r);
     if (r.nearest_options || (r.qloo_down && !r.stale && !r.nearest)) return options(r);
@@ -341,7 +405,7 @@
     // which product Qloo read the idea as (kit SAFE_USE: ask when that choice changes the result): on a new check the
     // visitor can pick another match, or none of them; the verdict's reason is Knos's rule, apart from Qloo's data
     const lead = r.leader && typeof r.leader === "object" ? r.leader : null, why = (d.reasons || [])[0];
-    const empty = !r.nearest && !(age || gender) && !segs.length && !wants.length && !(r.cities || []).length && !cities.length && !tier && !also.length;     // no part answered: one next step, no empty boxes
+    const empty = !r.nearest && !(age || gender) && !segs.length && !(r.audiences || []).some((a) => a && Number.isFinite(Number(a.lift))) && !wants.length && !(r.cities || []).length && !cities.length && !tier && !also.length;     // no part answered: one next step, no empty boxes
     if (empty && d.verdict !== "OPEN" && !r.qloo_down) [word, cls] = ["No taste data from Qloo", "unknown"];   // a real empty answer only
     // Qloo not answering (apps/wanted recorded.py): said first, with the sample's last real card when there is one
     const at = (t) => String(t || "").replace("T", " ").slice(0, 16) + " UTC";
@@ -356,13 +420,14 @@
       `<button type="button" class="k-chip" data-pick="${esc(m.name)}">${esc(m.name)}</button>`).join(" ")} <button type="button" class="k-chip" data-none="${
       esc([lead.id, ...others.map((m) => m.id)].filter(Boolean).join(","))}">None of these</button>`}</p>` : "";
     return `<article class="k-card k-${cls}" data-verdict="${esc(d.verdict || "")}" data-not-prose>
+  ${storyHead(r)}
   ${gapOpen(r)}
   ${guess ? yourCall(guess, terms, cities) : ""}
   ${down ? `<p class="k-terms" data-qloo-down>${esc(down)}</p>` : ""}${r.nearest && reset ? `<p class="k-fine k-terms" data-qloo-limit-line>${esc(reset.trim())}</p>` : ""}
-  <header class="k-card-head"><p class="k-kick">${label ? `<span class="k-real">${esc(label)}</span> · ` : ""}${esc(r.idea || r.label || "")}</p><h2 class="k-verdict" data-part="verdict" data-qloo>${esc(word)}${src(h)}</h2>${recordedCard(r, label) ? sureLine() : ""}${callsHead(r)}
-  ${terms ? `<p class="k-terms" data-part="terms" data-city="${esc(terms.city)}" data-target="${esc(terms.target)}">Launch in <b>${esc(terms.city)}</b>: ${esc(terms.target)} pre-orders.${chip("rule", "rule-target")} Every pre-order is refunded if the target is missed.</p>${terms.by_population ? `<p class="k-fine" data-part="by-population" data-pop-city="${esc(terms.by_population.city)}" data-pop-target="${esc(terms.by_population.target)}">By population: ${esc(terms.by_population.city)}, ${esc(terms.by_population.target)}.${chip("rule", "rule-population")} By Qloo taste: ${esc(terms.city)}, ${esc(terms.target)}.${chip("rule", "rule-target")}</p>` : ""}` : ""}
+  <header class="k-card-head"><p class="k-kick">${label ? `<span class="k-real">${esc(label)}</span> · ` : ""}${esc(r.idea || r.label || "")}</p><h2 class="k-verdict" data-part="verdict" data-qloo>${esc(word)}${src(h)}</h2>${callsHead(r)}
+  ${terms && d.verdict === "OPEN" ? `<p class="k-terms" data-part="terms" data-city="${esc(terms.city)}" data-target="${esc(terms.target)}">Launch in <b>${esc(terms.city)}</b>: ${esc(terms.target)} pre-orders.${chip("rule", "rule-target")} Every pre-order is refunded if the target is missed.</p>${terms.by_population ? `<p class="k-fine" data-part="by-population" data-pop-city="${esc(terms.by_population.city)}" data-pop-target="${esc(terms.by_population.target)}">By population: ${esc(terms.by_population.city)}, ${esc(terms.by_population.target)}.${chip("rule", "rule-population")} By Qloo taste: ${esc(terms.city)}, ${esc(terms.target)}.${chip("rule", "rule-target")}</p>` : ""}` : ""}
   ${r.signals && r.signals.line ? `<p class="k-fine" data-part="signals">${esc(r.signals.line)}</p>` : ""}${gapClose(r)}
-  ${read}${why ? `<p class="k-why"><b>Knos rule:</b> ${esc(why)}</p>` : ""}${trendLine(r)}
+  ${read}${why ? `<p class="k-why"${d.verdict === "CANNOT_DECIDE" ? " data-missing" : ""}><b>${d.verdict === "CANNOT_DECIDE" ? "Missing:" : "Knos rule:"}</b> ${esc(d.verdict === "CANNOT_DECIDE" ? missing(d.reasons) : why)}</p>` : ""}${trendLine(r)}
   ${Array.isArray(r.calls) && r.calls.length ? `<section class="k-timeline" data-timeline aria-live="polite"><p class="k-fine" data-counter>Qloo calls this check: 0 (live 0, recorded 0)</p><ol data-rows tabindex="0" aria-label="Qloo calls, as they answered"></ol></section>` : ""}
   ${r.decision ? `<button type="button" class="k-chip" data-without aria-pressed="false">Without Qloo</button>` : ""}
   ${r.decision ? `<span class="k-switch" role="group" aria-label="With Qloo or the model alone"><button type="button" class="k-chip" data-view="qloo" aria-pressed="true">With Qloo</button><button type="button" class="k-chip" data-view="model" aria-pressed="false">Model alone</button></span>` : ""}</header>
@@ -374,7 +439,7 @@
       ${age || gender ? `<p class="k-big">${esc([age, gender].filter(Boolean).join(", "))}</p>` : `<p class="k-none">Qloo did not answer who.</p>`}
       ${wants.length ? `<ul class="k-wants">${wants.map((a) => `<li><b>${esc(qlabel(a.name))}</b> <span class="k-fine">tied by Qloo ${
         a.tie.kind === "tag" ? "tag" : "product"} ${esc(a.tie.name || "")}${a.tie.via ? `, through ${esc(a.tie.via)}` : ""}</span></li>`).join("")}</ul>`
-        : segs.length ? `<p>${esc(segs.join(" · "))}</p>` : ""}${src(h, who.src)}</section>
+        : segs.length ? `<p>${esc(segs.join(" · "))}</p>` : ""}${lifts(r)}${src(h, who.src)}</section>
     ${cities.length ? `<section class="k-part k-where" data-part="cities" data-qloo data-heat="${cities.length}"><h3>Where to launch</h3>
       ${map(cities, where)}<p class="k-fine" data-index-label>${INDEX}</p><ol class="k-cities">${cities.map((c) => `<li><span data-city>${esc(c.name)}</span>${c.index == null ? "" : ` <span class="k-fine" data-index="${esc(c.index)}">${esc(c.index)}</span>`}${c.src != null ? chip("qloo", `call-${c.src}`) : ""}</li>`).join("")}</ol>${src(h, cities[0]?.src)}</section>`
       : r.stage === "verdict" && (r.matches || []).length ? `<p class="k-none" data-pending>Qloo's map is on its way.</p>` : !empty && r.no_map && (r.matches || []).length ? `<p class="k-terms" data-no-map>${esc(r.no_map)}</p>` : ""}
@@ -386,6 +451,7 @@
 ${src(h, price.src)}</section>
     ${more(r)}
   </div>`}
+  ${storyFoot(r)}
   ${recordedCard(r, label) ? u1(r) : ""}
   ${calls(r)}
   ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
@@ -403,12 +469,13 @@ ${src(h, price.src)}</section>
     const { sure, ...send } = extra;
     extra = send;
     go.disabled = true; root.setAttribute("aria-busy", "true"); busy(true);
+    flowRows([]);
     let pre = null;
     if (!extra.picked && !extra.leader && !extra.exclude) {               // which one do you mean? asked before any check
-      said(paper(v) ? "Reading the paper…" : "Reading what you typed…");
+      said(paper(v) ? "Reading the paper" : "Reading what you typed");
       const w = await post("/api/check", { idea: v, stage: "verdict" }).catch(() => null);
       if (w && w.kind === "which_one") {
-        await cardCss(); slot.dataset.idea = v; slot.innerHTML = whichCard(w); slot.last = w; slot.dataset.ms = "0";
+        await cardCss(); slot.dataset.idea = v; slot.last = w; slot.dataset.ms = "0"; reveal(whichCard(w));
         go.disabled = false; root.removeAttribute("aria-busy"); busy(false); return;
       }
       extra = { ...extra, picked: true };                                 // a recorded idea, word for word: no step
@@ -417,20 +484,20 @@ ${src(h, price.src)}</section>
     if (!sure && !extra.picked && !extra.leader && !extra.exclude && !paper(v)) {          // a recorded idea: its matched product first
       const m = await get(`/api/match?idea=${encodeURIComponent(v)}`).catch(() => null);
       if (m && (m.matches || []).length) {
-        await cardCss(); slot.dataset.idea = v; slot.innerHTML = confirmCard(v, m.matches);
+        await cardCss(); slot.dataset.idea = v; reveal(confirmCard(v, m.matches));
         go.disabled = false; root.removeAttribute("aria-busy"); busy(false); return;
       }
     }
     const ref = extra.picked ? null : paper(v), t0 = performance.now();
     slot.dataset.guess = (document.getElementById("k-guess")?.value || "").trim().slice(0, 60);
-    said(ref ? "Reading the paper…" : "Asking Qloo…");
+    said(QOFF ? "Qloo off for this request: the cache only" : ref ? "Reading the paper" : "Talking to Qloo");
     try {
       // the verdict card first (verdict, matched product, audience); the map, also-loved and the launch terms follow
       // from the full check, whose Qloo questions the first one already sent
       const r = ref ? await crossing(ref) : pre || await post("/api/check", { idea: v, ...extra, stage: "verdict" });
       await cardCss();
-      slot.innerHTML = card(r);
       slot.last = r;
+      reveal(card(r), () => document.dispatchEvent(new CustomEvent("knos:reached", { detail: r.ready && r.ready.criteria_hash ? 1 : 0 })));
       slot.dataset.idea = v;
       keepMine(r, v);
       delete slot.dataset.past;
@@ -448,7 +515,7 @@ ${src(h, price.src)}</section>
         }
       }
     } catch (e) {
-      slot.innerHTML = `<p class="k-err" role="alert">${esc(e.message || e)}. Try again, or <a href="${esc(APP)}#research">open the full crossing</a>.</p>`;
+      reveal(`<p class="k-err" role="alert">${esc(e.message || e)}. Try again, or <a href="${esc(APP)}#research">open the full crossing</a>.</p>`);
     } finally { go.disabled = false; root.removeAttribute("aria-busy"); busy(false); }
   }
   // a link that names an idea (?q=, from the fields page) runs its check at once: one press, already pressed
@@ -461,25 +528,91 @@ ${src(h, price.src)}</section>
     const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); then(); } });
     io.observe(el);
   };
+  // SOTA gap 2: the first screen's finished result, beside the box (under it on a phone): the real last good check,
+  // read from the app at view time (GET /api/proof; the page stores no Qloo answer). Its verdict, the launch terms, the
+  // top three places as bars (Qloo's concentration index, 0 to 100) and the day Qloo answered it (`made`, CODE.md 2.18).
+  // "Wanted" only: an undecided check is never the first thing shown. Its room is kept from the first paint (CLS).
+  const pastCard = (r, label) => {
+    const d = r.decision || {}, terms = termsOf(r), open = d.verdict === "OPEN";
+    let bars = cityList(r).filter((c) => c.index != null).slice(0, 3).map((c) => [c.name, c.index]);
+    if (!bars.length) bars = (r.cities || []).filter((c) => c && c.name && Number.isFinite(c.affinity)).slice(0, 3).map((c) => [c.name, Math.round(Math.max(0, Math.min(1, c.affinity)) * 100)]);
+    const h = /^[0-9a-f]{16}/.test(r.hash || "") ? r.hash : "";
+    return `<article class="k-past-card" data-verdict="${esc(d.verdict || "")}" data-past-card data-not-prose>
+  <p class="k-kick"><span class="k-real">${esc(label)}</span> · ${esc(r.idea || "")}</p>
+  <h2 class="k-v${open ? "" : " k-no"}" data-part="verdict">${open ? "Wanted" : esc((WORD[d.verdict] || [d.verdict || ""])[0])}</h2>
+  ${terms && open ? `<p class="k-where" data-part="terms">Launch in <b>${esc(terms.city)}</b>: ${esc(terms.target)} pre-orders</p>` : ""}
+  ${bars.length ? `<ol class="k-bars" aria-label="Top places by Qloo's concentration index, 0 to 100">${bars.map(([n, v]) => `<li><span>${esc(n)}</span><b>${esc(v)}</b><i style="--w:${Math.max(2, Math.min(100, Number(v) || 0))}%"></i></li>`).join("")}</ol>` : ""}
+  <p class="k-foot">${h ? `<a href="${esc(API)}/trace.html?hash=${encodeURIComponent(h)}" target="_blank" rel="noopener">Its Qloo calls</a>` : "<span></span>"} <button type="button" class="k-chip" data-whole>See the whole card</button></p>
+</article>`;
+  };
   const draw = (r) => {
-    if (!r || slot.dataset.ms || slot.querySelector(".k-status")) return;
-    // a finished real result, whole, before any press: the recorded sample whose verdict is Open (vectors.open_sample),
-    // labelled with the day Qloo answered it; else the last real check, folded to one line
-    if (r.sample) {
-      const s = r.sample, day = String(s.made || "").slice(0, 10);
-      slot.innerHTML = card(s, `Real Qloo answer, ${day}`);
-      slot.last = s;
-    } else {
-      const p = r.proof || r, when = String(p.checked_at || "").replace("T", " ").replace(/:\d\dZ$/, " UTC");
-      if (!p.decision) return;
-      const w = (WORD[p.decision.verdict] || [p.decision.verdict || ""])[0];
-      slot.innerHTML = `<details class="k-more k-past"><summary>Real check, ${esc(when)}: ${esc(p.idea || "")}, ${esc(w)}</summary>${card(p, `Real check, ${when}`)}</details>`;
-      slot.last = p;
-    }
+    if (!r || slot.dataset.ms || go.hasAttribute("aria-busy")) return;
+    const day = (x) => String(x.made || x.checked_at || "").slice(0, 10);
+    const good = (x) => x && x.decision && x.decision.verdict && x.decision.verdict !== "CANNOT_DECIDE";
+    const p = r.sample && good(r.sample) ? r.sample : r.proof && good(r.proof) && (r.proof.decision.verdict === "OPEN" || !r.sample) ? r.proof : null;
+    if (!p) { slot.dataset.empty = "1"; return; }
+    slot.past = `Real Qloo answer, ${day(p)}`;
+    slot.innerHTML = pastCard(p, slot.past);
+    slot.last = p;
     slot.dataset.past = "1";
     try { performance.mark("knos-proof-shown"); } catch { /* old browsers */ }   // when the past result was drawn
   };
-  form.addEventListener("submit", (ev) => { ev.preventDefault(); ask(q.value); });
+  slot.addEventListener("click", (ev) => {           // the first screen's card, opened whole in place
+    if (!(ev.target instanceof Element) || !ev.target.closest("[data-whole]") || !slot.last) return;
+    reveal(card(slot.last, slot.past || ""));
+  });
+  // WebMCP (SOTA AGENT GAP 4): an agent that submits the form gets the result as JSON; a person gets the card
+  form.addEventListener("submit", (ev) => { ev.preventDefault(); pressed(null);
+    const run = ask(q.value);
+    if (ev.agentInvoked && ev.respondWith) ev.respondWith(run.then(() => { const r = slot.last || {}, h = /^[0-9a-f]{16}/.test(r.hash || "") ? r.hash : "";
+      return JSON.stringify({ verdict: (r.decision || {}).verdict || (r.kind === "which_one" ? "WHICH_ONE" : null), readings: r.readings || undefined,
+        places: cityList(r).map((c) => c.name), trace: h ? `${API}/trace.html?hash=${h}` : null }); })); });
+  // read-only tools for an agent in the page, where the browser offers them (document.modelContext); money stays in the app
+  if ("modelContext" in document && document.modelContext && document.modelContext.registerTool) {
+    try {
+      document.modelContext.registerTool({ name: "open_trace", description: "Opens the Qloo trace of a past demand check by its hash",
+        inputSchema: { type: "object", properties: { hash: { type: "string", description: "The check's hash, 16 to 64 hex characters" } }, required: ["hash"] },
+        annotations: { readOnlyHint: true },
+        execute: async ({ hash }) => { if (!/^[0-9a-f]{16,64}$/.test(String(hash || ""))) return "hash: 16 to 64 hex characters"; open(`${API}/trace.html?hash=${hash}`, "_blank", "noopener"); return `opened the trace of ${hash}`; } });
+      document.modelContext.registerTool({ name: "open_preorders", description: "Opens the pre-order page of an Open check in the app; the person confirms any money there",
+        inputSchema: { type: "object", properties: { hash: { type: "string", description: "The Open check's hash" } }, required: ["hash"] },
+        annotations: { consequentialHint: true },
+        execute: async ({ hash }) => { if (!/^[0-9a-f]{16,64}$/.test(String(hash || ""))) return "hash: 16 to 64 hex characters"; location.href = `${APP}#buy=${hash}`; return "opened the pre-order page"; } });
+    } catch { /* a browser whose tools differ: the form still works */ }
+  }
+  // the chip pressed is the one shown pressed (its look morphs into the result's title by name, SOTA gap 14)
+  const pressed = (b) => root.querySelectorAll(".k-try .k-chip").forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
+  // the parts of the hero after this script in the page (the chips, the shape, the proof strip): wired once parsed
+  const parsed = (f) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", f, { once: true }) : f());
+  parsed(() => {
+    // SOTA gap 10: the two optional fields wait behind one disclosure (a <details>, so it opens without script too)
+    const add = document.getElementById("k-add");
+    if (add) add.addEventListener("toggle", () => { if (add.open) document.getElementById("k-guess")?.focus(); });
+    // Qloo's limits, read at view time: the line under the box and the two waiting examples show only while Qloo limits
+    // or refuses Knos (GET /api/qloo/status, CODE.md 2.13); while it answers, neither is drawn
+    const lim = root.querySelector("[data-qloo-limit]"), more = root.querySelector("[data-more-chips]");
+    seen(root, () => get("/api/qloo/status").then((st) => {
+      const limited = !!(st && (st.limited || st.held_s > 0));
+      if (more) { more.textContent = limited ? "2 more examples return when Qloo answers again" : ""; more.hidden = !limited; }
+      if (lim) { lim.textContent = limited && st.line ? st.line : ""; lim.hidden = !(limited && st.line); }
+    }).catch(() => {}));
+    // SOTA gap 5 and R2 item 4: the proof strip. The first two numbers are the published runs'; the last two are read from
+    // the app at view time (GET /api/counter), zeros shown as zeros, "n/a" when it does not answer. Each counts up from 0
+    // over 600 ms on first view (ease-out), and stands still with reduced motion.
+    const strip = document.getElementById("k-strip");
+    if (!strip) return;
+    const show = (b, n) => { const dp = Number(b.dataset.dp || 0), tail = b.dataset.tail || "";
+      b.textContent = n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp }) + tail; };
+    const count = (b, to) => { if (still() || !(to > 0)) return show(b, to);
+      const t0 = performance.now(), f = (now) => { const k = Math.min(1, (now - t0) / 600); show(b, to * (1 - (1 - k) ** 3)); if (k < 1) requestAnimationFrame(f); };
+      requestAnimationFrame(f); };
+    seen(strip, () => {
+      for (const b of strip.querySelectorAll("b[data-n]")) count(b, Number(b.dataset.n));
+      get("/api/counter").then((c) => { for (const b of strip.querySelectorAll("b[data-counter]")) { const n = c && Number(c[b.dataset.counter]);
+        if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.textContent = "n/a"; } })
+        .catch(() => { for (const b of strip.querySelectorAll("b[data-counter]")) b.textContent = "n/a"; });
+    });
+  });
   // below the first screen: the newest payout to an agent, as the chain has it, and the usage counter (checks and
   // briefs from the app's store, the payment program's devnet transactions). The build wrote both into the page
   // (scripts/live_snapshot.py); they are asked again after the reader's first move, as the product list is (web/home.js)
@@ -508,9 +641,12 @@ ${src(h, price.src)}</section>
       paid.hidden = false;
       paid.dataset.live = "1";
     }).catch(() => {});
-    // outside use only, this week against the last: a line only for real growth from at least 10, else nothing
+    // outside use only, this week against the last: a line only for real growth from at least 10, else nothing; the
+    // comparison only once the counter has run two weeks (`since` 14 days back or more, CODE.md 2.17), before that this week alone
     if (use) get("/api/usage").then((u) => {
-      const line = u && u.trend && u.trend.line;
+      const t = (u && u.trend) || {}, from = Date.parse(String((u && u.since) || "") + "T00:00:00Z");
+      const twoWeeks = Number.isFinite(from) && Date.now() - from >= 14 * 864e5;
+      const line = twoWeeks ? t.line : Number(t.this_week) > 0 ? `${Number(t.this_week).toLocaleString("en-US")} ideas checked this week` : "";
       use.textContent = line || "";
       use.hidden = !line;
       use.dataset.live = "1";
@@ -519,6 +655,7 @@ ${src(h, price.src)}</section>
 
   // each Qloo call of the card, in its order, as a row of the timeline: what it asked, what it decides, its ms, live or
   // cached; the counter counts them as they come, and the month's calls left are read once from /api/qloo/status
+  const q0 = (n) => Math.max(0, Number(n) || 0);
   const play = (box, r) => {
     box.dataset.played = "1";
     const rows = box.querySelector("[data-rows]"), counter = box.querySelector("[data-counter]");
@@ -526,7 +663,8 @@ ${src(h, price.src)}</section>
     const list = r.calls.filter((c) => c && typeof c === "object");
     const row = (c) => `${esc(c.call || "")} · ${esc(c.what || c.effect || "")} · ${decides.size ? (decides.has(c.n) ? "decides" : "context") : "the verdict"} · ${
         Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.live ? "live" : c.recorded ? `recorded ${esc(c.recorded)}` : c.error ? "not answered" : "recorded"}`;
-    let live = 0, cached = 0, i = 0;
+    let live = 0, cached = 0, failed = 0, i = 0;
+    const qc = r.qloo_calls && Number.isFinite(Number(r.qloo_calls.live)) ? r.qloo_calls : null;
     // every row is in place from the start, unseen, so revealing one moves nothing (sweep M1.md 4.5)
     rows.innerHTML = list.map((c) => `<li data-call="${esc(c.n)}" style="opacity:0">${row(c)}</li>`).join("");
     const items = [...rows.children];
@@ -534,9 +672,11 @@ ${src(h, price.src)}</section>
       if (!box.isConnected || i >= list.length) return;
       const c = list[i];
       items[i++].style.opacity = "";
-      c.live ? live++ : cached++;
-      if (still()) { items.forEach((li) => { li.style.opacity = ""; }); live = list.filter((x) => x.live).length; cached = list.length - live; i = list.length; }
-      counter.textContent = `Qloo calls this check: ${i} (live ${live}, recorded ${cached})`;
+      c.live ? live++ : c.error ? failed++ : cached++;
+      if (still() || i >= list.length) { items.forEach((li) => { li.style.opacity = ""; }); i = list.length;
+        live = qc ? q0(qc.live) : list.filter((x) => x.live).length; failed = list.filter((x) => !x.live && x.error).length;
+        cached = qc ? Math.min(q0(qc.recorded), list.length - live - failed) : list.length - live - failed; failed = list.length - live - cached; }
+      counter.textContent = `Qloo calls this check: ${i} (live ${live}, recorded ${cached}${failed ? `, not answered ${failed}` : ""})`;
       setTimeout(step, 90);
     };
     step();
@@ -556,7 +696,7 @@ ${src(h, price.src)}</section>
     try { localStorage.setItem(MINE, JSON.stringify(list)); } catch { /* storage refused: nothing kept */ }
     pastChecks();
   };
-  const WORDS = { OPEN: "Open for pre-orders", REFUSE: "Not yet", CANNOT_DECIDE: "Cannot decide" };
+  const WORDS = { OPEN: "Open for pre-orders", REFUSE: "Not yet", CANNOT_DECIDE: "Not enough evidence" };
   async function pastChecks() {
     style();
     let box = root.querySelector("[data-past-checks]");
@@ -619,6 +759,27 @@ ${src(h, price.src)}</section>
     if (like) ask(slot.dataset.idea || q.value, { leader: like });
   });
   root.addEventListener("click", (ev) => { const x = ev.target.closest && ev.target.closest("[data-export]"); if (x) exportCard(x.dataset.export); });
+  root.addEventListener("click", (ev) => {          // a rerun a refusal offers: the tag or the market, asked live again
+    const b = ev.target instanceof Element && ev.target.closest("[data-rerun]"); if (!b) return;
+    const g = document.getElementById("k-guess"); if (g && b.dataset.place) g.value = b.dataset.place;
+    q.value = b.dataset.rerun; ask(b.dataset.rerun, { picked: true, sure: true });
+  });
+  slot.addEventListener("submit", (ev) => {         // "Was this useful?": saved with the check's hash, never who said it
+    const f = ev.target.closest && ev.target.closest("[data-useful]"); if (!f) return;
+    ev.preventDefault();
+    const yes = ev.submitter ? ev.submitter.value === "yes" : true, said = f.querySelector("[data-useful-said]");
+    f.querySelectorAll("button").forEach((b) => { b.disabled = true; b.setAttribute("aria-pressed", String(b.value === (yes ? "yes" : "no"))); });
+    post("/api/feedback", { hash: f.dataset.hash, useful: yes, note: String(new FormData(f).get("note") || "").slice(0, 280) })
+      .then(() => { said.textContent = "Saved. Thank you."; }).catch((e) => { said.textContent = `Not saved: ${e.message}`; f.querySelectorAll("button").forEach((b) => { b.disabled = false; }); });
+  });
+  slot.addEventListener("submit", (ev) => {         // "Ask about this result": answered from the card's own data, citing its calls
+    const f = ev.target.closest && ev.target.closest("[data-ask-box]"); if (!f) return;
+    ev.preventDefault();
+    const out = f.querySelector("[data-ask-said]"); out.textContent = "Asking…";
+    post("/api/ask", { hash: f.dataset.hash, question: String(new FormData(f).get("question") || "") })
+      .then((a) => { out.textContent = a.refused ? `Not answered: ${a.refused}` : `${a.answer || ""}${(a.cites || []).length ? ` (calls ${a.cites.join(", ")})` : ""}`; })
+      .catch((e) => { out.textContent = `Not answered: ${e.message}`; });
+  });
   root.addEventListener("submit", (ev) => {
     const f = ev.target.closest("[data-name-box]");
     if (!f) return;
@@ -637,7 +798,7 @@ ${src(h, price.src)}</section>
       other.closest("[data-confirm-row]").outerHTML = next.length ? `<p data-confirm-next>Which one, then? ${next.map((n) => `<button type="button" class="k-chip" data-pick="${esc(n)}">${esc(n)}</button>`).join(" ")} <button type="button" class="k-chip" data-sure>None of these: check my words</button></p>`
         : `<p data-confirm-next>Qloo matched nothing else. <button type="button" class="k-chip" data-sure>Check my words</button></p>`;
     }
-    else if (b) { q.value = b.dataset.q; ask(b.dataset.q); }
+    else if (b) { q.value = b.dataset.q; pressed(b.closest(".k-try") ? b : null); ask(b.dataset.q); }
     else if (pick) ask(slot.dataset.idea || q.value, { leader: pick.dataset.pick });
     else if (none) {
       let prev = [];

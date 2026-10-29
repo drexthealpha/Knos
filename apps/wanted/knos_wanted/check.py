@@ -889,7 +889,8 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
     body, s4 = run.get("/v2/tags", q_tags, "taste tags: semantic search (typo-tolerant) of the product phrase")
     if body is not None:
         for t in ((body or {}).get("results") or {}).get("tags") or []:
-            if t.get("id") and t["id"] not in {x["id"] for x in ev["tags"]} and {_norm(x) for x in tokens(t.get("name"))} & set(words):
+            if (t.get("id") and t["id"] not in {x["id"] for x in ev["tags"]} and {_norm(x) for x in tokens(t.get("name"))} & set(words)
+                    and str(t.get("name") or "").lower() not in {str(x["name"] or "").lower() for x in ev["tags"]}):   # one tag per name
                 ev["tags"].append({"name": t.get("name"), "id": t["id"], "popularity": t.get("popularity"), "src": s4})
     ev["matches"] = [m for m in found if m["relevant"] and entity_tied(m, idea, ev["tags"])][:6]
     ev["unrelated"] = ([{"name": m["name"], "why": "shares too few content words with the idea"} for m in found if not m["relevant"]]

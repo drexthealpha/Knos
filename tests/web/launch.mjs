@@ -34,7 +34,7 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const origin = `http://127.0.0.1:${server.address().port}`, base = origin + PREFIX;
 const outside = [];
-const ASKED = /^https:\/\/(api\.github\.com|api\.devnet\.solana\.com|devnet\.rpcpool\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors)$/;     // what the pages read by design, refused here: GitHub, devnet (and its second free RPC, web/netfacts.js, once the first is refused), and the app's list of research products (web/home.js, on a reader's first move at the bare address)
+const ASKED = /^https:\/\/(api\.github\.com|api\.devnet\.solana\.com|devnet\.rpcpool\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors|counter|qloo\/status)$/;     // what the pages read by design, refused here: GitHub, devnet (and its second free RPC, web/netfacts.js, once the first is refused), and the app's list of research products (web/home.js, on a reader's first move at the bare address)
 // block: a test of the request's path inside the site; a request it matches fails as a dropped connection would
 const world = async (block = () => false, o = {}) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...o });

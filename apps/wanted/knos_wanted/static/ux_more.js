@@ -236,7 +236,7 @@
     const list = $("msList"); if (!list) return;
     const items = [...list.children], score = (li) => {
       const t = li.textContent.toLowerCase();
-      if (/money|escrow|fund/.test(ask)) return -Number((t.match(/(\d+) test units (?:held|in escrow)/) || [0, 0])[1]);
+      if (/money|held|fund/.test(ask)) return -Number((t.match(/(\d+) test units held/) || [0, 0])[1]);
       if (/proof|evidence|verified/.test(ask)) return /released|verdict|checked/.test(t) ? -1 : 0;
       if (/open|todo|left/.test(ask)) return /released/.test(t) ? 1 : 0;
       return 0;

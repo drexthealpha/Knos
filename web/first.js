@@ -13,9 +13,9 @@ export function parseTx(s) {
   return SIG.test(sig) ? sig : null;
 }
 
-// The `knos:paid` and `knos2:paid` lines the escrow itself printed in a transaction (a line another program prints in
+// The `knos:paid` and `knos2:paid` lines the holding program itself printed in a transaction (a line another program prints in
 // the same transaction is not one), as { deployment, repo, issue, payee, amount, fee, to, pr }. `programs`: the
-// escrow's address -> 1 or 2 for the deployment it belongs to. The same rule as src/knos/records.py events_of.
+// holding program's address -> 1 or 2 for the deployment it belongs to. The same rule as src/knos/records.py events_of.
 export function paidLines(tx, programs) {
   const stack = [], out = [];
   for (const line of tx?.meta?.logMessages || []) {

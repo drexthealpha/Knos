@@ -48,7 +48,7 @@ h1, h2, h3, h4 { font-family: var(--head); letter-spacing: -.015em; }
 h1 { font-weight: 600; letter-spacing: -.025em; }
 code, pre, kbd, .mono { font-family: var(--code); }
 .bar { position: relative; z-index: 20; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 0;
-  padding: 12px max(16px, calc((100% - 1080px) / 2)); background: var(--bg); border-bottom: 1px solid var(--line); font-family: var(--text); }
+  padding: 12px max(16px, calc((100% - 1200px) / 2)); background: var(--bg); border-bottom: 1px solid var(--line); font-family: var(--text); }
 .brand { display: flex; gap: 10px; align-items: center; min-height: 44px; font: 650 20px/1 var(--head); letter-spacing: -.01em; text-decoration: none; color: var(--fg); }
 .brand .wordmark { display: none; }
 @supports ((mask-image: url("mark.svg")) or (-webkit-mask-image: url("mark.svg"))) {
@@ -116,23 +116,10 @@ code, pre, kbd, .mono { font-family: var(--code); }
 }
 @media (prefers-contrast: more) { .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 .k-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
-.k-hero{max-width:880px;margin:0 0 var(--sp-6);}
-.k-mission{font:600 clamp(30px,5.2vw,52px)/1.06 var(--head);letter-spacing:-.03em;margin:var(--sp-5) 0 var(--sp-4);max-width:18em;text-wrap:balance;}
-.k-lede{color:var(--muted);font-size:var(--s2);line-height:1.45;max-width:36em;margin:0 0 var(--sp-5);text-wrap:pretty;}
-.k-ask{display:flex;gap:var(--sp-2);padding:6px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--depth-2);}
-.k-ask:focus-within{border-color:var(--accent);}
-.k-ask input{flex:1;min-width:0;margin:0;padding:12px 14px;border:0;outline:0;background:transparent;color:var(--fg);font:400 var(--s1)/1.4 var(--text);}
-.k-ask button{flex:none;margin:0;min-height:48px;padding:12px 20px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-fg);font:600 var(--s1)/1.2 var(--text);cursor:pointer;}
-.k-ask button:disabled{opacity:.7;cursor:progress;}
-.k-try{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:var(--sp-3) 0 0;color:var(--muted);font-size:var(--s0);}
-.k-for{margin:var(--sp-5) 0 0;font-weight:600;font-size:var(--s1);max-width:40em;}
-.k-for+.k-mission{margin-top:var(--sp-2);}
-.k-wait{flex:none;align-self:center;padding-right:6px;}
-.k-guess{display:block;width:100%;max-width:22em;box-sizing:border-box;margin:0 0 var(--sp-2);padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:400 var(--s0)/1.3 var(--text);}
-.k-proofs{list-style:none;margin:var(--sp-3) 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:var(--s0);}
 .k-chip{margin:0;min-height:36px;padding:6px 12px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--fg);font:500 var(--s0)/1.2 var(--text);cursor:pointer;}
 .k-chip:hover{background:var(--soft);}
-.k-slot{margin-top:var(--sp-5);min-height:100svh;}   /* the card's room, kept from the first paint: its arrival moves nothing in view */
+.k-chip[aria-pressed="true"]{background:var(--soft);border-color:var(--accent);}
+#theme svg{display:block;width:20px;height:20px}:root[data-theme="light"] #theme svg path{rotate:180deg}
 .k-status{display:flex;gap:10px;align-items:center;color:var(--muted);}
 .k-spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:k-spin .8s linear infinite;}
 @keyframes k-spin{to{transform:rotate(360deg);}
@@ -142,9 +129,6 @@ code, pre, kbd, .mono { font-family: var(--code); }
 .k-err{color:var(--bad);}
 .k-card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--depth-2);overflow:hidden;}
 .k-fine{color:var(--muted);font-size:var(--s-1);}
-@media (max-width:760px){.k-ask{flex-direction:column;}
-.k-ask button{width:100%;}
-}
 .k-vectors{display:flex;flex-wrap:wrap;gap:6px 8px;list-style:none;margin:var(--sp-4) 0 0;padding:0}
 .k-vectors li{margin:0;padding:6px 12px;border:1px solid var(--line);border-radius:99px;background:var(--card);font:400 var(--s0)/1.4 var(--text);color:var(--fg)}
 .k-vectors b{font-weight:700}
@@ -154,13 +138,19 @@ main p,main li,main dd{max-width:65ch}
 .k-big,.mx-need{line-height:1.5}
 
 @media (prefers-reduced-motion: no-preference) {
-  .k-ask { transition: border-color 120ms var(--ease, ease), box-shadow 120ms var(--ease, ease); }
-  .k-ask:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-  #k-go:active, .k-chip:active { scale: .97; transition: scale 80ms var(--ease, ease); }
-  .k-chip { transition: background-color 120ms var(--ease, ease), border-color 120ms var(--ease, ease); }
-  .k-chip[aria-pressed="true"] { background: var(--soft); border-color: var(--accent); }
-  .k-proofs a, .k-fine a { text-decoration-color: transparent; transition: text-decoration-color 120ms; }
-  .k-proofs a:hover, .k-fine a:hover, .k-proofs a:focus-visible { text-decoration-color: currentColor; }
+  #k-go:active, .k-chip:active { scale: .97; }
+  .k-chip, #k-go { transition: background-color 120ms var(--ease), scale 80ms var(--ease); }
+  .k-fine a { text-decoration-color: transparent; transition: text-decoration-color 120ms; } .k-fine a:hover { text-decoration-color: currentColor; }
+  #theme svg path { transition: rotate 240ms var(--ease-move); transform-origin: 10px 10px; }
+  @view-transition { navigation: auto; types: k-page; }
+  html:active-view-transition-type(k-page) .brand { view-transition-name: k-logo; } html:active-view-transition-type(k-page) .bar nav { view-transition-name: k-nav; }
+  html:active-view-transition-type(k-page)::view-transition-old(root) { animation: k-pg-out 120ms var(--ease-exit) both; }
+  html:active-view-transition-type(k-page)::view-transition-new(root) { animation: k-pg-in 220ms cubic-bezier(.16,1,.3,1) both; }
+  @keyframes k-pg-out { to { opacity: 0; } } @keyframes k-pg-in { from { opacity: 0; translate: 0 8px; } }
+  html.k-theming .bar { view-transition-name: none; } html.k-theming::view-transition-old(root) { animation: none; }
+  html.k-theming::view-transition-new(root) { animation: k-reveal 400ms cubic-bezier(.16,1,.3,1); }
+  @keyframes k-reveal { from { clip-path: circle(0 at var(--x, 50%) var(--y, 0)); } to { clip-path: circle(150% at var(--x, 50%) var(--y, 0)); } }
+  html.k-revealing .k-ask { view-transition-name: k-ask; } html.k-revealing .k-slot { view-transition-name: k-result; }
   .k-cta { transition: background-color 120ms; } .k-cta:hover { translate: 3px 0; transition: translate 120ms var(--ease, ease), background-color 120ms; }
   .k-tiers [aria-current="true"] { transition: background-color 120ms; }
   .k-timeline [data-rows] > li { animation: k-row-in 120ms var(--ease, ease) both; }
@@ -168,6 +158,3 @@ main p,main li,main dd{max-width:65ch}
   dialog[open] { animation: k-dialog-in 120ms var(--ease, ease) both; } @keyframes k-dialog-in { from { opacity: 0; scale: .98; } to { opacity: 1; scale: 1; } }
 }
 
-#k-shape{display:flex;align-items:center;gap:12px;height:64px;margin:8px 0 4px;color:var(--accent);outline-offset:4px}#k-shape svg{flex:none;overflow:visible}
-#k-shape figcaption{color:var(--ink);font-size:var(--s-1);min-width:0}#k-shape [data-num]{font-family:var(--mono);color:var(--muted)}
-@media (prefers-reduced-motion: reduce){#k-shape *{animation:none!important;transition:none!important}}

@@ -1,26 +1,103 @@
+<style id="k-hero-css">
+.k-hero{max-width:1200px;margin:0 auto 64px;container-type:inline-size}
+.k-hero-grid{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "ask" "card" "rest" "strip";gap:0 48px;align-items:start}
+@container (min-width:900px){.k-hero-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);grid-template-areas:"head card" "ask card" "rest card" "strip strip"}.k-side{padding-top:var(--sp-5)}}
+.k-head{grid-area:head}.k-askbox{grid-area:ask}.k-side{grid-area:card;min-width:0}.k-rest{grid-area:rest;min-width:0}.k-strip{grid-area:strip}
+.k-for{display:inline-block;margin:var(--sp-5) 0 0;padding:6px 10px;border:1px solid var(--line);border-radius:999px;font:500 13px/1 var(--text);color:var(--ink-2)}
+.k-mission{font:600 clamp(40px,5.2vw,64px)/1.02 var(--head);letter-spacing:-.035em;margin:var(--sp-4) 0 var(--sp-3);max-width:18em;text-wrap:balance}
+.k-sub{margin:0 0 var(--sp-5);max-width:56ch;font:400 18px/1.5 var(--text);color:var(--ink-2);text-wrap:pretty}
+.k-ask{position:relative;display:flex;gap:var(--sp-2);padding:6px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--depth-2)}
+.k-ask:focus-within{border-color:var(--accent)}
+.k-ask input{flex:1;min-width:0;margin:0;padding:12px 14px;border:0;outline:0;background:transparent;color:var(--fg);font:400 var(--s1)/1.4 var(--text)}
+.k-ask button{flex:none;display:inline-flex;gap:8px;align-items:center;justify-content:center;margin:0;min-height:48px;padding:12px 20px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-fg);font:600 var(--s1)/1.2 var(--text);cursor:pointer}
+.k-ask button:disabled{opacity:1;cursor:progress}
+.k-ask button .k-spin{display:none;width:14px;height:14px;border-color:color-mix(in srgb,var(--accent-fg) 35%,transparent);border-top-color:var(--accent-fg)}
+.k-ask button[aria-busy=true] .k-spin{display:inline-block}
+.k-load{position:absolute;left:14px;right:14px;bottom:0;height:2px;border-radius:2px;opacity:0;pointer-events:none;background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:40% 100%;background-repeat:no-repeat}
+.k-ask[aria-busy=true] .k-load{opacity:1;animation:k-bar 900ms linear infinite}
+@keyframes k-bar{from{background-position:-40% 0}to{background-position:140% 0}}
+.k-live{min-height:20px;margin:6px 0 0;font:400 13px/20px var(--text);color:var(--ink-2)}
+.k-flow{margin:4px 0 0;padding-left:1.2em;font:400 12px/1.5 var(--code);color:var(--ink-2);max-height:9em;overflow:auto}.k-flow[hidden]{display:none}
+.k-live [data-t]{font-family:var(--code);font-variant-numeric:tabular-nums}
+.k-add-box{margin:2px 0 0;interpolate-size:allow-keywords}.k-add{display:inline-block;min-height:24px;color:var(--accent);font:500 13px/24px var(--text);cursor:pointer;list-style:none}.k-add::-webkit-details-marker{display:none}.k-add-box[open] .k-add{color:var(--ink-2)}
+.k-opt{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 12px;margin:6px 0 0}
+.k-opt label{font:500 13px/1.3 var(--text);color:var(--ink-2)}
+.k-opt label:nth-of-type(2){grid-column:2;grid-row:1}
+.k-guess{display:block;width:100%;box-sizing:border-box;margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:400 var(--s0)/1.3 var(--text)}
+.k-try{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:var(--sp-4) 0 0;color:var(--muted);font-size:var(--s0)}
+.k-try [data-more-chips][hidden]{display:none}
+.k-slot{min-height:296px;margin-top:var(--sp-5);scroll-margin-top:88px;container-type:inline-size}
+.k-slot[data-empty]{min-height:0}
+.k-past-card{padding:var(--sp-5);background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--depth-1);transition:translate 160ms var(--ease),box-shadow 160ms var(--ease)}
+.k-past-card:hover{translate:0 -2px;box-shadow:var(--depth-2)}
+.k-past-card .k-kick{margin:0 0 8px;color:var(--muted);font-size:var(--s-1)}
+.k-past-card .k-v{margin:0 0 4px;font:600 28px/1.15 var(--head);letter-spacing:-.02em;color:var(--ok)}
+.k-past-card .k-v.k-no{color:var(--bad)}
+.k-past-card .k-where{margin:0 0 var(--sp-3);color:var(--ink-2);font-size:var(--s0)}
+.k-bars{list-style:none;margin:0 0 var(--sp-3);padding:0;display:grid;gap:8px}
+.k-bars li{display:grid;grid-template-columns:minmax(0,1fr) 3ch;gap:4px 10px;align-items:center;font-size:var(--s0)}
+.k-bars span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.k-bars b{font:600 13px/1 var(--code);text-align:right;font-variant-numeric:tabular-nums}
+.k-bars i{grid-column:1/-1;display:block;height:8px;border-radius:4px;background:var(--soft)}
+.k-bars i::before{content:"";display:block;height:100%;width:var(--w);border-radius:4px;background:var(--accent)}
+.k-past-card .k-foot a{color:var(--accent)}
+.k-past-card .k-foot{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin:0;font-size:var(--s-1);color:var(--muted)}
+.k-strip{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin:var(--sp-6) 0 0;padding:0;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.k-strip li{margin:0;min-width:0}
+.k-strip a{display:block;height:100%;box-sizing:border-box;padding:16px;background:var(--paper);color:inherit;text-decoration:none;transition:background-color 120ms var(--ease)}
+.k-strip a:hover{background:var(--paper-2)}
+.k-strip b{display:block;font:600 28px/1.1 var(--head);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.k-strip span{display:block;margin-top:4px;font-size:13px;line-height:1.35;color:var(--ink-2)}
+@media (max-width:700px){.k-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.k-ask{flex-direction:column}.k-ask button{width:100%}.k-opt{grid-template-columns:minmax(0,1fr)}.k-opt label:nth-of-type(2){grid-column:auto;grid-row:auto}}
+#k-shape{margin:var(--sp-5) 0 0;color:var(--accent);outline-offset:4px}
+#k-shape svg{display:block;width:100%;height:auto;max-height:100px;overflow:visible}
+#k-shape [data-stop]{fill:var(--paper);stroke:currentColor;stroke-width:2}
+.k-stops{position:relative;height:18px;margin:6px 0 0;padding:0;list-style:none;font:500 12px/18px var(--text)}
+.k-stops li{position:absolute;top:0;margin:0;white-space:nowrap;color:var(--ink-2)}
+.k-stops li:nth-child(2){left:33.3%;translate:-50% 0}.k-stops li:nth-child(3){left:66.7%;translate:-50% 0}.k-stops li:nth-child(4){right:0}
+.k-stops li[data-on]{color:var(--ink);font-weight:600}
+.k-slot:empty{background:linear-gradient(var(--soft),var(--soft)) 24px 28px/40% 12px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 56px/70% 28px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 108px/85% 8px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 140px/70% 8px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 172px/55% 8px no-repeat;border:1px solid var(--line);border-radius:18px;box-sizing:border-box}
+@media (prefers-reduced-motion:no-preference){
+html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
+::view-transition-group(k-result){animation-duration:320ms;animation-timing-function:cubic-bezier(.16,1,.3,1)}
+::view-transition-old(k-result){animation:none;opacity:0}
+::view-transition-new(k-result){animation:k-rise 320ms cubic-bezier(.16,1,.3,1) both}
+::view-transition-group(k-pick){animation-duration:280ms;animation-timing-function:cubic-bezier(.16,1,.3,1)}
+@keyframes k-rise{from{opacity:0;translate:0 12px;filter:blur(6px)}}
+.k-slot[data-reveal] .k-card>*,.k-slot[data-reveal] .k-past-card>*{animation:k-row 240ms cubic-bezier(.16,1,.3,1) both;animation-delay:min(calc(var(--i,0)*40ms),280ms)}
+@keyframes k-row{from{opacity:0;translate:0 6px}}
+.k-add-box::details-content{transition:height 200ms cubic-bezier(.2,.8,.2,1),content-visibility 200ms allow-discrete;height:0;overflow:clip}.k-add-box[open]::details-content{height:auto}}
+@media (prefers-reduced-motion:reduce){.k-ask[aria-busy=true] .k-load{animation:none;background:var(--accent);opacity:.5}.k-ask button .k-spin{animation:none}.k-past-card{transition:none}.k-past-card:hover{translate:none}
+::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
+.k-try .k-chip[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.k-ask input:focus-visible,.k-guess:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
 <div class="k-hero" id="k-hero" data-api="{API}" data-app="{APP}">
-  <p class="k-for" id="k-for">For anyone about to build or fund a product: see who wants it and where, then get paid only on proof.</p>
+<div class="k-hero-grid">
+<div class="k-head">
+  <p class="k-for" id="k-for">Qloo demand check · paid on proof</p>
   <h1 id="k-mission" class="k-mission">See who wants your product, and where, before you build it</h1>
-  <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand">
-    <input id="k-q" name="q" type="text" aria-label="What are you about to build? An idea, or a paper's DOI" maxlength="500" placeholder="What are you about to build?" enterkeyhint="go" spellcheck="false">
-    <button id="k-go" type="submit"><span>Check demand</span></button> <span class="k-fine k-wait" data-wait>about 2 s</span>
+  <p class="k-sub" id="k-sub">For anyone about to build or fund a product: see where it is wanted, then get paid only on proof.</p>
+</div>
+<div class="k-askbox">
+  <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
+    <input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What are you about to build? An idea, or a paper's DOI" maxlength="500" placeholder="What are you about to build?" enterkeyhint="go" spellcheck="false">
+    <button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><span data-label>Check demand</span></button>
+    <i class="k-load" aria-hidden="true"></i>
   </form>
+  <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-t aria-hidden="true"></span></p>
+  <ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
   <p class="k-fine k-limit" data-qloo-limit hidden></p>
-  <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose data-api="{API}" data-n3="10 pre-orders" data-n4="zCxgsXmA" data-state="4" aria-label="From idea or paper to paid on proof: demand, Ready brief, money held">
-    <svg viewBox="0 0 180 64" width="180" height="64" aria-hidden="true"><path data-shape d="M10 34 C40 34 60 56 80 56 C100 56 140 12 170 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-      <circle data-dot r="5" fill="currentColor" style="offset-path:path('M10 34 C40 34 60 56 80 56 C100 56 140 12 170 12');offset-distance:100%"/></svg>
-    <figcaption><b data-state data-i="4">Paid on proof</b> <span data-num>zCxgsXmA</span></figcaption>
-  </figure>
-  <script src="{SHAPE}" defer></script>
-  <input id="k-guess" class="k-guess" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Where would you launch it? (optional)" aria-label="Where would you launch it? (optional)">
-  <input id="k-who" class="k-guess" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Who buys it? (optional)" aria-label="Who buys it? (optional)">
-  <ul class="k-proofs" data-proof-lines data-not-prose>
-    <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-proof-line="caught">Altered pull requests caught: Knos 60 of 60, plain CI 31 of 60</a></li>
-    <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-proof-line="ready">Ready briefs passed 85%, vague 5%, padded 5%</a></li>
-    <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-proof-line="where">Where demand is: Qloo 0.19, the model alone 0.41</a></li>
-    <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-proof-line="held">Pre-orders on devnet: 2 held, 10 released, 0 from others</a></li>
-    <li><a href="{SP}proof/" data-proof-page>Every number, with its baseline</a></li>
-  </ul>
+  <details class="k-add-box" id="k-add" data-not-prose><summary class="k-add">+ Add market or buyer</summary>
+  <div class="k-opt" id="k-opt">
+    <label for="k-guess">Where would you launch it?</label><input id="k-guess" name="market" form="k-ask" class="k-guess" type="text" toolparamdescription="Optional launch market, a city or country" maxlength="60" autocomplete="off" spellcheck="false">
+    <label for="k-who">Who buys it?</label><input id="k-who" name="buyer" form="k-ask" class="k-guess" type="text" toolparamdescription="Optional buyer, in plain words" maxlength="60" autocomplete="off" spellcheck="false">
+  </div></details>
+</div>
+<div class="k-side">
+  <div id="k-card" class="k-slot" aria-live="polite"></div>
+</div>
+<div class="k-rest">
   <div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
     <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
     <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
@@ -28,6 +105,20 @@
     <button type="button" class="k-chip" data-tech="quantum" data-q="a quantum physics book for kids">Quantum book</button>
     <button type="button" class="k-chip" data-tech="biotech" data-need="food" data-q="a probiotic kombucha brand">Kombucha</button>
     <button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
-    <span class="k-fine" data-more-chips data-needs="housing health">2 more examples return when Qloo answers again</span></div>
-  <div id="k-card" class="k-slot" aria-live="polite"></div>
+    <span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
+  <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
+    <svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
+      <circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
+    <ol class="k-stops"><li>Demand</li><li>Ready brief</li><li>Money held</li><li data-on>Paid on proof</li></ol>
+  </figure>
+  <script src="{SHAPE}" defer></script>
+</div>
+<ul class="k-strip" id="k-strip" data-not-prose aria-label="Proof">
+  <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-cell="caught"><b data-n="60" data-tail="/60">60/60</b><span>altered pull requests caught; plain CI 31</span></a></li>
+  <li><a href="{SP}how-we-test.html" data-cell="idt"><b data-n="2.11" data-dp="2" data-tail="x">2.11x</b><span>IDT: a vague brief's cost over a Ready one, [1.37, 3.75]</span></a></li>
+  <li><a href="{SP}proof/" data-cell="released"><b data-counter="released_on_proof">n/a</b><span>money released only on proof</span></a></li>
+  <li><a href="{SP}proof/" data-cell="today"><b data-counter="checks_today">n/a</b><span>live checks today</span></a></li>
+</ul>
+</div>
 </div>

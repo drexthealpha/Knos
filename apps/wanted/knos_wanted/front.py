@@ -165,7 +165,7 @@ def product(state, rep: dict, slug: str, project_id: str | None) -> dict:
             "tech": tech, "tech_name": TECH.get(tech or ""),
             "paper_title": r.get("title"), "where": (plan.get("where") or [])[:3], "unit_price": plan.get("unit_price"),
             "target_units": d.get("target_units"), "reserve_units": d.get("reserve_units"),
-            "backed_units": res["pre_ordered_units"], "escrow_units": escrow_units, "maker": maker, "project": project_id,
+            "backed_units": res["pre_ordered_units"], "escrow_units": escrow_units, "held_units": escrow_units, "maker": maker, "project": project_id,
             "first_milestone": first, "open_milestones": open_ms,
             "actions": {"back": f"#back={slug}", "fund": f"#fund={slug}", "contribute": f"#contribute={slug}"}}
 

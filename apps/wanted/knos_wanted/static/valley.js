@@ -93,13 +93,13 @@ function groundingLine(p) {
   const src = window.KnosDemand && p.report ? KnosDemand.src("", p.report) : "";       // the trace kept for this project's report
   return bits.length ? `<p class="small" id="grounding" data-qloo><b>Grounding (Qloo)</b>: ${esc(bits.join(" · "))}${src}</p>` : "";
 }
-// the project's credits (Token-2022 with the knos_hook transfer hook): they move only into this project's escrow
+// the project's credits (Token-2022 with the knos_hook transfer hook): they move only into this project's holding account
 function creditsLine(p) {
   const c = p.credits;
   return c && c.mint ? `<p class="small" id="credits">Project credits: <a class="mono" href="https://explorer.solana.com/address/${esc(c.mint)}?cluster=devnet" rel="noopener">${esc(c.mint.slice(0, 8))}…</a>, held only in the project's own account (a transfer hook refuses any other account).</p>` : "";
 }
 // who is working on this project, each a separate role you can see: the researcher (what an agent on a milestone is
-// handed: the locked intent), the referee (the latest attempt's verdict), the funder (what escrow holds and the rule)
+// handed: the locked intent), the referee (the latest attempt's verdict), the funder (what is held and the rule)
 function agents(p) {
   const m = p.milestones.find((x) => x.status !== "released") || p.milestones[0];
   if (!m) return "";
@@ -171,10 +171,10 @@ function onchainLine(c) {
   if (c.rent && typeof c.rent.returned_sol === "number") parts.push(`rent returned ${c.rent.returned_sol.toFixed(6)} SOL`);
   return parts.length ? `<br><span class="small">On chain: ${parts.join(" · ")}</span>` : "";
 }
-// each locked escrow's balance, pushed by devnet as it changes (accountSubscribe): no polling, closed when the page changes
+// each locked holding account's balance, pushed by devnet as it changes (accountSubscribe): no polling, closed when the page changes
 let orderSocket = null;
 function watchOrders(p) {
-  if (orderSocket) {        // each escrow's stream unsubscribed by the id devnet gave it (accountUnsubscribe), then closed
+  if (orderSocket) {        // each holding account's stream unsubscribed by the id devnet gave it (accountUnsubscribe), then closed
     const old = orderSocket; orderSocket = null;
     try { Object.keys(old.subs || {}).forEach((id, i) => old.send(JSON.stringify({ jsonrpc: "2.0", id: 900 + i, method: "accountUnsubscribe", params: [Number(id)] }))); } catch (e) { /* closed */ }
     setTimeout(() => { try { old.close(); } catch (e) { /* closed */ } }, 300);
@@ -198,7 +198,7 @@ function watchOrders(p) {
 function msCard(p, m, i) {
   const live = m.attempts.filter((a) => ["working", "result posted", "checked"].includes(a.status));
   const reg = m.kind === "regulatory" ? `<p class="small"><span class="tag">Regulatory · ${esc(m.standard)}</span> <a href="${esc(m.template)}" rel="noopener">OpenRegulatory template</a></p>` : "";
-  const cap = (m.route && m.route.capacity || []).map((c) => `<li>${esc(c.name)}${c.quote && c.quote.price != null ? ` · quote ${c.quote.price} ${esc(c.quote.currency)}, ${c.quote.turnaround_days} days <span class="small muted">(${c.quote.fixture ? "fixture quote, labelled" : "live"})</span>` : ""}${c.manual ? ` — <a href="${esc(c.manual)}" rel="noopener">order on their site</a>` : ""}</li>`).join("");
+  const cap = (m.route && m.route.capacity || []).map((c) => `<li>${esc(c.name)}${c.quote && c.quote.price != null ? ` · quote ${c.quote.price} ${esc(c.quote.currency)}, ${c.quote.turnaround_days} days <span class="small muted">(${c.quote.fixture ? "fixture quote, labelled" : "live"})</span>` : ""}${c.manual ? ` · <a href="${esc(c.manual)}" rel="noopener">order on their site</a>` : ""}</li>`).join("");
   const orders = m.orders.map((o) => `<li class="small"><a href="${o.explorer}" rel="noopener">${short(o.order)}</a> <span class="muted" data-order="${esc(o.order)}"></span>${o.receipt && o.receipt.pledge && o.receipt.pledge.signature ? ` · <a href="${X(o.receipt.pledge.signature)}" rel="noopener">pledge receipt</a>` : ""}${o.finality && o.finality.seconds ? ` · release finalized in ${o.finality.seconds} s (${esc(o.finality.via)})` : ""}${o.receipt && o.receipt.refund && o.receipt.refund.burned ? ` · <a href="${X(o.receipt.refund.burned)}" rel="noopener">receipt burned on refund</a>` : ""} ${o.private ? (o.receipt && o.receipt.private && o.receipt.private.range_signature ? `amount private (<a href="${X(o.receipt.private.range_signature)}" rel="noopener">range proof</a>)` : "amount private") : o.units + " units"} · ${esc(o.kind)}${o.grant ? " (" + esc(o.grant.agency) + " " + esc(o.grant.id) + ")" : ""} · <strong>${esc(o.status)}</strong>${o.signatures && o.signatures.refund ? ` · <a href="${X(o.signatures.refund)}" rel="noopener">refund</a>` : ""}${o.signatures && (o.signatures.referee_2_pass || o.signatures.referee_group_pass) ? ` · <a href="${X(o.signatures.referee_2_pass || o.signatures.referee_group_pass)}" rel="noopener">release</a>` : ""}${trustLine(o.trust)}</li>`).join("");
   const atts = m.attempts.map((a) => `<li class="small">${esc(a.maker)} · <strong>${esc(a.status)}</strong>${a.result ? ` · <a href="${esc(a.result.url)}" rel="noopener nofollow">result</a>` : ""}${a.check ? ` · <a href="${esc(a.check.url)}" rel="noopener nofollow">check</a> by ${esc(a.check.by)}` : ""}${a.result ? ` · <a href="/api/attest?project=${p.id}&milestone=${m.key}&attempt=${a.id}" rel="noopener">in-toto attestation</a>` : ""} <span class="mono muted">${esc(a.id)}</span>${a.verdict && a.status === "verdict posted" ? ` · <span id="verdict-${esc(a.id)}">verdict: pass, releases ${new Date(a.verdict.ends_s * 1000).toLocaleTimeString()} unless disputed</span> <button type="button" class="quiet" data-dispute="${esc(a.id)}">Dispute</button>` : ""}${a.status === "disputed" ? " · money stays locked" : ""}${(a.attestations || []).map((t) => ` · <a href="/api/track?wallet=${esc(t.wallet)}" rel="noopener" class="track">${esc(t.role)} track record</a>`).join("")}${onchainLine(a.onchain)}</li>`).join("");
   return `<li class="card ms" id="ms${i}"><div class="row spread"><h3>${esc(m.name)}</h3><span class="chip st-${esc(m.status)}">${esc(STATUS[m.status] || m.status)}</span></div>
@@ -287,7 +287,7 @@ async function pool() {
   if (each < 5) throw new Error(`At least 5 test units per milestone (${5 * picks.length}).`);
   const r = await api("/api/project/pool", { passkey: true });
   const sigs = [];
-  for (const x of picks) {          // one escrow per milestone, one passkey approval each
+  for (const x of picks) {          // one holding account per milestone, one passkey approval each
     const f = await KnosPasskey.approve(await api("/api/project/fund", { passkey: true, ...x, units: each, kind: "pool", pool: r.pool, ref: ref() }), api);
     sigs.push((f.signatures || {}).lock || f.order);
   }

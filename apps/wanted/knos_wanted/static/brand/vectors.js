@@ -13,7 +13,7 @@
       const c = v.cost || {}, s = v.speed || {}, cap = v.capability || {}, t = v.trust || {}, st = v.status || {};
       set("cost", `<b>$${esc(c.api_usd_per_check ?? 0)}</b> per check${c.usd_per_ready_brief != null ? `, <b>$${esc(c.usd_per_ready_brief)}</b> per brief` : ""}`);
       if (s.median_s != null) set("speed", `<b>${esc(s.median_s)} s</b> median to verdict`);
-      if (t.escrow_program) set("trust", `<a href="https://explorer.solana.com/address/${esc(t.escrow_program)}?cluster=devnet" rel="noopener"><b>Held</b> until proof, on devnet</a>`);
+      if (t.held_program) set("trust", `<a href="https://explorer.solana.com/address/${esc(t.held_program)}?cluster=devnet" rel="noopener"><b>Held</b> until proof, on devnet</a>`);
       if (cap.idt_ratio) set("capability", `<a href="https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json" rel="noopener"><b>${esc(cap.idt_ratio)}x</b> fewer tokens, <b>${Math.round(cap.ready_pass * 100)}% vs ${Math.round(cap.vague_pass * 100)}%</b> pass</a>`);
       set("status", st.latest ? `<a href="${esc(api + st.latest)}" title="Attested on Solana devnet"><b>${esc(st.ready_cards_attested)} Ready card${st.ready_cards_attested === 1 ? "" : "s"}</b></a>`
         : `<b>0 Ready cards</b>`);

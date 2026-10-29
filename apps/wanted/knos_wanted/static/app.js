@@ -93,7 +93,7 @@ function card(p) {
   return `<li class="card hp-card" data-slug="${esc(p.slug)}"><p class="small muted"${where ? " data-qloo" : ""}>${esc([p.tech_name, p.paper, where].filter(Boolean).join(" · "))}${where ? (window.KnosDemand ? KnosDemand.src("", p.report) : "") : ""}</p>
     <h2 class="hp-t">${esc(p.title)}</h2>
     <div class="meter" aria-hidden="true"><span style="width:${pct(p.backed_units, p.reserve_units)}%"></span></div>
-    <p class="small"><b>${esc(p.backed_units)}</b> ${t("of")} ${esc(p.reserve_units)} ${t("backed_l")}${p.escrow_units ? ` · <b>${esc(p.escrow_units)}</b> ${t("escrow_l")}` : ""}${p.maker ? "" : ` · ${t("maker_wanted")}`}</p>
+    <p class="small"><b>${esc(p.backed_units)}</b> ${t("of")} ${esc(p.reserve_units)} ${t("backed_l")}${p.held_units ? ` · <b>${esc(p.held_units)}</b> ${t("held_l")}` : ""}${p.maker ? "" : ` · ${t("maker_wanted")}`}</p>
     <div class="row acts"><a class="button" href="#buy=${esc(p.report)}">${t("back_btn")}</a>
       <a class="button ghost" href="#fund=${esc(p.slug)}">${t("fundm_btn")}</a>
       <a class="button ghost" href="#contribute=${esc(p.slug)}">${t("contrib_btn")}</a></div></li>`;
@@ -317,14 +317,14 @@ function inCard(b, fn) {
 const tx = (sig) => (sig ? ` · <a href="${X(sig)}" target="_blank" rel="noopener">tx ${short(sig)} ↗</a>` : "");
 async function fundMilestone(p, units) {
   const got = await KnosPasskey.approve(await api("/api/project/fund", { passkey: true, project: p.project, milestone: p.first_milestone, units, kind: "funder" }), api);
-  return `${sibylLine(got.sibyl)}✓ ${esc(got.units)} ${t("escrow_l")} · <a href="${esc(got.explorer)}" target="_blank" rel="noopener">money held ${short(got.order)} ↗</a>${tx((got.signatures || {}).lock)} · <a href="#projects=${esc(p.project)}">${t("open_project")}</a>`;
+  return `${sibylLine(got.sibyl)}✓ ${esc(got.units)} ${t("held_l")} · <a href="${esc(got.explorer)}" target="_blank" rel="noopener">money held ${short(got.order)} ↗</a>${tx((got.signatures || {}).lock)} · <a href="#projects=${esc(p.project)}">${t("open_project")}</a>`;
 }
 async function loadFund(focus) {
   try {
     const b = await board(true);
     const rows = b.products.filter((p) => p.project && p.first_milestone);
     $("fundList").innerHTML = rows.map((p) => `<li class="card${focus === p.slug ? " on" : ""}" data-slug="${esc(p.slug)}"><b>${esc(p.title)}</b>
-      <p class="small muted">${esc(p.escrow_units)} ${t("escrow_l")}</p>
+      <p class="small muted">${esc(p.held_units)} ${t("held_l")}</p>
       <div class="row"><input class="fu" type="number" min="5" max="1000" value="10" aria-label="${t("units")}" style="max-width:110px">
         <button class="fundBtn" data-slug="${esc(p.slug)}" type="button">${t("fundm_btn")}</button></div></li>`).join("") || `<li class="empty">${t("empty")}</li>`;
     document.querySelectorAll(".fundBtn").forEach((btn) => { const p = rows.find((x) => x.slug === btn.dataset.slug);
@@ -392,16 +392,16 @@ async function loadTasks(focus) {
       const card = b.closest(".card"); card.querySelectorAll(".note").forEach((n) => n.remove());
       const put = (cls, html) => card.insertAdjacentHTML("beforeend", `<div class="note ${cls}" role="status">${html}</div>`);
       if (!session) { $("signin").hidden = false; $("pkNew").focus(); put("err", esc(t("err_signin"))); return; }
-      const g = b.dataset.g, was = b.textContent; b.disabled = true; b.textContent = "Judging…";
+      const g = b.dataset.g, was = b.textContent; b.disabled = true; b.textContent = "Checking…";
       try {
         const out = await api("/api/task/submit", { round: g, name: card.querySelector(".tname").value, wallet: card.querySelector(".twal").value || undefined, code: card.querySelector(".tsub").value });
         const r = out.result || {}, pz = out.prize;
         put(r.decision === "scored" ? "ok" : "", `<b>${esc(out.name)}</b>, attempt ${esc(r.n)}: <b>${esc(r.decision)}</b>${r.shown != null ? ` · shown score ${esc(r.shown)}` : ""}` +
           (r.reasons && r.reasons.length ? `<br><span class="small">${esc(r.reasons.join("; "))}</span>` : "") +
           `<br><span class="small mono">sha256 ${esc(String(r.sha256 || "").slice(0, 16))}… (your file: ${esc(out.submitted_sha256.slice(0, 16))}…)</span>` +
-          (pz ? `<br>${pz.paid ? `Prize: ${esc(pz.units)} test units → <a href="${esc((pz.explorer || []).slice(-1)[0] || "#")}" target="_blank" rel="noopener">release ↗</a>` :
-            pz.status === "signing" ? `<span class="prizeSigning">Prize: ${esc(pz.units)} test units locked (<a href="${esc((pz.explorer || [])[0] || "#")}" target="_blank" rel="noopener">tx ↗</a>), funded by the round's sponsor; released when 2 of 3 referee hosts sign (session <span class="mono">${esc(String(pz.session).slice(0, 8))}</span>)</span>` :
-            `Prize not paid: ${esc(pz.why || "")}`}` : ""));
+          (pz ? `<br>${pz.paid ? `Paid: ${esc(pz.units)} test units → <a href="${esc((pz.explorer || []).slice(-1)[0] || "#")}" target="_blank" rel="noopener">release ↗</a>` :
+            pz.status === "signing" ? `<span class="prizeSigning">${esc(pz.units)} test units locked (<a href="${esc((pz.explorer || [])[0] || "#")}" target="_blank" rel="noopener">tx ↗</a>), funded by the round's sponsor; released when 2 of 3 referee hosts sign (session <span class="mono">${esc(String(pz.session).slice(0, 8))}</span>)</span>` :
+            `Not paid: ${esc(pz.why || "")}`}` : ""));
       } catch (e) { put("err", esc(e.message)); } finally { b.disabled = false; b.textContent = was; }
     });
   } catch (e) { err(e); }

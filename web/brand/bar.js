@@ -17,7 +17,15 @@
   });
   const set = (t) => { root.dataset.theme = t; try { localStorage.setItem("knos-theme", t); } catch { /* private mode */ } };
   try { const t = localStorage.getItem("knos-theme"); if (t) root.dataset.theme = t; } catch { /* private mode */ }
-  if (theme) theme.onclick = () => set((root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark");
+  // the new theme spreads as a circle from the button (a view transition of the root, 400 ms); reduced motion: at once
+  if (theme) theme.onclick = () => {
+    const next = (root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark";
+    if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return set(next);
+    const r = theme.getBoundingClientRect();
+    root.style.setProperty("--x", `${Math.round(r.left + r.width / 2)}px`); root.style.setProperty("--y", `${Math.round(r.top + r.height / 2)}px`);
+    root.classList.add("k-theming");
+    try { document.startViewTransition(() => set(next)).finished.finally(() => root.classList.remove("k-theming")); } catch { root.classList.remove("k-theming"); set(next); }
+  };
   // the link to the page being shown is marked, by its hash on a page that has views, else by its path
   const mark = () => {
     for (const a of bar.querySelectorAll("nav a")) {
