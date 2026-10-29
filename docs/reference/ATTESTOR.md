@@ -103,7 +103,7 @@ write the hostile input rather than reuse ours.
 
 ## Where the pull request's code runs: a container first, the host sandbox second
 
-`knos proof judge --sandbox hermetic` (src/knos/judge.py `judge`, `default_image`) runs a black-box check whose terms
+`knos proof judge --sandbox hermetic` (`src/knos/judge.py`, `judge`, `default_image`) runs a black-box check whose terms
 name no image in `DEFAULT_IMAGE` (Python 3.12 on Alpine, pinned by digest) when the machine runs containers: no
 network, a read-only root, the tree read-only, another user, no capabilities, memory, CPU, process and time limits
 (`container_argv`).

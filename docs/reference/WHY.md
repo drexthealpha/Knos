@@ -100,9 +100,9 @@ that. A bank promises to pay the seller against documents that someone other tha
 carrier's bill of lading. The seller ships because the bank's promise does not depend on the buyer's mood.
 
 The buyer accepts because the bank pays only on the documents the credit names. In 2011 letters of credit covered
-12.5% of world trade, 2.3 trillion USD ([Niepmann and Schmidt-Eisenlohr, VoxEU, 11 Jun
-2016](https://cepr.org/voxeu/columns/trade-finance-around-world)). The banks' rules are the UCP 600, the 2007
-revision ([text](https://pacliirms.austlii.edu.au/pits/en/treaty_database/2006/14.html)).
+12.5% of world trade, 2.3 trillion USD (Niepmann and Schmidt-Eisenlohr, "Trade finance around the world", VoxEU, 11 Jun
+2016). The banks' rules are the UCP 600, the 2007
+revision ([its articles, ICC](https://academy.iccwbo.org/trade-finance/e-books/UCP-600/)).
 
 | UCP 600 | the rule Knos takes |
 |---|---|

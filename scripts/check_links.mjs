@@ -5,7 +5,8 @@
 //     the file's folder, and a link starting with "/" against the repository root (web/: against web/).
 // (b) An external http(s) link is fetched once (GET, 10 s, a browser's User-Agent, 8 at a time and 2 to one host): a
 //     status of 400 or more, or a network error, is dead. A 403 or 429 (sites that turn bots away) is tried once more,
-//     after the Retry-After it names (5 s when none, 30 s at most), before it counts.
+//     after the Retry-After it names (5 s when none, 30 s at most), before it counts; a timeout is tried once more
+//     with 30 s. A redirect to an app's own scheme (vscode:) is alive: a browser hands it to the app.
 // (c) --site <dir> also checks every .html and .md file of a built Pages site the same way, its relative links
 //     resolved inside <dir>.
 // Prints `DEAD <file>:<line> <url> <status>` for each dead link and a last line `PASS check_links: 0 dead of N` or
@@ -21,7 +22,7 @@ const siteAt = args.indexOf("--site");
 const SITE = siteAt >= 0 ? resolve(args[siteAt + 1] || ".") : null;
 const EXTERNAL = !args.includes("--no-external");
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
-const TIMEOUT_MS = 10_000, CONCURRENCY = 8;
+const TIMEOUT_MS = 10_000, SLOW_MS = 30_000, CONCURRENCY = 8;
 
 function lineOf(text, index) {
   let n = 1;
@@ -114,12 +115,23 @@ function walk(dir) {
   return out;
 }
 
-async function fetchStatus(url) {
+async function fetchStatus(url, ms = TIMEOUT_MS) {
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ac.abort(), ms);
   try {
-    const r = await fetch(url, { method: "GET", redirect: "follow", signal: ac.signal,
-      headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8", "Accept-Language": "en" } });
+    // redirects are followed by hand: one that hands the address to an app (vscode:, a mobile app's scheme) is a
+    // link a person's browser opens in that app, so it is alive
+    let r, at = url;
+    for (let hop = 0; ; hop++) {
+      r = await fetch(at, { method: "GET", redirect: "manual", signal: ac.signal,
+        headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8", "Accept-Language": "en" } });
+      const to = r.status >= 300 && r.status < 400 ? r.headers.get("location") : null;
+      if (!to || hop >= 10) break;
+      try { await r.body?.cancel(); } catch { /* only the next address is read */ }
+      const next = new URL(to, at);
+      if (!/^https?:$/.test(next.protocol)) return 200;
+      at = next.href;
+    }
     try { await r.body?.cancel(); } catch { /* the status is all that is read */ }
     // a bot challenge (Vercel, Cloudflare) is a page a person can open, which a script must not try to pass
     if (/challenge/i.test(r.headers.get("x-vercel-mitigated") || r.headers.get("cf-mitigated") || "")) return "challenge";
@@ -145,6 +157,7 @@ async function checkUrl(url) {
   await slot(host);
   try {
     let s = await fetchStatus(url);
+    if (s === "timeout") s = await fetchStatus(url, SLOW_MS);         // a slow site gets one more GET, with 30 s
     if (typeof s === "object") {                                // 403 or 429: one more GET, after the wait it asks for
       const wait = Number.isFinite(s.wait) && s.wait > 0 ? Math.min(s.wait, 30) : 5;
       await new Promise((r) => setTimeout(r, wait * 1000));

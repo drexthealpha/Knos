@@ -1,7 +1,7 @@
 # For the supplier: know the rules before you are refused
 
 You did the work, or your agent did. This page is what Knos owes you before, during and after a verdict: the rules
-said up front, every refusal in plain words, a way to contest one that costs you nothing, and your own copy of the
+said up front, every refusal in plain words, a way to dispute one that costs you nothing, and your own copy of the
 evidence. Money on devnet is test USDC.
 
 ## 1. Before you open a pull request: `knos preflight`
@@ -19,10 +19,10 @@ It answers five things:
 
 | It says | Where it comes from |
 | --- | --- |
-| Which paths are protected | the terms' `deny`; for an order paid on acceptance checks, also what the judge protects |
+| Which paths are protected | the terms' `deny`; for an order paid on acceptance checks, also what the referee protects |
 | Which checks are named | the terms' `checks`. They run on your pull request. Preflight cannot pass them for you |
 | What your change touches that would be refused | each file, the refusal's code, its two sentences, and the exact line of the terms that says so |
-| What is allowed and not counted | a test file you add. The judge runs the buyer's tests, so yours is welcome and decides nothing |
+| What is allowed and not counted | a test file you add. The referee runs the buyer's tests, so yours is welcome and decides nothing |
 | `Ready`, or the list of fixes | exit code 0 only when ready |
 
 What it does not do: it does not run the acceptance checks (it names the command that does), and it cannot know
@@ -251,10 +251,10 @@ Comment it on your pull request, or run `knos appeal "<reason>" --repo owner/nam
 
 1. The verdict becomes **disputed**. Who appealed, when and why are recorded.
 2. The money stays where the order's terms put it: held, until the appeal ends or the order's deadline.
-3. The neutral judge runs the funded acceptance checks again, itself, on a runner the buyer does not configure
+3. The neutral referee runs the funded acceptance checks again, itself, on a runner the buyer does not configure
    (`knos settle --neutral <pull request URL>`, or knos-attest.yml by hand with kind `pay`).
 4. The appeal ends **accepted** (the rejection is overturned) or **rejected** (it stands), with the reason in the
-   words of the table above. A judge that could not run decides nothing: the verdict stays disputed until someone starts the neutral judge again.
+   words of the table above. A referee that could not run decides nothing: the verdict stays disputed until someone starts the neutral referee again.
 
 An order paid on a merge has no suite to run again. The arbiter the order names rules instead (kind `rule`).
 
@@ -289,7 +289,7 @@ and who decides, and the payment date (with a holdback, the part kept back and t
   starts it (section 3).
 - No order's options are read by `knos preflight` from the chain: `--auto`, `--arbiter` and `--netted --reserve` are
   told to it, and what is not told is printed as lacked or not checked.
-- The judge's refusals reach the supplier's memory when the workflow records them with
+- The referee's refusals reach the supplier's memory when the workflow records them with
   `knos.proof.history.refused`; until then preflight recalls only what this machine saw.
 
 ## Collecting a held payout
@@ -450,7 +450,7 @@ jobs:
 
 The last line is the install. It runs the free check on every pull request and none of the pull request's code, posts
 the result as one comment that later runs rewrite, and attaches the receipt as the artifact `knos-receipt-<pull
-request>` (`knos.check-receipt/1`: the repository, the pull request, the head commit, the result, the judge's
+request>` (`knos.check-receipt/1`: the repository, the pull request, the head commit, the result, the referee's
 evidence and its sha256).
 
 A pull request from a fork runs with a token that can only read: no comment is posted then, and the result is the
@@ -487,7 +487,7 @@ One order buys fifty lookups (50 x 0.10 = 5.00), because the program takes no or
 wallet that funded the order, and a replayed call is refused. The reader pays. The rated supplier never pays, for its record
 or for a grant.
 
-**budget: zero revenue until someone buys it.** Knos hosts no such server, no judge signs for lookups served, and
+**budget: zero revenue until someone buys it.** Knos hosts no such server, no referee signs for lookups served, and
 nobody outside has paid for one. The paid answer below is built and tested here; it has not been served on devnet.
 
 #### The free file and the paid answer, row by row
@@ -578,7 +578,7 @@ only when the server can answer.
 - A failed check is not always a failed test or a false claim; the interval and the dispute link stay beside a rate.
 - Accepted means the agreed checks passed. It does not show that the work has no defect.
 - Nothing recorded is not the same as nothing done.
-- The supplier's memory is kept by whoever ran the judge: a record built from it is as complete as that memory.
+- The supplier's memory is kept by whoever ran the referee: a record built from it is as complete as that memory.
 
 ### Search (0.3.31)
 

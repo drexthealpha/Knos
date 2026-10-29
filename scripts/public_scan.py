@@ -7,11 +7,19 @@
 
 What a reader reads: prose files (.md, .html, .txt) with their scripts and styles taken out, the text values of JSON,
 and the string literals with a space in them inside the site's and the app's JavaScript (what such code shows; a bare
-identifier or a path is never shown). A page's raw HTML is also read for an inlined Qloo answer. Counts and places
-only: a matched passage is never printed. Exit 1 on any hit.
+identifier or a path is never shown). A Markdown link's target is an address, never shown, so only its text is read.
+A page's raw HTML is also read for an inlined Qloo answer. Counts and places only: a matched passage is never printed.
+Exit 1 on any hit.
+
+`files` skips the machine files of docs/MACHINE_FILES.txt (a line each: path, sha256, reason): signed receipt vectors,
+JSON schemas, pinned plans and raw run files, whose text cannot change without breaking a signature, a hash or a pin.
+A listed file that is missing or whose sha256 differs fails the scan. CHANGELOG.md's entries released before
+2026-10-29 are the record of those releases and are skipped; its later entries are read.
 """
 from __future__ import annotations
 
+import datetime
+import hashlib
 import json
 import re
 import subprocess
@@ -39,6 +47,10 @@ PROSE = {".md", ".html", ".txt"}
 SKIP_DIRS = ("tests/", "scripts/", "programs/", "programs-v2/", "programs-hook/", "crates/", "zk/", "idl/", "schemas/",
              ".github/", ".knos/", "deploy/upgrades/", "bench/", "sdk/settle/test/", "apps/wanted/tests/", "src/knos/")
 JS_DIRS = ("web/", "apps/wanted/knos_wanted/static/")
+MACHINE = "docs/MACHINE_FILES.txt"
+CHANGELOG, EXEMPT_BEFORE = "CHANGELOG.md", datetime.date(2026, 10, 29)
+# a Markdown link's target and a reference definition's address: where the link goes, not what a reader reads
+MD_TARGET = re.compile(r"(\]\()[^)\n]*(\))|^(\s{0,3}\[[^\]\n]+\]:)\s*\S+", re.M)
 STR = re.compile(r"""(?:"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`)""")
 
 
@@ -101,7 +113,68 @@ def readable(path: str, raw: str) -> tuple[str, str]:
             return raw, raw
     if ext in (".js", ".mjs"):
         return js_text(raw), ""
+    if ext == ".md":
+        return MD_TARGET.sub(lambda m: (m.group(1) + m.group(2)) if m.group(1) else m.group(3), raw), ""
     return raw, ""
+
+
+def machine_files() -> tuple[set[str], list[str]]:
+    """(the paths docs/MACHINE_FILES.txt lists, a line for each listed file that is missing or whose sha256 differs)"""
+    p = ROOT / MACHINE
+    if not p.is_file():
+        return set(), []
+    listed, wrong = set(), []
+    for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        parts = line.split(maxsplit=2)
+        if len(parts) < 3 or not re.fullmatch(r"[0-9a-f]{64}", parts[1]):
+            wrong.append(f"FAIL {MACHINE}:{n}: not `path sha256 reason`")
+            continue
+        rel, want = parts[0], parts[1]
+        listed.add(rel)
+        f = ROOT / rel
+        if not f.is_file():
+            wrong.append(f"FAIL {MACHINE}:{n}: {rel} is missing")
+        elif hashlib.sha256(f.read_bytes()).hexdigest() != want:
+            wrong.append(f"FAIL {MACHINE}:{n}: {rel} sha256 differs from the list")
+    return listed, wrong
+
+
+_DAY = re.compile(r"\b(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w* (\d{4})\b")
+
+
+def _heading_days(path: str, rows: list[int]) -> dict[int, datetime.date]:
+    """{line: the day the line was committed} for the given 1-based lines; a line not committed yet has no day."""
+    out = subprocess.run(["git", "blame", "--line-porcelain", "--", path], cwd=ROOT, capture_output=True, text=True,
+                         encoding="utf-8", errors="replace")
+    days, line, want = {}, 0, set(rows)
+    for row in out.stdout.split("\n") if out.returncode == 0 else []:
+        head = re.match(r"([0-9a-f]{40}) \d+ (\d+)", row)
+        if head:
+            line = int(head.group(2)) if head.group(1).strip("0") else 0      # all zeros: not committed yet
+        elif row.startswith("committer-time ") and line in want:
+            days[line] = datetime.datetime.fromtimestamp(int(row.split()[1]), datetime.timezone.utc).date()
+    return days
+
+
+def changelog_new(raw: str, path: str = CHANGELOG) -> str:
+    """CHANGELOG.md without its entries released before 2026-10-29. An entry is a `## ` heading and what follows; its day
+    is the one its heading names (`0.3.11 (2 Oct 2026)`), else the day its heading was committed. The text above the
+    first entry, and an entry not committed yet, are read."""
+    lines = raw.split("\n")
+    heads = [i for i, s in enumerate(lines) if s.startswith("## ")]
+    if not heads:
+        return raw
+    blamed = _heading_days(path, [i + 1 for i in heads])
+    keep = lines[:heads[0]]
+    for k, i in enumerate(heads):
+        end = heads[k + 1] if k + 1 < len(heads) else len(lines)
+        m = _DAY.search(lines[i])
+        day = (datetime.datetime.strptime(" ".join(m.groups()), "%d %b %Y").date() if m else blamed.get(i + 1))
+        if day is None or day >= EXEMPT_BEFORE:
+            keep += lines[i:end]
+    return "\n".join(keep)
 
 
 def count(text: str, raw: str, path: str, pages: bool) -> dict[str, int]:
@@ -139,10 +212,12 @@ def scan(items) -> tuple[int, list[str]]:
 
 
 def files_items():
+    skip = machine_files()[0]
     for f in tracked():
         p = ROOT / f
-        if p.is_file():
-            yield f, p.read_text(encoding="utf-8", errors="replace"), f.startswith("web/")
+        if p.is_file() and f not in skip:
+            raw = p.read_text(encoding="utf-8", errors="replace")
+            yield f, (changelog_new(raw) if f == CHANGELOG else raw), f.startswith("web/")
 
 
 def site_items(d: Path):
@@ -199,10 +274,13 @@ def main(argv: list[str]) -> int:
     items = {"files": files_items, "live": live_items}.get(mode)
     items = items() if items else site_items(Path(argv[2]))
     total, lines = scan(items)
-    for line in lines:
+    wrong = machine_files()[1] if mode == "files" else []
+    for line in lines + wrong:
         print(line)
-    print(f"{'PASS' if not total else 'FAIL'} public_scan {mode}: {total} hits in {len(lines)} places")
-    return 1 if total else 0
+    ok = not total and not wrong
+    print(f"{'PASS' if ok else 'FAIL'} public_scan {mode}: {total} hits in {len(lines)} places"
+          + (f"; {len(wrong)} machine files do not match {MACHINE}" if wrong else ""))
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

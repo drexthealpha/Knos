@@ -175,7 +175,7 @@ For an order paid by its black-box acceptance suite, the neutral referee (`attes
 attester's own repository) therefore does not read the buyer repository's result for the suite.
 
 Its first job fetches the two commits and runs the suite again. Only the second job, which runs none of that code,
-can ask GitHub for the token ([SECURITY.md, section 20](SECURITY.md#20-a-neutral-judge-that-runs-the-suite-again)).
+can ask GitHub for the token ([SECURITY.md, section 20](SECURITY.md#20-a-neutral-referee-that-runs-the-suite-again)).
 
 No program changed for this.
 

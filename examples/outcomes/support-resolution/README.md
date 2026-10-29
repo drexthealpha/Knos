@@ -34,7 +34,7 @@ published definitions this mirrors.
 | T-1009 | the agent asked a question, the customer never replied | rejected |
 | T-1010 | solved, the customer said so | accepted |
 
-10 tickets: 4 accepted, 5 rejected, 1 not judged yet. The batch holds 9 evaluations worth 3.96. Of the invoice's
+10 tickets: 4 accepted, 5 rejected, 1 not checked yet. The batch holds 9 evaluations worth 3.96. Of the invoice's
 eight lines (7.92), four are agreed (3.96), two are disputed, one is a duplicate and one has insufficient evidence.
 
 **What this cannot check.** It reads a file, not a help desk: nothing here shows that an export is true. Whether an

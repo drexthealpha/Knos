@@ -80,7 +80,7 @@ Every result is written to `<out>/private/` first: the result, the logs, and for
 `knos.repro.publish.publish` writes to `<out>/public/`, and it refuses any result that is not `reproduced`, whose
 digest does not check, or that names a cheat. No flag changes this.
 
-`tests/test_repro_privacy.py` holds it, including a contested result edited to look reproduced.
+`tests/test_repro_privacy.py` holds it, including a disputed result edited to look reproduced.
 
 ## The badge
 

@@ -7,7 +7,7 @@ I want a classifier that predicts `y` from six numbers `x0..x5` as accurately as
 Rules for the agent:
 
 - You may change exactly one file: `train.py`. Anything else you submit is refused.
-- Standard library only (the allowed imports are `ALLOWED_IMPORTS` in src/knos/autoresearch/judge.py). No network and no files:
+- Standard library only (the allowed imports are `ALLOWED_IMPORTS` in `src/knos/autoresearch/judge.py`). No network and no files:
   read the data only through `knos_io.rows("train" | "val" | "predict")` and write predictions to `knos_io.output()`.
 - Each run has a fixed time budget (20 seconds of CPU time). Stop training before it ends.
 - You see `train.csv` and `val.csv`. The referee scores you on sealed data you never see, twice, with two seeds.

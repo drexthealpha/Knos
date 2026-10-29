@@ -32,7 +32,7 @@ Report a vulnerability privately: [SECURITY.md](../../SECURITY.md).
 - Who may ask for that signed statement is fixed when the order is funded: the order's own repository; for a public
   repository, also anyone who runs the pinned workflow by hand in a personal repository of their own; a referee
   repository the funder named; an arbiter the funder named. Each can go wrong in its own way
-  ([section 2](#2-the-four-judges-who-is-trusted-in-each-and-what-each-could-do-wrong)).
+  ([section 2](#2-the-four-referees-who-is-trusted-in-each-and-what-each-could-do-wrong)).
 - A statement moves the money of one order and nothing else.
 - Until an outside review, Knos can change every program through a multisig, after a public 8-day delay. Today
   one person holds every key of that multisig, so the delay is notice and not a second opinion

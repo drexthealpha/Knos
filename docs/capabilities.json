@@ -592,7 +592,7 @@
   },
   {
    "id": "order_quorum",
-   "what": "An order with a quorum pays only when two or three distinct judges passed the same artifact.",
+   "what": "An order with a quorum pays only when two or three distinct referees passed the same artifact.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -604,11 +604,11 @@
      "names": "test_two_distinct_judges_pay_and_two_tokens_of_one_kind_count_once"
     }
    },
-   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2R5DKU5gCiuppGkXpNnegZfeCVfPbHpWTWTcj9QYzE3nAc4P5jCMaNPjGJUA1fwwzwn37Wm97bD62CKBG6DgCxuT; docs/reference/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids. Those run it since the upgrade of 9 Oct 2026 (knos_pay 2.2, knos_oidc 2.2), and no transaction there is recorded yet. A `quorum 2` order recorded its first judge, then paid on the second. knos_pay 2.2, live at the public id since 9 Oct 2026, counts judges by repository owner and binds their markers to the order's funding (`quorum_by_owner`); not exercised there yet."
+   "note": "Rehearsed on a staging deployment of the knos_pay 2.1 build (signature 2R5DKU5gCiuppGkXpNnegZfeCVfPbHpWTWTcj9QYzE3nAc4P5jCMaNPjGJUA1fwwzwn37Wm97bD62CKBG6DgCxuT; docs/reference/CAPABILITIES.md, \"The 0.3.14 rehearsal on devnet\"), not on the public program ids. Those run it since the upgrade of 9 Oct 2026 (knos_pay 2.2, knos_oidc 2.2), and no transaction there is recorded yet. A `quorum 2` order recorded its first referee, then paid on the second. knos_pay 2.2, live at the public id since 9 Oct 2026, counts referees by repository owner and binds their markers to the order's funding (`quorum_by_owner`); not exercised there yet."
   },
   {
    "id": "hermetic_judge",
-   "what": "The black-box judge runs a submission in a container named by image digest, with no network.",
+   "what": "The black-box referee runs a submission in a container named by image digest, with no network.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -674,7 +674,7 @@
    "evidence": {
     "implemented": {
      "path": "programs-v2/knos_pay/src/order_judge.rs",
-     "names": "pub fn judge"
+     "names": "So the seller can ask for his payment himself"
     },
     "tested": {
      "test": "tests/test_order_judges.py",
@@ -1831,7 +1831,7 @@
   },
   {
    "id": "neutral_reexecution",
-   "what": "The neutral judge runs an order's black-box suite again in its own environment before it signs, and this second run has never run on GitHub.",
+   "what": "The neutral referee runs an order's black-box suite again in its own environment before it signs, and this second run has never run on GitHub.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2216,7 +2216,7 @@
    "evidence": {
     "implemented": {
      "path": "src/knos/commands.py",
-     "names": "judge: owner/repo"
+     "names": "the third reader of a quorum"
     },
     "tested": {
      "test": "tests/test_flow_quorum3.py",
@@ -2291,7 +2291,7 @@
   },
   {
    "id": "honest_work_rate",
-   "what": "The tamper benchmark also measures how much honest work each judge accepts, and lists every honest submission a judge refused with its reason.",
+   "what": "The tamper benchmark also measures how much honest work each referee accepts, and lists every honest submission a referee refused with its reason.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2303,7 +2303,7 @@
      "names": "test_honest_submissions_are_accepted_and_one_with_tests_of_its_own_says_they_were_not_counted"
     }
    },
-   "note": "The black-box judge accepted all 61 honest submissions (including all 48 of the earlier set) and 0 cheats: 0 of 63, 0 of 102, 0 of 25 on tasks that are not code, and 0 of 14 new ones. Every figure is from one run of the whole benchmark in this release (docs/reference/TAMPER.md, docs/reference/ASSURANCE.md). Knos wrote the tasks and submissions; nobody outside has run the set."
+   "note": "The black-box referee accepted all 61 honest submissions (including all 48 of the earlier set) and 0 cheats: 0 of 63, 0 of 102, 0 of 25 on tasks that are not code, and 0 of 14 new ones. Every figure is from one run of the whole benchmark in this release (docs/reference/TAMPER.md, docs/reference/ASSURANCE.md). Knos wrote the tasks and submissions; nobody outside has run the set."
   },
   {
    "id": "provenance_chain",
@@ -2550,7 +2550,7 @@
   },
   {
    "id": "supplier_appeal",
-   "what": "A supplier contests a rejection: the verdict moves to disputed with who, when and why, and the neutral judge's re-run overturns or upholds it in plain words.",
+   "what": "A supplier disputes a rejection: the verdict moves to disputed with who, when and why, and the neutral referee's re-run overturns or upholds it in plain words.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2566,7 +2566,7 @@
   },
   {
    "id": "refusal_table",
-   "what": "Every refusal the programs, the terms, the judge and the comment parser can give has a row of two plain sentences: what happened and what to do.",
+   "what": "Every refusal the programs, the terms, the referee and the comment parser can give has a row of two plain sentences: what happened and what to do.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2731,7 +2731,7 @@
   },
   {
    "id": "adversarial_replays",
-   "what": "What an opponent would try is replayed against the built programs: an address funded again, the second before and after every time limit, a payment and a refund together, one token twice, one judge under a quorum.",
+   "what": "What an opponent would try is replayed against the built programs: an address funded again, the second before and after every time limit, a payment and a refund together, one token twice, one referee under a quorum.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2743,7 +2743,7 @@
      "names": "one_pay_token_twice_in_one_transaction_or_in_two_pays_once"
     }
    },
-   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test --release --test adversarial`), not run by pytest. No test there is ignored. Its two findings of 2.1 (one account as two judges of a wallet's order; a judge's marker outliving its order by a second) were ignored tests until knos_pay 2.2 fixed them."
+   "note": "A Rust test crate (`cd programs-v2/handlers && cargo test --release --test adversarial`), not run by pytest. No test there is ignored. Its two findings of 2.1 (one account as two referees of a wallet's order; a referee's marker outliving its order by a second) were ignored tests until knos_pay 2.2 fixed them."
   },
   {
    "id": "reader_template",
@@ -2791,7 +2791,7 @@
   },
   {
    "id": "quorum_by_owner",
-   "what": "A quorum counts judges by repository owner, the neutral judge differs from both sides in owner and actor, and a judge's marker counts only for the funding of the order it was made under.",
+   "what": "A quorum counts referees by repository owner, the neutral referee differs from both sides in owner and actor, and a referee's marker counts only for the funding of the order it was made under.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -3113,7 +3113,7 @@
   },
   {
    "id": "funded_task_board",
-   "what": "A script keeps a set number of funded test tasks open in the playground, each with a reference answer the judge accepts and wrong ones it refuses.",
+   "what": "A script keeps a set number of funded test tasks open in the playground, each with a reference answer the referee accepts and wrong ones it refuses.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -3189,7 +3189,7 @@
      "names": "test_every_level_is_computed_from_the_evidence_and_each_names_who_stays_trusted"
     }
    },
-   "note": "Receipt version 5 (`build5`), written wherever a receipt is made since 0.3.19; none has been written on devnet. Older receipts still verify and read as reported unless their evidence shows more. `attested` is defined and no receipt reaches it: nothing proves what a judge executed (docs/reference/RECEIPT.md)."
+   "note": "Receipt version 5 (`build5`), written wherever a receipt is made since 0.3.19; none has been written on devnet. Older receipts still verify and read as reported unless their evidence shows more. `attested` is defined and no receipt reaches it: nothing proves what a referee executed (docs/reference/RECEIPT.md)."
   },
   {
    "id": "declared_control",
@@ -3445,7 +3445,7 @@
      "names": "test_every_kind_states_its_evidence_and_counter_and_only_an_outside_actor_is_counted"
     }
    },
-   "note": "tasks/outside/: reproduce, shadow count, fund from the faucet, install, host a judge, compose (read the verifier through the published crate), gate (adopt the upgrade gate), keyholder (an offer, never a holder until seated), tamper (the cheat bounty) and witness (the independently witnessed transaction). Only an account that is not Knos's is counted (scripts/outsiders.py `task_counts`). Completed by an outside account: 0 of each."
+   "note": "tasks/outside/: reproduce, shadow count, fund from the faucet, install, host a referee, compose (read the verifier through the published crate), gate (adopt the upgrade gate), keyholder (an offer, never a holder until seated), tamper (the cheat bounty) and witness (the independently witnessed transaction). Only an account that is not Knos's is counted (scripts/outsiders.py `task_counts`). Completed by an outside account: 0 of each."
   },
   {
    "id": "enforcement_matrix",
@@ -3801,7 +3801,7 @@
   },
   {
    "id": "judge_host_limits",
-   "what": "On the judge's host a submission meets limits: a fork bomb stops at the process limit, a write outside its work folder is refused, CPU, memory, file size and time are capped, and the time limit kills the whole tree.",
+   "what": "On the referee's host a submission meets limits: a fork bomb stops at the process limit, a write outside its work folder is refused, CPU, memory, file size and time are capped, and the time limit kills the whole tree.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -4037,7 +4037,7 @@
      "names": "test_knos_fee_account_only_receives_fees_and_lowers_a_rate"
     }
    },
-   "note": "A check of the source, not an outside review: it shows what the code allows, and docs/reference/DISPUTES.md says how verdicts and appeals stay with the parties' judges and arbiters."
+   "note": "A check of the source, not an outside review: it shows what the code allows, and docs/reference/DISPUTES.md says how verdicts and appeals stay with the parties' referees and arbiters."
   },
   {
    "id": "line_four_steps_owed",
@@ -4549,7 +4549,7 @@
   },
   {
    "id": "judged_files_refused",
-   "what": "By default a pull request that edits the files that judge it (.github/** and .knos/**) is refused, however its checks ended.",
+   "what": "By default a pull request that edits the files that check it (.github/** and .knos/**) is refused, however its checks ended.",
    "stage": "tested",
    "evidence": {
     "implemented": {

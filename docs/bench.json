@@ -1,5 +1,5 @@
 {
- "_about": "The measurements the docs quote; scripts/bench_docs.py writes them into README.md and docs/reference/BENCH.md. market: the Agent PR Index scan (scripts/agent_pr_index.py). chain: compute units of the two deployments' committed test builds in LiteSVM, as tests/test_oidc2_chain.py, tests/test_pay2_chain.py, tests/test_oidc_chain.py, tests/test_pay_chain.py and tests/test_oidc_gate.py print them with `pytest -q -s`, and the escrows' last random walks. devnet: what was read from devnet; `stats` holds what the release takes from the site's stats.json. release: numbers the release run measured itself (scripts/bench_docs.py --set). stages: the six stages of a payment as scripts/latency_stages.py measured them on the relay log and devnet (`--separate --write` keeps them). decision: `knos decide` timed on one machine (`local`, scripts/decide_bench.py --write) and the last release run's sample on devnet (`devnet`, entered from that run's report).",
+ "_about": "The measurements the docs quote; scripts/bench_docs.py writes them into README.md and docs/reference/BENCH.md. market: the Agent PR Index scan (scripts/agent_pr_index.py). chain: compute units of the two deployments' committed test builds in LiteSVM, as tests/test_oidc2_chain.py, tests/test_pay2_chain.py, tests/test_oidc_chain.py, tests/test_pay_chain.py and tests/test_oidc_gate.py print them with `pytest -q -s`, and the last random walks of both payment programs. devnet: what was read from devnet; `stats` holds what the release takes from the site's stats.json. release: numbers the release run measured itself (scripts/bench_docs.py --set). stages: the six stages of a payment as scripts/latency_stages.py measured them on the relay log and devnet (`--separate --write` keeps them). decision: `knos decide` timed on one machine (`local`, scripts/decide_bench.py --write) and the last release run's sample on devnet (`devnet`, entered from that run's report).",
  "market": {
   "index": {
    "date": "2026-10-02",
@@ -689,7 +689,7 @@
   },
   "payments_between_unrelated_accounts": {
    "value": 3,
-   "source": "the paid lines of both escrows' logs on devnet (scripts/network_stats.py jobs_of over every transaction of both knos_pay programs, 2026-10-03 16:04 UTC): 15 payments, 3 of them to another GitHub account (254283079) than the funder (142920951)"
+   "source": "the paid lines of both payment programs' logs on devnet (scripts/network_stats.py jobs_of over every transaction of both knos_pay programs, 2026-10-03 16:04 UTC): 15 payments, 3 of them to another GitHub account (254283079) than the funder (142920951)"
   },
   "days_of_shipping": {
    "value": 32,

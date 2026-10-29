@@ -217,7 +217,7 @@ Versions 1 to 3 are receipts of one thing: an accepted deliverable that was paid
 | `accepted` | the policy's conditions were met at this commit | the receipt records the payment and stands behind it |
 | `rejected` | they were not met, as this evaluator saw it | none recorded, none authorised |
 | `insufficient_evidence` | the run could not tell: a check has no run, a record is missing | none recorded, none authorised; it is not an acceptance and it is not the supplier's failure |
-| `disputed` | somebody contested a verdict and nobody has resolved it | none authorised; a payment already made stays on record |
+| `disputed` | somebody disputed a verdict and nobody has resolved it | none authorised; a payment already made stays on record |
 
 A receipt that says rejected or insufficient evidence is a **valid receipt**: `check` accepts it, it has a digest,
 a mirror keeps it. What it never does is authorise payment: `knos.receipt.authorises_payment` is true for a valid
@@ -269,14 +269,16 @@ or null) and `settlement` (the paying transaction, or null when nothing was paid
 `check` computes the first, the
 second and the fourth again from the receipt's own fields, and refuses an id of one kind in the place of another.
 
-**`disputed`** is null unless the verdict is `disputed`. Then it says who contested, when, why, and the receipt
-contested:
+**`disputed`** is null unless the verdict is `disputed`. Then it says who disputed, when, why, and the receipt
+it disputes (the wire key is `contests`):
 
-    "disputed": {"by": {"role": "buyer", "id": "424242"}, "at": 1790090000, "reason": "...",
-                 "disputes": {"sha256": "<the contested receipt's digest>", "verdict": "accepted"}}
+```json
+"disputed": {"by": {"role": "buyer", "id": "424242"}, "at": 1790090000, "reason": "...",
+             "contests": {"sha256": "<the earlier receipt's digest>", "verdict": "accepted"}}
+```
 
-`role` is buyer, supplier, evaluator or other. A disputed receipt is the contested one with the verdict replaced, so
-`check` rebuilds the contested receipt from it and holds `contests.sha256` to its digest (`knos.receipt.contested`
+`role` is buyer, supplier, evaluator or other. A disputed receipt is the earlier one with the verdict replaced, so
+`check` rebuilds the earlier receipt from it and holds `contests.sha256` to its digest (`knos.receipt.contested`
 returns it). A dispute of a paid receipt is dated after the payment and keeps the payment on record.
 
 The receipt does not say how a dispute ends: the resolution is a new receipt, or a correction in the meter's ledger.
