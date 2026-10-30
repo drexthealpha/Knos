@@ -53,12 +53,11 @@ try {
   if (!run) throw new Error(`no push-triggered lighthouse run for ${SHA.slice(0, 7)}`);
   const dir = mkdtempSync(join(tmpdir(), "q2-lh-"));
   gh(["run", "download", String(run.databaseId), "-n", "lighthouse", "-D", dir]);
-  const want = { "front door": ":8081/", "/app/": ":8080/" };
+  const want = { "front door": "http://127.0.0.1:8081/", "/app/": "http://127.0.0.1:8080/app/" };   // the page each report asked for
   const got = {};
   for (const f of readdirSync(dir).filter((x) => /^lhr-.*\.json$/.test(x))) {
     const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
-    const u = d.finalDisplayedUrl || d.finalUrl || d.requestedUrl || "";
-    for (const [name, end] of Object.entries(want)) if (u.endsWith(end)) got[name] = d.categories;
+    for (const [name, url] of Object.entries(want)) if (d.requestedUrl === url) got[name] = d.categories;
   }
   for (const name of Object.keys(want)) {
     const c = got[name];
