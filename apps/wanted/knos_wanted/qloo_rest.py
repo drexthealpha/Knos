@@ -211,15 +211,36 @@ RECENT: collections.deque = collections.deque(maxlen=200)
 _SECRET = re.compile(r"key|token|secret|auth", re.I)
 
 
+def entities(body) -> int:
+    """How many entities, tags, audiences or map cells one Qloo answer carried."""
+    res = body.get("results") if isinstance(body, dict) else None
+    if isinstance(res, list):
+        return len(res)
+    return sum(len(v) for v in res.values() if isinstance(v, list)) if isinstance(res, dict) else 0
+
+
+def request_id(value) -> str | None:
+    """The page's own name for one check (hex, 8 to 24 characters), so its calls can be counted while it runs."""
+    s = str(value or "")
+    return s if re.fullmatch(r"[0-9a-f]{8,24}", s) else None
+
+
+def progress(req: str) -> dict:
+    """One check's Qloo calls so far, from the call log: live answers, all asks, the entities the live answers carried."""
+    rows = [r for r in list(RECENT) if req and r.get("req") == req] if request_id(req) else []
+    live = [r for r in rows if r.get("origin") == "live"]
+    return {"req": request_id(req), "calls": len(live), "asked": len(rows), "entities": sum(r.get("n") or 0 for r in live)}
+
+
 def note(call: str, params: dict | None, status, ms: float | None, cached: bool, at: str | None = None, origin: str = "live",
-         req: str | None = None) -> None:
+         req: str | None = None, n: int | None = None) -> None:
     # "live" only when Qloo answered this call with HTTP 200 now; a cached answer, a 429 or a call not sent is said as such
     if origin == "live" and not (status == 200 and not cached):
         origin = "cached" if cached else "not sent" if status == "not sent" else "refused"
     RECENT.append({"at": at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "call": call,
                    "params": {k: v for k, v in (params or {}).items() if not _SECRET.search(str(k))},
                    "status": status, "ms": None if ms is None else round(ms), "cached": bool(cached), "origin": origin,
-                   **({"req": req} if req else {})})
+                   **({"req": req} if req else {}), **({"n": n} if n is not None else {})})
 
 
 def _status(why: Exception) -> int | str:
@@ -402,7 +423,7 @@ class Client:
         os.replace(tmp, d / f"{k}.qloo")
 
     def get(self, path: str, params: dict | None = None, only_cache: str | None = None, purpose: str = "other",
-            req: str | None = None) -> dict:
+            req: str | None = None, refresh: bool = False) -> dict:
         """One Qloo call, asked once: a question already in flight (a verdict's prefetch, the full card asking the same)
         is waited for and then read from the cache, never sent twice. `only_cache` (a reason) answers from the cache or
         not at all; `purpose` "check" is a demand check (the only caller under the RESERVE); `req` names the request
@@ -417,28 +438,30 @@ class Client:
                 flight[key] = threading.Event()
         if waiting is not None:
             waiting.wait(timeout=TIMEOUT_S + 5)
-            return self._get(path, params, only_cache, purpose, req)
+            return self._get(path, params, only_cache, purpose, req)      # asked by the other caller just now: read it
         try:
-            return self._get(path, params, only_cache, purpose, req)
+            return self._get(path, params, only_cache, purpose, req, refresh)
         finally:
             with lock:
                 flight.pop(key).set()
 
     def _get(self, path: str, params: dict | None = None, only_cache: str | None = None, purpose: str = "other",
-             req: str | None = None) -> dict:
+             req: str | None = None, refresh: bool = False) -> dict:
         """One Qloo call, noted in RECENT whatever its end (answered, cached, refused, not sent)."""
         t0 = time.monotonic()
         clean = {k: v for k, v in (params or {}).items() if v is not None and v != ""}
         method = "POST" if any(k in POST_ONLY for k in clean) else "GET"
         try:
-            got = self._ask(path, params, only_cache, purpose)
+            got = self._ask(path, params, only_cache, purpose, refresh)
         except QlooError as why:
             note(f"{method} {path}", clean, _status(why), (time.monotonic() - t0) * 1000, "cached refusal" in str(why), req=req)
             raise
-        note(f"{method} {path}", clean, 200, (time.monotonic() - t0) * 1000, bool(got.get("source", {}).get("cached")), req=req)
+        note(f"{method} {path}", clean, 200, (time.monotonic() - t0) * 1000, bool(got.get("source", {}).get("cached")), req=req,
+             n=entities(got.get("body")))
         return got
 
-    def _ask(self, path: str, params: dict | None = None, only_cache: str | None = None, purpose: str = "other") -> dict:
+    def _ask(self, path: str, params: dict | None = None, only_cache: str | None = None, purpose: str = "other",
+             refresh: bool = False) -> dict:
         """One Qloo call. GET, except when a parameter Qloo takes only in a JSON body is set (POST_ONLY): then POST."""
         params = {k: v for k, v in (params or {}).items() if v is not None and v != ""}
         try:                                                # every parameter documented by Qloo for this endpoint and filter.type,
@@ -450,7 +473,7 @@ class Client:
             raise QlooError(f"{method} {path}: HTTP {forced()} (test mode)")
         k = cache_key(method, path, params)
         src = {"call": f"{method} {path}", "params": params}
-        hit = self._cached(k)
+        hit = None if refresh and not only_cache else self._cached(k)    # refresh: asked of Qloo now, the cache only keeps it
         if hit is not None and hit.get("error"):
             raise QlooError(hit["error"] + " (cached refusal)")
         if hit is not None:
@@ -581,8 +604,9 @@ class CheckBudget:
             if slot:
                 self.sent += 1
         try:
-            if isinstance(self.client, Client):
-                got = self.client.get(path, params, only_cache=why, purpose="check", req=self.req)
+            if isinstance(self.client, Client):           # who buys is asked of Qloo once per check, never read from an older one
+                fresh_ask = k not in self.fresh and (path == "/v2/audiences" or "signal.demographics.audiences" in clean)
+                got = self.client.get(path, params, only_cache=why, purpose="check", req=self.req, refresh=fresh_ask)
             elif why:                                       # a stand-in client (tests): the cap still holds
                 raise QlooError(f"GET {path}: not sent: {why}")
             else:

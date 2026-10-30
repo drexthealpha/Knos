@@ -408,7 +408,7 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
     <button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><span data-label>Check demand</span></button>
     <i class="k-load" aria-hidden="true"></i>
   </form>
-  <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-t aria-hidden="true"></span></p>
+  <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-count></span> <span data-t aria-hidden="true"></span></p>
   <ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
   <p class="k-fine k-limit" data-qloo-limit hidden></p>
   <details class="k-add-box" id="k-add" data-not-prose><summary class="k-add">+ Add market or buyer</summary>
@@ -434,6 +434,7 @@ const src = (hash, n) => hash ? ` <a class="k-src" href="${esc(API)}/trace.html?
 const QOFF = new URLSearchParams(location.search).get("qloo") === "off";
 const post = async (path, body) => {
 if (QOFF && /^\/api\/(check|cross)/.test(path)) { path += (path.includes("?") ? "&" : "?") + "qloo=off"; body = { ...body, qloo: "off" }; }
+if (rid && /^\/api\/check/.test(path)) body = { ...body, req: rid };        // the check's own name in the server's call log
 const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const j = await r.json().catch(() => ({}));
 if (!r.ok) throw new Error(j.message || j.error || `the server answered ${r.status}`);
@@ -447,13 +448,20 @@ if (tileIO) tileIO.observe(m); else for (const i of m.querySelectorAll("img[data
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const SPRING = "linear(0,.054,.181,.339,.499,.644,.766,.862,.933,.982,1.013,1.03,1.038,1.038,1.034,1.029,1.023,1.017,1.012,1.007,1)";
 const live = document.getElementById("k-live"), liveSaid = live && live.querySelector("[data-said]"), liveT = live && live.querySelector("[data-t]");
-let clock = 0, since = 0;
+const liveN = live && live.querySelector("[data-count]");
+let clock = 0, since = 0, rid = "", poll = 0;
+const counted = (secs) => (rid ? get(`/api/progress?req=${rid}`) : Promise.resolve(null)).then((p) => {
+if (p && liveN) liveN.textContent = `Qloo calls ${p.calls} · entities ${p.entities}${secs != null ? ` · ${secs.toFixed(1)} s` : ""}`;
+}).catch(() => {});
 const tick = () => { if (liveT && since) liveT.textContent = `· ${((performance.now() - since) / 1000).toFixed(still() ? 0 : 1)} s`; };
 const busy = (on) => {
 const label = go.querySelector("[data-label]") || go;
 clearInterval(clock);
 if (!on) { label.textContent = "Check demand"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
+clearInterval(poll); const secs = since ? (performance.now() - since) / 1000 : null; counted(secs);   // the last count stays
 since = 0; if (liveSaid) liveSaid.textContent = ""; if (liveT) liveT.textContent = ""; return; }
+rid = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
+if (liveN) liveN.textContent = ""; clearInterval(poll); poll = setInterval(() => counted(null), 700);
 go.style.minWidth = `${go.offsetWidth}px`;
 label.textContent = "Checking…"; go.setAttribute("aria-busy", "true"); form.setAttribute("aria-busy", "true");
 since = performance.now(); tick(); clock = setInterval(tick, still() ? 1000 : 100);

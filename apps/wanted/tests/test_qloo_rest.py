@@ -163,3 +163,16 @@ def test_an_answer_prefetched_in_this_check_reads_back_live_and_one_from_before_
     assert again["cached"] is False and again.get("fresh") is True and op.n == 1 and first.sent == 1
     later = qloo_rest.CheckBudget(c).get(*q)["source"]                # another check, the same answer: recorded
     assert later["cached"] is True and op.n == 1
+
+
+def test_who_buys_is_asked_of_qloo_once_per_check_and_read_back_live_within_it(tmp_path):
+    op = Opener()
+    c = client(tmp_path, op)
+    aud = ("/v2/audiences", {"take": 50})
+    other = ("/v2/insights", {"filter.type": "urn:entity:brand", "signal.interests.tags": "urn:tag:x"})
+    first = qloo_rest.CheckBudget(c)
+    first.get(*aud), first.get(*other)
+    assert first.get(*aud)["source"]["cached"] is False and op.n == 2           # read back within the check: live, not asked again
+    second = qloo_rest.CheckBudget(c)
+    assert second.get(*aud)["source"].get("cached") is not True and op.n == 3   # the next check asks Qloo again
+    assert second.get(*other)["source"]["cached"] is True and op.n == 3          # anything else still comes from the cache

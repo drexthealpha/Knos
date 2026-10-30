@@ -1297,13 +1297,13 @@ def _asked_ahead(rep: dict, budget) -> None:
 
 def demand_check(idea: str, place: str | None = None, leader: str | None = None, client: Client | None = None,
                  today: dt.date | None = None, exclude: list[str] | None = None, on_call=None, options: dict | None = None,
-                 stage: str | None = None, only_cache: str | None = None) -> dict:
+                 stage: str | None = None, only_cache: str | None = None, req: str | None = None) -> dict:
     """One demand check (_demand_check), CHECKS_AT_ONCE at a time: six at once ran the free instance (512 MB) out of
     memory in champion runs of 24 Oct 2026; the seventh visitor waits seconds instead of every visitor getting a 502.
     Each check sees the shared client through its own CheckBudget (qloo_rest.PER_CHECK live calls at most);
     `only_cache` (a reason, e.g. the visitor's hourly cap) answers it from the private cache only."""
     from .qloo_rest import CheckBudget
-    budget = client if isinstance(client, CheckBudget) else CheckBudget(client or Client(), only_cache=only_cache)
+    budget = client if isinstance(client, CheckBudget) else CheckBudget(client or Client(), only_cache=only_cache, req=req)
     with _checks:
         with _running_lock:
             running[0] += 1

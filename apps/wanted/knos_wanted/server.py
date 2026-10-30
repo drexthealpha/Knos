@@ -71,7 +71,7 @@ GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/project", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
+DEMAND_CORS = ("/api/qloo/status", "/api/progress", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/project", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/ask": "check", "/api/feedback": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
@@ -88,7 +88,7 @@ SIGNED_IN = ("/api/preorder", "/api/milestone", "/api/refund", "/api/factor", "/
 # every GET route below (do_GET), for the OpenAPI document (knos_wanted.openapi); the product routes list their own
 PAGES = {"/fields": "fields.html", "/money": "money.html", "/companies": "companies.html", "/trace": "trace.html", "/trace.html": "trace.html", "/with-without": "with_without.html", "/with-without.html": "with_without.html",
          "/qloo-safe-use": "qloo_safe_use.html", "/qloo-safe-use.html": "qloo_safe_use.html", "/invite": "invite.html", "/invite.html": "invite.html"}
-GET_ROUTES = {"/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the Start page on the front door", "/start/": "301 to the Start page on the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
+GET_ROUTES = {"/api/progress": "One running check: its live Qloo calls and entities so far (?req=)", "/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the Start page on the front door", "/start/": "301 to the Start page on the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
               "/api/money": "The money page: what is held, released and charged, and the price list",
               "/api/vectors": "The seven product-value vectors, measured: cost, speed, friction, trust, capability, access, status",
               "/api/proof": "The latest real verdict this server reached (shown first on both front doors)",
@@ -726,6 +726,9 @@ def make_handler(state: State):
                     return self._send(200, {"seq": h.get("seq"), "at": h.get("ts"), "kind": h.get("kind")}, headers={"Cache-Control": "no-store"})
                 except Exception as why:  # noqa: BLE001 - a record that cannot be read is said, never guessed
                     return self._send(503, {"seq": None, "why": f"the Knos record could not be read here ({type(why).__name__})"})
+            if u.path == "/api/progress":                   # one running check's Qloo calls so far, read from the same call log
+                from . import qloo_rest
+                return self._send(200, qloo_rest.progress((qs.get("req") or [""])[0]), headers={"Cache-Control": "no-store"})
             if u.path == "/api/calls":                      # the last 200 Qloo requests: no body, no key (the front door's /calls/)
                 from . import qloo_rest
                 return self._send(200, {"calls": qloo_rest.recent(), "most": qloo_rest.RECENT.maxlen,
@@ -1122,7 +1125,7 @@ def make_handler(state: State):
                     capped = "Qloo switched off for this request: answered from the private cache only"
                 rep = check.demand_check(idea, _text(body.get("place")), _text(body.get("leader"), 80),
                                          client=Client(key="") if without else state.rest, exclude=ex, options=opts, stage=stage,
-                                         only_cache=capped)
+                                         only_cache=capped, req=qloo_rest.request_id(body.get("req")))
                 if without:
                     rep["without_qloo"] = True
                 else:

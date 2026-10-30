@@ -19,6 +19,7 @@
   const QOFF = new URLSearchParams(location.search).get("qloo") === "off";
   const post = async (path, body) => {
     if (QOFF && /^\/api\/(check|cross)/.test(path)) { path += (path.includes("?") ? "&" : "?") + "qloo=off"; body = { ...body, qloo: "off" }; }
+    if (rid && /^\/api\/check/.test(path)) body = { ...body, req: rid };        // the check's own name in the server's call log
     const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.message || j.error || `the server answered ${r.status}`);
@@ -37,13 +38,21 @@
   // runs along the box's bottom edge, and the line under the box (a polite live region) says who is being asked and for
   // how long. Nothing covers the bar at the top.
   const live = document.getElementById("k-live"), liveSaid = live && live.querySelector("[data-said]"), liveT = live && live.querySelector("[data-t]");
-  let clock = 0, since = 0;
+  const liveN = live && live.querySelector("[data-count]");
+  let clock = 0, since = 0, rid = "", poll = 0;
+  // while a check runs: its Qloo calls and entities so far, read from the server's call log (GET /api/progress)
+  const counted = (secs) => (rid ? get(`/api/progress?req=${rid}`) : Promise.resolve(null)).then((p) => {
+    if (p && liveN) liveN.textContent = `Qloo calls ${p.calls} · entities ${p.entities}${secs != null ? ` · ${secs.toFixed(1)} s` : ""}`;
+  }).catch(() => {});
   const tick = () => { if (liveT && since) liveT.textContent = `· ${((performance.now() - since) / 1000).toFixed(still() ? 0 : 1)} s`; };
   const busy = (on) => {
     const label = go.querySelector("[data-label]") || go;
     clearInterval(clock);
     if (!on) { label.textContent = "Check demand"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
+      clearInterval(poll); const secs = since ? (performance.now() - since) / 1000 : null; counted(secs);   // the last count stays
       since = 0; if (liveSaid) liveSaid.textContent = ""; if (liveT) liveT.textContent = ""; return; }
+    rid = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (liveN) liveN.textContent = ""; clearInterval(poll); poll = setInterval(() => counted(null), 700);
     go.style.minWidth = `${go.offsetWidth}px`;
     label.textContent = "Checking…"; go.setAttribute("aria-busy", "true"); form.setAttribute("aria-busy", "true");
     since = performance.now(); tick(); clock = setInterval(tick, still() ? 1000 : 100);
