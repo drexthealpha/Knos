@@ -940,7 +940,7 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
 <!-- /k-steps -->
 <!-- k-caps -->
 <section id="k-built" class="k-built" aria-labelledby="k-built-h">
-  <style>#k-built { margin: 32px 0 0; } #k-built h2 { font: 600 var(--s1)/1.3 var(--head); margin: 0 0 8px; } #k-built .k-caps { margin: 0; padding-left: 1.1em; font-size: var(--s-1); } #k-built .k-caps li { margin: 0 0 4px; } #k-built .k-lead { margin: 0 0 12px; padding-left: 1.1em; font-size: var(--s0); } #k-built .k-lead li { margin: 0 0 6px; overflow-wrap: anywhere; }</style>
+  <style>#k-built { margin: 32px 0 0; } #k-built pre, #k-built pre code { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; } #k-built h2 { font: 600 var(--s1)/1.3 var(--head); margin: 0 0 8px; } #k-built .k-caps { margin: 0; padding-left: 1.1em; font-size: var(--s-1); } #k-built .k-caps li { margin: 0 0 4px; } #k-built .k-lead { margin: 0 0 12px; padding-left: 1.1em; font-size: var(--s0); } #k-built .k-lead li { margin: 0 0 6px; overflow-wrap: anywhere; }</style>
   <h2 id="k-built-h">How is it built?</h2>
   <p class="k-sr">On Solana devnet, with GitHub's signature checked in a program and a hosted MCP server.</p>
   <ul class="k-lead" id="k-lead" data-not-prose>

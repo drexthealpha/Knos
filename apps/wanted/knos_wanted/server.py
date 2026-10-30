@@ -1120,7 +1120,8 @@ def make_handler(state: State):
                 if stage:
                     state.pair((self._client(), " ".join(idea.split()).lower()[:200]))
                 from . import qloo_rest                     # 10 live checks per visitor an hour (a salted hash, never the address)
-                capped = None if without or getattr(self, "_free_check", False) else qloo_rest.visitor_take(qloo_rest.visitor_hash(self._client()))
+                operator = product_routes._admin(self.headers.get("X-Knos-Admin"))   # the operator's measured runs: no visitor cap
+                capped = None if without or operator or getattr(self, "_free_check", False) else qloo_rest.visitor_take(qloo_rest.visitor_hash(self._client()))
                 if str(body.get("qloo") or "").lower() == "off":    # Start's "Qloo off" state: this request from the cache only
                     capped = "Qloo switched off for this request: answered from the private cache only"
                 rep = check.demand_check(idea, _text(body.get("place")), _text(body.get("leader"), 80),
@@ -1359,6 +1360,8 @@ def serve(host: str | None = None, port: int | None = None) -> None:
     # file (recorded.load), else the first real answer a reader's own press gets (recorded.keep); a restart asks Qloo nothing
     from . import recorded
     print(f"knos recorded: {recorded.load()} of {len(recorded.CHIPS)} sample chips have a recorded card", flush=True)
+    from . import vectors                  # the front door's first card (/api/proof), built once before the first visitor asks
+    threading.Thread(target=vectors.proof, daemon=True, name="proof-warm").start()
     # the seeded research products cross on the first request for the board (front.board), never at boot
     httpd = ThreadingHTTPServer((host, port), make_handler(state))
     rest_ok, rest_why = state.rest.ready()

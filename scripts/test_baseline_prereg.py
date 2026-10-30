@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import os
 import random
 import sys
 import time
@@ -30,7 +31,11 @@ def check(title: str) -> dict:
     body = json.dumps({"idea": title, "picked": True}).encode()
     for attempt in (1, 2):
         try:
-            req = urllib.request.Request(APP + "/api/check", body, {"Content-Type": "application/json", "User-Agent": "knos-q7-test"})
+            head = {"Content-Type": "application/json", "User-Agent": "knos-q7-test"}
+            key_file = os.environ.get("KNOS_ADMIN_KEY_FILE")     # the operator's run: past the visitor cap, never past 40 a check
+            if key_file:
+                head["X-Knos-Admin"] = Path(key_file).read_text(encoding="utf-8").strip()
+            req = urllib.request.Request(APP + "/api/check", body, head)
             with urllib.request.urlopen(req, timeout=300) as r:
                 return json.loads(r.read())
         except (OSError, ValueError) as e:
