@@ -16,7 +16,7 @@ const VERDICT = /Wanted|Open for pre-orders|Not yet|Not enough evidence/;
 
 const wf = readFileSync(new URL("../.github/workflows/live-window.yml", import.meta.url), "utf8");
 const on = wf.slice(wf.indexOf("\non:"), wf.indexOf("\npermissions:"));
-ok(/schedule:/.test(on) && !/workflow_dispatch|push:|pull_request/.test(on) && /cron: "\*\/10 \* \* \* \*"/.test(on),
+ok(/schedule:/.test(on) && !/workflow_dispatch|push:|pull_request/.test(on) && /cron: "7,17,27,37,47,57 \* \* \* \*"/.test(on),
   "live-window.yml runs on its timer only, every 10 minutes");
 ok(["https://drexthealpha.github.io/Knos/", "https://knos.onrender.com/app/", "https://knos.onrender.com/api/proof"].every((u) => wf.includes(u)),
   "it asks for the front door, /app/ and /api/proof");
