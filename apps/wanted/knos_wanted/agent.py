@@ -410,10 +410,10 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"commitment": {"type": "string"}, "evidence_url": {"type": "string"},
                                                        "session": {"type": "string"}}, "required": ["commitment", "evidence_url"],
                      "additionalProperties": False}},
-    {"name": "knos_task_submit", "title": "Submit work to an open task",
-     "description": "Submits the whole train.py to the open task (knos_tasks says what to change and links the task's README); "
-                    "the sealed referee checks it at once; several attempts per task. A scored attempt with a devnet `wallet` "
-                    "is paid in test units. " + CONFIRM,
+    {"name": "knos_task_submit", "title": "Submit a milestone's proof",
+     "description": "Submits a milestone's proof, the whole file the milestone names (knos_tasks says what to change and links its "
+                    "README); the referee checks it at once; several attempts per milestone. A proof that meets the target pays a devnet "
+                    "`wallet` in test units. " + CONFIRM,
      "inputSchema": {"type": "object", "properties": {"round": {"type": "string"}, "name": {"type": "string"}, "code": {"type": "string"},
                                                        "wallet": {"type": "string"},
                                                        "session": {"type": "string"}}, "required": ["round", "code"],
@@ -451,12 +451,12 @@ DESCRIPTIONS = {
     "knos_sign_in": "Returns a guest session token that the tools moving devnet test money accept; ask your human first.",
     "knos_preorder": "Prepares a pre-order of an OPEN report and returns the page where your human's passkey approves it with devnet test money; ask your human first.",
     "knos_evidence": "Posts a milestone's public evidence page, whose verified evidence releases the held devnet test money to the maker; ask your human first.",
-    "knos_task_submit": "Submits a whole train.py to the open round's sealed referee and returns its verdict, with a payout in devnet test money when it scores; ask your human first.",
+    "knos_task_submit": "Submits a milestone's proof file to its referee and returns the verdict, with devnet test money paid when the proof meets the target; ask your human first.",
     "knos_templates": "Returns the brief templates Knos offers, from AI model evals to regulatory milestones taken from OpenRegulatory's open templates.",
     "knos_project_open": "Opens a project whose milestones each hold devnet test money until a result and an independent check arrive; ask your human first.",
     "knos_project_claim": "Claims a milestone as its maker and binds the wallet it pays in devnet test money; ask your human first.",
     "knos_project_post": "Posts a result or a check page for a milestone, and the referee panel releases its devnet test money when both are in; ask your human first.",
-    "knos_milestone_submit": "Sends your whole train.py to a milestone's sealed referee and releases its devnet test money to you when the verdict meets the target; ask your human first.",
+    "knos_milestone_submit": "Sends a milestone's proof file to its referee and releases its devnet test money to you when the verdict meets the target; ask your human first.",
     "knos_ready": "Checks a brief before any money locks and returns Ready, or the missing fields with a rewrite template, sending nothing.",
     "knos_usage": "Returns how many times each Knos tool was called over MCP since this server started.",
     "knos_milestone_prompt": "Returns the locked intent of a milestone you work on, with its criteria hash and the token budget for answering it.",

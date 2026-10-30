@@ -1,4 +1,4 @@
-/// Custom outbound adapter: Solana JSON-RPC (Call, Simulate, Status), with retries on 429.
+/// Custom outbound adapter: Solana JSON-RPC (Call, Simulate, Status), with retries on 429; a third 429 is an error.
 Class Knos.Iris.Adapter.SolanaRpcOutbound Extends Ens.OutboundAdapter
 {
 Property RpcURL As %String(MAXLEN = 256) [ InitialExpression = "https://api.devnet.solana.com" ];
@@ -21,7 +21,7 @@ Method Call(method As %String, paramsJSON As %String, Output result As %String) 
             do req.EntityBody.Write("{""jsonrpc"":""2.0"",""id"":1,""method"":"""_method_""",""params"":"_$select(paramsJSON="":"[]",1:paramsJSON)_"}")
             set sc = req.Post($select($get(p("path"))="":"/",1:p("path")))
             if $$$ISERR(sc) return sc
-            if req.HttpResponse.StatusCode = 429 { hang try quit:try=3  continue }
+            if req.HttpResponse.StatusCode = 429 { if try=3 return $$$ERROR($$$GeneralError,"devnet RPC 429 three times")  hang try  continue }
             set result = req.HttpResponse.Data.Read(1000000)
             quit
         }

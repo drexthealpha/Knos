@@ -13,6 +13,13 @@ from knos_iris import referee
 return referee.decide(briefJSON, kind, payload, criteriaHash)
 }
 
+/// "" when the proof's repository is the locked brief's (or either names none), else why it is refused
+ClassMethod RepoMismatch(briefId As %String, briefJSON As %String, proofJSON As %String) As %String [ Language = python ]
+{
+from knos_iris import bridge
+return bridge.repo_mismatch(briefId or "", briefJSON or "{}", proofJSON or "{}")
+}
+
 ClassMethod ORUToObservation(hl7 As %String) As %String [ Language = python ]
 {
 import json

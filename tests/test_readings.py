@@ -18,8 +18,8 @@ def test_the_stemmer_gives_the_papers_own_examples():
 
 
 def test_the_two_ramen_inputs_get_their_own_words_a_broader_reading_and_the_recorded_ramen_idea():
-    for asked, broad, rec_idea in (("a vegan ramen food truck", "a ramen food truck", "a vegan ramen truck for festivals"),
-                                   ("a late night ramen spot", "a night ramen spot", "a late night ramen spot near campus")):
+    for asked, broad, rec_idea in (("a vegan ramen food truck", "a food truck", "a vegan ramen truck for festivals"),
+                                   ("a late night ramen spot", "a ramen spot", "a late night ramen spot near campus")):
         w = readings.which(asked, INDEX)
         kinds, texts = [r["kind"] for r in w["readings"]], [r["text"] for r in w["readings"]]
         assert w["readings"][0] == {"text": asked, "kind": "exact"} and not w["skip"]

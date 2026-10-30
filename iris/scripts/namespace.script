@@ -1,0 +1,7 @@
+zn "%SYS"
+do ##class(Security.Users).UnExpireUserPasswords("*")
+zn "HSLIB"
+; the KNOS namespace and its databases (HealthShare Foundation): the slow first step, a cached layer of its own in iris/Dockerfile
+set sc = ##class(HS.Util.Installer.Foundation).Install("KNOS")
+if 'sc { do $system.Status.DisplayError(sc) }
+halt

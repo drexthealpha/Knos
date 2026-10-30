@@ -33,10 +33,10 @@ Step 4, paid on proof: a referee checks the proof the brief named before the wor
 
 ## Docs
 
-- [Story](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/STORY.md): one task in seven steps, each with its evidence
+- [Story](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/STORY.md): one task in six steps, each with its evidence
 - [Release manifest](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/reference/MANIFEST.md): the code, what runs on devnet, the limits
 - [What is not real yet](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/reference/DISCLOSURE.md): no customers, no revenue, test money only
-- [Map of the documents](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/README.md): the eight pages to start with; everything else in docs/reference/
+- [Map of the documents](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/README.md): the seven pages to start with; everything else in docs/reference/
 
 ## Optional
 

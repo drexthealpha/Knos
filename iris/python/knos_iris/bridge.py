@@ -32,6 +32,38 @@ def proof_hash(payload: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _repo(value: object) -> str:
+    """A repository as "owner/name", lower case (GitHub's names ignore case): from a string or {"full_name": ...}."""
+    if isinstance(value, dict):
+        value = value.get("full_name")
+    return value.strip().lower() if isinstance(value, str) else ""
+
+
+def _loads(text: str) -> object:
+    try:
+        return json.loads(text)
+    except (TypeError, ValueError):
+        return None
+
+
+def repo_mismatch(brief_id: str, brief_json: str, proof_json: str) -> str:
+    """Why a proof is refused for naming another repository than the locked brief's, or "" when it is not.
+    The brief's repository is its own "repository" field, else its id "github:<owner>/<repo>". The proof's is the
+    body's "repository", else its payload's (a check run's webhook body carries repository.full_name). A brief or a
+    proof that names none is not refused here: the referee still needs the exact check the brief names."""
+    brief = _loads(brief_json)
+    brief = brief if isinstance(brief, dict) else {}
+    want = _repo(brief.get("repository")) or (brief_id[len("github:"):].strip().lower() if brief_id.startswith("github:") else "")
+    proof = _loads(proof_json)
+    proof = proof if isinstance(proof, dict) else {}
+    payload = proof.get("payload")
+    payload = _loads(payload) if isinstance(payload, str) else payload
+    got = _repo(proof.get("repository")) or (_repo(payload.get("repository")) if isinstance(payload, dict) else "")
+    if not want or not got or want == got:
+        return ""
+    return f"the proof comes from {got}, and the brief is locked for {want}"
+
+
 # ---- the vector search's embedding -------------------------------------------------------------------------------
 DIM = 384
 WORD = re.compile(r"[a-z0-9]+")

@@ -92,8 +92,8 @@ BOOK = (
      "0.05 floor once per release; no cap", "funder, on top of the amount",
      "knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)"),
     ("Record", "lookup of a supplier's delivery record through the machine-priced API",
-     "0.10 USD a lookup, paid per call by the caller (an agent or an underwriter) through the knos-order/x402 flow; the public "
-     "record page and its file stay free", "the buyer or insurer reading it",
+     "0.10 USD a lookup, paid per call by the caller (an agent or a funder) through the knos-order/x402 flow; the public "
+     "record page and its file stay free", "the funder reading it",
      "`knos record serve` (anyone runs it; Knos hosts none)"),
     ("Control", "organisation, per year", "Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single "
      "sign-on, private deployment and support that do not exist)", "buyer", "contract"),

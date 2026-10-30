@@ -466,7 +466,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: pyproject.toml
       - run: uv pip install --system -e . pytest
-      - run: python -m pytest -q iris/tests/test_referee_rules.py
+      - run: python -m pytest -q iris/tests/test_referee_rules.py iris/tests/test_iris_fixes.py
 
   all-green:
     name: all-green

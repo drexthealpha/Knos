@@ -79,7 +79,7 @@ def page(rep: dict | None, url: str, rid: str) -> str:
         title, body = "No result here", f'<h1>No result here</h1><p class="say" data-state="error">{e(SAY["error"])}</p>'
     else:
         idea = str(rep.get("idea") or "this idea")
-        word = WORD.get(str((rep.get("decision") or {}).get("verdict") or ""), "Qloo cannot decide this one")
+        word = WORD.get(str((rep.get("decision") or {}).get("verdict") or ""), WORD["CANNOT_DECIDE"])
         if word == WORD["OPEN"] and not terms_of(rep):              # Open needs a launch city, as on the card
             word = "Not yet: Qloo sets no launch city for this idea"
         t = terms_of(rep)                     # the one answer the card and the trace draw (metros.launch_terms), whatever the state

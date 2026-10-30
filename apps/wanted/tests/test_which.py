@@ -20,7 +20,7 @@ def test_an_unrecorded_idea_is_asked_which_one_before_any_qloo_call(app, monkeyp
     st, w = call(base, "/api/check", {"idea": "a vegan ramen food truck"})
     assert st == 200 and w["kind"] == "which_one" and "calls" not in w
     texts = [r["text"] for r in w["readings"]]
-    assert texts[0] == "a vegan ramen food truck" and CARD["idea"] in texts and "a ramen food truck" in texts
+    assert texts[0] == "a vegan ramen food truck" and CARD["idea"] in texts and "a food truck" in texts
 
 
 def test_a_picked_reading_is_checked_exactly(app, monkeypatch):  # noqa: F811

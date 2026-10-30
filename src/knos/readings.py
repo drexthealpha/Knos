@@ -98,14 +98,13 @@ def nearest(text: str, index: list[dict], k: int = 2) -> list[dict]:
 
 
 def broader(text: str) -> str | None:
-    """The input without its first content word that comes before the last noun (the last content word stands for the
-    noun), when it has 3 or more content words: "a vegan ramen food truck" becomes "a ramen food truck"."""
+    """The input's last two content words (the noun and the word that names its kind), when it has 3 or more content
+    words: "a late night ramen spot" becomes "a ramen spot", "a vegan ramen food truck" becomes "a food truck"."""
     words = content(text)
     if len(words) < 3:
         return None
-    drop = words[0][0]
-    out = re.sub(rf"\b{re.escape(drop)}\b\s*", "", str(text).strip(), count=1, flags=re.I)
-    out = " ".join(out.split())
+    tail = " ".join(w for w, _ in words[-2:])
+    out = ("an " if tail[0] in "aeiou" else "a ") + tail
     return out if norm(out) != norm(text) else None
 
 

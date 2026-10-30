@@ -9,9 +9,18 @@
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="Knos.Iris.PKG"/>
-      <FileCopy Name="python/" Target="${mgrdir}../knos/iris/python/"/>
+      <!-- Python: Knos's package (the repository's src/knos, beside iris/) and knos_iris straight into mgr/python, where every
+           IRIS process imports them; solders and base58 from requirements.txt, which IPM installs into the same folder -->
+      <FileCopy Name="../src/knos/" Target="${mgrdir}python/knos/"/>
+      <FileCopy Name="python/knos_iris/" Target="${mgrdir}python/knos_iris/"/>
+      <!-- the folder Knos.Iris.Util.Home() reads when KNOS_IRIS_HOME is not set: <install>/knos -->
       <FileCopy Name="fixtures/" Target="${mgrdir}../knos/iris/fixtures/"/>
-      <Invoke Class="Knos.Iris.Setup" Method="Install"/>
+      <FileCopy Name="java/" Target="${mgrdir}../knos/iris/java/"/>
+      <FileCopy Name="merge.cpf" Target="${mgrdir}../knos/iris/merge.cpf"/>
+      <!-- KNOS_FHIR=0: no FHIR server; Setup compiles the Java PEX jar with the instance's own JDK, then starts the production -->
+      <Invoke Class="Knos.Iris.Setup" Method="Install">
+        <Arg>0</Arg>
+      </Invoke>
     </Module>
   </Document>
 </Export>

@@ -32,7 +32,11 @@ Try it:
 
 ## 3. Requirements
 
-Docker with 6 GB of memory for its VM, the build 154 image tar from InterSystems, and (for live mode) one LLM key.
+Docker Desktop with its default VM (about 3.9 GB on a 7.8 GB PC), the build 154 image tar from InterSystems, and (for live
+mode) one model key. Measured on a 7.8 GB Windows laptop: the container's peak in `docker stats` was <peak> MiB through the
+build and the run, the Docker VM's <vm> MiB; compose caps it at 2 GB (`mem_limit`), `merge.cpf` caps IRIS's buffers and the
+Java gateway runs with `-Xmx192m`. FHIR is off by default (`KNOS_FHIR=0`): HealthShare Foundation then loads no FHIR
+package, the step that took an uncapped build past 1,800 s. `KNOS_FHIR=1` loads R4 only and needs about 2 GB more.
 
 ## 4. The image used
 
@@ -50,22 +54,47 @@ on it, is ever pushed to a registry.
 
 ## 5. LLM provider and key
 
-| Provider | `KNOS_LLM_PROVIDER` | Key variable |
-|---|---|---|
-| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
-| OpenAI | `openai` | `OPENAI_API_KEY` |
-| Google Gemini | `gemini` | `GEMINI_API_KEY` |
-| AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+| Provider | `KNOS_LLM_PROVIDER` | Key variable | Default model (`KNOS_LLM_MODEL` changes it) |
+|---|---|---|---|
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-5-5` |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-5` |
+| Google Gemini | `gemini` | `GEMINI_API_KEY` | `gemini-2.5-pro` |
+| AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | `anthropic.claude-sonnet-5-5` |
+| Stub (tests) | `stub` | none | `stub-referee` |
 
 Set `KNOS_AI_MODE=live` and the key in `.env`. With `KNOS_AI_MODE=replay` (the default) no key is needed: a recorded live
 answer is used when `fixtures/replay` holds one for the brief and proof, else the rules referee, which reads only
-structured fields. The health route says which mode ran. Never commit `.env`.
+structured fields, and every such answer says "rules referee (no model key set)". The health route says which mode ran.
+Never commit `.env`.
+
+A hard spend cap is checked before any model call, so a key added here cannot be burned: at most `KNOS_LLM_MAX_CALLS`
+calls (default 30) and `KNOS_LLM_MAX_USD` dollars (default 2.00), counted in `^Knos.LLM("calls")` and `^Knos.LLM("usd")`.
+Once either is reached, live mode refuses in one plain sentence; with no key for the provider it refuses the same way.
+
+| | Rules referee | AI Hub agent |
+|---|---|---|
+| Decides from | structured fields only (a check run's name and conclusion, an Observation's code and value) | the same, through its tools (GetBrief, GetCheckRun, GetObservation, GetVerdict, SearchCriteria) |
+| Needs | nothing | needs a model key |
+| Names and codes | exact (`test` is not `unit-tests`, `2345` is not LOINC `2345-7`) | the same contract, checked by `Knos.Iris.AI.Verdict` |
+| Low confidence | | capped at 0.6 when the cited criterion is not in the top 2 by Vector Search, which sends the case to a person |
+| Trace | one span per decision | one span per tool call (`Knos.Iris.AI.TraceAudit`) |
 
 ## 6. Start
 
 ```sh
 cd iris && cp .env.example .env && docker compose up -d --build
 ```
+
+The `Dockerfile` builds in stages, the way the InterSystems community builds IRIS images
+([iris-docker-multi-stage-script](https://github.com/grongierisc/iris-docker-multi-stage-script)). A builder stage runs
+`iris.script`; the final stage starts again from the base image and copies in only the databases the install changed
+(`scripts/copy-data.py`). Sources come in with `RUN --mount=type=bind`, and the KNOS namespace is its own cached step, so a
+change to `src/` recompiles Knos without installing the namespace again. The production is stopped cleanly at the end of
+the build, so a new container starts it with no journal recovery.
+
+With IPM on any IRIS for Health instance, from a clone of the repository: `zpm "load <clone>/iris -v"`. It copies Knos's
+`src/knos` and `knos_iris` into `mgr/python`, installs `requirements.txt`, compiles the Java PEX jar with the instance's
+own JDK and starts the production in the current namespace, with FHIR off.
 
 ## 7. Check that it works
 
@@ -74,7 +103,7 @@ curl -s -u _SYSTEM:SYS localhost:52773/api/knos/health
 bash scripts/smoke.sh
 ```
 
-The health route answers `{"production":"Running","agent":"replay","fhir":"ok","java":"ok","vector":"ok",...}`.
+The health route answers `{"production":"Running","agent":"replay","fhir":"off","java":"ok","vector":"ok",...}`.
 `smoke.sh` prints `decision: {"decision":"met","gate":"PAY",...}` and a Visual Trace URL.
 
 ## 8. Walkthrough of the three inputs
@@ -118,7 +147,7 @@ Langfuse's trace and observation fields.
 | Embedded Python | `Py/*.cls`, `python/knos_iris/` | `Knos.Iris.Py.Ready.Hash` equals Knos's hash outside IRIS |
 | Vector Search | `Data/Criterion.cls` (`VECTOR(DOUBLE,384)`), `BO/BriefLock.cls` | the health route's `vector` |
 | Docker | `Dockerfile`, `docker-compose.yml` | section 6 |
-| ZPM | `module.xml` | section 14 |
+| ZPM | `module.xml` | section 6 |
 | LLM trace as interop messages | `Msg/Span.cls`, `AI/TraceAudit.cls`, `Trace.cls` | section 11 |
 
 ## 13. Platform findings
@@ -162,6 +191,10 @@ flowchart LR
 This folder is part of the one Knos product: Knos checks demand, writes the Ready brief, holds the money on Solana and
 pays only on verified proof; here the proof is checked inside IRIS for Health. The Knos code is imported, not forked.
 
-## 18. License
+## 18. Team
+
+Zulqarnain Abubakar, Developer Community profile: https://community.intersystems.com/user/zulqarnain-abubakar
+
+## 19. License
 
 MIT, the repository's own.

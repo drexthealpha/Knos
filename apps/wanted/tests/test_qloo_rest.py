@@ -142,3 +142,24 @@ def test_a_question_qloo_does_not_answer_in_time_is_asked_once_and_remembered_fo
     with pytest.raises(QlooError):
         c.get("/v2/insights", {"filter.type": "urn:entity:place", "filter.location.query": "United States"})
     assert len(asked) == 2
+
+
+def test_qloo_s_own_error_text_reaches_the_operator_s_log_and_never_the_answer(tmp_path, capsys):
+    c = client(tmp_path, Opener(error=400), Clock())
+    with pytest.raises(QlooError) as e:
+        c.get("/v2/insights", {"filter.type": "urn:entity:brand", "signal.interests.tags": "urn:tag:x"})
+    log = capsys.readouterr()
+    assert "HTTP 400" in log.err + log.out and "bad" in log.err + log.out and "/v2/insights" in log.err + log.out
+    assert "errors" not in str(e.value)
+
+
+def test_an_answer_prefetched_in_this_check_reads_back_live_and_one_from_before_reads_recorded(tmp_path):
+    op = Opener()
+    c = client(tmp_path, op)
+    q = ("/v2/insights", {"filter.type": "urn:entity:brand", "signal.interests.tags": "urn:tag:x"})
+    first = qloo_rest.CheckBudget(c)
+    assert not first.get(*q)["source"].get("cached")                  # the prefetch: asked now
+    again = first.get(*q)["source"]                                    # the numbered call reads it back from the cache
+    assert again["cached"] is False and again.get("fresh") is True and op.n == 1 and first.sent == 1
+    later = qloo_rest.CheckBudget(c).get(*q)["source"]                # another check, the same answer: recorded
+    assert later["cached"] is True and op.n == 1

@@ -1,8 +1,8 @@
 zn "%SYS"
 do ##class(Security.Users).UnExpireUserPasswords("*")
 zn "HSLIB"
-set sc = ##class(HS.Util.Installer.Foundation).Install("KNOS")
-if 'sc { do $system.Status.DisplayError(sc) }
+; the KNOS namespace, unless iris/scripts/namespace.script made it already (iris/Dockerfile runs that as its own cached step)
+if '##class(%SYS.Namespace).Exists("KNOS") { set sc = ##class(HS.Util.Installer.Foundation).Install("KNOS") if 'sc { do $system.Status.DisplayError(sc) } }
 zn "KNOS"
 set sc = $system.OBJ.LoadDir("/home/irisowner/knos/iris/src", "ck", .err, 1)
 if 'sc { do $system.Status.DisplayError(sc) }

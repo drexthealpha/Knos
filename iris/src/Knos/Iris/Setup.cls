@@ -36,10 +36,26 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
 ClassMethod Paths() As %Status
 {
     set h = ##class(Knos.Iris.Util).Home()
-    for d = "inbox/checkruns", "inbox/oru", "inbox/verdicts" { do ##class(%File).CreateDirectoryChain(h_d) }
+    for d = "inbox/checkruns", "inbox/oru", "inbox/verdicts", "java" { do ##class(%File).CreateDirectoryChain(h_d) }
+    do ..Jar(h)
     set s("GitHubCheckRunPoller", "Adapter", "Dir") = h_"inbox/checkruns"
     set s("HL7LabIn", "Adapter", "FilePath") = h_"inbox/oru/"
     set s("SolanaSubmit", "Host", "%gatewayExtraClasspaths") = h_"java/knos-iris-pex.jar"
     return ##class(Ens.Production).ApplySettings("Knos.Iris.Production", .s)
+}
+
+/// The Java PEX jar, when it is not there yet (an IPM install; iris/Dockerfile builds it in its jar stage): javac with
+/// the instance's own JDK against its own PEX jar, the same commands as the Dockerfile
+ClassMethod Jar(h As %String) As %Status
+{
+    set jar = h_"java/knos-iris-pex.jar"
+    if ##class(%File).Exists(jar) return $$$OK
+    set lib = $system.Util.InstallDirectory()_"dev/java/lib/1.8/", tmp = h_"java/build/"
+    set src = h_"iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java"
+    set cmd = "rm -rf '"_tmp_"' && mkdir -p '"_tmp_"' && javac -d '"_tmp_"' -cp '"_lib_"*' '"_src_"'"
+    set cmd = cmd_" && cd '"_tmp_"' && jar xf '"_lib_"intersystems-pex-1.0.0-shaded.jar' && jar cf '"_jar_"' -C '"_tmp_"' . && rm -rf '"_tmp_"'"
+    set rc = $zf(-100, "/SHELL", cmd)
+    if rc { write "Java PEX jar not built (exit ", rc, "): the SolanaSubmit item needs a JDK", ! }
+    return $$$OK
 }
 }

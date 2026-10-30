@@ -70,6 +70,9 @@ ClassMethod Proof() As %Status
     set b = ##class(Knos.Iris.Data.Brief).BriefIdIdxOpen(body.id)
     set m.BriefJSON = $select($isobject(body.brief):body.brief.%ToJSON(), $isobject(b):b.BriefJSON, 1:"{}")
     set:m.AmountUSDC=0&&$isobject(b) m.AmountUSDC = b.AmountUSDC
+    // proof from another repository than the locked brief's is refused before anything decides on it
+    set why = ##class(Knos.Iris.Py.Verdict).RepoMismatch(body.id, $select($isobject(b):b.BriefJSON, 1:"{}"), body.%ToJSON())
+    if why '= "" { set %response.Status = 409  write {"error": (why)}.%ToJSON()  return $$$OK }
     set m.PayloadJSON = $select($isobject(body.payload):body.payload.%ToJSON(), 1:body.payload)
     set sc = ##class(Ens.Director).CreateBusinessService("ProofIn", .svc)
     if $$$ISERR(sc) return ..Fail(sc)
@@ -77,8 +80,23 @@ ClassMethod Proof() As %Status
     if $$$ISERR(sc) return ..Fail(sc)
     write {"decision": (d.Decision), "gate": (d.Gate), "outcome": (d.Outcome), "confidence": (+d.Confidence), "session": (d.SessionId), "referee": (d.Referee),
       "milestones": ({}.%FromJSON($select(d.Reason="":"[]",1:d.Reason))),
-      "visual_trace": ("http://localhost:52773/csp/healthshare/knos/EnsPortal.VisualTrace.zen?SESSIONID="_d.SessionId)}.%ToJSON()
+      "visual_trace": (..Portal()_"/csp/healthshare/knos/EnsPortal.VisualTrace.zen?SESSIONID="_d.SessionId)}.%ToJSON()
     return $$$OK
+}
+
+/// The Management Portal's base URL for links: KNOS_IRIS_PORTAL when set (a gateway or a host in front of IRIS), else
+/// the scheme and Host header this request came in on, so the link works from wherever the caller reached IRIS
+ClassMethod Portal() As %String
+{
+    set p = $system.Util.GetEnviron("KNOS_IRIS_PORTAL")
+    if p = "" {
+        // only a host name or address and a port: any other character is dropped
+        set h = $get(%request.CgiEnvs("HTTP_HOST"))
+        set h = $translate(h, $translate(h, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.:-[]"))
+        set:h="" h = "localhost:52773"
+        set p = $select(%request.Secure:"https", 1:"http")_"://"_h
+    }
+    return $zstrip(p, ">", "/")
 }
 
 ClassMethod Traces(s As %Integer) As %Status

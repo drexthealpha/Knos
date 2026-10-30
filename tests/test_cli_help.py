@@ -122,3 +122,23 @@ def test_budget_observe_and_reproduce_are_in_the_help(capsys):
     for word, option in (("budget", "show"), ("observe", "--graph"), ("reproduce", "--only")):
         rc, text = _help(capsys, word, "--help")
         assert rc == 0 and option in text, word
+
+
+def test_the_old_products_stay_callable_and_are_never_listed(capsys):
+    rc, bare = _help(capsys, "--help")
+    assert rc == 0 and cli.OLD_PRODUCTS
+    for name in cli.OLD_PRODUCTS:
+        assert f"â”‚ {name} " not in bare, name
+        try:                                                               # still there for a script that calls it
+            code = cli.main([name, "--help"])
+        except SystemExit as done:
+            code = done.code
+        assert code in (0, None), name
+
+
+def test_each_registered_command_s_comment_names_that_command():
+    import re
+    from pathlib import Path
+    src = Path(cli.__file__).read_text(encoding="utf-8")
+    rows = re.findall(r"^\s*\(\(\"([\w-]+)\",\), lambda: .*?#\s*knos ([\w-]+)", src, re.M)
+    assert rows and all(name == said for name, said in rows), [r for r in rows if r[0] != r[1]]
