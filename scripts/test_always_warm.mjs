@@ -22,9 +22,9 @@ ok(["https://drexthealpha.github.io/Knos/", "https://knos.onrender.com/app/", "h
   "it asks for the front door, /app/ and /api/proof");
 ok(/2026-11-06T06:00:00Z/.test(wf) && /gh workflow disable live-window\.yml/.test(wf), "from 6 Nov 06:00 UTC it turns itself off");
 try {
-  const runs = JSON.parse(execFileSync("gh", ["run", "list", "--workflow", "live-window.yml", "--event", "schedule", "-L", "20", "--json", "conclusion,createdAt,databaseId"], { encoding: "utf8", timeout: 120000 }));
-  const good = runs.filter((r) => r.conclusion === "success");
-  ok(good.length >= 1, `GitHub ran it on its timer: ${good.length} of ${runs.length} scheduled runs succeeded${good[0] ? `, the latest ${good[0].createdAt} (run ${good[0].databaseId})` : ""}`);
+  const runs = JSON.parse(execFileSync("gh", ["run", "list", "--workflow", "live-window.yml", "--event", "schedule", "-L", "20", "--json", "status,conclusion,createdAt,databaseId"], { encoding: "utf8", timeout: 120000 }));
+  const good = runs.filter((r) => r.conclusion === "success" || r.status === "in_progress");     // a run asks for up to 6 hours
+  ok(good.length >= 1, `GitHub ran it on its timer: ${good.length} of ${runs.length} scheduled runs asking or done${good[0] ? `, the latest ${good[0].createdAt} (run ${good[0].databaseId}, ${good[0].status})` : ""}`);
 } catch (e) {
   ok(false, `GitHub runs: ${String(e.message).split("\n")[0].slice(0, 120)}`);
 }
