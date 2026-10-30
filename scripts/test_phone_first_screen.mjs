@@ -30,8 +30,8 @@ try {
         if (!c) return false;
         const r = c.getBoundingClientRect();
         return new RegExp(re).test(c.innerText || "") && r.top < innerHeight && r.bottom > 0;
-      }, VERDICT.source, { timeout: 15000, polling: 100 }).then(() => Date.now() - t0).catch(() => null);
-      ok(seen !== null, `390 ${scheme}: the live Qloo card in view ${seen === null ? "not within 15 s" : `after ${(seen / 1000).toFixed(1)} s`}`);
+      }, VERDICT.source, { timeout: Math.max(1, 15000 - (Date.now() - t0)), polling: 100 }).then(() => Date.now() - t0).catch(() => null);
+      ok(seen !== null && seen <= 15000, `390 ${scheme}: the live Qloo card in view ${seen === null ? "not within 15 s" : `after ${(seen / 1000).toFixed(1)} s`}`);
       const wide = await page.evaluate(() => [...document.querySelectorAll("body *")].filter((e) => {
         const r = e.getBoundingClientRect(), s = getComputedStyle(e);
         return r.width > 0 && s.visibility !== "hidden" && (r.right > innerWidth + 1 || r.left < -1) && !e.closest("[hidden], .k-sr, .sr-only");
