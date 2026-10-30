@@ -158,6 +158,6 @@ ATTACKS = [
     (EXAMPLES, stub_examples),
     (CONSTANT, stub_constant),
     ("source sleeps when it is not run by pytest (a timeout)", source_sleeps),
-    ("source writes over the check in the judge's base checkout", writes_into_the_base),
+    ("source writes over the check in the referee's base checkout", writes_into_the_base),
 ]
 DELIVERS = ("source hands the work to the real code the check compares with", delegate)

@@ -522,7 +522,7 @@ def test_the_report_states_both_rates_with_their_sample_sizes_and_what_is_still_
     assert old == 48 and f"it now accepts {old} of {old}" in block          # the set of 0.3.16, of which 39 were accepted
     refused = [ln for ln in block.splitlines() if ln.startswith("| ") and "touches protected path" in ln]
     assert len(refused) == len(H.RULE_REFUSED) and all(f"| {n} |" in ln for (n, _), ln in zip(H.RULE_REFUSED, refused))
-    assert "NOT in the count above" in block and f"None of the {total} was refused by a Knos judge." in block
+    assert "NOT in the count above" in block and f"None of the {total} was refused by a Knos referee." in block
     again = bench.place_honest(doc, block.join(["<!-- honest:begin -->", "<!-- honest:end -->"]).split("\n"))
     assert again == doc                                                     # the block is replaced in place, never doubled
 

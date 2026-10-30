@@ -130,7 +130,7 @@ DEMAND_BODIES = {"/api/check": "idea", "/api/cross": "ref or idea"}
 def demand_body(path: str) -> dict:
     """The body of a demand check: the idea (or paper), the market, and every family field of knos.qloo_families."""
     from knos import qloo_families as Q
-    props = {"idea": {"type": "string", "description": "the product idea, 8 to 500 characters", "examples": ["a cold brew coffee shop"]},
+    props = {"idea": {"type": "string", "description": "the product idea, 3 to 500 characters", "examples": ["a cold brew coffee shop"]},
              "place": {"type": "string", "description": "the launch market (city or country)", "examples": ["Austin"]},
              "leader": {"type": "string", "description": "the market leader to compare against", "examples": ["Starbucks"]}}
     if path == "/api/cross":

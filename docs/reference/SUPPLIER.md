@@ -91,7 +91,7 @@ test fails when a refusal exists without its two sentences.
 <!-- refusals: begin (scripts/supplier_docs.py) -->
 | Code | What happened | What to do |
 | --- | --- | --- |
-| `judge.protected-path` | The change touches a path the judge protects. | Take that file out; add new tests as new files. |
+| `judge.protected-path` | The change touches a path the referee protects. | Take that file out; add new tests as new files. |
 | `judge.existing-test-edited` | The change edits or deletes a test that already existed. | Restore that test; put your own tests in a new file. |
 | `judge.test-config` | The change edits a file that decides how tests run. | Restore that file; ask the buyer to change it. |
 | `judge.terms` | The change touches the terms or the acceptance checks. | Take that file out; both were fixed at funding. |
@@ -100,15 +100,15 @@ test fails when a refusal exists without its two sentences.
 | `judge.scripts` | The change edits the scripts of `package.json`. | Restore the scripts; ask the buyer to change them. |
 | `judge.protected-test-edited` | The change edits a test that already existed. | Restore that test; put your own tests in a new file. |
 | `judge.protected-test-deleted` | The change deletes a test that already existed. | Restore that test; put your own tests in a new file. |
-| `judge.bad-issue` | The issue given to the judge is not an issue number. | Run the judge again with the issue's number. |
+| `judge.bad-issue` | The issue given to the referee is not an issue number. | Run the referee again with the issue's number. |
 | `judge.no-bundle` | The default branch holds no acceptance checks for this issue. | Ask the buyer to restore `.knos/acceptance/<issue>/`. |
 | `judge.runner` | The repository names a test runner Knos does not have. | Ask the buyer to fix `runner` in `.knos/proof.toml`. |
-| `judge.image` | The judge's container image could not be pulled or run. | Run it again; nothing is held against you. |
+| `judge.image` | The referee's container image could not be pulled or run. | Run it again; nothing is held against you. |
 | `judge.no-sandbox` | This machine has no sandbox to run your code in. | Run on Linux with setpriv and unshare, or in the workflow. |
 | `judge.sandbox-python` | The sandbox user cannot run this Python. | Install knos where every user can reach it. |
 | `judge.no-report` | The test run ended without writing a report. | Look for a crash or a timeout, then submit again. |
-| `judge.sentinel` | The judge's own passing test did not run and pass. | Remove whatever changes which tests are collected. |
-| `judge.canary` | The judge's own failing test did not fail. | Remove whatever makes every test pass. |
+| `judge.sentinel` | The referee's own passing test did not run and pass. | Remove whatever changes which tests are collected. |
+| `judge.canary` | The referee's own failing test did not fail. | Remove whatever makes every test pass. |
 | `judge.no-acceptance-ran` | No acceptance check ran on your change. | Make sure your change does not break test collection. |
 | `judge.acceptance-missing` | Acceptance checks that ran on the base did not run here. | Restore what those checks need to be collected. |
 | `judge.acceptance-failed` | Your change does not pass the acceptance checks. | Read the named checks, fix the code, submit again. |
@@ -119,7 +119,7 @@ test fails when a refusal exists without its two sentences.
 | `judge.false-claim` | The description claims passing checks, and GitHub's record disagrees. | Fix the failed check, or correct the description. |
 | `judge.merge-mode` | This order pays on a merge, not on acceptance checks. | Wait for a maintainer to merge. |
 | `judge.bundle-changed` | The acceptance checks on the base are not the funded ones. | Ask the buyer to restore them, or to fund again. |
-| `terms.check-failed` | A check the order names failed at your last commit. | Fix it and push; the newest commit is judged. |
+| `terms.check-failed` | A check the order names failed at your last commit. | Fix it and push; the newest commit is checked. |
 | `terms.check-pending` | A check the order names has not finished. | Wait for it to finish, then ask again. |
 | `terms.check-skipped` | A check the order names was skipped; skipped is not passed. | Make that check run on your pull request. |
 | `terms.check-absent` | A check the order names did not run on your commit. | Push a commit that starts it, or ask a maintainer. |
@@ -137,20 +137,20 @@ test fails when a refusal exists without its two sentences.
 | `command.malformed` | The command was not written in its form. | Type it the way the reply shows. |
 | `command.not_allowed` | This command belongs to someone else. | Use the command the reply offers instead. |
 | `command.misplaced` | The command was written in the wrong place. | Comment it on the issue or pull request named. |
-| `rerun.other` | The neutral judge's run was about another order or commit. | Start the neutral judge again for this pull request. |
-| `rerun.failed` | The acceptance suite did not pass when the neutral judge ran it. | Read its reasons; appeal if they are wrong. |
-| `rerun.no-trees` | The neutral judge's verdict does not name the two trees judged. | Start the neutral judge again. |
-| `rerun.image` | The neutral judge did not run the suite in the funded image. | Start the neutral judge again on a runner with containers. |
-| `rerun.not-black-box` | The neutral judge did not run your code black-box. | Start the neutral judge again. |
+| `rerun.other` | The neutral referee's run was about another order or commit. | Start the neutral referee again for this pull request. |
+| `rerun.failed` | The acceptance suite did not pass when the neutral referee ran it. | Read its reasons; appeal if they are wrong. |
+| `rerun.no-trees` | The neutral referee's verdict does not name the two trees checked. | Start the neutral referee again. |
+| `rerun.image` | The neutral referee did not run the suite in the funded image. | Start the neutral referee again on a runner with containers. |
+| `rerun.not-black-box` | The neutral referee did not run your code black-box. | Start the neutral referee again. |
 | `rerun.bundle-changed` | The acceptance checks at the base commit are not the funded ones. | Ask the buyer which commit holds the funded checks. |
-| `rerun.cannot-run` | The neutral judge could not run on its machine. | Run it again; nothing is held against you. |
+| `rerun.cannot-run` | The neutral referee could not run on its machine. | Run it again; nothing is held against you. |
 | `rerun.insufficient-evidence` | This run could not decide (insufficient evidence). | Run the workflow again; nothing is paid or held against you. |
 | `appeal.nothing` | An accepted verdict leaves nothing to appeal. | Read `/knos status` for when the money moves. |
 | `appeal.unjudged` | No verdict on this pull request is on record yet. | Comment it again once the pull request is settled. |
 | `appeal.not-supplier` | Only the account that did the work can appeal. | Ask the pull request's author to comment it. |
 | `appeal.no-reason` | The appeal gives no reason. | Comment `/knos appeal <reason>` with one sentence. |
-| `appeal.open` | An appeal of this verdict is open already. | Wait for the neutral judge's run to end. |
-| `appeal.closed` | This appeal has ended, and its verdict stands. | Open a new pull request to be judged again. |
+| `appeal.open` | An appeal of this verdict is open already. | Wait for the neutral referee's run to end. |
+| `appeal.closed` | This appeal has ended, and its verdict stands. | Open a new pull request to be checked again. |
 | `pay.76` | The signing key is not active on chain yet. | Try again after its delay and the guardian's approval. |
 | `pay.77` | The signing key has expired on chain. | Run the rotate workflow, then relay the token again. |
 | `pay.78` | The signing key was revoked on chain. | Run the workflow again for a token from another key. |

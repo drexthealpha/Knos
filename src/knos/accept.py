@@ -38,7 +38,7 @@ from pathlib import Path
 
 from . import judge
 
-MAX_CASES = 200                 # one run of the command per case, each in the judge's sandbox
+MAX_CASES = 200                 # one run of the command per case, each in the referee's sandbox
 MAX_INPUT = 2000                # characters of one input line
 TIMEOUT = 20                    # seconds the reference may take for one case
 KINDS = ("text", "int", "ints")
@@ -130,7 +130,7 @@ def record(argv: list[str], lines: list[str], cwd: Path | None = None) -> list[d
 
 _JUDGE = '''"""Black-box acceptance for issue {issue}, made by `knos accept init`. Read README.md.
 
-This file runs as the judge, outside the pull request's tree, and never loads the pull request's code. It runs
+This file runs as the referee, outside the pull request's tree, and never loads the pull request's code. It runs
 "$KNOS_RUN <command>" (which runs the command in the pull request's tree, inside the sandbox) on every input in
 cases.json, and compares what it prints with the answer recorded from the reference. Exit 0 means every case agrees."""
 import json
@@ -178,11 +178,11 @@ if __name__ == "__main__":
 _README = """# Acceptance checks for issue {issue}
 
 Made by `knos accept init` from a reference implementation: {n} inputs ({kind}, seed {seed}) and the answer the reference
-gave to each, in `cases.json`. `blackbox.py` is the judge. It runs `{run}` in the pull request's tree for every input,
+gave to each, in `cases.json`. `blackbox.py` is the referee. It runs `{run}` in the pull request's tree for every input,
 with the input on standard input, and compares what it prints with the recorded answer (trailing spaces and blank lines at
 the end are ignored). Exit 0 means every case agrees.
 
-It is black-box: the pull request's code runs as a separate process, and the judge never loads it, so nothing that code
+It is black-box: the pull request's code runs as a separate process, and the referee never loads it, so nothing that code
 does can change the verdict except printing the right answer. That is what lets Knos pay on this check alone, without a
 merge, when this folder is on the default branch before the bounty is funded: `/knos fund <amount>` on issue {issue}.
 
@@ -236,7 +236,7 @@ def scaffold(root: Path, issue: int, reference: str, run: str | None = None, cas
     if not isinstance(issue, int) or isinstance(issue, bool) or not 1 <= issue <= 10 ** 9:
         raise Refused(f"--issue is the issue's number, like 12; {issue!r} is not one.")
     if given is None and not 1 <= cases <= MAX_CASES:
-        raise Refused(f"--cases is from 1 to {MAX_CASES} (each is one run of the command in the judge's sandbox); {cases} is not.")
+        raise Refused(f"--cases is from 1 to {MAX_CASES} (each is one run of the command in the referee's sandbox); {cases} is not.")
     argv, run_argv = _argv(reference, "--from"), _argv(run, "--run") if run else None
     run_argv = run_argv or argv
     folder = root / ".knos" / "acceptance" / str(issue)

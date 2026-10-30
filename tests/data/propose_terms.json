@@ -951,7 +951,7 @@
     "Template default: no arbiter is named. Name one neither side controls, or a rejection can only be undone by agreement."
    ],
    "evaluators": [
-    "Template default: the order's own repository, acme/widgets, judges. Add a second owner and `quorum 2` if the supplier does not trust it."
+    "Template default: the order's own repository, acme/widgets, checks the work. Add a second owner and `quorum 2` if the supplier does not trust it."
    ],
    "price": [
     "Template default (`bug-fix`)."

@@ -155,7 +155,7 @@ def propose(repo: str, get, now: float, template: str = "bug-fix") -> dict:
                      (f"`{owners_file}` names nobody for every file, so the owner, @{owner}, is proposed." if owners_file else
                       f"{repo} has no CODEOWNERS file, so the owner, @{owner}, is proposed.")]
     src["dispute"] = ["Template default: no arbiter is named. Name one neither side controls, or a rejection can only be undone by agreement."]
-    src["evaluators"] = [f"Template default: the order's own repository, {repo}, judges. Add a second owner and `quorum 2` if the supplier does not trust it."]
+    src["evaluators"] = [f"Template default: the order's own repository, {repo}, checks the work. Add a second owner and `quorum 2` if the supplier does not trust it."]
 
     while True:         # an order's terms hold 600 bytes: the checks that do not fit are left out, and said
         try:

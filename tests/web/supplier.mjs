@@ -74,7 +74,7 @@ same("three classes, each with a label of three words at most", CLASSES.map((c) 
   same("the sample: funded with separators, nine days left, the neutral judge, paid the day the checks pass", cols(s), [
     ["funded", "5,000.00 test USDC", "Held for this work since funding. The funder paid the 15.00 fee on top."],
     ["window", "9 days 4 hours left", "Passing checks pay without a merge until 2026-10-17 12:00 UTC. Then unpaid money returns to the funder."],
-    ["appeal", "A neutral judge decides", "Refused? Comment /knos appeal with your reason, free. Another account runs the agreed checks again."],
+    ["appeal", "A neutral referee decides", "Refused? Comment /knos appeal with your reason, free. Another account runs the agreed checks again."],
     ["payment", "The day the checks pass", "4,500.00 test USDC at once; 10% (500.00) 14 days later. Latest: 2026-10-31."]]);
   const open = orderOf("order (open, from a wallet, public)"), merge = fin.financeOf(open, open.deadline + 1, { tx: "5".repeat(88) });
   same("an order paid on a merge, after its window: closed, and the funding transaction is linked", [merge.rows[1].value, merge.rows[1].detail.startsWith("Merged passing work is paid until"), merge.rows[0].href, merge.rows[3].detail],

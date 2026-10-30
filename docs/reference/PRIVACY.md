@@ -160,8 +160,8 @@ the live 2.2 rule (0.30%, at least 0.05), a 20.00 order pays 0.06.
 | workflow commit | yes | `cccccccccccccccccccccccccccccccccccccccc` | bytes 384..424 of the order's account, while the order is open; `job_workflow_sha` in the pay token GitHub signed (knos_oidc instruction data); `job_workflow_sha` in the funding token GitHub signed (knos_oidc instruction data) |
 | accepted commit | yes | `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` | the head commit in the pay token's audience |
 | whether a reservation named someone | yes | `GitHub id 1234567, until 2026-09-23 14:13:21 UTC` | `taker=` of the `knos3:reserved` log line; bytes 128..136 of the order's account, while the order is open; `actor` in the reserving token GitHub signed (knos_oidc instruction data) |
-| judge (attestor) repository | yes | `octo/widgets (id 987654321)` | `repository` in the pay token GitHub signed (knos_oidc instruction data); `judge=` of the `knos3:settled` log line |
-| who started the run that judged it | yes | `mona (id 1234567)` | `actor` in the pay token GitHub signed (knos_oidc instruction data) |
+| referee (attestor) repository | yes | `octo/widgets (id 987654321)` | `repository` in the pay token GitHub signed (knos_oidc instruction data); `judge=` of the `knos3:settled` log line |
+| who started the run that checked it | yes | `mona (id 1234567)` | `actor` in the pay token GitHub signed (knos_oidc instruction data) |
 | other orders of the same Balance or wallet | yes | `3 in all, 95.000000 funded` | `source=` of the `knos3:funded` log line, the same on each |
 | order sizes with this supplier | yes | `2 payments: 20.000000, 40.000000` | `amount=` and `payee=` across those orders: repeated sizes mark a standing relationship |
 <!-- /observe:public -->
@@ -200,8 +200,8 @@ before.
 | workflow commit | yes | `cccccccccccccccccccccccccccccccccccccccc` | bytes 384..424 of the order's account, while the order is open; `job_workflow_sha` in the pay token GitHub signed (knos_oidc instruction data); `job_workflow_sha` in the funding token GitHub signed (knos_oidc instruction data) |
 | accepted commit | yes | `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` | the head commit in the pay token's audience: it says nothing without the repository, and confirms a guess |
 | whether a reservation named someone | yes | `none was made` | no `knos3:reserved` log line names this order |
-| judge (attestor) repository | yes | `octo/knos-settle (id 31313131)` | `repository` in the pay token GitHub signed (knos_oidc instruction data); bytes 184..192 of the order's account, while the order is open |
-| who started the run that judged it | yes | `mona (id 1234567)` | `actor` in the pay token GitHub signed (knos_oidc instruction data) |
+| referee (attestor) repository | yes | `octo/knos-settle (id 31313131)` | `repository` in the pay token GitHub signed (knos_oidc instruction data); bytes 184..192 of the order's account, while the order is open |
+| who started the run that checked it | yes | `mona (id 1234567)` | `actor` in the pay token GitHub signed (knos_oidc instruction data) |
 | other orders of the same Balance or wallet | yes | `3 in all, 95.000000 funded` | `source=` of the `knos3:funded` log line, the same on each |
 | order sizes with this supplier | yes | `2 payments: 20.000000, 40.000000` | `amount=` and `payee=` across those orders: repeated sizes mark a standing relationship |
 <!-- /observe:private -->

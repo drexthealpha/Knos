@@ -452,14 +452,14 @@ def _named(checks: list) -> str:
 
 
 ASSURANCE = {      # what each way of judging was measured to stop: docs/reference/TAMPER.md has the numbers, docs/reference/ASSURANCE.md the table
-    "in-process": "The checks load the pull request's code into the process that judges it: 7 of 63 cheating pull "
+    "in-process": "The checks load the pull request's code into the process that checks it: 7 of 63 cheating pull "
                   "requests in Knos's tamper suite passed this mode (docs/reference/TAMPER.md).",
-    "black-box": "The pull request's code runs as a separate process on the judge's machine and only its output is "
+    "black-box": "The pull request's code runs as a separate process on the referee's machine and only its output is "
                  "compared: 0 of 63 cheating pull requests in that suite passed. That is a count for that suite, not a "
                  "proof for every attack.",
     "hermetic": "The pull request's code runs black-box inside a container image pinned by digest, with no network, a "
                 "read-only root, no host files but its own tree, and memory, CPU, process and time limits: 0 of 63 in "
-                "that suite passed black-box, and anyone can run the same judge again on the same image. That is a "
+                "that suite passed black-box, and anyone can run the same referee again on the same image. That is a "
                 "count for that suite, not a proof for every attack.",
 }
 

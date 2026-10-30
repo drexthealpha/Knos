@@ -41,7 +41,7 @@ HASHED = ("repository: id", "issue", "pull request", "checks named in the terms"
 HIDDEN = ("repository: name", "branch")
 LEAKS = ("buyer organisation: GitHub id", "buyer organisation: name", "who gave the funding command", "where the money came from (a Balance or a wallet)",
          "supplier (payee): GitHub id", "supplier (payee): wallet", "amount", "fee", "mint (which money)", "funding time", "acceptance time", "review window",
-         "workflow commit", "accepted commit", "judge (attestor) repository", "who started the run that judged it", "other orders of the same Balance or wallet",
+         "workflow commit", "accepted commit", "referee (attestor) repository", "who started the run that checked it", "other orders of the same Balance or wallet",
          "order sizes with this supplier")
 
 
@@ -169,7 +169,7 @@ def test_every_listed_fact_of_a_public_order_is_found_and_says_where():
     assert got["funding time"]["value"].startswith("2026-09-21 ") and got["acceptance time"]["value"].startswith("2026-09-21 ")
     assert start < w.c.txs[-1]["blockTime"] and got["review window"]["value"] == "1 h 00 min from funding to payment; open for work until 2026-10-05 14:13:21 UTC"
     assert got["whether a reservation named someone"]["value"].startswith(f"GitHub id {AUTHOR}, until 2026-09-23 ")
-    assert got["judge (attestor) repository"]["value"] == f"octo/widgets (id {REPO})" and got["who started the run that judged it"]["value"] == "mona (id 1234567)"
+    assert got["referee (attestor) repository"]["value"] == f"octo/widgets (id {REPO})" and got["who started the run that checked it"]["value"] == "mona (id 1234567)"
     # each line says which log line, account field or claim it was read from
     assert got["amount"]["where"] == "`amount=` of the `knos3:funded` log line; bytes 64..72 of the order's account, while the order is open"
     assert "`repository` in the funding token GitHub signed (knos_oidc instruction data)" in got["repository: name"]["where"]
@@ -212,11 +212,11 @@ def test_a_private_order_hides_its_repository_issue_branch_checks_and_paths_and_
     assert {f: got[f]["learns"] for f in LEAKS} == dict.fromkeys(LEAKS, observe.YES) and set(LEAKS) <= set(facts["still_public"])
     want = {"buyer organisation: GitHub id": str(OWNER), "buyer organisation: name": "octo", "supplier (payee): GitHub id": str(AUTHOR), "supplier (payee): name": "mona",
             "supplier (payee): wallet": str(WALLET_A), "amount": "40.000000", "fee": "0.120000 on top, paid by the funder", "mint (which money)": str(w.c.usdc),
-            "judge (attestor) repository": f"{ATTESTOR} (id {ATTESTOR_ID})", "other orders of the same Balance or wallet": "3 in all, 95.000000 funded",
+            "referee (attestor) repository": f"{ATTESTOR} (id {ATTESTOR_ID})", "other orders of the same Balance or wallet": "3 in all, 95.000000 funded",
             "order sizes with this supplier": "2 payments: 20.000000, 40.000000", "where the money came from (a Balance or a wallet)": str(w.c.bal)}
     assert {k: got[k]["value"] for k in want} == want
     assert got["funding time"]["value"].startswith("2026-09-22 ") and got["review window"]["value"].startswith("2 h 00 min from funding to payment")
-    assert "`repository` in the pay token" in got["judge (attestor) repository"]["where"] and "bytes 184..192" in got["judge (attestor) repository"]["where"]
+    assert "`repository` in the pay token" in got["referee (attestor) repository"]["where"] and "bytes 184..192" in got["referee (attestor) repository"]["where"]
     assert not any(path.startswith("repositories/") for path in api.asked)          # there is no repository id to look up
     said = "\n".join(observe.table_text(facts))
     assert "A private order hides its repository, issue and terms. It still shows: " in said and "not a guarantee" in said

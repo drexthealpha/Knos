@@ -54,7 +54,7 @@ FIELDS = (
     ("window", "How long can it be reopened?", "the reopening and warranty window"),
     ("changes", "What may change?", "the paths allowed and what a contributor may add without authority"),
     ("dispute", "Who may appeal, and to whom?", "who may appeal, to which evaluator, by when, and where money stays meanwhile"),
-    ("evaluators", "Who may judge?", "the authorised evaluators, and for a quorum that their owners differ"),
+    ("evaluators", "Who may referee?", "the authorised evaluators, and for a quorum that their owners differ"),
     ("price", "What does it pay?", "the price and the currency"),
     ("deadline", "When does it end?", "the deadline and what happens to a token presented late"),
     ("policy", "Who may change these terms?", "who may publish a new version and how a version is cited"),

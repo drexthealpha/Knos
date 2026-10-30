@@ -187,7 +187,7 @@ export function renderCheck(el, ctx = {}) {
         if (mineRec && ref.owner === "drexthealpha" && ref.repo === "knos-e2e") {
           out.insertAdjacentHTML("beforeend", `<p class="k-fine" id="check-recorded">Recorded ${escHtml(day(rec.recorded))} from GitHub:</p>` + answerHtml(mineRec));
         } else if (rec) {
-          out.insertAdjacentHTML("beforeend", `<p class="k-fine" id="check-recorded">Meanwhile, a recorded check of two pull requests Knos judged:</p><div id="check-recorded-sample"></div>`);
+          out.insertAdjacentHTML("beforeend", `<p class="k-fine" id="check-recorded">Meanwhile, a recorded check of two pull requests Knos checked:</p><div id="check-recorded-sample"></div>`);
           renderSample(out.querySelector("#check-recorded-sample"));
         }
       }

@@ -54,8 +54,8 @@ def test_calls_the_hosted_check(monkeypatch, local_app):
 
 def test_refuses_bad_input_and_unreachable(monkeypatch):
     monkeypatch.setenv("KNOS_WANTED_URL", "http://127.0.0.1:9")
-    with pytest.raises(mcp.Failed, match="8 to 500"):
-        demand_tool.demand_check({"idea": "short"})
+    with pytest.raises(mcp.Failed, match="3 to 500"):           # a one-word idea ("Phoenix") is checked; two letters are not
+        demand_tool.demand_check({"idea": "ab"})
     with pytest.raises(mcp.Failed, match="could not be reached"):
         demand_tool.demand_check({"idea": "A smart water bottle that glows"})
     monkeypatch.setenv("KNOS_WANTED_URL", "ftp://x")

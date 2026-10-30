@@ -27,7 +27,7 @@ MCP_TOOLS: list[dict[str, Any]] = [{
                     "segments, rising or falling, and overlap vs the leader. Returns a decision made by code: OPEN pre-orders "
                     "(target units and reserve) or REFUSE with reasons; without Qloo evidence it says 'cannot decide'. "
                     "Every number names the Qloo call that produced it. Directional demand evidence, not a sales forecast."),
-    "properties": {"idea": {"type": "string", "description": "the product idea in plain words, or a paper's DOI (8 to 500 characters)"},
+    "properties": {"idea": {"type": "string", "description": "the product idea in plain words, or a paper's DOI (3 to 500 characters)"},
                    "picked": {"type": "boolean", "description": "true when idea is the exact reading picked from the readings a first call returned"},
                    "place": {"type": "string", "description": "where to look for demand (a city or country); default United States"},
                    "leader": {"type": "string", "description": "the market leader to compare against; default Qloo's top match"},
@@ -47,8 +47,8 @@ def _fail(text: str) -> NoReturn:
 
 def demand_check(args: dict) -> dict:
     idea = args.get("idea")
-    if not isinstance(idea, str) or not 8 <= len(idea.strip()) <= 500:
-        _fail("idea: the product idea in 8 to 500 characters")
+    if not isinstance(idea, str) or not 3 <= len(idea.strip()) <= 500:
+        _fail("idea: the product idea in 3 to 500 characters")
     try:
         opts = qloo_families.options({k: args[k] for k in qloo_families.FIELDS if k in args})
     except ValueError as why:

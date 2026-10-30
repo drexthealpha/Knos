@@ -203,7 +203,7 @@ for (const name of offered) {
   const t = byName[name];
   check(`template ${name}: its ONE sentence, as knos terms show says it`, (await text(page, "#buy-sentence")) === `${t.sentence.replace(/`/g, "")}.`, await text(page, "#buy-sentence"));
   check(`  the comment that funds it is the template's own`, (await text(page, "#buy-comment")) === t.comment, await text(page, "#buy-comment"));
-  check(`  it says how it is judged (${t.assurance}) and what is still trusted`, (await text(page, "#buy-mode")) === `judged ${t.assurance}`
+  check(`  it says how it is judged (${t.assurance}) and what is still trusted`, (await text(page, "#buy-mode")) === `checked ${t.assurance}`
     && JSON.stringify(await page.$$eval("#buy-trusted li", (l) => l.map((e) => e.textContent))) === JSON.stringify(t.trusted));
   check(`  a passkey ${t.passkey ? "can" : "cannot"} fund it, and the page says so`, (await page.isVisible("#buy-pk")) === t.passkey && (t.passkey || (await text(page, "#buy-pk-why")).includes(t.passkey_why_not)));
 }
@@ -377,7 +377,7 @@ check("a paid order: its state from the chain's log, and the states it went thro
 const receipt = await page.$$eval("#buy-receipt > dt", (l) => l.map((e) => [e.textContent, e.nextElementSibling.textContent.trim().replace(/\s+/g, " ")]));
 check("6. beside accepted: the receipt's five parts as headings, in order", JSON.stringify(receipt.map((r) => r[0]))
   === JSON.stringify(["What the issuer authenticated", "What the evaluator observed", "Which policy produced the verdict", "Who authorised the money, and under which limit", "What trust remains"]), receipt.map((r) => r[0]));
-check("  one line each, from what the chain's log holds: the token, the verdict, the terms, who funded, what is trusted", /GitHub signed a token for one run of the pinned workflow/.test(receipt[0][1]) && /Verdict: accepted, for pull request #12\. Judged by a neutral run/.test(receipt[1][1])
+check("  one line each, from what the chain's log holds: the token, the verdict, the terms, who funded, what is trusted", /GitHub signed a token for one run of the pinned workflow/.test(receipt[0][1]) && /Verdict: accepted, for pull request #12\. Checked by a neutral run/.test(receipt[1][1])
   && /The terms fixed at funding, in 22222222…/.test(receipt[2][1]) && receipt[3][1].startsWith(`The wallet ${chain.wallet.slice(0, 6)}… signed the funding itself, in 22222222…`) && /No organisation's budget was involved/.test(receipt[3][1]) && receipt[4][1].length > 40, receipt);
 check("  who answers if this fails: the founder alone, no support contract, said exactly", (await text(page, "#buy-answers")).startsWith("Today the founder alone. There is no support contract, no on-call team and no service-level agreement, and nobody else to call."), await text(page, "#buy-answers"));
 if (shots) await (await page.$("#buy-step-4")).screenshot({ path: join(shots, "console-result-1280.png") });

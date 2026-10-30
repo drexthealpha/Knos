@@ -393,7 +393,8 @@ their company to do so is not something a chain can know.
 
 ### Evaluator independence
 
-Two accounts run by one person are one judge. A receipt cannot know who is behind an account, so it does not say
+`Two accounts run by one person are one judge.` (the protocol's own sentence, as signed receipts carry it). A receipt
+cannot know who is behind an account, so it does not say
 that referees are independent: it records who controls each referee that spoke, from the ids its issuer signed, and
 computes two flags from them. The referees of the third version 3 vector, a quorum of two:
 

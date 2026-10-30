@@ -13,6 +13,7 @@ Exit 1 on any hit.
 
 `files` skips the machine files of docs/MACHINE_FILES.txt (a line each: path, sha256, reason): signed receipt vectors,
 JSON schemas, pinned plans and raw run files, whose text cannot change without breaking a signature, a hash or a pin.
+docs/MACHINE_FILES.txt itself is skipped too: it names those files.
 A listed file that is missing or whose sha256 differs fails the scan. CHANGELOG.md's entries released before
 2026-10-29 are the record of those releases and are skipped; its later entries are read.
 """
@@ -215,7 +216,7 @@ def files_items():
     skip = machine_files()[0]
     for f in tracked():
         p = ROOT / f
-        if p.is_file() and f not in skip:
+        if p.is_file() and f not in skip and f != MACHINE:      # the list itself: machine file names, never prose
             raw = p.read_text(encoding="utf-8", errors="replace")
             yield f, (changelog_new(raw) if f == CHANGELOG else raw), f.startswith("web/")
 

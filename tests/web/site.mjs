@@ -2882,7 +2882,7 @@ const BAL = await k.balance(7000001, WALLET, USDC), BALTOK = await k.baltok(BAL)
     check(`  ${from === "#hero-cue" ? "the cue at the foot of the hero" : "a link to Demo"} brings the round under the bar and puts the focus on its first action`, there && await page.evaluate(() => location.hash === "#demo"),
       await page.evaluate(() => [document.activeElement?.className, document.getElementById("demo").getBoundingClientRect().top]));
   }
-  check("  the cue is an arrow with a name, no word of the forty, and stays inside the hero", (await text(page, "#hero-cue")).trim() === "" && (await page.getAttribute("#hero-cue", "aria-label")) === "The demo, below" && await page.evaluate(() => { scrollTo(0, 0); const c = document.getElementById("hero-cue").getBoundingClientRect(), h = document.querySelector(".hero").getBoundingClientRect(), b = document.querySelector(".hero .actions").getBoundingClientRect(); return c.bottom <= h.bottom + 1 && c.top >= b.bottom; }));
+  check("  the cue is an arrow with a name, no word of the forty, and stays inside the hero", (await text(page, "#hero-cue")).trim() === "" && (await page.getAttribute("#hero-cue", "aria-label")) === "The sample, below" && await page.evaluate(() => { scrollTo(0, 0); const c = document.getElementById("hero-cue").getBoundingClientRect(), h = document.querySelector(".hero").getBoundingClientRect(), b = document.querySelector(".hero .actions").getBoundingClientRect(); return c.bottom <= h.bottom + 1 && c.top >= b.bottom; }));
   check("  no page but the playground's has asked GitHub for the playground's tasks", hub.playgroundAsked === 0, hub.playgroundAsked);
 
   // Check an invoice: one line, read from the mocked GitHub; the statement, its one number and its hash

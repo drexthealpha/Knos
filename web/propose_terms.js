@@ -17,7 +17,7 @@ export const MERGES = 10, FRESH_DAYS = 30, FILE = ".knos/terms.json";
 export const FIELDS = [
   ["deliverable", "What is one deliverable?"], ["evidence", "Whose signature counts?"], ["checks", "What decides?"],
   ["window", "How long can it be reopened?"], ["changes", "What may change?"], ["dispute", "Who may appeal, and to whom?"],
-  ["evaluators", "Who may judge?"], ["price", "What does it pay?"], ["deadline", "When does it end?"], ["policy", "Who may change these terms?"],
+  ["evaluators", "Who may referee?"], ["price", "What does it pay?"], ["deadline", "When does it end?"], ["policy", "Who may change these terms?"],
 ];
 const GITHUB = "https://token.actions.githubusercontent.com";
 const ISSUERS = { [GITHUB]: "GitHub Actions", "https://gitlab.com": "GitLab CI" };
@@ -215,7 +215,7 @@ export async function proposeTerms(repoGiven, env = {}) {
   src.policy = [who.length ? `\`${ownersFile}\` names ${who.join(", ")} for every file.`
     : ownersFile ? `\`${ownersFile}\` names nobody for every file, so the owner, @${owner}, is proposed.` : `${repo} has no CODEOWNERS file, so the owner, @${owner}, is proposed.`];
   src.dispute = ["Template default: no arbiter is named. Name one neither side controls, or a rejection can only be undone by agreement."];
-  src.evaluators = [`Template default: the order's own repository, ${repo}, judges. Add a second owner and \`quorum 2\` if the supplier does not trust it.`];
+  src.evaluators = [`Template default: the order's own repository, ${repo}, checks the work. Add a second owner and \`quorum 2\` if the supplier does not trust it.`];
   const doc = {
     name: repo.toLowerCase(), version: 1,
     deliverable: { kind: "pull-request", one_per: "issue" },

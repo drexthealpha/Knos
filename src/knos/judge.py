@@ -563,7 +563,7 @@ def decides_how_tests_run(path: str, runner: str = "python") -> bool:
 
 REFUSALS = {       # refused:<code> of classify_path, and the words the verdict gives for it
     "terms": "the terms and the acceptance bundle are fixed at funding",
-    "workflow": "a workflow runs from the pull request's copy, which the judge cannot replace",
+    "workflow": "a workflow runs from the pull request's copy, which the referee cannot replace",
     "not_from_base": "the run does not take this path from the base, so a change to it could reach the suite that decides",
     "scripts": "the funder's own command may run a script of package.json, and the run takes that file from the pull request",
     "protected_test_edited": "an existing protected test was edited; a new test file beside it is allowed",

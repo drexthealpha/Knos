@@ -184,7 +184,7 @@ def test_the_page_says_what_a_host_is_paid_and_what_they_can_and_cannot_do():
     for where in (readme, host_judge.PAID):
         assert "0.05 test USDC" in where and "0.30" in where and ("Nothing by the order" in where or "paid nothing by the order" in where)
     said = "\n".join(host_judge.says())
-    assert "A host can:" in said and "A host cannot:" in said and "count twice" in said and "No outside account has hosted a judge yet" in readme
+    assert "A host can:" in said and "A host cannot:" in said and "count twice" in said and "No outside account has hosted a referee yet" in readme
     for word in ("rerun", "agreed", "reported", "needs no secret"):
         assert word in readme
     for page in ("ATTESTOR.md",):

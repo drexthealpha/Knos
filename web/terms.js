@@ -21,7 +21,7 @@ const sortedSet = (list) => [...new Set(list)].sort(byPoint);
 const whole = (n) => typeof n === "number" && Number.isSafeInteger(n);
 
 // The canonical text of terms, as knos.terms.canonical writes it; throws with a plain reason for what is not terms.
-// This puts the fields in order and the lists in order. It does not judge every field as the program's reader does:
+// This puts the fields in order and the lists in order. It does not check every field as the program's reader does:
 // a hash that is published was made from terms that reader accepted.
 export function canonicalTerms(terms) {
   if (!terms || typeof terms !== "object" || Array.isArray(terms)) throw new Error("Not a terms object.");
@@ -77,14 +77,14 @@ export function newest(index) {
   return [...out.values()];
 }
 const JUDGE = { merge: "a maintainer's merge", "in-process": "in-process", "black-box": "black-box", hermetic: "hermetic" };
-export const trustOf = (t) => `Judge: ${JUDGE[t.trust?.judge] || "not said"}. Quorum: ${t.trust?.quorum || 1}.`;
+export const trustOf = (t) => `Check: ${JUDGE[t.trust?.judge] || "not said"}. Quorum: ${t.trust?.quorum || 1}.`;
 
 // ---- Knos Terms 3 (docs/reference/TERMS.md): a document that answers ten questions, each in one required field ----------------
 export const STANDARD3 = "Knos Terms 3";
 export const QUESTIONS = [
   ["deliverable", "What is one deliverable?"], ["evidence", "Whose signature counts?"], ["checks", "What decides?"],
   ["window", "How long can it be reopened?"], ["changes", "What may change?"], ["dispute", "Who may appeal, and to whom?"],
-  ["evaluators", "Who may judge?"], ["price", "What does it pay?"], ["deadline", "When does it end?"], ["policy", "Who may change these terms?"],
+  ["evaluators", "Who may referee?"], ["price", "What does it pay?"], ["deadline", "When does it end?"], ["policy", "Who may change these terms?"],
 ];
 export const file3 = (t) => `terms/3/${t.name}/${t.version}.json`;
 const facts = (d) => JSON.stringify(Object.keys(d || {}).filter((k) => k !== "says").sort().map((k) => [k, d[k]]));

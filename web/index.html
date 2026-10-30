@@ -158,7 +158,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
       <!-- THE TEN-SECOND CHECK of one pull request (web/check.js, at #check=owner/repo/123; web/front.js mounts it), its
            share row under the verdict (web/share.js). Empty and hidden until such a hash is opened. -->
       <section id="check-one" hidden style="grid-column: 1 / -1; order: 2; min-width: 0"></section>
-      <a class="hero-cue" id="hero-cue" href="#demo" aria-label="The demo, below"></a>
+      <a class="hero-cue" id="hero-cue" href="#demo" aria-label="The sample, below"></a>
     </div>
     <!-- HOW IT WORKS, under the first screen: three steps, the same three everywhere. What the advanced terms mean
          (versioned terms, the receipt's five parts, holdbacks, reserves, netting, exits) waits behind one fold each, under the
@@ -175,7 +175,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
         <div class="show"><pre>/knos fund 20 checks: test</pre></div>
         <div class="adv">
           <details class="k-more"><summary>Versioned terms: the whole contract</summary>
-<p class="fine">A versioned document of ten fields: what one deliverable is, who judges, who hears an appeal, who may change
+<p class="fine">A versioned document of ten fields: what one deliverable is, who referees, who hears an appeal, who may change
   the terms. An order cites one version. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/TERMS.md#knos-terms-3">The terms document</a>.</p>
 </details>
           <details class="k-more"><summary>Holdbacks: a share kept for a warranty</summary>
@@ -228,7 +228,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
       </ul>
       <p class="fine"><a href="https://github.com/drexthealpha/Knos/blob/main/docs/TRANSACTION.md">Read the whole record</a></p>
     </details>
-    <section id="demo" class="mount" aria-label="Demo" hidden></section>
+    <section id="demo" class="mount" aria-label="Sample" hidden></section>
 
     <h2 id="check-a-pull-request">Check a claim</h2>
     <p class="fine" id="second-fact"><a class="k-num" href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/BENCH.md">17.8%</a> of agents' first “tests pass” pull requests had a failed check: 147 of 826.</p>
@@ -1405,7 +1405,7 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
     <div class="card" id="task">
       <h3>A task with no repository</h3>
       <details class="k-more">
-<summary>How a task is judged</summary>
+<summary>How a task is checked</summary>
 <p>State the task as five or more pairs: an input and the answer it must get. Knos pays the first solution whose
   command prints every answer; its code runs as a separate process and only what it prints is compared.
   <strong>It sends nothing:</strong> you press the last button on each GitHub page yourself.</p>
@@ -1574,7 +1574,7 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
         <tr><th scope="row">Check</th><td>pull request or artifact checked</td><td>free, forever</td><td>nobody</td><td>nowhere</td></tr>
         <tr><th scope="row">Meter</th><td>evaluation</td><td>100,000 a month free per organisation, then 0.002 USD</td><td>buyer</td><td>prepaid credits</td></tr><!-- proposed; the deployed knos_meter charges 0.05 after 10,000 free (#price-honest) -->
         <tr><th scope="row">Acceptance</th><td>dollar released or reconciled against a signed acceptance</td><td>0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the 0.05 floor once per release; no cap</td><td>funder, on top of the amount</td><td>knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain)</td></tr>
-        <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the machine-priced API</td><td>0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free</td><td>the buyer, marketplace or insurer reading it</td><td><code>knos record serve</code> (anyone runs it; Knos hosts none)</td></tr>
+        <tr><th scope="row">Record</th><td>lookup of a supplier's delivery record through the machine-priced API</td><td>0.10 USD a lookup, paid per call by the caller (an agent, a platform, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free</td><td>the buyer, platform or insurer reading it</td><td><code>knos record serve</code> (anyone runs it; Knos hosts none)</td></tr>
         <tr><th scope="row">Control</th><td>organisation, per year</td><td>Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist)</td><td>buyer</td><td>contract</td></tr>
         <tr><th scope="row">Pilot</th><td>one buyer, two suppliers, 30 days, one reconciled invoice</td><td>2,500 USD, credited against year one</td><td>buyer</td><td>contract</td></tr>
       </tbody></table></div>

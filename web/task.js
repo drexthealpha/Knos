@@ -8,7 +8,7 @@
 //
 //   .knos/acceptance/<issue>/blackbox.py, cases.json, README.md
 //
-// the black-box acceptance bundle of `knos accept init` (src/knos/accept.py): the judge runs "$KNOS_RUN <command>" in the pull
+// the black-box acceptance bundle of `knos accept init` (src/knos/accept.py): the referee runs "$KNOS_RUN <command>" in the pull
 // request's tree on each input and compares what it prints with the recorded answer. The three files are those that
 // accept.bundle writes, byte for byte (tests/test_accept.py holds the recorded copies this file is tested against), with the
 // answers given by the person instead of recorded from a reference command: nothing here ran a reference.
@@ -17,10 +17,10 @@ import { cache as kept, ghKey } from "./cache.js";
 import { INSTALL_WORKFLOW, CHECK_WORKFLOW } from "./install.js";
 
 export const FOLDER = "drexthealpha/Knos/templates/knos-task";      // where Knos keeps a task repository's files
-// the two files step 1 adds: the callers that fund an issue from a comment and judge and pay the pull request that solves it
+// the two files step 1 adds: the callers that fund an issue from a comment and check and pay the pull request that solves it
 export const WORKFLOW_FILES = [[".github/workflows/knos.yml", INSTALL_WORKFLOW], [".github/workflows/knos-check.yml", CHECK_WORKFLOW]];
 export const MIN_PAIRS = 5;
-export const MAX_PAIRS = 200;        // src/knos/accept.py MAX_CASES: one run of the command per case, each in the judge's sandbox
+export const MAX_PAIRS = 200;        // src/knos/accept.py MAX_CASES: one run of the command per case, each in the referee's sandbox
 export const MAX_INPUT = 2000;       // src/knos/accept.py MAX_INPUT: characters of one input line
 export const MAX_URL = 6000;         // the longest link a new-file page is given the file in; a longer file is pasted by hand
 
@@ -58,10 +58,10 @@ export function shellSplit(text) {
 export const shellQuote = (w) => (w === "" ? "''" : /^[A-Za-z0-9_@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, `'"'"'`)}'`);
 export const shellJoin = (argv) => argv.map(shellQuote).join(" ");
 
-// ---- an answer as the judge compares it: line ends as \n, trailing spaces and the blank lines at both ends dropped --------------
+// ---- an answer as the referee compares it: line ends as \n, trailing spaces and the blank lines at both ends dropped --------------
 export const normOutput = (text) => String(text).replace(/\r\n/g, "\n").replace(/^\n+|\n+$/g, "").split("\n").map((l) => l.replace(/\s+$/u, "")).join("\n");
 
-// Characters the judge and this page could read differently (control and format characters, line and paragraph
+// Characters the referee and this page could read differently (control and format characters, line and paragraph
 // separators) are not accepted in an input or an answer: tab and the line end of an answer are the exceptions.
 const ODD = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 const odd = (text, allowed) => [...String(text)].some((ch) => ODD.test(ch) && !allowed.includes(ch));
@@ -69,7 +69,7 @@ const odd = (text, allowed) => [...String(text)].some((ch) => ODD.test(ch) && !a
 // ---- the bundle: blackbox.py, cases.json and README.md, as accept.bundle writes them -------------------------------------
 const JUDGE = (issue) => `"""Black-box acceptance for issue ${issue}, made by \`knos accept init\`. Read README.md.
 
-This file runs as the judge, outside the pull request's tree, and never loads the pull request's code. It runs
+This file runs as the referee, outside the pull request's tree, and never loads the pull request's code. It runs
 "$KNOS_RUN <command>" (which runs the command in the pull request's tree, inside the sandbox) on every input in
 cases.json, and compares what it prints with the answer recorded from the reference. Exit 0 means every case agrees."""
 import json
@@ -117,11 +117,11 @@ if __name__ == "__main__":
 const README = (issue, n, run) => `# Acceptance checks for issue ${issue}
 
 Made by \`knos accept init\` from a reference implementation: ${n} inputs (given, seed none) and the answer the reference
-gave to each, in \`cases.json\`. \`blackbox.py\` is the judge. It runs \`${run}\` in the pull request's tree for every input,
+gave to each, in \`cases.json\`. \`blackbox.py\` is the referee. It runs \`${run}\` in the pull request's tree for every input,
 with the input on standard input, and compares what it prints with the recorded answer (trailing spaces and blank lines at
 the end are ignored). Exit 0 means every case agrees.
 
-It is black-box: the pull request's code runs as a separate process, and the judge never loads it, so nothing that code
+It is black-box: the pull request's code runs as a separate process, and the referee never loads it, so nothing that code
 does can change the verdict except printing the right answer. That is what lets Knos pay on this check alone, without a
 merge, when this folder is on the default branch before the bounty is funded: \`/knos fund <amount>\` on issue ${issue}.
 
@@ -181,14 +181,14 @@ export function check({ title, description, amount, command, login, repo, pairs 
   if (!REPO.test(repo) || repo.endsWith(".git")) return bad("The repository's name is letters, digits, dots, hyphens and underscores, like knos-task.");
   const given = (pairs || []).filter((p) => String(p.input ?? "") !== "" || String(p.output ?? "").trim() !== "");
   if (given.length < MIN_PAIRS) return bad(`Give at least ${MIN_PAIRS} pairs of an input and its answer: fewer is too easy to answer from a table. ${given.length ? `${given.length} ${given.length === 1 ? "is" : "are"} filled in.` : "None is filled in."}`);
-  if (given.length > MAX_PAIRS) return bad(`At most ${MAX_PAIRS} pairs: each is one run of the command in the judge's sandbox.`);
+  if (given.length > MAX_PAIRS) return bad(`At most ${MAX_PAIRS} pairs: each is one run of the command in the referee's sandbox.`);
   const cases = [], seen = new Map();
   for (const [n, p] of given.entries()) {
     const input = String(p.input ?? ""), at = `Pair ${n + 1}`;
     if (input === "") return bad(`${at} has no input. An input is one line, and may be a single space but not nothing.`);
     if (/[\r\n]/.test(input)) return bad(`${at}: an input is one line.`);
     if ([...input].length > MAX_INPUT) return bad(`${at}: an input is ${MAX_INPUT} characters at most.`);
-    if (odd(input, ["\t"]) || odd(p.output ?? "", ["\t", "\n", "\r"])) return bad(`${at} holds a control character, which the judge and this page might read differently. Use text with tabs, spaces and line ends only.`);
+    if (odd(input, ["\t"]) || odd(p.output ?? "", ["\t", "\n", "\r"])) return bad(`${at} holds a control character, which the referee and this page might read differently. Use text with tabs, spaces and line ends only.`);
     if (seen.has(input)) return bad(`${at} has the same input as pair ${seen.get(input)}: one input has one answer.`);
     seen.set(input, n + 1);
     cases.push({ input, output: normOutput(p.output ?? "") });
@@ -211,7 +211,7 @@ export function fileLink(login, repo, branch, path, text) {
   return full.length <= MAX_URL ? { href: full, filled: true } : { href: base, filled: false };
 }
 
-// The issue's text: the description, then how it is accepted, in the words the judge will use
+// The issue's text: the description, then how it is accepted, in the words the referee will use
 export function issueBody(task) {
   return `${task.description}
 

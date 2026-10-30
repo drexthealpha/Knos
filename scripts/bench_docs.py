@@ -277,7 +277,7 @@ PLAIN = {
     "verify_github": "GitHub token verification", "verify_gitlab": "GitLab token verification", "key_guardian": "the key guardian",
     "fund_by_comment": "funding by one comment", "fund_from_wallet": "funding from a wallet", "pay_on_merge": "pay on merge",
     "hold_and_bind": "holding pay for a payee with no wallet", "refund": "refund at the deadline", "pause": "pause",
-    "work_orders": "work orders", "order_pay": "an order paying up to four payees", "tests_mode": "orders judged by the buyer's black-box tests",
+    "work_orders": "work orders", "order_pay": "an order paying up to four payees", "tests_mode": "orders checked by the buyer's black-box tests",
     "order_auto_accept": "auto-accepted orders", "top_up": "top-ups", "single_use_tokens": "single-use tokens",
     "meter_single": "one counted evaluation", "meter_batch": "a counted batch of evaluations", "meter_seller_claim": "the seller's own count",
     "passkey_payee_wallet": "a payee's passkey wallet", "passkey_funder": "a passkey funder", "passkey_fund_relay": "the passkey relay",

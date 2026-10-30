@@ -29,7 +29,7 @@ const STORE = "knos-passkey";                                        // where cl
 const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
 const ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 export const SLOTS = 9000;            // how long a signed intent is good for: about an hour, at devnet's 0.4 s a slot
-const JUDGES = { 0: "the order's own repository", 1: "a neutral run, started by hand by the owner of the repository it ran in", 2: "the judge repository the order named",
+const JUDGES = { 0: "the order's own repository", 1: "a neutral run, started by hand by the owner of the repository it ran in", 2: "the referee repository the order named",
   3: "the arbiter the order named", 9: "no token: a payment the program had already accepted" };                                             // audit.py JUDGES
 /** When an unpaid order can be sent back: its deadline, or the end of its presentation grace when it has one (sdk/settle readOrder: payUntil). */
 export const refundAt = (o) => (o.grace && Number.isFinite(o.payUntil) ? o.payUntil : o.deadline);
@@ -198,7 +198,7 @@ export function renderBuyer(el, env = {}) {
       <div class="receipt"><strong id="buy-sentence"></strong></div>
       <details class="k-more" id="buy-trust"><summary>What you still trust <span class="pill" id="buy-mode"></span></summary>
       <ul id="buy-trusted"></ul></details>
-      <details class="k-more"><summary>Three ways to judge</summary><dl class="parts" id="buy-modes"></dl></details>
+      <details class="k-more"><summary>Three ways to check</summary><dl class="parts" id="buy-modes"></dl></details>
       <p class="buy-next"><button type="button" class="k-btn" data-next="buy-step-3">Next: pay</button>
         <button type="button" class="k-btn quiet" id="buy-propose">Propose from the repository</button></p>
       <div id="buy-proposed" hidden></div>
@@ -263,7 +263,7 @@ export function renderBuyer(el, env = {}) {
       <dl class="parts" id="buy-exceptions">
         <dt>Nobody delivers by the deadline</dt><dd>Refund. Anyone can send it once the deadline has passed, and the money can only go back to where it came from: your passkey wallet, or the Balance.</dd>
         <dt>You want to stop early</dt><dd>Cancel, with 7 days' notice. A person with write access comments <code>/knos cancel</code> on the issue of an order funded by comment. A passkey wallet cannot sign a cancel today, so an order it funded runs to its deadline.</dd>
-        <dt>The accepted change is reverted</dt><dd>Revert, inside the warranty window, when the order holds a share back. A signed run of the order's repository, or of its neutral judge, sends the held share back to you. After the window the share is released to the person who did the work; anyone can send that.</dd>
+        <dt>The accepted change is reverted</dt><dd>Revert, inside the warranty window, when the order holds a share back. A signed run of the order's repository, or of its neutral referee, sends the held share back to you. After the window the share is released to the person who did the work; anyone can send that.</dd>
         <dt>The person paid has no wallet</dt><dd>Held. The payment waits for them to bind a wallet; then anyone can settle it. If they never do, it can be sent back after the hold.</dd>
       </dl></details>
     </section>
@@ -378,7 +378,7 @@ export function renderBuyer(el, env = {}) {
     $("buy-fee-warning").innerHTML = fee?.warning ? `<div class="receipt"><strong>${esc(fee.warning)}</strong></div>` : "";
     drawChecks();
     $("buy-sentence").innerHTML = v && !bad ? `${code(sentenceOf(v, book.money))}.` : esc(bad || "");
-    $("buy-mode").textContent = `judged ${t.assurance}`;
+    $("buy-mode").textContent = `checked ${t.assurance}`;
     $("buy-trusted").innerHTML = t.trusted.map((s) => `<li>${esc(s)}</li>`).join("");
     $("buy-modes").innerHTML = Object.entries(book.assurance).map(([name, means]) => `<dt>${esc(name)}${name === t.assurance ? " (this template)" : ""}</dt><dd>${esc(means)}</dd>`).join("");
     const line = v && !bad ? commentOf(v, book.default_days) : "";
@@ -623,7 +623,7 @@ export function renderBuyer(el, env = {}) {
       const tx = (sig) => `<a href="${esc(EXPLORER("tx", sig))}" target="_blank" rel="noopener">${esc(sig.slice(0, 8))}…</a>`;
       const said = { funded: (e) => `funded with ${show(Number(e.amount))} and a fee of ${show(Number(e.fee))}`, terms: () => "its terms were logged", reserved: (e) => `reserved by GitHub id ${e.taker}`,
         cancelled: () => "cancelled: it ends 7 days after this", paid: (e) => `paid ${show(Number(e.amount))} to GitHub id ${e.payee}${Number(e.pr) ? ` for pull request #${e.pr}` : ""}`,
-        settled: (e) => `accepted by ${JUDGES[e.judge] || "its judge"}; fee ${show(Number(e.fee) + Number(e.tip))}`, held: (e) => `held for GitHub id ${e.payee}, who has bound no wallet`,
+        settled: (e) => `accepted by ${JUDGES[e.judge] || "its referee"}; fee ${show(Number(e.fee) + Number(e.tip))}`, held: (e) => `held for GitHub id ${e.payee}, who has bound no wallet`,
         warranty: (e) => `${show(Number(e.held))} held back as the warranty`, released: (e) => `the holdback, ${show(Number(e.amount))}, released to GitHub id ${e.payee}`,
         refunded: (e) => `${show(Number(e.amount))} sent back to the funder`, reverted: (e) => `reverted: ${show(Number(e.amount))} went back to the funder`,
         kill: (e) => `a kill fee of ${show(Number(e.amount))} to the person who had reserved it`, topup: (e) => `topped up by ${show(Number(e.add))}`, assigned: () => "its payment was assigned" };

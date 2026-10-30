@@ -1302,8 +1302,8 @@ def _demand_check(idea: str, place: str | None = None, leader: str | None = None
     from . import families
     opts = qloo_families.options(options)          # the families' options (knos.qloo_families): refused when unknown or malformed
     idea = " ".join(str(idea or "").split())
-    if not 8 <= len(idea) <= 500:
-        raise ValueError("describe the idea in 8 to 500 characters")
+    if not 3 <= len(idea) <= 500:            # a one-word idea ("Phoenix") is a person's own input too
+        raise ValueError("describe the idea in 3 to 500 characters")
     place = (" ".join(str(place).split())[:60] or None) if place else None
     leader = (" ".join(str(leader).split())[:80] or None) if leader else None
     client = client or Client()

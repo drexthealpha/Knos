@@ -143,7 +143,7 @@ def register(app, help_lines: list | None = None) -> None:
                  help="Qloo demand check: who, gaps, where, price tier, who serves it, media kind, look up. Prints three lines; --json the report.",
                  epilog="Qloo's options, each a flag:\n\n" + flags_help())
     def demand_(ctx: typer.Context,  # type: ignore[name-defined]  # typer: imported on registration only
-                idea: str = typer.Argument(..., help="the product idea in plain words (8 to 500 characters)"),
+                idea: str = typer.Argument(..., help="the product idea in plain words (3 to 500 characters)"),
                 place: str = typer.Option("", "--place", help="the launch market (city or country)"),
                 leader: str = typer.Option("", "--leader", help="the market leader to compare against"),
                 as_json: bool = typer.Option(False, "--json", help="the whole report, not the three lines"),
