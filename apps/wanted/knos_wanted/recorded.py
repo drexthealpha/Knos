@@ -160,6 +160,12 @@ def recording(text: str) -> dict | None:
     return copy.deepcopy(r) if r else None
 
 
+def with_model(rep: dict) -> dict:
+    """The model's own recorded answer for this idea (no Qloo), on any card of that idea, live or recorded."""
+    m = _model.get(key(str(rep.get("idea") or "")))
+    return {**rep, "model_alone": {f: m.get(f) for f in MODEL_KEYS}} if m and not rep.get("model_alone") else rep
+
+
 def honest(text: str, rep: dict, picked: bool = False) -> dict:
     """The report as the card should show it (_honest), with Qloo's month line on every limited answer, and each call
     said as it is (live_or_recorded). picked: the reader picked this exact reading (which.py), so no other idea's answer
@@ -176,7 +182,7 @@ def honest(text: str, rep: dict, picked: bool = False) -> dict:
         line = qloo_status.limit_line()
         if line:
             out = {**out, "qloo_limit": line, "qloo_reset": qloo_status.reset_day()}
-    return live_or_recorded(out)
+    return live_or_recorded(with_model(out))
 
 
 RECORDED_LABEL = "Recorded {day}: Qloo data (Qloo REST API, answered on {day}, kept privately on the server)"

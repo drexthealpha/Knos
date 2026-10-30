@@ -72,3 +72,11 @@ def test_the_front_door_counts_a_failed_call_apart_waits_two_weeks_and_dates_a_r
         assert "not answered ${failed}" in src, page                  # a failed call is never counted as recorded
         assert "14 * 864e5" in src, page                               # the traction line needs a full second week
         assert "x.made || x.checked_at" in src, page                   # a result is dated by when it was made
+
+
+def test_a_live_card_carries_the_model_s_recorded_answer_for_its_idea(monkeypatch):
+    from knos_wanted import recorded
+    monkeypatch.setitem(recorded._model, recorded.key("A gene editing therapy"), {"city": "Memphis, Tennessee", "who": "w", "why": "y", "model": "m", "at": "t"})
+    got = recorded.with_model({"idea": "a gene editing therapy", "decision": {"verdict": "OPEN"}})
+    assert got["model_alone"]["city"] == "Memphis, Tennessee"
+    assert "model_alone" not in recorded.with_model({"idea": "an idea nobody asked the model"})
