@@ -174,3 +174,11 @@ def test_knos_usage_records_a_goals_token_use_only_with_the_operators_key(app, m
     assert "goals" not in got and "TASK-X" not in json.dumps(json.loads(mcp({})["content"][0]["text"]))     # kept, never shown
     from knos_wanted import product_routes
     assert product_routes._goals()["TASK-X"]["output_tokens"] == 1200
+
+
+def test_feedback_and_ask_reach_their_routes(app):
+    base, _ = app
+    st, fb = call(base, "/api/feedback", {"hash": "0" * 64, "useful": True, "note": ""})
+    assert st in (200, 400) and "io error" not in json.dumps(fb)
+    st, ask = call(base, "/api/ask", {"hash": "0" * 64, "question": "who buys"})
+    assert st == 400 and "unknown result" in ask["error"]

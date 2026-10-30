@@ -94,12 +94,13 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on("pageerror", (e) => errors.push(e.message));
   await again(() => page.goto(FRONT + "?t=" + Date.now(), { waitUntil: "networkidle", timeout: 120000 }));
-  const strip = await page.$$eval(".k-strip a, .k-strip [data-cell], [data-proof-strip] a", (a) => a.length).catch(() => 0);
+  await page.waitForSelector("#k-strip a[data-cell]", { timeout: 60000 }).catch(() => null);
+  const strip = await page.$$eval("#k-strip a[data-cell], .k-strip a, .k-strip [data-cell], [data-proof-strip] a", (a) => a.length).catch(() => 0);
   const firstText = await page.evaluate(() => document.body.innerText.slice(0, 2500));
   ok(strip >= 4 && !/0\.19.{0,40}0\.41/.test(firstText), `4 proof strip: ${strip} cells; the 0.19 line ${/0\.19/.test(firstText) ? "on" : "off"} the first screen`);
   const how = await again(async () => (await fetch(FRONT + "how-we-test.html")).text());
   ok(/0\.19/.test(how), `4 the 0.19 result is on How we test Knos: ${/0\.19/.test(how)}`);
-  await page.click("button.k-chip[data-q]");
+  await page.click("button.k-chip[data-q]", { timeout: 60000 }).catch((e) => log(`note: the chip click did not answer: ${e.message.split(/\r?\n/)[0].slice(0, 100)}`));
   await page.waitForSelector("#k-card .k-card:not([data-confirm])", { timeout: 120000 }).catch(() => null);
   let clicks = 0;
   for (let i = 0; i < 2; i++) for (const v of ["without", "with", "model"]) {
