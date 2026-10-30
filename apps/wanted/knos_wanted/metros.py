@@ -62,13 +62,16 @@ def stats(cells: list[dict]) -> list[dict]:
         a = c.get("affinity")
         m = metro(c.get("lat"), c.get("lon"))
         if m and isinstance(a, (int, float)):
-            row = by.setdefault(m["cbsa"], {"cbsa": m["cbsa"], "city": m["name"], "pop": m.get("pop"), "_a": [], "_at": []})
+            row = by.setdefault(m["cbsa"], {"cbsa": m["cbsa"], "city": m["name"], "pop": m.get("pop"), "_a": [], "_at": [], "_p": []})
             row["_a"].append(float(a))
             row["_at"].append((c["lat"], c["lon"]))
+            if isinstance(c.get("popularity"), (int, float)):
+                row["_p"].append(float(c["popularity"]))
     out = []
     for r in by.values():
         n = len(r["_a"])
         out.append({"cbsa": r["cbsa"], "city": r["city"], "cells": n, "affinity": round(sum(r["_a"]) / n, 4), "population": r["pop"],
+                    "qloo_popularity": round(sum(r["_p"]) / len(r["_p"]), 4) if r["_p"] else None,
                     "lat": round(sum(x for x, _ in r["_at"]) / n, 4), "lon": round(sum(y for _, y in r["_at"]) / n, 4)})
     lift(out)
     return sorted(out, key=lambda r: (r["cells"] < MIN_CELLS, r.get("lift") is None, -(r.get("lift") or 0), -r["cells"], r["cbsa"]))

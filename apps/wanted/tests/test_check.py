@@ -341,3 +341,16 @@ def test_bias_trends_is_asked_only_for_types_qloo_trends_and_built_is_not_a_tast
         check._recommend(Run(), kind, {}, set(), tags)
     assert "bias.trends" not in asked[0] and asked[1]["bias.trends"] == "high"
     assert "built" in check.STOP and "building" not in check.STOP
+
+
+def test_a_match_qloo_keeps_no_taste_for_is_never_a_signal():
+    bare = {"id": "x", "popularity": None, "tag_ids": []}
+    assert not check.has_taste(bare) and not check.has_taste(None)
+    assert check.has_taste({**bare, "popularity": 0.4}) and check.has_taste({**bare, "tag_ids": ["urn:tag:a"]})
+
+
+def test_a_metro_keeps_the_mean_qloo_popularity_of_its_cells():
+    from knos_wanted import metros
+    cells = [{"lat": 40.71, "lon": -74.0, "affinity": 0.9, "popularity": 0.8}, {"lat": 40.72, "lon": -74.01, "affinity": 0.7, "popularity": 0.6}]
+    row = next(r for r in metros.stats(cells) if r["cells"] == 2)
+    assert row["qloo_popularity"] == 0.7 and row["affinity"] == 0.8

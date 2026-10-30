@@ -658,6 +658,11 @@ def tied(row: dict, words: list[str], tags: list[dict]) -> bool:
     return bool(own & idea)
 
 
+def has_taste(m: dict | None) -> bool:
+    """A matched entity Qloo keeps taste for: it has a popularity or at least one tag."""
+    return bool(m) and (m.get("popularity") is not None or bool(m.get("tag_ids")))
+
+
 def _tag_tops(run: _Run, tags: list[dict], ents: list[dict], kind: str = "urn:entity:brand") -> list[dict]:
     """The products that carry this taste: the idea's matched ones, and for each of its own taste tags the tag's top
     products in the idea's kind (/v2/insights filter.tags), so an idea no product matches still reaches the people of
@@ -749,7 +754,7 @@ def _launch(run: _Run, ents: list[str], place: str | None, key: str = "signal.in
             c.update(lat=got[0], lon=got[1], coords_from="Wikidata")
     body, s7 = run.get("/v2/insights", q7, f"where: map points in {loc}, from the top products of the idea's taste tags", wait_s=MAP_WAIT_S)
     where = [{"lat": (h.get("location") or {}).get("latitude"), "lon": (h.get("location") or {}).get("longitude"),
-              "affinity": (h.get("query") or {}).get("affinity"), "src": s7}
+              "affinity": (h.get("query") or {}).get("affinity"), "popularity": (h.get("query") or {}).get("popularity"), "src": s7}
              for h in (((body or {}).get("results") or {}).get("heatmap") or [])[:HEAT_CELLS]]
     if _flat(cities):
         cities = []
@@ -765,7 +770,7 @@ def _tag_map(run: _Run, tag: str, place: str | None) -> list[dict]:
     q = _tag_map_q(tag, place)
     body, s7 = run.get("/v2/insights", q, f"where: map points for the top matched tag {tag}", wait_s=MAP_WAIT_S)
     return [{"lat": (h.get("location") or {}).get("latitude"), "lon": (h.get("location") or {}).get("longitude"),
-             "affinity": (h.get("query") or {}).get("affinity"), "src": s7}
+             "affinity": (h.get("query") or {}).get("affinity"), "popularity": (h.get("query") or {}).get("popularity"), "src": s7}
             for h in (((body or {}).get("results") or {}).get("heatmap") or [])[:HEAT_CELLS]]
 
 
@@ -910,7 +915,9 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
     if not verdict_only:                             # shown on the full card only
         fams, _sf = run.get("/v2/tags/types", q_fams, f"tag families Qloo keeps for {kind.split(':')[-1]}s")
         ev["tag_families"] = [t.get("type") for t in ((fams or {}).get("results") or {}).get("tag_types") or []][:8]
-    sig_ents = [m["id"] for m in near] or ([lead["id"]] if lead else [])
+    # a match Qloo keeps no taste for (no popularity and no tag: a place that only shares the words) is no signal; Qloo
+    # answers every insight asked through it HTTP 400 "all of the provided signal.interests.entities were invalid"
+    sig_ents = [m["id"] for m in near if has_taste(m)] or ([lead["id"]] if lead and has_taste(lead) else [])
     # every question that needs only the matched products (or, with none, the top tag's map for the retry) goes out now,
     # before "who wants it": the verdict waits on the slowest of them, not on their sum
     if sig_ents:
@@ -1037,7 +1044,7 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
     body, s7 = run.get("/v2/insights", q7, f"where: map points in {loc}", wait_s=MAP_WAIT_S)
     for h in (((body or {}).get("results") or {}).get("heatmap") or [])[:HEAT_CELLS]:
         lc, hq = h.get("location") or {}, h.get("query") or {}
-        ev["where"].append({"lat": lc.get("latitude"), "lon": lc.get("longitude"), "affinity": hq.get("affinity"), "src": s7})
+        ev["where"].append({"lat": lc.get("latitude"), "lon": lc.get("longitude"), "affinity": hq.get("affinity"), "popularity": hq.get("popularity"), "src": s7})
     return ev
 
 
