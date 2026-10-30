@@ -1104,7 +1104,8 @@ def make_handler(state: State):
                 if not isinstance(ex, list) or len(ex) > 20 or not all(isinstance(x, str) and len(x) < 80 for x in ex):
                     raise ValueError("exclude: a list of up to 20 Qloo entity ids the maker unticked")
                 from knos import qloo_families
-                opts = {k: body[k] for k in qloo_families.FIELDS if k in body and k != "exclude"}   # the families' fields, by name
+                opts = {k: body[k] for k in qloo_families.FIELDS if k in body and k != "exclude"   # the families' fields, by name
+                        and not (k == "qloo" and isinstance(body[k], str))}   # "qloo": "off" is the switch, never an option
                 if ex:
                     opts["exclude"] = ",".join(ex)
                 privacy.check({k: v for k, v in opts.items() if isinstance(v, str) and k != "exclude"})   # exclude: Qloo ids, checked above
@@ -1119,10 +1120,10 @@ def make_handler(state: State):
                 stage = "verdict" if body.get("stage") == "verdict" else None
                 if stage:
                     state.pair((self._client(), " ".join(idea.split()).lower()[:200]))
-                from . import qloo_rest                     # 10 live checks per visitor an hour (a salted hash, never the address)
+                from . import qloo_rest                     # 30 live checks per visitor an hour (a salted hash, never the address)
                 operator = product_routes._admin(self.headers.get("X-Knos-Admin"))   # the operator's measured runs: no visitor cap
                 capped = None if without or operator or getattr(self, "_free_check", False) else qloo_rest.visitor_take(qloo_rest.visitor_hash(self._client()))
-                if str(body.get("qloo") or "").lower() == "off":    # Start's "Qloo off" state: this request from the cache only
+                if str(body.get("qloo") or "").lower() == "off" or "off" in parse_qs(urlparse(self.path).query).get("qloo", []):
                     capped = "Qloo switched off for this request: answered from the private cache only"
                 rep = check.demand_check(idea, _text(body.get("place")), _text(body.get("leader"), 80),
                                          client=Client(key="") if without else state.rest, exclude=ex, options=opts, stage=stage,
