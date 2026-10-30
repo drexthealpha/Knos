@@ -563,6 +563,7 @@ class CheckBudget:
         self.req = req or secrets.token_hex(6)
         self.sent = 0
         self.fresh: set[str] = set()
+        self.asked: dict[str, tuple] = {}               # each question Qloo answered live in this request: (path, params, at)
         self._lock = threading.Lock()
 
     def __getattr__(self, name):
@@ -595,6 +596,7 @@ class CheckBudget:
         with self._lock:
             if not src.get("cached"):
                 self.fresh.add(k)
+                self.asked[k] = (path, clean, src.get("at"))
                 return got
             if slot:
                 self.sent -= 1

@@ -12,8 +12,14 @@ const OUT = process.argv[2] || "";
 const OLD = "2b93c7bc52db6cd819655c021e9186d4bdcaaaf32544512b141e3bb60fe48722";     // the front door's 22 Oct recording
 // six ideas no check has asked before, so their Qloo questions are new to the server's cache
 const stamp = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, "");
-const FRESH = ["a sourdough bagel bakery", "a matcha latte cafe", "a pickleball paddle brand", "a vinyl record shop",
-  "a hot sauce subscription brand", "a climbing gym for kids"];
+// a new set each run (a run's checks fill the private cache, so its ideas are recorded for the next): `node ... <out> <run>`
+const SETS = {
+  1: ["a sourdough bagel bakery", "a matcha latte cafe", "a pickleball paddle brand", "a vinyl record shop", "a hot sauce subscription brand", "a climbing gym for kids"],
+  2: ["a kombucha bar for runners", "a used bookshop with a cat cafe", "a mushroom coffee brand", "a pottery studio for beginners",
+    "a hot pot restaurant for students", "a vegan leather sneaker brand"],
+  3: ["a ceramic tea set brand", "a rooftop jazz lounge", "a bike repair shop for commuters", "a gluten free bakery for kids",
+    "a k-pop dance studio", "a cold plunge spa for athletes"]};
+const FRESH = SETS[process.argv[3] || "1"];
 const lines = [], fails = [];
 const log = (s) => { console.log(s); lines.push(s); };
 const ok = (c, what) => { log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails.push(what); return c; };

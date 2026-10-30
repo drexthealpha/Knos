@@ -78,7 +78,8 @@ try {
   for (const [surface, url, width] of [["front door", FRONT, 1280], ["/app/", APP + "/app/", 390]]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     page.on("pageerror", (e) => errors.push(`${surface} ${width}: ${e.message}`));
-    await page.goto(url + "?t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 120000 });
+    try { await page.goto(url + "?t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 120000 }); }
+    catch (e) { await sleep(30000); await page.goto(url + "?t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 120000 }); }   // one more try after a network blip
     for (const input of INPUTS) {
       try {
       await pace(2);

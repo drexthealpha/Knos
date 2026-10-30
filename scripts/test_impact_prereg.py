@@ -353,9 +353,56 @@ def knos_arm(truth_file: str, out: str, cache: str, send=None, plan_sha: str | N
     return 1 if stopped else 0
 
 
-def claude_arm(truth_file: str, out: str) -> int:
+def claude_arm(truth_file: str, out: str, cache: str | None = None) -> int:
+    """(a) Claude alone, D1's prompt and matching (test_where_truth). With `cache` (a folder outside the repository),
+    each code's answer is kept as it comes, so a run stopped by the machine or its network resumes where it stopped;
+    a call that does not answer in 600 s is asked once more, then counts as no answer (overlap 0)."""
     require_plan()
-    return twt.claude_arm(truth_file, out)
+    if cache is None:
+        return twt.claude_arm(truth_file, out)
+    import shutil
+    import subprocess
+    import tempfile
+    folder = Path(cache)
+    if ROOT in folder.resolve().parents:
+        raise Refused("the cache must be outside the repository")
+    folder.mkdir(parents=True, exist_ok=True)
+    t = json.loads(Path(truth_file).read_text(encoding="utf-8"))
+    exe = shutil.which("claude.exe") or shutil.which("claude.cmd") or shutil.which("claude")
+    version = ""
+    for _ in range(3):
+        try:
+            version = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=300).stdout.strip()
+            break
+        except subprocess.TimeoutExpired:
+            continue
+    rows, models = [], set()
+    with tempfile.TemporaryDirectory(prefix="knos-k6-") as cwd:
+        for r in t["codes"]:
+            f = folder / f"{r['naics']}.json"
+            if f.is_file():
+                j = json.loads(f.read_text(encoding="utf-8"))
+            else:
+                j = {"result": "", "error": "no answer in 600 s, twice"}
+                for _ in range(2):
+                    try:
+                        run = subprocess.run([exe, "-p", twt.PROMPT.format(title=r["title"]), "--output-format", "json", "--strict-mcp-config",
+                                              "--mcp-config", twt.NO_MCP], cwd=cwd, capture_output=True, text=True, timeout=600)
+                    except subprocess.TimeoutExpired:
+                        continue
+                    try:
+                        j = json.loads(run.stdout)
+                    except ValueError:
+                        j = {"result": "", "error": (run.stdout + run.stderr)[:300]}
+                    break
+                f.write_text(json.dumps(j), encoding="utf-8")
+            models |= set((j.get("modelUsage") or {}).keys())
+            lines = [x for x in str(j.get("result") or "").splitlines() if x.strip()][:twt.K]
+            picked = [dict(zip(("cbsa", "score"), twt.match(x, t["candidates"])), said=x.strip()) for x in lines]
+            rows.append({"naics": r["naics"], "said": lines, "matched": picked, "top5": [p["cbsa"] for p in picked if p["cbsa"]]})
+            print(r["naics"], [p["cbsa"] for p in picked], flush=True)
+    Path(out).write_text(json.dumps({"claude_code": version, "models": sorted(models), "rows": rows}, indent=1), encoding="utf-8")
+    return 0
 
 
 # ---------------------------------------------------------------- score

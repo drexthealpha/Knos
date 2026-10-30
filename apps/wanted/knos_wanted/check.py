@@ -1267,6 +1267,25 @@ running = [0]
 _running_lock = threading.Lock()
 
 
+def _asked_ahead(rep: dict, budget) -> None:
+    """Every question Qloo answered live during this request is on the card: one asked ahead (a prefetch) whose answer
+    this report did not read becomes a call row of its own, so the card's live count equals the server's own log."""
+    from .qloo_rest import POST_ONLY, cache_key
+    asked = getattr(budget, "asked", None) or {}
+    if not asked:
+        return
+    read = set()
+    for c in rep.get("calls") or []:
+        method, _, path = str(c.get("call") or "").partition(" ")
+        params = {k: v for k, v in (c.get("params") or {}).items() if v is not None and v != ""}
+        read.add(cache_key("POST" if any(x in POST_ONLY for x in params) else "GET", path, params))
+    for k, (path, params, at) in asked.items():
+        if k not in read:
+            rep.setdefault("calls", []).append({"n": len(rep["calls"]) + 1, "call": f"GET {path}", "params": params, "cached": False, "at": at,
+                                                "what": "asked ahead, not used in this answer", "ms": 0, "effect": "none: asked ahead",
+                                                "out": ""})
+
+
 def demand_check(idea: str, place: str | None = None, leader: str | None = None, client: Client | None = None,
                  today: dt.date | None = None, exclude: list[str] | None = None, on_call=None, options: dict | None = None,
                  stage: str | None = None, only_cache: str | None = None) -> dict:
@@ -1281,6 +1300,7 @@ def demand_check(idea: str, place: str | None = None, leader: str | None = None,
             running[0] += 1
         try:
             rep = _demand_check(idea, place, leader, budget, today, exclude, on_call, options, stage)
+            _asked_ahead(rep, budget)
             rep["qloo_request"] = {"req": budget.req, "sent": budget.sent, **({"cache_only": only_cache} if only_cache else {})}
             if stage != "verdict":                    # the verdict card and its full card are one check
                 from . import usage
