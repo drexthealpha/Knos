@@ -16,7 +16,7 @@ module.exports = {
   "ci": {
     "collect": {
       "url": [...site.map((p) => SITE + p), ...app.map((p) => APP + p)],
-      "numberOfRuns": 1,
+      "numberOfRuns": 3,   // one run swings by up to 0.27 on a shared runner (0.73 then 1.0 on the same page); the assertions read the best of 3
       "settings": {
         "formFactor": "mobile",
         "screenEmulation": {
