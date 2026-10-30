@@ -1,0 +1,38 @@
+name: live-window
+
+# Keeps the front door, the app and the first card warm for every visitor until 6 Nov 2026 06:00 UTC: every 10 minutes
+# it asks for https://drexthealpha.github.io/Knos/, https://knos.onrender.com/app/ and /api/proof, and logs each as
+# `ASKED <UTC time> <url> <HTTP status> <seconds to first byte>`. From 6 Nov 06:00 UTC on, its next run turns this
+# workflow off (gh workflow disable) and asks nothing. Timer only; no secret, no checkout, no action from outside.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: live-window
+  cancel-in-progress: true
+
+jobs:
+  ask:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: until 6 Nov 06:00 UTC ask for the three pages; after it, turn this workflow off
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          if [ "$(date -u +%s)" -ge "$(date -u -d '2026-11-06T06:00:00Z' +%s)" ]; then
+            gh workflow disable live-window.yml --repo "$GITHUB_REPOSITORY"
+            echo "STOPPED $(date -u +%Y-%m-%dT%H:%M:%SZ): the window ended; this workflow is off"
+            exit 0
+          fi
+          for url in https://drexthealpha.github.io/Knos/ https://knos.onrender.com/app/ https://knos.onrender.com/api/proof; do
+            out=$(curl -s -o /dev/null -w "%{http_code} %{time_starttransfer}" --max-time 90 "$url" || echo "000 90")
+            echo "ASKED $(date -u +%Y-%m-%dT%H:%M:%SZ) $url $out"
+          done
