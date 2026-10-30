@@ -57,7 +57,7 @@ def test_a_passkey_funds_a_milestone_before_any_maker_a_buyer_commits_and_the_ma
     valley.post(pid, key, att["id"], maker.user, "https://maker.example/result", "result", fetch=lambda url: page)
     out = valley.post(pid, key, att["id"], checker.user, "https://lab.example.org/check", "check", fetch=lambda url: page)
     assert out["verdict"]["pass"]                       # a human-verified milestone: released when its challenge window ends
-    out = valley.release_due(now=out["verdict"]["ends_s"], led=led)[0]
+    out = next(x for x in valley.release_due(now=out["verdict"]["ends_s"], led=led) if x["project"] == pid)   # this project's, whatever else is due
     assert [x["status"] for x in out["released"]] == ["released"] and out["milestone"] == "released"
     assert tokens(c, pay.ata(mv, c.usdc)) == 10 * escrow.UNIT + 6 * escrow.UNIT          # the escrow and the collected allowance
     assert tokens(c, pay.ata(bv, c.usdc)) == wallets.FAUCET_UNITS * escrow.UNIT - 6 * escrow.UNIT
