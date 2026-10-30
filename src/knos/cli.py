@@ -1103,6 +1103,11 @@ _HELP = [    # (command or group, its panel (None: the first, "Commands"), the o
 ]
 
 
+# commands of the products Knos was before it became one (approval chains, netting, advances against an order, the
+# evidence vault, the game rounds): they still run for whoever used them, and `knos --help` no longer lists them
+OLD_PRODUCTS = frozenset({"approve", "net", "advance", "vault", "game"})
+
+
 def _arrange() -> None:
     """Order the commands as _HELP says, with a panel and a one-line summary each; anything not named keeps its place
     after them. Typer shows the first panel, then the others in the order they first appear."""
@@ -1113,6 +1118,9 @@ def _arrange() -> None:
         return info.name or (info.callback.__name__.replace("_", "-") if info.callback else "")
     info: Any       # the record of a command or of a group: both have the panel, each its own field for the summary
     for info in (*_app.registered_commands, *_app.registered_groups):
+        if name_of(info) in OLD_PRODUCTS:          # still callable, never listed: the one product's help shows its own flow
+            info.hidden = True
+            continue
         got = by.get(name_of(info))
         if got:
             info.rich_help_panel = got[0]
@@ -1202,7 +1210,7 @@ def load(command: str | None = None) -> None:
     tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "archive", "approve", "decide", "net", "advance", "faucet", "controls", "recall", "task", "exit", "boundary", "selfhost", "assurance", "fees", "protect", "referee", "cheats", "outcome", "gate", "verify", "self", "game", "idea", "idt", "demand") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     ordered = [row for row in _HELP if row not in tail] + tail
     # the one flow's headings, in its order; a command keeps its place inside its heading
-    _HELP[:] = sorted(((name, heading(name), short) for name, _p, short in ordered), key=lambda r: FLOW.index(r[1]))
+    _HELP[:] = sorted(((name, heading(name), short) for name, _p, short in ordered if name not in OLD_PRODUCTS), key=lambda r: FLOW.index(r[1]))
     _arrange()
 
 

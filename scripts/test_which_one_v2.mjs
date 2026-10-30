@@ -19,7 +19,7 @@ const NAMED = { "10.1038/nature14539": "a photo search app that finds any pictur
 const NO_PAPER = ["a cold brew coffee brand for night shift nurses", "oat milk soft serve for night markets",
   "a board game cafe with vegan snacks for students", "a vegan meal kit for students, like HelloFresh"];
 const lines = [], fails = [];
-const log = (s) => { console.log(s); lines.push(s); };
+const log = (s) => { console.log(s); lines.push(s); if (process.argv[4]) appendFileSync(process.argv[4], s + "\n"); };   // each line kept at once
 const ok = (c, what) => { log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails.push(what); return c; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let last = 0;
@@ -56,6 +56,7 @@ function judgeAnswer(surface, input, picked, r) {
 }
 
 for (const input of INPUTS) {
+  try {
   const w = await post("/api/check", { idea: input });
   judgeReadings("api", input, w);
   const picked = pickOf(input, w);
@@ -68,6 +69,7 @@ for (const input of INPUTS) {
   judgeReadings("cli", input, cw);
   const cPick = pickOf(input, cw);
   judgeAnswer("cli", input, cPick, await cli([cPick, "--picked"]));
+  } catch (e) { pairs.push(false); ok(false, `api/mcp/cli ${input.slice(0, 50)}: ${e.name}: ${String(e.message).slice(0, 120)}`); }
 }
 
 const browser = await chromium.launch();
@@ -78,6 +80,7 @@ try {
     page.on("pageerror", (e) => errors.push(`${surface} ${width}: ${e.message}`));
     await page.goto(url + "?t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 120000 });
     for (const input of INPUTS) {
+      try {
       await pace(2);
       await page.fill("#k-q", input);
       await page.click("#k-go");
@@ -97,6 +100,7 @@ try {
       const checked = (kick.match(/^Read as (.*?)(?:, also matched .*)?$/) || [null, kick])[1];
       pairs.push(checked === picked);
       ok(checked === picked, `${surface} ${width} ${input.slice(0, 50)}: the card reads "${kick.slice(0, 70)}", picked "${picked.slice(0, 50)}"`);
+      } catch (e) { pairs.push(false); ok(false, `${surface} ${width} ${input.slice(0, 50)}: ${e.name}: ${String(e.message).slice(0, 120)}`); }
     }
     await page.close();
   }
@@ -106,5 +110,4 @@ const same = pairs.filter(Boolean).length;
 log(`picked text = checked text on ${same} of ${pairs.length} surface and input pairs`);
 log(fails.length ? `FAIL test_which_one_v2: ${fails.length} check(s) failed; picked = checked on ${same} of ${pairs.length}; first: ${fails[0].slice(0, 140)}`
   : `PASS test_which_one_v2: ${INPUTS.length} inputs on 5 surfaces, picked = checked on ${same} of ${pairs.length}, 0 thin readings, 0 page errors`);
-if (OUT) appendFileSync(OUT, `\n${new Date().toISOString()}\n` + lines.join("\n") + "\n");
 process.exit(fails.length ? 1 : 0);
