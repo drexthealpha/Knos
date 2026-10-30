@@ -82,6 +82,22 @@ The tuned one: `--collect <ks-sample.json> <features.json>`, then `--tuned <ks-s
 
 Numbers: [qloo_lift_ranked.json](qloo_lift_ranked.json). Run it again: `python scripts/test_qloo_lift_ranked.py --score <ks-sample.json> <ks-features.json> <lift-sample.json> <lift-features.json>`.
 
+## Launch city, pre-registered: 134 kinds of business against the Census (30 Oct 2026)
+
+The plan was committed before any call or prediction: [impact_prereg_plan.md](impact_prereg_plan.md) (sha256
+6e08a9f488196f64da5f302c7f774bd31e2bf534c6adde2ef172073121e4dd13). Knos's arm takes each business type's Qloo taste tags
+and their heatmap, then ranks the 15 most populous metros by lift, the method the product now uses for its launch city.
+Qloo answered every heatmap request with no cells (255 Qloo calls in all), so the Knos arm fell back to the population
+order.
+
+| sample | n | Claude alone | population | Knos with Qloo | placebo | Knos minus Claude, 95% interval |
+|---|---|---|---|---|---|---|
+| main | 67 | 0.319 | 0.096 | 0.096 | 0.096 | -0.224 [-0.301, -0.140] |
+| replication | 67 | 0.382 | 0.069 | 0.069 | 0.069 | -0.313 [-0.388, -0.236] |
+
+The plan's pass rule needs every interval above 0: this run fails it, and Knos loses to the model alone at naming
+where a kind of business is dense. Raw numbers: [impact_prereg.json](impact_prereg.json).
+
 ## Where demand is: 30 kinds of business against the Census
 
 **In plain words.** For 30 kinds of local business, each side named the 5 large US metros where that business is most
