@@ -51,3 +51,9 @@ def test_a_doi_is_read_from_openalex_and_crossref_answers_when_openalex_does_not
     assert got["title"].startswith("A Programmable Dual-RNA") and got["year"] == 2012 and got["source"] == "Crossref"
     w = readings.which("10.1038/nature14539", [], products=[], found={"title": "Deep learning"})
     assert w["kind"] == "paper" and w["name_box"] and w["name_prompt"] == "Name the product this result enables"
+
+
+def test_the_broader_reading_is_the_noun_phrase_before_its_first_preposition():
+    for asked, broad in (("a board game cafe with vegan snacks for students", "a game cafe"), ("a ramen spot near campus", "a ramen spot"),
+                         ("a cold brew coffee brand for night shift nurses", "a coffee brand"), ("a solar powered music festival", "a music festival")):
+        assert readings.broader(asked) == broad, asked

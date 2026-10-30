@@ -98,11 +98,13 @@ def nearest(text: str, index: list[dict], k: int = 2) -> list[dict]:
 
 
 def broader(text: str) -> str | None:
-    """The input's last two content words (the noun and the word that names its kind), when it has 3 or more content
-    words: "a late night ramen spot" becomes "a ramen spot", "a vegan ramen food truck" becomes "a food truck"."""
-    words = content(text)
-    if len(words) < 3:
+    """The last two content words of the input's noun phrase (before its first preposition), when the input has 3 or
+    more content words: "a late night ramen spot" becomes "a ramen spot", "a vegan ramen food truck" becomes
+    "a food truck", "a board game cafe with vegan snacks for students" becomes "a game cafe"."""
+    if len(content(text)) < 3:
         return None
+    head = re.split(r"\b(?:with|for|near|in|on|at|by|from|to|of|that|which|who)\b", str(text).lower(), maxsplit=1)[0]
+    words = content(head) or content(text)          # the noun phrase before its first preposition: what the thing is
     tail = " ".join(w for w, _ in words[-2:])
     out = ("an " if tail[0] in "aeiou" else "a ") + tail
     return out if norm(out) != norm(text) else None
