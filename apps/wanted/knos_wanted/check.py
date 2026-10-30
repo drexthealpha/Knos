@@ -107,7 +107,7 @@ everyone idea ideas product products service services startup company business a
 solutions market markets customer customers user users buyer buyers seller sell sells buy buys selling buying
 demand target reserve release funds fund money price prices order orders preorder preorders decision decide rules rule
 ignore previous instruction instructions system prompt set open close verified overwhelming guaranteed exactly clone
-copy version invented invent call called named name similar better best cheaper cheap first ever kind sort type lot
+copy version invented invent call called named name similar better best cheaper cheap first ever kind sort type lot built
 lots great good amazing awesome cool nice perfect ultimate premium simple easy smart now today tomorrow please brand-new
 let lets without within measure measures read reads
 all-new""".split())
@@ -627,9 +627,11 @@ def _recommend(run: _Run, kind: str, signal: dict, known: set, tags: list[dict] 
     thin = {"backfill.cross_domain.take": "5"} if len(known) < 3 else {}    # thin matches: cross-domain backfill, not a refusal
     scope = {"filter.tags": ",".join(t["id"] for t in tags[:3]), "operator.filter.tags": "union"}
     weight = {"signal.demographics.audiences.weight": "medium"} if signal.get("signal.demographics.audiences") else {}
-    body, src = run.get("/v2/insights", {"filter.type": kind, "take": 10, "feature.explainability": "true", "bias.trends": "high",
+    trends = {"bias.trends": "high"} if kind in TREND_TYPES else {}   # Qloo answers 400 for bias.trends on other types (a book)
+    body, src = run.get("/v2/insights", {"filter.type": kind, "take": 10, "feature.explainability": "true", **trends,
                                          "filter.popularity.min": "0.2", **weight, **thin, **scope, **signal},
-                        "recommendations: what this audience also likes, in the idea's taste tags (popularity at least 0.2, bias.trends high"
+                        "recommendations: what this audience also likes, in the idea's taste tags (popularity at least 0.2"
+                        + (", bias.trends high" if trends else "")
                                          + (", cross-domain backfill)" if thin else ")"))
     if src is None:
         return None

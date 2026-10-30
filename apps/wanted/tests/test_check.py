@@ -326,3 +326,18 @@ def test_lifts_that_do_not_separate_the_segments_are_shown_and_never_counted(mon
     assert all(a.get("flat") for a in r["audiences"]) and len(r["audiences"]) >= 3       # shown, each marked flat
     d = r["decision"]
     assert d["verdict"] == "REFUSE" and any("alike" in x and "none counts" in x for x in d["reasons"])
+
+
+def test_bias_trends_is_asked_only_for_types_qloo_trends_and_built_is_not_a_taste_word():
+    asked = []
+
+    class Run:
+        def get(self, path, params, what="", **kw):
+            asked.append(params)
+            return {"results": {"entities": []}}, 1
+
+    tags = [{"id": "urn:tag:genre:qloo:x", "name": "x"}]
+    for kind in ("urn:entity:book", "urn:entity:brand"):
+        check._recommend(Run(), kind, {}, set(), tags)
+    assert "bias.trends" not in asked[0] and asked[1]["bias.trends"] == "high"
+    assert "built" in check.STOP and "building" not in check.STOP

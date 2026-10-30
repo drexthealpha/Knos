@@ -25,13 +25,14 @@ const post = async (p, b) => { await pace(); return again(async () => (await fet
 const words = (s) => new Set(String(s).toLowerCase().match(/[a-z0-9]+/g) || []);
 
 // the answers: each input's which-one step, then the reading a person picks, checked
-const cards = {};
+const cards = {}, picks = {};
 let against = 0, untyped = 0;
 for (const input of [...INPUTS, ...CHIPS]) {
   try {
     const w = await post("/api/check", { idea: input });
     for (const r of w.readings || []) { if (/ against /.test(r.text || "")) against++; if (!r.kind) untyped++; }
     const picked = w.kind !== "which_one" ? input : (w.of === "paper" ? ((w.readings || []).find((r) => r.kind === "product")?.text || input) : input);
+    picks[input] = picked;
     cards[input] = await post("/api/check", { idea: picked, picked: true });
   } catch (e) { cards[input] = { error: `${e.name}: ${e.message}` }; }
 }
@@ -50,14 +51,15 @@ for (const doi of ["10.1038/nature14539", "10.1126/science.1225829"]) {
 }
 // 5. a refusal is never a dead end; 6. the decision first; 11. say what was used; 14. things a buyer acts on
 let refusals = 0, deadEnds = 0, noStory = 0, noUsed = 0, badUsed = 0, opens = 0, dlBad = 0;
+const named = { dead: [], used: [] };
 for (const [input, r] of all) {
   const s = r.story || {}, v = (r.decision || {}).verdict;
   if (!s.sentence || !(s.tiles || []).length) noStory++;
   const u = s.used || {};
   if (!u.line) noUsed++;
-  const own = words(input);
-  if ([...(u.used || []), ...(u.not_in_qloo || [])].some((w) => ![...own].some((x) => x.startsWith(w.slice(0, 4))))) badUsed++;
-  if (v === "REFUSE") { refusals++; if (!(s.reruns || []).length || !(s.rejected || []).length) deadEnds++; }
+  const own = words(input + " " + (picks[input] || ""));            // a paper's card is the reading the person picked
+  if ([...(u.used || []), ...(u.not_in_qloo || [])].some((w) => ![...own].some((x) => x.startsWith(w.slice(0, 4))))) { badUsed++; named.used.push(`${input}: ${(u.used || []).join(" ")}`); }
+  if (v === "REFUSE") { refusals++; if (!(s.reruns || []).length || !(s.rejected || []).length) { deadEnds++; named.dead.push(`${input} (reruns ${(s.reruns || []).length}, rejected ${(s.rejected || []).length})`); } }
   if (v === "OPEN") {
     opens++;
     const d = (s.downloads || []).map((x) => x.kind).join(",");
@@ -67,9 +69,9 @@ for (const [input, r] of all) {
     if (!pre.includes(String(t))) dlBad++;
   }
 }
-ok(deadEnds === 0, `5 refusals: ${refusals - deadEnds} of ${refusals} offer a rerun and list what was rejected`);
+ok(deadEnds === 0, `5 refusals: ${refusals - deadEnds} of ${refusals} offer a rerun and list what was rejected${named.dead.length ? "; not: " + named.dead.join("; ") : ""}`);
 ok(noStory === 0, `6 decision first: ${all.length - noStory} of ${all.length} answers lead with a sentence and tiles`);
-ok(noUsed === 0 && badUsed === 0, `11 used line: ${all.length - noUsed} of ${all.length} carry it; ${badUsed} list a word that is not the input's`);
+ok(noUsed === 0 && badUsed === 0, `11 used line: ${all.length - noUsed} of ${all.length} carry it; ${badUsed} list a word that is not the input's${named.used.length ? ": " + named.used.join("; ") : ""}`);
 ok(dlBad === 0, `14 Open cards: ${opens - dlBad} of ${opens} offer the 3 downloads, built from the card's own numbers`);
 // 8. the public counter; 13. the model state; 9. feedback
 const counter = await get("/api/counter");

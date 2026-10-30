@@ -126,6 +126,9 @@ def rejected(rep: dict) -> list[dict]:
             for c in rep.get("calls") or [] if c.get("error")]
     if any(a.get("flat") for a in rep.get("audiences") or []):
         out.append({"name": "audience segments", "rule": "Qloo's audience signal moved every scored segment alike, so none counts"})
+    why = [str(r) for r in (rep.get("decision") or {}).get("reasons") or [] if r]
+    if not out and _verdict(rep) == "REFUSE" and why:        # a refusal always says what it refused, by its own rule
+        out.append({"name": str(rep.get("idea") or "the idea")[:80], "rule": why[0][:200]})
     return out[:8]
 
 

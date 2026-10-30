@@ -68,3 +68,9 @@ def test_feedback_keeps_a_salted_visitor_hash_and_never_an_address(monkeypatch):
     assert got["saved"] and got["feedback_yes"] == 1 and got["feedback_no"] == 0
     kept = str(store["d"]["feedback"])
     assert "203.0.113.9" not in kept and "@" not in kept and vh[:16] in kept
+
+
+def test_a_refusal_with_nothing_else_rejected_names_the_rule_that_refused_it():
+    rep = {"idea": "a quiet idea", "decision": {"verdict": "REFUSE", "reasons": ["no product of this taste wants it"]}}
+    assert story.rejected(rep) == [{"name": "a quiet idea", "rule": "no product of this taste wants it"}]
+    assert story.rejected({**rep, "decision": {"verdict": "OPEN", "reasons": ["x"]}}) == []
