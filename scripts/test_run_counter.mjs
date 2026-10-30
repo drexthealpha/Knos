@@ -26,11 +26,12 @@ try {
       await page.fill("#k-q", idea);
       await page.click("#k-go");
       const during = [];
+      let picked = false;
       const t0 = Date.now();
       while (Date.now() - t0 < 150000) {                           // read the counter while the check runs
         const s = await page.evaluate(() => ({ busy: document.querySelector("#k-go")?.hasAttribute("aria-busy"), n: document.querySelector("#k-live [data-count]")?.innerText || "",
           which: !!document.querySelector("#k-card [data-which]") }));
-        if (s.which) { await page.click('#k-card [data-which] [data-kind="exact"], #k-card [data-which] [data-reading]'); await sleep(300); continue; }
+        if (s.which && !picked) { picked = true; await page.click('#k-card [data-which] [data-kind="exact"], #k-card [data-which] [data-reading]'); continue; }   // one click, as a reader
         if (s.busy && COUNT.test(s.n)) during.push(s.n);
         if (!s.busy && await page.$("#k-card .k-card [data-without]")) break;
         await sleep(200);

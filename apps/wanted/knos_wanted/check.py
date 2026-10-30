@@ -698,8 +698,17 @@ def _flat(items: list[dict]) -> bool:
     return len(items) > 1 and len({x.get("affinity") for x in items}) == 1
 
 
-def _also_love_q(ents: list[str], key: str, take: int = 4) -> list[tuple[str, dict]]:
-    return [("/v2/insights", {"filter.type": t, "take": take, key: ",".join(ents)}) for _, t in ALSO_LOVE] if ents else []
+def _love_sig(t: str, ents: list[str], key: str, kind: str | None = None, tags: list[str] | None = None) -> dict:
+    """The signal one also-loved domain is asked with. Qloo's film insights refuse places as a signal (HTTP 400 "all of
+    the provided signal.interests.entities were invalid", measured 30 Oct 2026 on hotels Qloo answers for artists), so a
+    place idea's films are asked through its own taste tags."""
+    if t == "urn:entity:movie" and kind == "urn:entity:place" and key == "signal.interests.entities" and tags:
+        return {"signal.interests.tags": ",".join(tags[:3])}
+    return {key: ",".join(ents)}
+
+
+def _also_love_q(ents: list[str], key: str, take: int = 4, kind: str | None = None, tags: list[str] | None = None) -> list[tuple[str, dict]]:
+    return [("/v2/insights", {"filter.type": t, "take": take, **_love_sig(t, ents, key, kind, tags)}) for _, t in ALSO_LOVE] if ents else []
 
 
 def _launch_q(ents: list[str], place: str | None, key: str) -> list[tuple[str, dict]]:
@@ -710,15 +719,16 @@ def _launch_q(ents: list[str], place: str | None, key: str) -> list[tuple[str, d
             ("/v2/insights", {"filter.type": "urn:heatmap", "filter.location.query": loc, "take": 5, **sig})]
 
 
-def _also_love(run: _Run, ents: list[str], via: str, take: int = 4, key: str = "signal.interests.entities") -> dict | None:
+def _also_love(run: _Run, ents: list[str], via: str, take: int = 4, key: str = "signal.interests.entities",
+               kind: str | None = None, tags: list[str] | None = None) -> dict | None:
     """What the people of this taste also love, in two other Qloo domains (artists and films, /v2/insights with
     signal.interests.entities, or .tags when no product carries the taste): shown only, the verdict does not read it."""
     if not ents:
         return None
-    sig = {key: ",".join(ents)}
-    run.prefetch([("/v2/insights", {"filter.type": t, "take": take, **sig}) for _, t in ALSO_LOVE])
+    run.prefetch(_also_love_q(ents, key, take, kind, tags))
     out = []
     for domain, t in ALSO_LOVE:
+        sig = _love_sig(t, ents, key, kind, tags)
         body, n = run.get("/v2/insights", {"filter.type": t, "take": take, **sig}, f"also loved: {domain} ({t}) of the people of this taste", broaden=False)
         items = [{"name": e.get("name"), "affinity": (e.get("query") or {}).get("affinity")}
                  for e in (((body or {}).get("results") or {}).get("entities") or [])[:take] if e.get("name")]
@@ -824,8 +834,9 @@ def _new_idea(run: _Run, ev: dict, idea: str, kind: str, place: str | None, word
     tops = [{"name": x["name"], "id": x["id"], "tie": {"kind": "tag", "name": tags[0]["name"], "id": tags[0]["id"],
                                                         "via": x["name"], "via_id": x["id"]}} for x in items[:3]]
     ev["who_wants"] = _who_wants(seg, tops)
-    run.prefetch(_also_love_q(via, key) + _launch_q(via, place, key))
-    ev["also_love"] = _also_love(run, via, said, key=key)
+    tag_ids = [t["id"] for t in tags if t.get("id")]
+    run.prefetch(_also_love_q(via, key, kind=kind, tags=tag_ids) + _launch_q(via, place, key))
+    ev["also_love"] = _also_love(run, via, said, key=key, kind=kind, tags=tag_ids)
     ev["launch"] = _launch(run, via, place, key=key)
     ev["price"] = price_tier(ev["spending"], [x["price_level"] for x in items])
     return ev
@@ -939,7 +950,7 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
         # not on their sum; the in-order calls below are then answered from the cache, numbered as always
         run.prefetch([("/v2/insights", {"filter.type": "urn:demographics", **signal}), ("/v2/insights", q6), ("/v2/insights", q6_broad),
                       ("/v2/insights", q7), ("/v2/insights", q11), ("/v2/insights", q10)])
-        run.prefetch(_also_love_q(sig_ents, "signal.interests.entities"))
+        run.prefetch(_also_love_q(sig_ents, "signal.interests.entities", kind=kind, tags=[t["id"] for t in ev["tags"] if t.get("id")]))
     elif ev["tags"]:
         run.prefetch([("/v2/insights", _tag_map_q(ev["tags"][0]["id"], place))])
     if not sig_ents:                                 # no existing product matches: answered from the idea's own taste (N1)
@@ -954,7 +965,7 @@ def gather(run: _Run, idea: str, place: str | None, leader: str | None, today: d
     ev["taste"], ev["spending"], ev["buyer_group"] = seg["taste"], seg["spending"], seg["group"]
     ev["near_ids"] = seg.get("near_ids") or []
     ev["who_wants"] = [] if verdict_only else _who_wants(seg, tops)
-    ev["also_love"] = None if verdict_only else _also_love(run, via, said, key=key)
+    ev["also_love"] = None if verdict_only else _also_love(run, via, said, key=key, kind=kind, tags=[t["id"] for t in ev["tags"] if t.get("id")])
     body, s5 = run.get("/v2/insights", {"filter.type": "urn:demographics", **signal}, "who: age and gender affinity")
     demo = ((body or {}).get("results") or {}).get("demographics") or []
     q = ((demo[0] or {}).get("query") or {}) if demo else {}

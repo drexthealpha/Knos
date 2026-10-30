@@ -354,3 +354,10 @@ def test_a_metro_keeps_the_mean_qloo_popularity_of_its_cells():
     cells = [{"lat": 40.71, "lon": -74.0, "affinity": 0.9, "popularity": 0.8}, {"lat": 40.72, "lon": -74.01, "affinity": 0.7, "popularity": 0.6}]
     row = next(r for r in metros.stats(cells) if r["cells"] == 2)
     assert row["qloo_popularity"] == 0.7 and row["affinity"] == 0.8
+
+
+def test_a_place_idea_asks_films_through_its_tags_and_artists_through_its_places():
+    film = check._love_sig("urn:entity:movie", ["p1", "p2"], "signal.interests.entities", "urn:entity:place", ["urn:tag:a"])
+    music = check._love_sig("urn:entity:artist", ["p1", "p2"], "signal.interests.entities", "urn:entity:place", ["urn:tag:a"])
+    brand = check._love_sig("urn:entity:movie", ["b1"], "signal.interests.entities", "urn:entity:brand", ["urn:tag:a"])
+    assert film == {"signal.interests.tags": "urn:tag:a"} and music == {"signal.interests.entities": "p1,p2"} and brand == {"signal.interests.entities": "b1"}
