@@ -95,6 +95,7 @@ The documents in this folder are listed below, with the seven front pages too.
 | [forecast_plan_v2.md](forecast_plan_v2.md) | The second forecast plan: county establishment counts (QCEW), fixed before any outcome |
 | [evidence_plan.md](evidence_plan.md) | Knos's own claims, each tested against a real outcome with a control, fixed before any run |
 | [impact_prereg_plan.md](impact_prereg_plan.md) | The launch-city test against the model alone, fixed before any call or prediction |
+| [baseline_prereg_plan.md](baseline_prereg_plan.md) | The launch-city ranking against Qloo popularity alone and population, fixed before any data is read |
 | [QLOO-COVERAGE.md](QLOO-COVERAGE.md) | every Qloo parameter, type and endpoint the docs list, and where a person sets it on each interface |
 | [IDEAS.md](IDEAS.md) | an idea in from anyone or any research source, every field; demand, then pull commitments released in stages |
 
