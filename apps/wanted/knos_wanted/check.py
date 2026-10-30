@@ -601,10 +601,15 @@ def _segments(run: _Run, idea: str, kind: str, via: list[str], key: str, words: 
         v, s, n = lift(a, f"audience segments: lift of {a['name']} (spending habits, the price tier)")
         if v is not None:
             out["spending"].append({"name": a["name"], "id": a["id"], "lift": v, "premium": a is prem, "src": s})
+    # adding any audience signal lowers every product's affinity, so each segment's raw change ("change") is read against
+    # the average segment Qloo scored for this taste: lift above zero is an audience that likes these products more
+    mean = sum(r["lift"] for r in out["rows"]) / len(out["rows"]) if out["rows"] else 0.0
+    for r in out["rows"]:
+        r["change"], r["lift"] = r["lift"], round(r["lift"] - mean, 4)
     out["rows"].sort(key=lambda r: -r["lift"])
     lifts = [r["lift"] for r in out["rows"]]
     if len(lifts) >= 2 and max(lifts) - min(lifts) < FLAT_LIFT:      # Qloo's audience signal moved every segment alike
-        out["flat"] = round(lifts[0], 4)
+        out["flat"] = round(out["rows"][0]["change"], 4)
         for r in out["rows"]:
             r["flat"] = True
     if group:
@@ -1112,7 +1117,7 @@ def _scored(ev: dict) -> list[dict]:
 
 def _thin(ev: dict, info: list[dict], taste: dict) -> str:
     rows = [a for a in ev.get("audiences") or [] if isinstance(a.get("lift"), (int, float))]
-    flat = f"; Qloo's audience signal moved all {len(rows)} scored segments alike (lift {rows[0]['lift']:+.4f}), so none counts"         if rows and all(a.get("flat") for a in rows) else ""
+    flat = f"; Qloo's audience signal moved all {len(rows)} scored segments alike (change {rows[0].get('change', rows[0]['lift']):+.4f}), so none counts"         if rows and all(a.get("flat") for a in rows) else ""
     return (f"audience too thin: {len(info)} audience segments separated by Qloo (needs {RULES['min_scored_segments']})" + flat
             + ("" if ev.get("who") else "; no demographic signal") + ("" if taste else "; no products near this taste"))
 

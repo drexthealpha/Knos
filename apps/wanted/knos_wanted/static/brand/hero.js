@@ -293,10 +293,15 @@
   const missing = (rs) => { const r = String((rs || [])[0] || "").replace(/^cannot decide:\s*/i, "").replace(/^no\s+/i, "").trim(); return r || "the evidence the rule needs"; };
   // Qloo's audience segments with their lift (check.py: the segment's mean change in affinity on the products nearest
   // the taste), signed to 4 decimals, highest first, up to 6; a lift is shown as Qloo's number, never weighed against a threshold
-  const lifts = (r) => { const rows = (r.audiences || []).filter((a) => a && a.name && Number.isFinite(Number(a.lift))).slice(0, 6);
+  // who buys: the audiences above zero first; lift is read against the average audience Qloo scored for this taste
+  const lifts = (r) => { const rows = (r.audiences || []).filter((a) => a && a.name && Number.isFinite(Number(a.lift)))
+      .sort((x, y) => Number(y.lift) - Number(x.lift)).slice(0, 6);
     if (!rows.length) return "";
     const f = (n) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n).toFixed(4);
-    return `<ul class="k-lifts" data-part="lifts">${rows.map((a) => `<li data-call="${esc(a.src ?? "")}"><span>${esc(qlabel(a.name))}</span> <span class="k-lift">lift ${f(Number(a.lift))}</span>${Number.isFinite(Number(a.products)) ? ` <span class="k-fine">on ${esc(a.products)} products</span>` : ""}</li>`).join("")}</ul>`; };
+    const up = rows.filter((a) => Number(a.lift) > 0 && !a.flat).length;
+    const means = up ? `<p class="k-fine" data-lift-means>Lift: how much more an audience likes this idea's nearest products than the average audience Qloo scored for it. Above zero, it likes them more.</p>`
+      : `<p class="k-fine" data-lift-none>Qloo moved every audience it scored alike for this idea, so no audience stands above the others.</p>`;
+    return `${means}<ul class="k-lifts" data-part="lifts">${rows.map((a) => `<li data-call="${esc(a.src ?? "")}" data-lift="${esc(a.lift)}"><span>${esc(qlabel(a.name))}</span> <span class="k-lift">lift ${f(Number(a.lift))}</span>${Number.isFinite(Number(a.products)) ? ` <span class="k-fine">on ${esc(a.products)} products</span>` : ""}</li>`).join("")}</ul>`; };
   // R2 items 5, 6, 9, 11, 14, 15: the card opens with the check's one sentence and its 3 or 4 tiles (rep.story, the
   // server's), then what of the input it used; after the parts, the reruns a refusal offers, what was rejected and by which
   // rule, the downloads of an Open card, one question ("Was this useful?") and, only while the server's model is on, a box to ask
@@ -465,7 +470,7 @@ ${src(h, price.src)}</section>
   ${calls(r)}
   ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
   <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
-  <footer class="k-card-foot">${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
+  <footer class="k-card-foot"><p class="k-fine" data-proof-line>Locked before any data, 30 Oct 2026: Knos is ahead of Qloo popularity alone, +0.033 [+0.007, +0.067], and ties population. The model alone beat it twice. <a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
     HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
     ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Try it with a launch market →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
