@@ -1,9 +1,12 @@
 name: live-window
 
-# Keeps the front door, the app and the first card warm for every visitor until 6 Nov 2026 06:00 UTC: every 10 minutes
-# it asks for https://drexthealpha.github.io/Knos/, https://knos.onrender.com/app/ and /api/proof, and logs each as
-# `ASKED <UTC time> <url> <HTTP status> <seconds to first byte>`. From 6 Nov 06:00 UTC on, its next run turns this
-# workflow off (gh workflow disable) and asks nothing. Timer only; no secret, no checkout, no action from outside.
+# Keeps the front door, the app and the first card warm for every visitor until 6 Nov 2026 06:00 UTC: it asks for
+# https://drexthealpha.github.io/Knos/, https://knos.onrender.com/app/ and /api/proof every 10 minutes, and logs each
+# as `ASKED <UTC time> <url> <HTTP status> <seconds to first byte>`. GitHub's timer here starts runs hours apart under
+# load (keepalive.yml, set to every 5 minutes, ran 3 times on 30 Oct 2026), so each run asks every 10 minutes itself,
+# for up to 6 hours, and the timer only has to start a run now and then; one run at a time, the next one queued. From
+# 6 Nov 06:00 UTC on, a run turns this workflow off (gh workflow disable) and asks nothing. Timer only; no secret, no
+# checkout, no action from outside.
 
 on:
   schedule:
@@ -15,24 +18,30 @@ permissions:
 
 concurrency:
   group: live-window
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   ask:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 365
     steps:
-      - name: until 6 Nov 06:00 UTC ask for the three pages; after it, turn this workflow off
+      - name: every 10 minutes for up to 6 hours, ask for the three pages; from 6 Nov 06:00 UTC, turn this workflow off
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
-          if [ "$(date -u +%s)" -ge "$(date -u -d '2026-11-06T06:00:00Z' +%s)" ]; then
-            gh workflow disable live-window.yml --repo "$GITHUB_REPOSITORY"
-            echo "STOPPED $(date -u +%Y-%m-%dT%H:%M:%SZ): the window ended; this workflow is off"
-            exit 0
-          fi
-          for url in https://drexthealpha.github.io/Knos/ https://knos.onrender.com/app/ https://knos.onrender.com/api/proof; do
-            out=$(curl -s -o /dev/null -w "%{http_code} %{time_starttransfer}" --max-time 90 "$url" || echo "000 90")
-            echo "ASKED $(date -u +%Y-%m-%dT%H:%M:%SZ) $url $out"
+          stop=$(date -u -d '2026-11-06T06:00:00Z' +%s)
+          for n in $(seq 1 36); do
+            if [ "$(date -u +%s)" -ge "$stop" ]; then
+              gh workflow disable live-window.yml --repo "$GITHUB_REPOSITORY"
+              echo "STOPPED $(date -u +%Y-%m-%dT%H:%M:%SZ): the window ended; this workflow is off"
+              exit 0
+            fi
+            t0=$(date -u +%s)
+            for url in https://drexthealpha.github.io/Knos/ https://knos.onrender.com/app/ https://knos.onrender.com/api/proof; do
+              out=$(curl -s -o /dev/null -w "%{http_code} %{time_starttransfer}" --max-time 90 "$url" || echo "000 90")
+              echo "ASKED $(date -u +%Y-%m-%dT%H:%M:%SZ) $url $out"
+            done
+            if [ "$n" = 36 ]; then break; fi
+            sleep $(( 600 - ($(date -u +%s) - t0) ))
           done
