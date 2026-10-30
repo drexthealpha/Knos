@@ -7,6 +7,7 @@ import { chromium } from "playwright";
 import { appendFileSync } from "node:fs";
 
 const APP = "https://knos.onrender.com/app/";
+const OFF = process.env.KNOS_QLOO_OFF === "1" ? "&qloo=off" : "";      // the app's own Qloo-off switch: the cards from the cache, 0 calls
 const OUT = process.argv[2] || "";
 const CHIPS = ["a solar powered music festival", "an AI recipe planner for families", "a crypto podcast for beginners",
   "a quantum physics book for kids", "a probiotic kombucha brand", "a recycled ocean plastic swimwear brand"];
@@ -23,7 +24,7 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     try {
       for (let attempt = 1; ; attempt++) {
-        try { await page.goto(APP + "?q=" + encodeURIComponent(idea), { waitUntil: "domcontentloaded", timeout: 90000 }); break; }
+        try { await page.goto(APP + "?q=" + encodeURIComponent(idea) + OFF, { waitUntil: "domcontentloaded", timeout: 90000 }); break; }
         catch (e) { if (attempt === 2) throw e; await sleep(20000); }
       }
       if (idea === DOI) {
