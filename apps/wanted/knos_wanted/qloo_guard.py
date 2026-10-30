@@ -9,7 +9,7 @@ The tables (src/knos/qloo_docs/, each with the docs page and the day it was read
 
 A filter.type value the docs do not list (urn:audience) is refused, and so is one they mark deprecated
 (urn:entity:audience: "deprecated and should not be used for new integrations", Insights API Deep Dive, updated
-2026-07-08; the hackathon API answers it HTTP 400). Audiences are asked through /v2/audiences and the
+2026-07-08; Qloo answers it HTTP 400). Audiences are asked through /v2/audiences and the
 signal.demographics.audiences signal instead.
 """
 from __future__ import annotations

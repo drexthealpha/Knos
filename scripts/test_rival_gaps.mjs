@@ -1,4 +1,4 @@
-// R2 test_rival_gaps, live: every rival-gap item of the CHAMPION16 spec, each with its own check and number.
+// R2 test_rival_gaps, live: every rival-gap item, each with its own check and number.
 // The answers come from the hosted app (/api/check with the picked reading; past the visitor cap the private cache
 // answers, labelled); the page items run in Playwright Chromium at 1280 on the front door and /app/.
 //

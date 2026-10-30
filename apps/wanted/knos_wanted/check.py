@@ -533,7 +533,7 @@ def _seg_list(run: _Run, types: list[str], what: str, page: int = 1) -> tuple[li
 def _segments(run: _Run, idea: str, kind: str, via: list[str], key: str, words: list[str], tags: list[dict],
               spending: bool = True) -> dict:
     """Who buys and the price tier, from Qloo's documented audience calls only (sweep 22 section 4: the ranked-segment
-    value filter.type=urn:entity:audience is deprecated and the hackathon API answers it HTTP 400).
+    value filter.type=urn:entity:audience is deprecated and Qloo answers it HTTP 400).
     1. Candidate segments: GET /v2/audiences, the non-sensitive types, 50 a page.
     2. The baseline: /v2/insights of the idea's kind with this taste as the signal (the matched products, or the top
        products of its tags), its NEAREST products and their affinity.

@@ -1,4 +1,4 @@
-# The idea is a place (urn:entity:place) when its last noun is one of these; a brand otherwise (CHAMPION16 N1).
+# The idea is a place (urn:entity:place) when its last noun is one of these; a brand otherwise.
 spot
 spots
 cafe
