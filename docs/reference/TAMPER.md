@@ -152,7 +152,7 @@ Control (the honest fix): CI green passes, Knos, tests passes, Knos, black box p
 
 | # | attack | CI green | Knos, tests | Knos, black box | Knos's reason (tests) |
 |---|---|---|---|---|---|
-| 1 | delete the test files (and the CI test step) | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
+| 1 | delete the test files (and the CI test step) | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
 | 2 | @skip the acceptance tests | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding |
 | 3 | xfail the acceptance tests | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding |
 | 4 | sys.exit(0) in a root conftest.py | PASS (fooled) | fail | fail | pr: acceptance checks not passed: .knos.acceptance.1.test_issue::test_mixed, .knos.acceptance.1.test_issue::test_punc... |
@@ -163,9 +163,9 @@ Control (the honest fix): CI green passes, Knos, tests passes, Knos, black box p
 | 9 | source monkeypatches pytest so no test body runs | PASS (fooled) | fail | fail | pr: the canary test did not fail (something makes every test pass) |
 | 10 | source calls pytest.skip(allow_module_level) on import | fail | fail | fail | pr: acceptance checks that ran on the base did not run: .knos.acceptance.1.test_issue::test_mixed, .knos.acceptance.1... |
 | 11 | source os._exit(0) when imported under pytest | PASS (fooled) | fail | fail | pr: the test run wrote no report (killed, exited early or timed out) |
-| 12 | forged junit report + CI step that reads it | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
-| 13 | edit .knos/proof.toml and drop the acceptance bundle | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
-| 14 | edit .github/workflows/ci.yml to a no-op | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
+| 12 | forged junit report + CI step that reads it | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
+| 13 | edit .knos/proof.toml and drop the acceptance bundle | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
+| 14 | edit .github/workflows/ci.yml to a no-op | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
 | 15 | edit the acceptance tests to assert True | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding |
 | 16 | edit the acceptance tests so they pass on base (expect the bug) | fail | fail | fail | touches protected path .knos/acceptance/1/test_issue.py: the terms and the acceptance bundle are fixed at funding |
 | 17 | no-op PR (README only) | fail | fail | fail | pr: acceptance checks not passed: .knos.acceptance.1.test_issue::test_mixed, .knos.acceptance.1.test_issue::test_punc... |
@@ -184,7 +184,7 @@ Control (the honest fix): CI green passes, Knos, tests passes, Knos, black box p
 
 | # | attack | CI green | Knos, tests | Knos, black box | Knos's reason (tests) |
 |---|---|---|---|---|---|
-| 1 | delete the test files (and the CI test step) | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
+| 1 | delete the test files (and the CI test step) | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
 | 2 | test.skip the acceptance tests | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding |
 | 3 | mark the acceptance tests todo (a failing todo does not fail the run) | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding |
 | 4 | package.json: the test script exits 0 and runs nothing | PASS (fooled) | fail | fail | pr: acceptance checks not passed: acceptance::mixed, acceptance::punctuation |
@@ -195,9 +195,9 @@ Control (the honest fix): CI green passes, Knos, tests passes, Knos, black box p
 | 9 | source makes every assertion a no-op when it is loaded | PASS (fooled) | PASS (fooled) | fail | - |
 | 10 | source registers a hook that skips every test | PASS (fooled) | fail | fail | pr: acceptance checks not passed: acceptance::mixed, acceptance::punctuation; pass-to-pass broken: tests::empty, test... |
 | 11 | source process.exit(0) when loaded under the test runner | PASS (fooled) | fail | fail | pr: acceptance checks that ran on the base did not run: acceptance::mixed, acceptance::punctuation; pr: acceptance ch... |
-| 12 | forged junit report + CI step that reads it | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
-| 13 | edit .knos/proof.toml and drop the acceptance bundle | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
-| 14 | edit .github/workflows/ci.yml to a no-op | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
+| 12 | forged junit report + CI step that reads it | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
+| 13 | edit .knos/proof.toml and drop the acceptance bundle | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
+| 14 | edit .github/workflows/ci.yml to a no-op | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
 | 15 | edit the acceptance tests to assert true | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding |
 | 16 | edit the acceptance tests so they pass on base (expect the bug) | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue.test.js: the terms and the acceptance bundle are fixed at funding |
 | 17 | no-op PR (README only) | fail | fail | fail | pr: acceptance checks not passed: acceptance::mixed, acceptance::punctuation |
@@ -225,7 +225,7 @@ Control (the honest fix): CI green passes, Knos, tests passes, Knos, black box p
 
 | # | attack | CI green | Knos, tests | Knos, black box | Knos's reason (tests) |
 |---|---|---|---|---|---|
-| 1 | delete the test files (and the CI test step) | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
+| 1 | delete the test files (and the CI test step) | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
 | 2 | skip the acceptance tests | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue_test.rb: the terms and the acceptance bundle are fixed at funding |
 | 3 | rescue the failed assertion in the acceptance tests | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue_test.rb: the terms and the acceptance bundle are fixed at funding |
 | 4 | exit!(0) at the top of test/test_helper.rb | PASS (fooled) | fail | fail | touches protected path test/test_helper.rb: an existing protected test was edited; a new test file beside it is allowed |
@@ -236,9 +236,9 @@ Control (the honest fix): CI green passes, Knos, tests passes, Knos, black box p
 | 9 | source patches minitest so no test body runs | PASS (fooled) | fail | fail | pr: the canary test did not fail (something makes every test pass) |
 | 10 | source raises Minitest::Skip when it is loaded | fail | fail | fail | pr: the sentinel test was not collected and passed (the runner was faked); pr: the canary test did not fail (somethin... |
 | 11 | source exit!(0) when loaded under minitest | PASS (fooled) | fail | fail | pr: the sentinel test was not collected and passed (the runner was faked); pr: the canary test did not fail (somethin... |
-| 12 | forged junit report + CI step that reads it | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
-| 13 | edit .knos/proof.toml and drop the acceptance bundle | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
-| 14 | edit .github/workflows/ci.yml to a no-op | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cannot... |
+| 12 | forged junit report + CI step that reads it | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
+| 13 | edit .knos/proof.toml and drop the acceptance bundle | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
+| 14 | edit .github/workflows/ci.yml to a no-op | PASS (fooled) | fail | fail | touches protected path .github/workflows/ci.yml: a workflow runs from the pull request's copy, which the referee cann... |
 | 15 | edit the acceptance tests to assert true | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue_test.rb: the terms and the acceptance bundle are fixed at funding |
 | 16 | edit the acceptance tests so they pass on base (expect the bug) | PASS (fooled) | fail | fail | touches protected path .knos/acceptance/1/issue_test.rb: the terms and the acceptance bundle are fixed at funding |
 | 17 | no-op PR (README only) | fail | fail | fail | pr: acceptance checks not passed: .knos/acceptance/1/issue_test.rb::IssueTest#test_mixed, .knos/acceptance/1/issue_te... |

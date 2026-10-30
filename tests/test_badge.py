@@ -168,7 +168,7 @@ def test_the_site_draws_the_same_badge_and_shows_the_record_with_its_caveats_in_
     assert all(c.replace("'", "&#x27;") in rec for c in rep["caveats"]) and len(rep["caveats"]) == 4     # the caveats are in the same view
     # nobody looked for an opt-in: only what the chain shows anyway, under the id the chain knows it by, and no profile
     assert 'data-profile="chain-only"' in rec and "<h3>GitHub id 42</h3>" in rec and "<h4>Profile</h4>" not in rec and "Accepted work" not in rec
-    assert "has not opted in to a profile" in rec and "no place in any list" in rec and "<strong>Devnet demonstration.</strong>" in rec
+    assert "has not opted in to a profile" in rec and "no place in any list" in rec and "<strong>Devnet, test money.</strong>" in rec
     assert "ann&lt;b&gt;/ann&lt;b&gt;" in rec and "<b>" not in rec                                       # the login appears only where the file would go, as text
 
 
@@ -218,8 +218,8 @@ def test_a_profile_is_shown_only_to_an_account_that_opted_in_and_every_line_has_
         head, rest = html.split("Shown apart, not in the count above")
         section = rest.split("<h4>Profile</h4>")[1].split("<h4>How to read it</h4>")[0] if "<h4>Profile</h4>" in rest else ""
         assert "500.00" not in head and "500.00" not in section and "5 payments" not in section and "750" not in html and "9 payments" not in html
-        assert html.index("<strong>Devnet demonstration.</strong>") < html.index("<h3>") and "is not a record of money earned" in html
-    assert "Devnet demonstration" not in out["mainnet"]
+        assert html.index("<strong>Devnet, test money.</strong>") < html.index("<h3>") and "is not a record of money earned" in html
+    assert "Devnet, test money" not in out["mainnet"]
 
 
 # ---- the "Knos-verified" badge: from a receipt that checks, and from nothing else ------------------------------------

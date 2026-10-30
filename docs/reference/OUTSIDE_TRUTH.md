@@ -85,7 +85,9 @@ Numbers: [qloo_lift_ranked.json](qloo_lift_ranked.json). Run it again: `python s
 ## Launch city, pre-registered: 134 kinds of business against the Census (30 Oct 2026)
 
 The plan was committed before any call or prediction: [impact_prereg_plan.md](impact_prereg_plan.md) (sha256
-6e08a9f488196f64da5f302c7f774bd31e2bf534c6adde2ef172073121e4dd13). Knos's arm takes each business type's Qloo taste tags
+6e08a9f488196f64da5f302c7f774bd31e2bf534c6adde2ef172073121e4dd13).
+
+Knos's arm takes each business type's Qloo taste tags
 and their heatmap, then ranks the 15 most populous metros by lift, the method the product now uses for its launch city.
 Qloo answered every heatmap request with no cells (255 Qloo calls in all), so the Knos arm fell back to the population
 order.

@@ -197,7 +197,7 @@ NO_GAP = "not a wait: the paying transaction is the payout"
 FEW = "none: fewer than 30 samples"
 PART_WHOSE = {"workflow scheduling": "the forge's: starting a runner", "relay pickup": "Knos's own: a relay finding the token"}
 SEPARATE = (("evidence arrival", ("workflow scheduling", "relay pickup"), ""),
-            ("evaluation", ("evaluation",), "the forge's runner: the judging job, then the forge signs what it found"),
+            ("evaluation", ("evaluation",), "the forge's runner: the checking job, then the forge signs what it found"),
             ("decision", (), "Knos's own, all of it"),
             (f"chain confirmation, at `{COMMITMENT}`", ("submission", "confirmation"), "the cluster's, and the relay's sends"),
             ("finality, at `finalized`", ("finality",), "the cluster's; no relay waits for it"),
