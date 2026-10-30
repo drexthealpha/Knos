@@ -136,7 +136,7 @@ def judge(ticket: dict, terms: dict, as_of: int) -> dict:
     if back and L.reopened(start, back[0], window, terms["new_after_window"]) == L.CORRECTION:
         return {**out, "why": "the customer came back inside the window"}
     if as_of < start + window:
-        return {**out, "verdict": None, "why": f"the window is open until {start + window}: not judged yet, not billed"}
+        return {**out, "verdict": None, "why": f"the window is open until {start + window}: not checked yet, not billed"}
     confirmed = any(start - window <= t <= start + window for t in at("customer_confirmed"))
     if terms["confirmation"] == "required" and not confirmed:
         return {**out, "why": "the terms require the customer's confirmation, and there is none"}
@@ -280,9 +280,9 @@ def main(argv: list[str] | None = None, say=print) -> int:
         if a.command == "evaluate":
             verdicts, evals = evaluate(tickets, terms, a.buyer, a.seller)
             for v in verdicts:
-                say(f"{v['ticket']}  {v['verdict'] or 'not judged yet':<14}  {v['why']}")
+                say(f"{v['ticket']}  {v['verdict'] or 'not checked yet':<14}  {v['why']}")
             s = summary(verdicts, terms)
-            say(f"{s['tickets']} tickets: {s['accepted']} accepted, {s['rejected']} rejected, {s['not_judged_yet']} not judged yet; "
+            say(f"{s['tickets']} tickets: {s['accepted']} accepted, {s['rejected']} rejected, {s['not_judged_yet']} not checked yet; "
                 f"value {statement.amount_of(s['value'], 6)}; policy {s['policy']}")
             if a.out:
                 _write(Path(a.out), "verdicts.json", json.dumps({"summary": s, "verdicts": verdicts}, indent=1, sort_keys=True) + "\n")

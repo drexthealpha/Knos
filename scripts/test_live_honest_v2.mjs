@@ -21,11 +21,12 @@ const SETS = {
     "a k-pop dance studio", "a cold plunge spa for athletes"]};
 const FRESH = SETS[process.argv[3] || "1"];
 const lines = [], fails = [];
-const log = (s) => { console.log(s); lines.push(s); };
+const log = (s) => { console.log(s); lines.push(s); if (OUT) appendFileSync(OUT, s + "\n"); };   // each line kept at once
 const ok = (c, what) => { log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails.push(what); return c; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const get = async (path) => (await fetch(APP + path, { headers: { "User-Agent": "knos-l2-test" } })).json();
-const post = async (path, body) => (await fetch(APP + path, { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "knos-l2-test" }, body: JSON.stringify(body) })).json();
+const again = async (f) => { try { return await f(); } catch (e) { await sleep(30000); return await f(); } };   // a dropped connection, once more
+const get = (path) => again(async () => (await fetch(APP + path, { headers: { "User-Agent": "knos-l2-test" } })).json());
+const post = (path, body) => again(async () => (await fetch(APP + path, { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "knos-l2-test" }, body: JSON.stringify(body) })).json());
 
 log(`run ${stamp}`);
 for (const idea of FRESH) {
@@ -57,5 +58,5 @@ try {
 } finally { await browser.close(); }
 log(fails.length ? `FAIL test_live_honest_v2: ${fails.length} of ${lines.length - 1} checks failed; first: ${fails[0].slice(0, 150)}`
   : `PASS test_live_honest_v2: 6 of 6 fresh checks count exactly the live 200s in the server log, the 22 Oct report is "recorded 2026-10-22", the line absent at 4 views`);
-if (OUT) appendFileSync(OUT, `\n${new Date().toISOString()}\n` + lines.join("\n") + "\n");
+
 process.exit(fails.length ? 1 : 0);

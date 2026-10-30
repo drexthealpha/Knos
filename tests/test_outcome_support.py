@@ -44,7 +44,7 @@ def test_each_rule_of_the_definition_decides_the_ticket_it_is_for(tickets, terms
         "T-1007": "accepted", "T-1008": "rejected", "T-1009": "rejected", "T-1010": "accepted"}
     assert "came back inside the window" in got["T-1003"][1] and "came back inside the window" in got["T-1006"][1]
     assert "person took it over" in got["T-1004"][1] and "person took it over" in got["T-1008"][1]
-    assert "never marked it solved" in got["T-1009"][1] and "not judged yet" in got["T-1005"][1]
+    assert "never marked it solved" in got["T-1009"][1] and "not checked yet" in got["T-1005"][1]
     assert {v["ticket"]: v["basis"] for v in verdicts if v["verdict"] == "accepted"} == {"T-1001": "confirmed", "T-1002": "silent", "T-1007": "silent",
                                                                                          "T-1010": "confirmed"}
     # the record exported twice is one ticket, and a ticket with no verdict is no evaluation
@@ -157,4 +157,4 @@ def test_the_workflow_signs_in_a_job_that_runs_nothing_from_the_repository_and_t
                   "| Agent services |", "| Data operations |", "| Software delivery |"):
         assert words in page, words
     readme = (EX / "README.md").read_text(encoding="utf-8")
-    assert "made up" in readme and "4 accepted, 5 rejected, 1 not judged yet" in readme
+    assert "made up" in readme and "4 accepted, 5 rejected, 1 not checked yet" in readme

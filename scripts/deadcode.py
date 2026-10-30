@@ -45,13 +45,14 @@ SRC = ROOT / "src"
 # knos.threshold.__main__ / knos.threshold.session: `python -m knos.threshold` (the FROST referee hosts: referee.yml, the PC
 # daemon) and the coordinator the web app runs (apps/wanted/knos_wanted/referee.py; docs/reference/REFEREE_FROST.md);
 # knos.threshold.codeattest: `python -m knos.threshold.codeattest post` (referee.yml, job attest) and the app server's /api/referee/attest;
+# knos.anthropic_http: the one model request, imported by the hosted app (apps/wanted model.py) when the founder sets a key
 # knos.settle.v2.passkey_smart: the LazorKit passkey wallet the web app's pre-orders and factoring use (apps/wanted wallets.py)
 ENTRY = ["knos.cli", "knos.__main__", "knos.proof.ghrelay", "knos.settle.v2.passkey_fund", "knos.private", "knos.host_judge", "knos.sources.sigstore",
          "knos.outcomes.__main__", "knos.autoresearch.__main__", "knos.record.__main__", "knos.self.__main__", "knos.gate.app",
          "knos.hermes_plugin", "knos.verify.sealed", "knos.money.x402", "knos.money.revenue", "knos.graduation.devnet", "knos.repro.example", "knos.zk.__main__", "knos.platform.claims",
          "knos.nebius.__main__", "knos.money.business",
          "knos.game.__main__", "knos.game.devnet", "knos.game.local_agent", "knos.ideas.devnet", "knos.ideas.devnet_panel", "knos.ideas.tools", "knos.a2a", "knos.claude.managed", "knos.labs.__main__", "knos.labs.adaptyv", "knos.labs.chemistry", "knos.labs.devnet", "knos.labs.electronics", "knos.labs.escrow", "knos.labs.evm", "knos.labs.materials", "knos.labs.mechanical", "knos.labs.plr_runner", "knos.labs.privacy", "knos.labs.x402pay", "knos.money.cctp", "knos.money.kora", "knos.platform.verdict", "knos.demand_tool", "knos.readings", "knos.referee_rules",
-         "knos.threshold.__main__", "knos.threshold.session", "knos.threshold.codeattest", "knos.settle.v2.passkey_smart"]
+         "knos.threshold.__main__", "knos.threshold.session", "knos.threshold.codeattest", "knos.settle.v2.passkey_smart", "knos.anthropic_http"]
 SCRIPTS = [p for p in list((ROOT / "scripts").glob("*.py")) + list((ROOT / "scripts" / "exercise_rounds").glob("*.py")) + list((ROOT / "examples").glob("*.py"))
            if p.name not in ("deadcode.py", "vulture_whitelist.py")]
 
