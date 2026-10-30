@@ -135,7 +135,8 @@ export async function facts(payer, call = rpc) {
 
 export function factsHtml(rows) {
   return `<h3>Network facts, read from devnet now</h3><div class="k-table"><table id="netfacts"><tbody>${rows.map(([n, v, m]) =>
-    `<tr><td>${esc(n)}</td><td class="k-num">${esc(v)}</td><td class="mono small">${esc(m)}</td></tr>`).join("")}</tbody></table></div>
+    // a refusal is words, so it wraps like words; a number stays on one line
+    `<tr><td>${esc(n)}</td><td class="${String(v).startsWith("not answered") ? "small" : "k-num"}">${esc(v)}</td><td class="mono small">${esc(m)}</td></tr>`).join("")}</tbody></table></div>
     <p class="fine" id="finality-clock" aria-live="polite">Finality clock: connecting…</p><ol class="small" id="activity-feed" aria-label="Knos programs, live"></ol>`;
 }
 
