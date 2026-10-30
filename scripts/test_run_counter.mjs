@@ -22,7 +22,10 @@ try {
     const reqs = [];
     page.on("request", (r) => { if (/\/api\/check/.test(r.url()) && r.method() === "POST") { try { const b = JSON.parse(r.postData() || "{}"); if (b.req) reqs.push(b.req); } catch { /* not JSON */ } } });
     try {
-      await page.goto(APP + "/app/", { waitUntil: "domcontentloaded", timeout: 120000 });
+      for (let attempt = 1; ; attempt++) {                        // a page that did not load is loaded once more, before any check
+        try { await page.goto(APP + "/app/", { waitUntil: "domcontentloaded", timeout: 90000 }); await page.waitForSelector("#k-q", { timeout: 60000 }); break; }
+        catch (e) { if (attempt === 2) throw e; await sleep(20000); }
+      }
       await page.fill("#k-q", idea);
       await page.click("#k-go");
       const during = [];
