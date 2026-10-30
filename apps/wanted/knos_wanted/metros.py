@@ -18,7 +18,7 @@ MIN_TARGET = 10
 MIN_CELLS = 3
 NO_MAP = "Qloo has no map for this idea yet, so Knos sets no launch city."
 DEADLINE_DAYS = 30
-METHOD = ("lift = mean cell affinity / the metro's population share among the candidate metros (method 2: docs.qloo.com "
+METHOD = ("of the 15 most populous candidate metros, the highest lift; lift = mean cell affinity / the metro's population share among the candidate metros (method 2: docs.qloo.com "
           "documents no heatmap request without an interest signal, so no baseline heatmap is fetched)")
 REFUND = "If fewer than {target} pre-orders come from {city} by the first milestone deadline, every pre-order is refunded."
 
@@ -98,11 +98,16 @@ def by_population(rows: list[dict]) -> dict | None:
             "population": top["population"], "affinity": top["affinity"]}
 
 
+TOP_BY_POPULATION = 15      # the launch city is ranked among the candidate metros this populous (K6 method c)
+
+
 def launch(rows: list[dict]) -> dict | None:
-    """The launch city: the candidate metro (lift()) with the highest lift. A metro with no population estimate (Puerto
-    Rico) cannot set a target."""
+    """The launch city (K6 method c, fixed before its pre-registered run): of the candidate metros (lift()), the
+    TOP_BY_POPULATION largest by 2023 population, reranked by lift; the highest wins. A metro with no population estimate
+    (Puerto Rico) cannot set a target."""
     rows = [r for r in rows if r.get("population") and r.get("lift") is not None]
-    return max(rows, key=lambda r: (r["lift"], r["cells"], r["cbsa"])) if rows else None
+    big = sorted(rows, key=lambda r: (-r["population"], r["cbsa"]))[:TOP_BY_POPULATION]
+    return max(big, key=lambda r: (r["lift"], r["cells"], r["cbsa"])) if big else None
 
 
 def terms(cells: list[dict]) -> dict | None:
