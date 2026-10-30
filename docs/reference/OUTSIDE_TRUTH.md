@@ -82,6 +82,20 @@ The tuned one: `--collect <ks-sample.json> <features.json>`, then `--tuned <ks-s
 
 Numbers: [qloo_lift_ranked.json](qloo_lift_ranked.json). Run it again: `python scripts/test_qloo_lift_ranked.py --score <ks-sample.json> <ks-features.json> <lift-sample.json> <lift-features.json>`.
 
+## Launch city against two baselines with no model: 30 kinds of business (30 Oct 2026)
+
+The plan was committed before any Qloo call: [baseline_prereg_plan.md](baseline_prereg_plan.md) (sha256
+5fdfe5705e8461c1aa81a7018c09048398891f02b9f1d3ab16e42c4f4e322028). The answer key is the where-demand test's, unchanged. Each ranking names 5 of the 110 metros of
+at least 500,000 people per business type.
+
+Knos with Qloo scored 0.087, Qloo popularity alone 0.053 and population 0.107 (overlap at 5, n 30,
+574 Qloo calls). Against popularity alone Knos gained +0.033, interval [+0.007, +0.067]: Knos is ahead.
+
+Against population Knos was -0.020, interval [-0.093, +0.047]: the test cannot tell them apart. Only 7 of
+30 types brought heatmap metros; 1 type was never asked, by the plan's budget stop.
+
+Numbers, per type and method: [the result file](baseline_prereg.json).
+
 ## Launch city, pre-registered: 134 kinds of business against the Census (30 Oct 2026)
 
 The plan was committed before any call or prediction: [impact_prereg_plan.md](impact_prereg_plan.md) (sha256

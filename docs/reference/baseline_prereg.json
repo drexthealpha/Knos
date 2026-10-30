@@ -1,0 +1,1022 @@
+{
+ "made": "2026-10-30 18:40 UTC",
+ "plan": "docs/reference/baseline_prereg_plan.md",
+ "plan_sha256": "5fdfe5705e8461c1aa81a7018c09048398891f02b9f1d3ab16e42c4f4e322028",
+ "n": 30,
+ "qloo_calls": 574,
+ "metric": "overlap at 5 with the Census top 10, divided by 5",
+ "mean_overlap": {
+  "knos_with_qloo": 0.0867,
+  "qloo_popularity_alone": 0.0533,
+  "population": 0.1067
+ },
+ "knos_minus_popularity": {
+  "difference": 0.0334,
+  "interval_95": [
+   0.0067,
+   0.0667
+  ],
+  "reading": "Knos is ahead"
+ },
+ "knos_minus_population": {
+  "difference": -0.02,
+  "interval_95": [
+   -0.0933,
+   0.0467
+  ],
+  "reading": "the test cannot tell them apart"
+ },
+ "bootstrap": {
+  "resamples": 2000,
+  "seed": 1
+ },
+ "types_with_metros": 7,
+ "not_reached": 1,
+ "per_code": [
+  {
+   "naics": "713940",
+   "title": "Fitness and Recreational Sports Centers",
+   "truth_top10": [
+    "12420",
+    "14460",
+    "14860",
+    "19740",
+    "31540",
+    "36540",
+    "38860",
+    "39580",
+    "41740",
+    "41860"
+   ],
+   "knos_top5": [
+    "38860",
+    "39300",
+    "26900",
+    "14460",
+    "25540"
+   ],
+   "popularity_top5": [
+    "16980",
+    "49340",
+    "14460",
+    "39300",
+    "35300"
+   ],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.4,
+   "popularity": 0.2,
+   "population": 0.0,
+   "live": 30,
+   "not_reached": false
+  },
+  {
+   "naics": "312120",
+   "title": "Breweries",
+   "truth_top10": [
+    "16700",
+    "17820",
+    "19740",
+    "29540",
+    "38860",
+    "38900",
+    "40380",
+    "41740",
+    "44060",
+    "45060"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 3,
+   "not_reached": false
+  },
+  {
+   "naics": "722515",
+   "title": "Snack and Nonalcoholic Beverage Bars",
+   "truth_top10": [
+    "14460",
+    "31080",
+    "35620",
+    "38860",
+    "38900",
+    "39300",
+    "41860",
+    "41940",
+    "42660",
+    "44060"
+   ],
+   "knos_top5": [
+    "19740",
+    "36260",
+    "38900",
+    "39340",
+    "42660"
+   ],
+   "popularity_top5": [
+    "38900",
+    "42660",
+    "36260",
+    "19740",
+    "39340"
+   ],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.4,
+   "popularity": 0.4,
+   "population": 0.4,
+   "live": 32,
+   "not_reached": false
+  },
+  {
+   "naics": "722511",
+   "title": "Full-Service Restaurants",
+   "truth_top10": [
+    "14860",
+    "16700",
+    "28880",
+    "35300",
+    "35380",
+    "35620",
+    "38860",
+    "38900",
+    "41860",
+    "42660"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.2,
+   "live": 16,
+   "not_reached": false
+  },
+  {
+   "naics": "722513",
+   "title": "Limited-Service Restaurants",
+   "truth_top10": [
+    "10420",
+    "12580",
+    "13820",
+    "27140",
+    "29820",
+    "31080",
+    "35380",
+    "41740",
+    "46520",
+    "47260"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.2,
+   "live": 4,
+   "not_reached": false
+  },
+  {
+   "naics": "722410",
+   "title": "Drinking Places (Alcoholic Beverages)",
+   "truth_top10": [
+    "19780",
+    "31540",
+    "33340",
+    "35380",
+    "36540",
+    "38300",
+    "38900",
+    "39900",
+    "42540",
+    "45060"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 16,
+   "not_reached": false
+  },
+  {
+   "naics": "812111",
+   "title": "Barber Shops",
+   "truth_top10": [
+    "17820",
+    "31540",
+    "33100",
+    "35620",
+    "36740",
+    "37980",
+    "41620",
+    "45300",
+    "46060",
+    "46520"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.2,
+   "live": 22,
+   "not_reached": false
+  },
+  {
+   "naics": "812112",
+   "title": "Beauty Salons",
+   "truth_top10": [
+    "10900",
+    "14460",
+    "14860",
+    "15980",
+    "19740",
+    "25420",
+    "33100",
+    "35620",
+    "35840",
+    "38300"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.2,
+   "live": 22,
+   "not_reached": false
+  },
+  {
+   "naics": "812113",
+   "title": "Nail Salons",
+   "truth_top10": [
+    "12940",
+    "14860",
+    "25540",
+    "31080",
+    "35300",
+    "35620",
+    "37980",
+    "40900",
+    "41860",
+    "42660"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.4,
+   "live": 22,
+   "not_reached": false
+  },
+  {
+   "naics": "812910",
+   "title": "Pet Care (except Veterinary) Services",
+   "truth_top10": [
+    "14260",
+    "14460",
+    "17820",
+    "19740",
+    "19780",
+    "25540",
+    "31540",
+    "38860",
+    "39300",
+    "45060"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 30,
+   "not_reached": false
+  },
+  {
+   "naics": "541940",
+   "title": "Veterinary Services",
+   "truth_top10": [
+    "12420",
+    "17820",
+    "20500",
+    "26620",
+    "30460",
+    "31540",
+    "35840",
+    "36420",
+    "38860",
+    "48620"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 19,
+   "not_reached": false
+  },
+  {
+   "naics": "713110",
+   "title": "Amusement and Theme Parks",
+   "truth_top10": [
+    "10900",
+    "24340",
+    "25420",
+    "28660",
+    "28880",
+    "36260",
+    "36740",
+    "38860",
+    "39340",
+    "41700"
+   ],
+   "knos_top5": [
+    "36540",
+    "15380",
+    "36740",
+    "37340",
+    "19660"
+   ],
+   "popularity_top5": [
+    "31080",
+    "40060",
+    "37980",
+    "33100",
+    "36260"
+   ],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.2,
+   "popularity": 0.2,
+   "population": 0.0,
+   "live": 29,
+   "not_reached": false
+  },
+  {
+   "naics": "713120",
+   "title": "Amusement Arcades",
+   "truth_top10": [
+    "15980",
+    "19780",
+    "24660",
+    "28660",
+    "30460",
+    "38940",
+    "39580",
+    "45060",
+    "45300",
+    "49180"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 3,
+   "not_reached": false
+  },
+  {
+   "naics": "713910",
+   "title": "Golf Courses and Country Clubs",
+   "truth_top10": [
+    "10580",
+    "15980",
+    "31540",
+    "38300",
+    "38860",
+    "38940",
+    "39300",
+    "40380",
+    "42540",
+    "45060"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 30,
+   "not_reached": false
+  },
+  {
+   "naics": "713950",
+   "title": "Bowling Centers",
+   "truth_top10": [
+    "15380",
+    "17410",
+    "24340",
+    "28880",
+    "31540",
+    "33340",
+    "38300",
+    "40380",
+    "45060",
+    "45780"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 29,
+   "not_reached": false
+  },
+  {
+   "naics": "711130",
+   "title": "Musical Groups and Artists",
+   "truth_top10": [
+    "12420",
+    "29820",
+    "31080",
+    "33100",
+    "34980",
+    "35620",
+    "36740",
+    "37100",
+    "39340",
+    "41860"
+   ],
+   "knos_top5": [
+    "34980",
+    "33100",
+    "12060",
+    "31080",
+    "35620"
+   ],
+   "popularity_top5": [
+    "29820",
+    "16980",
+    "47900",
+    "31080",
+    "37980"
+   ],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.8,
+   "popularity": 0.4,
+   "population": 0.4,
+   "live": 31,
+   "not_reached": false
+  },
+  {
+   "naics": "711110",
+   "title": "Theater Companies and Dinner Theaters",
+   "truth_top10": [
+    "10580",
+    "15380",
+    "31080",
+    "33460",
+    "35620",
+    "38860",
+    "38900",
+    "41860",
+    "46520",
+    "48620"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.4,
+   "live": 22,
+   "not_reached": false
+  },
+  {
+   "naics": "512131",
+   "title": "Motion Picture Theaters (except Drive-Ins)",
+   "truth_top10": [
+    "10420",
+    "12420",
+    "19660",
+    "19780",
+    "28660",
+    "28880",
+    "36260",
+    "38860",
+    "38900",
+    "48620"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 16,
+   "not_reached": false
+  },
+  {
+   "naics": "611610",
+   "title": "Fine Arts Schools",
+   "truth_top10": [
+    "14460",
+    "14860",
+    "20500",
+    "28880",
+    "31540",
+    "39340",
+    "41620",
+    "41860",
+    "41940",
+    "49340"
+   ],
+   "knos_top5": [
+    "46520",
+    "41860",
+    "31080",
+    "35620",
+    "14460"
+   ],
+   "popularity_top5": [
+    "16980",
+    "47900",
+    "29820",
+    "33100",
+    "41860"
+   ],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.4,
+   "popularity": 0.2,
+   "population": 0.0,
+   "live": 29,
+   "not_reached": false
+  },
+  {
+   "naics": "611620",
+   "title": "Sports and Recreation Instruction",
+   "truth_top10": [
+    "14860",
+    "17820",
+    "19740",
+    "20500",
+    "31540",
+    "33100",
+    "39580",
+    "41860",
+    "41940",
+    "42660"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 29,
+   "not_reached": false
+  },
+  {
+   "naics": "621310",
+   "title": "Offices of Chiropractors",
+   "truth_top10": [
+    "14260",
+    "19660",
+    "19780",
+    "22220",
+    "28140",
+    "31540",
+    "33460",
+    "36540",
+    "38300",
+    "38900"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 15,
+   "not_reached": false
+  },
+  {
+   "naics": "812199",
+   "title": "Other Personal Care Services",
+   "truth_top10": [
+    "12420",
+    "14860",
+    "19740",
+    "29820",
+    "33100",
+    "35300",
+    "35620",
+    "35840",
+    "38900",
+    "41620"
+   ],
+   "knos_top5": [
+    "36740",
+    "33100",
+    "31080",
+    "35620",
+    "26420"
+   ],
+   "popularity_top5": [
+    "29820",
+    "47900",
+    "31080",
+    "16980",
+    "41860"
+   ],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.4,
+   "popularity": 0.2,
+   "population": 0.2,
+   "live": 31,
+   "not_reached": false
+  },
+  {
+   "naics": "811192",
+   "title": "Car Washes",
+   "truth_top10": [
+    "15980",
+    "19660",
+    "19780",
+    "22220",
+    "29540",
+    "30780",
+    "35840",
+    "36260",
+    "36740",
+    "38940"
+   ],
+   "knos_top5": [
+    "41740",
+    "40140",
+    "41860",
+    "31080",
+    "29820"
+   ],
+   "popularity_top5": [
+    "38060",
+    "40900",
+    "31080",
+    "35620",
+    "12060"
+   ],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 20,
+   "not_reached": false
+  },
+  {
+   "naics": "721110",
+   "title": "Hotels (except Casino Hotels) and Motels",
+   "truth_top10": [
+    "12260",
+    "16700",
+    "16860",
+    "19660",
+    "25420",
+    "27140",
+    "30780",
+    "32820",
+    "35380",
+    "38860"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 21,
+   "not_reached": false
+  },
+  {
+   "naics": "721191",
+   "title": "Bed-and-Breakfast Inns",
+   "truth_top10": [
+    "16700",
+    "25420",
+    "27260",
+    "28880",
+    "29540",
+    "31140",
+    "35380",
+    "37340",
+    "38860",
+    "39300"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 4,
+   "not_reached": false
+  },
+  {
+   "naics": "312130",
+   "title": "Wineries",
+   "truth_top10": [
+    "14260",
+    "23420",
+    "28880",
+    "37100",
+    "38900",
+    "40900",
+    "41940",
+    "42660",
+    "44060",
+    "44700"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 3,
+   "not_reached": false
+  },
+  {
+   "naics": "312140",
+   "title": "Distilleries",
+   "truth_top10": [
+    "12420",
+    "16700",
+    "17820",
+    "19740",
+    "28880",
+    "29540",
+    "30460",
+    "31140",
+    "38860",
+    "39900"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 3,
+   "not_reached": false
+  },
+  {
+   "naics": "311811",
+   "title": "Retail Bakeries",
+   "truth_top10": [
+    "14460",
+    "25540",
+    "29540",
+    "31080",
+    "35300",
+    "35620",
+    "38860",
+    "39300",
+    "44060",
+    "46520"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.4,
+   "live": 14,
+   "not_reached": false
+  },
+  {
+   "naics": "624410",
+   "title": "Child Day Care Services",
+   "truth_top10": [
+    "14460",
+    "27140",
+    "33340",
+    "35620",
+    "36540",
+    "38860",
+    "38900",
+    "41860",
+    "41940",
+    "42660"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.2,
+   "live": 29,
+   "not_reached": false
+  },
+  {
+   "naics": "712110",
+   "title": "Museums",
+   "truth_top10": [
+    "14460",
+    "14860",
+    "17820",
+    "25540",
+    "29540",
+    "35380",
+    "38860",
+    "39300",
+    "40380",
+    "45060"
+   ],
+   "knos_top5": [],
+   "popularity_top5": [],
+   "population_top5": [
+    "35620",
+    "31080",
+    "16980",
+    "19100",
+    "26420"
+   ],
+   "knos": 0.0,
+   "popularity": 0.0,
+   "population": 0.0,
+   "live": 0,
+   "not_reached": true
+  }
+ ],
+ "answer_key": "docs/reference/where_truth.json (the where-demand test's Census key, unchanged)"
+}
