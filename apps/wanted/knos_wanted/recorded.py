@@ -44,7 +44,7 @@ def failure(rep: dict) -> int | None:
     """The HTTP code of the first Qloo call that failed for want of an answer (429, a 5xx, a timeout), or None."""
     for c in rep.get("calls") or []:
         err = str(c.get("error") or "")
-        if not err:
+        if not err or "left out of this report" in err:      # a map still on its way is left out; the card stands
             continue
         m = re.search(r"HTTP (\d{3})", err)
         if m and (m[1] == "429" or m[1].startswith("5")):

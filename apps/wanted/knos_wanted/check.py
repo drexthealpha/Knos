@@ -1403,7 +1403,15 @@ def _demand_check(idea: str, place: str | None = None, leader: str | None = None
     if ok and not verdict_only and (not cells or metros.flat(cells)) and ev.get("tags"):    # no map: asked once more, by the top matched tag
         cells = _tag_map(run, ev["tags"][0]["id"], place)
         ev["where_by_tag"] = {"tag": ev["tags"][0]["name"], "cells": len(cells)}
-    matched = bool(rep.get("matches"))             # no product matched: nothing to launch, so no city and no map line
+    if not verdict_only and (not cells or metros.flat(cells)):   # still no map: the destinations Qloo named for this taste
+        dest = ev.get("cities") or (ev.get("launch") or {}).get("cities") or []
+        points = [{"lat": c["lat"], "lon": c["lon"], "affinity": c["affinity"]} for c in dest
+                  if isinstance(c.get("lat"), (int, float)) and isinstance(c.get("lon"), (int, float)) and isinstance(c.get("affinity"), (int, float))]
+        if points:
+            cells = points
+            ev["where_by_destinations"] = len(points)
+    # an idea no product matched is answered from its own taste tags (N1): its map is that taste's, so it launches too
+    matched = bool(rep.get("matches")) or bool(ev.get("tags"))
     rep["terms"] = None if verdict_only or not matched else metros.terms(cells)
     rep["no_map"] = None if rep["terms"] or verdict_only or not matched else metros.NO_MAP
     rep["brief"] = metros.brief(idea, rep["terms"], [x["name"] for x in ev.get("persona") or [] if x.get("name")]) if rep["terms"] else None
