@@ -794,12 +794,12 @@ def _new_idea(run: _Run, ev: dict, idea: str, kind: str, place: str | None, word
         if not e.get("entity_id"):
             continue
         geo = (e.get("properties") or {}).get("geocode") or {}
-        items.append({"name": e.get("name"), "id": e["entity_id"], "affinity": (e.get("query") or {}).get("affinity"),
+        items.append({"name": e.get("name"), "id": e["entity_id"], "affinity": (e.get("query") or {}).get("affinity"), "popularity": e.get("popularity"),
                       "area": ", ".join(str(x) for x in (geo.get("name"), geo.get("admin1_region")) if x) or None,
                       "price_level": (e.get("properties") or {}).get("price_level"), "src": s_t})
     ev["taste_answer"] = {"kind": kind, "tags": [{"name": t["name"], "id": t["id"], "src": t.get("src")} for t in tags],
                           "items": items[:6], "src": s_t}
-    via, key, said = [x["id"] for x in items[:3]], "signal.interests.entities", "the products nearest its taste tags"
+    via, key, said = [x["id"] for x in items if x.get("popularity") is not None][:3], "signal.interests.entities", "the products nearest its taste tags"
     if not via:
         via, key, said = [t["id"] for t in tags], "signal.interests.tags", "its taste tags"
     loc = place or DEFAULT_PLACE
