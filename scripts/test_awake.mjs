@@ -18,7 +18,7 @@ const text = Buffer.from(wf.replace(/\s/g, ""), "base64").toString("utf8");
 ok(/2026-11-06T06:00:00Z/.test(text) && /gh workflow disable live-window\.yml/.test(text) && URLS.every((u) => text.includes(u)),
   "live-window.yml on main asks for the three pages and stops itself from 6 Nov 06:00 UTC");
 const runs = JSON.parse(gh(["run", "list", "--workflow", "live-window.yml", "-L", "20", "--json", "databaseId,status,conclusion,createdAt,event"]));
-const done = runs.filter((r) => r.status === "completed" && r.conclusion === "success");
+const done = runs.filter((r) => r.status === "completed" && ["success", "cancelled"].includes(r.conclusion));   // a run stopped early keeps the asks it logged
 let asked = [];
 for (const r of done.slice(0, 3)) {
   const logText = gh(["run", "view", String(r.databaseId), "--log"]);
