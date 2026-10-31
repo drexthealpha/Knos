@@ -161,12 +161,16 @@ def download(rep: dict, kind: str) -> tuple[str, str, str] | None:
         return None
     d = rep.get("decision") or {}
     idea, city, who = str(rep.get("idea") or "the product"), _city(rep) or "the launch city", _who(rep) or "its first buyers"
-    target, reserve = d.get("target_units"), d.get("reserve_units")
+    from . import metros
+    lt = metros.launch_terms(rep) or {}                 # the target the card shows: its launch terms, else the verdict's
+    target = lt.get("target") or d.get("target_units")
+    reserve = d.get("reserve_units") if target == d.get("target_units") else None
     pr = (rep.get("price") or {}).get("tier") or "mid"
     day = refund_day(rep)
     if kind == "preorder":
-        body = (f"{idea}\n\nPre-order now, in {city} first. We open when {target} pre-orders are in, and {reserve} of them "
-                f"must arrive before the maker is paid. If fewer than {target} come from {city} by {day.isoformat()}, every "
+        held = f", and {reserve} of them must arrive before the maker is paid" if reserve else ""
+        body = (f"{idea}\n\nPre-order now, in {city} first. We open when {target} pre-orders are in{held}. "
+                f"If fewer than {target} come from {city} by {day.isoformat()}, the first milestone's deadline, every "
                 f"pre-order is refunded. Price tier: {pr}. Made for {who}.\n\nDevnet test money only.\n")
         return body, "text/plain; charset=utf-8", "preorder.txt"
     if kind == "outreach":
@@ -176,9 +180,12 @@ def download(rep: dict, kind: str) -> tuple[str, str, str] | None:
         return body, "text/plain; charset=utf-8", "outreach.txt"
     if kind == "refund.ics":
         stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        body = "\r\n".join(["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Knos//pre-order refund//EN", "BEGIN:VEVENT",
-                            f"UID:{rep.get('hash')}@knos.onrender.com", f"DTSTAMP:{stamp}", f"DTSTART;VALUE=DATE:{day.strftime('%Y%m%d')}",
-                            f"SUMMARY:Refund date: {idea[:60]} needs {target} pre-orders from {city}",
+        ymd = day.strftime("%Y%m%d")                     # the refund rule reads the first milestone's deadline: one day, two events
+        body = "\r\n".join(["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Knos//pre-order refund//EN",
+                            "BEGIN:VEVENT", f"UID:{rep.get('hash')}-milestone@knos.onrender.com", f"DTSTAMP:{stamp}", f"DTSTART;VALUE=DATE:{ymd}",
+                            f"SUMMARY:First milestone deadline: {target} pre-orders from {city} for {idea[:60]}", "END:VEVENT",
+                            "BEGIN:VEVENT", f"UID:{rep.get('hash')}@knos.onrender.com", f"DTSTAMP:{stamp}", f"DTSTART;VALUE=DATE:{ymd}",
+                            f"SUMMARY:Refund date: {idea[:60]} needs {target} pre-orders from {city}, else every pre-order is refunded",
                             "END:VEVENT", "END:VCALENDAR", ""])
         return body, "text/calendar; charset=utf-8", "refund.ics"
     return None

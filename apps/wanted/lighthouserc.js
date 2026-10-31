@@ -5,7 +5,7 @@
 // own lists (web/views.js, web/front.js MOUNTS) and the app's views (static/app.js VIEWS), so a new page is measured.
 const SITE = "http://127.0.0.1:8081/";
 const APP = "http://127.0.0.1:8080/";
-const site = ["", "#verify", "#check", "#protect", "#fund", "#claim", "#pricing", "#records", "#network", "#build",
+const site = ["", "judges/", "#verify", "#check", "#protect", "#fund", "#claim", "#pricing", "#records", "#network", "#build",
   "#buy", "#install", "#capabilities", "#status", "#index", "#pilot", "#reproduce", "#shadow", "#verifier", "#playground", "#terms",
   "#supplier", "#invoice-statement", "#story", "#keyholder", "#record",
   "#approve", "#rails", "#enforcement","#finance", "#payee", "#vendor", "#apps", "#demand",

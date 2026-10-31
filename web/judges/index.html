@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Judges · Knos</title>
+<meta name="description" content="Knos in three minutes: what it does, what is running now, one live check, the check with Qloo switched off, and the result locked before any data.">
+<link rel="icon" href="../favicon.ico">
+<style>
+  :root { --paper: #f4f4ef; --ink: #17171c; --muted: #4a4a55; --line: #d6d6cf; --blue: #2a37b8; --ok: #146c3c; --no: #9b1c1c; }
+  @media (prefers-color-scheme: dark) { :root { --paper: #15161a; --ink: #f1f1ec; --muted: #b9b9c2; --line: #34343c; --blue: #9aa6ff; --ok: #6fd69c; --no: #ff9a9a; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 8px 0 4px; }
+  h2 { font-size: 1.2rem; margin: 28px 0 6px; }
+  p { margin: 6px 0; }
+  a { color: var(--blue); }
+  .muted { color: var(--muted); font-size: 0.95rem; }
+  .status { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; margin: 14px 0; }
+  .status b { font-weight: 600; }
+  .on { color: var(--ok); } .off { color: var(--no); }
+  .go { display: inline-block; margin: 8px 0; padding: 12px 18px; border: 0; border-radius: 10px; background: var(--blue); color: var(--paper); font: 600 1rem system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+  ol { padding-left: 1.3em; margin: 6px 0; } li { margin: 4px 0; }
+  .locked { border-left: 4px solid var(--blue); padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<main>
+  <p class="muted"><a href="../">Knos</a> · Judges</p>
+  <h1>Knos in three minutes</h1>
+  <p>Knos carries an idea or a research paper across the valley of death: Qloo says who wants it and where, a Ready brief says what done means, money is held on Solana devnet, and it is paid only on verified proof.</p>
+
+  <div class="status" role="status" aria-live="polite" id="now">
+    <span>Qloo: <b id="qloo">reading…</b></span>
+    <span>Solana devnet: <b id="sol">reading…</b></span>
+    <span class="muted" id="when"></span>
+  </div>
+
+  <h2>1. Run one live check</h2>
+  <p>One press asks Qloo now, for a sample idea, and shows the verdict, who buys, the launch city and every Qloo call with its time.</p>
+  <button type="button" class="go" id="run">Run a live check: a probiotic kombucha brand</button>
+
+  <h2>2. Switch Qloo off</h2>
+  <p>On the card, Without Qloo removes every Qloo answer: no launch city and no pre-order target, so pre-orders cannot open. Model alone shows what a model says with no Qloo data, beside Knos's answer. <a href="https://knos.onrender.com/app/?q=a%20probiotic%20kombucha%20brand&amp;qloo=off">The same card from the cache only</a> asks Qloo nothing.</p>
+
+  <h2>3. The result locked before any data</h2>
+  <p class="locked">Committed before any Qloo call, run once on 30 Oct 2026: Knos is ahead of Qloo popularity alone, +0.033 [+0.007, +0.067], and ties population. The model alone beat Knos twice in earlier tests. <a href="../how-we-test.html">How we test Knos</a></p>
+
+  <h2>4. What a founder takes away</h2>
+  <ol>
+    <li>An Open card offers a pre-order page text with its launch city and target.</li>
+    <li>It also offers a calendar file with the first milestone deadline and the refund date.</li>
+  </ol>
+  <p class="muted">Devnet only: test units, never real money. Qloo's answers are aggregate taste, never a forecast about one person.</p>
+</main>
+<script>
+  const APP = "https://knos.onrender.com";
+  document.getElementById("run").addEventListener("click", () => { location.href = APP + "/app/?q=" + encodeURIComponent("a probiotic kombucha brand"); });
+  const say = (id, on, text) => { const el = document.getElementById(id); el.textContent = text; el.className = on ? "on" : "off"; };
+  fetch(APP + "/api/status").then((r) => r.json()).then((s) => {
+    const q = s.qloo_rest || {}, p = s.preorders || {};
+    say("qloo", q.rest && q.reason === "ok", q.rest && q.reason === "ok" ? "live, answering now" : "not answering: " + (q.reason || "no key"));
+    say("sol", !!p.available, p.available ? "live, a pre-order simulated on devnet" : "not live: " + String(p.why || "").slice(0, 80));
+    document.getElementById("when").textContent = "read from the app at " + new Date().toISOString().slice(11, 16) + " UTC";
+  }).catch(() => { say("qloo", false, "the app did not answer"); say("sol", false, "the app did not answer"); });
+</script>
+</body>
+</html>
