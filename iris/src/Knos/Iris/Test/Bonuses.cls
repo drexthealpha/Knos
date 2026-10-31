@@ -21,7 +21,7 @@ ClassMethod Vector() As %String
     set out = [], qs = {"m1": "checkout latency p95 test result", "m2": "error rate of the payment api in production", "m3": "accessibility score of the signup page"}
     set it = qs.%GetIterator()
     while it.%GetNext(.want, .q) {
-        set v = ##class(Knos.Iris.Py.Embed).Vector(q)
+        set v = ##class(Knos.Iris.Py.Embed).Query(q)
         &sql(SELECT TOP 1 MKey, VECTOR_COSINE(Vec, TO_VECTOR(:v, DOUBLE, 384)) INTO :key, :score FROM Knos_Iris_Data.Criterion WHERE BriefHash = :hash ORDER BY VECTOR_COSINE(Vec, TO_VECTOR(:v, DOUBLE, 384)) DESC)
         do out.%Push({"query": (q), "want": (want), "top": ($get(key)), "cosine": (+$get(score)), "sqlcode": (SQLCODE)})
     }

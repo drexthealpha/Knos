@@ -40,7 +40,8 @@ RUN --mount=type=bind,source=iris/java,target=/tmp/java \
 FROM base AS builder
 # IRIS's own memory, capped the same at build and at run. At build on 154 a merge restarts IRIS and the install session
 # then waits forever (`iris merge` the same), and uncapped IRIS takes 25% of the VM (1,834 MB, which took Docker down),
-# so the build writes merge.cpf's three values straight into iris.cpf; at run compose applies merge.cpf.
+# so the build writes merge.cpf's values straight into iris.cpf (the final stage adds its SystemMode), and a run
+# merges nothing: a merge at start took 17 minutes at full CPU on 154.
 # The namespace step needs no Knos source, so a change to iris/src never runs it again.
 RUN --mount=type=bind,source=iris/scripts/namespace.script,target=/tmp/namespace.script \
     sed -i -e 's/^globals=.*/globals=0,0,192,0,0,0/' -e 's/^routines=.*/routines=48/' -e 's/^gmheap=.*/gmheap=98304/' /usr/irissys/iris.cpf \
@@ -69,8 +70,19 @@ FROM base AS final
 RUN --mount=type=bind,from=builder,source=/,target=/builder/root \
     --mount=type=bind,source=iris/scripts/copy-data.py,target=/tmp/copy-data.py \
     cp -f /builder/root/usr/irissys/iris.cpf /usr/irissys/iris.cpf \
+ && sed -i -e '/^SystemMode=/d' -e 's/^\[Startup\]$/[Startup]\nSystemMode=KNOS REFEREE/' /usr/irissys/iris.cpf \
+ && grep -E '^(globals|routines|gmheap|SystemMode)=' /usr/irissys/iris.cpf \
  && python3 /tmp/copy-data.py -c /usr/irissys/iris.cpf -d /builder/root/ --csp -p -o usr/irissys/csp/healthshare
 # the files IRIS uses at run: Knos's package, iris/ (merge.cpf, knos_iris, fixtures, the health check's script), the jar
 COPY --chown=irisowner:irisowner src/knos /home/irisowner/knos/src/knos
 COPY --chown=irisowner:irisowner iris /home/irisowner/knos/iris
 COPY --from=jar --chown=irisowner:irisowner /home/irisowner/knos/java/knos-iris-pex.jar /home/irisowner/knos/java/knos-iris-pex.jar
+# the open embedding model for Vector Search (snowflake-arctic-embed-s: 33M parameters, 384 numbers), its ONNX runtime and
+# its weights inside the image, so a run needs no download; knos_iris.bridge falls back to the hashed embedding without it
+RUN pip3 install --quiet --break-system-packages --target /usr/irissys/mgr/python "fastembed>=0.7,<0.8"  && PYTHONPATH=/usr/irissys/mgr/python python3 -c "from fastembed import TextEmbedding; TextEmbedding('snowflake/snowflake-arctic-embed-s', cache_dir='/usr/irissys/mgr/python/knos-embed')"
+ENV KNOS_EMBED_DIR=/usr/irissys/mgr/python/knos-embed HF_HUB_OFFLINE=1
+# The three code libraries (HSLIB 1.7 GB, IRISLIB, ENSLIB) are read-only databases, but IRIS takes a lock file in each
+# folder and opens IRIS.DAT for writing, so the container's overlay copies them whole before IRIS can mount them: over
+# 40 minutes for HSLIB on a 5400 rpm disk. With their folders not writable IRIS logs "Cannot lock ... will try accessing
+# readonly" and mounts them read-only with nothing copied. Only the folders change, so this layer is a few bytes.
+RUN chmod 555 /usr/irissys/mgr/hslib /usr/irissys/mgr/enslib /usr/irissys/mgr/irislib

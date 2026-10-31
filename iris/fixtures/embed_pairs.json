@@ -1,0 +1,85 @@
+{
+  "about": "40 proof-to-criterion pairs for the vector search (K3): each proof is a short evidence summary as an inbound message would carry it, labelled with the one milestone of its brief it proves. Proofs are written in their own words, not copied from the milestone text. Top-2 hit rate: the labelled milestone is among the 2 nearest criteria of the proof's own brief.",
+  "briefs": [
+    {"id": "lab", "milestones": [
+      {"key": "assay", "name": "Glucose assay validated against reference", "target": "bias under 5 percent on 40 samples", "verifier": {"check": "lab_result_loinc_2345-7"}},
+      {"key": "stability", "name": "Sensor stability over shelf life", "target": "drift under 2 percent after 90 days", "verifier": {"check": "stability_report"}},
+      {"key": "irb", "name": "Ethics approval for the human study", "target": "IRB approval letter on file", "verifier": {"check": "document_signed"}},
+      {"key": "pilot", "name": "Pilot study with patients", "target": "20 participants enrolled and wearing the device", "verifier": {"check": "enrollment_count"}},
+      {"key": "fda", "name": "Regulatory submission", "target": "510(k) pre-submission sent", "verifier": {"check": "submission_receipt"}},
+      {"key": "mfg", "name": "Manufacturing run", "target": "500 units built with yield above 95 percent", "verifier": {"check": "batch_record"}}
+    ]},
+    {"id": "code", "milestones": [
+      {"key": "api", "name": "Public REST API", "target": "all endpoints documented and returning 200", "verifier": {"check": "contract_tests"}},
+      {"key": "auth", "name": "Login with passkeys", "target": "WebAuthn registration and sign-in work", "verifier": {"check": "e2e_auth"}},
+      {"key": "perf", "name": "Fast first page", "target": "Lighthouse performance 0.9 on mobile", "verifier": {"check": "lighthouse"}},
+      {"key": "a11y", "name": "Accessible interface", "target": "no axe violations on every page", "verifier": {"check": "axe"}},
+      {"key": "billing", "name": "Paid plans", "target": "a test card subscribes and is invoiced", "verifier": {"check": "stripe_test_mode"}},
+      {"key": "docs", "name": "Developer guide", "target": "quickstart runs from a clean machine", "verifier": {"check": "docs_ci"}}
+    ]},
+    {"id": "model", "milestones": [
+      {"key": "data", "name": "Training data collected", "target": "50,000 labelled images with consent", "verifier": {"check": "dataset_manifest"}},
+      {"key": "baseline", "name": "Baseline model trained", "target": "top-1 accuracy above 80 percent", "verifier": {"check": "eval_report"}},
+      {"key": "fairness", "name": "Fairness audit", "target": "accuracy gap between groups under 3 points", "verifier": {"check": "bias_report"}},
+      {"key": "latency", "name": "On-device inference", "target": "under 50 ms per image on a phone", "verifier": {"check": "benchmark"}},
+      {"key": "release", "name": "Open weights release", "target": "weights and model card published", "verifier": {"check": "registry_entry"}}
+    ]},
+    {"id": "hardware", "milestones": [
+      {"key": "proto", "name": "Working prototype", "target": "board powers on and logs sensor data", "verifier": {"check": "demo_video"}},
+      {"key": "battery", "name": "Battery life", "target": "7 days on one charge", "verifier": {"check": "battery_log"}},
+      {"key": "water", "name": "Water resistance", "target": "IP67 test passed", "verifier": {"check": "test_certificate"}},
+      {"key": "fcc", "name": "Radio certification", "target": "FCC Part 15 approval", "verifier": {"check": "grant_id"}},
+      {"key": "preorders", "name": "Pre-orders from the launch city", "target": "200 pre-orders", "verifier": {"check": "test_preorders_from_city"}},
+      {"key": "ship", "name": "First shipment", "target": "100 units delivered to buyers", "verifier": {"check": "carrier_tracking"}}
+    ]},
+    {"id": "research", "milestones": [
+      {"key": "replicate", "name": "Replicate the paper's main result", "target": "within 2 percent of the reported score", "verifier": {"check": "replication_notebook"}},
+      {"key": "ablation", "name": "Ablation study", "target": "each component removed and measured", "verifier": {"check": "ablation_table"}},
+      {"key": "preprint", "name": "Preprint posted", "target": "paper on arXiv with code link", "verifier": {"check": "arxiv_id"}},
+      {"key": "review", "name": "Peer review", "target": "accepted at a refereed venue", "verifier": {"check": "acceptance_email"}},
+      {"key": "dataset", "name": "Benchmark dataset released", "target": "dataset with licence and datasheet", "verifier": {"check": "dataset_doi"}}
+    ]}
+  ],
+  "pairs": [
+    {"brief": "lab", "key": "assay", "proof": "HL7 ORU^R01: serum glucose by the new strip versus the hospital analyser, 40 paired draws, mean difference 3.1 percent"},
+    {"brief": "lab", "key": "stability", "proof": "Accelerated aging chamber report: calibration moved 1.4 percent between day 0 and day 90"},
+    {"brief": "lab", "key": "irb", "proof": "Letter from the institutional review board granting approval for protocol KX-22, signed and dated"},
+    {"brief": "lab", "key": "pilot", "proof": "Clinic roster shows 21 volunteers consented and fitted with the wearable last week"},
+    {"brief": "lab", "key": "fda", "proof": "Confirmation email from the agency's CDRH portal: pre-submission package received, Q-number assigned"},
+    {"brief": "lab", "key": "mfg", "proof": "Contract manufacturer batch record: 512 devices assembled, 498 passed final inspection"},
+    {"brief": "lab", "key": "assay", "proof": "FHIR Observation LOINC 2345-7, comparison with the reference method across forty specimens, bias 4.2 percent"},
+    {"brief": "lab", "key": "pilot", "proof": "Enrollment log for the first-in-human trial: 20 subjects active, devices worn daily"},
+    {"brief": "code", "key": "api", "proof": "GitHub check run 'contract tests' passed: every route in the OpenAPI spec answered with status 200"},
+    {"brief": "code", "key": "auth", "proof": "Playwright end-to-end suite: a new user created a passkey and then logged in with it, green on CI"},
+    {"brief": "code", "key": "perf", "proof": "CI report for the landing page on a throttled phone profile: performance score 0.93"},
+    {"brief": "code", "key": "a11y", "proof": "axe-core scan of all 14 pages reports zero violations, attached to the pull request"},
+    {"brief": "code", "key": "billing", "proof": "Stripe test mode: card 4242 started the Pro subscription and the first invoice was issued"},
+    {"brief": "code", "key": "docs", "proof": "Fresh Ubuntu runner followed the getting-started page step by step and the sample app came up"},
+    {"brief": "code", "key": "perf", "proof": "Mobile audit of the home screen came back at 91 for speed, largest contentful paint 1.8 s"},
+    {"brief": "code", "key": "auth", "proof": "WebAuthn ceremony recorded in the test log: credential registered, assertion verified, session started"},
+    {"brief": "model", "key": "data", "proof": "Manifest lists 51,200 annotated photos, each with a signed consent record from the contributor"},
+    {"brief": "model", "key": "baseline", "proof": "Evaluation on the held-out split: 82.4 percent of images classified correctly at rank one"},
+    {"brief": "model", "key": "fairness", "proof": "Subgroup analysis: the difference in accuracy between skin tone groups is 2.1 points"},
+    {"brief": "model", "key": "latency", "proof": "Benchmark on a Pixel 8: median 38 ms per frame running the quantized network locally"},
+    {"brief": "model", "key": "release", "proof": "Hugging Face page now hosts the checkpoint with a model card describing limits and intended use"},
+    {"brief": "model", "key": "baseline", "proof": "Training run finished; validation top-1 is 81 percent after 40 epochs"},
+    {"brief": "model", "key": "latency", "proof": "Profiling on an iPhone shows each prediction completes in 44 milliseconds without a server"},
+    {"brief": "model", "key": "data", "proof": "Data collection closed with fifty thousand labelled pictures gathered under informed consent"},
+    {"brief": "hardware", "key": "proto", "proof": "Video: the first board boots, the LED blinks and temperature readings stream to the laptop"},
+    {"brief": "hardware", "key": "battery", "proof": "Discharge log: the unit ran 7 days and 4 hours before shutting down on a single charge"},
+    {"brief": "hardware", "key": "water", "proof": "Lab certificate: submerged at one metre for 30 minutes with no ingress, IP67 granted"},
+    {"brief": "hardware", "key": "fcc", "proof": "FCC grant of equipment authorization issued under Part 15, grantee code 2BX"},
+    {"brief": "hardware", "key": "preorders", "proof": "Knos record: 214 pre-orders held on devnet from buyers in Portland before the deadline"},
+    {"brief": "hardware", "key": "ship", "proof": "Carrier tracking shows 103 parcels delivered to customers this week"},
+    {"brief": "hardware", "key": "battery", "proof": "Endurance test: a full charge lasted a week of normal use"},
+    {"brief": "hardware", "key": "water", "proof": "Dunk tank and dust chamber test passed at the certified lab"},
+    {"brief": "research", "key": "replicate", "proof": "Our rerun of the authors' experiment reached 76.8 against the published 77.9, inside the 2 percent margin"},
+    {"brief": "research", "key": "ablation", "proof": "Table removing the attention block, the augmentation and the loss term one at a time, with scores for each"},
+    {"brief": "research", "key": "preprint", "proof": "arXiv identifier 2611.01234 is live and its abstract links the GitHub code"},
+    {"brief": "research", "key": "review", "proof": "Email from the program committee: the paper is accepted for the main conference track"},
+    {"brief": "research", "key": "dataset", "proof": "Zenodo DOI minted for the benchmark, CC-BY licence and a datasheet describing collection"},
+    {"brief": "research", "key": "replicate", "proof": "Notebook reproduces the headline number from the original study within one point"},
+    {"brief": "research", "key": "review", "proof": "Reviewers' scores received and the meta-review recommends acceptance at the journal"},
+    {"brief": "research", "key": "ablation", "proof": "Each module was switched off in turn and the drop in accuracy recorded per component"}
+  ]
+}

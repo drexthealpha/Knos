@@ -80,7 +80,45 @@ def words(text: str) -> list[str]:
     return out
 
 
-def embed(text: str) -> str:
+MODEL = "snowflake/snowflake-arctic-embed-s"     # 33M parameters, 384 numbers, MTEB retrieval 51.98 (its model card)
+QUERY_PREFIX = "Represent this sentence for searching relevant passages: "   # the model card's prefix, for queries only
+_model = None
+
+
+def _arctic():
+    """The open embedding model, loaded once from the image's own copy (KNOS_EMBED_DIR, filled at build); None when the
+    package or the files are missing, or KNOS_EMBED=hash asks for the hashed embedding."""
+    global _model
+    if _model is None:
+        import os
+        if os.environ.get("KNOS_EMBED", "arctic") == "hash":
+            _model = False
+        else:
+            try:
+                from fastembed import TextEmbedding
+                _model = TextEmbedding(MODEL, cache_dir=os.environ.get("KNOS_EMBED_DIR") or None)   # the image sets HF_HUB_OFFLINE=1
+            except Exception:  # noqa: BLE001 - no package, no files: the hashed embedding answers
+                _model = False
+    return _model or None
+
+
+def embed_model() -> str:
+    """Which embedding answers: the open model's name, or "hashed" when it is not there."""
+    return MODEL if _arctic() else "hashed"
+
+
+def embed(text: str, query: bool = False) -> str:
+    """A 384-number embedding of a criterion, or with query=True of a proof: the open model (L2-normalised) when it is
+    there, else hashed counts of the text's content words."""
+    m = _arctic()
+    if m is not None:
+        vec = [float(x) for x in next(iter(m.embed([(QUERY_PREFIX if query else "") + text])))]
+        n = math.sqrt(sum(x * x for x in vec)) or 1.0
+        return ",".join(f"{x / n:.6f}" for x in vec)
+    return embed_hashed(text)
+
+
+def embed_hashed(text: str) -> str:
     """A 384-number embedding: hashed counts of the text's content words, signed and L2-normalised. Deterministic and
     offline, so a run anywhere needs no model download; the same function embeds criteria and queries."""
     v = [0.0] * DIM

@@ -42,7 +42,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 </faulthandlers>
 </scope>
 <code name='Vector guard'><![CDATA[
- set q = ##class(Knos.Iris.Py.Embed).Vector($extract(request.PayloadJSON, 1, 4000))
+ set q = ##class(Knos.Iris.Py.Embed).Query($extract(request.PayloadJSON, 1, 4000))
  set h = context.Locked, key = "", score = 0
  &sql(SELECT TOP 1 MKey, VECTOR_COSINE(Vec, TO_VECTOR(:q, DOUBLE, 384)) INTO :key, :score FROM Knos_Iris_Data.Criterion WHERE BriefHash = :h ORDER BY VECTOR_COSINE(Vec, TO_VECTOR(:q, DOUBLE, 384)) DESC)
  // the two nearest criteria: when the referee's cited milestone is neither, its confidence is capped at 0.6 (a person decides)

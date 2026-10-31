@@ -33,8 +33,8 @@ Try it:
 ## 3. Requirements
 
 Docker Desktop with its default VM (about 3.9 GB on a 7.8 GB PC), the build 154 image tar from InterSystems, and (for live
-mode) one model key. Measured on a 7.8 GB Windows laptop: the container's peak in `docker stats` was <peak> MiB through the
-build and the run, the Docker VM's <vm> MiB; compose caps it at 2 GB (`mem_limit`), `merge.cpf` caps IRIS's buffers and the
+mode) one model key. Measured on a 7.8 GB Windows laptop: the container's peak in `docker stats` was 1,188 MiB at run, the
+Docker VM's (vmmem) 2,526 MiB through the build and the run; compose caps it at 2 GB (`mem_limit`), `merge.cpf` caps IRIS's buffers and the
 Java gateway runs with `-Xmx192m`. FHIR is off by default (`KNOS_FHIR=0`): HealthShare Foundation then loads no FHIR
 package, the step that took an uncapped build past 1,800 s. `KNOS_FHIR=1` loads R4 only and needs about 2 GB more.
 
@@ -56,10 +56,10 @@ on it, is ever pushed to a registry.
 
 | Provider | `KNOS_LLM_PROVIDER` | Key variable | Default model (`KNOS_LLM_MODEL` changes it) |
 |---|---|---|---|
-| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-5-5` |
-| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-5` |
-| Google Gemini | `gemini` | `GEMINI_API_KEY` | `gemini-2.5-pro` |
-| AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | `anthropic.claude-sonnet-5-5` |
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-6-astra` |
+| Google Gemini | `gemini` | `GEMINI_API_KEY` | `gemini-4-argon` |
+| AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | `anthropic.claude-opus-5-5` |
 | Stub (tests) | `stub` | none | `stub-referee` |
 
 Set `KNOS_AI_MODE=live` and the key in `.env`. With `KNOS_AI_MODE=replay` (the default) no key is needed: a recorded live
@@ -136,6 +136,30 @@ Each decision's session in Visual Trace holds the Proof, the referee's Verdict, 
 Workflow) and the Decision. `GET /api/knos/traces/<session>` returns them as JSON; `Knos_Iris_Data.Span` is the flat
 table (trace, span, parent, type, name, model, tokens, cost, latency, score, start); `docs/trace-schema.md` maps it to
 Langfuse's trace and observation fields.
+
+### Idea DPI-I-689, point by point
+
+[DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689) asks whether IRIS Interoperability can do the trace job
+Langfuse does for LLM pipelines, and whether it is the better choice where IRIS Vector Search is used.
+
+- **Interoperability as the trace.** Every referee call, tool call, rule and Workflow step of a decision is a
+  `Knos.Iris.Msg.Span` message in the decision's own session, so the trace is the production's own message log.
+- **Against Langfuse.** The table below holds each Langfuse capability next to what this production does, and says
+  where it does less.
+- **With Vector Search.** The search that grounds the agent writes its own span: the proof's two nearest criteria and
+  their cosine. A verdict that cites a criterion outside those two is capped at 0.6 confidence and goes to a person.
+
+| Langfuse | Here |
+|---|---|
+| Trace, observations, parent links | the session, `Knos.Iris.Msg.Span` messages with `ParentId` (`docs/trace-schema.md`) |
+| Generation with model, tokens, cost | the `llm` span: model, tokens, cost from AI Hub's usage; running totals in `^Knos.LLM` |
+| Trace viewer | Visual Trace, with the Proof, Verdict, Span and Decision messages in order |
+| Query and export | `Knos_Iris_Data.Span`, plain SQL, and `GET /api/knos/traces/<session>` as JSON |
+| Scores | each span's `Score`; the Workflow approver's answer is a span too |
+| Data location | inside the lab's own IRIS: no trace leaves it |
+| Retention and audit | the production's own message store and the IRIS journal, kept like any interface message |
+| Prompt management, prompt playground | none here; prompts live in the code |
+| Evaluation datasets and runs | the recorded replay fixtures in `fixtures/replay` only |
 
 ## 12. Where each part lives
 

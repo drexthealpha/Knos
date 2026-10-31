@@ -30,7 +30,7 @@ ClassMethod GetVerdict(payload As %String) As %String
 
 ClassMethod SearchCriteria(briefHash As %String, text As %String) As %String
 {
-    set q = ##class(Knos.Iris.Py.Embed).Vector($extract(text, 1, 4000)), out = []
+    set q = ##class(Knos.Iris.Py.Embed).Query($extract(text, 1, 4000)), out = []
     set rs = ##class(%SQL.Statement).%ExecDirect(, "SELECT TOP 2 MKey, VECTOR_COSINE(Vec, TO_VECTOR(?, DOUBLE, 384)) AS Score FROM Knos_Iris_Data.Criterion WHERE BriefHash = ? ORDER BY Score DESC", q, briefHash)
     while rs.%Next() { do out.%Push({"key": (rs.MKey), "cosine": (+rs.Score)}) }
     return out.%ToJSON()

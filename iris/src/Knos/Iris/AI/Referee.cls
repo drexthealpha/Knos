@@ -9,7 +9,7 @@ Include Ensemble
 Class Knos.Iris.AI.Referee Extends %AI.Agent
 {
 Parameter PROVIDER = "anthropic";
-Parameter MODEL = "claude-sonnet-5-5";
+Parameter MODEL = "claude-opus-5-5";
 Parameter TOOLSETS = "Knos.Iris.AI.RefereeTools";
 
 XData INSTRUCTIONS [ MimeType = text/plain ]
@@ -35,7 +35,7 @@ ClassMethod Model(provider As %String) As %String
 {
     set m = $system.Util.GetEnviron("KNOS_LLM_MODEL")
     return:m'="" m
-    return $case(provider, "anthropic":"claude-sonnet-5-5", "openai":"gpt-5", "gemini":"gemini-2.5-pro", "bedrock":"anthropic.claude-sonnet-5-5", :"stub-referee")
+    return $case(provider, "anthropic":"claude-opus-5-5", "openai":"gpt-6-astra", "gemini":"gemini-4-argon", "bedrock":"anthropic.claude-opus-5-5", :"stub-referee")
 }
 
 /// The agent's answer as contract JSON; "" with refused set when live mode cannot or may not ask

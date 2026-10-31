@@ -20,7 +20,7 @@ ClassMethod Health() As %Status
     do ##class(Ens.Director).GetProductionStatus(.prod, .state)
     set mode = $select($system.Util.GetEnviron("KNOS_AI_MODE")="live" && ($system.Util.GetEnviron("ANTHROPIC_API_KEY")'=""):"live", 1:"replay")
     set out = {"production": ($case(state, 1:"Running", 2:"Stopped", 3:"Suspended", 4:"Troubled", :"Not running")), "name": (prod),
-      "agent": (mode), "provider": ($system.Util.GetEnviron("KNOS_LLM_PROVIDER")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector())}
+      "agent": (mode), "provider": ($system.Util.GetEnviron("KNOS_LLM_PROVIDER")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector()), "embedding": (##class(Knos.Iris.Py.Embed).Model())}
     write out.%ToJSON()
     return $$$OK
 }
@@ -38,14 +38,29 @@ ClassMethod Java() As %String
 {
     try {
         set gw = $system.external.getJavaGateway()
-        return $select($isobject(gw):"ok", 1:"no gateway")
-    } catch e { return "error: "_e.Name }
+        return:$isobject(gw) "ok"
+    } catch e { set err = "error: "_e.Name }
+    // a JVM the production started while IRIS was still busy starting (build 154, a slow disk) can keep port 53272
+    // open and never answer, and stopServer leaves it running: end it, then start %Java Server once more. One caller
+    // at a time and at most once in 5 minutes, so the health check's own polls never end a JVM another just started.
+    lock +^Knos.Iris.JavaRestart:0
+    else  return err
+    try {
+        if $zdatetime($ztimestamp, -2) - $get(^Knos.Iris.JavaRestart) < 300 { lock -^Knos.Iris.JavaRestart  return err }
+        set ^Knos.Iris.JavaRestart = $zdatetime($ztimestamp, -2)
+        do $zf(-100, "", "pkill", "-KILL", "-f", "com.intersystems.gateway.JavaGateway")
+        do $system.external.stopServer("%Java Server")
+        do $system.external.startServer("%Java Server")
+        set gw = $system.external.getJavaGateway(), err = $select($isobject(gw):"ok", 1:"no gateway")
+    } catch e { set err = "error: "_e.Name }
+    lock -^Knos.Iris.JavaRestart
+    return err
 }
 
 ClassMethod Vector() As %String
 {
     try {
-        set v = ##class(Knos.Iris.Py.Embed).Vector("checkout p95 latency")
+        set v = ##class(Knos.Iris.Py.Embed).Query("checkout p95 latency")
         &sql(SELECT VECTOR_COSINE(TO_VECTOR(:v, DOUBLE, 384), TO_VECTOR(:v, DOUBLE, 384)) INTO :s)
         return $select(SQLCODE=0 && (s > 0.99):"ok", 1:"SQLCODE "_SQLCODE)
     } catch e { return "error: "_e.Name }
