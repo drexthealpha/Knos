@@ -1,16 +1,16 @@
 name: live-window
 
-# Keeps the front door, the app and the first card warm for every visitor until 6 Nov 2026 06:00 UTC: it asks for
-# https://drexthealpha.github.io/Knos/, https://knos.onrender.com/app/ and /api/proof every 10 minutes, and logs each
-# as `ASKED <UTC time> <url> <HTTP status> <seconds to first byte>`. GitHub's timer here starts runs hours apart under
-# load (keepalive.yml, set to every 5 minutes, ran 3 times on 30 Oct 2026), so each run asks every 10 minutes itself,
-# for up to 6 hours, and the timer only has to start a run now and then; one run at a time, the next one queued. From
-# 6 Nov 06:00 UTC on, a run turns this workflow off (gh workflow disable) and asks nothing. Timer only; no secret, no
-# checkout, no action from outside.
+# Keeps the front door, the app and the first card warm for every visitor until 6 Nov 2026 06:00 UTC: each run asks for
+# https://drexthealpha.github.io/Knos/, https://knos.onrender.com/app/ and /api/proof 3 times, 10 minutes apart, logging
+# each as `ASKED <UTC time> <url> <HTTP status> <seconds to first byte>`, then starts the next run, so the chain asks
+# every 10 minutes and each run's log is readable within half an hour. GitHub's timer here starts runs hours apart under
+# load (keepalive.yml, set to every 5 minutes, ran 3 times on 30 Oct 2026); it stays as a restart for a broken chain.
+# From 6 Nov 06:00 UTC on, a run starts no next run and turns this workflow off. No secret, no checkout, no outside action.
 
 on:
   schedule:
-    - cron: "7,17,27,37,47,57 * * * *"   # every 10 minutes, off the busy top of the hour
+    - cron: "7,17,27,37,47,57 * * * *"   # a restart only: the chain itself asks every 10 minutes
+  workflow_dispatch:
 
 permissions:
   actions: write
@@ -23,25 +23,38 @@ concurrency:
 jobs:
   ask:
     runs-on: ubuntu-latest
-    timeout-minutes: 365
+    timeout-minutes: 30
     steps:
-      - name: every 10 minutes for up to 6 hours, ask for the three pages; from 6 Nov 06:00 UTC, turn this workflow off
+      - name: one run of the chain at a time (a timer run ends when the chain is going)
+        id: alone
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          going=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/live-window.yml/runs?status=in_progress" --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID)] | length")
+          if [ "${{ github.event_name }}" = schedule ] && [ "$going" != 0 ]; then echo "go=no" >> "$GITHUB_OUTPUT"; else echo "go=yes" >> "$GITHUB_OUTPUT"; fi
+      - name: 3 asks for the three pages, 10 minutes apart, then the next run; from 6 Nov 06:00 UTC, turn this workflow off
+        if: steps.alone.outputs.go == 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
           stop=$(date -u -d '2026-11-06T06:00:00Z' +%s)
-          for n in $(seq 1 36); do
-            if [ "$(date -u +%s)" -ge "$stop" ]; then
-              gh workflow disable live-window.yml --repo "$GITHUB_REPOSITORY"
-              echo "STOPPED $(date -u +%Y-%m-%dT%H:%M:%SZ): the window ended; this workflow is off"
-              exit 0
-            fi
+          if [ "$(date -u +%s)" -ge "$stop" ]; then
+            gh workflow disable live-window.yml --repo "$GITHUB_REPOSITORY"
+            echo "STOPPED $(date -u +%Y-%m-%dT%H:%M:%SZ): the window ended; this workflow is off"
+            exit 0
+          fi
+          for n in 1 2 3; do
             t0=$(date -u +%s)
             for url in https://drexthealpha.github.io/Knos/ https://knos.onrender.com/app/ https://knos.onrender.com/api/proof; do
               out=$(curl -s -o /dev/null -w "%{http_code} %{time_starttransfer}" --max-time 90 "$url" || echo "000 90")
               echo "ASKED $(date -u +%Y-%m-%dT%H:%M:%SZ) $url $out"
             done
-            if [ "$n" = 36 ]; then break; fi
-            sleep $(( 600 - ($(date -u +%s) - t0) ))
+            if [ "$n" = 3 ]; then break; fi
+            sleep $(( 590 - ($(date -u +%s) - t0) ))   # under 10 minutes from one ask to the next, whatever each ask took
           done
+          if [ "$(date -u +%s)" -lt "$stop" ]; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/live-window.yml/dispatches" -f ref=main
+            echo "the next run is started"
+          fi
