@@ -162,7 +162,8 @@ def download(rep: dict, kind: str) -> tuple[str, str, str] | None:
     d = rep.get("decision") or {}
     idea, city, who = str(rep.get("idea") or "the product"), _city(rep) or "the launch city", _who(rep) or "its first buyers"
     from . import metros
-    lt = metros.launch_terms(rep) or {}                 # the target the card shows: its launch terms, else the verdict's
+    own = rep.get("terms") if isinstance(rep.get("terms"), dict) else {}
+    lt = own if own.get("target") else (metros.launch_terms(rep) or {})   # the target the card shows: its launch terms, else the verdict's
     target = lt.get("target") or d.get("target_units")
     reserve = d.get("reserve_units") if target == d.get("target_units") else None
     pr = (rep.get("price") or {}).get("tier") or "mid"

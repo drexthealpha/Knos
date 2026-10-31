@@ -74,3 +74,12 @@ def test_a_refusal_with_nothing_else_rejected_names_the_rule_that_refused_it():
     rep = {"idea": "a quiet idea", "decision": {"verdict": "REFUSE", "reasons": ["no product of this taste wants it"]}}
     assert story.rejected(rep) == [{"name": "a quiet idea", "rule": "no product of this taste wants it"}]
     assert story.rejected({**rep, "decision": {"verdict": "OPEN", "reasons": ["x"]}}) == []
+
+
+def test_the_pre_order_text_and_calendar_carry_the_cards_own_launch_target():
+    rep = {"idea": "x", "hash": "h" * 64, "made": "2026-10-31", "decision": {"verdict": "OPEN", "target_units": 250, "reserve_units": 75},
+           "terms": {"city": "Bend, OR", "target": 127}}
+    pre = story.download(rep, "preorder")[0]
+    ics = story.download(rep, "refund.ics")[0]
+    assert "127 pre-orders" in pre and "250" not in pre and "Bend, OR" in pre
+    assert ics.count("BEGIN:VEVENT") == 2 and "First milestone deadline" in ics and "Refund date" in ics and "127 pre-orders from Bend, OR" in ics
