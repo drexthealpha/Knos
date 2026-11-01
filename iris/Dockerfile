@@ -79,7 +79,7 @@ COPY --chown=irisowner:irisowner iris /home/irisowner/knos/iris
 COPY --from=jar --chown=irisowner:irisowner /home/irisowner/knos/java/knos-iris-pex.jar /home/irisowner/knos/java/knos-iris-pex.jar
 # the open embedding model for Vector Search (snowflake-arctic-embed-s: 33M parameters, 384 numbers), its ONNX runtime and
 # its weights inside the image, so a run needs no download; knos_iris.bridge falls back to the hashed embedding without it
-RUN pip3 install --quiet --break-system-packages --target /usr/irissys/mgr/python "fastembed>=0.7,<0.8"  && PYTHONPATH=/usr/irissys/mgr/python python3 -c "from fastembed import TextEmbedding; TextEmbedding('snowflake/snowflake-arctic-embed-s', cache_dir='/usr/irissys/mgr/python/knos-embed')"
+RUN pip3 install --progress-bar off --retries 10 --timeout 120 --break-system-packages --target /usr/irissys/mgr/python fastembed==0.7.4 onnxruntime==1.31.1 numpy==2.5.4 tokenizers==0.23.3 huggingface-hub==1.33.0  && PYTHONPATH=/usr/irissys/mgr/python python3 -c "from fastembed import TextEmbedding; TextEmbedding('snowflake/snowflake-arctic-embed-s', cache_dir='/usr/irissys/mgr/python/knos-embed')"
 ENV KNOS_EMBED_DIR=/usr/irissys/mgr/python/knos-embed HF_HUB_OFFLINE=1
 # The three code libraries (HSLIB 1.7 GB, IRISLIB, ENSLIB) are read-only databases, but IRIS takes a lock file in each
 # folder and opens IRIS.DAT for writing, so the container's overlay copies them whole before IRIS can mount them: over
