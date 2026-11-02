@@ -482,3 +482,5 @@ fn rsa_verifies_what_the_rsa_crate_signs() {
     bad[100] ^= 1;
     assert!(!crate::rsa::verify(&n, n0inv, &r2, &bad, &digest));
 }
+
+mod more;
