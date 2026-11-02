@@ -1,0 +1,2 @@
+gsap.min.js: GSAP 3.13.0 by GreenSock, from cdnjs (https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js),
+sha256 96c01b81f44a3290e2b4532f55e2c9534b2adc43273a19f3756b2cb41f0fd0b6, under the GSAP standard license (https://gsap.com/standard-license), free since 3.13.

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Fund a research milestone on NEAR testnet, release it on GitHub’s signed proof, or get it back after the deadline.">
+<title>Knos on NEAR</title>
+<link rel="icon" href="data:,">
+<style>
+/* Hallmark · job: fund a milestone, release it on proof, refund it after the deadline, export the record · shape: app screen · genre: modern-minimal · theme: the Knos tokens (near/DESIGN.md), custom */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: E, the money's path is the one picture, so it stays still and labelled for a reader who asks for no motion */
+:root {
+  --paper: #07080c; --paper-2: #0f1118; --soft: #151822; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634;
+  --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
+  --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .8, .2, 1); --dur-1: 120ms; --dur-2: 240ms;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --paper: #f4f4f0; --paper-2: #ffffff; --soft: #eaeae4; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4;
+    --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--text); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 48px; padding: 8px max(16px, calc((100% - 1200px) / 2)); border-bottom: 1px solid var(--line); }
+.bar strong { font: 650 18px/1 var(--head); }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
+main > * { min-width: 0; }
+h1, h2 { text-wrap: balance; }
+h1 { font: 600 32px/1.1 var(--head); letter-spacing: -.02em; margin: 0; }
+h2 { font: 600 20px/1.3 var(--head); letter-spacing: -.015em; margin: 0 0 12px; }
+.lead { margin: 8px 0 0; font-size: 18px; max-width: 60ch; }
+.fine { color: var(--ink-2); font-size: 13px; }
+.panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+.path { width: 100%; height: auto; display: block; }
+.path-v { display: none; max-width: 420px; margin: 0 auto; }
+@media (max-width: 640px) { .path:not(.path-v) { display: none; } .path-v { display: block; } }
+.path text { font: 500 13px/1 var(--text); fill: var(--ink); }
+.path .sub { fill: var(--ink-2); font-size: 12px; }
+.path .node { fill: var(--soft); stroke: var(--line); }
+.path .rail { stroke: var(--line); stroke-width: 2; fill: none; }
+.path .coin { fill: var(--accent); }
+.path .check { fill: none; stroke: var(--ok); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+form.fund { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+label { display: grid; gap: 4px; font-size: 14px; font-weight: 500; }
+input { min-height: 44px; width: 11em; padding: 8px 12px; border-radius: 14px; border: 1px solid var(--ink-2); background: var(--paper); color: var(--ink); font: 400 16px/1.4 var(--text); }
+button { min-height: 44px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 14px/1.2 var(--text); cursor: pointer; }
+button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-2); border-color: var(--line); cursor: not-allowed; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font: 400 13px/1.4 var(--text); color: var(--ink-2); padding: 8px; }
+td { padding: 12px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+td.n, th.n { text-align: right; }
+.id { font-family: var(--code); font-size: 14px; }
+.pill { display: inline-block; white-space: nowrap; padding: 1px 8px; border-radius: 999px; font-size: 13px; font-weight: 500; background: var(--soft); }
+.pill[data-s="Released"]::before { content: "\2713\00a0"; color: var(--ok); }
+.pill[data-s="Funded"]::before, .pill[data-s="Releasing"]::before, .pill[data-s="Refunding"]::before { content: "\25D4\00a0"; color: var(--warn); }
+.pill[data-s="Refunded"]::before { content: "\21A9\00a0"; color: var(--ink-2); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.txs a { margin-right: 8px; white-space: nowrap; }
+.empty { border: 1px dashed var(--line); border-radius: 8px; padding: 12px; color: var(--ink-2); }
+.status { display: flex; gap: 12px; align-items: center; min-height: 24px; margin: 12px 0 0; }
+.status[hidden] { display: none; }
+/* From Uiverse.io by AqFox (https://uiverse.io/AqFox/tiny-jellyfish-70), MIT License (c) 2023 Uiverse.io; colour and size from the Knos tokens */
+.spinner { flex: none; width: 20px; height: 20px; border: 4px var(--accent) double; border-left-style: solid; border-radius: 50%; }
+@media (prefers-reduced-motion: no-preference) {
+  .spinner { animation: spinner-aib1d7 .75s infinite linear; }
+  button { transition: scale var(--dur-1) var(--ease); }
+  button:active:not(:disabled) { scale: .98; }
+}
+@keyframes spinner-aib1d7 { to { transform: rotate(360deg); } }
+@media (max-width: 640px) {
+  .ms thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .ms, .ms tbody, .ms tr, .ms td { display: block; }
+  .ms tbody tr { padding: 12px 0; border-top: 1px solid var(--line); }
+  .ms td { border: 0; padding: 4px 0; }
+  .ms td.n { text-align: left; }
+}
+</style>
+</head>
+<body>
+<header class="bar"><strong>Knos on NEAR</strong><span class="fine">NEAR testnet and Solana devnet. Test money.</span></header>
+<main>
+  <section aria-labelledby="t-title">
+    <h1 id="t-title">Paid only on proof</h1>
+    <p class="lead" id="finding">The money waits in a NEAR contract until GitHub’s signed run proves the milestone, then goes to the payee. After the deadline with no proof, the funder gets it back.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="t-path">
+    <h2 id="t-path">Where the money goes</h2>
+    <svg class="path" viewBox="0 0 960 220" role="img" aria-labelledby="path-desc">
+      <desc id="path-desc">A company funds a milestone in test tokens; the NEAR contract checks GitHub’s signed run against the locked criteria; the payee is paid on NEAR or on Solana by Chain Signatures.</desc>
+      <path class="rail" d="M150 110 H810"/>
+      <g><rect class="node" x="20" y="60" width="200" height="100" rx="16"/><text x="40" y="100">The company</text><text class="sub" x="40" y="124">funds in test tokens</text></g>
+      <g><rect class="node" x="380" y="60" width="200" height="100" rx="16"/><text x="400" y="100">NEAR contract</text><text class="sub" x="400" y="124">checks the signed run</text>
+        <path class="check" id="check" d="M532 92 l10 10 l18 -20"/></g>
+      <g><rect class="node" x="740" y="60" width="200" height="100" rx="16"/><text x="760" y="100">The payee</text><text class="sub" x="760" y="124">on NEAR or Solana</text></g>
+      <circle class="coin" id="coin" cx="230" cy="110" r="10"/>
+    </svg>
+    <svg class="path path-v" viewBox="0 0 340 470" role="img" aria-labelledby="path-desc-v">
+      <desc id="path-desc-v">The company funds a milestone in test tokens; the NEAR contract checks GitHub’s signed run; the payee is paid on NEAR or on Solana.</desc>
+      <path class="rail" d="M170 90 V380"/>
+      <g><rect class="node" x="20" y="10" width="300" height="90" rx="16"/><text x="40" y="48">The company</text><text class="sub" x="40" y="72">funds in test tokens</text></g>
+      <g><rect class="node" x="20" y="190" width="300" height="90" rx="16"/><text x="40" y="228">NEAR contract</text><text class="sub" x="40" y="252">checks the signed run</text>
+        <path class="check" id="check-v" d="M272 226 l10 10 l18 -20"/></g>
+      <g><rect class="node" x="20" y="370" width="300" height="90" rx="16"/><text x="40" y="408">The payee</text><text class="sub" x="40" y="432">on NEAR or Solana</text></g>
+      <circle class="coin" id="coin-v" cx="170" cy="120" r="10"/>
+    </svg>
+  </section>
+
+  <section class="panel" aria-labelledby="t-fund">
+    <h2 id="t-fund">Fund a milestone</h2>
+    <form class="fund" id="fund">
+      <label for="amount">Amount (test units)<input id="amount" name="amount" type="number" min="1" max="10000000" value="1000" required></label>
+      <label for="minutes">Deadline (minutes)<input id="minutes" name="minutes" type="number" min="1" max="1440" value="2" required></label>
+      <button class="go" type="submit">Fund</button>
+    </form>
+    <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text">Working.</span></p>
+  </section>
+
+  <section class="panel" aria-labelledby="t-ms">
+    <h2 id="t-ms">Milestones</h2>
+    <table class="ms">
+      <thead><tr><th scope="col">Milestone</th><th scope="col" class="n">Amount</th><th scope="col">State</th><th scope="col">Deadline</th><th scope="col">Do</th><th scope="col">Transactions</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="6" class="empty">Loading.</td></tr></tbody>
+    </table>
+    <p><button type="button" id="csv">Export CSV</button> <span class="fine" id="contract"></span></p>
+  </section>
+</main>
+<script src="vendor/gsap.min.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) e.append(k); return e; };
+const EXPLORER = "https://explorer.testnet.near.org/transactions/";
+let rows = [];
+
+// the centre piece: the coin travels company -> contract (the check draws) -> payee; once, and still under reduced motion
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (window.gsap && !still) {
+  const check = $("check"), len = check.getTotalLength(), cv = $("check-v"), lv = cv.getTotalLength();
+  gsap.set(check, { strokeDasharray: len, strokeDashoffset: len });
+  gsap.set(cv, { strokeDasharray: lv, strokeDashoffset: lv });
+  gsap.timeline({ delay: 0.3 })
+    .to("#coin-v", { y: 115, duration: 0.9, ease: "power2.inOut" })
+    .to(cv, { strokeDashoffset: 0, duration: 0.3, ease: "power1.out" })
+    .to("#coin-v", { y: 295, duration: 0.9, ease: "power2.inOut" }, "+=0.15");
+  gsap.timeline({ delay: 0.3 })
+    // transform, not cx, so the GPU moves it; 0.9 s a leg because it plays once on load to explain, never on an action
+    .to("#coin", { x: 250, duration: 0.9, ease: "power2.inOut" })
+    .to(check, { strokeDashoffset: 0, duration: 0.3, ease: "power1.out" })
+    .to("#coin", { x: 610, duration: 0.9, ease: "power2.inOut" }, "+=0.15");
+} else {
+  $("coin").setAttribute("cx", "840");
+  $("coin-v").setAttribute("cy", "415");
+}
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  return { ok: r.ok, ...j };
+}
+
+function busy(text) { $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of document.querySelectorAll("button")) b.disabled = !!text; }
+
+async function act(label, path, body) {
+  busy(label + ": sending to testnet.");
+  const r = await api(path, body);
+  busy("");
+  $("finding").textContent = r.ok ? `${label}: done, transaction ${r.tx.slice(0, 8)}.` : `${label}: refused, ${r.why}.`;
+  await load();
+}
+
+function txLinks(txs) {
+  return Object.entries(txs || {}).map(([k, h]) => el("a", { href: EXPLORER + h, textContent: k, target: "_blank", rel: "noopener" }));
+}
+
+async function load() {
+  const s = await api("/api/status");
+  rows = s.milestones || [];
+  $("contract").textContent = s.contract ? `Contract ${s.contract}, token ${s.token}.` : "";
+  const body = $("rows");
+  body.replaceChildren();
+  if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 6, className: "empty", textContent: "No milestone yet. Fund one above." }))); return; }
+  const now = Date.now() / 1000;
+  for (const m of rows) {
+    const acts = el("div", { className: "acts" });
+    if (m.state === "Funded" && now < m.deadline_s) acts.append(el("button", { type: "button", textContent: "Send proof", onclick: () => act("Proof", "/api/proof", { id: m.id }) }));
+    if (m.state === "Funded" && now >= m.deadline_s) acts.append(el("button", { type: "button", textContent: "Refund", onclick: () => act("Refund", "/api/refund", { id: m.id }) }));
+    const pill = el("span", { className: "pill", textContent: (m.state || "unknown").toLowerCase() });
+    pill.dataset.s = m.state || "";
+    body.append(el("tr", {}, [
+      el("td", {}, el("span", { className: "id", textContent: m.id })),
+      el("td", { className: "n", textContent: Number(m.amount || 0).toLocaleString() }),
+      el("td", {}, pill),
+      el("td", { textContent: new Date(m.deadline_s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" }),
+      el("td", {}, acts),
+      el("td", { className: "txs" }, txLinks(m.txs)),
+    ]));
+  }
+}
+
+$("fund").addEventListener("submit", (ev) => { ev.preventDefault(); act("Fund", "/api/fund", { amount: +$("amount").value, minutes: +$("minutes").value }); });
+$("csv").addEventListener("click", () => {
+  const head = ["milestone", "state", "amount_test_units", "payee", "deadline_utc", "fund_tx", "release_tx", "refund_tx"];
+  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [head.join(",")].concat(rows.map((m) => [m.id, m.state, m.amount, m.payee, new Date(m.deadline_s * 1000).toISOString(),
+    m.txs?.fund, m.txs?.release, m.txs?.refund].map(q).join(",")));
+  const a = el("a", { href: URL.createObjectURL(new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" })), download: "knos-milestones.csv" });
+  a.click();
+});
+load();
+setInterval(load, 20000);
+</script>
+</body>
+</html>
