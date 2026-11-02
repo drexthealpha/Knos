@@ -57,7 +57,6 @@ fn token(w: &World, jti: &str, key: &RsaPrivateKey) -> String {
 async fn call(w: &World, contract: &AccountId, method: &str, args: Value, who: &(AccountId, Arc<Signer>), yocto: u128) -> Result<near_api::types::transaction::result::ExecutionSuccess, String> {
     Contract(contract.clone())
         .call_function(method, args)
-        .unwrap()
         .transaction()
         .gas(NearGas::from_tgas(300))
         .deposit(NearToken::from_yoctonear(yocto))
@@ -70,7 +69,7 @@ async fn call(w: &World, contract: &AccountId, method: &str, args: Value, who: &
 }
 
 async fn view(w: &World, contract: &AccountId, method: &str, args: Value) -> Value {
-    Contract(contract.clone()).call_function(method, args).unwrap().read_only().fetch_from(&w.net).await.unwrap().data
+    Contract(contract.clone()).call_function(method, args).read_only().fetch_from(&w.net).await.unwrap().data
 }
 
 async fn balance(w: &World, of: &AccountId) -> u128 {

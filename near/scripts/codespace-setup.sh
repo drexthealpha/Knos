@@ -4,6 +4,7 @@
 # Builds and tests only: no NEAR key enters the codespace. Deploys run from a machine that holds the keys.
 set -euo pipefail
 log() { echo "$(date -u +%T) $*"; }
+dpkg -s libudev-dev >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq libudev-dev pkg-config; }
 command -v cargo >/dev/null || { curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal; }
 . "$HOME/.cargo/env"
 rustup target add wasm32-unknown-unknown
