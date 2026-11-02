@@ -1,0 +1,7 @@
+[
+ {
+  "account": "knos-fake-1102.testnet",
+  "why": "a token contract that is not the configured one; it tried to fund a milestone",
+  "evidence": "https://explorer.testnet.near.org/transactions/3SBkVMqEHYNgX4YBDZkiVgULtVPs56VvMzXQXkKGw9iY"
+ }
+]

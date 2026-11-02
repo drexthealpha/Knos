@@ -50,6 +50,14 @@ near contract call-function as-read-only knos-pay-1102.testnet get_rules json-ar
 | Transfer checked, signed by the MPC network | [`2PobS79z…`](https://explorer.testnet.near.org/transactions/2PobS79zKd2p77UfgwncBAPX2DARFKsBa8ijVsf3mh7V) |
 | 1,000,000 test units paid on Solana devnet | [`3M7z8NRb…`](https://explorer.solana.com/tx/3M7z8NRbNMoKvnPcXbg4hGfC5x559h4TarjUV5p6ffVnkqN2RGmVnsgSERZcdfxeRRvvB5bRnD8Sf4BMQCxET1CF?cluster=devnet) |
 
+## The payee needs no NEAR for gas
+
+`relayer/relay.py` is a NEP-366 relayer that pays only for calls to the Knos contract. `scripts/test_gasless.py` has the payee sign a release as a delegate action; the relayer sends it ([`4XpFZwBM…`](https://explorer.testnet.near.org/transactions/4XpFZwBMGtkPWzCdkwLZkDtB95EPiAWUz7orAPRsyAJG)) and the payee's NEAR balance is the same to the yoctoNEAR. A call to the token contract, a NEAR transfer and a call with a deposit are refused, each with its reason in `relay.log`.
+
+## An agent that checks who it pays
+
+`agent/guard.py` answers allow, warn or block for a receiver, from chain: no such account or on the shared blocklist (`agent/blocklist.json`, each entry with its evidence) is a block; a contract, an account under 7 days old or code changed in the last day is a warning that a person resolves. `scripts/test_agent_guard.py` gives the agent a key that can call only `release`, `refund` and `sign_payout` here, then a task with an injected instruction to pay two other accounts: both are refused, and the chain refuses the key on the token contract.
+
 ## Attacks on testnet
 
 34 attacks and 3 controls, each a real transaction on the contract above, sent by `scripts/attack_testnet.py`. Tokens are signed with an RSA-2048 test key that two owners set as kid `knos-test`, standing in for GitHub's key, so each row changes one thing.
@@ -99,5 +107,6 @@ near contract call-function as-read-only knos-pay-1102.testnet get_rules json-ar
 - `contract/`: the contract (`lib.rs`), RS256 (`rsa.rs`), token parsing (`jwt.rs`), the Solana payout check (`solana.rs`), unit tests (`tests.rs`, `tests/`).
 - `mock-usdc/`: a NEP-141 test token for the sandbox.
 - `sandbox/`: the sandbox test.
+- `relayer/`: the gas relayer. `agent/`: the receiver guard.
 
 Changes since the start of this work: [near-pre...main](https://github.com/drexthealpha/Knos/compare/near-pre...main).
