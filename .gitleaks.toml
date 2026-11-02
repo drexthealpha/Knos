@@ -31,3 +31,9 @@ paths = [
   '''^\.github/workflows/program\.yml$''',
   '''^rehearsals/''',
 ]
+# the IRIS for Health container's public default login, used in `curl -u` lines for a local container (iris/README.md,
+# iris/scripts/test-all.sh); InterSystems documents it, and the README says to change it on any shared machine
+regexTarget = "match"
+regexes = [
+  '''_SYSTEM:SYS''',
+]
