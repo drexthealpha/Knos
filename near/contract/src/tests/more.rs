@@ -364,7 +364,7 @@ fn an_id_of_64_characters_is_accepted() {
 #[test]
 fn a_solana_payee_takes_a_solana_address() {
     let mut c = contract();
-    fund_raw(&mut c, fund_json(|v| { v["payee_chain"] = "solana".into(); v["payee_address"] = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin".into(); }));
+    fund_raw(&mut c, fund_json(|v| { v["payee_chain"] = "solana".into(); v["payee_address"] = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin".into(); v["payee_mint"] = MINT.into(); }));
     assert_eq!(c.get_milestone("f".into()).unwrap().payee_chain, "solana");
 }
 

@@ -6,7 +6,7 @@ set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/near-target}"
 log=$(mktemp)
-attacks=$(( $(grep -c 'fn adversarial_' "$here/contract/src/tests.rs") + $(grep -cE '(refused!|refused_fund!)\(adversarial_|fn adversarial_' "$here/contract/src/tests/more.rs") ))
+attacks=$(cat "$here"/contract/src/tests.rs "$here"/contract/src/tests/*.rs | grep -cE '(refused|refused_fund|refused_payout)!\(adversarial_|fn adversarial_')
 bash "$here/scripts/test-sandbox.sh" > "$log" 2>&1; rc=$?
 passed=$(grep -oE 'test result: [a-zA-Z]+\. [0-9]+ passed' "$log" | awk '{s += $4} END {print s + 0}')
 failed=$(grep -oE '[0-9]+ failed' "$log" | awk '{s += $1} END {print s + 0}')

@@ -7,6 +7,7 @@
 
 mod jwt;
 pub mod rsa;
+pub mod solana;
 
 use near_contract_standards::fungible_token::core::ext_ft_core;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
@@ -17,6 +18,10 @@ use near_sdk::{env, near, require, AccountId, BorshStorageKey, Gas, NearToken, P
 pub const GITHUB_ISS: &str = "https://token.actions.githubusercontent.com";
 const PAY_GAS: Gas = Gas::from_tgas(15);
 const CALLBACK_GAS: Gas = Gas::from_tgas(15);
+/// Chain Signatures on testnet; domain 1 is Ed25519 (Solana)
+pub const SIGNER: &str = "v1.signer-prod.testnet";
+pub const SOLANA_PATH: &str = "knos-solana-1";
+const SIGN_GAS: Gas = Gas::from_tgas(50);
 
 #[near(serializers = [borsh])]
 #[derive(BorshStorageKey)]
@@ -25,6 +30,17 @@ enum Key {
     Keys,
     Proposals,
     Used,
+    Payouts,
+}
+
+/// A Solana payout of a released milestone: the message the contract asked the MPC network to sign, and the answer
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Debug)]
+pub struct Payout {
+    pub message_b64: String,
+    pub signing: bool,
+    /// the signer's answer as it came back (Ed25519, 64 bytes), once signed
+    pub signature: Option<String>,
 }
 
 #[near(serializers = [borsh, json])]
@@ -57,6 +73,8 @@ pub struct Milestone {
     /// the commit the paying token named
     pub proof_sha: Option<String>,
     pub proof_jti: Option<String>,
+    /// for a Solana payee: the SPL mint the payout must use (payee_address is then the payee's token account)
+    pub payee_mint: Option<String>,
 }
 
 /// What the payer puts in ft_transfer_call's msg
@@ -69,6 +87,8 @@ pub struct Fund {
     pub repository: String,
     pub workflow: String,
     pub deadline_ns: U64,
+    #[serde(default)]
+    pub payee_mint: Option<String>,
 }
 
 #[near(serializers = [borsh])]
@@ -96,6 +116,7 @@ pub struct Knos {
     kids: Vec<String>,
     proposals: LookupMap<String, Proposal>,
     used_jti: LookupSet<String>,
+    payouts: LookupMap<String, Payout>,
 }
 
 fn is_hex(s: &str, len: usize) -> bool {
@@ -123,6 +144,7 @@ impl Knos {
             kids: Vec::new(),
             proposals: LookupMap::new(Key::Proposals),
             used_jti: LookupSet::new(Key::Used),
+            payouts: LookupMap::new(Key::Payouts),
         }
     }
 
@@ -239,6 +261,55 @@ impl Knos {
         s
     }
 
+    // ---- the payout on Solana, by Chain Signatures ---------------------------------------------------------------
+
+    /// For a released Solana milestone: anyone sends the unsigned Solana message (base64) that pays it. The contract
+    /// checks it is one SPL TransferChecked of exactly the milestone's amount, in the mint and to the token account
+    /// locked at funding, then asks the MPC signer for an Ed25519 signature under this contract's key for SOLANA_PATH.
+    /// A relayer adds the signature and broadcasts it; the contract never holds a Solana key.
+    pub fn sign_payout(&mut self, id: String, message_b64: String) -> Promise {
+        let m = self.milestones.get(&id).cloned().unwrap_or_else(|| env::panic_str("no such milestone"));
+        require!(m.payee_chain == "solana", "the milestone is not paid on Solana");
+        require!(m.state == State::Released, "the milestone is not released");
+        if let Some(p) = self.payouts.get(&id) {
+            require!(p.signature.is_none(), "the payout is already signed");
+            require!(!p.signing, "the payout is being signed");
+        }
+        let msg = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &message_b64)
+            .unwrap_or_else(|_| env::panic_str("message_b64"));
+        require!(msg.len() <= 1232, "the message is longer than 1232 bytes");
+        let t = solana::parse_transfer(&msg).unwrap_or_else(|e| env::panic_str(e));
+        require!(Some(t.destination) == solana::b58_32(&m.payee_address), "the payout goes to another account");
+        require!(Some(t.mint) == m.payee_mint.as_deref().and_then(solana::b58_32), "the payout is in another mint");
+        require!(t.amount as u128 == m.amount.0, "the payout is another amount");
+        self.payouts.insert(id.clone(), Payout { message_b64, signing: true, signature: None });
+        let hex: String = msg.iter().map(|b| format!("{b:02x}")).collect();
+        let args = serde_json::json!({"request": {"payload_v2": {"Eddsa": hex}, "path": SOLANA_PATH, "domain_id": 1}});
+        Promise::new(SIGNER.parse().unwrap())
+            .function_call("sign".to_string(), args.to_string().into_bytes(), NearToken::from_yoctonear(1), SIGN_GAS)
+            .then(Self::ext(env::current_account_id()).with_static_gas(CALLBACK_GAS).on_payout_signed(id))
+    }
+
+    /// The signer's answer: kept when it came, or the payout is open to be asked again
+    #[private]
+    pub fn on_payout_signed(&mut self, id: String, #[callback_result] r: Result<serde_json::Value, PromiseError>) -> String {
+        let mut p = self.payouts.get(&id).cloned().unwrap();
+        p.signing = false;
+        let out = match r {
+            Ok(v) => {
+                p.signature = Some(v.to_string());
+                format!("{id}: payout signed")
+            }
+            Err(_) => format!("{id}: the signer did not answer; ask again"),
+        };
+        self.payouts.insert(id, p);
+        out
+    }
+
+    pub fn get_payout(&self, id: String) -> Option<Payout> {
+        self.payouts.get(&id).cloned()
+    }
+
     // ---- reading, for anyone -------------------------------------------------------------------------------------
 
     pub fn get_milestone(&self, id: String) -> Option<Milestone> {
@@ -290,6 +361,10 @@ impl FungibleTokenReceiver for Knos {
         if f.payee_chain == "near" {
             require!(f.payee_address.parse::<AccountId>().is_ok(), "payee address");
         }
+        if f.payee_chain == "solana" {
+            require!(solana::b58_32(&f.payee_address).is_some(), "payee address");
+            require!(f.payee_mint.as_deref().and_then(solana::b58_32).is_some(), "a Solana payee needs payee_mint");
+        }
         require!(f.repository.contains('/') && f.workflow.starts_with(&format!("{}/", f.repository)), "repository and workflow");
         require!(f.deadline_ns.0 > env::block_timestamp(), "the deadline is in the past");
         let m = Milestone {
@@ -305,6 +380,7 @@ impl FungibleTokenReceiver for Knos {
             state: State::Funded,
             proof_sha: None,
             proof_jti: None,
+            payee_mint: f.payee_mint,
         };
         self.milestones.insert(f.id, m);
         PromiseOrValue::Value(U128(0))

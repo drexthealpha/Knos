@@ -2,7 +2,7 @@
 
 Knos carries any research across the valley of death (idea or paper -> demand -> Ready brief -> money held -> paid on verified proof), toward Schmidhuber's vision and Kardashev II/III, connecting 8 billion people to the world's money.
 
-**A company pays a lab or a developer only when GitHub's signed run proves the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back. Payout today is in a test token on NEAR testnet; payout on other chains through Chain Signatures is next.
+**A company pays a lab or a developer only when GitHub's signed run proves the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back. The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
 Spending limits cap what an agent may spend. Knos pays only for work that is proven done.
 
 | | |
@@ -19,7 +19,7 @@ Spending limits cap what an agent may spend. Knos pays only for work that is pro
 bash near/scripts/verify.sh
 ```
 
-It prints `150/150 tests passed (101 of them attacks)`: 149 unit tests, then the sandbox flow. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund.
+It prints `177/177 tests passed (123 of them attacks)`: 176 unit tests, then the sandbox flow. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund.
 `verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund. Measured: the release receipt burns 7.22 Tgas (11.48 Tgas for the whole transaction); the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
 
 ## On testnet
@@ -36,6 +36,19 @@ Read the rules from the chain:
 ```bash
 near contract call-function as-read-only knos-pay-1102.testnet get_rules json-args '{}' network-config testnet now
 ```
+
+## Paid on Solana by Chain Signatures
+
+`sign_payout` takes the unsigned Solana message for a released milestone. The contract accepts only one SPL `TransferChecked` of exactly the milestone's amount, in the mint and to the token account locked at funding, then asks `v1.signer-prod.testnet` (path `knos-solana-1`, Ed25519) to sign it. A relayer adds the signature and broadcasts; no Solana key is held anywhere.
+
+`scripts/solana_payout.py` runs it end to end on [`knos-pay2-1102.testnet`](https://explorer.testnet.near.org/accounts/knos-pay2-1102.testnet), derived Solana address `Cap9Khn2fDtFL34AXuXVPg38RMpEmkyKqg5mFibnUALD`:
+
+| Step | Transaction |
+|---|---|
+| Milestone funded for a Solana payee | [`ADECRFN9…`](https://explorer.testnet.near.org/transactions/ADECRFN9jWjBpQ5gZKFTJLLPzWYqzLXEjNoG3KHwAzLt) |
+| Released on a token | [`3BHiT6nx…`](https://explorer.testnet.near.org/transactions/3BHiT6nxA4aV3pdMooq7jop5tDLJfzp2A3KyATjXf25n) |
+| Transfer checked, signed by the MPC network | [`2PobS79z…`](https://explorer.testnet.near.org/transactions/2PobS79zKd2p77UfgwncBAPX2DARFKsBa8ijVsf3mh7V) |
+| 1,000,000 test units paid on Solana devnet | [`3M7z8NRb…`](https://explorer.solana.com/tx/3M7z8NRbNMoKvnPcXbg4hGfC5x559h4TarjUV5p6ffVnkqN2RGmVnsgSERZcdfxeRRvvB5bRnD8Sf4BMQCxET1CF?cluster=devnet) |
 
 ## Attacks on testnet
 
@@ -83,7 +96,7 @@ near contract call-function as-read-only knos-pay-1102.testnet get_rules json-ar
 
 ## Layout
 
-- `contract/`: the contract (`lib.rs`), RS256 (`rsa.rs`), token parsing (`jwt.rs`), unit tests (`tests.rs`).
+- `contract/`: the contract (`lib.rs`), RS256 (`rsa.rs`), token parsing (`jwt.rs`), the Solana payout check (`solana.rs`), unit tests (`tests.rs`, `tests/`).
 - `mock-usdc/`: a NEP-141 test token for the sandbox.
 - `sandbox/`: the sandbox test.
 

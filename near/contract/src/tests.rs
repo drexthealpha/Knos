@@ -80,10 +80,16 @@ fn contract() -> Knos {
     c
 }
 
+/// A Solana test mint address (any valid 32-byte base58 key)
+const MINT: &str = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+
 fn fund_msg(id: &str, chain: &str, to: &str, deadline_s: u64) -> String {
-    serde_json::json!({"id": id, "payee_chain": chain, "payee_address": to, "criteria_hash": HASH,
-        "repository": REPO, "workflow": WF, "deadline_ns": (deadline_s * SEC).to_string()})
-    .to_string()
+    let mut v = serde_json::json!({"id": id, "payee_chain": chain, "payee_address": to, "criteria_hash": HASH,
+        "repository": REPO, "workflow": WF, "deadline_ns": (deadline_s * SEC).to_string()});
+    if chain == "solana" {
+        v["payee_mint"] = MINT.into();
+    }
+    v.to_string()
 }
 
 fn fund(c: &mut Knos, id: &str) {
@@ -484,3 +490,4 @@ fn rsa_verifies_what_the_rsa_crate_signs() {
 }
 
 mod more;
+mod payout;
