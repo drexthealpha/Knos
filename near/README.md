@@ -58,6 +58,17 @@ near contract call-function as-read-only knos-pay-1102.testnet get_rules json-ar
 
 `agent/guard.py` answers allow, warn or block for a receiver, from chain: no such account or on the shared blocklist (`agent/blocklist.json`, each entry with its evidence) is a block; a contract, an account under 7 days old or code changed in the last day is a warning that a person resolves. `scripts/test_agent_guard.py` gives the agent a key that can call only `release`, `refund` and `sign_payout` here, then a task with an injected instruction to pay two other accounts: both are refused, and the chain refuses the key on the token contract.
 
+## A locked eval
+
+`eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract:
+
+| | Cheats caught | Honest paid |
+|---|---|---|
+| Knos | 30 of 30 (95%: 0.886 to 1.000) | 30 of 30 |
+| Plain CI pass/fail | 0 of 30 (95%: 0.000 to 0.114) | 30 of 30 |
+
+By attack: edited tests 8 of 8, wrong repository 8 of 8, replayed token 7 of 7, altered criteria 7 of 7. An edited test here is a run from another branch or a pull request; tests edited and merged to main are outside what the contract can see.
+
 ## Attacks on testnet
 
 34 attacks and 3 controls, each a real transaction on the contract above, sent by `scripts/attack_testnet.py`. Tokens are signed with an RSA-2048 test key that two owners set as kid `knos-test`, standing in for GitHub's key, so each row changes one thing.
