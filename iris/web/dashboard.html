@@ -6,6 +6,8 @@
 <meta name="description" content="Knos Referee on IRIS: decisions, their traces and the approver's inbox.">
 <title>Knos Referee decisions</title>
 <style>
+/* Hallmark · job: approve or reject a held payout and read why it was decided · shape: app screen · genre: modern-minimal · theme: the Knos tokens (near/DESIGN.md), custom */
+/* Hallmark · pre-emit critique: P4 H3 E4 S4 R4 V3 · weakest: V, a working screen of tables and one inbox, so the inbox comes first and every row carries its reason in words */
 /* tokens: near/DESIGN.md (the Knos web tokens). Dark first; light by the reader's setting */
 :root {
   --paper: #07080c; --paper-2: #0f1118; --soft: #151822; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634;
@@ -21,6 +23,7 @@
     --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; color-scheme: light; }
 }
 * { box-sizing: border-box; }
+html, body { overflow-x: clip; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--text); }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
@@ -28,6 +31,7 @@ a { color: var(--accent); }
 .bar strong { font: 650 18px/1 var(--head); }
 .bar .fine { margin-left: auto; }
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
+h1, h2 { text-wrap: balance; }
 h1 { font: 600 28px/1.15 var(--head); letter-spacing: -.02em; margin: 0; }
 h2 { font: 600 20px/1.3 var(--head); letter-spacing: -.015em; margin: 0 0 12px; }
 .finding { margin: 8px 0 0; font-size: 18px; }
@@ -35,7 +39,7 @@ h2 { font: 600 20px/1.3 var(--head); letter-spacing: -.015em; margin: 0 0 12px; 
 .panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th { text-align: left; font: 400 13px/1.4 var(--text); color: var(--ink-2); padding: 8px; }
-td { padding: 10px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+td { padding: 12px 8px; border-top: 1px solid var(--line); vertical-align: top; }
 td.n, th.n { text-align: right; }
 .id { font-family: var(--code); font-size: 14px; }
 tbody tr[aria-selected="true"] { background: var(--soft); }
@@ -45,9 +49,9 @@ tbody tr.pick { cursor: pointer; }
 .pill[data-g="PAY"]::before { content: "\2713\00a0"; color: var(--ok); }
 .pill[data-g="HUMAN"]::before, .pill[data-g="HELD"]::before { content: "\25D4\00a0"; color: var(--warn); }
 .pill[data-g="REJECT"]::before, .pill[data-g="REFUND_AT_DEADLINE"]::before { content: "\2715\00a0"; color: var(--bad); }
-button { min-height: 44px; padding: 10px 16px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 14px/1.2 var(--text); cursor: pointer; }
+button { min-height: 44px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 14px/1.2 var(--text); cursor: pointer; }
 button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-button:disabled { opacity: .5; cursor: default; }
+button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-2); border-color: var(--line); cursor: not-allowed; }
 .task { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
 .task:first-of-type { border-top: 0; }
 .task .acts { display: flex; gap: 8px; }
@@ -56,21 +60,31 @@ button:disabled { opacity: .5; cursor: default; }
 .kinds li[data-has="0"] { color: var(--ink-2); }
 .kinds li[data-has="0"]::before { content: "\2715\00a0"; color: var(--bad); }
 .kinds li[data-has="1"]::before { content: "\2713\00a0"; color: var(--ok); }
-.empty { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; color: var(--ink-2); }
+.signin { display: grid; gap: 8px; max-width: 420px; }
+.signin[hidden] { display: none; }
+.signin input { min-height: 44px; padding: 8px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: 400 16px/1.4 var(--text); }
+.empty { border: 1px dashed var(--line); border-radius: 8px; padding: 12px; color: var(--ink-2); }
 .err { color: var(--bad); }
-.toast { position: fixed; left: 16px; right: 16px; bottom: 16px; margin: 0 auto; max-width: 420px; padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--paper); text-align: center; }
+.toast { position: fixed; left: 16px; right: 16px; bottom: 16px; margin: 0 auto; max-width: 420px; padding: 12px 16px; border-radius: 999px; background: var(--ink); color: var(--paper); text-align: center; }
 .toast[hidden] { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   tbody tr, .task { transition: background-color var(--dur-1) var(--ease); }
+  button { transition: scale var(--dur-1) var(--ease); }
+  button:active:not(:disabled) { scale: .98; }
   .toast { transition: opacity var(--dur-2) var(--ease), translate var(--dur-2) var(--ease); }
   @starting-style { .toast { opacity: 0; translate: 0 8px; } }
 }
+@media (min-width: 641px) { .meta { display: none; } }
+.scroll { overflow-x: auto; max-width: 100%; }
+main > * { min-width: 0; }
 @media (max-width: 640px) {
-  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  table, tbody, tr, td { display: block; }
-  tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0; border-top: 1px solid var(--line); }
-  td { border: 0; padding: 2px 0; }
-  td.sub { grid-column: 1 / -1; color: var(--ink-2); font-size: 13px; }
+  .dec thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .dec, .dec tbody, .dec tr, .dec td { display: block; }
+  .dec td.n { display: none; }
+  .dec tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 12px 0; border-top: 1px solid var(--line); }
+  .dec td { border: 0; padding: 2px 0; }
+  .dec td.meta { grid-column: 1 / -1; color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .dec td.sub { grid-column: 1 / -1; color: var(--ink-2); font-size: 13px; }
   .task { grid-template-columns: 1fr; }
   .bar .fine { margin-left: 0; flex-basis: 100%; }
 }
@@ -82,6 +96,13 @@ button:disabled { opacity: .5; cursor: default; }
   <span class="fine" id="fresh" aria-live="polite"></span><button id="refresh" type="button">Refresh</button>
 </header>
 <main>
+  <form class="panel signin" id="login" hidden aria-labelledby="t-login">
+    <h2 id="t-login">Sign in to IRIS</h2>
+    <p class="fine" id="login-msg">The user and password of this IRIS instance.</p>
+    <label for="user">User</label><input id="user" name="user" autocomplete="username" required>
+    <label for="pass">Password</label><input id="pass" name="pass" type="password" autocomplete="current-password" required>
+    <button class="go" type="submit">Sign in</button>
+  </form>
   <section aria-labelledby="t-title">
     <h1 id="t-title">Decisions</h1>
     <p class="finding" id="finding">Loading.</p>
@@ -94,7 +115,7 @@ button:disabled { opacity: .5; cursor: default; }
 
   <section class="panel" aria-labelledby="t-dec">
     <h2 id="t-dec">Latest decisions</h2>
-    <table>
+    <table class="dec">
       <thead><tr><th scope="col">Brief</th><th scope="col">Gate</th><th scope="col" class="n">Confidence</th><th scope="col" class="n">Session</th><th scope="col">Outcome</th></tr></thead>
       <tbody id="decisions"><tr><td colspan="5" class="empty">Loading.</td></tr></tbody>
     </table>
@@ -110,11 +131,37 @@ button:disabled { opacity: .5; cursor: default; }
 "use strict";
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) e.append(k); return e; };
-const api = (path, opts) => fetch(path, Object.assign({ headers: { Accept: "application/json" }, credentials: "same-origin" }, opts)).then(async (r) => {
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body.error || ("HTTP " + r.status));
-  return body;
-});
+// the page is public; each call sends the IRIS user and password, asked for once and kept only in this tab's memory
+let auth = "";
+let signingIn = null;
+function signIn() {
+  if (signingIn) return signingIn;
+  const dlg = $("login");
+  dlg.hidden = false;
+  $("user").focus();
+  signingIn = new Promise((resolve) => {
+    dlg.onsubmit = (ev) => {
+      ev.preventDefault();
+      auth = "Basic " + btoa($("user").value + ":" + $("pass").value);
+      $("pass").value = "";
+      dlg.hidden = true;
+      signingIn = null;
+      resolve();
+    };
+  });
+  return signingIn;
+}
+async function api(path, opts = {}) {
+  for (let i = 0; i < 3; i++) {
+    const headers = Object.assign({ Accept: "application/json" }, opts.headers || {}, auth ? { Authorization: auth } : {});
+    const r = await fetch("/api/knos/" + path, Object.assign({}, opts, { headers, credentials: "omit" }));
+    if (r.status === 401) { if (auth) $("login-msg").textContent = "That user and password were refused."; auth = ""; await signIn(); continue; }
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || ("HTTP " + r.status));
+    return body;
+  }
+  throw new Error("not signed in");
+}
 function gatePill(g) { const p = el("span", { className: "pill", textContent: (g || "none").replace(/_/g, " ").toLowerCase() }); p.dataset.g = g || ""; return p; }
 let toastTimer;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3000); }
@@ -132,12 +179,19 @@ async function loadTasks() {
         el("button", { type: "button", textContent: "Reject", onclick: () => answer(t.id, "Reject", acts) }),
       ]);
       box.append(el("div", { className: "task" }, [
-        el("div", {}, [el("strong", { textContent: t.subject || ("Task " + t.id) }), el("div", { className: "fine", textContent: (t.message || "") + (t.session ? "  Session " + t.session : "") })]),
+        el("div", {}, [el("strong", { textContent: t.subject || ("Task " + t.id) }), el("div", { className: "fine", textContent: taskText(t.message) + (t.session ? "  Session " + t.session : "") })]),
         acts,
       ]));
     }
     return tasks.length;
   } catch (e) { box.replaceChildren(el("p", { className: "err", textContent: "Could not load the inbox: " + e.message })); return 0; }
+}
+
+function taskText(msg) {
+  const m = /^(\[.*\])/s.exec(msg || "");
+  try {
+    return JSON.parse(m ? m[1] : "[]").map((x) => x.key + ": " + (x.met === true ? "met" : x.met === false ? "not met" : "not decided") + ", " + x.reason + ".").join(" ") || msg;
+  } catch { return msg || ""; }
 }
 
 async function answer(id, action, acts) {
@@ -162,6 +216,7 @@ async function loadDecisions() {
         el("td", { className: "n", textContent: d.confidence.toFixed(2) }),
         el("td", { className: "n id", textContent: String(d.session) }),
         el("td", { className: "sub", textContent: d.outcome || "-" }),
+        el("td", { className: "meta", textContent: "Confidence " + d.confidence.toFixed(2) + ", session " + d.session }),
       ]);
       tr.setAttribute("aria-selected", String(d.session === selected));
       const open = () => showTrace(d.session);
@@ -195,7 +250,7 @@ async function showTrace(sid) {
       ])) : el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No spans in this session." }))),
     ]);
     const vt = el("a", { href: "/csp/healthshare/knos/EnsPortal.VisualTrace.zen?SESSIONID=" + encodeURIComponent(sid), textContent: "Open session " + sid + " in Visual Trace" });
-    box.replaceChildren(kinds, el("p", { className: "fine", textContent: msgs.length + " messages, " + spans.length + " spans." }), tbl, el("p", {}, vt));
+    box.replaceChildren(kinds, el("p", { className: "fine", textContent: msgs.length + " messages, " + spans.length + " spans." }), el("div", { className: "scroll", tabIndex: 0, role: "region", ariaLabel: "Trace steps" }, tbl), el("p", {}, vt));
   } catch (e) { box.replaceChildren(el("p", { className: "err", textContent: "Could not load the trace: " + e.message })); }
 }
 

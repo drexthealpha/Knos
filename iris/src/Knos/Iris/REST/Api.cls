@@ -172,7 +172,8 @@ ClassMethod Answer(id As %Integer) As %Status
     return $$$OK
 }
 
-/// The dashboard page: decisions, each one's trace, and the approver's inbox
+/// The dashboard page: decisions, each one's trace, and the approver's inbox, here and without a login at /knos/ (no data in it);
+/// every call it makes needs the user and password, which it asks for once and sends as Basic authorization
 ClassMethod UI() As %Status
 {
     set f = ##class(%Stream.FileCharacter).%New(), f.TranslateTable = "UTF8"

@@ -23,7 +23,7 @@ Try it:
 4. `curl -s -u _SYSTEM:SYS localhost:52773/api/knos/health`.
 5. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
 6. Open the URL it prints (user `_SYSTEM`, password `SYS`).
-7. Open `localhost:52773/api/knos/ui`: each decision, its trace and the approver's inbox, with Approve and Reject.
+7. Open `localhost:52773/knos/` and sign in with the same user: each decision, its trace and the approver's inbox, with Approve and Reject.
 
 Every test in one command, in replay mode: `bash scripts/test-all.sh` (build, health, the decisions, one trace through all six parts, the bonus checks, the page).
 

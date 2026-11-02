@@ -10,6 +10,10 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
     zn "%SYS"
     set props("NameSpace") = ns, props("DispatchClass") = "Knos.Iris.REST.Api", props("AutheEnabled") = 32, props("Enabled") = 1
     if '##class(Security.Applications).Exists("/api/knos") { set sc = ##class(Security.Applications).Create("/api/knos", .props) }
+    // /knos serves the dashboard page alone, with no login: the page holds no data and asks for the user and password
+    // before it calls /api/knos. The only role it adds is the KNOS database's, so the page class can run
+    set page("NameSpace") = ns, page("DispatchClass") = "Knos.Iris.REST.Page", page("AutheEnabled") = 64, page("Enabled") = 1, page("MatchRoles") = ":%DB_"_ns
+    if '##class(Security.Applications).Exists("/knos") { do ##class(Security.Applications).Create("/knos", .page) }
     if '##class(Security.SSLConfigs).Exists("knos") { set ssl("Enabled") = 1 do ##class(Security.SSLConfigs).Create("knos", .ssl) }
     // the Java gateway: capped at 192 MB, never started here (the production's PEX operation starts it on first use)
     if ##class(Config.Gateways).Get("%Java Server", .gw) { set gw("JVMArgs") = "-Xmx192m" do ##class(Config.Gateways).Modify("%Java Server", .gw) }
