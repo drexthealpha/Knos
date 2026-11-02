@@ -1,0 +1,872 @@
+[
+ {
+  "id": "h00",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h00"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h01",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h01"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h02",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h02"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h03",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h03"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h04",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h04"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h05",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h05"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h06",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h06"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h07",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h07"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h08",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h08"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h09",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h09"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h10",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h10"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h11",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h11"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h12",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h12"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h13",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h13"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h14",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h14"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h15",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h15"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h16",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h16"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h17",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h17"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h18",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h18"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h19",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h19"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h20",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h20"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h21",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h21"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h22",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h22"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h23",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h23"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h24",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h24"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h25",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h25"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h26",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h26"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h27",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h27"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h28",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h28"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "h29",
+  "kind": "honest",
+  "what": "the run of the locked workflow on main, on a fresh token",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h29"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c00",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited on a branch whose run is green",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/edit-tests-1",
+   "jti": "jti-c00"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c01",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited on a branch whose run is green",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/edit-tests-2",
+   "jti": "jti-c01"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c02",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited on a branch whose run is green",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/edit-tests-3",
+   "jti": "jti-c02"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c03",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited on a branch whose run is green",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/edit-tests-4",
+   "jti": "jti-c03"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c04",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited in a pull request whose run is green",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/pull/5/merge",
+   "jti": "jti-c04"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c05",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited in a pull request whose run is green",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/pull/6/merge",
+   "jti": "jti-c05"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c06",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited in a pull request whose run is green",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/pull/7/merge",
+   "jti": "jti-c06"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c07",
+  "kind": "cheat",
+  "attack": "edited tests",
+  "what": "the tests were edited in a pull request whose run is green",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/pull/8/merge",
+   "jti": "jti-c07"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c08",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-8/checkout",
+   "job_workflow_ref": "fork-8/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c08"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c09",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-9/model-train",
+   "job_workflow_ref": "fork-9/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c09"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c10",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-10/knos-demo",
+   "job_workflow_ref": "fork-10/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c10"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c11",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-11/assay-pipeline",
+   "job_workflow_ref": "fork-11/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c11"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c12",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-12/sequencing",
+   "job_workflow_ref": "fork-12/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c12"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c13",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-13/checkout",
+   "job_workflow_ref": "fork-13/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c13"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c14",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-14/model-train",
+   "job_workflow_ref": "fork-14/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c14"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c15",
+  "kind": "cheat",
+  "attack": "wrong repo",
+  "what": "a fork's green run of the same workflow",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "fork-15/knos-demo",
+   "job_workflow_ref": "fork-15/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c15"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c16",
+  "kind": "cheat",
+  "attack": "replayed token",
+  "what": "an honest attempt's token sent again for another milestone",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h16"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c17",
+  "kind": "cheat",
+  "attack": "replayed token",
+  "what": "an honest attempt's token sent again for another milestone",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h17"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c18",
+  "kind": "cheat",
+  "attack": "replayed token",
+  "what": "an honest attempt's token sent again for another milestone",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h18"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c19",
+  "kind": "cheat",
+  "attack": "replayed token",
+  "what": "an honest attempt's token sent again for another milestone",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h19"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c20",
+  "kind": "cheat",
+  "attack": "replayed token",
+  "what": "an honest attempt's token sent again for another milestone",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h20"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c21",
+  "kind": "cheat",
+  "attack": "replayed token",
+  "what": "an honest attempt's token sent again for another milestone",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h21"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c22",
+  "kind": "cheat",
+  "attack": "replayed token",
+  "what": "an honest attempt's token sent again for another milestone",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-h22"
+  },
+  "criteria": "locked"
+ },
+ {
+  "id": "c23",
+  "kind": "cheat",
+  "attack": "altered criteria",
+  "what": "the brief's criteria changed after funding",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c23"
+  },
+  "criteria": "altered"
+ },
+ {
+  "id": "c24",
+  "kind": "cheat",
+  "attack": "altered criteria",
+  "what": "the brief's criteria changed after funding",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c24"
+  },
+  "criteria": "altered"
+ },
+ {
+  "id": "c25",
+  "kind": "cheat",
+  "attack": "altered criteria",
+  "what": "the brief's criteria changed after funding",
+  "repository": "drexthealpha/knos-demo",
+  "workflow": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "drexthealpha/knos-demo",
+   "job_workflow_ref": "drexthealpha/knos-demo/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c25"
+  },
+  "criteria": "altered"
+ },
+ {
+  "id": "c26",
+  "kind": "cheat",
+  "attack": "altered criteria",
+  "what": "the brief's criteria changed after funding",
+  "repository": "lab-a/assay-pipeline",
+  "workflow": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-a/assay-pipeline",
+   "job_workflow_ref": "lab-a/assay-pipeline/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c26"
+  },
+  "criteria": "altered"
+ },
+ {
+  "id": "c27",
+  "kind": "cheat",
+  "attack": "altered criteria",
+  "what": "the brief's criteria changed after funding",
+  "repository": "lab-b/sequencing",
+  "workflow": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "lab-b/sequencing",
+   "job_workflow_ref": "lab-b/sequencing/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c27"
+  },
+  "criteria": "altered"
+ },
+ {
+  "id": "c28",
+  "kind": "cheat",
+  "attack": "altered criteria",
+  "what": "the brief's criteria changed after funding",
+  "repository": "acme/checkout",
+  "workflow": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "acme/checkout",
+   "job_workflow_ref": "acme/checkout/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c28"
+  },
+  "criteria": "altered"
+ },
+ {
+  "id": "c29",
+  "kind": "cheat",
+  "attack": "altered criteria",
+  "what": "the brief's criteria changed after funding",
+  "repository": "uni-c/model-train",
+  "workflow": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+  "ci_passed": true,
+  "token": {
+   "repository": "uni-c/model-train",
+   "job_workflow_ref": "uni-c/model-train/.github/workflows/proof.yml@refs/heads/main",
+   "jti": "jti-c29"
+  },
+  "criteria": "altered"
+ }
+]
