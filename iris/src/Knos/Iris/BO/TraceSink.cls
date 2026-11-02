@@ -10,10 +10,20 @@ Method Keep(pRequest As Knos.Iris.Msg.Span, Output pResponse As Ens.Response) As
     return r.%Save()
 }
 
+/// A verdict reached without the referee (the brief no longer matches its lock), kept as a span like the referee's own
+Method KeepVerdict(pRequest As Knos.Iris.Msg.Verdict, Output pResponse As Ens.Response) As %Status
+{
+    set r = ##class(Knos.Iris.Data.Span).%New()
+    set r.SessionId = ..%SessionId, r.Kind = "verdict", r.Name = "verdict without the referee", r.Model = pRequest.Model
+    set r.OutputJSON = {"decision": (pRequest.Decision), "confidence": (+pRequest.Confidence)}.%ToJSON()
+    return r.%Save()
+}
+
 XData MessageMap
 {
 <MapItems>
 <MapItem MessageType="Knos.Iris.Msg.Span"><Method>Keep</Method></MapItem>
+<MapItem MessageType="Knos.Iris.Msg.Verdict"><Method>KeepVerdict</Method></MapItem>
 </MapItems>
 }
 }

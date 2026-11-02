@@ -1,7 +1,7 @@
 /// The referee's answer, as the decision contract holds it, with what it cost.
 Class Knos.Iris.Msg.Verdict Extends (Ens.Response, %JSON.Adaptor)
 {
-Property Decision As %String(VALUELIST = ",met,not_met,insufficient");
+Property Decision As %String(VALUELIST = ",met,not_met,insufficient,reject: brief altered");
 Property MilestonesJSON As %String(MAXLEN = "");
 Property Confidence As %Numeric(SCALE = 2);
 Property CriteriaHash As %String(MAXLEN = 64);

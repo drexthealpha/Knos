@@ -20,6 +20,7 @@ BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:52773"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else None
 AUTH = "Basic " + base64.b64encode(b"_SYSTEM:SYS").decode()
 F = HERE / "fixtures"
+TRACE = ("Proof", "Verdict", "Span", "Decision")
 
 
 def call(path: str, body: dict | None = None) -> dict:
@@ -61,15 +62,19 @@ def main() -> int:
     for name, body, want in cases:
         try:
             d = call("/api/knos/proof", body)
-            ok = want(d) and bool(d.get("referee"))
-            lines.append(f"{'ok  ' if ok else 'FAIL'} {name}: decision {d.get('decision')}, gate {d.get('gate')}, by {d.get('referee')}, session {d.get('session')}, {d.get('visual_trace')}")
+            # the session's trace holds each kind of message the decision passes: the proof, the verdict, the spans, the decision
+            bodies = {m["body"].rsplit(".", 1)[-1] for m in call(f"/api/knos/traces/{int(d.get('session') or 0)}").get("messages", [])}
+            missing = [k for k in TRACE if k not in bodies]
+            ok = want(d) and bool(d.get("referee")) and not missing
+            lines.append(f"{'ok  ' if ok else 'FAIL'} {name}: decision {d.get('decision')}, gate {d.get('gate')}, by {d.get('referee')}, session {d.get('session')}, "
+                         f"trace {'holds ' + ', '.join(TRACE) if not missing else 'lacks ' + ', '.join(missing)}, {d.get('visual_trace')}")
         except Exception as e:  # noqa: BLE001 - a case that cannot be asked fails
             ok = False
             lines.append(f"FAIL {name}: {type(e).__name__}: {str(e)[:160]}")
         passed += ok
         fails += not ok
     h = call("/api/knos/health")
-    lines.append(f"     agent mode: {h.get('agent')} (live needs a model key; ANTHROPIC_API_KEY is not set in this PC's user environment, so the live sub-item is BLOCKED: an LLM key)")
+    lines.append(f"     agent mode: {h.get('agent')}" + (" (the live AI Hub run is WAITING_KEY: no model key in iris/.env)" if h.get("agent") != "live" else ""))
     lines.append(f"PASS test_iris_decision: {passed} of 8 cases give the expected outcome, each naming its referee" if not fails else
                  f"FAIL test_iris_decision: {fails} check(s) failed, {passed} of 8 cases as expected")
     print("\n".join(lines))

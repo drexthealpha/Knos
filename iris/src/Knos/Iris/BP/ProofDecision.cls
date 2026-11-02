@@ -23,7 +23,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set context.Hash = ##class(Knos.Iris.Py.Ready).Hash(request.BriefJSON)
  set context.Kind = $select(request.Kind="checkrun":"machine",1:"human")
  set context.Threshold = +##class(Ens.Util.FunctionSet).Lookup("KnosPayoutThreshold","usdc",50)
- set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "policy", s.Name = "brief hash against its lock"
+ set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "policy", s.Name = "brief hash against its lock (knos.ready, Embedded Python)"
  set s.InputJSON = "{""locked"":"""_context.Locked_"""}", s.OutputJSON = "{""presented"":"""_context.Hash_""",""equal"":"_$select(context.Hash=context.Locked:"true",1:"false")_"}"
  do ..%Process.SendRequestAsync("TraceSink", s, 0)
 ]]></code>
@@ -52,7 +52,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  if ms.%IsA("%DynamicArray") && ms.%Size() { set cited = ms.%Get(0).key }
  set capped = (cited '= "") && ((top_",") '[ (","_cited_","))
  if capped && (context.Verdict.Confidence > 0.6) { set context.Verdict.Confidence = 0.6 }
- set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "rag", s.Name = "nearest locked criterion", s.Score = +score
+ set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "rag", s.Name = "nearest locked criterion (Vector Search)", s.Score = +score
  set s.OutputJSON = "{""milestone"":"""_key_""",""cosine"":"_(+score)_",""top2"":"""_$extract(top,2,*)_""",""cited"":"""_cited_""",""capped"":"_$select(capped:"true",1:"false")_"}"
  do ..%Process.SendRequestAsync("TraceSink", s, 0)
 ]]></code>
@@ -62,6 +62,10 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <assign property='context.Gate' value='"REJECT"' action='set'/>
 <assign property='context.Verdict' value='##class(Knos.Iris.Msg.Verdict).%New()' action='set'/>
 <assign property='context.Verdict.Decision' value='"reject: brief altered"' action='set'/>
+<assign property='context.Verdict.Model' value='"brief lock (no referee asked)"' action='set'/>
+<code name='The verdict, in the trace'><![CDATA[
+ do ..%Process.SendRequestAsync("TraceSink", context.Verdict, 0)
+]]></code>
 </false>
 </if>
 <code name='The answer'><![CDATA[

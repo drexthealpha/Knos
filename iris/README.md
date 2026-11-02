@@ -1,6 +1,13 @@
 # Knos Referee on IRIS
 
-**Proof checked inside IRIS for Health.** Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.
+**Proof checked inside IRIS for Health.** Knos carries any research across the valley of death (idea or paper -> demand -> Ready brief -> money held -> paid on verified proof), toward Schmidhuber's vision and Kardashev II/III, connecting 8 billion people to the world's money.
+
+| | |
+|---|---|
+| What it does | An AI Hub agent in an IRIS for Health production checks proof (a GitHub check run, or a lab result as FHIR or HL7) against a hash-locked research brief. A rule, and above 50 USDC a person in Workflow, decide; only then does Solana devnet see a transaction. |
+| The contest task | The agent is one step of an interoperability workflow: proof arrives through adapters and the agent answers a checked decision contract, with every model and tool call a message in Visual Trace. |
+| What is new | LLM tracing as interop messages ([DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) with a Langfuse-style SQL view; Vector Search (snowflake-arctic-embed-s in Embedded Python) caps a verdict that cites a criterion outside the proof's 2 nearest. |
+| Links | Code: this folder. Demo, video and articles: linked here once published. |
 
 ## 1. What it decides
 
@@ -16,6 +23,9 @@ Try it:
 4. `curl -s -u _SYSTEM:SYS localhost:52773/api/knos/health`.
 5. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
 6. Open the URL it prints (user `_SYSTEM`, password `SYS`).
+7. Open `localhost:52773/api/knos/ui`: each decision, its trace and the approver's inbox, with Approve and Reject.
+
+Every test in one command, in replay mode: `bash scripts/test-all.sh` (build, health, the decisions, one trace through all six parts, the bonus checks, the page).
 
 ## 2. How it works
 
@@ -32,9 +42,9 @@ Try it:
 
 ## 3. Requirements
 
-Docker Desktop with its default VM (about 3.9 GB on a 7.8 GB PC), the build 154 image tar from InterSystems, and (for live
+Measured in a 4-core, 16 GB GitHub Codespace with `mem_limit: 3g`: build 160 s from the loaded image, health 7 to 9 s after the container starts, peak 1,660 MiB in `docker stats`. `scripts/codespace-setup.sh` prepares one. On a laptop: Docker Desktop with its default VM (about 3.9 GB on a 7.8 GB PC), the build 154 image tar from InterSystems, and (for live
 mode) one model key. Measured on a 7.8 GB Windows laptop: the container's peak in `docker stats` was 1,188 MiB at run, the
-Docker VM's (vmmem) 2,526 MiB through the build and the run; compose caps it at 2 GB (`mem_limit`), `merge.cpf` caps IRIS's buffers and the
+Docker VM's (vmmem) 2,526 MiB through the build and the run; compose caps it at 3 GB (`mem_limit`), `merge.cpf` caps IRIS's buffers and the
 Java gateway runs with `-Xmx192m`. FHIR is off by default (`KNOS_FHIR=0`): HealthShare Foundation then loads no FHIR
 package, the step that took an uncapped build past 1,800 s. `KNOS_FHIR=1` loads R4 only and needs about 2 GB more.
 
@@ -184,7 +194,10 @@ and keyword arguments to `iris.sql.exec` raise a plain TypeError. Each folder sa
 ## 14. Tests
 
 `python tests/test_iris_decision.py` runs the core decision cases against a running instance: a passing check run, a
-failing one, an altered brief, injection text in the proof, an ORU whose value misses the target.
+failing one, an altered brief, injection text in the proof, an ORU whose value misses the target; each session's trace
+must hold the Proof, Verdict, Span and Decision messages. `python tests/test_iris_one_trace.py` sends one check-run file
+through CheckRunInbound for a brief over the threshold, approves it in Workflow, and checks that its one session holds
+CheckRunInbound, Embedded Python, Vector Search, Workflow, Java PEX and SolanaRpcOutbound.
 
 ## 15. Architecture
 
@@ -206,8 +219,9 @@ flowchart LR
 ## 16. Known limitations
 
 - On this build the AI Hub agent runs only with a provider key; without one the production runs in replay mode.
-- The vector search embeds with a deterministic 384-number hashed embedding (`knos_iris.bridge.embed`), so it needs
-  no model download.
+- The vector search embeds with snowflake-arctic-embed-s (33M parameters, 384 numbers, 128 MB in the image as ONNX). Without it,
+  `knos_iris.bridge` falls back to a hashed embedding: on 40 labelled proof pairs the top-2 hit rate is 1.000 against 0.925
+  (`tests/test_embed_quality.py`).
 - Solana devnet only, with test money.
 
 ## 17. How it fits Knos

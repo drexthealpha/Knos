@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Knos Referee on IRIS: decisions, their traces and the approver's inbox.">
+<title>Knos Referee decisions</title>
+<style>
+/* tokens: near/DESIGN.md (the Knos web tokens). Dark first; light by the reader's setting */
+:root {
+  --paper: #07080c; --paper-2: #0f1118; --soft: #151822; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634;
+  --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
+  --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .8, .2, 1); --dur-1: 120ms; --dur-2: 240ms;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --paper: #f4f4f0; --paper-2: #ffffff; --soft: #eaeae4; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4;
+    --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--text); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 48px; padding: 8px max(16px, calc((100% - 1200px) / 2)); border-bottom: 1px solid var(--line); }
+.bar strong { font: 650 18px/1 var(--head); }
+.bar .fine { margin-left: auto; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
+h1 { font: 600 28px/1.15 var(--head); letter-spacing: -.02em; margin: 0; }
+h2 { font: 600 20px/1.3 var(--head); letter-spacing: -.015em; margin: 0 0 12px; }
+.finding { margin: 8px 0 0; font-size: 18px; }
+.fine { color: var(--ink-2); font-size: 13px; }
+.panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font: 400 13px/1.4 var(--text); color: var(--ink-2); padding: 8px; }
+td { padding: 10px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+td.n, th.n { text-align: right; }
+.id { font-family: var(--code); font-size: 14px; }
+tbody tr[aria-selected="true"] { background: var(--soft); }
+tbody tr.pick { cursor: pointer; }
+.pill { display: inline-block; flex: none; white-space: nowrap; padding: 1px 8px; border-radius: 999px; font-size: 13px; font-weight: 500; background: var(--soft); }
+.pill::before { content: "\25CF\00a0"; }
+.pill[data-g="PAY"]::before { content: "\2713\00a0"; color: var(--ok); }
+.pill[data-g="HUMAN"]::before, .pill[data-g="HELD"]::before { content: "\25D4\00a0"; color: var(--warn); }
+.pill[data-g="REJECT"]::before, .pill[data-g="REFUND_AT_DEADLINE"]::before { content: "\2715\00a0"; color: var(--bad); }
+button { min-height: 44px; padding: 10px 16px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 14px/1.2 var(--text); cursor: pointer; }
+button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+.task { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.task:first-of-type { border-top: 0; }
+.task .acts { display: flex; gap: 8px; }
+.kinds { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 12px; padding: 0; }
+.kinds li { padding: 4px 12px; border-radius: 999px; background: var(--soft); font-size: 14px; }
+.kinds li[data-has="0"] { color: var(--ink-2); }
+.kinds li[data-has="0"]::before { content: "\2715\00a0"; color: var(--bad); }
+.kinds li[data-has="1"]::before { content: "\2713\00a0"; color: var(--ok); }
+.empty { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; color: var(--ink-2); }
+.err { color: var(--bad); }
+.toast { position: fixed; left: 16px; right: 16px; bottom: 16px; margin: 0 auto; max-width: 420px; padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--paper); text-align: center; }
+.toast[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  tbody tr, .task { transition: background-color var(--dur-1) var(--ease); }
+  .toast { transition: opacity var(--dur-2) var(--ease), translate var(--dur-2) var(--ease); }
+  @starting-style { .toast { opacity: 0; translate: 0 8px; } }
+}
+@media (max-width: 640px) {
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  table, tbody, tr, td { display: block; }
+  tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0; border-top: 1px solid var(--line); }
+  td { border: 0; padding: 2px 0; }
+  td.sub { grid-column: 1 / -1; color: var(--ink-2); font-size: 13px; }
+  .task { grid-template-columns: 1fr; }
+  .bar .fine { margin-left: 0; flex-basis: 100%; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <strong>Knos Referee</strong><span class="fine">IRIS for Health. Solana devnet only, test money.</span>
+  <span class="fine" id="fresh" aria-live="polite"></span><button id="refresh" type="button">Refresh</button>
+</header>
+<main>
+  <section aria-labelledby="t-title">
+    <h1 id="t-title">Decisions</h1>
+    <p class="finding" id="finding">Loading.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="t-inbox">
+    <h2 id="t-inbox">Waiting for an approver</h2>
+    <div id="tasks"><p class="empty">Loading.</p></div>
+  </section>
+
+  <section class="panel" aria-labelledby="t-dec">
+    <h2 id="t-dec">Latest decisions</h2>
+    <table>
+      <thead><tr><th scope="col">Brief</th><th scope="col">Gate</th><th scope="col" class="n">Confidence</th><th scope="col" class="n">Session</th><th scope="col">Outcome</th></tr></thead>
+      <tbody id="decisions"><tr><td colspan="5" class="empty">Loading.</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="panel" aria-labelledby="t-trace">
+    <h2 id="t-trace">Trace</h2>
+    <div id="trace"><p class="empty">Choose a decision to see its trace.</p></div>
+  </section>
+</main>
+<p class="toast" id="toast" role="status" hidden></p>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) e.append(k); return e; };
+const api = (path, opts) => fetch(path, Object.assign({ headers: { Accept: "application/json" }, credentials: "same-origin" }, opts)).then(async (r) => {
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || ("HTTP " + r.status));
+  return body;
+});
+function gatePill(g) { const p = el("span", { className: "pill", textContent: (g || "none").replace(/_/g, " ").toLowerCase() }); p.dataset.g = g || ""; return p; }
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3000); }
+let selected = 0;
+
+async function loadTasks() {
+  const box = $("tasks");
+  try {
+    const tasks = (await api("tasks")).filter((t) => t.open);
+    box.replaceChildren();
+    if (!tasks.length) { box.append(el("p", { className: "empty", textContent: "Nothing is waiting. Payouts above 50 USDC land here for a person." })); return 0; }
+    for (const t of tasks) {
+      const acts = el("div", { className: "acts" }, [
+        el("button", { type: "button", className: "go", textContent: "Approve", onclick: () => answer(t.id, "Approve", acts) }),
+        el("button", { type: "button", textContent: "Reject", onclick: () => answer(t.id, "Reject", acts) }),
+      ]);
+      box.append(el("div", { className: "task" }, [
+        el("div", {}, [el("strong", { textContent: t.subject || ("Task " + t.id) }), el("div", { className: "fine", textContent: (t.message || "") + (t.session ? "  Session " + t.session : "") })]),
+        acts,
+      ]));
+    }
+    return tasks.length;
+  } catch (e) { box.replaceChildren(el("p", { className: "err", textContent: "Could not load the inbox: " + e.message })); return 0; }
+}
+
+async function answer(id, action, acts) {
+  for (const b of acts.querySelectorAll("button")) b.disabled = true;
+  try {
+    await api("tasks/" + id, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action }) });
+    toast(action === "Approve" ? "Approved. The production goes on to payout." : "Rejected. The payout is held.");
+    await load();
+  } catch (e) { toast("Not saved: " + e.message); for (const b of acts.querySelectorAll("button")) b.disabled = false; }
+}
+
+async function loadDecisions() {
+  const body = $("decisions");
+  try {
+    const rows = await api("decisions");
+    body.replaceChildren();
+    if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No decision yet. Run scripts/smoke.sh to send one proof." }))); return []; }
+    for (const d of rows) {
+      const tr = el("tr", { className: "pick", tabIndex: 0 }, [
+        el("td", {}, [el("span", { className: "id", textContent: d.brief || "-" })]),
+        el("td", {}, gatePill(d.gate)),
+        el("td", { className: "n", textContent: d.confidence.toFixed(2) }),
+        el("td", { className: "n id", textContent: String(d.session) }),
+        el("td", { className: "sub", textContent: d.outcome || "-" }),
+      ]);
+      tr.setAttribute("aria-selected", String(d.session === selected));
+      const open = () => showTrace(d.session);
+      tr.addEventListener("click", open);
+      tr.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } });
+      body.append(tr);
+    }
+    return rows;
+  } catch (e) { body.replaceChildren(el("tr", {}, el("td", { colSpan: 5, className: "err", textContent: "Could not load decisions: " + e.message }))); return []; }
+}
+
+const KINDS = [["Proof", /Msg\.Proof$/], ["Verdict", /Msg\.Verdict$/], ["Span", /Msg\.Span$/], ["Decision", /Msg\.Decision$/]];
+async function showTrace(sid) {
+  selected = sid;
+  for (const tr of $("decisions").querySelectorAll("tr")) tr.setAttribute("aria-selected", String(tr.children[3]?.textContent === String(sid)));
+  const box = $("trace");
+  box.replaceChildren(el("p", { className: "fine", textContent: "Loading session " + sid + "." }));
+  try {
+    const t = await api("traces/" + sid);
+    const msgs = t.messages || [], spans = t.spans || [];
+    const kinds = el("ul", { className: "kinds", ariaLabel: "Message kinds in this session" });
+    for (const [name, re] of KINDS) { const n = msgs.filter((m) => re.test(m.body)).length; const li = el("li", { textContent: name + " " + n }); li.dataset.has = n ? "1" : "0"; kinds.append(li); }
+    const tbl = el("table", {}, [
+      el("thead", {}, el("tr", {}, ["Step", "Model", "Tokens", "Cost USD", "ms"].map((h, i) => el("th", { scope: "col", className: i > 1 ? "n" : "", textContent: h })))),
+      el("tbody", {}, spans.length ? spans.map((s) => el("tr", {}, [
+        el("td", {}, [el("strong", { textContent: s.name || s.type }), el("div", { className: "fine", textContent: s.type })]),
+        el("td", { textContent: s.model || "-" }),
+        el("td", { className: "n", textContent: String(s.tokens) }),
+        el("td", { className: "n", textContent: s.cost_usd.toFixed(4) }),
+        el("td", { className: "n", textContent: String(s.latency_ms) }),
+      ])) : el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No spans in this session." }))),
+    ]);
+    const vt = el("a", { href: "/csp/healthshare/knos/EnsPortal.VisualTrace.zen?SESSIONID=" + encodeURIComponent(sid), textContent: "Open session " + sid + " in Visual Trace" });
+    box.replaceChildren(kinds, el("p", { className: "fine", textContent: msgs.length + " messages, " + spans.length + " spans." }), tbl, el("p", {}, vt));
+  } catch (e) { box.replaceChildren(el("p", { className: "err", textContent: "Could not load the trace: " + e.message })); }
+}
+
+async function load() {
+  const [waiting, rows] = await Promise.all([loadTasks(), loadDecisions()]);
+  const paid = rows.filter((d) => d.gate === "PAY").length;
+  $("finding").textContent = rows.length ? waiting + " waiting for an approver. " + paid + " of the latest " + rows.length + " cleared to pay." : "No decision yet.";
+  $("fresh").textContent = "Updated " + new Date().toLocaleTimeString();
+  if (!selected && rows.length) showTrace(rows[0].session);
+}
+$("refresh").addEventListener("click", load);
+load();
+</script>
+</body>
+</html>

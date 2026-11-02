@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
 import subprocess
 import sys
@@ -35,9 +36,20 @@ AUTH = "Basic " + base64.b64encode(b"_SYSTEM:SYS").decode()
 F = HERE / "fixtures"
 
 
+def dynamic(line: str) -> str:
+    """&sql(...) is embedded SQL, compiled with a routine: typed into a terminal it does not run. A single-value
+    `&sql(SELECT x INTO :v FROM ...)` becomes the same query through %SQL.Statement, which a terminal runs."""
+    m = re.fullmatch(r"&sql\((SELECT .+?) INTO :(\w+) (FROM .+)\)", line.strip())
+    if not m:
+        return line
+    q = f"{m.group(1)} {m.group(3)}".replace('"', '""')
+    v = m.group(2)
+    return f'set {v} = "", rs = ##class(%SQL.Statement).%ExecDirect(, "{q}") if rs.%Next() {{ set {v} = rs.%GetData(1) }}'
+
+
 def session(lines: list[str], ns: str = "KNOS") -> str:
     with tempfile.NamedTemporaryFile("w", suffix=".script", delete=False, encoding="utf-8") as f:
-        f.write(f'zn "{ns}"\n' + "\n".join(lines) + "\nhalt\n")
+        f.write(f'zn "{ns}"\n' + "\n".join(dynamic(x) for x in lines) + "\nhalt\n")
         path = f.name
     with open(path, encoding="utf-8") as stdin:
         r = subprocess.run(["docker", "exec", "-i", C, "iris", "session", "IRIS", "-U", "%SYS"], stdin=stdin, capture_output=True, text=True, timeout=900)
@@ -46,8 +58,9 @@ def session(lines: list[str], ns: str = "KNOS") -> str:
 
 
 def value(out: str, key: str) -> str:
-    m = re.search(rf"{key}=([^\r\n]*)", out)
-    return m.group(1).strip() if m else ""
+    # iris session echoes each command it reads (write "N=", n) before its output (N=5): the value is the last match
+    found = [v.strip() for v in re.findall(rf"{key}=([^\r\n]*)", out) if not v.lstrip().startswith(('"', "'"))]
+    return found[-1] if found else ""
 
 
 def post(path: str, body: dict) -> dict:
@@ -103,7 +116,8 @@ def main() -> int:
     # 4. Embedded Python importing src/knos
     sys.path.insert(0, str(ROOT / "src"))
     from knos import ready
-    inside = value(session([f'write "HASH=", ##class(Knos.Iris.Py.Ready).Hash({json.dumps(json.dumps(code))}), !']), "HASH")
+    lit = '"' + json.dumps(code).replace('"', '""') + '"'  # an ObjectScript string doubles its quotes
+    inside = value(session([f'write "HASH=", ##class(Knos.Iris.Py.Ready).Hash({lit}), !']), "HASH")
     ok(inside == ready.criteria_hash(code), f"Embedded Python: knos.ready inside IRIS {inside[:16]}, outside {ready.criteria_hash(code)[:16]}")
     # 5. Vector Search through the agent's RAG tool
     h = ready.criteria_hash(lab)
@@ -120,7 +134,15 @@ def main() -> int:
                    'write "MADE=", ##class(Config.Namespaces).Exists("KNOSZPM"), !',
                    'write "IPM=", ##class(%Dictionary.CompiledClass).%ExistsId("%IPM.Main"), !'], ns="%SYS")
     zpm = ""
+    xml = os.environ.get("KNOS_ZPM_XML", "")
+    if value(out, "IPM") != "1" and xml:
+        # the image has no IPM: install InterSystems' own release (test-all.sh fetches it and checks its sha256)
+        subprocess.run(["docker", "cp", xml, f"{C}:/tmp/zpm.xml"], capture_output=True, timeout=120)
+        got = session(['do $system.OBJ.Load("/tmp/zpm.xml", "ck")', 'write "IPM=", ##class(%Dictionary.CompiledClass).%ExistsId("%IPM.Main"), !'], ns="%SYS")
+        out += "\n" + got
     if value(out, "IPM") == "1":
+        # IPM 0.9 and later is enabled per namespace: map it to every namespace, KNOSZPM included
+        session(['zpm "enable -map -globally"'], ns="%SYS")
         res = session(['zpm "load /home/irisowner/knos/iris -v"', 'write "LOADED=", ##class(%Dictionary.CompiledClass).%ExistsId("Knos.Iris.Setup"), !'], ns="KNOSZPM")
         zpm = value(res, "LOADED")
     ok(value(out, "MADE") == "1" and zpm == "1", f"ZPM: namespace KNOSZPM {'made' if value(out, 'MADE') == '1' else 'not made'}; IPM {'present' if value(out, 'IPM') == '1' else 'not in this image'}; module {'installed' if zpm == '1' else 'not installed'}")

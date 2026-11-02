@@ -11,6 +11,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Route Url="/brief" Method="POST" Call="Brief"/>
 <Route Url="/proof" Method="POST" Call="Proof"/>
 <Route Url="/traces/:s" Method="GET" Call="Traces"/>
+<Route Url="/decisions" Method="GET" Call="Decisions"/>
+<Route Url="/tasks" Method="GET" Call="Tasks"/>
+<Route Url="/tasks/:id" Method="POST" Call="Answer"/>
+<Route Url="/ui" Method="GET" Call="UI"/>
 </Routes>
 }
 
@@ -117,6 +121,66 @@ ClassMethod Portal() As %String
 ClassMethod Traces(s As %Integer) As %Status
 {
     write ##class(Knos.Iris.Trace).Session(s).%ToJSON()
+    return $$$OK
+}
+
+/// The 50 latest decisions, newest first
+ClassMethod Decisions() As %Status
+{
+    set out = []
+    // "At" is quoted: AT is an SQL reserved word
+    set rs = ##class(%SQL.Statement).%ExecDirect(, "SELECT TOP 50 SessionId, BriefId, Kind, Decision, Gate, Outcome, Confidence, ""At"" AS DecidedAt FROM Knos_Iris_Data.Decision ORDER BY ID DESC")
+    if rs.%SQLCODE < 0 return ..Fail($$$ERROR($$$SQLError, rs.%SQLCODE, rs.%Message))
+    while rs.%Next() {
+        do out.%Push({"session": (+rs.SessionId), "brief": (rs.BriefId), "kind": (rs.Kind), "decision": (rs.Decision), "gate": (rs.Gate),
+          "outcome": (rs.Outcome), "confidence": (+rs.Confidence), "at": (rs.DecidedAt)})
+    }
+    write out.%ToJSON()
+    return $$$OK
+}
+
+/// Workflow tasks for the PayoutApprovers role, open ones first, each with the session it belongs to
+ClassMethod Tasks() As %Status
+{
+    set out = []
+    set rs = ##class(%SQL.Statement).%ExecDirect(, "SELECT TOP 20 ID FROM EnsLib_Workflow.TaskResponse WHERE %RoleName = 'PayoutApprovers' ORDER BY ID DESC")
+    while rs.%Next() {
+        set t = ##class(EnsLib.Workflow.TaskResponse).%OpenId(rs.ID)
+        continue:'$isobject(t)
+        set req = t.%TaskStatus.Request, sid = ""
+        if $isobject(req) &sql(SELECT TOP 1 SessionId INTO :sid FROM Ens.MessageHeader WHERE MessageBodyClassName = 'EnsLib.Workflow.TaskRequest' AND MessageBodyId = :req.%Id())
+        do out.%Push({"id": (+rs.ID), "subject": (t.%Subject), "message": ($select($isobject(req):req.%Message, 1:"")), "actions": (t.%Actions),
+          "open": (t.%Status '= "Completed"), "status": (t.%Status), "action": (t.%Action), "user": (t.%UserName), "session": (+sid)})
+    }
+    write out.%ToJSON()
+    return $$$OK
+}
+
+/// Approve or reject one open task: {"action": "Approve"} or {"action": "Reject"}. JSON only, so a form on another site
+/// cannot send it with the browser's saved login
+ClassMethod Answer(id As %Integer) As %Status
+{
+    if $piece(%request.ContentType, ";") '= "application/json" { set %response.Status = 415  write {"error": "send application/json"}.%ToJSON()  return $$$OK }
+    set body = {}.%FromJSON(%request.Content), action = body.action
+    if '$listfind($listbuild("Approve", "Reject"), action) { set %response.Status = 400  write {"error": "action is Approve or Reject"}.%ToJSON()  return $$$OK }
+    set t = ##class(EnsLib.Workflow.TaskResponse).%OpenId(id)
+    if '$isobject(t) { set %response.Status = 404  write {"error": "no such task"}.%ToJSON()  return $$$OK }
+    if t.%Status = "Completed" { set %response.Status = 409  write {"error": "already answered", "action": (t.%Action)}.%ToJSON()  return $$$OK }
+    set sc = t.CompleteTask(action)
+    if $$$ISERR(sc) return ..Fail(sc)
+    write {"id": (+id), "action": (action)}.%ToJSON()
+    return $$$OK
+}
+
+/// The dashboard page: decisions, each one's trace, and the approver's inbox
+ClassMethod UI() As %Status
+{
+    set f = ##class(%Stream.FileCharacter).%New(), f.TranslateTable = "UTF8"
+    set sc = f.LinkToFile($system.Util.GetEnviron("KNOS_IRIS_HOME")_"/iris/web/dashboard.html")
+    if $$$ISERR(sc) || 'f.Size return ..Fail($$$ERROR($$$GeneralError, "iris/web/dashboard.html not found"))
+    set %response.ContentType = "text/html"
+    do %response.SetHeader("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")
+    do f.OutputToDevice()
     return $$$OK
 }
 
