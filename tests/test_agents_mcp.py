@@ -120,7 +120,8 @@ def test_streamable_http_initialize_list_and_notification(http_server):
     assert status == 200 and kind == "application/json" and hello["result"]["serverInfo"]["name"] == "knos"
     assert _post(port, {"jsonrpc": "2.0", "method": "notifications/initialized"})[:1] == (202,)
     status, _k, listed = _post(port, {"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
-    assert status == 200 and len(listed["result"]["tools"]) == len(mcp.TOOLS)
+    runs_code = {t["name"] for t in mcp.TOOLS if (t.get("_meta") or {}).get(mcp.RUNS_CODE)}   # hidden without a token
+    assert status == 200 and len(listed["result"]["tools"]) == len(mcp.TOOLS) - len(runs_code) and runs_code
     c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
     c.request("GET", "/mcp")
     assert c.getresponse().status == 405

@@ -241,8 +241,9 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     # status once, one link to the demand check and one to the page that checks every claim: five lines, sixty-four words
     # at most. The number of agent pull requests belongs to one use of Knos, below.
     idt = json.loads((ROOT / "docs" / "idt" / "summary.json").read_text(encoding="utf-8"))
-    measured = (f"Ready briefs: {idt['ratio_vague_to_ready']}x fewer output tokens, {round(100 * idt['ready_pass_rate'])}% vs "
-                f"{round(100 * idt['vague_pass_rate'])}% passed ([measured](https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json)).")
+    # no token ratio: the pre-registered padded control did not hold (docs/idt/summary.json, claim_held false)
+    measured = (f"Ready briefs: {round(100 * idt['ready_pass_rate'])}% vs {round(100 * idt['vague_pass_rate'])}% passed; no token saving "
+                f"claimed ([the run](https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json)).")
     assert lines[0] == f"**{cc.SENTENCE}**" and cc.SENTENCE.startswith("Knos carries research ") and len(lines) == 5
     assert lines[1] == "A demand check on Qloo sets the terms, and the money waits on Solana until the proof passes." and lines[2] == measured
     assert lines[3] == "Devnet, test money, no customers yet."

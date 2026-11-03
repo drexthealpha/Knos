@@ -10,7 +10,7 @@
 
 A demand check on Qloo sets the terms, and the money waits on Solana until the proof passes.
 
-Ready briefs: the token benchmark's padded control did not hold, so no saving is claimed ([the run](https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json)).
+Ready briefs: 70% vs 5% passed; no token saving claimed ([the run](https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json)).
 
 Devnet, test money, no customers yet.
 

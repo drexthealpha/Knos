@@ -639,15 +639,6 @@
   },
   {
    "say": [
-    "2.08"
-   ],
-   "what": "IDT: Ready briefs against vague briefs of the same task, 20 tasks, one model and effort (scripts/idt_bench.py); its padded control did not hold, so no token saving is claimed",
-   "json": "docs/idt/summary.json",
-   "path": "ratio_vague_to_ready",
-   "equals": 2.08
-  },
-  {
-   "say": [
     "70%"
    ],
    "what": "IDT: share of the 20 Ready briefs whose run passed its task's check",
