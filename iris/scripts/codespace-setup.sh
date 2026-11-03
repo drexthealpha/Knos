@@ -9,15 +9,18 @@ want="irishealth-community:2026.3.0AI.154.0"
 log() { echo "$(date -u +%T) $*"; }
 
 root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null)
+command -v setfacl >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq acl; }
+# /tmp here carries a default ACL (other: rw-, no x): image layers extracted under it cannot be entered by a non-root
+# build step (libc.so.6: Permission denied), and clearing the ACL afterwards leaves the x bits off. A stopped codespace
+# loses /tmp, and containerd then makes /tmp/store again under that ACL: such a store is removed and made afresh.
+bad_store() { [ ! -d /tmp/store/containerd ] || getfacl -p /tmp/store 2>/dev/null | grep -q '^default:'; }
 # Docker here keeps images in containerd's store (/var/lib/containerd on the 32 GB disk): move that to /tmp as well
-if ! grep -q "^root = '/tmp/store/containerd'" /etc/containerd/config.toml; then
-  log "moving containerd root to /tmp/store/containerd"
+if ! grep -q "^root = '/tmp/store/containerd'" /etc/containerd/config.toml || bad_store; then
+  log "making containerd root /tmp/store/containerd without /tmp's default ACL"
   sudo pkill dockerd; for i in $(seq 1 20); do pgrep -x dockerd >/dev/null || break; sleep 1; done
   sudo pkill -x containerd; for i in $(seq 1 20); do pgrep -x containerd >/dev/null || break; sleep 1; done
-  command -v setfacl >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq acl; }
   sudo sed -i "s|^root = .*|root = '/tmp/store/containerd'|" /etc/containerd/config.toml
-  # /tmp here carries a default ACL (other: rw-, no x): image layers extracted under it cannot be entered by a non-root
-  # build step (libc.so.6: Permission denied). The store folder drops that default ACL first
+  sudo rm -rf /tmp/store
   sudo mkdir -p /tmp/store/containerd /tmp/store/docker && sudo setfacl -R -b -k /tmp/store && sudo chmod 711 /tmp/store /tmp/store/containerd
   sudo sh -c 'nohup containerd --config /etc/containerd/config.toml > /tmp/store/containerd.log 2>&1 &'
   sleep 3; root=""

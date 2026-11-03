@@ -32,7 +32,21 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
     do ..Paths()
     do ##class(Ens.Director).SetAutoStart("Knos.Iris.Production")
     if ##class(Ens.Director).IsProductionRunning() return $$$OK
-    return ##class(Ens.Director).StartProduction("Knos.Iris.Production")
+    set sc = ##class(Ens.Director).StartProduction("Knos.Iris.Production")
+    // in an IPM load the production's runtime lock can stay taken until the load ends (KNOSZPM: ErrCanNotAcquireRuntimeLock
+    // after 30 s), so a background job starts it once the lock is free
+    if 'sc && ($system.Status.GetErrorText(sc) [ "runtime global lock") { job ##class(Knos.Iris.Setup).StartWhenFree() return $$$OK }
+    return sc
+}
+
+/// Starts the production, every 10 s for at most 10 minutes, until it runs
+ClassMethod StartWhenFree()
+{
+    for i = 1:1:60 {
+        hang 10
+        if ##class(Ens.Director).IsProductionRunning() quit
+        if $$$ISOK(##class(Ens.Director).StartProduction("Knos.Iris.Production")) quit
+    }
 }
 
 /// The production's folders and the PEX jar, from Knos.Iris.Util.Home(): the same code runs in this image and in an

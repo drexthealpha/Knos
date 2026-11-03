@@ -155,10 +155,17 @@ def main() -> int:
         for line in res.splitlines():
             if re.search(r"ERROR|does not exist|not defined", line) and not line.lstrip().startswith(("zpm", "write")):
                 lines.append(f"     zpm: {line.strip()[:200]}")
-        # the production the module's Setup started, read once, then stopped so it never polls the KNOS inbox twice
-        st = session(['set sc = ##class(Ens.Director).GetProductionStatus(.name, .state)', 'write "PROD=", name, ":", state, !',
-                      'do ##class(Ens.Director).StopProduction(60, 1)', 'do ##class(Ens.Director).SetAutoStart("")'], ns="KNOSZPM")
-        prod = value(st, "PROD")
+        # the production the module's Setup started (at once, or by its background job once the load ends): read every
+        # 15 s for at most 180 s, then stopped so it never polls the KNOS inbox twice
+        t0, prod = time.time(), ""
+        while time.time() - t0 < 180:
+            st = session(['set sc = ##class(Ens.Director).GetProductionStatus(.name, .state)', 'write "PROD=", name, ":", state, !'], ns="KNOSZPM")
+            prod = value(st, "PROD")
+            if prod == "Knos.Iris.Production:1":
+                break
+            time.sleep(15)
+        lines.append(f"     zpm: production status {prod or 'none'} {time.time() - t0:.0f} s after the load")
+        session(['do ##class(Ens.Director).StopProduction(60, 1)', 'do ##class(Ens.Director).SetAutoStart("")'], ns="KNOSZPM")
     else:
         prod = ""
     up = prod == "Knos.Iris.Production:1"
