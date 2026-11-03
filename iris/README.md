@@ -35,8 +35,8 @@ Every test in one command, in replay mode: `bash scripts/test-all.sh` (build, he
 - **An agent that can only say no.** The referee has no tool that moves money. Its answer is a decision contract
   (met, not_met or insufficient, with the evidence per milestone), checked by code.
 - **Rule, Workflow, then the chain.** A deterministic gate (`Knos.Iris.Rule.PayoutGate`) turns the decision into PAY,
-  HUMAN, REFUND_AT_DEADLINE or REJECT; HUMAN goes to a person in IRIS Workflow; the chain still needs Knos's signed
-  token or the referee panel's signature to release anything.
+  HUMAN, REFUND_AT_DEADLINE or REJECT; HUMAN goes to a person in IRIS Workflow. PAY runs a devnet simulation of the
+  payout, not a payment: the chain still needs Knos's signed token to release anything.
 - **Every LLM step as an interop message** (an [InterSystems community idea](https://ideas.intersystems.com/ideas/DPI-I-689)). Each referee call, tool call, rule and approval is a
   `Knos.Iris.Msg.Span` in the decision's own session, kept in a Langfuse-style SQL view.
 
@@ -140,10 +140,12 @@ The milestone stays held for two days without an answer.
 ## 10. Solana devnet
 
 Live: the reads (`getSlot`, accounts, `simulateTransaction`, signature statuses) through the custom outbound adapter
-`Knos.Iris.Adapter.SolanaRpcOutbound`, and the Java PEX operation that sends or simulates a transaction Knos's code
-built. The money rule is Knos's own: the payment program pays the author of a pull request only on a GitHub-signed token
-it verifies on chain, and anyone may relay it; a lab or referee milestone is released by the referee panel's 2 of 3
-signature. **IRIS never releases money alone.** Its decision is one input to those existing paths, and a refund past a
+`Knos.Iris.Adapter.SolanaRpcOutbound`. On PAY, IRIS builds Knos's payout instruction and the Java PEX operation
+simulates it on devnet (`simulateTransaction`, with a throwaway fee payer): a simulation, not a payment, so no money
+moves from IRIS. The money rule is Knos's own: the payment program pays the author of a pull request only on a
+GitHub-signed token it verifies on chain, and anyone may relay it. A lab or referee milestone is released by the referee
+panel's 2 of 3 signature; the link from IRIS's decision to that panel is not built in iris/ yet.
+**IRIS never releases money alone.** Its decision is one input to those existing paths, and a refund past a
 deadline needs no token at all. No program was changed for this.
 
 ## 11. The trace
@@ -230,6 +232,8 @@ flowchart LR
 - The vector search embeds with snowflake-arctic-embed-s (33M parameters, 384 numbers, 128 MB in the image as ONNX). Without it,
   `knos_iris.bridge` falls back to a hashed embedding: on 40 labelled proof pairs the top-2 hit rate is 1.000 against 0.925
   (`tests/test_embed_quality.py`).
+- PAY is a devnet simulation of the payout (`simulateTransaction`), not a payment; nothing in iris/ sends money.
+- The link from IRIS's decision to the referee panel (one of its 2 of 3 signatures) is not built yet.
 - Solana devnet only, with test money.
 
 ## 17. How it fits Knos

@@ -11,5 +11,9 @@ bash "$here/scripts/test-sandbox.sh" > "$log" 2>&1; rc=$?
 passed=$(grep -oE 'test result: [a-zA-Z]+\. [0-9]+ passed' "$log" | awk '{s += $4} END {print s + 0}')
 failed=$(grep -oE '[0-9]+ failed' "$log" | awk '{s += $1} END {print s + 0}')
 grep -E '^SANDBOX ' "$log"
-echo "$passed/$((passed + failed)) tests passed ($attacks of them attacks), exit $rc"
-[ "$rc" = 0 ] && [ "$failed" = 0 ] && [ "$passed" -gt 0 ]
+line="$passed/$((passed + failed)) tests passed ($attacks of them attacks)"
+echo "$line, exit $rc"
+[ "$rc" = 0 ] && [ "$failed" = 0 ] && [ "$passed" -gt 0 ] || exit 1
+# the README's test line is this print, never a number typed apart from it
+want="It prints \`$line\`"
+grep -qF "$want" "$here/README.md" || { echo "near/README.md does not say: $want"; exit 1; }

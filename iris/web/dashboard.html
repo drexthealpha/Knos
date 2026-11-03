@@ -198,7 +198,7 @@ async function answer(id, action, acts) {
   for (const b of acts.querySelectorAll("button")) b.disabled = true;
   try {
     await api("tasks/" + id, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action }) });
-    toast(action === "Approve" ? "Approved. The production goes on to payout." : "Rejected. The payout is held.");
+    toast(action === "Approve" ? "Approved. The production simulates the payout on devnet; no money moves." : "Rejected. The payout is held.");
     await load();
   } catch (e) { toast("Not saved: " + e.message); for (const b of acts.querySelectorAll("button")) b.disabled = false; }
 }
@@ -257,7 +257,7 @@ async function showTrace(sid) {
 async function load() {
   const [waiting, rows] = await Promise.all([loadTasks(), loadDecisions()]);
   const paid = rows.filter((d) => d.gate === "PAY").length;
-  $("finding").textContent = rows.length ? waiting + " waiting for an approver. " + paid + " of the latest " + rows.length + " cleared to pay." : "No decision yet.";
+  $("finding").textContent = rows.length ? waiting + " waiting for an approver. " + paid + " of the latest " + rows.length + " cleared to pay (a devnet simulation; no money moved)." : "No decision yet.";
   $("fresh").textContent = "Updated " + new Date().toLocaleTimeString();
   if (!selected && rows.length) showTrace(rows[0].session);
 }

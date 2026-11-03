@@ -81,7 +81,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <code name='The answer'><![CDATA[
  set response.BriefId = request.BriefId, response.Decision = context.Verdict.Decision, response.Gate = context.Gate
  set response.Confidence = context.Verdict.Confidence, response.Reason = context.Verdict.MilestonesJSON, response.SessionId = ..%Process.%SessionId, response.Referee = context.Verdict.Model
- set response.Outcome = $case(context.Gate, "PAY":"pay: the relayer may send the signed pay instruction", "HUMAN":"held: waiting for an approver",
+ set response.Outcome = $case(context.Gate, "PAY":"pay: a devnet simulation of the payout ran; no money moved", "HUMAN":"held: waiting for an approver",
    "REFUND_AT_DEADLINE":"not met: refunded to the funder at the deadline", :$select(context.SigOk:"rejected: the brief no longer matches its lock",1:"rejected: the verdict signature does not verify"))
  set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "rule", s.Name = "PayoutGate", s.OutputJSON = "{""gate"":"""_context.Gate_"""}"
  set s.InputJSON = "{""decision"":"""_context.Verdict.Decision_""",""confidence"":"_(+context.Verdict.Confidence)_",""amount"":"_(+context.Amount)_",""threshold"":"_context.Threshold_",""kind"":"""_context.Kind_"""}"
@@ -105,7 +105,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 </call>
 <sync name='Wait for the approver' calls='Approve' timeout='"P2D"' type='all'/>
 <code name='The decision, as the approver left it'><![CDATA[
- set sid = ..%Process.%SessionId, g = context.Gate, o = $select(context.Gate="PAY":"pay: approved by a person", 1:"held: rejected by a person")
+ set sid = ..%Process.%SessionId, g = context.Gate, o = $select(context.Gate="PAY":"pay: approved by a person; a devnet simulation ran, no money moved", 1:"held: rejected by a person")
  &sql(UPDATE Knos_Iris_Data.Decision SET Gate = :g, Outcome = :o WHERE SessionId = :sid)
 ]]></code>
 </case>

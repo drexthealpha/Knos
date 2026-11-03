@@ -31,8 +31,8 @@ The page in `web/` does the same from a browser (`python near/web/serve.py`), an
 bash near/scripts/verify.sh
 ```
 
-It prints `177/177 tests passed (123 of them attacks)`: 176 unit tests, then the sandbox flow. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund.
-`verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund. Measured: the release receipt burns 7.22 Tgas (11.48 Tgas for the whole transaction); the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
+It prints `178/178 tests passed (123 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund.
+`verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund. Measured: the release receipt burns 7.26 Tgas (11.55 Tgas for the whole transaction) in the latest verify.sh run; the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
 
 ## On testnet
 
@@ -72,14 +72,9 @@ near contract call-function as-read-only knos-pay-1103.testnet get_rules json-ar
 
 ## A locked eval
 
-`eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract:
+`eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract, prints the counts with 95% Wilson intervals, and asserts them: every cheating attempt refused, every honest one paid, and plain CI pass/fail paying every cheat.
 
-| | Cheats caught | Honest paid |
-|---|---|---|
-| Knos | 30 of 30 (95%: 0.886 to 1.000) | 30 of 30 |
-| Plain CI pass/fail | 0 of 30 (95%: 0.000 to 0.114) | 30 of 30 |
-
-By attack: edited tests 8 of 8, wrong repository 8 of 8, replayed token 7 of 7, altered criteria 7 of 7. An edited test here is a run from another branch or a pull request; tests edited and merged to main are outside what the contract can see.
+Read it for what it is. Each cheat is one of the four things the contract checks (a run from another branch or a pull request, another repository, a replayed token, altered criteria), and each carries a green CI run by construction, so the result shows that those checks run on every attempt. It does not measure cheats the contract does not look for: tests edited and merged to main are outside what it can see.
 
 ## Attacks on testnet
 

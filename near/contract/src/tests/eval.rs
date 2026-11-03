@@ -66,5 +66,9 @@ fn locked_eval_of_60_attempts() {
     if let Ok(p) = std::env::var("KNOS_EVAL_OUT") {
         std::fs::write(p, serde_json::to_string_pretty(&report).unwrap()).unwrap();
     }
+    // the counts the README states are these assertions, not typed numbers
+    assert_eq!((honest, cheats), (30, 30), "the locked file holds 30 honest and 30 cheating attempts");
+    assert_eq!(knos_caught, cheats, "every cheating attempt is refused by the contract");
+    assert_eq!(ci_caught, 0, "every cheating attempt carries a green CI run, so plain CI pays it");
     assert_eq!(honest_paid, honest, "every honest attempt is paid");
 }

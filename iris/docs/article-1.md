@@ -27,7 +27,9 @@ has no tool that moves money. Before it is asked, Embedded Python runs Knos's ow
 brief as presented; a brief changed after it was locked is rejected with no model call. After it answers, a
 deterministic gate decides PAY, HUMAN, REFUND_AT_DEADLINE or REJECT. Above a threshold, or for a human-verified
 milestone, a person approves in the Workflow Inbox. And the chain has its own rule: Knos's payment program pays only on
-a GitHub-signed token, or the referee panel's signature.
+a GitHub-signed token, or the referee panel's signature. Two limits are worth saying plainly: on PAY, IRIS only
+simulates the payout on devnet (no money moves from IRIS), and the link from IRIS's decision to the referee panel is not
+built yet.
 
 ## The decision contract, and the missing structured output
 
