@@ -321,6 +321,36 @@ def _month(ts: float) -> str:
     return time.strftime("%Y-%m", time.gmtime(ts))
 
 
+def month_counter(folder: Path | None = None) -> dict | None:
+    """{month, calls}: the persistent monthly counter (calls.txt), or None. Carried in the recorded secret file, so a
+    redeploy (whose disk starts empty on Render's free plan) does not zero it."""
+    try:
+        month, n = ((folder or cache_dir()) / "calls.txt").read_text(encoding="utf-8").split()
+        return {"month": month, "calls": int(n)}
+    except (OSError, ValueError):
+        return None
+
+
+def seed_month(saved, folder: Path | None = None, now: float | None = None) -> bool:
+    """At boot: the counter a redeploy carried (the recorded secret file) is written to calls.txt when it is this month's
+    and higher than the file's. True when it was written."""
+    if not isinstance(saved, dict) or saved.get("month") != _month(time.time() if now is None else now):
+        return False
+    try:
+        n = int(saved.get("calls"))
+    except (TypeError, ValueError):
+        return False
+    have = month_counter(folder)
+    if have and have["month"] == saved["month"] and have["calls"] >= n:
+        return False
+    f = (folder or cache_dir()) / "calls.txt"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(f"{saved['month']} {n}\n", encoding="utf-8")
+    os.replace(tmp, f)
+    return True
+
+
 
 def forced() -> int | None:
     """Test mode only (KNOS_TEST_MODE=1): QLOO_FORCE_STATUS makes every Qloo call fail with that HTTP code. Both are
@@ -396,6 +426,8 @@ class Client:
             tmp = self._day_counter().with_suffix(".tmp")
             tmp.write_text(f"{time.strftime('%Y-%m-%d', time.gmtime(self.clock()))} {day + 1}\n", encoding="utf-8")
             os.replace(tmp, self._day_counter())
+        from . import recorded                              # the count also goes to the secret file a redeploy keeps
+        recorded.counted()
 
     def status(self) -> dict:
         ok, why = self.ready()

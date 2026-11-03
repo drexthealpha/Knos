@@ -70,6 +70,8 @@ def load(file: str | None = None) -> int:
         doc = json.loads(open(file or path(), encoding="utf-8").read())
     except (OSError, ValueError):
         return 0
+    from . import qloo_rest                 # the month's Qloo count a redeploy carried: never back to zero
+    qloo_rest.seed_month(doc.get("budget"))
     from . import check                   # a card recorded before a segment's name was known to be sensitive is shown without it
     from . import metros                  # and its launch terms written in, by the rule every page draws (metros.launch_terms)
     from . import signals                 # and what each Qloo signal changes on it (the published table)
@@ -109,13 +111,26 @@ def load(file: str | None = None) -> int:
         return len(_last)
 
 
+def _doc() -> dict:
+    """What the secret file holds: the chips' cards, the answered ideas, the model's answers, and the Qloo month counter."""
+    from . import qloo_rest
+    with _lock:
+        return {"v": 1, "about": "the sample chips' last real full cards (private: a Render secret file, never public)", "cards": dict(_last),
+                "answered": dict(_answered), "model_alone": dict(_model), "budget": qloo_rest.month_counter()}
+
+
+def counted() -> None:
+    """A Qloo call was counted: the counter reaches the secret file with the next write-back."""
+    if os.environ.get("KNOS_RECORDED_UPLOAD_KEY"):
+        _write_soon()
+
+
 def _upload() -> None:
     """Write the recorded cards back to the Render secret file (only with KNOS_RECORDED_UPLOAD_KEY and RENDER_SERVICE_ID)."""
     k, sid = os.environ.get("KNOS_RECORDED_UPLOAD_KEY"), os.environ.get("RENDER_SERVICE_ID")
     with _lock:
         _write.update(at=time.time(), timer=None)
-        doc = {"v": 1, "about": "the sample chips' last real full cards (private: a Render secret file, never public)", "cards": dict(_last), "answered": dict(_answered),
-               "model_alone": dict(_model)}
+    doc = _doc()
     if not (k and sid):
         return
     body = json.dumps({"content": json.dumps(doc, separators=(",", ":"), ensure_ascii=False)}).encode()
@@ -223,6 +238,9 @@ def live_or_recorded(rep: dict, served: bool = False) -> dict:
             "qloo_calls": {"total": len(calls), "live": live, "recorded": recorded_n, "failed": failed, "ms": round(ms), "days": days}}
 
 
+NO_RECORDING = "no recorded answer for this idea"
+
+
 def _honest(text: str, rep: dict) -> dict:
     """The report as the card should show it: kept when real; when Qloo failed, the chip's last real card marked stale,
     or the report itself marked qloo_down."""
@@ -236,17 +254,14 @@ def _honest(text: str, rep: dict) -> dict:
         qloo_rest._today()["recorded"] = qloo_rest._today().get("recorded", 0) + 1
         return {**rec, "stage": rep.get("stage") or rec.get("stage"), "qloo_down": {"code": code},
                 "stale": {"code": code, "from": rec.get("made")}}
+    # no recording of this idea, word for word: said so. Another idea's verdict never stands in for it; the nearest
+    # recorded ideas may be offered by name for the reader to pick (each then answers as its own recording)
+    out = {**rep, "qloo_down": {"code": code}, "no_recording": NO_RECORDING}
     near = closest(text)
-    if near and near.get("report"):                 # the nearest idea Qloo has answered, with no Qloo call
-        n = near["report"]
-        from . import qloo_rest
-        qloo_rest._today()["recorded"] = qloo_rest._today().get("recorded", 0) + 1
-        return {**n, "stage": n.get("stage") or "full", "qloo_down": {"code": code}, "stale": {"code": code, "from": n.get("made")},
-                "nearest": {"asked": text, "idea": n.get("idea"), "on": str(n.get("made") or "")[:10], "shared": near["count"]},
-                "nearest_next": near.get("next") or []}
     if near:
-        return {**rep, "qloo_down": {"code": code}, "nearest_options": near["options"], "nearest_shared": near["count"]}
-    return {**rep, "qloo_down": {"code": code}}
+        names = near.get("options") or ([near["report"].get("idea")] if near.get("report") else [])
+        out = {**out, "nearest_options": [n for n in names if n], "nearest_shared": near["count"]}
+    return out
 
 
 def matched(text: str) -> list[str]:

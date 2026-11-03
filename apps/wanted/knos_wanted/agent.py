@@ -666,7 +666,7 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                     out = {"report": rep["hash"], "idea": rep.get("idea"), "decision": rep["decision"], "families": rep.get("families") or {},
                            "grounding": rep.get("grounding") or {}, "story": rep.get("story"), "calls": rep["calls"], "label": rep.get("label"), "qloo_calls": rep.get("qloo_calls"),
                            **{k: rep[k] for k in ("stale", "nearest", "nearest_next", "nearest_options", "qloo_limit", "qloo_reset", "queued", "stand_in",
-                                                  "read_as", "also_matched", "result_line", "brief", "ready") if rep.get(k)}}
+                                                  "read_as", "also_matched", "result_line", "brief", "ready", "no_recording") if rep.get(k)}}
             elif name == "knos_crossings":
                 out = {"crossings": crossings(state)}
             elif name == "knos_milestones":

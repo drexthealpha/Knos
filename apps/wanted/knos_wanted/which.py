@@ -92,16 +92,10 @@ def queued(text: str, rep: dict) -> dict:
     out["ready"] = {"ready": r.get("ready"), "criteria_hash": r.get("criteria_hash"), "missing": r.get("missing") or []}
     out["decision"] = {**(rep.get("decision") or {}), "verdict": "QUEUED"}
     out["record"] = company.record_queued(text, day)
+    # nothing recorded for this reading: said so; the nearest recorded idea's verdict is never shown in its place
+    out["no_recording"] = recorded.NO_RECORDING
     got = nearest_card(text)
     if got:
-        card, row = got
-        diff = row["differs"]
-        out["also_matched"] = row["idea"]
-        out["stand_in"] = {"idea": row["idea"], "made": row["made"][:10], "differs": diff,
-                           "said": f"Stand-in: the recorded answer for {row['idea']}, an imperfect match; it differs in "
-                                   f"{diff['theirs'] or 'no word'} against {diff['yours'] or 'no word'}",
-                           "card": recorded.live_or_recorded({**card, "stale": {"code": 429, "from": card.get("made")}})}
-        out["result_line"] = f"Read as {text}, also matched {row['idea']}"
-    else:
-        out["result_line"] = f"Read as {text}"
+        out["also_matched"] = got[1]["idea"]                 # its name only, to pick; never its verdict
+    out["result_line"] = f"Read as {text}"
     return out

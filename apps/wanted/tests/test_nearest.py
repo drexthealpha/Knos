@@ -38,14 +38,16 @@ def test_under_2_shared_only_ideas_sharing_a_stem_are_offered_and_none_shares_no
     assert nearest.find("a water bottle for hikers", ANSWERED)["next"] == ["a smart water bottle that glows"]
 
 
-def test_a_429_answers_from_the_nearest_recording(monkeypatch):
+def test_a_429_never_answers_with_the_nearest_idea_s_verdict(monkeypatch):
     monkeypatch.setattr(recorded, "_last", {})
     monkeypatch.setattr(recorded, "_answered", {recorded.key(r["idea"]): r for r in ANSWERED})
     failed = {"idea": "a smart bottle that glows", "calls": [{"n": 1, "error": "HTTP 429: not sent: the month is used up"}], "decision": {"verdict": "CANNOT_DECIDE"}}
     out = recorded.honest("a smart bottle that glows", failed)
-    assert out["nearest"] == {"asked": "a smart bottle that glows", "idea": "a smart water bottle that glows", "on": "2026-10-22", "shared": 3}
-    assert out["idea"] == "a smart water bottle that glows" and out["stale"]["code"] == 429 and out["nearest_next"] == ["a water bottle that harvests water from air"]
+    # no recording of this idea: said so; the nearest idea is offered by name, its verdict never shown as this one's
+    assert out["no_recording"] == "no recorded answer for this idea" and out["idea"] == "a smart bottle that glows"
+    assert "a smart water bottle that glows" in out["nearest_options"] and "nearest" not in out and "stale" not in out
+    assert out["decision"] == {"verdict": "CANNOT_DECIDE"}
     out = recorded.honest("a vinyl record shop", {**failed, "idea": "a vinyl record shop"})
-    assert out["nearest_options"] == [] and "nearest" not in out
+    assert out["no_recording"] and "nearest" not in out
     exact = recorded.honest("a bamboo toothbrush brand", {**failed, "idea": "a bamboo toothbrush brand"})
     assert exact["idea"] == "a bamboo toothbrush brand" and exact["stale"] and "nearest" not in exact
