@@ -27,7 +27,20 @@ The live build is the one built from the commit in the table, not necessarily fr
 
 ## Rebuild and check one yourself
 
-From the root of a clone, on a Linux file system, with docker and `solana-verify`. This is the command in
+An upgrade's buffer is built by [`scripts/build_sbf.sh`](../scripts/build_sbf.sh), not by the `solana-verify` command
+below: upgrades are sBPF v3 builds, and the image below (cargo-build-sbf 2.3) cannot make a v3 file that Agave 4.4 loads.
+To check an upgrade proposal, check out the commit it names, then run:
+
+```
+bash scripts/build_sbf.sh v3 deploy
+```
+
+It needs cargo-build-sbf 4.4.0 with platform-tools v1.57 (the `v3-build` job of
+[`.github/workflows/program.yml`](../.github/workflows/program.yml) installs both by sha256). The last column of
+`programs-v2/target/arch-v3/HASHES-v3.txt` must equal what `node scripts/governance.mjs upgrade propose` printed for the
+proposal's buffer.
+
+For the deployed builds of this folder, from the root of a clone, on a Linux file system, with docker and `solana-verify`. This is the command in
 [docs/reference/ASSURANCE.md](../docs/reference/ASSURANCE.md), which `scripts/deploy_v2.sh` and CI also run. First check out the commit in
 the table.
 
