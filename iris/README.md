@@ -194,8 +194,12 @@ Langfuse does for LLM pipelines, and whether it is the better choice where IRIS 
 
 ## 13. Platform findings
 
-Issues are filed only after they reproduce on a clean build 154 container, each from its folder in `repro/` with its
-build string, the minimal class and the expected and actual results. So far none has: on build 154 an LLM provider is
+Two reproduce on a clean build 154 container, each one class and one command in `bugs/`:
+- [`bugs/1`](bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error.
+- [`bugs/2`](bugs/2): AI Hub's `%AI.ToolMgr.ExecuteTool` runs a tool when a required argument is missing or of the
+  wrong type, although the schema it advertises marks the argument as required.
+
+Earlier suspects, each in its folder in `repro/` with its build string and what was tried, did not reproduce: on build 154 an LLM provider is
 created on a fresh instance with no registry rebuild, `iris.sql.exec` with `FETCH FIRST n ROWS ONLY` returns its rows,
 and keyword arguments to `iris.sql.exec` raise a plain TypeError. Each folder says what was tried.
 
