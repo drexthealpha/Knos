@@ -9,6 +9,8 @@ Parameter SETTINGS = "Mode:Basic";
 Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg.Verdict) As %Status
 {
     set t0 = $zhorolog
+    // every tool span written while this decision is being refereed carries its session (Knos.Iris.AI.TraceAudit)
+    set ^||Knos.TraceSession = ..%SessionId
     set hash = ##class(Knos.Iris.Py.Ready).Hash(pRequest.BriefJSON)
     set mode = $select($get(^Knos.LLM("mode"), ..Mode)="live":"live", 1:"replay")   // ^Knos.LLM("mode"): the tests' override
     set out = ""
@@ -33,6 +35,7 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
     set pResponse.MilestonesJSON = v.milestones.%ToJSON(), pResponse.Model = v.model, pResponse.Mode = mode
     set pResponse.InTok = +v."input_tokens", pResponse.OutTok = +v."output_tokens", pResponse.CostUSD = +v."cost_usd"
     do ..Span("llm", "referee", pRequest.PayloadJSON, out, v.confidence, $zhorolog - t0, pResponse.InTok + pResponse.OutTok, pResponse.CostUSD, v.model)
+    kill ^||Knos.TraceSession
     return $$$OK
 }
 

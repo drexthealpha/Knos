@@ -38,6 +38,18 @@ ClassMethod Model(provider As %String) As %String
     return $case(provider, "anthropic":"claude-fable-5-1", "openai":"gpt-6-astra", "gemini":"gemini-4-argon", "bedrock":"anthropic.claude-opus-5-5", :"stub-referee")
 }
 
+/// The agent with Knos's audit hook registered on its tool manager: AI Hub then calls TraceAudit.%LogExecution for
+/// every tool call, and each becomes a span in the decision's session
+ClassMethod Audited(agent As Knos.Iris.AI.Referee) As Knos.Iris.AI.Referee
+{
+    if $isobject(agent.ToolManager) {
+        do agent.ToolManager.SetAuditPolicy(##class(Knos.Iris.AI.TraceAudit).%New())
+        // the referee's five read-only tools, when the tool manager does not hold them yet
+        if 'agent.ToolManager.GetToolStatuses().%Size() { do agent.ToolManager.RegisterToolSet("Knos.Iris.AI.RefereeTools") }
+    }
+    return agent
+}
+
 /// The agent's answer as contract JSON; "" with refused set when live mode cannot or may not ask
 ClassMethod Ask(proof As Knos.Iris.Msg.Proof, hash As %String, Output refused As %String) As %String
 {
@@ -53,7 +65,7 @@ ClassMethod Ask(proof As Knos.Iris.Msg.Proof, hash As %String, Output refused As
         return out
     }
     try {
-        set agent = ..%New()
+        set agent = ..Audited(..%New())
         try { set agent.Provider = ##class(%AI.Provider).Create(provider, {"api_key": (key), "model": (..Model(provider))}) } catch { }
         set session = agent.CreateSession({"max_iterations":8,"max_tokens":1500})
         set ask = "criteria_hash: "_hash_$char(10)_"brief: "_proof.BriefJSON_$char(10)_"proof ("_proof.Kind_"): "_proof.PayloadJSON

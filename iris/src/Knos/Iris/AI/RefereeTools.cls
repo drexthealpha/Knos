@@ -2,15 +2,18 @@
 /// GetCheckRun: a check run's name, conclusion and id. GetObservation: an Observation's code, value and unit (an ORU
 /// message turned into one). GetVerdict: a referee panel's verdict, read strictly. SearchCriteria: the locked
 /// criteria nearest a text, by Vector Search over the brief's criteria (the RAG knowledge base).
-Class Knos.Iris.AI.RefereeTools Extends %RegisteredObject
+/// AI Hub takes a tool set only when it extends %AI.Tool: each class method below is one tool the agent can call.
+Class Knos.Iris.AI.RefereeTools Extends %AI.Tool
 {
 
+/// The locked brief (its milestones and verifiers) by its id or criteria hash
 ClassMethod GetBrief(id As %String) As %String
 {
     set b = ##class(Knos.Iris.Data.Brief).BriefIdIdxOpen(id)
     return $select($isobject(b):b.BriefJSON, 1:"{""error"":""no brief is locked as "_id_"""}")
 }
 
+/// A check run's name, conclusion and id, read from the proof's webhook body
 ClassMethod GetCheckRun(payload As %String) As %String
 {
     set p = {}.%FromJSON(payload), cr = p."check_run"
@@ -18,16 +21,19 @@ ClassMethod GetCheckRun(payload As %String) As %String
     return {"id": (cr.id), "name": (cr.name), "conclusion": (cr.conclusion), "head_sha": (cr."head_sha")}.%ToJSON()
 }
 
+/// An Observation's code, value and unit (an HL7 ORU message is turned into one first)
 ClassMethod GetObservation(kind As %String, payload As %String) As %String
 {
     return $select(kind="oru":##class(Knos.Iris.Py.Verdict).ORUToObservation(payload), 1:payload)
 }
 
+/// A referee panel's verdict, read strictly (one JSON object, each key once)
 ClassMethod GetVerdict(payload As %String) As %String
 {
     return ##class(Knos.Iris.Py.Verdict).Read(payload)
 }
 
+/// The locked criteria nearest a text, with their cosines (Vector Search over the brief's criteria)
 ClassMethod SearchCriteria(briefHash As %String, text As %String) As %String
 {
     set q = ##class(Knos.Iris.Py.Embed).Query($extract(text, 1, 4000)), out = []
