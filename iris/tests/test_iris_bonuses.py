@@ -147,9 +147,12 @@ def main() -> int:
     if value(out, "IPM") == "1":
         # IPM 0.9 and later is enabled per namespace: map it to every namespace, KNOSZPM included
         session(['zpm "enable -map -globally"'], ns="%SYS")
-        # a copy of iris/ as a clone would hold it; the image's mgr/python/knos (a link to the full src/knos) is moved
-        # aside, so KNOSZPM can only import the module's own copies (python/knos, VENDORED.txt); put back at the end
+        # a copy of iris/ as a clone would hold it; the image's full src/knos (first on its PYTHONPATH) and the
+        # mgr/python/knos link to it and the image's iris/python/knos are moved aside, so KNOSZPM can only import what the IPM install copied (python/knos,
+        # VENDORED.txt) into mgr/python; all are put back at the end
         subprocess.run(["docker", "exec", C, "sh", "-c", "rm -rf /tmp/knos-zpm && mkdir -p /tmp/knos-zpm && cp -r /home/irisowner/knos/iris /tmp/knos-zpm/ && "
+                        "mv /home/irisowner/knos/src/knos /home/irisowner/knos/src/knos.aside && "
+                        "mv /home/irisowner/knos/iris/python/knos /home/irisowner/knos/iris/python/knos.aside && "
                         "cd /usr/irissys/mgr/python && if [ -L knos ]; then mv knos knos.image-link; fi"], capture_output=True, timeout=120)
         res = session(['zpm "load /tmp/knos-zpm/iris -v"', 'write "LOADED=", ##class(%Dictionary.CompiledClass).%ExistsId("Knos.Iris.Setup"), !'], ns="KNOSZPM")
         zpm = value(res, "LOADED")
@@ -179,13 +182,15 @@ def main() -> int:
         ], ns="KNOSZPM")
         payfile, sim, slot = value(dev, "PAYFILE"), value(dev, "SIM"), value(dev, "SLOT")
         session(['do ##class(Ens.Director).StopProduction(60, 1)', 'do ##class(Ens.Director).SetAutoStart("")'], ns="KNOSZPM")
-        subprocess.run(["docker", "exec", C, "sh", "-c", "cd /usr/irissys/mgr/python && if [ -L knos.image-link ]; then rm -rf knos && mv knos.image-link knos; fi"],
+        subprocess.run(["docker", "exec", C, "sh", "-c", "cd /usr/irissys/mgr/python && if [ -L knos.image-link ]; then rm -rf knos && mv knos.image-link knos; fi; "
+                        "if [ -d /home/irisowner/knos/src/knos.aside ]; then mv /home/irisowner/knos/src/knos.aside /home/irisowner/knos/src/knos; fi; "
+                        "if [ -d /home/irisowner/knos/iris/python/knos.aside ]; then mv /home/irisowner/knos/iris/python/knos.aside /home/irisowner/knos/iris/python/knos; fi"],
                        capture_output=True, timeout=120)
     else:
         prod = payfile = sim = slot = ""
     up = prod == "Knos.Iris.Production:1"
     own = payfile == "/usr/irissys/mgr/python/knos/settle/v2/pay.py"
-    devnet = '"status":"simulated"' in sim and bool(re.search(r'"slot":"?[1-9]', sim)) and slot.strip().isdigit()
+    devnet = '"status":"simulated"' in sim and bool(re.search(r'"slot":"?[1-9]', sim)) and bool(re.search(r'"result":[1-9]\d*', slot))
     ok(value(out, "MADE") == "1" and value(out, "INTEROP") == "1" and zpm == "1" and up and own and devnet,
        f"ZPM: namespace KNOSZPM {'made' if value(out, 'MADE') == '1' else 'not made'}, interoperability {'on' if value(out, 'INTEROP') == '1' else 'off'}; "
        f"IPM {'present' if value(out, 'IPM') == '1' else 'not in this image'}; module {'installed' if zpm == '1' else 'not installed'}; "
