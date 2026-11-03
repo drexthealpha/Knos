@@ -1,9 +1,10 @@
 // The client of the example: it asks for the resource, reads the 402, checks the order it is asked to fund against
 // what it is willing to pay, funds it, and asks again with the order's address as its payment proof.
-import { KNOS_PAY, SCHEME, decode, encode, feesFor, fundOrderWalletIx, orderAddress, orderFee, termsHash } from "./attested.mjs";
+import { b58 } from "../../sdk/settle/index.js";
+import { KNOS_PAY, SCHEME, decode, encode, feesFor, fundOrderWalletIx, orderAddress, orderFee, payerMessage, termsHash } from "./attested.mjs";
 
 /**
- * `wallet`: { address, token, send(ix) -> signature } (send signs and submits). `limits`: { maxAmount, programs, mints, feeVersion }.
+ * `wallet`: { address, token, send(ix) -> signature, sign(message) -> bytes } (send signs and submits; sign is the wallet's ed25519). `limits`: { maxAmount, programs, mints, feeVersion }.
  * `feeVersion`: what the program answered to Version, when the client asked it (2: knos_pay 2.2 and its 0.30% fee; 1: knos_pay 2.1's tiered fee of 2.5% / 1% / 0.5%, at least 0.40).
  * Not given, the fee of either rule is accepted: the program takes its own, and `maxAmount` caps the price.
  * Returns { status, body, settlement, order, messages } where messages are the exact JSON objects exchanged.
@@ -25,7 +26,10 @@ export async function fetchAttested(url, wallet, limits, fetcher = fetch) {
   const order = await orderAddress(x.program, x.repoId, x.issue, wallet.address, x.seq);
   if (x.order !== null && x.order !== order) throw new Error("the order the server names is not the one this wallet's funding creates");
   const transaction = await wallet.send(await fundOrderWalletIx(req, wallet.address, wallet.token));
-  const payment = { x402Version: 2, resource: required.resource, accepted: req, payload: { order, transaction }, extensions: {} };
+  // the payer's own signature of this resource and order: the server serves the order only to the wallet that funded it
+  if (typeof wallet.sign !== "function") throw new Error("the wallet cannot sign: the server serves an order only to the payer's signature");
+  const payerSignature = b58(await wallet.sign(payerMessage(required.resource.url, order)));
+  const payment = { x402Version: 2, resource: required.resource, accepted: req, payload: { order, transaction, payerSignature }, extensions: {} };
   const second = await fetcher(url, { headers: { "PAYMENT-SIGNATURE": encode(payment) } });
   const header = second.headers.get("PAYMENT-RESPONSE");
   return { status: second.status, body: await second.json(), settlement: header ? decode(header) : null, order,

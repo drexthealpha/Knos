@@ -2,6 +2,8 @@
 // holds the amount (FundOrderWallet), the server delivers, and the payment program pays the seller when a GitHub-signed
 // acceptance arrives (PayOrder), or returns everything to the client after the deadline (RefundOrder). docs/reference/X402.md is
 // the specification; this file is both roles' logic, with no dependency but Node and sdk/settle (which has none).
+import { createPublicKey, verify as verifySignature } from "node:crypto";
+
 import { ata, b58, findProgramAddress, hex, sha256, unb58, unhex, v2 } from "../../sdk/settle/index.js";
 
 export const SCHEME = "knos-order";     // lower case with a hyphen, as x402 names its own (exact, upto, batch-settlement)
@@ -18,6 +20,18 @@ const num = (raw, o, bytes) => { let n = 0n; for (let i = bytes - 1; i >= 0; i--
 /** A header value: base64 of the JSON, as the x402 v2 HTTP transport encodes PAYMENT-REQUIRED, PAYMENT-SIGNATURE and PAYMENT-RESPONSE. */
 export const encode = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64");
 export const decode = (text) => JSON.parse(Buffer.from(text, "base64").toString("utf8"));
+
+/** What the payer signs to be served: the resource and the order its funding created. An order is public on chain, so
+ * without this anyone who reads a funded order could ask for its delivery before the payer does. */
+export const payerMessage = (resource, order) => enc.encode(`knos-order x402 payer ${resource} ${order}`);
+const SPKI_ED25519 = Buffer.from("302a300506032b6570032100", "hex");
+/** True only when `signature` (base58) is `payer`'s ed25519 signature of payerMessage(resource, order). */
+export function payerSigned(payer, resource, order, signature) {
+  try {
+    const key = createPublicKey({ key: Buffer.concat([SPKI_ED25519, Buffer.from(unb58(String(payer)))]), format: "der", type: "spki" });
+    return verifySignature(null, payerMessage(resource, order), key, Buffer.from(unb58(String(signature), 64)));
+  } catch { return false; }
+}
 
 /** The fee a funder pays on top of an order's amount (knos_pay's fee for a 6-decimal mint, no Plan), by the rule of the
  *  build that is LIVE. `version`: what knos_pay answers to its Version instruction (rpc.mjs payVersion). 2, from knos_pay

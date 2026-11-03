@@ -52,8 +52,33 @@ def header(obj: dict) -> str:
     return base64.b64encode(json.dumps(obj, separators=(",", ":")).encode()).decode()
 
 
+def expected() -> tuple[str, str, int]:
+    """What this server's order asks: (payTo token account, mint, amount in base units), the same as challenge() names."""
+    from knos.settle.v2 import pay
+    mint = escrow.mint(escrow.ledger(), create=True)
+    return str(pay.ata(escrow.demo_key().pubkey(), mint)), str(mint), PRICE_UNITS * escrow.UNIT
+
+
+def paid_to(tx: dict, pay_to: str, mint: str) -> int:
+    """Base units of `mint` a confirmed transaction (getTransaction, jsonParsed) moved into `pay_to`: its token balance
+    after minus before. 0 when the transaction failed or never touched that account."""
+    meta = (tx or {}).get("meta") or {}
+    if meta.get("err") is not None:
+        return 0
+    keys = [k.get("pubkey") if isinstance(k, dict) else k for k in (((tx or {}).get("transaction") or {}).get("message") or {}).get("accountKeys", [])]
+    if pay_to not in keys:
+        return 0
+    i = keys.index(pay_to)
+
+    def bal(rows) -> int:
+        return next((int(r["uiTokenAmount"]["amount"]) for r in rows or [] if r.get("accountIndex") == i and r.get("mint") == mint), 0)
+    return bal(meta.get("postTokenBalances")) - bal(meta.get("preTokenBalances"))
+
+
 def settle(header: str) -> dict:
-    """The PAYMENT-SIGNATURE header -> the payment sent on devnet. Returns the SettlementResponse PAYMENT-RESPONSE carries."""
+    """The PAYMENT-SIGNATURE header -> the payment sent on devnet. Returns the SettlementResponse PAYMENT-RESPONSE carries.
+    The report is served only when the confirmed transaction moved exactly this order's amount, in its mint, into its
+    payTo account: any other confirmed transaction (a smaller amount, another payee) is refused."""
     from knos import chain
     try:
         doc = json.loads(base64.b64decode(str(header or ""), validate=True))
@@ -65,13 +90,24 @@ def settle(header: str) -> dict:
     tx = (doc.get("payload") or {}).get("transaction")
     if not isinstance(tx, str) or not 100 < len(tx) < 6000:
         raise ValueError("PAYMENT-SIGNATURE.payload.transaction: the signed transfer, base64")
+    pay_to, mint, amount = expected()
+    if (str(acc.get("payTo")), str(acc.get("asset")), str(acc.get("amount"))) != (pay_to, mint, str(amount)):
+        raise ValueError("PAYMENT-SIGNATURE.accepted: not the requirement this server offers (its payTo, asset and amount)")
     led = escrow.ledger()
     sig = chain.call(led.url, "sendTransaction", [tx, {"encoding": "base64", "preflightCommitment": "confirmed"}], timeout=30)
     for _ in range(30):
         got = chain.call(led.url, "getSignatureStatuses", [[sig]], timeout=10)
         st = (got.get("value") or [None])[0]
         if st and st.get("confirmationStatus") in ("confirmed", "finalized"):
-            return {"success": True, "transaction": sig, "network": NETWORK, "payer": None,
+            tx = chain.call(led.url, "getTransaction", [sig, {"encoding": "jsonParsed", "commitment": "confirmed",
+                                                               "maxSupportedTransactionVersion": 0}], timeout=15)
+            got = paid_to(tx, pay_to, mint)
+            if got != amount:
+                raise ValueError(f"the confirmed transaction {sig} moved {got} base units of {mint} to {pay_to}, not the {amount} "
+                                 "this order asks: nothing is served")
+            keys = (((tx or {}).get("transaction") or {}).get("message") or {}).get("accountKeys") or [{}]
+            payer = keys[0].get("pubkey") if isinstance(keys[0], dict) else keys[0]
+            return {"success": True, "transaction": sig, "network": NETWORK, "payer": payer, "amount": str(amount),
                     "explorer": escrow.explorer(sig)}
         import time
         time.sleep(1)

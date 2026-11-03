@@ -38,7 +38,8 @@ async function main() {
     return { task: task.id, kind: KIND, result, digest: digest(result), order,
              note: "paid when the evaluator's signed acceptance reaches the payment program; refunded to the funder after the deadline otherwise" };
   };
-  const shop = server(full, chainOf(rpc, Number(flags.wait ?? 60)), deliver);
+  // the orders already served, one per line beside the offer (or --delivered), so a restart never serves one twice
+  const shop = server(full, chainOf(rpc, Number(flags.wait ?? 60)), deliver, { deliveredFile: flags.delivered ?? `${need("offer")}.delivered.txt` });
   const srv = http.createServer((req, res) => {
     if (new URL(req.url, "http://local").pathname !== "/tasks") return shop.emit("request", req, res);
     res.writeHead(200, { "content-type": "application/json" });

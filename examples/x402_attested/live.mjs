@@ -2,6 +2,7 @@
 // x402 "knos-order" against a real chain: the server and the client of this folder over one RPC URL.
 //
 //   node examples/x402_attested/live.mjs run    --rpc URL --key buyer.json --offer offer.json   # serve, pay, be served: one process
+//   (the orders a server has served are kept in <offer>.delivered.txt, or --delivered FILE, so a restart never serves one twice)
 //   node examples/x402_attested/live.mjs serve  --rpc URL --offer offer.json [--port 4020]      # the seller's side alone
 //   node examples/x402_attested/live.mjs buy    --rpc URL --key buyer.json --url http://host/work/N [--max 50000000] [--mint M]
 //   node examples/x402_attested/live.mjs status --rpc URL --order ADDRESS [--program ID]        # escrowed, paid or refunded
@@ -39,7 +40,7 @@ async function main() {
   const live = async (offer) => ({ ...offer, feeVersion: offer.feeVersion ?? (await chain.payVersion(offer.program)) ?? undefined });
   if (mode === "serve") {
     const offer = await live(offerOf(need("offer")));
-    await listen(server(offer, chain, deliver(offer)), Number(flags.port ?? 4020));
+    await listen(server(offer, chain, deliver(offer), { deliveredFile: flags.delivered ?? `${need("offer")}.delivered.txt` }), Number(flags.port ?? 4020));
     return console.error(`selling ${new URL(offer.url).pathname} on http://127.0.0.1:${flags.port ?? 4020} for an order of ${offer.program}`);
   }
   if (mode === "status") return print(await status(chain, flags.program ?? KNOS_PAY, need("order")));
@@ -56,7 +57,7 @@ async function main() {
   let url = flags.url, srv = null, offer = null;
   if (mode === "run") {            // the seller's server on a free local port; the client really connects to it over HTTP
     offer = await live(offerOf(need("offer")));
-    srv = server(offer, chain, deliver(offer));
+    srv = server(offer, chain, deliver(offer), { deliveredFile: flags.delivered ?? `${need("offer")}.delivered.txt` });
     await listen(srv, 0);
     url = `http://127.0.0.1:${srv.address().port}${new URL(offer.url).pathname}`;
   }

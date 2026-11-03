@@ -35,7 +35,8 @@ def test_x402_challenge_and_settlement(monkeypatch):
     from solders.pubkey import Pubkey
     monkeypatch.setattr(escrow, "ledger", lambda: type("L", (), {"url": "https://api.devnet.solana.com"})())
     monkeypatch.setattr(escrow, "mint", lambda led, create=True: Pubkey.from_string("So11111111111111111111111111111111111111112"))
-    monkeypatch.setattr(escrow, "demo_key", lambda: Keypair())
+    key = Keypair()
+    monkeypatch.setattr(escrow, "demo_key", lambda: key)
     ch = x402.challenge("a" * 64, "https://knos.example")
     acc = ch["accepts"][0]
     assert ch["x402Version"] == 2 and acc["scheme"] == "exact" and acc["network"] == "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
@@ -51,6 +52,10 @@ def test_x402_challenge_and_settlement(monkeypatch):
 
     def fake(url, method, params, timeout=10):
         calls.append(method)
+        if method == "getTransaction":           # the confirmed transfer: exactly the order's amount into its payTo
+            return {"meta": {"err": None, "preTokenBalances": [], "postTokenBalances": [
+                        {"accountIndex": 1, "mint": acc["asset"], "uiTokenAmount": {"amount": acc["amount"]}}]},
+                    "transaction": {"message": {"accountKeys": [{"pubkey": "payer"}, {"pubkey": acc["payTo"]}]}}}
         return "5" * 64 if method == "sendTransaction" else {"value": [{"confirmationStatus": "confirmed"}]}
     monkeypatch.setattr(chain, "call", fake)
     hdr = x402.header({"x402Version": 2, "accepted": acc, "payload": {"transaction": "T" * 200}})

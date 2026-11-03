@@ -2,10 +2,14 @@
 // The x402 "knos-order" flow end to end on one machine: an HTTP server and a client, the chain replayed from fixtures.json
 // (what the test build of knos_pay did in LiteSVM). The messages exchanged are the ones docs/reference/X402.md prints, exactly.
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { createPrivateKey, sign as signWith } from "node:crypto";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
-import { decode, encode, fundOrderWalletIx, orderAddress, requirement, status } from "./attested.mjs";
+import { b58 } from "../../sdk/settle/index.js";
+import { decode, encode, fundOrderWalletIx, orderAddress, payerMessage, requirement, status } from "./attested.mjs";
 import { FIXTURES as fx, replay } from "./chain.mjs";
 import { fetchAttested } from "./client.mjs";
 import { server } from "./server.mjs";
@@ -20,15 +24,21 @@ const OFFER = {
 const DELIVERY = { delivered: "https://github.com/octo/widgets/pull/12", head: fx.head, note: "paid when the order's pinned workflow attests the merge" };
 const LIMITS = { maxAmount: 50_000_000, mints: [fx.mint] };
 
-/** A server on a free local port, a chain, and the buyer's wallet. `url` is where the client really connects. */
-async function world() {
-  const chain = replay();
-  const srv = server(OFFER, chain, async () => DELIVERY);
+/** An ed25519 signer from a 32-byte seed: the fixture's wallets come from seeds (scripts/x402_fixture.py: buyer 31, seller 32). */
+const PKCS8_ED25519 = Buffer.from("302e020100300506032b657004220420", "hex");
+const signer = (byte) => { const k = createPrivateKey({ key: Buffer.concat([PKCS8_ED25519, Buffer.alloc(32, byte)]), format: "der", type: "pkcs8" });
+  return (message) => new Uint8Array(signWith(null, message, k)); };
+const BUYER_SIGN = signer(31), SELLER_SIGN = signer(32);
+
+/** A server on a free local port, a chain, and the buyer's wallet. `url` is where the client really connects. Each world
+ * keeps its delivered orders in a file of its own; pass `deliveredFile` to start a second server over the same file. */
+async function world(deliveredFile = join(mkdtempSync(join(tmpdir(), "knos-x402-")), "delivered.txt"), chain = replay()) {
+  const srv = server(OFFER, chain, async () => DELIVERY, { deliveredFile });
   await new Promise((r) => srv.listen(0, "127.0.0.1", r));
   const url = `http://127.0.0.1:${srv.address().port}/work/77`;
   const sent = [];
-  const wallet = { address: fx.buyer, token: fx.buyer_token, send: async (ix) => { sent.push(ix); return chain.send(ix, fx.buyer); } };
-  return { chain, srv, url, wallet, sent, base: url.replace("/work/77", ""), close: () => new Promise((r) => srv.close(r)) };
+  const wallet = { address: fx.buyer, token: fx.buyer_token, send: async (ix) => { sent.push(ix); return chain.send(ix, fx.buyer); }, sign: BUYER_SIGN };
+  return { chain, srv, url, wallet, sent, deliveredFile, base: url.replace("/work/77", ""), close: () => new Promise((r) => srv.close(r)) };
 }
 /** The messages as docs/reference/X402.md prints them, which must also be the committed messages.json. */
 const docs = () => {
@@ -95,7 +105,9 @@ test("the server delivers nothing without the funded order, and one order pays f
     assert.equal(required.accepts[0].extra.order, null);                  // no payer named: the client derives the order
     assert.equal(required.error, "PAYMENT-SIGNATURE header is required");
     const req = await requirement(OFFER, fx.buyer);
-    const proof = (order) => encode({ x402Version: 2, resource: required.resource, accepted: req, payload: { order, transaction: "" }, extensions: {} });
+    const signed = (order, sign = BUYER_SIGN) => b58(sign(payerMessage(OFFER.url, order)));
+    const proof = (order, payerSignature = signed(order)) => encode({ x402Version: 2, resource: required.resource, accepted: req,
+                                                                       payload: { order, transaction: "", ...(payerSignature ? { payerSignature } : {}) }, extensions: {} });
     // a proof that names an order nobody funded, an account that is not an order, a proof that is not JSON
     let r = await ask(proof(fx.order.address));
     assert.equal(r.status, 402);
@@ -108,10 +120,26 @@ test("the server delivers nothing without the funded order, and one order pays f
     r = await ask(cheaper);
     assert.equal(r.status, 402);
     assert.match((await r.json()).error, /not the one this server offers/);
+    // a funded order is public on chain: naming it without the payer's signature, or with another wallet's, is refused
+    r = await ask(proof(fx.order.address, null));
+    assert.equal(r.status, 402);
+    assert.match((await r.json()).error, /payer's signature of this order is missing or is not the payer's/);
+    r = await ask(proof(fx.order.address, signed(fx.order.address, SELLER_SIGN)));
+    assert.equal(r.status, 402);
+    assert.match((await r.json()).error, /payer's signature/);
     assert.equal((await ask(proof(fx.order.address))).status, 200);
     r = await ask(proof(fx.order.address));
     assert.equal(r.status, 402);
     assert.match((await r.json()).error, /already paid for one delivery/);
+    // a restart: a new server over the same delivered file still refuses the order it served
+    await w.close();
+    const again = await world(w.deliveredFile, w.chain);
+    try {
+      r = await fetch(again.url, { headers: { "PAYMENT-SIGNATURE": proof(fx.order.address) } });
+      assert.equal(r.status, 402);
+      assert.match((await r.json()).error, /already paid for one delivery/);
+      assert.equal(readFileSync(w.deliveredFile, "utf8"), `${fx.order.address}\n`);
+    } finally { await again.close(); }
     // an order of another payer is another address: this one's proof cannot be passed off as theirs
     assert.notEqual(await orderAddress(fx.program, fx.repo_id, fx.issue, fx.seller.wallet, fx.seq), fx.order.address);
   } finally { await w.close(); }
@@ -163,7 +191,7 @@ test("the fee the 402 names follows the build that is live", async () => {
   assert.deepEqual([await at(1), await at(2), await at(undefined)], ["500000", "60000", "60000"]);
   // a client that asked the program holds the server to that build's fee; one that did not accepts either rule's and nothing else
   const refusing = async (fee, limits) => {
-    const chain = replay(), srv = server({ ...OFFER }, chain, async () => DELIVERY);
+    const chain = replay(), srv = server({ ...OFFER }, chain, async () => DELIVERY, { deliveredFile: join(mkdtempSync(join(tmpdir(), "knos-x402-")), "delivered.txt") });
     await new Promise((r) => srv.listen(0, "127.0.0.1", r));
     const url = `http://127.0.0.1:${srv.address().port}/work/77`;
     const tampered = async (u, init) => {

@@ -63,5 +63,5 @@ export function chainOf(url, seconds = 60) {
 
 /** The wallet client.mjs wants: its address, its token account of `mint` (default: the associated one), and send. */
 export async function walletOf(chain, key, mint, token = null) {
-  return { address: key.address, token: token ?? await ata(key.address, mint), send: (ix) => chain.send([ix], key) };
+  return { address: key.address, token: token ?? await ata(key.address, mint), send: (ix) => chain.send([ix], key), sign: (m) => key.sign(m) };
 }
