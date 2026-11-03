@@ -105,6 +105,67 @@ fn a_signer_that_did_not_answer_leaves_the_payout_open() {
     assert!(c.get_payout("s".into()).unwrap().signing);
 }
 
+// ---- the refund of a released milestone that was never paid on Solana -------------------------------------------
+
+fn refund_at(c: &mut Knos, s: u64) {
+    ctx("anyone.testnet", s);
+    let _ = c.refund("s".into());
+}
+
+#[test]
+fn a_released_milestone_with_no_payout_signature_is_refunded_after_its_deadline() {
+    let mut c = released();
+    refund_at(&mut c, NOW + 3600);
+    assert_eq!(c.get_milestone("s".into()).unwrap().state, State::Refunding);
+    ctx(CONTRACT, NOW + 3600);
+    c.on_paid("s".into(), true, Ok(()));
+    assert_eq!(c.get_milestone("s".into()).unwrap().state, State::Refunded);
+}
+
+#[test]
+#[should_panic(expected = "the milestone is not released")]
+fn adversarial_a_payout_after_the_refund_is_refused() {
+    let mut c = released();
+    refund_at(&mut c, NOW + 3600);
+    sign(&mut c, good_std());
+}
+
+#[test]
+#[should_panic(expected = "the deadline has not passed")]
+fn adversarial_a_refund_of_a_released_milestone_before_its_deadline() {
+    let mut c = released();
+    refund_at(&mut c, NOW + 60);
+}
+
+#[test]
+#[should_panic(expected = "the payout is signed")]
+fn adversarial_a_refund_after_the_payout_was_signed() {
+    let mut c = released();
+    sign(&mut c, good_std());
+    ctx(CONTRACT, NOW);
+    c.on_payout_signed("s".into(), Ok(serde_json::json!({"scheme": "Ed25519", "signature": [1, 2, 3]})));
+    refund_at(&mut c, NOW + 3600);
+}
+
+#[test]
+#[should_panic(expected = "the payout is being signed")]
+fn adversarial_a_refund_while_the_payout_is_being_signed() {
+    let mut c = released();
+    sign(&mut c, good_std());
+    refund_at(&mut c, NOW + 3600);
+}
+
+#[test]
+fn a_failed_refund_of_a_released_milestone_leaves_it_released() {
+    let mut c = released();
+    refund_at(&mut c, NOW + 3600);
+    ctx(CONTRACT, NOW + 3600);
+    c.on_paid("s".into(), true, Err(PromiseError::Failed));
+    let m = c.get_milestone("s".into()).unwrap();
+    assert_eq!(m.state, State::Released);
+    assert!(m.proof_sha.is_some());
+}
+
 fn good_std() -> String {
     raw(|_, _, _, _, _| {})
 }

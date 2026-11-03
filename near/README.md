@@ -31,7 +31,7 @@ The page in `web/` does the same from a browser (`python near/web/serve.py`), an
 bash near/scripts/verify.sh
 ```
 
-It prints `178/178 tests passed (123 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund.
+It prints `184/184 tests passed (127 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund.
 `verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund. Measured: the release receipt burns 7.26 Tgas (11.55 Tgas for the whole transaction) in the latest verify.sh run; the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
 
 ## On testnet
@@ -53,14 +53,21 @@ near contract call-function as-read-only knos-pay-1103.testnet get_rules json-ar
 
 `sign_payout` takes the unsigned Solana message for a released milestone. The contract accepts only one SPL `TransferChecked` of exactly the milestone's amount, in the mint and to the token account locked at funding, then asks `v1.signer-prod.testnet` (path `knos-solana-1`, Ed25519) to sign it. A relayer adds the signature and broadcasts; no Solana key is held anywhere.
 
-`scripts/solana_payout.py` runs it end to end on [`knos-pay2-1102.testnet`](https://explorer.testnet.near.org/accounts/knos-pay2-1102.testnet), derived Solana address `Cap9Khn2fDtFL34AXuXVPg38RMpEmkyKqg5mFibnUALD`:
+The payout moves tokens held since funding. At funding the funder moves the amount from its own Solana token account into one owned by the contract's derived address; the payout is the transfer of exactly those tokens, and nothing is minted on the way. A milestone released for a Solana payee with no payout signature by its deadline is refunded like an unreleased one, so it never stays locked; once its payout is signed, it is not.
+
+`scripts/solana_payout.py run` does both on [`knos-pay-1103.testnet`](https://explorer.testnet.near.org/accounts/knos-pay-1103.testnet) (code sha256 `3503799e…`), derived Solana address `DUxGyghGoZNZu85zVJXHLAgsrA3rBt3eVDSGmhk8bzBi`, on 3 Nov 2026:
 
 | Step | Transaction |
 |---|---|
-| Milestone funded for a Solana payee | [`ADECRFN9…`](https://explorer.testnet.near.org/transactions/ADECRFN9jWjBpQ5gZKFTJLLPzWYqzLXEjNoG3KHwAzLt) |
-| Released on a token | [`3BHiT6nx…`](https://explorer.testnet.near.org/transactions/3BHiT6nxA4aV3pdMooq7jop5tDLJfzp2A3KyATjXf25n) |
-| Transfer checked, signed by the MPC network | [`2PobS79z…`](https://explorer.testnet.near.org/transactions/2PobS79zKd2p77UfgwncBAPX2DARFKsBa8ijVsf3mh7V) |
-| 1,000,000 test units paid on Solana devnet | [`3M7z8NRb…`](https://explorer.solana.com/tx/3M7z8NRbNMoKvnPcXbg4hGfC5x559h4TarjUV5p6ffVnkqN2RGmVnsgSERZcdfxeRRvvB5bRnD8Sf4BMQCxET1CF?cluster=devnet) |
+| The funder's 1,000,000 test units moved into the derived address's account, held there | [`5zf4swfJ…`](https://explorer.solana.com/tx/5zf4swfJNBMv7JBvMpvQC7nHxL6SU93GRLZ1Vj7DRv8GqZWztYwywnPqxFUT3sYKHRCjZ8aJgy1stLvWa9Wdj8oo?cluster=devnet) |
+| Milestone funded for the Solana payee | [`EWepDj2u…`](https://explorer.testnet.near.org/transactions/EWepDj2uQ3gESJrrgyKMmbZgjj9iHr9raCwa8RSSpMAD) |
+| Released on a token | [`EVaDjqNV…`](https://explorer.testnet.near.org/transactions/EVaDjqNVUBqVypESpGCFwsbDv2eFBJxd8JZjNmP25wTb) |
+| Transfer of the held units checked, signed by the MPC network | [`4eJPkBn5…`](https://explorer.testnet.near.org/transactions/4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR) |
+| The 1,000,000 held units paid on Solana devnet (held account: 1,000,000 before, 0 after) | [`e4e19KWt…`](https://explorer.solana.com/tx/e4e19KWtALEZ5mBHiBjpH5YKuzyHf4bVJyCqDYfcE1UY3smbhkbADxEogho2Sy9DhhqPdWyJCxgTEjMSrjrtMrJ?cluster=devnet) |
+| A second milestone released, never signed: refund before the deadline refused | [`Ce2p5iEP…`](https://explorer.testnet.near.org/transactions/Ce2p5iEPxLCAVRKLxTNC37uMb1kLFamLMquFWKhPSsoZ) |
+| The same milestone refunded after its deadline: the payer's 1,000,000 test units back | [`A67yep8D…`](https://explorer.testnet.near.org/transactions/A67yep8D8g55KxLjySFUqsDLn7J9AdLFEqvidpaHFmVB) |
+
+Not built: when a released Solana milestone is refunded on NEAR, the tokens already held by the derived address stay there; a signed transfer back to the funder is not written yet.
 
 ## The payee needs no NEAR for gas
 

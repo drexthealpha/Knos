@@ -1,12 +1,16 @@
 """A Knos milestone paid on Solana devnet by NEAR Chain Signatures, end to end, each step a real transaction.
 
-    NEAR_CLI=<near> SOL_FEE_KEY=<devnet key file> python near/scripts/solana_payout.py [result file]
+    NEAR_CLI=<near> SOL_FEE_KEY=<devnet key file> SOL_STATE=<file> python near/scripts/solana_payout.py setup
+    NEAR_CLI=<near> SOL_FEE_KEY=<devnet key file> SOL_STATE=<file> python near/scripts/solana_payout.py run [result file]
 
-On Solana devnet (fees from SOL_FEE_KEY, a JSON array of 64 bytes, never printed): a test SPL mint, a token account
-owned by the contract's derived address (v1.signer-prod.testnet, path knos-solana-1, Ed25519) holding the payout,
-and the payee's token account. On NEAR testnet: the milestone funded with payee_chain solana, released on a token,
-then sign_payout with the unsigned transfer; the contract checks it and gets the MPC signature. This script adds that
-signature and broadcasts the transfer. The relayer never holds the key that moves the payout.
+`setup`, once: a test SPL mint and the funder's own token account holding the funder's test tokens (SOL_FEE_KEY's wallet
+is the funder on Solana; the mint and the account go to SOL_STATE). `run` mints nothing. At funding the funder moves
+the milestone's amount from its own account into a token account owned by the contract's derived address
+(v1.signer-prod.testnet, path knos-solana-1, Ed25519), where it is held; the NEAR milestone is funded with payee_chain
+solana, released on a token, and sign_payout has the MPC network sign the transfer of exactly those held tokens to the
+payee. The run checks the derived account held the amount before and holds none after. A second milestone is released
+and left with no payout signature past its deadline: refund returns its NEAR deposit to the payer. Keys are never
+printed; the relayer never holds the key that moves the payout.
 """
 from __future__ import annotations
 
@@ -28,7 +32,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519, padding, rsa
 NEAR = os.environ.get("NEAR_CLI", "near")
 NRPC, SRPC = "https://rpc.testnet.near.org", "https://api.devnet.solana.com"
 S = "1102"
-KNOS, USDC, PAYER, PAYEE = f"knos-pay2-{S}.testnet", f"knos-usdc-{S}.testnet", f"knos-payer-{S}.testnet", f"knos-payee-{S}.testnet"
+KNOS, USDC, PAYER, PAYEE = os.environ.get("KNOS_CONTRACT", "knos-pay-1103.testnet"), f"knos-usdc-{S}.testnet", f"knos-payer-{S}.testnet", f"knos-payee-{S}.testnet"
 OWN = [f"knos-own{i}-{S}.testnet" for i in (1, 2, 3)]
 SIGNER, PATH = "v1.signer-prod.testnet", "knos-solana-1"
 PAYEE_SOL = "CVhqj6hcugFDKZxzSkiUG64cRbHn2kguZy9n6zv47FqL"  # the payee's Solana wallet (owner of its token account)
@@ -191,25 +195,50 @@ def b64u(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
 
-def main() -> int:
-    out = sys.argv[1] if len(sys.argv) > 1 else None
-    fee = load_key(os.environ["SOL_FEE_KEY"])
-    derived = b58d(nview(SIGNER, "derived_public_key", {"path": PATH, "predecessor": KNOS, "domain_id": 1}).split(":")[1])
-    say(f"derived Solana address of {KNOS} for {PATH}: {b58e(derived)}")
+def held(acct: bytes) -> int:
+    return int(post(SRPC, "getTokenAccountBalance", [b58e(acct)])["value"]["amount"])
 
-    # devnet: the derived address needs SOL for its fee; a test mint; its token account with the payout; the payee's
-    sig = send([(b58d(SYSTEM), [(fee.pub, True, True), (derived, False, True)], struct.pack("<IQ", 2, 20_000_000))], fee)
-    say(f"devnet: 0.02 SOL to the derived address for its fee: {sig}")
+
+def tok_for(key, mid: str, crit: str) -> str:
+    claims = {"iss": "https://token.actions.githubusercontent.com", "aud": KNOS, "exp": int(time.time()) + 600, "jti": f"jti-{mid}",
+              "repository": REPO, "job_workflow_ref": WF, "sha": "6413e890617b033c7cb89d385b45bc25c6acc4f3"}
+    signed = b64u(json.dumps({"alg": "RS256", "kid": "knos-test", "typ": "JWT"}).encode()) + "." + b64u(json.dumps(claims).encode())
+    return signed + "." + b64u(key.sign(signed.encode(), padding.PKCS1v15(), hashes.SHA256()))
+
+
+def setup(fee: Key) -> int:
+    """Once: the funder's test tokens on Solana devnet, in its own token account (minted here, never in `run`)."""
     mint = Key(ed25519.Ed25519PrivateKey.generate())
     init_mint = (b58d(TOKEN), [(mint.pub, False, True)], bytes([20, 6]) + fee.pub + b"\0")  # InitializeMint2, decimals 6
     sig = send([create_account(fee, mint, 82, TOKEN), init_mint], fee, [mint])
-    say(f"devnet: test mint {b58e(mint.pub)} (6 decimals): {sig}")
-    src, sig = token_account(fee, mint.pub, derived)
+    say(f"setup: test mint {b58e(mint.pub)} (6 decimals): {sig}")
+    own, sig = token_account(fee, mint.pub, fee.pub)
+    say(f"setup: the funder's token account {b58e(own.pub)}: {sig}")
+    sig = send([(b58d(TOKEN), [(mint.pub, False, True), (own.pub, False, True), (fee.pub, True, False)], bytes([7]) + struct.pack("<Q", 10 * AMOUNT))], fee)
+    say(f"setup: {10 * AMOUNT} units of the funder's test tokens: {sig}")
+    with open(os.environ["SOL_STATE"], "w", encoding="utf-8") as f:
+        json.dump({"mint": b58e(mint.pub), "funder_account": b58e(own.pub)}, f)
+    return 0
+
+
+def run(fee: Key) -> int:
+    st = json.load(open(os.environ["SOL_STATE"], encoding="utf-8"))
+    mint, own = b58d(st["mint"]), b58d(st["funder_account"])
+    derived = b58d(nview(SIGNER, "derived_public_key", {"path": PATH, "predecessor": KNOS, "domain_id": 1}).split(":")[1])
+    say(f"derived Solana address of {KNOS} for {PATH}: {b58e(derived)}")
+    say(f"the funder's own account {b58e(own)} holds {held(own)} units of mint {b58e(mint)} before funding")
+
+    # funding on Solana: the derived address gets SOL for its fee and a token account; the funder moves the amount into it
+    sig = send([(b58d(SYSTEM), [(fee.pub, True, True), (derived, False, True)], struct.pack("<IQ", 2, 20_000_000))], fee)
+    say(f"devnet: 0.02 SOL to the derived address for its fee: {sig}")
+    src, sig = token_account(fee, mint, derived)
     say(f"devnet: token account {b58e(src.pub)} owned by the derived address: {sig}")
-    dst, sig = token_account(fee, mint.pub, b58d(PAYEE_SOL))
+    dst, sig = token_account(fee, mint, b58d(PAYEE_SOL))
     say(f"devnet: payee token account {b58e(dst.pub)} owned by {PAYEE_SOL}: {sig}")
-    sig = send([(b58d(TOKEN), [(mint.pub, False, True), (src.pub, False, True), (fee.pub, True, False)], bytes([7]) + struct.pack("<Q", AMOUNT))], fee)
-    say(f"devnet: {AMOUNT} units minted to the derived address's account: {sig}")
+    sig = send([(b58d(TOKEN), [(own, False, True), (mint, False, False), (src.pub, False, True), (fee.pub, True, False)],
+                 bytes([12]) + struct.pack("<Q", AMOUNT) + bytes([6]))], fee)
+    held_before = held(src.pub)
+    say(f"devnet: the funder moved {AMOUNT} of its own units into the derived address's account, held there: {sig} (held {held_before})")
 
     # NEAR: a test signing key set by two owners, the milestone funded for the payee on Solana, released on a token
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -217,29 +246,25 @@ def main() -> int:
     ncall(OWN[0], KNOS, "propose_key", {"kid": "knos-test", "n_hex": n})
     h, ok, why, _ = ncall(OWN[1], KNOS, "propose_key", {"kid": "knos-test", "n_hex": n})
     say(f"NEAR: test key set by 2 owners: {why} {h}")
-    for acct in (KNOS,):
-        ncall(PAYER, USDC, "storage_deposit", {"account_id": acct, "registration_only": True}, "0.01 NEAR")
-    mid = f"sol-{time.strftime('%m%d%H%M', time.gmtime())}"
+    ncall(PAYER, USDC, "storage_deposit", {"account_id": KNOS, "registration_only": True}, "0.01 NEAR")
+    run_id = time.strftime("%m%d%H%M", time.gmtime())
+    mid = f"sol-{run_id}"
     crit = hashlib.sha256(b"knos solana payout criteria").hexdigest()
-    msg = {"id": mid, "payee_chain": "solana", "payee_address": b58e(dst.pub), "payee_mint": b58e(mint.pub), "criteria_hash": crit,
+    msg = {"id": mid, "payee_chain": "solana", "payee_address": b58e(dst.pub), "payee_mint": b58e(mint), "criteria_hash": crit,
            "repository": REPO, "workflow": WF, "deadline_ns": str((int(time.time()) + 3600) * 1_000_000_000)}
     h, ok, why, _ = ncall(PAYER, USDC, "ft_transfer_call", {"receiver_id": KNOS, "amount": str(AMOUNT), "msg": json.dumps(msg)})
     say(f"NEAR: milestone {mid} funded with {AMOUNT} test units for the Solana payee: ok={ok} {h}")
-    claims = {"iss": "https://token.actions.githubusercontent.com", "aud": KNOS, "exp": int(time.time()) + 600, "jti": f"jti-{mid}",
-              "repository": REPO, "job_workflow_ref": WF, "sha": "6413e890617b033c7cb89d385b45bc25c6acc4f3"}
-    signed = b64u(json.dumps({"alg": "RS256", "kid": "knos-test", "typ": "JWT"}).encode()) + "." + b64u(json.dumps(claims).encode())
-    tok = signed + "." + b64u(key.sign(signed.encode(), padding.PKCS1v15(), hashes.SHA256()))
-    h, ok, why, _ = ncall(PAYEE, KNOS, "release", {"id": mid, "token": tok, "criteria_hash": crit})
+    h, ok, why, _ = ncall(PAYEE, KNOS, "release", {"id": mid, "token": tok_for(key, mid, crit), "criteria_hash": crit})
     say(f"NEAR: release on the token: {why} ok={ok} {h}")
 
-    # the unsigned transfer, checked and signed by the contract through Chain Signatures
+    # the unsigned transfer of the held tokens, checked and signed by the contract through Chain Signatures
     bh = post(SRPC, "getLatestBlockhash", [{"commitment": "finalized"}])["value"]["blockhash"]
-    transfer = (b58d(TOKEN), [(src.pub, False, True), (mint.pub, False, False), (dst.pub, False, True), (derived, True, False)],
+    transfer = (b58d(TOKEN), [(src.pub, False, True), (mint, False, False), (dst.pub, False, True), (derived, True, False)],
                 bytes([12]) + struct.pack("<Q", AMOUNT) + bytes([6]))
     message, signers = compile_message(derived, [transfer], bh)
     assert signers == [derived]
     h, ok, why, r = ncall(PAYEE, KNOS, "sign_payout", {"id": mid, "message_b64": base64.b64encode(message).decode()})
-    say(f"NEAR: sign_payout ({len(message)}-byte message): {why} ok={ok} {h}")
+    say(f"NEAR: sign_payout ({len(message)}-byte message, one TransferChecked from the held account): {why} ok={ok} {h}")
     p = nview(KNOS, "get_payout", {"id": mid})
     sig_json = json.loads(p["signature"]) if p and p.get("signature") else None
     if not sig_json:
@@ -250,13 +275,43 @@ def main() -> int:
     ed25519.Ed25519PublicKey.from_public_bytes(derived).verify(sig64, message)
     say("the MPC signature (64 bytes) verifies against the derived key: yes")
     sol = broadcast(cu16(1) + sig64 + message)
-    say(f"devnet: payout of {AMOUNT} units to {b58e(dst.pub)} signed by NEAR Chain Signatures: {sol}")
+    say(f"devnet: payout of the {AMOUNT} held units to {b58e(dst.pub)} signed by NEAR Chain Signatures: {sol}")
     say(f"https://explorer.solana.com/tx/{sol}?cluster=devnet")
-    bal = post(SRPC, "getTokenAccountBalance", [b58e(dst.pub)])["value"]["amount"]
-    say(f"payee token account balance now {bal}")
-    if out:
-        open(out, "a", encoding="utf-8").write("\n".join(LOG) + "\n")
-    return 0 if int(bal) == AMOUNT else 1
+    bal, left = held(dst.pub), held(src.pub)
+    paid = bal == AMOUNT and held_before == AMOUNT and left == 0
+    say(f"{'PASS' if paid else 'FAIL'} held-token payout: the derived account held {held_before}, holds {left} now; the payee holds {bal}")
+
+    # a second milestone: released, no payout signature asked for, refunded after its deadline
+    rid, wait = f"solr-{run_id}", 90
+    msg = {**msg, "id": rid, "deadline_ns": str((int(time.time()) + wait) * 1_000_000_000)}
+    before = int(nview(USDC, "ft_balance_of", {"account_id": PAYER}))
+    h, ok, why, _ = ncall(PAYER, USDC, "ft_transfer_call", {"receiver_id": KNOS, "amount": str(AMOUNT), "msg": json.dumps(msg)})
+    say(f"NEAR: milestone {rid} funded with {AMOUNT} test units, deadline in {wait} s: ok={ok} {h}")
+    h, ok, why, _ = ncall(PAYEE, KNOS, "release", {"id": rid, "token": tok_for(key, rid, crit), "criteria_hash": crit})
+    say(f"NEAR: {rid} released, no payout signature asked for: {why} ok={ok} {h}")
+    early = ncall(PAYEE, KNOS, "refund", {"id": rid})
+    say(f"NEAR: a refund before the deadline: {'done' if early[1] else 'refused'}: {early[2][:120]} {early[0]}")
+    time.sleep(max(0, int(msg["deadline_ns"]) // 1_000_000_000 - int(time.time()) + 15))
+    h, ok, why, _ = ncall(PAYEE, KNOS, "refund", {"id": rid})
+    after = int(nview(USDC, "ft_balance_of", {"account_id": PAYER}))
+    state = (nview(KNOS, "get_milestone", {"id": rid}) or {}).get("state")
+    back = ok and state == "Refunded" and after - before == 0 and not early[1]
+    say(f"NEAR: refund of the released milestone after its deadline: {why} ok={ok} {h}; state {state}")
+    say(f"{'PASS' if back else 'FAIL'} refund from Released: the payer's test units {before} before funding, {after} after the refund (net {after - before})")
+    if out_file:
+        open(out_file, "a", encoding="utf-8").write("\n".join(LOG) + "\n")
+    return 0 if paid and back else 1
+
+
+out_file: str | None = None
+
+
+def main() -> int:
+    global out_file
+    mode = sys.argv[1] if len(sys.argv) > 1 else "run"
+    out_file = sys.argv[2] if len(sys.argv) > 2 else None
+    fee = load_key(os.environ["SOL_FEE_KEY"])
+    return setup(fee) if mode == "setup" else run(fee)
 
 
 if __name__ == "__main__":

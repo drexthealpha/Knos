@@ -228,9 +228,18 @@ impl Knos {
     }
 
     /// Returns the money to the payer once the deadline has passed with no release. Anyone may send it.
+    /// A milestone released for a payee on another chain counts as unpaid until its payout is signed: with no
+    /// signature (and none being asked for) by the deadline, it is refunded too, so it never stays locked.
     pub fn refund(&mut self, id: String) -> Promise {
         let mut m = self.milestones.get(&id).cloned().unwrap_or_else(|| env::panic_str("no such milestone"));
-        require!(m.state == State::Funded, "the milestone is not funded and open");
+        if m.state == State::Released && m.payee_chain != "near" {
+            if let Some(p) = self.payouts.get(&id) {
+                require!(p.signature.is_none(), "the payout is signed: it is paid on the payee's chain, not refunded");
+                require!(!p.signing, "the payout is being signed");
+            }
+        } else {
+            require!(m.state == State::Funded, "the milestone is not funded and open");
+        }
         require!(env::block_timestamp() >= m.deadline_ns.0, "the deadline has not passed");
         m.state = State::Refunding;
         let (to, amount) = (m.payer.clone(), m.amount);
@@ -249,6 +258,8 @@ impl Knos {
         let mut m = self.milestones.get(&id).cloned().unwrap();
         if r.is_ok() {
             m.state = if refund { State::Refunded } else { State::Released };
+        } else if refund && m.payee_chain != "near" && m.proof_sha.is_some() {
+            m.state = State::Released; // a refund of a released milestone that failed: released again, as it was
         } else {
             if let Some(j) = m.proof_jti.take() {
                 self.used_jti.remove(&j);
