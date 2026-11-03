@@ -955,6 +955,8 @@ def make_handler(state: State):
                 return self._send(200, self.route(u.path, body))
             except (auth.AuthError, wallets.NeedPasskey) as why:
                 return self._send(401, {"error": str(why)[:300], "needs": "passkey" if isinstance(why, wallets.NeedPasskey) else None})
+            except preorder.NotOwner as why:
+                return self._send(403, {"error": str(why)[:300]})
             except preorder.Settled as why:
                 return self._send(409, {"error": str(why)[:300], "refused_by": "the order on devnet (read from the chain)"})
             except preorder.NotVerified as why:
@@ -1214,6 +1216,7 @@ def make_handler(state: State):
             rec = preorder.load(str(body.get("commitment", "")))
             rec = blink.refresh(rec)
             if path == "/api/milestone":
+                preorder.must_own(rec, user)                 # 403 for anyone but the maker who owns it
                 return preorder.milestone(state.report(rec["report"]) or {}, rec["order"], str(body.get("evidence_url", "")))
             return preorder.refund(rec["order"])
 

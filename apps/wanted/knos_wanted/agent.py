@@ -707,6 +707,11 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                        "money": "devnet test money", "by": f"{who.get('kind')}: {who.get('label')}"}
             elif name == "knos_evidence":
                 rec = preorder.load(str(args.get("commitment") or ""))
+                try:
+                    preorder.must_own(rec, who)              # only the maker who owns the commitment
+                except preorder.NotOwner as why:
+                    return ok({"isError": True, "content": [{"type": "text", "text": "403: " + str(why)[:300]}],
+                               "structuredContent": {"status": 403, "error": str(why)[:300]}})
                 out = preorder.milestone(state.report(rec["report"]) or {}, rec["order"], str(args.get("evidence_url") or ""))
             elif name == "knos_task_submit":
                 out = _task_submit(args, who)

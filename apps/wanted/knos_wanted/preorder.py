@@ -332,6 +332,21 @@ def reserve_status(report: dict, held: dict | None = None) -> dict:
     return {"pre_ordered_units": locked, "reserve_units": need, "met": locked >= need, "source": "this server's commitment files"}
 
 
+class NotOwner(PermissionError):
+    """Evidence on a commitment from an account that does not own it (HTTP 403)."""
+
+
+def must_own(rec: dict, user: dict | None) -> None:
+    """Only the maker whose passkey claimed the milestone posts its evidence: the session's sub must be the
+    commitment's receivable maker_sub. A guest session, anyone else, or a commitment that names no owner is refused
+    here, before any page is fetched, signed or released."""
+    owner = str((rec.get("receivable") or {}).get("maker_sub") or "")
+    if not owner or str((user or {}).get("sub") or "") != owner:
+        if not owner:
+            raise NotOwner("this commitment names no maker who owns it, so no evidence is taken for it")
+        raise NotOwner(f"only the maker who owns commitment {rec.get('order', '')} posts its evidence, and this session is not that maker")
+
+
 class Settled(ValueError):
     """The order is closed on chain: knos_pay paid (or refunded) it, and a stage is paid once."""
 

@@ -110,7 +110,8 @@ def test_a_second_release_is_refused_by_the_chain_over_http(monkeypatch):
     from knos_wanted.qloo_rest import Client
     order = "So11111111111111111111111111111111111111112"
     # this server's file still says "locked" and Sibyl remembers nothing: only the closed order account on chain refuses
-    preorder._save({"order": order, "report": REP["hash"], "status": "locked", "claim_id": "knos-idea:" + "0" * 32, "units": 40})
+    preorder._save({"order": order, "report": REP["hash"], "status": "locked", "claim_id": "knos-idea:" + "0" * 32, "units": 40,
+                    "receivable": {"maker_sub": "passkey:maker-t"}})
 
     class Led:
         url = "https://api.devnet.solana.com"
@@ -123,7 +124,7 @@ def test_a_second_release_is_refused_by_the_chain_over_http(monkeypatch):
     st = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), Client(key=""))
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(st))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    tok = auth.guest("t")["token"]
+    tok = auth.issue("passkey:maker-t", "passkey", "t")["token"]      # the maker who owns it: only the chain refuses
     req = urllib.request.Request(f"http://127.0.0.1:{httpd.server_address[1]}/api/milestone",
                                  json.dumps({"commitment": order, "evidence_url": "https://x.example/"}).encode(),
                                  {"Content-Type": "application/json", "Authorization": "Bearer " + tok})
