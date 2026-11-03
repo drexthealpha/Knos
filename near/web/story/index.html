@@ -90,7 +90,7 @@ const film = document.getElementById("film");
 const still = matchMedia("(max-width: 760px), (prefers-reduced-motion: reduce)").matches;
 const params = new URLSearchParams(location.search);
 const atT = params.has("t");
-const DURATION = 100; // seconds of video for renderAt(t): progress = t / DURATION
+const DURATION = 120; // seconds of video for renderAt(t): progress = t / DURATION
 
 // the beats: [from, to, caption]
 const BEATS = [
@@ -100,8 +100,8 @@ const BEATS = [
   [0.36, 0.48, "GitHub's signed proof: a token from the locked workflow, RS256."],
   [0.48, 0.60, "The NEAR check: the contract verifies every claim and a one-time id."],
   [0.60, 0.72, "Chain Signatures: the MPC network signs the payout the contract checked."],
-  [0.72, 0.94, "The money moves: from the funder's chain, through the NEAR check, to the payee on Solana."],
-  [0.94, 1.01, "No proof by the deadline: the money goes back to the funder."],
+  [0.72, 0.86, "The money moves: from the funder's chain, through the NEAR check, to the payee on Solana."],
+  [0.86, 1.01, "Another milestone, no proof by its deadline: its money goes back to the funder."],
 ];
 
 async function start() {
@@ -142,6 +142,7 @@ async function start() {
   const chainA = platform(-2.9, "#151822"), chainB = platform(2.9, "#151822");
   const traveller = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 40), mat("#e0b354", { metalness: 0.6, emissive: "#3a2c08" }));
   scene.add(traveller);
+  const refundCoin = traveller.clone(); refundCoin.material = mat("#a0a7b8", { metalness: 0.6 }); scene.add(refundCoin);
 
   const ex = new Exploder(assembly);
   const labels = new Labels(document.querySelector(".labels"), camera, canvas);
@@ -163,10 +164,15 @@ async function start() {
   function frame(p) {
     // explode across the part beats; hold; then the coin travels A -> NEAR -> B
     ex.set(clamp((p - 0.12) / 0.5));
-    const travel = clamp((p - 0.72) / 0.22);
+    const travel = clamp((p - 0.72) / 0.14);
     const x = travel < 0.5 ? -2.9 + smooth(travel * 2) * 2.9 : smooth((travel - 0.5) * 2) * 2.9;
     traveller.position.set(x, -0.8 + Math.sin(travel * Math.PI) * 1.9, 0.9);
     traveller.visible = p > 0.7;
+    // the refund: a second coin leaves the NEAR check and returns to chain A
+    const back = clamp((p - 0.88) / 0.1);
+    refundCoin.visible = p > 0.87;
+    refundCoin.position.set(-smooth(back) * 2.9, -0.8 + Math.sin(back * Math.PI) * 1.4, 0.9);
+    document.querySelector(".labels").style.opacity = String(clamp((p - 0.1) / 0.04));
     const d = 6.2 + clamp((p - 0.12) / 0.5) * 2.2;
     camera.position.set(0.42 * d * 0.5, 0.34 * d * 0.5 + 0.4, d);
     camera.lookAt(0, 0, 0);
