@@ -1,0 +1,49 @@
+# Releases a NEAR testnet milestone with this run's own GitHub OIDC token (audience: the contract), then sends the same
+# token twice more and expects both refused: on a second milestone of this workflow (the token is used) and on one
+# funded for another workflow. Run by hand only: never on push, a pull request or a schedule.
+# The signer is a function-call key of knos-relay-1102.testnet that may call `release` on knos-pay-1103.testnet and
+# nothing else (secret NEAR_RELEASE_KEY). The script uses Python's standard library only: nothing is installed.
+name: NEAR release
+
+on:
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: "the milestone funded for this workflow that this run releases"
+        required: true
+      reuse_milestone:
+        description: "a second milestone funded for this workflow: the same token must be refused as used"
+        required: true
+      other_milestone:
+        description: "a milestone funded for another workflow: this token must be refused"
+        required: true
+      criteria_hash:
+        description: "the criteria hash locked at funding (64 hex)"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: near-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Release with this run's token
+        env:
+          NEAR_RELEASE_KEY: ${{ secrets.NEAR_RELEASE_KEY }}
+          NEAR_RELEASE_ACCOUNT: knos-relay-1102.testnet
+          KNOS_CONTRACT: knos-pay-1103.testnet
+          MILESTONE: ${{ inputs.milestone }}
+          REUSE_MILESTONE: ${{ inputs.reuse_milestone }}
+          OTHER_MILESTONE: ${{ inputs.other_milestone }}
+          CRITERIA_HASH: ${{ inputs.criteria_hash }}
+        run: python3 near/scripts/release_ci.py
