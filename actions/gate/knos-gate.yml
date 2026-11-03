@@ -1,37 +1,68 @@
-# .github/workflows/knos-gate.yml: Knos Gate with the Action alone (no App). Copy this file, add .knos/gate.yml
-# (`knos gate init`), seal your hidden tests (`knos gate seal tests-hidden --secret-out hidden.b64`) and store them:
-# `gh secret set KNOS_GATE_HIDDEN < hidden.b64`. Pin the action to a full commit sha.
+# .github/workflows/knos-gate.yml: Knos Gate with the Action alone (no App). Copy this file and knos-gate-pr.yml, add
+# .knos/gate.yml (`knos gate init`), seal your hidden tests (`knos gate seal tests-hidden --secret-out hidden.b64`) and
+# store them: `gh secret set KNOS_GATE_HIDDEN < hidden.b64`. Pin the action to a full commit sha.
 #
-# The job's name is the one status check ("Knos Gate"); the action edits one comment in place.
+# Two workflows, so no pull request ever runs with a secret: knos-gate-pr.yml runs the pull request's code on
+# pull_request with no secret; this one starts on workflow_run when that one completes. It runs from the default
+# branch, holds the hidden tests, and never checks out the pull request: the action fetches its head into a folder of
+# its own and runs it only in the sandbox (a user of its own, no network, no token, no secret in its environment).
+# A workflow_run job's check sits on the default branch, so this one sets the commit status "Knos Gate" on the pull
+# request's head; that status is the one check to require. The action edits one comment in place.
 name: Knos Gate
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_run:
+    workflows: ["Knos Gate PR"]
+    types: [completed]
 
 permissions: {}
 
 concurrency:
-  group: knos-gate-${{ github.event.pull_request.number }}
+  group: knos-gate-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: true
 
 jobs:
   gate:
     name: Knos Gate
+    if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read          # the base and the pull request's head
       pull-requests: write    # the one comment, labels, closing (on_fail: close)
       issues: write           # labels live on the issue side of a pull request
+      statuses: write         # the commit status "Knos Gate" on the pull request's head
       # security-events: write  # with `code-scanning: "true"`: the cheat findings as code-scanning alerts
       # id-token: write         # with `attest: "true"`: a Sigstore attestation of the signed receipt
       # attestations: write
     steps:
-      # no actions/checkout: the action fetches the base and the head itself and runs nothing from the head
+      - name: the open pull request whose head is the commit that run tested
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          num=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" --jq ".[] | select(.head.sha == \"$HEAD\") | .number" | head -1)
+          case "$num" in ''|*[!0-9]*) echo "No open pull request has head $HEAD; nothing to gate."; exit 1;; esac
+          echo "num=$num" >> "$GITHUB_OUTPUT"
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state=pending -f context="Knos Gate" -f description="running" -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /dev/null
+      # no actions/checkout of the pull request: the action fetches the base and the head itself
       - uses: drexthealpha/Knos/actions/gate@<full commit sha of a Knos release>
+        id: gate
         with:
+          pr: ${{ steps.find.outputs.num }}
+          head: ${{ github.event.workflow_run.head_sha }}
           hidden-tests: ${{ secrets.KNOS_GATE_HIDDEN }}
           receipt-key: ${{ secrets.KNOS_RECEIPT_KEY }}
           # code-scanning: "true"
           # attest: "true"
+      - name: the commit status "Knos Gate" on the pull request's head
+        if: always() && steps.find.outputs.num != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          state=failure; [ "$OUTCOME" = success ] && state=success
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state="$state" -f context="Knos Gate" -f description="$OUTCOME" -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /dev/null

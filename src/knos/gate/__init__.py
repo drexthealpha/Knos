@@ -12,7 +12,8 @@
     bounties                  optional: a funded issue is paid to the first pull request that passes the hidden
                               tests and is merged; failing claims are closed (knos.gate.bounty)
 
-Two ways to run it: the GitHub Action (actions/gate, a `pull_request_target` job named "Knos Gate") or the GitHub
+Two ways to run it: the GitHub Action (actions/gate: a `workflow_run` job named "Knos Gate", after the
+`pull_request` run of knos-gate-pr.yml) or the GitHub
 App (github-app/, which owns the check run and the comment and dispatches the same workflow). docs/reference/REFEREE.md is the page.
 Nothing here needs a wallet, a token on chain or an escrow unless bounties mode is on.
 

@@ -5,11 +5,13 @@ branding:
   icon: shield
   color: green
 
-# Use it from a `pull_request_target` workflow whose job is named "Knos Gate" (actions/gate/knos-gate.yml is the file
-# to copy). That job IS the one status check; this action posts the one comment and edits it in place on every push.
+# Use it from a workflow_run workflow whose job is named "Knos Gate" (actions/gate/knos-gate.yml is the file to copy,
+# with actions/gate/knos-gate-pr.yml, the pull_request workflow it starts after), passing `pr` and `head`. That job sets
+# the commit status "Knos Gate"; this action posts the one comment and edits it in place on every push.
 #
-# Why pull_request_target: a fork's `pull_request` run gets no secret, and the hidden tests are a secret. A
-# pull_request_target run has secrets, so it must never run the pull request's code with them. This action:
+# Why two workflows: a fork's `pull_request` run gets no secret, and the hidden tests are a secret. So the pull request's
+# own run (knos-gate-pr.yml) has no secret, and the run that holds the secret starts from the default branch on
+# workflow_run and must never run the pull request's code with it. This action:
 #   - reads .knos/gate.yml and runs `setup` from the BASE commit only, before the pull request's code is on disk;
 #   - fetches the pull request's head into its own folder and never runs anything from it outside the sandbox;
 #   - runs tests in the sandbox: a user of its own (knos-sandbox) that cannot write the runner's files (so not
@@ -99,7 +101,7 @@ runs:
       run: |
         set -euo pipefail
         num="${PR_IN:-$EVENT_PR}"
-        case "$num" in ''|*[!0-9]*) echo "Knos Gate needs a pull request (pull_request_target, or the App's dispatch)."; exit 2;; esac
+        case "$num" in ''|*[!0-9]*) echo "Knos Gate needs a pull request (the pr input from knos-gate.yml, or the App's dispatch)."; exit 2;; esac
         gh api "repos/$GITHUB_REPOSITORY/pulls/$num" > "$G/pull.json"
         head=$(jq -r .head.sha "$G/pull.json"); base=$(jq -r .base.sha "$G/pull.json")
         if [ -n "$HEAD_IN" ] && [ "$HEAD_IN" != "$head" ]; then echo "The pull request moved on from $HEAD_IN; the run for $head decides."; exit 2; fi

@@ -1,0 +1,46 @@
+# .github/workflows/knos-gate-pr.yml: the first half of Knos Gate. Copy it next to knos-gate.yml.
+#
+# It runs the pull request's own code (setup and the public tests that .knos/gate.yml names, read from the base
+# commit) with no secret and a read-only token, as any fork's pull_request run is. When it completes, knos-gate.yml
+# starts on workflow_run: that one holds the hidden tests, and it never checks out this pull request's code.
+name: Knos Gate PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knos-gate-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  public:
+    name: Knos Gate PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: setup and the public tests, as the base commit's .knos/gate.yml names them
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git show "$BASE:.knos/gate.yml" > "$RUNNER_TEMP/gate.yml"
+          python3 -m pip install --quiet pyyaml
+          read_key() {
+            python3 -c '
+          import sys, yaml
+          v = yaml.safe_load(open(sys.argv[1])) or {}
+          for k in sys.argv[2].split("."):
+              v = v.get(k) if isinstance(v, dict) else None
+          print(v or "")' "$RUNNER_TEMP/gate.yml" "$1"
+          }
+          setup="$(read_key setup)"; public="$(read_key public_tests.command)"
+          [ -z "$setup" ] || bash -c "$setup"
+          [ -z "$public" ] || bash -c "$public"

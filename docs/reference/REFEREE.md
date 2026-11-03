@@ -247,7 +247,10 @@ Two files and two secrets, all in your repository:
 2. Seal your hidden tests: `knos gate seal path/to/hidden-tests --secret-out hidden.b64` prints the sha256 for
    `hidden_tests.sha256`; store the bundle with `gh secret set KNOS_GATE_HIDDEN < hidden.b64` and delete the file.
    A secret holds at most 48 KB; a larger suite goes in a private repository (`source: repo`, pinned `ref`).
-3. Copy `actions/gate/knos-gate.yml` to `.github/workflows/knos-gate.yml` and pin the action to a full commit sha.
+3. Copy `actions/gate/knos-gate.yml` and `actions/gate/knos-gate-pr.yml` to `.github/workflows/` and pin the action
+   to a full commit sha. The pull request's own run (knos-gate-pr.yml, on `pull_request`) has no secret; knos-gate.yml
+   starts on `workflow_run` from the default branch, holds the hidden tests and never checks out the pull request. It
+   sets the commit status "Knos Gate" on the head: require that status.
 4. Optional: a receipt key, `knos gate receipt keygen key.json` then `gh secret set KNOS_RECEIPT_KEY < key.json`.
 
 The GitHub App (two clicks: install, pick repositories) is built but not registered: see "Register the App" below.

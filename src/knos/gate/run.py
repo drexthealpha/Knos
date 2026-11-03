@@ -33,7 +33,7 @@ def _hidden_bundle(h: dict, hidden_env: str | None, hidden_file: Path | None, hi
     value = os.environ.get(name, "")
     if not value.strip():
         raise sealed.Refused(f"the hidden tests are not available to this run (secret {name} is empty: a fork's "
-                             "`pull_request` run gets no secret; Gate runs on `pull_request_target`)")
+                             "`pull_request` run gets no secret; Gate's knos-gate.yml runs on `workflow_run`)")
     return sealed.decode(value)
 
 
