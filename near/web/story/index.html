@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A research milestone taken apart as you scroll: the money held, the locked criteria, GitHub's signed proof, the NEAR check and the payout on Solana.">
+<title>A milestone, taken apart</title>
+<link rel="icon" href="data:,">
+<style>
+/* Hallmark · job: understand how a milestone pays only on proof, part by part · shape: scroll story · genre: modern-minimal · theme: the Knos tokens (near/DESIGN.md), custom */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: P, the scene is built from code, so every part is named where it sits and the phone gets the same names in a still */
+:root {
+  --paper: #07080c; --paper-2: #0f1118; --soft: #151822; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634; --accent: #93a5ff; --ok: #5fd28f;
+  --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --head: "Bricolage Grotesque", "Geist", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--text); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2 { text-wrap: balance; font-family: var(--head); letter-spacing: -.02em; }
+.intro { max-width: 1200px; margin: 0 auto; padding: 48px 16px 24px; }
+.intro h1 { font-size: 40px; line-height: 1.05; margin: 0 0 12px; font-weight: 600; }
+.intro p { margin: 0; max-width: 60ch; font-size: 18px; }
+.fine { color: var(--ink-2); font-size: 13px; }
+#film { height: 600vh; position: relative; }
+.pin { position: sticky; top: 0; height: 100vh; overflow: hidden; }
+canvas { width: 100%; height: 100%; display: block; }
+.labels { position: absolute; inset: 0; }
+.label { font: 500 14px/1.3 var(--text); color: var(--ink); background: color-mix(in srgb, var(--paper) 82%, transparent); padding: 4px 8px; border-radius: 8px; }
+.label b { font-weight: 600; display: block; }
+.label span { color: var(--ink-2); font-size: 12px; }
+.leader { stroke: var(--ink-2); stroke-width: 1; fill: none; }
+.caption { position: absolute; left: 50%; bottom: 40px; translate: -50% 0; max-width: min(720px, calc(100% - 32px)); padding: 12px 20px; border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent); font: 500 20px/1.35 var(--text); text-align: center; opacity: 0; }
+.poster { display: none; max-width: 1200px; margin: 0 auto; padding: 0 16px 48px; }
+.poster svg { width: 100%; height: auto; display: block; max-width: 520px; }
+.poster svg text { font: 500 14px var(--text); fill: var(--ink); }
+.poster svg .sub { fill: var(--ink-2); font-size: 12px; }
+.poster ol { padding-left: 20px; } .poster li { margin: 8px 0; }
+.end { max-width: 1200px; margin: 0 auto; padding: 48px 16px 96px; }
+.end h2 { font-size: 28px; margin: 0 0 12px; }
+/* phones and a reader who asks for no motion get the still: the same five parts, named */
+@media (max-width: 760px), (prefers-reduced-motion: reduce) { #film { display: none; } .poster { display: block; } }
+</style>
+</head>
+<body>
+<header class="intro">
+  <h1>A milestone, taken apart</h1>
+  <p>Scroll: the money held, the locked criteria, GitHub’s signed proof, the NEAR check and the payout on Solana, each where it sits.</p>
+  <p class="fine">NEAR testnet and Solana devnet. Test money. <a href="../">Back to the milestones</a></p>
+</header>
+
+<main>
+<section id="film" aria-label="The milestone, taken apart as you scroll">
+  <div class="pin">
+    <canvas id="c" aria-hidden="true"></canvas>
+    <div class="labels" aria-hidden="true"></div>
+    <p class="caption" id="cap" aria-live="polite"></p>
+  </div>
+</section>
+
+<section class="poster" aria-labelledby="t-still">
+  <h2 id="t-still">The five parts</h2>
+  <svg viewBox="0 0 520 300" role="img" aria-label="Money from the funder's chain to the NEAR check to the payee on Solana">
+    <rect x="10" y="110" width="140" height="80" rx="14" fill="#151822" stroke="#222634"/><text x="24" y="146">Chain A</text><text class="sub" x="24" y="168">the funder</text>
+    <rect x="190" y="90" width="140" height="120" rx="14" fill="#151822" stroke="#93a5ff"/><text x="204" y="140">NEAR check</text><text class="sub" x="204" y="162">proof against</text><text class="sub" x="204" y="180">the locked hash</text>
+    <rect x="370" y="110" width="140" height="80" rx="14" fill="#151822" stroke="#222634"/><text x="384" y="146">Chain B</text><text class="sub" x="384" y="168">Solana devnet</text>
+    <path d="M150 150 H190 M330 150 H370" stroke="#a0a7b8" stroke-width="2"/>
+  </svg>
+  <ol>
+    <li><b>Money held</b>: the funder's test tokens wait in the NEAR contract.</li>
+    <li><b>Criteria hash</b>: the brief's criteria, locked at funding; a changed brief does not match.</li>
+    <li><b>GitHub's signed proof</b>: an OIDC token from the locked workflow, signed with RS256.</li>
+    <li><b>The NEAR check</b>: signature, issuer, audience, repository, workflow, commit, expiry and a one-time id, in the contract.</li>
+    <li><b>Chain Signatures payout</b>: the MPC network signs the Solana transfer the contract checked.</li>
+  </ol>
+</section>
+
+<section class="end" aria-labelledby="t-end">
+  <h2 id="t-end">On testnet now</h2>
+  <p>Contract <code>knos-pay2-1102.testnet</code>. A payout signed this way: <a href="https://explorer.solana.com/tx/3M7z8NRbNMoKvnPcXbg4hGfC5x559h4TarjUV5p6ffVnkqN2RGmVnsgSERZcdfxeRRvvB5bRnD8Sf4BMQCxET1CF?cluster=devnet">Solana devnet transaction</a>.</p>
+</section>
+
+</main>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<script type="module">
+const film = document.getElementById("film");
+const still = matchMedia("(max-width: 760px), (prefers-reduced-motion: reduce)").matches;
+const params = new URLSearchParams(location.search);
+const atT = params.has("t");
+const DURATION = 100; // seconds of video for renderAt(t): progress = t / DURATION
+
+// the beats: [from, to, caption]
+const BEATS = [
+  [0.00, 0.12, "A research milestone, as one machine. Scroll to take it apart."],
+  [0.12, 0.24, "Money held: the funder's test tokens wait in a NEAR contract."],
+  [0.24, 0.36, "The criteria hash: the brief's criteria, locked when it was funded."],
+  [0.36, 0.48, "GitHub's signed proof: a token from the locked workflow, RS256."],
+  [0.48, 0.60, "The NEAR check: the contract verifies every claim and a one-time id."],
+  [0.60, 0.72, "Chain Signatures: the MPC network signs the payout the contract checked."],
+  [0.72, 0.94, "The money moves: from the funder's chain, through the NEAR check, to the payee on Solana."],
+  [0.94, 1.01, "No proof by the deadline: the money goes back to the funder."],
+];
+
+async function start() {
+  const THREE = await import("three");
+  const { Exploder, Labels } = await import("./vendor/explode.js");
+  const canvas = document.getElementById("c");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: atT });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color("#07080c");
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  scene.add(new THREE.HemisphereLight("#e9ebef", "#07080c", 1.4));
+  const key = new THREE.DirectionalLight("#ffffff", 2.2); key.position.set(-3, 5, 4); scene.add(key);
+
+  const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.45, metalness: 0.2, ...o });
+  const assembly = new THREE.Group(); scene.add(assembly);
+  const part = (name, mesh, data) => { const g = new THREE.Group(); g.name = name; g.add(mesh); g.userData = data; assembly.add(g); return g; };
+
+  // the NEAR check: the core block everything fits around
+  const core = part("check", new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), mat("#93a5ff")), { stage: 9, explode: [0, 0, 0] });
+  // money held: a stack of coins on the left face
+  const coins = new THREE.Group();
+  for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.07, 48), mat("#e0b354", { metalness: 0.6 })); c.position.y = -0.18 + i * 0.08; coins.add(c); }
+  coins.position.x = -0.62;
+  const money = part("money", coins, { stage: 0, explode: [-1.3, 0.1, 0] });
+  // the criteria hash: a plate on top
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.06, 0.86), mat("#5fd28f")); plate.position.y = 0.5;
+  const crit = part("criteria", plate, { stage: 1, explode: [0, 1.0, 0] });
+  // GitHub's signed proof: a card below
+  const card = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.55), mat("#e9ebef")); card.position.y = -0.5;
+  const proof = part("proof", card, { stage: 2, explode: [0, -1.0, 0.2] });
+  // Chain Signatures payout: a ring on the right face
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.06, 20, 64), mat("#a0a7b8", { metalness: 0.7 })); ring.rotation.y = Math.PI / 2; ring.position.x = 0.62;
+  const sig = part("payout", ring, { stage: 3, explode: [1.3, 0.1, 0] });
+
+  // the two chains as platforms, and the one coin that travels between them
+  const platform = (x, color) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.12, 64), mat(color)); p.position.set(x, -0.95, 0); scene.add(p); return p; };
+  const chainA = platform(-2.9, "#151822"), chainB = platform(2.9, "#151822");
+  const traveller = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 40), mat("#e0b354", { metalness: 0.6, emissive: "#3a2c08" }));
+  scene.add(traveller);
+
+  const ex = new Exploder(assembly);
+  const labels = new Labels(document.querySelector(".labels"), camera, canvas);
+  labels.add(money, "Money held", { note: "test tokens in the contract", anchor: [0, 0.2, 0] });
+  labels.add(crit, "Criteria hash", { note: "locked at funding", anchor: [0, 0.05, 0] });
+  labels.add(proof, "GitHub's signed proof", { note: "OIDC token, RS256", anchor: [0, 0, 0] });
+  labels.add(core, "The NEAR check", { note: "every claim, once", anchor: [0, 0.45, 0] });
+  labels.add(sig, "Chain Signatures payout", { note: "Ed25519, Solana devnet", anchor: [0, 0.3, 0] });
+  labels.add(chainA, "Chain A", { note: "the funder", anchor: [0, 0.1, 0] });
+  labels.add(chainB, "Chain B", { note: "the payee on Solana", anchor: [0, 0.1, 0] });
+
+  const cap = document.getElementById("cap");
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const clamp = (x) => Math.min(1, Math.max(0, x));
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  function frame(p) {
+    // explode across the part beats; hold; then the coin travels A -> NEAR -> B
+    ex.set(clamp((p - 0.12) / 0.5));
+    const travel = clamp((p - 0.72) / 0.22);
+    const x = travel < 0.5 ? -2.9 + smooth(travel * 2) * 2.9 : smooth((travel - 0.5) * 2) * 2.9;
+    traveller.position.set(x, -0.8 + Math.sin(travel * Math.PI) * 1.9, 0.9);
+    traveller.visible = p > 0.7;
+    const d = 6.2 + clamp((p - 0.12) / 0.5) * 2.2;
+    camera.position.set(0.42 * d * 0.5, 0.34 * d * 0.5 + 0.4, d);
+    camera.lookAt(0, 0, 0);
+    assembly.rotation.y = -0.35 + p * 0.5;
+    const beat = BEATS.find(([a, b]) => p >= a && p < b) || BEATS[BEATS.length - 1];
+    const inBeat = (p - beat[0]) / (beat[1] - beat[0]);
+    cap.textContent = beat[2];
+    cap.style.opacity = String(Math.min(1, inBeat * 6, (1 - inBeat) * 6));
+    renderer.render(scene, camera);
+    labels.update();
+  }
+  resize();
+  addEventListener("resize", resize);
+  // the video's clock: driven only by t, never by requestAnimationFrame
+  window.renderAt = (t) => { frame(clamp(t / DURATION)); return true; };
+  if (atT) { window.renderAt(+params.get("t")); window.__ready = true; return; }
+  let shown = -1, target = 0;
+  const read = () => { const r = film.getBoundingClientRect(); target = clamp(-r.top / (r.height - innerHeight)); };
+  addEventListener("scroll", read, { passive: true });
+  read();
+  const loop = () => { shown = shown < 0 ? target : shown + (target - shown) * 0.18; frame(shown); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  window.__ready = true;
+}
+
+// three.js loads only after the first paint, and never for the still
+if (!still || atT) {
+  const go = () => start().catch((e) => { console.error(e); film.style.display = "none"; document.querySelector(".poster").style.display = "block"; });
+  if (atT) go(); else addEventListener("load", () => (window.requestIdleCallback || setTimeout)(go), { once: true });
+}
+</script>
+</body>
+</html>

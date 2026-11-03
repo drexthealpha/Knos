@@ -13,6 +13,18 @@ Spending limits cap what an agent may spend. Knos pays only for work that is pro
 | **Keys** | GitHub's signing keys are set by 2 of 3 owners. |
 | **Network** | NEAR testnet only. Test money. |
 
+## Try it on testnet
+
+Your own copy of the contract, then a release and a refund. About 4 minutes after step 2. You need Python 3.10+ with `cryptography`, and [near-cli-rs](https://github.com/near/near-cli-rs/releases) 0.30.1.
+
+1. Make a testnet account: `near account create-account sponsor-by-faucet-service <you>.testnet autogenerate-new-keypair save-to-legacy-keychain network-config testnet create`. You see "New account <you>.testnet created successfully".
+2. Run `python near/scripts/try_testnet.py <you>.testnet`. You see six sub-accounts made and the two contracts deployed from `near/wasm/` (sha256 in `near/wasm/SHA256SUMS`).
+3. The script sets a test signing key by 2 of 3 owners, funds `m1` and releases it on a signed token. You see "release m1 on a signed token: done" with its transaction.
+4. It sends the same token again. You see it refused.
+5. It funds `m2` with a 1-minute deadline, waits, and refunds it. You see "m1: Released" and "m2: Refunded".
+
+The page in `web/` does the same from a browser (`python near/web/serve.py`), and `web/story/` takes a milestone apart as you scroll.
+
 ## Tests
 
 ```bash
@@ -119,5 +131,6 @@ By attack: edited tests 8 of 8, wrong repository 8 of 8, replayed token 7 of 7, 
 - `mock-usdc/`: a NEP-141 test token for the sandbox.
 - `sandbox/`: the sandbox test.
 - `relayer/`: the gas relayer. `agent/`: the receiver guard.
+- `web/`: the page; `web/story/`: the scroll story. `wasm/`: the built contracts.
 
 Changes since the start of this work: [near-pre...main](https://github.com/drexthealpha/Knos/compare/near-pre...main).
