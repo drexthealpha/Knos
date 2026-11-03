@@ -231,7 +231,7 @@ flowchart LR
 
 This folder is part of the one Knos product: Knos checks demand, writes the Ready brief, holds the money on Solana and
 pays only on verified proof; here the proof is checked inside IRIS for Health. The Knos code is imported, not forked:
-the image runs the repository's `src/knos`, and the IPM install's six copied modules must equal it byte for byte
+the image runs the repository's `src/knos`, and the IPM install's ten copied files must equal it byte for byte
 (`tests/test_iris_vendored.py`).
 
 ## 18. Team

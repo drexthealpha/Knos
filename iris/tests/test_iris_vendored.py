@@ -13,15 +13,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PY = ROOT / "iris" / "python"
-PROBE = ("import sys; import knos_iris.bridge, knos_iris.referee; "
+PROBE = ("import sys; import knos_iris.bridge, knos_iris.referee; from knos.settle.v2 import pay; pay.version_ix(); "
          "print(sorted(m.__file__ for k, m in sys.modules.items() if k == 'knos' or k.startswith('knos.')))")
 
 
 def main(argv) -> int:
     lines: list[str] = []
     fails = 0
-    listed = set(re.findall(r"(?m)^(knos/\S+\.py)\s", (PY / "VENDORED.txt").read_text(encoding="utf-8")))
-    have = {p.relative_to(PY).as_posix() for p in (PY / "knos").rglob("*.py")}
+    listed = set(re.findall(r"(?m)^(knos/\S+\.(?:py|json))\s", (PY / "VENDORED.txt").read_text(encoding="utf-8")))
+    have = {p.relative_to(PY).as_posix() for p in (PY / "knos").rglob("*")
+            if p.is_file() and "__pycache__" not in p.parts}
     ok = listed == have and bool(have)
     fails += not ok
     lines.append(f"{'ok  ' if ok else 'FAIL'} VENDORED.txt lists the {len(have)} files in iris/python/knos/"

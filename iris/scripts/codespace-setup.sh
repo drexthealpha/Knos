@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Prepare a GitHub Codespace (4 cores, 16 GB) to build and run the IRIS app.
-#   bash iris/scripts/codespace-setup.sh [path to irishealth-community-2026.3.0AI.154.0-docker.tar.gz]
+#   bash iris/scripts/codespace-setup.sh [path to the image tar; default /workspaces/iris154.tar.gz]
 # Docker's images go to /tmp (the large disk); the IRIS image is pulled once, else loaded from the tar.
 # No key enters the codespace: iris/.env is made from .env.example only.
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 want="irishealth-community:2026.3.0AI.154.0"
+# the tar is kept on /workspaces, which a stopped codespace keeps (/tmp, Docker's store, is emptied at every stop)
+tar="${1:-/workspaces/iris154.tar.gz}"
 log() { echo "$(date -u +%T) $*"; }
 
 root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null)
@@ -42,10 +44,10 @@ if ! docker image inspect "$want" >/dev/null 2>&1; then
   if docker pull "containers.intersystems.com/intersystems/$want"; then
     docker tag "containers.intersystems.com/intersystems/$want" "$want"
     log "image method=pull seconds=$(( $(date +%s) - t ))"
-  elif [ -n "${1:-}" ]; then
-    bash "$here/scripts/load-image.sh" "$1" && log "image method=tar seconds=$(( $(date +%s) - t ))"
+  elif [ -s "$tar" ]; then
+    bash "$here/scripts/load-image.sh" "$tar" && log "image method=tar ($tar) seconds=$(( $(date +%s) - t ))"
   else
-    log "no image: pull refused and no tar given"; exit 1
+    log "no image: pull refused and no tar at $tar"; exit 1
   fi
 fi
 [ -f "$here/.env" ] || cp "$here/.env.example" "$here/.env"

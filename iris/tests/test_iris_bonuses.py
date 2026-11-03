@@ -147,9 +147,10 @@ def main() -> int:
     if value(out, "IPM") == "1":
         # IPM 0.9 and later is enabled per namespace: map it to every namespace, KNOSZPM included
         session(['zpm "enable -map -globally"'], ns="%SYS")
-        # a copy of iris/ as a clone would hold it (the image's own iris/python is what mgr/python links to)
-        subprocess.run(["docker", "exec", C, "sh", "-c", "rm -rf /tmp/knos-zpm && mkdir -p /tmp/knos-zpm && cp -r /home/irisowner/knos/iris /tmp/knos-zpm/"],
-                       capture_output=True, timeout=120)
+        # a copy of iris/ as a clone would hold it; the image's mgr/python/knos (a link to the full src/knos) is moved
+        # aside, so KNOSZPM can only import the module's own copies (python/knos, VENDORED.txt); put back at the end
+        subprocess.run(["docker", "exec", C, "sh", "-c", "rm -rf /tmp/knos-zpm && mkdir -p /tmp/knos-zpm && cp -r /home/irisowner/knos/iris /tmp/knos-zpm/ && "
+                        "cd /usr/irissys/mgr/python && if [ -L knos ]; then mv knos knos.image-link; fi"], capture_output=True, timeout=120)
         res = session(['zpm "load /tmp/knos-zpm/iris -v"', 'write "LOADED=", ##class(%Dictionary.CompiledClass).%ExistsId("Knos.Iris.Setup"), !'], ns="KNOSZPM")
         zpm = value(res, "LOADED")
         for line in res.splitlines():
@@ -165,14 +166,31 @@ def main() -> int:
                 break
             time.sleep(15)
         lines.append(f"     zpm: production status {prod or 'none'} {time.time() - t0:.0f} s after the load")
+        # the Solana devnet step of the PAY branch, in KNOSZPM's production: Knos's transaction from the copied
+        # knos.settle.v2.pay, simulated on devnet by SolanaSubmit (Java PEX), then the devnet slot from SolanaRead
+        dev = session([
+            'set p = ##class(%SYS.Python).Import("knos.settle.v2.pay") write "PAYFILE=", ##class(%SYS.Python).Import("os.path").realpath(p."__file__"), !',
+            'set tx = ##class(Knos.Iris.Py.Tx).Build("zpm-check", 1) write "TXLEN=", $length(tx), !',
+            'set m = ##class(Knos.Iris.Msg.SignedTx).%New(), m.TxB64 = tx, m.Mode = "simulate", m.Kind = "pay"',
+            'set sc = ##class(Ens.Director).CreateBusinessService("ProofIn", .svc)',
+            'set sc = svc.SendRequestSync("SolanaSubmit", m, .r, 120) write "SIM=", $select($isobject($get(r)):r.%jsonObject.%ToJSON(), 1:$system.Status.GetErrorText(sc)), !',
+            'set q = ##class(Knos.Iris.Msg.RpcRequest).%New(), q.Method = "getSlot"',
+            'set sc = svc.SendRequestSync("SolanaRead", q, .r2, 60) write "SLOT=", $select($isobject($get(r2)):r2.ResultJSON, 1:$system.Status.GetErrorText(sc)), !',
+        ], ns="KNOSZPM")
+        payfile, sim, slot = value(dev, "PAYFILE"), value(dev, "SIM"), value(dev, "SLOT")
         session(['do ##class(Ens.Director).StopProduction(60, 1)', 'do ##class(Ens.Director).SetAutoStart("")'], ns="KNOSZPM")
+        subprocess.run(["docker", "exec", C, "sh", "-c", "cd /usr/irissys/mgr/python && if [ -L knos.image-link ]; then rm -rf knos && mv knos.image-link knos; fi"],
+                       capture_output=True, timeout=120)
     else:
-        prod = ""
+        prod = payfile = sim = slot = ""
     up = prod == "Knos.Iris.Production:1"
-    ok(value(out, "MADE") == "1" and value(out, "INTEROP") == "1" and zpm == "1" and up,
+    own = payfile == "/usr/irissys/mgr/python/knos/settle/v2/pay.py"
+    devnet = '"status":"simulated"' in sim and bool(re.search(r'"slot":"?[1-9]', sim)) and slot.strip().isdigit()
+    ok(value(out, "MADE") == "1" and value(out, "INTEROP") == "1" and zpm == "1" and up and own and devnet,
        f"ZPM: namespace KNOSZPM {'made' if value(out, 'MADE') == '1' else 'not made'}, interoperability {'on' if value(out, 'INTEROP') == '1' else 'off'}; "
        f"IPM {'present' if value(out, 'IPM') == '1' else 'not in this image'}; module {'installed' if zpm == '1' else 'not installed'}; "
-       f"production {'Running' if up else 'not running'} ({prod or 'no status'})")
+       f"production {'Running' if up else 'not running'} ({prod or 'no status'}); pay imported from {payfile or 'nowhere'}; "
+       f"devnet step: SolanaSubmit {sim[:160] or 'no answer'}, SolanaRead slot {slot[:40] or 'none'}")
     bonus = {"PEX": "PEX", "Workflow": "Workflow", "custom": "custom adapters", "Embedded": "Embedded Python", "Vector": "Vector Search", "Docker": "Docker", "ZPM": "ZPM"}
     failed = {v for k, v in bonus.items() if any(x.startswith(k) for x in fails)}
     lines.append("PASS test_iris_bonuses: 7 of 7 bonus checks pass" if not fails else f"FAIL test_iris_bonuses: {7 - len(failed)} of 7 bonus checks pass; failed: {', '.join(sorted(failed))}")
