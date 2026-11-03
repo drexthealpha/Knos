@@ -12,6 +12,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <property name='Gate' type='%String' instantiate='0'/>
 <property name='Kind' type='%String' instantiate='0'/>
 <property name='Threshold' type='%Numeric' instantiate='0'/>
+<property name='Amount' type='%Numeric' instantiate='0'/>
 <property name='Slot' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
 <property name='Tx' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
 <property name='Sim' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
@@ -20,6 +21,8 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <code name='The brief, as locked'><![CDATA[
  set b = ##class(Knos.Iris.Data.Brief).BriefIdIdxOpen(request.BriefId)
  set context.Locked = $select($isobject(b):b.CriteriaHash,1:"")
+ // the amount locked with the brief, never the amount the caller sent
+ set context.Amount = $select($isobject(b):+b.AmountUSDC,1:0)
  set context.Hash = ##class(Knos.Iris.Py.Ready).Hash(request.BriefJSON)
  set context.Kind = $select(request.Kind="checkrun":"machine",1:"human")
  set context.Threshold = +##class(Ens.Util.FunctionSet).Lookup("KnosPayoutThreshold","usdc",50)
@@ -56,7 +59,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set s.OutputJSON = "{""milestone"":"""_key_""",""cosine"":"_(+score)_",""top2"":"""_$extract(top,2,*)_""",""cited"":"""_cited_""",""capped"":"_$select(capped:"true",1:"false")_"}"
  do ..%Process.SendRequestAsync("TraceSink", s, 0)
 ]]></code>
-<assign property='context.Gate' value='##class(Knos.Iris.Rule.PayoutGate).Decide(context.Verdict.Decision,context.Verdict.Confidence,request.AmountUSDC,context.Threshold,context.Kind,1)' action='set'/>
+<assign property='context.Gate' value='##class(Knos.Iris.Rule.PayoutGate).Decide(context.Verdict.Decision,context.Verdict.Confidence,context.Amount,context.Threshold,context.Kind,1)' action='set'/>
 </true>
 <false>
 <assign property='context.Gate' value='"REJECT"' action='set'/>
@@ -74,7 +77,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set response.Outcome = $case(context.Gate, "PAY":"pay: the relayer may send the signed pay instruction", "HUMAN":"held: waiting for an approver",
    "REFUND_AT_DEADLINE":"not met: refunded to the funder at the deadline", :"rejected: the brief no longer matches its lock")
  set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "rule", s.Name = "PayoutGate", s.OutputJSON = "{""gate"":"""_context.Gate_"""}"
- set s.InputJSON = "{""decision"":"""_context.Verdict.Decision_""",""confidence"":"_(+context.Verdict.Confidence)_",""amount"":"_(+request.AmountUSDC)_",""threshold"":"_context.Threshold_",""kind"":"""_context.Kind_"""}"
+ set s.InputJSON = "{""decision"":"""_context.Verdict.Decision_""",""confidence"":"_(+context.Verdict.Confidence)_",""amount"":"_(+context.Amount)_",""threshold"":"_context.Threshold_",""kind"":"""_context.Kind_"""}"
  do ..%Process.SendRequestAsync("TraceSink", s, 0)
  set d = ##class(Knos.Iris.Data.Decision).%New(), d.SessionId = response.SessionId, d.BriefId = request.BriefId, d.Kind = request.Kind
  set d.Decision = response.Decision, d.Gate = response.Gate, d.Outcome = response.Outcome, d.Confidence = response.Confidence, d.Reason = $extract(response.Reason, 1, 2000)
@@ -85,7 +88,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <case condition='context.Gate="HUMAN"'>
 <call name='Approve' target='PayoutApprovers' async='1'>
 <request type='EnsLib.Workflow.TaskRequest'>
-<assign property='callrequest.%Subject' value='"Pay "_request.BriefId_" ("_request.AmountUSDC_" USDC)?"' action='set'/>
+<assign property='callrequest.%Subject' value='"Pay "_request.BriefId_" ("_context.Amount_" USDC)?"' action='set'/>
 <assign property='callrequest.%Message' value='context.Verdict.MilestonesJSON_" Trace: /csp/healthshare/knos/EnsPortal.VisualTrace.zen?SESSIONID="_..%Process.%SessionId' action='set'/>
 <assign property='callrequest.%Actions' value='"Approve,Reject"' action='set'/>
 </request>
@@ -103,7 +106,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <if condition='context.Gate="PAY"'>
 <true>
 <code name='TxBuilder'><![CDATA[
- set context.Tx = ##class(Knos.Iris.Py.Tx).Build(request.BriefId, request.AmountUSDC)
+ set context.Tx = ##class(Knos.Iris.Py.Tx).Build(request.BriefId, context.Amount)
 ]]></code>
 <call name='SolanaSubmit' target='SolanaSubmit' async='0'>
 <request type='Knos.Iris.Msg.SignedTx'><assign property='callrequest.TxB64' value='context.Tx' action='set'/><assign property='callrequest.Mode' value='"simulate"' action='set'/><assign property='callrequest.Kind' value='"pay"' action='set'/></request>

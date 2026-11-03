@@ -85,10 +85,11 @@ ClassMethod Brief() As %Status
 ClassMethod Proof() As %Status
 {
     set body = {}.%FromJSON(%request.Content)
-    set m = ##class(Knos.Iris.Msg.Proof).%New(), m.BriefId = body.id, m.Kind = body.kind, m.SourceRef = body.ref, m.AmountUSDC = +body."amount_usdc"
+    set m = ##class(Knos.Iris.Msg.Proof).%New(), m.BriefId = body.id, m.Kind = body.kind, m.SourceRef = body.ref
     set b = ##class(Knos.Iris.Data.Brief).BriefIdIdxOpen(body.id)
     set m.BriefJSON = $select($isobject(body.brief):body.brief.%ToJSON(), $isobject(b):b.BriefJSON, 1:"{}")
-    set:m.AmountUSDC=0&&$isobject(b) m.AmountUSDC = b.AmountUSDC
+    // the amount is the one locked with the brief; an amount_usdc in the request is ignored
+    set m.AmountUSDC = $select($isobject(b):b.AmountUSDC, 1:0)
     // proof from another repository than the locked brief's is refused before anything decides on it
     set why = ##class(Knos.Iris.Py.Verdict).RepoMismatch(body.id, $select($isobject(b):b.BriefJSON, 1:"{}"), body.%ToJSON())
     if why '= "" { set %response.Status = 409  write {"error": (why)}.%ToJSON()  return $$$OK }

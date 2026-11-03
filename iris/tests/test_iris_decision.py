@@ -36,12 +36,16 @@ def main() -> int:
     golden = json.loads((F / "briefs" / "golden.json").read_text())
     trap = {"milestones": [{"key": "m1", "name": "unit tests", "target": "the unit-tests check passes", "verifier": {"kind": "machine", "check": "unit-tests"},
                             "deadline_days": 30}]}
-    for bid, b, amount in (("github:example/shop", code, 20), ("lab-glucose", lab, 120), ("github:example/trap", trap, 20)):
+    for bid, b, amount in (("github:example/shop", code, 20), ("lab-glucose", lab, 120), ("github:example/trap", trap, 20), ("github:example/vault", code, 10000)):
         r = call("/api/knos/brief", {"id": bid, "amount_usdc": amount, "brief": b})
         want = golden["code" if b is code else "lab"]["criteria_hash"] if b is not trap else r.get("criteria_hash")
         ok = r.get("ready") in (1, True) and r.get("criteria_hash") == want
         fails += not ok
         lines.append(f"{'ok  ' if ok else 'FAIL'} lock {bid}: ready {r.get('ready')}, criteria hash {str(r.get('criteria_hash'))[:16]} (Knos outside IRIS: {want[:16]})")
+    # the passing check run, for the 10,000 USDC order of example/vault
+    vault = json.loads((F / "checkruns" / "pass.json").read_text())
+    vault["repository"]["full_name"] = "example/vault"
+    vault["check_run"]["html_url"] = "https://github.com/example/vault/runs/4242004"
     obs2345 = json.loads((F / "observations" / "glucose-pass.json").read_text())
     obs2345["code"]["coding"][0]["code"] = "2345"
     cases = [("a passing check run", {"id": "github:example/shop", "kind": "checkrun", "payload": json.loads((F / "checkruns" / "pass.json").read_text())}, lambda d: d["gate"] == "PAY"),
@@ -57,7 +61,10 @@ def main() -> int:
              ("the substring trap: a check run named test for a brief's unit-tests", {"id": "github:example/trap", "kind": "checkrun",
               "payload": {"check_run": {"id": 9, "name": "test", "conclusion": "success"}}}, lambda d: d["decision"] == "insufficient" and d["gate"] != "PAY"),
              ("the LOINC trap: an Observation coded 2345 for LOINC 2345-7", {"id": "lab-glucose", "kind": "observation", "payload": obs2345},
-              lambda d: d["decision"] == "insufficient" and d["gate"] != "PAY")]
+              lambda d: d["decision"] == "insufficient" and d["gate"] != "PAY"),
+             # the gate reads the amount locked with the order: a caller who says 1 USDC on a 10,000 USDC order still goes to a person
+             ("amount_usdc 1 sent on a 10,000 USDC order goes to a person", {"id": "github:example/vault", "kind": "checkrun", "amount_usdc": 1, "payload": vault},
+              lambda d: d["decision"] == "met" and d["gate"] == "HUMAN")]
     passed = 0
     for name, body, want in cases:
         try:
@@ -75,8 +82,8 @@ def main() -> int:
         fails += not ok
     h = call("/api/knos/health")
     lines.append(f"     agent mode: {h.get('agent')}" + (" (the live AI Hub run is WAITING_KEY: no model key in iris/.env)" if h.get("agent") != "live" else ""))
-    lines.append(f"PASS test_iris_decision: {passed} of 8 cases give the expected outcome, each naming its referee" if not fails else
-                 f"FAIL test_iris_decision: {fails} check(s) failed, {passed} of 8 cases as expected")
+    lines.append(f"PASS test_iris_decision: {passed} of {len(cases)} cases give the expected outcome, each naming its referee" if not fails else
+                 f"FAIL test_iris_decision: {fails} check(s) failed, {passed} of {len(cases)} cases as expected")
     print("\n".join(lines))
     if OUT:
         with OUT.open("a", encoding="utf-8") as f:
