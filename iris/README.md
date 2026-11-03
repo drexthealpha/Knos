@@ -66,7 +66,7 @@ on it, is ever pushed to a registry.
 
 | Provider | `KNOS_LLM_PROVIDER` | Key variable | Default model (`KNOS_LLM_MODEL` changes it) |
 |---|---|---|---|
-| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-fable-5-1` |
 | OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-6-astra` |
 | Google Gemini | `gemini` | `GEMINI_API_KEY` | `gemini-4-argon` |
 | AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | `anthropic.claude-opus-5-5` |
