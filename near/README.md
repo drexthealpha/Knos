@@ -129,3 +129,28 @@ Read it for what it is. Each cheat is one of the four things the contract checks
 - `web/`: the page; `web/story/`: the scroll story. `wasm/`: the built contracts.
 
 Changes since the start of this work: [near-pre...main](https://github.com/drexthealpha/Knos/compare/near-pre...main).
+
+## Disclosure
+
+Who wrote it: Claude Code (Anthropic's coding agent) wrote most of the code in this folder. The founder set each task and reviewed each change before it was merged. Commits carry the founder's account.
+
+No starter template: the first commit of this folder (6413e89) adds each crate as written, with no generated scaffold in the history. The test token in `mock-usdc/` uses the `FungibleToken` implementation from `near-contract-standards`, as its own documentation shows. The contract's checks are this repository's own code (`contract/src/rsa.rs`, `jwt.rs`, `solana.rs`), with no crypto crate among the contract's dependencies (hashing uses the NEAR runtime's own sha256).
+
+Libraries, at the versions in each `Cargo.toml`:
+
+| Where | Library | Version |
+|---|---|---|
+| `contract/`, `mock-usdc/` | `near-sdk` | 5.30.0 |
+| `contract/`, `mock-usdc/` | `near-contract-standards` | 5.30.0 |
+| `contract/`, `sandbox/` | `base64` | 0.22 |
+| `contract/` | `serde` | 1 |
+| `contract/`, `sandbox/` | `serde_json` | 1 |
+| `sandbox/` (tests only) | `near-sandbox` | 0.4.0 |
+| `sandbox/` (tests only) | `near-api`, `near-api-types` | 0.8.0 |
+| `sandbox/` (tests only) | `tokio` | 1 |
+| `sandbox/` (tests only, to sign test tokens) | `rsa` | 0.9 |
+| `sandbox/` (tests only) | `sha2` | 0.10 |
+| `sandbox/` (tests only) | `rand` | 0.8 |
+| `scripts/`, `relayer/`, `agent/` (Python) | `cryptography`, `certifi`; the rest is the standard library | as installed |
+
+Tools: Rust with the `wasm32-unknown-unknown` target and `cargo-near` 0.22.0 (`scripts/codespace-setup.sh`); the testnet steps use [near-cli-rs](https://github.com/near/near-cli-rs). Services: NEAR testnet, NEAR Chain Signatures on testnet, Solana devnet and GitHub Actions' OIDC tokens.
