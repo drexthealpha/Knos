@@ -9,7 +9,8 @@
 4. Embedded Python: knos.ready's criteria hash computed inside IRIS equals the one computed outside it.
 5. Vector Search: the agent's SearchCriteria tool (the RAG knowledge base over the brief's criteria) answers with cosines.
 6. Docker: I1's pass line.
-7. ZPM: the module installed into a newly created empty namespace KNOSZPM.
+7. ZPM: the module installed from a copy of iris/ into a new namespace KNOSZPM with interoperability on, and its
+   production Running there (then stopped).
 
     python iris/tests/test_iris_bonuses.py <container> [result file] [the I1 result line]
 """
@@ -132,6 +133,9 @@ def main() -> int:
     # 7. ZPM into a new empty namespace
     out = session(['if \'##class(Config.Namespaces).Exists("KNOSZPM") { set p("Globals") = "KNOSZPM", p("Routines") = "KNOSZPM" set d("Directory") = "/usr/irissys/mgr/knoszpm/" do ##class(%File).CreateDirectoryChain(d("Directory")) do ##class(SYS.Database).CreateDatabase(d("Directory")) do ##class(Config.Databases).Create("KNOSZPM", .d) do ##class(Config.Namespaces).Create("KNOSZPM", .p) }',
                    'write "MADE=", ##class(Config.Namespaces).Exists("KNOSZPM"), !',
+                   # interoperability in KNOSZPM (ENSLIB mapped, the Ens classes and macros), which the production needs
+                   'do ##class(%Library.EnsembleMgr).EnableNamespace("KNOSZPM", 1)',
+                   'write "INTEROP=", ##class(%Library.EnsembleMgr).IsEnsembleNamespace("KNOSZPM"), !',
                    'write "IPM=", ##class(%Dictionary.CompiledClass).%ExistsId("%IPM.Main"), !'], ns="%SYS")
     zpm = ""
     xml = os.environ.get("KNOS_ZPM_XML", "")
@@ -143,9 +147,25 @@ def main() -> int:
     if value(out, "IPM") == "1":
         # IPM 0.9 and later is enabled per namespace: map it to every namespace, KNOSZPM included
         session(['zpm "enable -map -globally"'], ns="%SYS")
-        res = session(['zpm "load /home/irisowner/knos/iris -v"', 'write "LOADED=", ##class(%Dictionary.CompiledClass).%ExistsId("Knos.Iris.Setup"), !'], ns="KNOSZPM")
+        # a copy of iris/ as a clone would hold it (the image's own iris/python is what mgr/python links to)
+        subprocess.run(["docker", "exec", C, "sh", "-c", "rm -rf /tmp/knos-zpm && mkdir -p /tmp/knos-zpm && cp -r /home/irisowner/knos/iris /tmp/knos-zpm/"],
+                       capture_output=True, timeout=120)
+        res = session(['zpm "load /tmp/knos-zpm/iris -v"', 'write "LOADED=", ##class(%Dictionary.CompiledClass).%ExistsId("Knos.Iris.Setup"), !'], ns="KNOSZPM")
         zpm = value(res, "LOADED")
-    ok(value(out, "MADE") == "1" and zpm == "1", f"ZPM: namespace KNOSZPM {'made' if value(out, 'MADE') == '1' else 'not made'}; IPM {'present' if value(out, 'IPM') == '1' else 'not in this image'}; module {'installed' if zpm == '1' else 'not installed'}")
+        for line in res.splitlines():
+            if re.search(r"ERROR|does not exist|not defined", line) and not line.lstrip().startswith(("zpm", "write")):
+                lines.append(f"     zpm: {line.strip()[:200]}")
+        # the production the module's Setup started, read once, then stopped so it never polls the KNOS inbox twice
+        st = session(['set sc = ##class(Ens.Director).GetProductionStatus(.name, .state)', 'write "PROD=", name, ":", state, !',
+                      'do ##class(Ens.Director).StopProduction(60, 1)', 'do ##class(Ens.Director).SetAutoStart("")'], ns="KNOSZPM")
+        prod = value(st, "PROD")
+    else:
+        prod = ""
+    up = prod == "Knos.Iris.Production:1"
+    ok(value(out, "MADE") == "1" and value(out, "INTEROP") == "1" and zpm == "1" and up,
+       f"ZPM: namespace KNOSZPM {'made' if value(out, 'MADE') == '1' else 'not made'}, interoperability {'on' if value(out, 'INTEROP') == '1' else 'off'}; "
+       f"IPM {'present' if value(out, 'IPM') == '1' else 'not in this image'}; module {'installed' if zpm == '1' else 'not installed'}; "
+       f"production {'Running' if up else 'not running'} ({prod or 'no status'})")
     bonus = {"PEX": "PEX", "Workflow": "Workflow", "custom": "custom adapters", "Embedded": "Embedded Python", "Vector": "Vector Search", "Docker": "Docker", "ZPM": "ZPM"}
     failed = {v for k, v in bonus.items() if any(x.startswith(k) for x in fails)}
     lines.append("PASS test_iris_bonuses: 7 of 7 bonus checks pass" if not fails else f"FAIL test_iris_bonuses: {7 - len(failed)} of 7 bonus checks pass; failed: {', '.join(sorted(failed))}")

@@ -9,10 +9,11 @@
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="Knos.Iris.PKG"/>
-      <!-- Python: Knos's package (the repository's src/knos, beside iris/) and knos_iris straight into mgr/python, where every
-           IRIS process imports them; solders and base58 from requirements.txt, which IPM installs into the same folder -->
-      <FileCopy Name="../src/knos/" Target="${mgrdir}python/knos/"/>
-      <FileCopy Name="python/knos_iris/" Target="${mgrdir}python/knos_iris/"/>
+      <!-- Python: the Knos modules IRIS imports (python/knos/, copied from src/knos: python/VENDORED.txt) and knos_iris
+           straight into mgr/python, where every IRIS process imports them; nothing comes from outside iris/ -->
+      <!-- Overlay: add the files, never delete what is already in the folder (IPM's default replaces it whole) -->
+      <FileCopy Name="python/knos/" Target="${mgrdir}python/knos/" Overlay="1"/>
+      <FileCopy Name="python/knos_iris/" Target="${mgrdir}python/knos_iris/" Overlay="1"/>
       <!-- the folder Knos.Iris.Util.Home() reads when KNOS_IRIS_HOME is not set: <install>/knos -->
       <FileCopy Name="fixtures/" Target="${mgrdir}../knos/iris/fixtures/"/>
       <FileCopy Name="java/" Target="${mgrdir}../knos/iris/java/"/>

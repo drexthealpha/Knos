@@ -1,0 +1,14 @@
+Knos modules copied into iris/python/knos/ so module.xml installs from iris/ alone.
+Source: src/knos/ at commit 013d15f55f496f4fc554b54a0d56e3686ba4eba5 (the last commit that changed any of them).
+iris/tests/test_iris_vendored.py fails when a file here differs from src/knos or the list changes.
+
+knos/__init__.py       package marker
+knos/ready.py          imported by knos_iris.bridge (check, criteria_hash, require)
+knos/verdict_gate.py   imported by knos_iris.bridge (strict) and knos.referee_rules
+knos/referee_rules.py  imported by knos_iris.referee (the rules referee)
+knos/idt.py            imported by knos.ready (check, inside the function)
+knos/refuse.py         imported by knos.ready (check, inside the function)
+
+Not copied: knos.judge, which knos.verdict_gate imports only inside recheck and emit (the GitHub signing job); IRIS
+calls strict alone. knos.settle.v2.pay, which Knos.Iris.Py.Tx imports, is not copied either: an IPM install outside
+this image has no Solana transaction builder, and Tx refuses with an ImportError.

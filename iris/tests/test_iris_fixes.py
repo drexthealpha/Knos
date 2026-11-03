@@ -67,8 +67,8 @@ def test_three_429s_return_an_error_never_ok_with_an_empty_result():
 
 def test_the_ipm_module_installs_outside_this_image():
     mod = (IRIS / "module.xml").read_text(encoding="utf-8")
-    assert "/home/irisowner" not in mod
-    for need in ("../src/knos/", "python/knos_iris/", "java/", "fixtures/"):
+    assert "/home/irisowner" not in mod and 'Name="../' not in mod      # installs from iris/ alone
+    for need in ("python/knos/", "python/knos_iris/", "java/", "fixtures/"):
         assert f'Name="{need}"' in mod, need
     assert re.search(r"solders", (IRIS / "requirements.txt").read_text(encoding="utf-8"))
     setup = (CLS / "Setup.cls").read_text(encoding="utf-8")

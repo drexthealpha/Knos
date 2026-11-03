@@ -72,10 +72,10 @@ on it, is ever pushed to a registry.
 | AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | `anthropic.claude-opus-5-5` |
 | Stub (tests) | `stub` | none | `stub-referee` |
 
-Set `KNOS_AI_MODE=live` and the key in `.env`. With `KNOS_AI_MODE=replay` (the default) no key is needed: a recorded live
-answer is used when `fixtures/replay` holds one for the brief and proof, else the rules referee, which reads only
-structured fields, and every such answer says "rules referee (no model key set)". The health route says which mode ran.
-Never commit `.env`.
+Set `KNOS_AI_MODE=live` and the key in `.env`. With `KNOS_AI_MODE=replay` (the default) no key is needed: replay mode
+uses the rules referee, which reads only structured fields, and every such answer says "rules referee (no model key
+set)". No live AI Hub call has been made for this project, so every decision shown here came from the rules referee.
+The health route says which mode ran. Never commit `.env`.
 
 A hard spend cap is checked before any model call, so a key added here cannot be burned: at most `KNOS_LLM_MAX_CALLS`
 calls (default 30) and `KNOS_LLM_MAX_USD` dollars (default 2.00), counted in `^Knos.LLM("calls")` and `^Knos.LLM("usd")`.
@@ -102,9 +102,10 @@ The `Dockerfile` builds in stages, the way the InterSystems community builds IRI
 change to `src/` recompiles Knos without installing the namespace again. The production is stopped cleanly at the end of
 the build, so a new container starts it with no journal recovery.
 
-With IPM on any IRIS for Health instance, from a clone of the repository: `zpm "load <clone>/iris -v"`. It copies Knos's
-`src/knos` and `knos_iris` into `mgr/python`, installs `requirements.txt`, compiles the Java PEX jar with the instance's
-own JDK and starts the production in the current namespace, with FHIR off.
+With IPM on any IRIS for Health instance, from a clone of the repository: `zpm "load <clone>/iris -v"` in a namespace
+with interoperability on. It installs from `iris/` alone: it copies the Knos modules IRIS imports (`python/knos/`,
+listed with their source commit in `python/VENDORED.txt`) and `python/knos_iris/` into `mgr/python`, compiles the Java
+PEX jar with the instance's own JDK and starts the production in that namespace, with FHIR off.
 
 ## 7. Check that it works
 
@@ -122,7 +123,7 @@ The health route answers `{"production":"Running","agent":"replay","fhir":"off",
   `/home/irisowner/knos/inbox/checkruns/`, where the custom inbound adapter `Knos.Iris.Adapter.CheckRunInbound` picks it up.
 - **Lab result.** POST a FHIR Observation (`"kind":"observation"`), or drop an HL7 ORU^R01 named `<briefId>.hl7` in
   `inbox/oru/`. The ORU's OBX-3, OBX-5/6, OBX-14 and OBX-16 become an Observation's code, value, time and performer.
-- **Referee verdict.** POST a Knos `verdict.json` (`"kind":"verdict"`); Knos's `verdict_gate.strict` reads it, and its
+- **Referee verdict.** POST a Knos referee verdict (`"kind":"verdict"`, as in `fixtures/verdicts/passed.json`); Knos's `verdict_gate.strict` reads it, and its
   `spec_hash` must be the brief's criteria hash.
 
 ## 9. The Workflow approval
@@ -169,7 +170,7 @@ Langfuse does for LLM pipelines, and whether it is the better choice where IRIS 
 | Data location | inside the lab's own IRIS: no trace leaves it |
 | Retention and audit | the production's own message store and the IRIS journal, kept like any interface message |
 | Prompt management, prompt playground | none here; prompts live in the code |
-| Evaluation datasets and runs | the recorded replay fixtures in `fixtures/replay` only |
+| Evaluation datasets and runs | none; the decision tests' inputs in `fixtures/` (briefs, check runs, observations, verdicts) only |
 
 ## 12. Where each part lives
 
@@ -198,6 +199,8 @@ failing one, an altered brief, injection text in the proof, an ORU whose value m
 must hold the Proof, Verdict, Span and Decision messages. `python tests/test_iris_one_trace.py` sends one check-run file
 through CheckRunInbound for a brief over the threshold, approves it in Workflow, and checks that its one session holds
 CheckRunInbound, Embedded Python, Vector Search, Workflow, Java PEX and SolanaRpcOutbound.
+`python tests/test_iris_vendored.py` needs no instance: the copied Knos modules equal `src/knos`. `python
+tests/test_iris_docs.py readme` checks that every section and every file this README names exists.
 
 ## 15. Architecture
 
@@ -227,7 +230,9 @@ flowchart LR
 ## 17. How it fits Knos
 
 This folder is part of the one Knos product: Knos checks demand, writes the Ready brief, holds the money on Solana and
-pays only on verified proof; here the proof is checked inside IRIS for Health. The Knos code is imported, not forked.
+pays only on verified proof; here the proof is checked inside IRIS for Health. The Knos code is imported, not forked:
+the image runs the repository's `src/knos`, and the IPM install's six copied modules must equal it byte for byte
+(`tests/test_iris_vendored.py`).
 
 ## 18. Team
 
