@@ -193,7 +193,11 @@ def refused_write(path: str, root: str | None = None) -> str | None:
         r = os.path.abspath(root).replace("\\", "/").rstrip("/") + "/"
         if os.path.abspath(p).replace("\\", "/").startswith(r):
             p = os.path.abspath(p).replace("\\", "/")[len(r):]
-    p = p.lstrip("./") if p.startswith("./") else p
+    # normalised as a path, never stripped as characters: "./.github/x".lstrip("./") was "github/x" and passed the guard
+    import posixpath
+    p = posixpath.normpath(p) if p else p
+    while p.startswith("./"):
+        p = p[2:]
     name = p.rsplit("/", 1)[-1]
     if p.startswith(".github/") or "/.github/" in p:
         return "workflow_edited: GitHub would run the pull request's own copy of a workflow; Knos refuses the change"

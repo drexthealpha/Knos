@@ -482,12 +482,16 @@ def key() -> Keypair:
         return _keypair(env)
     from . import paths
     p = paths.home() / "relay-key.json"
-    try:
-        return _keypair(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        pass
+    if p.exists():
+        # a key file that is there but cannot be read is an error, never a reason to write a new key over it: the old
+        # one may hold the relayer's money and be the address the programs and the app were told about
+        try:
+            return _keypair(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError) as why:
+            raise RuntimeError(f"{p} is there but cannot be read as a keypair ({type(why).__name__}); fix or move it: Knos does not "
+                               "write a new key over it") from None
     k = Keypair()
-    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(json.dumps(list(bytes(k))))
     return k

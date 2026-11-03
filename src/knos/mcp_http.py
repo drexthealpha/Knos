@@ -106,16 +106,17 @@ class Refused(ValueError):
 def make(address: str = "127.0.0.1:8808", path: str = "/mcp", server=None) -> ThreadingHTTPServer:
     """The HTTP server. Without KNOS_MCP_HTTP_TOKEN it binds to loopback only, and the tools that run code on this
     machine (knos_verify) are not served at all: any local process could otherwise make it run a command."""
-    from .mcp import RUNS_CODE, TOOLS, Server
+    from .mcp import GAME_TOOLS, RUNS_CODE, TOOLS, Server
     host, port = parse_address(address)
     token = os.environ.get("KNOS_MCP_HTTP_TOKEN") or None
     if token is None and host not in LOOPBACK:
         raise Refused(f"knos mcp --http {address}: a non-loopback address needs KNOS_MCP_HTTP_TOKEN (a long random string) set first.")
     srv = server or Server()
     if token is None:
-        for t in TOOLS:
-            if (t.get("_meta") or {}).get(RUNS_CODE):
-                srv._tools.pop(t["name"], None)
+        # every tool that runs code here (knos_verify, the game's knos_game_submit) is neither listed nor answered
+        srv.hidden = frozenset(t["name"] for t in TOOLS + GAME_TOOLS if (t.get("_meta") or {}).get(RUNS_CODE))
+        for name in srv.hidden:
+            srv._tools.pop(name, None)
     return ThreadingHTTPServer((host, port), handler_for(srv, path, token))
 
 

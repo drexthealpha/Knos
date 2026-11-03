@@ -458,6 +458,8 @@ class Server:
     """Answers one message at a time. `ledger` and `github` are given by tests; otherwise the cluster's RPC endpoint
     (made on first use) and api.github.com."""
 
+    hidden: frozenset[str] = frozenset()     # names neither listed nor answered (knos.mcp_http without a token)
+
     def __init__(self, ledger=None, github=None, post=None, run=None, bind=None, scopes=None, board=None):
         """`post(method, path, body)` writes to GitHub, `run(issue, branch, args, terms)` judges a tree locally,
         `bind(address, ledger)` binds a payout address, `scopes(token)` reads a classic token's scopes: tests give
@@ -588,7 +590,8 @@ class Server:
             raise Refused(-32602, str(no)) from None
 
     def _list(self, _params: dict) -> dict:
-        return {"resultType": "complete", "tools": _tools_now(), "ttlMs": LIST_TTL_MS, "cacheScope": "public"}
+        # tools this server does not serve (mcp_http: tokenless, nothing that runs code here)
+        return {"resultType": "complete", "tools": [t for t in _tools_now() if t["name"] not in self.hidden], "ttlMs": LIST_TTL_MS, "cacheScope": "public"}
 
     def _call(self, params: dict) -> dict:
         """A long tool (mcp_ext.LONG_TOOLS) for a client that takes tasks runs as one: a handle now, the answer by

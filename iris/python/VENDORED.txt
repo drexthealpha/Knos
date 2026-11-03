@@ -7,7 +7,7 @@ knos/ready.py                      imported by knos_iris.bridge (check, criteria
 knos/verdict_gate.py               imported by knos_iris.bridge (strict) and knos.referee_rules
 knos/referee_rules.py              imported by knos_iris.referee (the rules referee)
 knos/idt.py                        imported by knos.ready (check, inside the function)
-knos/refuse.py                     imported by knos.ready (check, inside the function)
+knos/refuse.py                     imported by knos.ready (check, inside the function); copied again 3 Nov 2026 with the allowed phrases for military families (the commit that adds this note)
 knos/settle/__init__.py            package marker
 knos/settle/v2/__init__.py         load_ids, imported by knos.settle.v2.pay
 knos/settle/v2/pay.py              imported by Knos.Iris.Py.Tx (the PAY branch's transaction, simulated on devnet)

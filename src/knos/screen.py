@@ -138,6 +138,9 @@ def fetch(now: float | None = None, get=None, cache: Path | None = None) -> list
     return sorted(load(now, get, cache).addresses)
 
 
+MAX_STALE_DAYS = 7          # an older copy screens nobody (check() answers "not screened", and a payout is then held)
+
+
 def _day(t: int) -> str:
     return time.strftime("%Y-%m-%d", time.gmtime(t))
 
@@ -152,6 +155,10 @@ def check(address: str, now: float | None = None, get=None, cache: Path | None =
     except Unavailable as why:
         return None, f"not screened: {why}"
     when = _day(got.fetched)
+    age = int((time.time() if now is None else now) - got.fetched) // 86_400
+    if got.stale and age > MAX_STALE_DAYS:
+        # fail closed: a copy this old may miss an address the Treasury listed since, so nobody is called screened by it
+        return None, f"not screened: the Treasury could not be asked again and the only copy of its list is {age} days old (over {MAX_STALE_DAYS})"
     if listed(address, got.addresses):
         return False, (f"{address} is on the US Treasury's sanctions list (OFAC SDN, digital currency addresses as of {when}): "
                        "the payout is refused and held, not sent.")

@@ -202,12 +202,13 @@ def test_a_policy_that_names_payees_is_enforced_and_every_address_is_screened_be
         got = settled(w)
         assert got.startswith("Knos: held, not paid. The ") and f"met its terms, but {WALLET} is on the US Treasury's sanctions list" in got
         assert "the payout is refused and held, not sent. The money stays held until 2026-10-05 14:13 UTC" in got and w.signer.asked == []
-        # not screened: it pays, and says so
+        # not screened: fail closed, held like a listed address, nothing signed
         w.screen = lambda address: (None, "not screened: the Treasury's list could not be had (502).")
         assert flow.command(w.run(w.hub.commented(12, EVE, "/knos settle"))) == 0
         assert flow.settle(w.run(w.hub.commented(12, EVE, "/knos settle"))) == 0
         got = plain(w.hub.knos(12)[-1], 1500)
-        assert got.startswith("Knos: paid. @mona received ") and got.endswith(f"`{WALLET}` was not screened: the Treasury's list could not be had (502).")
+        assert got.startswith("Knos: held, not paid. The ") and f"`{WALLET}` could not be screened against the US Treasury's sanctions list" in got
+        assert "so the payout is held until the list can be read" in got and w.signer.asked == []
 
 
 def test_a_standing_offer_pays_its_vendor_for_each_accepted_change_until_its_budget_is_spent(tmp_path):

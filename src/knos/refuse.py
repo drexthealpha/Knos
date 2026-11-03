@@ -37,7 +37,10 @@ REFUSE: dict[str, tuple[str, ...]] = {
 # harmless phrases that contain a refused word
 ALLOWED = ("bath bomb", "bath bombs", "photo bomb", "glue gun", "heat gun", "spray gun", "nail gun", "staple gun",
            "caulk gun", "massage gun", "water gun", "military-grade encryption", "combat sports", "combat sport",
-           "salvation army", "army green", "smoke bomb", "army knife")
+           "salvation army", "army green", "smoke bomb", "army knife",
+           # people a product serves, not a military customer or use (a community garden for military families was refused)
+           "military families", "military family", "military spouses", "military spouse", "military children",
+           "military kids", "military veterans", "military veteran")
 
 WHY = {"weapons": "Knos does not fund weapons",
        "military_first": "Knos does not fund products whose first customer or use is military",

@@ -3018,7 +3018,8 @@ def _cleared(run: Run, rp: dict, pull: dict, cases: list[Case]) -> None:
     policy (who may be paid at all, and which vendors by a standing offer; a policy that cannot be used pays
     nobody), for a work order the shares a maintainer named with `/knos split`, and the sanctions list for every
     address money would be sent to. A listed address is not paid: nothing is signed, the money stays in escrow and
-    the comment says so. An address that could not be screened is paid, and the comment says "not screened"."""
+    the comment says so. An address that could not be screened is not paid either (fail closed): the money stays held
+    until the list can be read, and the comment says why."""
     ready = [c for c in cases if c.verdict() == "yes"]
     if not ready:
         return
@@ -3047,7 +3048,8 @@ def _cleared(run: Run, rp: dict, pull: dict, cases: list[Case]) -> None:
                     if clear is False:
                         c.listed = _short(said)
                     elif clear is None:
-                        c.said.append(f"`{to}` was {_short(said).rstrip('.')}.")
+                        c.listed = (f"`{to}` could not be screened against the US Treasury's sanctions list ({_short(said).rstrip('.')}), "
+                                    "so the payout is held until the list can be read")
         except Exception as why:  # noqa: BLE001 - one case's trouble is its own
             c.unread.append(f"Knos stopped while clearing this payout ({type(why).__name__}: {_short(why)})")
 
