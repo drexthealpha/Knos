@@ -10,7 +10,7 @@
 
 A demand check on Qloo sets the terms, and the money waits on Solana until the proof passes.
 
-Ready briefs: 2.08x fewer output tokens, 70% vs 5% passed ([measured](https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json)).
+Ready briefs: the token benchmark's padded control did not hold, so no saving is claimed ([the run](https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json)).
 
 Devnet, test money, no customers yet.
 
@@ -176,7 +176,7 @@ Open [the front door](https://drexthealpha.github.io/Knos/) and type the product
 
 - [Get started](docs/START.md): check demand, write a Ready brief, then hold the money and pay on proof.
 
-- [Pricing](docs/PRICING.md): what Knos costs. Demand checks are free, 10 a month. The maker keeps 100%; the company pays the 1% release fee and the payment costs on top. Nobody is charged today.
+- [Pricing](docs/PRICING.md): what Knos costs. Demand checks are free, 10 a month. The maker keeps 100%; the funder pays the payment program's fee on top: 0.30% of each payout, at least 0.05. Nobody is charged today (devnet, test money).
 
 - [Trust](docs/TRUST.md): who holds the keys, and what is tested.
 

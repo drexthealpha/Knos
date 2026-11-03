@@ -32,7 +32,7 @@ def funded_reply(issue: int) -> str:
     order = f"[order on Solana](https://explorer.solana.com/address/{ORDER}?cluster=devnet)"
     return "\n\n".join((
         f"Knos: 5.00 test USDC from the balance `{'B' * 44}` is held for issue #{issue} as a work order until the proof passes ({order}), 14 s after the comment. "
-        "The funder pays Knos's fee of 0.05 test USDC on top, so whoever is paid receives the full amount.",
+        "The funder pays a fee of 0.05 test USDC on top, so whoever is paid receives the full amount.",
         "The acceptance checks decide. `auto`: the first pull request they pass is paid, with no merge.",
         f"To earn it: open a pull request whose description says `Fixes #{issue}`. Reserve it with `/knos reserve`.",
         "Memory: the last 2 work orders here were paid."))

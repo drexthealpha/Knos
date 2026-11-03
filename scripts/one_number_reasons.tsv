@@ -1,0 +1,16 @@
+# path regex<TAB>line regex<TAB>reason: scripts/one_number.sh lists every hit with the first reason that matches
+^CHANGELOG\.md$	.	dated release history
+^docs/index\.atom$	.	the dated release feed; its 2.5% is the low end of a 95% interval
+^examples/self/journal\.jsonl$	.	an append-only hashed journal of past verdicts: a rewrite breaks its hash chain
+^docs/drill_upgrade\.log$	.	the dated log of the upgrade drill run of 4 to 6 Oct 2026
+^(docs/receipt/vectors[^/]*\.json|tests/data/receipt_parts\.json|examples/consumer/fixtures/|tests/fixtures/before_round/)	.	signed test vectors and fixtures of older receipt versions (version 5 and before said 48 hours): a rewrite breaks their signatures
+^(docs/reference/(BENCH|where_truth_plan)\.md)$	2\.5%	the low end of a 95% interval or a percentile, not a fee
+^docs/reference/OUTSIDE_TRUTH\.md$	\+0\.033	the pre-registered result itself with its interval, run once on 30 Oct 2026: the page the cards link to
+^(scripts/drill_upgrade\.sh|scripts/drills\.py|docs/reference/DRILLS\.md|tests/test_drill_upgrade\.py|scripts/governance\.test\.mjs|sdk/settle/test\.mjs|scripts/deploy_v2\.sh)$	48[ -]h	the local-validator drill builds its own multisig with a 48-hour lock; devnet's is 8 days and ASSURANCE.md says the drill is not changed yet
+^(programs/knos_pay/|sdk/settle/index\.(js|d\.ts)|src/knos/fees\.py|web/price\.js|tests/test_fees\.py|tests/web/price\.mjs|tests/test_pay_chain\.py|tests/test_fund_fee\.py)	2\.5%	the first deployment's fee and knos_pay 2.1's tiers, both still on chain for the orders funded under them; named as such
+^scripts/test_admin_safety\.py$	48 h	a lower bound the check enforces (a time lock of at least 48 hours); devnet's 8 days passes it
+^(web/check_sample\.json|examples/record_api/README\.md|tests/data/controls_cases\.json)$	fee of 0\.05	today's fee on a 5.00 payout (0.30% has a 0.05 floor); the paid comment names the relayer's tip as part of it
+.	11 Oct 2026|before|until|then|[Uu]ntil|2\.1|2\.0|0\.3\.14|FIRST|first deployment|OLD|old|[Oo]lder|version 5|FEE_21|_21|was 	dated history: names the date or the older release it describes (48 hours until 11 Oct 2026; knos_pay 2.1 before 9 Oct 2026)
+^docs/reference/SECURITY\.md$	0\.40|tier	the second line of a dated paragraph on knos_pay 2.1's tiered fee (it opens "Before that it was the older fee")
+^tests/	.	a test of the older rule (knos_pay 2.1's fee, the 48-hour lock) as code and pages must still read it, or a planted false claim a check must catch
+^(scripts/(adversarial_vectors|settle_fixtures|exercise_public|timelock_plan|squads_fund|governance)\.(py|mjs)|programs-v2/handlers/tests/)	.	tooling and fixtures for knos_pay 2.1 orders and the old time lock, which stay readable on chain

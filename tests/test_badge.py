@@ -66,14 +66,14 @@ def test_a_badge_is_made_from_the_receipts_and_from_nothing_else():
 
 
 def test_the_payment_comment_ends_with_one_badge_line_and_other_comments_are_untouched():
-    paid = "Knos: paid. @ann received 100.00 test USDC for issue #3, in full: its funder paid Knos's fee of 2.50 on top. It went to `W` (tx, 21 s)."
+    paid = "Knos: paid. @ann received 100.00 test USDC for issue #3, in full: its funder paid a fee of 2.50 on top, from which the relayer that sent it takes its tip; Knos keeps the rest. It went to `W` (tx, 21 s)."
     got = badge.said("o/r", 12, paid, NOW)
     assert got.startswith(paid + "\n\n[![paid on proof: #12: 100.00 test USDC, 2026-10-04](https://img.shields.io/badge/paid_on_proof-")
     assert got.endswith("-57606a)](https://drexthealpha.github.io/Knos/r/o/r.html)") and "%2312%3A_100.00_test_USDC%2C_2026--10--04" in got
-    order = "Knos: paid. The work order on issue #3 paid 80.00 test USDC in full (its funder paid Knos's fee of 2.00 on top): @a 40.00 (50%) to `W` (tx, 3 s)."
+    order = "Knos: paid. The work order on issue #3 paid 80.00 test USDC in full (its funder paid a fee of 2.00 on top, from which the relayer that sent it takes its tip; Knos keeps the rest): @a 40.00 (50%) to `W` (tx, 3 s)."
     assert "#12: 80.00 test USDC, 2026-10-04" in badge.said("o/r", 12, order, NOW)
     held = "Held for @ann. 20.00 test USDC for issue #7 waits for them until 2027-03-20. It is then paid in full."
-    both = paid + "\n\nPaid. @ann received 4.875 test USDC as a tip for this pull request: the tip of 5.00 less Knos's fee of 0.125." + "\n\n" + held
+    both = paid + "\n\nPaid. @ann received 4.875 test USDC as a tip for this pull request: the tip of 5.00 less a fee of 0.125." + "\n\n" + held
     got = badge.said("o/r", 12, both, NOW)
     assert got.count("[![paid on proof") == 1 and got.endswith(".html)") and "#12: 104.875 test USDC, 2026-10-04" in got   # one line, at the end; what is held is not in it
     for other in ("Knos: held for @ann. 100.00 test USDC for issue #3 waits for them until 2026-11-01.", "Knos: not paid yet. @ann would have received 5.00 test USDC.",

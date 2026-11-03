@@ -104,7 +104,7 @@ def render() -> str:
              "Reference, the Entity Type Parameter Guide and each endpoint's page) and `src/knos/qloo_families.py` (the one table of",
              "names every interface reads). CI runs `--check`, so this file cannot drift from the code.", "",
              f"{len(ins) + len(ends)} rows: {used} USED, {len(ins) + len(ends) - used} N/A (with Qloo's own reason).", "",
-             "Qloo answers the demand wall before money moves. The 2.08x IDT result is Knos's own (clear briefs), not Qloo's.", "",
+             "Qloo answers the demand wall before money moves. The IDT result is Knos's own (clear briefs), not Qloo's.", "",
              "## The families", "", "| Family | Question | Plain control | Fields |", "|---|---|---|---|"]
     for f, q in Q.QUESTIONS.items():
         label, plain = Q.PLAIN[f]

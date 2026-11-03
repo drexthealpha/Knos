@@ -175,7 +175,7 @@ def test_a_private_order_is_funded_from_the_attestor_and_its_salt_and_terms_stay
     assert json.loads(raw)["policy"] == policy.digest(policy.load(POLICY))
     assert reply.startswith(flow.ANSWER.format(kept["answers"]) + f"\nKnos: 20.00 test USDC from the balance `{w.balance}` is held for issue "
                             f"#{ISSUE} as a private work order until the proof passes ([order on Solana](https://explorer.solana.com/address/{address}?cluster=devnet)), ")
-    assert f"The funder pays Knos's fee of {P('0.50', '0.06')} on top" in reply and "`unit-suite` (the checks you named)" in reply
+    assert f"The funder pays a fee of {P('0.50', '0.06')} on top" in reply and "`unit-suite` (the checks you named)" in reply
     assert reply.endswith(f"It is a private order: Solana shows its amount and, once it is paid, who was paid and the commit that was accepted, and never "
                           f"this repository, this issue or these terms. {ATTESTOR}'s workflow pays it after the merge, on its schedule or started by "
                           "hand with this repository and the pull request's number.")
@@ -248,7 +248,7 @@ def test_a_merge_whose_check_failed_is_refused_and_the_same_merge_is_paid_once_t
     assert claims(w.relay.submitted[1][0])["repository_id"] == str(ATTESTOR_ID) and "prove.yml@" in claims(w.relay.submitted[1][0])["job_workflow_ref"]
     assert w.chain.orders() == [] and w.relay.answered[1]["paid"] == [{"id": MONA["id"], "payee_id": MONA["id"], "to": WALLET, "held_until": None, "amount": 20_000_000}]
     paid = w.hub.knos(PULL)[-1]
-    assert paid.startswith(f"Knos: paid. @mona received 20.00 test USDC for issue #{ISSUE}, in full: its funder paid Knos's fee of {P('0.50', '0.06')} on top. It went to "
+    assert paid.startswith(f"Knos: paid. @mona received 20.00 test USDC for issue #{ISSUE}, in full: its funder paid a fee of {P('0.50', '0.06')} on top, from which the relayer that sent it takes its tip; Knos keeps the rest. It went to "
                            f"`{WALLET}`, the wallet bound to @mona's GitHub account (")
     assert pub.comments[1]["body"].startswith("knos-proof: ") and "knos-terms" not in pub.comments[1]["body"]
     assert pub.log[1].startswith(f"knos-relay pay {ATTESTOR}#1 ") and f"20.00 was paid to {WALLET} (GitHub user id {MONA['id']}) for order {address}." in pub.log[1]

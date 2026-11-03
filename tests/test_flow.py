@@ -35,13 +35,13 @@ To earn it: open a pull request whose description says `Fixes #7`. `/knos take` 
 # an acceptance check that never loads the pull request's code: it asks that code through $KNOS_RUN and compares the answer
 BLACKBOX = b'out=$("$KNOS_RUN" python3 -c "import slug; print(slug.slug(\'a b\'))")\n[ "$out" = "a-b" ]\n'
 
-PAID = (f"Knos: paid. @mona received 19.50 {MONEY} for issue #7: the bounty of 20.00 less Knos's fee of 0.50. It went to `{WALLET}`, the "
+PAID = (f"Knos: paid. @mona received 19.50 {MONEY} for issue #7: the bounty of 20.00 less a fee of 0.50. It went to `{WALLET}`, the "
         f"wallet bound to @mona's GitHub account ([transaction]({EXPLORER}/tx/sig2?cluster=devnet), 34 s after the merge).")
 
 HELD = (f"Knos: held for @mona. 20.00 {MONEY} for issue #7 waits for them until 2027-03-20 15:13 UTC, because no wallet is "
         "known for them: none is bound to their GitHub account and no `/knos address` comment counted. To receive it, @mona binds a "
         "wallet: https://drexthealpha.github.io/Knos/#payee=mona in the browser, or `knos claim <their Solana address>` in a terminal. It "
-        "is then paid, less Knos's fee of 0.50; after that date it goes back to where it came from "
+        "is then paid, less a fee of 0.50; after that date it goes back to where it came from "
         f"([transaction]({EXPLORER}/tx/sig2?cluster=devnet), 34 s after the merge).")
 
 REFUSED = f"""Knos: not paid. This pull request does not take the bounty on issue #7 (20.00 {MONEY}) as it stands; its checks are read at its last commit (`{sha('head-12')[:7]}`).
@@ -464,7 +464,7 @@ def test_a_tip_is_funded_on_the_merged_pull_request_and_hands_over_to_settle(tmp
     # the second job: `knos settle` on the same comment pays the tip, and only the tip (the bounty on #7 is not tried again)
     assert flow.settle(w.run(tipped)) == 0
     assert plain(w.hub.knos(12)[-1]) == (
-        f"Knos: paid. @mona received 4.875 {MONEY} as a tip for this pull request: the tip of 5.00 less Knos's fee of 0.125. It went to "
+        f"Knos: paid. @mona received 4.875 {MONEY} as a tip for this pull request: the tip of 5.00 less a fee of 0.125. It went to "
         f"`{WALLET}`, the wallet bound to @mona's GitHub account ([transaction]({EXPLORER}/tx/sig4?cluster=devnet), 62 s after the "
         "comment).")
     assert [j.issue for _a, j in w.chain.jobs()] == [7] and w.signer.asked[-1].startswith(f"knos2:pay:{REPO_ID}:12:{MONA['id']}:")
@@ -823,7 +823,7 @@ def test_an_agents_pull_request_pays_only_a_person_github_authenticates(tmp_path
     w.hub.say(12, MONA, f"/knos address {ADDRESS}")
     assert flow.settle(w.run(w.hub.commented(12, MONA, "/knos settle"))) == 0
     assert plain(w.hub.knos(12)[-1]) == (
-        f"Knos: paid. @mona received 19.50 {MONEY} for issue #7: the bounty of 20.00 less Knos's fee of 0.50. It went to `{ADDRESS}`, the "
+        f"Knos: paid. @mona received 19.50 {MONEY} for issue #7: the bounty of 20.00 less a fee of 0.50. It went to `{ADDRESS}`, the "
         f"address in @mona's `/knos address` comment ([transaction]({EXPLORER}/tx/sig2?cluster=devnet), 30 s after the comment).")
     assert w.signer.asked[0].split(":")[4] == str(MONA["id"]) and w.signer.asked[0].endswith(f":0:{ADDRESS}")
     # a maintainer's word comes before a claim; and GitHub not answering who can write is no answer
@@ -1133,7 +1133,7 @@ def test_two_jobs_on_one_issue_are_each_accounted_for_and_a_bad_one_never_stops_
     w.chain.fund(7, 5_000_000, BOUGHT, source=key("wallet"), faucet=False)
     w.chain.bind(MONA)
     assert flow.settle(w.run(w.hub.merge(12))) == 0
-    assert only(w, 12) == (f"Knos: paid. @mona received 24.375 {MONEY} for issue #7: the bounty (2 jobs) of 25.00 less Knos's fee of 0.625. "
+    assert only(w, 12) == (f"Knos: paid. @mona received 24.375 {MONEY} for issue #7: the bounty (2 jobs) of 25.00 less a fee of 0.625. "
                            f"It went to `{WALLET}`, the wallet bound to @mona's GitHub account ([transaction]({EXPLORER}/tx/sig2?cluster=devnet), "
                            "30 s after the merge).")
     assert len(w.signer.asked) == 1 and w.chain.jobs() == []
@@ -1846,6 +1846,7 @@ def test_the_four_commands_run_from_the_command_line(tmp_path, monkeypatch, caps
     monkeypatch.setattr("knos.judge.github", w.hub)
     monkeypatch.setattr("knos.chain.ledger", lambda: w.chain)
     monkeypatch.setattr("knos.chain.key", lambda: "the relay key")
+    monkeypatch.setattr("knos.screen.check", lambda address, now=None: (True, "screened: not listed."))     # no Treasury fetch in a test
     monkeypatch.setattr("knos.flow.mint", lambda audience, env=None: w.signer(audience))
     monkeypatch.setenv("KNOS_RELAY_KEY", "[1]")
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "summary.md"))

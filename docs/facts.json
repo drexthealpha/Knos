@@ -641,7 +641,7 @@
    "say": [
     "2.08"
    ],
-   "what": "IDT: a Ready brief used 2.08x fewer output (reasoning) tokens than the vague brief of the same task, 20 tasks, one model and effort (scripts/idt_bench.py)",
+   "what": "IDT: Ready briefs against vague briefs of the same task, 20 tasks, one model and effort (scripts/idt_bench.py); its padded control did not hold, so no token saving is claimed",
    "json": "docs/idt/summary.json",
    "path": "ratio_vague_to_ready",
    "equals": 2.08

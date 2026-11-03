@@ -8,7 +8,7 @@ Measured with `claude -p --output-format json` (Claude Code print mode on the op
 exactly as scripts/idt_bench.py measures the IDT ratio: output tokens and the cost estimate as the API returned them, pass
 or fail by the same check (the brief is Ready), each run cross-checked against its session transcript in
 ~/.claude/projects. The demand check needs QLOO_API_KEY (and QLOO_BASE_URL) in the environment; nothing prints it.
-The 2.08x IDT ratio is Knos's own (clear briefs), not Qloo's; this file measures only what the Qloo line adds, whatever it is.
+The IDT ratio is Knos's own (clear briefs), not Qloo's; this file measures only what the Qloo line adds, whatever it is.
 """
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def summary(rows: list[dict], model: str, effort: str) -> dict:
                       "with_cost_usd": r["with"].get("cost_usd"), "grounded_on": r["grounding"]} for r in ok],
             "qloo_data": "not kept here: Qloo's answers stay server side; each line is named by its fields and sha256",
             "honest": "the Qloo line's effect on reasoning tokens and on Ready briefs for these 10 tasks, whatever it is; "
-                      "the 2.08x IDT ratio is Knos's own and is not credited to Qloo"}
+                      "the IDT ratio is Knos's own and is not credited to Qloo"}
 
 
 def main(argv=None) -> int:

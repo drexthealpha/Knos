@@ -174,6 +174,6 @@
    }
   }
  ],
- "honest": "the Qloo line's effect on reasoning tokens and on Ready briefs for these 10 tasks, whatever it is; the 2.08x IDT ratio is Knos's own and is not credited to Qloo",
+ "honest": "the Qloo line's effect on reasoning tokens and on Ready briefs for these 10 tasks, whatever it is; the IDT ratio is Knos's own and is not credited to Qloo",
  "qloo_data": "not kept here: Qloo's answers stay server side; each line is named by its fields and sha256"
 }

@@ -70,7 +70,7 @@ def test_a_funding_comment_opens_a_work_order_and_the_reply_says_the_fee_the_war
     assert address == str(ORDER) and (o.amount, o.fee, o.holdback_bps, o.warranty_s, o.arbiter_id, o.reserve_days) == (20_000_000, P(500_000, 60_000), 2000, 14 * 86_400, 77, 7)
     assert not o.flags & pay.F_NEUTRAL and w.chain.jobs() == []
     assert got.startswith(f"Knos: 20.00 {MONEY} from the devnet faucet is held for issue #7 as a work order until the proof passes ({LINK}), 30 s after the comment. "
-                          f"The funder pays Knos's fee of {P('0.50', '0.06')} on top, so whoever is paid receives the full amount.\n\n")
+                          f"The funder pays a fee of {P('0.50', '0.06')} on top, so whoever is paid receives the full amount.\n\n")
     assert ("Warranty: 20% of each payment is held back for 14 days after it is paid; if the work is reverted in that time, that part goes "
             "back to the funder. Arbiter: @erin rules if a payment is disputed. If it is not paid by 2026-10-05 14:13 UTC, the money and the "
             "fee go back to where they came from.") in got
@@ -79,7 +79,7 @@ def test_a_funding_comment_opens_a_work_order_and_the_reply_says_the_fee_the_war
     got = said(w, 7, HUBOT, "/knos fund 5")
     second = pay.order_pda(pay.scope_of(REPO_ID, 7), FAUCET, 1)
     assert w.signer.asked[-1].split(":")[8:] == ["1", pay.opts(pay.F_NEUTRAL, reserve_days=7).hex()] and str(second) in got
-    assert f"The funder pays Knos's fee of {P('0.40', '0.05')} on top" in got and "No warranty: a payment is final when it is made. No arbiter is named." in got
+    assert f"The funder pays a fee of {P('0.40', '0.05')} on top" in got and "No warranty: a payment is final when it is made. No arbiter is named." in got
     assert got.endswith(NEUTRAL) and len(w.chain.orders(7)) == 2
     # what cannot be an order is said with the comment that can
     assert said(w, 7, HUBOT, "/knos fund 2") == ("Knos: nothing was funded. A work order holds from 5 to 100000, and this one asks for 2. Comment "
@@ -124,7 +124,7 @@ def test_a_merge_pays_a_work_order_in_full_and_the_token_names_the_order_the_pul
     got = settled(w)
     head = w.hub.pulls[12]["head"]["sha"]
     assert w.signer.asked == [pay.order_pay_audience(ORDER, head, pay.terms_hash(terms.canonical(BOUGHT)), pay.MERGE, 12, [(MONA["id"], 10_000, None)])]
-    assert got == (f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid Knos's fee of {P('0.50', '0.06')} on top. It went to "
+    assert got == (f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid a fee of {P('0.50', '0.06')} on top, from which the relayer that sent it takes its tip; Knos keeps the rest. It went to "
                    f"`{WALLET}`, the wallet bound to @mona's GitHub account ([transaction]({EXPLORER}/tx/sig2?cluster=devnet), 30 s after the merge).")
     assert w.chain.orders() == [] and w.screened == [WALLET]
     # no wallet: held for the payee, in full
@@ -159,7 +159,7 @@ def test_a_maintainers_split_before_the_merge_pays_up_to_four_people_and_only_wh
     assert got.startswith("Knos: noted. If this pull request is merged and takes a work order, the order pays @mona 60%, @eve 40%.")
     got = settled(w)
     assert w.signer.asked[-1].endswith(f":12:{MONA['id']}.6000.-,{EVE['id']}.4000.-")
-    assert got.startswith(f"Knos: paid. The work order on issue #7 paid 20.00 {MONEY} in full (its funder paid Knos's fee of {P('0.50', '0.06')} on top): "
+    assert got.startswith(f"Knos: paid. The work order on issue #7 paid 20.00 {MONEY} in full (its funder paid a fee of {P('0.50', '0.06')} on top, from which the relayer that sent it takes its tip; Knos keeps the rest): "
                           f"@mona 12.00 (60%) to `{WALLET}`, @eve 8.00 (40%) to `{ADDRESS}` (")
     assert sorted(w.screened) == sorted([WALLET, ADDRESS])
     # a split after the merge counts for nothing, and one that names someone with no wallet is not paid at all
@@ -262,7 +262,7 @@ def test_raise_says_how_cancel_gives_notice_and_take_reserves_the_order_too(tmp_
     source = w.chain.balance("treasury", 100_000_000, spenders=[HUBOT["id"]])
     w.chain.order(7, 20_000_000, BOUGHT, source=source, flags=pay.F_NEUTRAL)
     got = said(w, 7, EVE, "/knos raise 10")
-    assert f"was funded from the balance `{source}`, and only the wallet that opened that balance can add to it: it signs knos_pay's TopUp for 10.00 {MONEY}, and pays Knos's fee of {P('0.25', '0.03')} on top" in got
+    assert f"was funded from the balance `{source}`, and only the wallet that opened that balance can add to it: it signs knos_pay's TopUp for 10.00 {MONEY}, and pays a fee of {P('0.25', '0.03')} on top" in got
     # a job is neither, and no order is no order
     w = world(tmp_path / "job", version=0)
     w.chain.fund(7, 20_000_000, BOUGHT)
@@ -275,7 +275,7 @@ def test_raise_says_how_cancel_gives_notice_and_take_reserves_the_order_too(tmp_
 def test_without_a_relay_key_an_orders_tokens_travel_as_comments_and_status_shows_the_order(tmp_path):
     w = world(tmp_path, relay_key=False)
     got = said(w, 7, HUBOT, "/knos fund 20")
-    assert f"as a work order until the proof passes ({LINK})" in got and f"Knos's fee of {P('0.50', '0.06')} on top" in got and [x[1] for x in w.worker.posted()] == ["fund"]
+    assert f"as a work order until the proof passes ({LINK})" in got and f"a fee of {P('0.50', '0.06')} on top" in got and [x[1] for x in w.worker.posted()] == ["fund"]
     assert f"20.00 {MONEY} is held for issue #7 as a work order until 2026-10-05" in said(w, 7, EVE, "/knos status")
     w.clock.sleep(3600)
     w.hub.checks[w.hub.pull(12, MONA, "Fixes #7")["head"]["sha"]] = [check("test")]
@@ -926,7 +926,7 @@ def test_replies_count_days_say_where_an_assigned_payment_went_and_do_not_ask_fo
     (_a, o), = w.chain.orders(7)
     w.chain.accounts[str(pay.assign_pda(ORDER, MONA["id"]))] = _assign_bytes(ORDER, MONA["id"], lender, o.not_before)
     got = settled(w)
-    assert got.startswith(f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid Knos's fee of {P('0.50', '0.06')} on top. It went to "
+    assert got.startswith(f"Knos: paid. @mona received 20.00 {MONEY} for issue #7, in full: its funder paid a fee of {P('0.50', '0.06')} on top, from which the relayer that sent it takes its tip; Knos keeps the rest. It went to "
                           f"`{lender}`, the wallet @mona assigned this order's payment to (knos_pay Assign: whoever advanced them the money is "
                           "paid in their place) ("), got
     # an assignment made for an earlier order at the same address counts for nothing: the bound wallet is paid, and said so
@@ -1002,7 +1002,7 @@ def test_raise_quotes_the_fee_a_top_up_costs_by_the_tiers_on_the_new_whole_amoun
     from knos import fees
     assert fees.OLD.order(1_100_000_000) - fees.OLD.order(900_000_000) == 3_500_000
     assert fees.NEW.order(1_100_000_000) - fees.NEW.order(900_000_000) == pay.order_fee(1_100_000_000) - pay.order_fee(900_000_000) == 600_000
-    assert f"it signs knos_pay's TopUp for 200.00 {MONEY}, and pays Knos's fee of {P('3.50', '0.60')} on top" in got
+    assert f"it signs knos_pay's TopUp for 200.00 {MONEY}, and pays a fee of {P('3.50', '0.60')} on top" in got
 
 
 # ---- `auto` and `quorum`: options of the order, fixed at funding; the token under knos3:auto for an open pull request ---

@@ -703,7 +703,7 @@ def fund_wallet(where: str = typer.Argument(..., metavar="OWNER/REPO#ISSUE"), am
     sig = _send(ledger, [ix], wallet)
     after = f"  Unpaid after {days} day{'s' if days != 1 else ''}, it goes back to this wallet."
     if order:
-        out.print(f"{_money(units, m, decimals)} is held for {where} until the proof passes, and Knos's fee of {_money(fee, m, decimals)} was paid on top. "
+        out.print(f"{_money(units, m, decimals)} is held for {where} until the proof passes, and a fee of {_money(fee, m, decimals)} was paid on top. "
                   f"Work order {made}.", markup=False)
     else:
         out.print(f"{_money(units, m, decimals)} is held for {where} until the proof passes. Job {job}.", markup=False)

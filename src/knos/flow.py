@@ -1133,14 +1133,14 @@ def _relayed(run: Run, c: Case, r: dict, after: str, how: str) -> str:
         if not held:
             to = rows[0]["to"]
             src = {"bound": f", the wallet bound to {payee}'s GitHub account", "comment": f", the address in {payee}'s `/knos address` comment"}
-            out.append(f"paid. {payee} received {_amount(gross - fee)} {money} {for_}: the {kind} of {_amount(gross)} less Knos's fee "
+            out.append(f"paid. {payee} received {_amount(gross - fee)} {money} {for_}: the {kind} of {_amount(gross)} less a fee "
                        f"of {_amount(fee)}. It went to `{to}`{src.get(c.where.get('from', ''), '') if to == c.where.get('address') else ''} "
                        f"({tx}, {took}).")
         else:
             until = who.when(max(x.get("held_until") or 0 for x in rows))
             out.append(f"held for {payee}. {_amount(gross)} {money} {for_} waits for them until {until}, because no "
                        f"wallet is known for them: none is bound to their GitHub account and no `/knos address` comment counted. To "
-                       f"receive it, {payee} binds a wallet: {_bind(payee)}. It is then paid, less Knos's fee of {_amount(fee)}; "
+                       f"receive it, {payee} binds a wallet: {_bind(payee)}. It is then paid, less a fee of {_amount(fee)}; "
                        f"after that date it goes back to where it came from ({tx}, {took}).")
     if not out:
         return (f"the signed token for {name} was relayed ({tx}, {took}), but Solana does not show the payment yet. `/knos status` shows "
@@ -1183,7 +1183,9 @@ def _paid_order(run: Run, c: Case, r: dict, tx: str, took: str) -> str:
     gross = o.rate if standing else o.amount
     back = gross * o.holdback_bps // 10_000
     rows = {int(x.get("id") or 0): x for x in r.get("paid") or [] if isinstance(x, dict)}
-    fee = "its funder pays Knos's fee on top" if standing else f"its funder paid Knos's fee of {_amount(o.fee)} on top"
+    # on chain the relayer's tip comes out of the fee first and only the rest is Knos's (a 0.05 fee: tip 0.05, Knos 0)
+    fee = ("its funder pays the fee on top" if standing else f"its funder paid a fee of {_amount(o.fee)} on top") + \
+        ", from which the relayer that sent it takes its tip; Knos keeps the rest"
     people = []
     for pid, bps, _named, login, dest in c.payees:
         row = rows.get(pid, {})
@@ -2076,13 +2078,13 @@ def _funded_order(run: Run, cmd, rp: dict, number: int, balance, mint_, faucet: 
         vendor = plan["vendor"]
         return "\n\n".join((
             f"Knos: a standing offer for @{vendor} is held on issue #{number}: {money} from {source} ({order}), {took}. The funder pays "
-            f"Knos's fee of {fee} on top.",
+            f"a fee of {fee} on top.",
             " ".join([f"Each pull request of @{vendor}'s that says `Fixes #{number}` and is accepted is paid {_amount(cmd.rate)} in full, until "
                       f"the {_amount(cmd.units)} is spent.", *told[:-1], *built.notes, warranty, arbiter,
                       f"What is left on {deadline} goes back to where it came from."]),
             f"For the money to reach @{vendor}, they bind a wallet to their GitHub account: {BIND}. {neutral}"))
     return "\n\n".join((
-        f"Knos: {money} from {source} is held for issue #{number} as a {'private ' if plan.get('attestor') else ''}work order until the proof passes ({order}), {took}. The funder pays Knos's fee of "
+        f"Knos: {money} from {source} is held for issue #{number} as a {'private ' if plan.get('attestor') else ''}work order until the proof passes ({order}), {took}. The funder pays a fee of "
         f"{fee} on top, so whoever is paid receives the full amount.",
         " ".join([*told[:-1], *terms.describe_options(plan.get("auto", False), plan.get("quorum", 0), plan["neutral"], plan.get("judge", "")), *built.notes, warranty, arbiter, back]),
         f"To earn it: open a pull request whose description says `Fixes #{number}`. {told[-1]} For the money to reach you when it "
@@ -2205,7 +2207,7 @@ def _reserve_order(run: Run, cmd: commands.Reserve, said: dict, on: dict) -> str
     period = f"period {month // 100}-{month % 100:02d} only" if cmd.period else f"any netted period of @{_plain(login)}'s until {deadline}"
     return "\n\n".join((
         f"Knos: a reserve of {money} for @{_plain(login)} is locked on issue #{number} ({_link(run, 'order on Solana', 'address', order)}), "
-        f"{r['seconds']} s after the comment. The funder pays Knos's fee of {fee_paid} on top.",
+        f"{r['seconds']} s after the comment. The funder pays a fee of {fee_paid} on top.",
         f"Reserve id: `{order}`. Amount: {_amount(f['amount'])}. Deadline: {deadline}. It secures {period}, and pays @{_plain(login)} "
         f"{_amount(f['tranche'])} for each draw this repository's workflow signs. Nobody takes it back before the deadline; after it, "
         f"RefundOrder returns what no draw took to {source}. This repository signs the draws, so it can withhold one: the money then comes back here.",
@@ -2270,7 +2272,7 @@ def _order_word(run: Run, cmd, said: dict, on: dict) -> str:
         fee = max(rule.order(o.amount + cmd.units, min(o.fee_bps or rule.bps, rule.bps), o.decimals) - o.fee, 0)
         return (f"Knos: nothing was added by this comment. The work order on issue #{number} ({link}) was funded from "
                 f"{'the balance' if o.from_balance else 'the wallet'} `{o.source}`, and only {'the wallet that opened that balance' if o.from_balance else 'that wallet'} "
-                f"can add to it: it signs knos_pay's TopUp for {_amount(cmd.units)} {_money(run, o.mint)}, and pays Knos's fee of {_amount(fee)} on "
+                f"can add to it: it signs knos_pay's TopUp for {_amount(cmd.units)} {_money(run, o.mint)}, and pays a fee of {_amount(fee)} on "
                 f"top, from the same place (`knos.settle.v2.pay.top_up_ix` builds the instruction). A comment cannot sign for a wallet. {second}")
     if o.cancel_at:
         return (f"Knos: the work order on issue #{number} ({link}) was cancelled on {who.when(o.cancel_at)} already. It pays what is "
@@ -2441,7 +2443,7 @@ def _balance(run: Run, rp: dict, commenter: dict, cmd, number: int, again: str, 
                     "that opened it adds you with `knos balance set`.")
     elif not real:
         rows.append(f"- No Balance on Solana is set aside for this repository's owner (GitHub id {rp['owner']}). {OPEN}")
-    need = f"{_amount(units + fee)} ({_amount(units)} and Knos's fee of {_amount(fee)} on top)" if fee else _amount(units)
+    need = f"{_amount(units + fee)} ({_amount(units)} and a fee of {_amount(fee)} on top)" if fee else _amount(units)
     return None, None, False, (f"Knos: nothing was funded: no balance you can spend holds {need}.\n" + "\n".join(rows)
                                + f"\nThen {again}.")
 

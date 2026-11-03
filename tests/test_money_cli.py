@@ -301,7 +301,7 @@ def test_fund_wallet_on_a_repository_with_no_knos_file_funds_a_neutral_order_pin
     assert rc == 0, said
     assert f"repos/drexthealpha/Knos/contents/examples/knos-attest.yml?ref=v{version()}" in asked      # the release's own file, at its tag
     lines = said.splitlines()
-    assert lines[0] == f"20.00 of mint {mint} is held for octo/bare#1 until the proof passes, and Knos's fee of {build.pick('0.50', '0.06')} of mint {mint} was paid on top. Work order {order}."
+    assert lines[0] == f"20.00 of mint {mint} is held for octo/bare#1 until the proof passes, and a fee of {build.pick('0.50', '0.06')} of mint {mint} was paid on top. Work order {order}."
     assert "  Nobody can reserve it: the first accepted pull request is paid." in lines             # nothing there answers `/knos take`
     assert not any("/knos take` reserves" in x for x in lines)
     assert lines[-2] == ("  Unpaid after 1 day, it goes back to this wallet. octo/bare needs no Knos file: after the merge, whoever did the work runs "
