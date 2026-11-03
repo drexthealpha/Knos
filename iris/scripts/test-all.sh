@@ -13,6 +13,8 @@ cd "$here"
 # one run at a time: a second copy would share the container and the inbox
 exec 9>/tmp/iris-test-all.lock; flock -n 9 || { echo "another test-all.sh is running"; exit 3; }
 [ -f .env ] || cp .env.example .env
+bash scripts/env-secrets.sh
+set -a; . ./.env; set +a
 grep -q '^KNOS_AI_MODE=live' .env && { log "FAIL .env asks for live mode; this script runs replay only"; exit 2; }
 
 # the container's memory, every 5 s, the largest kept
@@ -36,13 +38,16 @@ case "$health" in
   *) log "FAIL health after $(( $(date +%s) - tu )) s: $health"; fails=$((fails + 1));;
 esac
 step decisions python3 tests/test_iris_decision.py http://localhost:52773 /tmp/iris-decisions.txt
+# signed proof and the password: the native API for the 1972 login check
+python3 -m pip install -q intersystems-irispython >> "$out.log" 2>&1 || python3 -m pip install -q --break-system-packages intersystems-irispython >> "$out.log" 2>&1
+step signed python3 tests/test_iris_proof_signed.py http://localhost:52773 /tmp/iris-signed.txt
 step one_trace python3 tests/test_iris_one_trace.py knos-iris /tmp/iris-one-trace.txt
 # IPM (ZPM) is not in the image: InterSystems' v0.10.10 installer, checked by its sha256
 zpm=/tmp/zpm-0.10.10.xml
 [ -s "$zpm" ] || curl -fsSL -o "$zpm" https://github.com/intersystems/ipm/releases/download/v0.10.10/zpm-0.10.10.xml
 echo "daa2adabd66b488f57187d29712e54b0c25bbe000794fbf2a35a882c458b788a  $zpm" | sha256sum -c --quiet && export KNOS_ZPM_XML="$zpm"
 step bonuses python3 tests/test_iris_bonuses.py knos-iris /tmp/iris-bonuses.txt "${hl:-}"
-step dashboard bash -c 'curl -fsS http://localhost:52773/knos/ | grep -q "Knos Referee" && test "$(curl -s -o /dev/null -w %{http_code} http://localhost:52773/api/knos/decisions)" = 401 && curl -fsS -u _SYSTEM:SYS http://localhost:52773/api/knos/decisions | python3 -c "import json,sys; d=json.load(sys.stdin); assert isinstance(d, list) and d, d"'
+step dashboard bash -c 'curl -fsS http://localhost:52773/knos/ | grep -q "Knos Referee" && test "$(curl -s -o /dev/null -w %{http_code} http://localhost:52773/api/knos/decisions)" = 401 && curl -fsS -u "_SYSTEM:$IRIS_PASSWORD" http://localhost:52773/api/knos/decisions | python3 -c "import json,sys; d=json.load(sys.stdin); assert isinstance(d, list) and d, d"'
 
 log "total $(( $(date +%s) - t0 )) s, peak $(cat "$peak") MiB, $fails failed"
 [ "$fails" = 0 ]

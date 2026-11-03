@@ -16,7 +16,6 @@
 """
 from __future__ import annotations
 
-import base64
 import json
 import os
 import re
@@ -27,13 +26,15 @@ import time
 import urllib.request
 from pathlib import Path
 
+import iris_env  # iris/tests: the password and the signing secrets from iris/.env
+
 C = sys.argv[1] if len(sys.argv) > 1 else "knos-iris"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else None
 DOCKER = sys.argv[3] if len(sys.argv) > 3 else ""
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parent
 BASE = "http://localhost:52773"
-AUTH = "Basic " + base64.b64encode(b"_SYSTEM:SYS").decode()
+AUTH = iris_env.auth()
 F = HERE / "fixtures"
 
 
@@ -65,7 +66,8 @@ def value(out: str, key: str) -> str:
 
 
 def post(path: str, body: dict) -> dict:
-    req = urllib.request.Request(BASE + path, json.dumps(body).encode(), {"Authorization": AUTH, "Content-Type": "application/json"})
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(BASE + path, data, iris_env.headers(data, body.get("kind", "")))
     with urllib.request.urlopen(req, timeout=300) as r:
         return json.loads(r.read())
 

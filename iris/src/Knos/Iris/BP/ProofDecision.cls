@@ -13,6 +13,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <property name='Kind' type='%String' instantiate='0'/>
 <property name='Threshold' type='%Numeric' instantiate='0'/>
 <property name='Amount' type='%Numeric' instantiate='0'/>
+<property name='SigOk' type='%Boolean' instantiate='0'/>
 <property name='Slot' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
 <property name='Tx' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
 <property name='Sim' type='%String' instantiate='0'><parameters><parameter name='MAXLEN' value=''/></parameters></property>
@@ -23,14 +24,20 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set context.Locked = $select($isobject(b):b.CriteriaHash,1:"")
  // the amount locked with the brief, never the amount the caller sent
  set context.Amount = $select($isobject(b):+b.AmountUSDC,1:0)
+ // a referee verdict counts only with its signature (HMAC-SHA256 under KNOS_VERDICT_SECRET); other proof: 1
+ set context.SigOk = $select(request.Kind="verdict":##class(Knos.Iris.Py.Verdict).Signed(request.PayloadJSON),1:1)
  set context.Hash = ##class(Knos.Iris.Py.Ready).Hash(request.BriefJSON)
  set context.Kind = $select(request.Kind="checkrun":"machine",1:"human")
  set context.Threshold = +##class(Ens.Util.FunctionSet).Lookup("KnosPayoutThreshold","usdc",50)
  set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "policy", s.Name = "brief hash against its lock (knos.ready, Embedded Python)"
  set s.InputJSON = "{""locked"":"""_context.Locked_"""}", s.OutputJSON = "{""presented"":"""_context.Hash_""",""equal"":"_$select(context.Hash=context.Locked:"true",1:"false")_"}"
  do ..%Process.SendRequestAsync("TraceSink", s, 0)
+ if request.Kind = "verdict" {
+   set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "policy", s.Name = "verdict signature (HMAC-SHA256)", s.OutputJSON = "{""verified"":"_$select(context.SigOk:"true",1:"false")_"}"
+   do ..%Process.SendRequestAsync("TraceSink", s, 0)
+ }
 ]]></code>
-<if condition='(context.Hash=context.Locked)&amp;&amp;(context.Locked&apos;="")'>
+<if condition='(context.Hash=context.Locked)&amp;&amp;(context.Locked&apos;="")&amp;&amp;context.SigOk'>
 <true>
 <scope>
 <call name='Referee' target='Referee' async='0'>
@@ -64,8 +71,8 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <false>
 <assign property='context.Gate' value='"REJECT"' action='set'/>
 <assign property='context.Verdict' value='##class(Knos.Iris.Msg.Verdict).%New()' action='set'/>
-<assign property='context.Verdict.Decision' value='"reject: brief altered"' action='set'/>
-<assign property='context.Verdict.Model' value='"brief lock (no referee asked)"' action='set'/>
+<assign property='context.Verdict.Decision' value='$select(context.SigOk:"reject: brief altered",1:"reject: bad verdict signature")' action='set'/>
+<assign property='context.Verdict.Model' value='$select(context.SigOk:"brief lock (no referee asked)",1:"verdict signature (no referee asked)")' action='set'/>
 <code name='The verdict, in the trace'><![CDATA[
  do ..%Process.SendRequestAsync("TraceSink", context.Verdict, 0)
 ]]></code>
@@ -75,7 +82,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set response.BriefId = request.BriefId, response.Decision = context.Verdict.Decision, response.Gate = context.Gate
  set response.Confidence = context.Verdict.Confidence, response.Reason = context.Verdict.MilestonesJSON, response.SessionId = ..%Process.%SessionId, response.Referee = context.Verdict.Model
  set response.Outcome = $case(context.Gate, "PAY":"pay: the relayer may send the signed pay instruction", "HUMAN":"held: waiting for an approver",
-   "REFUND_AT_DEADLINE":"not met: refunded to the funder at the deadline", :"rejected: the brief no longer matches its lock")
+   "REFUND_AT_DEADLINE":"not met: refunded to the funder at the deadline", :$select(context.SigOk:"rejected: the brief no longer matches its lock",1:"rejected: the verdict signature does not verify"))
  set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "rule", s.Name = "PayoutGate", s.OutputJSON = "{""gate"":"""_context.Gate_"""}"
  set s.InputJSON = "{""decision"":"""_context.Verdict.Decision_""",""confidence"":"_(+context.Verdict.Confidence)_",""amount"":"_(+context.Amount)_",""threshold"":"_context.Threshold_",""kind"":"""_context.Kind_"""}"
  do ..%Process.SendRequestAsync("TraceSink", s, 0)

@@ -9,23 +9,23 @@ message names the referee that decided.
 """
 from __future__ import annotations
 
-import base64
 import json
 import sys
 import urllib.request
 from pathlib import Path
 
+import iris_env  # iris/tests: the password and the signing secrets from iris/.env
+
 HERE = Path(__file__).resolve().parents[1]
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:52773"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else None
-AUTH = "Basic " + base64.b64encode(b"_SYSTEM:SYS").decode()
 F = HERE / "fixtures"
 TRACE = ("Proof", "Verdict", "Span", "Decision")
 
 
 def call(path: str, body: dict | None = None) -> dict:
-    req = urllib.request.Request(BASE + path, data=None if body is None else json.dumps(body).encode(), method="GET" if body is None else "POST",
-                                 headers={"Authorization": AUTH, "Content-Type": "application/json"})
+    data = None if body is None else json.dumps(body).encode()
+    req = urllib.request.Request(BASE + path, data=data, method="GET" if body is None else "POST", headers=iris_env.headers(data, (body or {}).get("kind", "")))
     with urllib.request.urlopen(req, timeout=300) as r:
         return json.loads(r.read())
 

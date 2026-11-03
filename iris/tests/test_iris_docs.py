@@ -33,6 +33,8 @@ def named_paths(t: str) -> list[str]:
     for tok in re.findall(r"`([^`\n]+)`", t):
         for w in tok.split():
             w = w.strip("\"'")
+            w = w.rstrip(";,")
+            w = w[2:] if w.startswith("./") else w
             if not w or w[0] in "/<{^" or ":" in w or "<" in w or w in RUNTIME:
                 continue
             if "/" in w or w.endswith(EXT) or w == "Dockerfile":

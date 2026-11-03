@@ -18,11 +18,11 @@ does Solana devnet see a transaction. Every step of a decision is an interoperab
 
 Try it:
 1. `bash scripts/load-image.sh <the build 154 tar>` (section 4).
-2. `cp .env.example .env` (replay mode needs no key; section 5 for live).
+2. `cp .env.example .env && bash scripts/env-secrets.sh`: it fills the password and the two signing secrets with random values (replay mode needs no key; section 5 for live).
 3. `docker compose up -d --build`.
-4. `curl -s -u _SYSTEM:SYS localhost:52773/api/knos/health`.
+4. `set -a; . ./.env; set +a; curl -s -u "_SYSTEM:$IRIS_PASSWORD" localhost:52773/api/knos/health`.
 5. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
-6. Open the URL it prints (user `_SYSTEM`, password `SYS`).
+6. Open the URL it prints (user `_SYSTEM`, the `IRIS_PASSWORD` from `.env`; the image's `SYS` is refused).
 7. Open `localhost:52773/knos/` and sign in with the same user: each decision, its trace and the approver's inbox, with Approve and Reject.
 
 Every test in one command, in replay mode: `bash scripts/test-all.sh` (build, health, the decisions, one trace through all six parts, the bonus checks, the page).
@@ -92,7 +92,7 @@ Once either is reached, live mode refuses in one plain sentence; with no key for
 ## 6. Start
 
 ```sh
-cd iris && cp .env.example .env && docker compose up -d --build
+cd iris && cp .env.example .env && bash scripts/env-secrets.sh && docker compose up -d --build
 ```
 
 The `Dockerfile` builds in stages, the way the InterSystems community builds IRIS images
@@ -110,7 +110,8 @@ PEX jar with the instance's own JDK and starts the production in that namespace,
 ## 7. Check that it works
 
 ```sh
-curl -s -u _SYSTEM:SYS localhost:52773/api/knos/health
+set -a; . ./.env; set +a
+curl -s -u "_SYSTEM:$IRIS_PASSWORD" localhost:52773/api/knos/health
 bash scripts/smoke.sh
 ```
 
@@ -119,12 +120,16 @@ The health route answers `{"production":"Running","agent":"replay","fhir":"off",
 
 ## 8. Walkthrough of the three inputs
 
-- **Check run.** POST it to `/api/knos/proof` (`"kind":"checkrun"`), or drop the webhook body in
+- **Check run.** Point a GitHub webhook (check runs) at `/api/knos/webhook` with the secret `KNOS_WEBHOOK_SECRET`, or POST it
+  to `/api/knos/proof` (`"kind":"checkrun"`) with the same `X-Hub-Signature-256` over the body; unsigned, it is refused
+  with 401. A file can also be dropped in
   `/home/irisowner/knos/inbox/checkruns/`, where the custom inbound adapter `Knos.Iris.Adapter.CheckRunInbound` picks it up.
 - **Lab result.** POST a FHIR Observation (`"kind":"observation"`), or drop an HL7 ORU^R01 named `<briefId>.hl7` in
   `inbox/oru/`. The ORU's OBX-3, OBX-5/6, OBX-14 and OBX-16 become an Observation's code, value, time and performer.
-- **Referee verdict.** POST a Knos referee verdict (`"kind":"verdict"`, as in `fixtures/verdicts/passed.json`); Knos's `verdict_gate.strict` reads it, and its
-  `spec_hash` must be the brief's criteria hash.
+- **Referee verdict.** POST a Knos referee verdict (`"kind":"verdict"`, as in `fixtures/verdicts/passed.json`) with its
+  `signature`: `sha256=` and the HMAC-SHA256 of the verdict without that key (keys sorted, no spaces) under
+  `KNOS_VERDICT_SECRET`. A verdict that does not verify is rejected before any referee reads it; Knos's
+  `verdict_gate.strict` reads the rest, and its `spec_hash` must be the brief's criteria hash.
 
 ## 9. The Workflow approval
 

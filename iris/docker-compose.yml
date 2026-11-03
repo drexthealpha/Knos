@@ -11,6 +11,13 @@ services:
     hostname: knos-iris
     mem_limit: 3g
     env_file: .env
+    environment:
+      # required: the predefined accounts take this password at every start (scripts/iris-password.sh), and the signing
+      # secrets of check runs and referee verdicts; compose refuses to start without them
+      IRIS_PASSWORD: "${IRIS_PASSWORD:?set IRIS_PASSWORD in iris/.env}"
+      KNOS_WEBHOOK_SECRET: "${KNOS_WEBHOOK_SECRET:?set KNOS_WEBHOOK_SECRET in iris/.env}"
+      KNOS_VERDICT_SECRET: "${KNOS_VERDICT_SECRET:?set KNOS_VERDICT_SECRET in iris/.env}"
+    command: ["--after", "sh /home/irisowner/knos/iris/scripts/iris-password.sh"]
     ports:
       - "52773:52773"
       - "1972:1972"

@@ -1,5 +1,5 @@
 """A tiny HTTP client for inside the container (the image has no curl): python3 http.py <url> [json body] -> status and body.
-Exit 0 on a 2xx answer. Credentials _SYSTEM:SYS unless IRIS_PASSWORD says otherwise."""
+Exit 0 on a 2xx answer. Credentials: _SYSTEM and IRIS_PASSWORD (the container's own, from iris/.env)."""
 import base64
 import os
 import sys
@@ -8,7 +8,7 @@ import urllib.request
 
 url = sys.argv[1]
 body = sys.argv[2].encode() if len(sys.argv) > 2 else None
-auth = "Basic " + base64.b64encode(f"_SYSTEM:{os.environ.get('IRIS_PASSWORD', 'SYS')}".encode()).decode()
+auth = "Basic " + base64.b64encode(f"_SYSTEM:{os.environ.get('IRIS_PASSWORD', '')}".encode()).decode()
 req = urllib.request.Request(url, data=body, method="POST" if body else "GET", headers={"Authorization": auth, "Content-Type": "application/json"})
 try:
     with urllib.request.urlopen(req, timeout=float(os.environ.get("HTTP_TIMEOUT", "120"))) as r:

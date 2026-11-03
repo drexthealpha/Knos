@@ -22,7 +22,8 @@ peak="$work/peak.txt"; echo "0 0" > "$peak"
 trap 'kill $sampler 2>/dev/null' EXIT
 # the README's commands, as it gives them (section "Run it")
 bash scripts/load-image.sh "$tar" | tail -2 | while read -r l; do log "     $l"; done
-cp .env.example .env
+cp .env.example .env && bash scripts/env-secrets.sh >/dev/null
+set -a; . ./.env; set +a
 docker builder prune -f >/dev/null 2>&1
 t0=$(date +%s)
 docker compose up -d --build >"$work/build.log" 2>&1 || { log "FAIL test_iris_up: docker compose up: $(tail -3 "$work/build.log" | tr '\n' ' ')"; exit 1; }
@@ -30,7 +31,7 @@ built=$(( $(date +%s) - t0 ))
 log "ok   built and started in ${built} s"
 start=$(date +%s); health=""
 while [ $(( $(date +%s) - start )) -lt 180 ]; do
-  health=$(curl -fsS -m 10 -u _SYSTEM:SYS http://localhost:52773/api/knos/health 2>/dev/null) && break
+  health=$(curl -fsS -m 10 -u "_SYSTEM:$IRIS_PASSWORD" http://localhost:52773/api/knos/health 2>/dev/null) && break
   sleep 5
 done
 waited=$(( $(date +%s) - start ))

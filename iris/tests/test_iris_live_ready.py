@@ -7,7 +7,6 @@ any call past 2.00 USD; with no key for a real provider, live mode refuses in on
 """
 from __future__ import annotations
 
-import base64
 import json
 import re
 import subprocess
@@ -16,11 +15,12 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
+import iris_env  # iris/tests: the password and the signing secrets from iris/.env
+
 HERE = Path(__file__).resolve().parents[1]
 C = sys.argv[1] if len(sys.argv) > 1 else "knos-iris"
 BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:52773"
 OUT = Path(sys.argv[3]) if len(sys.argv) > 3 else None
-AUTH = "Basic " + base64.b64encode(b"_SYSTEM:SYS").decode()
 
 
 def session(lines: list[str]) -> str:
@@ -41,7 +41,8 @@ def tools() -> int:
 
 def proof() -> dict:
     body = {"id": "github:example/shop", "kind": "checkrun", "payload": json.loads((HERE / "fixtures" / "checkruns" / "pass.json").read_text())}
-    req = urllib.request.Request(BASE + "/api/knos/proof", json.dumps(body).encode(), {"Authorization": AUTH, "Content-Type": "application/json"})
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(BASE + "/api/knos/proof", data, iris_env.headers(data, "checkrun"))
     with urllib.request.urlopen(req, timeout=300) as r:
         return json.loads(r.read())
 

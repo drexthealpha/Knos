@@ -10,6 +10,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Route Url="/health" Method="GET" Call="Health"/>
 <Route Url="/brief" Method="POST" Call="Brief"/>
 <Route Url="/proof" Method="POST" Call="Proof"/>
+<Route Url="/webhook" Method="POST" Call="Webhook"/>
 <Route Url="/traces/:s" Method="GET" Call="Traces"/>
 <Route Url="/decisions" Method="GET" Call="Decisions"/>
 <Route Url="/tasks" Method="GET" Call="Tasks"/>
@@ -82,9 +83,46 @@ ClassMethod Brief() As %Status
     return $$$OK
 }
 
+/// The request body exactly as sent, for its signature
+ClassMethod Raw() As %String
+{
+    if '$isobject(%request.Content) return ""
+    do %request.Content.Rewind()
+    return %request.Content.Read(3641144)   // the longest string IRIS holds
+}
+
+/// GitHub's own check_run webhook: signed with X-Hub-Signature-256 under KNOS_WEBHOOK_SECRET, else 401. The brief is
+/// the one locked for the event's repository (github:<owner>/<repo>).
+ClassMethod Webhook() As %Status
+{
+    set raw = ..Raw()
+    if '##class(Knos.Iris.Py.Verdict).WebhookSigned(raw, $get(%request.CgiEnvs("HTTP_X_HUB_SIGNATURE_256"))) return ..Unsigned()
+    set event = {}.%FromJSON(raw)
+    if '$isobject(event."check_run") { set %response.Status = 422  write {"error": "only check_run events are proof"}.%ToJSON()  return $$$OK }
+    set proof = {"id": ("github:"_$zconvert(event.repository."full_name", "L")), "kind": "checkrun", "ref": (event."check_run"."html_url"), "payload": (event)}
+    return ..Run(proof)
+}
+
+/// 401 for a check run that does not carry a valid signature
+ClassMethod Unsigned() As %Status
+{
+    set %response.Status = 401
+    write {"error": "a check run is proof only with a valid X-Hub-Signature-256 (HMAC-SHA256 of the body under KNOS_WEBHOOK_SECRET)"}.%ToJSON()
+    return $$$OK
+}
+
+/// POST /proof: a check run must be signed like a GitHub webhook (X-Hub-Signature-256 over this exact body); a lab
+/// result or a referee verdict is checked in the decision itself
 ClassMethod Proof() As %Status
 {
-    set body = {}.%FromJSON(%request.Content)
+    set raw = ..Raw()
+    set body = {}.%FromJSON(raw)
+    if body.kind = "checkrun", '##class(Knos.Iris.Py.Verdict).WebhookSigned(raw, $get(%request.CgiEnvs("HTTP_X_HUB_SIGNATURE_256"))) return ..Unsigned()
+    return ..Run(body)
+}
+
+ClassMethod Run(body As %DynamicObject) As %Status
+{
     set m = ##class(Knos.Iris.Msg.Proof).%New(), m.BriefId = body.id, m.Kind = body.kind, m.SourceRef = body.ref
     set b = ##class(Knos.Iris.Data.Brief).BriefIdIdxOpen(body.id)
     set m.BriefJSON = $select($isobject(body.brief):body.brief.%ToJSON(), $isobject(b):b.BriefJSON, 1:"{}")

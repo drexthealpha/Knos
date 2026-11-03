@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import math
 import re
@@ -30,6 +31,30 @@ def read_verdict(text: str) -> str:
 
 def proof_hash(payload: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+# ---- signed proof: a check run carries GitHub's webhook signature, a referee verdict carries its own -------------
+def sign(secret: str, body: str) -> str:
+    """GitHub's X-Hub-Signature-256 form: "sha256=" and the HMAC-SHA256 of the exact body, in hex."""
+    return "sha256=" + hmac.new(secret.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def signature_ok(secret: str, body: str, signature: str) -> bool:
+    """True only when a secret is set and the signature is the body's, compared in constant time."""
+    return bool(secret) and isinstance(signature, str) and hmac.compare_digest(sign(secret, body), signature.strip())
+
+
+def verdict_body(verdict: dict) -> str:
+    """What a verdict's signature covers: the verdict without its "signature" key, keys sorted, no spaces."""
+    return json.dumps({k: v for k, v in verdict.items() if k != "signature"}, sort_keys=True, separators=(",", ":"))
+
+
+def verdict_signed(secret: str, payload_json: str) -> bool:
+    """A referee verdict is read only when its "signature" is the HMAC of its body under the verdict secret."""
+    v = _loads(payload_json)
+    if isinstance(v, str):
+        v = _loads(v)
+    return isinstance(v, dict) and signature_ok(secret, verdict_body(v), v.get("signature", ""))
 
 
 def _repo(value: object) -> str:

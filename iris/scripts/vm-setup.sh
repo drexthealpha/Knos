@@ -20,16 +20,14 @@ pw_file=~/knos-iris-password
 pw=$(cat "$pw_file")
 [ -f .env ] || cp .env.example .env
 chmod 600 .env
-grep -q '^IRIS_PASSWORD=' .env || printf 'IRIS_PASSWORD=%s\n' "$pw" >> .env
+sed -i "s/^IRIS_PASSWORD=.*/IRIS_PASSWORD=$pw/" .env
+bash scripts/env-secrets.sh >/dev/null     # the webhook and verdict secrets, where empty
 $D compose up -d --build
-# the instance answers on SYS until its passwords change; wait for it, then change them
+# the container sets the password at start (scripts/iris-password.sh); wait for health on it
 for i in $(seq 1 120); do
-  $D exec knos-iris env IRIS_PASSWORD=SYS python3 -I /home/irisowner/knos/iris/scripts/knos_http.py http://localhost:52773/api/knos/health >/dev/null 2>&1 && break
+  $D exec knos-iris python3 -I /home/irisowner/knos/iris/scripts/knos_http.py http://localhost:52773/api/knos/health >/dev/null 2>&1 && break
   sleep 15
 done
-printf '%s\n' 'zn "%SYS"' 'set p("Password") = $system.Util.GetEnviron("IRIS_PASSWORD"), p("ChangePassword") = 0' \
-  'for u = "_SYSTEM", "SuperUser", "Admin" { write u, " ", ##class(Security.Users).Modify(u, .p), ! }' 'halt' \
-  | $D exec -i knos-iris iris session IRIS -U %SYS
 h=$($D exec knos-iris python3 -I /home/irisowner/knos/iris/scripts/knos_http.py http://localhost:52773/api/knos/health || true)
 echo "health: $h"
 case "$h" in *'"production":"Running"'*) echo "ready: http://<this VM's address>:52773/api/knos/health (user _SYSTEM, password in $pw_file)";; *) exit 1;; esac
