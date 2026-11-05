@@ -28,6 +28,7 @@ Try it (Linux or WSL with Docker; both containers peaked at 1,686 MiB and 1,310 
 6. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
 7. Open the URL it prints (user `_SYSTEM`, the `IRIS_PASSWORD` from `.env`; the image's `SYS` is refused).
 8. Open `localhost:52773/knos/` and sign in with the same user: each decision, its trace and the approver's inbox, with Approve and Reject.
+9. `AMOUNT_USDC=80 bash scripts/smoke.sh`: above 50 USDC the met decision waits for a person; approve it in the inbox on `/knos/`.
 
 Every test in one command, in replay mode: `bash scripts/test-all.sh` (build, health, the decisions, one trace through all six parts, the bonus checks, the page).
 
@@ -148,6 +149,12 @@ The health route answers `{"production":"Running","agent":"replay","fhir":"off",
 A met decision above `KNOS_PAYOUT_THRESHOLD_USDC` (default 50), a human-verified milestone or an insufficient answer goes
 to the role `PayoutApprovers`. Open Interoperability > Workflow Inbox (user `_SYSTEM`) and choose Approve or Reject.
 The milestone stays held for two days without an answer.
+
+Each AI Hub feature the referee uses runs live at `GET /api/knos/aihub/<feature>` (same user), answering JSON:
+`skill` (the folder `skills/knos-proof`, loaded with `%AI.Agent.Skill` and attached with `UseSkill`), `policy`
+(`Knos.Iris.AI.ToolPolicy`, a `%AI.Policy.Authorization`: one tool call allowed, one refused), `mcp` (the referee's
+tools as `Knos.Iris.AI.MCP`, a `%AI.MCP.Service` at `/api/knos/mcp`), `rag` (a `%AI.RAG.KnowledgeBase` over the locked
+criteria, searched), `stats` (`%AI.Agent.Session.GetStats` after one local model turn) and `workflow` (the tasks waiting).
 
 ## 10. Solana devnet
 

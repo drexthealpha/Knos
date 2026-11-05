@@ -27,6 +27,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Route Url="/tasks" Method="GET" Call="Tasks"/>
 <Route Url="/tasks/:id" Method="POST" Call="Answer"/>
 <Route Url="/ui" Method="GET" Call="UI"/>
+<Route Url="/aihub/:f" Method="GET" Call="AIHub"/>
 </Routes>
 }
 
@@ -175,6 +176,15 @@ ClassMethod Traces(s As %Integer) As %Status
 }
 
 /// The 50 latest decisions, newest first
+/// One AI Hub feature, run live: skill, policy, mcp, rag, stats or workflow (Knos.Iris.AI.Hub)
+ClassMethod AIHub(f As %String) As %Status
+{
+    set out = ##class(Knos.Iris.AI.Hub).Demo(f)
+    set:'out.ok %response.Status = $select(out.error [ "one of skill":404, 1:500)
+    write out.%ToJSON()
+    return $$$OK
+}
+
 ClassMethod Decisions() As %Status
 {
     set out = []

@@ -14,6 +14,9 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
     // before it calls /api/knos. The only role it adds is the KNOS database's, so the page class can run
     set page("NameSpace") = ns, page("DispatchClass") = "Knos.Iris.REST.Page", page("AutheEnabled") = 64, page("Enabled") = 1, page("MatchRoles") = ":%DB_"_ns
     if '##class(Security.Applications).Exists("/knos") { do ##class(Security.Applications).Create("/knos", .page) }
+    // the referee's read tools as an AI Hub MCP service (Knos.Iris.AI.MCP), password login like /api/knos
+    set mcp("NameSpace") = ns, mcp("DispatchClass") = "Knos.Iris.AI.MCP", mcp("AutheEnabled") = 32, mcp("Enabled") = 1
+    if '##class(Security.Applications).Exists("/api/knos/mcp") { do ##class(Security.Applications).Create("/api/knos/mcp", .mcp) }
     if '##class(Security.SSLConfigs).Exists("knos") { set ssl("Enabled") = 1 do ##class(Security.SSLConfigs).Create("knos", .ssl) }
     // the Java gateway: capped at 192 MB, never started here (the production's PEX operation starts it on first use)
     if ##class(Config.Gateways).Get("%Java Server", .gw) { set gw("JVMArgs") = "-Xmx192m" do ##class(Config.Gateways).Modify("%Java Server", .gw) }
