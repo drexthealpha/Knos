@@ -500,7 +500,7 @@ def _product_tools() -> set:
 # within a daily cap.
 READ_ONLY = {"knos_research_card", "knos_demand_check", "knos_crossings", "knos_milestones", "knos_tasks", "knos_memory_search",
              "knos_memory_recall", "knos_templates", "knos_projects", "knos_openapi", "knos_ready", "knos_usage",
-             "knos_milestone_prompt"}
+             "knos_milestone_prompt", "knos_near_swarm_job", "knos_iris_check_proof"}
 MONEY = {"knos_preorder"}
 STORE = {"knos_ready", "knos_demand_check"}           # no qloo_* tool: those answer an agent key only
 STORE_DAILY_CAP = 2000                                 # tool calls a day through /mcp/store, all callers together
@@ -531,6 +531,57 @@ def store_spend() -> bool:
     return True
 
 
+_TYPES = {"string": str, "boolean": bool, "object": dict, "array": list}
+
+
+def _type_ok(v, kind) -> bool:
+    if isinstance(kind, list):
+        return any(_type_ok(v, k) for k in kind)
+    if kind == "integer":
+        return not isinstance(v, bool) and (isinstance(v, int) or (isinstance(v, float) and v.is_integer()))
+    if kind == "number":
+        return not isinstance(v, bool) and isinstance(v, (int, float))
+    return kind not in _TYPES or isinstance(v, _TYPES[kind])
+
+
+def check_args(schema: dict, args) -> str | None:
+    """The first way `args` breaks the tool's inputSchema (an object, its required fields, each declared field's type,
+    enum and length, and no unknown field where the schema forbids one), as a line naming the field; None: it fits."""
+    if not isinstance(args, dict):
+        return "arguments: an object"
+    props = schema.get("properties") or {}
+    for k in schema.get("required") or []:
+        if args.get(k) in (None, ""):
+            return f"{k}: required"
+    if schema.get("additionalProperties") is False:
+        extra = sorted(set(args) - set(props))
+        if extra:
+            return f"{extra[0]}: not an argument of this tool (it takes {', '.join(props) or 'none'})"
+    for k, v in args.items():
+        s = props.get(k) or {}
+        if v is None:
+            continue
+        if "type" in s and not _type_ok(v, s["type"]):
+            return f"{k}: a {s['type'] if isinstance(s['type'], str) else ' or '.join(s['type'])}"
+        if "enum" in s and v not in s["enum"]:
+            return f"{k}: one of {', '.join(map(str, s['enum']))}"
+        if isinstance(v, str) and len(v) > int(s.get("maxLength") or 20_000):
+            return f"{k}: at most {int(s.get('maxLength') or 20_000)} characters"
+    return None
+
+
+def _next(name, text: str) -> str:
+    """The one next action an error names (spec S6): what to change, or where to go, before calling again."""
+    low = text.lower()
+    if "agent key" in low or "authorization" in low or "session" in low or "sign in" in low:
+        return "get an agent key or a session (knos_sign_in), then call the tool again with it"
+    if "rate" in low or "cap" in low or "try again" in low or "did not answer" in low:
+        return "wait a minute, then call the tool again"
+    if "403" in low:
+        return "call it with the account that owns this commitment"
+    return f"fix the argument the message names, then call {name or 'the tool'} again (tools/list shows its inputSchema)"
+
+
 def mcp(state, msg: dict, profile: str = "full") -> dict | None:
     """One JSON-RPC message of the Streamable HTTP transport (POST /mcp, or /mcp/store: the app-store profile).
     Notifications get no answer (None)."""
@@ -556,6 +607,11 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                 return {"jsonrpc": "2.0", "id": mid, "result": {"isError": True, "content": [{"type": "text", "text": str(why)[:300]}]}}
 
     def ok(result):
+        if isinstance(result, dict) and result.get("isError"):   # every error says what to do next, in text and in fields
+            said = " ".join(c.get("text", "") for c in result.get("content") or [] if isinstance(c, dict))
+            nxt = _next((params or {}).get("name") if isinstance(params, dict) else None, said)
+            result = {**result, "content": [*(result.get("content") or []), {"type": "text", "text": "Next: " + nxt}],
+                      "structuredContent": {**(result.get("structuredContent") or {"error": said[:300]}), "next": nxt}}
         return {"jsonrpc": "2.0", "id": mid, "result": result}
     if method == "initialize":                     # the client's revision when this server speaks it, else the newest
         asked = str(((msg.get("params") or {}) if isinstance(msg.get("params"), dict) else {}).get("protocolVersion") or "")
@@ -580,8 +636,9 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                      for n in ("qloo_capabilities",) + WORKFLOWS]
         except Exception:  # noqa: BLE001
             extra = []
+        from .near_jobs import TOOLS as NEAR_TOOLS
         from .product_routes import MCP_TOOLS
-        tools = [annotate({**t, "description": DESCRIPTIONS.get(t["name"], t["description"])}) for t in TOOLS + MCP_TOOLS + extra]
+        tools = [annotate({**t, "description": DESCRIPTIONS.get(t["name"], t["description"])}) for t in TOOLS + MCP_TOOLS + NEAR_TOOLS + extra]
         return ok({"tools": [t for t in tools if in_store(t["name"])] if store else tools})
     if method == "tools/call":
         name, args = params.get("name"), params.get("arguments") or {}
@@ -608,6 +665,19 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                 got = state.q.call(name, dict(args), why="proxied for an outside agent over Knos's MCP", step=name)
             except QlooUnavailable as e:
                 return ok({"isError": True, "content": [{"type": "text", "text": str(e)[:300]}]})
+            return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)[:60_000]}], "structuredContent": got})
+        from . import near_jobs
+        from .product_routes import MCP_TOOLS as _PT
+        schema = next((t["inputSchema"] for t in TOOLS + _PT + near_jobs.TOOLS if t["name"] == name), None)
+        bad = check_args(schema, args) if schema is not None else None
+        if bad:                                          # validated before anything runs (spec S6)
+            return ok({"isError": True, "content": [{"type": "text", "text": bad}], "structuredContent": {"error": bad}})
+        if name in near_jobs.HANDLERS:
+            import json as _json
+            try:
+                got = near_jobs.HANDLERS[name](args)
+            except ValueError as why:
+                return ok({"isError": True, "content": [{"type": "text", "text": str(why)[:300]}]})
             return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)[:60_000]}], "structuredContent": got})
         if name == "knos_milestone_submit" and isinstance(args, dict) and args.get("kind") in ("observation", "oru"):
             # a lab's proof (a FHIR Observation, or an HL7 ORU message) checked by the one rules referee IRIS runs too
