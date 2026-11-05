@@ -19,11 +19,19 @@ Method KeepVerdict(pRequest As Knos.Iris.Msg.Verdict, Output pResponse As Ens.Re
     return r.%Save()
 }
 
+/// The decision of a proof that came in with no caller waiting for the reply (a file adapter's or poller's), so the
+/// session holds its Decision message all the same; nothing is stored, the message itself is the record
+Method KeepDecision(pRequest As Knos.Iris.Msg.Decision, Output pResponse As Ens.Response) As %Status
+{
+    return $$$OK
+}
+
 XData MessageMap
 {
 <MapItems>
 <MapItem MessageType="Knos.Iris.Msg.Span"><Method>Keep</Method></MapItem>
 <MapItem MessageType="Knos.Iris.Msg.Verdict"><Method>KeepVerdict</Method></MapItem>
+<MapItem MessageType="Knos.Iris.Msg.Decision"><Method>KeepDecision</Method></MapItem>
 </MapItems>
 }
 }

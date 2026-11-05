@@ -89,6 +89,9 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set d = ##class(Knos.Iris.Data.Decision).%New(), d.SessionId = response.SessionId, d.BriefId = request.BriefId, d.Kind = request.Kind
  set d.Decision = response.Decision, d.Gate = response.Gate, d.Outcome = response.Outcome, d.Confidence = response.Confidence, d.Reason = $extract(response.Reason, 1, 2000)
  do d.%Save()
+ // a proof from a file adapter or poller has no caller waiting for the reply: the session gets its Decision message here
+ // (after the approver's answer when a person decides)
+ if (..%Process.%PrimaryRequestHeader.ReturnQueueName = "") && (context.Gate '= "HUMAN") { do ..%Process.SendRequestAsync("TraceSink", response, 0) }
 ]]></code>
 <reply/>
 <switch>
@@ -107,6 +110,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <code name='The decision, as the approver left it'><![CDATA[
  set sid = ..%Process.%SessionId, g = context.Gate, o = $select(context.Gate="PAY":"pay: approved by a person; a devnet simulation ran, no money moved", 1:"held: rejected by a person")
  &sql(UPDATE Knos_Iris_Data.Decision SET Gate = :g, Outcome = :o WHERE SessionId = :sid)
+ if ..%Process.%PrimaryRequestHeader.ReturnQueueName = "" { set response.Gate = g, response.Outcome = o do ..%Process.SendRequestAsync("TraceSink", response, 0) }
 ]]></code>
 </case>
 </switch>

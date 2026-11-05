@@ -190,7 +190,7 @@ async function loadTasks() {
 function taskText(msg) {
   const m = /^(\[.*\])/s.exec(msg || "");
   try {
-    return JSON.parse(m ? m[1] : "[]").map((x) => x.key + ": " + (x.met === true ? "met" : x.met === false ? "not met" : "not decided") + ", " + x.reason + ".").join(" ") || msg;
+    return JSON.parse(m ? m[1] : "[]").map((x) => x.key + ": " + (x.met === true ? "met" : x.met === false ? "not met" : "not decided") + ", " + String(x.reason || "").replace(/[.\s]+$/, "") + ".").join(" ") || msg;
   } catch { return msg || ""; }
 }
 
