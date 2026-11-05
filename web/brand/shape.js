@@ -11,19 +11,9 @@
   const path = fig.querySelector("[data-shape]");
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const lit = (i) => labels.forEach((l, k) => l.toggleAttribute("data-on", k === i));
-  // each stop's place along the curve, in percent of its length: the curve is three segments, one stop at each end
-  const d = path.getAttribute("d"), seg = d.match(/[MCS][^MCS]*/g) || [];
-  let stops = [0, 33.3, 66.7, 100];
-  try {
-    const at = [0];
-    for (let k = 2; k <= seg.length; k++) {
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("d", seg.slice(0, k).join(" "));
-      at.push(p.getTotalLength());
-    }
-    const total = at.at(-1);
-    if (total > 0 && at.length === 4) stops = at.map((x) => Math.round((x / total) * 1000) / 10);
-  } catch { /* an engine with no geometry: the even spacing above */ }
+  // each stop's place along the curve, in percent of its length, for the curve in hero.html (M12 84 C80 84 120 36
+  // 200 36 S320 68 400 68 S520 16 588 16), measured once by summing 20,000 steps of each segment: no layout at load
+  const stops = path && path.getAttribute("d") === "M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" ? [0, 32.8, 67, 100] : [0, 33.3, 66.7, 100];
   const HOLD = 600, LOOP = 4000, MOVE = (LOOP - HOLD * stops.length) / (stops.length - 1), EASE = "cubic-bezier(.16,1,.3,1)";
   // keyframes over one loop: rest at a stop, move to the next, rest...; the offsets are fractions of the 4 s
   const frames = [], marks = [];

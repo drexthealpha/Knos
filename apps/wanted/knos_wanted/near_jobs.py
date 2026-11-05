@@ -50,6 +50,8 @@ def check_proof(args: dict) -> dict:
         raise ValueError(f"kind: one of {', '.join(KINDS)}")
     if not isinstance(proof, (str, dict)):
         raise ValueError("proof: the check run, FHIR Observation (an object) or HL7 ORU message (text)")
+    if kind == "checkrun" and isinstance(proof, dict) and "check_run" not in proof and ({"name", "conclusion"} & set(proof)):
+        proof = {"check_run": proof}       # a bare check run, as an agent most often sends it: GitHub's webhook wraps it
     payload = proof if isinstance(proof, str) else json.dumps(proof)
     if len(payload) > 200_000:
         raise ValueError("proof: at most 200,000 characters")

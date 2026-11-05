@@ -41,6 +41,8 @@ def test_check_proof_runs_the_rules_referee_iris_runs():
     proof = {"check_run": {"name": "unit", "conclusion": "success", "status": "completed"}}
     r = call("knos_iris_check_proof", {"brief": brief, "kind": "checkrun", "proof": proof})
     assert r.get("isError") is not True and "IRIS" in r["structuredContent"]["referee"], r
+    bare = call("knos_iris_check_proof", {"brief": brief, "kind": "checkrun", "proof": proof["check_run"]})
+    assert bare["structuredContent"].get("decision") == r["structuredContent"].get("decision"), bare
 
 
 def test_the_swarm_job_reads_the_contract_and_says_when_it_is_not_there(monkeypatch):

@@ -11,7 +11,7 @@ const params = new URLSearchParams(location.search);
 const atT = params.has("t");
 const DURATION = 24;
 const STAGES = [[0.0, 0.25, "Resolve", "The test is locked before money moves."], [0.25, 0.5, "Price", "The bid waits against that test."],
-  [0.5, 0.75, "Settle", "The check runs on each agent's work."], [0.75, 1.01, "Work", "Only the agent that passed is paid."]];
+  [0.5, 0.75, "Settle", "The check runs on each agent's work."], [0.75, 1.01, "Work", "Left agent passed: paid. Right agent failed: 0."]];
 
 async function start() {
   const THREE = await import("../near/story/vendor/three.module.min.js");
