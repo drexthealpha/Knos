@@ -337,8 +337,9 @@
   };
   // Qloo cannot answer and no idea it answered shares 2 words with this one (apps/wanted nearest.py): the 3 nearest
   const ideaButtons = (list) => (list || []).map((x) => `<button type="button" class="k-chip" data-q="${esc(x)}">${esc(x)}</button>`).join(" ");
+  const NO_RECORDING = "No recorded answer for this idea.", NOT_YET = "Qloo has not answered an idea close to this yet.";
   const options = (r) => `<article class="k-card k-unknown" data-nearest-options data-not-prose>
-  <header class="k-card-head"><p class="k-kick">${esc(r.idea || "")}</p><h2 class="k-verdict">Qloo has not answered an idea close to this yet.</h2>${r.qloo_reset ? `<p class="k-why" data-qloo-reset>Its monthly limit resets on ${esc(r.qloo_reset)}.</p>` : ""}
+  <header class="k-card-head"><p class="k-kick">${esc(r.idea || "")}</p><h2 class="k-verdict" data-no-recording>${r.no_recording ? NO_RECORDING : NOT_YET}</h2>${r.qloo_reset ? `<p class="k-why" data-qloo-reset>Its monthly limit resets on ${esc(r.qloo_reset)}.</p>` : ""}
   ${(r.nearest_options || []).length ? `<p class="k-why">The closest ideas it has answered:</p><p>${ideaButtons(r.nearest_options)}</p>` : ""}
   <p class="k-next">A Ready brief needs no Qloo: <a href="${esc(APP)}#projects" data-ready-path>write the brief for this idea</a>.</p></header></article>`;
   // which one do you mean? (apps/wanted which.py): 2 to 4 readings built in code, each one line that becomes the checked
@@ -349,13 +350,13 @@
     const box = w.name_box ? `<form data-name-box class="k-row"><label class="k-fine" for="k-name">${esc(w.name_prompt || "Name the product this result enables")}</label> <input id="k-name" name="name" maxlength="200" required> <button type="submit" class="k-chip">Check it</button></form>` : "";
     return `<article class="k-card k-unknown" data-which data-not-prose><header class="k-card-head"><p class="k-kick">${esc(w.asked)}</p><h2 class="k-verdict">Which one do you mean?</h2>${paperLine}${rows ? `<ul class="k-readings" data-readings>${rows}</ul>` : ""}${box}</header></article>`; };
   // the picked reading Qloo has not answered and cannot today: the one line, the Ready brief built with no Qloo, its
-  // hold on devnet, and under it the nearest recorded answer as a labelled stand-in
+  // hold on devnet, and "no recorded answer for this idea" (a recorded idea near it only by name, never its verdict)
   const queuedCard = (r) => { const b = r.brief || {}, ms = b.milestones || [], rd = r.ready || {}, st = r.stand_in;
     return `<article class="k-card k-unknown" data-queued data-not-prose><header class="k-card-head"><p class="k-kick" data-read-as>${esc(r.result_line || `Read as ${r.read_as || r.idea}`)}</p>
   <h2 class="k-verdict">${esc(r.queued.line)}</h2>
   <p class="k-why" data-brief>Ready brief: ${ms.map((m) => `${esc(m.name)}, ${esc(m.target)}`).join("; ")}${rd.criteria_hash ? ` · criteria hash <code>${esc(String(rd.criteria_hash).slice(0, 12))}</code>` : ""}</p>
   <p class="k-next"><a href="${esc(APP)}#projects" data-ready-path data-idea="${esc(r.read_as || r.idea)}">Hold devnet test money on this brief</a></p>${callsHead(r)}</header></article>
-  ${st ? `<p class="k-fine" data-stand-in>${esc(st.said)}.</p>${card(st.card, `Stand-in, recorded ${st.made}`)}` : ""}`; };
+  ${r.no_recording ? `<p class="k-fine" data-no-recording>No recorded answer for this idea.${r.also_matched ? ` A recorded idea near it: ${ideaButtons([r.also_matched])}` : ""}</p>` : ""}${st ? `<p class="k-fine" data-stand-in>${esc(st.said)}.</p>` : ""}`; };
   // ---- the recorded card's own parts (U1): every number is the recorded answer's; nothing is estimated ----------------
   const plainOf = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
   const rankIn = (guess, names) => { const g = plainOf(guess); if (!g) return 0; const i = names.findIndex((n) => { const v = plainOf(n); return v && (v.includes(g) || g.includes(v.split(" ")[0])); }); return i + 1; };
@@ -470,7 +471,7 @@ ${src(h, price.src)}</section>
   ${calls(r)}
   ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
   <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
-  <footer class="k-card-foot"><p class="k-fine" data-proof-line>Locked before any data, 30 Oct 2026: Knos is ahead of Qloo popularity alone, +0.033 [+0.007, +0.067], and ties population. The model alone beat it twice. <a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
+  <footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
     HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
     ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Try it with a launch market →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
@@ -532,9 +533,18 @@ ${src(h, price.src)}</section>
       reveal(`<p class="k-err" role="alert">${esc(e.message || e)}. Try again, or <a href="${esc(APP)}#research">open the full crossing</a>.</p>`);
     } finally { go.disabled = false; root.removeAttribute("aria-busy"); busy(false); }
   }
-  // a link that names an idea (?q=, from the fields page) runs its check at once: one press, already pressed
+  // a link that names an idea (?q=, from the fields page or a share) shows what was recorded for that idea, word for
+  // word, labelled recorded; Qloo is asked only when the reader presses Check (a crawler or a preview costs no call)
   const asked = new URLSearchParams(location.search).get("q");
-  if (asked) { q.value = asked.slice(0, 500); ask(q.value); }
+  async function recordedFor(v) {
+    const r = await get(`/api/recorded?idea=${encodeURIComponent(v)}`).catch(() => null);
+    await cardCss(); slot.dataset.idea = v; delete slot.dataset.past;
+    if (r && r.decision) {
+      slot.last = r;
+      reveal(`<p class="k-fine" data-recorded="yes">Recorded ${esc(String(r.made || "").slice(0, 10) || "earlier")}: not a live answer. Press Check to ask Qloo now.</p>` + card(r));
+    } else reveal(`<p class="k-fine" data-recorded="none">No recorded answer for this idea. Press Check to ask Qloo now.</p>`);
+  }
+  if (asked) { q.value = asked.slice(0, 500); recordedFor(q.value); }
   // proof first: the latest real verdict this server reached, drawn at load and labelled as a past check;
   // the visitor's own check replaces it
   const seen = (el, then) => {
@@ -565,7 +575,7 @@ ${src(h, price.src)}</section>
     const good = (x) => x && x.decision && x.decision.verdict && x.decision.verdict !== "CANNOT_DECIDE";
     const p = r.sample && good(r.sample) ? r.sample : r.proof && good(r.proof) && (r.proof.decision.verdict === "OPEN" || !r.sample) ? r.proof : null;
     if (!p) { slot.dataset.empty = "1"; return; }
-    slot.past = `Real Qloo answer, ${day(p)}`;
+    slot.past = `Recorded Qloo answer, ${day(p)}`;
     slot.innerHTML = pastCard(p, slot.past);
     slot.last = p;
     slot.dataset.past = "1";

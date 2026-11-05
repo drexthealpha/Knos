@@ -71,7 +71,7 @@ GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
 MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/progress", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/project", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
+DEMAND_CORS = ("/api/qloo/status", "/api/recorded", "/api/progress", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/project", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz")                                           # demo pre-orders, all clients
 ROUTES = {"/api/trace/keep": "product", "/api/ask": "check", "/api/feedback": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
           "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
@@ -109,7 +109,7 @@ GET_ROUTES = {"/api/progress": "One running check: its live Qloo calls and entit
               "/mcp": "MCP discovery page (POST JSON-RPC here)", "/mcp/store": "The app-store MCP profile: read-only tools, no sign-in, a daily call cap (POST JSON-RPC here)", "/auth/orcid": "Sign in with ORCID", "/auth/orcid/callback": "ORCID callback",
               "/": "301 to the front door, https://drexthealpha.github.io/Knos/", "/app": "301 to /app/",
               "/quality": "301 to the front door's quality page", "/quality/": "301 to the front door's quality page", "/app/": "The app", "/status/qloo": "Qloo as this server met it today: calls, cache hits, last success, last 429", "/api/qloo/status": "The same as JSON, with the line the front door shows while Qloo limits requests", "/api/record/head": "The Knos record's newest line in Sibyl: its sequence number, time and kind", "/api/calls": "The last 200 Qloo requests this server made or recorded: time, endpoint, parameters, status, ms, cached; never a body", "/api/match": "The products Qloo matched to a recorded idea (?idea=), for the step that asks whether this is what you mean", "/paid": "301 to /app/?all=1: the app with the passkey wallet, pre-orders, pools, company sign-in and accounting files", "/api/status": "Server status", "/api/ops/memory": "The operator's: this process's memory now and at its peak", "/api/agent/payout/latest": "The newest payout to an agent, read from devnet", "/api/usage": "Demand checks run, Ready briefs made, and the knos_pay program's devnet transactions", "/api/counter": "Live checks today and this week, checks by others, devnet pre-orders held and released, feedback answers", "/api/taste/movie": "The films a film's fans also love, from Qloo (?title=&year=): names and years only", "/api/products": "Listed products", "/api/quote": "Fee quote",
-              "/api/pool": "A report's pre-order pool", "/healthz": "Health check", "/api/report": "A demand report",
+              "/api/pool": "A report's pre-order pool", "/healthz": "Health check", "/api/report": "A demand report", "/api/recorded": "The recorded answer for an idea, word for word (never a live check)",
               "/api/receipts": "A result's receipts (?id=, the first 16 hex of its hash): each Qloo call with its time and hash, the target's rule, the model's answer, the brief's criteria hash, the Sibyl record line, devnet transactions",
               "/api/commitment": "One commitment", "/api/auth/config": "Sign-in providers", "/api/fees": "Fees (config/fees.yaml)",
               "/api/receivables": "Receivables a lender can finance (passkey wallets: advance rate, fee, due date)",
@@ -810,6 +810,13 @@ def make_handler(state: State):
                     return self._send(404, {"error": "no such download: an Open card's preorder, outreach or refund.ics"})
                 body, ctype, name = got
                 return self._send(200, body.encode("utf-8"), ctype, {"Content-Disposition": f'attachment; filename="{name}"'})
+            if u.path == "/api/recorded":                 # a page that opens shows what was recorded: Qloo is asked only from a press
+                from . import recorded
+                idea = (qs.get("idea") or [""])[0][:500]
+                rec = recorded.recording(idea)
+                if rec is None:
+                    return self._send(404, {"error": "no recorded answer for this idea", "idea": idea})
+                return self._send(200, recorded.stored(rec))
             if u.path == "/api/report":
                 rep = state.report((qs.get("hash") or [""])[0])
                 if rep is None:

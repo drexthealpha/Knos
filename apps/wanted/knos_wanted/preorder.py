@@ -139,7 +139,7 @@ def relayer_funds(max_age_s: float = 60.0) -> dict:
 def _counted(rec: dict) -> None:
     if rec.get("status") == "locked":
         from . import outside
-        outside.note("commitment", rec.get("order") or "", rec.get("via_kind") or "preorder")
+        outside.note("commitment", rec.get("order") or "", rec.get("via_kind") or "preorder", rec.get("buyer"))
 
 
 def _dir() -> Path:

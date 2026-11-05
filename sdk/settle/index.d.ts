@@ -70,7 +70,7 @@ export function fundAudience(issue: Num, amount: Num, mode?: number, checksHex?:
 export function payAudience(repoId: Num, issue: Num, authorId: Num, headSha: string, checksHex?: string, mode?: number): string;
 export function vetoAudience(repoId: Num, issue: Num): string;
 export function claimAudience(address: Address): string;
-/** The fee on a payment: 2.5%, at least 0.05, never more than the amount. The same in both deployments. */
+/** The fee on a payment of the FIRST deployment (2.5%, at least 0.05, never more than the amount). The live knos_pay 2.2 charges 0.30%, at least 0.05: v2.feeOf. */
 /** One fee rule of knos_pay (v2.FEE_RULES). Amounts in millionths of a whole unit; rates in basis points. */
 export interface FeeRule { readonly release: string; readonly build: string; readonly bps: number; readonly floor: number; readonly planMin: number;
   readonly jobBps: number; readonly jobFloor: number; readonly tiers: ReadonlyArray<readonly [number, number]>; }

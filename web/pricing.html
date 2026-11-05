@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Knos. Pricing</title>
-<meta name="description" content="What Knos costs: the demand check is free, and at mainnet Knos takes 1% of each payout it releases.">
+<meta name="description" content="What Knos costs: the demand check is free, and the payment program's fee is 0.30% of each payout, at least 0.05.">
 <meta name="author" content="drexthealpha">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/pricing.html">
 <meta name="color-scheme" content="light dark">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
 <meta property="og:title" content="Knos. Pricing">
-<meta property="og:description" content="What Knos costs: the demand check is free, and at mainnet Knos takes 1% of each payout it releases.">
+<meta property="og:description" content="What Knos costs: the demand check is free, and the payment program's fee is 0.30% of each payout, at least 0.05.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/pricing.html">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -62,9 +62,9 @@
 <main>
   <section class="view price" id="price">
     <h1>Pricing</h1>
-    <p class="p-n">Free check. At mainnet the funder pays 1% on top of each payout; the solver keeps 100%.</p>
+    <p class="p-n">Free check. The funder pays the payment program's fee on top of each payout, 0.30%, at least 0.05; the solver keeps 100%.</p>
     <p class="p-n">While Knos runs on devnet test money, nothing real is charged.</p>
-    <p class="p-n" data-example>Worked example: a funder holds 25.00 test USDC on a milestone and pays a 0.075 fee on top (0.30%, above the 0.05 floor), 25.075 in all. On proof the solver receives 25.00. At mainnet the same payout carries a 0.25 fee.</p>
+    <p class="p-n" data-example>Worked example: a funder holds 25.00 test USDC on a milestone and pays a 0.075 fee on top (0.30%, above the 0.05 floor), 25.075 in all. On proof the solver receives 25.00.</p>
     <p class="fine">The fee field in the payment program on devnet reads <a href="https://github.com/drexthealpha/Knos/blob/main/programs-v2/knos_pay/src/lib.rs#L420" rel="noopener">FEE_BPS = 30</a>: 0.30% of each payout, at least 0.05 test units, paid in test units worth nothing. It becomes 1% when the program is upgraded for mainnet.</p>
     <h2>How big is the market?</h2>
     <p>Worldwide R&amp;D spending was USD 2.87 trillion in 2024, by WIPO's count.</p>

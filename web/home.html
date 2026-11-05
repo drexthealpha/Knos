@@ -458,8 +458,9 @@ return `<div class="k-model" data-model-panel hidden><table class="k-vs-t" data-
 <p class="k-fine">Model alone: ${esc(m.model || "Claude")}, asked once with no Qloo data, ${esc(String(m.at || "").slice(0, 10))}.${chip("model", "model")}</p></div>`;
 };
 const ideaButtons = (list) => (list || []).map((x) => `<button type="button" class="k-chip" data-q="${esc(x)}">${esc(x)}</button>`).join(" ");
+const NO_RECORDING = "No recorded answer for this idea.", NOT_YET = "Qloo has not answered an idea close to this yet.";
 const options = (r) => `<article class="k-card k-unknown" data-nearest-options data-not-prose>
-<header class="k-card-head"><p class="k-kick">${esc(r.idea || "")}</p><h2 class="k-verdict">Qloo has not answered an idea close to this yet.</h2>${r.qloo_reset ? `<p class="k-why" data-qloo-reset>Its monthly limit resets on ${esc(r.qloo_reset)}.</p>` : ""}
+<header class="k-card-head"><p class="k-kick">${esc(r.idea || "")}</p><h2 class="k-verdict" data-no-recording>${r.no_recording ? NO_RECORDING : NOT_YET}</h2>${r.qloo_reset ? `<p class="k-why" data-qloo-reset>Its monthly limit resets on ${esc(r.qloo_reset)}.</p>` : ""}
 ${(r.nearest_options || []).length ? `<p class="k-why">The closest ideas it has answered:</p><p>${ideaButtons(r.nearest_options)}</p>` : ""}
 <p class="k-next">A Ready brief needs no Qloo: <a href="${esc(APP)}#projects" data-ready-path>write the brief for this idea</a>.</p></header></article>`;
 const whichCard = (w) => { const pp = w.paper;
@@ -472,7 +473,7 @@ return `<article class="k-card k-unknown" data-queued data-not-prose><header cla
 <h2 class="k-verdict">${esc(r.queued.line)}</h2>
 <p class="k-why" data-brief>Ready brief: ${ms.map((m) => `${esc(m.name)}, ${esc(m.target)}`).join("; ")}${rd.criteria_hash ? ` · criteria hash <code>${esc(String(rd.criteria_hash).slice(0, 12))}</code>` : ""}</p>
 <p class="k-next"><a href="${esc(APP)}#projects" data-ready-path data-idea="${esc(r.read_as || r.idea)}">Hold devnet test money on this brief</a></p>${callsHead(r)}</header></article>
-${st ? `<p class="k-fine" data-stand-in>${esc(st.said)}.</p>${card(st.card, `Stand-in, recorded ${st.made}`)}` : ""}`; };
+${r.no_recording ? `<p class="k-fine" data-no-recording>No recorded answer for this idea.${r.also_matched ? ` A recorded idea near it: ${ideaButtons([r.also_matched])}` : ""}</p>` : ""}${st ? `<p class="k-fine" data-stand-in>${esc(st.said)}.</p>` : ""}`; };
 const plainOf = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 const rankIn = (guess, names) => { const g = plainOf(guess); if (!g) return 0; const i = names.findIndex((n) => { const v = plainOf(n); return v && (v.includes(g) || g.includes(v.split(" ")[0])); }); return i + 1; };
 const verdictOf = (guess, names) => { const k = rankIn(guess, names);
@@ -577,7 +578,7 @@ ${recordedCard(r, label) ? u1(r) : ""}
 ${calls(r)}
 ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
 <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
-<footer class="k-card-foot"><p class="k-fine" data-proof-line>Locked before any data, 30 Oct 2026: Knos is ahead of Qloo popularity alone, +0.033 [+0.007, +0.067], and ties population. The model alone beat it twice. <a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
+<footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
 HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
 ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Try it with a launch market →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
@@ -636,7 +637,15 @@ reveal(`<p class="k-err" role="alert">${esc(e.message || e)}. Try again, or <a h
 } finally { go.disabled = false; root.removeAttribute("aria-busy"); busy(false); }
 }
 const asked = new URLSearchParams(location.search).get("q");
-if (asked) { q.value = asked.slice(0, 500); ask(q.value); }
+async function recordedFor(v) {
+const r = await get(`/api/recorded?idea=${encodeURIComponent(v)}`).catch(() => null);
+await cardCss(); slot.dataset.idea = v; delete slot.dataset.past;
+if (r && r.decision) {
+slot.last = r;
+reveal(`<p class="k-fine" data-recorded="yes">Recorded ${esc(String(r.made || "").slice(0, 10) || "earlier")}: not a live answer. Press Check to ask Qloo now.</p>` + card(r));
+} else reveal(`<p class="k-fine" data-recorded="none">No recorded answer for this idea. Press Check to ask Qloo now.</p>`);
+}
+if (asked) { q.value = asked.slice(0, 500); recordedFor(q.value); }
 const seen = (el, then) => {
 if (!("IntersectionObserver" in window)) return then();
 const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); then(); } });
@@ -661,7 +670,7 @@ const day = (x) => String(x.made || x.checked_at || "").slice(0, 10);
 const good = (x) => x && x.decision && x.decision.verdict && x.decision.verdict !== "CANNOT_DECIDE";
 const p = r.sample && good(r.sample) ? r.sample : r.proof && good(r.proof) && (r.proof.decision.verdict === "OPEN" || !r.sample) ? r.proof : null;
 if (!p) { slot.dataset.empty = "1"; return; }
-slot.past = `Real Qloo answer, ${day(p)}`;
+slot.past = `Recorded Qloo answer, ${day(p)}`;
 slot.innerHTML = pastCard(p, slot.past);
 slot.last = p;
 slot.dataset.past = "1";
@@ -915,7 +924,6 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
 </div>
 <ul class="k-strip" id="k-strip" data-not-prose aria-label="Proof">
   <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-cell="caught"><b data-n="60" data-tail="/60">60/60</b><span>altered pull requests caught; plain CI 31</span></a></li>
-  <li><a href="./how-we-test.html" data-cell="idt"><b data-n="2.11" data-dp="2" data-tail="x">2.11x</b><span>IDT: a vague brief's cost over a Ready one, [1.37, 3.75]</span></a></li>
   <li><a href="./proof/" data-cell="released"><b data-counter="released_on_proof">n/a</b><span>money released only on proof</span></a></li>
   <li><a href="./proof/" data-cell="today"><b data-counter="checks_today">n/a</b><span>live checks today</span></a></li>
 </ul>

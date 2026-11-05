@@ -922,7 +922,7 @@ def confirm(order: str, signature: str | None = None, led=None) -> dict:
             o["signatures"]["lock"] = signature
         _save("orders", order, o)
         from . import outside
-        outside.note("commitment", order, "milestone funding")
+        outside.note("commitment", order, "milestone funding", o.get("funder"))
         with _lock:
             p = project(o["project"])
             m = _milestone(p, o["milestone"])

@@ -11,7 +11,7 @@ const [SHA] = process.argv.slice(2);
 const OUT = `${process.env.KNOS_WORLD || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`}/test_first_minute.txt`;
 const SITE = process.env.KNOS_SITE || "https://drexthealpha.github.io/Knos/";
 const BUYER = "For anyone about to build or fund a product: see who wants it and where, then get paid only on proof.";
-const PROOF = ["Cheating pull requests caught: Knos 63 of 63, plain CI 7 of 63", "Ready briefs passed 70% vs 5% for vague ones"];
+const PROOF = ["Cheating pull requests caught: Knos 60 of 60, plain CI 31 of 60", "Ready briefs passed 70% vs 5% for vague ones"];
 const lines = []; let fails = 0;
 const ok = (c, what) => { lines.push(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails++; };
 

@@ -55,7 +55,7 @@
    "merged": true,
    "merged_at": "2026-10-11T10:23:09Z",
    "said": {
-    "line": "Knos: paid. @drexthealpha received 5.00 test USDC for issue #264, in full: its funder paid Knos's fee of 0.05 on top. It went to `9a6RmArU8cfKGqWRfXU2i8xGXsvVFiNs97ZMVuYyozcW`, the wallet bound to @dr",
+    "line": "Knos: paid. @drexthealpha received 5.00 test USDC for issue #264, in full: its funder paid a fee of 0.05 on top. It went to `9a6RmArU8cfKGqWRfXU2i8xGXsvVFiNs97ZMVuYyozcW`, the wallet bound to @dr",
     "sig": "54fZKvdnnyTkHwbk7Dz8h9jXTiUPRiAPhnGTea92pWss8bWh6ExV5TPc4bq8ECSg1pPgXxt89s9U8SmoDYbp6mEu"
    }
   }

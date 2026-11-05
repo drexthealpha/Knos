@@ -20,6 +20,7 @@ RAW = "https://github.com/drexthealpha/Knos/blob/main/docs/idt/runs.json"
 PACKAGED = ROOT / "src" / "knos" / "idt_benchmark.json"
 QLOO = ROOT / "docs" / "idt" / "qloo_summary.json"
 QLOO_RAW = "https://github.com/drexthealpha/Knos/blob/main/docs/idt/qloo_runs.json"
+E1 = "https://github.com/drexthealpha/Knos/blob/main/docs/reference/e1_results.json"
 MARK = re.compile(r"(<!-- home:idt -->)(.*?)(<!-- /home:idt -->)", re.S)
 
 
@@ -30,8 +31,11 @@ def block(s: dict) -> str:
         f"<tr><td>{html.escape(r['task'])}</td><td class=\"k-num\">{r['vague_output_tokens']:,}</td><td class=\"k-num\">{r['ready_output_tokens']:,}</td>"
         f"<td class=\"k-num\">{r['saved_output_tokens']:+,}</td><td>{'yes' if r['vague_passed'] else 'no'} / {'yes' if r['ready_passed'] else 'no'}</td></tr>"
         for r in s["rows"])
-    return (f"\n    <section id=\"home-idt\" aria-label=\"IDT benchmark\" data-ratio=\"{s['ratio_vague_to_ready']}\">"
-            f"<p class=\"fine\" id=\"idt-line\">Clear briefs: <strong class=\"k-num\" id=\"idt-ratio\">{s['ratio_vague_to_ready']}x</strong> fewer output tokens, measured on {n} tasks.</p>"
+    # no saving is claimed: the pre-registered run (docs/reference/e1_results.json) found a padded control too close to
+    # the Ready brief (its interval reaches 0.994), so the vague-to-Ready ratio is not stated as a result
+    return (f"\n    <section id=\"home-idt\" aria-label=\"IDT benchmark\">"
+            f"<p class=\"fine\" id=\"idt-line\" data-tasks=\"{n}\">Clear briefs: no token saving claimed "
+            f"(<a href=\"{E1}\" rel=\"noopener\">padded control failed</a>).</p>"
             f"<details class=\"k-more\" id=\"idt-per-brief\" data-not-prose><summary>Each brief</summary>"
             f"<p class=\"fine\">One model ({html.escape(str(s['model']))}, {html.escape(str(s['effort']))} effort) for both. Vague: {s['vague_output_tokens']:,} tokens, {pct(s['vague_pass_rate'])} passed. "
             f"Ready: {s['ready_output_tokens']:,} tokens, {pct(s['ready_pass_rate'])} passed.</p>"
@@ -58,7 +62,7 @@ def qloo_block() -> str:
             f"Ready {q['without_pass']} vs {q['with_pass']} of {q['tasks']}.</p>"
             f"<p class=\"fine\">The {q['tasks']} research briefs, each run without and with its Grounding (Qloo) line ({html.escape(str(q['model']))}, "
             f"{html.escape(str(q['effort']))} effort): {q['without_output_tokens']:,} vs {q['with_output_tokens']:,} output tokens, "
-            f"${q['without_cost_usd']} vs ${q['with_cost_usd']} estimated. The IDT ratio above is Knos's own (clear briefs), not Qloo's.</p>"
+            f"${q['without_cost_usd']} vs ${q['with_cost_usd']} estimated. The IDT benchmark above is Knos's own (clear briefs), not Qloo's.</p>"
             f"<div class=\"k-table\"><table><thead><tr><th scope=\"col\">Task</th><th scope=\"col\">Without</th><th scope=\"col\">With Qloo</th>"
             f"<th scope=\"col\">Ready</th></tr></thead><tbody>{rows}</tbody></table></div>"
             f"<p class=\"fine\"><a href=\"{QLOO_RAW}\" rel=\"noopener\">Every run, raw</a>.</p></details>")

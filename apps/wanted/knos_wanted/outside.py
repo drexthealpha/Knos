@@ -7,8 +7,10 @@ the order's address; no personal data is kept (no address, no label, no wallet).
 same rows are listed at GET /api/outside/rows, so the counter equals the store.
 
 Left out, and said on the invite page (RULE): the operator's own runs (a request carrying the X-Knos-Admin key), the
-team's and the test runs' guest sessions (a label naming Knos, a test, a proof run or CI), and automated clients (a
-user agent of a headless browser, a script, curl, a bot or GitHub Actions). Nothing is added by hand.
+team's and the test runs' guest sessions (a label naming Knos, a test, a proof run or CI), automated clients (a
+user agent of a headless browser, a script, curl, a bot or GitHub Actions) and orders funded from one of Knos's own
+wallets (own_wallets.WALLETS). That last rule is applied when a row is read too, so a row written before it is left out
+by the same rule. Nothing is added or removed by hand.
 """
 from __future__ import annotations
 
@@ -16,9 +18,11 @@ import datetime as dt
 import re
 import threading
 
+from . import own_wallets
+
 RULE = ("Counted: crossings started and pre-order commitments locked by people outside Knos. Left out: the operator's own "
         "runs (its admin key), guest sessions labelled as Knos, a test, a proof run or CI, and automated clients (headless "
-        "browsers, scripts, curl, bots, GitHub Actions). No row is added by hand.")
+        "browsers, scripts, curl, bots, GitHub Actions), and orders funded from Knos's own wallets. No row is added or removed by hand.")
 _AUTO = re.compile(r"headless|python|curl|wget|bot\b|crawler|spider|github|playwright|puppeteer|httpx|node-fetch|undici|go-http|java/",
                    re.I)
 _TEST_LABEL = re.compile(r"\b(knos|test\w*|proof|ci|demo|founder|drexthealpha)\b", re.I)
@@ -30,7 +34,7 @@ def begin(headers) -> None:
     CTX.headers = headers
 
 
-def note(kind: str, ref: str, via: str) -> bool:
+def note(kind: str, ref: str, via: str, wallet: str | None = None) -> bool:
     """Count an event of the request being served; with no request (a background job) nothing is counted."""
     headers = getattr(CTX, "headers", None)
     if headers is None:
@@ -41,15 +45,17 @@ def note(kind: str, ref: str, via: str) -> bool:
     except Exception:  # noqa: BLE001 - an unreadable session is no outside person
         user = None
     try:
-        return record(kind, ref, via, headers, user, product_routes._admin(headers.get("X-Knos-Admin")))
+        return record(kind, ref, via, headers, user, product_routes._admin(headers.get("X-Knos-Admin")), wallet)
     except Exception:  # noqa: BLE001 - the counter never stops a lock or a crossing
         return False
 
 
-def excluded(headers, user: dict | None, admin: bool) -> str | None:
+def excluded(headers, user: dict | None, admin: bool, wallet: str | None = None) -> str | None:
     """Why a request is not an outside one, or None when it counts."""
     if admin:
         return "the operator's key"
+    if wallet and str(wallet) in own_wallets.WALLETS:
+        return "one of Knos's own wallets"
     if _AUTO.search(str(headers.get("User-Agent") or "")):
         return "an automated client"
     label = str((user or {}).get("label") or "")
@@ -58,9 +64,9 @@ def excluded(headers, user: dict | None, admin: bool) -> str | None:
     return None
 
 
-def record(kind: str, ref: str, via: str, headers, user: dict | None, admin: bool) -> bool:
+def record(kind: str, ref: str, via: str, headers, user: dict | None, admin: bool, wallet: str | None = None) -> bool:
     """Count one event when it is an outside one. Returns whether it was counted."""
-    if kind not in ("crossing", "commitment") or excluded(headers, user, admin):
+    if kind not in ("crossing", "commitment") or excluded(headers, user, admin, wallet):
         return False
     from . import valley
     day = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
@@ -78,9 +84,18 @@ def record(kind: str, ref: str, via: str, headers, user: dict | None, admin: boo
     return True
 
 
+def _own_order(r: dict) -> bool:
+    """A commitment row whose order was funded from one of Knos's own wallets."""
+    if r.get("kind") != "commitment":
+        return False
+    from . import valley
+    o = valley._safe_order(str(r.get("ref") or ""))
+    return bool(o) and str(o.get("funder") or "") in own_wallets.WALLETS
+
+
 def rows() -> list[dict]:
     from . import valley
-    return sorted((r for d in valley._all("outside") for r in d.get("rows") or []), key=lambda r: r["at"])
+    return sorted((r for d in valley._all("outside") for r in d.get("rows") or [] if not _own_order(r)), key=lambda r: r["at"])
 
 
 def totals() -> dict:

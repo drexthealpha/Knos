@@ -1,6 +1,6 @@
-// S4 test_proof_on_card, live: every result card on /app/ carries one line with the locked result (ahead of Qloo
-// popularity alone, +0.033 [+0.007, +0.067]; a tie with population; the model alone ahead twice) linking to How we test
-// Knos, on the 6 front-door chips and 1 DOI (its paper reading).
+// S4 test_proof_on_card, live: every result card on /app/ carries one proof line linking to How we test Knos, where the
+// locked result and its interval are published; since 3 Nov 2026 (H7) the card types no figure of its own. Run on the 6
+// front-door chips and 1 DOI (its paper reading).
 //
 //   node scripts/test_proof_on_card.mjs [result file]
 import { chromium } from "playwright";
@@ -37,8 +37,7 @@ try {
         const el = all[0];
         return { n: all.length, text: el ? el.innerText : "", href: el?.querySelector("a")?.href || "" };
       });
-      const pass = p.n === 1 && /\+0\.033 \[\+0\.007, \+0\.067\]/.test(p.text) && /popularity alone/.test(p.text) && /ties population/.test(p.text)
-        && /model alone beat it twice/.test(p.text) && /how-we-test\.html$/.test(p.href);
+      const pass = p.n === 1 && /How we test Knos/.test(p.text) && !/\d\.\d{3}/.test(p.text) && /how-we-test\.html$/.test(p.href);
       if (pass) good++;
       ok(pass, `${idea}: ${p.n} proof line, "${p.text.slice(0, 150)}", linking to ${p.href}`);
     } catch (e) {

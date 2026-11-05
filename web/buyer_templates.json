@@ -35,7 +35,7 @@
    },
    "assurance": "in-process",
    "trusted": [
-    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/reference/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "The named checks are your repository's own CI. Plain CI caught 31 of 60 altered pull requests in Knos's tamper test (docs/reference/evidence_plan.md), so the checks alone are not the acceptance: a maintainer's merge is.",
     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
@@ -98,7 +98,7 @@
    },
    "assurance": "in-process",
    "trusted": [
-    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/reference/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "The named checks are your repository's own CI. Plain CI caught 31 of 60 altered pull requests in Knos's tamper test (docs/reference/evidence_plan.md), so the checks alone are not the acceptance: a maintainer's merge is.",
     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
@@ -130,7 +130,7 @@
    },
    "assurance": "in-process",
    "trusted": [
-    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/reference/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "The named checks are your repository's own CI. Plain CI caught 31 of 60 altered pull requests in Knos's tamper test (docs/reference/evidence_plan.md), so the checks alone are not the acceptance: a maintainer's merge is.",
     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",
@@ -164,7 +164,7 @@
    },
    "assurance": "in-process",
    "trusted": [
-    "The named checks are your repository's own CI. Plain CI passed 56 of 63 cheating pull requests in Knos's tamper suite (docs/reference/TAMPER.md), so the checks alone are not the acceptance: a maintainer's merge is.",
+    "The named checks are your repository's own CI. Plain CI caught 31 of 60 altered pull requests in Knos's tamper test (docs/reference/evidence_plan.md), so the checks alone are not the acceptance: a maintainer's merge is.",
     "GitHub's signing key and its hosted runner: whoever holds that key, or a runner that lies about which workflow ran, could forge the token.",
     "The code of the pinned workflow at the commit named above: it decides what counts as accepted. Read it at that commit.",
     "The administrators of the repository: in merge mode the merge is the acceptance, and whoever may merge or change the branch rules can accept.",

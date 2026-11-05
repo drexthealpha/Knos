@@ -78,7 +78,7 @@ function world(start, upTo, n = 40, { held = false, refused = false, states = nu
     { name: "knos", path: ".github/workflows/knos.yml", status: has("pay") ? "completed" : "in_progress", conclusion: has("pay") ? "success" : null, run_started_at: iso(at.sign), html_url: `https://github.com/${REPO}/actions/runs/2` }];
   if (has("pay")) {
     w.comments[n + 1] = [{ body: held ? `Knos: held for @canary. 5.00 test USDC for issue #${n} waits for them ([transaction](https://explorer.solana.com/tx/${PAY_TX}?cluster=devnet), 26 s after the merge).`
-      : `Knos: paid. @canary received 4.60 test USDC for issue #${n}: the bounty of 5.00 less Knos's fee of 0.40. It went to \`W\` ([verified](https://explorer.solana.com/tx/${VERIFY_TX}?cluster=devnet), [transaction](https://explorer.solana.com/tx/${PAY_TX}?cluster=devnet), 26 s after the merge).`,
+      : `Knos: paid. @canary received 4.60 test USDC for issue #${n}: the bounty of 5.00 less a fee of 0.40. It went to \`W\` ([verified](https://explorer.solana.com/tx/${VERIFY_TX}?cluster=devnet), [transaction](https://explorer.solana.com/tx/${PAY_TX}?cluster=devnet), 26 s after the merge).`,
       created_at: iso(at.pay + 4000), html_url: `https://github.com/${REPO}/pull/${n + 1}#issuecomment-2` }];
     w.sigs[ESCROW] = [{ signature: PAY_TX, blockTime: Math.floor(at.pay / 1000), err: null }, ...w.sigs[ESCROW]];
   }
