@@ -11,7 +11,7 @@ const params = new URLSearchParams(location.search);
 const atT = params.has("t");
 const DURATION = 24;
 const STAGES = [[0.0, 0.25, "Resolve", "The test is locked before money moves."], [0.25, 0.5, "Price", "The bid waits against that test."],
-  [0.5, 0.75, "Settle", "The check runs on each agent's work."], [0.75, 1.01, "Work", "Left agent passed: paid. Right agent failed: 0."]];
+  [0.5, 0.75, "Settle", "The check runs on each agent's work."], [0.75, 1.01, "Work", "Only the agent that passed is paid."]];
 
 async function start() {
   const THREE = await import("../near/story/vendor/three.module.min.js");
@@ -66,12 +66,26 @@ async function start() {
   const cap = film.querySelector("[data-stage]"), capLine = film.querySelector("[data-line]");
   const resize = () => { const w = canvas.clientWidth, h = canvas.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 60);
+  // each part named on screen next to it, so no shape has to be guessed and pass or fail is said in words
+  const layer = canvas.parentElement, v = new THREE.Vector3();
+  const tag = (obj, text) => { const s = document.createElement("span"); s.className = "k-film-tag"; s.setAttribute("aria-hidden", "true"); s.textContent = text; layer.append(s); return { obj, s }; };
+  const tags = [tag(plate, "Test, locked"), tag(coin, "Bid, held"), tag(gate.children[0], "Check"), tag(passing, "Agent A"), tag(failing, "Agent B")];
+  const place = () => {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    for (const { obj, s } of tags) {
+      obj.getWorldPosition(v); v.y += obj === plate ? 0.25 : obj === coin ? -0.35 : obj.geometry?.type === "TorusGeometry" ? 0.98 : -0.6; v.project(camera);
+      s.style.transform = `translate(${Math.round((v.x + 1) / 2 * w)}px, ${Math.round((1 - v.y) / 2 * h)}px) translate(-50%, -50%)`;
+    }
+  };
   let last = 0, warm = false;
   function frame(p, dt) {
     if (!warm) { for (const s of [sx, sy, sd, se, sc]) { s.x = s === sd ? 9 : 0; } warm = true; }
     // film camera: a slow push in, a crane up at Settle, a dolly to the passing agent at Work
     const shotX = p < 0.75 ? 0 : -1.4 * clamp((p - 0.75) / 0.2), shotY = 1.2 + (p > 0.5 ? 1.3 * clamp((p - 0.5) / 0.2) : 0);
-    camera.position.set(sx.step(shotX + 1.2 * (1 - p), dt), sy.step(shotY, dt), sd.step(8.6 - 2.2 * p, dt));
+    // Price: the camera swings round the job, about 40 degrees out and back, so the bid can be seen waiting inside
+    const orbit = 0.7 * Math.sin(Math.PI * clamp((p - 0.18) / 0.42));
+    const cx = shotX + 1.2 * (1 - p), cz = 8.6 - 2.2 * p;
+    camera.position.set(sx.step(cx * Math.cos(orbit) + cz * Math.sin(orbit), dt), sy.step(shotY, dt), sd.step(cz * Math.cos(orbit) - cx * Math.sin(orbit), dt));
     camera.lookAt(shotX * 0.6, 0, 0);
     ex.set(se.step(p < 0.25 ? clamp(p / 0.25) : p < 0.75 ? 1 : 1 - clamp((p - 0.75) / 0.15) * 0.6, dt));
     // Settle: the scan; Work: the coin travels to the passing agent, the other turns red and gets nothing
@@ -82,7 +96,12 @@ async function start() {
     coin.position.set(-2.4 * pay, Math.sin(pay * Math.PI) * 1.3 - 0.2 * pay, -1.1 * pay);
     const stage = STAGES.find(([a, b]) => p >= a && p < b) || STAGES[STAGES.length - 1];
     if (cap.textContent !== stage[2]) { cap.textContent = stage[2]; capLine.textContent = stage[3]; }
+    const said = (t, text) => { if (t.s.textContent !== text) t.s.textContent = text; };
+    said(tags[3], scan > 0.5 ? (pay > 0.9 ? "Agent A: passed, paid" : "Agent A: passed") : "Agent A");
+    said(tags[4], scan > 0.9 ? "Agent B: failed, paid 0" : "Agent B");
+    said(tags[1], pay > 0.9 ? "Bid, paid to A" : "Bid, held");
     renderer.render(scene, camera);
+    place();
   }
   resize();
   addEventListener("resize", resize);
