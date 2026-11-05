@@ -501,7 +501,6 @@ def _product_tools() -> set:
 READ_ONLY = {"knos_research_card", "knos_demand_check", "knos_crossings", "knos_milestones", "knos_tasks", "knos_memory_search",
              "knos_memory_recall", "knos_templates", "knos_projects", "knos_openapi", "knos_ready", "knos_usage",
              "knos_milestone_prompt", "knos_near_swarm_job", "knos_iris_check_proof"}
-MONEY = {"knos_preorder"}
 STORE = {"knos_ready", "knos_demand_check"}           # no qloo_* tool: those answer an agent key only
 STORE_DAILY_CAP = 2000                                 # tool calls a day through /mcp/store, all callers together
 _store_day = {"day": "", "n": 0}
@@ -511,7 +510,7 @@ def annotate(tool: dict) -> dict:
     name = tool["name"]
     ro = name in READ_ONLY or name.startswith("qloo_")
     return {**tool, "annotations": {"title": tool.get("title") or name.replace("_", " "), "readOnlyHint": ro,
-                                    "destructiveHint": name in MONEY, "idempotentHint": ro,
+                                    "destructiveHint": not ro, "idempotentHint": ro,   # spec S6: every tool is read only or flagged so a client asks first
                                     "openWorldHint": name.startswith("qloo_") or name in ("knos_demand_check", "knos_cross", "knos_research_card")}}
 
 

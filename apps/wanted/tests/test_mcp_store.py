@@ -13,10 +13,11 @@ def names(out):
     return [t["name"] for t in out["result"]["tools"]]
 
 
-def test_every_tool_is_annotated_and_only_the_money_tool_is_destructive():
+def test_every_tool_is_annotated_and_every_writing_tool_is_destructive():
     tools = agent.mcp(state(), {"id": 1, "method": "tools/list"})["result"]["tools"]
     assert tools and all(t["annotations"]["title"] and isinstance(t["annotations"]["readOnlyHint"], bool) for t in tools)
-    assert [t["name"] for t in tools if t["annotations"]["destructiveHint"]] == ["knos_preorder"]
+    assert all(t["annotations"]["readOnlyHint"] or t["annotations"]["destructiveHint"] for t in tools)   # spec S6
+    assert "knos_preorder" in [t["name"] for t in tools if t["annotations"]["destructiveHint"]]
     assert all(t["annotations"]["readOnlyHint"] for t in tools if t["name"] in ("knos_ready", "knos_demand_check"))
 
 
