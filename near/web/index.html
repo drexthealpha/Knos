@@ -210,15 +210,20 @@ async function load() {
     body.append(el("tr", {}, [el("td", {}, el("span", { className: "id", textContent: m.id })), el("td", { className: "n", textContent: Number(m.amount || 0).toLocaleString() }),
       el("td", { textContent: (m.state || "").toLowerCase() }), el("td", {}, acts), el("td", { className: "txs" }, Object.entries(m.txs || {}).map(([k, h]) => link(h, k)))]));
   }
+  // redrawn when the next deadline passes, so Refund shows without a reload
+  const next = rows.filter((m) => m.state === "Funded" && m.deadline_s > now).map((m) => m.deadline_s);
+  clearTimeout(redraw);
+  if (next.length) redraw = setTimeout(load, (Math.min(...next) - now) * 1000 + 3000);
 }
+let redraw = 0;
 
 async function act(label, path, body) {
   busy(`${label}: sending to testnet.`);
   const r = await api(path, body);
+  await load();                       // the table first, so "done" never sits above a row that still says funded
   busy("");
   $("busy").hidden = false; $("busy").setAttribute("data-done", "");
   $("busy-text").textContent = r.ok ? `${label}: done.` : `${label}: refused, ${r.why || "see the transaction"}.`;
-  await load();
   return r;
 }
 
