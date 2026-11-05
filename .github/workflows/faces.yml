@@ -52,7 +52,7 @@ jobs:
               --output=json --output-path="faces/lighthouse-$n.json" --only-categories=performance,accessibility,best-practices,seo || true
             node -e 'const r=require(process.argv[1]); const c=r.categories; console.log(process.argv[2], ["performance","accessibility","best-practices","seo"].map(k=>k+" "+c[k].score).join(", "), "CLS", r.audits["cumulative-layout-shift"].numericValue, "LCP ms", Math.round(r.audits["largest-contentful-paint"].numericValue))' "$PWD/faces/lighthouse-$n.json" "$n" | tee -a faces/lighthouse.txt
           done
-          ! grep -E "(performance|accessibility|best-practices|seo) 0\." faces/lighthouse.txt
+          ! grep -E "(performance|accessibility|best-practices|seo) 0\.[0-8]" faces/lighthouse.txt   # under 0.9, out of the good band
       - name: linkinator, the three faces
         if: always()
         run: |
