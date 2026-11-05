@@ -178,7 +178,8 @@ def test_the_mark_with_depth_is_the_same_drawing_and_costs_no_download():
     assert "aspect-ratio: 1856 / 1756" in css.split(".k-mark3d {", 1)[1].split("}", 1)[0]       # the box is the mark's before it is drawn
     assert re.search(r'viewBox="0 0 1856 1756"', _text(BRAND / "mark.svg"))
     page = _text(ROOT / "web" / "index.html")
-    assert '<div class="hero-mark" id="mark3d" aria-hidden="true"></div>' in page and "<canvas" not in page
+    # the one canvas is the film's (web/brand/film.js, TASK-FOUR F2), never the mark's
+    assert '<div class="hero-mark" id="mark3d" aria-hidden="true"></div>' in page and "<canvas" not in re.sub(r'<section id="k-film".*?</section>', "", page, flags=re.S)
     for name in ("--ink", "--ink-2", "--paper", "--paper-2", "--line", "--accent", "--ok", "--bad", "--radius", "--depth-1", "--depth-2", "--depth-3", "--ease", "--dur-1", "--dur-2", "--dur-3"):
         assert f"{name}:" in css, name
     for cls in (".k-card", ".k-btn", ".k-btn.quiet", ".k-kicker", ".k-num", ".k-step", ".k-stage", ".k-reveal", ".k-table", "[data-tilt]"):

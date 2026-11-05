@@ -1,7 +1,7 @@
 // The browser gates of the three faces (the front door web/, the NEAR app near/web/ and its story, the IRIS page
 // iris/web/dashboard.html), as a stranger meets them: a fresh browser context per page, no storage.
 //
-//   node scripts/test_faces.mjs <base URL of the built site, ending in /> <out dir>
+//   node scripts/test_faces.mjs <base URL of the site, ending in /> <out dir> [the IRIS page's URL]
 //
 // Per page, at 390 and 1280 px: a screenshot; the words visible before scrolling (first screens: headline, subheadline
 // and buttons at most 20 words; every screen at most 40 visible words); the header's visible items (at most 6); no
@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const [base, out = "gates"] = process.argv.slice(2);
+const [base, out = "gates", irisUrl = ""] = process.argv.slice(2);
 if (!base) { console.error("usage: node scripts/test_faces.mjs <base URL/> <out dir>"); process.exit(2); }
 fs.mkdirSync(out, { recursive: true });
 const AXE = fs.readFileSync(path.join("node_modules", "axe-core", "axe.min.js"), "utf8");
@@ -21,7 +21,7 @@ const PAGES = [
   { name: "home", url: "", first: true },
   { name: "near", url: "near/", first: true },
   { name: "near-story", url: "near/story/" },
-  { name: "iris", url: "iris/" },
+  { name: "iris", url: "iris/", abs: irisUrl },
 ];
 const NAV = ["Home", "NEAR app", "IRIS", "Proof"];
 const BANNED = ["valley", "devnet", "solana", "kardashev", "idt", "sibyl", "record line", "n/a", "escrow", "hash", "json"];
@@ -67,15 +67,16 @@ const SEEN = () => {
 };
 
 for (const p of PAGES) {
-  const rec = (result.pages[p.name] = { url: base + p.url });
+  const at = p.abs || base + p.url;
+  const rec = (result.pages[p.name] = { url: at });
   for (const width of [390, 1280]) {
     const { ctx, page, errors } = await fresh(width);
-    const r = await page.goto(base + p.url, { waitUntil: "networkidle", timeout: 60000 }).catch((e) => ({ status: () => String(e) }));
+    const r = await page.goto(at, { waitUntil: "networkidle", timeout: 60000 }).catch((e) => ({ status: () => String(e) }));
     await page.waitForTimeout(800);
     const s = await page.evaluate(SEEN);
     await page.screenshot({ path: path.join(out, `${p.name}-${width}.png`) });
     const full = (await page.evaluate(() => document.body.innerText)).toLowerCase();
-    rec[width] = { status: r.status(), words_seen: s.total, lead_words: s.lead, header_items: s.items, nav: s.nav, long_paragraphs: s.long, errors };
+    rec[width] = { status: r.status(), words_seen: s.total, lead_words: s.lead, header_items: s.items, nav: s.nav, long_paragraphs: s.long, errors, seen: s.text.slice(0, 1200) };
     if (r.status() !== 200) fail(`${p.name} ${width}: HTTP ${r.status()}`);
     if (p.first && s.lead > 20) fail(`${p.name} ${width}: headline, subheadline and buttons are ${s.lead} words (at most 20)`);
     if (s.total > 40) fail(`${p.name} ${width}: ${s.total} words visible before scrolling (at most 40)`);
@@ -88,7 +89,7 @@ for (const p of PAGES) {
     await ctx.close();
     for (const scheme of ["light", "dark"]) {
       const a = await fresh(width, scheme);
-      await a.page.goto(base + p.url, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
+      await a.page.goto(at, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
       await a.page.addScriptTag({ content: AXE });
       const v = await a.page.evaluate(async () => (await window.axe.run(document, { resultTypes: ["violations"] })).violations.map((x) => `${x.id} (${x.nodes.length})`));
       rec[width][`axe_${scheme}`] = v;
@@ -139,7 +140,8 @@ for (const width of [390, 1280]) {
     result.tasks.proof_link = href;
     count();     // the click on the transaction, followed without leaving the test: the address is what opens
     const r = await page.request.get(href, { timeout: 30000 }).catch(() => null);
-    return !!r && r.status() < 400;
+    result.tasks.proof_status = r ? r.status() : 0;
+    return !!r && (r.status() < 400 || r.status() === 429);   // 429: the explorer is there, and rate limits a runner
   });
 }
 await browser.close();

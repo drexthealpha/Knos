@@ -76,6 +76,9 @@ RUN --mount=type=bind,from=builder,source=/,target=/builder/root \
 # the files IRIS uses at run: Knos's package, iris/ (merge.cpf, knos_iris, fixtures, the health check's script), the jar
 COPY --chown=irisowner:irisowner src/knos /home/irisowner/knos/src/knos
 COPY --chown=irisowner:irisowner iris /home/irisowner/knos/iris
+# the one tokens file of the three faces and its fonts, which /knos/ serves next to the page
+COPY --chown=irisowner:irisowner web/brand/tokens.css /home/irisowner/knos/web/brand/tokens.css
+COPY --chown=irisowner:irisowner web/fonts /home/irisowner/knos/web/fonts
 COPY --from=jar --chown=irisowner:irisowner /home/irisowner/knos/java/knos-iris-pex.jar /home/irisowner/knos/java/knos-iris-pex.jar
 # the open embedding model for Vector Search (snowflake-arctic-embed-s: 33M parameters, 384 numbers), its ONNX runtime and
 # its weights inside the image, so a run needs no download; knos_iris.bridge falls back to the hashed embedding without it

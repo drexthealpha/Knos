@@ -5,23 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Knos Referee on IRIS: decisions, their traces and the approver's inbox.">
 <title>Knos Referee decisions</title>
+<link rel="stylesheet" href="brand/tokens.css">
 <style>
 /* Hallmark · job: approve or reject a held payout and read why it was decided · shape: app screen · genre: modern-minimal · theme: the Knos tokens (near/DESIGN.md), custom */
 /* Hallmark · pre-emit critique: P4 H3 E4 S4 R4 V3 · weakest: V, a working screen of tables and one inbox, so the inbox comes first and every row carries its reason in words */
-/* tokens: near/DESIGN.md (the Knos web tokens). Dark first; light by the reader's setting */
-:root {
-  --paper: #07080c; --paper-2: #0f1118; --soft: #151822; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634;
-  --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
-  --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --ease: cubic-bezier(.2, .8, .2, 1); --dur-1: 120ms; --dur-2: 240ms;
-  color-scheme: dark;
-}
-@media (prefers-color-scheme: light) {
-  :root { --paper: #f4f4f0; --paper-2: #ffffff; --soft: #eaeae4; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4;
-    --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; color-scheme: light; }
-}
+/* the colours and fonts: web/brand/tokens.css, the one file of the three faces */
 * { box-sizing: border-box; }
 html, body { overflow-x: clip; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--text); }
@@ -33,6 +21,7 @@ a { color: var(--accent); }
 .bar nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; }
 .bar nav a[aria-current] { color: var(--accent); }
 .bar .fine { margin-left: auto; }
+body:not([data-in]) main > section, body:not([data-in]) #fresh, body:not([data-in]) #refresh { display: none; }
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
 h1, h2 { text-wrap: balance; }
 h1 { font: 600 28px/1.15 var(--head); letter-spacing: -.02em; margin: 0; }
@@ -106,7 +95,7 @@ main > * { min-width: 0; }
 </header>
 <main>
   <form class="panel signin" id="login" hidden aria-labelledby="t-login">
-    <h2 id="t-login">Sign in to IRIS</h2>
+    <h1 id="t-login">Sign in to IRIS</h1>
     <p class="fine" id="login-msg">The user and password of this IRIS instance.</p>
     <label for="user">User</label><input id="user" name="user" autocomplete="username" required>
     <label for="pass">Password</label><input id="pass" name="pass" type="password" autocomplete="current-password" required>
@@ -155,6 +144,7 @@ function signIn() {
       $("pass").value = "";
       dlg.hidden = true;
       signingIn = null;
+      document.body.dataset.in = "1";
       resolve();
     };
   });
@@ -271,7 +261,8 @@ async function load() {
   if (!selected && rows.length) showTrace(rows[0].session);
 }
 $("refresh").addEventListener("click", load);
-load();
+// nothing is asked of IRIS before the user and password are given
+(async () => { await signIn(); load(); })();
 </script>
 </body>
 </html>

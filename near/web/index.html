@@ -21,6 +21,7 @@ a { color: var(--accent); }
 .bar nav a[aria-current] { color: var(--accent); }
 main { max-width: 1200px; margin: 0 auto; padding: var(--sp-5) 16px 64px; display: grid; gap: var(--sp-6); }
 main > * { min-width: 0; }
+.first { min-height: calc(100svh - 80px); }
 h1, h2 { text-wrap: balance; margin: 0; }
 h1 { font: 600 clamp(32px, 4.4vw, 48px)/1.05 var(--head); letter-spacing: -.025em; max-width: 16em; }
 h2 { font: 600 var(--s2)/1.3 var(--head); letter-spacing: -.015em; margin-bottom: var(--sp-3); }
@@ -38,7 +39,7 @@ button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-
 .path li::before { content: ""; position: absolute; top: -24px; left: 50%; translate: -50% 0; width: 12px; height: 12px; border-radius: 50%; background: var(--soft); border: 2px solid var(--line); }
 .path li[data-done] { color: var(--ink); }
 .path li[data-done]::before { background: var(--ok); border-color: var(--ok); }
-.track .coin { position: absolute; top: 3px; left: 10%; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
+.track .coin { position: absolute; top: 3px; left: 0; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th { text-align: left; font: 400 var(--s-1)/1.4 var(--text); color: var(--ink-2); padding: var(--sp-2); }
 td { padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--line); vertical-align: top; }
@@ -61,7 +62,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 .spinner { flex: none; width: 20px; height: 20px; border: 4px var(--accent) double; border-left-style: solid; border-radius: 50%; }
 @media (prefers-reduced-motion: no-preference) {
   .spinner { animation: spinner-aib1d7 .75s infinite linear; }
-  .track .coin { transition: left 900ms var(--ease); }
+  .track .coin { transition: transform 900ms var(--ease); }
 }
 @keyframes spinner-aib1d7 { to { transform: rotate(360deg); } }
 @media (max-width: 640px) {
@@ -84,7 +85,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   </nav>
 </header>
 <main>
-  <section aria-labelledby="t-title">
+  <section class="first" aria-labelledby="t-title">
     <h1 id="t-title">Paid only when the test passes</h1>
     <p class="lead">Two agents try. Only the passing one is paid.</p>
     <button class="go" type="button" id="post">Post a job</button>
@@ -118,7 +119,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <h2 id="t-pay">Pay with any wallet</h2>
     <p class="fine">One script tag puts this button on any page. It quotes the bid in USDC from Base through NEAR Intents, a quote only.</p>
     <code class="snip">&lt;script src="http://127.0.0.1:8790/pay.js" data-bid="1000"&gt;&lt;/script&gt;</code>
-    <p><a href="embed.html">A blank page with the button</a></p>
+    <p id="embedlink"><a href="embed.html">A blank page with the button</a></p>
   </section>
 
   <section class="panel" aria-labelledby="t-ms">
@@ -147,7 +148,7 @@ let local = true;
 function at(stop) {
   const i = STOPS.indexOf(stop);
   for (const li of $("path").querySelectorAll("li")) li.toggleAttribute("data-done", STOPS.indexOf(li.dataset.stop) <= i);
-  $("coin").style.left = `${10 + i * 20}%`;
+  $("coin").style.transform = `translateX(${$("path").clientWidth * (0.1 + i * 0.2)}px)`;
 }
 
 async function api(path, body) {
@@ -182,14 +183,17 @@ function showJob(j) {
 }
 
 async function load() {
-  const s = await api("/api/status").catch(() => ({ status: 0 }));
+  // the server (near/web/serve.py) is on 127.0.0.1:8790; any other copy (Pages) reads the last run and makes no call
+  const served = location.port === "8790";
+  const s = served ? await api("/api/status").catch(() => ({ status: 0 })) : { status: 0 };
   if (s.status !== 200) {
     local = false;
     busy("");
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
     $("busy").hidden = false; $("busy").setAttribute("data-done", "");
-    $("busy-text").textContent = "This copy only reads. To post a job: python near/web/serve.py";
+    $("busy-text").textContent = "Read only here. Run near/web/serve.py to post.";
+    $("embedlink").hidden = true;
     return;
   }
   $("contract").textContent = s.contract ? `Milestones: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";

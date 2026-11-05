@@ -6,21 +6,20 @@
 <meta name="description" content="A research milestone taken apart as you scroll: the money held, the locked criteria, GitHub's signed proof, the NEAR check and the payout on Solana.">
 <title>A milestone, taken apart</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../brand/tokens.css">
 <style>
 /* Hallmark · job: understand how a milestone pays only on proof, part by part · shape: scroll story · genre: modern-minimal · theme: the Knos tokens (near/DESIGN.md), custom */
 /* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: P, the scene is built from code, so every part is named where it sits and the phone gets the same names in a still */
-:root {
-  --paper: #07080c; --paper-2: #0f1118; --soft: #151822; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634; --accent: #93a5ff; --ok: #5fd28f;
-  --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --head: "Bricolage Grotesque", "Geist", system-ui, sans-serif;
-  color-scheme: dark;
-}
 * { box-sizing: border-box; }
 html, body { overflow-x: clip; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--text); }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 h1, h2 { text-wrap: balance; font-family: var(--head); letter-spacing: -.02em; }
-.intro { max-width: 1200px; margin: 0 auto; padding: 48px 16px 24px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 56px; padding: 8px max(16px, calc((100% - 1200px) / 2)); border-bottom: 1px solid var(--line); }
+.bar strong { font: 650 18px/1 var(--head); margin-right: auto; }
+.bar nav { display: flex; flex-wrap: wrap; gap: 4px 16px; } .bar nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; }
+.intro { max-width: 1200px; margin: 0 auto; padding: 48px 16px 24px; min-height: calc(100svh - 72px); display: grid; align-content: center; }
 .intro h1 { font-size: 40px; line-height: 1.05; margin: 0 0 12px; font-weight: 600; }
 .intro p { margin: 0; max-width: 60ch; font-size: 18px; }
 .fine { color: var(--ink-2); font-size: 13px; }
@@ -46,11 +45,20 @@ canvas { width: 100%; height: 100%; display: block; }
 </style>
 </head>
 <body>
-<header class="intro">
-  <h1>A milestone, taken apart</h1>
-  <p>Scroll: the money held, the locked criteria, GitHub’s signed proof, the NEAR check and the payout on Solana, each where it sits.</p>
-  <p class="fine">NEAR testnet and Solana devnet. Test money. <a href="../">Back to the milestones</a></p>
+<header class="bar">
+  <strong>Knos</strong>
+  <nav aria-label="Knos">
+    <a href="../../">Home</a>
+    <a href="../">NEAR app</a>
+    <a href="https://github.com/drexthealpha/Knos/tree/main/iris">IRIS</a>
+    <a href="../../proof/">Proof</a>
+  </nav>
 </header>
+<section class="intro" aria-labelledby="t-intro">
+  <h1 id="t-intro">A milestone, taken apart</h1>
+  <p>Scroll to see each part where it sits.</p>
+  <p class="fine">Test money.</p>
+</section>
 
 <main>
 <section id="film" aria-label="The milestone, taken apart as you scroll">
@@ -64,10 +72,10 @@ canvas { width: 100%; height: 100%; display: block; }
 <section class="poster" aria-labelledby="t-still">
   <h2 id="t-still">The five parts</h2>
   <svg viewBox="0 0 520 300" role="img" aria-label="Money from the funder's chain to the NEAR check to the payee on Solana">
-    <rect x="10" y="110" width="140" height="80" rx="14" fill="#151822" stroke="#222634"/><text x="24" y="146">Chain A</text><text class="sub" x="24" y="168">the funder</text>
-    <rect x="190" y="90" width="140" height="120" rx="14" fill="#151822" stroke="#93a5ff"/><text x="204" y="140">NEAR check</text><text class="sub" x="204" y="162">proof against</text><text class="sub" x="204" y="180">the locked hash</text>
-    <rect x="370" y="110" width="140" height="80" rx="14" fill="#151822" stroke="#222634"/><text x="384" y="146">Chain B</text><text class="sub" x="384" y="168">Solana devnet</text>
-    <path d="M150 150 H190 M330 150 H370" stroke="#a0a7b8" stroke-width="2"/>
+    <rect style="fill:var(--soft);stroke:var(--line)" x="10" y="110" width="140" height="80" rx="14"/><text x="24" y="146">Chain A</text><text class="sub" x="24" y="168">the funder</text>
+    <rect style="fill:var(--soft);stroke:var(--accent)" x="190" y="90" width="140" height="120" rx="14"/><text x="204" y="140">NEAR check</text><text class="sub" x="204" y="162">proof against</text><text class="sub" x="204" y="180">the locked hash</text>
+    <rect style="fill:var(--soft);stroke:var(--line)" x="370" y="110" width="140" height="80" rx="14"/><text x="384" y="146">Chain B</text><text class="sub" x="384" y="168">Solana devnet</text>
+    <path style="stroke:var(--ink-2)" d="M150 150 H190 M330 150 H370" stroke-width="2"/>
   </svg>
   <ol>
     <li><b>Money held</b>: the funder's test tokens wait in the NEAR contract.</li>
@@ -106,43 +114,45 @@ const BEATS = [
 
 async function start() {
   const THREE = await import("three");
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue("--" + n).trim();
   const { Exploder, Labels } = await import("./vendor/explode.js");
   const canvas = document.getElementById("c");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: atT });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#07080c");
+  scene.background = new THREE.Color(tok("paper"));
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-  scene.add(new THREE.HemisphereLight("#e9ebef", "#07080c", 1.4));
-  const key = new THREE.DirectionalLight("#ffffff", 2.2); key.position.set(-3, 5, 4); scene.add(key);
+  scene.add(new THREE.HemisphereLight(tok("ink"), tok("paper"), 1.4));
+  const key = new THREE.DirectionalLight(tok("ink"), 2.2); key.position.set(-3, 5, 4); scene.add(key);
 
   const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.45, metalness: 0.2, ...o });
   const assembly = new THREE.Group(); scene.add(assembly);
   const part = (name, mesh, data) => { const g = new THREE.Group(); g.name = name; g.add(mesh); g.userData = data; assembly.add(g); return g; };
 
   // the NEAR check: the core block everything fits around
-  const core = part("check", new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), mat("#93a5ff")), { stage: 9, explode: [0, 0, 0] });
+  const core = part("check", new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), mat(tok("accent"))), { stage: 9, explode: [0, 0, 0] });
   // money held: a stack of coins on the left face
   const coins = new THREE.Group();
-  for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.07, 48), mat("#e0b354", { metalness: 0.6 })); c.position.y = -0.18 + i * 0.08; coins.add(c); }
+  for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.07, 48), mat(tok("warn"), { metalness: 0.6 })); c.position.y = -0.18 + i * 0.08; coins.add(c); }
   coins.position.x = -0.62;
   const money = part("money", coins, { stage: 0, explode: [-1.3, 0.1, 0] });
   // the criteria hash: a plate on top
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.06, 0.86), mat("#5fd28f")); plate.position.y = 0.5;
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.06, 0.86), mat(tok("ok"))); plate.position.y = 0.5;
   const crit = part("criteria", plate, { stage: 1, explode: [0, 1.0, 0] });
   // GitHub's signed proof: a card below
-  const card = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.55), mat("#e9ebef")); card.position.y = -0.5;
+  const card = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.55), mat(tok("ink"))); card.position.y = -0.5;
   const proof = part("proof", card, { stage: 2, explode: [0, -1.0, 0.2] });
   // Chain Signatures payout: a ring on the right face
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.06, 20, 64), mat("#a0a7b8", { metalness: 0.7 })); ring.rotation.y = Math.PI / 2; ring.position.x = 0.62;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.06, 20, 64), mat(tok("ink-2"), { metalness: 0.7 })); ring.rotation.y = Math.PI / 2; ring.position.x = 0.62;
   const sig = part("payout", ring, { stage: 3, explode: [1.3, 0.1, 0] });
 
   // the two chains as platforms, and the one coin that travels between them
   const platform = (x, color) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.12, 64), mat(color)); p.position.set(x, -0.95, 0); scene.add(p); return p; };
-  const chainA = platform(-2.9, "#151822"), chainB = platform(2.9, "#151822");
-  const traveller = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 40), mat("#e0b354", { metalness: 0.6, emissive: "#3a2c08" }));
+  const chainA = platform(-2.9, tok("soft")), chainB = platform(2.9, tok("soft"));
+  const traveller = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 40), mat(tok("warn"), { metalness: 0.6, emissive: tok("warn") }));
   scene.add(traveller);
-  const refundCoin = traveller.clone(); refundCoin.material = mat("#a0a7b8", { metalness: 0.6 }); scene.add(refundCoin);
+  const refundCoin = traveller.clone(); refundCoin.material = mat(tok("ink-2"), { metalness: 0.6 }); scene.add(refundCoin);
 
   const ex = new Exploder(assembly);
   const labels = new Labels(document.querySelector(".labels"), camera, canvas);

@@ -7,9 +7,11 @@
 # Impeccable's detector. Everything lands in the artifact "faces".
 name: faces
 on:
-  push:
+  # the site as Pages serves it, once each deploy is done (the front door's app calls answer the site's own origin only)
+  workflow_run:
+    workflows: [pages]
+    types: [completed]
     branches: [main]
-    paths: ["web/**", "near/web/**", "iris/web/**", "scripts/build_site.sh", "scripts/test_faces.mjs", ".github/workflows/faces.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,27 +22,30 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
-      - name: the site, with the NEAR app at /near/ and the IRIS page at /iris/
+      - name: the IRIS page, served here with the site's tokens next to it (it is not on Pages)
         run: |
-          bash scripts/build_site.sh "$RUNNER_TEMP/site/Knos" "$GITHUB_SHA"
-          mkdir -p "$RUNNER_TEMP/site/Knos/iris" && cp iris/web/dashboard.html "$RUNNER_TEMP/site/Knos/iris/index.html"
-          (cd "$RUNNER_TEMP/site" && nohup python3 -m http.server 8080 --bind 127.0.0.1 > "$RUNNER_TEMP/http.log" 2>&1 &)
-          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8080/Knos/ && break; sleep 1; done
+          mkdir -p "$RUNNER_TEMP/iris/brand" "$RUNNER_TEMP/iris/fonts"
+          cp iris/web/dashboard.html "$RUNNER_TEMP/iris/index.html" && cp web/brand/tokens.css "$RUNNER_TEMP/iris/brand/" && cp web/fonts/*.woff2 "$RUNNER_TEMP/iris/fonts/"
+          (cd "$RUNNER_TEMP/iris" && nohup python3 -m http.server 8080 --bind 127.0.0.1 > "$RUNNER_TEMP/http.log" 2>&1 &)
+          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8080/ && break; sleep 1; done
       - name: a browser, axe-core
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.64.1 axe-core@4.11.0 linkinator@8.1.0 impeccable@4.8.0 puppeteer-core@25.16.0
           npx playwright install --with-deps chromium
       - name: the stranger's gates (words, header, nav, axe, F3 T-a T-b T-d, screenshots)
-        run: node scripts/test_faces.mjs http://127.0.0.1:8080/Knos/ faces
+        run: node scripts/test_faces.mjs https://drexthealpha.github.io/Knos/ faces http://127.0.0.1:8080/
       - name: Lighthouse, mobile preset, each face
         if: always()
         run: |
-          for p in "" near/ near/story/ iris/; do
+          for p in "" near/ near/story/ iris; do
             n=$(echo "${p:-home}" | tr '/' '-' | sed 's/-$//')
-            npx --yes lighthouse@12.8.2 "http://127.0.0.1:8080/Knos/$p" --quiet --chrome-flags="--headless=new --no-sandbox" \
+            u="https://drexthealpha.github.io/Knos/$p"; [ "$p" = iris ] && u=http://127.0.0.1:8080/
+            npx --yes lighthouse@12.8.2 "$u" --quiet --chrome-flags="--headless=new --no-sandbox" \
               --output=json --output-path="faces/lighthouse-$n.json" --only-categories=performance,accessibility,best-practices,seo || true
             node -e 'const r=require(process.argv[1]); const c=r.categories; console.log(process.argv[2], ["performance","accessibility","best-practices","seo"].map(k=>k+" "+c[k].score).join(", "), "CLS", r.audits["cumulative-layout-shift"].numericValue, "LCP ms", Math.round(r.audits["largest-contentful-paint"].numericValue))' "$PWD/faces/lighthouse-$n.json" "$n" | tee -a faces/lighthouse.txt
           done
@@ -48,20 +53,20 @@ jobs:
       - name: linkinator, the three faces
         if: always()
         run: |
-          npx linkinator http://127.0.0.1:8080/Knos/ http://127.0.0.1:8080/Knos/near/ http://127.0.0.1:8080/Knos/near/story/ http://127.0.0.1:8080/Knos/iris/ \
+          npx linkinator https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/near/ https://drexthealpha.github.io/Knos/near/story/ http://127.0.0.1:8080/ \
             --retry --retry-errors --timeout 20000 --skip "^https://(x\.com|twitter\.com|www\.linkedin\.com)" --format json > faces/links.json || true
-          node -e 'const r=require(process.argv[1]); const bad=r.links.filter(l=>l.state==="BROKEN"); console.log("links", r.links.length, "broken", bad.length); for (const l of bad) console.log(l.status, l.url, "on", l.parent); process.exit(bad.length?1:0)' "$PWD/faces/links.json" | tee faces/links.txt
+          node -e 'const r=require(process.argv[1]); const bad=r.links.filter(l=>l.state==="BROKEN"&&l.status!==429); console.log("links", r.links.length, "broken", bad.length); for (const l of bad) console.log(l.status, l.url, "on", l.parent); process.exit(bad.length?1:0)' "$PWD/faces/links.json" | tee faces/links.txt
       - name: Hallmark sloplint and Impeccable, each face
         if: always()
         run: |
           git clone -q https://github.com/Nutlope/hallmark "$RUNNER_TEMP/hallmark" && git -C "$RUNNER_TEMP/hallmark" checkout -q 4f6a46c6dc325d40ab268c93e25c7b96676ebccd
           for f in web/home.html near/web/index.html near/web/story/index.html iris/web/dashboard.html; do
             echo "== $f" | tee -a faces/sloplint.txt
-            node "$RUNNER_TEMP/hallmark/skills/hallmark/scripts/sloplint.mjs" "$f" 2>&1 | tail -20 | tee -a faces/sloplint.txt || true
+            node "$RUNNER_TEMP/hallmark/skills/hallmark/scripts/sloplint.mjs" "$f" 2>&1 | grep -E "FAIL|sloplint:" | tee -a faces/sloplint.txt || true
           done
-          for p in "" near/ near/story/ iris/; do
-            echo "== /Knos/$p" | tee -a faces/impeccable.txt
-            npx impeccable detect "http://127.0.0.1:8080/Knos/$p" 2>&1 | tail -20 | tee -a faces/impeccable.txt || true
+          for u in https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/near/ https://drexthealpha.github.io/Knos/near/story/ http://127.0.0.1:8080/; do
+            echo "== $u" | tee -a faces/impeccable.txt
+            timeout 180 npx impeccable detect "$u" 2>&1 | tail -40 | tee -a faces/impeccable.txt || true
           done
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
