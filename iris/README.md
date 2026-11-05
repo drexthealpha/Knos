@@ -1,13 +1,16 @@
 # Knos Referee on IRIS
 
-**Proof checked inside IRIS for Health.** Knos carries any research across the valley of death (idea or paper -> demand -> Ready brief -> money held -> paid on verified proof), toward Schmidhuber's vision and Kardashev II/III, connecting 8 billion people to the world's money.
+**It decides whether research proof meets a hash-locked brief, for the lab or company that pays for a milestone only on proof.** An AI Hub agent on a local open model (no key) weighs a GitHub check run or a lab result; a rule and, above 50 USDC, a person in IRIS Workflow decide; then Solana devnet simulates the payout.
 
 | | |
 |---|---|
-| What it does | An AI Hub agent in an IRIS for Health production checks proof (a GitHub check run, or a lab result as FHIR or HL7) against a hash-locked research brief. A rule, and above 50 USDC a person in Workflow, decide; only then does Solana devnet see a transaction. |
-| The contest task | The agent is one step of an interoperability workflow: proof arrives through adapters and the agent answers a checked decision contract, with every model and tool call a message in Visual Trace. |
+| The contest task | The agent is one step of an interoperability workflow: proof arrives through custom adapters and the agent answers a decision contract that code checks; every model and tool call is a message in Visual Trace. |
 | What is new | LLM tracing as interop messages ([DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) with a Langfuse-style SQL view; Vector Search (snowflake-arctic-embed-s in Embedded Python) caps a verdict that cites a criterion outside the proof's 2 nearest. |
-| Links | Code: this folder. Demo, video and articles: linked here once published. |
+| Open Exchange | pending |
+| Online demo | pending (`scripts/demo-vm.sh` builds it on an Ubuntu 24.04 VM) |
+| YouTube | pending |
+| Articles | pending |
+| Code | this folder; the IPM package is `module.xml` at the repository root |
 
 ## 1. What it decides
 
@@ -16,14 +19,15 @@ GitHub check run, a lab result (a FHIR Observation or an HL7 ORU^R01) or a Knos 
 the proof; a deterministic gate and, above a threshold, a person in IRIS Workflow decide what happens next; only then
 does Solana devnet see a transaction. Every step of a decision is an interoperability message in Visual Trace.
 
-Try it:
-1. `bash scripts/load-image.sh <the build 154 tar>` (section 4).
-2. `cp .env.example .env && bash scripts/env-secrets.sh`: it fills the password and the two signing secrets with random values (replay mode needs no key; section 5 for live).
-3. `docker compose up -d --build`.
-4. `set -a; . ./.env; set +a; curl -s -u "_SYSTEM:$IRIS_PASSWORD" localhost:52773/api/knos/health`.
-5. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
-6. Open the URL it prints (user `_SYSTEM`, the `IRIS_PASSWORD` from `.env`; the image's `SYS` is refused).
-7. Open `localhost:52773/knos/` and sign in with the same user: each decision, its trace and the approver's inbox, with Approve and Reject.
+Try it (Linux or WSL with Docker; both containers peaked at 1,686 MiB and 1,310 MiB on 5 Nov 2026):
+1. `git clone https://github.com/drexthealpha/Knos && cd Knos/iris`
+2. `bash scripts/load-image.sh <the build 154 tar>` (section 4).
+3. `cp .env.example .env && bash scripts/env-secrets.sh`: it fills the password and the two signing secrets with random values. The agent runs on the local model (`KNOS_AI_MODE=local`, no key; section 5).
+4. `docker compose up -d --build`: the first start also pulls the local model, about 1 GB.
+5. `set -a; . ./.env; set +a; curl -s -u "_SYSTEM:$IRIS_PASSWORD" localhost:52773/api/knos/health`.
+6. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
+7. Open the URL it prints (user `_SYSTEM`, the `IRIS_PASSWORD` from `.env`; the image's `SYS` is refused).
+8. Open `localhost:52773/knos/` and sign in with the same user: each decision, its trace and the approver's inbox, with Approve and Reject.
 
 Every test in one command, in replay mode: `bash scripts/test-all.sh` (build, health, the decisions, one trace through all six parts, the bonus checks, the page).
 
@@ -72,10 +76,18 @@ on it, is ever pushed to a registry.
 | AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | `anthropic.claude-opus-5-5` |
 | Stub (tests) | `stub` | none | `stub-referee` |
 
-Set `KNOS_AI_MODE=live` and the key in `.env`. With `KNOS_AI_MODE=replay` (the default) no key is needed: replay mode
-uses the rules referee, which reads only structured fields, and every such answer says "rules referee (no model key
-set)". No live AI Hub call has been made for this project, so every decision shown here came from the rules referee.
-The health route says which mode ran. Never commit `.env`.
+`KNOS_AI_MODE=local` (the default in `.env.example`) needs no key and no account: the AI Hub agent
+(`Knos.Iris.AI.LocalReferee`) asks `qwen2.5:1.5b-instruct` in the compose file's `ollama` service, through AI Hub's
+`openai` provider at `base_url` `http://ollama:11434/v1` with `api_key` `none` (the ObjectScript guide's Ollama row). The
+brief and the proof are in the question, with no tools: asked to fetch them with tools, the small model looked the brief up
+by the wrong key and gave up. Each answer is checked by `Knos.Iris.AI.Verdict`, and the rules referee can only make it
+stricter: where it reads not met or insufficient and the model said more, its answer stands and the trace says
+"made stricter by the rules referee". Measured on 5 Nov 2026 (4 cores): 7 to 18 s a decision, about 670 tokens, 3 runs of
+`tests/test_iris_decision.py` 9 of 9 each; the model decided 8 (the altered brief is refused before any referee is asked) and the rules referee made 5 of those stricter.
+
+`KNOS_AI_MODE=live` asks the provider below with its key in `.env`. `KNOS_AI_MODE=replay` asks no model: the rules
+referee, which reads only structured fields, decides and says "rules referee (no model key set)". No live call to a
+paid provider has been made for this project. The health route says which mode runs. Never commit `.env`.
 
 A hard spend cap is checked before any model call, so a key added here cannot be burned: at most `KNOS_LLM_MAX_CALLS`
 calls (default 30) and `KNOS_LLM_MAX_USD` dollars (default 2.00), counted in `^Knos.LLM("calls")` and `^Knos.LLM("usd")`.
@@ -242,6 +254,8 @@ flowchart LR
 
 ## 17. How it fits Knos
 
+Knos carries any research across the valley of death (idea or paper -> demand -> Ready brief -> money held -> paid on verified proof), toward Schmidhuber's vision and Kardashev II/III, connecting 8 billion people to the world's money.
+
 This folder is part of the one Knos product: Knos checks demand, writes the Ready brief, holds the money on Solana and
 pays only on verified proof; here the proof is checked inside IRIS for Health. The Knos code is imported, not forked:
 the image runs the repository's `src/knos`, and the IPM install's ten copied files must equal it byte for byte
@@ -254,3 +268,25 @@ Zulqarnain Abubakar, Developer Community profile: https://community.intersystems
 ## 19. License
 
 MIT, the repository's own.
+
+## 20. Bonuses
+
+The 15 technology bonuses of [the contest post](https://community.intersystems.com/post/technology-bonuses-intersystems-programming-contest-ai-agents-interoperability-workflows), each with the file that shows it, or the founder's step where only the founder can do it.
+
+| # | Bonus | Points | Shown by |
+|---|---|---|---|
+| 1 | Questionnaire | 1 | founder step |
+| 2 | Production Extension (PEX), Java | 3 | `java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java`, item SolanaSubmit |
+| 3 | Workflow Engine | 2 | `src/Knos/Iris/BP/ProofDecision.cls`, role PayoutApprovers |
+| 4 | Custom Adapter | 2 | `src/Knos/Iris/Adapter/CheckRunInbound.cls` (inbound), `src/Knos/Iris/Adapter/SolanaRpcOutbound.cls` (outbound) |
+| 5 | Find a bug in AI Hub | 2 (3 for two) | [`bugs/2`](bugs/2): one bug; filing it is a founder step |
+| 6 | Embedded Python | 3 | `src/Knos/Iris/Py/Ready.cls`, `src/Knos/Iris/Py/Embed.cls`, `python/knos_iris/referee.py` |
+| 7 | IRIS Vector Search | 2 | `src/Knos/Iris/Data/Criterion.cls` (`VECTOR(DOUBLE,384)`) |
+| 8 | Docker container | 2 | `Dockerfile`, `docker-compose.yml` |
+| 9 | ZPM package | 2 | `module.xml` at the repository root; publishing it on Open Exchange is a founder step |
+| 10 | Online Demo | 2 | `scripts/demo-vm.sh`; running it on a VM is a founder step |
+| 11 | Community Idea | 4 | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): `src/Knos/Iris/Msg/Span.cls`, `docs/trace-schema.md`, section 11 |
+| 12 | Find a bug in Embedded Python | 2 (3 for two) | [`bugs/1`](bugs/1): one bug; filing it is a founder step |
+| 13 | First article on Developer Community | 2 | founder step |
+| 14 | Second article | 1 | founder step |
+| 15 | Video on YouTube | 3 | founder step |

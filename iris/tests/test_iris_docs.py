@@ -23,7 +23,7 @@ SECTIONS = ["What it decides", "How it works", "Requirements", "The image used",
             "Where each part lives", "Platform findings", "Tests", "Architecture", "Known limitations", "How it fits Knos",
             "Team", "License"]
 # paths the README names that live in a running instance, not in the repository
-RUNTIME = {"inbox/oru/", "mgr/python", ".env"}
+RUNTIME = {"inbox/oru/", "mgr/python", ".env", "Knos/iris"}   # Knos/iris: the folder a fresh clone makes
 EXT = (".cls", ".md", ".sh", ".py", ".java", ".yml", ".xml", ".cpf", ".txt", ".script", ".json", ".html")
 
 
