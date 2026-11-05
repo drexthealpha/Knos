@@ -50,10 +50,61 @@ ClassMethod Audited(agent As Knos.Iris.AI.Referee) As Knos.Iris.AI.Referee
     return agent
 }
 
+/// True in local mode (KNOS_AI_MODE=local, or the tests' override ^Knos.LLM("mode")="local"): the open model in the
+/// compose file's ollama service, through AI Hub's "openai" provider at its OpenAI-compatible base_url, with no key
+ClassMethod IsLocal() As %Boolean
+{
+    return $get(^Knos.LLM("mode"), $system.Util.GetEnviron("KNOS_AI_MODE")) = "local"
+}
+
+/// The local model's name: KNOS_LOCAL_MODEL, else the one docker-compose.yml pulls
+ClassMethod LocalModel() As %String
+{
+    set m = $system.Util.GetEnviron("KNOS_LOCAL_MODEL")
+    return $select(m'="":m, 1:"qwen2.5:1.5b-instruct")
+}
+
+/// The answer as contract JSON with the model's name and its token counts from AI Hub's usage
+ClassMethod Stamp(out As %String, model As %String, reply) As %String
+{
+    set j = {}.%FromJSON(out), inTok = 0, outTok = 0
+    try { set u = reply.Usage, inTok = +u."prompt_tokens", outTok = +u."completion_tokens" set:(inTok+outTok)=0 outTok = +u."total_tokens" } catch { }
+    set:j.model="" j.model = model
+    set j."input_tokens" = inTok, j."output_tokens" = outTok
+    return j.%ToJSON()
+}
+
+/// The local model's answer as contract JSON, or "" when it gave none (then the rules referee decides)
+ClassMethod AskLocal(proof As Knos.Iris.Msg.Proof, hash As %String) As %String
+{
+    set model = ..LocalModel()
+    try {
+        // no tools: the brief and the proof are in the question (Knos.Iris.AI.LocalReferee says why)
+        set agent = ##class(Knos.Iris.AI.LocalReferee).%New()
+        set base = $system.Util.GetEnviron("KNOS_LOCAL_LLM_URL")
+        set:base="" base = "http://ollama:11434/v1"
+        set agent.Provider = ##class(%AI.Provider).Create("openai", {"base_url": (base), "api_key": "none"})
+        set agent.Model = model, agent.Temperature = 0
+        set session = agent.CreateSession({"max_iterations":2,"max_tokens":600})
+        set ask = ##class(Knos.Iris.AI.LocalReferee).Question(hash, proof.BriefJSON, proof.Kind, proof.PayloadJSON)
+        for try = 1:1:2 {
+            set reply = agent.Chat(session, ask)
+            set text = $select($isobject(reply):reply.Content, 1:reply)
+            set out = ##class(Knos.Iris.AI.Verdict).Parse(text, hash)
+            return:out'="" ..Stamp(out, model, reply)
+            set ask = "Your reply was not the JSON object. Reply with the JSON object only, with criteria_hash "_hash_"."
+        }
+    } catch e {
+        $$$LOGWARNING("the local AI Hub referee failed: "_e.DisplayString())
+    }
+    return ""
+}
+
 /// The agent's answer as contract JSON; "" with refused set when live mode cannot or may not ask
 ClassMethod Ask(proof As Knos.Iris.Msg.Proof, hash As %String, Output refused As %String) As %String
 {
     set refused = ""
+    return:..IsLocal() ..AskLocal(proof, hash)
     set provider = ..Provider(.keyVar)
     if keyVar = "" && (provider '= "stub") { set refused = "Live mode does not know the provider "_provider_": set KNOS_LLM_PROVIDER to anthropic, openai, gemini or bedrock." return "" }
     set key = $select(keyVar="":"", 1:$system.Util.GetEnviron(keyVar))

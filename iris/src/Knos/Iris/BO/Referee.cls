@@ -12,10 +12,13 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
     // every tool span written while this decision is being refereed carries its session (Knos.Iris.AI.TraceAudit)
     set ^||Knos.TraceSession = ..%SessionId
     set hash = ##class(Knos.Iris.Py.Ready).Hash(pRequest.BriefJSON)
-    set mode = $select($get(^Knos.LLM("mode"), ..Mode)="live":"live", 1:"replay")   // ^Knos.LLM("mode"): the tests' override
+    set mode = $case($get(^Knos.LLM("mode"), ..Mode), "live":"live", "local":"local", :"replay")   // ^Knos.LLM("mode"): the tests' override
     set out = ""
     set refused = ""
-    if mode = "live" { set out = ##class(Knos.Iris.AI.Referee).Ask(pRequest, hash, .refused) set:out="" mode = "replay" }
+    if (mode = "live") || (mode = "local") { set out = ##class(Knos.Iris.AI.Referee).Ask(pRequest, hash, .refused) set:out="" mode = "replay" }
+    // a model's verdict can only be made stricter: the rules referee reads the same proof's structured fields, and
+    // when it says not met or insufficient where the model says more, its answer stands (met < insufficient < not met)
+    if (out '= "") && (refused = "") { set out = ..Stricter(out, ##class(Knos.Iris.Py.Verdict).Decide(pRequest.BriefJSON, pRequest.Kind, pRequest.PayloadJSON, hash)) }
     if refused '= "" {
         // live mode was asked for and cannot ask a model: said in one plain sentence, decided by nobody, sent to a person
         set out = {"criteria_hash": (hash), "decision": "insufficient", "milestones": [], "confidence": 0, "model": ("refused: "_refused), "referee": "nobody (live mode refused)"}.%ToJSON()
@@ -37,6 +40,18 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
     do ..Span("llm", "referee", pRequest.PayloadJSON, out, v.confidence, $zhorolog - t0, pResponse.InTok + pResponse.OutTok, pResponse.CostUSD, v.model)
     kill ^||Knos.TraceSession
     return $$$OK
+}
+
+/// The model's answer, or the rules referee's where that one is stricter; the model's name and tokens are kept
+ClassMethod Stricter(model As %String, rules As %String) As %String
+{
+    set m = {}.%FromJSON(model), r = {}.%FromJSON(rules)
+    set rank = $listbuild("met", "insufficient", "not_met")
+    return:($listfind(rank, r.decision) <= $listfind(rank, m.decision)) model
+    set m.decision = r.decision, m.milestones = r.milestones
+    set:+r.confidence<+m.confidence m.confidence = r.confidence
+    set m.model = m.model_" (made stricter by the rules referee)"
+    return m.%ToJSON()
 }
 
 /// One step of the decision as a Span message in this session (DPI-I-689)

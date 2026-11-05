@@ -20,6 +20,9 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
     zn ns
     do ##class(Ens.Util.LookupTable).%UpdateValue("KnosPayoutThreshold", "usdc", +$system.Util.GetEnviron("KNOS_PAYOUT_THRESHOLD_USDC") + ($system.Util.GetEnviron("KNOS_PAYOUT_THRESHOLD_USDC") = "" * 50))
     do ##class(EnsLib.Workflow.RoleDefinition).CreateRole("PayoutApprovers")
+    // the approver must be a Workflow user first: without it AddUserToRole adds nobody and every task fails with
+    // ErrNoUsersFound (a fresh container, 5 Nov 2026)
+    if '##class(EnsLib.Workflow.UserDefinition).%ExistsId("_SYSTEM") { do ##class(EnsLib.Workflow.UserDefinition).CreateUser("_SYSTEM") }
     do ##class(EnsLib.Workflow.RoleDefinition).AddUserToRole("PayoutApprovers", "_SYSTEM")
     if fhir {
         try {
@@ -40,6 +43,31 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
 }
 
 /// Starts the production, every 10 s for at most 10 minutes, until it runs
+/// The online demo's read-only user: role KnosDemo reads the KNOS database and the four tables the page shows, and
+/// nothing else; /api/knos refuses its POSTs (Knos.Iris.REST.Api.OnPreDispatch). Run from namespace KNOS.
+///   do ##class(Knos.Iris.Setup).DemoUser("demo", "<password>")
+ClassMethod DemoUser(user As %String, password As %String) As %Status
+{
+    set ns = $namespace, sc = $$$OK
+    try {
+        zn "%SYS"
+        if '##class(Security.Roles).Exists("KnosDemo") {
+            set sc = ##class(Security.Roles).Create("KnosDemo", "Reads the Knos decisions, traces and tasks; writes nothing", "%DB_"_ns_":R")
+            quit:$$$ISERR(sc)
+        }
+        if ##class(Security.Users).Exists(user) { set p("Roles") = "KnosDemo", p("Password") = password set sc = ##class(Security.Users).Modify(user, .p) }
+        else { set sc = ##class(Security.Users).Create(user, "KnosDemo", password, "Knos demo (read only)", ns) }
+        quit:$$$ISERR(sc)
+        zn ns
+        for t = "Knos_Iris_Data.Decision", "Knos_Iris_Data.Span", "Ens.MessageHeader", "EnsLib_Workflow.TaskResponse" {
+            set rs = ##class(%SQL.Statement).%ExecDirect(, "GRANT SELECT ON "_t_" TO KnosDemo")
+            if rs.%SQLCODE < 0 { set sc = $$$ERROR($$$SQLError, rs.%SQLCODE, rs.%Message) quit }
+        }
+    } catch e { set sc = e.AsStatus() }
+    zn ns
+    return sc
+}
+
 ClassMethod StartWhenFree()
 {
     for i = 1:1:60 {

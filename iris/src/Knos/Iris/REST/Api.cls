@@ -4,6 +4,17 @@ Class Knos.Iris.REST.Api Extends %CSP.REST
 Parameter CONTENTTYPE = "application/json";
 Parameter CHARSET = "utf-8";
 
+/// A user who may only read the KNOS database (the online demo's user, Knos.Iris.Setup.DemoUser) reads every route
+/// and is refused on every POST: it cannot lock a brief, send proof or answer a task
+ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue As %Boolean) As %Status
+{
+    if (pMethod = "POST") && '$system.Security.Check("%DB_"_$namespace, "WRITE") {
+        set pContinue = 0, %response.Status = 403
+        write {"error": "this user may read only: it cannot lock a brief, send proof or answer a task"}.%ToJSON()
+    }
+    return $$$OK
+}
+
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
@@ -23,9 +34,9 @@ ClassMethod Health() As %Status
 {
     set prod = "", state = 0
     do ##class(Ens.Director).GetProductionStatus(.prod, .state)
-    set mode = $select($system.Util.GetEnviron("KNOS_AI_MODE")="live" && ($system.Util.GetEnviron("ANTHROPIC_API_KEY")'=""):"live", 1:"replay")
+    set mode = $select($system.Util.GetEnviron("KNOS_AI_MODE")="live" && ($system.Util.GetEnviron("ANTHROPIC_API_KEY")'=""):"live", $system.Util.GetEnviron("KNOS_AI_MODE")="local":"local", 1:"replay")
     set out = {"production": ($case(state, 1:"Running", 2:"Stopped", 3:"Suspended", 4:"Troubled", :"Not running")), "name": (prod),
-      "agent": (mode), "provider": ($system.Util.GetEnviron("KNOS_LLM_PROVIDER")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector()), "embedding": (##class(Knos.Iris.Py.Embed).Model())}
+      "agent": (mode), "provider": ($select(mode="local":"openai (ollama)", 1:$system.Util.GetEnviron("KNOS_LLM_PROVIDER"))), "model": ($select(mode="local":##class(Knos.Iris.AI.Referee).LocalModel(), 1:"")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector()), "embedding": (##class(Knos.Iris.Py.Embed).Model())}
     write out.%ToJSON()
     return $$$OK
 }
