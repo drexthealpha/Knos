@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The IPM package of Knos Referee on IRIS, at the repository root as Open Exchange asks ("Place the module.xml file in
+     the root of your project in GitHub"). It installs iris/ only; iris/module.xml is the same module for loading that
+     folder alone (zpm "load <clone>/iris"). tests/test_iris_module_root.py keeps the two in step. -->
+<Export generator="Cache" version="25">
+  <Document name="knos-iris.ZPM">
+    <Module>
+      <Name>knos-iris</Name>
+      <Version>0.1.0</Version>
+      <Description>Knos Referee on IRIS: proof against a hash-locked Knos Ready brief, decided by an AI Hub agent that can only say no or ask a person.</Description>
+      <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
+      <Packaging>module</Packaging>
+      <SourcesRoot>iris/src</SourcesRoot>
+      <Resource Name="Knos.Iris.PKG"/>
+      <!-- Python: the Knos modules IRIS imports (iris/python/knos/, copied from src/knos: iris/python/VENDORED.txt) and
+           knos_iris straight into mgr/python, where every IRIS process imports them -->
+      <!-- Overlay: add the files, never delete what is already in the folder (IPM's default replaces it whole) -->
+      <FileCopy Name="iris/python/knos/" Target="${mgrdir}python/knos/" Overlay="1"/>
+      <FileCopy Name="iris/python/knos_iris/" Target="${mgrdir}python/knos_iris/" Overlay="1"/>
+      <!-- the folder Knos.Iris.Util.Home() reads when KNOS_IRIS_HOME is not set: <install>/knos -->
+      <FileCopy Name="iris/fixtures/" Target="${mgrdir}../knos/iris/fixtures/"/>
+      <FileCopy Name="iris/java/" Target="${mgrdir}../knos/iris/java/"/>
+      <FileCopy Name="iris/merge.cpf" Target="${mgrdir}../knos/iris/merge.cpf"/>
+      <!-- KNOS_FHIR=0: no FHIR server; Setup compiles the Java PEX jar with the instance's own JDK, then starts the production -->
+      <Invoke Class="Knos.Iris.Setup" Method="Install">
+        <Arg>0</Arg>
+      </Invoke>
+    </Module>
+  </Document>
+</Export>
