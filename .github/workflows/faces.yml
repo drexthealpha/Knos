@@ -39,6 +39,9 @@ jobs:
           npx playwright install --with-deps chromium
       - name: the stranger's gates (words, header, nav, axe, F3 T-a T-b T-d, screenshots)
         run: node scripts/test_faces.mjs https://drexthealpha.github.io/Knos/ faces http://127.0.0.1:8080/
+      - name: the film, six frames at 0 to 100 percent of its run, CLS, LCP, the still on phones and reduced motion
+        if: always()
+        run: node scripts/test_film_frames.mjs https://drexthealpha.github.io/Knos/ faces/film
       - name: Lighthouse, mobile preset, each face
         if: always()
         run: |
