@@ -47,6 +47,7 @@ try {
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e.message || e).slice(0, 120)));
       await page.goto(SITE + "?t=" + Date.now(), { waitUntil: "load" });
+      await page.click("#k-samples summary");      // the chips sit under "Try a sample", closed on the first screen
       const t0 = Date.now();
       await page.click(`.k-try .k-chip[data-q="${q}"]`);
       // a card drawn for this press: not the past result in its fold, and holding a verdict

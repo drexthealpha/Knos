@@ -121,7 +121,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 48px
 .k-stops li{position:absolute;top:0;margin:0;white-space:nowrap;color:var(--ink-2)}
 .k-stops li:nth-child(2){left:33.3%;translate:-50% 0}.k-stops li:nth-child(3){left:66.7%;translate:-50% 0}.k-stops li:nth-child(4){right:0}
 .k-stops li[data-on]{color:var(--ink);font-weight:600}
-.k-slot:empty{background:linear-gradient(var(--soft),var(--soft)) 24px 28px/40% 12px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 56px/70% 28px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 108px/85% 8px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 140px/70% 8px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 172px/55% 8px no-repeat;border:1px solid var(--line);border-radius:18px;box-sizing:border-box}
+.k-slot:empty{min-height:0}
+.k-hero[aria-busy=true] .k-slot:empty{min-height:296px;background:linear-gradient(var(--soft),var(--soft)) 24px 28px/40% 12px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 56px/70% 28px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 108px/85% 8px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 140px/70% 8px no-repeat,linear-gradient(var(--soft),var(--soft)) 24px 172px/55% 8px no-repeat;border:1px solid var(--line);border-radius:18px;box-sizing:border-box}
 @media (prefers-reduced-motion:no-preference){
 html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
 ::view-transition-group(k-result){animation-duration:320ms;animation-timing-function:cubic-bezier(.16,1,.3,1)}
