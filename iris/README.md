@@ -1,6 +1,6 @@
 # Knos Referee on IRIS
 
-**It decides whether research proof meets a hash-locked brief, for the lab or company that pays for a milestone only on proof.** An AI Hub agent on a local open model (no key) weighs a GitHub check run or a lab result; a rule and, above 50 USDC, a person in IRIS Workflow decide; then Solana devnet simulates the payout.
+**A lab pays for a research milestone only when IRIS finds the proof met.** An AI Hub agent on a local open model (no key) weighs a GitHub check run or a lab result; a rule and, above 50 USDC, a person in IRIS Workflow decide; then Solana devnet simulates the payout.
 
 | | |
 |---|---|
