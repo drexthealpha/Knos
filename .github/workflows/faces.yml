@@ -1,0 +1,70 @@
+# The browser gates of the three faces on every push that changes one (spec S1 and S2, TASK-FOUR F1 to F4): the front
+# door (web/, as scripts/build_site.sh builds it), the NEAR app (near/web/, at /near/) and the IRIS page
+# (iris/web/dashboard.html, served here at /iris/ only). scripts/test_faces.mjs walks each page at 390 and 1280 px as a
+# stranger (fresh context, no storage): words before scrolling, header items, paragraph length, banned first-screen
+# words, the nav, axe in light and dark, F3's tasks T-a, T-b and T-d with clicks and seconds, screenshots. Then
+# Lighthouse (mobile preset, one cold run per page), linkinator (every link of the three faces), Hallmark's sloplint and
+# Impeccable's detector. Everything lands in the artifact "faces".
+name: faces
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "near/web/**", "iris/web/**", "scripts/build_site.sh", "scripts/test_faces.mjs", ".github/workflows/faces.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency: {group: faces, cancel-in-progress: true}
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+      - name: the site, with the NEAR app at /near/ and the IRIS page at /iris/
+        run: |
+          bash scripts/build_site.sh "$RUNNER_TEMP/site/Knos" "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/site/Knos/iris" && cp iris/web/dashboard.html "$RUNNER_TEMP/site/Knos/iris/index.html"
+          (cd "$RUNNER_TEMP/site" && nohup python3 -m http.server 8080 --bind 127.0.0.1 > "$RUNNER_TEMP/http.log" 2>&1 &)
+          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8080/Knos/ && break; sleep 1; done
+      - name: a browser, axe-core
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.64.1 axe-core@4.11.0 linkinator@8.1.0 impeccable@4.8.0 puppeteer-core@25.16.0
+          npx playwright install --with-deps chromium
+      - name: the stranger's gates (words, header, nav, axe, F3 T-a T-b T-d, screenshots)
+        run: node scripts/test_faces.mjs http://127.0.0.1:8080/Knos/ faces
+      - name: Lighthouse, mobile preset, each face
+        if: always()
+        run: |
+          for p in "" near/ near/story/ iris/; do
+            n=$(echo "${p:-home}" | tr '/' '-' | sed 's/-$//')
+            npx --yes lighthouse@12.8.2 "http://127.0.0.1:8080/Knos/$p" --quiet --chrome-flags="--headless=new --no-sandbox" \
+              --output=json --output-path="faces/lighthouse-$n.json" --only-categories=performance,accessibility,best-practices,seo || true
+            node -e 'const r=require(process.argv[1]); const c=r.categories; console.log(process.argv[2], ["performance","accessibility","best-practices","seo"].map(k=>k+" "+c[k].score).join(", "), "CLS", r.audits["cumulative-layout-shift"].numericValue, "LCP ms", Math.round(r.audits["largest-contentful-paint"].numericValue))' "$PWD/faces/lighthouse-$n.json" "$n" | tee -a faces/lighthouse.txt
+          done
+          ! grep -E "(performance|accessibility|best-practices|seo) 0\." faces/lighthouse.txt
+      - name: linkinator, the three faces
+        if: always()
+        run: |
+          npx linkinator http://127.0.0.1:8080/Knos/ http://127.0.0.1:8080/Knos/near/ http://127.0.0.1:8080/Knos/near/story/ http://127.0.0.1:8080/Knos/iris/ \
+            --retry --retry-errors --timeout 20000 --skip "^https://(x\.com|twitter\.com|www\.linkedin\.com)" --format json > faces/links.json || true
+          node -e 'const r=require(process.argv[1]); const bad=r.links.filter(l=>l.state==="BROKEN"); console.log("links", r.links.length, "broken", bad.length); for (const l of bad) console.log(l.status, l.url, "on", l.parent); process.exit(bad.length?1:0)' "$PWD/faces/links.json" | tee faces/links.txt
+      - name: Hallmark sloplint and Impeccable, each face
+        if: always()
+        run: |
+          git clone -q https://github.com/Nutlope/hallmark "$RUNNER_TEMP/hallmark" && git -C "$RUNNER_TEMP/hallmark" checkout -q 4f6a46c6dc325d40ab268c93e25c7b96676ebccd
+          for f in web/home.html near/web/index.html near/web/story/index.html iris/web/dashboard.html; do
+            echo "== $f" | tee -a faces/sloplint.txt
+            node "$RUNNER_TEMP/hallmark/skills/hallmark/scripts/sloplint.mjs" "$f" 2>&1 | tail -20 | tee -a faces/sloplint.txt || true
+          done
+          for p in "" near/ near/story/ iris/; do
+            echo "== /Knos/$p" | tee -a faces/impeccable.txt
+            npx impeccable detect "http://127.0.0.1:8080/Knos/$p" 2>&1 | tail -20 | tee -a faces/impeccable.txt || true
+          done
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: faces
+          path: faces/

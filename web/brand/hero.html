@@ -75,9 +75,8 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
 <div class="k-hero" id="k-hero" data-api="{API}" data-app="{APP}">
 <div class="k-hero-grid">
 <div class="k-head">
-  <p class="k-for" id="k-for">Qloo demand check · paid on proof · <a href="https://drexthealpha.github.io/Knos/judges/">Knos in three minutes</a></p>
-  <h1 id="k-mission" class="k-mission">See who wants your product, and where, before you build it</h1>
-  <p class="k-sub" id="k-sub">For anyone about to build or fund a product: see where it is wanted, then get paid only on proof.</p>
+  <h1 id="k-mission" class="k-mission">Pay only when the test passes.</h1>
+  <p class="k-sub" id="k-sub">Qloo checks demand; NEAR pays once IRIS checks the proof.</p>
 </div>
 <div class="k-askbox">
   <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
@@ -98,6 +97,7 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
   <div id="k-card" class="k-slot" aria-live="polite"></div>
 </div>
 <div class="k-rest">
+  <details class="k-samples" id="k-samples"><summary class="k-add">Try a sample</summary>
   <div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
     <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
     <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
@@ -106,18 +106,14 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
     <button type="button" class="k-chip" data-tech="biotech" data-need="food" data-q="a probiotic kombucha brand">Kombucha</button>
     <button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
     <span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
+  </details>
   <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
     <svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
       <circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
       <circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
-    <ol class="k-stops"><li>Demand</li><li>Ready brief</li><li>Money held</li><li data-on>Paid on proof</li></ol>
+    <ol class="k-stops"><li>Resolve</li><li>Price</li><li>Settle</li><li data-on>Work</li></ol>
   </figure>
   <script src="{SHAPE}" defer></script>
 </div>
-<ul class="k-strip" id="k-strip" data-not-prose aria-label="Proof">
-  <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-cell="caught"><b data-n="60" data-tail="/60">60/60</b><span>altered pull requests caught; plain CI 31</span></a></li>
-  <li><a href="{SP}proof/" data-cell="released"><b data-counter="released_on_proof">n/a</b><span>money released only on proof</span></a></li>
-  <li><a href="{SP}proof/" data-cell="today"><b data-counter="checks_today">n/a</b><span>live checks today</span></a></li>
-</ul>
 </div>
 </div>

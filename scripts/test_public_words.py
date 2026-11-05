@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = Path(os.environ.get("KNOS_WORLD") or Path(os.environ.get("KNOS_PRIVATE_DIR", ".")) / "v0328" / "world")
 OUT = WORLD / "test_public_words.txt"
-PRICING = "Free check. At mainnet the funder pays 1% on top of each payout; the solver keeps 100%."
+PRICING = "Free check. The funder pays the payment program's fee on top of each payout, 0.30%, at least 0.05; the solver keeps 100%."
 LINKS = ["https://github.com/drexthealpha/Knos/blob/main/evidence/knos-witness-acaa854d/witness.json",     # README "the record"
          "https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json"]                          # PyPI README's IDT link
 SELF = "scripts/test_public_words.py"

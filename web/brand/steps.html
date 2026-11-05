@@ -6,12 +6,12 @@
   #k-steps .k-step-list p + p { margin-top: 8px; }
   @media (max-width: 699px) { #k-steps .k-step-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }</style>
   <h2 class="k-sr" id="k-steps-h">How does Knos work?</h2>
-  <p class="k-sr">In four steps, from a demand check to a payout on proof.</p>
+  <p class="k-sr">In four steps: resolve, price, settle, work.</p>
   <ol class="k-step-list">
-    <li id="step-demand"><h3>Check demand</h3><p><a href="{SP}?q=a%20probiotic%20kombucha%20brand" id="step-chip">A sample: kombucha</a></p></li>
-    <li id="step-brief"><h3>Ready brief</h3><p><a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p></li>
-    <li id="step-held"><h3>Money held</h3><p><a href="{SP}crossing/7b4ed16b8c2903dc/" id="step-crossing">One crossing, held then released</a></p></li>
-    <li id="paid-on-proof"><h3>Paid on proof</h3><p><a href="{SP}check/#sample" id="steps-check">Checked by the referee</a></p>
+    <li id="step-demand"><h3>Resolve</h3><p>A test locked by hash before money moves. <a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p><p>Demand is one input: <a href="{SP}?q=a%20probiotic%20kombucha%20brand" id="step-chip">a sample</a></p></li>
+    <li id="step-brief"><h3>Price</h3><p>The bid, held against that test. <a href="{SP}pricing.html" id="step-price">Pricing</a></p></li>
+    <li id="step-held"><h3>Settle</h3><p>Released on proof, refunded at the deadline. <a href="{SP}crossing/7b4ed16b8c2903dc/" id="step-crossing">One held, then released</a></p></li>
+    <li id="paid-on-proof"><h3>Work</h3><p>Anyone or any agent takes it and is paid on proof. <a href="{SP}near/" id="step-work">The NEAR app</a></p><p><a href="{SP}check/#sample" id="steps-check">Checked by the referee</a></p>
       <p class="k-paid" id="k-paid" data-not-prose><a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" target="_blank" rel="noopener">Released by the referee's verdict</a></p></li>
   </ol>
   <p class="fine" id="k-usage" data-not-prose hidden></p>

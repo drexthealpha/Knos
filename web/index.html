@@ -95,28 +95,13 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
 <header class="bar k-bar" id="k-bar">
   <a class="brand" href="#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
   <nav id="nav" aria-label="Knos">
-    <a href="./start/" id="go-start">Start</a>
-    <a href="#home">Check demand</a>
-    <a href="wanted.html?to=/companies">Companies</a>
-    <a href="wanted.html?to=/fields">Fields</a>
-    <a href="wanted.html#projects">Projects</a>
-    <div class="more" id="more">
-      <button id="more-button" class="more-button" type="button" aria-expanded="false" aria-controls="more-list">More</button>
-      <div class="more-list" id="more-list">
-        <a href="wanted.html?to=/money">The money</a>
-        <a href="./pricing.html">Pricing</a>
-        <a href="wanted.html?to=/with-without">With and without Qloo</a>
-        <a href="wanted.html?to=/qloo-safe-use">How Knos uses Qloo safely</a>
-        <a href="./check/" id="go-check">Paid on proof</a>
-        <a href="./faq.html">Questions</a>
-        <a href="./how-we-test.html">How we test</a>
-        <a href="https://github.com/drexthealpha/Knos/tree/main/docs" rel="noopener">Docs</a>
-      </div>
-    </div>
+    <a href="./" data-nav="home">Home</a>
+    <a href="./near/" data-nav="near">NEAR app</a>
+    <a href="https://github.com/drexthealpha/Knos/tree/main/iris" data-nav="iris">IRIS</a>
+    <a href="./proof/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
     <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
-    <a class="proof" href="./proof/" data-proof>Proof</a>
     <button id="theme" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
   </div>
 </header><script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/Knos/*"},{"not":{"href_matches":"/Knos/wanted.html*"}}]},"eagerness":"moderate"}]}</script>
@@ -398,9 +383,8 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
 <div class="k-hero" id="k-hero" data-api="@app" data-app="wanted.html">
 <div class="k-hero-grid">
 <div class="k-head">
-  <p class="k-for" id="k-for">Qloo demand check · paid on proof · <a href="https://drexthealpha.github.io/Knos/judges/">Knos in three minutes</a></p>
-  <h1 id="k-mission" class="k-mission">See who wants your product, and where, before you build it</h1>
-  <p class="k-sub" id="k-sub">For anyone about to build or fund a product: see where it is wanted, then get paid only on proof.</p>
+  <h1 id="k-mission" class="k-mission">Pay only when the test passes.</h1>
+  <p class="k-sub" id="k-sub">Qloo checks demand; NEAR pays once IRIS checks the proof.</p>
 </div>
 <div class="k-askbox">
   <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
@@ -961,8 +945,8 @@ requestAnimationFrame(f); };
 seen(strip, () => {
 for (const b of strip.querySelectorAll("b[data-n]")) count(b, Number(b.dataset.n));
 get("/api/counter").then((c) => { for (const b of strip.querySelectorAll("b[data-counter]")) { const n = c && Number(c[b.dataset.counter]);
-if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.textContent = "n/a"; } })
-.catch(() => { for (const b of strip.querySelectorAll("b[data-counter]")) b.textContent = "n/a"; });
+if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.closest("li").remove(); } })
+.catch(() => { for (const b of strip.querySelectorAll("b[data-counter]")) b.closest("li").remove(); });
 });
 });
 let moved = false;
@@ -1052,7 +1036,7 @@ ul.innerHTML = list.map((x) => `<li data-id="${esc(x.id)}"><a href="${esc(API)}/
 for (const x of list) {
 get(`/api/receipts?id=${encodeURIComponent(x.id)}`).then((d) => {
 const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`), rec = (d.rows || []).find((r) => r.id === "record") || {};
-if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" target="_blank" rel="noopener" data-record>record line ${esc(rec.seq)}</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
+if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" target="_blank" rel="noopener" data-record>entry ${esc(rec.seq)} in the record</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
 }).catch(() => { const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`); if (li) li.textContent = "the record did not answer"; });
 }
 }
@@ -1149,6 +1133,7 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
 </script>
 </div>
 <div class="k-rest">
+  <details class="k-samples" id="k-samples"><summary class="k-add">Try a sample</summary>
   <div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
     <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
     <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
@@ -1157,19 +1142,15 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
     <button type="button" class="k-chip" data-tech="biotech" data-need="food" data-q="a probiotic kombucha brand">Kombucha</button>
     <button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
     <span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
+  </details>
   <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
     <svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
       <circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
       <circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
-    <ol class="k-stops"><li>Demand</li><li>Ready brief</li><li>Money held</li><li data-on>Paid on proof</li></ol>
+    <ol class="k-stops"><li>Resolve</li><li>Price</li><li>Settle</li><li data-on>Work</li></ol>
   </figure>
   <script src="brand/shape.js" defer></script>
 </div>
-<ul class="k-strip" id="k-strip" data-not-prose aria-label="Proof">
-  <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-cell="caught"><b data-n="60" data-tail="/60">60/60</b><span>altered pull requests caught; plain CI 31</span></a></li>
-  <li><a href="./proof/" data-cell="released"><b data-counter="released_on_proof">n/a</b><span>money released only on proof</span></a></li>
-  <li><a href="./proof/" data-cell="today"><b data-counter="checks_today">n/a</b><span>live checks today</span></a></li>
-</ul>
 </div>
 </div>
 <!-- /k-hero -->
@@ -1182,12 +1163,12 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
   #k-steps .k-step-list p + p { margin-top: 8px; }
   @media (max-width: 699px) { #k-steps .k-step-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }</style>
   <h2 class="k-sr" id="k-steps-h">How does Knos work?</h2>
-  <p class="k-sr">In four steps, from a demand check to a payout on proof.</p>
+  <p class="k-sr">In four steps: resolve, price, settle, work.</p>
   <ol class="k-step-list">
-    <li id="step-demand"><h3>Check demand</h3><p><a href="?q=a%20probiotic%20kombucha%20brand" id="step-chip">A sample: kombucha</a></p></li>
-    <li id="step-brief"><h3>Ready brief</h3><p><a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p></li>
-    <li id="step-held"><h3>Money held</h3><p><a href="crossing/7b4ed16b8c2903dc/" id="step-crossing">One crossing, held then released</a></p></li>
-    <li id="paid-on-proof"><h3>Paid on proof</h3><p><a href="check/#sample" id="steps-check">Checked by the referee</a></p>
+    <li id="step-demand"><h3>Resolve</h3><p>A test locked by hash before money moves. <a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p><p>Demand is one input: <a href="?q=a%20probiotic%20kombucha%20brand" id="step-chip">a sample</a></p></li>
+    <li id="step-brief"><h3>Price</h3><p>The bid, held against that test. <a href="pricing.html" id="step-price">Pricing</a></p></li>
+    <li id="step-held"><h3>Settle</h3><p>Released on proof, refunded at the deadline. <a href="crossing/7b4ed16b8c2903dc/" id="step-crossing">One held, then released</a></p></li>
+    <li id="paid-on-proof"><h3>Work</h3><p>Anyone or any agent takes it and is paid on proof. <a href="near/" id="step-work">The NEAR app</a></p><p><a href="check/#sample" id="steps-check">Checked by the referee</a></p>
       <p class="k-paid" id="k-paid" data-not-prose><a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" target="_blank" rel="noopener">Released by the referee's verdict</a></p></li>
   </ol>
   <p class="fine" id="k-usage" data-not-prose hidden></p>
@@ -1203,9 +1184,6 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
       <!-- /home:products -->
     </ol>
     <p class="fine" id="home-when" data-not-prose>Passkey sign-in, no account · devnet, test money. Nobody has bought it yet. There is no legal entity, and one person runs it.</p>
-    <!-- home:idt -->
-    <section id="home-idt" aria-label="IDT benchmark"><p class="fine" id="idt-line" data-tasks="20">Clear briefs: no token saving claimed (<a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/e1_results.json" rel="noopener">padded control failed</a>).</p><details class="k-more" id="idt-per-brief" data-not-prose><summary>Each brief</summary><p class="fine">One model (sonnet, medium effort) for both. Vague: 12,365 tokens, 5% passed. Ready: 5,942 tokens, 70% passed.</p><div class="k-table"><table><thead><tr><th scope="col">Task</th><th scope="col">Vague</th><th scope="col">Ready</th><th scope="col">Saved</th><th scope="col">Passed</th></tr></thead><tbody><tr><td>c01</td><td class="k-num">3,380</td><td class="k-num">67</td><td class="k-num">+3,313</td><td>no / yes</td></tr><tr><td>c02</td><td class="k-num">151</td><td class="k-num">53</td><td class="k-num">+98</td><td>no / yes</td></tr><tr><td>c03</td><td class="k-num">1,718</td><td class="k-num">63</td><td class="k-num">+1,655</td><td>no / yes</td></tr><tr><td>c04</td><td class="k-num">204</td><td class="k-num">107</td><td class="k-num">+97</td><td>no / yes</td></tr><tr><td>c05</td><td class="k-num">669</td><td class="k-num">58</td><td class="k-num">+611</td><td>no / yes</td></tr><tr><td>c06</td><td class="k-num">80</td><td class="k-num">93</td><td class="k-num">-13</td><td>no / yes</td></tr><tr><td>c07</td><td class="k-num">169</td><td class="k-num">72</td><td class="k-num">+97</td><td>no / yes</td></tr><tr><td>c08</td><td class="k-num">581</td><td class="k-num">226</td><td class="k-num">+355</td><td>no / yes</td></tr><tr><td>c09</td><td class="k-num">274</td><td class="k-num">118</td><td class="k-num">+156</td><td>yes / yes</td></tr><tr><td>c10</td><td class="k-num">554</td><td class="k-num">111</td><td class="k-num">+443</td><td>no / no</td></tr><tr><td>r01</td><td class="k-num">208</td><td class="k-num">846</td><td class="k-num">-638</td><td>no / no</td></tr><tr><td>r02</td><td class="k-num">825</td><td class="k-num">701</td><td class="k-num">+124</td><td>no / yes</td></tr><tr><td>r03</td><td class="k-num">158</td><td class="k-num">240</td><td class="k-num">-82</td><td>no / yes</td></tr><tr><td>r04</td><td class="k-num">351</td><td class="k-num">277</td><td class="k-num">+74</td><td>no / yes</td></tr><tr><td>r05</td><td class="k-num">581</td><td class="k-num">240</td><td class="k-num">+341</td><td>no / yes</td></tr><tr><td>r06</td><td class="k-num">90</td><td class="k-num">444</td><td class="k-num">-354</td><td>no / no</td></tr><tr><td>r07</td><td class="k-num">1,507</td><td class="k-num">784</td><td class="k-num">+723</td><td>no / no</td></tr><tr><td>r08</td><td class="k-num">74</td><td class="k-num">520</td><td class="k-num">-446</td><td>no / no</td></tr><tr><td>r09</td><td class="k-num">259</td><td class="k-num">705</td><td class="k-num">-446</td><td>no / yes</td></tr><tr><td>r10</td><td class="k-num">532</td><td class="k-num">217</td><td class="k-num">+315</td><td>no / no</td></tr></tbody></table></div><p class="fine">Output tokens include thinking. <a href="https://github.com/drexthealpha/Knos/blob/main/docs/idt/runs.json" rel="noopener">Every run, raw</a>.</p></details><details class="k-more" id="qloo-per-brief" data-not-prose><summary>With and without Qloo</summary><p class="fine" id="qloo-line" data-delta="-0.032">With Qloo's line: 3.2% fewer tokens, Ready 4 vs 4 of 10.</p><p class="fine">The 10 research briefs, each run without and with its Grounding (Qloo) line (sonnet, medium effort): 5,074 vs 4,912 output tokens, $0.307 vs $0.3325 estimated. The IDT benchmark above is Knos's own (clear briefs), not Qloo's.</p><div class="k-table"><table><thead><tr><th scope="col">Task</th><th scope="col">Without</th><th scope="col">With Qloo</th><th scope="col">Ready</th></tr></thead><tbody><tr><td>r01</td><td class="k-num">792</td><td class="k-num">845</td><td>no / yes</td></tr><tr><td>r02</td><td class="k-num">698</td><td class="k-num">927</td><td>yes / no</td></tr><tr><td>r03</td><td class="k-num">258</td><td class="k-num">231</td><td>no / yes</td></tr><tr><td>r04</td><td class="k-num">294</td><td class="k-num">278</td><td>yes / no</td></tr><tr><td>r05</td><td class="k-num">267</td><td class="k-num">219</td><td>no / no</td></tr><tr><td>r06</td><td class="k-num">514</td><td class="k-num">472</td><td>no / no</td></tr><tr><td>r07</td><td class="k-num">767</td><td class="k-num">577</td><td>no / yes</td></tr><tr><td>r08</td><td class="k-num">549</td><td class="k-num">548</td><td>no / no</td></tr><tr><td>r09</td><td class="k-num">712</td><td class="k-num">630</td><td>yes / yes</td></tr><tr><td>r10</td><td class="k-num">223</td><td class="k-num">185</td><td>yes / no</td></tr></tbody></table></div><p class="fine"><a href="https://github.com/drexthealpha/Knos/blob/main/docs/idt/qloo_runs.json" rel="noopener">Every run, raw</a>.</p></details></section>
-    <!-- /home:idt -->
   </section>
 
   <!-- HOW WE VERIFY: the proofs, signatures and reports, in one place and in plain words; each line opens its evidence. -->

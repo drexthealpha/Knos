@@ -38,7 +38,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 48px
 :where(a[href]){padding-block:max(0px,calc((24px - 1em) / 2))}:where(summary){min-height:24px}
 .foot { max-width: 1200px; margin: 0 auto; padding: 16px; color: var(--muted); font-size: var(--s-1); display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; }</style>
 <script>document.documentElement.classList.add("js");try { const t = localStorage.getItem("knos-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "SoftwareApplication", "name": "Knos", "description": "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.", "url": "https://drexthealpha.github.io/Knos/", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "license": "https://opensource.org/licenses/MIT", "publisher": {"@id": "https://drexthealpha.github.io/Knos/#org"}, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free check. At mainnet the funder pays 1% on top of each payout; the solver keeps 100%.", "url": "https://drexthealpha.github.io/Knos/pricing.html"}}, {"@type": "Organization", "@id": "https://drexthealpha.github.io/Knos/#org", "name": "Knos", "url": "https://drexthealpha.github.io/Knos/", "sameAs": ["https://github.com/drexthealpha/Knos"]}]}</script><!-- ld:end -->
+<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "SoftwareApplication", "name": "Knos", "description": "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.", "url": "https://drexthealpha.github.io/Knos/", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "license": "https://opensource.org/licenses/MIT", "publisher": {"@id": "https://drexthealpha.github.io/Knos/#org"}, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free check. The funder pays the payment program's fee on top of each payout, 0.30%, at least 0.05; the solver keeps 100%.", "url": "https://drexthealpha.github.io/Knos/pricing.html"}}, {"@type": "Organization", "@id": "https://drexthealpha.github.io/Knos/#org", "name": "Knos", "url": "https://drexthealpha.github.io/Knos/", "sameAs": ["https://github.com/drexthealpha/Knos"]}]}</script><!-- ld:end -->
 <link rel="preconnect" href="https://drexthealpha.github.io" crossorigin>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
@@ -49,28 +49,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 48px
 <header class="bar k-bar" id="k-bar">
   <a class="brand" href="./#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
   <nav id="nav" aria-label="Knos">
-    <a href="./start/" id="go-start">Start</a>
-    <a href="./#home">Check demand</a>
-    <a href="wanted.html?to=/companies">Companies</a>
-    <a href="wanted.html?to=/fields">Fields</a>
-    <a href="wanted.html#projects">Projects</a>
-    <div class="more" id="more">
-      <button id="more-button" class="more-button" type="button" aria-expanded="false" aria-controls="more-list">More</button>
-      <div class="more-list" id="more-list">
-        <a href="wanted.html?to=/money">The money</a>
-        <a href="./pricing.html">Pricing</a>
-        <a href="wanted.html?to=/with-without">With and without Qloo</a>
-        <a href="wanted.html?to=/qloo-safe-use">How Knos uses Qloo safely</a>
-        <a href="./check/" id="go-check">Paid on proof</a>
-        <a href="./faq.html">Questions</a>
-        <a href="./how-we-test.html">How we test</a>
-        <a href="https://github.com/drexthealpha/Knos/tree/main/docs" rel="noopener">Docs</a>
-      </div>
-    </div>
+    <a href="./" data-nav="home">Home</a>
+    <a href="./near/" data-nav="near">NEAR app</a>
+    <a href="https://github.com/drexthealpha/Knos/tree/main/iris" data-nav="iris">IRIS</a>
+    <a href="./proof/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
     <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
-    <a class="proof" href="./proof/" data-proof>Proof</a>
     <button id="theme" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
   </div>
 </header><script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/Knos/*"},{"not":{"href_matches":"/Knos/wanted.html*"}}]},"eagerness":"moderate"}]}</script>
@@ -155,9 +140,8 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
 <div class="k-hero" id="k-hero" data-api="@app" data-app="wanted.html">
 <div class="k-hero-grid">
 <div class="k-head">
-  <p class="k-for" id="k-for">Qloo demand check · paid on proof · <a href="https://drexthealpha.github.io/Knos/judges/">Knos in three minutes</a></p>
-  <h1 id="k-mission" class="k-mission">See who wants your product, and where, before you build it</h1>
-  <p class="k-sub" id="k-sub">For anyone about to build or fund a product: see where it is wanted, then get paid only on proof.</p>
+  <h1 id="k-mission" class="k-mission">Pay only when the test passes.</h1>
+  <p class="k-sub" id="k-sub">Qloo checks demand; NEAR pays once IRIS checks the proof.</p>
 </div>
 <div class="k-askbox">
   <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
@@ -718,8 +702,8 @@ requestAnimationFrame(f); };
 seen(strip, () => {
 for (const b of strip.querySelectorAll("b[data-n]")) count(b, Number(b.dataset.n));
 get("/api/counter").then((c) => { for (const b of strip.querySelectorAll("b[data-counter]")) { const n = c && Number(c[b.dataset.counter]);
-if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.textContent = "n/a"; } })
-.catch(() => { for (const b of strip.querySelectorAll("b[data-counter]")) b.textContent = "n/a"; });
+if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.closest("li").remove(); } })
+.catch(() => { for (const b of strip.querySelectorAll("b[data-counter]")) b.closest("li").remove(); });
 });
 });
 let moved = false;
@@ -809,7 +793,7 @@ ul.innerHTML = list.map((x) => `<li data-id="${esc(x.id)}"><a href="${esc(API)}/
 for (const x of list) {
 get(`/api/receipts?id=${encodeURIComponent(x.id)}`).then((d) => {
 const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`), rec = (d.rows || []).find((r) => r.id === "record") || {};
-if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" target="_blank" rel="noopener" data-record>record line ${esc(rec.seq)}</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
+if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" target="_blank" rel="noopener" data-record>entry ${esc(rec.seq)} in the record</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
 }).catch(() => { const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`); if (li) li.textContent = "the record did not answer"; });
 }
 }
@@ -906,6 +890,7 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
 </script>
 </div>
 <div class="k-rest">
+  <details class="k-samples" id="k-samples"><summary class="k-add">Try a sample</summary>
   <div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
     <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
     <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
@@ -914,19 +899,15 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
     <button type="button" class="k-chip" data-tech="biotech" data-need="food" data-q="a probiotic kombucha brand">Kombucha</button>
     <button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
     <span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
+  </details>
   <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
     <svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
       <circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
       <circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
-    <ol class="k-stops"><li>Demand</li><li>Ready brief</li><li>Money held</li><li data-on>Paid on proof</li></ol>
+    <ol class="k-stops"><li>Resolve</li><li>Price</li><li>Settle</li><li data-on>Work</li></ol>
   </figure>
   <script src="brand/shape.js" defer></script>
 </div>
-<ul class="k-strip" id="k-strip" data-not-prose aria-label="Proof">
-  <li><a href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-cell="caught"><b data-n="60" data-tail="/60">60/60</b><span>altered pull requests caught; plain CI 31</span></a></li>
-  <li><a href="./proof/" data-cell="released"><b data-counter="released_on_proof">n/a</b><span>money released only on proof</span></a></li>
-  <li><a href="./proof/" data-cell="today"><b data-counter="checks_today">n/a</b><span>live checks today</span></a></li>
-</ul>
 </div>
 </div>
 <!-- /k-hero -->
@@ -939,12 +920,12 @@ if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(
   #k-steps .k-step-list p + p { margin-top: 8px; }
   @media (max-width: 699px) { #k-steps .k-step-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }</style>
   <h2 class="k-sr" id="k-steps-h">How does Knos work?</h2>
-  <p class="k-sr">In four steps, from a demand check to a payout on proof.</p>
+  <p class="k-sr">In four steps: resolve, price, settle, work.</p>
   <ol class="k-step-list">
-    <li id="step-demand"><h3>Check demand</h3><p><a href="./?q=a%20probiotic%20kombucha%20brand" id="step-chip">A sample: kombucha</a></p></li>
-    <li id="step-brief"><h3>Ready brief</h3><p><a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p></li>
-    <li id="step-held"><h3>Money held</h3><p><a href="./crossing/7b4ed16b8c2903dc/" id="step-crossing">One crossing, held then released</a></p></li>
-    <li id="paid-on-proof"><h3>Paid on proof</h3><p><a href="./check/#sample" id="steps-check">Checked by the referee</a></p>
+    <li id="step-demand"><h3>Resolve</h3><p>A test locked by hash before money moves. <a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p><p>Demand is one input: <a href="./?q=a%20probiotic%20kombucha%20brand" id="step-chip">a sample</a></p></li>
+    <li id="step-brief"><h3>Price</h3><p>The bid, held against that test. <a href="./pricing.html" id="step-price">Pricing</a></p></li>
+    <li id="step-held"><h3>Settle</h3><p>Released on proof, refunded at the deadline. <a href="./crossing/7b4ed16b8c2903dc/" id="step-crossing">One held, then released</a></p></li>
+    <li id="paid-on-proof"><h3>Work</h3><p>Anyone or any agent takes it and is paid on proof. <a href="./near/" id="step-work">The NEAR app</a></p><p><a href="./check/#sample" id="steps-check">Checked by the referee</a></p>
       <p class="k-paid" id="k-paid" data-not-prose><a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" target="_blank" rel="noopener">Released by the referee's verdict</a></p></li>
   </ol>
   <p class="fine" id="k-usage" data-not-prose hidden></p>

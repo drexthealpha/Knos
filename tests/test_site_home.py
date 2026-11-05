@@ -34,7 +34,7 @@ def test_the_snapshot_cards_are_the_ones_its_rows_draw():
 def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each():
     home = _section("view-home")
     # the first screen names its buyer and has one box (web/brand/hero.html, scripts/sync_brand.py); the products follow
-    mission = "See who wants your product, and where, before you build it"
+    mission = "Pay only when the test passes."
     assert f'<h1 id="k-mission" class="k-mission">{mission}</h1>' in home and len(_words(mission)) <= 12
     assert '<input id="k-q" name="q"' in home and '<h2 id="home-h">Open for backing</h2>' in home
     cards = re.findall(r'<li class="hp" data-slug="([a-z0-9-]+)">(.*?)</li>', home, re.S)
@@ -56,11 +56,10 @@ def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each(
     n = len(_words(re.sub(r"<button\b[^>]*>.*?</button>", " ", bar, flags=re.S))) + len(_words(prose))
     assert 12 <= n <= 64, n
     assert 'data-not-prose aria-label="Research products open for backing now"' in home
-    # what is technical and the check of agent work are one press away, under "More" (web/brand/bar.html)
+    # one nav on all three faces (web/brand/bar.html, near/web, iris/web): Home, NEAR app, IRIS, Proof, nothing else
     bar_all = PAGE[PAGE.index('<header class="bar k-bar"'):PAGE.index("</header>")]
-    # "More" holds 7 at most (How we verify and the role pages stay at their own addresses, #verify and the rest)
-    assert 'id="go-check">Paid on proof</a>' in bar_all and 'how-we-test.html">How we test</a>' in bar_all
-    assert len(re.findall(r"<a", bar_all[bar_all.index('id="more-list"'):])) <= 7 + 1          # the 7 and the Sign in link after them
+    nav = bar_all[bar_all.index('<nav id="nav"'):bar_all.index("</nav>")]
+    assert [re.sub(r"<[^>]+>", "", a).strip() for a in re.findall(r"<a\b[^>]*>.*?</a>", nav)] == ["Home", "NEAR app", "IRIS", "Proof"]
 
 
 def test_the_page_decides_its_first_view_before_the_first_paint_and_the_router_knows_it():

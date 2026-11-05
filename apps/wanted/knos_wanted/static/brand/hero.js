@@ -621,7 +621,7 @@ ${src(h, price.src)}</section>
       if (lim) { lim.textContent = limited && st.line ? st.line : ""; lim.hidden = !(limited && st.line); }
     }).catch(() => {}));
     // SOTA gap 5 and R2 item 4: the proof strip. The first two numbers are the published runs'; the last two are read from
-    // the app at view time (GET /api/counter), zeros shown as zeros, "n/a" when it does not answer. Each counts up from 0
+    // the app at view time (GET /api/counter), zeros shown as zeros, the tile left out when it does not answer. Each counts up from 0
     // over 600 ms on first view (ease-out), and stands still with reduced motion.
     const strip = document.getElementById("k-strip");
     if (!strip) return;
@@ -633,8 +633,8 @@ ${src(h, price.src)}</section>
     seen(strip, () => {
       for (const b of strip.querySelectorAll("b[data-n]")) count(b, Number(b.dataset.n));
       get("/api/counter").then((c) => { for (const b of strip.querySelectorAll("b[data-counter]")) { const n = c && Number(c[b.dataset.counter]);
-        if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.textContent = "n/a"; } })
-        .catch(() => { for (const b of strip.querySelectorAll("b[data-counter]")) b.textContent = "n/a"; });
+        if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.closest("li").remove(); } })
+        .catch(() => { for (const b of strip.querySelectorAll("b[data-counter]")) b.closest("li").remove(); });
     });
   });
   // below the first screen: the newest payout to an agent, as the chain has it, and the usage counter (checks and
@@ -739,7 +739,7 @@ ${src(h, price.src)}</section>
     for (const x of list) {
       get(`/api/receipts?id=${encodeURIComponent(x.id)}`).then((d) => {
         const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`), rec = (d.rows || []).find((r) => r.id === "record") || {};
-        if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" target="_blank" rel="noopener" data-record>record line ${esc(rec.seq)}</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
+        if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" target="_blank" rel="noopener" data-record>entry ${esc(rec.seq)} in the record</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
       }).catch(() => { const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`); if (li) li.textContent = "the record did not answer"; });
     }
   }

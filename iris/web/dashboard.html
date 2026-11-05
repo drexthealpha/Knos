@@ -29,6 +29,9 @@ a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 48px; padding: 8px max(16px, calc((100% - 1200px) / 2)); border-bottom: 1px solid var(--line); }
 .bar strong { font: 650 18px/1 var(--head); }
+.bar nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.bar nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; }
+.bar nav a[aria-current] { color: var(--accent); }
 .bar .fine { margin-left: auto; }
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
 h1, h2 { text-wrap: balance; }
@@ -92,7 +95,13 @@ main > * { min-width: 0; }
 </head>
 <body>
 <header class="bar">
-  <strong>Knos Referee</strong><span class="fine">IRIS for Health. Solana devnet only, test money.</span>
+  <strong>Knos</strong>
+  <nav aria-label="Knos">
+    <a href="https://drexthealpha.github.io/Knos/">Home</a>
+    <a href="https://drexthealpha.github.io/Knos/near/">NEAR app</a>
+    <a href="./" aria-current="page">IRIS</a>
+    <a href="https://drexthealpha.github.io/Knos/proof/">Proof</a>
+  </nav>
   <span class="fine" id="fresh" aria-live="polite"></span><button id="refresh" type="button">Refresh</button>
 </header>
 <main>
