@@ -100,5 +100,7 @@ async function start() {
 
 if (!still || atT) {
   const go = () => start().catch((e) => { console.error(e); film.classList.add("k-film-still"); });
-  if (atT) go(); else addEventListener("load", () => (window.requestIdleCallback || setTimeout)(go), { once: true });
+  // the scene starts only when the film nears the viewport, so the first screen's main thread stays free
+  const near = () => { const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); go(); } }, { rootMargin: "200px" }); io.observe(film); };
+  if (atT) go(); else addEventListener("load", near, { once: true });
 }

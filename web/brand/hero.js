@@ -837,5 +837,7 @@ ${src(h, price.src)}</section>
   const shown = (r) => { document.dispatchEvent(new CustomEvent("knos:proof", { detail: r }));   // the shape under the box reads it too
     return cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } }); };
   // the Open sample, asked of the server as soon as the box is in view (no Qloo answer is ever in the page)
-  if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
+  // drawn once the stranger opens "Try a sample", so the first screen holds the question and nothing else
+  const samples = document.getElementById("k-samples");
+  if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.open && !slot.innerHTML) get("/api/proof").then((p) => p && !slot.innerHTML && shown(p)).catch(() => {}); }, { once: true });
 })();

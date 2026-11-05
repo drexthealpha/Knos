@@ -879,7 +879,8 @@ ask(slot.dataset.idea || q.value, { exclude: all });
 });
 const shown = (r) => { document.dispatchEvent(new CustomEvent("knos:proof", { detail: r }));   // the shape under the box reads it too
 return cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } }); };
-if (!asked) seen(root, () => get("/api/proof").then((p) => p && shown(p)).catch(() => {}));   // one card, never redrawn
+const samples = document.getElementById("k-samples");
+if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.open && !slot.innerHTML) get("/api/proof").then((p) => p && !slot.innerHTML && shown(p)).catch(() => {}); }, { once: true });
 })();
 </script>
 </div>

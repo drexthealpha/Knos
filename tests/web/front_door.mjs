@@ -142,7 +142,7 @@ async function page() {
       if (got.__unread) return route.fulfill({ status: 404, contentType: "application/json", headers: head, body: "{}" });
       return route.fulfill({ status: 200, contentType: "application/json", headers: head, body: JSON.stringify(got) });
     });
-    // the one read the first screen makes: the recorded sample it draws whole at load (web/brand/hero.js, GET /api/proof)
+    // the read "Try a sample" makes when opened: the recorded sample (web/brand/hero.js, GET /api/proof)
     await ctx.route("https://knos.onrender.com/api/proof", (route) => route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: '{"proof":null,"sample":null}' }));
     const p = await ctx.newPage();
     p.on("pageerror", (e) => errors.push(String(e)));
@@ -423,7 +423,7 @@ async function page() {
       const seen = new Function(`return (${src})()`);
       new MutationObserver((l, o) => { if (seen()) { window.__verdictAt = performance.now(); o.disconnect(); } }).observe(document, { subtree: true, childList: true, characterData: true });
     }, VERDICT.toString());
-    // the one read the first screen makes: the recorded sample it draws whole at load (web/brand/hero.js, GET /api/proof)
+    // the read "Try a sample" makes when opened: the recorded sample (web/brand/hero.js, GET /api/proof)
     await ctx.route("https://knos.onrender.com/api/proof", (route) => route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: '{"proof":null,"sample":null}' }));
     const p = await ctx.newPage();
     if (o.slow) {

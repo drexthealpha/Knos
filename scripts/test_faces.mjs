@@ -43,7 +43,7 @@ async function fresh(width, scheme = "light") {
 // what a reader sees before scrolling: the text of visible leaf blocks inside the viewport
 const SEEN = () => {
   const vw = innerWidth, vh = innerHeight, words = (t) => (t.match(/[\p{L}\p{N}][\p{L}\p{N}'’.,%$-]*/gu) || []).length;
-  const visible = (el) => { const s = getComputedStyle(el); if (s.visibility === "hidden" || s.display === "none" || +s.opacity === 0) return false;
+  const visible = (el) => { if (el.closest("details:not([open])") && !el.closest("summary")) return false; const s = getComputedStyle(el); if (s.visibility === "hidden" || s.display === "none" || +s.opacity === 0) return false;
     const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw; };
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let total = 0; const seen = [];
@@ -114,6 +114,7 @@ async function task(name, width, steps) {
   await ctx.close();
 }
 const navClick = async (page, label, count) => {
+  await page.waitForLoadState("load");   // the menu answers once bar.js has run
   const link = page.locator("header nav a", { hasText: label }).first();
   if (!(await link.isVisible())) { await page.locator("#menu").click(); count(); }
   await link.click(); count();
