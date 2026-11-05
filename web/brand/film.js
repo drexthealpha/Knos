@@ -74,14 +74,15 @@ async function start() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     for (const { obj, s } of tags) {
       obj.getWorldPosition(v); v.y += obj === plate ? 0.25 : obj === coin ? -0.35 : obj.geometry?.type === "TorusGeometry" ? 0.98 : -0.6; v.project(camera);
-      s.style.transform = `translate(${Math.round((v.x + 1) / 2 * w)}px, ${Math.round((1 - v.y) / 2 * h)}px) translate(-50%, -50%)`;
+      const half = s.offsetWidth / 2 + 12, x = Math.min(w - half, Math.max(half, (v.x + 1) / 2 * w));   // the whole name stays in frame
+      s.style.transform = `translate(${Math.round(x)}px, ${Math.round((1 - v.y) / 2 * h)}px) translate(-50%, -50%)`;
     }
   };
   let last = 0, warm = false;
   function frame(p, dt) {
     if (!warm) { for (const s of [sx, sy, sd, se, sc]) { s.x = s === sd ? 9 : 0; } warm = true; }
     // film camera: a slow push in, a crane up at Settle, a dolly to the passing agent at Work
-    const shotX = p < 0.75 ? 0 : -1.4 * clamp((p - 0.75) / 0.2), shotY = 1.2 + (p > 0.5 ? 1.3 * clamp((p - 0.5) / 0.2) : 0);
+    const shotX = p < 0.75 ? 0 : -0.8 * clamp((p - 0.75) / 0.2), shotY = 1.2 + (p > 0.5 ? 1.3 * clamp((p - 0.5) / 0.2) : 0);
     // Price: the camera swings round the job, about 40 degrees out and back, so the bid can be seen waiting inside
     const orbit = 0.7 * Math.sin(Math.PI * clamp((p - 0.18) / 0.42));
     const cx = shotX + 1.2 * (1 - p), cz = 8.6 - 2.2 * p;
