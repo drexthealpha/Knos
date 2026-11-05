@@ -5,6 +5,7 @@
 //! workflow, its commit and expiry, and a `jti` never used before. `refund` returns the money to the payer once the
 //! deadline has passed with no release. The fee is 0. The key set changes only when 2 of the 3 owners send the same key.
 
+pub mod jobs;
 mod jwt;
 pub mod rsa;
 pub mod solana;
@@ -31,6 +32,9 @@ enum Key {
     Proposals,
     Used,
     Payouts,
+    Jobs,
+    CheckerKeys,
+    Budgets,
 }
 
 /// A Solana payout of a released milestone: the message the contract asked the MPC network to sign, and the answer
@@ -117,6 +121,9 @@ pub struct Knos {
     proposals: LookupMap<String, Proposal>,
     used_jti: LookupSet<String>,
     payouts: LookupMap<String, Payout>,
+    jobs: LookupMap<String, jobs::Job>,
+    checker_keys: LookupMap<String, RsaKey>,
+    budgets: LookupMap<AccountId, jobs::Budget>,
 }
 
 fn is_hex(s: &str, len: usize) -> bool {
@@ -145,6 +152,9 @@ impl Knos {
             proposals: LookupMap::new(Key::Proposals),
             used_jti: LookupSet::new(Key::Used),
             payouts: LookupMap::new(Key::Payouts),
+            jobs: LookupMap::new(Key::Jobs),
+            checker_keys: LookupMap::new(Key::CheckerKeys),
+            budgets: LookupMap::new(Key::Budgets),
         }
     }
 
@@ -345,7 +355,7 @@ impl Knos {
 
 impl Knos {
     fn check_token(&self, token: &str) -> jwt::Claims {
-        let t = jwt::parse(token).unwrap_or_else(|e| env::panic_str(e));
+        let t: jwt::Token = jwt::parse(token).unwrap_or_else(|e| env::panic_str(e));
         require!(t.alg == "RS256", "the token is not RS256");
         let k = self.keys.get(&t.kid).unwrap_or_else(|| env::panic_str("the token's key is not in the key set"));
         let digest = env::sha256(t.signed.as_bytes());
@@ -364,7 +374,15 @@ impl FungibleTokenReceiver for Knos {
     fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
         require!(env::predecessor_account_id() == self.usdc, "only the configured USDC funds a milestone");
         require!(amount.0 > 0, "amount");
-        let f: Fund = serde_json::from_str(&msg).unwrap_or_else(|_| env::panic_str("msg is not a milestone"));
+        let f: Fund = match serde_json::from_str(&msg) {
+            Ok(f) => f,
+            Err(_) => {
+                // an open job or an agent's budget (jobs.rs); anything else is refused and the token returns it all
+                let o: jobs::FundMsg = serde_json::from_str(&msg).unwrap_or_else(|_| env::panic_str("msg is not a milestone, a job or a budget"));
+                self.fund_other(sender_id, amount, o);
+                return PromiseOrValue::Value(U128(0));
+            }
+        };
         require!(!f.id.is_empty() && f.id.len() <= 64, "id");
         require!(!self.milestones.contains_key(&f.id), "a milestone with this id exists");
         require!(is_hex(&f.criteria_hash, 64), "criteria_hash must be 64 hex");

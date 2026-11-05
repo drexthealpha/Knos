@@ -1,0 +1,31 @@
+{
+ "parent": "knos-swarm-1105.testnet",
+ "contract": "jobs.knos-swarm-1105.testnet",
+ "token": "knos-usdc-1102.testnet",
+ "payer": "knos-payer-1102.testnet",
+ "relayer": "knos-relay-1102.testnet",
+ "owners": [
+  "knos-own1-1102.testnet",
+  "knos-own2-1102.testnet",
+  "knos-own3-1102.testnet"
+ ],
+ "agents": {
+  "a": "agent-a.knos-swarm-1105.testnet",
+  "b": "agent-b.knos-swarm-1105.testnet"
+ },
+ "shop": "shop.knos-swarm-1105.testnet",
+ "checker_kid": "checker-1",
+ "methods": "take, submit, spend",
+ "setup": {
+  "account contract": "https://explorer.testnet.near.org/transactions/2Rdaw5nDBkH7csG3LnHawMhkJGn94cxvARbGUvfQSnhS",
+  "account a": "https://explorer.testnet.near.org/transactions/9xcknQVVGRa98cw3v9cMLFazyeUR34Ts3romTDZGxpzM",
+  "account b": "https://explorer.testnet.near.org/transactions/9GeD7tPV3fVjPoNPfkPgThUL22HK4WiHsp2SJQY3QrSq",
+  "account shop": "https://explorer.testnet.near.org/transactions/HX324gCda55Z5GcjQEC9VvqxkH9HEzboz5Q77HyruQQF",
+  "deploy": "https://explorer.testnet.near.org/transactions/GGLvdmu5ZQvKQVZYT19AYPJRL91GkkozDVkHCNZPPXWt",
+  "function-call key a": "https://explorer.testnet.near.org/transactions/AwcHzF2gMsCdosayXA5sLuq23MekohgfpG5mygQXTXXh",
+  "function-call key b": "https://explorer.testnet.near.org/transactions/D831yr7LQ7NwSQ1cRWCJ3vFwVNjAHyVfYR8YMiiFJyHv",
+  "checker key by knos-own1-1102.testnet": "https://explorer.testnet.near.org/transactions/FKFom3JZWRce42xd3gqZXWUs5LnQy68mGau6TUWcuqYM",
+  "checker key by knos-own2-1102.testnet": "https://explorer.testnet.near.org/transactions/7GxJSkii2p1WHD6JTN9ZsZYahcrPQ3rJpXpDovEqgXcK"
+ },
+ "set_up_at": "2026-11-05T16:25:17Z"
+}

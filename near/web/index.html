@@ -3,219 +3,246 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Fund a research milestone on NEAR testnet, release it on GitHub’s signed proof, or get it back after the deadline.">
+<meta name="description" content="Post a job with a locked test and a bid. Two agents try it on NEAR testnet; only the agent whose output passes is paid.">
 <title>Knos on NEAR</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="../brand/tokens.css">
 <style>
-/* Hallmark · job: fund a milestone, release it on proof, refund it after the deadline, export the record · shape: app screen · genre: modern-minimal · theme: the Knos tokens (near/DESIGN.md), custom */
-/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: E, the money's path is the one picture, so it stays still and labelled for a reader who asks for no motion */
-:root {
-  --paper: #07080c; --paper-2: #0f1118; --soft: #151822; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634;
-  --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
-  --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --ease: cubic-bezier(.2, .8, .2, 1); --dur-1: 120ms; --dur-2: 240ms;
-  color-scheme: dark;
-}
-@media (prefers-color-scheme: light) {
-  :root { --paper: #f4f4f0; --paper-2: #ffffff; --soft: #eaeae4; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4;
-    --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; color-scheme: light; }
-}
+/* Hallmark · job: post a job, watch two agents try it, see only the passing one paid, try the guardrails · shape: app screen · genre: modern-minimal · theme: the Knos tokens (web/brand/tokens.css, near/DESIGN.md) */
 * { box-sizing: border-box; }
 html, body { overflow-x: clip; }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--text); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 var(--s1)/1.5 var(--text); }
 a { color: var(--accent); }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
-.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 48px; padding: 8px max(16px, calc((100% - 1200px) / 2)); border-bottom: 1px solid var(--line); }
-.bar strong { font: 650 18px/1 var(--head); }
-main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-s); }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); min-height: 56px; padding: var(--sp-2) max(16px, calc((100% - 1200px) / 2)); border-bottom: 1px solid var(--line); }
+.bar strong { font: 650 18px/1 var(--head); margin-right: auto; }
+.bar nav { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
+.bar nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; }
+.bar nav a[aria-current] { color: var(--accent); }
+main { max-width: 1200px; margin: 0 auto; padding: var(--sp-5) 16px 64px; display: grid; gap: var(--sp-6); }
 main > * { min-width: 0; }
-h1, h2 { text-wrap: balance; }
-h1 { font: 600 32px/1.1 var(--head); letter-spacing: -.02em; margin: 0; }
-h2 { font: 600 20px/1.3 var(--head); letter-spacing: -.015em; margin: 0 0 12px; }
-.lead { margin: 8px 0 0; font-size: 18px; max-width: 60ch; }
-.fine { color: var(--ink-2); font-size: 13px; }
-.panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
-.path { width: 100%; height: auto; display: block; }
-.path-v { display: none; max-width: 420px; margin: 0 auto; }
-@media (max-width: 640px) { .path:not(.path-v) { display: none; } .path-v { display: block; } }
-.path text { font: 500 13px/1 var(--text); fill: var(--ink); }
-.path .sub { fill: var(--ink-2); font-size: 12px; }
-.path .node { fill: var(--soft); stroke: var(--line); }
-.path .rail { stroke: var(--line); stroke-width: 2; fill: none; }
-.path .coin { fill: var(--accent); }
-.path .check { fill: none; stroke: var(--ok); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-form.fund { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
-label { display: grid; gap: 4px; font-size: 14px; font-weight: 500; }
-input { min-height: 44px; width: 11em; padding: 8px 12px; border-radius: 14px; border: 1px solid var(--ink-2); background: var(--paper); color: var(--ink); font: 400 16px/1.4 var(--text); }
-button { min-height: 44px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 14px/1.2 var(--text); cursor: pointer; }
+h1, h2 { text-wrap: balance; margin: 0; }
+h1 { font: 600 clamp(32px, 4.4vw, 48px)/1.05 var(--head); letter-spacing: -.025em; max-width: 16em; }
+h2 { font: 600 var(--s2)/1.3 var(--head); letter-spacing: -.015em; margin-bottom: var(--sp-3); }
+.lead { margin: var(--sp-3) 0 var(--sp-4); font-size: 18px; color: var(--ink-2); max-width: 42ch; }
+.fine { color: var(--ink-2); font-size: var(--s-1); }
+.panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; padding: var(--sp-4); }
+button, .btn { min-height: 44px; padding: 12px 18px; border-radius: var(--radius); border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.2 var(--text); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
 button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-2); border-color: var(--line); cursor: not-allowed; }
+/* the job's path: five stops, the coin moves along them as the job does */
+.track { position: relative; margin: var(--sp-5) 0 0; }
+.path { position: relative; list-style: none; margin: 0; padding: 28px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.path::before { content: ""; position: absolute; top: 10px; left: 10%; right: 10%; height: 2px; background: var(--line); }
+.path li { position: relative; text-align: center; font: 500 var(--s0)/1.3 var(--text); color: var(--ink-2); }
+.path li::before { content: ""; position: absolute; top: -24px; left: 50%; translate: -50% 0; width: 12px; height: 12px; border-radius: 50%; background: var(--soft); border: 2px solid var(--line); }
+.path li[data-done] { color: var(--ink); }
+.path li[data-done]::before { background: var(--ok); border-color: var(--ok); }
+.track .coin { position: absolute; top: 3px; left: 10%; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-th { text-align: left; font: 400 13px/1.4 var(--text); color: var(--ink-2); padding: 8px; }
-td { padding: 12px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+th { text-align: left; font: 400 var(--s-1)/1.4 var(--text); color: var(--ink-2); padding: var(--sp-2); }
+td { padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--line); vertical-align: top; }
 td.n, th.n { text-align: right; }
-.id { font-family: var(--code); font-size: 14px; }
-.pill { display: inline-block; white-space: nowrap; padding: 1px 8px; border-radius: 999px; font-size: 13px; font-weight: 500; background: var(--soft); }
-.pill[data-s="Released"]::before { content: "\2713\00a0"; color: var(--ok); }
-.pill[data-s="Funded"]::before, .pill[data-s="Releasing"]::before, .pill[data-s="Refunding"]::before { content: "\25D4\00a0"; color: var(--warn); }
-.pill[data-s="Refunded"]::before { content: "\21A9\00a0"; color: var(--ink-2); }
-.acts { display: flex; flex-wrap: wrap; gap: 8px; }
-.txs a { margin-right: 8px; white-space: nowrap; }
-.empty { border: 1px dashed var(--line); border-radius: 8px; padding: 12px; color: var(--ink-2); }
-.status { display: flex; gap: 12px; align-items: center; min-height: 24px; margin: 12px 0 0; }
+.id { font-family: var(--code); font-size: var(--s0); overflow-wrap: anywhere; }
+.yes { color: var(--ok); font-weight: 600; } .no { color: var(--bad); font-weight: 600; }
+.txs a { margin-right: var(--sp-2); white-space: nowrap; }
+.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); margin: 0 0 var(--sp-4); padding: 0; list-style: none; }
+.nums li { background: var(--soft); border-radius: var(--radius); padding: var(--sp-3); }
+.nums b { display: block; font: 600 var(--s3)/1.1 var(--head); font-variant-numeric: tabular-nums; }
+.empty { border: 1px dashed var(--line); border-radius: var(--radius-s); padding: var(--sp-3); color: var(--ink-2); }
+.status { display: flex; gap: var(--sp-3); align-items: center; min-height: 24px; margin: var(--sp-3) 0 0; }
 .status[hidden] { display: none; }
+.status[data-done] .spinner { display: none; }
+code.snip { display: block; padding: var(--sp-3); border-radius: var(--radius-s); background: var(--soft); font: 400 var(--s-1)/1.5 var(--code); overflow-wrap: anywhere; }
+form.fund { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: end; }
+label { display: grid; gap: var(--sp-1); font-size: var(--s0); font-weight: 500; }
+input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); border: 1px solid var(--ink-2); background: var(--paper); color: var(--ink); font: 400 var(--s1)/1.4 var(--text); }
 /* From Uiverse.io by AqFox (https://uiverse.io/AqFox/tiny-jellyfish-70), MIT License (c) 2023 Uiverse.io; colour and size from the Knos tokens */
 .spinner { flex: none; width: 20px; height: 20px; border: 4px var(--accent) double; border-left-style: solid; border-radius: 50%; }
 @media (prefers-reduced-motion: no-preference) {
   .spinner { animation: spinner-aib1d7 .75s infinite linear; }
-  button { transition: scale var(--dur-1) var(--ease); }
-  button:active:not(:disabled) { scale: .98; }
+  .track .coin { transition: left 900ms var(--ease); }
 }
 @keyframes spinner-aib1d7 { to { transform: rotate(360deg); } }
 @media (max-width: 640px) {
-  .ms thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .ms, .ms tbody, .ms tr, .ms td { display: block; }
-  .ms tbody tr { padding: 12px 0; border-top: 1px solid var(--line); }
-  .ms td { border: 0; padding: 4px 0; }
-  .ms td.n { text-align: left; }
+  .t thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .t, .t tbody, .t tr, .t td { display: block; }
+  .t tbody tr { padding: var(--sp-3) 0; border-top: 1px solid var(--line); }
+  .t td { border: 0; padding: var(--sp-1) 0; }
+  .t td.n { text-align: left; }
 }
 </style>
 </head>
 <body>
-<header class="bar"><strong>Knos on NEAR</strong><span class="fine">NEAR testnet and Solana devnet. Test money.</span></header>
+<header class="bar">
+  <strong>Knos</strong>
+  <nav aria-label="Knos">
+    <a href="../">Home</a>
+    <a href="./" aria-current="page">NEAR app</a>
+    <a href="https://github.com/drexthealpha/Knos/tree/main/iris">IRIS</a>
+    <a href="../proof/">Proof</a>
+  </nav>
+</header>
 <main>
   <section aria-labelledby="t-title">
-    <h1 id="t-title">Paid only on proof</h1>
-    <p class="lead" id="finding">The money waits in a NEAR contract until GitHub’s signed run proves the milestone, then goes to the payee. After the deadline with no proof, the funder gets it back.</p>
+    <h1 id="t-title">Paid only when the test passes</h1>
+    <p class="lead">Two agents try. Only the passing one is paid.</p>
+    <button class="go" type="button" id="post">Post a job</button>
+    <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></p>
+    <div class="track">
+      <ol class="path" id="path" aria-label="The job's path">
+        <li data-stop="demand"><a href="../">Demand</a></li><li data-stop="test">Test</li><li data-stop="held">Held</li><li data-stop="proof">Proof</li><li data-stop="paid">Paid</li>
+      </ol>
+      <span class="coin" id="coin" aria-hidden="true"></span>
+    </div>
   </section>
 
-  <section class="panel" aria-labelledby="t-path">
-    <h2 id="t-path">Where the money goes</h2>
-    <svg class="path" viewBox="0 0 960 220" role="img" aria-labelledby="path-desc">
-      <desc id="path-desc">A company funds a milestone in test tokens; the NEAR contract checks GitHub’s signed run against the locked criteria; the payee is paid on NEAR or on Solana by Chain Signatures.</desc>
-      <path class="rail" d="M150 110 H810"/>
-      <g><rect class="node" x="20" y="60" width="200" height="100" rx="16"/><text x="40" y="100">The company</text><text class="sub" x="40" y="124">funds in test tokens</text></g>
-      <g><rect class="node" x="380" y="60" width="200" height="100" rx="16"/><text x="400" y="100">NEAR contract</text><text class="sub" x="400" y="124">checks the signed run</text>
-        <path class="check" id="check" d="M532 92 l10 10 l18 -20"/></g>
-      <g><rect class="node" x="740" y="60" width="200" height="100" rx="16"/><text x="760" y="100">The payee</text><text class="sub" x="760" y="124">on NEAR or Solana</text></g>
-      <circle class="coin" id="coin" cx="230" cy="110" r="10"/>
-    </svg>
-    <svg class="path path-v" viewBox="0 0 340 470" role="img" aria-labelledby="path-desc-v">
-      <desc id="path-desc-v">The company funds a milestone in test tokens; the NEAR contract checks GitHub’s signed run; the payee is paid on NEAR or on Solana.</desc>
-      <path class="rail" d="M170 90 V380"/>
-      <g><rect class="node" x="20" y="10" width="300" height="90" rx="16"/><text x="40" y="48">The company</text><text class="sub" x="40" y="72">funds in test tokens</text></g>
-      <g><rect class="node" x="20" y="190" width="300" height="90" rx="16"/><text x="40" y="228">NEAR contract</text><text class="sub" x="40" y="252">checks the signed run</text>
-        <path class="check" id="check-v" d="M272 226 l10 10 l18 -20"/></g>
-      <g><rect class="node" x="20" y="370" width="300" height="90" rx="16"/><text x="40" y="408">The payee</text><text class="sub" x="40" y="432">on NEAR or Solana</text></g>
-      <circle class="coin" id="coin-v" cx="170" cy="120" r="10"/>
-    </svg>
+  <section class="panel" aria-labelledby="t-job">
+    <h2 id="t-job">The job</h2>
+    <ul class="nums" id="nums" aria-label="The job in numbers"></ul>
+    <table class="t">
+      <thead><tr><th scope="col">Agent</th><th scope="col">Took and submitted</th><th scope="col">Locked test</th><th scope="col" class="n">Paid</th></tr></thead>
+      <tbody id="agents"><tr><td colspan="4" class="empty">No job yet. Post one above.</td></tr></tbody>
+    </table>
+    <p class="fine" id="jobline"></p>
   </section>
 
-  <section class="panel" aria-labelledby="t-fund">
-    <h2 id="t-fund">Fund a milestone</h2>
-    <form class="fund" id="fund">
-      <label for="amount">Amount (test units)<input id="amount" name="amount" type="number" min="1" max="10000000" value="1000" required></label>
-      <label for="minutes">Deadline (minutes)<input id="minutes" name="minutes" type="number" min="1" max="1440" value="2" required></label>
-      <button class="go" type="submit">Fund</button>
-    </form>
-    <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text">Working.</span></p>
+  <section class="panel" aria-labelledby="t-guard">
+    <h2 id="t-guard">Guardrails</h2>
+    <p class="fine">Agent B has a cap of 1 test unit. It tries to pay 2, then to take the bid with no passing proof.</p>
+    <button type="button" id="guard">Try both</button>
+    <ul id="guards"></ul>
+  </section>
+
+  <section class="panel" aria-labelledby="t-pay">
+    <h2 id="t-pay">Pay with any wallet</h2>
+    <p class="fine">One script tag puts this button on any page. It quotes the bid in USDC from Base through NEAR Intents, a quote only.</p>
+    <code class="snip">&lt;script src="http://127.0.0.1:8790/pay.js" data-bid="1000"&gt;&lt;/script&gt;</code>
+    <p><a href="embed.html">A blank page with the button</a></p>
   </section>
 
   <section class="panel" aria-labelledby="t-ms">
-    <h2 id="t-ms">Milestones</h2>
-    <table class="ms">
-      <thead><tr><th scope="col">Milestone</th><th scope="col" class="n">Amount</th><th scope="col">State</th><th scope="col">Deadline</th><th scope="col">Do</th><th scope="col">Transactions</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="6" class="empty">Loading.</td></tr></tbody>
+    <h2 id="t-ms">One milestone</h2>
+    <form class="fund" id="fund">
+      <label for="amount">Amount<input id="amount" name="amount" type="number" min="1" max="10000000" value="1000" required></label>
+      <label for="minutes">Deadline (minutes)<input id="minutes" name="minutes" type="number" min="1" max="1440" value="2" required></label>
+      <button type="submit">Fund</button>
+    </form>
+    <table class="t">
+      <thead><tr><th scope="col">Milestone</th><th scope="col" class="n">Amount</th><th scope="col">State</th><th scope="col">Do</th><th scope="col">Transactions</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="empty">No milestone yet.</td></tr></tbody>
     </table>
-    <p><button type="button" id="csv">Export CSV</button> <span class="fine" id="contract"></span></p>
+    <p class="fine" id="contract"></p>
   </section>
 </main>
-<script src="vendor/gsap.min.js"></script>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
-const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) e.append(k); return e; };
-const EXPLORER = "https://explorer.testnet.near.org/transactions/";
-let rows = [];
+const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
+const TX = "https://explorer.testnet.near.org/transactions/";
+const STOPS = ["demand", "test", "held", "proof", "paid"];
+let local = true;
 
-// the centre piece: the coin travels company -> contract (the check draws) -> payee; once, and still under reduced motion
-const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-if (window.gsap && !still) {
-  const check = $("check"), len = check.getTotalLength(), cv = $("check-v"), lv = cv.getTotalLength();
-  gsap.set(check, { strokeDasharray: len, strokeDashoffset: len });
-  gsap.set(cv, { strokeDasharray: lv, strokeDashoffset: lv });
-  gsap.timeline({ delay: 0.3 })
-    .to("#coin-v", { y: 115, duration: 0.9, ease: "power2.inOut" })
-    .to(cv, { strokeDashoffset: 0, duration: 0.3, ease: "power1.out" })
-    .to("#coin-v", { y: 295, duration: 0.9, ease: "power2.inOut" }, "+=0.15");
-  gsap.timeline({ delay: 0.3 })
-    // transform, not cx, so the GPU moves it; 0.9 s a leg because it plays once on load to explain, never on an action
-    .to("#coin", { x: 250, duration: 0.9, ease: "power2.inOut" })
-    .to(check, { strokeDashoffset: 0, duration: 0.3, ease: "power1.out" })
-    .to("#coin", { x: 610, duration: 0.9, ease: "power2.inOut" }, "+=0.15");
-} else {
-  $("coin").setAttribute("cx", "840");
-  $("coin-v").setAttribute("cy", "415");
+// the coin sits at the job's last stop; with reduced motion it jumps there
+function at(stop) {
+  const i = STOPS.indexOf(stop);
+  for (const li of $("path").querySelectorAll("li")) li.toggleAttribute("data-done", STOPS.indexOf(li.dataset.stop) <= i);
+  $("coin").style.left = `${10 + i * 20}%`;
 }
 
 async function api(path, body) {
   const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
   const j = await r.json().catch(() => ({}));
-  return { ok: r.ok, ...j };
+  return { status: r.status, ok: r.ok && j.ok !== false, ...j };
 }
 
-function busy(text) { $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of document.querySelectorAll("button")) b.disabled = !!text; }
+function busy(text) { $("busy").toggleAttribute("data-done", !text); $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of document.querySelectorAll("main button")) b.disabled = !!text || !local; }
+const link = (h, t) => h ? el("a", { href: TX + h, textContent: t, target: "_blank", rel: "noopener" }) : null;
 
-async function act(label, path, body) {
-  busy(label + ": sending to testnet.");
-  const r = await api(path, body);
-  busy("");
-  $("finding").textContent = r.ok ? `${label}: done, transaction ${r.tx.slice(0, 8)}.` : `${label}: refused, ${r.why}.`;
-  await load();
-}
-
-function txLinks(txs) {
-  return Object.entries(txs || {}).map(([k, h]) => el("a", { href: EXPLORER + h, textContent: k, target: "_blank", rel: "noopener" }));
+function showJob(j) {
+  if (!j) return;
+  const a = j.attempts || [], paid = j.paid || {};
+  $("nums").replaceChildren(...[
+    el("li", {}, [el("b", { textContent: String(j.bid ?? "") }), "test units bid"]),
+    j.check_to_paid_s != null ? el("li", {}, [el("b", { textContent: `${j.check_to_paid_s} s` }), "from the check to the payment"]) : null,
+    el("li", {}, [el("b", { textContent: "0" }), "fee"])].filter(Boolean));
+  const names = Object.keys(paid);
+  $("agents").replaceChildren(...(names.length ? names : (j.takers || [])).map((ag) => {
+    const att = a.find((x) => x.agent === ag) || {};
+    const key = ag.startsWith("agent-a") ? "a" : "b";
+    return el("tr", {}, [
+      el("td", {}, el("span", { className: "id", textContent: ag })),
+      el("td", { className: "txs" }, [link(j.txs?.[`take_${key}`], "take"), link(j.txs?.[`submit_${key}`], "submit")]),
+      el("td", {}, att.passed == null ? "" : el("span", { className: att.passed ? "yes" : "no", textContent: att.passed ? "passed" : "failed" })),
+      el("td", { className: "n", textContent: String(paid[ag] ?? 0) }),
+    ]);
+  }));
+  $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "posted"), " ", link(j.txs?.release, "paid")].filter(Boolean));
+  at(j.txs?.release ? "paid" : j.attempts ? "proof" : "held");
 }
 
 async function load() {
-  const s = await api("/api/status");
-  rows = s.milestones || [];
-  $("contract").textContent = s.contract ? `Contract ${s.contract}, token ${s.token}.` : "";
-  const body = $("rows");
+  const s = await api("/api/status").catch(() => ({ status: 0 }));
+  if (s.status !== 200) {
+    local = false;
+    busy("");
+    const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
+    if (snap) showJob(snap.job);
+    $("busy").hidden = false; $("busy").setAttribute("data-done", "");
+    $("busy-text").textContent = "This copy only reads. To post a job: python near/web/serve.py";
+    return;
+  }
+  $("contract").textContent = s.contract ? `Milestones: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";
+  const j = (s.jobs?.jobs || [])[0];
+  if (j) showJob(j);
+  const body = $("rows"), rows = s.milestones || [];
   body.replaceChildren();
-  if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 6, className: "empty", textContent: "No milestone yet. Fund one above." }))); return; }
+  if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No milestone yet." }))); return; }
   const now = Date.now() / 1000;
-  for (const m of rows) {
-    const acts = el("div", { className: "acts" });
+  for (const m of rows.slice(0, 5)) {
+    const acts = el("div");
     if (m.state === "Funded" && now < m.deadline_s) acts.append(el("button", { type: "button", textContent: "Send proof", onclick: () => act("Proof", "/api/proof", { id: m.id }) }));
     if (m.state === "Funded" && now >= m.deadline_s) acts.append(el("button", { type: "button", textContent: "Refund", onclick: () => act("Refund", "/api/refund", { id: m.id }) }));
-    const pill = el("span", { className: "pill", textContent: (m.state || "unknown").toLowerCase() });
-    pill.dataset.s = m.state || "";
-    body.append(el("tr", {}, [
-      el("td", {}, el("span", { className: "id", textContent: m.id })),
-      el("td", { className: "n", textContent: Number(m.amount || 0).toLocaleString() }),
-      el("td", {}, pill),
-      el("td", { textContent: new Date(m.deadline_s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" }),
-      el("td", {}, acts),
-      el("td", { className: "txs" }, txLinks(m.txs)),
-    ]));
+    body.append(el("tr", {}, [el("td", {}, el("span", { className: "id", textContent: m.id })), el("td", { className: "n", textContent: Number(m.amount || 0).toLocaleString() }),
+      el("td", { textContent: (m.state || "").toLowerCase() }), el("td", {}, acts), el("td", { className: "txs" }, Object.entries(m.txs || {}).map(([k, h]) => link(h, k)))]));
   }
 }
 
-$("fund").addEventListener("submit", (ev) => { ev.preventDefault(); act("Fund", "/api/fund", { amount: +$("amount").value, minutes: +$("minutes").value }); });
-$("csv").addEventListener("click", () => {
-  const head = ["milestone", "state", "amount_test_units", "payee", "deadline_utc", "fund_tx", "release_tx", "refund_tx"];
-  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const lines = [head.join(",")].concat(rows.map((m) => [m.id, m.state, m.amount, m.payee, new Date(m.deadline_s * 1000).toISOString(),
-    m.txs?.fund, m.txs?.release, m.txs?.refund].map(q).join(",")));
-  const a = el("a", { href: URL.createObjectURL(new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" })), download: "knos-milestones.csv" });
-  a.click();
+async function act(label, path, body) {
+  busy(`${label}: sending to testnet.`);
+  const r = await api(path, body);
+  busy("");
+  $("busy").hidden = false; $("busy").setAttribute("data-done", "");
+  $("busy-text").textContent = r.ok ? `${label}: done.` : `${label}: refused, ${r.why || "see the transaction"}.`;
+  await load();
+  return r;
+}
+
+$("post").addEventListener("click", async () => {
+  at("test");
+  busy("Posting the job: the bid is held against the locked test.");
+  const p = await api("/api/job/post", { bid: 1000, minutes: 15 });
+  if (!p.ok) { busy(""); $("busy").hidden = false; $("busy-text").textContent = `Not posted: ${p.why || "see the transaction"}. Try again.`; return; }
+  at("held");
+  busy("Two agents take it and submit. The checker runs the test on each.");
+  const r = await api("/api/job/run", { id: p.id });
+  busy("");
+  $("busy").hidden = false; $("busy").setAttribute("data-done", "");
+  $("busy-text").textContent = r.ok ? `Paid: ${Object.entries(r.paid).map(([k, v]) => `${k.startsWith("agent-a") ? "Agent A" : "Agent B"} ${v}`).join(", ")} test units.` : `The run stopped: ${r.why || "see the job below"}.`;
+  if (r.job) showJob(r.job);
 });
+
+$("guard").addEventListener("click", async () => {
+  busy("Agent B tries both.");
+  const r = await api("/api/job/guard", {});
+  busy("");
+  $("guards").replaceChildren(...(r.tries || []).map((t) => el("li", {}, [
+    el("span", { className: t.ok ? "yes" : "no", textContent: t.ok ? "paid" : "refused" }), `: ${t.what}. `, t.ok ? "" : `${t.said}. `, link(t.tx, "transaction")])));
+});
+
+$("fund").addEventListener("submit", (ev) => { ev.preventDefault(); act("Fund", "/api/fund", { amount: +$("amount").value, minutes: +$("minutes").value }); });
+at("demand");
 load();
-setInterval(load, 20000);
 </script>
 </body>
 </html>

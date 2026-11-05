@@ -492,3 +492,4 @@ fn rsa_verifies_what_the_rsa_crate_signs() {
 mod more;
 mod payout;
 mod eval;
+mod jobs;

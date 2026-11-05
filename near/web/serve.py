@@ -33,6 +33,14 @@ WF = f"{REPO}/.github/workflows/near-proof.yml@refs/heads/main"
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 KID = f"knos-web-{int(time.time())}"
 IDS = HERE / "milestones.local.json"
+SITE = HERE.parent.parent / "web"
+CROSS = {"/api/job/quote", "/api/job/pay"}
+
+
+def jobs():
+    """The job routes (near/web/jobs_api.py), once near/agents/swarm.json exists (near/agents/setup_swarm.py writes it)"""
+    import jobs_api
+    return jobs_api
 
 
 def rpc(method: str, params) -> dict:
@@ -121,7 +129,7 @@ def refund(body: dict) -> dict:
 
 def status() -> list[dict]:
     out = []
-    for row in ledger()[:20]:
+    for row in ledger()[:5]:
         m = view("get_milestone", {"id": row["id"]}) or {}
         out.append({"id": row["id"], "state": m.get("state"), "amount": m.get("amount"), "payee": m.get("payee_address"),
                     "deadline_s": int(m.get("deadline_ns", "0")) // 1_000_000_000, "txs": {k: v for k, v in row["txs"].items() if k != "criteria"}})
@@ -140,9 +148,27 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def end_headers(self):
+        # the embeddable button (pay.js) calls the quote and the pay route from another page
+        if self.path.split("?")[0] in CROSS:
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        super().end_headers()
+
+    def do_OPTIONS(self):  # noqa: N802
+        self.send_response(204 if self.path in CROSS else 404)
+        self.end_headers()
+
+    def translate_path(self, path):
+        # the shared tokens and fonts of the site (web/brand, web/fonts), as the Pages build has them next to /near/
+        for d in ("/brand/", "/fonts/"):
+            if path.startswith(d) and ".." not in path:
+                return str(SITE / path.lstrip("/").split("?")[0])
+        return super().translate_path(path)
+
     def do_GET(self):  # noqa: N802
         if self.path == "/api/status":
-            return self.send_json(200, {"contract": KNOS, "token": USDC, "payee": PAYEE, "milestones": status()})
+            return self.send_json(200, {"contract": KNOS, "token": USDC, "payee": PAYEE, "milestones": status(), "jobs": jobs().status()})
         if self.path.startswith("/api/") or self.path.endswith(".py") or "local" in self.path:
             return self.send_json(404, {"why": "not here"})
         return super().do_GET()
@@ -151,7 +177,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
             return self.send_json(415, {"why": "send application/json"})
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-        act = {"/api/fund": fund, "/api/proof": proof, "/api/refund": refund}.get(self.path)
+        act = {"/api/fund": fund, "/api/proof": proof, "/api/refund": refund, **jobs().ROUTES}.get(self.path)
         if not act:
             return self.send_json(404, {"why": "not here"})
         res = act(body)
