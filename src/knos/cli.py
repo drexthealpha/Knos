@@ -1192,6 +1192,7 @@ _MODULES = (    # (the commands it adds, how); in the order they were always reg
     (("taskpack",), lambda: _mod("taskpack").register(_app, _HELP)),              # knos taskpack export | verify | grade | rows (src/knos/taskpack/)
     (("idea",), lambda: _mod("ideas.cli").register(_app, _HELP)),                 # knos idea get | search | in | who | wanted | check | commit | state (src/knos/ideas/)
     (("idt",), lambda: _mod("idt").register(_app, _HELP)),                     # knos idt check | draft: route a brief, draft the shortest Ready one (src/knos/idt.py)
+    (("ready", "iris-check", "near-job"), lambda: _mod("job").register(_app, _HELP)),   # knos ready | iris-check | near-job: the job after demand (src/knos/job.py)
     (("demand",), lambda: _mod("demand_cli").register(_app, _HELP)),              # knos demand "<idea>" --age ... --near ...: Qloo demand families (src/knos/demand_cli.py)
 )
 _OWN = frozenset(name for name, _p, _s in _HELP) | {"hook", "badge", "record", "proof"}     # commands this module (or one it imports anyway) defines
@@ -1207,7 +1208,7 @@ def load(command: str | None = None) -> None:
         if i not in _loaded:
             _loaded.add(i)
             _MODULES[i][1]()
-    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "archive", "approve", "decide", "net", "advance", "faucet", "controls", "recall", "task", "exit", "boundary", "selfhost", "assurance", "fees", "protect", "referee", "cheats", "outcome", "gate", "verify", "self", "game", "idea", "idt", "demand") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
+    tail = [row for name in ("meter", "audit", "budget", "observe", "reproduce", "shadow", "events", "bill", "preflight", "keep", "appeal", "vault", "archive", "approve", "decide", "net", "advance", "faucet", "controls", "recall", "task", "exit", "boundary", "selfhost", "assurance", "fees", "protect", "referee", "cheats", "outcome", "gate", "verify", "self", "game", "idea", "idt", "ready", "iris-check", "near-job", "demand") for row in _HELP if row[0] == name]   # the lines modules append: in this order always
     ordered = [row for row in _HELP if row not in tail] + tail
     # the one flow's headings, in its order; a command keeps its place inside its heading
     _HELP[:] = sorted(((name, heading(name), short) for name, _p, short in ordered if name not in OLD_PRODUCTS), key=lambda r: FLOW.index(r[1]))
@@ -1216,9 +1217,9 @@ def load(command: str | None = None) -> None:
 
 CHECK_DEMAND, HOLD_MONEY, PAID_ON_PROOF, RUN_KNOS = "Check demand", "Hold money", "Paid on proof", "Run Knos"
 FLOW = (CHECK_DEMAND, HOLD_MONEY, PAID_ON_PROOF, RUN_KNOS)
-_HEADINGS = {CHECK_DEMAND: ("demand", "idt", "idea"),
+_HEADINGS = {CHECK_DEMAND: ("demand", "ready", "idt", "idea"),
              HOLD_MONEY: ("fund-wallet", "balance", "bounty", "terms", "faucet", "advance", "budget", "boundary", "net", "exit"),
-             PAID_ON_PROOF: ("check", "receipt", "receipts", "record", "statement", "export", "invoice", "badge", "due", "claim", "settle", "review", "attest",
+             PAID_ON_PROOF: ("iris-check", "near-job", "check", "receipt", "receipts", "record", "statement", "export", "invoice", "badge", "due", "claim", "settle", "review", "attest",
                              "relay", "work", "task", "proof", "judge", "accept", "verify", "preflight", "keep", "appeal", "outcome",
                              "referee", "cheats", "command", "canary", "mcp", "agent", "gate", "game")}
 
