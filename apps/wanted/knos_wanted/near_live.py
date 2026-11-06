@@ -219,14 +219,18 @@ def _refresh() -> None:
 
 def _totals_read() -> dict:
     try:
-        paid = [int(t["delta_amount"]) for t in _walk("/ft-txns")
+        rows = [t for t in _walk("/ft-txns")
                 if t.get("contract_account_id") == "knos-usdc-1102.testnet" and int(t.get("delta_amount") or 0) < 0
                 and str(t.get("involved_account_id", "")).startswith(("agent-a.", "agent-b."))]
+        paid = [int(t["delta_amount"]) for t in rows]
+        # one dot of the star map per paid job: its time and its transaction, nothing else
+        dots = [{"t": int(int(t["block_timestamp"]) // 1_000_000_000), "tx": t.get("transaction_hash", "")} for t in rows]
         tries = sum(1 for t in _walk("/txns") if (t.get("outcomes") or {}).get("status")
                     and any(a.get("method") == "submit" for a in t.get("actions") or []))
         out = {"paid_usd": f"{sum(-x for x in paid) / 1_000_000:.3f}", "jobs_paid": len(paid), "tries": tries,
                "record": RECORD, "record_money": RECORD + "?tab=tokentxns", "token": "test USDC, 6 decimals",
-               "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+               "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "dots": dots,
+               "explorer": "https://testnet.nearblocks.io/txns/"}
         _totals.update(at=time.time(), out=out)
         return out
     except Exception as e:  # noqa: BLE001 - the record did not answer: say so, keep the last good answer

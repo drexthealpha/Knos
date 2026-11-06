@@ -1021,11 +1021,54 @@ hand.remove();
   <h2 id="k-clicks-h"><a href="try/">How do I see it work?</a></h2>
   <p class="k-sr">In 3 clicks, from a sample idea to its brief on devnet.</p>
   <ol>
-    <li><a href="#k-q" id="k-click-chip">Press a chip</a></li>
+    <li><a href="#k-q" id="k-click-chip">Type what should be built</a></li>
     <li>Open the card's Qloo calls</li>
     <li><a href="https://explorer.solana.com/tx/22JFsgXBWfqZtPLUQD2RAHuPLa7xvrqZtuK7YUrh46ZzzmRGpdUBAudyuTpG25iRaY6pQckWGbojdyyor8U8Kx9T?cluster=devnet" target="_blank" rel="noopener">A hashed brief on devnet</a></li>
   </ol>
 </section>
+    <!-- THE STAR MAP (UX rule H8): one lit dot for each real job paid on NEAR, read from the jobs contract's public record
+         (knos.onrender.com/api/near/totals). No dot is drawn for anything else, and nothing here rises with each job. -->
+    <section class="k-stars" id="k-stars" aria-labelledby="k-stars-line">
+      <style>
+      .k-stars { margin: 64px 0 0; padding: 32px 16px 28px; border-radius: 24px; background: #07080c; color: #e9ebef; }
+      .k-stars svg { display: block; width: 100%; height: auto; max-height: 360px; }
+      .k-stars circle { fill: #f4f1e6; }
+      .k-stars a:focus-visible circle { stroke: #9fb0ff; stroke-width: 3; }
+      .k-stars .k-star-line { margin: 16px 0 0; font: 400 clamp(26px, 3.4vw, 40px)/1.15 var(--serif); text-align: center; color: #e9ebef; }
+      .k-stars .k-star-n { margin: 8px 0 0; text-align: center; font: 500 13px/1.4 var(--text); color: #a0a7b8; }
+      .k-stars .k-star-n a { color: #c3cbff; }
+      </style>
+      <svg id="k-star-sky" viewBox="0 0 1000 360" role="img" aria-label="Each dot is one job paid on NEAR"></svg>
+      <p class="k-star-line" id="k-stars-line">Ideas spread at internet speed. Products should too.</p>
+      <p class="k-star-n" id="k-star-n"></p>
+      <script>
+      (() => {
+        const sky = document.getElementById("k-star-sky"), said = document.getElementById("k-star-n");
+        if (!sky) return;
+        // a dot's place comes from its transaction's hash, so the same job is always the same star
+        const spot = (tx) => { let h = 2166136261; for (const c of tx) { h = Math.imul(h ^ c.charCodeAt(0), 16777619); } h >>>= 0; return [20 + (h % 960), 20 + ((h >>> 10) % 320), 2 + ((h >>> 20) % 3)]; };
+        const draw = (t) => {
+          const ns = "http://www.w3.org/2000/svg";
+          sky.replaceChildren(...(t.dots || []).map((d) => {
+            const [x, y, r] = spot(d.tx), a = document.createElementNS(ns, "a"), c = document.createElementNS(ns, "circle"), tip = document.createElementNS(ns, "title");
+            a.setAttribute("href", (t.explorer || "https://testnet.nearblocks.io/txns/") + d.tx); a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener");
+            c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", r);
+            tip.textContent = "A job paid on " + new Date(d.t * 1000).toLocaleString(); c.append(tip); a.append(c); return a;
+          }));
+          said.replaceChildren(`${(t.dots || []).length} lit: each is one real job paid on NEAR, linked to its record. `,
+            Object.assign(document.createElement("a"), { href: t.record_money || t.record || "#", textContent: "See every payment" }));
+        };
+        let tries = 0;
+        const ask = () => fetch("https://knos.onrender.com/api/near/totals").then((r) => r.ok ? r.json() : null).then((t) => {
+          if (t && t.pending && tries++ < 6) return setTimeout(ask, 6000);
+          if (t && t.dots) draw(t);
+        }).catch(() => {});
+        // asked for once the map is near the screen, never on the first view
+        const io = "IntersectionObserver" in window ? new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); ask(); } }, { rootMargin: "300px" }) : null;
+        if (io) io.observe(sky); else ask();
+      })();
+      </script>
+    </section>
 </main>
 <footer class="foot">
   <span>Devnet, test money, no customers yet.</span>
