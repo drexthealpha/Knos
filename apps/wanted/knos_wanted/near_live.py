@@ -54,7 +54,8 @@ def status() -> dict:
     if on and not ready and not _preparing.locked() and used < daily_cap():   # keep one job ready for the next click
         threading.Thread(target=prepare, daemon=True).start()
     return {"live": on, "used_today": used, "cap_today": daily_cap(), "busy": busy, "ready": ready, "bid": BID, "network": "testnet",
-            "account": os.environ.get("KNOS_NEAR_PAYER", ""), "money": "test tokens, not real money"}
+            "account": os.environ.get("KNOS_NEAR_PAYER", ""), "money": "test tokens, not real money",
+            **({"prepare_error": _ready["error"]} if not ready and _ready.get("error") else {})}
 
 
 def start() -> dict:
@@ -121,13 +122,16 @@ def prepare() -> None:
         j = _jobs()
         p = j.post({"bid": BID, "minutes": 240})
         if not p.get("ok"):
-            return
+            raise RuntimeError(f"post: {p.get('said') or p.get('why') or p}"[:200])
         ra = j.run_agent("a", j.pass_agent.SOLUTION, p["id"])
         rb = j.run_agent("b", j.fail_agent.SOLUTION, p["id"])
         c = j.checker.check(p["id"], release=False)
         win = next((x for x in c["attempts"] if x.get("passed")), None)
         if not win:
-            return
+            said = {"a": [ra.get(k, {}).get("said") for k in ("take", "submit")], "b": [rb.get(k, {}).get("said") for k in ("take", "submit")],
+                    "check": [x.get("reason") for x in c["attempts"]]}
+            raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
+        _ready.pop("error", None)
         _ready["job"] = {"id": p["id"], "at": time.time(), "criteria_hash": c["criteria_hash"], "payee": win["agent"],
                          "output_sha256": win["output_sha256"],
                          "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
@@ -136,8 +140,9 @@ def prepare() -> None:
         if os.environ.get("KNOS_NEAR_KEYS_FILE"):
             import common   # near/agents/common.py, on the path once jobs_api is loaded
             common.prefetch(j.CONFIG["relayer"])   # the click then only signs and sends the payment
-    except Exception:  # noqa: BLE001 - no ready job: the next click runs the whole job instead
-        pass
+    except Exception as e:  # noqa: BLE001 - no ready job: the next click runs the whole job instead
+        _ready["error"] = f"{type(e).__name__}: {str(e)[:200]}"
+        print("near_live prepare:", _ready["error"], file=sys.stderr, flush=True)
     finally:
         _preparing.release()
 
