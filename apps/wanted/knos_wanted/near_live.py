@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents[3])   # /app in the image
 NEAR_WEB = ROOT / "near" / "web"
-BID = 1000
+BID = 1_000_000          # $1.00 of test money (the test token has 6 decimals)
 _lock = threading.Lock()
 _runs: dict[str, dict] = {}
 _day = {"day": "", "n": 0}
