@@ -41,6 +41,7 @@ main > * { min-width: 0; }
 .totals a:hover { border-color: var(--accent); }
 .totals b { display: block; font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
 #show[hidden] { display: none; }
+.first:has(#show:not([hidden])) { min-height: 0; }
 h1, h2 { text-wrap: balance; margin: 0; }
 h1 { font: 600 clamp(32px, 4.4vw, 48px)/1.05 var(--head); letter-spacing: -.025em; max-width: 16em; }
 h2 { font: 600 var(--s2)/1.3 var(--head); letter-spacing: -.015em; margin-bottom: var(--sp-3); }
@@ -213,9 +214,9 @@ function payout(bid = 1000, a = bid, b = 0) {
   g.registerPlugin(window.MotionPathPlugin);
   const n = { pot: bid, a: 0 }, coins = $("coins");
   coins.replaceChildren(...Array.from({ length: 14 }, () => { const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"); c.setAttribute("r", 8); c.setAttribute("class", "coin"); c.setAttribute("opacity", 0); return c; }));
-  end(bid, 0, 0); $("pot").textContent = usd(bid); $("tagA").setAttribute("opacity", 0); $("tagB").setAttribute("opacity", 0);
+  end(bid, 0, 0); $("pot").textContent = usd(bid); $("gotA").textContent = usd(a); $("tagA").setAttribute("opacity", 0); $("tagB").setAttribute("opacity", 0);
   $("boxA").classList.remove("win"); $("toA").classList.remove("lit");
-  const show = () => { $("pot").textContent = usd(n.pot); $("gotA").textContent = usd(n.a); };
+  const show = () => { $("pot").textContent = usd(n.pot); };
   g.timeline()
     .to("#tagB", { attr: { opacity: 1 }, duration: .2 }, 0)
     .to("#tagA", { attr: { opacity: 1 }, duration: .2 }, 0)
@@ -348,11 +349,10 @@ async function hostedRun() {
     // "Paid" is drawn in the same task the answer arrives in (UX rule F3), then the money moves
     busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
     const a = of(s.paid || {}, "agent-a"), b = of(s.paid || {}, "agent-b");
-    $("busy-text").textContent = s.state === "done" ? "Paid: Helper A, whose work passed." : `The payment stopped: ${s.why || "see the job below"}.`;
-    if (s.state === "done") onLand = () => { $("busy-text").textContent = `Paid: Helper A ${usd(a)}. Helper B ${usd(b)}, its work failed.`; };
+    $("busy-text").textContent = s.state === "done" ? `Paid: Helper A ${usd(a)}. Helper B ${usd(b)}, its work failed.` : `The payment stopped: ${s.why || "see the job below"}.`;
     if (s.state === "done") {
       const job = s.job || {};
-      $("receipt").replaceChildren(...[`Posted ${clock(job.posted_at)}, paid ${clock(job.paid_at)}. `,
+      $("receipt").replaceChildren(...[`Helpers tried it at ${clock(job.posted_at)}. Paid at ${clock(job.paid_at)}, on your tap. `,
         s.release_url ? el("a", { href: s.release_url, target: "_blank", rel: "noopener", textContent: "See the payment" }) : null,
         el("br"), "Fee: 1% of each payout. Test money for now."].filter(Boolean));
       payout(+(job.bid ?? 1000), a, b);
