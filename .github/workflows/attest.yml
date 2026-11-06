@@ -151,8 +151,8 @@ jobs:
           ignore-empty-workdir: true
       - name: install knos, this one requirement exactly, with pytest and pip for the trees it judges
         env:
-          UV_EXCLUDE_NEWER: "2026-10-17T18:37:00Z"   # knos 0.4.0 reached PyPI at 2026-10-17T18:26:31Z
-        run: uv tool install --no-config --with pytest --with pip "knos==0.4.0"
+          UV_EXCLUDE_NEWER: "2026-11-06T11:12:00Z"   # knos 0.4.1 reached PyPI at 2026-11-06T11:01:23Z
+        run: uv tool install --no-config --with pytest --with pip "knos==0.4.1"
       - name: the plan (which two commits, which suite, which image), from the order on Solana and GitHub's record
         id: plan
         env:
@@ -274,7 +274,7 @@ jobs:
               --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
               --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
               # via solders
-          knos==0.4.0 --hash=sha256:fe2b527b6b9edf828a6e110a677a92e62db8b7a9c80a76da689f6f2cdacd834a
+          knos==0.4.1 --hash=sha256:28e6e8bf827652e0bfeaf774366b67999d99f7d60b47494120bce321803335a6
           LOCK
           refresh=""
           for nap in 10 30 end; do
@@ -347,7 +347,7 @@ jobs:
               --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
               --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
               # via solders
-          knos==0.4.0 --hash=sha256:fe2b527b6b9edf828a6e110a677a92e62db8b7a9c80a76da689f6f2cdacd834a
+          knos==0.4.1 --hash=sha256:28e6e8bf827652e0bfeaf774366b67999d99f7d60b47494120bce321803335a6
           LOCK
           refresh=""
           for nap in 10 30 end; do

@@ -1,7 +1,7 @@
 # knos-workflows
 
 The workflows that [Knos](https://github.com/drexthealpha/Knos) bounties pin by commit. A comment funds an issue,
-and the pull request that closes it is paid from an escrow on Solana when GitHub itself signs the facts. A bounty on
+and the pull request that closes it is paid from money held on Solana when GitHub itself signs the facts. A bounty on
 chain names this repository and one commit of it: the commit its `fund.yml` ran at. Only `prove.yml` of this
 repository at that same commit can pay it.
 
@@ -14,7 +14,7 @@ repository at that same commit can pay it.
 
 Call them by a full commit sha, never by a branch or a tag. The first three take no inputs; `attest.yml` takes a
 repository, a pull request, an order, a kind and optional payees, which name facts and never code. Every job installs
-knos 0.4.0 from PyPI, as exactly that release, so a caller cannot change which code judges.
+knos 0.4.1 from PyPI, as exactly that release, so a caller cannot change which code judges.
 
 The jobs that sign (`fund.yml`, `settle` and `attest` in `prove.yml`, and `attest.yml`) install from a list in which every file is
 named by its sha256, `uv pip install --require-hashes`: that list is written into the workflow and is also
