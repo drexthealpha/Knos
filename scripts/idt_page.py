@@ -82,9 +82,14 @@ def main(argv=None) -> int:
     s = json.loads(DATA.read_text(encoding="utf-8"))
     page = PAGE.read_text(encoding="utf-8")
     m = MARK.search(page)
-    if not m:
-        print("web/index.html has no <!-- home:idt --> block", file=sys.stderr)
-        return 1
+    if not m:   # the home page shows no IDT since the first-screen rule of 5 Nov 2026: the packaged numbers are what remain
+        if check:
+            ok = PACKAGED.exists() and PACKAGED.read_text(encoding="utf-8") == packaged(s)
+            print("src/knos/idt_benchmark.json matches docs/idt/summary.json" if ok else "src/knos/idt_benchmark.json differs from docs/idt/summary.json")
+            return 0 if ok else 1
+        PACKAGED.write_text(packaged(s), encoding="utf-8", newline="\n")
+        print("wrote src/knos/idt_benchmark.json (the home page has no IDT block)")
+        return 0
     want = block(s)
     if check:
         ok = m.group(2) == want and PACKAGED.exists() and PACKAGED.read_text(encoding="utf-8") == packaged(s)

@@ -329,3 +329,5 @@ _.demand_
 _.tranches
 # scripts/trim_fonts.py: fontTools reads its subset.Options and TTFont settings as attributes (opts.flavor, opts.layout_features).
 _.flavor, _.layout_features
+# knos.job: `knos ready`, `knos iris-check` and `knos near-job` are Typer commands; Typer calls them by their decorators.
+_.ready_, _.iris_check_, _.near_job_

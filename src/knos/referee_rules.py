@@ -101,7 +101,7 @@ def decide(brief_json: str, kind: str, payload: str, criteria_hash: str) -> str:
 def oru_to_observation(hl7: str, named: set | None = None) -> dict:
     """One OBX of an ORU^R01 as an Observation: the first whose OBX-3 code is one of `named` (the codes a brief's verifier
     names), else the first OBX. OBX-3 the code, OBX-5/6 the value and unit, OBX-14 effective, OBX-16 performer."""
-    obs = []
+    obs: list[tuple[str, dict]] = []
     for seg in re.split(r"\r\n|\r|\n", hl7):
         f = seg.split("|")
         if f and f[0] == "OBX" and len(f) > 6:
@@ -110,7 +110,7 @@ def oru_to_observation(hl7: str, named: set | None = None) -> dict:
                 value = float(f[5])
             except ValueError:
                 value = None
-            obs.append({"resourceType": "Observation", "status": "final", "code": {"coding": [{"system": "http://loinc.org", "code": code[0],
+            obs.append((code[0], {"resourceType": "Observation", "status": "final", "code": {"coding": [{"system": "http://loinc.org", "code": code[0],
                         "display": code[1] if len(code) > 1 else ""}]}, "valueQuantity": {"value": value, "unit": f[6]},
-                        "effectiveDateTime": f[14] if len(f) > 14 else "", "performer": [{"display": f[16]}] if len(f) > 16 else []})
-    return next((o for o in obs if named and o["code"]["coding"][0]["code"] in named), obs[0] if obs else {})
+                        "effectiveDateTime": f[14] if len(f) > 14 else "", "performer": [{"display": f[16]}] if len(f) > 16 else []}))
+    return next((o for c, o in obs if named and c in named), obs[0][1] if obs else {})

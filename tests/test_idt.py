@@ -59,7 +59,7 @@ def test_tiers_and_not_on_claude():
     assert set(idt.NOT_ON_CLAUDE) >= {"I12", "R11", "R15", "R16", "R20"} and ready.check(CLEAR)["ready"]
 
 
-def test_the_home_page_shows_the_measured_benchmark():
+def test_the_packaged_benchmark_is_the_measured_one():
     import subprocess
     import sys
     from pathlib import Path

@@ -183,11 +183,15 @@ def test_the_release_manifest_is_what_its_sources_give_and_states_what_is_live_f
         assert f"| {name} {program['on_chain']} |" in row, name
         if name in seen:
             assert f"`{seen[name]['on_chain_hash']}`" in row, name
+    newest: dict = {}
     for entry in feed["entries"]:
         if entry["status"] == "pending":                                                  # a pending proposal is listed, and is not called live
             assert f"| {entry['index']} (`{entry['proposal']}`) | {entry['program']} | `{entry['build_hash']}` |" in page
-            row = next(line for line in page.splitlines() if line.startswith(f"| {entry['program']} | `"))
-            assert f"| {entry['index']}: pending |" in row and "(not the proposal's build)" in row
+            if entry["index"] > newest.get(entry["program"], {"index": -1})["index"]:
+                newest[entry["program"]] = entry
+    for program, entry in newest.items():                                               # a program's row names its newest pending one
+        row = next(line for line in page.splitlines() if line.startswith(f"| {program} | `"))
+        assert f"| {entry['index']}: pending |" in row and "(not the proposal's build)" in row
     # every capability is a row with its stage; every limit of reference/DISCLOSURE.md is a line, once
     for c in caps["capabilities"]:
         assert page.count(f"| `{c['id']}` | ") == 1, c["id"]

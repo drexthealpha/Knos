@@ -30,8 +30,9 @@ def test_the_hero_chips_span_every_technology_and_no_pitch_paragraph_stands_abov
     techs = {line.split('data-tech="')[1].split('"')[0] for line in hero.splitlines() if 'data-tech="' in line}
     assert len(techs) >= 5 and techs <= {"ai", "web3", "quantum", "energy", "biotech", "materials", "pqc"}
     above = hero[:hero.index("<form")]
-    # above the box: the pill naming who Knos is for, the heading and its one subhead (SOTA gap 6); no pitch paragraph
-    assert above.count("<p") == 2 and 'id="k-for"' in above and 'class="k-sub"' in above and 'id="k-mission"' in above
+    # above the box: the heading and its one subhead, no pitch paragraph (the pill naming who Knos is for went in the
+    # first-screen word limit of 5 Nov 2026: headline, subhead and buttons at most 20 words)
+    assert above.count("<p") == 1 and 'id="k-for"' not in above and 'class="k-sub"' in above and 'id="k-mission"' in above
 
 
 def test_each_fields_draft_is_ready_and_carries_its_proof():

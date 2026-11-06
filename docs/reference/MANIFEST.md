@@ -31,8 +31,8 @@ not run: the public id runs the build in the third column until it does.
 
 | program | public program id | LIVE at that id | hash at that id | its proposal | the proposal's verified build hash | built from |
 |---|---|---|---|---|---|---|
-| knos_oidc | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | knos_oidc 2.2 | `a2df952d262c48edacf2f594a01321e805c28f1dc523cb6efa75f2c45f34e632` (the proposal's build) | 7: executed | `a2df952d262c48edacf2f594a01321e805c28f1dc523cb6efa75f2c45f34e632` | [`f03ec51`](https://github.com/drexthealpha/Knos/commit/f03ec515d8666c46e3fdc6bb0123bc0786d5dd75), run `37523515307` |
-| knos_pay | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | knos_pay 2.2 | `8b3c044024eac6e00cf10930c325465d5682c3fb7273fe2f0d59c6e01f99867c` (the proposal's build) | 8: executed | `8b3c044024eac6e00cf10930c325465d5682c3fb7273fe2f0d59c6e01f99867c` | [`f8bcd9d`](https://github.com/drexthealpha/Knos/commit/f8bcd9d51eda5e093cc92b0bcf0c8cc3676fa556), run `37589002080` |
+| knos_oidc | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | knos_oidc 2.2 | `a2df952d262c48edacf2f594a01321e805c28f1dc523cb6efa75f2c45f34e632` (not the proposal's build) | 15: pending | `26d208cb5b3534c76f4cca87540a99333d1a711ac285e17165019631c9294650` | [`0f3c47f`](https://github.com/drexthealpha/Knos/commit/0f3c47f98a008dacf14309eae056d8a20a15fec0), run `40107023682` |
+| knos_pay | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | knos_pay 2.2 | `8b3c044024eac6e00cf10930c325465d5682c3fb7273fe2f0d59c6e01f99867c` (not the proposal's build) | 13: pending | `e01605411369b40b9e6fd28595d0254f06357fbf7f5c887eef207f8d5b68ad3a` | [`eb12d1b`](https://github.com/drexthealpha/Knos/commit/eb12d1be0abfcf20df5ba03bdc0c78ce712a2ec1), run `39094558752` |
 | knos_meter | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | knos_meter 1.1 | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` (the proposal's build) | 5: executed | `10f2b6cbb4983527a82225b29491941b77961da32245b449c9c1b151a5e995e4` | [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5), run `37237561915` |
 | knos_passkey | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | knos_passkey 1.1 | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` (the proposal's build) | 6: executed | `a9ce7a06fb99196ce6a9516b7c52951e48e4ce8cfde256646c6e50cfcac7cf81` | [`6eb81dd`](https://github.com/drexthealpha/Knos/commit/6eb81dd152bd6cf752ee6c151b692f4a08815ae5), run `37237561915` |
 | upgrade_gate | `2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW` | upgrade_gate 1.0 | not read | none | none | none |
@@ -46,7 +46,11 @@ shows whether it changed. Each link of each chain is in [PROVENANCE.md](PROVENAN
 Upgrade multisig `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK`, 2 of 3. From `web/upgrades.json`; when each can
 execute is its `earliest_execution_utc` there.
 
-None: web/upgrades.json lists no pending proposal.
+| proposal | program | would deploy build | approvals |
+|---|---|---|---|
+| 13 (`2hKWMeTE2hPKQ15dmNuxcLMo2QvgY9uQG75Ue4oyDBuz`) | knos_pay | `e01605411369b40b9e6fd28595d0254f06357fbf7f5c887eef207f8d5b68ad3a` | 2 of 2 |
+| 14 (`9ydBi32gjMZqGrNZzuBZigD9zZckKH1kWfe6jf5cyV8p`) | knos_oidc | `925c76f051f9c28f617dc18352fcdab6127b2d23b164eb87fcab282e02bbe968` | 2 of 2 |
+| 15 (`GBfXEpkm9jrJLVXa3PyJMiso1N7VN96Uvv1g6YY5v4Pk`) | knos_oidc | `26d208cb5b3534c76f4cca87540a99333d1a711ac285e17165019631c9294650` | 2 of 2 |
 
 ## Capabilities: the stage of each, with its evidence
 
