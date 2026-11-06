@@ -5,10 +5,11 @@
 | | |
 |---|---|
 | The contest task | The agent is one step of an interoperability workflow: proof arrives through custom adapters and the agent answers a decision contract that code checks; every model and tool call is a message in Visual Trace. |
-| What is new | LLM tracing as interop messages ([DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) with a Langfuse-style SQL view; Vector Search (snowflake-arctic-embed-s in Embedded Python) caps a verdict that cites a criterion outside the proof's 2 nearest. |
+| Idea | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): LLM tracing as interoperability messages, built here |
+| What is new | LLM tracing as interop messages with a Langfuse-style SQL view; Vector Search (snowflake-arctic-embed-s in Embedded Python) caps a verdict that cites a criterion outside the proof's 2 nearest. |
 | Open Exchange | pending |
-| Online demo | pending (`scripts/demo-vm.sh` builds it on an Ubuntu 24.04 VM) |
-| YouTube | pending |
+| Online demo | from 7 Nov 2026, user `demo`, password `demo` (read only); one command starts it on any Ubuntu 24.04 VM: `curl -fsSL https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/cloud-start.sh | sudo bash -s -- <image tar>` |
+| Video | the walk through one decision, its trace and its approval: link from 7 Nov |
 | Articles | pending |
 | Code | this folder; the IPM package is `module.xml` at the repository root |
 
