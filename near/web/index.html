@@ -244,6 +244,9 @@ async function hostedRun() {
     if (s.last && s.last.job) showJob(s.last.job);
     return;
   }
+  // the last run's job stays out of sight while this one runs, so the panel never shows an older job as this one
+  const jobPanel = document.querySelector('[aria-labelledby="t-job"]');
+  if (jobPanel) jobPanel.hidden = true;
   for (let i = 0; i < 120; i++) {
     await new Promise((ok) => setTimeout(ok, 3000));
     const r = await fetch(HOSTED + "/api/near/live/" + s.run).then((x) => x.json()).catch(() => null);
@@ -252,6 +255,7 @@ async function hostedRun() {
     if (r.state === "running") { $("busy-text").textContent = `${r.step[0].toUpperCase()}${r.step.slice(1)}. ${Math.round(r.seconds_so_far)} s.`; continue; }
     busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
     $("busy-text").textContent = r.state === "done" ? `Paid: ${Object.entries(r.paid).map(([k, v]) => `${k.startsWith("agent-a") ? "Agent A" : "Agent B"} ${v}`).join(", ")} test units, live, in ${Math.round(r.seconds)} s.` : `The run stopped: ${r.why || "see the job below"}.`;
+    if (jobPanel) jobPanel.hidden = false;
     if (r.job) showJob(r.job);
     return;
   }

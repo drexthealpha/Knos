@@ -82,7 +82,7 @@ def main() -> int:
     tag = time.strftime("%H%M%S", time.gmtime())
     names = {k: f"{k}{tag}.{you}" for k in ("knos", "usdc", "payee", "own1", "own2", "own3")}
     for i, (k, acct) in enumerate(names.items(), 1):
-        amount = {"knos": "2.6 NEAR", "usdc": "1.7 NEAR"}.get(k, "0.2 NEAR")
+        amount = {"knos": "3.2 NEAR", "usdc": "1.7 NEAR"}.get(k, "0.2 NEAR")   # 3.2: the 280 KB jobs contract needs its storage
         text = near("account", "create-account", "fund-myself", acct, amount, "autogenerate-new-keypair", "save-to-legacy-keychain",
                     "sign-as", you, "network-config", "testnet", "sign-with-legacy-keychain", "send")
         step(i, f"account {acct}", "created successfully" in text or "has been successfully created" in text, tx_id(text))
