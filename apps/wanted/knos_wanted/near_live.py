@@ -133,6 +133,9 @@ def prepare() -> None:
                          "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
                          "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
                                  "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
+        if os.environ.get("KNOS_NEAR_KEYS_FILE"):
+            import common   # near/agents/common.py, on the path once jobs_api is loaded
+            common.prefetch(j.CONFIG["relayer"])   # the click then only signs and sends the payment
     except Exception:  # noqa: BLE001 - no ready job: the next click runs the whole job instead
         pass
     finally:
@@ -141,7 +144,12 @@ def prepare() -> None:
 
 def _release(ready: dict) -> dict:
     j, t0 = _jobs(), time.time()
-    r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
+    try:
+        r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
+    except RuntimeError as e:   # a nonce fetched earlier went stale: fetch afresh and send once more
+        if "nonce" not in str(e).lower():
+            raise
+        r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
     agents = [x["agent"] for x in ready["attempts"]]
     paid = {a: (BID if a == ready["payee"] and r.get("ok") else 0) for a in agents}
     job = {"id": ready["id"], "bid": BID, "txs": {**ready["txs"], **({"release": r["tx"]} if r.get("ok") else {})},

@@ -12,6 +12,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import urllib.request
 from pathlib import Path
 
@@ -81,6 +82,19 @@ def _keys() -> dict:
     return json.loads(Path(os.environ["KNOS_NEAR_KEYS_FILE"]).read_text(encoding="utf-8"))
 
 
+_PREFETCHED: dict = {}
+
+
+def prefetch(who: str) -> None:
+    """Fetch `who`'s key nonce and a recent block hash now, for its next transaction (a block hash stays valid for
+    about a day; the nonce is right while nothing else signs for `who` meanwhile)."""
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+    secret = _b58d(_keys()[who].split(":", 1)[1])
+    pub = secret[32:64] if len(secret) >= 64 else ed25519.Ed25519PrivateKey.from_private_bytes(secret[:32]).public_key().public_bytes_raw()
+    ak = rpc("query", {"request_type": "view_access_key", "finality": "final", "account_id": who, "public_key": "ed25519:" + _b58e(pub)})
+    _PREFETCHED[who] = (ak["nonce"], _b58d(rpc("block", {"finality": "final"})["header"]["hash"]), time.time())
+
+
 def _py_signed(who: str, contract: str, method: str, args: dict, deposit: str, gas: str) -> str:
     """One FunctionCall transaction, borsh-encoded and signed here with ed25519 (the hosted app has no near-cli)."""
     import struct
@@ -89,8 +103,12 @@ def _py_signed(who: str, contract: str, method: str, args: dict, deposit: str, g
     secret = _b58d(_keys()[who].split(":", 1)[1])
     sk = ed25519.Ed25519PrivateKey.from_private_bytes(secret[:32])
     pub = secret[32:64] if len(secret) >= 64 else sk.public_key().public_bytes_raw()
-    ak = rpc("query", {"request_type": "view_access_key", "finality": "final", "account_id": who, "public_key": "ed25519:" + _b58e(pub)})
-    block = _b58d(rpc("block", {"finality": "final"})["header"]["hash"])
+    kept = _PREFETCHED.pop(who, None)
+    if kept and time.time() - kept[2] < 3600:     # fetched while the job was readied: the click only signs and sends
+        ak, block = {"nonce": kept[0]}, kept[1]
+    else:
+        ak = rpc("query", {"request_type": "view_access_key", "finality": "final", "account_id": who, "public_key": "ed25519:" + _b58e(pub)})
+        block = _b58d(rpc("block", {"finality": "final"})["header"]["hash"])
     s = lambda t: struct.pack("<I", len(t.encode())) + t.encode()   # noqa: E731
     body = json.dumps(args).encode()
     action = bytes([2]) + s(method) + struct.pack("<I", len(body)) + body + struct.pack("<Q", _amount(gas, 10**12)) + _amount(deposit, 10**24).to_bytes(16, "little")
