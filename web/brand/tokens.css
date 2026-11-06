@@ -172,4 +172,4 @@ html, body { overflow-x: clip; }
 .js .bar nav { display: none; order: 3; flex: 0 0 100%; }
 .js .bar.open nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); gap: 2px 8px; padding-top: 4px; }
 .js .bar .tools { margin-left: auto; }
-.bar .tools .signin { display: none; }
+.bar .tools .signin, .bar .tools #whoBtn.signin { display: none; }

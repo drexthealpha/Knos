@@ -139,10 +139,11 @@
     const url = String(input && input.url || input);
     // a stream or a presence poll is not "talking to the server": it never ends, and the pill stayed up for good
     const loud = /api\.devnet\.solana\.com|\/api\//.test(url) && !/\/stream|\/presence|\/api\/vectors|\/api\/proof|\/api\/(check|cross|match|report|receipts|counter|usage|qloo\/status|qloo-diff)/.test(url);   // the check's own box says its progress under the input (hero.js): no pill over the bar
-    let done = false;
-    const end = () => { if (!done && loud) { done = true; if (--busyN <= 0) { busyN = 0; const p = pill(); if (p) p.hidden = true; } } };
+    let done = false, shown = 0;
+    const end = () => { clearTimeout(shown); if (!done && loud) { done = true; if (--busyN <= 0) { busyN = 0; const p = pill(); if (p) p.hidden = true; } } };
     if (loud) {
-      busyN++; const p = pill(); if (p) { p.hidden = false; p.textContent = /devnet/.test(url) ? "Talking to Solana devnet…" : "Talking to the server…"; }
+      // said only when a call is still open after 1.2 s, so a quick answer adds no words to the first screen
+      busyN++; shown = setTimeout(() => { const p = pill(); if (p && !done) { p.hidden = false; p.textContent = /devnet/.test(url) ? "Talking to Solana devnet…" : "Talking to the server…"; } }, 1200);
       setTimeout(end, 30000);                            // a call still open after 30 s stops holding the pill up
     }
     return rawFetch(input, init).finally(end);
