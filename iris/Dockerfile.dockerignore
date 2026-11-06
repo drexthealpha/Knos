@@ -3,6 +3,7 @@
 !src/knos
 !iris
 !web/brand/tokens.css
+!web/brand/mark.svg
 !web/fonts
 iris/.env
 **/__pycache__
