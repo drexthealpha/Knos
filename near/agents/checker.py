@@ -57,7 +57,18 @@ def run_test(output: Path) -> tuple[bool, str, float]:
         return p.returncode == 0, said[-1] if said else "", time.time() - t0
 
 
-def check(job_id: str) -> dict:
+def release_one(job_id: str, payee: str, output_sha256: str, criteria_hash: str) -> dict:
+    """Sign the token for the agent whose output passed and send release_job: the one step a visitor waits for."""
+    claims = {"iss": ISS, "aud": CONFIG["contract"], "exp": int(time.time()) + 600, "iat": int(time.time()),
+              "jti": str(uuid.uuid4()), "job": job_id, "payee": payee, "output_sha256": output_sha256, "criteria_hash": criteria_hash}
+    t0 = time.time()
+    # every receipt executed, the payment callback included; finality follows within seconds
+    r = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": job_id, "token": sign(claims)}, gas="120 Tgas", wait="EXECUTED_OPTIMISTIC")
+    r["seconds"] = round(time.time() - t0, 1)
+    return r
+
+
+def check(job_id: str, release: bool = True) -> dict:
     job = view(CONFIG["contract"], "get_job", {"id": job_id})
     if not job:
         raise SystemExit(f"no job {job_id}")
@@ -75,7 +86,7 @@ def check(job_id: str) -> dict:
         else:
             ok, said, secs = run_test(f)
             r.update(passed=ok, reason=said, test_seconds=round(secs, 2))
-            if ok and job["state"] == "Open":
+            if ok and job["state"] == "Open" and release:
                 claims = {"iss": ISS, "aud": CONFIG["contract"], "exp": int(time.time()) + 600, "iat": int(time.time()),
                           "jti": str(uuid.uuid4()), "job": job_id, "payee": a["agent"], "output_sha256": a["output_sha256"],
                           "criteria_hash": job["criteria_hash"]}

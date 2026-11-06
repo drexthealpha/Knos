@@ -50,7 +50,10 @@ def status() -> dict:
     used = _day["n"] if _day["day"] == today else 0
     on = os.environ.get("KNOS_NEAR_LIVE") == "on" and bool(os.environ.get("KNOS_NEAR_KEYS_FILE"))
     busy = any(r["state"] == "running" for r in _runs.values())
-    return {"live": on, "used_today": used, "cap_today": daily_cap(), "busy": busy, "bid": BID, "network": "testnet",
+    ready = bool(_ready.get("job"))
+    if on and not ready and not _preparing.locked() and used < daily_cap():   # keep one job ready for the next click
+        threading.Thread(target=prepare, daemon=True).start()
+    return {"live": on, "used_today": used, "cap_today": daily_cap(), "busy": busy, "ready": ready, "bid": BID, "network": "testnet",
             "account": os.environ.get("KNOS_NEAR_PAYER", ""), "money": "test tokens, not real money"}
 
 
@@ -59,7 +62,7 @@ def start() -> dict:
     s = status()
     why = ("live runs are switched off" if not s["live"] else "a run is in progress; this one is a replay" if s["busy"]
            else f"today's {s['cap_today']} live runs are used; this one is a replay" if s["used_today"] >= s["cap_today"] else "")
-    if not why:
+    if not why and not _ready.get("job"):   # a ready job is funded already: no balance to ask for
         try:
             j = _jobs()
             if j.ft_balance(j.CONFIG["payer"]) < BID:
@@ -73,6 +76,12 @@ def start() -> dict:
         if _day["day"] != today:
             _day.update(day=today, n=0)
         _day["n"] += 1
+        ready = _ready.pop("job", None) if _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR else None
+    if ready:   # a job both agents have already tried: the visitor's click sends only the payment
+        out = _release(ready)
+        threading.Thread(target=prepare, daemon=True).start()
+        return {"replay": False, **out, **status()}
+    with _lock:
         rid = uuid.uuid4().hex[:12]
         _runs[rid] = {"state": "running", "step": "posting the job", "started": time.time()}
     threading.Thread(target=_run, args=(rid,), daemon=True).start()
@@ -94,6 +103,51 @@ def _run(rid: str) -> None:
         r.update(state="failed", step="stopped", why=str(e)[:300], seconds=round(time.time() - r["started"], 1))
     for k in [k for k, v in _runs.items() if time.time() - v["started"] > 3600]:
         _runs.pop(k, None)
+
+
+READY_FOR = 3 * 3600      # a ready job is posted with a 4 h deadline and offered for 3 h of it
+_ready: dict = {}
+_preparing = threading.Lock()
+
+
+def prepare() -> None:
+    """Post a job and have both agents take it and submit, and run the locked test on each output, but pay nobody yet:
+    the job then waits, ready, for a visitor's click (start). One at a time."""
+    if not _preparing.acquire(blocking=False):
+        return
+    try:
+        if _ready.get("job") or not status()["live"]:
+            return
+        j = _jobs()
+        p = j.post({"bid": BID, "minutes": 240})
+        if not p.get("ok"):
+            return
+        ra = j.run_agent("a", j.pass_agent.SOLUTION, p["id"])
+        rb = j.run_agent("b", j.fail_agent.SOLUTION, p["id"])
+        c = j.checker.check(p["id"], release=False)
+        win = next((x for x in c["attempts"] if x.get("passed")), None)
+        if not win:
+            return
+        _ready["job"] = {"id": p["id"], "at": time.time(), "criteria_hash": c["criteria_hash"], "payee": win["agent"],
+                         "output_sha256": win["output_sha256"],
+                         "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
+                         "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
+                                 "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
+    except Exception:  # noqa: BLE001 - no ready job: the next click runs the whole job instead
+        pass
+    finally:
+        _preparing.release()
+
+
+def _release(ready: dict) -> dict:
+    j, t0 = _jobs(), time.time()
+    r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
+    agents = [x["agent"] for x in ready["attempts"]]
+    paid = {a: (BID if a == ready["payee"] and r.get("ok") else 0) for a in agents}
+    job = {"id": ready["id"], "bid": BID, "txs": {**ready["txs"], **({"release": r["tx"]} if r.get("ok") else {})},
+           "paid": paid, "check_to_paid_s": round(time.time() - t0, 1), "attempts": ready["attempts"], "ok": bool(r.get("ok"))}
+    return {"state": "done" if r.get("ok") else "failed", "step": "paid" if r.get("ok") else "stopped", "job": job, "paid": paid,
+            "seconds": round(time.time() - t0, 1), "why": "" if r.get("ok") else r.get("said", ""), "release_url": r.get("url")}
 
 
 def get(rid: str) -> dict | None:

@@ -244,8 +244,16 @@ async function hostedRun() {
     if (s.last && s.last.job) showJob(s.last.job);
     return;
   }
-  // the last run's job stays out of sight while this one runs, so the panel never shows an older job as this one
   const jobPanel = document.querySelector('[aria-labelledby="t-job"]');
+  if (s.state) {   // a job both agents had already tried: the click paid the one that passed, and the answer is here
+    busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
+    $("busy-text").textContent = s.state === "done" ? `Paid: Agent A ${s.paid[Object.keys(s.paid).find((k) => k.startsWith("agent-a"))] ?? 0}, Agent B ${s.paid[Object.keys(s.paid).find((k) => k.startsWith("agent-b"))] ?? 0} test units, live, in ${s.seconds} s. ` : `The payment stopped: ${s.why || "see the job below"}. `;
+    if (s.release_url) $("busy-text").append(el("a", { href: s.release_url, target: "_blank", rel: "noopener", textContent: "See the payment on NEAR testnet" }));
+    if (s.job) showJob(s.job);
+    at("paid");
+    return;
+  }
+  // the last run's job stays out of sight while this one runs, so the panel never shows an older job as this one
   if (jobPanel) jobPanel.hidden = true;
   for (let i = 0; i < 120; i++) {
     await new Promise((ok) => setTimeout(ok, 3000));
