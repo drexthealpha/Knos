@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -25,7 +26,9 @@ from cryptography.hazmat.primitives.asymmetric import padding
 
 from common import CONFIG, HERE, JOB_DIR, call, sha256_file, view
 
-KEY = Path.home() / ".knos-checker" / "checker.pem"
+# the hosted app signs with its own checker key (KNOS_CHECKER_PEM_FILE, KNOS_CHECKER_KID), which 2 owners set and can remove
+KEY = Path(os.environ.get("KNOS_CHECKER_PEM_FILE") or Path.home() / ".knos-checker" / "checker.pem")
+KID = os.environ.get("KNOS_CHECKER_KID") or CONFIG["checker_kid"]
 ISS = "https://knos.onrender.com/checker"
 
 
@@ -35,7 +38,7 @@ def b64u(b: bytes) -> str:
 
 def sign(claims: dict) -> str:
     k = serialization.load_pem_private_key(KEY.read_bytes(), password=None)
-    head = b64u(json.dumps({"alg": "RS256", "kid": CONFIG["checker_kid"], "typ": "JWT"}).encode())
+    head = b64u(json.dumps({"alg": "RS256", "kid": KID, "typ": "JWT"}).encode())
     body = b64u(json.dumps(claims).encode())
     sig = k.sign(f"{head}.{body}".encode(), padding.PKCS1v15(), hashes.SHA256())
     return f"{head}.{body}.{b64u(sig)}"

@@ -28,8 +28,12 @@ COPY docs/idt/summary.json ./docs/idt/summary.json
 RUN pip install --no-cache-dir . "./apps/wanted[escrow,auth,config,evidence,attest,saml]" && sh apps/wanted/bridge/install.sh
 WORKDIR /app
 RUN useradd --create-home app && mkdir -p /data && chown app /data
+# the NEAR job runner of /near/ (knos_wanted.near_live): the agents, the checker and the job code, writable by the app
+COPY --chown=app near/agents /app/near/agents
+COPY --chown=app near/web/jobs_api.py near/web/latest.json /app/near/web/
+RUN chown -R app /app/near
 USER app
-ENV HOST=0.0.0.0 PORT=8080 KNOS_WANTED_CACHE=/data/qloo-mcp KNOS_WANTED_STATE=/data/state KNOS_WANTED_RECORD=/data/record \
+ENV KNOS_NEAR_ROOT=/app HOST=0.0.0.0 PORT=8080 KNOS_WANTED_CACHE=/data/qloo-mcp KNOS_WANTED_STATE=/data/state KNOS_WANTED_RECORD=/data/record \
     PYTHONPATH=/src/apps/wanted KNOS_CLUSTER=devnet KNOS_FROST_BIN=/usr/local/bin/knos-frost KNOS_REFEREE_FROST_GROUP=/src/config/referee-frost.json
 # QLOO_API_KEY and QLOO_BASE_URL come from the host's environment (Render's secrets): no Qloo host is named here
 EXPOSE 8080

@@ -21,6 +21,8 @@ EXPLORER = "https://explorer.testnet.near.org/transactions/"
 HERE = Path(__file__).resolve().parent
 JOB_DIR = HERE / "job"
 CONFIG = json.loads((HERE / "swarm.json").read_text(encoding="utf-8"))
+# the hosted app posts and releases from its own capped account (live.knos-swarm-1105.testnet), not the maintainer's
+CONFIG.update({k: os.environ[e] for k, e in (("payer", "KNOS_NEAR_PAYER"), ("relayer", "KNOS_NEAR_RELAYER")) if os.environ.get(e)})
 
 
 def sha256_file(p: Path) -> str:
@@ -47,14 +49,67 @@ def near(*args: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*m", "", p.stdout + p.stderr)
 
 
+B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _b58d(s: str) -> bytes:
+    n = 0
+    for c in s:
+        n = n * 58 + B58.index(c)
+    raw = n.to_bytes((n.bit_length() + 7) // 8, "big") if n else b""
+    return b"\0" * (len(s) - len(s.lstrip("1"))) + raw
+
+
+def _b58e(b: bytes) -> str:
+    n, out = int.from_bytes(b, "big"), ""
+    while n:
+        n, r = divmod(n, 58)
+        out = B58[r] + out
+    return "1" * (len(b) - len(b.lstrip(b"\0"))) + out
+
+
+def _amount(text: str, unit: int) -> int:
+    """'1 yoctoNEAR', '0 NEAR', '0.5 NEAR' or '100 Tgas' as an integer."""
+    from decimal import Decimal
+    num, _, name = text.strip().partition(" ")
+    scale = {"yoctonear": 1, "near": 10**24, "tgas": 10**12, "gas": 1}.get(name.strip().lower(), unit)
+    return int(Decimal(num) * scale)
+
+
+def _keys() -> dict:
+    """The signing keys of the hosted app: a JSON file {account: "ed25519:<secret>"} named by KNOS_NEAR_KEYS_FILE."""
+    return json.loads(Path(os.environ["KNOS_NEAR_KEYS_FILE"]).read_text(encoding="utf-8"))
+
+
+def _py_signed(who: str, contract: str, method: str, args: dict, deposit: str, gas: str) -> str:
+    """One FunctionCall transaction, borsh-encoded and signed here with ed25519 (the hosted app has no near-cli)."""
+    import struct
+
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+    secret = _b58d(_keys()[who].split(":", 1)[1])
+    sk = ed25519.Ed25519PrivateKey.from_private_bytes(secret[:32])
+    pub = secret[32:64] if len(secret) >= 64 else sk.public_key().public_bytes_raw()
+    ak = rpc("query", {"request_type": "view_access_key", "finality": "final", "account_id": who, "public_key": "ed25519:" + _b58e(pub)})
+    block = _b58d(rpc("block", {"finality": "final"})["header"]["hash"])
+    s = lambda t: struct.pack("<I", len(t.encode())) + t.encode()   # noqa: E731
+    body = json.dumps(args).encode()
+    action = bytes([2]) + s(method) + struct.pack("<I", len(body)) + body + struct.pack("<Q", _amount(gas, 10**12)) + _amount(deposit, 10**24).to_bytes(16, "little")
+    tx = s(who) + b"\0" + pub + struct.pack("<Q", ak["nonce"] + 1) + s(contract) + block + struct.pack("<I", 1) + action
+    return base64.b64encode(tx + b"\0" + sk.sign(hashlib.sha256(tx).digest())).decode()
+
+
 def call(who: str, contract: str, method: str, args: dict, deposit: str = "0 NEAR", gas: str = "100 Tgas") -> dict:
     """One transaction signed by `who`; returns ok, the transaction hash, and the contract's answer or its refusal."""
-    text = near("contract", "call-function", "as-transaction", contract, method, "json-args", json.dumps(args), "prepaid-gas", gas,
-                "attached-deposit", deposit, "sign-as", who, "network-config", "testnet", "sign-with-legacy-keychain", "display")
-    m = re.search(r"Signed transaction \(serialized as base64\):\s*([A-Za-z0-9+/=]{100,})", text)
-    if not m:
-        raise RuntimeError(f"near-cli did not sign {method} for {who}: {text[-300:]}")
-    r = rpc("send_tx", {"signed_tx_base64": m.group(1), "wait_until": "FINAL"})
+    if os.environ.get("KNOS_NEAR_KEYS_FILE"):
+        signed = _py_signed(who, contract, method, args, deposit, gas)
+    else:
+        text = near("contract", "call-function", "as-transaction", contract, method, "json-args", json.dumps(args), "prepaid-gas", gas,
+                    "attached-deposit", deposit, "sign-as", who, "network-config", "testnet", "sign-with-legacy-keychain", "display")
+        m = re.search(r"Signed transaction \(serialized as base64\):\s*([A-Za-z0-9+/=]{100,})", text)
+        if not m:
+            raise RuntimeError(f"near-cli did not sign {method} for {who}: {text[-300:]}")
+        signed = m.group(1)
+    r = rpc("send_tx", {"signed_tx_base64": signed, "wait_until": "FINAL"})
     outcomes = [r["transaction_outcome"]] + r["receipts_outcome"]
     fail = next((o["outcome"]["status"]["Failure"] for o in outcomes if "Failure" in o["outcome"]["status"]), None)
     val = r["status"].get("SuccessValue", "")

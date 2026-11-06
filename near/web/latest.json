@@ -1,23 +1,23 @@
 {
  "job": {
-  "id": "job-1105164458",
+  "id": "job-1106043506",
   "bid": 1000,
   "test_sha256": "0b0f037db5322e7d34d811af09699dc81a878dc1bdeb525af03bbfb69625647a",
-  "posted_at": 1793897113,
+  "posted_at": 1793939723,
   "txs": {
-   "post": "7VS43unmH6GMv36GNBivvcNB8Bxv2CRKFvHKiLcbu7qu",
-   "take_a": "GzghavURW39UivrETnWFxeunAwEv5Cpm5tKUmhejBQyT",
-   "submit_a": "oXq8gV4u6desS1GuJdK1ZCiTKo4QNAumEQTnTC69A8v",
-   "take_b": "FmSfyLQ4tu2kc4C9rWgjEP1kAo5788EufnVUWeLsJfNt",
-   "submit_b": "9CYdyki2gTVnfr31Ufjirs6j99jdjYU8Zk4yseKsef9z",
-   "release": "5caS1jXHAj7FbUZRMQog7nqgaBk4baDBkvBEYAQjbnpH"
+   "post": "e89soH3MLSHaTtC3prusW5uUS6UnbDcKX6bQrH4ZEz6",
+   "take_a": "BKQBWkEpfUM758EQqLnoBgbaigAtcpDJmfCefjhNKFhy",
+   "submit_a": "Hgqrx2TJJ3ndoFyYzyyhHk4eCR8EjXAFdHZJshbqrBbX",
+   "take_b": "96VhKxuDeDejq9SHTUyWP9tMWgZqKLZwFH912q1d78Nz",
+   "submit_b": "13h68JRFoABizC222Uxj3ofVJxKcpKrynd8Cu15mXq4u",
+   "release": "BZx2jn49kLYavzwmB1vbmCNub4FjH9W8z1fQ5vESb6w"
   },
   "ok": true,
   "paid": {
    "agent-a.knos-swarm-1105.testnet": 1000,
    "agent-b.knos-swarm-1105.testnet": 0
   },
-  "check_to_paid_s": 25.4,
+  "check_to_paid_s": 30.2,
   "attempts": [
    {
     "agent": "agent-a.knos-swarm-1105.testnet",

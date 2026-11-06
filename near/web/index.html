@@ -142,7 +142,8 @@ const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
 const TX = "https://explorer.testnet.near.org/transactions/";
 const STOPS = ["demand", "test", "held", "proof", "paid"];
-let local = true;
+let local = true, hosted = false;
+const HOSTED = "https://knos.onrender.com";
 
 // the coin sits at the job's last stop; with reduced motion it jumps there
 function at(stop) {
@@ -192,8 +193,13 @@ async function load() {
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
     $("busy").hidden = false; $("busy").setAttribute("data-done", "");
-    $("busy-text").textContent = "Read only here. Run near/web/serve.py to post.";
     $("embedlink").hidden = true;
+    // the hosted runner (knos.onrender.com) posts one live testnet job for any visitor, within its caps
+    const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
+    hosted = !!(h && h.live);
+    $("busy-text").textContent = hosted ? `Live on NEAR testnet: ${Math.max(0, h.cap_today - h.used_today)} of ${h.cap_today} runs left today.`
+      : "Last run shown. Live runs are off now.";
+    $("post").disabled = !hosted;
     return;
   }
   $("contract").textContent = s.contract ? `Milestones: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";
@@ -227,7 +233,32 @@ async function act(label, path, body) {
   return r;
 }
 
+async function hostedRun() {
+  at("test");
+  busy("Posting the job on NEAR testnet: the bid is held against the locked test.");
+  $("post").disabled = true;
+  const s = await fetch(HOSTED + "/api/near/live", { method: "POST" }).then((r) => r.json()).catch(() => ({ replay: true, why: "the live runner did not answer" }));
+  if (s.replay) {
+    busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
+    $("busy-text").textContent = `Replay: ${s.why}.`;
+    if (s.last && s.last.job) showJob(s.last.job);
+    return;
+  }
+  for (let i = 0; i < 120; i++) {
+    await new Promise((ok) => setTimeout(ok, 3000));
+    const r = await fetch(HOSTED + "/api/near/live/" + s.run).then((x) => x.json()).catch(() => null);
+    if (!r) continue;
+    if (r.job_id) at("held");
+    if (r.state === "running") { $("busy-text").textContent = `${r.step[0].toUpperCase()}${r.step.slice(1)}. ${Math.round(r.seconds_so_far)} s.`; continue; }
+    busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
+    $("busy-text").textContent = r.state === "done" ? `Paid: ${Object.entries(r.paid).map(([k, v]) => `${k.startsWith("agent-a") ? "Agent A" : "Agent B"} ${v}`).join(", ")} test units, live, in ${Math.round(r.seconds)} s.` : `The run stopped: ${r.why || "see the job below"}.`;
+    if (r.job) showJob(r.job);
+    return;
+  }
+}
+
 $("post").addEventListener("click", async () => {
+  if (!local) return hostedRun();
   at("test");
   busy("Posting the job: the bid is held against the locked test.");
   const p = await api("/api/job/post", { bid: 1000, minutes: 15 });
