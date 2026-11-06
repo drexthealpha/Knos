@@ -1,5 +1,5 @@
 /// The referee's read tools as one AI Hub tool set, the form the IRIS MCP gateway loads (Knos.Iris.AI.RefereeMCP)
-Class Knos.Iris.AI.RefereeToolSet Extends %AI.ToolSet
+Class Knos.Iris.AI.RefereeToolSet Extends %AI.ToolSet [ DependsOn = Knos.Iris.AI.RefereeTools ]
 {
 
 XData Definition [ MimeType = application/xml ]
