@@ -127,7 +127,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
       <path class="wire" id="toA" d="M200 150 C 310 150, 320 70, 430 70"/>
       <path class="wire cut" id="toB" d="M200 150 C 310 150, 320 230, 430 230"/>
       <rect class="box" x="10" y="95" width="190" height="110" rx="18"/>
-      <text class="k" x="30" y="128">Held on NEAR</text>
+      <text class="k" x="30" y="128">Held until it passes</text>
       <text class="v" x="30" y="180" id="pot">$0.001</text>
       <rect class="box" id="boxA" x="430" y="15" width="200" height="110" rx="18"/>
       <text class="k" x="450" y="46">Helper A</text>
@@ -353,7 +353,7 @@ async function hostedRun() {
     $("busy-text").textContent = s.state === "done" ? `Paid: Helper A ${usd(a)}. Helper B ${usd(b)}, its work failed.` : `The payment stopped: ${s.why || "see the job below"}.`;
     if (s.state === "done") {
       const job = s.job || {};
-      $("receipt").replaceChildren(...[`Helpers tried it at ${clock(job.posted_at)}. Paid at ${clock(job.paid_at)}, on your tap. `,
+      $("receipt").replaceChildren(...[`Paid at ${clock(job.paid_at)}, ${s.seconds} s after your tap, on NEAR. `,
         s.release_url ? el("a", { href: s.release_url, target: "_blank", rel: "noopener", textContent: "See the payment" }) : null,
         el("br"), "Fee: 1% of each payout. Test money for now."].filter(Boolean));
       payout(+(job.bid ?? 1000), a, b);
