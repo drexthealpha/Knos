@@ -179,7 +179,7 @@ def get(rid: str) -> dict | None:
 
 # The three live totals under the page's first screen (UX rule H7), each read from the public record of the jobs
 # contract on NEAR testnet (NearBlocks v3): the money paid to helpers whose work passed, the jobs paid, and the tries
-# (each helper's submit). Kept 10 minutes; on any error the last good answer, or none, is given.
+# (each helper's submit). Kept 2 minutes; on any error the last good answer, or none, is given.
 JOBS = "jobs.knos-swarm-1105.testnet"
 NB = "https://api-testnet.nearblocks.io/v3/accounts/" + JOBS
 RECORD = "https://testnet.nearblocks.io/address/" + JOBS
@@ -203,7 +203,7 @@ _refreshing = threading.Lock()
 
 def totals() -> dict:
     """The last answer at once; a stale or missing one is read again in the background (the walk takes about 16 s)."""
-    if not (_totals.get("at") and time.time() - _totals["at"] < 600) and not _refreshing.locked():
+    if not (_totals.get("at") and time.time() - _totals["at"] < 120) and not _refreshing.locked():
         threading.Thread(target=_refresh, daemon=True).start()
     return _totals.get("out") or {"pending": True, "record": RECORD}
 

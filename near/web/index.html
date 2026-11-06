@@ -199,7 +199,7 @@ const HOSTED = "https://knos.onrender.com";
 // Without GSAP (blocked, offline) or with reduced motion, it shows the end at once.
 const STILL = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let held = null;
-const usd = (units) => `$${(units / 1e6).toFixed(3)}`;   // the test token has 6 decimals: 1000 units are $0.001
+const usd = (units) => units ? `$${(units / 1e6).toFixed(3)}` : "$0";   // the test token has 6 decimals: 1000 units are $0.001
 function end(bid, a, b) {
   $("pot").textContent = usd(bid - a - b); $("gotA").textContent = usd(a); $("gotB").textContent = usd(b);
   $("tagA").setAttribute("opacity", 1); $("tagB").setAttribute("opacity", 1);
@@ -328,7 +328,7 @@ async function totals(tries = 0) {
   $("t-tries").firstChild.textContent = String(t.tries); $("t-tries").href = t.record;
 }
 
-const clock = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+const clock = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
 const of = (paid, p) => +(paid[Object.keys(paid).find((k) => k.startsWith(p))] ?? 0);
 
 async function hostedRun() {
@@ -356,6 +356,7 @@ async function hostedRun() {
       payout(+(job.bid ?? 1000), a, b);
     }
     if (s.job) showJob(s.job);
+    .disabled = false;   // one more job, within the caps
     setTimeout(totals, 15000);
     return;
   }
