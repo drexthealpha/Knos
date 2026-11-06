@@ -356,7 +356,7 @@ async function hostedRun() {
       payout(+(job.bid ?? 1000), a, b);
     }
     if (s.job) showJob(s.job);
-    .disabled = false;   // one more job, within the caps
+    $("post").disabled = false;   // one more job, within the caps
     setTimeout(totals, 15000);
     return;
   }
