@@ -131,8 +131,8 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: python scripts/indexnow.py $(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- web 2>/dev/null)
 
-  # after a deploy from a push: the live front door in Chromium. Every page beside it raises no page error, and each of
-  # the 8 chips, pressed at 390 and 1280 px, draws a verdict card within 20 s (scripts/test_front_door_live.mjs).
+  # after a deploy from a push: the live front door in Chromium; every page beside it raises no page error
+  # (scripts/test_front_door_live.mjs).
   live:
     needs: deploy
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
