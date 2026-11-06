@@ -1,7 +1,0 @@
-diff --git a/tests/test_swapcase.py b/tests/test_swapcase.py
-new file mode 100644
---- /dev/null
-+++ b/tests/test_swapcase.py
-@@ -0,0 +1,2 @@
-+def test_ok():
-+    pass

@@ -106,7 +106,7 @@ kept outside it.
 It claimed that the playground referee's generated inputs catch every wrong solution in `tasks/` (72 of 72) and that every
 reference passes its public examples (24 of 24): reproduced on the re-run and on a held-out seed.
 
-The result file, the spec, its two scripts and `run.sh` to make them again are in
-[evidence/repro-0329/](evidence/repro-0329/playground-judge.result.json).
+The result file, the spec and its two scripts are kept in the maintainer's records, not in this repository;
+`src/knos/repro/` makes them again.
 
 Source: `src/knos/repro/`, tests `tests/test_repro_*.py`.

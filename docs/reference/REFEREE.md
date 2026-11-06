@@ -440,8 +440,8 @@ On 13 Oct 2026, on a read-only clone of `drexthealpha/knos-e2e`, pull request #2
   the fix and passing after it; no licence file, so marked not sellable;
 - grading: the merged fix 1.0, a patch that rewrites the test -1.0 (`test_edited`), a wrong fix 0.0.
 
-The manifest, the three candidate patches, their grading output, the training row and `run.sh` are in
-[evidence/repro-0329/](evidence/repro-0329/run.sh). Grading runs the candidate's code on the grading machine without a
+The manifest, the three candidate patches, their grading output and the training row are kept in the maintainer's
+records, not in this repository; `src/knos/repro/` makes them again. Grading runs the candidate's code on the grading machine without a
 sandbox: grade untrusted patches inside a disposable container or VM. A training row holds no path to the package.
 
 Source: `src/knos/taskpack/`, tests `tests/test_taskpack_*.py`.

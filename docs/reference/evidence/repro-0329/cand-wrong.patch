@@ -1,7 +1,0 @@
-diff --git a/swapcase.py b/swapcase.py
-new file mode 100644
---- /dev/null
-+++ b/swapcase.py
-@@ -0,0 +1,2 @@
-+def swapcase(text):
-+    return text
