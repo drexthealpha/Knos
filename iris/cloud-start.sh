@@ -29,6 +29,10 @@ for _ in $(seq 1 30); do
   [ -n "$id" ] && break; sleep 2
 done
 [ -n "$id" ] && curl -fsS -u "$auth" -H 'Content-Type: application/json' -X POST "localhost:52773/api/knos/tasks/$id" -d '{"action":"Approve"}' > /dev/null && echo "approved task $id"
+echo "== the six AI Hub features, run once on each decision, so the read-only user sees them"
+for b in $(curl -fsS -u "$auth" localhost:52773/api/knos/decisions | "$PY" -c 'import json,sys; print(" ".join(sorted({d["brief"] for d in json.load(sys.stdin) if d.get("brief")})))'); do
+  for f in skill policy mcp rag stats workflow; do curl -fsS -m 300 -o /dev/null -u "$auth" "localhost:52773/api/knos/aihub/$f?brief=$b" || true; done
+done
 host=$(curl -fsS -m 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
 echo "== the demo"
 echo "URL:      http://$host:52773/knos/"

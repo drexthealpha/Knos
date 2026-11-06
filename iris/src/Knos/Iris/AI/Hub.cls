@@ -23,6 +23,13 @@ ClassMethod Demo(feature As %String, brief As %String = "") As %DynamicObject
         set out.error = e.DisplayString()
     }
     set out.ok = (out.error = "")
+    // A user who may only read (the online demo's) cannot build the knowledge base's table or read Workflow's: each
+    // run by a user who may write is kept, with its time, and shown to a reader instead of a refusal.
+    set key = $select(brief="":"-", 1:brief), may = $system.Security.Check("%DB_"_$namespace, "WRITE")
+    if out.ok && may { set ^Knos.Iris.HubRun(feature, key) = $listbuild(out.%ToJSON(), $zdatetime($ztimestamp, 3, 1)) }
+    elseif 'may && $data(^Knos.Iris.HubRun(feature, key), kept) {
+        set out = {}.%FromJSON($list(kept, 1)), out."run_at" = $list(kept, 2)_" UTC, by a user who may write; this user may only read"
+    }
     return out
 }
 
