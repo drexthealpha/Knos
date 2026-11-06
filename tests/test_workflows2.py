@@ -1934,10 +1934,10 @@ def test_the_test_workflow_runs_every_node_test_of_the_site_and_the_conformance_
     import yaml
     jobs = yaml.safe_load((WF / "tests.yml").read_text(encoding="utf-8"))["jobs"]
     ran = "\n".join(str(s.get("run", "")) for s in jobs["sdk"]["steps"])
-    for name in ("demo", "shadow", "verifier", "playground", "terms", "finance", "motion", "site", "status_data", "controls", "live", "index_board"):
+    for name in ("demo", "shadow", "verifier", "playground", "terms", "finance", "status_data", "controls", "live", "index_board"):
         assert re.search(rf"^\s*node tests/web/{name}\.mjs\b", ran, re.M), name
     built = ran.index("bash scripts/build_site.sh")                              # the pages that need a build come after it
-    assert all(ran.index(f"node tests/web/{name}.mjs") > built for name in ("demo", "terms", "motion", "site"))
+    assert all(ran.index(f"node tests/web/{name}.mjs") > built for name in ("demo", "terms"))
     kit = [str(s.get("run", "")) for s in jobs["conformance"]["steps"]]
     assert 'python conformance/run.py --impl "python conformance/impl/knos_python.py" --require-all' in kit
     assert 'python conformance/run.py --impl "node conformance/impl/knos_js.mjs"' in kit

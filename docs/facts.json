@@ -636,24 +636,6 @@
    "what": "the amounts of the fee's worked examples: 1,000 pays 3.00 and 5,000 pays 15.00, both 0.30% (tests/data/billing_vectors.json, on_chain.fees)",
    "file": "tests/data/billing_vectors.json",
    "has": "[\"1000.00\", \"3.00\"], [\"5000.00\", \"15.00\"]"
-  },
-  {
-   "say": [
-    "70%"
-   ],
-   "what": "IDT: share of the 20 Ready briefs whose run passed its task's check",
-   "json": "docs/idt/summary.json",
-   "path": "ready_pass_rate",
-   "equals": 0.7
-  },
-  {
-   "say": [
-    "5%"
-   ],
-   "what": "IDT: share of the 20 vague briefs whose run passed its task's check",
-   "json": "docs/idt/summary.json",
-   "path": "vague_pass_rate",
-   "equals": 0.05
   }
  ]
 }

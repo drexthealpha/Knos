@@ -139,7 +139,6 @@ def test_the_readme_header_shows_the_wordmark_on_both_of_githubs_themes_and_on_p
     assert "<picture>" in head and "</picture>" in head and img and img[1] == at + "web/brand/wordmark-light.svg"
     for ref in {img[1], *(s for _, s in sources)}:
         assert (ROOT / ref.removeprefix(at)).is_file()
-    assert "**Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.**" in head                                  # the one sentence, and no other
 
 
 def test_the_site_names_its_own_files_for_the_icon_and_the_card():

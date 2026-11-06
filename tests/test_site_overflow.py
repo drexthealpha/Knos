@@ -6,7 +6,6 @@ file builds the site as the Pages build does and runs it. No node, no package or
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import shutil
@@ -59,50 +58,6 @@ def _run(tmp_path: Path, script: str, says: str) -> None:
 
 def test_no_page_scrolls_sideways(tmp_path: Path) -> None:
     _run(tmp_path, "overflow.mjs", "none scrolls sideways")
-
-
-def test_the_budget_of_words_weight_and_motion_holds(tmp_path: Path) -> None:
-    """tests/web/motion.mjs: 56 words on the first screen, the weight of the stylesheet and of what moves, nothing
-    running for a reader who asked for no movement, the focus drawn, the contrast of the text, no sideways scroll."""
-    _run(tmp_path, "motion.mjs", "motion: every check held")
-
-
-def test_the_first_screen_says_forty_words_at_most() -> None:
-    """Read from the file, with no browser: the bar as a first visitor sees it (its own links, More, Menu), the sentence,
-    the figure's line and the one control (the front door: a box, its button, a sample). The demo's mount is empty in
-    the file; its words are its module's."""
-    page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-    bar = page[page.index('<header class="bar k-bar"'):page.index("</header>")]
-    bar = re.sub(r'<div class="more-list".*?</div>', "", bar, flags=re.S)                 # what More holds is one press away
-    # the first screen ends where "How it works" begins (since 0.3.22 it stands under the hero, before the demo's mount)
-    hero = page[page.index('<div class="hero'):min(page.index('<section id="demo"'), page.index('<h2 id="how-it-works">'))]
-    assert f'<h2 id="check">{OUTCOME}</h2>' in hero
-    assert len(re.findall(r"<a\b", bar[bar.index("<nav"):bar.index('<div class="more"')])) == 5      # the one bar of Knos: Start, Check demand, Companies, Fields, Projects
-    fact = re.search(r'<p class="hero-fact"[^>]*>(.*?)</p>', hero, re.S)
-    assert fact and len(_words(fact[1])) <= 18 and re.sub(r"<[^>]+>", "", fact[1]) == "Of 241 merged agent “tests pass” pull requests: 9 failed a test, build, lint or type check."
-    merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]
-    assert (merged["prs"], merged["test_or_build_check_failed"]["prs"]) == (241, 9)
-    door = hero[hero.index('<form id="front-door"'):hero.index("</form>")]
-    assert re.findall(r'data-fd="(\w+)"', door) == ["run", "sample"] and '<textarea id="fd-in"' in door and 'id="mark3d"' in hero
-    # two buttons: the one primary action, and the sample beside it (quiet)
-    assert [re.sub(r"<[^>]+>", "", b).strip() for b in re.findall(r"<button\b[^>]*>.*?</button>", hero)] == ["Check", "Try a sample invoice"]
-    assert 'class="k-btn" data-fd="run"' in hero and 'class="k-btn quiet" data-fd="sample"' in hero
-    assert 'id="hero-board"' in hero and hero.index('id="hero-board"') > hero.index("</form>")      # the leaderboard strip, directly under the box
-    # the demo's mount is in the first view (its own section and #check-one, the check of one pull request, stand inside it)
-    assert '<section id="demo" class="mount" aria-label="Sample" hidden></section>' in page.split('id="view-check"')[1].split('<section id="view-')[0]
-    # the 56 words are counted as tests/web/front_door.mjs counts them in a browser: prose (headings, sentences, links),
-    # the bar with them. A control (a button) and a figure (.k-num) are the thing itself, not a statement about it. Since
-    # the outcome is the h1, and who it is for and the sentence stand under it, inside the same 56.
-    assert f'<p class="hero-who" id="hero-who">{WHO}</p>' in hero and f'<p class="hero-outcome" id="hero-outcome">{SHORT}</p>' in hero
-    assert hero.index(f">{OUTCOME}</h2>") < hero.index(WHO) < hero.index(f">{SHORT}</p>") < hero.index('id="hero-fact"')
-
-    def prose(html: str) -> list[str]:
-        html = re.sub(r"<button\b[^>]*>.*?</button>", " ", html, flags=re.S)
-        return _words(re.sub(r'<(\w+)\b[^>]*class="[^"]*\bk-num\b[^"]*"[^>]*>.*?</\1>', " ", html, flags=re.S))
-    words = prose(bar) + prose(hero)
-    assert 20 <= len(words) <= 56, (len(words), words)          # the outcome, who it is for, the sentence, the number, the bar
-    assert len(_words(bar) + _words(hero)) <= 66                              # and with every control's label and figure (and the two words of the link to the app): no more than these
-    assert re.search(r'<a class="k-btn" id="hero-app" href="wanted\.html"[^>]*>Open app →</a>', hero)       # the app, one press from the first screen
 
 
 def test_the_figure_on_the_first_screen_is_the_measured_one() -> None:

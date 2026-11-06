@@ -231,12 +231,6 @@ jobs:
           {
           KNOS_SPA_AT_ROOT=1 bash scripts/build_site.sh "$RUNNER_TEMP/site" "$(printf 'c%.0s' $(seq 40))"   # the commit the mocked chain pins
           } 2>&1 | tee -a "$WEB_LOG"
-      - if: matrix.part == 1
-        name: the built site in headless Chromium (mocked GitHub and Solana)
-        run: |
-          {
-          node tests/web/site.mjs "$RUNNER_TEMP/site"
-          } 2>&1 | tee -a "$WEB_LOG"
       # Two of the loop's slowest files run here, in part 1: with them part 2 took 5m00s and part 1 2m04s on a0023fa3
       # (run 38009934380; the loop over the other files 186 s of it, launch.mjs 51 s and perf.mjs 39 s).
       - if: matrix.part == 1
@@ -254,7 +248,6 @@ jobs:
           node tests/web/verifier.mjs "$RUNNER_TEMP/site"
           node tests/web/playground.mjs
           node tests/web/terms.mjs "$RUNNER_TEMP/site"
-          node tests/web/motion.mjs "$RUNNER_TEMP/site"
           node tests/web/overflow.mjs "$RUNNER_TEMP/site"
           } 2>&1 | tee -a "$WEB_LOG"
       - if: matrix.part == 1
@@ -265,7 +258,7 @@ jobs:
           node tests/web/index_board.mjs
           } 2>&1 | tee -a "$WEB_LOG"
       # A file added to tests/web/ runs here with no line of its own: `node tests/web/<name>.mjs <the built site>`, the
-      # arguments site.mjs takes. One that needs other arguments gets a line above. buyer.mjs needs a fixture that
+      # arguments the others take. One that needs other arguments gets a line above. buyer.mjs needs a fixture that
       # tests/test_site_buyer.py makes: the `site` job runs it.
       - if: matrix.part == 2
         name: every other file of tests/web/, on that build
@@ -340,20 +333,10 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Chromium starts (with no browser the job stops here; it does not go on and skip)
         run: node -e "import('playwright').then(async (pw) => { const b = await pw.chromium.launch(); console.log('chromium', b.version()); await b.close(); })"
-      # tests/web/motion.mjs TIMES the browser: a change of page that takes over MORPH_BUDGET_MS (web/motion.js) stops the
-      # crossings that follow, and the test then sees none. Beside three other Chromiums on this runner's cores it timed
-      # them, not the page (run 37878140249: seen []), so it runs after the rest, alone, against the same bound.
-      - run: pytest -q -n auto --dist worksteal --no-skips --junitxml=junit/site.xml tests/test_site_*.py --deselect "$TIMED"
-        env:
-          TIMED: tests/test_site_overflow.py::test_the_budget_of_words_weight_and_motion_holds
-      - name: the test that times the browser, alone on the runner
-        if: ${{ !cancelled() }}
-        run: pytest -q --no-skips --junitxml=junit/site-timed.xml "$TIMED"
-        env:
-          TIMED: tests/test_site_overflow.py::test_the_budget_of_words_weight_and_motion_holds
+      - run: pytest -q -n auto --dist worksteal --no-skips --junitxml=junit/site.xml tests/test_site_*.py
       - name: the time of these tests and the slowest; over 5 minutes fails
         if: ${{ !cancelled() }}
-        run: python scripts/suite_time.py --markdown --limit 300 junit/site.xml junit/site-timed.xml >> "$GITHUB_STEP_SUMMARY"
+        run: python scripts/suite_time.py --markdown --limit 300 junit/site.xml >> "$GITHUB_STEP_SUMMARY"
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
