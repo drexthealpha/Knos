@@ -63,12 +63,16 @@
 @container (min-width:900px){.k-hero-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);grid-template-areas:"head card" "ask card" "rest card" "strip strip"}.k-side{padding-top:var(--sp-5)}}
 .k-head{grid-area:head}.k-askbox{grid-area:ask}.k-side{grid-area:card;min-width:0}.k-rest{grid-area:rest;min-width:0}.k-strip{grid-area:strip}
 .k-for{display:inline-block;margin:var(--sp-5) 0 0;padding:6px 10px;border:1px solid var(--line);border-radius:999px;font:500 13px/1 var(--text);color:var(--ink-2)}
-.k-mission{font:600 clamp(40px,5.2vw,64px)/1.02 var(--head);letter-spacing:-.035em;margin:var(--sp-4) 0 var(--sp-3);max-width:18em;text-wrap:balance}
-.k-sub{margin:0 0 var(--sp-5);max-width:56ch;font:400 18px/1.5 var(--text);color:var(--ink-2);text-wrap:pretty}
-.k-ask{position:relative;display:flex;gap:var(--sp-2);padding:6px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--depth-2)}
+.k-mission{font:400 clamp(48px,6.4vw,84px)/1.02 var(--serif);letter-spacing:-.01em;margin:var(--sp-5) 0 var(--sp-3);max-width:12em}
+.k-mission .k-line{display:block;overflow:hidden;padding-bottom:.08em}.k-mission .k-line>span{display:block}
+@media (prefers-reduced-motion:no-preference){.k-mission .k-line>span{animation:k-headrise .8s cubic-bezier(.625,.05,0,1) both}.k-mission .k-line+.k-line>span{animation-delay:.08s}}
+@media (prefers-reduced-motion:reduce){.k-mission .k-line>span{animation:k-fade .4s ease both}}
+@keyframes k-headrise{from{translate:0 110%}to{translate:0 0}}@keyframes k-fade{from{opacity:0}}
+.k-sub{margin:var(--sp-3) 0 0;max-width:56ch;font:500 17px/1.5 var(--text);color:var(--ink-2);text-wrap:pretty}
+.k-ask{position:relative;display:flex;gap:var(--sp-2);padding:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;box-shadow:var(--depth-2)}
 .k-ask:focus-within{border-color:var(--accent)}
 .k-ask input{flex:1;min-width:0;margin:0;padding:12px 14px;border:0;outline:0;background:transparent;color:var(--fg);font:400 var(--s1)/1.4 var(--text)}
-.k-ask button{flex:none;display:inline-flex;gap:8px;align-items:center;justify-content:center;margin:0;min-height:48px;padding:12px 20px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-fg);font:600 var(--s1)/1.2 var(--text);cursor:pointer}
+.k-ask button{flex:none;display:inline-flex;gap:8px;align-items:center;justify-content:center;margin:0;min-height:48px;padding:12px 24px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-fg);font:600 var(--s1)/1.2 var(--text);cursor:pointer}
 .k-ask button:disabled{cursor:progress;background:var(--soft);color:var(--ink-2);border-color:var(--line)}
 .k-ask button .k-spin{display:none;width:14px;height:14px;border-color:color-mix(in srgb,var(--accent-fg) 35%,transparent);border-top-color:var(--accent-fg)}
 .k-ask button[aria-busy=true] .k-spin{display:inline-block}
@@ -131,19 +135,23 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
 ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
 .k-try .k-chip[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .k-ask input:focus-visible,.k-guess:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* the first view is the box, its button and one line: the rest waits below the result */
+.k-add-box,.k-rest{display:none}
+@container (max-width:560px){.k-ask{border-radius:24px}}
+.k-pay-fee{margin:var(--sp-2) 0 0;font:500 14px/1.4 var(--text);color:var(--ink-2)}
 </style>
 <div class="k-hero" id="k-hero" data-api="" data-app="/app/">
 <div class="k-hero-grid">
 <div class="k-head">
-  <h1 id="k-mission" class="k-mission">Pay only when the test passes.</h1>
-  <p class="k-sub" id="k-sub">Qloo checks demand; NEAR pays once IRIS checks the proof.</p>
+  <h1 id="k-mission" class="k-mission"><span class="k-line"><span>Pay only for work</span></span> <span class="k-line"><span>that passes.</span></span></h1>
 </div>
 <div class="k-askbox">
   <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
-    <input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What are you about to build? An idea, or a paper's DOI" maxlength="500" placeholder="What are you about to build?" enterkeyhint="go" spellcheck="false">
-    <button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><span data-label>Check demand</span></button>
+    <input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What should be built?" maxlength="500" placeholder="What should be built?" enterkeyhint="go" spellcheck="false">
+    <button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><span data-label>Post a job →</span></button>
     <i class="k-load" aria-hidden="true"></i>
   </form>
+  <p class="k-sub" id="k-sub">$0 unless a helper's work passes your check</p>
   <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-count></span> <span data-t aria-hidden="true"></span></p>
   <ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
   <p class="k-fine k-limit" data-qloo-limit hidden></p>
@@ -193,7 +201,7 @@ const tick = () => { if (liveT && since) liveT.textContent = `· ${((performance
 const busy = (on) => {
 const label = go.querySelector("[data-label]") || go;
 clearInterval(clock);
-if (!on) { label.textContent = "Check demand"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
+if (!on) { label.textContent = "Post a job →"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
 clearInterval(poll); const secs = since ? (performance.now() - since) / 1000 : null; counted(secs);   // the last count stays
 since = 0; if (liveSaid) liveSaid.textContent = ""; if (liveT) liveT.textContent = ""; return; }
 rid = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -559,7 +567,7 @@ ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-
 <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
 <footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
 HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
-${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Try it with a launch market →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
+${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">Fee: 1% of each payout. Test money for now.</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Try it with a launch market →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
 }
 async function ask(v, extra = {}) {
@@ -882,6 +890,39 @@ const shown = (r) => { document.dispatchEvent(new CustomEvent("knos:proof", { de
 return cardCss().then(() => { try { draw(r); } catch (e) { console.warn("knos: the past result was not drawn", e); } }); };
 const samples = document.getElementById("k-samples");
 if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.open && !slot.innerHTML) get("/api/proof").then((p) => p && !slot.innerHTML && shown(p)).catch(() => {}); }, { once: true });
+})();
+(() => {
+const btn = document.getElementById("k-go");
+if (!btn || !btn.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+let seen = false;
+try { seen = localStorage.getItem("k-pointer") === "1"; } catch { seen = false; }
+if (seen) return;
+let tapped = false, hand = null;
+const stop = () => { tapped = true; if (hand) hand.remove(); };
+addEventListener("pointerdown", stop, { once: true, capture: true });
+addEventListener("keydown", stop, { once: true, capture: true });
+setTimeout(async () => {
+const r = btn.getBoundingClientRect();
+if (tapped || r.bottom < 0 || r.top > innerHeight) return;
+try { localStorage.setItem("k-pointer", "1"); } catch { /* shown again next time: harmless */ }
+hand = document.createElement("div");
+hand.className = "k-pointer";
+hand.setAttribute("aria-hidden", "true");
+hand.style.cssText = "position:fixed;left:0;top:0;width:48px;height:48px;z-index:50;pointer-events:none;transform-origin:8px 6px";
+hand.innerHTML = '<svg viewBox="0 0 48 48" width="48" height="48"><path d="M8 6 L8 38 L17 30 L23 43 L29 40 L23 27 L35 27 Z" fill="#fff" stroke="#16161d" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+document.body.append(hand);
+const x1 = r.left + r.width * 0.55 - 8, y1 = r.top + r.height * 0.55 - 6;
+const x0 = Math.min(innerWidth - 56, x1 + 220), y0 = Math.min(innerHeight - 56, y1 + 160);
+const at = (x, y, s) => ({ transform: `translate(${x}px, ${y}px) scale(${s})` });
+try {
+await hand.animate([at(x0, y0, 1), at(x1, y1, 1)], { duration: 850, easing: "cubic-bezier(.2,0,0,1)", fill: "forwards" }).finished;
+await hand.animate([at(x1, y1, 1), at(x1, y1, 0.84)], { duration: 100, fill: "forwards" }).finished;
+btn.animate([{ scale: "1" }, { scale: "0.94" }, { scale: "1" }], { duration: 320, easing: "cubic-bezier(.2,0,0,1)" });
+await hand.animate([at(x1, y1, 0.84), at(x1, y1, 1)], { duration: 220, fill: "forwards" }).finished;
+await hand.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 1200, fill: "forwards" }).finished;
+} catch { /* stopped by a tap */ }
+hand.remove();
+}, 3000);
 })();
 </script>
 </div>

@@ -4,6 +4,7 @@
 @font-face { font-family: "Bricolage Grotesque"; src: url("../fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 600 700; font-style: normal; font-display: optional; }
 @font-face { font-family: "Geist"; src: url("../fonts/geist.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: optional; }
 @font-face { font-family: "JetBrains Mono"; src: url("../fonts/jetbrains-mono.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: optional; }
+@font-face { font-family: "Instrument Serif"; src: url("../fonts/instrument-serif.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
 :root {
   --paper: #07080c; --paper-2: #0f1118; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634; --soft: #151822;
   --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
@@ -32,6 +33,7 @@
   color-scheme: light;
 }
 :root {
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, "Times New Roman", serif;
   --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -159,3 +161,13 @@ main p,main li,main dd{max-width:65ch}
   dialog[open] { animation: k-dialog-in 120ms var(--ease, ease) both; } @keyframes k-dialog-in { from { opacity: 0; scale: .98; } to { opacity: 1; scale: 1; } }
 }
 html, body { overflow-x: clip; }
+
+/* The bar, one rule on every page: the crow and the name, the links one press away under Menu, sign in at the pay step
+   (UX rules A4 and T1: a first view of 24 words or fewer, header included). */
+.brand .wordmark { aspect-ratio: 1856 / 1756; height: 30px; margin: 0; -webkit-mask-image: url("mark.svg"); mask-image: url("mark.svg"); }
+.brand .name { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+.js #menu { display: inline-flex; }
+.js .bar nav { display: none; order: 3; flex: 0 0 100%; }
+.js .bar.open nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); gap: 2px 8px; padding-top: 4px; }
+.js .bar .tools { margin-left: auto; }
+.bar .tools .signin { display: none; }

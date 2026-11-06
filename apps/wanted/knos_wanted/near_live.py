@@ -13,6 +13,7 @@ import os
 import sys
 import threading
 import time
+import urllib.request
 import uuid
 from pathlib import Path
 
@@ -126,6 +127,7 @@ def prepare() -> None:
         if _ready.get("job") or not status()["live"]:
             return
         j = _jobs()
+        posted_at = time.time()
         p = j.post({"bid": BID, "minutes": 240})
         if not p.get("ok"):
             raise RuntimeError(f"post: {p.get('said') or p.get('why') or p}"[:200])
@@ -138,7 +140,7 @@ def prepare() -> None:
                     "check": [x.get("reason") for x in c["attempts"]]}
             raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
         _ready.pop("error", None)
-        _ready["job"] = {"id": p["id"], "at": time.time(), "criteria_hash": c["criteria_hash"], "payee": win["agent"],
+        _ready["job"] = {"id": p["id"], "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
                          "output_sha256": win["output_sha256"],
                          "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
                          "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
@@ -164,7 +166,8 @@ def _release(ready: dict) -> dict:
     agents = [x["agent"] for x in ready["attempts"]]
     paid = {a: (BID if a == ready["payee"] and r.get("ok") else 0) for a in agents}
     job = {"id": ready["id"], "bid": BID, "txs": {**ready["txs"], **({"release": r["tx"]} if r.get("ok") else {})},
-           "paid": paid, "check_to_paid_s": round(time.time() - t0, 1), "attempts": ready["attempts"], "ok": bool(r.get("ok"))}
+           "paid": paid, "check_to_paid_s": round(time.time() - t0, 1), "attempts": ready["attempts"], "ok": bool(r.get("ok")),
+           "posted_at": ready.get("posted_at", ready["at"]), "paid_at": time.time() if r.get("ok") else None}
     return {"state": "done" if r.get("ok") else "failed", "step": "paid" if r.get("ok") else "stopped", "job": job, "paid": paid,
             "seconds": round(time.time() - t0, 1), "why": "" if r.get("ok") else r.get("said", ""), "release_url": r.get("url")}
 
@@ -172,3 +175,60 @@ def _release(ready: dict) -> dict:
 def get(rid: str) -> dict | None:
     r = _runs.get(rid)
     return None if r is None else {k: v for k, v in r.items() if k != "started"} | {"seconds_so_far": round(time.time() - r["started"], 1)}
+
+
+# The three live totals under the page's first screen (UX rule H7), each read from the public record of the jobs
+# contract on NEAR testnet (NearBlocks v3): the money paid to helpers whose work passed, the jobs paid, and the tries
+# (each helper's submit). Kept 10 minutes; on any error the last good answer, or none, is given.
+JOBS = "jobs.knos-swarm-1105.testnet"
+NB = "https://api-testnet.nearblocks.io/v3/accounts/" + JOBS
+RECORD = "https://testnet.nearblocks.io/address/" + JOBS
+_totals: dict = {}
+
+
+def _walk(path: str, pages: int = 40):
+    nxt = ""
+    for _ in range(pages):
+        req = urllib.request.Request(NB + path + "?limit=100" + (f"&next={nxt}" if nxt else ""), headers={"User-Agent": "knos-near-totals"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            body = json.loads(r.read())
+        yield from body.get("data") or []
+        nxt = (body.get("meta") or {}).get("next_page") or ""
+        if not nxt:
+            return
+
+
+_refreshing = threading.Lock()
+
+
+def totals() -> dict:
+    """The last answer at once; a stale or missing one is read again in the background (the walk takes about 16 s)."""
+    if not (_totals.get("at") and time.time() - _totals["at"] < 600) and not _refreshing.locked():
+        threading.Thread(target=_refresh, daemon=True).start()
+    return _totals.get("out") or {"pending": True, "record": RECORD}
+
+
+def _refresh() -> None:
+    if not _refreshing.acquire(blocking=False):
+        return
+    try:
+        _totals_read()
+    finally:
+        _refreshing.release()
+
+
+def _totals_read() -> dict:
+    try:
+        paid = [int(t["delta_amount"]) for t in _walk("/ft-txns")
+                if t.get("contract_account_id") == "knos-usdc-1102.testnet" and int(t.get("delta_amount") or 0) < 0
+                and str(t.get("involved_account_id", "")).startswith(("agent-a.", "agent-b."))]
+        tries = sum(1 for t in _walk("/txns") if (t.get("outcomes") or {}).get("status")
+                    and any(a.get("method") == "submit" for a in t.get("actions") or []))
+        out = {"paid_usd": f"{sum(-x for x in paid) / 1_000_000:.3f}", "jobs_paid": len(paid), "tries": tries,
+               "record": RECORD, "record_money": RECORD + "?tab=tokentxns", "token": "test USDC, 6 decimals",
+               "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        _totals.update(at=time.time(), out=out)
+        return out
+    except Exception as e:  # noqa: BLE001 - the record did not answer: say so, keep the last good answer
+        return _totals.get("out") or {"error": f"the public record did not answer ({str(e)[:80]})", "record": RECORD}
+

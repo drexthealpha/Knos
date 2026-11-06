@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Post a job with a locked test and a bid. Two agents try it on NEAR testnet; only the agent whose output passes is paid.">
+<meta name="description" content="Post a job. Helpers try it. Only the helper whose work passes your check is paid, on NEAR.">
 <title>Knos on NEAR</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="../brand/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../brand/tokens.css">
 <style>
 /* Hallmark · job: post a job, watch two agents try it, see only the passing one paid, try the guardrails · shape: app screen · genre: modern-minimal · theme: the Knos tokens (web/brand/tokens.css, near/DESIGN.md) */
@@ -22,6 +22,25 @@ a { color: var(--accent); }
 main { max-width: 1200px; margin: 0 auto; padding: var(--sp-5) 16px 64px; display: grid; gap: var(--sp-6); }
 main > * { min-width: 0; }
 .first { min-height: calc(100svh - 80px); }
+.bar { min-height: 64px; border-bottom: 1px solid var(--line); }
+.k-mission { font: 400 clamp(48px, 6.4vw, 84px)/1.02 var(--serif); letter-spacing: -.01em; margin: var(--sp-4) 0 var(--sp-4); max-width: 12em; }
+.k-mission .k-line { display: block; overflow: hidden; padding-bottom: .08em; } .k-mission .k-line > span { display: block; }
+@media (prefers-reduced-motion: no-preference) { .k-mission .k-line > span { animation: k-headrise .8s cubic-bezier(.625,.05,0,1) both; } .k-mission .k-line + .k-line > span { animation-delay: .08s; } }
+@media (prefers-reduced-motion: reduce) { .k-mission .k-line > span { animation: k-fade .4s ease both; } }
+@keyframes k-headrise { from { translate: 0 110%; } to { translate: 0 0; } } @keyframes k-fade { from { opacity: 0; } }
+.k-ask { display: flex; gap: var(--sp-2); max-width: 640px; padding: 6px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--depth-2); }
+.k-ask input { flex: 1; min-width: 0; width: auto; border: 0; background: transparent; padding: 12px 16px; color: var(--ink); }
+.k-ask input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.k-ask button.go { border-radius: 999px; min-height: 48px; padding: 12px 24px; font-size: var(--s1); }
+@media (max-width: 560px) { .k-ask { flex-direction: column; border-radius: 24px; } }
+.sub { margin: var(--sp-3) 0 0; font: 500 17px/1.5 var(--text); color: var(--ink-2); }
+.receipt { margin: var(--sp-2) 0 0; font: 500 var(--s0)/1.5 var(--text); color: var(--ink-2); }
+.receipt b { color: var(--ink); }
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
+.totals a { display: block; padding: var(--sp-4); border: 1px solid var(--line); border-radius: 18px; background: var(--paper-2); color: var(--ink-2); text-decoration: none; }
+.totals a:hover { border-color: var(--accent); }
+.totals b { display: block; font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
+#show[hidden] { display: none; }
 h1, h2 { text-wrap: balance; margin: 0; }
 h1 { font: 600 clamp(32px, 4.4vw, 48px)/1.05 var(--head); letter-spacing: -.025em; max-width: 16em; }
 h2 { font: 600 var(--s2)/1.3 var(--head); letter-spacing: -.015em; margin-bottom: var(--sp-3); }
@@ -33,7 +52,7 @@ button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-
 /* the money: the bid held on NEAR streams to the agent whose output passed; the one that failed stays at 0 */
 .stage { display: block; width: 100%; max-width: 760px; height: auto; margin: var(--sp-5) 0 var(--sp-3); overflow: visible; }
 .stage .box { fill: var(--paper-2); stroke: var(--line); stroke-width: 1.5; }
-.stage .box.win { stroke: var(--ok); stroke-width: 2.5; }
+.stage .box.win { stroke: var(--ok); stroke-width: 3; }
 .stage .wire { fill: none; stroke: var(--line); stroke-width: 3; }
 .stage .wire.lit { stroke: var(--accent); }
 .stage .wire.cut { stroke-dasharray: 6 8; }
@@ -75,12 +94,16 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   .t td { border: 0; padding: var(--sp-1) 0; }
   .t td.n { text-align: left; }
 }
+.bar #menu.menu { display: inline-flex; align-items: center; margin-left: auto; min-height: 44px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.3 var(--text); cursor: pointer; }
+.bar #nav { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 4px 16px; } .bar #nav[hidden] { display: none; }
+.bar #nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; } .bar #nav a[aria-current] { color: var(--accent); }
 </style>
 </head>
 <body>
 <header class="bar">
-  <strong>Knos</strong>
-  <nav aria-label="Knos">
+  <a class="brand" href="../" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+  <button id="menu" class="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+  <nav id="nav" aria-label="Knos" hidden>
     <a href="../">Home</a>
     <a href="./" aria-current="page">NEAR app</a>
     <a href="https://github.com/drexthealpha/Knos/tree/main/iris">IRIS</a>
@@ -89,34 +112,46 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 </header>
 <main>
   <section class="first" aria-labelledby="t-title">
-    <h1 id="t-title">Paid only when the test passes</h1>
+    <h1 id="t-title" class="k-mission"><span class="k-line"><span>Pay only for work</span></span> <span class="k-line"><span>that passes.</span></span></h1>
+    <form class="k-ask" id="jobform">
+      <input id="job" name="job" aria-label="What should be built?" placeholder="What should be built?" value="Title into a web address" readonly>
+      <button class="go" type="submit" id="post">Post a job →</button>
+    </form>
+    <p class="sub">$0 unless a helper's work passes your check</p>
+    <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></p>
+    <div id="show" hidden>
     <svg class="stage" id="stage" viewBox="0 0 640 300" role="img" aria-labelledby="stage-say">
-      <title id="stage-say">The bid held on NEAR moves to Agent A, whose output passed. Agent B failed and gets 0.</title>
+      <title id="stage-say">The money held on NEAR moves to Helper A, whose work passed. Helper B failed and gets 0.</title>
       <path class="wire" id="toA" d="M200 150 C 310 150, 320 70, 430 70"/>
       <path class="wire cut" id="toB" d="M200 150 C 310 150, 320 230, 430 230"/>
       <rect class="box" x="10" y="95" width="190" height="110" rx="18"/>
       <text class="k" x="30" y="128">Held on NEAR</text>
-      <text class="v" x="30" y="180" id="pot">1000</text>
+      <text class="v" x="30" y="180" id="pot">$0.001</text>
       <rect class="box" id="boxA" x="430" y="15" width="200" height="110" rx="18"/>
-      <text class="k" x="450" y="46">Agent A</text>
+      <text class="k" x="450" y="46">Helper A</text>
       <text class="tag yes" x="610" y="46" text-anchor="end" id="tagA" opacity="0">✓ passed</text>
       <text class="v" x="450" y="100" id="gotA">0</text>
       <rect class="box" x="430" y="175" width="200" height="110" rx="18"/>
-      <text class="k" x="450" y="206">Agent B</text>
+      <text class="k" x="450" y="206">Helper B</text>
       <text class="tag no" x="610" y="206" text-anchor="end" id="tagB" opacity="0">✗ failed</text>
       <text class="v" x="450" y="260" id="gotB">0</text>
       <g id="coins"></g>
     </svg>
-    <button class="go" type="button" id="post">Post a job</button>
-    <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></p>
-    <p class="fine fees">Knos fee: 1% of each payout (0 on testnet). 1Click fee: 0.2%.</p>
+      <p class="receipt" id="receipt"></p>
+    </div>
   </section>
+
+  <ul class="totals" id="totals" aria-label="Live totals, each from its public record">
+    <li><a id="t-paid" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>paid for work that passed</a></li>
+    <li><a id="t-jobs" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>jobs paid</a></li>
+    <li><a id="t-tries" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet"><b>-</b>tries by helpers</a></li>
+  </ul>
 
   <section class="panel" aria-labelledby="t-job">
     <h2 id="t-job">The job</h2>
     <ul class="nums" id="nums" aria-label="The job in numbers"></ul>
     <table class="t">
-      <thead><tr><th scope="col">Agent</th><th scope="col">Took and submitted</th><th scope="col">Locked test</th><th scope="col" class="n">Paid</th></tr></thead>
+      <thead><tr><th scope="col">Helper</th><th scope="col">Took and submitted</th><th scope="col">Locked test</th><th scope="col" class="n">Paid</th></tr></thead>
       <tbody id="agents"><tr><td colspan="4" class="empty">No job yet. Post one above.</td></tr></tbody>
     </table>
     <p class="fine" id="jobline"></p>
@@ -124,7 +159,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 
   <section class="panel" aria-labelledby="t-guard">
     <h2 id="t-guard">Guardrails</h2>
-    <p class="fine">Agent B has a cap of 1 test unit. It tries to pay 2, then to take the bid with no passing proof.</p>
+    <p class="fine">Helper B may spend 1 test unit at most. It tries to pay 2, then to take the money with no passing work.</p>
     <button type="button" id="guard">Try both</button>
     <ul id="guards"></ul>
   </section>
@@ -164,35 +199,39 @@ const HOSTED = "https://knos.onrender.com";
 // Without GSAP (blocked, offline) or with reduced motion, it shows the end at once.
 const STILL = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let held = null;
+const usd = (units) => `$${(units / 1e6).toFixed(3)}`;   // the test token has 6 decimals: 1000 units are $0.001
 function end(bid, a, b) {
-  $("pot").textContent = String(bid - a - b); $("gotA").textContent = String(a); $("gotB").textContent = String(b);
+  $("pot").textContent = usd(bid - a - b); $("gotA").textContent = usd(a); $("gotB").textContent = usd(b);
   $("tagA").setAttribute("opacity", 1); $("tagB").setAttribute("opacity", 1);
   $("boxA").classList.toggle("win", a > 0); $("toA").classList.toggle("lit", a > 0);
 }
 function payout(bid = 1000, a = bid, b = 0) {
   if (held) { held.kill(); held = null; }
   const g = window.gsap;
-  if (STILL || !g || !window.MotionPathPlugin) return end(bid, a, b);
+  $("show").hidden = false;
+  if (STILL || !g || !window.MotionPathPlugin) { end(bid, a, b); landed(); return; }
   g.registerPlugin(window.MotionPathPlugin);
   const n = { pot: bid, a: 0 }, coins = $("coins");
   coins.replaceChildren(...Array.from({ length: 14 }, () => { const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"); c.setAttribute("r", 8); c.setAttribute("class", "coin"); c.setAttribute("opacity", 0); return c; }));
-  end(bid, 0, 0); $("pot").textContent = String(bid); $("tagA").setAttribute("opacity", 0); $("tagB").setAttribute("opacity", 0);
+  end(bid, 0, 0); $("pot").textContent = usd(bid); $("tagA").setAttribute("opacity", 0); $("tagB").setAttribute("opacity", 0);
   $("boxA").classList.remove("win"); $("toA").classList.remove("lit");
-  const show = () => { $("pot").textContent = String(Math.round(n.pot)); $("gotA").textContent = String(Math.round(n.a)); };
+  const show = () => { $("pot").textContent = usd(n.pot); $("gotA").textContent = usd(n.a); };
   g.timeline()
-    .to("#tagB", { attr: { opacity: 1 }, duration: .35 }, .2)
-    .to("#tagA", { attr: { opacity: 1 }, duration: .35 }, .5)
-    .add(() => { $("toA").classList.add("lit"); }, .8)
-    .to(coins.children, { attr: { opacity: 1 }, duration: .15, stagger: .09 }, .8)
-    .to(coins.children, { motionPath: { path: "#toA", align: "#toA", alignOrigin: [0.5, 0.5] }, duration: 1.1, ease: "power2.inOut", stagger: .09 }, .8)
-    .to(coins.children, { attr: { opacity: 0 }, duration: .15, stagger: .09 }, 1.85)
-    .to(n, { pot: bid - a - b, a, duration: 1.3, ease: "none", onUpdate: show }, .95)
-    .add(() => { end(bid, a, b); g.fromTo("#boxA", { scale: 1 }, { scale: 1.04, yoyo: true, repeat: 1, duration: .18, transformOrigin: "50% 50%" }); });
+    .to("#tagB", { attr: { opacity: 1 }, duration: .2 }, 0)
+    .to("#tagA", { attr: { opacity: 1 }, duration: .2 }, 0)
+    .add(() => { $("toA").classList.add("lit"); }, 0)
+    .to(coins.children, { attr: { opacity: 1 }, duration: .15, stagger: .09 }, 0)
+    .to(coins.children, { motionPath: { path: "#toA", align: "#toA", alignOrigin: [0.5, 0.5] }, duration: 1.33, ease: "power2.inOut", stagger: .09 }, 0)
+    .to(coins.children, { attr: { opacity: 0 }, duration: .15, stagger: .09 }, 1.2)
+    .to(n, { pot: bid - a - b, a, duration: 2.5, ease: "power1.inOut", onUpdate: show }, 0)
+    .add(() => { end(bid, a, b); landed(); g.fromTo("#boxA", { scale: 1 }, { scale: 1.04, yoyo: true, repeat: 1, duration: .18, transformOrigin: "50% 50%" }); });
 }
+// the money lands: a 400 ms buzz on a phone that can (UX rule F5), never while paying
+function landed() { try { if (navigator.vibrate) navigator.vibrate(400); } catch { /* no vibration here */ } }
 // while the job runs: the bid sits held on NEAR and pulses
 function hold(bid = 1000) {
   const g = window.gsap;
-  $("pot").textContent = String(bid); $("gotA").textContent = "0"; $("gotB").textContent = "0";
+  $("show").hidden = false; $("pot").textContent = usd(bid); $("gotA").textContent = usd(0); $("gotB").textContent = usd(0);
   $("tagA").setAttribute("opacity", 0); $("tagB").setAttribute("opacity", 0); $("boxA").classList.remove("win"); $("toA").classList.remove("lit");
   if (STILL || !g) return;
   held = g.to("#pot", { opacity: .45, yoyo: true, repeat: -1, duration: .6 });
@@ -227,10 +266,6 @@ function showJob(j) {
     ]);
   }));
   $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "posted"), " ", link(j.txs?.release, "paid")].filter(Boolean));
-  if (j.txs?.release) {
-    const of = (p) => +(paid[Object.keys(paid).find((k) => k.startsWith(p))] ?? 0);
-    payout(+(j.bid ?? 1000), of("agent-a"), of("agent-b"));
-  }
 }
 
 async function load() {
@@ -242,13 +277,13 @@ async function load() {
     busy("");
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
-    $("busy").hidden = false; $("busy").setAttribute("data-done", "");
     $("embedlink").hidden = true;
-    // the hosted runner (knos.onrender.com) posts one live testnet job for any visitor, within its caps
+    totals();
+    // the hosted runner (knos.onrender.com) posts one live job for any visitor, within its caps; the first view says
+    // nothing about it unless live runs are off
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
     hosted = !!(h && h.live);
-    $("busy-text").textContent = hosted ? `Live on NEAR testnet: ${Math.max(0, h.cap_today - h.used_today)} of ${h.cap_today} runs left today.`
-      : "Last run shown. Live runs are off now.";
+    if (!hosted) { $("busy").hidden = false; $("busy").setAttribute("data-done", ""); $("busy-text").textContent = "Live runs are off now. The last job is shown below."; }
     $("post").disabled = !hosted;
     return;
   }
@@ -283,9 +318,22 @@ async function act(label, path, body) {
   return r;
 }
 
+// the three live totals (UX rule H7), each linked to the public record it is read from
+async function totals(tries = 0) {
+  const t = await fetch(HOSTED + "/api/near/totals").then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (t && t.pending && tries < 6) { setTimeout(() => totals(tries + 1), 6000); return; }
+  if (!t || t.error || t.pending) return;
+  $("t-paid").firstChild.textContent = `$${t.paid_usd}`; $("t-paid").href = t.record_money;
+  $("t-jobs").firstChild.textContent = String(t.jobs_paid); $("t-jobs").href = t.record_money;
+  $("t-tries").firstChild.textContent = String(t.tries); $("t-tries").href = t.record;
+}
+
+const clock = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+const of = (paid, p) => +(paid[Object.keys(paid).find((k) => k.startsWith(p))] ?? 0);
+
 async function hostedRun() {
   at("test");
-  busy("Posting the job on NEAR testnet: the bid is held against the locked test.");
+  busy("Two helpers are trying it. Your money waits on NEAR.");
   $("post").disabled = true;
   const s = await fetch(HOSTED + "/api/near/live", { method: "POST" }).then((r) => r.json()).catch(() => ({ replay: true, why: "the live runner did not answer" }));
   if (s.replay) {
@@ -295,11 +343,20 @@ async function hostedRun() {
     return;
   }
   const jobPanel = document.querySelector('[aria-labelledby="t-job"]');
-  if (s.state) {   // a job both agents had already tried: the click paid the one that passed, and the answer is here
+  if (s.state) {   // a job both helpers had already tried: the click paid the one that passed, and the answer is here
+    // "Paid" is drawn in the same task the answer arrives in (UX rule F3), then the money moves
     busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
-    $("busy-text").textContent = s.state === "done" ? `Paid: Agent A ${s.paid[Object.keys(s.paid).find((k) => k.startsWith("agent-a"))] ?? 0}, Agent B ${s.paid[Object.keys(s.paid).find((k) => k.startsWith("agent-b"))] ?? 0} test units, live, in ${s.seconds} s. ` : `The payment stopped: ${s.why || "see the job below"}. `;
-    if (s.release_url) $("busy-text").append(el("a", { href: s.release_url, target: "_blank", rel: "noopener", textContent: "See the payment on NEAR testnet" }));
+    const a = of(s.paid || {}, "agent-a"), b = of(s.paid || {}, "agent-b");
+    $("busy-text").textContent = s.state === "done" ? `Paid: Helper A ${usd(a)}. Helper B ${usd(b)}, its work failed.` : `The payment stopped: ${s.why || "see the job below"}.`;
+    if (s.state === "done") {
+      const job = s.job || {};
+      $("receipt").replaceChildren(...[`Posted ${clock(job.posted_at)}, paid ${clock(job.paid_at)}. `,
+        s.release_url ? el("a", { href: s.release_url, target: "_blank", rel: "noopener", textContent: "See the payment" }) : null,
+        el("br"), "Fee: 1% of each payout. Test money for now."].filter(Boolean));
+      payout(+(job.bid ?? 1000), a, b);
+    }
     if (s.job) showJob(s.job);
+    setTimeout(totals, 15000);
     return;
   }
   // the last run's job stays out of sight while this one runs, so the panel never shows an older job as this one
@@ -318,6 +375,7 @@ async function hostedRun() {
   }
 }
 
+$("jobform").addEventListener("submit", (ev) => ev.preventDefault());
 $("post").addEventListener("click", async () => {
   if (!local) return hostedRun();
   at("test");
@@ -325,7 +383,7 @@ $("post").addEventListener("click", async () => {
   const p = await api("/api/job/post", { bid: 1000, minutes: 15 });
   if (!p.ok) { busy(""); $("busy").hidden = false; $("busy-text").textContent = `Not posted: ${p.why || "see the transaction"}. Try again.`; return; }
   at("held");
-  busy("Two agents take it and submit. The checker runs the test on each.");
+  busy("Two helpers take it and send their work. The check runs on each.");
   const r = await api("/api/job/run", { id: p.id });
   busy("");
   $("busy").hidden = false; $("busy").setAttribute("data-done", "");
@@ -334,7 +392,7 @@ $("post").addEventListener("click", async () => {
 });
 
 $("guard").addEventListener("click", async () => {
-  busy("Agent B tries both.");
+  busy("Helper B tries both.");
   const r = await api("/api/job/guard", {});
   busy("");
   $("guards").replaceChildren(...(r.tries || []).map((t) => el("li", {}, [
@@ -343,6 +401,43 @@ $("guard").addEventListener("click", async () => {
 
 $("fund").addEventListener("submit", (ev) => { ev.preventDefault(); act("Fund", "/api/fund", { amount: +$("amount").value, minutes: +$("minutes").value }); });
 load();
+// The pointer (UX rule I2): once per visitor, when nobody has tapped 3 s after the page opened, a 48 px pointer glides to
+// the one button in 0.85 s, presses (0.84 for 0.1 s), releases in 0.22 s while the button dips to 94%, then fades. Gone at
+// the first tap; never with reduced motion. All of it ends within 5 s.
+(() => {
+  const btn = document.getElementById("post");
+  if (!btn || !btn.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let seen = false;
+  try { seen = localStorage.getItem("k-pointer") === "1"; } catch { seen = false; }
+  if (seen) return;
+  let tapped = false, hand = null;
+  const stop = () => { tapped = true; if (hand) hand.remove(); };
+  addEventListener("pointerdown", stop, { once: true, capture: true });
+  addEventListener("keydown", stop, { once: true, capture: true });
+  setTimeout(async () => {
+    const r = btn.getBoundingClientRect();
+    if (tapped || r.bottom < 0 || r.top > innerHeight) return;
+    try { localStorage.setItem("k-pointer", "1"); } catch { /* shown again next time: harmless */ }
+    hand = document.createElement("div");
+    hand.className = "k-pointer";
+    hand.setAttribute("aria-hidden", "true");
+    hand.style.cssText = "position:fixed;left:0;top:0;width:48px;height:48px;z-index:50;pointer-events:none;transform-origin:8px 6px";
+    hand.innerHTML = '<svg viewBox="0 0 48 48" width="48" height="48"><path d="M8 6 L8 38 L17 30 L23 43 L29 40 L23 27 L35 27 Z" fill="#fff" stroke="#16161d" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+    document.body.append(hand);
+    const x1 = r.left + r.width * 0.55 - 8, y1 = r.top + r.height * 0.55 - 6;
+    const x0 = Math.min(innerWidth - 56, x1 + 220), y0 = Math.min(innerHeight - 56, y1 + 160);
+    const at = (x, y, s) => ({ transform: `translate(${x}px, ${y}px) scale(${s})` });
+    try {
+      await hand.animate([at(x0, y0, 1), at(x1, y1, 1)], { duration: 850, easing: "cubic-bezier(.2,0,0,1)", fill: "forwards" }).finished;
+      await hand.animate([at(x1, y1, 1), at(x1, y1, 0.84)], { duration: 100, fill: "forwards" }).finished;
+      btn.animate([{ scale: "1" }, { scale: "0.94" }, { scale: "1" }], { duration: 320, easing: "cubic-bezier(.2,0,0,1)" });
+      await hand.animate([at(x1, y1, 0.84), at(x1, y1, 1)], { duration: 220, fill: "forwards" }).finished;
+      await hand.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 1200, fill: "forwards" }).finished;
+    } catch { /* stopped by a tap */ }
+    hand.remove();
+  }, 3000);
+})();
 </script>
+<script>(() => { const m = document.getElementById("menu"), n = document.getElementById("nav"); if (!m || !n) return; m.addEventListener("click", () => { n.hidden = !n.hidden; m.setAttribute("aria-expanded", String(!n.hidden)); }); })();</script>
 </body>
 </html>

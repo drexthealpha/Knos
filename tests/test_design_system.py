@@ -50,4 +50,4 @@ def test_the_hero_is_one_box_on_both_front_doors():
         hero = re.sub(r"(<script\b[^>]*>).*?(</script>)", r"\1\2", hero, flags=re.S)   # an inline script's text is not markup
         # one box, with the reader's optional guess of a launch city above it
         assert hero.count("<form") == 1 and hero.count("<input") == 3 and 'id="k-who"' in hero and 'id="k-guess"' in hero and 'id="k-mission"' in hero, page.name
-        assert "pay only when the test passes" in hero.lower() and "valley" not in hero.lower(), page.name   # the mission, as the headline
+        assert "pay only for work" in hero.lower() and "that passes." in hero.lower() and "valley" not in hero.lower(), page.name   # the promise, as the headline
