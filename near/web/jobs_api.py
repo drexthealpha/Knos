@@ -96,7 +96,7 @@ def guard(body: dict) -> dict:
                  {"receiver_id": CONFIG["contract"], "amount": "2", "msg": json.dumps({"budget": {"agent": b, "cap": "1"}})}, "1 yoctoNEAR", "100 Tgas")
         out["budget"] = g
     over = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"})
-    out["tries"].append({"what": "agent B pays 2 test units on a cap of 1", **over})
+    out["tries"].append({"what": "helper B pays 2 test units on a cap of 1", **over})
     # the bid of an open job (a fresh one of 1 test unit when none is open), so the refusal is the proof check's
     jid = body.get("id") or next((x["id"] for x in _jobs() if (view(CONFIG["contract"], "get_job", {"id": x["id"]}) or {}).get("state") == "Open"), "")
     if not jid:
@@ -112,7 +112,7 @@ def guard(body: dict) -> dict:
     p = checker.b64u(json.dumps(claims).encode())
     forged = f"{head}.{p}." + checker.b64u(key.sign(f"{head}.{p}".encode(), padding.PKCS1v15(), hashes.SHA256()))
     rel = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": jid, "token": forged}, gas="120 Tgas")
-    out["tries"].append({"what": f"agent B takes the bid of open job {jid} with no passing proof (a token it signed itself)", **rel})
+    out["tries"].append({"what": f"helper B takes the money of job {jid} with no passing work (a token it signed itself)", **rel})
     out["ok"] = all(not t["ok"] for t in out["tries"])
     return out
 

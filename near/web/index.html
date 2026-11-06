@@ -285,7 +285,7 @@ async function load() {
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
     hosted = !!(h && h.live);
     if (!hosted) { $("busy").hidden = false; $("busy").setAttribute("data-done", ""); $("busy-text").textContent = "Live runs are off now. The last job is shown below."; }
-    $("post").disabled = !hosted;
+    $("post").disabled = !hosted; $("guard").disabled = !hosted;
     return;
   }
   $("contract").textContent = s.contract ? `Milestones: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";
@@ -395,8 +395,10 @@ $("post").addEventListener("click", async () => {
 });
 
 $("guard").addEventListener("click", async () => {
-  busy("Helper B tries both.");
-  const r = await api("/api/job/guard", {});
+  busy("Helper B tries both. Each try is a real request the contract must refuse.");
+  const r = local ? await api("/api/job/guard", {})
+    : await fetch(HOSTED + "/api/near/guard", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
+  if (!local) { $("guard").disabled = false; if (!r.tries) { $("guards").replaceChildren(el("li", { textContent: `Not run: ${r.why || "no answer"}.` })); busy(""); return; } }
   busy("");
   $("guards").replaceChildren(...(r.tries || []).map((t) => el("li", {}, [
     el("span", { className: t.ok ? "yes" : "no", textContent: t.ok ? "paid" : "refused" }), `: ${t.what}. `, t.ok ? "" : `${t.said}. `, link(t.tx, "transaction")])));

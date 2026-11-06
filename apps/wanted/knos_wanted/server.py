@@ -66,7 +66,7 @@ SESSION_S = 30 * 60
 LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish": (10, 600), "demo": (4, 600),
           "faucet": (2, 3600), "tx": (20, 600), "check": (30, 600), "taste": (30, 600), "mcp": (300, 600), "lock": (6, 600), "auth": (30, 600),
           "milestone": (30, 600), "milestone_one": (10, 3600), "referee": (120, 600), "product": (60, 600),
-          "live": (120, 600), "near_live": (3, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
+          "live": (120, 600), "near_live": (3, 600), "near_guard": (2, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
@@ -925,6 +925,11 @@ def make_handler(state: State):
         def do_POST(self):
             u = urlparse(self.path)
             outside.begin(self.headers)                   # the outside counter reads who is asking (knos_wanted.outside)
+            if u.path == "/api/near/guard":                 # the guardrails, live: helper B over its cap, then with no passing work
+                from . import near_live
+                if not state.allow(self._client(), "near_guard"):
+                    return self._send(200, {"ok": False, "why": "two tries every 10 minutes from one address"}, headers=blink.CORS)
+                return self._send(200, near_live.guard(), headers=blink.CORS)
             if u.path == "/api/near/live":                  # one live testnet job for a visitor of /near/, within its caps
                 if not state.allow(self._client(), "near_live"):
                     from . import near_live

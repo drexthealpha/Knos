@@ -236,3 +236,33 @@ def _totals_read() -> dict:
     except Exception as e:  # noqa: BLE001 - the record did not answer: say so, keep the last good answer
         return _totals.get("out") or {"error": f"the public record did not answer ({str(e)[:80]})", "record": RECORD}
 
+
+_guarding = threading.Lock()
+
+
+def guard() -> dict:
+    """The two guardrails on NEAR testnet, live for a visitor: helper B tries to pay 2 test units on a cap of 1, then to
+    take a job's money with a token it signed itself instead of a passing check. Both are refused by the contract; the
+    answer is each try's words, the contract's refusal and its transaction. One at a time; counted in the day's cap."""
+    s = status()
+    if not s["live"]:
+        return {"ok": False, "why": "live runs are switched off"}
+    if s["used_today"] >= s["cap_today"]:
+        return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
+    if not _guarding.acquire(blocking=False):
+        return {"ok": False, "why": "a guardrail try is running; try again in a minute"}
+    try:
+        with _lock:
+            today = time.strftime("%Y-%m-%d", time.gmtime())
+            if _day["day"] != today:
+                _day.update(day=today, n=0)
+            _day["n"] += 1
+        t0 = time.time()
+        out = _jobs().guard({})
+        out["seconds"] = round(time.time() - t0, 1)
+        return out
+    except Exception as e:  # noqa: BLE001 - the page says why
+        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+    finally:
+        _guarding.release()
+
