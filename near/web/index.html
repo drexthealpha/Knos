@@ -25,21 +25,24 @@ main > * { min-width: 0; }
 h1, h2 { text-wrap: balance; margin: 0; }
 h1 { font: 600 clamp(32px, 4.4vw, 48px)/1.05 var(--head); letter-spacing: -.025em; max-width: 16em; }
 h2 { font: 600 var(--s2)/1.3 var(--head); letter-spacing: -.015em; margin-bottom: var(--sp-3); }
-.lead { margin: var(--sp-3) 0 var(--sp-4); font-size: 18px; color: var(--ink-2); max-width: 42ch; }
 .fine { color: var(--ink-2); font-size: var(--s-1); }
 .panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; padding: var(--sp-4); }
 button, .btn { min-height: 44px; padding: 12px 18px; border-radius: var(--radius); border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.2 var(--text); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
 button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-2); border-color: var(--line); cursor: not-allowed; }
-/* the job's path: five stops, the coin moves along them as the job does */
-.track { position: relative; margin: var(--sp-5) 0 0; }
-.path { position: relative; list-style: none; margin: 0; padding: 28px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.path::before { content: ""; position: absolute; top: 10px; left: 10%; right: 10%; height: 2px; background: var(--line); }
-.path li { position: relative; text-align: center; font: 500 var(--s0)/1.3 var(--text); color: var(--ink-2); }
-.path li::before { content: ""; position: absolute; top: -24px; left: 50%; translate: -50% 0; width: 12px; height: 12px; border-radius: 50%; background: var(--soft); border: 2px solid var(--line); }
-.path li[data-done] { color: var(--ink); }
-.path li[data-done]::before { background: var(--ok); border-color: var(--ok); }
-.track .coin { position: absolute; top: 3px; left: 0; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
+/* the money: the bid held on NEAR streams to the agent whose output passed; the one that failed stays at 0 */
+.stage { display: block; width: 100%; max-width: 760px; height: auto; margin: var(--sp-5) 0 var(--sp-3); overflow: visible; }
+.stage .box { fill: var(--paper-2); stroke: var(--line); stroke-width: 1.5; }
+.stage .box.win { stroke: var(--ok); stroke-width: 2.5; }
+.stage .wire { fill: none; stroke: var(--line); stroke-width: 3; }
+.stage .wire.lit { stroke: var(--accent); }
+.stage .wire.cut { stroke-dasharray: 6 8; }
+.stage .k { font: 500 17px/1 var(--text); fill: var(--ink-2); }
+.stage .v { font: 650 40px/1 var(--head); fill: var(--ink); font-variant-numeric: tabular-nums; }
+.stage .tag { font: 600 17px/1 var(--text); }
+.stage .tag.yes { fill: var(--ok); } .stage .tag.no { fill: var(--bad); }
+.stage .coin { fill: var(--accent); }
+.fees { margin: 0; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th { text-align: left; font: 400 var(--s-1)/1.4 var(--text); color: var(--ink-2); padding: var(--sp-2); }
 td { padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--line); vertical-align: top; }
@@ -87,15 +90,26 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 <main>
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title">Paid only when the test passes</h1>
-    <p class="lead">Two agents try. Only the passing one is paid.</p>
+    <svg class="stage" id="stage" viewBox="0 0 640 300" role="img" aria-labelledby="stage-say">
+      <title id="stage-say">The bid held on NEAR moves to Agent A, whose output passed. Agent B failed and gets 0.</title>
+      <path class="wire" id="toA" d="M200 150 C 310 150, 320 70, 430 70"/>
+      <path class="wire cut" id="toB" d="M200 150 C 310 150, 320 230, 430 230"/>
+      <rect class="box" x="10" y="95" width="190" height="110" rx="18"/>
+      <text class="k" x="30" y="128">Held on NEAR</text>
+      <text class="v" x="30" y="180" id="pot">1000</text>
+      <rect class="box" id="boxA" x="430" y="15" width="200" height="110" rx="18"/>
+      <text class="k" x="450" y="46">Agent A</text>
+      <text class="tag yes" x="610" y="46" text-anchor="end" id="tagA" opacity="0">✓ passed</text>
+      <text class="v" x="450" y="100" id="gotA">0</text>
+      <rect class="box" x="430" y="175" width="200" height="110" rx="18"/>
+      <text class="k" x="450" y="206">Agent B</text>
+      <text class="tag no" x="610" y="206" text-anchor="end" id="tagB" opacity="0">✗ failed</text>
+      <text class="v" x="450" y="260" id="gotB">0</text>
+      <g id="coins"></g>
+    </svg>
     <button class="go" type="button" id="post">Post a job</button>
     <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></p>
-    <div class="track">
-      <ol class="path" id="path" aria-label="The job's path">
-        <li data-stop="demand"><a href="../">Demand</a></li><li data-stop="test">Test</li><li data-stop="held">Held</li><li data-stop="proof">Proof</li><li data-stop="paid">Paid</li>
-      </ol>
-      <span class="coin" id="coin" aria-hidden="true"></span>
-    </div>
+    <p class="fine fees">Knos fee: 1% of each payout (0 on testnet). 1Click fee: 0.2%.</p>
   </section>
 
   <section class="panel" aria-labelledby="t-job">
@@ -136,21 +150,54 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <p class="fine" id="contract"></p>
   </section>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha512-7eHRwcbYkK4d9g/6tD/mhkf++eoTHwpNM9woBxtPUBWm67zeAfFC+HrdoE2GanKeocly/VxeLvIqwvCdk7qScg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js" integrity="sha512-lhK7xTsFM6DPXOtQQyPe+NmpoFEheKDHjM/5QzpFRiE1KySgtBfEzYz4XowvB+CAWcBLBGWinhh41uNaOtrSZA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
 const TX = "https://explorer.testnet.near.org/transactions/";
-const STOPS = ["demand", "test", "held", "proof", "paid"];
 let local = true, hosted = false;
 const HOSTED = "https://knos.onrender.com";
 
-// the coin sits at the job's last stop; with reduced motion it jumps there
-function at(stop) {
-  const i = STOPS.indexOf(stop);
-  for (const li of $("path").querySelectorAll("li")) li.toggleAttribute("data-done", STOPS.indexOf(li.dataset.stop) <= i);
-  $("coin").style.transform = `translateX(${$("path").clientWidth * (0.1 + i * 0.2)}px)`;
+// the stage: the bid waits on NEAR, then streams as coins to the agent that passed, its count rising as they land.
+// Without GSAP (blocked, offline) or with reduced motion, it shows the end at once.
+const STILL = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let held = null;
+function end(bid, a, b) {
+  $("pot").textContent = String(bid - a - b); $("gotA").textContent = String(a); $("gotB").textContent = String(b);
+  $("tagA").setAttribute("opacity", 1); $("tagB").setAttribute("opacity", 1);
+  $("boxA").classList.toggle("win", a > 0); $("toA").classList.toggle("lit", a > 0);
 }
+function payout(bid = 1000, a = bid, b = 0) {
+  if (held) { held.kill(); held = null; }
+  const g = window.gsap;
+  if (STILL || !g || !window.MotionPathPlugin) return end(bid, a, b);
+  g.registerPlugin(window.MotionPathPlugin);
+  const n = { pot: bid, a: 0 }, coins = $("coins");
+  coins.replaceChildren(...Array.from({ length: 14 }, () => { const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"); c.setAttribute("r", 8); c.setAttribute("class", "coin"); c.setAttribute("opacity", 0); return c; }));
+  end(bid, 0, 0); $("pot").textContent = String(bid); $("tagA").setAttribute("opacity", 0); $("tagB").setAttribute("opacity", 0);
+  $("boxA").classList.remove("win"); $("toA").classList.remove("lit");
+  const show = () => { $("pot").textContent = String(Math.round(n.pot)); $("gotA").textContent = String(Math.round(n.a)); };
+  g.timeline()
+    .to("#tagB", { attr: { opacity: 1 }, duration: .35 }, .2)
+    .to("#tagA", { attr: { opacity: 1 }, duration: .35 }, .5)
+    .add(() => { $("toA").classList.add("lit"); }, .8)
+    .to(coins.children, { attr: { opacity: 1 }, duration: .15, stagger: .09 }, .8)
+    .to(coins.children, { motionPath: { path: "#toA", align: "#toA", alignOrigin: [0.5, 0.5] }, duration: 1.1, ease: "power2.inOut", stagger: .09 }, .8)
+    .to(coins.children, { attr: { opacity: 0 }, duration: .15, stagger: .09 }, 1.85)
+    .to(n, { pot: bid - a - b, a, duration: 1.3, ease: "none", onUpdate: show }, .95)
+    .add(() => { end(bid, a, b); g.fromTo("#boxA", { scale: 1 }, { scale: 1.04, yoyo: true, repeat: 1, duration: .18, transformOrigin: "50% 50%" }); });
+}
+// while the job runs: the bid sits held on NEAR and pulses
+function hold(bid = 1000) {
+  const g = window.gsap;
+  $("pot").textContent = String(bid); $("gotA").textContent = "0"; $("gotB").textContent = "0";
+  $("tagA").setAttribute("opacity", 0); $("tagB").setAttribute("opacity", 0); $("boxA").classList.remove("win"); $("toA").classList.remove("lit");
+  if (STILL || !g) return;
+  held = g.to("#pot", { opacity: .45, yoyo: true, repeat: -1, duration: .6 });
+}
+function at(stop) { if (stop === "test" || stop === "held") hold(); }
 
 async function api(path, body) {
   const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
@@ -180,7 +227,10 @@ function showJob(j) {
     ]);
   }));
   $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "posted"), " ", link(j.txs?.release, "paid")].filter(Boolean));
-  at(j.txs?.release ? "paid" : j.attempts ? "proof" : "held");
+  if (j.txs?.release) {
+    const of = (p) => +(paid[Object.keys(paid).find((k) => k.startsWith(p))] ?? 0);
+    payout(+(j.bid ?? 1000), of("agent-a"), of("agent-b"));
+  }
 }
 
 async function load() {
@@ -250,7 +300,6 @@ async function hostedRun() {
     $("busy-text").textContent = s.state === "done" ? `Paid: Agent A ${s.paid[Object.keys(s.paid).find((k) => k.startsWith("agent-a"))] ?? 0}, Agent B ${s.paid[Object.keys(s.paid).find((k) => k.startsWith("agent-b"))] ?? 0} test units, live, in ${s.seconds} s. ` : `The payment stopped: ${s.why || "see the job below"}. `;
     if (s.release_url) $("busy-text").append(el("a", { href: s.release_url, target: "_blank", rel: "noopener", textContent: "See the payment on NEAR testnet" }));
     if (s.job) showJob(s.job);
-    at("paid");
     return;
   }
   // the last run's job stays out of sight while this one runs, so the panel never shows an older job as this one
@@ -293,7 +342,6 @@ $("guard").addEventListener("click", async () => {
 });
 
 $("fund").addEventListener("submit", (ev) => { ev.preventDefault(); act("Fund", "/api/fund", { amount: +$("amount").value, minutes: +$("minutes").value }); });
-at("demand");
 load();
 </script>
 </body>
