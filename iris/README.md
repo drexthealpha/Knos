@@ -13,6 +13,21 @@
 | Articles | pending |
 | Code | this folder; the IPM package is `module.xml` at the repository root |
 
+## 0. The contest task, part by part
+
+| The contest asks for | Where it is | How to see it |
+|---|---|---|
+| An Interoperability workflow (services, processes, operations) | `Knos.Iris.Production`: services `ProofIn`, `GitHubCheckRunPoller`, `HL7LabIn`; process `ProofDecision`; operations `Referee`, `PayoutApprovers`, `SolanaRead`, `SolanaSubmit` | Interoperability > Production |
+| An AI Hub agent that makes a decision | operation `Referee` (`BO/Referee.cls`) running `AI/Referee.cls` on a local model, `qwen2.5:1.5b-instruct`, no key | the Verdict message of each decision |
+| The decision checked, not trusted | the decision contract, then `Rule/PayoutGate.cls` (PAY, HUMAN, REFUND_AT_DEADLINE or REJECT) | the Decision message |
+| A person in the loop | IRIS Workflow, role `PayoutApprovers`, above 50 USDC (section 9) | the inbox on `/knos/` |
+| Every step traceable | each model, tool, rule and approval step a `Knos.Iris.Msg.Span` (section 11) | Visual Trace |
+
+Why this design: a lab cannot let a model pay anyone. So the agent may only say met, not met or insufficient; code checks
+that answer; a person approves anything large; and the trace stays inside the lab's own IRIS, with no outside service.
+I chose IRIS Interoperability over a separate tracing tool because the production's message log already is an audited,
+queryable record of every step.
+
 ## 1. What it decides
 
 An InterSystems IRIS for Health production decides whether submitted proof meets a hash-locked Knos Ready brief: a
@@ -197,6 +212,12 @@ Langfuse does for LLM pipelines, and whether it is the better choice where IRIS 
 | Scores | each span's `Score`; the Workflow approver's answer is a span too |
 | Data location | inside the lab's own IRIS: no trace leaves it |
 | Retention and audit | the production's own message store and the IRIS journal, kept like any interface message |
+
+Try the idea after `bash start.sh` (section 1): `bash scripts/smoke.sh` sends one decision and prints its
+`visual trace:` link, whose number is the session; then
+`curl -u _SYSTEM:$IRIS_PASSWORD localhost:52773/api/knos/traces/<session>` returns every span of that decision as JSON
+(the referee span with its model, tokens and milliseconds), and the same rows are in SQL:
+`SELECT Name, Kind, Model, Tokens, Ms FROM Knos_Iris_Data.Span WHERE SessionId = <session>`.
 | Prompt management, prompt playground | none here; prompts live in the code |
 | Evaluation datasets and runs | none; the decision tests' inputs in `fixtures/` (briefs, check runs, observations, verdicts) only |
 
@@ -267,7 +288,7 @@ flowchart LR
 
 ## 17. How it fits Knos
 
-Knos carries any research across the valley of death (idea or paper -> demand -> Ready brief -> money held -> paid on verified proof), toward Schmidhuber's vision and Kardashev II/III, connecting 8 billion people to the world's money.
+Knos pays agents only when the test passes.
 
 This folder is part of the one Knos product: Knos checks demand, writes the Ready brief, holds the money on Solana and
 pays only on verified proof; here the proof is checked inside IRIS for Health. The Knos code is imported, not forked:

@@ -42,3 +42,4 @@ mutants/
 CLAUDE.local.md
 !iris/.env.example
 .cache/
+iris/uptime-log.txt
