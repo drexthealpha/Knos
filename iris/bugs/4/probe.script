@@ -1,0 +1,3 @@
+set sc = $system.OBJ.Load("/tmp/Bug4.cls", "ck-d") write "load Bug4.Probe ", sc, !
+for n="5","9223372036854775807","9223372036854775808","18446744073709551616","100000000000000000000","-9223372036854775809" { try { write "py ", ##class(Bug4.Probe).Try(n), ! } catch e { write "os ", n, " -> ", $e(e.DisplayString(), 1, 200), ! } }
+halt

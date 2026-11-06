@@ -1,0 +1,7 @@
+set emb = ##class(%AI.RAG.Embedding.FastEmbed).Create()
+do ##class(%SQL.Statement).%ExecDirect(, "DROP TABLE IF EXISTS SQLUser.VecThree")
+set vs = ##class(%AI.RAG.VectorStore.IRIS).%New() set vs.Schema = "BugThree", vs.TableName = "VecThree", vs.Dimensions = emb.Dimensions, vs.ModelName = emb.ModelName
+set sc = vs.Build() write "build ", sc, !
+write "the store says: Schema=", vs.Schema, " TableName=", vs.TableName, !
+set rs = ##class(%SQL.Statement).%ExecDirect(, "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME %STARTSWITH 'VecThree'") while rs.%Next() { write "table made: ", rs.%Get("TABLE_SCHEMA"), ".", rs.%Get("TABLE_NAME"), ! }
+halt
