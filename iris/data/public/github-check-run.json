@@ -1,0 +1,21 @@
+{
+ "action": "completed",
+ "check_run": {
+  "id": 127716680344,
+  "name": "pytest (ubuntu-latest, 3.10, slow)",
+  "head_sha": "da99893dd6bfb2a2a3ae1a645b8f138808b75f7e",
+  "status": "completed",
+  "conclusion": "success",
+  "started_at": "2026-11-06T04:44:15Z",
+  "completed_at": "2026-11-06T04:45:32Z",
+  "html_url": "https://github.com/drexthealpha/Knos/actions/runs/42164189409/job/127716680344",
+  "details_url": "https://github.com/drexthealpha/Knos/actions/runs/42164189409/job/127716680344",
+  "app": {
+   "slug": "github-actions"
+  }
+ },
+ "repository": {
+  "full_name": "drexthealpha/Knos",
+  "html_url": "https://github.com/drexthealpha/Knos"
+ }
+}

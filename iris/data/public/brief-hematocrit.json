@@ -1,0 +1,19 @@
+{
+ "milestones": [
+  {
+   "key": "m1",
+   "name": "Hematocrit in a hospital lab result message",
+   "target": "hematocrit under 46 %",
+   "verifier": {
+    "kind": "human",
+    "what": "hematocrit (LOINC 20570-8)",
+    "how": "an HL7 v2 ORU^R01 result from the lab",
+    "who": "the hospital laboratory",
+    "where": "an HL7 ORU^R01 message"
+   },
+   "deadline_days": 30
+  }
+ ],
+ "kill_fee_bps": 500,
+ "challenge_s": 259200
+}

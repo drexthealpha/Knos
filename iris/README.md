@@ -20,15 +20,16 @@ the proof; a deterministic gate and, above a threshold, a person in IRIS Workflo
 does Solana devnet see a transaction. Every step of a decision is an interoperability message in Visual Trace.
 
 Try it (Linux or WSL with Docker; both containers peaked at 1,686 MiB and 1,310 MiB on 5 Nov 2026):
-1. `git clone https://github.com/drexthealpha/Knos && cd Knos/iris`
-2. `bash scripts/load-image.sh <the build 154 tar>` (section 4).
-3. `cp .env.example .env && bash scripts/env-secrets.sh`: it fills the password and the two signing secrets with random values. The agent runs on the local model (`KNOS_AI_MODE=local`, no key; section 5).
-4. `docker compose up -d --build`: the first start also pulls the local model, about 1 GB.
-5. `set -a; . ./.env; set +a; curl -s -u "_SYSTEM:$IRIS_PASSWORD" localhost:52773/api/knos/health`.
-6. `bash scripts/smoke.sh`: it locks a brief, sends a passing check run and prints the decision and its Visual Trace URL.
-7. Open the URL it prints (user `_SYSTEM`, the `IRIS_PASSWORD` from `.env`; the image's `SYS` is refused).
-8. Open `localhost:52773/knos/` and sign in with the same user: each decision, its trace and the approver's inbox, with Approve and Reject.
-9. `AMOUNT_USDC=80 bash scripts/smoke.sh`: above 50 USDC the met decision waits for a person; approve it in the inbox on `/knos/`.
+
+0. Download `irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64) from the [AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems login).
+1. `git clone https://github.com/drexthealpha/Knos`
+2. `cd Knos/iris`
+3. `bash start.sh ~/Downloads/irishealth-community-2026.3.0AI.154.0-docker.tar.gz`: it loads the image, makes `.env` with random secrets, starts IRIS and the local model (no key; the first start pulls about 1 GB), and runs three decisions on public data (`data/public/SOURCES.md`): a Synthea FHIR Observation, an HL7 ORU^R01 lab message and a real GitHub check run.
+4. Open `http://localhost:52773/knos/` and sign in as `_SYSTEM` with the `IRIS_PASSWORD` line of `.env`: each decision, its trace, the six AI Hub features working on it, and the approver's inbox.
+
+Then `AMOUNT_USDC=80 bash scripts/smoke.sh`: above 50 USDC the met decision waits for a person; approve it in the inbox on `/knos/`. The decision's Visual Trace link opens the portal (same user; the image's `SYS` is refused).
+
+IRIS's own log prints three lines at every start that come from the image, not from Knos code: `<CLASS DOES NOT EXIST>GetCacheDirs+24^STU *%SYSTEM.Process`, `<METHOD DOES NOT EXIST>Sharding+2^STU *Sharding,SYS.ICM` and `System appears to have failed over from node buildkitsandbox`.
 
 Every test in one command, in replay mode: `bash scripts/test-all.sh` (build, health, the decisions, one trace through all six parts, the bonus checks, the page).
 

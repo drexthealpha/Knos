@@ -1,0 +1,17 @@
+{
+ "repository": "drexthealpha/Knos",
+ "milestones": [
+  {
+   "key": "m1",
+   "name": "The slow test suite passes on Python 3.10",
+   "target": "0 failures in tests/ on pytest (ubuntu-latest, 3.10, slow)",
+   "verifier": {
+    "kind": "machine",
+    "check": "pytest (ubuntu-latest, 3.10, slow)"
+   },
+   "deadline_days": 14
+  }
+ ],
+ "kill_fee_bps": 500,
+ "challenge_s": 259200
+}

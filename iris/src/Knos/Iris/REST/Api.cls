@@ -179,7 +179,7 @@ ClassMethod Traces(s As %Integer) As %Status
 /// One AI Hub feature, run live: skill, policy, mcp, rag, stats or workflow (Knos.Iris.AI.Hub)
 ClassMethod AIHub(f As %String) As %Status
 {
-    set out = ##class(Knos.Iris.AI.Hub).Demo(f)
+    set out = ##class(Knos.Iris.AI.Hub).Demo(f, $get(%request.Data("brief", 1)))
     set:'out.ok %response.Status = $select(out.error [ "one of skill":404, 1:500)
     write out.%ToJSON()
     return $$$OK

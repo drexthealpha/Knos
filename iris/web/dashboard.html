@@ -46,6 +46,7 @@ button { min-height: 44px; padding: 12px 16px; border-radius: 14px; border: 1px 
 button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-2); border-color: var(--line); cursor: not-allowed; }
 .task { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.hub { display: grid; gap: 10px; margin: 0; padding-left: 1.4em; } .hub li { line-height: 1.5; } .hub strong { margin-right: 4px; }
 .task:first-of-type { border-top: 0; }
 .task .acts { display: flex; gap: 8px; }
 .kinds { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 12px; padding: 0; }
@@ -123,6 +124,11 @@ main > * { min-width: 0; }
   <section class="panel" aria-labelledby="t-trace">
     <h2 id="t-trace">Trace</h2>
     <div id="trace"><p class="empty">Choose a decision to see its trace.</p></div>
+  </section>
+
+  <section class="panel" aria-labelledby="t-hub">
+    <h2 id="t-hub">AI Hub on this decision</h2>
+    <ol id="hub" class="hub"><li class="empty">Choose a decision.</li></ol>
   </section>
 </main>
 <p class="toast" id="toast" role="status" hidden></p>
@@ -219,7 +225,7 @@ async function loadDecisions() {
         el("td", { className: "meta", textContent: "Confidence " + d.confidence.toFixed(2) + ", session " + d.session }),
       ]);
       tr.setAttribute("aria-selected", String(d.session === selected));
-      const open = () => showTrace(d.session);
+      const open = () => { showTrace(d.session); showHub(d.brief); };
       tr.addEventListener("click", open);
       tr.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } });
       body.append(tr);
@@ -259,7 +265,34 @@ async function load() {
   const paid = rows.filter((d) => d.gate === "PAY").length;
   $("finding").textContent = rows.length ? waiting + " waiting for an approver. " + paid + " of the latest " + rows.length + " cleared to pay (a devnet simulation; no money moved)." : "No decision yet.";
   $("fresh").textContent = "Updated " + new Date().toLocaleTimeString();
-  if (!selected && rows.length) showTrace(rows[0].session);
+  if (!selected && rows.length) { showTrace(rows[0].session); showHub(rows[0].brief); }
+}
+
+// the six AI Hub features, each run live in IRIS on the chosen decision's brief (GET /api/knos/aihub/<feature>?brief=)
+const HUB = [
+  ["Skill", "skill", (r) => `${r.skill?.name} attached with UseSkill: ${r.useskill}.`],
+  ["Policy", "policy", (r) => `${r.allowed?.tool} allowed. ${r.refused?.tool} with ${(r.refused?.arguments_characters || 0).toLocaleString()} characters refused.`],
+  ["MCP tool", "mcp", (r) => `${(r.tools || []).length} tools served at /mcp/knos. ${r.call?.tool}: ${hubBrief(r.call?.answer)}.`],
+  ["Knowledge base", "rag", (r) => { const h = (r.answer?.value || [])[0]; return h ? `Top hit, score ${Number(h.score).toFixed(2)}: ${h.text}` : "No hit."; }],
+  ["Tokens", "stats", (r) => `${r.stats?.total_prompt_tokens} in, ${r.stats?.total_completion_tokens} out, ${r.stats?.total_llm_duration_ms} ms, ${r.model}.`],
+  ["Workflow", "workflow", (r) => { const t = (r.tasks || [])[0]; return t ? `Task ${t.task}: ${t.done ? (t.action || "answered") : "waiting for an approver"}.` : "No approval needed: at most 50 USDC."; }],
+];
+function hubBrief(a) {
+  try { const b = JSON.parse(a?.value ?? a?.result ?? "{}"); return b.milestones ? `${b.milestones.length} milestone, "${b.milestones[0].name}"` : (b.error || "read"); } catch { return "read"; }
+}
+let hubFor = "";
+async function showHub(brief) {
+  hubFor = brief || "";
+  const box = $("hub");
+  box.replaceChildren(...HUB.map(([name]) => el("li", {}, [el("strong", { textContent: name }), " ", el("span", { className: "fine", textContent: "running in IRIS." })])));
+  for (const [i, [name, f, say]] of HUB.entries()) {
+    const li = box.children[i];
+    try {
+      const r = await api("aihub/" + f + "?brief=" + encodeURIComponent(hubFor));
+      if (hubFor !== (brief || "")) return;
+      li.replaceChildren(el("strong", { textContent: name }), " ", say(r));
+    } catch (e) { li.replaceChildren(el("strong", { textContent: name }), " ", el("span", { className: "err", textContent: e.message })); }
+  }
 }
 $("refresh").addEventListener("click", load);
 // nothing is asked of IRIS before the user and password are given

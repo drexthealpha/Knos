@@ -1,0 +1,19 @@
+{
+ "milestones": [
+  {
+   "key": "m1",
+   "name": "Fasting glucose screen in a synthetic patient record",
+   "target": "glucose under 140 mg/dL",
+   "verifier": {
+    "kind": "human",
+    "what": "serum or plasma glucose (LOINC 2339-0)",
+    "how": "a FHIR Observation from the patient's record",
+    "who": "the record's laboratory",
+    "where": "a FHIR R4 Observation"
+   },
+   "deadline_days": 30
+  }
+ ],
+ "kill_fee_bps": 500,
+ "challenge_s": 259200
+}
