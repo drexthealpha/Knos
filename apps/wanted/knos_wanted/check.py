@@ -735,6 +735,14 @@ def _also_love(run: _Run, ents: list[str], via: str, take: int = 4, key: str = "
     for domain, t in ALSO_LOVE:
         sig = _love_sig(t, ents, key, kind, tags)
         body, n = run.get("/v2/insights", {"filter.type": t, "take": take, **sig}, f"also loved: {domain} ({t}) of the people of this taste", broaden=False)
+        if body is None and tags and "signal.interests.entities" in sig:
+            # Qloo refuses some products as the signal for some domains (HTTP 400, "all of the provided
+            # signal.interests.entities were invalid"): the call is kept, marked refused, and asked once more by the taste tags
+            last = run.calls[-1] if run.calls else None
+            if last and last.get("error") and str(last.get("what", "")).startswith("also loved"):
+                last["refused"] = last.pop("error")
+            body, n = run.get("/v2/insights", {"filter.type": t, "take": take, "signal.interests.tags": ",".join(tags[:3])},
+                              f"also loved: {domain} ({t}) of the people of this taste, asked by its taste tags", broaden=False)
         items = [{"name": e.get("name"), "affinity": (e.get("query") or {}).get("affinity")}
                  for e in (((body or {}).get("results") or {}).get("entities") or [])[:take] if e.get("name")]
         if items and not _flat(items):

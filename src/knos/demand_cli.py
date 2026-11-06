@@ -123,7 +123,9 @@ def lines(rep: dict) -> list[str]:
                 f"Ready brief: criteria hash {rd.get('criteria_hash') or 'none'}" + (f"; stand-in: {rep['stand_in']['said']}" if rep.get("stand_in") else "")]
     d = rep.get("decision") or {}
     err = next((c.get("error") for c in rep.get("calls") or [] if isinstance(c, dict) and c.get("error")), None)
-    reason = rep.get("qloo_limit") or err or next(iter(d.get("reasons") or []), "") or "no reason given"
+    # the verdict's own first reason, unless a call it needed failed; a call it does not count never becomes the reason
+    own = next((r for r in d.get("reasons") or [] if not str(r).startswith("missing evidence (not counted)")), "")
+    reason = rep.get("qloo_limit") or (own if own and d.get("verdict") != "CANNOT_DECIDE" else err or own) or "no reason given"
     near = rep.get("nearest") or {}
     h = str(rep.get("hash") or "")
     return [f"Verdict: {d.get('verdict') or 'none'}" + (f", from the nearest idea Qloo has answered: {near.get('idea')}" if near.get("idea") else ""),
