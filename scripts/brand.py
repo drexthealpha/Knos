@@ -45,7 +45,7 @@ TOLERANCE = 1.0            # units of the drawing: the furthest a sample of the 
 SMALL = 3.0                # the same, for the copy drawn at 16 to 32 px
 INK, PAPER = "#15171c", "#f6f5f1"          # web/app.css --fg and --bg (light); dark: #e9ebef on #0e1014
 INK_DARK = "#e9ebef"
-SENTENCE = "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof."
+SENTENCE = "Knos pays agents only when the test passes."
 BOUNDS = {"mark.svg": 6_000, "wordmark.svg": 12_000, "mark-small.svg": 3_000}      # bytes; tests/test_brand.py holds them
 
 _NUM = re.compile(r"-?\d*\.?\d+(?:e-?\d+)?")

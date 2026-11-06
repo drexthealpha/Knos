@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SENTENCE = "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof."
+SENTENCE = "Knos pays agents only when the test passes."
 # what the MCP registry and Gemini CLI list (docs/facts.json registry_sentence): the one line itself. It is 106
 # characters, over the 100 the MCP registry takes, so a new registry listing needs that limit settled first.
 REGISTRY = SENTENCE
@@ -177,7 +177,7 @@ def test_a_stale_version_or_a_banned_word_in_a_manifest_or_the_sdk_readme_fails_
     server["packages"][0]["version"] = "0.3.9"
     (root / "server.json").write_text(json.dumps(server, indent=1), encoding="utf-8")
     _sub(root / "gemini-extension.json", f'"version": "{want}"', '"version": "0.3.20"')
-    _sub(root / "sdk" / "settle" / "package.json", "Knos carries research", "Trustless Knos carries research")
+    _sub(root / "sdk" / "settle" / "package.json", "Knos pays agents", "Trustless Knos pays agents")
     readme = root / "sdk" / "settle" / "README.md"
     readme.write_text(readme.read_text(encoding="utf-8") + "\nInstall `knos-settle-0.3.19.tgz` from /v0.3.19/; it scales to a billion payments.\n", encoding="utf-8")
     found = pf.problems(root)

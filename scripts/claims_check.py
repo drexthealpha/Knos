@@ -48,7 +48,7 @@ for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page canno
         _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
     except (AttributeError, ValueError):
         pass
-SENTENCE = "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof."
+SENTENCE = "Knos pays agents only when the test passes."
 # what a work order is, in five sentences: on the home page, folded under "What is here"
 LONG = ("A work order is a task, its budget and the terms that decide when it is done. All three are fixed before work "
         "starts. A bounty on an issue is the smallest work order. When the work is merged, GitHub signs which checks ran. "

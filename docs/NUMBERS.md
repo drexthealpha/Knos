@@ -4,7 +4,7 @@
 
 **In plain words.** This page counts how much people outside Knos have used it. Most of the numbers are zero, and a zero is printed as a zero. Each number says where it is read, so you can check it.
 
-**Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.**
+**Knos pays agents only when the test passes.**
 
 Nine numbers about use by anyone who is not Knos. Nothing here is a target.
 

@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = Path(os.environ.get("KNOS_WORLD") or Path(os.environ.get("KNOS_PRIVATE_DIR", ".")) / "v0328" / "world")
 OUT = WORLD / "test_registry_ready.txt"
-DESC = "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof."
+DESC = "Knos pays agents only when the test passes."
 
 
 def tools() -> list[dict]:

@@ -6,15 +6,13 @@
   </picture>
 </h1>
 
-**Agents get paid only when the test passes.**
+**Knos pays agents only when the test passes.**
 
 [Try it on NEAR testnet](https://drexthealpha.github.io/Knos/near/) · [IRIS demo](iris/README.md) · Video: soon · [The IRIS idea it builds](https://ideas.intersystems.com/ideas/DPI-I-689)
 
 Test money only. No customers yet.
 
 ## How it works
-
-Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.
 
 ```mermaid
 flowchart TB

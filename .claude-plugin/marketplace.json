@@ -1,6 +1,6 @@
 {
   "name": "knos",
-  "description": "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof. One plugin for coding agents: a check that runs when the agent says it is done (a Stop hook), and the knos MCP server.",
+  "description": "Knos pays agents only when the test passes. One plugin for coding agents: a check that runs when the agent says it is done (a Stop hook), and the knos MCP server.",
   "owner": {
     "name": "drexthealpha",
     "url": "https://github.com/drexthealpha"

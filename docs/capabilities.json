@@ -2101,18 +2101,14 @@
   {
    "id": "design_system",
    "what": "The site has one set of variables and classes for surface, depth and motion, a first screen of forty words at most, and no movement for a reader who asks for none.",
-   "stage": "tested",
+   "stage": "implemented",
    "evidence": {
     "implemented": {
      "path": "web/motion.js",
      "names": "prefersReduced"
-    },
-    "tested": {
-     "test": "tests/test_site_overflow.py",
-     "names": "test_the_budget_of_words_weight_and_motion_holds"
     }
    },
-   "note": "The browser part needs node, the playwright package and Chromium (tests/web/motion.mjs); without them it is skipped."
+   "note": "Its browser test checked the old home page's menu and was removed with that menu."
   },
   {
    "id": "verifier_issuer_matrix",

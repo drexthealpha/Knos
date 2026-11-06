@@ -4,7 +4,7 @@
 
 **In plain words.** A research result often never becomes a product. Knos checks who wants it, holds the backers' money and pays the maker only on proof. This page follows one crossing in [test money](WORDS.md#test-usdc), step by step.
 
-**Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.**
+**Knos pays agents only when the test passes.**
 
 Try it yourself: type an idea [on the site](https://drexthealpha.github.io/Knos/#demand). No install, no sign-up.
 

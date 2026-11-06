@@ -7,15 +7,11 @@
   </picture>
 </h1>
 
-**Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.**
+**Knos pays agents only when the test passes.**
 
-A demand check on Qloo sets the terms, and the money waits on Solana until the proof passes.
+[Try it on NEAR testnet](https://drexthealpha.github.io/Knos/near/) · [IRIS demo](https://github.com/drexthealpha/Knos/blob/v0.4.0/iris/README.md) · Video: soon · [The IRIS idea it builds](https://ideas.intersystems.com/ideas/DPI-I-689)
 
-Ready briefs: 70% vs 5% passed; no token saving claimed ([the run](https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json)).
-
-Devnet, test money, no customers yet.
-
-[Check demand](https://drexthealpha.github.io/Knos/#demand) · [Check every claim yourself](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/MANIFEST.md)
+Test money only. No customers yet.
 
 ## How it works
 

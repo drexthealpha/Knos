@@ -1,6 +1,6 @@
 # Release manifest: Knos 0.4.0
 
-**Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.**
+**Knos pays agents only when the test passes.**
 
 One page for this release: the source, the bytes each public program id runs, every capability's stage, and the
 limits still open. `python scripts/release_manifest.py` writes it from the files named under each heading, and
@@ -171,7 +171,7 @@ capability is in [CAPABILITIES.md](CAPABILITIES.md).
 | `shadow_mode` | tested locally | [`src/knos/shadow.py`](../../src/knos/shadow.py): `def statement` | [`tests/test_shadow.py`](../../tests/test_shadow.py): `test_the_command_runs_offline_against_a_recording` | none | none | none |
 | `playground` | tested locally | [`src/knos/playground.py`](../../src/knos/playground.py): `def refuses` | [`tests/test_playground.py`](../../tests/test_playground.py): `test_a_stranger_funds_only_by_opening_an_issue_within_the_amount_the_slots_and_the_day` | none | none | none |
 | `interactive_demo` | tested locally | [`web/demo.js`](../../web/demo.js): `export async function renderDemo` | [`tests/test_site_demo.py`](../../tests/test_site_demo.py): `test_every_signature_and_number_of_the_demo_is_in_the_repositorys_records` | none | none | none |
-| `design_system` | tested locally | [`web/motion.js`](../../web/motion.js): `prefersReduced` | [`tests/test_site_overflow.py`](../../tests/test_site_overflow.py): `test_the_budget_of_words_weight_and_motion_holds` | none | none | none |
+| `design_system` | implemented | [`web/motion.js`](../../web/motion.js): `prefersReduced` | none | none | none | none |
 | `verifier_issuer_matrix` | tested locally | [`examples/issuers/README.md`](../../examples/issuers/README.md): `eleven sources of identity` | [`tests/test_issuers.py`](../../tests/test_issuers.py): `test_a_token_of_this_issuers_shape_verifies_under_a_key_registered_for_its_url` | none | none | none |
 | `finance_exports` | tested locally | [`src/knos/exports.py`](../../src/knos/exports.py): `FORMATS = {` | [`tests/test_exports.py`](../../tests/test_exports.py): `test_every_file_is_the_golden_file_byte_for_byte` | none | none | none |
 | `audit_export_v2` | tested locally | [`src/knos/audit.py`](../../src/knos/audit.py): `def records_of` | [`tests/test_audit.py`](../../tests/test_audit.py): `test_an_organisation_that_only_posted_bounties_gets_its_bounties_not_an_empty_file` | none | none | none |

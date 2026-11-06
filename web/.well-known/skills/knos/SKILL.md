@@ -1,6 +1,6 @@
 ---
 name: knos
-description: "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof. Before a pull request is paid, run Knos's checks and attach a signed receipt."
+description: "Knos pays agents only when the test passes. Before a pull request is paid, run Knos's checks and attach a signed receipt."
 version: 0.3.29
 author: drexthealpha
 license: MIT

@@ -43,7 +43,7 @@ from rich.console import Console
 from . import badge, ghwords, version
 
 _app = typer.Typer(add_completion=False, pretty_exceptions_enable=False, no_args_is_help=True,
-                  help="Knos carries research across the valley of death: see who wants it and where, then get paid only on proof. "
+                  help="Knos pays agents only when the test passes. "
                        "Start with `knos demand`, `knos check`, `knos init` or `knos status`.")
 
 for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page cannot encode everything a PR says

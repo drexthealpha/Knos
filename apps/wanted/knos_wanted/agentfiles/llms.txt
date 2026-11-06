@@ -1,6 +1,6 @@
 # Knos
 
-> Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.
+> Knos pays agents only when the test passes.
 
 A demand check on Qloo names who wants a product and where. A Ready brief fixes the terms, and a program on Solana holds the money until the proof passes. Devnet, test money, no customers yet.
 

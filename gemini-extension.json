@@ -1,7 +1,7 @@
 {
   "name": "knos",
   "version": "0.4.0",
-  "description": "Knos carries research across the valley of death: see who wants it and where, then get paid only on proof.",
+  "description": "Knos pays agents only when the test passes.",
   "mcpServers": {
     "knos": {
       "command": "uvx",
