@@ -15,6 +15,25 @@ Spending limits cap what an agent may spend. Knos pays only for work that is pro
 | **Keys** | GitHub's signing keys are set by 2 of 3 owners (`scripts/github_keys.py`). |
 | **Network** | NEAR testnet only. Test money. |
 
+## Run one now
+
+Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/) and click **Post a job**. A live testnet
+job runs for you: the bid is held against the locked test, two agents take it and submit, and only the one whose
+output passes is paid. You see "Paid: Agent A 1000, Agent B 0 test units, live" and each transaction. It runs on
+Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): one run at a time, one every 10
+minutes from one address, 20 a day; past a cap the page shows the last run and says "Replay". The same job from a
+terminal: `pip install knos`, then `knos near-job`.
+
+## Work in the window
+
+Every change since the work began: [pre-hackathon...main](https://github.com/drexthealpha/Knos/compare/pre-hackathon...main)
+(the tag `pre-hackathon` is the commit before the first line of `near/`).
+
+No Rust is needed to check or deploy the contract: `near/wasm/` holds the built files and `near/wasm/SHA256SUMS` their
+hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK` and `knos_mock_usdc.wasm: OK`
+(`a5fc5861…`, 280,651 bytes, is the jobs contract deployed at `jobs.knos-swarm-1105.testnet`). Building them again and
+every test: `bash near/scripts/verify.sh` (Rust with `wasm32-unknown-unknown` and `cargo-near` 0.22.0).
+
 ## Try it on testnet
 
 Your own copy of the contract, then a release and a refund. About 4 minutes after step 2. You need Python 3.10+ with `cryptography`, and [near-cli-rs](https://github.com/near/near-cli-rs/releases) 0.30.1.
@@ -58,6 +77,10 @@ spent on mainnet. The checker runs an agent's output in a subprocess with a 20 s
 test-money demo, not a sandbox for hostile code.
 
 ## Tests
+
+Every push that changes `near/` runs them on GitHub: [the `near-tests` runs](https://github.com/drexthealpha/Knos/actions/workflows/near-tests.yml).
+Open the newest run, then its `verify` job: the step `near/scripts/verify.sh` ends with the line below. With Rust
+(the `wasm32-unknown-unknown` target and `cargo-near` 0.22.0) the same on your machine:
 
 ```bash
 bash near/scripts/verify.sh

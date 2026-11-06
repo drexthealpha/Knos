@@ -75,4 +75,36 @@ TOOLS = [
          "proof": {"type": ["object", "string"], "description": "the proof itself"}},
          "required": ["brief", "kind", "proof"], "additionalProperties": False}},
 ]
-HANDLERS = {"knos_near_swarm_job": swarm_job, "knos_iris_check_proof": check_proof}
+def run_job(args: dict) -> dict:
+    """Fund one live testnet job from the capped account; two agents submit; the checker pays the passing one."""
+    from . import near_live
+    out = near_live.start()
+    if out.get("replay"):
+        return {**out, "next": "the caps are in this answer; the last run is in `last`"}
+    return {**out, "next": f"call knos_near_job_status with run {out['run']} every few seconds until state is done"}
+
+
+def job_status(args: dict) -> dict:
+    from . import near_live
+    rid = str(args.get("run") or "")
+    if not _ID.fullmatch(rid):
+        raise ValueError("run: the id knos_near_run_job returned")
+    got = near_live.get(rid)
+    if got is None:
+        raise ValueError(f"no run {rid} on this server (runs are kept an hour)")
+    return got
+
+
+TOOLS += [
+    {"name": "knos_near_run_job", "title": "Run one NEAR job (test tokens)",
+     "description": "Funds one job on NEAR testnet from Knos's capped test account (a bid of 1000 test units), lets two "
+                    "agents take it and submit, and has the checker pay only the agent whose output passes the locked "
+                    "test. Capped: one run at a time, 20 a day; past a cap it returns the last run as a replay.",
+     "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "knos_near_job_status", "title": "One NEAR job's progress",
+     "description": "The step a run of knos_near_run_job is on, and at the end who was paid and every testnet transaction.",
+     "inputSchema": {"type": "object", "properties": {"run": {"type": "string", "maxLength": 24, "description": "the run id"}},
+                     "required": ["run"], "additionalProperties": False}},
+]
+HANDLERS = {"knos_near_swarm_job": swarm_job, "knos_iris_check_proof": check_proof, "knos_near_run_job": run_job,
+            "knos_near_job_status": job_status}
