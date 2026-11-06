@@ -2,12 +2,13 @@
 # Is the online demo up? Run it once a day while people review it:
 #   bash iris/uptime-check.sh http://<the VM's address>:52773 [demo password]
 # It opens the page, signs in as the read-only user and reads the decisions, then prints UP or DOWN with the reason,
-# and adds the line to uptime-log.txt beside this script. Exit 0 when up, 1 when down.
+# and adds the line to uptime-log.txt beside this script (or ~/knos-uptime-log.txt). Exit 0 when up, 1 when down.
 set -u
 base="${1:?usage: bash iris/uptime-check.sh http://<host>:52773 [demo password]}"
 base="${base%/}"
 pass="${2:-demo}"
 log="$(cd "$(dirname "$0")" && pwd)/uptime-log.txt"
+touch "$log" 2> /dev/null || log="$HOME/knos-uptime-log.txt"     # a folder you may not write to: the log goes home
 now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 say() { echo "$now $1" | tee -a "$log"; }
 page=$(curl -s -o /dev/null -m 20 -w '%{http_code} %{time_total}' "$base/knos/") || page="000 0"
