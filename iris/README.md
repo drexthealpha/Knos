@@ -153,7 +153,7 @@ The milestone stays held for two days without an answer.
 Each AI Hub feature the referee uses runs live at `GET /api/knos/aihub/<feature>` (same user), answering JSON:
 `skill` (the folder `skills/knos-proof`, loaded with `%AI.Agent.Skill` and attached with `UseSkill`), `policy`
 (`Knos.Iris.AI.ToolPolicy`, a `%AI.Policy.Authorization`: one tool call allowed, one refused), `mcp` (the referee's
-tools as `Knos.Iris.AI.MCP`, a `%AI.MCP.Service` at `/api/knos/mcp`), `rag` (a `%AI.RAG.KnowledgeBase` over the locked
+tools as `Knos.Iris.AI.MCP`, a `%AI.MCP.Service` at `/mcp/knos` for IRIS's gateway `iris-mcp-server`), `rag` (a `%AI.RAG.KnowledgeBase` over the locked
 criteria, searched), `stats` (`%AI.Agent.Session.GetStats` after one local model turn) and `workflow` (the tasks waiting).
 
 ## 10. Solana devnet

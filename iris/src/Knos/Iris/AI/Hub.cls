@@ -81,8 +81,8 @@ ClassMethod Mcp(out As %DynamicObject)
     set names = [], it = mgr.%Discover().%GetIterator()
     while it.%GetNext(, .t) { do names.%Push(t.name) }
     set out.tools = names
-    set out.served = "/api/knos/mcp/v1/services (the list) and /api/knos/mcp/v1/tool_call (a call), for the IRIS MCP gateway"
-    set out.app = ##class(Knos.Iris.AI.Hub).App("/api/knos/mcp")
+    set out.served = "/mcp/knos/v1/services (the list) and /mcp/knos/v1/tool_call (a call), for the IRIS MCP gateway"
+    set out.app = ##class(Knos.Iris.AI.Hub).App("/mcp/knos")
 }
 
 ClassMethod Rag(out As %DynamicObject)
