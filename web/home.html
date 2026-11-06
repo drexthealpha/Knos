@@ -1030,13 +1030,13 @@ hand.remove();
          (knos.onrender.com/api/near/totals). No dot is drawn for anything else, and nothing here rises with each job. -->
     <section class="k-stars" id="k-stars" aria-labelledby="k-stars-line">
       <style>
-      .k-stars { margin: 64px 0 0; padding: 32px 16px 28px; border-radius: 24px; background: #07080c; color: #e9ebef; }
+      .k-stars { margin: 64px 0 0; padding: 32px 16px 28px; border-radius: 24px; background: var(--night); color: var(--night-ink); }
       .k-stars svg { display: block; width: 100%; height: auto; max-height: 360px; }
-      .k-stars circle { fill: #f4f1e6; }
-      .k-stars a:focus-visible circle { stroke: #9fb0ff; stroke-width: 3; }
-      .k-stars .k-star-line { margin: 16px 0 0; font: 400 clamp(26px, 3.4vw, 40px)/1.15 var(--serif); text-align: center; color: #e9ebef; }
-      .k-stars .k-star-n { margin: 8px 0 0; text-align: center; font: 500 13px/1.4 var(--text); color: #a0a7b8; }
-      .k-stars .k-star-n a { color: #c3cbff; }
+      .k-stars circle { fill: var(--night-star); }
+      .k-stars a:focus-visible circle { stroke: var(--night-link); stroke-width: 3; }
+      .k-stars .k-star-line { margin: 16px 0 0; font: 400 clamp(26px, 3.4vw, 40px)/1.15 var(--serif); text-align: center; color: var(--night-ink); }
+      .k-stars .k-star-n { margin: 8px 0 0; text-align: center; font: 500 13px/1.4 var(--text); color: var(--night-ink-2); }
+      .k-stars .k-star-n a { color: var(--night-link); }
       </style>
       <svg id="k-star-sky" viewBox="0 0 1000 360" role="img" aria-label="Each dot is one job paid on NEAR"></svg>
       <p class="k-star-line" id="k-stars-line">Ideas spread at internet speed. Products should too.</p>

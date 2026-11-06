@@ -9,6 +9,8 @@
   --paper: #07080c; --paper-2: #0f1118; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634; --soft: #151822;
   --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
   --light: rgb(255 255 255 / .06);
+  /* the star map stays night in either theme: the sky, a lit star, its words and its links */
+  --night: #07080c; --night-star: #f4f1e6; --night-ink: #e9ebef; --night-ink-2: #a0a7b8; --night-link: #c3cbff;
   --depth-1: inset 0 1px 0 var(--light), 0 1px 2px rgb(0 0 0 / .5);
   --depth-2: inset 0 1px 0 var(--light), 0 2px 4px rgb(0 0 0 / .4), 0 12px 28px -8px rgb(0 0 0 / .6);
   --depth-3: inset 0 1px 0 var(--light), 0 4px 8px rgb(0 0 0 / .4), 0 32px 64px -16px rgb(0 0 0 / .8);
