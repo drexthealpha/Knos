@@ -4,6 +4,23 @@ Prices and figures in older entries are superseded; the current price book is do
 
 Each entry starts with what changed for you, in one or two plain lines ("In short"); the full notes follow.
 
+## 0.4.1 (November 2026)
+
+**In short:** after `knos demand`, the rest of one job runs from the command line and from Python: `knos ready` locks
+the test, `knos iris-check` checks a proof as the IRIS referee does, and `knos near-job` runs one live NEAR testnet job
+in which only the agent that passes is paid.
+
+- **`knos ready <brief.json>`** prints Ready with the brief's criteria hash, or the fields it is missing
+  (`knos.job.ready`, on top of `knos.ready.check`).
+- **`knos iris-check <brief.json> <kind> <proof>`** applies the rules referee that Knos Referee on IRIS runs to a
+  GitHub check run, a FHIR Observation or an HL7 ORU^R01 (`knos.job.iris_check`). For an ORU it now reads the OBX the
+  brief's verifier names, not only the first one.
+- **`knos near-job`** asks the hosted runner (knos.onrender.com) for one job on NEAR testnet from Knos's capped test
+  account, follows it to the payment, and prints each transaction (`knos.job.near_job`). Past the runner's daily cap
+  it shows the last run and says so.
+
+Test money only: NEAR testnet and Solana devnet. **No program changes in this release.**
+
 ## 0.4.0 (October 2026)
 
 **In short:** Knos now has an app for research products: paste a landmark paper, see who would buy its product (Qloo,

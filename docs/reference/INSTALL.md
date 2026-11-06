@@ -377,7 +377,7 @@ status` on a pull request then tells its author what the check would have said.
 
 A supplier who wants the free check on every pull request of their own repository, its result posted once and its
 receipt attached to the run, adds one workflow file ([examples/knos-supplier.yml](../../examples/knos-supplier.yml))
-whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.4.0`.
+whose job is one line: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.4.1`.
 
 It needs no secret, moves no money and reads no chain. The record, the badge and the receipt to send with an invoice
 are in [SUPPLIER.md](SUPPLIER.md), section 3.
@@ -452,7 +452,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: drexthealpha/Knos@v0.4.0
+      - uses: drexthealpha/Knos@v0.4.1
 ```
 
 It installs nothing in the repository but this file. The check is the job `knos`: it fails when a claim is false or
@@ -489,7 +489,7 @@ knos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
   script:
-    - python -m pip install knos==0.4.0
+    - python -m pip install knos==0.4.1
     - knos check "$KNOS_GITHUB_REPOSITORY#$CI_EXTERNAL_PULL_REQUEST_IID"
 ```
 
@@ -538,7 +538,7 @@ password), with a signed note (provenance statement) naming the workflow run tha
 If the registry cannot be reached, the same file is attached to the GitHub release:
 
 ```bash
-npm install https://github.com/drexthealpha/Knos/releases/download/v0.4.0/knos-settle-0.4.0.tgz
+npm install https://github.com/drexthealpha/Knos/releases/download/v0.4.1/knos-settle-0.4.1.tgz
 ```
 
 The release workflow publishes each new version through trusted publishing, with no stored secret. A token job is the
@@ -549,7 +549,7 @@ when it skipped npm.
 
 ```toml
 [dependencies]
-knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.0" }
+knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.1" }
 ```
 
 It adds `knos-oidc-interface`, the crate a Solana program uses to read a token that knos-oidc verified: no dependency,

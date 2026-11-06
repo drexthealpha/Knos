@@ -1,6 +1,6 @@
 {
   "name": "knos",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Knos pays agents only when the test passes. It adds a Stop hook: when the agent says the tests pass, CI is green, it shipped or the work is done, Knos runs that check before the agent may stop. It also adds the knos MCP server, for bounties on GitHub issues paid in test USDC on Solana devnet, and for checking what a pull request claims. Its tools let an agent find funded work, reserve it, check its own work, open the pull request and set its payout address. The tools that post stay off until the person who runs the agent turns them on (docs/reference/AGENTS.md).",
   "author": {
     "name": "drexthealpha",

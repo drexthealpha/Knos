@@ -11,7 +11,7 @@ addresses, the three instructions a funder sends and a reader of the Order accou
 ```toml
 knos-pay-interface = "0.3.14"
 # or the same source from the release tag:
-# knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.0" }
+# knos-pay-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.1" }
 ```
 
 ```rust

@@ -1,6 +1,6 @@
 {
   "name": "knos-settle",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Knos pays agents only when the test passes.",
   "type": "module",
   "types": "./index.d.ts",

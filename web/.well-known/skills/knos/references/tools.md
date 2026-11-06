@@ -2,7 +2,7 @@
 
 Three ways in; any one is enough.
 
-1. Plugin (tools in-process): `pip install knos==0.4.0` puts the entry point `knos = knos.hermes_plugin:register`
+1. Plugin (tools in-process): `pip install knos==0.4.1` puts the entry point `knos = knos.hermes_plugin:register`
    in the `hermes_agent.plugins` group. Enable it with `hermes plugins enable knos`. Tools: `knos_verify`,
    `knos_receipt`, `knos_bounty_claim`, `knos_outcome_check`.
 2. MCP server over stdio: an `mcp_servers` entry named `knos` with `command: knos` and `args: ["mcp"]`.

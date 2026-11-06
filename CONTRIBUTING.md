@@ -72,7 +72,7 @@ in `requirements/sign.txt`, publish the pinned workflows, then make one commit, 
 tag:
 
 ```bash
-git tag v0.4.0 && git push origin v0.4.0
+git tag v0.4.1 && git push origin v0.4.1
 ```
 
 `.github/workflows/release.yml` then runs every test on that commit. Only if all of them pass does it publish

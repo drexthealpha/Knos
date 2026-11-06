@@ -12,7 +12,7 @@
  "badge": [
   {
    "step": "Run the free check on your own pull requests",
-   "how": "One line in your repository's workflow: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.4.0` (docs/reference/SUPPLIER.md)",
+   "how": "One line in your repository's workflow: `uses: drexthealpha/Knos/.github/workflows/supplier.yml@v0.4.1` (docs/reference/SUPPLIER.md)",
    "gives": "a check receipt for each pull request; the badge stays grey"
   },
   {

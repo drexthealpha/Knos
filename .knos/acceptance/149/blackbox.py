@@ -1,6 +1,6 @@
 """Black-box acceptance for issue 149, made by `knos accept init`. Read README.md.
 
-This file runs as the judge, outside the pull request's tree, and never loads the pull request's code. It runs
+This file runs as the referee, outside the pull request's tree, and never loads the pull request's code. It runs
 "$KNOS_RUN <command>" (which runs the command in the pull request's tree, inside the sandbox) on every input in
 cases.json, and compares what it prints with the answer recorded from the reference. Exit 0 means every case agrees."""
 import json

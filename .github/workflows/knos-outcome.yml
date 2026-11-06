@@ -36,7 +36,7 @@ on:
         default: outcome.lock.json
       knos:
         description: >-
-          The measuring code: a pip requirement pinned to a version ("knos==0.4.0"), or "path:<dir>" for a copy kept
+          The measuring code: a pip requirement pinned to a version ("knos==0.4.1"), or "path:<dir>" for a copy kept
           in the caller's repository at the pinned commit (a directory holding knos/outcomes).
         type: string
         required: true

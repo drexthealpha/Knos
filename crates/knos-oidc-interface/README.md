@@ -14,7 +14,7 @@ account has the same layout under both.
 ```toml
 knos-oidc-interface = "0.3.14"
 # or the same source from the release tag:
-# knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.0" }
+# knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.1" }
 ```
 
 ```rust

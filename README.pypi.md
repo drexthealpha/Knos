@@ -1,27 +1,27 @@
 <!-- Written by scripts/bump_version.py from README.md, with links pinned to the tag: edit README.md. -->
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.0/web/brand/wordmark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.0/web/brand/wordmark-light.svg">
-    <img alt="Knos" src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.0/web/brand/wordmark-light.svg" height="84">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/wordmark-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/wordmark-light.svg">
+    <img alt="Knos" src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/wordmark-light.svg" height="84">
   </picture>
 </h1>
 
 **Knos pays agents only when the test passes.**
 
-[Try it](https://drexthealpha.github.io/Knos/near/) · [IRIS demo](https://github.com/drexthealpha/Knos/blob/v0.4.0/iris/README.md) · Video: soon · [IRIS idea](https://ideas.intersystems.com/ideas/DPI-I-689)
+[Try it](https://drexthealpha.github.io/Knos/near/) · [IRIS demo](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/README.md) · Video: soon · [IRIS idea](https://ideas.intersystems.com/ideas/DPI-I-689)
 
 Test money only.
 
 ## How it works
 
-![No money locks on a vague brief. Each step is paid only when its proof is verified.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.0/docs/diagrams/readme-1.svg)
+![No money locks on a vague brief. Each step is paid only when its proof is verified.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/readme-1.svg)
 
 *No money locks on a vague brief. Each step is paid only when its proof is verified.*
 
-1. **Check demand.** A [demand check](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/DEMAND_CHECK.md) asks [Qloo](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#qloo) who would buy the product and where. Qloo's heatmap names the launch city.
-2. **Ready brief.** That city and the pre-order target become the terms of a [Ready brief](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#ready-brief). Each [milestone](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#milestone) has a target, a checker and a deadline. A [criteria hash](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#criteria-hash) locks them. If the city falls short by the first deadline, every pre-order is refunded.
-3. **Money held.** [Pre-orders](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#pre-order) and milestone funding wait in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#solana), not with Knos.
+1. **Check demand.** A [demand check](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DEMAND_CHECK.md) asks [Qloo](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#qloo) who would buy the product and where. Qloo's heatmap names the launch city.
+2. **Ready brief.** That city and the pre-order target become the terms of a [Ready brief](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#ready-brief). Each [milestone](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#milestone) has a target, a checker and a deadline. A [criteria hash](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#criteria-hash) locks them. If the city falls short by the first deadline, every pre-order is refunded.
+3. **Money held.** [Pre-orders](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#pre-order) and milestone funding wait in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana), not with Knos.
 4. **Paid on proof.** The maker sends the proof. When it is verified, the program pays for that milestone. Example: an agent was paid [5 test units for verified work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet) on devnet. [The newest payout](https://knos.onrender.com/api/agent/payout/latest), read from chain, says what released it.
 
 Add Knos to Claude Code with one command: `claude mcp add --transport http knos https://knos.onrender.com/mcp`
@@ -34,10 +34,10 @@ The proof is checked before any money moves. A milestone names its checker in th
 
 - a lab result or a public evidence page, read by the milestone's checker;
 - checks that GitHub signs, verified on chain;
-- the same verdict signed by two of three [referees](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#referee);
+- the same verdict signed by two of three [referees](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#referee);
 - a verdict from [IRIS](https://github.com/drexthealpha/Knos/tree/main/iris) inside a lab's own walls. Its agent can only say no or ask a person.
 
-![Nothing is paid on a promise. A missed deadline sends the money back.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.0/docs/diagrams/readme-2.svg)
+![Nothing is paid on a promise. A missed deadline sends the money back.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/readme-2.svg)
 
 *Nothing is paid on a promise. A missed deadline sends the money back.*
 
@@ -47,47 +47,47 @@ Open [the demand check](https://drexthealpha.github.io/Knos/) in your browser. T
 
 ## Why nobody can fudge the count
 
-The terms of a brief are locked by a [hash](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#hash) before any money moves. A changed target or deadline gives a different hash. So a change cannot hide.
+The terms of a brief are locked by a [hash](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#hash) before any money moves. A changed target or deadline gives a different hash. So a change cannot hide.
 
-The money waits in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#solana), not with Knos. That program pays only on a verified proof. At the deadline it refunds the backers instead.
+The money waits in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana), not with Knos. That program pays only on a verified proof. At the deadline it refunds the backers instead.
 
 **Neither the maker nor Knos can move the money alone.**
 
-Today one person can still change that program, after a public wait ([who holds the keys](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/TRUST.md)).
+Today one person can still change that program, after a public wait ([who holds the keys](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/TRUST.md)).
 
-Today Knos earns its fee only when work is accepted. When you get a refund, the fee goes back to you. So Knos gains when work passes, and it is not yet fully neutral ([what is enforced and what is a promise](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CHARTER.md)).
+Today Knos earns its fee only when work is accepted. When you get a refund, the fee goes back to you. So Knos gains when work passes, and it is not yet fully neutral ([what is enforced and what is a promise](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/CHARTER.md)).
 
 ## Is it real?
 
-It runs on test money only: [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#test-usdc) on Solana's practice network, [devnet](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#devnet).
+It runs on test money only: [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#test-usdc) on Solana's practice network, [devnet](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#devnet).
 
-There are no customers yet. Nobody has bought anything ([what is not real yet](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/DISCLOSURE.md)).
+There are no customers yet. Nobody has bought anything ([what is not real yet](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DISCLOSURE.md)).
 
-One person holds every key today. Any change to the programs waits in public for 8 days first ([who holds the keys](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/TRUST.md)).
+One person holds every key today. Any change to the programs waits in public for 8 days first ([who holds the keys](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/TRUST.md)).
 
 <!-- bench:today -->
 | What | Today | Read from |
 |---|---|---|
-| This copy | Release 0.4.0, October 2026. A copy naming an older release, or another product, is out of date | [CHANGELOG.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/CHANGELOG.md); the newest: [PyPI](https://pypi.org/project/knos/) |
-| Reproduced by someone else | 0 of 267 | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "reproduced by someone else" |
-| Exercised at the public devnet program ids | 26 of 267: GitHub token verification, funding by one comment, funding from a wallet, pay on merge, refund at the deadline, pause, work orders, an order paying up to four payees, orders checked by the buyer's black-box tests, auto-accepted orders, a holdback released after its warranty, top-ups, single-use tokens, one counted evaluation, a counted batch of evaluations, the seller's own count, a payee's passkey wallet, a passkey funder, the passkey relay, the site's Buy page, an x402 order, the upgrade gate, strict JSON in the verifier, an outcome that is not code, ES256 tokens in one transaction, the presentation grace | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "exercised on devnet" |
-| Deployed at the public devnet program ids, no transaction recorded | 3 of 267: GitLab token verification, the key guardian, holding pay for a payee with no wallet | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "deployed on devnet" |
-| Tested here only | 233 of 267, each with the test its row names | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "tested locally" |
-| Written, not tested | 5 of 267 | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "implemented" |
-| Outside funders | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 1 |
-| Outside repositories | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 2 |
-| Outside payees | 1, on tasks Knos funded itself | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 3 |
-| Payments between unrelated accounts | 3, on tasks Knos funded itself | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 4 |
-| Buyer interviews held | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 5 |
-| Letters of intent | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 6 |
-| Reproductions signed by GitHub | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 7 |
-| Outside programs reading the verifier | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 8 |
-| Shadow counts published | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 9 |
-| Paying customers | 0 | [docs/reference/DISCLOSURE.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/DISCLOSURE.md) |
-| Revenue | 0; test USDC is not money | [docs/PRICING.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/PRICING.md) |
-| Outside security review | none | [docs/reference/ASSURANCE.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/ASSURANCE.md) |
-| Key holders | one person holds every key; an upgrade waits 8 days in public | [docs/reference/GOVERNANCE.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/GOVERNANCE.md) |
-| Network and money | Solana devnet, test USDC; mainnet is not touched | [docs/reference/SECURITY.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/SECURITY.md) |
+| This copy | Release 0.4.1, November 2026. A copy naming an older release, or another product, is out of date | [CHANGELOG.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/CHANGELOG.md); the newest: [PyPI](https://pypi.org/project/knos/) |
+| Reproduced by someone else | 0 of 267 | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/CAPABILITIES.md), the rows "reproduced by someone else" |
+| Exercised at the public devnet program ids | 26 of 267: GitHub token verification, funding by one comment, funding from a wallet, pay on merge, refund at the deadline, pause, work orders, an order paying up to four payees, orders checked by the buyer's black-box tests, auto-accepted orders, a holdback released after its warranty, top-ups, single-use tokens, one counted evaluation, a counted batch of evaluations, the seller's own count, a payee's passkey wallet, a passkey funder, the passkey relay, the site's Buy page, an x402 order, the upgrade gate, strict JSON in the verifier, an outcome that is not code, ES256 tokens in one transaction, the presentation grace | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/CAPABILITIES.md), the rows "exercised on devnet" |
+| Deployed at the public devnet program ids, no transaction recorded | 3 of 267: GitLab token verification, the key guardian, holding pay for a payee with no wallet | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/CAPABILITIES.md), the rows "deployed on devnet" |
+| Tested here only | 233 of 267, each with the test its row names | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/CAPABILITIES.md), the rows "tested locally" |
+| Written, not tested | 5 of 267 | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/CAPABILITIES.md), the rows "implemented" |
+| Outside funders | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 1 |
+| Outside repositories | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 2 |
+| Outside payees | 1, on tasks Knos funded itself | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 3 |
+| Payments between unrelated accounts | 3, on tasks Knos funded itself | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 4 |
+| Buyer interviews held | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 5 |
+| Letters of intent | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 6 |
+| Reproductions signed by GitHub | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 7 |
+| Outside programs reading the verifier | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 8 |
+| Shadow counts published | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/NUMBERS.md), row 9 |
+| Paying customers | 0 | [docs/reference/DISCLOSURE.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DISCLOSURE.md) |
+| Revenue | 0; test USDC is not money | [docs/PRICING.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/PRICING.md) |
+| Outside security review | none | [docs/reference/ASSURANCE.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/ASSURANCE.md) |
+| Key holders | one person holds every key; an upgrade waits 8 days in public | [docs/reference/GOVERNANCE.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/GOVERNANCE.md) |
+| Network and money | Solana devnet, test USDC; mainnet is not touched | [docs/reference/SECURITY.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/SECURITY.md) |
 <!-- /bench:today -->
 
 ## From a terminal
@@ -106,11 +106,11 @@ Install with `pip install knos`. The app answers the same steps over HTTP: `POST
 
 ## Check every claim yourself
 
-Start at [the release page](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/MANIFEST.md): the code, how it is built, what runs on devnet, the payments and the fees.
+Start at [the release page](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/MANIFEST.md): the code, how it is built, what runs on devnet, the payments and the fees.
 
 One payment from start to end, on 9 Oct 2026 with Knos 0.3.23, in a repository Knos owns, with test USDC (one step fixed by hand): [funded](https://explorer.solana.com/tx/3UaY22WKexigMpkVhibfeMdNgBiyybWm2Z4LuLskKGbNUDXV34yYWyH42atxFjELbrqSgoVs6TwpFzSQwhfXqzgM?cluster=devnet) · [wrong work refused](https://github.com/drexthealpha/knos-witness/actions/runs/37890511112/job/113690226126) · [paid](https://explorer.solana.com/tx/2PtmKUrQHKPARZE4nr35Te559NGQSG7tSHUfwzcKCAjL7gzvQ76fNTVLMWvq8mcZLxd27tbyTe31mCk2PxEGfAqa?cluster=devnet) (on verified proof) · [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/10#issuecomment-6075196710) · [the record](https://github.com/drexthealpha/Knos/blob/main/evidence/knos-witness-acaa854d/witness.json).
 
-Rebuild knos_oidc and knos_pay, the programs that check the proof and pay, and compare: the hash devnet runs equals the verified build hash recorded for each ([PROVENANCE](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/PROVENANCE.md)). Read on 27 Oct 2026.
+Rebuild knos_oidc and knos_pay, the programs that check the proof and pay, and compare: the hash devnet runs equals the verified build hash recorded for each ([PROVENANCE](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/PROVENANCE.md)). Read on 27 Oct 2026.
 
 ```sh
 solana-verify get-program-hash -u devnet FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W   # knos_oidc: a2df952d262c48edacf2f594a01321e805c28f1dc523cb6efa75f2c45f34e632
@@ -119,7 +119,7 @@ solana-verify get-program-hash -u devnet 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQS
 
 ## Words
 
-Qloo, Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md).
+Qloo, Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md).
 
 ## Questions
 
@@ -129,19 +129,19 @@ Knos takes research from a paper to a product people want. It pays each step onl
 
 ### How does Knos pay an AI agent?
 
-You post the task, your [checks](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#checks-ci) and the pay before work starts. When the checks pass and you [merge](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#merge), a [program](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#program) pays the agent.
+You post the task, your [checks](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#checks-ci) and the pay before work starts. When the checks pass and you [merge](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#merge), a [program](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#program) pays the agent.
 
 ### Does Knos use real money?
 
-No. It runs on [devnet](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#devnet), Solana's practice network, with [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#test-usdc) worth nothing.
+No. It runs on [devnet](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#devnet), Solana's practice network, with [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#test-usdc) worth nothing.
 
 ### What does Knos cost?
 
-Ten demand checks a month are free; releases will cost companies 1%. Today devnet charges 0.30%, at least 0.05 [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#test-usdc).
+Ten demand checks a month are free; releases will cost companies 1%. Today devnet charges 0.30%, at least 0.05 [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#test-usdc).
 
 ### Who holds the money?
 
-A program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#solana) holds it, not Knos. Today one person can change that program, after a public wait.
+A program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana) holds it, not Knos. Today one person can change that program, after a public wait.
 
 ### Can the buyer refuse to pay?
 
@@ -149,7 +149,7 @@ Not once the checks pass and the work is merged. Before that, the buyer still ch
 
 ### Who keeps the count of accepted work?
 
-Neither side alone. A program checks GitHub's [signature](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/WORDS.md#signed) of which workflow ran, on which commit.
+Neither side alone. A program checks GitHub's [signature](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#signed) of which workflow ran, on which commit.
 
 ### How do I try Knos?
 
@@ -158,24 +158,24 @@ Open [the front door](https://drexthealpha.github.io/Knos/) and type the product
 
 ## Read more
 
-- [Get started](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/START.md): check demand, write a Ready brief, then hold the money and pay on proof.
+- [Get started](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/START.md): check demand, write a Ready brief, then hold the money and pay on proof.
 
-- [Pricing](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/PRICING.md): what Knos costs. Demand checks are free, 10 a month. The maker keeps 100%; the funder pays the payment program's fee on top: 0.30% of each payout, at least 0.05. Nobody is charged today (devnet, test money).
+- [Pricing](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/PRICING.md): what Knos costs. Demand checks are free, 10 a month. The maker keeps 100%; the funder pays the payment program's fee on top: 0.30% of each payout, at least 0.05. Nobody is charged today (devnet, test money).
 
-- [Trust](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/TRUST.md): who holds the keys, and what is tested.
+- [Trust](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/TRUST.md): who holds the keys, and what is tested.
 
-- [The story](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/STORY.md): one crossing, step by step, each with its evidence.
+- [The story](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/STORY.md): one crossing, step by step, each with its evidence.
 
-- [Every other document](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/README.md): the map of the documents.
+- [Every other document](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/README.md): the map of the documents.
 
 ---
 
-Contact: open an issue, or report a security problem privately: [SECURITY.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/SECURITY.md).
+Contact: open an issue, or report a security problem privately: [SECURITY.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/SECURITY.md).
 
 Below: tables that scripts write from the code and the chain, and the licence. Nobody types them by hand.
 
 <!-- programs:start -->
-| program | address | on devnet, as [`docs/capabilities.json`](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/capabilities.json) records it |
+| program | address | on devnet, as [`docs/capabilities.json`](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/capabilities.json) records it |
 |---|---|---|
 | `knos-oidc`, the verifier | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | runs `2.2` |
 | `knos-pay`, the payment program | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | runs `2.2` |
@@ -204,14 +204,14 @@ Every program the app or this site uses, and who can upgrade it, read from devne
 
 This page names no time for an upgrade, so it stays true before and after one. To see whether a change to the
 programs is waiting, done or withdrawn, run `knos status`, or read the site's banner or its
-[upgrade record](https://drexthealpha.github.io/Knos/upgrades.json) ([`web/upgrades.json`](https://github.com/drexthealpha/Knos/blob/v0.4.0/web/upgrades.json) is the
+[upgrade record](https://drexthealpha.github.io/Knos/upgrades.json) ([`web/upgrades.json`](https://github.com/drexthealpha/Knos/blob/v0.4.1/web/upgrades.json) is the
 copy kept here).
 
-The first set of programs ([`programs`](https://github.com/drexthealpha/Knos/tree/v0.4.0/programs)) has no upgrade authority, so nobody can change it.
+The first set of programs ([`programs`](https://github.com/drexthealpha/Knos/tree/v0.4.1/programs)) has no upgrade authority, so nobody can change it.
 It stays as a record, and no new task is funded there.
 
 <!-- capabilities:start -->
-**Reproduced by someone else:** none recorded yet. **Exercised on devnet:** `verify_github`, `fund_by_comment`, `fund_from_wallet`, `pay_on_merge` and more, each named in the table. **Deployed on devnet:** `verify_gitlab`, `key_guardian`, `hold_and_bind`. Everything else is tested locally, implemented or not built: [the table with the evidence](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md) has one row for each capability, from [`docs/capabilities.json`](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/capabilities.json). Only runs at the public program ids count here. Each capability's row also notes, with its transaction, any earlier trial run at separate test addresses (Knos 0.3.14).
+**Reproduced by someone else:** none recorded yet. **Exercised on devnet:** `verify_github`, `fund_by_comment`, `fund_from_wallet`, `pay_on_merge` and more, each named in the table. **Deployed on devnet:** `verify_gitlab`, `key_guardian`, `hold_and_bind`. Everything else is tested locally, implemented or not built: [the table with the evidence](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/CAPABILITIES.md) has one row for each capability, from [`docs/capabilities.json`](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/capabilities.json). Only runs at the public program ids count here. Each capability's row also notes, with its transaction, any earlier trial run at separate test addresses (Knos 0.3.14).
 <!-- capabilities:end -->
 
 MIT licence, all of it. Built by drexthealpha. Everything Knos remembers is kept by the [Sibyl](https://sibyllabs.org) memory engine.

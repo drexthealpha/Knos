@@ -55,7 +55,7 @@ signed receipt to attach to it. Use it every time you are about to open a pull r
 
 ## Tools
 
-With the Knos plugin installed (`pip install knos==0.4.0`, which registers the plugin through its entry point),
+With the Knos plugin installed (`pip install knos==0.4.1`, which registers the plugin through its entry point),
 Hermes has `knos_verify`, `knos_receipt`, `knos_bounty_claim` and `knos_outcome_check`. Without it, the
 `knos` command does the same from the terminal. See `references/tools.md`, `references/receipt.md` and
 `references/ai-policy.md`.
