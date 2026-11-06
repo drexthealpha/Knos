@@ -287,14 +287,14 @@ The 15 technology bonuses of [the contest post](https://community.intersystems.c
 | 2 | Production Extension (PEX), Java | 3 | `java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java`, item SolanaSubmit |
 | 3 | Workflow Engine | 2 | `src/Knos/Iris/BP/ProofDecision.cls`, role PayoutApprovers |
 | 4 | Custom Adapter | 2 | `src/Knos/Iris/Adapter/CheckRunInbound.cls` (inbound), `src/Knos/Iris/Adapter/SolanaRpcOutbound.cls` (outbound) |
-| 5 | Find a bug in AI Hub | 2 (3 for two) | [`bugs/2`](bugs/2): one bug; filing it is a founder step |
+| 5 | Find a bug in AI Hub | 2 (3 for two) | two bugs, each with run.sh and what it printed: [`bugs/2`](bugs/2) (ExecuteTool runs arguments its schema refuses), [`bugs/3`](bugs/3) (VectorStore.IRIS ignores Schema); filing them is a founder step |
 | 6 | Embedded Python | 3 | `src/Knos/Iris/Py/Ready.cls`, `src/Knos/Iris/Py/Embed.cls`, `python/knos_iris/referee.py` |
 | 7 | IRIS Vector Search | 2 | `src/Knos/Iris/Data/Criterion.cls` (`VECTOR(DOUBLE,384)`) |
 | 8 | Docker container | 2 | `Dockerfile`, `docker-compose.yml` |
 | 9 | ZPM package | 2 | `module.xml` at the repository root; publishing it on Open Exchange is a founder step |
 | 10 | Online Demo | 2 | `scripts/demo-vm.sh`; running it on a VM is a founder step |
 | 11 | Community Idea | 4 | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): `src/Knos/Iris/Msg/Span.cls`, `docs/trace-schema.md`, section 11 |
-| 12 | Find a bug in Embedded Python | 2 (3 for two) | [`bugs/1`](bugs/1): one bug; filing it is a founder step |
+| 12 | Find a bug in Embedded Python | 2 (3 for two) | two bugs: [`bugs/1`](bugs/1) (an int past 64 bits arrives as -1), [`bugs/4`](bugs/4) (iris.sql.exec with such an int fails with SystemError); filing them is a founder step |
 | 13 | First article on Developer Community | 2 | founder step |
 | 14 | Second article | 1 | founder step |
 | 15 | Video on YouTube | 3 | founder step |
