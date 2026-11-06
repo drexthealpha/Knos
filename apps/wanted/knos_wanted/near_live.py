@@ -79,9 +79,15 @@ def start() -> dict:
         _day["n"] += 1
         ready = _ready.pop("job", None) if _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR else None
     if ready:   # a job both agents have already tried: the visitor's click sends only the payment
+        t0 = time.time()
         out = _release(ready)
         threading.Thread(target=prepare, daemon=True).start()
-        return {"replay": False, **out, **status()}
+        # kept as a finished run too, so a client that polls GET /api/near/live/{run} (knos near-job 0.4.1, the MCP
+        # tool) reads the same answer at once
+        with _lock:
+            rid = uuid.uuid4().hex[:12]
+            _runs[rid] = {**out, "job_id": ready["id"], "started": t0}
+        return {"replay": False, "run": rid, **out, **status()}
     with _lock:
         rid = uuid.uuid4().hex[:12]
         _runs[rid] = {"state": "running", "step": "posting the job", "started": time.time()}
