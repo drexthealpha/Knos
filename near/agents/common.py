@@ -98,6 +98,26 @@ def _py_signed(who: str, contract: str, method: str, args: dict, deposit: str, g
     return base64.b64encode(tx + b"\0" + sk.sign(hashlib.sha256(tx).digest())).decode()
 
 
+def _send(who: str, signed: str) -> dict:
+    """send_tx, and when the RPC times out waiting (HTTP 408, or its TIMEOUT_ERROR), ask for the same transaction by its
+    hash until it is final: a signed transaction's hash is the sha256 of its bytes without the 65-byte signature."""
+    import time
+    import urllib.error
+    try:
+        return rpc("send_tx", {"signed_tx_base64": signed, "wait_until": "FINAL"})
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+        if isinstance(e, RuntimeError) and "TIMEOUT" not in str(e).upper():
+            raise
+        h = _b58e(hashlib.sha256(base64.b64decode(signed)[:-65]).digest())
+        for _ in range(24):
+            time.sleep(5)
+            try:
+                return rpc("tx", {"tx_hash": h, "sender_account_id": who, "wait_until": "FINAL"})
+            except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError):
+                continue
+        raise RuntimeError(f"testnet did not finish transaction {h} in 2 minutes")
+
+
 def call(who: str, contract: str, method: str, args: dict, deposit: str = "0 NEAR", gas: str = "100 Tgas") -> dict:
     """One transaction signed by `who`; returns ok, the transaction hash, and the contract's answer or its refusal."""
     if os.environ.get("KNOS_NEAR_KEYS_FILE"):
@@ -109,7 +129,7 @@ def call(who: str, contract: str, method: str, args: dict, deposit: str = "0 NEA
         if not m:
             raise RuntimeError(f"near-cli did not sign {method} for {who}: {text[-300:]}")
         signed = m.group(1)
-    r = rpc("send_tx", {"signed_tx_base64": signed, "wait_until": "FINAL"})
+    r = _send(who, signed)
     outcomes = [r["transaction_outcome"]] + r["receipts_outcome"]
     fail = next((o["outcome"]["status"]["Failure"] for o in outcomes if "Failure" in o["outcome"]["status"]), None)
     val = r["status"].get("SuccessValue", "")

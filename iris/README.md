@@ -214,10 +214,13 @@ Langfuse does for LLM pipelines, and whether it is the better choice where IRIS 
 
 ## 13. Platform findings
 
-Two reproduce on a clean build 154 container, each one class and one command in `bugs/`:
+Four reproduce on a clean build 154 container, each with its own `run.sh` in `bugs/`:
 - [`bugs/1`](bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error.
 - [`bugs/2`](bugs/2): AI Hub's `%AI.ToolMgr.ExecuteTool` runs a tool when a required argument is missing or of the
   wrong type, although the schema it advertises marks the argument as required.
+- [`bugs/3`](bugs/3): AI Hub's `%AI.RAG.VectorStore.IRIS` makes its table in SQLUser whatever its `Schema` says.
+- [`bugs/4`](bugs/4): Embedded Python's `iris.sql.exec` with an int parameter past 64 bits fails with a `SystemError`
+  that names neither the parameter nor its value.
 
 Earlier suspects, each in its folder in `repro/` with its build string and what was tried, did not reproduce: on build 154 an LLM provider is
 created on a fresh instance with no registry rebuild, `iris.sql.exec` with `FETCH FIRST n ROWS ONLY` returns its rows,
@@ -252,7 +255,8 @@ flowchart LR
 
 ## 16. Known limitations
 
-- On this build the AI Hub agent runs only with a provider key; without one the production runs in replay mode.
+- The AI Hub agent runs on the local open model by default (`KNOS_AI_MODE=local`, no key; section 5). A cloud model
+  needs its provider key in `.env`; with neither, the production runs in replay mode.
 - The vector search embeds with snowflake-arctic-embed-s (33M parameters, 384 numbers, 128 MB in the image as ONNX). Without it,
   `knos_iris.bridge` falls back to a hashed embedding: on 40 labelled proof pairs the top-2 hit rate is 1.000 against 0.925
   (`tests/test_embed_quality.py`).
