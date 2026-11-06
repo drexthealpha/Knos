@@ -41,6 +41,7 @@ main > * { min-width: 0; }
 .totals a:hover { border-color: var(--accent); }
 .totals b { display: block; font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
 #show[hidden] { display: none; }
+@media (min-width: 900px) { .first { text-align: center; } .first .k-mission, .first .k-ask, .first .stage { margin-inline: auto; } .first .status { justify-content: center; } }
 .first:has(#show:not([hidden])) { min-height: 0; }
 h1, h2 { text-wrap: balance; margin: 0; }
 h1 { font: 600 clamp(32px, 4.4vw, 48px)/1.05 var(--head); letter-spacing: -.025em; max-width: 16em; }

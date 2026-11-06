@@ -387,6 +387,8 @@ html.k-revealing .k-try .k-chip[aria-pressed=true]{view-transition-name:k-pick}
 /* the first view is the box, its button and one line: the rest waits below the result */
 .k-add-box,.k-rest{display:none}
 @container (max-width:560px){.k-ask{border-radius:24px}}
+/* while nothing fills the right column, the first view stands in the middle (an empty half read as unloaded) */
+@container (min-width:900px){.k-hero-grid:has(#k-card:empty){grid-template-columns:minmax(0,760px);grid-template-areas:"head" "ask" "card" "rest" "strip";justify-content:center}.k-hero-grid:has(#k-card:empty) .k-head,.k-hero-grid:has(#k-card:empty) .k-sub{text-align:center}.k-hero-grid:has(#k-card:empty) .k-mission,.k-hero-grid:has(#k-card:empty) .k-sub{margin-inline:auto}}
 .k-pay-fee{margin:var(--sp-2) 0 0;font:500 14px/1.4 var(--text);color:var(--ink-2)}
 </style>
 <div class="k-hero" id="k-hero" data-api="@app" data-app="wanted.html">
