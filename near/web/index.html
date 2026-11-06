@@ -114,7 +114,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-mission"><span class="k-line"><span>Pay only for work</span></span> <span class="k-line"><span>that passes.</span></span></h1>
     <form class="k-ask" id="jobform">
-      <input id="job" name="job" aria-label="What should be built?" placeholder="What should be built?" value="Title into a web address" readonly>
+      <input id="job" name="job" aria-label="What should be built?" placeholder="What should be built?" value="Turn titles into clean links" readonly>
       <button class="go" type="submit" id="post">Post a job →</button>
     </form>
     <p class="sub">$0 unless a helper's work passes your check</p>
@@ -151,7 +151,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <h2 id="t-job">The job</h2>
     <ul class="nums" id="nums" aria-label="The job in numbers"></ul>
     <table class="t">
-      <thead><tr><th scope="col">Helper</th><th scope="col">Took and submitted</th><th scope="col">Locked test</th><th scope="col" class="n">Paid</th></tr></thead>
+      <thead><tr><th scope="col">Helper</th><th scope="col">Took it, sent work</th><th scope="col">Check</th><th scope="col" class="n">Paid</th></tr></thead>
       <tbody id="agents"><tr><td colspan="4" class="empty">No job yet. Post one above.</td></tr></tbody>
     </table>
     <p class="fine" id="jobline"></p>
@@ -227,7 +227,8 @@ function payout(bid = 1000, a = bid, b = 0) {
     .add(() => { end(bid, a, b); landed(); g.fromTo("#boxA", { scale: 1 }, { scale: 1.04, yoyo: true, repeat: 1, duration: .18, transformOrigin: "50% 50%" }); });
 }
 // the money lands: a 400 ms buzz on a phone that can (UX rule F5), never while paying
-function landed() { try { if (navigator.vibrate) navigator.vibrate(400); } catch { /* no vibration here */ } }
+let onLand = null;
+function landed() { if (onLand) { onLand(); onLand = null; } try { if (navigator.vibrate) navigator.vibrate(400); } catch { /* no vibration here */ } }
 // while the job runs: the bid sits held on NEAR and pulses
 function hold(bid = 1000) {
   const g = window.gsap;
@@ -251,18 +252,18 @@ function showJob(j) {
   if (!j) return;
   const a = j.attempts || [], paid = j.paid || {};
   $("nums").replaceChildren(...[
-    el("li", {}, [el("b", { textContent: String(j.bid ?? "") }), "test units bid"]),
-    j.check_to_paid_s != null ? el("li", {}, [el("b", { textContent: `${j.check_to_paid_s} s` }), "from the check to the payment"]) : null,
-    el("li", {}, [el("b", { textContent: "0" }), "fee"])].filter(Boolean));
+    el("li", {}, [el("b", { textContent: usd(+(j.bid ?? 0)) }), "put on the job"]),
+    j.check_to_paid_s != null ? el("li", {}, [el("b", { textContent: `${j.check_to_paid_s} s` }), "from the check to paid"]) : null,
+    ].filter(Boolean));
   const names = Object.keys(paid);
   $("agents").replaceChildren(...(names.length ? names : (j.takers || [])).map((ag) => {
     const att = a.find((x) => x.agent === ag) || {};
     const key = ag.startsWith("agent-a") ? "a" : "b";
     return el("tr", {}, [
-      el("td", {}, el("span", { className: "id", textContent: ag })),
+      el("td", {}, el("a", { href: "https://testnet.nearblocks.io/address/" + ag, target: "_blank", rel: "noopener", textContent: ag.startsWith("agent-a") ? "Helper A" : "Helper B" })),
       el("td", { className: "txs" }, [link(j.txs?.[`take_${key}`], "take"), link(j.txs?.[`submit_${key}`], "submit")]),
       el("td", {}, att.passed == null ? "" : el("span", { className: att.passed ? "yes" : "no", textContent: att.passed ? "passed" : "failed" })),
-      el("td", { className: "n", textContent: String(paid[ag] ?? 0) }),
+      el("td", { className: "n", textContent: usd(+(paid[ag] ?? 0)) }),
     ]);
   }));
   $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "posted"), " ", link(j.txs?.release, "paid")].filter(Boolean));
@@ -347,7 +348,8 @@ async function hostedRun() {
     // "Paid" is drawn in the same task the answer arrives in (UX rule F3), then the money moves
     busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
     const a = of(s.paid || {}, "agent-a"), b = of(s.paid || {}, "agent-b");
-    $("busy-text").textContent = s.state === "done" ? `Paid: Helper A ${usd(a)}. Helper B ${usd(b)}, its work failed.` : `The payment stopped: ${s.why || "see the job below"}.`;
+    $("busy-text").textContent = s.state === "done" ? "Paid: Helper A, whose work passed." : `The payment stopped: ${s.why || "see the job below"}.`;
+    if (s.state === "done") onLand = () => { $("busy-text").textContent = `Paid: Helper A ${usd(a)}. Helper B ${usd(b)}, its work failed.`; };
     if (s.state === "done") {
       const job = s.job || {};
       $("receipt").replaceChildren(...[`Posted ${clock(job.posted_at)}, paid ${clock(job.paid_at)}. `,
