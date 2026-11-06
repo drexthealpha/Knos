@@ -57,8 +57,8 @@ button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-
 .signin { display: grid; gap: 8px; max-width: 420px; }
 .signin[hidden] { display: none; }
 .signin.panel { max-width: 720px; background: transparent; border: 0; padding: 0; gap: 10px; }
-.signin .k-mission { font: 400 clamp(48px, 6.4vw, 84px)/1.02 var(--serif); letter-spacing: -.01em; margin: 8px 0 0; max-width: 12em; }
-.signin .k-line { display: block; overflow: hidden; padding-bottom: .08em; } .signin .k-line > span { display: block; }
+.signin .k-mission { font: 400 clamp(48px, 6.4vw, 84px)/1.12 var(--serif); letter-spacing: -.01em; margin: 8px 0 0; max-width: 12em; }
+.signin .k-line { display: block; overflow: hidden; line-height: 1.12; padding-bottom: .14em; } .signin .k-line > span { display: block; }
 @media (prefers-reduced-motion: no-preference) { .signin .k-line > span { animation: k-headrise .8s cubic-bezier(.625,.05,0,1) both; } .signin .k-line + .k-line > span { animation-delay: .08s; } }
 @keyframes k-headrise { from { translate: 0 110%; } to { translate: 0 0; } }
 .signin .sub { margin: 0 0 12px; font: 500 17px/1.5 var(--text); color: var(--ink-2); }
