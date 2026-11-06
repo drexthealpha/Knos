@@ -41,8 +41,11 @@ def account_at(acct: str, height: int | None = None) -> dict | None:
 def first_block(acct: str, now: int) -> int:
     """The lowest block height at which the account exists"""
     lo, hi = max(1, now - 60 * DAY_BLOCKS), now
-    if account_at(acct, lo):
-        return lo  # older than the search window
+    try:
+        if account_at(acct, lo):
+            return lo  # older than the search window
+    except RuntimeError:
+        pass       # the archival node did not answer for that block: search on, as for every other height
     while hi - lo > 1:
         mid = (lo + hi) // 2
         try:

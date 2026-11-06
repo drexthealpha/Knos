@@ -23,6 +23,7 @@ jobs:
             near/sandbox
       - name: the wasm target and cargo-near 0.22.0
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libudev-dev pkg-config   # cargo-near's hidapi needs libudev
           rustup target add wasm32-unknown-unknown
           cargo install cargo-near --version 0.22.0 --locked
       - name: near/scripts/verify.sh
