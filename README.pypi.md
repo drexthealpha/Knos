@@ -9,9 +9,9 @@
 
 **Knos pays agents only when the test passes.**
 
-[Try it on NEAR testnet](https://drexthealpha.github.io/Knos/near/) · [IRIS demo](https://github.com/drexthealpha/Knos/blob/v0.4.0/iris/README.md) · Video: soon · [The IRIS idea it builds](https://ideas.intersystems.com/ideas/DPI-I-689)
+[Try it](https://drexthealpha.github.io/Knos/near/) · [IRIS demo](https://github.com/drexthealpha/Knos/blob/v0.4.0/iris/README.md) · Video: soon · [IRIS idea](https://ideas.intersystems.com/ideas/DPI-I-689)
 
-Test money only. No customers yet.
+Test money only.
 
 ## How it works
 
@@ -72,8 +72,8 @@ One person holds every key today. Any change to the programs waits in public for
 | Reproduced by someone else | 0 of 267 | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "reproduced by someone else" |
 | Exercised at the public devnet program ids | 26 of 267: GitHub token verification, funding by one comment, funding from a wallet, pay on merge, refund at the deadline, pause, work orders, an order paying up to four payees, orders checked by the buyer's black-box tests, auto-accepted orders, a holdback released after its warranty, top-ups, single-use tokens, one counted evaluation, a counted batch of evaluations, the seller's own count, a payee's passkey wallet, a passkey funder, the passkey relay, the site's Buy page, an x402 order, the upgrade gate, strict JSON in the verifier, an outcome that is not code, ES256 tokens in one transaction, the presentation grace | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "exercised on devnet" |
 | Deployed at the public devnet program ids, no transaction recorded | 3 of 267: GitLab token verification, the key guardian, holding pay for a payee with no wallet | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "deployed on devnet" |
-| Tested here only | 234 of 267, each with the test its row names | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "tested locally" |
-| Written, not tested | 4 of 267 | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "implemented" |
+| Tested here only | 233 of 267, each with the test its row names | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "tested locally" |
+| Written, not tested | 5 of 267 | [docs/reference/CAPABILITIES.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/reference/CAPABILITIES.md), the rows "implemented" |
 | Outside funders | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 1 |
 | Outside repositories | 0 | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 2 |
 | Outside payees | 1, on tasks Knos funded itself | [docs/NUMBERS.md](https://github.com/drexthealpha/Knos/blob/v0.4.0/docs/NUMBERS.md), row 3 |

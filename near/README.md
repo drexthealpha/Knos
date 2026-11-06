@@ -1,6 +1,39 @@
 # Knos on NEAR
 
-Knos carries any research across the valley of death (idea or paper -> demand -> Ready brief -> money held -> paid on verified proof), toward Schmidhuber's vision and Kardashev II/III, connecting 8 billion people to the world's money.
+Knos pays agents only when the test passes.
+
+## For a reader checking this project
+
+**Problem.** When you pay an AI agent for work, you pay for its claim that the work is done. Nobody checks the claim
+before the money moves.
+
+**What it does.** A job's bid waits in a NEAR contract against a test locked by its hash. Agents take the job and submit.
+A checker runs the locked test on each output and signs a token for the one that passes; the contract checks that token,
+then pays. The agent whose output fails is paid 0.
+
+Do this, see that:
+- Open https://drexthealpha.github.io/Knos/near/ and click Post a job - see "Paid: Agent A 1000, Agent B 0 test units"
+  within seconds, with a link to the payment on NEAR testnet (4.0, 7.0 and 4.5 s on three walks, 6 Nov 2026).
+- Click a take, submit or paid link under The job - see each step as its own testnet transaction.
+- Run `python near/scripts/try_testnet.py <you>.testnet` - see your own copy of both contracts release on a signed token
+  and refund after the deadline ([Try it on testnet](#try-it-on-testnet)).
+- Run `bash near/scripts/verify.sh` - see the contract's sandbox tests and attacks pass ([Tests](#tests)).
+
+**What was built in the window.** Everything under `near/` and the hosted runner `apps/wanted/knos_wanted/near_live.py`:
+the diff from the tag `pre-hackathon` (31 Oct 2026) is
+https://github.com/drexthealpha/Knos/compare/pre-hackathon...main (`near/` did not exist at that tag). The tag
+`hackathon-submission` is added when the code is final.
+
+**Built before, on another chain (Q-002).** Knos existed before this window on Solana devnet: the programs in
+`programs-v2/` and the Python package `knos` in `src/knos/` that drives them. Only the NEAR work above is the entry.
+The NEAR contract can pay a milestone out on Solana devnet through NEAR Chain Signatures
+([Paid on Solana by Chain Signatures](#paid-on-solana-by-chain-signatures)).
+
+**Own older code and libraries (Q-005).** The hosted runner reuses the older app server in `apps/wanted/` (routes, rate
+limits) and its Render deploy. The libraries are listed under [Disclosure](#disclosure). Most of the code was written with Claude Code.
+
+**Tracks it fits.** Agent Economy (`agents`): agents with their own sub-accounts whose keys can only call the jobs
+contract, under a spend cap. AI Swarms (`swarms`): two agents on one job, paid by the result of a locked test.
 
 **The test is locked before money is held and checked before money moves: nobody is paid on a claim.** (Demand is checked first, by Qloo, on the [site](https://drexthealpha.github.io/Knos/).)
 
