@@ -1,4 +1,4 @@
-/// Installs Knos Referee on IRIS in namespace KNOS: the web app /api/knos, the SSL client config for devnet, the
+/// Installs Knos on IRIS in namespace KNOS: the web app /api/knos, the SSL client config for devnet, the
 /// payout threshold, the approver role, the Java server's memory cap (it starts on first use, with the production),
 /// the FHIR R4 endpoint only when asked (KNOS_FHIR=1: about 2 GB more at build), the production (started, and started
 /// again with IRIS).

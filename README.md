@@ -8,7 +8,7 @@
 
 **Knos pays agents only when the test passes.**
 
-[Try it](https://drexthealpha.github.io/Knos/near/) · [IRIS demo](iris/README.md) · Video: soon · [IRIS idea](https://ideas.intersystems.com/ideas/DPI-I-689)
+[Video](iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article](https://community.intersystems.com/user/zulqarnain-abubakar) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS](#run-it-on-iris) · [Try it on NEAR](https://drexthealpha.github.io/Knos/near/)
 
 Test money only.
 
@@ -105,6 +105,596 @@ One person holds every key today. Any change to the programs waits in public for
 | Key holders | one person holds every key; an upgrade waits 8 days in public | [docs/reference/GOVERNANCE.md](docs/reference/GOVERNANCE.md) |
 | Network and money | Solana devnet, test USDC; mainnet is not touched | [docs/reference/SECURITY.md](docs/reference/SECURITY.md) |
 <!-- /bench:today -->
+
+<!-- entry:iris -->
+## Run it on IRIS
+
+**A lab pays for a research milestone only when IRIS finds the proof met.** An AI Hub agent on a local open model (no
+key) weighs a GitHub check run or a lab result. A rule decides next, and above 50 USDC a person in IRIS Workflow does.
+Only then does Solana devnet see anything, and it is a simulation with test money.
+
+This entry runs on AI Hub build 154 (irishealth-community 2026.3.0AI.154.0), which the portal removed on 2 Nov 2026; build 109 is not tested.
+
+| | |
+|---|---|
+| Video | [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4): one decision from the proof arriving to the approval and its trace, downloads with no sign-in |
+| Idea | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): LLM tracing as interoperability messages, built here |
+| Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
+| Online demo | not hosted: run it on your own machine with the steps below |
+
+### The contest task, part by part
+
+| The task asks for | The feature doing it | How to see it |
+|---|---|---|
+| An Interoperability workflow | `Knos.Iris.Production`: services `ProofIn`, `GitHubCheckRunPoller`, `HL7LabIn`; process `ProofDecision`; operations `Referee`, `PayoutApprovers`, `SolanaRead`, `SolanaSubmit` | Interoperability > Production |
+| An AI Hub agent | operation `Referee` running `Knos.Iris.AI.LocalReferee` on `qwen2.5:1.5b-instruct` in the compose file's `ollama` service, no key | the Verdict message of each decision |
+| A decision-making task | the agent answers met, not met or insufficient; code checks that answer, then `Knos.Iris.Rule.PayoutGate` says PAY, HUMAN, REFUND_AT_DEADLINE or REJECT | the Decision message |
+| A person where it matters | IRIS Workflow, role `PayoutApprovers`, for a met decision above 50 USDC | the inbox on `/knos/` or Interoperability > Workflow Inbox |
+| Every step traceable | each model call, tool call, rule and approval is a `Knos.Iris.Msg.Span` in the decision's own session | Visual Trace |
+
+### What is new, and why
+
+- **The trace is the production's own message log.** Every step of the agent's decision is an interoperability
+  message, kept in a Langfuse-style SQL table. A lab cannot send its data to an outside tracing service; IRIS already
+  keeps an audited record of every message, so the trace stays inside the lab's own IRIS.
+- **An agent that can only say no.** A lab cannot let a model pay anyone. So the agent has no tool that moves money: it
+  may only say met, not met or insufficient. Code checks that answer, and a person approves anything large.
+- **Vector Search keeps the agent honest.** The proof's two nearest criteria come from IRIS Vector Search
+  (snowflake-arctic-embed-s, run in Embedded Python). A verdict that cites a criterion outside those two is capped at
+  0.6 confidence and goes to a person.
+- **The brief is locked by a hash.** The brief is hashed with Knos's own `knos.ready.criteria_hash`, run in Embedded
+  Python from the same `src/knos` that the Knos app uses. Proof against a changed brief is refused before any model is
+  asked.
+
+### Install
+
+You need Docker with about 4 GB free for it, and the InterSystems image file
+`irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64) from the
+[AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems login).
+
+1. Load the image and retag it to the name the Dockerfile builds on:
+
+   ```sh
+   docker load -i irishealth-community-2026.3.0AI.154.0-docker.tar.gz
+   docker tag docker.iscinternal.com/docker-intersystems/intersystems/irishealth-community:2026.3.0AI.154.0 irishealth-community:2026.3.0AI.154.0
+   ```
+
+   (`bash iris/scripts/load-image.sh <tar>` does both.) Neither image, nor any image built on it, is pushed to a registry.
+2. Get the code and make `.env` with random secrets:
+
+   ```sh
+   git clone https://github.com/drexthealpha/Knos && cd Knos/iris
+   cp .env.example .env && bash scripts/env-secrets.sh
+   ```
+
+3. Pick the model (the LLM provider). The default needs nothing: `KNOS_AI_MODE=local` asks `qwen2.5:1.5b-instruct` in
+   the `ollama` service through AI Hub's `openai` provider, with no key and no account. For a cloud model set
+   `KNOS_AI_MODE=live`, `KNOS_LLM_PROVIDER` and its key in `.env`:
+
+   | Provider | `KNOS_LLM_PROVIDER` | Key variable in `.env` |
+   |---|---|---|
+   | Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
+   | OpenAI | `openai` | `OPENAI_API_KEY` |
+   | Google Gemini | `gemini` | `GEMINI_API_KEY` |
+   | AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+
+   A spend cap is checked before any paid call: at most `KNOS_LLM_MAX_CALLS` calls (default 30) and
+   `KNOS_LLM_MAX_USD` dollars (default 2.00). Never commit `.env`.
+4. Start it:
+
+   ```sh
+   docker compose up -d --build
+   ```
+
+   The first start builds the image (about 3 minutes on 4 cores) and pulls the local model (about 1 GB).
+
+### See that it works
+
+1. `bash scripts/smoke.sh` sends one decision on public data and prints `decision: {"decision":"met","gate":"PAY",...}`
+   and a Visual Trace link.
+2. Open `http://localhost:52773/knos/`, sign in as `_SYSTEM` with the `IRIS_PASSWORD` line of `.env`: each decision,
+   its trace and the approver's inbox.
+3. `AMOUNT_USDC=80 bash scripts/smoke.sh`: above 50 USDC the met decision waits for a person. Press Approve in the inbox
+   on `/knos/` (or Interoperability > Workflow Inbox), then open the decision's Visual Trace link: the proof, the
+   agent's verdict, the rule, the approval and the devnet simulation, in order.
+
+Every test in one command, with no key: `bash scripts/test-all.sh` (the build, the decisions, one trace through all six
+parts, the bonus checks and the page).
+
+### What it decides
+
+An InterSystems IRIS for Health production decides whether submitted proof meets a hash-locked Knos Ready brief: a
+GitHub check run, a lab result (a FHIR Observation or an HL7 ORU^R01) or a Knos referee verdict. The three public
+inputs `scripts/smoke.sh` uses are in `data/public/SOURCES.md`: a Synthea FHIR Observation, an HL7 ORU^R01 lab message
+and a real GitHub check run.
+
+### How it works
+
+- **Proof comes in through custom adapters.** A check run arrives by webhook at `/api/knos/webhook` (signed with
+  `KNOS_WEBHOOK_SECRET`), by `/api/knos/proof`, or as a file the inbound adapter `Knos.Iris.Adapter.CheckRunInbound`
+  picks up. A lab result arrives as a FHIR Observation, or as an HL7 ORU^R01 file in `inbox/oru/`.
+- **The agent answers a decision contract.** `Knos.Iris.AI.Verdict` checks every answer. The rules referee, which
+  reads only structured fields, can only make an answer stricter, and the trace says so.
+- **Rule, Workflow, then the chain.** `Knos.Iris.Rule.PayoutGate` turns the decision into PAY, HUMAN,
+  REFUND_AT_DEADLINE or REJECT. HUMAN goes to a person. PAY runs a devnet simulation through the Java PEX operation.
+
+```mermaid
+flowchart LR
+    gh["Check run (webhook or poller)"] --> pin["ProofIn"]
+    lab["FHIR Observation or HL7 ORU"] --> pin
+    ver["Referee verdict"] --> pin
+    pin --> bp["ProofDecision (BPL)"]
+    bp --> hash["Brief hash vs lock (Knos, Embedded Python)"]
+    bp --> ref["Referee: AI Hub agent on a local model"]
+    bp --> gate["PayoutGate"]
+    gate -->|HUMAN| wf["Workflow: PayoutApprovers"]
+    gate -->|PAY| sol["SolanaRead, then SolanaSubmit (Java PEX)"]
+    bp --> trace["Span messages in Visual Trace"]
+```
+*Proof arrives one of three ways; one process checks, asks the agent, gates, asks a person, then simulates.*
+
+### Requirements
+
+Measured in a 4-core, 16 GB GitHub Codespace with `mem_limit: 3g`: build 160 s from the loaded image, health 7 to 9 s
+after the container starts, peak 1,660 MiB in `docker stats`. On a 7.8 GB laptop the container peaked at 1,188 MiB.
+FHIR is off by default (`KNOS_FHIR=0`); `KNOS_FHIR=1` loads R4 and needs about 2 GB more.
+
+### The image used
+
+`irishealth-community:2026.3.0AI.154.0` (InterSystems IRIS for Health, AI Hub build 154,
+`IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2026.3.0AI (Build 154U)`), from the InterSystems file
+`irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64). `iris/Dockerfile` builds on it in stages: a builder stage
+runs `iris.script`, the final stage copies in only the databases the install changed.
+
+### LLM provider and key
+
+`KNOS_AI_MODE=local` (the default) needs no key: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
+tokens. `KNOS_AI_MODE=live` uses the provider and key from step 3 above. `KNOS_AI_MODE=replay` asks no model and says
+"rules referee (no model key set)". No paid model call has been made for this project.
+
+| | Rules referee | AI Hub agent |
+|---|---|---|
+| Decides from | structured fields only (a check run's name and conclusion, an Observation's code and value) | the brief and the proof, in its question |
+| Needs | nothing | the local model (no key), or needs a model key in live mode |
+| Low confidence | | capped at 0.6 when the cited criterion is not in the top 2 by Vector Search, which sends the case to a person |
+| Trace | one span per decision | one span per model or tool call |
+
+### Start
+
+With IPM on any IRIS for Health instance: `zpm "install knos-iris"` once the package is published, or from a clone,
+`zpm "load <clone>/iris -v"` in a namespace with interoperability on. `module.xml` asks for IRIS 2026.3 or later with
+interoperability enabled.
+
+### Check that it works
+
+```sh
+set -a; . ./.env; set +a
+curl -s -u "_SYSTEM:$IRIS_PASSWORD" localhost:52773/api/knos/health
+```
+
+The health route answers `{"production":"Running","agent":"local","fhir":"off","java":"ok","vector":"ok",...}`.
+
+### Walkthrough of the three inputs
+
+- **Check run.** Point a GitHub webhook (check runs) at `/api/knos/webhook`, or drop a file in
+  `/home/irisowner/knos/inbox/checkruns/` for `Knos.Iris.Adapter.CheckRunInbound`. Unsigned webhooks get 401.
+- **Lab result.** POST a FHIR Observation (`"kind":"observation"`) to `/api/knos/proof`, or drop an HL7 ORU^R01 named
+  `<briefId>.hl7` in `inbox/oru/`. OBX-3 and OBX-5 become the Observation's code and value.
+- **Referee verdict.** POST a signed Knos referee verdict (`"kind":"verdict"`, as in `fixtures/verdicts/passed.json`).
+
+### The Workflow approval
+
+A met decision above `KNOS_PAYOUT_THRESHOLD_USDC` (default 50) goes to the role `PayoutApprovers`. Approve or Reject in
+the inbox on `/knos/` or in Interoperability > Workflow Inbox. With no answer, the milestone stays held for two days.
+Each AI Hub feature the agent uses answers live at `GET /api/knos/aihub/<feature>`: `skill`, `policy`, `mcp`, `rag`,
+`stats` and `workflow`.
+
+### Solana devnet
+
+On PAY, IRIS builds Knos's payout instruction and the Java PEX operation simulates it on devnet
+(`simulateTransaction`): a simulation, not a payment. **IRIS never releases money alone.** The custom outbound adapter
+`Knos.Iris.Adapter.SolanaRpcOutbound` does the reads.
+
+### The trace
+
+Each decision's session in Visual Trace holds the Proof, the agent's Verdict, the Span messages and the Decision.
+`GET /api/knos/traces/<session>` returns them as JSON; the table `Knos_Iris_Data.Span` has the same rows;
+`iris/docs/trace-schema.md` maps them to Langfuse's trace fields.
+
+| Langfuse | Here |
+|---|---|
+| Trace, observations, parent links | the session, `Knos.Iris.Msg.Span` messages with `ParentId` |
+| Generation with model, tokens, cost | the `llm` span, from AI Hub's usage |
+| Trace viewer | Visual Trace |
+| Query and export | `Knos_Iris_Data.Span` in SQL, and `GET /api/knos/traces/<session>` |
+| Data location | inside the lab's own IRIS |
+| Prompt management | none here; prompts live in the code |
+
+Try it: `bash scripts/smoke.sh` prints a `visual trace:` link whose number is the session, then
+`SELECT Name, Kind, Model, Tokens, Ms FROM Knos_Iris_Data.Span WHERE SessionId = <session>` gives every step.
+
+### Where each part lives
+
+| Part | Where it lives | How to see it |
+|---|---|---|
+| Java PEX | `iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java`, item SolanaSubmit | its messages in Visual Trace; the video |
+| Workflow | item PayoutApprovers, `iris/src/Knos/Iris/BP/ProofDecision.cls` | Workflow Inbox; the video |
+| Custom adapters | `iris/src/Knos/Iris/Adapter/CheckRunInbound.cls`, `iris/src/Knos/Iris/Adapter/SolanaRpcOutbound.cls` | items GitHubCheckRunPoller, SolanaRead; the video |
+| Embedded Python | `iris/src/Knos/Iris/Py/Ready.cls`, `iris/src/Knos/Iris/Py/Embed.cls`, `iris/python/knos_iris/` | the brief hash; the video |
+| Vector Search | `iris/src/Knos/Iris/Data/Criterion.cls` (`VECTOR(DOUBLE,384)`) | the health route's `vector`; the video |
+| Docker | `iris/Dockerfile`, `iris/docker-compose.yml` | `docker compose up`; the video |
+| IPM | `module.xml` | `zpm "load <clone>/iris"` |
+| LLM trace as interop messages | `iris/src/Knos/Iris/Msg/Span.cls` | Visual Trace |
+
+### Platform findings
+
+Four reproduce on a clean build 154 container, each with its own `run.sh`:
+- [`iris/bugs/1`](iris/bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error.
+- [`iris/bugs/2`](iris/bugs/2): AI Hub's `%AI.ToolMgr.ExecuteTool` runs a tool when a required argument is missing or of
+  the wrong type.
+- [`iris/bugs/3`](iris/bugs/3): AI Hub's `%AI.RAG.VectorStore.IRIS` makes its table in SQLUser whatever its `Schema`
+  says.
+- [`iris/bugs/4`](iris/bugs/4): Embedded Python's `iris.sql.exec` with an int past 64 bits fails with a `SystemError`
+  that names neither the parameter nor its value.
+
+### Problems I hit, and how I fixed them
+
+- **My 8 GB laptop stalled for two days.** IRIS, Docker and the build would not fit, so every IRIS build and test moved
+  to one GitHub Codespace, and the compose file caps IRIS at 3 GB.
+- **The small model looked the brief up by the wrong key and gave up.** With tools it fetched the wrong record, so the
+  local agent now gets the brief and the proof in its question, and code checks its answer.
+- **The IPM install failed with ERROR #5289** because a ToolSet compiled before its tools. A `DependsOn` fixed the
+  compile order; the install then passed on build 154.
+- **The first build with FHIR ran past 1,800 s.** FHIR is now off by default and loads only R4 when asked.
+- **A merge at start took 17 minutes at full CPU.** The memory settings are now set once, the same at build and at
+  run, so a start merges nothing.
+- **A fresh codespace broke every non-root build step** ("libc.so.6: Permission denied"). Its `/tmp` default ACL was
+  the cause; `scripts/codespace-setup.sh` drops it.
+
+### Tests
+
+`python iris/tests/test_iris_decision.py` runs the core decisions against a running instance: a passing check run, a
+failing one, an altered brief, injection text in the proof and an ORU whose value misses. `python
+iris/tests/test_iris_one_trace.py` sends one check run through the whole production and checks that its one session
+holds every part. `python iris/tests/test_iris_docs.py readme` checks that every file this section names exists.
+
+### Architecture
+
+The diagram under "How it works" above is the production; `iris/src/Knos/Iris/Production.cls` lists every item.
+
+### Known limitations
+
+- PAY is a devnet simulation of the payout, not a payment; nothing in iris/ sends money.
+- The link from IRIS's decision to the referee panel's 2 of 3 signatures is not built yet.
+- Solana devnet only, with test money.
+
+### How it fits Knos
+
+This folder is part of the one Knos product: Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, and
+Sibyl remembers each result. The Knos code is imported, not forked: the image runs the repository's `src/knos`.
+
+### Team
+
+Zulqarnain Abubakar, Developer Community profile: https://community.intersystems.com/user/zulqarnain-abubakar
+
+### License
+
+MIT, the repository's own [LICENSE](LICENSE).
+
+### Bonuses
+
+Each bonus with what shows it.
+
+| Bonus | Points | Shown by |
+|---|---|---|
+| Questionnaire | 1 | answered by the author |
+| PEX with Java | 3 | `iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java`, item SolanaSubmit, seen in the video |
+| Workflow Engine | 2 | role PayoutApprovers in `iris/src/Knos/Iris/BP/ProofDecision.cls`, seen in the video |
+| Custom adapter | 2 | `Knos.Iris.Adapter.CheckRunInbound` (inbound), `Knos.Iris.Adapter.SolanaRpcOutbound` (outbound) |
+| AI Hub bugs | 2 + 1 | [`iris/bugs/2`](iris/bugs/2), [`iris/bugs/3`](iris/bugs/3) |
+| Embedded Python | 3 | `iris/src/Knos/Iris/Py/Ready.cls`, `iris/python/knos_iris/` |
+| Vector Search | 2 | `iris/src/Knos/Iris/Data/Criterion.cls` |
+| Docker | 2 | `iris/Dockerfile`, `iris/docker-compose.yml` |
+| IPM package | 2 | `module.xml` at the repository root |
+| Online demo | 2 | not hosted |
+| Community idea | 4 | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): `iris/src/Knos/Iris/Msg/Span.cls`, "The trace" above |
+| Embedded Python bugs | 2 + 1 | [`iris/bugs/1`](iris/bugs/1), [`iris/bugs/4`](iris/bugs/4) |
+| Articles | 2 + 1 | on the author's Developer Community profile |
+| Video | 3 | [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4) |
+
+<!-- /entry:iris -->
+
+<!-- entry:near -->
+## Knos on NEAR
+
+Knos pays agents only when the test passes, here on NEAR testnet. The code is in `near/`, and every path in this
+section is under `near/` unless it starts with another top folder.
+
+```mermaid
+flowchart LR
+    post["A job: its bid held in a NEAR contract against a locked test"] --> try["Two agents take it and submit"]
+    try --> check["The checker runs the locked test on each output"]
+    check -->|passes| paid["The contract pays that agent"]
+    check -->|fails| zero["That agent is paid 0"]
+```
+*One job, two agents: only the output that passes the locked test is paid.*
+
+### For a reader checking this project
+
+**Problem.** When you pay an AI agent for work, you pay for its claim that the work is done. Nobody checks the claim
+before the money moves.
+
+**What it does.** A job's bid waits in a NEAR contract against a test locked by its hash. Agents take the job and submit.
+A checker runs the locked test on each output and signs a token for the one that passes; the contract checks that token,
+then pays. The agent whose output fails is paid 0.
+
+Do this, see that:
+- Open https://drexthealpha.github.io/Knos/near/ and click Post a job - see "Paid: Helper A $1.00. Helper B $0, its work failed."
+  about 4 s later, with a link to the payment on NEAR testnet (4.1 to 4.5 s on six walks, 7 Nov 2026).
+- Under "Will this proof pass?" click Fund its test, then Pay with test money and watch - see a market opened on the job,
+  both helpers' tries, the payment and the market settled, each with its transaction (about 30 s).
+- Click a take, submit or paid link under The job - see each step as its own testnet transaction.
+- Run `python near/scripts/try_testnet.py <you>.testnet` - see your own copy of both contracts release on a signed token
+  and refund after the deadline ([Try it on testnet](#try-it-on-testnet)).
+- Run `bash near/scripts/verify.sh` - see the contract's sandbox tests and attacks pass ([Tests](#tests-on-near)).
+
+**What was built in the window.** Everything under `near/` and the hosted runner `apps/wanted/knos_wanted/near_live.py`:
+the diff from the tag `pre-hackathon` (31 Oct 2026) is
+https://github.com/drexthealpha/Knos/compare/pre-hackathon...main (`near/` did not exist at that tag). The tag
+`hackathon-submission` is added when the code is final.
+
+**Built before, on another chain (Q-002).** Knos existed before this window on Solana devnet: the programs in
+`programs-v2/` and the Python package `knos` in `src/knos/` that drives them. Only the NEAR work above is the entry.
+The NEAR contract can pay a milestone out on Solana devnet through NEAR Chain Signatures
+([Paid on Solana by Chain Signatures](#paid-on-solana-by-chain-signatures)).
+
+**Own older code and libraries (Q-005).** The hosted runner reuses the older app server in `apps/wanted/` (routes, rate
+limits) and its Render deploy. The libraries are listed under [Disclosure](#disclosure). Most of the code was written with Claude Code.
+
+**Tracks it fits.** Agent Economy (`agents`): agents with their own sub-accounts whose keys can only call the jobs
+contract, under a spend cap. AI Swarms (`swarms`): two agents on one job, paid by the result of a locked test.
+
+**The test is locked before money is held and checked before money moves: nobody is paid on a claim.** (Demand is checked first, by Qloo, on the [site](https://drexthealpha.github.io/Knos/).)
+
+**A company pays a lab or a developer only when GitHub's signed run proves the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back. The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
+Spending limits cap what an agent may spend. Knos pays only for work that is proven done.
+
+| | |
+|---|---|
+| **Pays on proof** | A funder sends a test token (NEP-141) with `ft_transfer_call`; the contract holds it against a criteria hash and a deadline. |
+| **Proof is a signed CI run** | A GitHub Actions OIDC token, checked in the contract: RS256 in pure Rust, issuer, audience = this contract, repository, workflow, commit and a one-time `jti`. Paid on a real one: [run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325), release [`82N9tRK8…`](https://explorer.testnet.near.org/transactions/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj). |
+| **Refund** | After the deadline, the money goes back to the funder. Fee: 0. |
+| **Keys** | GitHub's signing keys are set by 2 of 3 owners (`scripts/github_keys.py`). |
+| **Network** | NEAR testnet only. Test money. |
+
+### Run one now
+
+Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/) and click **Post a job**. You see
+"Paid: Helper A $1.00. Helper B $0, its work failed." and a link to the payment on NEAR testnet, within seconds: a job is
+kept ready, posted against its locked test and tried by both agents, so your click sends the payment to the one whose
+output passed. It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs
+a day, three every 10 minutes from one address; past a cap the page shows the last run and says "Replay". The same job from a
+terminal: `pip install knos`, then `knos near-job`.
+
+### Work in the window
+
+Every change since the work began: [pre-hackathon...main](https://github.com/drexthealpha/Knos/compare/pre-hackathon...main)
+(the tag `pre-hackathon` is the commit before the first line of `near/`).
+
+No Rust is needed to check or deploy the contract: `near/wasm/` holds the built files and `near/wasm/SHA256SUMS` their
+hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK` and `knos_mock_usdc.wasm: OK`
+(`a5fc5861…`, 280,651 bytes, is the jobs contract deployed at `jobs.knos-swarm-1105.testnet`). Building them again and
+every test: `bash near/scripts/verify.sh` (Rust with `wasm32-unknown-unknown` and `cargo-near` 0.22.0).
+
+### Try it on testnet
+
+Your own copy of the contract, then a release and a refund. About 4 minutes after step 2. You need Python 3.10+ with `cryptography`, and [near-cli-rs](https://github.com/near/near-cli-rs/releases) 0.30.1.
+
+1. Make a testnet account: `near account create-account sponsor-by-faucet-service <you>.testnet autogenerate-new-keypair save-to-legacy-keychain network-config testnet create`. You see "New account <you.testnet> created successfully." and its transaction.
+2. Run `python near/scripts/try_testnet.py <you>.testnet`. You see six sub-accounts made and the two contracts deployed from `near/wasm/` (sha256 in `near/wasm/SHA256SUMS`).
+3. The script sets a test signing key by 2 of 3 owners, funds `m1` and releases it on a signed token. You see "release m1 on a signed token: done" with its transaction.
+4. It sends the same token again. You see it refused.
+5. It funds `m2` with a 1-minute deadline, waits, and refunds it. You see "m1: Released" and "m2: Refunded".
+
+The page in `web/` runs the same flow from a browser (`python near/web/serve.py`, checked by `web/test-flow.mjs`), but on the maintainer's test accounts (`knos-*-1102.testnet`, `knos-pay2-1102`), whose keys only that machine holds; it does not use your account yet. `web/story/` takes a milestone apart as you scroll.
+
+### A job two agents try
+
+Post a job with a locked test and a bid; two agents take it; the checker runs the locked test on each output, and only
+the agent whose output passes is paid. You need Python 3.10+ with `cryptography` and near-cli-rs 0.30.1; it runs on the
+maintainer's test accounts, whose keys only that machine holds (as the page in `web/` does).
+
+1. Run `NEAR_CLI=<near> python near/web/serve.py` and open `http://127.0.0.1:8790/`. You see "Paid only when the test passes" and a **Post a job** button.
+2. Click **Post a job**. You see "Paid: Agent A 1000, Agent B 0 test units." and the job's six transactions.
+3. Click **Try both** under Guardrails. You see two lines starting "refused", each with its transaction: a payment over agent B's cap, and a release with no passing proof.
+4. Open `http://127.0.0.1:8790/embed.html` from another page or origin and click **Pay with any wallet**. You see a NEAR Intents 1Click quote for paying 1 USDC from Base (dry: nothing is spent), then a second click pays the bid on testnet.
+
+The rules are in [`near/agents/RULES.md`](near/agents/RULES.md): the job's test is locked by its sha256 at funding, each agent is a
+sub-account of `knos-swarm-1105.testnet` that signs with a function-call key allowed only `take`, `submit` and `spend` on
+the jobs contract (its full-access key deleted), and the checker's key is set by 2 of the 3 owners. `web/test-job.mjs`
+walks these four steps in a fresh browser. One run, 5 Nov 2026:
+
+| Step | Transaction |
+|---|---|
+| Job posted: 1000 test units against the locked test `0b0f037d…` | [`7VS43unm…`](https://explorer.testnet.near.org/transactions/7VS43unmH6GMv36GNBivvcNB8Bxv2CRKFvHKiLcbu7qu) |
+| Agent A takes it, submits its output | [`GzghavUR…`](https://explorer.testnet.near.org/transactions/GzghavURW39UivrETnWFxeunAwEv5Cpm5tKUmhejBQyT), [`oXq8gV4u…`](https://explorer.testnet.near.org/transactions/oXq8gV4u6desS1GuJdK1ZCiTKo4QNAumEQTnTC69A8v) |
+| Agent B takes it, submits its output | [`FmSfyLQ4…`](https://explorer.testnet.near.org/transactions/FmSfyLQ4tu2kc4C9rWgjEP1kAo5788EufnVUWeLsJfNt), [`9CYdyki2…`](https://explorer.testnet.near.org/transactions/9CYdyki2gTVnfr31Ufjirs6j99jdjYU8Zk4yseKsef9z) |
+| The checker: A 5 of 5 cases pass; B fails; the bid paid to A, 25.4 s after the check began | [`5caS1jXH…`](https://explorer.testnet.near.org/transactions/5caS1jXHAj7FbUZRMQog7nqgaBk4baDBkvBEYAQjbnpH) |
+| Agent B pays 2 on a cap of 1: "over the spend cap: 0 spent, 2 asked, cap 1" | [`FdJPJf7R…`](https://explorer.testnet.near.org/transactions/FdJPJf7RLdErvMBdeUkeUWdhqw4VGNEKtw5aVD4VnK4y) |
+| Agent B takes an open job's bid with a token it signed itself: "the token's signature does not verify" | [`E5GUcVks…`](https://explorer.testnet.near.org/transactions/E5GUcVks55r9Rn4b1HJBJagDB1bFbL8YMj41UFHFeHan) |
+| The embedded button pays a bid on testnet after its 1Click quote | [`32suEFMY…`](https://explorer.testnet.near.org/transactions/32suEFMYv7JEzfGLH9vNdpHs81BmVfHzbW7oMPMShxKX) |
+
+Agent A was paid 1000; agent B was paid 0. NEAR Intents has no testnet, so the 1Click call is a dry quote only, with 0
+spent on mainnet. The checker runs an agent's output in a subprocess with a 20 s limit and no environment; it is a
+test-money demo, not a sandbox for hostile code.
+
+### The claim market
+
+Each claim has a yes/no market in test tokens: will its locked check pass? The contract is
+[`near/market/src/lib.rs`](near/market/src/lib.rs), deployed at `market.knos-swarm-1105.testnet` (wasm `wasm/knos_market.wasm`).
+
+- **Price, no order book.** With few traders on testnet an order book sits empty, so the price comes from an automated
+  market maker, Hanson's logarithmic market scoring rule (LMSR). Knos seeds each market with liquidity
+  b = 100 test tokens, so there is always a live price. An order book can be added once volume exists.
+- **The formula** (token units, 6 decimals; q_yes and q_no are the shares sold on each side):
+  - cost: C(q_yes, q_no) = b · ln(e^(q_yes/b) + e^(q_no/b))
+  - price of Yes: e^(q_yes/b) / (e^(q_yes/b) + e^(q_no/b)), shown in cents ("Yes 62c"); No is 100c minus Yes
+  - a buy of Yes for c tokens: q_yes' = b · ln(e^(c/b) · (e^(q_yes/b) + e^(q_no/b)) − e^(q_no/b)); the buyer gets
+    q_yes' − q_yes shares (rounded down), each paying 1 token if Yes wins
+  - Knos's worst-case loss per market is its seed, b · ln 2, about 69.31 test tokens.
+- **Settled only by the locked check, never by vote.** Each market follows one milestone of `knos-pay-1103.testnet`:
+  its criteria hash is locked at funding and only the named GitHub Actions workflow's own OIDC token can release it.
+  `resolve` reads that milestone: Released settles Yes, Refunded (the deadline passed with no passing run) settles No.
+  `vote` and `set_test` are refused, always. `redeem` pays each winning share.
+- **The first claim**: [`near/claims/Split.lean`](near/claims/Split.lean), "splitting a bid between two helpers never pays out
+  more than the bid". Its check is [`lean-claim.yml`](.github/workflows/lean-claim.yml): the proof must compile
+  with Lean 4.15.0, then the run's token releases the milestone whose criteria hash is the file's sha256.
+
+### Tests on NEAR
+
+Every push that changes `near/` runs them on GitHub: [the `near-tests` runs](https://github.com/drexthealpha/Knos/actions/workflows/near-tests.yml).
+Open the newest run, then its `verify` job: the step `near/scripts/verify.sh` ends with the line below. With Rust
+(the `wasm32-unknown-unknown` target and `cargo-near` 0.22.0) the same on your machine:
+
+```bash
+bash near/scripts/verify.sh
+```
+
+It prints `208/208 tests passed (146 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund; for a job, a token for another output, job, test or payee, a checker key against a GitHub token and back, an agent that never took the job, a spend over the cap.
+`verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund. Measured: the release receipt burns 7.33 Tgas (11.68 Tgas for the whole transaction) in the latest verify.sh run (5 Nov 2026, a fresh clone); the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
+
+### On testnet
+
+| | |
+|---|---|
+| Contract | [`knos-pay-1103.testnet`](https://explorer.testnet.near.org/accounts/knos-pay-1103.testnet), first deployed in tx [`6Uoen72K…`](https://explorer.testnet.near.org/transactions/6Uoen72KUZnDy1PCknZx5iEQNzfWY2hGgyGmgTdpjAfp); this build since 3 Nov 2026, tx [`AcFJP4Ch…`](https://explorer.testnet.near.org/transactions/AcFJP4ChbxF4Vuwx6qAdHNuugbHgcVNuVcprnzpx1Mfk), code hash `4ZwgX56fbcChxPwP6nu5oJJ8vWYtB2Az9y4jF2K6KcfR` |
+| Test token | [`knos-usdc-1102.testnet`](https://explorer.testnet.near.org/accounts/knos-usdc-1102.testnet) (NEP-141, this repo's `mock-usdc`), tx [`D4PoD9do…`](https://explorer.testnet.near.org/transactions/D4PoD9doUA5Lo7wxWRSQEvnpFPcmHXuqitqnXgYoa8sG) |
+| Owners | `knos-own1-1102`, `knos-own2-1102`, `knos-own3-1102` (.testnet): any 2 set GitHub's signing keys |
+| Wasm | `wasm/knos_near.wasm`, 280,651 bytes, sha256 `a5fc586102b9c1b8e68011c8e263563f2b87de113413ff04d5dcfb84321ac50e`, code hash `CAwSqmYHJ7FnW88ivkm9zxczyKstJrGSkmU1pXzyMQ3X`: the jobs contract [`jobs.knos-swarm-1105.testnet`](https://explorer.testnet.near.org/accounts/jobs.knos-swarm-1105.testnet), deployed in [`GGLvdmu5…`](https://explorer.testnet.near.org/transactions/GGLvdmu5ZQvKQVZYT19AYPJRL91GkkozDVkHCNZPPXWt). `knos-pay-1103` runs the build before the jobs: 223,557 bytes, sha256 `3503799e…` (the code hash above) |
+
+Read the rules from the chain:
+
+```bash
+near contract call-function as-read-only knos-pay-1103.testnet get_rules json-args '{}' network-config testnet now
+```
+
+### Paid on Solana by Chain Signatures
+
+`sign_payout` takes the unsigned Solana message for a released milestone. The contract accepts only one SPL `TransferChecked` of exactly the milestone's amount, in the mint and to the token account locked at funding, then asks `v1.signer-prod.testnet` (path `knos-solana-1`, Ed25519) to sign it. A relayer adds the signature and broadcasts; no Solana key is held anywhere.
+
+The payout moves tokens held since funding. At funding the funder moves the amount from its own Solana token account into one owned by the contract's derived address; the payout is the transfer of exactly those tokens, and nothing is minted on the way. A milestone released for a Solana payee with no payout signature by its deadline is refunded like an unreleased one, so it never stays locked; once its payout is signed, it is not.
+
+`scripts/solana_payout.py run` does both on [`knos-pay-1103.testnet`](https://explorer.testnet.near.org/accounts/knos-pay-1103.testnet) (code sha256 `3503799e…`), derived Solana address `DUxGyghGoZNZu85zVJXHLAgsrA3rBt3eVDSGmhk8bzBi`, on 3 Nov 2026:
+
+| Step | Transaction |
+|---|---|
+| The funder's 1,000,000 test units moved into the derived address's account, held there | [`5zf4swfJ…`](https://explorer.solana.com/tx/5zf4swfJNBMv7JBvMpvQC7nHxL6SU93GRLZ1Vj7DRv8GqZWztYwywnPqxFUT3sYKHRCjZ8aJgy1stLvWa9Wdj8oo?cluster=devnet) |
+| Milestone funded for the Solana payee | [`EWepDj2u…`](https://explorer.testnet.near.org/transactions/EWepDj2uQ3gESJrrgyKMmbZgjj9iHr9raCwa8RSSpMAD) |
+| Released on a token | [`EVaDjqNV…`](https://explorer.testnet.near.org/transactions/EVaDjqNVUBqVypESpGCFwsbDv2eFBJxd8JZjNmP25wTb) |
+| Transfer of the held units checked, signed by the MPC network | [`4eJPkBn5…`](https://explorer.testnet.near.org/transactions/4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR) |
+| The 1,000,000 held units paid on Solana devnet (held account: 1,000,000 before, 0 after) | [`e4e19KWt…`](https://explorer.solana.com/tx/e4e19KWtALEZ5mBHiBjpH5YKuzyHf4bVJyCqDYfcE1UY3smbhkbADxEogho2Sy9DhhqPdWyJCxgTEjMSrjrtMrJ?cluster=devnet) |
+| A second milestone released, never signed: refund before the deadline refused | [`Ce2p5iEP…`](https://explorer.testnet.near.org/transactions/Ce2p5iEPxLCAVRKLxTNC37uMb1kLFamLMquFWKhPSsoZ) |
+| The same milestone refunded after its deadline: the payer's 1,000,000 test units back | [`A67yep8D…`](https://explorer.testnet.near.org/transactions/A67yep8D8g55KxLjySFUqsDLn7J9AdLFEqvidpaHFmVB) |
+
+Not built: when a released Solana milestone is refunded on NEAR, the tokens already held by the derived address stay there; a signed transfer back to the funder is not written yet.
+
+### The payee needs no NEAR for gas
+
+`relayer/relay.py` is a NEP-366 relayer that pays only for calls to one Knos contract (`knos-pay2-1102.testnet` in the test). `scripts/test_gasless.py` has the payee sign a release as a delegate action; the relayer sends it ([`4XpFZwBM…`](https://explorer.testnet.near.org/transactions/4XpFZwBMGtkPWzCdkwLZkDtB95EPiAWUz7orAPRsyAJG)) and the payee's NEAR balance is the same to the yoctoNEAR. Every other call the test sends is refused, the token contract's `ft_transfer` among them, and the test prints each with the relayer's reason (the relayer also writes them to its local `relay.log`, not kept in the repository).
+
+### An agent that checks who it pays
+
+`agent/guard.py` answers allow, warn or block for a receiver, from chain: no such account or on the shared blocklist (`agent/blocklist.json`, each entry with its evidence) is a block; a contract, an account under 7 days old or code changed in the last day is a warning that a person resolves. `scripts/test_agent_guard.py` gives the agent a key that can call only `release`, `refund` and `sign_payout` here, then a task with an injected instruction to pay two other accounts: both are refused, and the chain refuses the key on the token contract.
+
+### A locked eval
+
+`eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract, prints the counts with 95% Wilson intervals, and asserts them: every cheating attempt refused, every honest one paid, and plain CI pass/fail paying every cheat.
+
+Read it for what it is. Each cheat is one of the four things the contract checks (a run from another branch or a pull request, another repository, a replayed token, altered criteria), and each carries a green CI run by construction, so the result shows that those checks run on every attempt. It does not measure cheats the contract does not look for: tests edited and merged to main are outside what it can see.
+
+### Attacks on testnet
+
+36 attacks and 4 controls, each a real transaction on the contract above. The first 37 rows were sent by `scripts/attack_testnet.py`, with tokens signed by an RSA-2048 test key that two owners set as kid `knos-test`, standing in for GitHub's key, so each row changes one thing. The last 3 were sent by `.github/workflows/near-release.yml` ([run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325)) with that run's own GitHub token, kid `38826b17-6a30-5f9b-b169-8beb8202f723`.
+
+| Attack | Expected | Actual | Reason | Testnet tx |
+|---|---|---|---|---|
+| one owner alone sets a key | not applied | done | proposed knos-test: waiting for a second owner | [`13QkRje9…`](https://explorer.testnet.near.org/transactions/13QkRje9gXLXmVcquyaMTpvCT6C1p6XLbJ3AC3iUyUt5) |
+| the same owner twice | not applied | done | proposed knos-test: waiting for a second owner | [`5Hq9vePk…`](https://explorer.testnet.near.org/transactions/5Hq9vePkiaqrwVL7n6GH8Lcusk9TT654SJkrPryp8afz) |
+| a second owner, same key (control) | key set | done | key knos-test set by 2 owners | [`8buBe2cH…`](https://explorer.testnet.near.org/transactions/8buBe2cHnNnN6VKm1QBdVUmLh6sQw3AzQc8CxzsovkkV) |
+| a key change by a non-owner | refused | refused | only an owner changes the key set | [`FZWCRz4N…`](https://explorer.testnet.near.org/transactions/FZWCRz4NxD9RfAkr4jwmUWx15v2VTmuXZG6TxLQhp6Sm) |
+| a 1024-bit key | refused | refused | n must be a 2048-bit RSA modulus | [`C4dSb9TZ…`](https://explorer.testnet.near.org/transactions/C4dSb9TZh526xBkRSdkAdsHJXMzegTgKTsBRdXDKyWDn) |
+| an honest release (control) | paid | done | a11030449-1: Released | [`J9wcy43C…`](https://explorer.testnet.near.org/transactions/J9wcy43Cmrm2hFtTzar9AtVuZVvG7AN8SB7FFptnahjn) |
+| the same token again (replay) | refused | refused | this token was already used | [`5N969ghk…`](https://explorer.testnet.near.org/transactions/5N969ghkXCb7FuLZH2cfGF12V2M3sXNF7wpjc2p54pe) |
+| a second payment of a paid milestone | refused | refused | the milestone is not funded and open | [`NyiJNrBJ…`](https://explorer.testnet.near.org/transactions/NyiJNrBJ5M6gQyFoNKUG5X69mZaa8hVzLgWdiv4kfPk) |
+| a token from another repository | refused | refused | the token comes from another repository | [`DdPbefRQ…`](https://explorer.testnet.near.org/transactions/DdPbefRQCu7BUkktvp4k8dmf2Cm5QPTxcn2jHqSpqGvh) |
+| a token from another workflow | refused | refused | the token comes from another workflow | [`88r79JUm…`](https://explorer.testnet.near.org/transactions/88r79JUmEFA5dFkNwWCqhTqtAbgZJcFxH2LnLmX7HmvE) |
+| a workflow on another branch | refused | refused | the token comes from another workflow | [`GLcpLbnx…`](https://explorer.testnet.near.org/transactions/GLcpLbnxWHaPeVaQpbxKG32BduVW5FaRtVAJzJFggj67) |
+| altered criteria | refused | refused | the criteria are not the ones locked at funding | [`35b6Bq2H…`](https://explorer.testnet.near.org/transactions/35b6Bq2HeyX9MZntAHZqndzPfy7ZpjhSoC3KErU9Jr7u) |
+| a forged token (unknown key) | refused | refused | the token's key is not in the key set | [`DiSbnkxN…`](https://explorer.testnet.near.org/transactions/DiSbnkxNEFG8nCqcjChGmunEy7ccH5Jvs1upQugL8yLN) |
+| a re-signed token (known kid, other key) | refused | refused | the token's signature does not verify | [`CNuKxmNH…`](https://explorer.testnet.near.org/transactions/CNuKxmNHrHHvgBGJXpJWxKAS2BvTY3gk3Vwv4dcEDZDc) |
+| claims changed after signing | refused | refused | the token's signature does not verify | [`7ts4yPyb…`](https://explorer.testnet.near.org/transactions/7ts4yPybtMHBeJSXD2BsuUhXnjKHESroG3T8VmwpDonA) |
+| a truncated signature | refused | refused | the token's signature does not verify | [`DRHNBrGL…`](https://explorer.testnet.near.org/transactions/DRHNBrGLVwk964VePrupUEvKFrA6vGTVnBkhdcja5uDg) |
+| an expired token | refused | refused | the token has expired | [`C5pBDNVL…`](https://explorer.testnet.near.org/transactions/C5pBDNVL7wMDPQm39jdqBSgiNDmupUcNCFLUnjgBiKWu) |
+| another audience | refused | refused | the token's audience is not this contract | [`95MRk185…`](https://explorer.testnet.near.org/transactions/95MRk185B74knL43BqeqKK7LPyKms3qdf6SqNeHUL6k9) |
+| another issuer | refused | refused | the token is not GitHub's | [`8VQA6SVP…`](https://explorer.testnet.near.org/transactions/8VQA6SVPkwU3bTzmzw1znVXeXBiRpEy7kkFr7P1o2jmm) |
+| alg HS256 | refused | refused | the token is not RS256 | [`bb6ZiMAS…`](https://explorer.testnet.near.org/transactions/bb6ZiMASMGwNtWvfA1LEwj4XW8mdfBgVke9hTezHwmJ) |
+| alg none, no signature | refused | refused | the token is not RS256 | [`oi7eSCkt…`](https://explorer.testnet.near.org/transactions/oi7eSCktX4rwNffGKUQjvjonctNfPi6xPuhkp2B1kDx) |
+| a token naming no commit | refused | refused | the token names no commit | [`36pEPxJe…`](https://explorer.testnet.near.org/transactions/36pEPxJeuj3mHcWQffm51YwGbMJvjXRY5ERmtn3AR529) |
+| not a JWT | refused | refused | the token is not header.payload.signature | [`CfpTUhNN…`](https://explorer.testnet.near.org/transactions/CfpTUhNN5cin5rnzQFpfmZkN2VfjV3fSWfQyECaZvx3m) |
+| a milestone that does not exist | refused | refused | no such milestone | [`3qJyZWBi…`](https://explorer.testnet.near.org/transactions/3qJyZWBi2okDjdH78ULmuqUKAwwA9TNHnRiE9dvai7Fx) |
+| an early refund | refused | refused | the deadline has not passed | [`CdrfBixS…`](https://explorer.testnet.near.org/transactions/CdrfBixSdTQx5C7GbtYuenG7RS3fjCwi7iKjF5Vt13JF) |
+| the private callback called from outside | refused | refused | Method on_paid is private | [`7L5b2MNi…`](https://explorer.testnet.near.org/transactions/7L5b2MNik5tmKUuNv2cTvzkjYbq8uPXGYtAD8LG2A5FP) |
+| funding the same id twice | refused | refused | a milestone with this id exists | [`FbZib4EA…`](https://explorer.testnet.near.org/transactions/FbZib4EA1tyibRnRwAjdM6Qfw3X8weDuKPFX3L4U27Fs) |
+| funding with a past deadline | refused | refused | the deadline is in the past | [`DNm46bgg…`](https://explorer.testnet.near.org/transactions/DNm46bggsBRbTTsekByBXbZNpghesGrmqJ93kwAyFzeQ) |
+| funding without a criteria hash | refused | refused | criteria_hash must be 64 hex | [`DVwYdi1S…`](https://explorer.testnet.near.org/transactions/DVwYdi1SUjWrFYytpWZincAmkLJNQuzZ4sqb6ZkpaR4x) |
+| funding for an unknown chain | refused | refused | payee_chain | [`3ENxYzgY…`](https://explorer.testnet.near.org/transactions/3ENxYzgY9Df4YWkivvuEvmLhytEit9PjBLowSyXMxp4j) |
+| a workflow outside the repository | refused | refused | repository and workflow | [`51m36aiT…`](https://explorer.testnet.near.org/transactions/51m36aiTxVytwLRuRkG7yhtNrJz7BGxqFT4yGbS9eECW) |
+| funding in another token | refused | refused | only the configured USDC funds a milestone | [`9RNJwFWj…`](https://explorer.testnet.near.org/transactions/9RNJwFWjBytYYyDqcFFrMsXFWvRs6t1SLPiWAUpJibPw) |
+| a token under a removed key | refused | refused | the token's key is not in the key set | [`14NEB4zZ…`](https://explorer.testnet.near.org/transactions/14NEB4zZZ753EMj8jLcaBdQiWKHjugDPigSDxUNzq3Qm) |
+| a release after the deadline | refused | refused | the deadline has passed: only a refund is possible | [`AjXQma9b…`](https://explorer.testnet.near.org/transactions/AjXQma9bfPMKcx58cuqK5ReYZpa8HD9RsWyt8EYCsQ4r) |
+| a refund after the deadline, sent by anyone (control) | refunded | done | a11030449-9: Refunded | [`EYVQLExx…`](https://explorer.testnet.near.org/transactions/EYVQLExxFvyXTXkk5iri7vaZNt7g82hExRvM8GKRqN5G) |
+| a release after the refund | refused | refused | the milestone is not funded and open | [`HRE3ykMo…`](https://explorer.testnet.near.org/transactions/HRE3ykMo1rK6vTY1LxGWjRY87D47eWPqUd8vZDjDndfi) |
+| a second refund | refused | refused | the milestone is not funded and open | [`AvcimeGt…`](https://explorer.testnet.near.org/transactions/AvcimeGtYKotYE6nFUtLXqhb3NAXvBUjtTAV68DrA1ai) |
+| a real GitHub token from this workflow (control) | paid | done | n1-milestone-11031410: Released, 1,000,000 test units to the payee, 12.13 Tgas | [`82N9tRK8…`](https://explorer.testnet.near.org/transactions/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj) |
+| the same real token on a second milestone of this workflow | refused | refused | this token was already used | [`HcZ8nBuQ…`](https://explorer.testnet.near.org/transactions/HcZ8nBuQYuYU5LKRVceSfXVdqBnLrj1shyddj3EQBsM2) |
+| the same real token on a milestone funded for another workflow | refused | refused | the token comes from another workflow | [`2H16uPeH…`](https://explorer.testnet.near.org/transactions/2H16uPeHibucBssbaEexq9TPyxqWx9hTjHKMRRfmJbfe) |
+
+### Layout
+
+- `contract/`: the contract (`lib.rs`), RS256 (`rsa.rs`), token parsing (`jwt.rs`), the Solana payout check (`solana.rs`), unit tests (`tests.rs`, `tests/`).
+- `mock-usdc/`: a NEP-141 test token for the sandbox.
+- `sandbox/`: the sandbox test.
+- `relayer/`: the gas relayer. `agent/`: the receiver guard. `agents/`: the two agents, the checker, the job's locked test and its rules.
+- `web/`: the page and its server (`serve.py`, `jobs_api.py`), the pay button (`pay.js`); `web/story/`: the scroll story. `wasm/`: the built contracts.
+
+Changes since the start of this work: [near-pre...main](https://github.com/drexthealpha/Knos/compare/near-pre...main).
+
+### Disclosure
+
+Who wrote it: Claude Code (Anthropic's coding agent) wrote most of the code in this folder. The founder set each task and reviewed each change before it was merged. Commits carry the founder's account.
+
+No starter template: the first commit of this folder (6413e89) adds each crate as written, with no generated scaffold in the history. The test token in `mock-usdc/` uses the `FungibleToken` implementation from `near-contract-standards`, as its own documentation shows. The contract's checks are this repository's own code (`contract/src/rsa.rs`, `jwt.rs`, `solana.rs`), with no crypto crate among the contract's dependencies (hashing uses the NEAR runtime's own sha256).
+
+Libraries, at the versions in each `Cargo.toml`:
+
+| Where | Library | Version |
+|---|---|---|
+| `contract/`, `mock-usdc/` | `near-sdk` | 5.30.0 |
+| `contract/`, `mock-usdc/` | `near-contract-standards` | 5.30.0 |
+| `contract/`, `sandbox/` | `base64` | 0.22 |
+| `contract/` | `serde` | 1 |
+| `contract/`, `sandbox/` | `serde_json` | 1 |
+| `sandbox/` (tests only) | `near-sandbox` | 0.4.0 |
+| `sandbox/` (tests only) | `near-api`, `near-api-types` | 0.8.0 |
+| `sandbox/` (tests only) | `tokio` | 1 |
+| `sandbox/` (tests only, to sign test tokens) | `rsa` | 0.9 |
+| `sandbox/` (tests only) | `sha2` | 0.10 |
+| `sandbox/` (tests only) | `rand` | 0.8 |
+| `scripts/`, `relayer/`, `agent/` (Python) | `cryptography`, `certifi`; the rest is the standard library | as installed |
+
+Tools: Rust with the `wasm32-unknown-unknown` target and `cargo-near` 0.22.0 (`scripts/codespace-setup.sh`); the testnet steps use [near-cli-rs](https://github.com/near/near-cli-rs). Services: NEAR testnet, NEAR Chain Signatures on testnet, Solana devnet and GitHub Actions' OIDC tokens.
+
+<!-- /entry:near -->
 
 ## From a terminal
 

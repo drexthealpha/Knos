@@ -2,7 +2,7 @@
 
 Can interoperability do the traceability job of an LLM pipeline? The community idea
 [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689) asks exactly that.
-In Knos Referee on IRIS every step of an agent's decision is an interoperability message, so Visual Trace already shows
+In Knos on IRIS every step of an agent's decision is an interoperability message, so Visual Trace already shows
 the pipeline, and SQL can read it.
 
 ## The Span message

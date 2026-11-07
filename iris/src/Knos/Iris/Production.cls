@@ -3,7 +3,7 @@ Class Knos.Iris.Production Extends Ens.Production
 XData ProductionDefinition
 {
 <Production Name="Knos.Iris.Production" TestingEnabled="true" LogGeneralTraceEvents="false">
-  <Description>Knos Referee on IRIS: proof against a hash-locked Knos Ready brief, decided by an agent that can only say no or ask a person.</Description>
+  <Description>Knos on IRIS: proof against a hash-locked Knos Ready brief, decided by an agent that can only say no or ask a person.</Description>
   <ActorPoolSize>2</ActorPoolSize>
   <Item Name="ProofIn" ClassName="Knos.Iris.BS.ProofIn" PoolSize="0" Enabled="true"/>
   <Item Name="BriefIn" ClassName="Knos.Iris.BS.BriefIn" PoolSize="0" Enabled="true"/>

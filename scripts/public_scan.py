@@ -184,7 +184,7 @@ def count(text: str, raw: str, path: str, pages: bool) -> dict[str, int]:
     hits = {k: sum(1 for m in re.finditer(rx, text, re.I) if not (m.group(0).isupper() and len(m.group(0)) > 1)) for k, rx in WORDS.items()}
     if pages:
         hits.update({k: len(re.findall(rx, raw)) for k, rx in QLOO_RAW.items()})
-    allowed = 1 if path.replace("\\", "/").endswith("iris/README.md") else 0
+    allowed = 2 if path.replace("\\", "/") == "README.md" else 0
     hits[IDEA] = max(0, text.count(IDEA) - allowed)
     return {k: v for k, v in hits.items() if v}
 

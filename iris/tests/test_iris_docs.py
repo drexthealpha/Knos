@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 IRIS = ROOT / "iris"
-# Why: iris/README.md carries the long form of the one line ("Knos pays agents only when the test passes.").
+# Why: README.md, one README for the whole product, carries the one line ("Knos pays agents only when the test passes.").
 ONE = "Knos pays agents only when the test passes."
 # Why: README.md and docs/START.md (outside iris/, not edited here) link iris/ with their own words; the link is what counts.
 IRIS_URL = "](https://github.com/drexthealpha/Knos/tree/main/iris)"
@@ -51,9 +51,17 @@ def exists(p: str) -> bool:
     return any((b / p).exists() for b in bases)
 
 
+def iris_section() -> str:
+    """The README's IRIS part: from its heading to the next top-level section."""
+    t = (ROOT / "README.md").read_text(encoding="utf-8")
+    start = t.index("\n## Run it on IRIS\n")
+    end = t.find("\n## ", start + 1)
+    return t[start:end if end > 0 else len(t)]
+
+
 def readme(lines, i1: str) -> int:
-    t = (IRIS / "README.md").read_text(encoding="utf-8")
-    heads = re.findall(r"(?m)^## \d+\. (.+)$", t)
+    t = iris_section()
+    heads = re.findall(r"(?m)^### (.+)$", t)
     fails = 0
     order = [h for h in heads if h in SECTIONS]
     ok = order == SECTIONS
@@ -106,9 +114,9 @@ def one_product(lines) -> int:
         hit = IRIS_URL in t
         fails += not hit
         lines.append(f"{'ok  ' if hit else 'FAIL'} {f} links iris/")
-    one = ONE in (IRIS / "README.md").read_text(encoding="utf-8")
+    one = ONE in (ROOT / "README.md").read_text(encoding="utf-8")
     fails += not one
-    lines.append(f"{'ok  ' if one else 'FAIL'} iris/README.md carries the one line")
+    lines.append(f"{'ok  ' if one else 'FAIL'} README.md carries the one line")
     # Why: "the IRIS referee" outside iris/ (a CI comment, a test docstring) describes the step; only the folder's own name counts
     grep = subprocess.run(["git", "-C", str(ROOT), "grep", "-nIiE", "Knos ?Referee ?on ?IRIS|KnosIRIS", "--", ".", ":!iris"], capture_output=True, text=True).stdout.strip()
     names = [ln for ln in grep.splitlines() if ln]

@@ -12,7 +12,7 @@ in which only the agent that passes is paid.
 
 - **`knos ready <brief.json>`** prints Ready with the brief's criteria hash, or the fields it is missing
   (`knos.job.ready`, on top of `knos.ready.check`).
-- **`knos iris-check <brief.json> <kind> <proof>`** applies the rules referee that Knos Referee on IRIS runs to a
+- **`knos iris-check <brief.json> <kind> <proof>`** applies the rules referee that Knos on IRIS runs to a
   GitHub check run, a FHIR Observation or an HL7 ORU^R01 (`knos.job.iris_check`). For an ORU it now reads the OBX the
   brief's verifier names, not only the first one.
 - **`knos near-job`** asks the hosted runner (knos.onrender.com) for one job on NEAR testnet from Knos's capped test

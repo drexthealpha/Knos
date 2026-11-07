@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Knos Referee on IRIS: decisions, their traces and the approver's inbox.">
-<title>Knos Referee decisions</title>
+<meta name="description" content="Knos on IRIS: decisions, their traces and the approver's inbox.">
+<title>Knos decisions</title>
 <link rel="icon" href="brand/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="brand/tokens.css">
 <style>
@@ -118,10 +118,9 @@ main > * { min-width: 0; }
     <h1 id="t-login" class="k-mission"><span class="k-line"><span>Pay only for proof</span></span> <span class="k-line"><span>that passes.</span></span></h1>
     <p class="sub">$0 unless a helper's work passes your check</p>
     <p class="fine" id="login-msg"></p>
-    <label for="user">User</label><input id="user" name="user" autocomplete="username" required>
-    <label for="pass">Password</label><input id="pass" name="pass" type="password" autocomplete="current-password" required>
+    <label for="user">User</label><input id="user" name="user" autocomplete="username" value="_SYSTEM" required>
+    <label for="pass">Password (the IRIS_PASSWORD line of iris/.env)</label><input id="pass" name="pass" type="password" autocomplete="current-password" required>
     <button class="go" type="submit">Sign in</button>
-    <button class="look" type="button" id="demo-go">Look around (read only)</button>
   </form>
   <section aria-labelledby="t-title">
     <h1 id="t-title">Decisions</h1>
@@ -172,8 +171,6 @@ function signIn() {
   dlg.hidden = false;
   $("user").focus();
   signingIn = new Promise((resolve) => {
-    // the online demo's public read-only user (iris/cloud-start.sh makes it): one press, no account to make
-    $("demo-go").onclick = () => { $("user").value = "demo"; $("pass").value = "demo"; dlg.requestSubmit(); };
     dlg.onsubmit = (ev) => {
       ev.preventDefault();
       auth = "Basic " + btoa($("user").value + ":" + $("pass").value);
@@ -190,7 +187,7 @@ async function api(path, opts = {}) {
   for (let i = 0; i < 3; i++) {
     const headers = Object.assign({ Accept: "application/json" }, opts.headers || {}, auth ? { Authorization: auth } : {});
     const r = await fetch("/api/knos/" + path, Object.assign({}, opts, { headers, credentials: "omit" }));
-    if (r.status === 401) { if (auth) $("login-msg").textContent = atob(auth.slice(6)).startsWith("demo:") ? "This copy has no demo user. Sign in with your IRIS user." : "That user and password were refused."; auth = ""; await signIn(); continue; }
+    if (r.status === 401) { if (auth) $("login-msg").textContent = "That user and password were refused."; auth = ""; await signIn(); continue; }
     const body = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(body.error || ("HTTP " + r.status));
     return body;

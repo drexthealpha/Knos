@@ -1,4 +1,4 @@
-# Knos Referee on IRIS: InterSystems IRIS for Health build 154 with Knos's own code (src/knos) inside, the production
+# Knos on IRIS: InterSystems IRIS for Health build 154 with Knos's own code (src/knos) inside, the production
 # compiled at build time. Built from the repository root (iris/docker-compose.yml: context ..).
 # The base image comes from the EAP portal (iris/scripts/load-image.sh); this image and any built on it are never pushed.
 #

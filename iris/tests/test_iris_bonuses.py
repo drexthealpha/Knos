@@ -1,4 +1,4 @@
-"""I3 test_iris_bonuses: one check per bonus Claude Code can earn on its own, on a running Knos Referee on IRIS.
+"""I3 test_iris_bonuses: one check per bonus Claude Code can earn on its own, on a running Knos on IRIS.
 
 1. PEX: a passing check run's PAY sends Knos's transaction from ProofDecision to SolanaSubmit (the Java operation),
    a message in that session's Visual Trace.

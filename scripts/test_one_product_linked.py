@@ -65,7 +65,7 @@ def main(argv: list[str]) -> int:
     ok(api and api == hosted == cli == sdk, f"the readings of '{IDEA}': /api/check {api}; MCP {hosted == api}; knos demand {cli == api}; the SDK {sdk == api}")
     with urllib.request.urlopen(urllib.request.Request(APP + "/app/", headers={"User-Agent": "knos-o1"}), timeout=120) as r:
         app = r.read().decode("utf-8", "replace")
-    ok("Checked inside a lab's own IRIS" in app and "iris/README.md" in app, "the app's proof step lists Checked inside a lab's own IRIS, linked to iris/README.md")
+    ok("Checked inside a lab's own IRIS" in app and "Knos#run-it-on-iris" in app, "the app's proof step lists Checked inside a lab's own IRIS, linked to the README's IRIS section")
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))
     two = sum(1 for p in ROOT.glob("server*.json")) >= 2
     ok(two, f"server.json and a second file name the hosted MCP and the local knos mcp apart ({server.get('name')}, {len(server.get('packages') or [])} package, {len(server.get('remotes') or [])} remote in one file)")

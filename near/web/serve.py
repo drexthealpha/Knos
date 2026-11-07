@@ -4,7 +4,7 @@
 
 Listens on 127.0.0.1 only. Each action is a testnet transaction near-cli signs with the test accounts in
 ~/.near-credentials (the page never holds a key). The proof is a GitHub-shaped OIDC token signed by a test RSA key
-that two owners set at start, standing in for GitHub's key (see near/README.md, the attack table).
+that two owners set at start, standing in for GitHub's key (see README.md, "Attacks on testnet").
 """
 from __future__ import annotations
 

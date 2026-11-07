@@ -271,6 +271,8 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     # blank lines between blocks are free: the bound counts the lines a reader reads
     # the table of every program and its upgrade authority is written from devnet (scripts/program_authorities.py): not counted
     read = readme.split("<!-- authorities:start -->")[0] + readme.split("<!-- authorities:end -->")[1]
+    # the IRIS and NEAR sections between their entry marks are the contests' long form: not counted
+    read = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", read, flags=re.S)
     assert len([line for line in read.splitlines() if line.strip()]) < 145 and "first milestone" not in readme
     assert "](docs/README.md)" in parts["Read more"] and "](docs/NUMBERS.md)" in readme and "](docs/reference/CAPABILITIES.md)" in readme
     # what the front page no longer lists is on the map of the documents

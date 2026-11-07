@@ -4,9 +4,10 @@
     <Module>
       <Name>knos-iris</Name>
       <Version>0.1.0</Version>
-      <Description>Knos Referee on IRIS: proof against a hash-locked Knos Ready brief, decided by an AI Hub agent that can only say no or ask a person.</Description>
+      <Description>Knos on IRIS: proof against a hash-locked Knos Ready brief, decided by an AI Hub agent that can only say no or ask a person.</Description>
       <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
       <Packaging>module</Packaging>
+      <SystemRequirements Version=">=2026.3" Interoperability="enabled"/>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="Knos.Iris.PKG"/>
       <!-- Python: the Knos modules IRIS imports (python/knos/, copied from src/knos: python/VENDORED.txt) and knos_iris

@@ -1,4 +1,4 @@
-# Each claim of near/README.md, with its code, its test and its testnet transaction
+# Each claim of the README's "Knos on NEAR" section, with its code, its test and its testnet transaction
 
 | Claim | Code | Test | Testnet |
 |---|---|---|---|

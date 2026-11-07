@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Knos Referee on IRIS from a fresh clone, in one command: load the IRIS image, make iris/.env with random secrets,
+# Knos on IRIS from a fresh clone, in one command: load the IRIS image, make iris/.env with random secrets,
 # build and start both containers, wait for the production, then run three decisions on public data.
 #   bash start.sh <irishealth-community-2026.3.0AI.154.0-docker.tar.gz>
 set -euo pipefail

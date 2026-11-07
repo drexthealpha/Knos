@@ -16,4 +16,4 @@ echo "$line, exit $rc"
 [ "$rc" = 0 ] && [ "$failed" = 0 ] && [ "$passed" -gt 0 ] || exit 1
 # the README's test line is this print, never a number typed apart from it
 want="It prints \`$line\`"
-grep -qF "$want" "$here/README.md" || { echo "near/README.md does not say: $want"; exit 1; }
+grep -qF "$want" "$here/../README.md" || { echo "README.md (Knos on NEAR) does not say: $want"; exit 1; }

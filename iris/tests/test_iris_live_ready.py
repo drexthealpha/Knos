@@ -1,4 +1,4 @@
-"""I9 test_iris_live_ready: the live path proved with the stub provider, on a running Knos Referee on IRIS. With live
+"""I9 test_iris_live_ready: the live path proved with the stub provider, on a running Knos on IRIS. With live
 mode and the stub, one decision goes through the agent with its tool calls traced; the spend cap refuses call 31 and
 any call past 2.00 USD; with no key for a real provider, live mode refuses in one plain sentence. The tests' overrides
 (^Knos.LLM("mode"), ^Knos.LLM("provider")) are removed at the end.

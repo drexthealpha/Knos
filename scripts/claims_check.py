@@ -56,6 +56,7 @@ LONG = ("A work order is a task, its budget and the terms that decide when it is
 NUMBER = re.compile(r"\$?\d[\d,]*(?:\.\d+)?%?")
 NOT_CLAIMS = [
     r"<!-- bench:(\w+) -->.*?<!-- /bench:\1 -->",            # generated; bench_docs.py --check covers it
+    r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->",            # the IRIS and NEAR sections: measured runs their own tests check
     r"```.*?```", r"`[^`\n]*`", r"<pre.*?</pre>", r"<code>.*?</code>",   # code
     r"\]\([^)]*\)", r"https?://\S+",                           # link addresses
     r"\b20\d\d-\d\d-\d\d(?: \d\d:\d\d(?: UTC)?)?",       # a date or a time (scripts/doc_claims.py holds the upgrade's)

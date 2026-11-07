@@ -48,7 +48,7 @@ zpm=/tmp/zpm-0.10.10.xml
 [ -s "$zpm" ] || curl -fsSL -o "$zpm" https://github.com/intersystems/ipm/releases/download/v0.10.10/zpm-0.10.10.xml
 echo "daa2adabd66b488f57187d29712e54b0c25bbe000794fbf2a35a882c458b788a  $zpm" | sha256sum -c --quiet && export KNOS_ZPM_XML="$zpm"
 step bonuses python3 tests/test_iris_bonuses.py knos-iris /tmp/iris-bonuses.txt "${hl:-}"
-step dashboard bash -c 'curl -fsS http://localhost:52773/knos/ | grep -q "Knos Referee" && test "$(curl -s -o /dev/null -w %{http_code} http://localhost:52773/api/knos/decisions)" = 401 && curl -fsS -u "_SYSTEM:$IRIS_PASSWORD" http://localhost:52773/api/knos/decisions | python3 -c "import json,sys; d=json.load(sys.stdin); assert isinstance(d, list) and d, d"'
+step dashboard bash -c 'curl -fsS http://localhost:52773/knos/ | grep -q "Knos" && test "$(curl -s -o /dev/null -w %{http_code} http://localhost:52773/api/knos/decisions)" = 401 && curl -fsS -u "_SYSTEM:$IRIS_PASSWORD" http://localhost:52773/api/knos/decisions | python3 -c "import json,sys; d=json.load(sys.stdin); assert isinstance(d, list) and d, d"'
 
 log "total $(( $(date +%s) - t0 )) s, peak $(cat "$peak") MiB, $fails failed"
 [ "$fails" = 0 ]

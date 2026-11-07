@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The IPM package of Knos Referee on IRIS, at the repository root as Open Exchange asks ("Place the module.xml file in
+<!-- The IPM package of Knos on IRIS, at the repository root as Open Exchange asks ("Place the module.xml file in
      the root of your project in GitHub"). It installs iris/ only; iris/module.xml is the same module for loading that
      folder alone (zpm "load <clone>/iris"). tests/test_iris_module_root.py keeps the two in step. -->
 <Export generator="Cache" version="25">
@@ -7,9 +7,10 @@
     <Module>
       <Name>knos-iris</Name>
       <Version>0.1.0</Version>
-      <Description>Knos Referee on IRIS: proof against a hash-locked Knos Ready brief, decided by an AI Hub agent that can only say no or ask a person.</Description>
+      <Description>Knos on IRIS: proof against a hash-locked Knos Ready brief, decided by an AI Hub agent that can only say no or ask a person.</Description>
       <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
       <Packaging>module</Packaging>
+      <SystemRequirements Version=">=2026.3" Interoperability="enabled"/>
       <SourcesRoot>iris/src</SourcesRoot>
       <Resource Name="Knos.Iris.PKG"/>
       <!-- Python: the Knos modules IRIS imports (iris/python/knos/, copied from src/knos: iris/python/VENDORED.txt) and
