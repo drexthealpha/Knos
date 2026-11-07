@@ -169,7 +169,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <p class="q" id="m-q">What two helpers are paid plus the refund is always exactly the bid.</p>
     <p class="price"><b id="m-yes">Yes …</b> <b id="m-no">No …</b></p>
     <p class="fine">A Yes share pays $1 if the proof passes its check in GitHub Actions. A No share pays $1 if it fails. No one can vote. Test money.</p>
-    <p class="buys"><button type="button" class="go" id="buy-yes">Buy Yes, $1</button> <button type="button" id="buy-no">Buy No, $1</button></p>
+    <p class="buys"><button type="button" class="go" id="buy-yes" data-buy>Buy Yes, $1</button> <button type="button" id="buy-no" data-buy>Buy No, $1</button></p>
     <p class="fine" id="m-said" role="status"></p>
     <p class="fine" id="m-done">Settled before: "Splitting a bid never pays out more than the bid." <a id="m-run" href="https://github.com/drexthealpha/Knos/actions/runs/42333777443">Its proof passed</a>, so Yes won and was <a id="m-paid" href="https://testnet.nearblocks.io/txns/CKLgT3vaPocoEZQjsjTFEpHcb1LmV1oAeBoqtLPMGmvT">paid $36.66</a>. <a id="m-vote" href="https://testnet.nearblocks.io/txns/371H72CAkzrN1ih486C32y9iFsrKd1ndqZXKxWL5tYyL">A vote was refused</a>.</p>
   </section>
@@ -272,7 +272,7 @@ async function api(path, body) {
   return { status: r.status, ok: r.ok && j.ok !== false, ...j };
 }
 
-function busy(text) { $("busy").toggleAttribute("data-done", !text); $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of document.querySelectorAll("main button")) b.disabled = !!text || !local; }
+function busy(text) { $("busy").toggleAttribute("data-done", !text); $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of document.querySelectorAll("main button:not([data-buy])")) b.disabled = !!text || !local; }
 const link = (h, t) => h ? el("a", { href: TX + h, textContent: t, target: "_blank", rel: "noopener" }) : null;
 
 function showJob(j) {
@@ -312,7 +312,7 @@ async function load() {
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
     hosted = !!(h && h.live);
     if (!hosted) { $("busy").hidden = false; $("busy").setAttribute("data-done", ""); $("busy-text").textContent = "Live runs are off now. The last job is shown below."; }
-    $("post").disabled = !hosted; $("guard").disabled = !hosted;
+    $("post").disabled = !hosted; $("guard").disabled = !hosted; $("buy-yes").disabled = $("buy-no").disabled = !hosted;
     return;
   }
   $("contract").textContent = s.contract ? `Milestones: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";
@@ -369,7 +369,8 @@ for (const side of ["yes", "no"]) $("buy-" + side).addEventListener("click", asy
   b.disabled = false;
   if (!r.ok) { $("m-said").textContent = `Not bought: ${r.why || "testnet refused it"}.`; return; }
   $("m-yes").textContent = `Yes ${r.yes_c}c`; $("m-no").textContent = `No ${r.no_c}c`;
-  $("m-said").replaceChildren(`Bought ${r.shares} ${side === "yes" ? "Yes" : "No"} shares for $1.00. Now Yes ${r.yes_c}c, No ${r.no_c}c. `,
+  const S = side === "yes" ? "Yes" : "No";
+  $("m-said").replaceChildren(`Bought ${r.shares} ${S} shares for $1.00. ${S} went from ${r.was_c.toFixed(1)}c to ${r.now_c.toFixed(1)}c. `,
     el("a", { href: r.url, target: "_blank", rel: "noopener", textContent: "The transaction" }));
 });
 

@@ -305,6 +305,7 @@ def buy(side: str) -> dict:
         _jobs()
         from common import call, view
         before = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
+        was = int((view(MARKET, "get_market", {"id": mid}) or {}).get(side + "_price") or 0)
         r = call(LIVE, TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SHARE_BUY),
                  "msg": json.dumps({"buy": {"id": mid, "side": side}})}, deposit="1 yoctoNEAR", gas="100 Tgas")
         after = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
@@ -312,6 +313,7 @@ def buy(side: str) -> dict:
         got = int(after.get(side) or 0) - int(before.get(side) or 0)
         return {"ok": r["ok"] and got > 0, "side": side, "paid_usd": SHARE_BUY / 1e6, "shares": round(got / 1e6, 2),
                 "yes_c": round(int(v.get("yes_price") or 0) / 10_000), "no_c": round(int(v.get("no_price") or 0) / 10_000),
+                "was_c": round(was / 10_000, 1), "now_c": round(int(v.get(side + "_price") or 0) / 10_000, 1),
                 "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
     except Exception as e:  # noqa: BLE001 - the page says why
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
