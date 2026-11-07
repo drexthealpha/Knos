@@ -168,7 +168,7 @@ def test_the_answers_agree_with_the_tree():
     assert pay.FEE_BPS == 30 and pay.order_fee(100_000_000) == 300_000 and pay.order_fee(5_000_000) == 50_000 == pay.fee_of(5_000_000)
     assert "demand check" in (ROOT / "docs" / "PRICING.md").read_text(encoding="utf-8")
     assert answers["What is Knos?"] == "Knos takes research from a paper to a product people want. It pays each step only on verified proof."
-    assert "only when the test passes" in sentence()                                           # the one sentence
+    assert "across the valley of death" in sentence()                                           # the one sentence
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "The money waits in a program on [Solana](docs/WORDS.md#solana), not with Knos." in readme
     assert "Today one person can still change that program, after a public wait" in readme
