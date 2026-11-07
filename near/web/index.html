@@ -39,6 +39,7 @@ main > * { min-width: 0; }
 .ic, .k-i { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .k-i { width: 24px; height: 24px; flex: none; vertical-align: -6px; margin-right: 6px; } .go .k-i { stroke: currentColor; }
 .receipt:not(:empty)::before { content: ""; display: inline-block; width: 24px; height: 24px; margin-right: 6px; vertical-align: -6px; background: var(--accent); -webkit-mask: url(../brand/icons/coins.svg) center/24px no-repeat; mask: url(../brand/icons/coins.svg) center/24px no-repeat; }
+.claim .pages ul { margin: 0; padding-left: 1.2em; } .claim .pages p { margin: 0 0 4px; } .claim .pages { border-top: 1px solid var(--line); margin-top: var(--sp-4); padding-top: var(--sp-4); }
 .claim .loop { border-top: 1px solid var(--line); margin-top: var(--sp-4); padding-top: var(--sp-4); } .claim h3 { font: 600 var(--s1)/1.3 var(--head); margin: 0 0 var(--sp-2); } .loop-steps { margin: var(--sp-2) 0 0; padding-left: 1.2em; line-height: 1.7; }
 .claim .q { font: 600 var(--s1)/1.35 var(--text); margin: 0 0 var(--sp-2); } .claim .price { display: flex; gap: var(--sp-4); margin: 0 0 var(--sp-2); } .claim .price b { font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); font-variant-numeric: tabular-nums; } .claim .buys { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .parts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 0; list-style: none; } .parts li { display: flex; align-items: center; font-weight: 500; }
@@ -171,6 +172,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <p class="fine">A Yes share pays $1 if a computer checks the proof and it passes. A No share pays $1 if it fails. No one can vote. Test money.</p>
     <p class="buys"><button type="button" class="go" id="buy-yes" data-buy>Buy Yes, $1</button> <button type="button" id="buy-no" data-buy>Buy No, $1</button></p>
     <p class="fine" id="m-said" role="status"></p>
+    <div class="pages" id="m-pages" hidden><h3>Each claim, in a small model's words</h3><ul id="m-page-list"></ul></div>
     <div class="loop" id="loop">
       <h3>Or bet on a job and watch it settle</h3>
       <p class="q">Will a helper's work pass this job's test?</p>
@@ -314,7 +316,7 @@ async function load() {
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
     $("embedlink").hidden = true;
-    totals(); market();
+    totals(); market(); pages();
     // the hosted runner (knos.onrender.com) posts one live job for any visitor, within its caps; the first view says
     // nothing about it unless live runs are off
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
@@ -382,6 +384,24 @@ for (const side of ["yes", "no"]) $("buy-" + side).addEventListener("click", asy
     el("a", { href: r.url, target: "_blank", rel: "noopener", textContent: "The transaction" }));
 });
 
+// G2: the claim pages qwen2.5:1.5b wrote in GitHub Actions (claim-pages.yml) when a market changed, read from that
+// run's public check run; each shows its price, its proof state and when it was written
+async function pages() {
+  const gh = "https://api.github.com/repos/drexthealpha/Knos/";
+  const runs = await fetch(gh + "actions/workflows/claim-pages.yml/runs?status=success&per_page=5").then((r) => r.ok ? r.json() : null).catch(() => null);
+  for (const run of (runs && runs.workflow_runs) || []) {
+    const c = await fetch(gh + `check-suites/${run.check_suite_id}/check-runs`).then((r) => r.ok ? r.json() : null).catch(() => null);
+    const cr = ((c && c.check_runs) || []).find((x) => x.name === "claim-pages");
+    if (!cr) continue;
+    let list = []; try { list = JSON.parse(cr.output.summary); } catch { return; }
+    $("m-page-list").replaceChildren(...list.map((p) => el("li", {}, [el("p", { textContent: p.text }),
+      el("p", { className: "fine" }, [`Yes ${p.yes_c}c · ${p.status} · written ${p.written} by ${p.model.startsWith("none") ? "no model (its answers broke the limits)" : "a small model"}, `,
+        el("a", { href: cr.html_url, target: "_blank", rel: "noopener", textContent: "in this run" })])])));
+    $("m-pages").hidden = false;
+    return;
+  }
+}
+
 // G3: fund a job's test from Base (a dry 1Click quote, its amounts shown), then one run: a market on the job, $1 on
 // Yes, both helpers' tries, the payment to the one that passed, the market settled by the job, the shares paid
 $("loop-fund").addEventListener("click", async () => {
@@ -389,7 +409,7 @@ $("loop-fund").addEventListener("click", async () => {
   const q = await fetch(HOSTED + "/api/near/claim/quote", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
   $("loop-fund").disabled = false;
   if (!q.ok) { $("loop-quote").textContent = `No quote: ${q.why}.`; return; }
-  $("loop-quote").textContent = `From Base you would send ${q.send_usdc.toFixed(2)} USDC; ${q.arrives_usdc.toFixed(6)} arrives on NEAR; 1Click keeps ${q.fee_usdc.toFixed(6)} (${q.fee_pct}%). A quote only: here test money pays.`;
+  $("loop-quote").textContent = `From Base you would send ${q.send_usdc.toFixed(2)} USDC; ${q.arrives_usdc.toFixed(6)} arrives on NEAR; 1Click keeps ${q.fee_usdc.toFixed(6)} (${q.fee_pct}%). A quote only: this demo pays with test money.`;
   $("loop-go-row").hidden = false;
 });
 $("loop-go").addEventListener("click", async () => {
@@ -398,7 +418,7 @@ $("loop-go").addEventListener("click", async () => {
   const r = await fetch(HOSTED + "/api/near/claim/run", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
   $("loop-go").disabled = false;
   const rows = (r.steps || []).map((s) => el("li", {}, [s.ok ? "" : "Stopped: ", s.step, " · ", s.url ? el("a", { href: s.url, target: "_blank", rel: "noopener", textContent: "the transaction" }) : "no transaction"]));
-  rows.push(el("li", { textContent: r.ok ? `Done in ${((Date.now() - t0) / 1000).toFixed(1)} s: Helper A paid $1.00, Helper B $0, the market settled Yes, your ${r.shares} Yes shares paid.` : `Not finished: ${r.why}.` }));
+  rows.push(el("li", { textContent: r.ok ? `Done in ${((Date.now() - t0) / 1000).toFixed(1)} s: Helper A paid $1.00, Helper B $0, the market settled Yes, and your $1.00 on Yes paid back $${r.shares.toFixed(2)}.` : `Not finished: ${r.why}.` }));
   $("loop-steps").replaceChildren(...rows);
 });
 

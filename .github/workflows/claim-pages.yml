@@ -1,0 +1,58 @@
+# The claim pages' text, written by a small model when a market changes: every 30 minutes this job reads the claim
+# markets on NEAR testnet; when a trade or a settlement changed them since the last pages, qwen2.5:1.5b-instruct (through
+# Ollama on this runner: no key, nothing paid) writes each page from the market's price and its proof state, and the
+# pages are published as this commit's "claim-pages" check run, which the NEAR page reads (GitHub's public API).
+# Nothing here signs a transaction or holds money; the only token is this run's own, to write the check run.
+name: Claim pages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17,47 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claim-pages
+  cancel-in-progress: false
+
+jobs:
+  pages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Did a market change since the last pages?
+        id: change
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          now="$(python3 near/scripts/claim_pages.py --fingerprint)"
+          last="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/claim-pages.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].check_suite_id // empty' \
+            | xargs -r -I{} gh api "repos/$GITHUB_REPOSITORY/check-suites/{}/check-runs" --jq '.check_runs[] | select(.name=="claim-pages") | .output.title' || true)"
+          echo "now:  $now"; echo "last: $last"
+          if [ "$now" = "$last" ] && [ "$GITHUB_EVENT_NAME" = "schedule" ]; then echo "write=no" >> "$GITHUB_OUTPUT"; else echo "write=yes" >> "$GITHUB_OUTPUT"; fi
+          echo "title=$now" >> "$GITHUB_OUTPUT"
+      - name: Ollama and qwen2.5:1.5b-instruct
+        if: steps.change.outputs.write == 'yes'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > /tmp/ollama.log 2>&1 &) ; sleep 5
+          ollama pull qwen2.5:1.5b-instruct
+      - name: Write the pages
+        if: steps.change.outputs.write == 'yes'
+        run: python3 near/scripts/claim_pages.py pages.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Publish them as the claim-pages check run
+        if: steps.change.outputs.write == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.change.outputs.title }}
+        run: |
+          python3 -c 'import json,os; print(json.dumps({"name": "claim-pages", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "success", "output": {"title": os.environ["TITLE"], "summary": open("pages.json").read()}}))' > body.json
+          gh api "repos/$GITHUB_REPOSITORY/check-runs" --input body.json --jq '.html_url'
