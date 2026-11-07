@@ -17,7 +17,7 @@ REFUSE = {**OPEN, "decision": {"verdict": "REFUSE", "reasons": ["audience too th
 
 def test_an_open_card_leads_with_its_decision_and_offers_three_downloads_built_from_its_numbers():
     s = story.build(OPEN)
-    assert s["sentence"] == "People want this, most in Seattle-Tacoma-Bellevue, WA, among Foodies. Pre-orders are open."
+    assert s["sentence"] == "Before you post it: people want this, most in Seattle-Tacoma-Bellevue, WA, among Foodies. Pre-orders are open."
     assert [t["label"] for t in s["tiles"]] == ["Most wanted in", "Top audience", "Price level"]
     assert s["tiles"][2]["value"] in ("mid-range", "budget", "premium", "luxury")
     assert [d["kind"] for d in s["downloads"]] == ["preorder", "outreach", "refund.ics"]
@@ -36,7 +36,7 @@ def test_the_used_line_names_only_the_inputs_own_words():
 
 def test_a_refusal_is_never_a_dead_end():
     s = story.build(REFUSE)
-    assert s["sentence"].startswith("Not enough people want this yet")
+    assert s["sentence"].startswith("Before you post it: not enough people want this yet")
     assert 1 <= len(s["reruns"]) <= 3 and s["reruns"][0]["label"] == "Check Late Night Ramen instead"
     assert s["rejected"] == [] and any(r["name"] == "Top Ramen" for r in s["rejected_all"]) and not s["downloads"]
 

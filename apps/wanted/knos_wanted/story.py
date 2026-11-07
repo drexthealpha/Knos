@@ -50,9 +50,9 @@ def sentence(rep: dict) -> str:
     v, city, who = _verdict(rep), _city(rep), _who(rep)
     reasons = [str(r) for r in d.get("reasons") or []]
     if v == "OPEN":
-        return "People want this" + (f", most in {city}" if city else "") + (f", among {who}" if who else "") + ". Pre-orders are open."
+        return "Before you post it: people want this" + (f", most in {city}" if city else "") + (f", among {who}" if who else "") + ". Pre-orders are open."
     if v == "REFUSE":
-        return "Not enough people want this yet" + (f" (the nearest interest is in {city})" if city else "") + ". Pre-orders stay closed."
+        return "Before you post it: not enough people want this yet" + (f" (the nearest interest is in {city})" if city else "") + ". Pre-orders stay closed."
     if v == "CANNOT_DECIDE":
         miss = next((r.split(":", 1)[0] for r in reasons if r and not r.startswith("cannot decide")), "")
         return "Not enough evidence to decide" + (f": {miss} did not answer" if miss else "") + "."

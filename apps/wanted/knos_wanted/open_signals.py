@@ -221,7 +221,7 @@ def fallback(idea: str, country: str = "US") -> dict:
     verdict = "OPEN" if n >= 2 else "REFUSE" if len(used) > 1 else "CANNOT_DECIDE"
     out = {"verdict": verdict, "rows": rows, "counted": n, "phrase": b["phrase"],
            "line": "Sources: " + ", ".join(used) + ".",
-           "head": {"OPEN": "People want this", "REFUSE": "Little interest found yet", "CANNOT_DECIDE": "No signal yet"}[verdict],
+           "head": {"OPEN": "Before you post it: people want this", "REFUSE": "Before you post it: little interest found yet", "CANNOT_DECIDE": "No signal yet"}[verdict],
            "rule": "People want it when 2 of these pass: Wikipedia 100 views a day, news 50 articles, "
                    "Hacker News 5 stories, 200 research papers, any money down."}
     _answers[k] = (time.time(), out)
