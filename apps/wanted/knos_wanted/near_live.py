@@ -191,8 +191,15 @@ def _walk(path: str, pages: int = 40):
     nxt = ""
     for _ in range(pages):
         req = urllib.request.Request(NB + path + "?limit=100" + (f"&next={nxt}" if nxt else ""), headers={"User-Agent": "knos-near-totals"})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            body = json.loads(r.read())
+        for tries in range(4):                         # NearBlocks' free tier answers 429 when asked too fast: wait, ask again
+            try:
+                with urllib.request.urlopen(req, timeout=20) as r:
+                    body = json.loads(r.read())
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or tries == 3:
+                    raise
+                time.sleep(4 * (tries + 1))
         yield from body.get("data") or []
         nxt = (body.get("meta") or {}).get("next_page") or ""
         if not nxt:
@@ -206,7 +213,7 @@ def totals() -> dict:
     """The last answer at once; a stale or missing one is read again in the background (the walk takes about 16 s)."""
     if not (_totals.get("at") and time.time() - _totals["at"] < 120) and not _refreshing.locked():
         threading.Thread(target=_refresh, daemon=True).start()
-    return _totals.get("out") or {"pending": True, "record": RECORD}
+    return _totals.get("out") or {"pending": True, "record": RECORD, **({"why": _totals["error"]} if _totals.get("error") else {})}
 
 
 def _refresh() -> None:
@@ -214,6 +221,9 @@ def _refresh() -> None:
         return
     try:
         _totals_read()
+        _totals.pop("error", None)
+    except Exception as e:  # noqa: BLE001 - the last good totals stay; the answer says why the new read failed
+        _totals["error"] = f"{type(e).__name__}: {str(e)[:160]}"
     finally:
         _refreshing.release()
 
