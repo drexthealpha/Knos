@@ -5,7 +5,7 @@
 Reads the markets of market.knos-swarm-1105.testnet from the testnet RPC: the two Lean claims and the newest job market.
 For each, asks qwen2.5:1.5b-instruct through the Ollama on this runner (http://127.0.0.1:11434, no key) for at most two
 short sentences a stranger reads: the claim, the price of Yes in cents, the proof's state. A text over 40 words or with
-a word from the banned list is asked again (3 tries), else the market's own facts are written plainly instead and the
+a word from the banned list is asked again (6 tries), else the market's own facts are written plainly instead and the
 page says so. Writes [{id, claim, yes_c, status, text, words, model, written}] to <out.json>.
 """
 from __future__ import annotations
@@ -50,7 +50,7 @@ def page(mid: str, v: dict) -> dict:
               f"The first sentence is this, word for word: {claim}\n"
               f"The second sentence says that a Yes share costs {yes_c} cents and that the market is {status}.\n"
               "No other facts, no hype, no labels.")
-    for _ in range(3):
+    for _ in range(6):
         text = re.sub(r"^(claim|answer)\s*:\s*", "", ask(prompt).strip('"'), flags=re.I)
         words = len(re.findall(r"[\w'$%.,-]+", text))
         if (0 < words <= 40 and not any(b in text.lower() for b in BANNED) and f"{yes_c}" in text
@@ -58,7 +58,7 @@ def page(mid: str, v: dict) -> dict:
             return {"id": mid, "claim": claim, "yes_c": yes_c, "status": status, "text": text, "words": words, "model": MODEL,
                     "written": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
     text = f"{claim} Yes costs {yes_c}c. The market is {status}."
-    return {"id": mid, "claim": claim, "yes_c": yes_c, "status": status, "text": text, "words": len(text.split()), "model": "none: the model's 3 answers broke the limits",
+    return {"id": mid, "claim": claim, "yes_c": yes_c, "status": status, "text": text, "words": len(text.split()), "model": "none: the model's 6 answers broke the limits",
             "written": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
 
 
