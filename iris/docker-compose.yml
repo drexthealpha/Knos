@@ -1,4 +1,5 @@
-# docker compose up -d --build   (from iris/, after: cp .env.example .env and bash scripts/load-image.sh <tar>)
+# docker compose up -d --build   (from iris/, after: bash scripts/load-image.sh <tar> and bash scripts/env-secrets.sh)
+# replay mode by default: no key and no model download. KNOS_AI_MODE=local also needs: docker compose --profile local up -d
 services:
   iris:
     build:
@@ -26,14 +27,16 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+        required: false             # only with --profile local (KNOS_AI_MODE=local)
     healthcheck:
       test: ["CMD", "python3", "-I", "/home/irisowner/knos/iris/scripts/knos_http.py", "http://localhost:52773/api/knos/health"]
       interval: 15s
       timeout: 10s
       retries: 40
-  # the local model of KNOS_AI_MODE=local: no key, no account. The first start pulls the model (about 1 GB) into the
-  # volume; later starts reuse it.
+  # the local model of KNOS_AI_MODE=local, started only with --profile local: no key, no account. Its first start pulls
+  # the model (about 1 GB) into the volume; later starts reuse it.
   ollama:
+    profiles: ["local"]
     image: ollama/ollama:0.40.14
     container_name: knos-ollama
     mem_limit: 2g

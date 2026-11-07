@@ -104,13 +104,18 @@ def test_the_logo_leads_and_every_diagram_has_a_caption_and_no_colour():
     readme = read("README.md")
     lines = [line for line in readme.splitlines() if line.strip()]
     assert lines[0] == "<h1>" and lines[1].strip() == "<picture>" and "wordmark-light.svg" in lines[4] and lines[6] == "</h1>"
-    blocks = list(MERMAID.finditer(readme))
-    assert len(blocks) >= 2
+    # README shows each diagram as its picture (Open Exchange draws no Mermaid); the sources are in docs/reference/DIAGRAMS.md
+    source = read("docs/reference/DIAGRAMS.md")
+    blocks = list(MERMAID.finditer(source))
+    pictures = list(re.finditer(r"!\[[^\]]*\]\(https://raw\.githubusercontent\.com/drexthealpha/Knos/main/(docs/diagrams/[^)]+\.svg)\)", readme))
+    assert len(blocks) >= 2 and len(pictures) == len(blocks)
     for block in blocks:
         body = block.group(1)
         assert re.match(r"(flowchart|graph|sequenceDiagram|stateDiagram-v2)\b", body), body[:40]
         assert not re.search(r"(?m)^\s*(style|classDef|class|linkStyle)\b|%%\{|theme|#[0-9a-fA-F]{3,6}\b|fill:", body), body
-        after = [line for line in readme[block.end():].splitlines() if line.strip()][0]
+    for found in pictures:
+        assert (ROOT / found.group(1)).is_file(), found.group(1)
+        after = [line for line in readme[found.end():].splitlines() if line.strip()][0]
         assert re.fullmatch(r"\*[^*]+\*", after), f"no italic caption under the diagram: {after}"
         assert len(WORD.findall(after)) <= 20, after
     assert "](docs/WORDS.md)" in readme.split("\n---\n", 1)[0]

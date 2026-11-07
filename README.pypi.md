@@ -9,24 +9,24 @@
 
 **Knos carries research across the valley of death.**
 
-[Video](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article](https://community.intersystems.com/post/knos-iris-ai-hub-agent-can-only-say-no-every-step-visual-trace) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it on NEAR](https://drexthealpha.github.io/Knos/near/)
+A lab pays for each research step only when a test proves it is done. Play money only.
 
-Test money only.
+[Watch the 62-second video](https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article 1](https://community.intersystems.com/post/knos-iris-ai-hub-agent-can-only-say-no-every-step-visual-trace) · [Article 2](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS: install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it on NEAR: a live page in your browser](https://drexthealpha.github.io/Knos/near/)
 
 ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/send.svg) Job posted → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/lock.svg) Money held → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/users.svg) Helpers try → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/circle-check.svg) Check passed → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/coins.svg) Helper paid
 
-![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/trending-up.svg) Qloo checks demand · ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/shield-check.svg) IRIS checks proof · ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/wallet.svg) NEAR and Solana devnet pay · ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/history.svg) Sibyl remembers each result
-
 ## How it works
 
-![No money locks on a vague brief. Each step is paid only when its proof is verified.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/readme-1.svg)
+![No money locks on a vague brief. Each step is paid only when its proof is verified](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-1.svg)
 
 *No money locks on a vague brief. Each step is paid only when its proof is verified.*
 
-1. **Check demand.** A [demand check](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DEMAND_CHECK.md) asks [Qloo](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#qloo) who would buy the product and where. Qloo's heatmap names the launch city.
-2. **Ready brief.** That city and the pre-order target become the terms of a [Ready brief](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#ready-brief). Each [milestone](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#milestone) has a target, a checker and a deadline. A [criteria hash](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#criteria-hash) locks them. If the city falls short by the first deadline, every pre-order is refunded.
-3. **Money held.** [Pre-orders](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#pre-order) and milestone funding wait in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana), not with Knos.
-4. **Paid on proof.** The maker sends the proof. When it is verified, the program pays for that milestone. Example: an agent was paid [5 test units for verified work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet) on devnet. [The newest payout](https://knos.onrender.com/api/agent/payout/latest), read from chain, says what released it.
+1. **Is it wanted?** Knos [asks Qloo](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DEMAND_CHECK.md), a service that knows what people like, who would buy the product and in which city.
+2. **Write the deal.** Each step of the work gets a goal, a test and a deadline. They are sealed with a fingerprint, so nobody can change them later.
+3. **Hold the money.** Backers' money waits in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana), a public ledger, not with Knos.
+4. **Pay on proof.** The maker sends proof. When the test passes, that step is paid. If nothing passes by the deadline, the backers get their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
+
+Four parts, one product: Qloo checks who wants it. InterSystems IRIS checks the proof. NEAR and Solana, two public ledgers, hold and pay play money. Sibyl, Knos's memory, keeps each result.
 
 Add Knos to Claude Code with one command: `claude mcp add --transport http knos https://knos.onrender.com/mcp`
 
@@ -41,7 +41,7 @@ The proof is checked before any money moves. A milestone names its checker in th
 - the same verdict signed by two of three [referees](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#referee);
 - a verdict from [IRIS](https://github.com/drexthealpha/Knos/tree/main/iris) inside a lab's own walls. Its agent can only say no or ask a person.
 
-![Nothing is paid on a promise. A missed deadline sends the money back.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/readme-2.svg)
+![Nothing is paid on a promise. A missed deadline sends the money back](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-2.svg)
 
 *Nothing is paid on a promise. A missed deadline sends the money back.*
 
@@ -97,18 +97,23 @@ One person holds every key today. Any change to the programs waits in public for
 <!-- entry:iris -->
 ## Run it on IRIS
 
-**A lab pays for a research milestone only when IRIS finds the proof met.** An AI Hub agent on a local model weighs a
-GitHub check run or a lab result. A rule decides next, and above 50 USDC a person in IRIS Workflow does. Only then
-does Solana devnet run a simulation with test money.
+**Knos carries research across the valley of death.** Inside InterSystems IRIS, that means a lab pays for each step of
+the work only when its test passes. An AI agent reads the test result, a rule decides, and above $50 a person says yes.
+Play money only.
 
-This entry runs on AI Hub build 154 (irishealth-community 2026.3.0AI.154.0), which the portal removed on 2 Nov 2026; build 109 is not tested.
+**One story.** A hospital lab funds a startup to build the online shop for its test kits. Step one pays $120 when the
+shop's checkout answers in under 300 ms, measured by the startup's own GitHub test. The test passes. The AI agent in
+IRIS reads the result and says yes. It is over $50, so the lab's approver presses Approve, and the step is paid in play
+money. A failing test pays nothing.
+
+Built and tested on the AI Hub image, build 154 (irishealth-community 2026.3.0AI.154.0).
 
 | What | Where |
 |---|---|
 | Video | [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4): one decision from the proof arriving to the approval and its trace, downloads with no sign-in |
 | Idea | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): LLM tracing as interoperability messages, built here |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
-| Online demo | not hosted: run it on your own machine with the steps below |
+| Online demo | not hosted: the built-in demo runs on your own machine after the quick start, with no key and no sign-in |
 
 ### The contest task, part by part
 
@@ -134,57 +139,69 @@ This entry runs on AI Hub build 154 (irishealth-community 2026.3.0AI.154.0), whi
   Python from the same `src/knos` that the Knos app uses. Proof against a changed brief is refused before any model is
   asked.
 
-### Install
+### Quick start
 
-You need Docker with about 4 GB free for it, and the InterSystems image file
-`irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64) from the
-[AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems login).
+You need Docker with about 4 GB free, and the image file `irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64)
+from the [AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems
+login). Four commands:
 
-1. Load the image and retag it to the name the Dockerfile builds on:
+```sh
+git clone https://github.com/drexthealpha/Knos && cd Knos/iris
+bash scripts/load-image.sh ~/Downloads/irishealth-community-2026.3.0AI.154.0-docker.tar.gz
+bash scripts/env-secrets.sh && docker compose up -d --build
+bash scripts/ready.sh
+```
 
-   ```sh
-   docker load -i irishealth-community-2026.3.0AI.154.0-docker.tar.gz
-   docker tag docker.iscinternal.com/docker-intersystems/intersystems/irishealth-community:2026.3.0AI.154.0 irishealth-community:2026.3.0AI.154.0
-   ```
+`ready.sh` is the readiness check: it waits for IRIS and prints `READY: open http://localhost:52773/knos/ ...`. Open
+that page and press **A passing test, $20**: the decision appears in a few seconds. **A passing test, $120** waits for a
+person: press **Approve**. The default is replay mode: no key, no model download and no sign-in.
 
-   (`bash iris/scripts/load-image.sh <tar>` does both.) Neither image, nor any image built on it, is pushed to a registry.
-2. Get the code and make `.env` with random secrets:
+What the commands do: `load-image.sh` runs `docker load -i <the tar>`, then retags the image to the name the Dockerfile
+builds on:
+`docker tag docker.iscinternal.com/docker-intersystems/intersystems/irishealth-community:2026.3.0AI.154.0 irishealth-community:2026.3.0AI.154.0`.
+Neither image, nor any image built on it, is pushed to a registry. `env-secrets.sh` makes `.env` from `.env.example`
+with random secrets (never commit `.env`). The first build takes about 3 minutes on 4 cores.
 
-   ```sh
-   git clone https://github.com/drexthealpha/Knos && cd Knos/iris
-   cp .env.example .env && bash scripts/env-secrets.sh
-   ```
+### Troubleshooting
 
-3. Pick the model (the LLM provider). The default needs nothing: `KNOS_AI_MODE=local` asks `qwen2.5:1.5b-instruct` in
-   the `ollama` service through AI Hub's `openai` provider, with no key and no account. For a cloud model set
-   `KNOS_AI_MODE=live`, `KNOS_LLM_PROVIDER` and its key in `.env`:
+| What you see | What to do |
+|---|---|
+| `ready.sh`: the knos-iris container is not running | in `iris/`: `docker compose up -d --build`, then `bash scripts/ready.sh` |
+| `docker compose`: pull access denied for irishealth-community | the image is not loaded or not retagged: `bash scripts/load-image.sh <the tar>` |
+| `docker compose`: set IRIS_PASSWORD in iris/.env | `bash scripts/env-secrets.sh` fills the three secrets |
+| `ready.sh`: IRIS refused the password | `bash scripts/env-secrets.sh`, then `docker compose up -d`: the password is set at every start |
+| `ready.sh` waits 5 minutes with no answer | `docker compose logs iris --tail 40`; give Docker at least 4 GB of memory |
+| the page asks for a user and password | the agent is not in replay mode: sign in as `_SYSTEM` with the `IRIS_PASSWORD` line of `.env` |
+| `docker compose`: `required` is not allowed | update Docker Compose to version 2.20 or later |
 
-   | Provider | `KNOS_LLM_PROVIDER` | Key variable in `.env` |
-   |---|---|---|
-   | Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
-   | OpenAI | `openai` | `OPENAI_API_KEY` |
-   | Google Gemini | `gemini` | `GEMINI_API_KEY` |
-   | AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+### The model (LLM provider) and its key
 
-   A spend cap is checked before any paid call: at most `KNOS_LLM_MAX_CALLS` calls (default 30) and
-   `KNOS_LLM_MAX_USD` dollars (default 2.00). Never commit `.env`.
-4. Start it:
+The default needs nothing: replay mode (`KNOS_AI_MODE=replay`) answers with recorded model answers and the rules
+referee. For the AI Hub agent on a local open model, set `KNOS_AI_MODE=local` in `.env` and start with
+`docker compose --profile local up -d --build`: it pulls `qwen2.5:1.5b-instruct` (about 1 GB) into the `ollama`
+service and asks it through AI Hub's `openai` provider, with no key and no account. For a cloud model set
+`KNOS_AI_MODE=live`, `KNOS_LLM_PROVIDER` and its key in `.env`:
 
-   ```sh
-   docker compose up -d --build
-   ```
+| Provider | `KNOS_LLM_PROVIDER` | Key variable in `.env` |
+|---|---|---|
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
+| OpenAI | `openai` | `OPENAI_API_KEY` |
+| Google Gemini | `gemini` | `GEMINI_API_KEY` |
+| AWS Bedrock | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
 
-   The first start builds the image (about 3 minutes on 4 cores) and pulls the local model (about 1 GB).
+A spend cap is checked before any paid call: at most `KNOS_LLM_MAX_CALLS` calls (default 30) and `KNOS_LLM_MAX_USD`
+dollars (default 2.00).
 
 ### See that it works
 
-1. `bash scripts/smoke.sh` sends one decision on public data and prints `decision: {"decision":"met","gate":"PAY",...}`
-   and a Visual Trace link.
-2. Open `http://localhost:52773/knos/`, sign in as `_SYSTEM` with the `IRIS_PASSWORD` line of `.env`: each decision,
-   its trace and the approver's inbox.
-3. `AMOUNT_USDC=80 bash scripts/smoke.sh`: above 50 USDC the met decision waits for a person. Press Approve in the inbox
-   on `/knos/` (or Interoperability > Workflow Inbox), then open the decision's Visual Trace link: the proof, the
-   agent's verdict, the rule, the approval and the devnet simulation, in order.
+1. `bash scripts/ready.sh` prints `READY: open http://localhost:52773/knos/ and press a sample button`.
+2. On that page: **A passing test, $20** is paid in play money, **A failing test, $20** is not paid, and **A passing
+   test, $120** waits under "Waiting for a person" until you press **Approve**.
+3. From a terminal: `bash scripts/smoke.sh` sends one decision on public data and prints
+   `decision: {"decision":"met","gate":"PAY",...}` and a Visual Trace link. `AMOUNT_USDC=80 bash scripts/smoke.sh`
+   sends one above 50 USDC: it waits for a person in the inbox on `/knos/` (or Interoperability > Workflow Inbox).
+   After **Approve**, its Visual Trace link shows the proof, the agent's verdict, the rule, the approval and the devnet
+   simulation, in order.
 
 Every test in one command, with no key: `bash scripts/test-all.sh` (the build, the decisions, one trace through all six
 parts, the bonus checks and the page).
@@ -206,7 +223,8 @@ and a real GitHub check run.
 - **Rule, Workflow, then the chain.** `Knos.Iris.Rule.PayoutGate` turns the decision into PAY, HUMAN,
   REFUND_AT_DEADLINE or REJECT. HUMAN goes to a person. PAY runs a devnet simulation through the Java PEX operation.
 
-![Proof arrives one of three ways; one process checks, asks the agent, gates, asks a person, then simulates.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/readme-3.svg)
+![Proof arrives one of three ways; one process checks, asks the agent, gates, asks a person, then simulates](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-3.svg)
+
 *Proof arrives one of three ways; one process checks, asks the agent, gates, asks a person, then simulates.*
 
 ### Requirements
@@ -224,9 +242,10 @@ runs `iris.script`, the final stage copies in only the databases the install cha
 
 ### LLM provider and key
 
-`KNOS_AI_MODE=local` (the default) needs no key: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
-tokens. `KNOS_AI_MODE=live` uses the provider and key from step 3 above. `KNOS_AI_MODE=replay` asks no model and says
-"rules referee (no model key set)". No paid model call has been made for this project.
+`KNOS_AI_MODE=replay` (the default) asks no model and says "rules referee (no model key set)", or gives a recorded
+answer. `KNOS_AI_MODE=local` needs no key either: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
+tokens. `KNOS_AI_MODE=live` uses the provider and key from the table above. No paid model call has been made for this
+project.
 
 | | Rules referee | AI Hub agent |
 |---|---|---|
@@ -389,7 +408,8 @@ Each bonus with what shows it.
 On NEAR testnet, Knos pays a helper only when the test passes. The code is in `near/`, and every path in this
 section is under `near/` unless it starts with another top folder.
 
-![One job, two agents: only the output that passes the locked test is paid.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/readme-4.svg)
+![One job, two agents: only the output that passes the locked test is paid](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-4.svg)
+
 *One job, two agents: only the output that passes the locked test is paid.*
 
 ### For a reader checking this project

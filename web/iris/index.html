@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos on IRIS</title>
+<meta name="description" content="Knos carries research across the valley of death. A lab pays for each research step only when a test proves it is done, checked inside InterSystems IRIS.">
+<meta name="author" content="drexthealpha">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/iris/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Knos">
+<meta property="og:title" content="Knos on IRIS">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/iris/">
+<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="../brand/tokens.css">
+<link rel="stylesheet" href="../app.css">
+<!-- THE IRIS PAGE: Knos's entry for InterSystems IRIS on one screen: the sentence, what it means, the 62-second video
+     (iris/media/knos-iris.mp4, copied here) and the links onward. Same bar, crow and tokens as every Knos page. -->
+<style>
+.iris-page{min-height:calc(100svh - 64px);display:grid;align-content:center;gap:24px;padding-block:24px}
+.iris-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:32px;align-items:center}
+.iris-page h1{font:400 clamp(34px,4.6vw,60px)/1.1 var(--serif);letter-spacing:-.01em;margin:0}
+.iris-page .means{font:500 var(--s1)/1.5 var(--text);color:var(--muted);margin:16px 0 0;max-width:30em}
+.iris-links{display:flex;flex-wrap:wrap;gap:8px 20px;margin:24px 0 0;padding:0;list-style:none}
+.iris-links a{font-weight:600}
+.iris-watch{margin:0;display:grid;gap:8px}
+.iris-watch figcaption{font-weight:600}
+.iris-watch video{width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#000}
+@media (max-width: 860px){.iris-grid{grid-template-columns:1fr}.iris-page{align-content:start}}
+</style>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="../" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+</header>
+<main class="iris-page">
+  <div class="iris-grid">
+    <div>
+      <h1>Knos carries research across the valley of death.</h1>
+      <p class="means">A lab pays for each step of its research only when a test proves the step is done. Here an AI agent inside InterSystems IRIS reads the test result, and a person says yes above $50. Play money only.</p>
+      <ul class="iris-links">
+        <li><a href="https://openexchange.intersystems.com/package/Knos">Open Exchange page</a></li>
+        <li><a href="https://github.com/drexthealpha/Knos#run-it-on-iris">Code and install steps</a></li>
+        <li><a href="https://community.intersystems.com/post/knos-iris-ai-hub-agent-can-only-say-no-every-step-visual-trace">Article 1: how it works</a></li>
+        <li><a href="https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call">Article 2: what it costs</a></li>
+      </ul>
+    </div>
+    <figure class="iris-watch">
+      <figcaption>Watch in 62 seconds</figcaption>
+      <video controls preload="metadata" playsinline poster="poster.png" width="1280" height="720">
+        <source src="knos-iris.mp4" type="video/mp4">
+        <a href="knos-iris.mp4">Download the video (62 seconds)</a>
+      </video>
+    </figure>
+  </div>
+</main>
+</body>
+</html>

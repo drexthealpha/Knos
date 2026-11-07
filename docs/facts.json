@@ -636,6 +636,14 @@
    "what": "the amounts of the fee's worked examples: 1,000 pays 3.00 and 5,000 pays 15.00, both 0.30% (tests/data/billing_vectors.json, on_chain.fees)",
    "file": "tests/data/billing_vectors.json",
    "has": "[\"1000.00\", \"3.00\"], [\"5000.00\", \"15.00\"]"
+  },
+  {
+   "say": [
+    "62"
+   ],
+   "what": "the length in seconds of the IRIS video, iris/media/knos-iris.mp4",
+   "file": "iris/media/README.md",
+   "has": "knos-iris.mp4`: 62 seconds"
   }
  ]
 }

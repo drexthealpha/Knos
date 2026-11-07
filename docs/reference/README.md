@@ -79,6 +79,7 @@ The documents in this folder are listed below, with the seven front pages too.
 |---|---|
 | [START.md](../START.md) | get started in five minutes: check demand, a Ready brief, money held, paid on proof |
 | [WORDS.md](../WORDS.md) | every technical word in one plain line |
+| [DIAGRAMS.md](DIAGRAMS.md) | the source of each picture in the README, for pages that cannot draw diagrams |
 | [INSTALL.md](INSTALL.md) | every way to install the command, the check and the workflows |
 | [PLAYGROUND.md](PLAYGROUND.md) | fund a test order with one comment, with a GitHub account and nothing else |
 | [COMPANIES.md](COMPANIES.md) | the panels for buyers and suppliers: statements, bank files, approvals, netting, enforcement, vendors |

@@ -85,7 +85,7 @@ def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
     assert len(real) == 3 and [links(line) for line in real].count(["docs/reference/DISCLOSURE.md"]) == 1      # three plain lines, one link to the limits
     for said in ("devnet", "test USDC", "test money only", "no customers yet", "One person holds every key today"):
         assert said in " ".join(real), said
-    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "```mermaid" in above.split("## Paid on proof\n")[1].split("\n## ")[0]
+    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "/docs/diagrams/" in above.split("## Paid on proof\n")[1].split("\n## ")[0]
     table = above[above.index("<!-- bench:today -->"):above.index("<!-- /bench:today -->")]
     numbers = read("docs/NUMBERS.md")
     printed = re.findall(r"(?m)^\| \d \| ([^:|]+)[^|]*\| (\d+) \|", numbers)

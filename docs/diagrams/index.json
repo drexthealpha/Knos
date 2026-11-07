@@ -2,30 +2,6 @@
  "about": "Written by scripts/diagrams.py render: a picture of every Mermaid diagram in README.md and docs/, for pages that cannot draw Mermaid (PyPI). Do not edit.",
  "diagrams": [
   {
-   "source": "README.md",
-   "block": 1,
-   "sha256": "0fe431dd6649f0153e33aa13e4fcbc4b2ea7c2ab06e4ce5dc9f14b9976bb69aa",
-   "svg": "docs/diagrams/readme-1.svg"
-  },
-  {
-   "source": "README.md",
-   "block": 2,
-   "sha256": "64221352a086bb96cb93a46699a922a0be296495e3ee3268579edca8afcbdc5d",
-   "svg": "docs/diagrams/readme-2.svg"
-  },
-  {
-   "source": "README.md",
-   "block": 3,
-   "sha256": "994336eb3ea6822a05f7cafa37171d58371032197b0aa48dd118bdee7d4ee9ab",
-   "svg": "docs/diagrams/readme-3.svg"
-  },
-  {
-   "source": "README.md",
-   "block": 4,
-   "sha256": "a3792676c7768be0a831c4d3732c1b6a87f67f4fa6b2ae782f6dcadef341c15d",
-   "svg": "docs/diagrams/readme-4.svg"
-  },
-  {
    "source": "docs/INDEX_METHOD.md",
    "block": 1,
    "sha256": "66d0379e576b4da16c5286079d08f0bccf9ebcb1da88e59cca3c759900ac6317",
@@ -84,6 +60,30 @@
    "block": 1,
    "sha256": "45d62a2656c8024c7754e819ff61cfac9b88c4f4f68eae6fdca20fa731acd616",
    "svg": "docs/diagrams/docs-reference-charter-1.svg"
+  },
+  {
+   "source": "docs/reference/DIAGRAMS.md",
+   "block": 1,
+   "sha256": "0fe431dd6649f0153e33aa13e4fcbc4b2ea7c2ab06e4ce5dc9f14b9976bb69aa",
+   "svg": "docs/diagrams/docs-reference-diagrams-1.svg"
+  },
+  {
+   "source": "docs/reference/DIAGRAMS.md",
+   "block": 2,
+   "sha256": "64221352a086bb96cb93a46699a922a0be296495e3ee3268579edca8afcbdc5d",
+   "svg": "docs/diagrams/docs-reference-diagrams-2.svg"
+  },
+  {
+   "source": "docs/reference/DIAGRAMS.md",
+   "block": 3,
+   "sha256": "994336eb3ea6822a05f7cafa37171d58371032197b0aa48dd118bdee7d4ee9ab",
+   "svg": "docs/diagrams/docs-reference-diagrams-3.svg"
+  },
+  {
+   "source": "docs/reference/DIAGRAMS.md",
+   "block": 4,
+   "sha256": "a3792676c7768be0a831c4d3732c1b6a87f67f4fa6b2ae782f6dcadef341c15d",
+   "svg": "docs/diagrams/docs-reference-diagrams-4.svg"
   },
   {
    "source": "docs/reference/GOVERNANCE.md",

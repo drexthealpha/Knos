@@ -246,7 +246,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     assert f">{use}</h2>" in hero and 'id="hero-who"' in hero and f">{short}</p>" in hero
     assert hero.index(use) < hero.index('id="hero-who"') < hero.index(short) < hero.index('id="hero-fact"')
     paid = readme.split("\n## Paid on proof\n", 1)[1].split("\n## ", 1)[0]
-    assert "```mermaid" in paid and "referees" in paid and number not in readme          # the old number is no longer told
+    assert "/docs/diagrams/" in paid and "referees" in paid and number not in readme          # the old number is no longer told
     said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
     assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 64, said
     # under it, in plain words (tests/test_readme_plain.py reads them): how it works, paid on proof, the ten-second

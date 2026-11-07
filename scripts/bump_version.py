@@ -177,6 +177,7 @@ def pypi_readme(text: str, version: str, root: Path = ROOT) -> str:
             return m.group("ref") + whole(m.group("reftarget"), version, root=root)
         return m.group("attr") + whole(m.group("attrtarget"), version, "src" in m.group("attr"), root) + '"'
     head = "<!-- Written by scripts/bump_version.py from README.md, with links pinned to the tag: edit README.md. -->\n"
+    text = text.replace(f"{RAW}/main/", f"{RAW}/v{version}/")          # README's whole picture links (for Open Exchange)
     return head + _LINK.sub(one, pictures(text, version))
 
 

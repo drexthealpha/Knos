@@ -23,6 +23,9 @@ a { color: var(--accent); }
 .bar nav a[aria-current] { color: var(--accent); }
 .bar .fine { margin-left: auto; }
 body:not([data-in]) main > section, body:not([data-in]) #fresh, body:not([data-in]) #refresh { display: none; }
+body:not([data-demo]) #try { display: none; }
+.try { display: flex; flex-wrap: wrap; gap: 8px; }
+.dec .rec { display: none; }
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
 h1, h2 { text-wrap: balance; }
 h1 { font: 600 28px/1.15 var(--head); letter-spacing: -.02em; margin: 0; }
@@ -52,7 +55,7 @@ button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-
 .kinds { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 12px; padding: 0; }
 .kinds li { padding: 4px 12px; border-radius: 999px; background: var(--soft); font-size: 14px; }
 .kinds li[data-has="0"] { color: var(--ink-2); }
-.kinds li[data-has="0"]::before { content: "\2715\00a0"; color: var(--bad); }
+.kinds li[data-has="0"]::before { content: "\25CB\00a0"; color: var(--ink-2); }
 .kinds li[data-has="1"]::before { content: "\2713\00a0"; color: var(--ok); }
 .signin { display: grid; gap: 8px; max-width: 420px; }
 .signin[hidden] { display: none; }
@@ -119,7 +122,7 @@ main > * { min-width: 0; }
     <p class="sub">$0 unless a helper's work passes your check</p>
     <p class="fine" id="login-msg"></p>
     <label for="user">User</label><input id="user" name="user" autocomplete="username" value="_SYSTEM" required>
-    <label for="pass">Password (the IRIS_PASSWORD line of iris/.env)</label><input id="pass" name="pass" type="password" autocomplete="current-password" required>
+    <label for="pass">Password</label><input id="pass" name="pass" type="password" autocomplete="current-password" required>
     <button class="go" type="submit">Sign in</button>
   </form>
   <section aria-labelledby="t-title">
@@ -127,15 +130,25 @@ main > * { min-width: 0; }
     <p class="finding" id="finding">Loading.</p>
   </section>
 
+  <section class="panel" id="try" aria-labelledby="t-try">
+    <h2 id="t-try">Try it: send a sample test result</h2>
+    <div class="try">
+      <button class="go" type="button" data-sample="pass">A passing test, $20</button>
+      <button type="button" data-sample="fail">A failing test, $20</button>
+      <button type="button" data-sample="big">A passing test, $120: a person must say yes</button>
+    </div>
+    <p class="fine">Play money only. No key, no sign-in: this is the built-in demo.</p>
+  </section>
+
   <section class="panel" aria-labelledby="t-inbox">
-    <h2 id="t-inbox">Waiting for an approver</h2>
+    <h2 id="t-inbox">Waiting for a person</h2>
     <div id="tasks"><p class="empty">Loading.</p></div>
   </section>
 
   <section class="panel" aria-labelledby="t-dec">
     <h2 id="t-dec">Latest decisions</h2>
     <table class="dec">
-      <thead><tr><th scope="col">Brief</th><th scope="col">Gate</th><th scope="col" class="n">Confidence</th><th scope="col" class="n">Session</th><th scope="col">Outcome</th></tr></thead>
+      <thead><tr><th scope="col">Job</th><th scope="col">Result</th><th scope="col" class="n">How sure</th><th scope="col" class="n rec">Record</th><th scope="col">What happened</th></tr></thead>
       <tbody id="decisions"><tr><td colspan="5" class="empty">Loading.</td></tr></tbody>
     </table>
   </section>
@@ -143,17 +156,17 @@ main > * { min-width: 0; }
   <ul class="parts" aria-label="The parts">
     <li><svg class="k-i" aria-hidden="true"><use href="#trending-up"/></svg>Qloo checks demand</li>
     <li><svg class="k-i" aria-hidden="true"><use href="#shield-check"/></svg>IRIS checks proof</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="#wallet"/></svg>NEAR and Solana devnet pay</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="#wallet"/></svg>NEAR and Solana pay in play money</li>
     <li><svg class="k-i" aria-hidden="true"><use href="#history"/></svg>Sibyl remembers each result</li>
   </ul>
 
   <section class="panel" aria-labelledby="t-trace">
-    <h2 id="t-trace">Trace</h2>
+    <h2 id="t-trace">How it decided (for developers)</h2>
     <div id="trace"><p class="empty">Choose a decision to see its trace.</p></div>
   </section>
 
   <section class="panel" aria-labelledby="t-hub">
-    <h2 id="t-hub">AI Hub on this decision</h2>
+    <h2 id="t-hub">The AI&#39;s tools on this decision (for developers)</h2>
     <ol id="hub" class="hub"><li class="empty">Choose a decision.</li></ol>
   </section>
 </main>
@@ -164,6 +177,7 @@ const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) e.append(k); return e; };
 // the page is public; each call sends the IRIS user and password, asked for once and kept only in this tab's memory
 let auth = "";
+let API = "/api/knos/";
 let signingIn = null;
 function signIn() {
   if (signingIn) return signingIn;
@@ -186,7 +200,7 @@ function signIn() {
 async function api(path, opts = {}) {
   for (let i = 0; i < 3; i++) {
     const headers = Object.assign({ Accept: "application/json" }, opts.headers || {}, auth ? { Authorization: auth } : {});
-    const r = await fetch("/api/knos/" + path, Object.assign({}, opts, { headers, credentials: "omit" }));
+    const r = await fetch(API + path, Object.assign({}, opts, { headers, credentials: "omit" }));
     if (r.status === 401) { if (auth) $("login-msg").textContent = "That user and password were refused."; auth = ""; await signIn(); continue; }
     const body = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(body.error || ("HTTP " + r.status));
@@ -194,7 +208,17 @@ async function api(path, opts = {}) {
   }
   throw new Error("not signed in");
 }
-function gatePill(g) { const p = el("span", { className: "pill", textContent: (g || "none").replace(/_/g, " ").toLowerCase() }); p.dataset.g = g || ""; return p; }
+const GATE = { PAY: "paid", HUMAN: "waiting for a person", HELD: "waiting for a person", REJECT: "not paid", REFUND_AT_DEADLINE: "not paid" };
+function gatePill(g) { const p = el("span", { className: "pill", textContent: GATE[g] || (g || "none").replace(/_/g, " ").toLowerCase() }); p.dataset.g = g || ""; return p; }
+function plainOutcome(d) {
+  if (d.gate === "PAY") return /person/.test(d.outcome || "") ? "Paid in play money after a person said yes. No real money moved." : "Paid in play money. No real money moved.";
+  if (d.gate === "HUMAN" || d.gate === "HELD") return "Held until a person says yes.";
+  if (d.gate === "REJECT") return "Not paid: the test did not pass.";
+  if (d.gate === "REFUND_AT_DEADLINE") return "Not paid: the test failed. The backers get their money back.";
+  return d.outcome || "-";
+}
+function jobName(b) { const m = /shop-(pass|fail|big)-/.exec(b || ""); return m ? { pass: "Sample: a passing test, $20", fail: "Sample: a failing test, $20", big: "Sample: a passing test, $120" }[m[1]] : (b || "-").replace(/^github:/, ""); }
+function dollars(subject) { const m = /\((\d+(?:\.\d+)?) USDC\)/.exec(subject || ""); return m ? "$" + m[1] : ""; }
 let toastTimer;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3000); }
 let selected = 0;
@@ -204,14 +228,14 @@ async function loadTasks() {
   try {
     const tasks = (await api("tasks")).filter((t) => t.open);
     box.replaceChildren();
-    if (!tasks.length) { box.append(el("p", { className: "empty", textContent: "Nothing is waiting. Payouts above 50 USDC land here for a person." })); return 0; }
+    if (!tasks.length) { box.append(el("p", { className: "empty", textContent: "Nothing is waiting. A payment over $50 waits here until a person says yes." })); return 0; }
     for (const t of tasks) {
       const acts = el("div", { className: "acts" }, [
         el("button", { type: "button", className: "go", textContent: "Approve", onclick: () => answer(t.id, "Approve", acts) }),
         el("button", { type: "button", textContent: "Reject", onclick: () => answer(t.id, "Reject", acts) }),
       ]);
       box.append(el("div", { className: "task" }, [
-        el("div", {}, [el("strong", { textContent: t.subject || ("Task " + t.id) }), el("div", { className: "fine", textContent: taskText(t.message) + (t.session ? "  Session " + t.session : "") })]),
+        el("div", {}, [el("strong", { textContent: dollars(t.subject) ? "Pay " + dollars(t.subject) + " of play money for this test result?" : (t.subject || ("Task " + t.id)) }), el("div", { className: "fine", textContent: taskText(t.message) })]),
         acts,
       ]));
     }
@@ -222,7 +246,7 @@ async function loadTasks() {
 function taskText(msg) {
   const m = /^(\[.*\])/s.exec(msg || "");
   try {
-    return JSON.parse(m ? m[1] : "[]").map((x) => x.key + ": " + (x.met === true ? "met" : x.met === false ? "not met" : "not decided") + ", " + String(x.reason || "").replace(/[.\s]+$/, "") + ".").join(" ") || msg;
+    return JSON.parse(m ? m[1] : "[]").map((x) => x.met === true ? "The AI says the test passed." : x.met === false ? "The AI says the test failed." : "The AI could not tell.").join(" ") || msg;
   } catch { return msg || ""; }
 }
 
@@ -230,7 +254,7 @@ async function answer(id, action, acts) {
   for (const b of acts.querySelectorAll("button")) b.disabled = true;
   try {
     await api("tasks/" + id, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action }) });
-    toast(action === "Approve" ? "Approved. The production simulates the payout on devnet; no money moves." : "Rejected. The payout is held.");
+    toast(action === "Approve" ? "Approved. Paid in play money; no real money moved." : "Rejected. Nothing is paid.");
     await load();
   } catch (e) { toast("Not saved: " + e.message); for (const b of acts.querySelectorAll("button")) b.disabled = false; }
 }
@@ -240,15 +264,15 @@ async function loadDecisions() {
   try {
     const rows = await api("decisions");
     body.replaceChildren();
-    if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No decision yet. Run scripts/smoke.sh to send one proof." }))); return []; }
+    if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No decision yet." }))); return []; }
     for (const d of rows) {
       const tr = el("tr", { className: "pick", tabIndex: 0 }, [
-        el("td", {}, [el("span", { className: "id", textContent: d.brief || "-" })]),
+        el("td", {}, [el("span", { className: "id", textContent: jobName(d.brief), title: d.brief || "" })]),
         el("td", {}, gatePill(d.gate)),
-        el("td", { className: "n", textContent: d.confidence.toFixed(2) }),
-        el("td", { className: "n id", textContent: String(d.session) }),
-        el("td", { className: "sub", textContent: d.outcome || "-" }),
-        el("td", { className: "meta", textContent: "Confidence " + d.confidence.toFixed(2) + ", session " + d.session }),
+        el("td", { className: "n", textContent: Math.round(d.confidence * 100) + "%" }),
+        el("td", { className: "n id rec", textContent: String(d.session) }),
+        el("td", { className: "sub", textContent: plainOutcome(d), title: d.outcome || "" }),
+        el("td", { className: "meta", textContent: Math.round(d.confidence * 100) + "% sure" }),
       ]);
       tr.setAttribute("aria-selected", String(d.session === selected));
       const open = () => { showTrace(d.session); showHub(d.brief); };
@@ -289,7 +313,7 @@ async function showTrace(sid) {
 async function load() {
   const [waiting, rows] = await Promise.all([loadTasks(), loadDecisions()]);
   const paid = rows.filter((d) => d.gate === "PAY").length;
-  $("finding").textContent = rows.length ? waiting + " waiting for an approver. " + paid + " of the latest " + rows.length + " cleared to pay (a devnet simulation; no money moved)." : "No decision yet.";
+  $("finding").textContent = rows.length ? waiting + " waiting for a person. " + paid + " paid in play money." : (document.body.dataset.demo ? "No decision yet. Press a button below to send a sample." : "No decision yet.");
   $("fresh").textContent = "Updated " + new Date().toLocaleTimeString();
   if (!selected && rows.length) { showTrace(rows[0].session); showHub(rows[0].brief); }
 }
@@ -301,7 +325,7 @@ const HUB = [
   ["MCP tool", "mcp", (r) => `${(r.tools || []).length} tools served at /mcp/knos. ${r.call?.tool}: ${hubBrief(r.call?.answer)}.`],
   ["Knowledge base", "rag", (r) => { const h = (r.answer?.value || [])[0]; return h ? `Top hit, score ${Number(h.score).toFixed(2)}: ${h.text}` : "No hit."; }],
   ["Tokens", "stats", (r) => `${r.stats?.total_prompt_tokens} in, ${r.stats?.total_completion_tokens} out, ${r.stats?.total_llm_duration_ms} ms, ${r.model}.`],
-  ["Workflow", "workflow", (r) => { const t = (r.tasks || [])[0]; return t ? `Task ${t.task}: ${t.done ? (t.action || "answered") : "waiting for an approver"}.` : "No approval needed: at most 50 USDC."; }],
+  ["Workflow", "workflow", (r) => { const t = (r.tasks || [])[0]; return t ? `Task ${t.task}: ${t.done ? (t.action || "answered") : "waiting for an approver"}.` : "No approval needed: $50 or less."; }],
 ];
 function hubBrief(a) {
   try { const b = JSON.parse(a?.value ?? a?.result ?? "{}"); return b.milestones ? `${b.milestones.length} milestone, "${b.milestones[0].name}"` : (b.error || "read"); } catch { return "read"; }
@@ -321,8 +345,23 @@ async function showHub(brief) {
   }
 }
 $("refresh").addEventListener("click", load);
-// nothing is asked of IRIS before the user and password are given
-(async () => { await signIn(); load(); })();
+const SAID = { pass: "Sent a passing test. Look at the newest decision.", fail: "Sent a failing test: nothing is paid.", big: "Sent a passing test for $120: it waits for a person below." };
+for (const b of document.querySelectorAll("[data-sample]")) {
+  b.addEventListener("click", async () => {
+    for (const x of document.querySelectorAll("[data-sample]")) x.disabled = true;
+    toast("Sending. The check takes a few seconds.");
+    try { await api("sample/" + b.dataset.sample, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: "{}" }); toast(SAID[b.dataset.sample]); selected = 0; await load(); }
+    catch (e) { toast("Not sent: " + e.message); }
+    for (const x of document.querySelectorAll("[data-sample]")) x.disabled = false;
+  });
+}
+// the built-in demo (replay mode, no key): no sign-in; otherwise nothing is asked of IRIS before the user and password are given
+(async () => {
+  const demo = await fetch("/api/knosdemo/health", { credentials: "omit" }).then((r) => r.ok).catch(() => false);
+  if (demo) { API = "/api/knosdemo/"; document.body.dataset.in = "1"; document.body.dataset.demo = "1"; }
+  else await signIn();
+  load();
+})();
 </script>
 <script>(() => { const m = document.getElementById("menu"), n = document.getElementById("nav"); if (!m || !n) return; m.addEventListener("click", () => { n.hidden = !n.hidden; m.setAttribute("aria-expanded", String(!n.hidden)); }); })();</script>
 </body>

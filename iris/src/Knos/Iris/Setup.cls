@@ -14,6 +14,10 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
     // before it calls /api/knos. The only role it adds is the KNOS database's, so the page class can run
     set page("NameSpace") = ns, page("DispatchClass") = "Knos.Iris.REST.Page", page("AutheEnabled") = 64, page("Enabled") = 1, page("MatchRoles") = ":%DB_"_ns
     if '##class(Security.Applications).Exists("/knos") { do ##class(Security.Applications).Create("/knos", .page) }
+    // /api/knosdemo: the built-in demo with no login (Knos.Iris.REST.Demo). Its routes answer 403 unless KNOS_AI_MODE is
+    // replay, so no model or key is reached without the password; in replay mode it sends samples and answers tasks
+    set demo("NameSpace") = ns, demo("DispatchClass") = "Knos.Iris.REST.Demo", demo("AutheEnabled") = 64, demo("Enabled") = 1, demo("MatchRoles") = ":%All"
+    if '##class(Security.Applications).Exists("/api/knosdemo") { do ##class(Security.Applications).Create("/api/knosdemo", .demo) }
     // the referee's read tools as an AI Hub MCP service (Knos.Iris.AI.MCP), password login like /api/knos. Type 18 is
     // what IRIS's MCP editor gives an MCP server's web app: without it the gateway refuses the endpoint's identity
     set mcp("NameSpace") = ns, mcp("DispatchClass") = "Knos.Iris.AI.MCP", mcp("AutheEnabled") = 32, mcp("Enabled") = 1

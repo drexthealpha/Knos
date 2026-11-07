@@ -92,7 +92,7 @@ def test_the_package_description_draws_no_mermaid_and_each_picture_is_at_the_tag
     assert "```mermaid" not in text and "~~~mermaid" not in text
     pictures = re.findall(r"https://raw\.githubusercontent\.com/drexthealpha/Knos/([^/\s)]+)/(docs/diagrams/[^)\s\"]+)", text)
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert len(pictures) == readme.count("```mermaid") + readme.count("~~~mermaid")
+    assert len(pictures) == readme.count("```mermaid") + readme.count("~~~mermaid") + readme.count("/docs/diagrams/")
     for ref, path in pictures:
         assert ref == f"v{_version()}" and (ROOT / path).is_file(), (ref, path)
     assert b.missing_pictures() == []
