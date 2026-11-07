@@ -78,6 +78,8 @@ def test_every_button_the_documents_say_to_press_is_on_the_site():
 
     web = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "web").rglob("*") if p.suffix in (".html", ".js"))
     shown = set(re.findall(r">\s*([^<>{}$]+?)\s*<", web)) | set(re.findall(r'"([^"<>]+)"', web))
+    # the IRIS page (iris/web/dashboard.html, at /knos/ on the reader's own IRIS): its sample buttons name a $ amount
+    shown |= set(re.findall(r"<button[^>]*>\s*([^<>]+?)\s*</button>", (ROOT / "iris" / "web" / "dashboard.html").read_text(encoding="utf-8")))
     pages = ["README.md", "README.pypi.md", "docs/START.md", "docs/reference/COMPANIES.md"]
     asked = [(rel, label) for rel in pages
              for label in re.findall(r"(?i)\bpress \*\*([^*]+)\*\*", (ROOT / rel).read_text(encoding="utf-8"))]

@@ -22,7 +22,7 @@ A lab pays for each research step only when a test proves it is done. Play money
 *No money locks on a vague brief. Each step is paid only when its proof is verified.*
 
 1. **Is it wanted?** Knos [asks Qloo](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DEMAND_CHECK.md), a service that knows what people like, who would buy the product and in which city.
-2. **Write the deal.** Each step of the work gets a goal, a test and a deadline. They are sealed with a fingerprint, so nobody can change them later.
+2. **Write the deal.** Each step of the work gets a goal and a deadline, plus the test that decides it. They are sealed with a fingerprint, so nobody can change them later.
 3. **Hold the money.** Backers' money waits in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana), a public ledger, not with Knos.
 4. **Pay on proof.** The maker sends proof. When the test passes, that step is paid. If nothing passes by the deadline, the backers get their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
 
@@ -98,12 +98,14 @@ One person holds every key today. Any change to the programs waits in public for
 ## Run it on IRIS
 
 **Knos carries research across the valley of death.** Inside InterSystems IRIS, that means a lab pays for each step of
-the work only when its test passes. An AI agent reads the test result, a rule decides, and above $50 a person says yes.
+the work only when its test passes. An AI agent reads the test result and a rule decides; above $50 a person must also say yes.
 Play money only.
 
 **One story.** A hospital lab funds a startup to build the online shop for its test kits. Step one pays $120 when the
 shop's checkout answers in under 300 ms, measured by the startup's own GitHub test. The test passes. The AI agent in
-IRIS reads the result and says yes. It is over $50, so the lab's approver presses Approve, and the step is paid in play
+IRIS reads the result and says yes.
+
+It is over $50, so the lab's approver presses Approve, and the step is paid in play
 money. A failing test pays nothing.
 
 Built and tested on the AI Hub image, build 154 (irishealth-community 2026.3.0AI.154.0).
@@ -154,7 +156,7 @@ bash scripts/ready.sh
 
 `ready.sh` is the readiness check: it waits for IRIS and prints `READY: open http://localhost:52773/knos/ ...`. Open
 that page and press **A passing test, $20**: the decision appears in a few seconds. **A passing test, $120** waits for a
-person: press **Approve**. The default is replay mode: no key, no model download and no sign-in.
+person: press **Approve**. The default is replay mode: no key and no sign-in. It downloads no model.
 
 What the commands do: `load-image.sh` runs `docker load -i <the tar>`, then retags the image to the name the Dockerfile
 builds on:
@@ -177,7 +179,9 @@ with random secrets (never commit `.env`). The first build takes about 3 minutes
 ### The model (LLM provider) and its key
 
 The default needs nothing: replay mode (`KNOS_AI_MODE=replay`) answers with recorded model answers and the rules
-referee. For the AI Hub agent on a local open model, set `KNOS_AI_MODE=local` in `.env` and start with
+referee.
+
+For the AI Hub agent on a local open model, set `KNOS_AI_MODE=local` in `.env` and start with
 `docker compose --profile local up -d --build`: it pulls `qwen2.5:1.5b-instruct` (about 1 GB) into the `ollama`
 service and asks it through AI Hub's `openai` provider, with no key and no account. For a cloud model set
 `KNOS_AI_MODE=live`, `KNOS_LLM_PROVIDER` and its key in `.env`:
@@ -244,7 +248,9 @@ runs `iris.script`, the final stage copies in only the databases the install cha
 
 `KNOS_AI_MODE=replay` (the default) asks no model and says "rules referee (no model key set)", or gives a recorded
 answer. `KNOS_AI_MODE=local` needs no key either: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
-tokens. `KNOS_AI_MODE=live` uses the provider and key from the table above. No paid model call has been made for this
+tokens. `KNOS_AI_MODE=live` uses the provider and key from the table above.
+
+No paid model call has been made for this
 project.
 
 | | Rules referee | AI Hub agent |
