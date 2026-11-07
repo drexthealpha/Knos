@@ -303,11 +303,21 @@ def buy(side: str) -> dict:
         rec = json.loads((NEAR_WEB / "market.json").read_text(encoding="utf-8"))
         mid = rec["open"]
         _jobs()
+        import common
         from common import call, view
         before = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
         was = int((view(MARKET, "get_market", {"id": mid}) or {}).get(side + "_price") or 0)
-        r = call(LIVE, TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SHARE_BUY),
-                 "msg": json.dumps({"buy": {"id": mid, "side": side}})}, deposit="1 yoctoNEAR", gas="100 Tgas")
+        args = {"receiver_id": MARKET, "amount": str(SHARE_BUY), "msg": json.dumps({"buy": {"id": mid, "side": side}})}
+        with _lock:                                       # the next job's prefetched nonce is for the job: a buy asks afresh
+            common._PREFETCHED.pop(LIVE, None)
+            try:
+                r = call(LIVE, TOKEN, "ft_transfer_call", args, deposit="1 yoctoNEAR", gas="100 Tgas")
+            except Exception as e:  # noqa: BLE001 - one retry on a stale nonce, anything else is said on the page
+                if "INVALID_TRANSACTION" not in str(e) and "InvalidNonce" not in str(e):
+                    raise
+                time.sleep(2)
+                r = call(LIVE, TOKEN, "ft_transfer_call", args, deposit="1 yoctoNEAR", gas="100 Tgas")
+            common._PREFETCHED.pop(LIVE, None)            # a nonce fetched while the buy was on its way is spent
         after = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
         v = view(MARKET, "get_market", {"id": mid}) or {}
         got = int(after.get(side) or 0) - int(before.get(side) or 0)
