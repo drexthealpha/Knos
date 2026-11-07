@@ -57,6 +57,7 @@ def page(mid: str, v: dict) -> dict:
                 and text.lower().startswith(claim.lower().rstrip("."))):
             return {"id": mid, "claim": claim, "yes_c": yes_c, "status": status, "text": text, "words": words, "model": MODEL,
                     "written": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
+        print(f"{mid}: not kept ({words} words): {text}", file=sys.stderr)
     text = f"{claim} Yes costs {yes_c}c. The market is {status}."
     return {"id": mid, "claim": claim, "yes_c": yes_c, "status": status, "text": text, "words": len(text.split()), "model": "none: the model's 6 answers broke the limits",
             "written": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
