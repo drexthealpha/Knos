@@ -115,7 +115,7 @@ Only then does Solana devnet see anything, and it is a simulation with test mone
 
 This entry runs on AI Hub build 154 (irishealth-community 2026.3.0AI.154.0), which the portal removed on 2 Nov 2026; build 109 is not tested.
 
-| | |
+| What | Where |
 |---|---|
 | Video | [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4): one decision from the proof arriving to the approval and its trace, downloads with no sign-in |
 | Idea | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): LLM tracing as interoperability messages, built here |
@@ -459,7 +459,7 @@ contract, under a spend cap. AI Swarms (`swarms`): two agents on one job, paid b
 **A company pays a lab or a developer only when GitHub's signed run proves the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back. The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
 Spending limits cap what an agent may spend. Knos pays only for work that is proven done.
 
-| | |
+| What | How |
 |---|---|
 | **Pays on proof** | A funder sends a test token (NEP-141) with `ft_transfer_call`; the contract holds it against a criteria hash and a deadline. |
 | **Proof is a signed CI run** | A GitHub Actions OIDC token, checked in the contract: RS256 in pure Rust, issuer, audience = this contract, repository, workflow, commit and a one-time `jti`. Paid on a real one: [run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325), release [`82N9tRK8…`](https://explorer.testnet.near.org/transactions/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj). |
@@ -565,7 +565,7 @@ It prints `208/208 tests passed (146 of them attacks)`, the contract's unit test
 
 ### On testnet
 
-| | |
+| What | Where |
 |---|---|
 | Contract | [`knos-pay-1103.testnet`](https://explorer.testnet.near.org/accounts/knos-pay-1103.testnet), first deployed in tx [`6Uoen72K…`](https://explorer.testnet.near.org/transactions/6Uoen72KUZnDy1PCknZx5iEQNzfWY2hGgyGmgTdpjAfp); this build since 3 Nov 2026, tx [`AcFJP4Ch…`](https://explorer.testnet.near.org/transactions/AcFJP4ChbxF4Vuwx6qAdHNuugbHgcVNuVcprnzpx1Mfk), code hash `4ZwgX56fbcChxPwP6nu5oJJ8vWYtB2Az9y4jF2K6KcfR` |
 | Test token | [`knos-usdc-1102.testnet`](https://explorer.testnet.near.org/accounts/knos-usdc-1102.testnet) (NEP-141, this repo's `mock-usdc`), tx [`D4PoD9do…`](https://explorer.testnet.near.org/transactions/D4PoD9doUA5Lo7wxWRSQEvnpFPcmHXuqitqnXgYoa8sG) |
