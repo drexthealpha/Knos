@@ -439,7 +439,7 @@
       esc([lead.id, ...others.map((m) => m.id)].filter(Boolean).join(","))}">None of these</button>`}</p>` : "";
     return `<article class="k-card k-${cls}" data-verdict="${esc(d.verdict || "")}" data-not-prose>
   ${storyHead(r)}
-  ${gapOpen(r)}
+  <details class="k-how"><summary>How Knos decided</summary>${gapOpen(r)}
   ${guess ? yourCall(guess, terms, cities) : ""}
   ${down ? `<p class="k-terms" data-qloo-down>${esc(down)}</p>` : ""}${r.nearest && reset ? `<p class="k-fine k-terms" data-qloo-limit-line>${esc(reset.trim())}</p>` : ""}
   <header class="k-card-head"><p class="k-kick">${label ? `<span class="k-real">${esc(label)}</span> · ` : ""}${esc(r.idea || r.label || "")}</p><h2 class="k-verdict" data-part="verdict" data-qloo>${esc(word)}${src(h)}</h2>${callsHead(r)}
@@ -468,7 +468,7 @@
       ${tier ? `<p class="k-tier-said" data-price-said>Price tier: ${esc(tier)}</p><ol class="k-tiers" aria-label="Price tier: ${esc(tier)}">${TIERS.map((t) => `<li${t === tier ? ' aria-current="true"' : ""}>${t}</li>`).join("")}</ol>` : `<p class="k-none">Qloo gave no price signal.</p>`}
 ${src(h, price.src)}</section>
     ${more(r)}
-  </div>`}
+  </div>`}</details>
   ${storyFoot(r)}
   ${recordedCard(r, label) ? u1(r) : ""}
   ${calls(r)}

@@ -31,7 +31,7 @@ def test_an_open_card_leads_with_its_decision_and_offers_three_downloads_built_f
 def test_the_used_line_names_only_the_inputs_own_words():
     u = story.build(OPEN)["used"]
     assert u["used"] == ["late", "night", "ramen"] and u["not_in_qloo"] == ["spot"]
-    assert u["line"].startswith("Matched: late, night, ramen.") and "Not found: spot" in u["line"]
+    assert u["line"] == "" and u["words"].startswith("Matched: late, night, ramen.") and "Not found: spot" in u["words"]
 
 
 def test_a_refusal_is_never_a_dead_end():

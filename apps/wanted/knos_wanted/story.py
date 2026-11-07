@@ -33,8 +33,7 @@ def _city(rep: dict) -> str | None:
     cities = rep.get("cities") or ((rep.get("launch") or {}).get("cities")) or []
     if cities and cities[0].get("name"):
         return str(cities[0]["name"])
-    places = rep.get("places") or []
-    return str(places[0]["name"]) if places and places[0].get("name") else None
+    return None                                       # a venue is not a place to launch: the card names cities only
 
 
 def _who(rep: dict) -> str | None:
@@ -93,7 +92,7 @@ def used(rep: dict) -> dict:
     line = ("Matched: " + ", ".join(used_w) + "." if used_w else "None of its words matched.")
     if not_w:
         line += " Not found: " + ", ".join(not_w) + "."
-    return {"used": used_w, "not_in_qloo": not_w, "via": via, "line": line}
+    return {"used": used_w, "not_in_qloo": not_w, "via": via, "words": line, "line": ""}   # the words line is kept, not shown
 
 
 def reruns(rep: dict) -> list[dict]:
