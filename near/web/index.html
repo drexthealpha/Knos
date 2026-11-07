@@ -39,6 +39,7 @@ main > * { min-width: 0; }
 .ic, .k-i { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .k-i { width: 24px; height: 24px; flex: none; vertical-align: -6px; margin-right: 6px; } .go .k-i { stroke: currentColor; }
 .receipt:not(:empty)::before { content: ""; display: inline-block; width: 24px; height: 24px; margin-right: 6px; vertical-align: -6px; background: var(--accent); -webkit-mask: url(../brand/icons/coins.svg) center/24px no-repeat; mask: url(../brand/icons/coins.svg) center/24px no-repeat; }
+.claim .loop { border-top: 1px solid var(--line); margin-top: var(--sp-4); padding-top: var(--sp-4); } .claim h3 { font: 600 var(--s1)/1.3 var(--head); margin: 0 0 var(--sp-2); } .loop-steps { margin: var(--sp-2) 0 0; padding-left: 1.2em; line-height: 1.7; }
 .claim .q { font: 600 var(--s1)/1.35 var(--text); margin: 0 0 var(--sp-2); } .claim .price { display: flex; gap: var(--sp-4); margin: 0 0 var(--sp-2); } .claim .price b { font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); font-variant-numeric: tabular-nums; } .claim .buys { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .parts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 0; list-style: none; } .parts li { display: flex; align-items: center; font-weight: 500; }
 .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
@@ -170,6 +171,14 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <p class="fine">A Yes share pays $1 if a computer checks the proof and it passes. A No share pays $1 if it fails. No one can vote. Test money.</p>
     <p class="buys"><button type="button" class="go" id="buy-yes" data-buy>Buy Yes, $1</button> <button type="button" id="buy-no" data-buy>Buy No, $1</button></p>
     <p class="fine" id="m-said" role="status"></p>
+    <div class="loop" id="loop">
+      <h3>Or bet on a job and watch it settle</h3>
+      <p class="q">Will a helper's work pass this job's test?</p>
+      <p class="buys"><button type="button" class="go" id="loop-fund" data-buy>Fund its test, $1</button></p>
+      <p class="fine" id="loop-quote" hidden></p>
+      <p class="buys" id="loop-go-row" hidden><button type="button" class="go" id="loop-go" data-buy>Pay with test money and watch</button></p>
+      <ol class="loop-steps" id="loop-steps" aria-live="polite"></ol>
+    </div>
     <p class="fine" id="m-done">Settled before: "Splitting a bid never pays out more than the bid." <a id="m-run" href="https://github.com/drexthealpha/Knos/actions/runs/42333777443">Its proof passed</a>, so Yes won and was <a id="m-paid" href="https://testnet.nearblocks.io/txns/CKLgT3vaPocoEZQjsjTFEpHcb1LmV1oAeBoqtLPMGmvT">paid $36.66</a>. <a id="m-vote" href="https://testnet.nearblocks.io/txns/371H72CAkzrN1ih486C32y9iFsrKd1ndqZXKxWL5tYyL">A vote was refused</a>.</p>
   </section>
 
@@ -371,6 +380,26 @@ for (const side of ["yes", "no"]) $("buy-" + side).addEventListener("click", asy
   const S = side === "yes" ? "Yes" : "No";
   $("m-said").replaceChildren(`Bought ${r.shares} ${S} shares for $1.00. ${S} went from ${r.was_c.toFixed(1)}c to ${r.now_c.toFixed(1)}c. `,
     el("a", { href: r.url, target: "_blank", rel: "noopener", textContent: "The transaction" }));
+});
+
+// G3: fund a job's test from Base (a dry 1Click quote, its amounts shown), then one run: a market on the job, $1 on
+// Yes, both helpers' tries, the payment to the one that passed, the market settled by the job, the shares paid
+$("loop-fund").addEventListener("click", async () => {
+  $("loop-fund").disabled = true; $("loop-quote").hidden = false; $("loop-quote").textContent = "Asking 1Click for a quote…";
+  const q = await fetch(HOSTED + "/api/near/claim/quote", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
+  $("loop-fund").disabled = false;
+  if (!q.ok) { $("loop-quote").textContent = `No quote: ${q.why}.`; return; }
+  $("loop-quote").textContent = `From Base you would send ${q.send_usdc.toFixed(2)} USDC; ${q.arrives_usdc.toFixed(6)} arrives on NEAR; 1Click keeps ${q.fee_usdc.toFixed(6)} (${q.fee_pct}%). A quote only: here test money pays.`;
+  $("loop-go-row").hidden = false;
+});
+$("loop-go").addEventListener("click", async () => {
+  const t0 = Date.now(); $("loop-go").disabled = true;
+  $("loop-steps").replaceChildren(el("li", { textContent: "Running on NEAR testnet…" }));
+  const r = await fetch(HOSTED + "/api/near/claim/run", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
+  $("loop-go").disabled = false;
+  const rows = (r.steps || []).map((s) => el("li", {}, [s.ok ? "" : "Stopped: ", s.step, " · ", s.url ? el("a", { href: s.url, target: "_blank", rel: "noopener", textContent: "the transaction" }) : "no transaction"]));
+  rows.push(el("li", { textContent: r.ok ? `Done in ${((Date.now() - t0) / 1000).toFixed(1)} s: Helper A paid $1.00, Helper B $0, the market settled Yes, your ${r.shares} Yes shares paid.` : `Not finished: ${r.why}.` }));
+  $("loop-steps").replaceChildren(...rows);
 });
 
 const clock = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "";

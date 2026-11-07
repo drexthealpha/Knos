@@ -931,6 +931,17 @@ def make_handler(state: State):
         def do_POST(self):
             u = urlparse(self.path)
             outside.begin(self.headers)                   # the outside counter reads who is asking (knos_wanted.outside)
+            if u.path == "/api/near/claim/quote":          # G3: a dry 1Click quote for the $1 that funds a job's test
+                from . import near_live
+                try:
+                    return self._send(200, near_live.claim_quote(), headers=blink.CORS)
+                except Exception as e:  # noqa: BLE001 - the page says why
+                    return self._send(200, {"ok": False, "why": f"1Click did not answer ({str(e)[:100]})"}, headers=blink.CORS)
+            if u.path == "/api/near/claim/run":            # G3: market, $1 Yes, helpers, payment, settle, shares paid
+                from . import near_live
+                if not state.allow(self._client(), "near_live"):
+                    return self._send(200, {"ok": False, "why": "three live runs every 10 minutes from one address"}, headers=blink.CORS)
+                return self._send(200, near_live.claim_run(), headers=blink.CORS)
             if u.path == "/api/near/market/buy":            # one $1.00 test-money buy of Yes or No on the open claim
                 from . import near_live
                 if not state.allow(self._client(), "near_market"):

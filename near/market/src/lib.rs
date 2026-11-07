@@ -21,6 +21,7 @@ use near_sdk::{env, near, require, AccountId, Gas, NearToken, PanicOnDefault, Pr
 pub const B: u128 = 100_000_000; // 100 test tokens at 6 decimals
 pub const SEED_MIN: u128 = 69_314_719; // b * ln 2, rounded up
 const GAS: Gas = Gas::from_tgas(15);
+pub const JOBS: &str = "jobs.knos-swarm-1105.testnet"; // the jobs contract a "job:" market follows
 
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Debug)]
@@ -118,8 +119,14 @@ impl Contract {
     pub fn resolve(&mut self, id: String) -> Promise {
         let m = self.markets.get(&id).unwrap_or_else(|| env::panic_str("no such market"));
         require!(m.outcome.is_none(), "this market is already settled");
-        Promise::new(self.source.clone())
-            .function_call("get_milestone".to_string(), serde_json::json!({ "id": id }).to_string().into_bytes(), NearToken::from_yoctonear(0), GAS)
+        // "job:<id>" follows a job of the jobs contract (paid only to the helper whose output passed its locked test);
+        // any other id follows a milestone of `source` (released only by its named workflow's own token)
+        let (to, method, key) = match id.strip_prefix("job:") {
+            Some(job) => (JOBS.parse::<AccountId>().unwrap_or_else(|_| env::panic_str("jobs")), "get_job", job.to_string()),
+            None => (self.source.clone(), "get_milestone", id.clone()),
+        };
+        Promise::new(to)
+            .function_call(method.to_string(), serde_json::json!({ "id": key }).to_string().into_bytes(), NearToken::from_yoctonear(0), GAS)
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS).on_resolve(id))
     }
 
@@ -128,14 +135,14 @@ impl Contract {
         let ms = r.ok().flatten().unwrap_or_else(|| env::panic_str("the milestone could not be read"));
         let state = ms.get("state").and_then(|s| s.as_str()).unwrap_or("");
         let yes = match state {
-            "Released" => true,
+            "Released" | "Paid" => true,
             "Refunded" => false,
-            _ => env::panic_str(&format!("not settled: the locked check has not run (the milestone is {state})")),
+            _ => env::panic_str(&format!("not settled: the locked check has not run (it is {state})")),
         };
         let mut m = self.markets.get(&id).cloned().unwrap_or_else(|| env::panic_str("no such market"));
         m.outcome = Some(yes);
         self.markets.insert(id.clone(), m);
-        format!("{id} settled {} by its locked check (milestone {state})", if yes { "Yes" } else { "No" })
+        format!("{id} settled {} by its locked check ({state})", if yes { "Yes" } else { "No" })
     }
 
     /// Pays the caller's winning shares, 1 unit each.

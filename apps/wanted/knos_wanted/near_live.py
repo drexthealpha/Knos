@@ -331,3 +331,79 @@ def buy(side: str) -> dict:
     finally:
         _buying.release()
 
+
+SEED = 69_314_719            # b * ln 2 for b = 100 test tokens: Knos's most a market can lose
+
+
+def claim_quote() -> dict:
+    """What funding a job's test costs from Base: a dry 1Click quote (no deposit address, nothing moves). Without a
+    partner key 1Click keeps 0.2%; the quote's own amounts show it."""
+    q = _jobs().quote({"usdc_units": BID})
+    if not q.get("ok"):
+        return {"ok": False, "why": q.get("why") or "1Click did not answer"}
+    qq = q.get("quote") or {}
+    a_in, a_out = int(qq.get("amountIn") or BID), int(qq.get("amountOut") or 0)
+    return {"ok": True, "send_usdc": round(a_in / 1e6, 6), "arrives_usdc": round(a_out / 1e6, 6), "fee_usdc": round((a_in - a_out) / 1e6, 6),
+            "fee_pct": round((a_in - a_out) * 100 / a_in, 2) if a_in else None, "from": "USDC on Base", "to": "USDC on NEAR",
+            "dry": True, "correlation": q.get("correlationId")}
+
+
+def claim_run() -> dict:
+    """One claim, start to end, on testnet: a market on the job both helpers already tried, the visitor's $1 on Yes,
+    the payment to the helper whose work passed, the market settled from the job's state, the visitor's shares paid."""
+    s = status()
+    if not s["live"]:
+        return {"ok": False, "why": "live runs are switched off"}
+    if s["used_today"] >= s["cap_today"]:
+        return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
+    with _lock:
+        ready = _ready.pop("job", None) if _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR else None
+        if ready:
+            today = time.strftime("%Y-%m-%d", time.gmtime())
+            if _day["day"] != today:
+                _day.update(day=today, n=0)
+            _day["n"] += 1
+    if not ready:
+        threading.Thread(target=prepare, daemon=True).start()
+        return {"ok": False, "why": "the next job is being readied; try again in a minute"}
+    t0, steps = time.time(), []
+    try:
+        _jobs()
+        import common
+        from common import call, view
+        mid = "job:" + ready["id"]
+
+        def send(what: str, contract: str, method: str, args: dict, deposit: str = "0 NEAR") -> dict:
+            with _lock:
+                common._PREFETCHED.pop(LIVE, None)
+                r = call(LIVE, contract, method, args, deposit=deposit, gas="100 Tgas")
+            steps.append({"step": what, "ok": r["ok"], "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})})
+            if not r["ok"]:
+                raise RuntimeError(f"{what}: {r['said']}")
+            return r
+
+        send("market opened", TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps(
+            {"seed": {"id": mid, "question": "Will a helper's work pass this job's test?"}})}, "1 yoctoNEAR")
+        send("you bought Yes for $1.00", TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SHARE_BUY),
+             "msg": json.dumps({"buy": {"id": mid, "side": "yes"}})}, "1 yoctoNEAR")
+        held = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
+        for k, label in (("take_a", "Helper A took the job"), ("submit_a", "Helper A sent its work"),
+                         ("take_b", "Helper B took the job"), ("submit_b", "Helper B sent its work")):
+            tx = (ready.get("txs") or {}).get(k)
+            if tx:
+                steps.append({"step": label, "ok": True, "tx": tx, "url": common.EXPLORER + tx})
+        paid = _release(ready)
+        rel = (paid.get("job") or {}).get("txs", {}).get("release")
+        steps.append({"step": "Helper A's work passed: paid $1.00" if paid["state"] == "done" else "the payment stopped",
+                      "ok": paid["state"] == "done", "tx": rel, "url": paid.get("release_url")})
+        if paid["state"] != "done":
+            raise RuntimeError(paid.get("why") or "the payment stopped")
+        send("market settled Yes, by the job's test", MARKET, "resolve", {"id": mid})
+        send("your Yes shares paid", MARKET, "redeem", {"id": mid})
+        threading.Thread(target=prepare, daemon=True).start()
+        return {"ok": True, "market": mid, "shares": round(int(held.get("yes") or 0) / 1e6, 2), "steps": steps,
+                "seconds": round(time.time() - t0, 1)}
+    except Exception as e:  # noqa: BLE001 - the page shows the step that stopped and why
+        threading.Thread(target=prepare, daemon=True).start()
+        return {"ok": False, "why": str(e)[:200], "steps": steps, "seconds": round(time.time() - t0, 1)}
+
