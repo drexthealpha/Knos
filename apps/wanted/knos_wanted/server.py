@@ -66,7 +66,7 @@ SESSION_S = 30 * 60
 LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish": (10, 600), "demo": (4, 600),
           "faucet": (2, 3600), "tx": (20, 600), "check": (30, 600), "taste": (30, 600), "mcp": (300, 600), "lock": (6, 600), "auth": (30, 600),
           "milestone": (30, 600), "milestone_one": (10, 3600), "referee": (120, 600), "product": (60, 600),
-          "live": (120, 600), "near_live": (3, 600), "near_guard": (2, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
+          "live": (120, 600), "near_live": (3, 600), "near_guard": (2, 600), "near_market": (5, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
@@ -88,7 +88,7 @@ SIGNED_IN = ("/api/preorder", "/api/milestone", "/api/refund", "/api/factor", "/
 # every GET route below (do_GET), for the OpenAPI document (knos_wanted.openapi); the product routes list their own
 PAGES = {"/fields": "fields.html", "/money": "money.html", "/companies": "companies.html", "/trace": "trace.html", "/trace.html": "trace.html", "/with-without": "with_without.html", "/with-without.html": "with_without.html",
          "/qloo-safe-use": "qloo_safe_use.html", "/qloo-safe-use.html": "qloo_safe_use.html", "/invite": "invite.html", "/invite.html": "invite.html"}
-GET_ROUTES = {"/api/near/totals": "Three live totals of the NEAR jobs contract (money paid for passing work, jobs paid, tries), each from its public record", "/api/near/live": "The live NEAR testnet job for a visitor of /near/: on or off, runs used today, the cap, the bid (POST starts one)", "/api/near/live/{run}": "One live NEAR job: its step, then who was paid and every testnet transaction", "/api/progress": "One running check: its live Qloo calls and entities so far (?req=)", "/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the Start page on the front door", "/start/": "301 to the Start page on the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
+GET_ROUTES = {"/api/near/market": "The claim markets on NEAR testnet: the open claim's Yes and No prices in cents, the settled claim's record (POST /api/near/market/buy buys $1 of Yes or No)", "/api/near/totals": "Three live totals of the NEAR jobs contract (money paid for passing work, jobs paid, tries), each from its public record", "/api/near/live": "The live NEAR testnet job for a visitor of /near/: on or off, runs used today, the cap, the bid (POST starts one)", "/api/near/live/{run}": "One live NEAR job: its step, then who was paid and every testnet transaction", "/api/progress": "One running check: its live Qloo calls and entities so far (?req=)", "/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the Start page on the front door", "/start/": "301 to the Start page on the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
               "/api/money": "The money page: what is held, released and charged, and the price list",
               "/api/vectors": "The seven product-value vectors, measured: cost, speed, friction, trust, capability, access, status",
               "/api/proof": "The latest real verdict this server reached (shown first on both front doors)",
@@ -509,6 +509,12 @@ def make_handler(state: State):
             if u.path == "/api/near/totals":                # three live totals of the jobs contract, read from its public record
                 from . import near_live
                 return self._send(200, near_live.totals(), headers=blink.CORS)
+            if u.path == "/api/near/market":                # the claim markets on testnet: the open one's price, the settled one's record
+                from . import near_live
+                try:
+                    return self._send(200, near_live.market(), headers=blink.CORS)
+                except Exception as e:  # noqa: BLE001 - the page says why
+                    return self._send(200, {"error": f"testnet did not answer ({str(e)[:120]})"}, headers=blink.CORS)
             if u.path == "/api/near/live":                  # the live NEAR job's caps and switch (knos_wanted.near_live)
                 from . import near_live
                 return self._send(200, near_live.status(), headers=blink.CORS)
@@ -925,6 +931,11 @@ def make_handler(state: State):
         def do_POST(self):
             u = urlparse(self.path)
             outside.begin(self.headers)                   # the outside counter reads who is asking (knos_wanted.outside)
+            if u.path == "/api/near/market/buy":            # one $1.00 test-money buy of Yes or No on the open claim
+                from . import near_live
+                if not state.allow(self._client(), "near_market"):
+                    return self._send(200, {"ok": False, "why": "five buys every 10 minutes from one address"}, headers=blink.CORS)
+                return self._send(200, near_live.buy(str(self._json().get("side") or "")), headers=blink.CORS)
             if u.path == "/api/near/guard":                 # the guardrails, live: helper B over its cap, then with no passing work
                 from . import near_live
                 if not state.allow(self._client(), "near_guard"):

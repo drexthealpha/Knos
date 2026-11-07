@@ -39,6 +39,7 @@ main > * { min-width: 0; }
 .ic, .k-i { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .k-i { width: 24px; height: 24px; flex: none; vertical-align: -6px; margin-right: 6px; } .go .k-i { stroke: currentColor; }
 .receipt:not(:empty)::before { content: ""; display: inline-block; width: 24px; height: 24px; margin-right: 6px; vertical-align: -6px; background: var(--accent); -webkit-mask: url(../brand/icons/coins.svg) center/24px no-repeat; mask: url(../brand/icons/coins.svg) center/24px no-repeat; }
+.claim .q { font: 600 var(--s1)/1.35 var(--text); margin: 0 0 var(--sp-2); } .claim .price { display: flex; gap: var(--sp-4); margin: 0 0 var(--sp-2); } .claim .price b { font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); font-variant-numeric: tabular-nums; } .claim .buys { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .parts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 0; list-style: none; } .parts li { display: flex; align-items: center; font-weight: 500; }
 .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
 .totals a { display: block; padding: var(--sp-4); border: 1px solid var(--line); border-radius: 18px; background: var(--paper-2); color: var(--ink-2); text-decoration: none; }
@@ -162,6 +163,16 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#wallet"/></svg>NEAR and Solana devnet pay</li>
     <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#history"/></svg>Sibyl remembers</li>
   </ul>
+
+  <section class="panel claim" id="claim" aria-labelledby="t-claim">
+    <h2 id="t-claim">Will this proof pass?</h2>
+    <p class="q" id="m-q">What two helpers are paid plus the refund is always exactly the bid.</p>
+    <p class="price"><b id="m-yes">Yes …</b> <b id="m-no">No …</b></p>
+    <p class="fine">A Yes share pays $1 if the proof passes its check in GitHub Actions. A No share pays $1 if it fails. No one can vote. Test money.</p>
+    <p class="buys"><button type="button" class="go" id="buy-yes">Buy Yes, $1</button> <button type="button" id="buy-no">Buy No, $1</button></p>
+    <p class="fine" id="m-said" role="status"></p>
+    <p class="fine" id="m-done">Settled before: "Splitting a bid never pays out more than the bid." <a id="m-run" href="https://github.com/drexthealpha/Knos/actions/runs/42333777443">Its proof passed</a>, so Yes won and was <a id="m-paid" href="https://testnet.nearblocks.io/txns/CKLgT3vaPocoEZQjsjTFEpHcb1LmV1oAeBoqtLPMGmvT">paid $36.66</a>. <a id="m-vote" href="https://testnet.nearblocks.io/txns/371H72CAkzrN1ih486C32y9iFsrKd1ndqZXKxWL5tYyL">A vote was refused</a>.</p>
+  </section>
 
   <section class="panel" aria-labelledby="t-job">
     <h2 id="t-job">The job</h2>
@@ -295,7 +306,7 @@ async function load() {
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
     $("embedlink").hidden = true;
-    totals();
+    totals(); market();
     // the hosted runner (knos.onrender.com) posts one live job for any visitor, within its caps; the first view says
     // nothing about it unless live runs are off
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
@@ -344,6 +355,23 @@ async function totals(tries = 0) {
   $("t-jobs").firstChild.textContent = String(t.jobs_paid); $("t-jobs").href = t.record_money;
   $("t-tries").firstChild.textContent = String(t.tries); $("t-tries").href = t.record;
 }
+
+// the claim market (near/market, LMSR): the open claim's price in cents, read from testnet; one $1 buy of Yes or No
+async function market() {
+  const m = await fetch(HOSTED + "/api/near/market").then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (!m || !m.open) return;
+  $("m-yes").textContent = `Yes ${m.open.yes_c}c`; $("m-no").textContent = `No ${m.open.no_c}c`;
+}
+for (const side of ["yes", "no"]) $("buy-" + side).addEventListener("click", async () => {
+  const b = $("buy-" + side); b.disabled = true; $("m-said").textContent = "Buying on NEAR testnet…";
+  const r = await fetch(HOSTED + "/api/near/market/buy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side }) })
+    .then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
+  b.disabled = false;
+  if (!r.ok) { $("m-said").textContent = `Not bought: ${r.why || "testnet refused it"}.`; return; }
+  $("m-yes").textContent = `Yes ${r.yes_c}c`; $("m-no").textContent = `No ${r.no_c}c`;
+  $("m-said").replaceChildren(`Bought ${r.shares} ${side === "yes" ? "Yes" : "No"} shares for $1.00. Now Yes ${r.yes_c}c, No ${r.no_c}c. `,
+    el("a", { href: r.url, target: "_blank", rel: "noopener", textContent: "The transaction" }));
+});
 
 const clock = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
 const of = (paid, p) => +(paid[Object.keys(paid).find((k) => k.startsWith(p))] ?? 0);

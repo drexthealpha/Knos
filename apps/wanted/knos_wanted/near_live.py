@@ -266,3 +266,55 @@ def guard() -> dict:
     finally:
         _guarding.release()
 
+
+MARKET = "market.knos-swarm-1105.testnet"
+TOKEN = "knos-usdc-1102.testnet"
+LIVE = "live.knos-swarm-1105.testnet"
+SHARE_BUY = 1_000_000        # one buy from the page: $1.00 of test money
+_buying = threading.Lock()
+
+
+def market() -> dict:
+    """The claim markets, read from testnet now: the open one (its price in cents) and the settled one's record."""
+    rec = json.loads((NEAR_WEB / "market.json").read_text(encoding="utf-8"))
+    _jobs()
+    from common import view
+    out = {"contract": MARKET, "record": rec["settled"], "rule": rec["rule"]}
+    for key, mid in (("open", rec["open"]), ("settled", rec["settled"]["id"])):
+        v = view(MARKET, "get_market", {"id": mid}) or {}
+        m = v.get("market") or {}
+        out[key] = {"id": mid, "question": m.get("question"), "yes_c": round(int(v.get("yes_price") or 0) / 10_000),
+                    "no_c": round(int(v.get("no_price") or 0) / 10_000), "trades": m.get("trades"), "outcome": m.get("outcome"),
+                    "pool_usd": round(int(m.get("pool") or 0) / 1e6, 2)}
+    return out
+
+
+def buy(side: str) -> dict:
+    """One $1.00 buy of Yes or No on the open claim, sent from the app's capped test account; the answer is the shares
+    bought, the new price and the transaction."""
+    if side not in ("yes", "no"):
+        return {"ok": False, "why": "side: yes or no"}
+    s = status()
+    if not s["live"]:
+        return {"ok": False, "why": "live runs are switched off"}
+    if not _buying.acquire(blocking=False):
+        return {"ok": False, "why": "a buy is running; try again in a few seconds"}
+    try:
+        rec = json.loads((NEAR_WEB / "market.json").read_text(encoding="utf-8"))
+        mid = rec["open"]
+        _jobs()
+        from common import call, view
+        before = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
+        r = call(LIVE, TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SHARE_BUY),
+                 "msg": json.dumps({"buy": {"id": mid, "side": side}})}, deposit="1 yoctoNEAR", gas="100 Tgas")
+        after = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
+        v = view(MARKET, "get_market", {"id": mid}) or {}
+        got = int(after.get(side) or 0) - int(before.get(side) or 0)
+        return {"ok": r["ok"] and got > 0, "side": side, "paid_usd": SHARE_BUY / 1e6, "shares": round(got / 1e6, 2),
+                "yes_c": round(int(v.get("yes_price") or 0) / 10_000), "no_c": round(int(v.get("no_price") or 0) / 10_000),
+                "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
+    except Exception as e:  # noqa: BLE001 - the page says why
+        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+    finally:
+        _buying.release()
+

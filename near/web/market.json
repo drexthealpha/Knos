@@ -1,0 +1,24 @@
+{
+ "contract": "market.knos-swarm-1105.testnet",
+ "rule": "LMSR, b = 100 test tokens seeded by Knos; settles only from the claim's milestone on knos-pay-1103.testnet",
+ "open": "claim-refund-1107",
+ "settled": {
+  "id": "claim-split-1107",
+  "claim": "Splitting a bid between two helpers never pays out more than the bid.",
+  "proof": "near/claims/Split.lean",
+  "criteria_hash": "db99df690b8b5d59297dd47f8775ffd8445a1ff6cc24664db0148a02ce85c186",
+  "run": "https://github.com/drexthealpha/Knos/actions/runs/42333777443",
+  "txs": {
+   "opened": "FZDrspXDhCtrcZ2a71WDNZ9nY3yobNMFdaV6zRRLbuXJ",
+   "bought_yes": "BA4vSo7qCYxtDD6BXEhVErim5R224NMFTcKbaaBycXio",
+   "bought_no": "Cqq1ee8pCXE4YkG2UmJDvFAgYyprMJzpENM7bPuPCd2b",
+   "released_by_the_proof_run": "4q9vxdLFehBd4KPVT1SsbvtDsYWQrq23BWfhnLxpzXfx",
+   "settled": "1Kv3Rj8dj2b5sYam6iYUJ18ZUbzQ9B1k4ECzthg4Jqj",
+   "paid": "CKLgT3vaPocoEZQjsjTFEpHcb1LmV1oAeBoqtLPMGmvT",
+   "vote_refused": "371H72CAkzrN1ih486C32y9iFsrKd1ndqZXKxWL5tYyL",
+   "test_edit_refused": "DVXvKjBMhXhJgXKTNcF1DVMVXWLa7pzZB3ukon9dpkaH",
+   "early_settle_refused": "7D9AaoNRccUcmtWFt3yrWkZqq1LYC4ef6zMhttXjny6F"
+  },
+  "paid_units": 36658949
+ }
+}
