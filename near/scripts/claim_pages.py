@@ -48,8 +48,9 @@ def page(mid: str, v: dict) -> dict:
               if m["outcome"] is False else f"open: {what} has not been checked yet")
     prompt = (f"Write exactly two short sentences, under 35 words in all, for someone who knows nothing about software.\n"
               f"The first sentence is this, word for word: {claim}\n"
-              f"The second sentence says that a Yes share costs {yes_c} cents and that the market is {status}.\n"
-              "No other facts, no hype, no labels.")
+              + (f"The second sentence says that a Yes share costs {yes_c} cents and that the market is {status}.\n" if m["outcome"] is None
+                 else f"The second sentence says that the market is {status}, and that Yes last traded at {yes_c} cents.\n")
+              + "No other facts, no hype, no labels.")
     for _ in range(6):
         text = re.sub(r"^(claim|answer)\s*:\s*", "", ask(prompt).strip('"'), flags=re.I)
         words = len(re.findall(r"[\w'$%.,-]+", text))
