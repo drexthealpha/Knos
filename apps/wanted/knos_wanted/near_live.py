@@ -220,8 +220,10 @@ def _refresh() -> None:
     if not _refreshing.acquire(blocking=False):
         return
     try:
+        before = _totals.get("at")
         _totals_read()
-        _totals.pop("error", None)
+        if _totals.get("at") != before:               # a new answer came: no error to say
+            _totals.pop("error", None)
     except Exception as e:  # noqa: BLE001 - the last good totals stay; the answer says why the new read failed
         _totals["error"] = f"{type(e).__name__}: {str(e)[:160]}"
     finally:
@@ -245,6 +247,7 @@ def _totals_read() -> dict:
         _totals.update(at=time.time(), out=out)
         return out
     except Exception as e:  # noqa: BLE001 - the record did not answer: say so, keep the last good answer
+        _totals["error"] = f"{type(e).__name__}: {str(e)[:160]}"
         return _totals.get("out") or {"error": f"the public record did not answer ({str(e)[:80]})", "record": RECORD}
 
 
