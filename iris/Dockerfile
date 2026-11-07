@@ -70,7 +70,7 @@ FROM base AS final
 RUN --mount=type=bind,from=builder,source=/,target=/builder/root \
     --mount=type=bind,source=iris/scripts/copy-data.py,target=/tmp/copy-data.py \
     cp -f /builder/root/usr/irissys/iris.cpf /usr/irissys/iris.cpf \
- && sed -i -e '/^SystemMode=/d' -e 's/^\[Startup\]$/[Startup]\nSystemMode=KNOS REFEREE/' /usr/irissys/iris.cpf \
+ && sed -i -e '/^SystemMode=/d' -e 's/^\[Startup\]$/[Startup]\nSystemMode=KNOS/' /usr/irissys/iris.cpf \
  && grep -E '^(globals|routines|gmheap|SystemMode)=' /usr/irissys/iris.cpf \
  && python3 /tmp/copy-data.py -c /usr/irissys/iris.cpf -d /builder/root/ --csp -p -o usr/irissys/csp/healthshare
 # the files IRIS uses at run: Knos's package, iris/ (merge.cpf, knos_iris, fixtures, the health check's script), the jar
