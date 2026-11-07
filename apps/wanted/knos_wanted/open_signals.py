@@ -228,9 +228,15 @@ def fallback(idea: str, country: str = "US") -> dict:
     return out
 
 
+def online() -> bool:
+    """The hosted app (Render sets RENDER) or KNOS_OPEN_SIGNALS=on: the open sources are reachable; tests stay offline."""
+    import os
+    return os.environ.get("KNOS_OPEN_SIGNALS") == "on" or (bool(os.environ.get("RENDER")) and os.environ.get("KNOS_OPEN_SIGNALS") != "off")
+
+
 def needs_fallback(rep: dict) -> bool:
     """Qloo gave nothing usable: no key, an error or HTTP 429 with no real answer kept, or an empty answer."""
-    if rep.get("kind") == "which_one" or rep.get("without_qloo") or rep.get("stale") or rep.get("nearest"):
+    if not online() or rep.get("kind") == "which_one" or rep.get("without_qloo") or rep.get("stale") or rep.get("nearest"):
         return False
     d = rep.get("decision") or {}
     return bool(rep.get("queued") or rep.get("qloo_down") or d.get("verdict") == "CANNOT_DECIDE"
@@ -240,5 +246,5 @@ def needs_fallback(rep: dict) -> bool:
 def prefetch(idea: str, country: str = "US") -> None:
     """Start the fallback's lookups beside the Qloo step when Qloo cannot answer, so the answer is ready when it ends."""
     k = f"{country}|{' '.join((idea or '').lower().split())}"
-    if k not in _answers:
+    if online() and k not in _answers:
         threading.Thread(target=lambda: fallback(idea, country), daemon=True).start()

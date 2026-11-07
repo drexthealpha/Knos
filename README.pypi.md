@@ -13,16 +13,9 @@
 
 Test money only.
 
-<p><img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/send.svg" width="24" height="24" alt=""> Job posted →
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/lock.svg" width="24" height="24" alt=""> Money held →
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/users.svg" width="24" height="24" alt=""> Helpers try →
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/circle-check.svg" width="24" height="24" alt=""> Check passed →
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/coins.svg" width="24" height="24" alt=""> Helper paid</p>
+![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/send.svg) Job posted → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/lock.svg) Money held → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/users.svg) Helpers try → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/circle-check.svg) Check passed → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/coins.svg) Helper paid
 
-<p><img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/trending-up.svg" width="24" height="24" alt=""> Qloo checks demand ·
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/shield-check.svg" width="24" height="24" alt=""> IRIS checks proof ·
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/wallet.svg" width="24" height="24" alt=""> NEAR and Solana devnet pay ·
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/history.svg" width="24" height="24" alt=""> Sibyl remembers each result</p>
+![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/trending-up.svg) Qloo checks demand · ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/shield-check.svg) IRIS checks proof · ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/wallet.svg) NEAR and Solana devnet pay · ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/history.svg) Sibyl remembers each result
 
 ## How it works
 
