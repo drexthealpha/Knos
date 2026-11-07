@@ -37,8 +37,8 @@ def test_the_used_line_names_only_the_inputs_own_words():
 def test_a_refusal_is_never_a_dead_end():
     s = story.build(REFUSE)
     assert s["sentence"].startswith("Not enough people want this yet")
-    assert 1 <= len(s["reruns"]) <= 3 and s["reruns"][0]["label"] == "Try the tag Late Night Ramen"
-    assert s["rejected"] and any(r["name"] == "Top Ramen" for r in s["rejected"]) and not s["downloads"]
+    assert 1 <= len(s["reruns"]) <= 3 and s["reruns"][0]["label"] == "Check Late Night Ramen instead"
+    assert s["rejected"] == [] and any(r["name"] == "Top Ramen" for r in s["rejected_all"]) and not s["downloads"]
 
 
 def test_the_model_needs_the_key_and_keeps_its_caps(monkeypatch):

@@ -854,7 +854,7 @@ go.disabled = false; root.removeAttribute("aria-busy"); busy(false); return;
 }
 const ref = extra.picked ? null : paper(v), t0 = performance.now();
 slot.dataset.guess = (document.getElementById("k-guess")?.value || "").trim().slice(0, 60);
-said(QOFF ? "Qloo off for this request: the cache only" : ref ? "Reading the paper" : "Talking to Qloo");
+said(QOFF ? "Qloo off for this request: the cache only" : ref ? "Reading the paper" : "Checking demand");
 try {
 const r = ref ? await crossing(ref) : pre || await post("/api/check", { idea: v, ...extra, stage: "verdict" });
 await cardCss();

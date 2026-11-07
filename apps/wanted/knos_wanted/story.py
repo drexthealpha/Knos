@@ -66,7 +66,7 @@ def tiles(rep: dict) -> list[dict]:
         out.append({"label": "Most wanted in", "value": city})
     segs = [a for a in rep.get("audiences") or [] if isinstance(a.get("lift"), (int, float)) and not a.get("flat")]
     if segs:
-        out.append({"label": "Top audience", "value": str(segs[0]["name"]), "lift": segs[0]["lift"], "src": segs[0].get("src")})
+        out.append({"label": "Top audience", "value": str(segs[0]["name"]), "lift_kept": segs[0]["lift"], "src": segs[0].get("src")})
     pr = rep.get("price") or {}
     if pr.get("tier"):
         out.append({"label": "Price level", "value": {"mid": "mid-range"}.get(str(pr["tier"]), str(pr["tier"])), "src": pr.get("src")})
@@ -102,12 +102,12 @@ def reruns(rep: dict) -> list[dict]:
     out: list[dict] = []
     for t in ((rep.get("taste_answer") or {}).get("tags") or rep.get("tags") or [])[:2]:
         if t.get("name") and str(t["name"]).lower() != str(rep.get("idea") or "").lower():
-            out.append({"label": f"Try the tag {t['name']}", "idea": str(t["name"]), "place": rep.get("place") if isinstance(rep.get("place"), str) else None})
+            out.append({"label": f"Check {t['name']} instead", "idea": str(t["name"]), "place": rep.get("place") if isinstance(rep.get("place"), str) else None})
     city = _city(rep)
     for m in ([city] if city else []) + [x for x in MARKETS if x != city]:
         if len(out) >= 3:
             break
-        out.append({"label": f"Try {m}", "idea": str(rep.get("idea") or ""), "place": m})
+        out.append({"label": f"Check in {m}", "idea": str(rep.get("idea") or ""), "place": m})
     return out[:3]
 
 
@@ -136,7 +136,7 @@ def downloads(rep: dict) -> list[dict]:
 
 def build(rep: dict) -> dict:
     return {"sentence": sentence(rep), "tiles": tiles(rep), "used": used(rep), "reruns": reruns(rep),
-            "rejected": rejected(rep), "downloads": downloads(rep)}
+            "rejected": [], "rejected_all": rejected(rep), "downloads": downloads(rep)}
 
 
 def refund_day(rep: dict) -> dt.date:

@@ -508,7 +508,7 @@ ${src(h, price.src)}</section>
     }
     const ref = extra.picked ? null : paper(v), t0 = performance.now();
     slot.dataset.guess = (document.getElementById("k-guess")?.value || "").trim().slice(0, 60);
-    said(QOFF ? "Qloo off for this request: the cache only" : ref ? "Reading the paper" : "Talking to Qloo");
+    said(QOFF ? "Qloo off for this request: the cache only" : ref ? "Reading the paper" : "Checking demand");
     try {
       // the verdict card first (verdict, matched product, audience); the map, also-loved and the launch terms follow
       // from the full check, whose Qloo questions the first one already sent
