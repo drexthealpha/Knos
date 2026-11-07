@@ -616,7 +616,7 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
         asked = str(((msg.get("params") or {}) if isinstance(msg.get("params"), dict) else {}).get("protocolVersion") or "")
         return ok({"protocolVersion": asked if asked in PROTOCOLS else PROTOCOL, "capabilities": {"tools": {"listChanged": False}},
                    "serverInfo": {"name": "knos", "version": _knos_version()},
-                   "instructions": "Knos pays agents only when the test passes. Start with knos_demand_check (is it wanted: who, where, at what price) or "
+                   "instructions": "Knos carries research across the valley of death. Start with knos_demand_check (is it wanted: who, where, at what price) or "
                                                    "knos_cross with a paper id; every step names the Qloo call behind it. knos_ready says whether a brief is "
                                                    "clear enough to lock money on. Devnet, test money, no customers yet."})
     if method == "ping":

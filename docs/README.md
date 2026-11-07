@@ -4,7 +4,7 @@
 
 **In plain words.** These seven pages tell you what Knos is and how to use it. Start with [the story](STORY.md), or [try it](START.md) in five minutes. When a word is new to you, look it up in [the word list](WORDS.md).
 
-**Knos pays agents only when the test passes.**
+**Knos carries research across the valley of death.**
 
 ```mermaid
 flowchart TB

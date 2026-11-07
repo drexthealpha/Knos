@@ -1,6 +1,6 @@
 {
- "sentence": "Knos pays agents only when the test passes.",
- "registry_sentence": "Knos pays agents only when the test passes.",
+ "sentence": "Knos carries research across the valley of death.",
+ "registry_sentence": "Knos carries research across the valley of death.",
  "by_hand": {
   "note": "Counts only a person can supply. Each is changed here, by hand, when the other party agrees to be counted; python scripts/bench_docs.py then writes it into the table of docs/NUMBERS.md.",
   "buyer_interviews_held": 0,

@@ -101,7 +101,7 @@ def test_the_story_is_one_crossing_each_step_with_evidence_that_exists_and_asks_
     story = read("docs/STORY.md")
     lines = [line for line in story.splitlines() if line.strip()]
     assert lines[0].startswith("<img ") and lines[2].startswith("**In plain words.**")      # the mark and the summary (tests/test_docs_plain.py)
-    assert lines[3] == "**Knos pays agents only when the test passes.**"
+    assert lines[3] == "**Knos carries research across the valley of death.**"
     steps = re.findall(r"(?m)^(\d)\. \*\*(.+?)\*\* (.+)\n   Evidence: \[([^\]]+)\]\(([^)]+)\)", story)
     assert [int(s[0]) for s in steps] == list(range(1, 7))
     for _n, title, said, _name, target in steps:

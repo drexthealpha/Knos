@@ -45,7 +45,7 @@ TOLERANCE = 1.0            # units of the drawing: the furthest a sample of the 
 SMALL = 3.0                # the same, for the copy drawn at 16 to 32 px
 INK, PAPER = "#15171c", "#f6f5f1"          # web/app.css --fg and --bg (light); dark: #e9ebef on #0e1014
 INK_DARK = "#e9ebef"
-SENTENCE = "Knos pays agents only when the test passes."
+SENTENCE = "Knos carries research across the valley of death."
 BOUNDS = {"mark.svg": 6_000, "wordmark.svg": 12_000, "mark-small.svg": 3_000}      # bytes; tests/test_brand.py holds them
 
 _NUM = re.compile(r"-?\d*\.?\d+(?:e-?\d+)?")
@@ -384,7 +384,7 @@ body {{ width: 1200px; height: 630px; box-sizing: border-box; padding: 64px 80px
 .w {{ height: 150px; width: auto; align-self: flex-start; margin-left: -12px; }}
 p {{ margin: 0; font-size: 45px; line-height: 1.16; font-weight: 600; letter-spacing: -.025em; max-width: 1040px; }}
 p span {{ color: #5a606b; }}
-</style><body>{word}<p>{head}: <span>{rest}</span></p></body>"""
+</style><body>{word}<p>{head}{f": <span>{rest}</span>" if rest else ""}</p></body>"""
 
 
 def icon_html() -> str:

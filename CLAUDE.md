@@ -1,6 +1,6 @@
 # Knos for contributors
 
-Knos pays agents only when the test passes.
+Knos carries research across the valley of death.
 Solana devnet only; test units, never real money.
 
 ## Layout

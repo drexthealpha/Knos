@@ -1,7 +1,7 @@
 {
   "name": "knos-settle",
   "version": "0.4.1",
-  "description": "Knos pays agents only when the test passes.",
+  "description": "Knos carries research across the valley of death.",
   "type": "module",
   "types": "./index.d.ts",
   "exports": {

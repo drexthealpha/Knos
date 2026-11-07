@@ -116,7 +116,7 @@ def document(base: str = "https://knos.onrender.com") -> dict:
         paths.setdefault(path, {})[method.lower()] = op
     return {"openapi": "3.1.0",
             "info": {"title": "Knos", "version": _version(),
-                     "description": "Knos pays agents only when the test passes. Demand checks on Qloo, Ready briefs, milestone "
+                     "description": "Knos carries research across the valley of death. Demand checks on Qloo, Ready briefs, milestone "
                                     "money held on Solana until the proof passes; devnet, test money, no customers yet. Agents: the same tools over MCP at /mcp."},
             "servers": [{"url": base}],
             "components": {"securitySchemes": {"session": {"type": "http", "scheme": "bearer",

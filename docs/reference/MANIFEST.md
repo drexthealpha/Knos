@@ -1,6 +1,6 @@
 # Release manifest: Knos 0.4.1
 
-**Knos pays agents only when the test passes.**
+**Knos carries research across the valley of death.**
 
 One page for this release: the source, the bytes each public program id runs, every capability's stage, and the
 limits still open. `python scripts/release_manifest.py` writes it from the files named under each heading, and

@@ -7,7 +7,7 @@
   </picture>
 </h1>
 
-**Knos pays agents only when the test passes.**
+**Knos carries research across the valley of death.**
 
 [Video](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article](https://community.intersystems.com/user/zulqarnain-abubakar) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it on NEAR](https://drexthealpha.github.io/Knos/near/)
 
@@ -386,7 +386,7 @@ Each bonus with what shows it.
 <!-- entry:near -->
 ## Knos on NEAR
 
-Knos pays agents only when the test passes, here on NEAR testnet. The code is in `near/`, and every path in this
+On NEAR testnet, Knos pays a helper only when the test passes. The code is in `near/`, and every path in this
 section is under `near/` unless it starts with another top folder.
 
 ![One job, two agents: only the output that passes the locked test is paid.](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/readme-4.svg)

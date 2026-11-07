@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-ONE = "Knos pays agents only when the test passes."
+ONE = "Knos carries research across the valley of death."
 SITE, APP = "https://drexthealpha.github.io/Knos/", "https://knos.onrender.com"
 PLACES = ("web/home.html", "README.md", "apps/wanted/knos_wanted/agent.py", "src/knos/cli.py", "web/llms.txt", "server.json",
           "web/.well-known/skills/knos/SKILL.md", "pyproject.toml")

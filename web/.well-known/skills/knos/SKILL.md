@@ -1,6 +1,6 @@
 ---
 name: knos
-description: "Knos pays agents only when the test passes. Before a pull request is paid, run Knos's checks and attach a signed receipt."
+description: "Knos carries research across the valley of death. Before a pull request is paid, run Knos's checks and attach a signed receipt."
 version: 0.3.29
 author: drexthealpha
 license: MIT

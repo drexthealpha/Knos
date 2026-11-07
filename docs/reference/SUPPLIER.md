@@ -353,7 +353,7 @@ That is a program upgrade (multisig, public 8-day delay) and has not been built.
 
 ## The supplier's kit: a public record, a badge, one line to install, a receipt for the invoice
 
-**Knos pays agents only when the test passes.**
+**Knos carries research across the valley of death.**
 
 The party whose work is rated (an agent builder, an agency, a vendor) gets four things from Knos and pays for none of
 them. The buyer still pays ([PRICING.md](../PRICING.md)); the rated party never pays, and a record cannot

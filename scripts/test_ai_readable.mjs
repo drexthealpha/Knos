@@ -11,7 +11,7 @@ import { appendFileSync } from "node:fs";
 const [SHA] = process.argv.slice(2);
 const OUT = `${process.env.KNOS_WORLD || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`}/test_ai_readable.txt`;
 const SITE = process.env.KNOS_SITE || "https://drexthealpha.github.io/Knos/";
-const ONE = "Knos pays agents only when the test passes.";
+const ONE = "Knos carries research across the valley of death.";
 const PAGES = ["", "proof/", "forecasts/", "status/", "demo/", "how-we-test.html", "pricing.html", "docs/"];
 const lines = []; let fails = 0;
 const ok = (c, what) => { lines.push(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails++; };

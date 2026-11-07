@@ -804,7 +804,7 @@ def bounties_rss(bounties: list[dict], meta: dict) -> str:
 # ---- html ------------------------------------------------------------------------------------------------------------
 # the one sentence, as scripts/claims_check.py SENTENCE has it; every page of the record starts with the name and the
 # short line of the site's title ("Knos: research to products people want, paid on proof"), so the line has one colon
-SENTENCE = "Knos pays agents only when the test passes."
+SENTENCE = "Knos carries research across the valley of death."
 TAGLINE = "research to products people want, paid on proof"
 CSS = ("body{font:16px/1.55 system-ui,sans-serif;margin:0;background:#fbfbf9;color:#16181d}main{max-width:860px;margin:0 auto;padding:24px 16px 48px}"
        "table{border-collapse:collapse;width:100%;margin:12px 0}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e3e4e8}"

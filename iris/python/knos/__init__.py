@@ -1,4 +1,4 @@
-"""knos - Knos pays agents only when the test passes."""
+"""knos - Knos carries research across the valley of death."""
 
 
 def version() -> str:

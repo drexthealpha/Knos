@@ -12,8 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 IRIS = ROOT / "iris"
-# Why: README.md, one README for the whole product, carries the one line ("Knos pays agents only when the test passes.").
-ONE = "Knos pays agents only when the test passes."
+# Why: README.md, one README for the whole product, carries the one line ("Knos carries research across the valley of death.").
+ONE = "Knos carries research across the valley of death."
 # Why: README.md and docs/START.md (outside iris/, not edited here) link iris/ with their own words; the link is what counts.
 IRIS_URL = "](https://github.com/drexthealpha/Knos/tree/main/iris)"
 # Why: the README's real headings. The spec's "Why it is technically interesting" is "How it works", its "Contest

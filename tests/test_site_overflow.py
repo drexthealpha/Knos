@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BROWSERS = "/opt/pw-browsers"          # where this project's machines keep Chromium; anywhere else playwright's default holds
 
 
-ONE = "Knos pays agents only when the test passes."
+ONE = "Knos carries research across the valley of death."
 WORD = re.compile(r"[A-Za-z0-9][\w'’%.,/-]*")
 
 
