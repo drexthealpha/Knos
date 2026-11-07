@@ -241,7 +241,7 @@
       return `<li data-call="${esc(c.n)}"><a href="${esc(API)}/trace.html?hash=${encodeURIComponent(r.hash || "")}#call-${esc(c.n)}" target="_blank" rel="noopener">#${esc(c.n)}</a> ${
         esc(c.call || "")} <span class="k-fine">${esc(keys)}</span> · ${Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.live ? "live" : c.recorded ? `recorded ${esc(c.recorded)}` : c.error ? "not answered" : "recorded"}${c.error ? " · failed" : ""} · ${esc([...(fed[c.n] || [])].join(", ") || String(c.effect || "").slice(0, 60) || "the verdict")}${r.signals ? ` · <span data-role="${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}">${(r.signals.decides || []).includes(c.n) ? "decides" : "context"}</span>` : ""}</li>`; });
     const first = (Array.isArray(r.calls) && r.calls[0] && r.calls[0].n) || 1;
-    return rows.length ? `<details class="k-calls" data-part="calls"><summary>Qloo calls (${rows.length})</summary><p class="k-fine">${chip("qloo", `call-${first}`)}</p><ol>${rows.join("")}</ol></details>` : "";
+    return rows.length ? `<details class="k-calls" data-part="calls"><summary>Where the numbers came from (${rows.length})</summary><p class="k-fine">${chip("qloo", `call-${first}`)}</p><ol>${rows.join("")}</ol></details>` : "";
   }
 
   // a number's source as a chip at most 16 px tall (Qloo, rule, model or chain), opening its row of the result's receipts
@@ -476,7 +476,7 @@ ${src(h, price.src)}</section>
   <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
   <footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
     HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
-    ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">Fee: 1% of each payout. Test money for now.</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Try it with a launch market →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
+    ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">Fee: 1% of each payout. Test money for now.</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Check it in one city →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
   }
 
