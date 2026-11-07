@@ -211,8 +211,14 @@ _refreshing = threading.Lock()
 
 def totals() -> dict:
     """The last answer at once; a stale or missing one is read again in the background (the walk takes about 16 s)."""
-    if not (_totals.get("at") and time.time() - _totals["at"] < 120) and not _refreshing.locked():
+    if (not (_totals.get("at") and time.time() - _totals["at"] < 120) and not _refreshing.locked()
+            and not (_totals.get("error") and time.time() - _totals.get("tried", 0) < 300)):   # refused (429): wait 5 minutes
         threading.Thread(target=_refresh, daemon=True).start()
+    if not _totals.get("out"):                         # before the first read: the last snapshot the build shipped, its time on it
+        try:
+            _totals["out"] = {**json.loads((NEAR_WEB / "totals.json").read_text(encoding="utf-8")), "snapshot": True}
+        except (OSError, ValueError):
+            pass
     return _totals.get("out") or {"pending": True, "record": RECORD, **({"why": _totals["error"]} if _totals.get("error") else {})}
 
 
@@ -221,6 +227,7 @@ def _refresh() -> None:
         return
     try:
         before = _totals.get("at")
+        _totals["tried"] = time.time()
         _totals_read()
         if _totals.get("at") != before:               # a new answer came: no error to say
             _totals.pop("error", None)

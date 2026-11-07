@@ -1,0 +1,216 @@
+{
+ "paid_usd": "9.042",
+ "jobs_paid": 51,
+ "tries": 165,
+ "record": "https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet",
+ "record_money": "https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns",
+ "token": "test USDC, 6 decimals",
+ "read_at": "2026-11-07T05:18:14Z",
+ "dots": [
+  {
+   "t": 1794027533,
+   "tx": "4kMWhH4KysmGHAnmDvW7X8HWe4bbkhrJ83MrSKTTX4np"
+  },
+  {
+   "t": 1794026595,
+   "tx": "4ris3v5h2d1YHoAsTfNDpg2YRtXwkozb68JxQzEkhSyx"
+  },
+  {
+   "t": 1794026541,
+   "tx": "9de1Z72ZsQDmoBJefFucRH9RvG9vkwWELvDvXXKr3a9P"
+  },
+  {
+   "t": 1794026194,
+   "tx": "GjQQVADjyj3QA56fiBV2MdjeR2i4yPsGj1XCsvSLCuuT"
+  },
+  {
+   "t": 1794026154,
+   "tx": "HbDY8NivByxFUdd78x9QYnWqcsf6VfX7cLirvU2gextt"
+  },
+  {
+   "t": 1794026098,
+   "tx": "CV8TdCekJmtRKkxc4uRDGz9FG31GxRaSVJpdD2hKW7pn"
+  },
+  {
+   "t": 1794025450,
+   "tx": "45x3VGqqYVcTQUJRb3PMudbg2rKoKayD52e7AZaGjhd5"
+  },
+  {
+   "t": 1794025415,
+   "tx": "DngPwKYPKZKdfEEt8Y1phTH5RZVKaKWFaGFA7bfqnt2M"
+  },
+  {
+   "t": 1794025378,
+   "tx": "45A9YaJkh8Wk4KoPLSWyqNpPWMunGW3W1wbivHaXb6pB"
+  },
+  {
+   "t": 1793991226,
+   "tx": "EGhCCrK8ESuVTkEiBtwsSTmGkdMBFM5mCmFnqLbez2rG"
+  },
+  {
+   "t": 1793990794,
+   "tx": "GtPnGw1793SApVaoKBm8xw1TVhrwyEnXEGyGyu4hvVfp"
+  },
+  {
+   "t": 1793990748,
+   "tx": "J7ATmTHUtgXARN7eouzxBvCFtZMC3sV4N34298hxf4nk"
+  },
+  {
+   "t": 1793990374,
+   "tx": "2aJghweugdBZ4YyF4MqgkKHohKzK2LfS7oEGUn7XkyTC"
+  },
+  {
+   "t": 1793987636,
+   "tx": "6iKCWkoyBHeArGHe2puPFFYCMhV6KYasNXZMe2bspLjf"
+  },
+  {
+   "t": 1793987362,
+   "tx": "5jsCFRxLYTmo11D4bTuXH5a7Gbkj34u6aFEg2ncjN6mC"
+  },
+  {
+   "t": 1793987282,
+   "tx": "G7kAhFQYiJZ6QCW3PdYuPHbs5Rkos1Fqx6vxCaVR7Zp3"
+  },
+  {
+   "t": 1793984858,
+   "tx": "Chb8fmUCbUj5ck6XLQceywnWX1haKqYfBLvy1mv2GJoW"
+  },
+  {
+   "t": 1793984798,
+   "tx": "2nRY9csmgYzfbNkhiYEf7RYvSsqbzSZHpjCkhNAK2JZU"
+  },
+  {
+   "t": 1793984208,
+   "tx": "4h4UpPUkAba4DPmeAxLkY9XHDatkBTuno981xFoJdYFg"
+  },
+  {
+   "t": 1793984085,
+   "tx": "6RiFn8fH8nsSVDLmM13VaT9TxBdLSvZ3FEJChG5f6fqQ"
+  },
+  {
+   "t": 1793983871,
+   "tx": "9k9NmV8Ay5wpRQ1H6KHctu7E5bFBNzRvi4NZuU5jcMsQ"
+  },
+  {
+   "t": 1793981025,
+   "tx": "8TJjM3Nqs1V58ULPAGh7UXUkeAnvRr1Xe2hr9kDa7zXX"
+  },
+  {
+   "t": 1793978407,
+   "tx": "2gURyigv3zvoXzHVYgsCDMxu6wWStFByunnpgzG1c2qJ"
+  },
+  {
+   "t": 1793978363,
+   "tx": "GQF8hWCEg5Lo6uu3N4MRguPa3VBFW4jPXSG9JJ6wJapd"
+  },
+  {
+   "t": 1793978304,
+   "tx": "G4n7GbC3YsjvHaDP6GA3WzjMa85cm5FN6Njrjodhi3pU"
+  },
+  {
+   "t": 1793963756,
+   "tx": "5nZaCCrexVNSJFdHRAkEvX86geaWu9DirLatAiRBbkzk"
+  },
+  {
+   "t": 1793963544,
+   "tx": "8JbsaCPQ2unvRmqUVye5Wf8PV1pYSQyQPJvuf5JftwY2"
+  },
+  {
+   "t": 1793963497,
+   "tx": "DnwwZiGBzgUcYKkWGddeo39nmmRoM9ZJw68cYRRyoY32"
+  },
+  {
+   "t": 1793959276,
+   "tx": "AaXACDUqjrMT77xBMwuVYpd22dd5KtCQ7HufkNzEBPup"
+  },
+  {
+   "t": 1793959202,
+   "tx": "4R1BRQkPxA8TgJZdSs479isWwJSFerPqpKrENLFUs4qT"
+  },
+  {
+   "t": 1793959170,
+   "tx": "4EEYkn23VoVCmc31nMXSXCA21Wz4Z7UGArtwMSD5b9aK"
+  },
+  {
+   "t": 1793957374,
+   "tx": "DzPnZAETqvR4nhEhMrTDk3S2vcryBoPSmjLnZLCQkWQj"
+  },
+  {
+   "t": 1793957338,
+   "tx": "4SaeY7byXYxMFTFLUqPiYAJuiyAMk8i64VtigM29jQ2v"
+  },
+  {
+   "t": 1793957289,
+   "tx": "2nTqx8339pfrzR4pK114qDP6KWHD5ULq3P8Wi1oJFvqy"
+  },
+  {
+   "t": 1793954645,
+   "tx": "FuL6cW5k9nRsdTu4iFjygegaa67K536tAZmMKm2vPhi8"
+  },
+  {
+   "t": 1793953894,
+   "tx": "8nSM8TZXGQXzZFoVxRzsCyigXGtWxrCfDp5tEFxCuhLJ"
+  },
+  {
+   "t": 1793953248,
+   "tx": "9KSLK1v2yHKvgzieZYEifF6psHqMbGe25nwVowpemsC7"
+  },
+  {
+   "t": 1793951554,
+   "tx": "ET1Yu7NLMcn5aTmpY2GsDrKfpGFXHuEJq5rmG9ZTnoem"
+  },
+  {
+   "t": 1793948817,
+   "tx": "5yNLSyZcGREg5GQQ9fetZZZSwtyTAftAYmwyfFPh4Pyw"
+  },
+  {
+   "t": 1793948073,
+   "tx": "DzyqNFdFjxqTREJsejEwytRHNAcXfy49JamQZ4LDEX3"
+  },
+  {
+   "t": 1793946648,
+   "tx": "1X5No6iB9LMyxWcXmXsacS8Vsnt4T6ieENV8AojyEQY"
+  },
+  {
+   "t": 1793946428,
+   "tx": "9KX4fu5pps1kG6gUVtCPwKSmHZoyK5wS7t1za4P9T3d8"
+  },
+  {
+   "t": 1793945394,
+   "tx": "5ja3i3MT7F2PnJfanrWApHjcbVdVTEmcgb1nLSRzuR3T"
+  },
+  {
+   "t": 1793945001,
+   "tx": "94oRUDs4WRXdmvHbQtPJtB9GXqYxwqjEYYejNJohUEs2"
+  },
+  {
+   "t": 1793943066,
+   "tx": "5DQriYs5yZd8kSoxuXHkfeMk2Lg5CTyvG7SF5SVqxNQ"
+  },
+  {
+   "t": 1793941909,
+   "tx": "BFzFfPWQXuUXjn5ebam79jE18JnRbTnm5zt7jWEvaJuh"
+  },
+  {
+   "t": 1793941313,
+   "tx": "GBd6GaNHoBXp9Ppb9PXHZWAxG8i2TjcUvBXbSrWUJ4nk"
+  },
+  {
+   "t": 1793939807,
+   "tx": "BZx2jn49kLYavzwmB1vbmCNub4FjH9W8z1fQ5vESb6w"
+  },
+  {
+   "t": 1793897176,
+   "tx": "5caS1jXHAj7FbUZRMQog7nqgaBk4baDBkvBEYAQjbnpH"
+  },
+  {
+   "t": 1793896468,
+   "tx": "Ga62p7WLyRkCimDpkpiTSGqR27CmzzDmGqGtDNaqUc9Q"
+  },
+  {
+   "t": 1793896110,
+   "tx": "CajF8Cthm4vX4jHyZywLZQPK6Cm5Eok2WmdEqAHVDiUH"
+  }
+ ],
+ "explorer": "https://testnet.nearblocks.io/txns/"
+}
