@@ -306,13 +306,13 @@ Try it: `bash scripts/smoke.sh` prints a `visual trace:` link whose number is th
 
 Four reproduce on a clean build 154 container, each with its own `run.sh`:
 
-- [`iris/bugs/1`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error.
+- [`iris/bugs/1`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error. Filed: [python-bugreports#30](https://github.com/intersystems-community/python-bugreports/issues/30).
 - [`iris/bugs/2`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/2): AI Hub's `%AI.ToolMgr.ExecuteTool` runs a tool when a required argument is missing or of
-  the wrong type.
+  the wrong type. Filed: [ai-hub-eap-bugreports#20](https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/20).
 - [`iris/bugs/3`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/3): AI Hub's `%AI.RAG.VectorStore.IRIS` makes its table in SQLUser whatever its `Schema`
-  says.
+  says. Filed: [ai-hub-eap-bugreports#21](https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/21).
 - [`iris/bugs/4`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/4): Embedded Python's `iris.sql.exec` with an int past 64 bits fails with a `SystemError`
-  that names neither the parameter nor its value.
+  that names neither the parameter nor its value. Filed: [python-bugreports#31](https://github.com/intersystems-community/python-bugreports/issues/31).
 
 ### Problems I hit, and how I fixed them
 
