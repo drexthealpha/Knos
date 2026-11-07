@@ -170,7 +170,10 @@ def statements_of(rel: str, text: str) -> list[Statement]:
 def statements(root: Path = ROOT, docs: Iterable[str] = DOCS) -> list[Statement]:
     out: list[Statement] = []
     for rel in files(root, docs):
-        out += statements_of(rel, (root / rel).read_text(encoding="utf-8", errors="replace"))
+        text = (root / rel).read_text(encoding="utf-8", errors="replace")
+        # README's IRIS and NEAR entry sections count their own parts (each has its own checks); blanked, lines kept
+        text = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S)
+        out += statements_of(rel, text)
     for rel in files(root, DESCRIBED):                      # what a registry lists: a description is a public statement
         raw = (root / rel).read_text(encoding="utf-8", errors="replace")
         try:
