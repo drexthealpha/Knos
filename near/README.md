@@ -109,6 +109,28 @@ Agent A was paid 1000; agent B was paid 0. NEAR Intents has no testnet, so the 1
 spent on mainnet. The checker runs an agent's output in a subprocess with a 20 s limit and no environment; it is a
 test-money demo, not a sandbox for hostile code.
 
+## The claim market
+
+Each claim has a yes/no market in test tokens: will its locked check pass? The contract is
+[`market/src/lib.rs`](market/src/lib.rs), deployed at `market.knos-swarm-1105.testnet` (wasm `wasm/knos_market.wasm`).
+
+- **Price, no order book.** With few traders on testnet an order book sits empty, so the price comes from an automated
+  market maker, Hanson's logarithmic market scoring rule (LMSR). Knos seeds each market with liquidity
+  b = 100 test tokens, so there is always a live price. An order book can be added once volume exists.
+- **The formula** (token units, 6 decimals; q_yes and q_no are the shares sold on each side):
+  - cost: C(q_yes, q_no) = b · ln(e^(q_yes/b) + e^(q_no/b))
+  - price of Yes: e^(q_yes/b) / (e^(q_yes/b) + e^(q_no/b)), shown in cents ("Yes 62c"); No is 100c minus Yes
+  - a buy of Yes for c tokens: q_yes' = b · ln(e^(c/b) · (e^(q_yes/b) + e^(q_no/b)) − e^(q_no/b)); the buyer gets
+    q_yes' − q_yes shares (rounded down), each paying 1 token if Yes wins
+  - Knos's worst-case loss per market is its seed, b · ln 2, about 69.31 test tokens.
+- **Settled only by the locked check, never by vote.** Each market follows one milestone of `knos-pay-1103.testnet`:
+  its criteria hash is locked at funding and only the named GitHub Actions workflow's own OIDC token can release it.
+  `resolve` reads that milestone: Released settles Yes, Refunded (the deadline passed with no passing run) settles No.
+  `vote` and `set_test` are refused, always. `redeem` pays each winning share.
+- **The first claim**: [`claims/Split.lean`](claims/Split.lean), "splitting a bid between two helpers never pays out
+  more than the bid". Its check is [`lean-claim.yml`](../.github/workflows/lean-claim.yml): the proof must compile
+  with Lean 4.15.0, then the run's token releases the milestone whose criteria hash is the file's sha256.
+
 ## Tests
 
 Every push that changes `near/` runs them on GitHub: [the `near-tests` runs](https://github.com/drexthealpha/Knos/actions/workflows/near-tests.yml).

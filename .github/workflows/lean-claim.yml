@@ -1,0 +1,78 @@
+# A Knos claim settled by a machine-checked proof: the `proof` job compiles near/claims/<claim>.lean with Lean 4.15.0
+# (the release tarball, checked against its sha256 before it runs); only when it compiles does the `release` job ask
+# for this run's own GitHub OIDC token and release the claim's milestone on NEAR testnet, whose criteria hash is the
+# sha256 of that file, locked when it was funded. The same token is then sent twice more and must be refused. The
+# claim's market (market.knos-swarm-1105.testnet) settles from that milestone alone. Run by hand only.
+# The release job installs nothing (Python's standard library); its signer is the function-call key of
+# knos-relay-1102.testnet that may call `release` on knos-pay-1103.testnet and nothing else (secret NEAR_RELEASE_KEY).
+name: Lean claim
+
+on:
+  workflow_dispatch:
+    inputs:
+      claim:
+        description: "the claim's file in near/claims, without .lean (letters only)"
+        required: true
+      milestone:
+        description: "the claim's milestone, funded for this workflow"
+        required: true
+      reuse_milestone:
+        description: "a second milestone funded for this workflow: the same token must be refused as used"
+        required: true
+      other_milestone:
+        description: "a milestone funded for another workflow: this token must be refused"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lean-claim
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CLAIM: ${{ inputs.claim }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Lean 4.15.0, checked by its sha256
+        run: |
+          curl -sSfL -o lean.tar.zst https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.tar.zst
+          echo "af71a2569a9f68337de2434829b3008cd8e32c436e9cb6bd8c84a2c2ba3585c9  lean.tar.zst" | sha256sum -c -
+          mkdir lean && tar --zstd -xf lean.tar.zst -C lean --strip-components=1
+      - name: The proof compiles
+        run: |
+          [[ "$CLAIM" =~ ^[A-Za-z]{1,40}$ ]] || { echo "claim: letters only"; exit 1; }
+          lean/bin/lean --version
+          lean/bin/lean "near/claims/$CLAIM.lean"
+          echo "near/claims/$CLAIM.lean compiles with $(lean/bin/lean --version)" >> "$GITHUB_STEP_SUMMARY"
+          sha256sum "near/claims/$CLAIM.lean" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  release:
+    needs: proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Release the claim with this run's token
+        env:
+          CLAIM: ${{ inputs.claim }}
+          NEAR_RELEASE_KEY: ${{ secrets.NEAR_RELEASE_KEY }}
+          NEAR_RELEASE_ACCOUNT: knos-relay-1102.testnet
+          KNOS_CONTRACT: knos-pay-1103.testnet
+          MILESTONE: ${{ inputs.milestone }}
+          REUSE_MILESTONE: ${{ inputs.reuse_milestone }}
+          OTHER_MILESTONE: ${{ inputs.other_milestone }}
+        run: |
+          [[ "$CLAIM" =~ ^[A-Za-z]{1,40}$ ]] || { echo "claim: letters only"; exit 1; }
+          CRITERIA_HASH="$(sha256sum "near/claims/$CLAIM.lean" | cut -c1-64)" python3 near/scripts/release_ci.py
