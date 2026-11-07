@@ -8,7 +8,7 @@
 
 **Knos carries research across the valley of death.**
 
-[Video](iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article](https://community.intersystems.com/user/zulqarnain-abubakar) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS](#run-it-on-iris) · [Try it on NEAR](https://drexthealpha.github.io/Knos/near/)
+[Video](iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article](https://community.intersystems.com/post/knos-iris-ai-hub-agent-can-only-say-no-every-step-visual-trace) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS](#run-it-on-iris) · [Try it on NEAR](https://drexthealpha.github.io/Knos/near/)
 
 Test money only.
 
