@@ -37,6 +37,8 @@ does Solana devnet see a transaction. Every step of a decision is an interoperab
 
 Try it (Linux or WSL with Docker; both containers peaked at 1,686 MiB and 1,310 MiB on 5 Nov 2026):
 
+This entry runs on AI Hub build 154 (irishealth-community 2026.3.0AI.154.0), which the portal removed on 2 Nov 2026; build 109 is not tested.
+
 0. Download `irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64) from the [AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems login).
 1. `git clone https://github.com/drexthealpha/Knos`
 2. `cd Knos/iris`
