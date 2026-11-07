@@ -76,7 +76,9 @@ def test_the_ipm_module_installs_outside_this_image():
 
 
 def test_readme_keeps_the_idea_link_in_plain_words():
-    text = (IRIS / "README.md").read_text(encoding="utf-8")
+    whole = (ROOT / "README.md").read_text(encoding="utf-8")
+    text = whole[whole.index("\n## Run it on IRIS\n"):]
+    text = text[:text.index("\n## ", 5)]
     assert "https://ideas.intersystems.com/ideas/DPI-I-689" in text
     line = next(x for x in text.splitlines() if "DPI-I-689" in x)
     assert not re.search(r"contest|bonus|judge|prize|demo|hackathon", line, re.I), line

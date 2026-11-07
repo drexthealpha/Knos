@@ -97,9 +97,9 @@ One person holds every key today. Any change to the programs waits in public for
 <!-- entry:iris -->
 ## Run it on IRIS
 
-**A lab pays for a research milestone only when IRIS finds the proof met.** An AI Hub agent on a local open model (no
-key) weighs a GitHub check run or a lab result. A rule decides next, and above 50 USDC a person in IRIS Workflow does.
-Only then does Solana devnet see anything, and it is a simulation with test money.
+**A lab pays for a research milestone only when IRIS finds the proof met.** An AI Hub agent on a local model weighs a
+GitHub check run or a lab result. A rule decides next, and above 50 USDC a person in IRIS Workflow does. Only then
+does Solana devnet run a simulation with test money.
 
 This entry runs on AI Hub build 154 (irishealth-community 2026.3.0AI.154.0), which the portal removed on 2 Nov 2026; build 109 is not tested.
 
@@ -305,6 +305,7 @@ Try it: `bash scripts/smoke.sh` prints a `visual trace:` link whose number is th
 ### Platform findings
 
 Four reproduce on a clean build 154 container, each with its own `run.sh`:
+
 - [`iris/bugs/1`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error.
 - [`iris/bugs/2`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/2): AI Hub's `%AI.ToolMgr.ExecuteTool` runs a tool when a required argument is missing or of
   the wrong type.
@@ -332,7 +333,9 @@ Four reproduce on a clean build 154 container, each with its own `run.sh`:
 `python iris/tests/test_iris_decision.py` runs the core decisions against a running instance: a passing check run, a
 failing one, an altered brief, injection text in the proof and an ORU whose value misses. `python
 iris/tests/test_iris_one_trace.py` sends one check run through the whole production and checks that its one session
-holds every part. `python iris/tests/test_iris_docs.py readme` checks that every file this section names exists.
+holds every part.
+
+`python iris/tests/test_iris_docs.py readme` checks that every file this section names exists.
 
 ### Architecture
 
@@ -399,6 +402,7 @@ A checker runs the locked test on each output and signs a token for the one that
 then pays. The agent whose output fails is paid 0.
 
 Do this, see that:
+
 - Open https://drexthealpha.github.io/Knos/near/ and click Post a job - see "Paid: Helper A $1.00. Helper B $0, its work failed."
   about 4 s later, with a link to the payment on NEAR testnet (4.1 to 4.5 s on six walks, 7 Nov 2026).
 - Under "Will this proof pass?" click Fund its test, then Pay with test money and watch - see a market opened on the job,
@@ -427,6 +431,7 @@ contract, under a spend cap. AI Swarms (`swarms`): two agents on one job, paid b
 **The test is locked before money is held and checked before money moves: nobody is paid on a claim.** (Demand is checked first, by Qloo, on the [site](https://drexthealpha.github.io/Knos/).)
 
 **A company pays a lab or a developer only when GitHub's signed run proves the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back. The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
+
 Spending limits cap what an agent may spend. Knos pays only for work that is proven done.
 
 | What | How |
@@ -442,7 +447,9 @@ Spending limits cap what an agent may spend. Knos pays only for work that is pro
 Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/) and click **Post a job**. You see
 "Paid: Helper A $1.00. Helper B $0, its work failed." and a link to the payment on NEAR testnet, within seconds: a job is
 kept ready, posted against its locked test and tried by both agents, so your click sends the payment to the one whose
-output passed. It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs
+output passed.
+
+It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs
 a day, three every 10 minutes from one address; past a cap the page shows the last run and says "Replay". The same job from a
 terminal: `pip install knos`, then `knos near-job`.
 
@@ -481,7 +488,9 @@ maintainer's test accounts, whose keys only that machine holds (as the page in `
 
 The rules are in [`near/agents/RULES.md`](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/agents/RULES.md): the job's test is locked by its sha256 at funding, each agent is a
 sub-account of `knos-swarm-1105.testnet` that signs with a function-call key allowed only `take`, `submit` and `spend` on
-the jobs contract (its full-access key deleted), and the checker's key is set by 2 of the 3 owners. `web/test-job.mjs`
+the jobs contract (its full-access key deleted), and the checker's key is set by 2 of the 3 owners.
+
+`web/test-job.mjs`
 walks these four steps in a fresh browser. One run, 5 Nov 2026:
 
 | Step | Transaction |
@@ -530,8 +539,15 @@ Open the newest run, then its `verify` job: the step `near/scripts/verify.sh` en
 bash near/scripts/verify.sh
 ```
 
-It prints `208/208 tests passed (146 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line. Each attack changes one thing and must be refused with the contract's own reason: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set; a second payment, an early refund or a release after the refund; for a job, a token for another output, job, test or payee, a checker key against a GitHub token and back, an agent that never took the job, a spend over the cap.
-`verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund. Measured: the release receipt burns 7.33 Tgas (11.68 Tgas for the whole transaction) in the latest verify.sh run (5 Nov 2026, a fresh clone); the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
+It prints `208/208 tests passed (146 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line.
+
+Each attack changes one thing and must be refused with the contract's own reason. The thing changed is one of these: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set.
+
+Or it is a second payment, an early refund or a release after the refund; for a job, a token for another output, job, test or payee, a checker key against a GitHub token and back, an agent that never took the job, a spend over the cap.
+
+`verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund.
+
+Measured: the release receipt burns 7.33 Tgas (11.68 Tgas for the whole transaction) in the latest verify.sh run (5 Nov 2026, a fresh clone); the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
 
 ### On testnet
 
@@ -552,7 +568,9 @@ near contract call-function as-read-only knos-pay-1103.testnet get_rules json-ar
 
 `sign_payout` takes the unsigned Solana message for a released milestone. The contract accepts only one SPL `TransferChecked` of exactly the milestone's amount, in the mint and to the token account locked at funding, then asks `v1.signer-prod.testnet` (path `knos-solana-1`, Ed25519) to sign it. A relayer adds the signature and broadcasts; no Solana key is held anywhere.
 
-The payout moves tokens held since funding. At funding the funder moves the amount from its own Solana token account into one owned by the contract's derived address; the payout is the transfer of exactly those tokens, and nothing is minted on the way. A milestone released for a Solana payee with no payout signature by its deadline is refunded like an unreleased one, so it never stays locked; once its payout is signed, it is not.
+The payout moves tokens held since funding. At funding the funder moves the amount from its own Solana token account into one owned by the contract's derived address; the payout is the transfer of exactly those tokens, and nothing is minted on the way.
+
+A milestone released for a Solana payee with no payout signature by its deadline is refunded like an unreleased one, so it never stays locked; once its payout is signed, it is not.
 
 `scripts/solana_payout.py run` does both on [`knos-pay-1103.testnet`](https://explorer.testnet.near.org/accounts/knos-pay-1103.testnet) (code sha256 `3503799e…`), derived Solana address `DUxGyghGoZNZu85zVJXHLAgsrA3rBt3eVDSGmhk8bzBi`, on 3 Nov 2026:
 
@@ -570,21 +588,29 @@ Not built: when a released Solana milestone is refunded on NEAR, the tokens alre
 
 ### The payee needs no NEAR for gas
 
-`relayer/relay.py` is a NEP-366 relayer that pays only for calls to one Knos contract (`knos-pay2-1102.testnet` in the test). `scripts/test_gasless.py` has the payee sign a release as a delegate action; the relayer sends it ([`4XpFZwBM…`](https://explorer.testnet.near.org/transactions/4XpFZwBMGtkPWzCdkwLZkDtB95EPiAWUz7orAPRsyAJG)) and the payee's NEAR balance is the same to the yoctoNEAR. Every other call the test sends is refused, the token contract's `ft_transfer` among them, and the test prints each with the relayer's reason (the relayer also writes them to its local `relay.log`, not kept in the repository).
+`relayer/relay.py` is a NEP-366 relayer that pays only for calls to one Knos contract (`knos-pay2-1102.testnet` in the test). `scripts/test_gasless.py` has the payee sign a release as a delegate action; the relayer sends it ([`4XpFZwBM…`](https://explorer.testnet.near.org/transactions/4XpFZwBMGtkPWzCdkwLZkDtB95EPiAWUz7orAPRsyAJG)) and the payee's NEAR balance is the same to the yoctoNEAR.
+
+Every other call the test sends is refused, the token contract's `ft_transfer` among them, and the test prints each with the relayer's reason (the relayer also writes them to its local `relay.log`, not kept in the repository).
 
 ### An agent that checks who it pays
 
-`agent/guard.py` answers allow, warn or block for a receiver, from chain: no such account or on the shared blocklist (`agent/blocklist.json`, each entry with its evidence) is a block; a contract, an account under 7 days old or code changed in the last day is a warning that a person resolves. `scripts/test_agent_guard.py` gives the agent a key that can call only `release`, `refund` and `sign_payout` here, then a task with an injected instruction to pay two other accounts: both are refused, and the chain refuses the key on the token contract.
+`agent/guard.py` answers allow, warn or block for a receiver, from chain: no such account or on the shared blocklist (`agent/blocklist.json`, each entry with its evidence) is a block; a contract, an account under 7 days old or code changed in the last day is a warning that a person resolves.
+
+`scripts/test_agent_guard.py` gives the agent a key that can call only `release`, `refund` and `sign_payout` here, then a task with an injected instruction to pay two other accounts: both are refused, and the chain refuses the key on the token contract.
 
 ### A locked eval
 
 `eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract, prints the counts with 95% Wilson intervals, and asserts them: every cheating attempt refused, every honest one paid, and plain CI pass/fail paying every cheat.
 
-Read it for what it is. Each cheat is one of the four things the contract checks (a run from another branch or a pull request, another repository, a replayed token, altered criteria), and each carries a green CI run by construction, so the result shows that those checks run on every attempt. It does not measure cheats the contract does not look for: tests edited and merged to main are outside what it can see.
+Read it for what it is. Each cheat is one of the four things the contract checks (a run from another branch or a pull request, another repository, a replayed token, altered criteria), and each carries a green CI run by construction, so the result shows that those checks run on every attempt.
+
+It does not measure cheats the contract does not look for: tests edited and merged to main are outside what it can see.
 
 ### Attacks on testnet
 
-36 attacks and 4 controls, each a real transaction on the contract above. The first 37 rows were sent by `scripts/attack_testnet.py`, with tokens signed by an RSA-2048 test key that two owners set as kid `knos-test`, standing in for GitHub's key, so each row changes one thing. The last 3 were sent by `.github/workflows/near-release.yml` ([run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325)) with that run's own GitHub token, kid `38826b17-6a30-5f9b-b169-8beb8202f723`.
+36 attacks and 4 controls, each a real transaction on the contract above. The first 37 rows were sent by `scripts/attack_testnet.py`, with tokens signed by an RSA-2048 test key that two owners set as kid `knos-test`, standing in for GitHub's key, so each row changes one thing.
+
+The last 3 were sent by `.github/workflows/near-release.yml` ([run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325)) with that run's own GitHub token, kid `38826b17-6a30-5f9b-b169-8beb8202f723`.
 
 | Attack | Expected | Actual | Reason | Testnet tx |
 |---|---|---|---|---|
@@ -643,7 +669,9 @@ Changes since the start of this work: [near-pre...main](https://github.com/drext
 
 Who wrote it: Claude Code (Anthropic's coding agent) wrote most of the code in this folder. The founder set each task and reviewed each change before it was merged. Commits carry the founder's account.
 
-No starter template: the first commit of this folder (6413e89) adds each crate as written, with no generated scaffold in the history. The test token in `mock-usdc/` uses the `FungibleToken` implementation from `near-contract-standards`, as its own documentation shows. The contract's checks are this repository's own code (`contract/src/rsa.rs`, `jwt.rs`, `solana.rs`), with no crypto crate among the contract's dependencies (hashing uses the NEAR runtime's own sha256).
+No starter template: the first commit of this folder (6413e89) adds each crate as written, with no generated scaffold in the history. The test token in `mock-usdc/` uses the `FungibleToken` implementation from `near-contract-standards`, as its own documentation shows.
+
+The contract's checks are this repository's own code (`contract/src/rsa.rs`, `jwt.rs`, `solana.rs`), with no crypto crate among the contract's dependencies (hashing uses the NEAR runtime's own sha256).
 
 Libraries, at the versions in each `Cargo.toml`:
 

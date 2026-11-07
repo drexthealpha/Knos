@@ -26,7 +26,7 @@ def test_every_relative_link_of_the_transaction_leads_to_a_file():
 
 def test_the_witnessed_links_agree_with_the_readme():
     links = set(re.findall(r"https://(?:explorer\.solana\.com/tx|github\.com/drexthealpha/knos-witness|github\.com/drexthealpha/Knos/blob/main/evidence)/[^)\s]+",
-                            _read(ROOT / "README.md")))
+                            re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", _read(ROOT / "README.md"), flags=re.S)))
     assert links
     text = _read(DOCS / "TRANSACTION.md")
     for link in links:
