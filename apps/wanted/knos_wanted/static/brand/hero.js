@@ -42,7 +42,7 @@
   let clock = 0, since = 0, rid = "", poll = 0;
   // while a check runs: its Qloo calls and entities so far, read from the server's call log (GET /api/progress)
   const counted = (secs) => (rid ? get(`/api/progress?req=${rid}`) : Promise.resolve(null)).then((p) => {
-    if (p && liveN) liveN.textContent = !p.calls ? "" : `Qloo calls ${p.calls} · entities ${p.entities}${secs != null ? ` · ${secs.toFixed(1)} s` : ""}`;
+    if (p && liveN) liveN.textContent = !p.calls ? "" : `${p.calls} lookups${secs != null ? ` · ${secs.toFixed(1)} s` : ""}`;
   }).catch(() => {});
   const tick = () => { if (liveT && since) liveT.textContent = `· ${((performance.now() - since) / 1000).toFixed(still() ? 0 : 1)} s`; };
   const busy = (on) => {

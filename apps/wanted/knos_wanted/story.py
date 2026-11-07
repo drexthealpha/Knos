@@ -15,7 +15,7 @@ own numbers and calls, never a new Qloo call.
 from __future__ import annotations
 
 import datetime as dt
-import re
+
 
 from .check import content_words, tokens, _norm
 
@@ -51,10 +51,9 @@ def sentence(rep: dict) -> str:
     v, city, who = _verdict(rep), _city(rep), _who(rep)
     reasons = [str(r) for r in d.get("reasons") or []]
     if v == "OPEN":
-        return "Wanted: open pre-orders" + (f" in {city}" if city else "") + (f", for {who}" if who else "") + "."
+        return "People want this" + (f", most in {city}" if city else "") + (f", among {who}" if who else "") + ". Pre-orders are open."
     if v == "REFUSE":
-        why = next((r for r in reasons if not r.startswith("a new idea, read")), reasons[0] if reasons else "")
-        return "Not yet: " + re.sub(r"\s*\(.*$", "", why)[:160] + "."
+        return "Not enough people want this yet" + (f" (the nearest interest is in {city})" if city else "") + ". Pre-orders stay closed."
     if v == "CANNOT_DECIDE":
         miss = next((r.split(":", 1)[0] for r in reasons if r and not r.startswith("cannot decide")), "")
         return "Not enough evidence to decide" + (f": {miss} did not answer" if miss else "") + "."
@@ -65,17 +64,13 @@ def tiles(rep: dict) -> list[dict]:
     out = []
     city = _city(rep)
     if city:
-        out.append({"label": "Top place", "value": city})
+        out.append({"label": "Most wanted in", "value": city})
     segs = [a for a in rep.get("audiences") or [] if isinstance(a.get("lift"), (int, float)) and not a.get("flat")]
     if segs:
         out.append({"label": "Top audience", "value": str(segs[0]["name"]), "lift": segs[0]["lift"], "src": segs[0].get("src")})
     pr = rep.get("price") or {}
     if pr.get("tier"):
-        out.append({"label": "Price tier", "value": str(pr["tier"]), "src": pr.get("src")})
-    q = rep.get("qloo_calls") or {}
-    ms = q.get("ms") or rep.get("elapsed_ms")
-    out.append({"label": "Qloo calls", "value": f"{q.get('live', 0)} live, {q.get('recorded', 0)} recorded"
-                + (f", {ms / 1000:.1f} s" if isinstance(ms, (int, float)) else "")})
+        out.append({"label": "Price level", "value": {"mid": "mid-range"}.get(str(pr["tier"]), str(pr["tier"])), "src": pr.get("src")})
     return out[:4]
 
 
@@ -95,9 +90,9 @@ def used(rep: dict) -> dict:
     used_w = [w for w in words if w in seen]
     not_w = [w for w in words if w not in seen]
     via = list(dict.fromkeys(seen[w] for w in used_w))[:2]
-    line = ("Used: " + ", ".join(used_w) + (f" ({'; '.join(via)})" if via else "") + "." if used_w else "Used: none of its words matched Qloo.")
+    line = ("Matched: " + ", ".join(used_w) + "." if used_w else "None of its words matched.")
     if not_w:
-        line += " Not in Qloo: " + ", ".join(not_w) + ", so check that part yourself before you build."
+        line += " Not found: " + ", ".join(not_w) + "."
     return {"used": used_w, "not_in_qloo": not_w, "via": via, "line": line}
 
 

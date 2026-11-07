@@ -13,7 +13,7 @@ const lines = [], fails = [];
 const log = (s) => { console.log(s); lines.push(s); if (OUT) appendFileSync(OUT, s + "\n"); };
 const ok = (c, what) => { log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails.push(what); return c; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const COUNT = /Qloo calls (\d+) · entities (\d+)(?: · ([\d.]+) s)?/;
+const COUNT = /(\d+) lookups(?: · ([\d.]+) s)?/;     // the line under the box, in plain words (the A7 walk)
 
 const browser = await chromium.launch();
 try {
@@ -46,7 +46,7 @@ try {
       const liveLog = logged.filter((c) => c.origin === "live");
       const ents = liveLog.reduce((a, c) => a + (c.n || 0), 0);
       const shown = during.filter((x) => Number(COUNT.exec(x)[1]) > 0).length;
-      ok(shown > 0 && Number(m[1]) === liveLog.length && Number(m[2]) === ents && !!m[3] && liveLog.length > 0,
+      ok(shown > 0 && Number(m[1]) === liveLog.length && !!m[2] && liveLog.length > 0,
         `${idea}: ${during.length} counts read while it ran (${shown} above 0, last "${during.at(-1) || ""}"); at the end "${final}"; the server log has ${liveLog.length} live calls carrying ${ents} entities`);
     } catch (e) {
       ok(false, `${idea}: ${e.name}: ${String(e.message).split("\n")[0].slice(0, 120)}`);
