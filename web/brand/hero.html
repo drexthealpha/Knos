@@ -15,6 +15,7 @@
 .k-ask input{flex:1;min-width:0;margin:0;padding:12px 14px;border:0;outline:0;background:transparent;color:var(--fg);font:400 var(--s1)/1.4 var(--text)}
 .k-ask button{flex:none;display:inline-flex;gap:8px;align-items:center;justify-content:center;margin:0;min-height:48px;padding:12px 24px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-fg);font:600 var(--s1)/1.2 var(--text);cursor:pointer}
 .k-ask button:disabled{cursor:progress;background:var(--soft);color:var(--ink-2);border-color:var(--line)}
+.k-i{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .k-ask button .k-spin{display:none;width:14px;height:14px;border-color:color-mix(in srgb,var(--accent-fg) 35%,transparent);border-top-color:var(--accent-fg)}
 .k-ask button[aria-busy=true] .k-spin{display:inline-block}
 .k-load{position:absolute;left:14px;right:14px;bottom:0;height:2px;border-radius:2px;opacity:0;pointer-events:none;background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:40% 100%;background-repeat:no-repeat}
@@ -92,7 +93,7 @@ html.k-revealing
 <div class="k-askbox">
   <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
     <input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What should be built?" maxlength="500" placeholder="What should be built?" enterkeyhint="go" spellcheck="false">
-    <button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><span data-label>Post a job →</span></button>
+    <button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><svg class="k-i" aria-hidden="true"><use href="{ICONS}#send"/></svg><span data-label>Post a job →</span></button>
     <i class="k-load" aria-hidden="true"></i>
   </form>
   <p class="k-sub" id="k-sub">$0 unless a helper's work passes your check</p>

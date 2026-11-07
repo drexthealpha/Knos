@@ -36,6 +36,10 @@ main > * { min-width: 0; }
 .sub { margin: var(--sp-3) 0 0; font: 500 17px/1.5 var(--text); color: var(--ink-2); }
 .receipt { margin: var(--sp-2) 0 0; font: 500 var(--s0)/1.5 var(--text); color: var(--ink-2); }
 .receipt b { color: var(--ink); }
+.ic, .k-i { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.k-i { width: 24px; height: 24px; flex: none; vertical-align: -6px; margin-right: 6px; } .go .k-i { stroke: currentColor; }
+.receipt:not(:empty)::before { content: ""; display: inline-block; width: 24px; height: 24px; margin-right: 6px; vertical-align: -6px; background: var(--accent); -webkit-mask: url(../brand/icons/coins.svg) center/24px no-repeat; mask: url(../brand/icons/coins.svg) center/24px no-repeat; }
+.parts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 0; list-style: none; } .parts li { display: flex; align-items: center; font-weight: 500; }
 .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
 .totals a { display: block; padding: var(--sp-4); border: 1px solid var(--line); border-radius: 18px; background: var(--paper-2); color: var(--ink-2); text-decoration: none; }
 .totals a:hover { border-color: var(--accent); }
@@ -52,15 +56,15 @@ button, .btn { min-height: 44px; padding: 12px 18px; border-radius: var(--radius
 button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-2); border-color: var(--line); cursor: not-allowed; }
 /* the money: the bid held on NEAR streams to the agent whose output passed; the one that failed stays at 0 */
-.stage { display: block; width: 100%; max-width: 760px; height: auto; margin: var(--sp-5) 0 var(--sp-3); overflow: visible; }
+.stage { display: block; width: 100%; max-width: 600px; height: auto; margin: var(--sp-5) 0 var(--sp-3); overflow: visible; }
 .stage .box { fill: var(--paper-2); stroke: var(--line); stroke-width: 1.5; }
 .stage .box.win { stroke: var(--ok); stroke-width: 3; }
 .stage .wire { fill: none; stroke: var(--line); stroke-width: 3; }
 .stage .wire.lit { stroke: var(--accent); }
 .stage .wire.cut { stroke-dasharray: 6 8; }
-.stage .k { font: 500 17px/1 var(--text); fill: var(--ink-2); }
-.stage .v { font: 650 40px/1 var(--head); fill: var(--ink); font-variant-numeric: tabular-nums; }
-.stage .tag { font: 600 17px/1 var(--text); }
+.stage .k { font: 500 24px/1 var(--text); fill: var(--ink-2); }
+.stage .v { font: 650 48px/1 var(--head); fill: var(--ink); font-variant-numeric: tabular-nums; }
+.stage .tag { font: 600 24px/1 var(--text); } .stage .ic.ok { stroke: var(--ok); }
 .stage .tag.yes { fill: var(--ok); } .stage .tag.no { fill: var(--bad); }
 .stage .coin { fill: var(--accent); }
 .fees { margin: 0; }
@@ -117,26 +121,29 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <h1 id="t-title" class="k-mission"><span class="k-line"><span>Pay only for work</span></span> <span class="k-line"><span>that passes.</span></span></h1>
     <form class="k-ask" id="jobform">
       <input id="job" name="job" aria-label="What should be built?" placeholder="What should be built?" value="Turn titles into clean links" readonly>
-      <button class="go" type="submit" id="post">Post a job →</button>
+      <button class="go" type="submit" id="post"><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#send"/></svg>Post a job →</button>
     </form>
     <p class="sub">$0 unless a helper's work passes your check</p>
     <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></p>
     <div id="show">
-    <svg class="stage" id="stage" viewBox="0 0 640 300" role="img" aria-labelledby="stage-say">
-      <title id="stage-say">The money held on NEAR moves to Helper A, whose work passed. Helper B failed and gets 0.</title>
-      <path class="wire" id="toA" d="M200 150 C 310 150, 320 70, 430 70"/>
-      <path class="wire cut" id="toB" d="M200 150 C 310 150, 320 230, 430 230"/>
-      <rect class="box" x="10" y="95" width="190" height="110" rx="18"/>
-      <text class="k" x="30" y="128">Held until it passes</text>
-      <text class="v" x="30" y="180" id="pot">$1.00</text>
-      <rect class="box" id="boxA" x="430" y="15" width="200" height="110" rx="18"/>
-      <text class="k" x="450" y="46">Helper A</text>
-      <text class="tag yes" x="610" y="46" text-anchor="end" id="tagA" opacity="0">✓ passed</text>
-      <text class="v" x="450" y="100" id="gotA">0</text>
-      <rect class="box" x="430" y="175" width="200" height="110" rx="18"/>
-      <text class="k" x="450" y="206">Helper B</text>
-      <text class="tag no" x="610" y="206" text-anchor="end" id="tagB" opacity="0">✗ failed</text>
-      <text class="v" x="450" y="260" id="gotB">0</text>
+    <svg class="stage" id="stage" viewBox="0 0 720 330" role="img" aria-labelledby="stage-say">
+      <title id="stage-say">The money held on NEAR moves to Helper A, whose work passed. Helper B failed and gets $0.</title>
+      <path class="wire" id="toA" d="M350 165 C 390 165, 385 80, 420 80"/>
+      <path class="wire cut" id="toB" d="M350 165 C 390 165, 385 250, 420 250"/>
+      <rect class="box" x="10" y="95" width="340" height="140" rx="20"/>
+      <use class="ic" href="../brand/icons.svg#lock" x="26" y="111" width="48" height="48"/>
+      <text class="k" x="84" y="143">Held until it passes</text>
+      <text class="v" x="26" y="212" id="pot">$1.00</text>
+      <rect class="box" id="boxA" x="420" y="10" width="290" height="140" rx="20"/>
+      <use class="ic" href="../brand/icons.svg#users" x="436" y="26" width="48" height="48"/>
+      <text class="k" x="494" y="58">Helper A</text>
+      <g id="tagA" opacity="0"><rect x="432" y="22" width="56" height="56" fill="var(--paper-2)"/><use class="ic ok" href="../brand/icons.svg#circle-check" x="436" y="26" width="48" height="48"/><text class="tag yes" x="696" y="58" text-anchor="end">passed</text></g>
+      <text class="v" x="436" y="128" id="gotA">$0</text>
+      <rect class="box" x="420" y="180" width="290" height="140" rx="20"/>
+      <use class="ic" href="../brand/icons.svg#users" x="436" y="196" width="48" height="48"/>
+      <text class="k" x="494" y="228">Helper B</text>
+      <text class="tag no" x="696" y="228" text-anchor="end" id="tagB" opacity="0">failed</text>
+      <text class="v" x="436" y="298" id="gotB">$0</text>
       <g id="coins"></g>
     </svg>
       <p class="receipt" id="receipt"></p>
@@ -147,6 +154,13 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
     <li><a id="t-paid" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>paid for work that passed</a></li>
     <li><a id="t-jobs" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>jobs paid</a></li>
     <li><a id="t-tries" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet"><b>-</b>tries by helpers</a></li>
+  </ul>
+
+  <ul class="parts" aria-label="The parts">
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#trending-up"/></svg>Qloo checks demand</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#shield-check"/></svg>IRIS checks proof</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#wallet"/></svg>NEAR and Solana devnet pay</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#history"/></svg>Sibyl remembers</li>
   </ul>
 
   <section class="panel" aria-labelledby="t-job">
@@ -167,7 +181,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   </section>
 
   <section class="panel" aria-labelledby="t-pay">
-    <h2 id="t-pay">Pay with any wallet</h2>
+    <h2 id="t-pay"><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#wallet"/></svg>Pay with any wallet</h2>
     <p class="fine">One script tag puts this button on any page. It quotes the bid in USDC from Base through NEAR Intents, a quote only.</p>
     <code class="snip">&lt;script src="http://127.0.0.1:8790/pay.js" data-bid="1000"&gt;&lt;/script&gt;</code>
     <p id="embedlink"><a href="embed.html">A blank page with the button</a></p>

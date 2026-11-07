@@ -22,7 +22,7 @@ SITE = "https://drexthealpha.github.io/Knos/"
 # the front door names no other host in its pages (tests/test_settle_fixtures.py): its links to the app go through its own
 # wake page, which wakes the free server and forwards (web/wanted.html: the hash, and ?to= one of the app's pages)
 WAKE = "wanted.html"
-COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js", "shape.js", "pointer.js")}
+COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js", "shape.js", "pointer.js", "icons.svg", "LUCIDE-LICENSE.txt")}
 COPIES |= {f: STATIC / "fonts" / f.name for f in sorted((WEB / "fonts").iterdir()) if f.suffix in (".woff2", ".txt")}
 # the crow icon set (scripts/make_icons.py) on every Knos page, the app's included
 COPIES |= {WEB / "icon.svg": STATIC / "icon.svg", WEB / "favicon.ico": STATIC / "favicon.ico",
@@ -107,14 +107,14 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
         t = (WEB / "brand" / "hero.html").read_text(encoding="utf-8").strip().replace("{API}", api).replace("{APP}", app_pages).replace("{SP}", site or "./")
         t = t.replace("<!-- k-vectors -->", vectors(api, js.replace("hero.js", "vectors.js")))
         t = t.replace("{SHAPE}", js.replace("hero.js", "shape.js"))
-        t = t.replace("{POINTER}", js.replace("hero.js", "pointer.js"))
+        t = t.replace("{POINTER}", js.replace("hero.js", "pointer.js")).replace("{ICONS}", js.replace("hero.js", "icons.svg"))
         # hero.js runs in place, right after the proof slot: the past result is drawn before anything below it is laid
         # out (run deferred, the card arrived after the first paint and moved the page under the reader: CLS)
         code = lean((WEB / "brand" / "hero.js").read_text(encoding="utf-8").strip())   # inlined without its comments and indentation
         t = t.replace(PROOF_SLOT, f'{PROOF_SLOT}\n<script data-src="{js}">\n{code}\n</script>', 1)
         s = HERO.sub(lambda _: f'<!-- k-hero -->\n{t}\n<!-- /k-hero -->', s, count=1)
         # the four steps under the first screen (web/brand/steps.html): check demand, Ready brief, money held, paid on proof
-        steps = (WEB / "brand" / "steps.html").read_text(encoding="utf-8").strip().replace("{SP}", site)
+        steps = (WEB / "brand" / "steps.html").read_text(encoding="utf-8").strip().replace("{SP}", site).replace("{ICONS}", js.replace("hero.js", "icons.svg"))
         s = STEPS.sub(lambda _: f"<!-- k-steps -->\n{steps}\n<!-- /k-steps -->", s, count=1)
         # under the first screen: one line per built capability, each with its link (web/brand/caps.html)
         caps = (WEB / "brand" / "caps.html").read_text(encoding="utf-8").strip().replace("{SP}", site)

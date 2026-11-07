@@ -1,19 +1,19 @@
 <section id="k-steps" class="k-steps" aria-labelledby="k-steps-h">
-  <style>#k-steps .k-step-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 16px; margin: 12px 0 4px; padding: 0; list-style: none; counter-reset: k-step; }
-  #k-steps .k-step-list > li { counter-increment: k-step; font-size: var(--s-1); line-height: 1.35; min-width: 0; }
-  #k-steps .k-step-list h3 { font: 600 var(--s0)/1.25 var(--head); margin: 0 0 2px; } #k-steps .k-step-list h3::before { content: counter(k-step) " "; color: var(--muted); }
-  #k-steps .k-step-list p { margin: 0; overflow-wrap: anywhere; } #k-steps a { color: var(--accent); }
-  #k-steps .k-step-list p + p { margin-top: 8px; }
-  @media (max-width: 699px) { #k-steps .k-step-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }</style>
-  <h2 class="k-sr" id="k-steps-h">How does Knos work?</h2>
-  <p class="k-sr">In four steps: resolve, price, settle, work.</p>
+  <style>#k-steps ol,#k-steps ul{display:flex;flex-wrap:wrap;gap:12px 24px;margin:12px 0;padding:0;list-style:none}#k-steps li{display:flex;align-items:center;gap:8px;font:600 var(--s0)/1.3 var(--text);color:var(--ink)}#k-steps .k-i{width:24px;height:24px;flex:none;fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}@media (min-width:900px){#k-steps ol li + li::before{content:"\2192";color:var(--muted);margin-right:16px;font-weight:400}}@media (max-width:899px){#k-steps ol{display:grid;grid-template-columns:1fr 1fr}#k-steps ul{flex-direction:column}}#k-steps ul{border-top:1px solid var(--line);padding-top:12px}#k-steps ul li{font-weight:500}#k-steps a{color:inherit}#k-steps h2{font:600 var(--s1)/1.2 var(--head);margin:0}</style>
+  <h2 id="k-steps-h">How it works</h2>
   <ol class="k-step-list">
-    <li id="step-demand"><h3>Resolve</h3><p>A test locked before money moves. <a href="https://knos.onrender.com/api/ready" id="step-ready">The Ready check</a></p><p>Demand is one input: <a href="{SP}?q=a%20probiotic%20kombucha%20brand" id="step-chip">a sample</a></p></li>
-    <li id="step-brief"><h3>Price</h3><p>The bid, held against that test. <a href="{SP}pricing.html" id="step-price">Pricing</a></p></li>
-    <li id="step-held"><h3>Settle</h3><p>Released on proof, refunded at the deadline. <a href="{SP}crossing/7b4ed16b8c2903dc/" id="step-crossing">One held, then released</a></p></li>
-    <li id="paid-on-proof"><h3>Work</h3><p>Anyone or any agent takes it and is paid on proof. <a href="{SP}near/" id="step-work">The NEAR app</a></p><p><a href="{SP}check/#sample" id="steps-check">Checked by the referee</a></p>
-      <p class="k-paid" id="k-paid" data-not-prose><a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" target="_blank" rel="noopener">Released by the referee's verdict</a></p></li>
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#send"/></svg>Job posted</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#lock"/></svg>Money held</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#users"/></svg>Helpers try</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#circle-check"/></svg><a href="{SP}check/#sample" id="steps-check">Check passed</a></li>
+    <li id="paid-on-proof"><svg class="k-i" aria-hidden="true"><use href="{ICONS}#coins"/></svg>Helper paid</li>
   </ol>
+  <ul class="k-part-list" aria-label="The parts">
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#trending-up"/></svg>Qloo checks demand</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#shield-check"/></svg>IRIS checks proof</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#wallet"/></svg>NEAR and Solana devnet pay</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="{ICONS}#history"/></svg>Sibyl remembers</li>
+  </ul>
   <p class="fine" id="k-usage" data-not-prose hidden></p>
 </section>
 <section id="k-film" class="k-film" aria-labelledby="k-film-h">

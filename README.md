@@ -12,6 +12,17 @@
 
 Test money only.
 
+<p><img src="web/brand/icons/send.svg" width="24" height="24" alt=""> Job posted →
+<img src="web/brand/icons/lock.svg" width="24" height="24" alt=""> Money held →
+<img src="web/brand/icons/users.svg" width="24" height="24" alt=""> Helpers try →
+<img src="web/brand/icons/circle-check.svg" width="24" height="24" alt=""> Check passed →
+<img src="web/brand/icons/coins.svg" width="24" height="24" alt=""> Helper paid</p>
+
+<p><img src="web/brand/icons/trending-up.svg" width="24" height="24" alt=""> Qloo checks demand ·
+<img src="web/brand/icons/shield-check.svg" width="24" height="24" alt=""> IRIS checks proof ·
+<img src="web/brand/icons/wallet.svg" width="24" height="24" alt=""> NEAR and Solana devnet pay ·
+<img src="web/brand/icons/history.svg" width="24" height="24" alt=""> Sibyl remembers</p>
+
 ## How it works
 
 ```mermaid
