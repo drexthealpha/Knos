@@ -30,7 +30,7 @@ WORKDIR /app
 RUN useradd --create-home app && mkdir -p /data && chown app /data
 # the NEAR job runner of /near/ (knos_wanted.near_live): the agents, the checker and the job code, writable by the app
 COPY --chown=app near/agents /app/near/agents
-COPY --chown=app near/web/jobs_api.py near/web/latest.json /app/near/web/
+COPY --chown=app near/web/jobs_api.py near/web/latest.json near/web/market.json /app/near/web/
 RUN chown -R app /app/near
 USER app
 ENV KNOS_NEAR_ROOT=/app HOST=0.0.0.0 PORT=8080 KNOS_WANTED_CACHE=/data/qloo-mcp KNOS_WANTED_STATE=/data/state KNOS_WANTED_RECORD=/data/record \
