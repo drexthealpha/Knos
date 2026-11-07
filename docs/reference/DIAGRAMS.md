@@ -6,23 +6,23 @@ The source of each picture in README.md. Pages that cannot draw Mermaid (Open Ex
 
 ```mermaid
 flowchart TB
-    idea["A paper or an idea"] --> demand["Demand check on Qloo: who wants it, the launch city and the pre-order target"]
-    demand --> ready["Ready brief: each milestone has a target, a checker and a deadline, locked by a hash"]
-    ready --> held["Backers pre-order or fund milestones; the money is held on Solana devnet"]
-    held --> proof["The maker sends the proof for one milestone"]
-    proof -->|verified| paid["The maker is paid for that milestone"]
-    proof -->|not verified by the deadline| back["Nobody is paid; the money goes back to the backers"]
+    idea["A research idea"] --> demand["Is it wanted? Knos asks who would buy it, and where"]
+    demand --> ready["Each step gets a goal and a deadline, plus the test that decides it, sealed so nobody can change them"]
+    ready --> held["Backers fund the steps; the money waits on a public ledger"]
+    held --> proof["The maker sends proof for one step"]
+    proof -->|the test passes| paid["That step is paid"]
+    proof -->|no pass by the deadline| back["Nobody is paid; the backers get their money back"]
 ```
 
-*No money locks on a vague brief. Each step is paid only when its proof is verified.*
+*Money moves only when a step passes its test.*
 
 ## Paid on proof
 
 ```mermaid
 flowchart TB
-    held["The money is held on Solana devnet"] --> proof["The maker sends the proof for one milestone"]
-    proof -->|verified| paid["The program pays the maker for that milestone"]
-    proof -->|not verified by the deadline| back["The program refunds every backer"]
+    held["The money waits on a public ledger, not with Knos"] --> proof["The maker sends proof for one step"]
+    proof -->|the test passes| paid["The ledger's program pays the maker for that step"]
+    proof -->|no pass by the deadline| back["The program gives every backer their money back"]
 ```
 
 *Nothing is paid on a promise. A missed deadline sends the money back.*

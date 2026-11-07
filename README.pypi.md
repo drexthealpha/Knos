@@ -17,9 +17,9 @@ A lab pays for each research step only when a test proves it is done. Play money
 
 ## How it works
 
-![No money locks on a vague brief. Each step is paid only when its proof is verified](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-1.svg)
+![Money moves only when a step passes its test](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-1.svg)
 
-*No money locks on a vague brief. Each step is paid only when its proof is verified.*
+*Money moves only when a step passes its test.*
 
 1. **Is it wanted?** Knos [asks Qloo](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DEMAND_CHECK.md), a service that knows what people like, who would buy the product and in which city.
 2. **Write the deal.** Each step of the work gets a goal and a deadline, plus the test that decides it. They are sealed with a fingerprint, so nobody can change them later.

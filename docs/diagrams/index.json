@@ -64,13 +64,13 @@
   {
    "source": "docs/reference/DIAGRAMS.md",
    "block": 1,
-   "sha256": "0fe431dd6649f0153e33aa13e4fcbc4b2ea7c2ab06e4ce5dc9f14b9976bb69aa",
+   "sha256": "b57a1037bd84b9ef907788f2b2b933a53f088a18f79e00657952a1cf50e8269d",
    "svg": "docs/diagrams/docs-reference-diagrams-1.svg"
   },
   {
    "source": "docs/reference/DIAGRAMS.md",
    "block": 2,
-   "sha256": "64221352a086bb96cb93a46699a922a0be296495e3ee3268579edca8afcbdc5d",
+   "sha256": "1892da32f73fb8bfe28982cbc62e2fc29989023be1776e66f1755a5ba5c384d4",
    "svg": "docs/diagrams/docs-reference-diagrams-2.svg"
   },
   {
