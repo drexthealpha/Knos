@@ -21,7 +21,7 @@ RPC = "https://rpc.testnet.near.org"
 MARKET = "market.knos-swarm-1105.testnet"
 MODEL = "qwen2.5:1.5b-instruct"
 CLAIMS = {"claim-split-1107": "Splitting a bid between two helpers never pays out more than the bid.",
-          "claim-refund-1107": "What two helpers are paid plus the refund is always exactly the bid."}
+          "claim-refund-1107": "The two helpers' pay plus the refund always equals the bid."}
 BANNED = ("escrow", "hash", "json", "lmsr", "oracle", "smart contract", "blockchain", "devnet", "sibyl", "kardashev")
 
 
