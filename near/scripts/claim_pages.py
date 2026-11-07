@@ -43,15 +43,18 @@ def page(mid: str, v: dict) -> dict:
     m = v["market"]
     yes_c = round(int(v["yes_price"]) / 10_000)
     claim = CLAIMS.get(mid, "A helper's work passes this job's test.")
-    status = ("settled Yes: the proof passed its check" if m["outcome"] is True else "settled No: the proof failed its check"
-              if m["outcome"] is False else "open: the proof has not been checked yet")
-    prompt = (f"Write at most two short sentences, under 35 words, for someone who knows nothing about software.\n"
-              f"Claim: {claim}\nPrice of a Yes share: {yes_c} cents (it pays $1 if the proof passes).\nState: {status}.\n"
-              "Say the claim in plain words, the Yes price in cents, and the state. No other facts, no hype.")
+    what = "the helper's work" if mid.startswith("job:") else "the proof"
+    status = (f"settled Yes: {what} passed its check" if m["outcome"] is True else f"settled No: {what} failed its check"
+              if m["outcome"] is False else f"open: {what} has not been checked yet")
+    prompt = (f"Write exactly two short sentences, under 35 words in all, for someone who knows nothing about software.\n"
+              f"The first sentence is this, word for word: {claim}\n"
+              f"The second sentence says that a Yes share costs {yes_c} cents and that the market is {status}.\n"
+              "No other facts, no hype, no labels.")
     for _ in range(3):
-        text = ask(prompt).strip('"')
+        text = re.sub(r"^(claim|answer)\s*:\s*", "", ask(prompt).strip('"'), flags=re.I)
         words = len(re.findall(r"[\w'$%.,-]+", text))
-        if 0 < words <= 40 and not any(b in text.lower() for b in BANNED) and f"{yes_c}" in text:
+        if (0 < words <= 40 and not any(b in text.lower() for b in BANNED) and f"{yes_c}" in text
+                and text.lower().startswith(claim.lower().rstrip("."))):
             return {"id": mid, "claim": claim, "yes_c": yes_c, "status": status, "text": text, "words": words, "model": MODEL,
                     "written": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
     text = f"{claim} Yes costs {yes_c}c. The market is {status}."
