@@ -22,7 +22,7 @@ Test money only.
 <p><img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/trending-up.svg" width="24" height="24" alt=""> Qloo checks demand ·
 <img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/shield-check.svg" width="24" height="24" alt=""> IRIS checks proof ·
 <img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/wallet.svg" width="24" height="24" alt=""> NEAR and Solana devnet pay ·
-<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/history.svg" width="24" height="24" alt=""> Sibyl remembers</p>
+<img src="https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/history.svg" width="24" height="24" alt=""> Sibyl remembers each result</p>
 
 ## How it works
 
