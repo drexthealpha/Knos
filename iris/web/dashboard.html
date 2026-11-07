@@ -95,7 +95,7 @@ main > * { min-width: 0; }
 .bar #menu.menu { display: inline-flex; align-items: center; margin-left: auto; min-height: 44px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.3 var(--text); cursor: pointer; }
 .bar #nav { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 4px 16px; } .bar #nav[hidden] { display: none; }
 .bar #nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; } .bar #nav a[aria-current] { color: var(--accent); }
-.parts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 0; list-style: none; } .parts li { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.signin:not([hidden]) { min-height: calc(100svh - 48px); align-content: start; } .parts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 0; list-style: none; } .parts li { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .k-i { width: 24px; height: 24px; flex: none; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 </style>
 </head>
@@ -123,12 +123,6 @@ main > * { min-width: 0; }
     <button class="go" type="submit">Sign in</button>
     <button class="look" type="button" id="demo-go">Look around (read only)</button>
   </form>
-  <ul class="parts" aria-label="The parts">
-    <li><svg class="k-i" aria-hidden="true"><use href="#trending-up"/></svg>Qloo checks demand</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="#shield-check"/></svg>IRIS checks proof</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="#wallet"/></svg>NEAR and Solana devnet pay</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="#history"/></svg>Sibyl remembers each result</li>
-  </ul>
   <section aria-labelledby="t-title">
     <h1 id="t-title">Decisions</h1>
     <p class="finding" id="finding">Loading.</p>
@@ -146,6 +140,13 @@ main > * { min-width: 0; }
       <tbody id="decisions"><tr><td colspan="5" class="empty">Loading.</td></tr></tbody>
     </table>
   </section>
+
+  <ul class="parts" aria-label="The parts">
+    <li><svg class="k-i" aria-hidden="true"><use href="#trending-up"/></svg>Qloo checks demand</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="#shield-check"/></svg>IRIS checks proof</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="#wallet"/></svg>NEAR and Solana devnet pay</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="#history"/></svg>Sibyl remembers each result</li>
+  </ul>
 
   <section class="panel" aria-labelledby="t-trace">
     <h2 id="t-trace">Trace</h2>
