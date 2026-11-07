@@ -159,8 +159,9 @@ def _release(ready: dict) -> dict:
     j, t0 = _jobs(), time.time()
     try:
         r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
-    except RuntimeError as e:   # a nonce fetched earlier went stale: fetch afresh and send once more
-        if "nonce" not in str(e).lower():
+    except Exception as e:  # noqa: BLE001 - a nonce fetched earlier went stale (another instance, during a deploy, sent with
+        # it; testnet answers InvalidNonce or a bare INVALID_TRANSACTION): fetch afresh and send once more
+        if "nonce" not in str(e).lower() and "INVALID_TRANSACTION" not in str(e):
             raise
         r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
     agents = [x["agent"] for x in ready["attempts"]]
