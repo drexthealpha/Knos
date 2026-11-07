@@ -180,3 +180,65 @@ def baseline(idea: str, country: str = "US") -> dict:
     return {"source": "open signals (Wikimedia, GDELT, Hacker News, OpenAlex, World Bank, Wikidata; keyless)", "idea": idea, "phrase": q,
             "verdict": verdict, "attention_counted": n, "audience": None, "cities": [], "price_tier": tier,
             "signals": [wiki, gdelt, hn, oa, wb, wd], "rules": RULES}
+
+
+_answers: dict[str, tuple[float, dict]] = {}
+ROWS = {"Wikimedia pageviews": ("Wikipedia", "views_per_day", "views a day (last 60 days)"),
+        "GDELT news": ("News", "articles_3_months", "articles in 3 months (GDELT)"),
+        "Hacker News": ("Hacker News", "stories_2_years", "stories in 2 years"),
+        "OpenAlex": ("Research papers", "works_since_2023", "since 2023 (OpenAlex)")}
+
+
+def held_for(idea: str) -> dict:
+    """Money already put down on this idea here: locked pre-orders and funder money, in test dollars (6 decimals)."""
+    from . import preorder
+    key, units, n = " ".join((idea or "").lower().split()), 0, 0
+    for r in preorder.all_public(200):
+        if " ".join(str(r.get("idea") or "").lower().split()) == key and r.get("status") == "locked":
+            units += int(r.get("units") or 0) * int(r.get("unit_price") or 0)
+            n += 1
+    return {"usd": round(units / 1_000_000, 2), "count": n}
+
+
+def fallback(idea: str, country: str = "US") -> dict:
+    """A4: the demand answer when Qloo gives nothing (no key, an error, HTTP 429, an empty answer): the open signals plus
+    money already put down, in plain rows, with one line naming the sources used. Kept 10 minutes per idea."""
+    k = f"{country}|{' '.join((idea or '').lower().split())}"
+    got = _answers.get(k)
+    if got and time.time() - got[0] < 600:
+        return got[1]
+    b = baseline(idea, country)
+    rows, used = [], []
+    for s in b["signals"]:
+        name, field, unit = ROWS.get(s.get("source"), (None, None, None))
+        if name and s.get("answered"):
+            rows.append({"name": name, "value": round(s.get(field) or 0), "unit": unit, "link": s.get("link"), "counts": bool(s.get("counts"))})
+            used.append({"News": "GDELT news", "Research papers": "OpenAlex"}.get(name, name))
+    held = held_for(idea)
+    rows.append({"name": "Money down", "value": held["usd"], "unit": f"test money, {held['count']} pre-orders here", "counts": held["usd"] > 0})
+    used.append("pre-orders here")
+    n = sum(1 for r in rows if r["counts"])
+    verdict = "OPEN" if n >= 2 else "REFUSE" if len(used) > 1 else "CANNOT_DECIDE"
+    out = {"verdict": verdict, "rows": rows, "counted": n, "phrase": b["phrase"],
+           "line": "Sources: " + ", ".join(used) + ".",
+           "head": {"OPEN": "People want this", "REFUSE": "Little interest found yet", "CANNOT_DECIDE": "No signal yet"}[verdict],
+           "rule": "People want it when 2 of these pass: Wikipedia 100 views a day, news 50 articles, "
+                   "Hacker News 5 stories, 200 research papers, any money down."}
+    _answers[k] = (time.time(), out)
+    return out
+
+
+def needs_fallback(rep: dict) -> bool:
+    """Qloo gave nothing usable: no key, an error or HTTP 429 with no real answer kept, or an empty answer."""
+    if rep.get("kind") == "which_one" or rep.get("without_qloo") or rep.get("stale") or rep.get("nearest"):
+        return False
+    d = rep.get("decision") or {}
+    return bool(rep.get("queued") or rep.get("qloo_down") or d.get("verdict") == "CANNOT_DECIDE"
+                or (not rep.get("matches") and not rep.get("tags") and "decision" in rep))
+
+
+def prefetch(idea: str, country: str = "US") -> None:
+    """Start the fallback's lookups beside the Qloo step when Qloo cannot answer, so the answer is ready when it ends."""
+    k = f"{country}|{' '.join((idea or '').lower().split())}"
+    if k not in _answers:
+        threading.Thread(target=lambda: fallback(idea, country), daemon=True).start()

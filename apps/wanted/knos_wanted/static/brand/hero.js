@@ -42,7 +42,7 @@
   let clock = 0, since = 0, rid = "", poll = 0;
   // while a check runs: its Qloo calls and entities so far, read from the server's call log (GET /api/progress)
   const counted = (secs) => (rid ? get(`/api/progress?req=${rid}`) : Promise.resolve(null)).then((p) => {
-    if (p && liveN) liveN.textContent = `Qloo calls ${p.calls} · entities ${p.entities}${secs != null ? ` · ${secs.toFixed(1)} s` : ""}`;
+    if (p && liveN) liveN.textContent = !p.calls ? "" : `Qloo calls ${p.calls} · entities ${p.entities}${secs != null ? ` · ${secs.toFixed(1)} s` : ""}`;
   }).catch(() => {});
   const tick = () => { if (liveT && since) liveT.textContent = `· ${((performance.now() - since) / 1000).toFixed(still() ? 0 : 1)} s`; };
   const busy = (on) => {
@@ -307,7 +307,7 @@
   // rule, the downloads of an Open card, one question ("Was this useful?") and, only while the server's model is on, a box to ask
   const lift4 = (n) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n).toFixed(4);
   const storyHead = (r) => { const st = r.story; if (!st || !st.sentence) return "";
-    const tiles = (st.tiles || []).slice(0, 4).map((t) => `<li><span>${esc(t.label)}</span><b>${esc(t.value)}</b>${t.lift != null && Number.isFinite(Number(t.lift)) ? `<i class="k-lift">lift ${lift4(Number(t.lift))}</i>` : ""}</li>`).join("");
+    const tiles = (st.tiles || []).slice(0, 5).map((t) => `<li><span>${esc(t.label)}</span><b>${esc(t.value)}</b>${t.lift != null && Number.isFinite(Number(t.lift)) ? `<i class="k-lift">lift ${lift4(Number(t.lift))}</i>` : ""}</li>`).join("");
     return `<p class="k-sentence" data-part="sentence">${esc(st.sentence)}</p>${tiles ? `<ul class="k-tiles" data-part="tiles">${tiles}</ul>` : ""}${st.used && st.used.line ? `<p class="k-fine k-used" data-part="used">${esc(st.used.line)}</p>` : ""}`; };
   const storyFoot = (r) => { const st = r.story || {}, h = /^[0-9a-f]{16,64}$/.test(r.hash || "") ? r.hash : "", out = [], id = esc(h.slice(0, 8));
     if ((st.reruns || []).length) out.push(`<p class="k-reruns" data-part="reruns">${st.reruns.slice(0, 3).map((x) => `<button type="button" class="k-chip" data-rerun="${esc(x.idea || r.idea || "")}" data-place="${esc(x.place || "")}">${esc(x.label)}</button>`).join(" ")}</p>`);
@@ -397,8 +397,11 @@
     a.href = URL.createObjectURL(new Blob([text], { type: kind === "json" ? "application/json" : "text/markdown" }));
     a.download = `knos-${String(r.hash || "card").slice(0, 16)}.${kind === "json" ? "json" : "md"}`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
   const recordedCard = (r, label) => !!(r && r.decision && (label || r.stale || (r.qloo_calls && r.qloo_calls.live === 0 && (r.qloo_calls.recorded || 0) > 0)));
+  // A4: Qloo gave nothing; the server's story holds the open signals and money down, each with its unit and source
+  const openCard = (r) => `<article class="k-card k-${r.decision.verdict === "OPEN" ? "open" : "unknown"}" data-open-demand data-not-prose>${storyHead(r)}${storyFoot(r)}</article>`;
   function card(r, label) {
     style(); askModel();
+    if (r.open_demand) return openCard(r);
     if (r.kind === "which_one") return whichCard(r);
     if (r.queued) return queuedCard(r);
     if (r.nearest_options || (r.qloo_down && !r.stale && !r.nearest)) return options(r);

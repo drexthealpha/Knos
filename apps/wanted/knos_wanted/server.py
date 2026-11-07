@@ -1142,6 +1142,9 @@ def make_handler(state: State):
                 privacy.check({k: v for k, v in opts.items() if isinstance(v, str) and k != "exclude"})   # exclude: Qloo ids, checked above
                 without = body.get("without_qloo") is True        # the same check with the key unset (the comparison)
                 picked = body.get("picked") is True              # the reader picked this exact reading (which.py)
+                from . import open_signals, qloo_status as _qs
+                if not without and (not getattr(state.rest, "has_key", True) or _qs.limit_line()):   # A4: Qloo cannot answer; start the open signals now
+                    open_signals.prefetch(idea)
                 if not picked and not without and not ex:
                     from . import which                         # which one do you mean? before any Qloo call
                     w = which.step(idea)
@@ -1167,6 +1170,11 @@ def make_handler(state: State):
                     if stage or not getattr(self, "_free_check", False):     # the verdict and its full card: one check
                         from . import usage
                         usage.bump_live(int((rep.get("qloo_calls") or {}).get("live") or 0))
+                    from . import open_signals                # A4: demand never breaks; Qloo gave nothing, the open signals answer
+                    if open_signals.needs_fallback(rep):
+                        fb = open_signals.fallback(rep.get("idea") or idea)
+                        rep = {**{k: v for k, v in rep.items() if k not in ("queued", "qloo_down")}, "open_demand": fb,
+                               "decision": {"verdict": fb["verdict"], "reasons": [fb["line"]], "target_units": None, "reserve_units": None}}
                 rep["fees"] = preorder.fee_line()
                 card = state.cards.get(str(body.get("research") or ""))
                 if card:
@@ -1176,6 +1184,11 @@ def make_handler(state: State):
                     rep["qloo_calls"] = {**rep["qloo_calls"], "ms": rep["elapsed_ms"]}
                 from . import story                          # the decision first: sentence, tiles, used words, reruns
                 rep["story"] = story.build(rep)
+                if rep.get("open_demand"):                   # A4: the open signals' rows, each with its unit; the sources in one line
+                    fb = rep["open_demand"]
+                    rep["story"] = {**rep["story"], "sentence": fb["head"], "used": {"line": fb["line"] + " " + fb["rule"]}, "downloads": [], "reruns": [], "rejected": [],
+                                    "tiles": [{"label": x["name"], "value": (f"${x['value']:.2f} " if x["name"] == "Money down" else f"{x['value']:,} ") + x["unit"]}
+                                              for x in fb["rows"]]}
                 if not rep.get("queued"):
                     rep["record"] = {"recorded": False, "why": "a last real card, already recorded"} if rep.get("stale") else company.record_check(rep)
                 state.keep_check(rep)

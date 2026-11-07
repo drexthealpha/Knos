@@ -84,6 +84,8 @@ def rows(rep: dict) -> list[dict]:
 def shown(rep: dict) -> str | None:
     """The verdict the card shows (web/brand/hero.js): an OPEN with no launch city is drawn as not yet open."""
     v = (rep.get("decision") or {}).get("verdict")
+    if rep.get("open_demand"):                   # A4: the open signals answered; the card's own words, no launch city asked
+        return rep["open_demand"].get("head") or v
     if v == "OPEN":
         from . import metros
         if not metros.launch_terms(rep):
