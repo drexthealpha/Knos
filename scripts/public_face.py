@@ -43,7 +43,7 @@ from typing import Any, Callable
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "docs/facts.json"
 KEY = "sentence"
-JOB = "A lab pays for each research step only when a test proves it is done."
+JOB = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))["job"]
 REPO = "drexthealpha/Knos"
 SITE = "https://drexthealpha.github.io/Knos/"
 SERVER = "io.github.drexthealpha/knos"

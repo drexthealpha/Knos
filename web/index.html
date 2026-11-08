@@ -821,7 +821,7 @@ ${recordedCard(r, label) ? u1(r) : ""}
 ${calls(r)}
 ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
 <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
-<footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Aggregate taste from Qloo: not causal, not a forecast, not about any one person.${
+<footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">Data from Qloo on what many people already like. It hints at demand; it does not predict sales or describe any one person.${
 HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
 ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">Fee: 1% of each payout. Test money for now.</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Check it in one city →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
@@ -1052,7 +1052,7 @@ ul.innerHTML = list.map((x) => `<li data-id="${esc(x.id)}"><a href="${esc(API)}/
 for (const x of list) {
 get(`/api/receipts?id=${encodeURIComponent(x.id)}`).then((d) => {
 const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`), rec = (d.rows || []).find((r) => r.id === "record") || {};
-if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" target="_blank" rel="noopener" data-record>entry ${esc(rec.seq)} in the record</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
+if (li) li.innerHTML = `${esc(WORDS[d.verdict] || d.verdict || "no verdict")} · ${rec.recorded ? `<a href="${esc(API)}/receipts/${esc(x.id)}#record" data-record>see it saved in the public record (entry ${esc(rec.seq)})</a>` : `<span data-record-none>${esc(rec.why || "not in the record")}</span>`}`;
 }).catch(() => { const li = ul.querySelector(`li[data-id="${x.id}"] [data-v]`); if (li) li.textContent = "the record did not answer"; });
 }
 }
@@ -1151,6 +1151,7 @@ if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.op
 </div>
 <div class="k-rest">
   <details class="k-samples" id="k-samples" open><summary class="k-add">Try a sample</summary>
+  <p class="k-fine">Tap a sample to check who would buy it:</p>
   <div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
     <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
     <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>

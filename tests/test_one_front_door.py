@@ -69,7 +69,7 @@ def test_the_apps_home_holds_no_money_or_company_tools_and_paid_holds_them():
 
 def test_every_description_is_a_sentence_of_facts_json():
     facts = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))
-    said = {facts["sentence"], facts["registry_sentence"]}
+    said = {facts["sentence"], facts["registry_sentence"], facts["job"]}   # the README leads with the job, then the sentence
     pyproject = re.search(r'(?m)^description = "(.*)"$', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
     npm = json.loads((ROOT / "sdk" / "settle" / "package.json").read_text(encoding="utf-8"))["description"]
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["description"]
