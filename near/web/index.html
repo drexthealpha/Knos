@@ -321,7 +321,7 @@ async function load() {
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
     $("embedlink").hidden = true;
-    totals(); market(); pages();
+    totals(); market();   // the AI-written claim pages (pages()) are not shown: a small model's words are not plain enough
     // the hosted runner (knos.onrender.com) posts one live job for any visitor, within its caps; the first view says
     // nothing about it unless live runs are off
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
