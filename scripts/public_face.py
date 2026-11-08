@@ -43,6 +43,7 @@ from typing import Any, Callable
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "docs/facts.json"
 KEY = "sentence"
+JOB = "A lab pays for each research step only when a test proves it is done."
 REPO = "drexthealpha/Knos"
 SITE = "https://drexthealpha.github.io/Knos/"
 SERVER = "io.github.drexthealpha/knos"
@@ -192,9 +193,10 @@ def problems(root: Path = ROOT) -> list[str]:
     out += version_problems(root)
     readme = root / "README.md"
     if readme.is_file():
-        first = next((line.strip() for line in _prose(readme.read_text(encoding="utf-8"))), "")
-        if first != f"**{said}**":
-            out.append(f"README.md: the first line of text is not the sentence in bold: {first[:90]}")
+        # line 1 says what a stranger gets in plain words (the job); the sentence comes directly under it
+        lines = [line.strip() for line in _prose(readme.read_text(encoding="utf-8"))][:2]
+        if lines != [f"**{JOB}**", said]:
+            out.append(f"README.md: the first two lines of text are not the job in bold, then the sentence: {' | '.join(lines)[:120]}")
     return out
 
 

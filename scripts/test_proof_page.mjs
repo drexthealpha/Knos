@@ -56,7 +56,7 @@ try {
     page: document.querySelector("[data-proof-lines] a[data-proof-page]")?.href || "", bar: document.querySelector("#k-bar a[data-proof]")?.href || "" }));
   await front.close();
   const bar = (row, i) => page.bars.filter((b) => b.row === row)[i];
-  const want = [`Cheating pull requests caught: Knos ${bar("tamper", 0).text}, plain CI ${bar("tamper", 1).text}`, `Ready briefs passed ${bar("ready", 0).text} vs ${bar("ready", 1).text} for vague ones`];
+  const want = [`Faked code changes caught, out of 60: Knos ${bar("tamper", 0).text}, usual automatic tests ${bar("tamper", 1).text}`, `Tasks done right: ${bar("ready", 0).text} for a clear job vs ${bar("ready", 1).text} for a vague one`];
   ok(JSON.stringify(f.lines) === JSON.stringify(want), `the front door's numbers equal the page's bars: ${f.lines.join(" | ")}`);
   ok(/\/proof\/$/.test(f.page) && /\/proof\/$/.test(f.bar), `the front door links /proof/ beside its numbers and in its bar (${f.page}, ${f.bar})`);
 } finally {

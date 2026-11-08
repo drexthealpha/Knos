@@ -114,7 +114,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   <nav id="nav" aria-label="Knos" hidden>
     <a href="../">Home</a>
     <a href="./" aria-current="page">NEAR app</a>
-    <a href="https://github.com/drexthealpha/Knos/tree/main/iris">IRIS</a>
+    <a href="../iris/">IRIS</a>
     <a href="../proof/">Proof</a>
   </nav>
 </header>
@@ -122,7 +122,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-mission"><span class="k-line"><span>Pay only for work</span></span> <span class="k-line"><span>that passes.</span></span></h1>
     <form class="k-ask" id="jobform">
-      <input id="job" name="job" aria-label="What should be built?" placeholder="What should be built?" value="Turn titles into clean links" readonly>
+      <input id="job" name="job" aria-label="What should be built?" placeholder="What should be built?" value="Sample job: a tool that turns page titles into web links" readonly>
       <button class="go" type="submit" id="post"><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#send"/></svg>Post a job →</button>
     </form>
     <p class="sub">$0 unless a helper's work passes your check</p>
@@ -153,30 +153,32 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   </section>
 
   <ul class="totals" id="totals" aria-label="Live totals, each from its public record">
-    <li><a id="t-paid" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>paid for work that passed</a></li>
+    <li><a id="t-paid" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>of test money paid for work that passed</a></li>
     <li><a id="t-jobs" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>jobs paid</a></li>
     <li><a id="t-tries" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet"><b>-</b>tries by helpers</a></li>
   </ul>
+  <p class="fine">All runs so far, in test money, counted on NEAR's public test ledger. Click a number to see its record.</p>
 
   <ul class="parts" aria-label="The parts">
-    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#trending-up"/></svg>Qloo checks demand</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#shield-check"/></svg>IRIS checks proof</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#wallet"/></svg>NEAR and Solana devnet pay</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#history"/></svg>Sibyl remembers each result</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#trending-up"/></svg>First it asks who would buy it</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#shield-check"/></svg>Then a test checks the work</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#wallet"/></svg>Test money pays only on a pass</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#history"/></svg>Every result is kept on record</li>
   </ul>
 
   <section class="panel claim" id="claim" aria-labelledby="t-claim">
-    <h2 id="t-claim">Will this proof pass?</h2>
-    <p class="q" id="m-q">The two helpers' pay plus the refund always equals the bid.</p>
+    <h2 id="t-claim">Bet test money on a claim</h2>
+    <p class="q" id="m-q">Claim: what the helpers are paid, plus what goes back to the person who posted the job, never adds up to more than the job's money.</p>
+    <p class="fine">The prices below are what other bets say the chance is, in test cents per $1.</p>
     <p class="price"><b id="m-yes">Yes …</b> <b id="m-no">No …</b></p>
     <p class="fine">A Yes share pays $1 if a computer checks the proof and it passes. A No share pays $1 if it fails. No one can vote. Test money.</p>
-    <p class="buys"><button type="button" class="go" id="buy-yes" data-buy>Buy Yes, $1</button> <button type="button" id="buy-no" data-buy>Buy No, $1</button></p>
+    <p class="buys"><button type="button" class="go" id="buy-yes" data-buy>Bet $1 of test money: true</button> <button type="button" id="buy-no" data-buy>Bet $1 of test money: false</button></p>
     <p class="fine" id="m-said" role="status"></p>
-    <div class="pages" id="m-pages" hidden><h3>Each claim, in a small model's words</h3><ul id="m-page-list"></ul></div>
+    <div class="pages" id="m-pages" hidden><h3>Each claim, explained in plain words by a small AI</h3><ul id="m-page-list"></ul></div>
     <div class="loop" id="loop">
       <h3>Or bet on a job and watch it settle</h3>
       <p class="q">Will a helper's work pass this job's test?</p>
-      <p class="buys"><button type="button" class="go" id="loop-fund" data-buy>Fund its test, $1</button></p>
+      <p class="buys"><button type="button" class="go" id="loop-fund" data-buy>Put $1 of test money on a job and watch it pay out</button></p>
       <p class="fine" id="loop-quote" hidden></p>
       <p class="buys" id="loop-go-row" hidden><button type="button" class="go" id="loop-go" data-buy>Pay with test money and watch</button></p>
       <ol class="loop-steps" id="loop-steps" aria-live="polite"></ol>
@@ -195,23 +197,23 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   </section>
 
   <section class="panel" aria-labelledby="t-guard">
-    <h2 id="t-guard">Guardrails</h2>
+    <h2 id="t-guard">Two payments the rules block</h2>
     <p class="fine">Helper B may spend 1 test unit at most. It tries to pay 2, then to take the money with no passing work.</p>
-    <button type="button" id="guard">Try both</button>
+    <button type="button" id="guard">Try both payments and see them refused</button>
     <ul id="guards"></ul>
   </section>
 
-  <section class="panel" aria-labelledby="t-pay">
+  <section class="panel" id="sec-pay" aria-labelledby="t-pay">
     <h2 id="t-pay"><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#wallet"/></svg>Pay with any wallet</h2>
     <p class="fine">One script tag puts this button on any page. It quotes the bid in USDC from Base through NEAR Intents, a quote only.</p>
     <code class="snip">&lt;script src="http://127.0.0.1:8790/pay.js" data-bid="1000"&gt;&lt;/script&gt;</code>
     <p id="embedlink"><a href="embed.html">A blank page with the button</a></p>
   </section>
 
-  <section class="panel" aria-labelledby="t-ms">
+  <section class="panel" id="sec-ms" aria-labelledby="t-ms">
     <h2 id="t-ms">One milestone</h2>
     <form class="fund" id="fund">
-      <label for="amount">Amount<input id="amount" name="amount" type="number" min="1" max="10000000" value="1000" required></label>
+      <label for="amount">Amount (millionths of a test dollar)<input id="amount" name="amount" type="number" min="1" max="10000000" value="1000" required></label>
       <label for="minutes">Deadline (minutes)<input id="minutes" name="minutes" type="number" min="1" max="1440" value="2" required></label>
       <button type="submit">Fund</button>
     </form>
@@ -283,7 +285,7 @@ async function api(path, body) {
 }
 
 function busy(text) { $("busy").toggleAttribute("data-done", !text); $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of document.querySelectorAll("main button:not([data-buy])")) b.disabled = !!text || !local; }
-const link = (h, t) => h ? el("a", { href: TX + h, textContent: t, target: "_blank", rel: "noopener" }) : null;
+const link = (h, t) => h ? el("a", { href: TX + h, textContent: t }) : null;
 
 function showJob(j) {
   if (!j) return;
@@ -297,18 +299,20 @@ function showJob(j) {
     const att = a.find((x) => x.agent === ag) || {};
     const key = ag.startsWith("agent-a") ? "a" : "b";
     return el("tr", {}, [
-      el("td", {}, el("a", { href: "https://testnet.nearblocks.io/address/" + ag, target: "_blank", rel: "noopener", textContent: ag.startsWith("agent-a") ? "Helper A" : "Helper B" })),
-      el("td", { className: "txs" }, [link(j.txs?.[`take_${key}`], "take"), link(j.txs?.[`submit_${key}`], "submit")]),
+      el("td", {}, el("a", { href: "https://testnet.nearblocks.io/address/" + ag, textContent: (ag.startsWith("agent-a") ? "Helper A" : "Helper B") + ": its public record" })),
+      el("td", { className: "txs" }, [link(j.txs?.[`take_${key}`], "took the job (record)"), " ", link(j.txs?.[`submit_${key}`], "sent its work (record)")]),
       el("td", {}, att.passed == null ? "" : el("span", { className: att.passed ? "yes" : "no", textContent: att.passed ? "passed" : "failed" })),
       el("td", { className: "n", textContent: usd(+(paid[ag] ?? 0)) }),
     ]);
   }));
-  $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "posted"), " ", link(j.txs?.release, "paid")].filter(Boolean));
+  $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "posted (record)"), " ", link(j.txs?.release, "paid (record)")].filter(Boolean));
 }
 
 async function load() {
   // the server (near/web/serve.py) is on 127.0.0.1:8790; any other copy (Pages) reads the last run and makes no call
   const served = location.port === "8790";
+  // the milestone form and the wallet button need that local server: the public copy hides them
+  if (!served) { $("sec-pay").hidden = true; $("sec-ms").hidden = true; }
   const s = served ? await api("/api/status").catch(() => ({ status: 0 })) : { status: 0 };
   if (s.status !== 200) {
     local = false;
@@ -396,7 +400,7 @@ async function pages() {
     let list = []; try { list = JSON.parse(cr.output.summary); } catch { return; }
     $("m-page-list").replaceChildren(...list.map((p) => el("li", {}, [el("p", { textContent: p.text }),
       el("p", { className: "fine" }, [`Written ${p.written} by ${p.model.startsWith("none") ? "no model (its answers broke the limits)" : "a small model"}, `,
-        el("a", { href: cr.html_url, target: "_blank", rel: "noopener", textContent: "in this run" })])])));
+        el("a", { href: cr.html_url, textContent: "see the run that wrote it" })])])));
     $("m-pages").hidden = false;
     return;
   }

@@ -6,13 +6,13 @@
   </picture>
 </h1>
 
-**Knos carries research across the valley of death.**
+**A lab pays for each research step only when a test proves it is done.**
 
-A lab pays for each research step only when a test proves it is done. Play money only.
+Knos carries research across the valley of death.
 
-[Watch the 62-second video](https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article 1](https://community.intersystems.com/post/knos-carries-research-across-valley-death-ai-can-only-say-no-inside-intersystems-iris) · [Article 2](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Code](https://github.com/drexthealpha/Knos/tree/main/iris) · [Run it on IRIS: install steps below](#run-it-on-iris) · [Try it on NEAR: a live page in your browser](https://drexthealpha.github.io/Knos/near/)
+Play money only.
 
-![](https://raw.githubusercontent.com/drexthealpha/Knos/main/web/brand/icons/send.svg) Job posted → ![](https://raw.githubusercontent.com/drexthealpha/Knos/main/web/brand/icons/lock.svg) Money held → ![](https://raw.githubusercontent.com/drexthealpha/Knos/main/web/brand/icons/users.svg) Helpers try → ![](https://raw.githubusercontent.com/drexthealpha/Knos/main/web/brand/icons/circle-check.svg) Check passed → ![](https://raw.githubusercontent.com/drexthealpha/Knos/main/web/brand/icons/coins.svg) Helper paid
+[Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/knos-carries-research-across-valley-death-ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/near/)
 
 ## How it works
 
@@ -107,12 +107,12 @@ IRIS reads the result and says yes.
 It is over $50, so the lab's approver presses Approve, and the step is paid in play
 money. A failing test pays nothing.
 
-Built and tested on the AI Hub image, build 154 (irishealth-community 2026.3.0AI.154.0).
+Built and tested on the version of IRIS with AI built in (AI Hub build 154, irishealth-community 2026.3.0AI.154.0).
 
 | What | Where |
 |---|---|
-| Video | [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4): one decision from the proof arriving to the approval and its trace, downloads with no sign-in |
-| Idea | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): LLM tracing as interoperability messages, built here |
+| Video | [62 seconds, plays in your browser](https://drexthealpha.github.io/Knos/iris/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)) |
+| Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | not hosted: the built-in demo runs on your own machine after the quick start, with no key and no sign-in |
 

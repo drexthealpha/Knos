@@ -1,11 +1,13 @@
 # Knos on InterSystems IRIS
 
-**Knos carries research across the valley of death.**
-A lab pays for each research step only when a test proves it is done. Play money only.
+**A lab pays for each research step only when a test proves it is done.**
 
-[Watch the 62-second video](https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4) ·
-[One page](https://drexthealpha.github.io/Knos/iris/) ·
-[Full instructions](https://github.com/drexthealpha/Knos#run-it-on-iris)
+Knos carries research across the valley of death.
+
+Play money only.
+
+[Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) ·
+[Full install steps](https://github.com/drexthealpha/Knos#run-it-on-iris)
 
 **One story.** A hospital lab funds a startup to build the online shop for its test kits. Step one pays $120 when the
 checkout answers in under 300 ms. The test passes and an AI agent in IRIS says yes. Then the lab's approver presses

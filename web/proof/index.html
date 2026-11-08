@@ -63,10 +63,10 @@
     <section class="t" id="counter" aria-labelledby="counter-h">
       <h2 id="counter-h">Live, from the app</h2>
       <dl class="k-counter" data-not-prose>
-        <div><dt>Live checks today</dt><dd data-c="checks_today">n/a</dd></div>
-        <div><dt>Live checks this week</dt><dd data-c="checks_week">n/a</dd></div>
-        <div><dt>Devnet pre-orders held</dt><dd data-c="preorders_held">n/a</dd></div>
-        <div><dt>Devnet pre-orders released</dt><dd data-c="preorders_released">n/a</dd></div>
+        <div><dt>Demand checks run today</dt><dd data-c="checks_today">n/a</dd></div>
+        <div><dt>Demand checks run this week</dt><dd data-c="checks_week">n/a</dd></div>
+        <div><dt>Test-money pre-orders waiting</dt><dd data-c="preorders_held">n/a</dd></div>
+        <div><dt>Test-money pre-orders paid out</dt><dd data-c="preorders_released">n/a</dd></div>
         <div><dt>Checks by people other than the founder</dt><dd data-c="checks_by_others">n/a</dd></div>
         <div><dt>Was it useful? Yes / No</dt><dd data-c="feedback">n/a</dd></div>
       </dl>
@@ -83,17 +83,17 @@
     <p>Each bar sets Knos against its baseline and opens the file its number comes from.</p>
     <div class="p-chart" id="p-chart" role="list">
       <div class="p-row" role="listitem" data-row="tamper">
-        <h3>Cheating pull requests caught</h3>
+        <h3>Faked code changes caught, out of 60</h3>
         <a class="p-bar" href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-n="60" data-of="60"><span class="p-who">Knos</span><span class="p-track"><span class="p-fill" style="width:100%"></span><span class="p-val">60 of 60</span></span></a>
-        <a class="p-bar p-base" href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-n="31" data-of="60"><span class="p-who">Plain CI</span><span class="p-track"><span class="p-fill" style="width:51.7%"></span><span class="p-val">31 of 60</span></span></a>
+        <a class="p-bar p-base" href="https://github.com/drexthealpha/Knos/blob/04be87ca544b57c325cfad12134ea5a832995fad/docs/reference/evidence_plan.md" data-n="31" data-of="60"><span class="p-who">Usual automatic tests</span><span class="p-track"><span class="p-fill" style="width:51.7%"></span><span class="p-val">31 of 60</span></span></a>
       </div>
       <div class="p-row" role="listitem" data-row="ready">
-        <h3>Ready briefs passed</h3>
-        <a class="p-bar" href="https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json" data-n="70" data-of="100"><span class="p-who">Ready brief</span><span class="p-track"><span class="p-fill" style="width:70%"></span><span class="p-val">70%</span></span></a>
-        <a class="p-bar p-base" href="https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json" data-n="5" data-of="100"><span class="p-who">Vague brief</span><span class="p-track"><span class="p-fill" style="width:5%"></span><span class="p-val">5%</span></span></a>
+        <h3>Tasks done right, by how clearly the job was written</h3>
+        <a class="p-bar" href="https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json" data-n="70" data-of="100"><span class="p-who">Clear job</span><span class="p-track"><span class="p-fill" style="width:70%"></span><span class="p-val">70%</span></span></a>
+        <a class="p-bar p-base" href="https://github.com/drexthealpha/Knos/blob/main/docs/idt/summary.json" data-n="5" data-of="100"><span class="p-who">Vague job</span><span class="p-track"><span class="p-fill" style="width:5%"></span><span class="p-val">5%</span></span></a>
       </div>
       <div class="p-row" role="listitem" data-row="ablation">
-        <h3>Qloo signals that change the verdict</h3>
+        <h3>Demand answers that change when one piece of data is removed</h3>
         <a class="p-bar" href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/qloo_ablation.json" data-n="18" data-of="59"><span class="p-who">One signal removed</span><span class="p-track"><span class="p-fill" style="width:30.5%"></span><span class="p-val">18 of 59</span></span></a>
         <a class="p-bar p-base" href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/qloo_ablation.json" data-n="6" data-of="6"><span class="p-who">Every answer removed</span><span class="p-track"><span class="p-fill" style="width:100%"></span><span class="p-val">6 of 6 cards</span></span></a>
       </div>

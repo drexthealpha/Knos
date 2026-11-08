@@ -69,7 +69,7 @@ async function start() {
   // each part named on screen next to it, so no shape has to be guessed and pass or fail is said in words
   const layer = canvas.parentElement, v = new THREE.Vector3();
   const tag = (obj, text) => { const s = document.createElement("span"); s.className = "k-film-tag"; s.setAttribute("aria-hidden", "true"); s.textContent = text; layer.append(s); return { obj, s }; };
-  const tags = [tag(plate, "Test, locked"), tag(coin, "Bid, held"), tag(gate.children[0], "Check"), tag(passing, "Agent A"), tag(failing, "Agent B")];
+  const tags = [tag(plate, "The test (cannot change)"), tag(coin, "The money (held)"), tag(gate.children[0], "The check"), tag(passing, "Helper A passes"), tag(failing, "Helper B fails")];
   const place = () => {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     for (const { obj, s } of tags) {
