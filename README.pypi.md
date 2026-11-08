@@ -206,7 +206,7 @@ dollars (default 2.00).
    After **Approve**, its Visual Trace link shows the proof, the agent's verdict, the rule, the approval and the devnet
    simulation, in order.
 4. Each decision also leaves files for the lab's own systems: `docker exec knos-iris ls /home/irisowner/knos/outbox/receipts /home/irisowner/knos/outbox/fhir /home/irisowner/knos/outbox/hl7`
-   lists a JSON receipt, a FHIR R4 Task and an HL7 ORU result per decision.
+   lists, for each decision, a receipt, a task record and a lab result in the formats hospital systems read (JSON, FHIR R4 Task, HL7 ORU).
 
 Every test in one command, with no key: `bash scripts/test-all.sh` (the build, the decisions, one trace through all six
 parts, the bonus checks and the page).
