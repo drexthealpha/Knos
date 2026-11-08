@@ -6,7 +6,7 @@
   <Document name="knos-iris.ZPM">
     <Module>
       <Name>knos-iris</Name>
-      <Version>0.1.0</Version>
+      <Version>0.1.1</Version>
       <Description>Knos on IRIS: proof against a hash-locked Knos Ready brief, decided by an AI Hub agent that can only say no or ask a person.</Description>
       <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
       <Packaging>module</Packaging>
