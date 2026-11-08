@@ -19,7 +19,7 @@ USER root
 # and Docker down on a 7.8 GB PC); with KNOS_FHIR=1 only R4, the one the endpoint uses
 RUN cd /usr/irissys/dev/fhir/fhir-metadata/packages \
  && if [ "$KNOS_FHIR" = "1" ]; then rm -rf hl7.fhir.r3.core hl7.fhir.r5.core hl7.fhir.us.core; else rm -rf ./*; fi
-RUN mkdir -p /home/irisowner/knos/inbox/oru /home/irisowner/knos/inbox/verdicts /home/irisowner/knos/inbox/checkruns /home/irisowner/knos/java \
+RUN mkdir -p /home/irisowner/knos/inbox/oru /home/irisowner/knos/inbox/fhir /home/irisowner/knos/inbox/verdicts /home/irisowner/knos/inbox/checkruns /home/irisowner/knos/java /home/irisowner/knos/outbox/receipts /home/irisowner/knos/outbox/fhir /home/irisowner/knos/outbox/hl7 /home/irisowner/knos/outbox/digest \
  && chown -R irisowner:irisowner /home/irisowner/knos
 USER irisowner
 # Knos's only Solana dependency, beside IRIS's own Python (pyproject.toml: solders)

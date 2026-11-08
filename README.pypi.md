@@ -11,7 +11,7 @@
 
 A lab pays for each research step only when a test proves it is done. Play money only.
 
-[Watch the 62-second video](https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article 1](https://community.intersystems.com/post/knos-iris-ai-hub-agent-can-only-say-no-every-step-visual-trace) · [Article 2](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS: install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it on NEAR: a live page in your browser](https://drexthealpha.github.io/Knos/near/)
+[Watch the 62-second video](https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4) · [Open Exchange](https://openexchange.intersystems.com/package/Knos) · [Article 1](https://community.intersystems.com/post/knos-carries-research-across-valley-death-ai-can-only-say-no-inside-intersystems-iris) · [Article 2](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Code](https://github.com/drexthealpha/Knos) · [Run it on IRIS: install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it on NEAR: a live page in your browser](https://drexthealpha.github.io/Knos/near/)
 
 ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/send.svg) Job posted → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/lock.svg) Money held → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/users.svg) Helpers try → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/circle-check.svg) Check passed → ![](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/web/brand/icons/coins.svg) Helper paid
 
@@ -121,7 +121,7 @@ Built and tested on the AI Hub image, build 154 (irishealth-community 2026.3.0AI
 
 | The task asks for | The feature doing it | How to see it |
 |---|---|---|
-| An Interoperability workflow | `Knos.Iris.Production`, 12 items: services `ProofIn`, `BriefIn`, `GitHubCheckRunPoller` (custom inbound adapter), `HL7LabIn`; process `ProofDecision` (BPL); operations `BriefLock`, `Referee` (the AI Hub agent), `PayoutApprovers` (Workflow), `SolanaRead` (custom outbound adapter), `SolanaSubmit` (Java PEX), `TraceSink`, `Ens.Alert` | Interoperability > Production |
+| An Interoperability workflow | `Knos.Iris.Production`, 22 items. Services: `ProofIn`, `BriefIn`, `GitHubCheckRunPoller` (custom inbound adapter), `HL7LabIn` (HL7 ORU files), `FHIRLabIn` (FHIR Observation files), `DeadlineWatch` (not paid at the deadline), `DailyDigest` (the day's decisions and model cost), `SpendCapWatch` (alert before the model cap), `ApproverReminder` (payouts left waiting). Processes: `ProofDecision` (BPL), `DecisionRouter` (routing rule). Operations: `BriefLock`, `Referee` (the AI Hub agent), `PayoutApprovers` (Workflow), `SolanaRead` (custom outbound adapter), `SolanaSubmit` (Java PEX), `TraceSink`, `Ens.Alert`, `ReceiptFile` (a JSON receipt per decision), `DecisionFHIR` (a FHIR R4 Task per decision), `ResultHL7Out` (the decision back to the lab as HL7), `DigestFile` | Interoperability > Production |
 | An AI Hub agent | operation `Referee` running `Knos.Iris.AI.LocalReferee` on `qwen2.5:1.5b-instruct` in the compose file's `ollama` service with `KNOS_AI_MODE=local`, no key; in replay mode (the default) the rules referee decides, with no model | the Verdict message of each decision |
 | A decision-making task | the agent answers met, not met or insufficient; code checks that answer, then `Knos.Iris.Rule.PayoutGate` says PAY, HUMAN, REFUND_AT_DEADLINE or REJECT | the Decision message |
 | A person where it matters | IRIS Workflow, role `PayoutApprovers`, for a met decision above 50 USDC | the inbox on `/knos/` or Interoperability > Workflow Inbox |
@@ -205,6 +205,8 @@ dollars (default 2.00).
    sends one above 50 USDC: it waits for a person in the inbox on `/knos/` (or Interoperability > Workflow Inbox).
    After **Approve**, its Visual Trace link shows the proof, the agent's verdict, the rule, the approval and the devnet
    simulation, in order.
+4. Each decision also leaves files for the lab's own systems: `docker exec knos-iris ls /home/irisowner/knos/outbox/receipts /home/irisowner/knos/outbox/fhir /home/irisowner/knos/outbox/hl7`
+   lists a JSON receipt, a FHIR R4 Task and an HL7 ORU result per decision.
 
 Every test in one command, with no key: `bash scripts/test-all.sh` (the build, the decisions, one trace through all six
 parts, the bonus checks and the page).

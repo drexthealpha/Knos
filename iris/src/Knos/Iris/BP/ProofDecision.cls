@@ -92,6 +92,9 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  // a proof from a file adapter or poller has no caller waiting for the reply: the session gets its Decision message here
  // (after the approver's answer when a person decides)
  if (..%Process.%PrimaryRequestHeader.ReturnQueueName = "") && (context.Gate '= "HUMAN") { do ..%Process.SendRequestAsync("TraceSink", response, 0) }
+ // the decision as made now, to the DecisionRouter: the receipt, the FHIR Task and the lab's HL7 (a copy, so a later
+ // approver's answer does not rewrite it)
+ do ..%Process.SendRequestAsync("DecisionRouter", response.%ConstructClone(), 0)
 ]]></code>
 <reply/>
 <switch>
@@ -111,6 +114,8 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
  set sid = ..%Process.%SessionId, g = context.Gate, o = $select(context.Gate="PAY":"pay: approved by a person; a devnet simulation ran, no money moved", 1:"held: rejected by a person")
  &sql(UPDATE Knos_Iris_Data.Decision SET Gate = :g, Outcome = :o WHERE SessionId = :sid)
  if ..%Process.%PrimaryRequestHeader.ReturnQueueName = "" { set response.Gate = g, response.Outcome = o do ..%Process.SendRequestAsync("TraceSink", response, 0) }
+ set c = response.%ConstructClone(), c.Gate = g, c.Outcome = o
+ do ..%Process.SendRequestAsync("DecisionRouter", c, 0)
 ]]></code>
 </case>
 </switch>

@@ -91,10 +91,15 @@ ClassMethod StartWhenFree()
 ClassMethod Paths() As %Status
 {
     set h = ##class(Knos.Iris.Util).Home()
-    for d = "inbox/checkruns", "inbox/oru", "inbox/verdicts", "java" { do ##class(%File).CreateDirectoryChain(h_d) }
+    for d = "inbox/checkruns", "inbox/oru", "inbox/fhir", "inbox/verdicts", "java", "outbox/receipts", "outbox/fhir", "outbox/hl7", "outbox/digest" { do ##class(%File).CreateDirectoryChain(h_d) }
     do ..Jar(h)
     set s("GitHubCheckRunPoller", "Adapter", "Dir") = h_"inbox/checkruns"
     set s("HL7LabIn", "Adapter", "FilePath") = h_"inbox/oru/"
+    set s("FHIRLabIn", "Adapter", "FilePath") = h_"inbox/fhir/"
+    set s("ReceiptFile", "Adapter", "FilePath") = h_"outbox/receipts/"
+    set s("DecisionFHIR", "Adapter", "FilePath") = h_"outbox/fhir/"
+    set s("ResultHL7Out", "Adapter", "FilePath") = h_"outbox/hl7/"
+    set s("DigestFile", "Adapter", "FilePath") = h_"outbox/digest/"
     set s("SolanaSubmit", "Host", "%gatewayExtraClasspaths") = h_"java/knos-iris-pex.jar"
     return ##class(Ens.Production).ApplySettings("Knos.Iris.Production", .s)
 }

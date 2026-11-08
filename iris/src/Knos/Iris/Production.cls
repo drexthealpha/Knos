@@ -27,6 +27,32 @@ XData ProductionDefinition
   </Item>
   <Item Name="TraceSink" ClassName="Knos.Iris.BO.TraceSink" PoolSize="1" Enabled="true"/>
   <Item Name="Ens.Alert" ClassName="Knos.Iris.BO.Alert" PoolSize="1" Enabled="true"/>
+  <Item Name="FHIRLabIn" ClassName="Knos.Iris.BS.FhirFile" PoolSize="1" Enabled="true">
+    <Setting Target="Adapter" Name="FileSpec">*.json</Setting>
+  </Item>
+  <Item Name="DeadlineWatch" ClassName="Knos.Iris.BS.DeadlineWatch" PoolSize="1" Enabled="true">
+    <Setting Target="Adapter" Name="CallInterval">300</Setting>
+  </Item>
+  <Item Name="DailyDigest" ClassName="Knos.Iris.BS.DailyDigest" PoolSize="1" Enabled="true">
+    <Setting Target="Adapter" Name="CallInterval">86400</Setting>
+  </Item>
+  <Item Name="SpendCapWatch" ClassName="Knos.Iris.BS.SpendCapWatch" PoolSize="1" Enabled="true">
+    <Setting Target="Adapter" Name="CallInterval">60</Setting>
+  </Item>
+  <Item Name="ApproverReminder" ClassName="Knos.Iris.BS.ApproverReminder" PoolSize="1" Enabled="true">
+    <Setting Target="Adapter" Name="CallInterval">3600</Setting>
+  </Item>
+  <Item Name="DecisionRouter" ClassName="EnsLib.MsgRouter.RoutingEngine" PoolSize="1" Enabled="true">
+    <Setting Target="Host" Name="BusinessRuleName">Knos.Iris.Rule.DecisionRoutes</Setting>
+  </Item>
+  <Item Name="ReceiptFile" ClassName="Knos.Iris.BO.ReceiptFile" PoolSize="1" Enabled="true"/>
+  <Item Name="DecisionFHIR" ClassName="Knos.Iris.BO.FhirTask" PoolSize="1" Enabled="true"/>
+  <Item Name="ResultHL7Out" ClassName="EnsLib.HL7.Operation.FileOperation" PoolSize="1" Enabled="true">
+    <Setting Target="Host" Name="Filename">decision%Q%!+(_a).hl7</Setting>
+  </Item>
+  <Item Name="DigestFile" ClassName="EnsLib.File.PassthroughOperation" PoolSize="1" Enabled="true">
+    <Setting Target="Host" Name="Filename">%f_%Q.txt</Setting>
+  </Item>
 </Production>
 }
 }
