@@ -11,7 +11,8 @@ fi
 for i in $(seq 1 60); do
   h=$(curl -fsS -u "_SYSTEM:${IRIS_PASSWORD:-}" "$base/api/knos/health" 2>/dev/null) && break
   code=$(curl -s -o /dev/null -w '%{http_code}' -u "_SYSTEM:${IRIS_PASSWORD:-}" "$base/api/knos/health" 2>/dev/null)
-  if [ "$code" = 401 ]; then echo "NOT READY: IRIS refused the password. Next: check IRIS_PASSWORD in iris/.env, then docker compose up -d"; exit 1; fi
+  # IRIS sets the password from .env just after it starts, so a refusal in the first 2 minutes means "still starting"
+  if [ "$code" = 401 ] && [ "$i" -gt 24 ]; then echo "NOT READY: IRIS refused the password. Next: check IRIS_PASSWORD in iris/.env, then docker compose up -d"; exit 1; fi
   [ "$i" = 1 ] && echo "IRIS is starting; waiting (up to 5 minutes)..."
   sleep 5
 done
