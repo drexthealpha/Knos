@@ -13,7 +13,7 @@ Knos carries research across the valley of death.
 
 Play money only.
 
-[Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/knos-carries-research-across-valley-death-ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/near/)
+[Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/near/)
 
 ## How it works
 
