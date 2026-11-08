@@ -121,8 +121,8 @@ Built and tested on the AI Hub image, build 154 (irishealth-community 2026.3.0AI
 
 | The task asks for | The feature doing it | How to see it |
 |---|---|---|
-| An Interoperability workflow | `Knos.Iris.Production`: services `ProofIn`, `GitHubCheckRunPoller`, `HL7LabIn`; process `ProofDecision`; operations `Referee`, `PayoutApprovers`, `SolanaRead`, `SolanaSubmit` | Interoperability > Production |
-| An AI Hub agent | operation `Referee` running `Knos.Iris.AI.LocalReferee` on `qwen2.5:1.5b-instruct` in the compose file's `ollama` service, no key | the Verdict message of each decision |
+| An Interoperability workflow | `Knos.Iris.Production`, 12 items: services `ProofIn`, `BriefIn`, `GitHubCheckRunPoller` (custom inbound adapter), `HL7LabIn`; process `ProofDecision` (BPL); operations `BriefLock`, `Referee` (the AI Hub agent), `PayoutApprovers` (Workflow), `SolanaRead` (custom outbound adapter), `SolanaSubmit` (Java PEX), `TraceSink`, `Ens.Alert` | Interoperability > Production |
+| An AI Hub agent | operation `Referee` running `Knos.Iris.AI.LocalReferee` on `qwen2.5:1.5b-instruct` in the compose file's `ollama` service with `KNOS_AI_MODE=local`, no key; in replay mode (the default) the rules referee decides, with no model | the Verdict message of each decision |
 | A decision-making task | the agent answers met, not met or insufficient; code checks that answer, then `Knos.Iris.Rule.PayoutGate` says PAY, HUMAN, REFUND_AT_DEADLINE or REJECT | the Decision message |
 | A person where it matters | IRIS Workflow, role `PayoutApprovers`, for a met decision above 50 USDC | the inbox on `/knos/` or Interoperability > Workflow Inbox |
 | Every step traceable | each model call, tool call, rule and approval is a `Knos.Iris.Msg.Span` in the decision's own session | Visual Trace |
@@ -178,8 +178,7 @@ with random secrets (never commit `.env`). The first build takes about 3 minutes
 
 ### The model (LLM provider) and its key
 
-The default needs nothing: replay mode (`KNOS_AI_MODE=replay`) answers with recorded model answers and the rules
-referee.
+The default needs nothing: in replay mode (`KNOS_AI_MODE=replay`) the rules referee decides, with no model.
 
 For the AI Hub agent on a local open model, set `KNOS_AI_MODE=local` in `.env` and start with
 `docker compose --profile local up -d --build`: it pulls `qwen2.5:1.5b-instruct` (about 1 GB) into the `ollama`
@@ -246,8 +245,7 @@ runs `iris.script`, the final stage copies in only the databases the install cha
 
 ### LLM provider and key
 
-`KNOS_AI_MODE=replay` (the default) asks no model and says "rules referee (no model key set)", or gives a recorded
-answer. `KNOS_AI_MODE=local` needs no key either: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
+`KNOS_AI_MODE=replay` (the default) asks no model and says "rules referee (no model key set)". `KNOS_AI_MODE=local` needs no key either: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
 tokens. `KNOS_AI_MODE=live` uses the provider and key from the table above.
 
 No paid model call has been made for this
