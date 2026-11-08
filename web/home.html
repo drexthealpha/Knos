@@ -153,27 +153,27 @@ html.k-revealing
 <div class="k-hero" id="k-hero" data-api="@app" data-app="wanted.html">
 <div class="k-hero-grid">
 <div class="k-head">
-  <h1 id="k-mission" class="k-mission"><span class="k-line"><span>Pay only for work</span></span> <span class="k-line"><span>that passes.</span></span></h1>
+<h1 id="k-mission" class="k-mission"><span class="k-line"><span>Pay only for work</span></span> <span class="k-line"><span>that passes.</span></span></h1>
 </div>
 <div class="k-askbox">
-  <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
-    <input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What should be built?" maxlength="500" placeholder="What should be built?" enterkeyhint="go" spellcheck="false">
-    <button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#send"/></svg><span data-label>Post a job →</span></button>
-    <i class="k-load" aria-hidden="true"></i>
-  </form>
-  <p class="k-sub" id="k-sub">$0 unless a helper's work passes your check</p>
-  <script src="brand/pointer.js" defer></script>
-  <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-count></span> <span data-t aria-hidden="true"></span></p>
-  <ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
-  <p class="k-fine k-limit" data-qloo-limit hidden></p>
-  <details class="k-add-box" id="k-add" data-not-prose><summary class="k-add">+ Add market or buyer</summary>
-  <div class="k-opt" id="k-opt">
-    <label for="k-guess">Where would you launch it?</label><input id="k-guess" name="market" form="k-ask" class="k-guess" type="text" toolparamdescription="Optional launch market, a city or country" maxlength="60" autocomplete="off" spellcheck="false">
-    <label for="k-who">Who buys it?</label><input id="k-who" name="buyer" form="k-ask" class="k-guess" type="text" toolparamdescription="Optional buyer, in plain words" maxlength="60" autocomplete="off" spellcheck="false">
-  </div></details>
+<form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
+<input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What should be built?" maxlength="500" placeholder="What should be built?" enterkeyhint="go" spellcheck="false">
+<button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#send"/></svg><span data-label>Post a job →</span></button>
+<i class="k-load" aria-hidden="true"></i>
+</form>
+<p class="k-sub" id="k-sub">$0 of test money unless a helper's work passes your check</p>
+<script src="brand/pointer.js" defer></script>
+<p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-count></span> <span data-t aria-hidden="true"></span></p>
+<ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
+<p class="k-fine k-limit" data-qloo-limit hidden></p>
+<details class="k-add-box" id="k-add" data-not-prose><summary class="k-add">+ Add market or buyer</summary>
+<div class="k-opt" id="k-opt">
+<label for="k-guess">Where would you launch it?</label><input id="k-guess" name="market" form="k-ask" class="k-guess" type="text" toolparamdescription="Optional launch market, a city or country" maxlength="60" autocomplete="off" spellcheck="false">
+<label for="k-who">Who buys it?</label><input id="k-who" name="buyer" form="k-ask" class="k-guess" type="text" toolparamdescription="Optional buyer, in plain words" maxlength="60" autocomplete="off" spellcheck="false">
+</div></details>
 </div>
 <div class="k-side">
-  <div id="k-card" class="k-slot" aria-live="polite"></div>
+<div id="k-card" class="k-slot" aria-live="polite"></div>
 <script data-src="brand/hero.js">
 (() => {
 const root = document.getElementById("k-hero");
@@ -907,24 +907,24 @@ if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.op
 </script>
 </div>
 <div class="k-rest">
-  <details class="k-samples" id="k-samples" open><summary class="k-add">Try a sample</summary>
-  <p class="k-fine">Tap a sample to check who would buy it:</p>
-  <div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
-    <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
-    <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
-    <button type="button" class="k-chip" data-tech="web3" data-q="a crypto podcast for beginners">Crypto podcast</button>
-    <button type="button" class="k-chip" data-tech="quantum" data-q="a quantum physics book for kids">Quantum book</button>
-    <button type="button" class="k-chip" data-tech="biotech" data-need="food" data-q="a probiotic kombucha brand">Kombucha</button>
-    <button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
-    <span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
-  </details>
-  <figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
-    <svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-      <circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
-      <circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
-    <ol class="k-stops"><li>Resolve</li><li>Price</li><li>Settle</li><li data-on>Work</li></ol>
-  </figure>
-  <script src="brand/shape.js" defer></script>
+<details class="k-samples" id="k-samples" open><summary class="k-add">Try a sample</summary>
+<p class="k-fine">Tap a sample to check who would buy it:</p>
+<div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
+<button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
+<button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
+<button type="button" class="k-chip" data-tech="web3" data-q="a crypto podcast for beginners">Crypto podcast</button>
+<button type="button" class="k-chip" data-tech="quantum" data-q="a quantum physics book for kids">Quantum book</button>
+<button type="button" class="k-chip" data-tech="biotech" data-need="food" data-q="a probiotic kombucha brand">Kombucha</button>
+<button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
+<span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
+</details>
+<figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
+<svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+<circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
+<circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
+<ol class="k-stops"><li>Test set</li><li>Money held</li><li>Check runs</li><li data-on>Paid</li></ol>
+</figure>
+<script src="brand/shape.js" defer></script>
 </div>
 </div>
 </div>
