@@ -157,7 +157,6 @@ main > * { min-width: 0; }
     <li><svg class="k-i" aria-hidden="true"><use href="#trending-up"/></svg>Qloo checks demand</li>
     <li><svg class="k-i" aria-hidden="true"><use href="#shield-check"/></svg>IRIS checks proof</li>
     <li><svg class="k-i" aria-hidden="true"><use href="#wallet"/></svg>NEAR and Solana pay in play money</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="#history"/></svg>Sibyl remembers each result</li>
   </ul>
 
   <section class="panel" aria-labelledby="t-trace">
@@ -259,9 +258,12 @@ async function answer(id, action, acts) {
   } catch (e) { toast("Not saved: " + e.message); for (const b of acts.querySelectorAll("button")) b.disabled = false; }
 }
 
+let agentMode;   // the health answer's "agent", read once: in replay mode a fixed rule decides, so no percent is shown
 async function loadDecisions() {
   const body = $("decisions");
   try {
+    if (agentMode === undefined) agentMode = await api("health").then((h) => h.agent || "").catch(() => "");
+    const sure = (d, tail) => agentMode === "replay" ? "fixed rule" : Math.round(d.confidence * 100) + "%" + tail;
     const rows = await api("decisions");
     body.replaceChildren();
     if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No decision yet." }))); return []; }
@@ -269,10 +271,10 @@ async function loadDecisions() {
       const tr = el("tr", { className: "pick", tabIndex: 0 }, [
         el("td", {}, [el("span", { className: "id", textContent: jobName(d.brief), title: d.brief || "" })]),
         el("td", {}, gatePill(d.gate)),
-        el("td", { className: "n", textContent: Math.round(d.confidence * 100) + "%" }),
+        el("td", { className: "n", textContent: sure(d, "") }),
         el("td", { className: "n id rec", textContent: String(d.session) }),
         el("td", { className: "sub", textContent: plainOutcome(d), title: d.outcome || "" }),
-        el("td", { className: "meta", textContent: Math.round(d.confidence * 100) + "% sure" }),
+        el("td", { className: "meta", textContent: sure(d, " sure") }),
       ]);
       tr.setAttribute("aria-selected", String(d.session === selected));
       const open = () => { showTrace(d.session); showHub(d.brief); };
