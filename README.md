@@ -327,7 +327,7 @@ project.
 
 ### Start
 
-With IPM on any IRIS for Health instance: `zpm "install knos-iris"` once the package is published, or from a clone,
+With IPM on any IRIS for Health instance: `zpm "install knos-iris"` or, from a clone,
 `zpm "load <clone>/iris -v"` in a namespace with interoperability on. `module.xml` asks for IRIS 2026.3 or later with
 interoperability enabled.
 
