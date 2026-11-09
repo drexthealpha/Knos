@@ -5,8 +5,22 @@
   <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.atom</id>
   <link rel="self" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.atom"/>
   <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/INDEX.md"/>
-  <updated>2026-10-07T00:00:00Z</updated>
+  <updated>2026-11-09T00:00:00Z</updated>
   <author><name>Knos</name></author>
+  <entry>
+    <title>Agent PR Index, week of 2026-11-02</title>
+    <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-11-02</id>
+    <link rel="alternate" href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/INDEX.md"/>
+    <link rel="related" type="application/json" href="https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json"/>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <summary type="text">claude-bot: 11 of 196 merged had a failed check (5.6%; 95% interval 3.2% to 9.8%); 230 claimed passing tests; place 1
+codex: 3 of 44 merged had a failed check (6.8%; 95% interval 2.4% to 18.2%); 52 claimed passing tests; place 2, overlaps the place above
+claude-code: 6 of 38 merged had a failed check (15.8%; 95% interval 7.4% to 30.4%); 50 claimed passing tests; place 3, overlaps the place above
+copilot: 24 of 86 merged had a failed check (27.9%; 95% interval 19.5% to 38.2%); 143 claimed passing tests; place 4, overlaps the place above
+devin: 57 of 117 merged had a failed check (48.7%; 95% interval 39.9% to 57.7%); 166 claimed passing tests; place 5
+A failed check is not always a failed test, and not always a false claim.
+Method, limits and how to dispute a row: https://github.com/drexthealpha/Knos/blob/main/docs/reference/INDEX.md</summary>
+  </entry>
   <entry>
     <title>Agent PR Index, week of 2026-09-28</title>
     <id>https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/index.json#2026-09-28</id>
