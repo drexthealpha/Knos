@@ -1,6 +1,6 @@
 /// The referee: does the proof meet each milestone of the locked brief? In live mode the AI Hub agent
-/// (Knos.Iris.AI.Referee) answers in the decision contract; in replay mode a recorded live answer, else the rules
-/// referee (knos_iris.referee), which reads only structured fields. It has no tool that moves money.
+/// (Knos.Iris.AI.Referee) answers in the decision contract; in replay mode the rules referee, with no model
+/// (knos_iris.referee), which reads only structured fields. It has no tool that moves money.
 Class Knos.Iris.BO.Referee Extends Ens.BusinessOperation
 {
 Property Mode As %String [ InitialExpression = {$system.Util.GetEnviron("KNOS_AI_MODE")} ];
@@ -25,14 +25,9 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
         set mode = "live refused"
     }
     if out = "" {
-        set file = ##class(Knos.Iris.Util).Home()_"iris/fixtures/replay/"_hash_"-"_##class(Knos.Iris.Util).Sha(pRequest.PayloadJSON)_".json"
-        if ##class(%File).Exists(file) {
-            set f = ##class(%Stream.FileCharacter).%New(), f.Filename = file, out = f.Read(1000000)
-        } else {
-            // no committed decision for this proof: the call is skipped and the rules referee decides
-            $$$LOGINFO("replay: skipped (no committed decision "_##class(%File).GetFilename(file)_"); the rules referee decides")
-            set out = ##class(Knos.Iris.Py.Verdict).Decide(pRequest.BriefJSON, pRequest.Kind, pRequest.PayloadJSON, hash)
-        }
+        // replay mode: the rules referee decides, with no model
+        $$$LOGINFO("replay: the rules referee decides, with no model")
+        set out = ##class(Knos.Iris.Py.Verdict).Decide(pRequest.BriefJSON, pRequest.Kind, pRequest.PayloadJSON, hash)
     }
     set v = {}.%FromJSON(out)
     set pResponse = ##class(Knos.Iris.Msg.Verdict).%New()

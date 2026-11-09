@@ -71,9 +71,9 @@ def readme(lines, i1: str) -> int:
     missing = [p for p in paths if not exists(p)]
     fails += bool(missing) or not paths
     lines.append(f"{'ok  ' if not missing else 'FAIL'} files the README names: {len(paths) - len(missing)} of {len(paths)} exist" + (f"; missing {missing}" if missing else ""))
-    claims = [c for c in ("fixtures/replay", "recorded live answer", "recorded answer") if c in t]
+    claims = [m.group(0) for m in re.finditer(r"fixtures/replay|recorded (?:live )?answer", t)]
     fails += bool(claims)
-    lines.append(f"{'ok  ' if not claims else 'FAIL'} no claim of recorded live answers" + (f": {claims}" if claims else ""))
+    lines.append(f"{'ok  ' if not claims else 'FAIL'} no claim that replay plays back a recorded answer" + (f": {claims}" if claims else ""))
     items = {"the image name": "irishealth-community:2026.3.0AI.154.0" in t, "load and retag": "scripts/load-image.sh" in t and "retag" in t,
              "the LLM provider and its variable": "KNOS_LLM_PROVIDER" in t and "ANTHROPIC_API_KEY" in t,
              "start": "docker compose up -d --build" in t, "health check": "/api/knos/health" in t,

@@ -44,8 +44,8 @@ guarantee: there is nothing to authorize.
 
 ## Replay and live
 
-`KNOS_AI_MODE=replay` needs no key: a recorded live answer when one exists for the brief and proof, else a rules referee
-that reads only structured fields (a check run's name and conclusion, an Observation's code and value). Injection text in
+`KNOS_AI_MODE=replay` needs no key: the rules referee, with no model,
+reads only structured fields (a check run's name and conclusion, an Observation's code and value). Injection text in
 a proof changes nothing there. `live` asks the provider in `.env`. The health route says which mode ran.
 
 ## How to run it
