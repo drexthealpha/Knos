@@ -165,7 +165,7 @@ main > * { min-width: 0; }
   </section>
 
   <section class="panel" aria-labelledby="t-hub">
-    <h2 id="t-hub">The AI&#39;s tools on this decision (for developers)</h2>
+    <h2 id="t-hub">AI Hub tools running in IRIS (for developers)</h2>
     <ol id="hub" class="hub"><li class="empty">Choose a decision.</li></ol>
   </section>
 </main>
@@ -225,6 +225,7 @@ let selected = 0;
 async function loadTasks() {
   const box = $("tasks");
   try {
+    await readMode();
     const tasks = (await api("tasks")).filter((t) => t.open);
     box.replaceChildren();
     if (!tasks.length) { box.append(el("p", { className: "empty", textContent: "Nothing is waiting. A payment over $50 waits here until a person says yes." })); return 0; }
@@ -243,9 +244,10 @@ async function loadTasks() {
 }
 
 function taskText(msg) {
+  const who = agentMode === "replay" ? "The fixed rule" : "The AI";
   const m = /^(\[.*\])/s.exec(msg || "");
   try {
-    return JSON.parse(m ? m[1] : "[]").map((x) => x.met === true ? "The AI says the test passed." : x.met === false ? "The AI says the test failed." : "The AI could not tell.").join(" ") || msg;
+    return JSON.parse(m ? m[1] : "[]").map((x) => x.met === true ? who + " says the test passed." : x.met === false ? who + " says the test failed." : who + " could not tell.").join(" ") || msg;
   } catch { return msg || ""; }
 }
 
@@ -258,11 +260,12 @@ async function answer(id, action, acts) {
   } catch (e) { toast("Not saved: " + e.message); for (const b of acts.querySelectorAll("button")) b.disabled = false; }
 }
 
-let agentMode;   // the health answer's "agent", read once: in replay mode a fixed rule decides, so no percent is shown
+let agentMode, agentModeP;   // the health answer's "agent", read once: in replay mode a fixed rule decides, so no percent is shown
+const readMode = async () => { agentModeP = agentModeP || api("health").then((h) => h.agent || "").catch(() => ""); agentMode = await agentModeP; };
 async function loadDecisions() {
   const body = $("decisions");
   try {
-    if (agentMode === undefined) agentMode = await api("health").then((h) => h.agent || "").catch(() => "");
+    await readMode();
     const sure = (d, tail) => agentMode === "replay" ? "fixed rule" : Math.round(d.confidence * 100) + "%" + tail;
     const rows = await api("decisions");
     body.replaceChildren();
@@ -300,7 +303,7 @@ async function showTrace(sid) {
     const tbl = el("table", {}, [
       el("thead", {}, el("tr", {}, ["Step", "Model", "Tokens", "Cost USD", "ms"].map((h, i) => el("th", { scope: "col", className: i > 1 ? "n" : "", textContent: h })))),
       el("tbody", {}, spans.length ? spans.map((s) => el("tr", {}, [
-        el("td", {}, [el("strong", { textContent: s.name || s.type }), el("div", { className: "fine", textContent: s.type })]),
+        el("td", {}, [el("strong", { textContent: s.name || s.type }), el("div", { className: "fine", textContent: s.type === "llm" && /^rules referee/.test(s.model || "") ? "rule" : s.type })]),
         el("td", { textContent: s.model || "-" }),
         el("td", { className: "n", textContent: String(s.tokens) }),
         el("td", { className: "n", textContent: s.cost_usd.toFixed(4) }),
