@@ -181,9 +181,11 @@ def test_the_answers_agree_with_the_tree():
 @pytest.mark.parametrize("rel", sorted(PAGES))
 def test_each_page_to_index_has_its_own_address_heading_links_and_date(rel):
     p, text = page(rel), (WEB / rel).read_text(encoding="utf-8")
-    assert len(p.title) <= 60 and p.title.startswith("Knos. ") and p.title != page("index.html").title, p.title
+    # every page opens with the two vision lines (docs/facts.json l1, l2): its title and its description say them
+    vision = " ".join(json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))[k] for k in ("l1", "l2"))
+    assert p.title == vision, p.title
     (description,) = p.meta["description"]
-    assert 50 <= len(description) <= 155, description
+    assert description == vision, description
     assert [h for r, h in p.links if r == "canonical"] == [PAGES[rel]] == p.meta["og:url"]
     assert p.h1 == 1 and p.meta["author"] == ["drexthealpha"] and "robots" not in p.meta          # nothing keeps a crawler out
     # the page's own links: the bar (web/brand/bar.html) is the same on every page of Knos, and the home link apart

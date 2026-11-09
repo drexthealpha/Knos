@@ -52,7 +52,7 @@ const read = (page) => page.evaluate(() => {
   const title = [...section.querySelectorAll("h1, h2")].find(drawn);
   let under = 0, lines = 0;
   for (let el = title?.nextElementSibling; el; el = el.nextElementSibling) {
-    if (!drawn(el)) continue;
+    if (!drawn(el) || el.classList.contains("k-vision")) continue;   // the two vision lines (fixed text) sit under every title
     if (el.tagName !== "P") break;
     under += 1; lines += Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight || "24"));
   }

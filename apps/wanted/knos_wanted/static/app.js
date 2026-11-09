@@ -7,7 +7,7 @@ const short = (s) => String(s || "").slice(0, 8) + "…";
 let session = null, report = null, status = {};
 try { session = JSON.parse(localStorage.getItem("knos.session") || "null"); } catch (e) { session = null; }
 
-// ---- i18n ----------------------------------------------------------------------------------------------------------
+// ---- i18n
 const I = window.KNOS_I18N || { langs: { en: "English" }, rtl: [], en: {} };
 let LANG = "en";
 try { LANG = localStorage.getItem("knos.lang") || (navigator.language || "en").slice(0, 2); } catch (e) { /* private */ }
@@ -30,7 +30,7 @@ function langMenu() {
   $("lang").onchange = () => { LANG = $("lang").value; try { localStorage.setItem("knos.lang", LANG); } catch (e) { } applyLang(); show(); };
 }
 
-// ---- plumbing ------------------------------------------------------------------------------------------------------
+// ---- plumbing
 async function api(path, body) {
   const headers = { "Content-Type": "application/json" };
   if (session && session.token) headers.Authorization = "Bearer " + session.token;
@@ -53,7 +53,7 @@ async function busy(btn, text, fn) {
   try { return await fn(); } catch (e) { err(e); } finally { btn.disabled = false; btn.textContent = was; slow(false); }
 }
 
-// ---- views ---------------------------------------------------------------------------------------------------------
+// ---- views
 const VIEWS = ["home", "research", "buy", "fund", "contribute", "make", "projects", "teams", "agents"];
 function show() {
   err(null); slow(false, "");
@@ -80,7 +80,7 @@ function show() {
   if (window.KNOS_VIEW) window.KNOS_VIEW(view);       // projects + teams (valley.js)
 }
 
-// ---- home: the research products open for backing now (GET /api/front), each with three one-tap actions --------------
+// ---- home: the research products open for backing now (GET /api/front), each with three one-tap actions
 let BOARD = null;
 async function board(fresh) {
   if (BOARD && !fresh) return BOARD;
@@ -122,7 +122,7 @@ async function goBack(slug) {
 }
 window.addEventListener("hashchange", show);
 
-// ---- sign in -------------------------------------------------------------------------------------------------------
+// ---- sign in
 function b64u(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
 function unb64u(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); const b = atob(s + "===".slice((s.length + 3) % 4)); return Uint8Array.from(b, (c) => c.charCodeAt(0)); }
 function setSession(s) {
@@ -147,7 +147,7 @@ async function passkeyUse() {
 // The sheet shows only what works: a passkey is the one sign-in, for everyone, and it is the wallet that signs every
 // payment. Nothing here needs an account anywhere. (A company signs in with its own SSO on /companies.)
 
-// ---- researcher ----------------------------------------------------------------------------------------------------
+// ---- researcher
 const KIND = { memory: "Memory", paper: "Paper", qloo: "Qloo", decision: "Decision" };
 function stepHtml(s) {
   // a Qloo call, or a decision made from Qloo's answers (who, where, the price tier, the hold): each links to its trace
@@ -212,7 +212,7 @@ function outcome(r) {
   };
 }
 
-// ---- buyer ---------------------------------------------------------------------------------------------------------
+// ---- buyer
 async function loadCrossings(el, withTitle) {
   try {
     const b = await board(true);
@@ -303,7 +303,7 @@ async function walletPreorder() {
   setTimeout(() => loadProduct(report.hash), 8000);
 }
 
-// ---- funder --------------------------------------------------------------------------------------------------------
+// ---- funder
 // One passkey step, shown in the card that asked for it (a note under the button; never a wall of text).
 function inCard(b, fn) {
   return async () => {
@@ -357,7 +357,7 @@ function receiptInto(el, p) {
   el.insertAdjacentHTML("beforeend", `<p class="small">✓ ${esc(p.units)} → <a href="${X(p.commitment, "address")}" target="_blank" rel="noopener">${short(p.commitment)}</a>${(p.signatures || {}).lock ? ` · <a href="${X(p.signatures.lock)}" target="_blank" rel="noopener">${short(p.signatures.lock)}</a>` : ""}</p>`);
 }
 
-// ---- contributor ---------------------------------------------------------------------------------------------------
+// ---- contributor
 async function loadNeed(focus) {
   const b = await board(true).catch(() => ({ products: [] }));
   const rows = b.products.filter((p) => p.project && p.first_milestone);
@@ -408,7 +408,7 @@ async function loadTasks(focus) {
   $("v-contribute").dataset.tasks = "1";        // the rounds have their place: what follows them is shown where it stays (style.css)
 }
 
-// ---- maker ---------------------------------------------------------------------------------------------------------
+// ---- maker
 async function loadMaker() {
   try {
     const { commitments } = await api("/api/commitments");
@@ -424,7 +424,7 @@ async function loadMaker() {
   } catch (e) { err(e); }
 }
 
-// ---- agents --------------------------------------------------------------------------------------------------------
+// ---- agents
 async function loadAgents() {
   $("mcpUrl").textContent = location.origin + "/mcp";
   const box = $("memBox");
@@ -448,7 +448,7 @@ async function loadAgents() {
   } catch (e) { $("mcpTools").innerHTML = ""; }
 }
 
-// ---- boot ----------------------------------------------------------------------------------------------------------
+// ---- boot
 async function boot() {
   langMenu(); applyLang();
   const h = location.hash;

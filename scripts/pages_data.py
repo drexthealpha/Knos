@@ -805,7 +805,9 @@ def bounties_rss(bounties: list[dict], meta: dict) -> str:
 # the one sentence, as scripts/claims_check.py SENTENCE has it; every page of the record starts with the name and the
 # short line of the site's title ("Knos: research to products people want, paid on proof"), so the line has one colon
 SENTENCE = "Knos carries research across the valley of death."
-TAGLINE = "research to products people want, paid on proof"
+# the two vision lines every page opens with (docs/facts.json l1 and l2)
+VISION = ("Knos turns any research into a product billions of people use, in days, not years.",
+          "Knos carries research across the valley of death, toward Kardashev II and III.")
 CSS = ("body{font:16px/1.55 system-ui,sans-serif;margin:0;background:#fbfbf9;color:#16181d}main{max-width:860px;margin:0 auto;padding:24px 16px 48px}"
        "table{border-collapse:collapse;width:100%;margin:12px 0}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e3e4e8}"
        "code,pre{background:#eef;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}a{color:#3b46c4}.muted{color:#5b616e;font-size:14px}"
@@ -824,8 +826,9 @@ def table(head: list[str], rows: list[list]) -> str:
 
 def page(title: str, body: str, meta: dict, json_path: str | None = None) -> str:
     src = f"Source: {esc(meta['source']['summary'])}. Generated {esc(meta['generated'])}." + (f" The same numbers as <a href=\"{esc(SITE)}/{esc(json_path)}\">{esc(json_path)}</a>." if json_path else "")
-    return (f"<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>{esc(title)}</title>"
-            f"<style>{CSS}</style><main><p class=muted><a href=\"{SITE}/\">Knos</a>: {esc(TAGLINE)}</p><h1>{esc(title)}</h1>{body}<p class=muted>{src}</p></main></html>\n")
+    return (f"<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>{esc(VISION[0] + ' ' + VISION[1])}</title>"
+            f"<style>{CSS}</style><main><p class=muted><a href=\"{SITE}/\">Knos</a></p><h1>{esc(title)}</h1>"
+            f"<p>{esc(VISION[0])}</p><p>{esc(VISION[1])}</p>{body}<p class=muted>{src}</p></main></html>\n")
 
 
 def kinds_rows(amounts: dict) -> list[list]:

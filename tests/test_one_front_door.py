@@ -15,7 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
-MISSION = "Pay only for work that passes."
+MISSION = "See who would buy it first."
 MOVED = ("passkey", "SAML", "SSO", "Squads", "Xero", "QuickBooks", "devnet SOL")
 
 

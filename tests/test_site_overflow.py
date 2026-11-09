@@ -79,6 +79,7 @@ def test_a_statement_of_the_shell_is_twelve_words_at_most() -> None:
     folded under a <details>; a table's cell is data, a block of code is the thing itself, and neither is counted."""
     page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     body = re.sub(r"<(noscript|details|script|pre|table)\b.*?</\1>", "", page[page.index("<body"):], flags=re.S)
+    body = re.sub(r'<p class="k-vision"[^>]*>.*?</p>', "", body, flags=re.S)        # the two vision lines are the founder's fixed text
     long = []
     for tag in ("h1", "h2", "h3", "h4", "label", "button", "p", "li", "dd", "dt", "figcaption", "span"):
         for found in re.finditer(rf"<{tag}\b[^>]*>(.*?)</{tag}>", body, re.S):

@@ -40,6 +40,8 @@ fi
 # The name in the bar, the favicon and the card of a shared link are files of web/ (web/brand/, written by
 # scripts/brand.py and committed). The traced originals they were made from stay in the repository.
 rm -rf "$out/brand/src"
+# the brand fragments (bar, hero, steps, caps, vectors) are written into the pages by scripts/sync_brand.py: not pages of their own
+rm -f "$out"/brand/*.html
 for f in icon.svg brand/mark.svg brand/wordmark.svg brand/mark.js brand/apple-touch-icon.png brand/card.png; do
   [ -s "$out/$f" ] || { echo "web/$f is missing: python scripts/brand.py --png writes it"; exit 1; }
 done

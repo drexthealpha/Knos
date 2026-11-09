@@ -34,7 +34,7 @@ def test_the_snapshot_cards_are_the_ones_its_rows_draw():
 def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each():
     home = _section("view-home")
     # the first screen names its buyer and has one box (web/brand/hero.html, scripts/sync_brand.py); the products follow
-    mission = "Pay only for work that passes."
+    mission = "See who would buy it first."
     assert re.sub(r"<[^>]+>", "", re.search(r'<h1 id="k-mission" class="k-mission">(.*?)</h1>', home, re.S)[1]) == mission and len(_words(mission)) <= 6
     assert '<input id="k-q" name="q"' in home and '<h2 id="home-h">Open for backing</h2>' in home
     cards = re.findall(r'<li class="hp" data-slug="([a-z0-9-]+)">(.*?)</li>', home, re.S)
@@ -52,6 +52,7 @@ def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each(
     prose = re.sub(r'<details[^>]*data-not-prose>.*?</details>', " ", prose, flags=re.S)       # the IDT benchmark's rows
     prose = re.sub(r'<ul[^>]*data-not-prose[^>]*>.*?</ul>', " ", prose, flags=re.S)          # the measured numbers (web/brand/vectors.html)
     prose = re.sub(r'<figure[^>]*data-not-prose[^>]*>.*?</figure>', " ", prose, flags=re.S)       # the crossing's shape: a state and its number
+    prose = re.sub(r'<p class="k-vision"[^>]*>.*?</p>', " ", prose, flags=re.S)                  # the two vision lines (fixed text)
     prose = re.sub(r"<(button)\b[^>]*>.*?</\1>", " ", re.sub(r"<!--.*?-->", " ", prose, flags=re.S), flags=re.S)
     n = len(_words(re.sub(r"<button\b[^>]*>.*?</button>", " ", bar, flags=re.S))) + len(_words(prose))
     assert 12 <= n <= 64, n
