@@ -57,7 +57,7 @@ a{color:var(--accent)}
     <dt>City</dt><dd><b data-city>n/a</b>, the city where <a href="https://docs.qloo.com/reference/insights-api-deep-dive" rel="noopener">Qloo's demand map</a> shows the most interest (<code>filter.type=urn:heatmap</code>)</dd>
     <dt>Population</dt><dd><a href="https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/metro/totals/cbsa-est2023-alldata.csv" rel="noopener">Census, 2023</a></dd>
   </dl>
-  <p class="formula" data-not-prose><a href="https://github.com/drexthealpha/Knos/blob/main/apps/wanted/knos_wanted/metros.py" rel="noopener">target = max(10, round(POP / 100,000 &times; mean affinity))</a></p>
+  <p class="formula" data-not-prose><a href="https://github.com/drexthealpha/Knos/blob/main/apps/wanted/knos_wanted/metros.py" rel="noopener">target = max(10, round(POP / 100,000 &times; mean interest score))</a></p>
   <p class="formula" data-not-prose>= <b id="demo-t" data-target>n/a</b> pre-orders, with Qloo's mean affinity (kept on the app's server)</p>
 </section>
 <section class="box" id="demo-without" aria-labelledby="demo-without-h">
