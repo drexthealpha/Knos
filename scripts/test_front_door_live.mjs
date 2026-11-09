@@ -30,8 +30,8 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e.message || e).slice(0, 120)));
-    await page.goto(u + (u.includes("?") ? "&" : "?") + "t=" + Date.now(), { waitUntil: "load", timeout: 90000 }).catch((e) => errors.push(`load: ${String(e.message).slice(0, 80)}`));
-    await page.waitForTimeout(2500);
+    await page.goto(u + (u.includes("?") ? "&" : "?") + "t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 90000 }).catch((e) => errors.push(`load: ${String(e.message).slice(0, 80)}`));
+    await page.waitForTimeout(5000);
     ok(errors.length === 0, `${u}: ${errors.length} page errors${errors.length ? ` ${JSON.stringify(errors.slice(0, 2))}` : ""}`);
     await page.close();
   }
