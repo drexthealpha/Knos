@@ -30,7 +30,7 @@ tr{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:0 0 8p
 <p class="k-vision" data-not-prose>Knos carries research across the valley of death, toward Kardashev II and III.</p>
 
 <p class="fine" id="q-for">Reading this build's numbers.</p>
-<h2>Lighthouse</h2>
+<h2>Google page scores</h2>
 <table id="q-lh"><thead><tr><th scope="col">Page</th><th scope="col">Device</th><th scope="col">Performance</th><th scope="col">Accessibility</th><th scope="col">Best practices</th><th scope="col">SEO</th></tr></thead><tbody></tbody></table>
 <h2>axe</h2>
 <table id="q-axe"><thead><tr><th scope="col">Page</th><th scope="col">Theme</th><th scope="col">Violations</th><th scope="col">Rules</th></tr></thead><tbody></tbody></table>
@@ -39,13 +39,13 @@ tr{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:0 0 8p
 <script>
 (async () => {
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  const NAME = { landing: "Front door", demo: "Demo", check: "Check a pull request", how: "How we test Knos", r: "A result page" };
+  const NAME = { landing: "Front door", demo: "Demo", check: "Check a code change", how: "How we test Knos", r: "A result page" };
   const cell = (h, v, cls = "") => `<td data-h="${esc(h)}"${cls ? ` class="${cls}"` : ""}>${v}</td>`;
   const pct = (x) => (typeof x === "number" ? Math.round(x * 100) : "none");
   let q = null;
   try { q = await (await fetch("quality.json", { cache: "no-store" })).json(); } catch { q = null; }
   if (!q) { document.getElementById("q-for").textContent = "No numbers were written for this build."; return; }
-  document.getElementById("q-for").innerHTML = `Commit <a href="https://github.com/drexthealpha/Knos/commit/${esc(q.commit)}" rel="noopener"><code>${esc(String(q.commit).slice(0, 7))}</code></a>, measured ${esc(q.at)}.`;
+  document.getElementById("q-for").innerHTML = `Version <a href="https://github.com/drexthealpha/Knos/commit/${esc(q.commit)}" rel="noopener"><code>${esc(String(q.commit).slice(0, 7))}</code></a>, measured ${esc(q.at)}.`;
   document.querySelector("#q-lh tbody").innerHTML = q.lighthouse.map((r) => `<tr>${cell("Page", esc(NAME[r.page] || r.page))}${cell("Device", r.form === "mobile" ? "Phone" : "Desktop")}${
     r.error ? `<td colspan="4" class="bad">not measured: ${esc(r.error)}</td>` : ["performance", "accessibility", "best-practices", "seo"].map((c, i) =>
       cell(["Performance", "Accessibility", "Best practices", "SEO"][i], pct(r.scores[c]), `n${r.scores[c] < 0.9 ? " bad" : ""}`)).join("")}</tr>`).join("");

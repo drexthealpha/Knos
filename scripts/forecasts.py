@@ -53,7 +53,7 @@ def build(private: dict) -> tuple[str, str]:
         body.append(f'<tr data-idea="{e(r["idea"])}"><td>{e(r["idea"])}</td><td><span class="mono">{e(r["naics"])}</span> {e(r["naics_name"])}</td>'
                     f'<td data-knos>read from the app</td><td>{e((r.get("model") or {}).get("county") or "outside US data")}</td>'
                     f'<td>{e((r.get("placebo") or {}).get("county") or "not graded")}</td>'
-                    f'<td>{e(GRADE_DAY) if r["graded"] else e(r.get("not_graded") or "not graded")}</td><td><a href="{e(src)}" rel="noopener">QCEW {e(r["naics"])}, 2025</a>; 2026 on {e(GRADE_DAY)}</td></tr>')
+                    f'<td>{e(GRADE_DAY) if r["graded"] else e(r.get("not_graded") or "not graded")}</td><td><a href="{e(src)}" rel="noopener">US jobs count, industry {e(r["naics"])}, 2025</a>; 2026 on {e(GRADE_DAY)}</td></tr>')
     page = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -76,7 +76,7 @@ table{{border-collapse:collapse;width:100%;font-size:var(--s-1)}}td,th{{border-b
 <p class="fine"><a href="../">Knos</a> · <a href="../proof/">Proof</a></p>
 <h1>Forecasts</h1>
 <p>Graded on {e(GRADE_DAY)}, when the Bureau of Labor Statistics publishes county business counts (<a href="{CALENDAR}" rel="noopener">its calendar</a>).</p>
-<div class="tw"><table><thead><tr><th scope="col">Idea</th><th scope="col">NAICS</th><th scope="col">Knos</th><th scope="col">Model alone</th><th scope="col">Placebo</th><th scope="col">Graded</th><th scope="col">Source</th></tr></thead>
+<div class="tw"><table><thead><tr><th scope="col">Idea</th><th scope="col">Industry code</th><th scope="col">Knos</th><th scope="col">Model alone</th><th scope="col">Placebo</th><th scope="col">Graded</th><th scope="col">Source</th></tr></thead>
 <tbody>{"".join(body)}</tbody></table></div>
 <p class="fine" id="f-check" data-rows-sha256="{sha}" data-not-prose>Rows sha256 <span class="mono">{sha}</span>: <span id="f-match">reading the app</span></p>
 <p class="fine">Plan <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/forecast_plan_v2.md">forecast_plan_v2.md</a>, sha256 <span class="mono" id="f-plan">{plan_sha}</span>.</p>

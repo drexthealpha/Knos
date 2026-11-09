@@ -112,18 +112,18 @@ table{{border-collapse:collapse;width:100%;font-size:var(--s-1)}}td,th{{border-b
 <p class="fine"><a href="../../">Knos</a> · <a href="../../try/">Try it</a></p>
 <h1>{e(d["idea"])}</h1>
 <ol>
-<li id="demand"><h2>Demand</h2><p>Qloo's heatmap: <b>{e(d["city"])}</b> over {d["cells"]} cells, population {d["population"]:,}.
-Target = max(10, round({d["population"]:,} / 100,000 × mean affinity)) = <b>{t}</b> pre-orders.</p>
+<li id="demand"><h2>Demand</h2><p>Qloo's demand map: <b>{e(d["city"])}</b> over {d["cells"]} cells, population {d["population"]:,}.
+Target = max(10, round({d["population"]:,} / 100,000 × mean interest score)) = <b>{t}</b> pre-orders.</p>
 <p class="fine">Recorded from a live demand check, {e(d["when"])} (<a href="{e(d["script"])}">the run</a>). Qloo has refused Knos's key since 25 Oct.</p></li>
-<li><h2>Ready brief</h2><p>{e(m["name"])}: {e(m["target"])}. Checked by <span class="mono">{e(m["verifier"]["check"])}</span>.</p>
-<p>Criteria hash <span class="mono">{e(f["criteria_hash"])}</span>. {"Recomputed here from the brief: the same." if same else "Recomputed here from the brief: different."}</p></li>
-<li><h2>Money held</h2><p>{len(f["orders"])} pre-orders of 5 test units each, from {len(f["wallets"])} test wallets of Knos, held on Solana devnet.</p></li>
+<li><h2>The goal</h2><p>{e(m["name"])}: {e(m["target"])}. Checked by <span class="mono">{e(m["verifier"]["check"])}</span>.</p>
+<p>Terms ID <span class="mono">{e(f["criteria_hash"])}</span>. {"Recomputed here from the brief: the same." if same else "Recomputed here from the brief: different."}</p></li>
+<li><h2>Money held</h2><p>{len(f["orders"])} pre-orders of 5 test dollars each, from {len(f["wallets"])} test wallets of Knos, held on Solana devnet.</p></li>
 <li><h2>Paid on proof</h2><p>The check counted them on devnet{f' at <span class="mono">{e(f["ci_commit"])}</span>' if f["ci_commit"] else ""}{f' (<a href="{e(run)}">the signing run</a>)' if run else ""}. Milestone: {e(f["status"])}.</p></li>
 </ol>
 <section id="targets"><h2>Targets in Qloo's launch cities</h2>{targets_table(LAUNCH.get(f["project"], []))}
 <p class="fine">The run kept the top launch city for each idea. A larger city raises the target: the same formula in the next example.</p>
 <h3>{e(SECOND["idea"])}</h3>{targets_table([SECOND])}
-<p class="fine">Target = max(10, round({SECOND["population"]:,} / 100,000 × mean affinity)) = {target(SECOND["raw"])[0]}, from the same run.</p></section>
+<p class="fine">Target = max(10, round({SECOND["population"]:,} / 100,000 × mean interest score)) = {target(SECOND["raw"])[0]}, from the same run.</p></section>
 <div class="tw"><table><thead><tr><th>#</th><th>Wallet</th><th>Units</th><th>Held</th><th>Released</th></tr></thead><tbody>{rows}</tbody></table></div>
 <p class="fine">Devnet, test money. The wallets are Knos's own test wallets; where their owners live is not checked on chain.</p>
 </main>

@@ -131,8 +131,8 @@ export async function renderSample(el) {
 }
 
 export function renderCheck(el, ctx = {}) {
-  el.innerHTML = `<h2>Check an agent's pull request</h2>
-  <p class="lede">Paste a public GitHub pull request link.</p>
+  el.innerHTML = `<h2>Check an agent's code change</h2>
+  <p class="lede">Paste the link to a public code change.</p>
   <form id="check-form" class="k-card check-form" novalidate>
     <label for="check-url">Pull request</label>
     <input id="check-url" name="check-url" type="text" inputmode="url" autocomplete="off" spellcheck="false"

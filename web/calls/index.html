@@ -51,7 +51,7 @@
 
     <p id="c-sum">The last 200 requests the server sent to Qloo or kept from its recordings, newest first. No answer is shown.</p>
     <div class="k-table"><table>
-      <thead><tr><th scope="col">Time (UTC)</th><th scope="col">Endpoint</th><th scope="col">Parameters</th><th scope="col">Status</th><th scope="col">ms</th><th scope="col">Cached</th></tr></thead>
+      <thead><tr><th scope="col">Time (UTC)</th><th scope="col">Question</th><th scope="col">Parameters</th><th scope="col">Status</th><th scope="col">ms</th><th scope="col">Cached</th></tr></thead>
       <tbody id="c-rows"><tr><td colspan="6">Reading the server's log…</td></tr></tbody>
     </table></div>
   </section>
@@ -68,7 +68,7 @@
   fetch("https://knos.onrender.com/api/calls").then((r) => r.json()).then((j) => {
     const rows = j.calls || [];
     const live = rows.filter((x) => x.origin === "live").length, rec = rows.filter((x) => x.origin === "recorded" || x.origin === "cached").length;
-    sum.textContent = `${rows.length} requests, newest first: ${live} live (Qloo answered HTTP 200), ${rec} recorded, ${rows.length - live - rec} refused or not sent. No answer is shown.`;
+    sum.textContent = `${rows.length} requests, newest first: ${live} live (Qloo answered), ${rec} recorded, ${rows.length - live - rec} refused or not sent. No answer is shown.`;
     out.innerHTML = rows.map((x) => `<tr data-origin="${esc(x.origin)}">` + [
       esc(String(x.at || "").replace("T", " ").replace("Z", "")),
       `<code>${esc(x.call)}</code>`,
