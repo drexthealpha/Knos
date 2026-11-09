@@ -224,10 +224,6 @@ bash scripts/ready.sh
 that page and press **A passing test, $20**: the decision appears in a few seconds. **A passing test, $120** waits for a
 person: press **Approve**. The default is replay mode: no key and no sign-in. It downloads no model.
 
-In replay mode (`KNOS_AI_MODE=replay` in `iris/.env`, the default) the AI Hub agent step is answered from hand-written
-replay decisions committed in [iris/fixtures/replay/](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/fixtures/replay), one per sample record. A proof with no committed decision
-is decided by the rules referee, and the event log says `replay: skipped`.
-
 What the commands do: `load-image.sh` runs `docker load -i <the tar>`, then retags the image to the name the Dockerfile
 builds on:
 `docker tag docker.iscinternal.com/docker-intersystems/intersystems/irishealth-community:2026.3.0AI.154.0 irishealth-community:2026.3.0AI.154.0`.
