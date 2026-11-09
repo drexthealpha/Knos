@@ -1,0 +1,19 @@
+{
+ "criteria_hash": "b6e5ee2886201aaf4406a6bcf700c46f614b0da82ed8338a7b1fdb8d0eecfd77",
+ "decision": "met",
+ "milestones": [
+  {
+   "key": "m1",
+   "met": true,
+   "evidence": [
+    "checkrun:4242004"
+   ],
+   "reason": "ci / test_checkout_latency concluded success"
+  }
+ ],
+ "confidence": 0.95,
+ "model": "hand-written replay decision",
+ "referee": "hand-written replay decision (iris/fixtures/replay)",
+ "input_tokens": 0,
+ "output_tokens": 0
+}

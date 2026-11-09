@@ -1,0 +1,19 @@
+{
+ "criteria_hash": "616868c8cbd5ea66406a2d01bcaa5249cdb9cebf87a1b299d3740cf63c5d341e",
+ "decision": "not_met",
+ "milestones": [
+  {
+   "key": "m1",
+   "met": false,
+   "evidence": [
+    "observation:2345-7"
+   ],
+   "reason": "value 9.8 mmol/L against the target < 7.0 mmol/L"
+  }
+ ],
+ "confidence": 0.95,
+ "model": "hand-written replay decision",
+ "referee": "hand-written replay decision (iris/fixtures/replay)",
+ "input_tokens": 0,
+ "output_tokens": 0
+}
