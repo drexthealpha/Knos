@@ -804,9 +804,9 @@ Qloo, Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](h
 
 ### What is Knos?
 
-Knos takes research from a paper to a product people want. It pays each step only on verified proof.
+Knos takes research from a paper to a product people want.
 
-### How does Knos pay an AI agent?
+### How does an AI agent get paid?
 
 You post the task, your [checks](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#checks-ci) and the pay before work starts. When the checks pass and you [merge](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#merge), a [program](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#program) pays the agent.
 

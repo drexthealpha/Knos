@@ -2,7 +2,7 @@
 
 # The story: one crossing, step by step
 
-**In plain words.** A research result often never becomes a product. Knos checks who wants it, holds the backers' money and pays the maker only on proof. This page follows one crossing in [test money](WORDS.md#test-usdc), step by step.
+**In plain words.** A research result often never becomes a product. Qloo checks who wants it, then a Solana program holds the backers' test money until a referee confirms the proof. This page follows one crossing in [test money](WORDS.md#test-usdc), step by step.
 
 **Knos carries research across the valley of death.**
 
