@@ -29,6 +29,8 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
         if ##class(%File).Exists(file) {
             set f = ##class(%Stream.FileCharacter).%New(), f.Filename = file, out = f.Read(1000000)
         } else {
+            // no committed decision for this proof: the call is skipped and the rules referee decides
+            $$$LOGINFO("replay: skipped (no committed decision "_##class(%File).GetFilename(file)_"); the rules referee decides")
             set out = ##class(Knos.Iris.Py.Verdict).Decide(pRequest.BriefJSON, pRequest.Kind, pRequest.PayloadJSON, hash)
         }
     }
