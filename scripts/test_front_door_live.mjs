@@ -26,7 +26,8 @@ const PAGES = [SITE, SITE + "demo/", SITE + "check/", SITE + "how-we-test.html",
 const browser = await chromium.launch();
 
 try {
-  for (const u of PAGES) {
+  // a page whose HTML or head scripts stall for 90 s gets one more try in a fresh tab; a second stall fails
+  const visit = async (u) => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e.message || e).slice(0, 120)));
@@ -34,10 +35,19 @@ try {
     page.on("request", (r) => open.set(r, Date.now()));
     page.on("requestfinished", (r) => open.delete(r));
     page.on("requestfailed", (r) => open.delete(r));
-    await page.goto(u + (u.includes("?") ? "&" : "?") + "t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 90000 }).catch((e) => errors.push(`load: ${String(e.message).slice(0, 60)}; still open: ${[...open.keys()].map((r) => r.url().split("?")[0]).join(" ")}`));
+    let stalled = false;
+    await page.goto(u + (u.includes("?") ? "&" : "?") + "t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 90000 }).catch((e) => { stalled = true; errors.push(`load: ${String(e.message).slice(0, 60)}; still open: ${[...open.keys()].map((r) => r.url().split("?")[0]).join(" ")}`); });
     await page.waitForTimeout(5000);
-    ok(errors.length === 0, `${u}: ${errors.length} page errors${errors.length ? ` ${JSON.stringify(errors.slice(0, 2))}` : ""}`);
     await page.close();
+    return { errors, stalled };
+  };
+  for (const u of PAGES) {
+    let got = await visit(u);
+    if (got.stalled) {
+      lines.push(`note ${u}: first load stalled (${got.errors[0]}), trying once more`);
+      got = await visit(u);
+    }
+    ok(got.errors.length === 0, `${u}: ${got.errors.length} page errors${got.errors.length ? ` ${JSON.stringify(got.errors.slice(0, 2))}` : ""}`);
   }
 } finally {
   await browser.close();
