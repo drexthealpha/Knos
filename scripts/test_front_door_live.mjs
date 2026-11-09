@@ -30,7 +30,11 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e.message || e).slice(0, 120)));
-    await page.goto(u + (u.includes("?") ? "&" : "?") + "t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 90000 }).catch((e) => errors.push(`load: ${String(e.message).slice(0, 80)}`));
+    const open = new Map();
+    page.on("request", (r) => open.set(r, Date.now()));
+    page.on("requestfinished", (r) => open.delete(r));
+    page.on("requestfailed", (r) => open.delete(r));
+    await page.goto(u + (u.includes("?") ? "&" : "?") + "t=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 90000 }).catch((e) => errors.push(`load: ${String(e.message).slice(0, 60)}; still open: ${[...open.keys()].map((r) => r.url().split("?")[0]).join(" ")}`));
     await page.waitForTimeout(5000);
     ok(errors.length === 0, `${u}: ${errors.length} page errors${errors.length ? ` ${JSON.stringify(errors.slice(0, 2))}` : ""}`);
     await page.close();
