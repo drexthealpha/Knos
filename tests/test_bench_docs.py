@@ -251,7 +251,8 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 64, said
     # under it, in plain words (tests/test_readme_plain.py reads them): how it works, paid on proof, the ten-second
     # check, why nobody can fudge the count, then "Is it real?" over the table, then the commands
-    parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", readme.split("\n---\n", 1)[0])[1:])] * 2))
+    plain = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", readme, flags=re.S)      # the contest's own sections
+    parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", plain.split("\n---\n", 1)[0])[1:])] * 2))
     how, fudge, real = "How it works", "Why nobody can fudge the count", "Is it real?"
     assert "](docs/reference/DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://knos.onrender.com/app/)" in parts["Try it in ten seconds"]
     assert "knos demand " in parts["From a terminal"] and "/api/check" in parts["From a terminal"]

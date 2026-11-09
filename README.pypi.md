@@ -15,6 +15,71 @@ Knos carries research across the valley of death, toward Kardashev II and III.
 
 Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembers. Test money only.
 
+<!-- entry:criteria -->
+## The five judged criteria
+
+| Criterion | What Knos has | Link |
+|---|---|---|
+| Complexity | 22 enabled production items | [iris/src/Knos/Iris/Production.cls L8-L55](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L8-L55) |
+| Clarity of Instructions | 6 install commands (the contest rules require these commands) | [README.md L216-L219](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L216-L219) |
+| Developer Experience | 6 commands from git clone to working check | [README.md L216-L219](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L216-L219) |
+| Applicability | 5 example stories | [README.md L30-L34](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L30-L34) |
+| Usability | 3 pages a visitor can use with no sign-in | [index.html](https://drexthealpha.github.io/Knos/index.html); [check/index.html](https://drexthealpha.github.io/Knos/check/index.html); [near/index.html](https://drexthealpha.github.io/Knos/near/index.html) |
+
+### Who Knos is for
+
+- A lab could use Knos when a discovery it made stalls before anyone turns it into a product. https://hms.harvard.edu/news/new-direction-academic-science-aims-bridge-valley-death
+- A hospital lab could use Knos when it must show that a new test meets its performance specifications before it reports patient results. https://www.cms.hhs.gov/clia/downloads/6064bk.pdf
+- A startup could use Knos when it is about to build a product nobody needs, the reason founders most often give for a failed startup. https://www.digitalocean.com/resources/articles/top-reasons-startups-fail-and-how-to-avoid-them
+- A company could use Knos when an AI coding agent sends pull requests that do not pass the project's own checks. https://arxiv.org/abs/2601.15195
+- A funder could use Knos when it releases money only as research milestones are met and needs evidence that each one was. https://arpa-h.gov/news-and-events/arpa-h-101-lifecycle-arpa-h-program
+
+### Production items
+
+- `ProofIn` (`Knos.Iris.BS.ProofIn`)
+- `BriefIn` (`Knos.Iris.BS.BriefIn`)
+- `GitHubCheckRunPoller` (`Knos.Iris.BS.CheckRunPoller`)
+- `HL7LabIn` (`Knos.Iris.BS.LabFile`)
+- `ProofDecision` (`Knos.Iris.BP.ProofDecision`)
+- `BriefLock` (`Knos.Iris.BO.BriefLock`)
+- `Referee` (`Knos.Iris.BO.Referee`)
+- `PayoutApprovers` (`EnsLib.Workflow.Operation`)
+- `SolanaRead` (`Knos.Iris.BO.SolanaRead`)
+- `SolanaSubmit` (`EnsLib.PEX.BusinessOperation`)
+- `TraceSink` (`Knos.Iris.BO.TraceSink`)
+- `Ens.Alert` (`Knos.Iris.BO.Alert`)
+- `FHIRLabIn` (`Knos.Iris.BS.FhirFile`)
+- `DeadlineWatch` (`Knos.Iris.BS.DeadlineWatch`)
+- `DailyDigest` (`Knos.Iris.BS.DailyDigest`)
+- `SpendCapWatch` (`Knos.Iris.BS.SpendCapWatch`)
+- `ApproverReminder` (`Knos.Iris.BS.ApproverReminder`)
+- `DecisionRouter` (`EnsLib.MsgRouter.RoutingEngine`)
+- `ReceiptFile` (`Knos.Iris.BO.ReceiptFile`)
+- `DecisionFHIR` (`Knos.Iris.BO.FhirTask`)
+- `ResultHL7Out` (`EnsLib.HL7.Operation.FileOperation`)
+- `DigestFile` (`EnsLib.File.PassthroughOperation`)
+
+## Bonuses
+
+| Bonus | Official points | Proof |
+|---|---|---|
+| B1 Questionnaire | 1 | answered 7 Nov (private form) |
+| B2 Production Extension (PEX) | 3 | [iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java L20](https://github.com/drexthealpha/Knos/blob/main/iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java#L20) |
+| B3 Workflow Engine | 2 | [iris/src/Knos/Iris/Production.cls L19](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L19) |
+| B4 Custom Adapter | 2 | [iris/src/Knos/Iris/Adapter/CheckRunInbound.cls L5](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Adapter/CheckRunInbound.cls#L5) |
+| B5 Find a bug in AI Hub | 2 (max 3) | https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/20 ; https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/21 |
+| B6 Embedded Python | 3 | [iris/src/Knos/Iris/Py/Ready.cls L4](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Py/Ready.cls#L4) |
+| B7 IRIS Vector Search usage | 2 | [iris/src/Knos/Iris/Data/Criterion.cls L7](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Data/Criterion.cls#L7) |
+| B8 Docker container usage | 2 | [iris/docker-compose.yml L4](https://github.com/drexthealpha/Knos/blob/main/iris/docker-compose.yml#L4) |
+| B9 ZPM Package deployment | 2 | https://openexchange.intersystems.com/package/Knos |
+| B10 Online Demo | 2 | not hosted |
+| B11 Implement InterSystems Community Idea | 4 | https://ideas.intersystems.com/ideas/DPI-I-689 |
+| B12 Find a bug in Embedded Python | 2 (max 3) | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |
+| B13 First Article on Developer Community | 2 | https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call |
+| B14 Second Article on DC | 1 | https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris |
+| B15 Video | 3 | https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4 |
+<!-- /entry:criteria -->
+
 [Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/near/)
 
 ## How it works
@@ -389,27 +454,6 @@ Zulqarnain Abubakar, Developer Community profile: https://community.intersystems
 ### License
 
 MIT, the repository's own [LICENSE](https://github.com/drexthealpha/Knos/blob/v0.4.1/LICENSE).
-
-### Bonuses
-
-Each bonus with what shows it.
-
-| Bonus | Points | Shown by |
-|---|---|---|
-| Questionnaire | 1 | answered by the author |
-| PEX with Java | 3 | `iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java`, item SolanaSubmit, seen in the video |
-| Workflow Engine | 2 | role PayoutApprovers in `iris/src/Knos/Iris/BP/ProofDecision.cls`, seen in the video |
-| Custom adapter | 2 | `Knos.Iris.Adapter.CheckRunInbound` (inbound), `Knos.Iris.Adapter.SolanaRpcOutbound` (outbound) |
-| AI Hub bugs | 2 + 1 | [`iris/bugs/2`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/2), [`iris/bugs/3`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/3) |
-| Embedded Python | 3 | `iris/src/Knos/Iris/Py/Ready.cls`, `iris/python/knos_iris/` |
-| Vector Search | 2 | `iris/src/Knos/Iris/Data/Criterion.cls` |
-| Docker | 2 | `iris/Dockerfile`, `iris/docker-compose.yml` |
-| IPM package | 2 | `module.xml` at the repository root |
-| Online demo | 2 | not hosted |
-| Community idea | 4 | [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689): `iris/src/Knos/Iris/Msg/Span.cls`, "The trace" above |
-| Embedded Python bugs | 2 + 1 | [`iris/bugs/1`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/1), [`iris/bugs/4`](https://github.com/drexthealpha/Knos/tree/v0.4.1/iris/bugs/4) |
-| Articles | 2 + 1 | on the author's Developer Community profile |
-| Video | 3 | [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4) |
 
 <!-- /entry:iris -->
 
