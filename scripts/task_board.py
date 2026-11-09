@@ -90,7 +90,7 @@ TARGET = 8                          # tasks open at once
 BUDGET = 45_000_000                 # millionths of test USDC opened in one UTC day, fees included: a whole board of 8 at 5.05
 RESERVE = 50_000_000                # millionths of test USDC a named Balance keeps
 PACE = 65                           # seconds between two fundings: the faucet serves a repository once a minute (FUND_PERIOD = 60)
-LEAST, MOST = 2_000_000, 5_000_000  # what the schema lets one task pay. The escrow holds a work order from 5 (ORDER_MIN_AMOUNT), so
+LEAST, MOST = 2_000_000, 5_000_000  # what the schema lets one task pay. The vault holds a work order from 5 (ORDER_MIN_AMOUNT), so
                                     # every task written so far pays 5, and `plan` passes over one that asks for less and says so
 BOARD = "board.json"                # in the playground: {"v": 1, "tasks": {"<issue number>": "<slug>"}}
 MARK = re.compile(r"<!-- knos-task: ([a-z0-9-]+) amount=(\d+) days=(\d+) -->")

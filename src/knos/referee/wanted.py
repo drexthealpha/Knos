@@ -1,7 +1,7 @@
 """Wanted: does someone want the result? A demand book of pre-orders locked against one sealed spec.
 
-A pre-order counts only while it is locked in escrow (`escrow_ref`: the devnet work order or pool account that holds
-it); a pledge without escrow is shown and never counted. Each buyer counts once however many orders it places, and
+A pre-order counts only while it is locked in vault (`escrow_ref`: the devnet work order or pool account that holds
+it); a pledge without vault is shown and never counted. Each buyer counts once however many orders it places, and
 the bar is N distinct buyers AND X locked, both set by whoever asks the question (a founder or funder decision, not
 the referee's). Amounts are integers in the currency's smallest unit (micro-USDC for USDC).
 """
@@ -48,7 +48,7 @@ def wanted(orders, *, min_buyers: int, min_locked: int, spec_hash: str | None = 
 
 class DemandBook:
     """A demand book kept as one JSON file (default: $KNOS_HOME/referee/demand.json). The book is the referee's view;
-    the money itself is in the escrow each order names."""
+    the money itself is in the vault each order names."""
 
     def __init__(self, path=None):
         home = Path(os.environ.get("KNOS_HOME") or Path.home() / ".knos")

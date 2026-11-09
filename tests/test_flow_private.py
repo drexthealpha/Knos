@@ -198,7 +198,7 @@ def test_what_stops_a_normal_funding_stops_a_private_one_and_is_said_on_the_priv
         before = len(w.hub.comments[ISSUE])
         assert flow.command(run(w, pub, SCHEDULE)) == code
         return "\n".join(c["body"] for c in w.hub.comments[ISSUE][before:])
-    # the policy (the attestor's file) says who may fund; GitHub says who can write; the order's bounds are the escrow's
+    # the policy (the attestor's file) says who may fund; GitHub says who can write; the order's bounds are the vault's
     asks(MONA, "/knos fund 20")
     assert ".knos/policy.yml line 5: only hubot may fund; mona (4242) is not one of them." in answer()
     asks(HUBOT, "/knos fund 2")

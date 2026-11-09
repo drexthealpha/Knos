@@ -78,8 +78,8 @@ def _open(jwt: str, me: Pubkey, jwks: dict | None, ledger=None) -> _Token:
 class Kind:
     """One kind of token. `name` is what its result and the worker's log call it, and the comment marker it is
     posted under (a pay token's marker is `proof`); `plan(ask)` answers with a _Plan, or raises the _Stop that says
-    why nothing is sent, from reads alone; `since` is the escrow version that first takes it (`version`); `github`
-    says whether what the escrow asks of every GitHub token applies before the audience is read."""
+    why nothing is sent, from reads alone; `since` is the vault version that first takes it (`version`); `github`
+    says whether what the vault asks of every GitHub token applies before the audience is read."""
     name: str
     plan: Callable[[_Ask], _Plan]
     since: int = 0
@@ -103,10 +103,10 @@ KINDS: dict[str, Kind] = {
     "knos3:cancel:": Kind("cancel", _plan_cancel, since=1),
     "knos3:revert:": Kind("revert", _plan_revert, since=1),
     "knos3:bind:": Kind("bind", _plan_org_bind, since=1),
-    "knosm:eval:": Kind("eval", _plan_eval),        # knos_meter is a program of its own and never calls the escrow: it needs no 2.1 escrow
+    "knosm:eval:": Kind("eval", _plan_eval),        # knos_meter is a program of its own and never calls the vault: it needs no 2.1 vault
     "knosm:batch:": Kind("batch", _plan_batch),     # knos_meter 1.1: the buyer's count of a batch (RecordBatch)
     "knosm:claim:": Kind("claim", lambda a: _plan_batch(a, claim=True)),    # and the seller's own count of it (ClaimBatch)
-    "gate:": Kind("gate", _plan_gate, github=False),       # upgrade_gate reads the verified token itself: it needs no 2.1 escrow, and asks its own claims
+    "gate:": Kind("gate", _plan_gate, github=False),       # upgrade_gate reads the verified token itself: it needs no 2.1 vault, and asks its own claims
 }
 
 

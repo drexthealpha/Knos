@@ -15,7 +15,7 @@ templates (ISO 13485, EU MDR). Every milestone is a TRANCHE: its own knos_pay pa
              and its funders are listed to re-fund it in one tap.
 
 Money in, all real devnet transactions the funder's own wallet signs (the server only co-signs the test-unit top-up,
-as the test mint's authority): a funder's escrow, a GRANT (the same order, labelled with the grant's agency and id),
+as the test mint's authority): a funder's vault, a GRANT (the same order, labelled with the grant's agency and id),
 a POOL (one funder spreads one amount over many milestones of many projects: the megafund), and an AMC COMMITMENT
 (advance-market-commitment style: the buyer's wallet approves a token allowance to the relayer; nothing moves until the
 milestone verifies, then the relayer pays the maker from it; the buyer can revoke the allowance until then, and the
@@ -545,7 +545,7 @@ def public_project(p: dict) -> dict:
     out.setdefault("changes", [])
     out["grounding"] = grounding(p)                 # the Ready brief's "Grounding (Qloo)" line: who, where, price tier, comparables
     from . import chainx
-    out["credits"] = chainx.credits_of(p["id"])     # the project's credit mint: moves only into its escrow (the transfer hook)
+    out["credits"] = chainx.credits_of(p["id"])     # the project's credit mint: moves only into its vault (the transfer hook)
     out["milestones"] = []
     for m in p["milestones"]:
         raw = [o for o in (_safe_order(x) for x in m["fundings"]) if o]
@@ -710,7 +710,7 @@ def unlist(pid: str, user: dict | None = None, admin: bool = False, why: str = "
 def route(m: dict) -> dict:
     """Where this milestone's work can be bought: the knos.labs adapters (live with the maker's own key, else a labelled
     fixture quote), knos.game for code-scored work, or the maker's own shop. Work is routed only once committed money
-    (escrow + AMC allowances) covers the quote: buyers commit first."""
+    (vault + AMC allowances) covers the quote: buyers commit first."""
     cap = catalogue()["capacity"].get(m.get("route") or "none", [])
     out = []
     for c in cap:
@@ -727,7 +727,7 @@ def route(m: dict) -> dict:
             "rule": "work is ordered from a lab only when held money + AMC commitments cover its quote; a fixture quote is labelled and never ordered"}
 
 
-# ---- funding: a funder's escrow, a grant, a pool (the funder's wallet signs) ---------------------------------------
+# ---- funding: a funder's vault, a grant, a pool (the funder's wallet signs) ---------------------------------------
 def _safe_order(oid: str) -> dict | None:
     try:
         return _load("orders", oid)
@@ -887,7 +887,7 @@ def _receipt_async(kind: str, order: str, claim: str = "", units: int = 0, pid: 
             got = {"error": f"{type(why).__name__}: {str(why)[:160]}"}
             print(f"knos projects: pledge receipt ({kind}) of {order}: {got['error']}", flush=True)
         credits = None
-        if kind == "pledge" and pid:            # the units as project credits, moved into the escrow through the transfer hook
+        if kind == "pledge" and pid:            # the units as project credits, moved into the vault through the transfer hook
             try:
                 credits = chainx.project_credits(pid, order, units)
             except Exception as why:  # noqa: BLE001

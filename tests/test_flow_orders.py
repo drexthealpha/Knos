@@ -1,6 +1,6 @@
 """knos.flow with knos_pay 2.1 behind it: a funding comment opens a WORK ORDER, settle pays orders and jobs alike, and the
 order's own commands (offer, raise, cancel, split, take). The fakes are tests/_flow.py's; `w.version = 1` is a chain
-whose escrow is 2.1. While it is 0 every comment does what it did before (tests/test_flow.py).
+whose vault is 2.1. While it is 0 every comment does what it did before (tests/test_flow.py).
 
 The public program runs 2.1 until the upgrade to 2.2 executes, and every comment states the fee of the build that is
 LIVE. So each test here runs twice: on a chain that answers Version 2 (2.2: 0.30%, at least 0.05) and on one that
@@ -169,7 +169,7 @@ def test_a_maintainers_split_before_the_merge_pays_up_to_four_people_and_only_wh
     said(w, 12, HUBOT, "/knos split @mona 60 @eve 40")
     got = settled(w)
     assert "`/knos split` names @eve, and no wallet is known for them: a split is paid only when every person has one" in got and w.signer.asked == []
-    # while the escrow is 2.0 there is nothing to split
+    # while the vault is 2.0 there is nothing to split
     w = ordered(tmp_path / "v0")
     w.version = 0
     assert "A split is for a work order" in said(w, 12, HUBOT, "/knos split @mona 60 @eve 40")
@@ -190,7 +190,7 @@ def test_a_policy_that_names_payees_is_enforced_and_every_address_is_screened_be
     w.chain.bind(MONA)
     w.hub.contents[".knos/policy.yml"] = "version: 1\npayees: [eve]\n"
     assert "only eve may be paid; mona is not one of them" in settled(w) and w.signer.asked == []
-    # listed: nothing is signed, the money stays in escrow, and the comment says so
+    # listed: nothing is signed, the money stays in vault, and the comment says so
     for version in (0, 1):
         w = ordered(tmp_path / f"listed{version}")
         if not version:
@@ -230,7 +230,7 @@ def test_a_standing_offer_pays_its_vendor_for_each_accepted_change_until_its_bud
     w.chain.bind(EVE, ADDRESS)
     w.hub.checks[w.hub.pull(13, EVE, "Fixes #7")["head"]["sha"]] = [check("test")]
     assert f"this standing offer pays one vendor (GitHub user id {MONA['id']}), and this pull request pays @eve" in settled(w, 13)
-    # what the escrow cannot hold, and an escrow without orders, are said with what to type
+    # what the vault cannot hold, and a vault without orders, are said with what to type
     assert said(w, 7, HUBOT, "/knos offer @mona rate 12 budget 100001 checks: test") == (
         "Knos: nothing was funded. A work order holds from 5 to 100000, and this one asks for 100001. Comment `/knos offer @mona rate 12 budget 100000` instead.")
     w.version, w.runs = 0, w.runs
@@ -580,7 +580,7 @@ def test_settle_neutral_starts_the_attest_workflow_in_the_sellers_own_repository
 
 def test_a_seller_with_no_key_and_no_funded_payer_settles_with_neutral(tmp_path, monkeypatch, capsys):
     """`knos settle --neutral` as a seller runs it: the run has no environment of its own (no KNOS_RELAY_KEY) and is
-    handed no `version=`, so knos-pay's relay asks the cluster which escrow it runs, with a fee payer the cluster has
+    handed no `version=`, so knos-pay's relay asks the cluster which vault it runs, with a fee payer the cluster has
     never seen. The cluster refuses that simulation (AccountNotFound); the deployed executable is read instead, says
     2.1, and the open neutral order is found and its attest run started. (Before, the refusal read as 2.0 and the
     seller was told that no work order waited there.)"""

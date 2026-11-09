@@ -1103,7 +1103,7 @@ class Server:
         parsed = self._order_terms(addr, w) if is_order else self._parsed(addr, w)
         auto = is_order and _auto(w, parsed)
         mode = "auto" if auto else "tests" if w.mode == 1 else "merge"
-        net, usdc = (w.amount if is_order else w.amount - self._fee(w.amount)), _is_usdc(w.mint)      # an order's fee is escrowed on top
+        net, usdc = (w.amount if is_order else w.amount - self._fee(w.amount)), _is_usdc(w.mint)      # an order's fee is held on top
         held = is_order and w.reserved_by and w.reserved_until > now
         return {"repo": repo, "issue": w.issue, "url": f"https://github.com/{repo}/issues/{w.issue}" if repo else None,
                 "kind": "work order" if is_order else "bounty", "address": str(addr), "you_receive_usdc": _usdc(net) if usdc else None,

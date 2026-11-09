@@ -144,4 +144,4 @@ Durations 120ms (state), 240ms (enter), 480ms (a story beat); easing `cubic-bezi
 - Do show the measured number and its source; never an estimate.
 - Do label test money as test money on every page that shows an amount.
 - Don't use colour alone for state, sound, glow, or more than one accent.
-- Don't ship text that compares Knos to a marketplace.
+- Don't ship text that compares Knos to a market where people trade.

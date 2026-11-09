@@ -49,6 +49,7 @@ for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page canno
     except (AttributeError, ValueError):
         pass
 SENTENCE = "Knos carries research across the valley of death."
+L2 = "Knos carries research across the valley of death, toward Kardashev II and III."   # the vision line that now carries it
 # what a work order is, in five sentences: on the home page, folded under "What is here"
 LONG = ("A work order is a task, its budget and the terms that decide when it is done. All three are fixed before work "
         "starts. A bounty on an issue is the smallest work order. When the work is merged, GitHub signs which checks ran. "
@@ -231,7 +232,7 @@ def main(argv: list[str] | None = None) -> int:
                 fails += 1
                 print(f"FAIL  {path}: {tok!r} has no fact in docs/facts.json: {line}")
     for path in ("README.md", "web/index.html"):
-        if SENTENCE not in words(path):
+        if SENTENCE not in words(path) and L2 not in words(path):
             fails += 1
             print(f"FAIL  {path}: the one sentence is missing")
     for path in ("web/index.html",):

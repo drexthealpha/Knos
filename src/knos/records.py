@@ -1,15 +1,15 @@
-"""What the escrows' log lines say, read the one way for everything that counts money: the public numbers
+"""What the vaults' log lines say, read the one way for everything that counts money: the public numbers
 (scripts/network_stats.py), the receipts, statements, SIEM export and invoices of `knos receipts`, the check that a refund
 has executed (`knos status`) and the funder's record the MCP tools quote.
 
 The programs print one line per fact, `knos:` lines on the first deployment and `knos2:` lines on the second, as
-`<prefix>:<event> key=value key=value`; `knos2:terms <json>` carries a job's terms. A line counts only when the escrow
+`<prefix>:<event> key=value key=value`; `knos2:terms <json>` carries a job's terms. A line counts only when the vault
 itself logged it in a transaction that succeeded: a line another program prints in the same transaction is not one.
 `events_of` turns a transaction into events, `history` reads a program's transactions, `jobs_of` folds the events into jobs
 (what was funded and what became of each). New fields in a line (a pull request number, an order) are read as they come:
 every `key=value` becomes a key of the event.
 
-Work orders (knos_pay 2.1) are the second escrow's `knos3:` lines. Their events are named `order_<event>` (order_funded,
+Work orders (knos_pay 2.1) are the second vault's `knos3:` lines. Their events are named `order_<event>` (order_funded,
 order_terms, order_paid, order_settled, order_held, order_refunded, order_warranty, order_released, order_reverted,
 order_reserved, order_cancelled, order_kill, order_topup, order_assigned), and `knos3:bound` is `org_bound`, so nothing
 that reads jobs takes one for a job's. `orders_of` folds them into orders, each in the shape of a job with what an order
@@ -22,7 +22,7 @@ The records for the person who signs off spend are recomputed from the same line
     statement(...)        what one seller was paid in a month; invoice(...) one owner's month, as HTML and CSV
     evaluations(events)   one row per evaluation knos_meter counted (EVAL_COLUMNS): an invoice lists its buyer's
     meter_statement(...)  one buyer's and one seller's month at the meter (`knos statement --meter`)
-    siem_events(events)   every escrow event as one JSON object (SIEM_FIELDS); siem_lines writes JSON Lines
+    siem_events(events)   every vault event as one JSON object (SIEM_FIELDS); siem_lines writes JSON Lines
     month_spent(...)      what an owner funded in a month (jobs and work orders), the figure `policy.allows` counts
                           against a monthly budget
 
@@ -56,9 +56,9 @@ from .settle import pay
 from .settle.v2 import meter
 from .settle.v2 import pay as pay2
 
-PROGRAMS = {str(pay.PAY_ID): 1, str(pay2.PAY_ID): 2}      # the escrow of each deployment
-METER = str(meter.METER_ID)         # knos_meter: no escrow, a count of evaluations (its events are of deployment 2)
-# What each program's lines are called as events: {log prefix: what goes in front of the line's own word}. An escrow
+PROGRAMS = {str(pay.PAY_ID): 1, str(pay2.PAY_ID): 2}      # the vault of each deployment
+METER = str(meter.METER_ID)         # knos_meter: no vault, a count of evaluations (its events are of deployment 2)
+# What each program's lines are called as events: {log prefix: what goes in front of the line's own word}. An vault
 # of the second deployment prints jobs (knos2) and work orders (knos3); the meter prints knosm.
 _NAMES = {1: {"knos": ""}, 2: {"knos2": "", "knos3": "order_"}}
 _METER_NAMES = {"knosm": "meter_"}
@@ -72,11 +72,11 @@ _LOG = re.compile(r"Program log: (knos[23m]?):(\w+)(?: (.*))?$")
 
 # ---- the chain's log, as events ---------------------------------------------------------------------------------------
 def events_of(tx: dict | None, programs: dict[str, int] | None = None) -> list[dict]:
-    """The escrow's log lines in one confirmed transaction, as dicts: "event" (funded, paid, ...; order_funded,
+    """The vault's log lines in one confirmed transaction, as dicts: "event" (funded, paid, ...; order_funded,
     order_paid, ... for a work order's; meter_eval, ... for the meter's), "v" (1 or 2: the deployment), "at" (block
     time), "signer" (the fee payer), "keys" (every account of the transaction), and the line's own fields; a `terms`
     line carries its JSON as "json". Only lines the program printed itself, in a transaction that succeeded.
-    `programs`: {program address: deployment} (default: both escrows, and the meter)."""
+    `programs`: {program address: deployment} (default: both vaults, and the meter)."""
     if not tx or (tx.get("meta") or {}).get("err") is not None:
         return []
     programs = {**PROGRAMS, METER: 2} if programs is None else programs
@@ -250,7 +250,7 @@ def orders_of(events: list[dict]) -> tuple[list[dict], dict]:
 
     and, an order's own:
 
-        order, seq, mode, flags, standing, neutral, private, deadline, fee_escrowed (what its funder put in on top)
+        order, seq, mode, flags, standing, neutral, private, deadline, `fee_escrowed` (what its funder put in on top)
         payees, tos                         every GitHub id paid and every wallet that received (a split has several)
         payments                            one per payee per payment: {at, tx, pr, payee, amount, to, fee, kind}; kind
                                             is paid, released (a holdback after its warranty) or kill (a kill fee);
@@ -366,7 +366,7 @@ def orders_of(events: list[dict]) -> tuple[list[dict], dict]:
 
 
 def _balances(events: list[dict]) -> dict[str | None, dict]:
-    """Every Balance the second escrow's log shows opened: {its address: {owner, authority, mint}}."""
+    """Every Balance the second vault's log shows opened: {its address: {owner, authority, mint}}."""
     out: dict[str | None, dict] = {}
     for ev in events:
         if ev["event"] == "balance" and ev["v"] == 2:
@@ -438,7 +438,7 @@ def count_events(url: str, program, event: str, limit: int = 200, workers: int =
 # ---- reading the history, and GitHub's names for the ids in it --------------------------------------------------------
 @dataclass(frozen=True)
 class Record:
-    """What the escrows' logs and the meter's say: events oldest first, and what could not be read (so a total is never
+    """What the vaults' logs and the meter's say: events oldest first, and what could not be read (so a total is never
     taken for complete)."""
     events: list[dict]
     unread: int = 0                 # transactions the public RPC would not give
@@ -453,7 +453,7 @@ class Record:
 
 
 def read(url: str, limit: int = 1000, with_meter: bool = True) -> Record:
-    """Both escrows' history and knos_meter's from the cluster at `url`: payments, and the evaluations the meter
+    """Both vaults' history and knos_meter's from the cluster at `url`: payments, and the evaluations the meter
     counted (`evaluations`). A transaction that named two of the programs is in two histories and read into the
     events once. `with_meter=False` leaves the meter's out, for a caller that only counts money (it saves the
     requests). Raises what `chain.call` raises when the cluster cannot be asked at all."""
@@ -690,7 +690,7 @@ def invoice_csv(inv: dict) -> str:
     return receipts_csv(inv["lines"])
 
 
-# ---- the meter: evaluations counted, not money escrowed ---------------------------------------------------------------------
+# ---- the meter: evaluations counted, not money held ---------------------------------------------------------------------
 EVAL_COLUMNS = ("date", "time", "month", "buyer_id", "seller_id", "seller", "order", "artifact", "policy", "milestone", "verdict", "rate_units", "fee_units",
                 "transaction")
 """An evaluation knos_meter counted, a row of an invoice's second table and of its `-evaluations.csv`, in this order:

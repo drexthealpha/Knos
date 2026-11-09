@@ -132,7 +132,7 @@ def test_each_tier_has_its_own_terms_carrying_the_spec_hash_under_the_programs_6
     for k in range(len(s["tiers"])):
         raw = S.terms_bytes(s, k)
         assert len(raw) <= S.MAX_TERMS
-        assert raw == pay.terms_json(S.terms(s, k))             # the escrow's own canonical form
+        assert raw == pay.terms_json(S.terms(s, k))             # the vault's own canonical form
         assert json.loads(raw)["spec"] == h and json.loads(raw)["synthetic"] is True
         assert S.terms_hash(s, k) == pay.terms_hash(raw)
         seen.add(raw)

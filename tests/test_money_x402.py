@@ -1,5 +1,5 @@
 """The x402 endpoint (knos.money.x402) on LiteSVM: /fees and /pool are free; /preorder answers 402 with a knos-order
-requirement a wallet can fund, and 200 "escrowed" once the chain shows that order in the claim's pool; /checks sells
+requirement a wallet can fund, and 200 "held" once the chain shows that order in the claim's pool; /checks sells
 a pack of paid checks, each call signed by the funding wallet, replays and strangers refused. And the agent tools."""
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ def test_the_agent_tools_quote_and_plan_and_never_sign(world):
     ixj = got["instruction"]
     ix = Instruction(Pubkey.from_string(ixj["program_id"]), __import__("base64").b64decode(ixj["data"]),
                      [AccountMeta(Pubkey.from_string(a["pubkey"]), a["is_signer"], a["is_writable"]) for a in ixj["accounts"]])
-    assert c.send([ix], funder), c.err                # the wallet signs what the tool returned, and the escrow opens
+    assert c.send([ix], funder), c.err                # the wallet signs what the tool returned, and the vault opens
     assert graduation.escrow(led, got["plan"], str(c.usdc))["locked"] == 10 * USDC
     pre = agent.call("knos_preorder", {"plan": got["plan"], "buyer": str(funder.pubkey()), "buyer_token": str(ftok), "mint": str(c.usdc),
                                        "amount": 5 * USDC}, ledger=led)

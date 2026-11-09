@@ -297,7 +297,7 @@ def order_fees() -> Recorder:
 
 def order_plan() -> Recorder:
     """A Plan lowers the one rate of an owner's orders to no less than 10 basis points: 9 and 31 are refused, 10 is set,
-    and an order of 1,000.00 funded from the owner's Balance then escrows 1.00 on top; a wallet's order pays 0.30%."""
+    and an order of 1,000.00 funded from the owner's Balance then locks 1.00 on top; a wallet's order pays 0.30%."""
     r = scenario("order_plan")
     c = _order_chain(r)
     r.name_it(plan=pay.plan_pda(_order.OWNER))

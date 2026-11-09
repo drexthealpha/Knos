@@ -1,4 +1,4 @@
-"""The public record as static files (scripts/pages_data.py), counted from recorded inputs: the escrows' log lines as
+"""The public record as static files (scripts/pages_data.py), counted from recorded inputs: the vaults' log lines as
 network_stats reads them, a relay log, GitHub's answers as a dict. No network, no chain.
 
 The scenario (`scenario()`): funder 501 (a Balance) funds five jobs in octo/widgets, funder 502 one in acme/gadgets,
@@ -498,7 +498,7 @@ if __name__ == "__main__":
     print("wrote", RECORDED)
 
 
-# ---- work orders (knos_pay 2.1): the escrow's knos3 lines ------------------------------------------------------------
+# ---- work orders (knos_pay 2.1): the vault's knos3 lines ------------------------------------------------------------
 def order(n: int) -> str:
     return str(Pubkey.from_bytes(bytes([40 + n]) * 32))
 

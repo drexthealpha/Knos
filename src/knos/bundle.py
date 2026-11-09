@@ -175,8 +175,8 @@ def _assurance(files: dict[str, bytes], terms: dict) -> list[str]:
 
 
 def _paid_as_recorded(r: dict, call) -> str:
-    """Compare the wallets and amounts of the receipt with what the escrow logged in the paying transaction on the
-    cluster behind `call`. Raises ValueError when they differ, the transaction is gone, or the receipt names an escrow
+    """Compare the wallets and amounts of the receipt with what the vault logged in the paying transaction on the
+    cluster behind `call`. Raises ValueError when they differ, the transaction is gone, or the receipt names a vault
     this knos does not read (a bundle made on another deployment: it is refused as that, not as a changed receipt)."""
     from . import records
     if r["program"] not in records.PROGRAMS:
@@ -458,7 +458,7 @@ def verify_offline(blob: bytes, live=None, mirror: str = "") -> tuple[dict, dict
         if r["version"] >= 3:
             line = _funding_as_archived(r, arch)
             (out[COPY] if line else out["unchecked"]).append(line or "who funded and from what: the archive holds no funding transaction (it was older than the history read)")
-        # the escrow's lines of the archived payment, again: nothing in it may name another order as paid
+        # the vault's lines of the archived payment, again: nothing in it may name another order as paid
         if not any(e["event"] == "order_settled" and e.get("order") == r["order"] for e in records.events_of(inner)):
             raise ValueError("chain.json's paying transaction did not settle this order")
     if r["version"] == 2:
@@ -564,7 +564,7 @@ def _u64s(data: bytes, at: int, count: int) -> list[int]:
 
 def _authorised(call, events: list[dict], o: dict, sig: str, pr: int, funding: dict | None) -> dict:
     """The fifth part of the receipt of the payment `sig` of order `o`: who funded, from what, under which limit, in
-    which role, and whether this order and milestone were paid before. From the escrow's history and the funding
+    which role, and whether this order and milestone were paid before. From the vault's history and the funding
     transaction; a Balance's limits are the ones its log shows at the funding (its opening's cap, and the side
     account's daily and total limits and allow-list as last set before it)."""
     from . import records
@@ -678,7 +678,7 @@ def _verdict_beside(get, claims: dict, order: str, commit: str, pull: int) -> di
 
 def gather(call, events: list[dict], target: str, get, published=None, verdict: str | None = None, declared=()) -> tuple[dict, dict[str, bytes]]:
     """(the receipt, the bundle's files) for the order or paying transaction `target`. `call(method, params)` is the
-    cluster, `events` the escrow's history (records.history), `get(path)` the host's API. `published(issuer)`: the
+    cluster, `events` the vault's history (records.history), `get(path)` the host's API. `published(issuer)`: the
     issuer's key list as `published_keys` gives it, archived as keys.json (None: no list is archived). `verdict`: the
     verdict the paying judge's run handed on (its `knos-verdict:` comment or verdict.json), for a judge outside the
     order's repository; without it the host is asked for the comment that run posted beside its token, and with no

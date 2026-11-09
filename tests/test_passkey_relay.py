@@ -63,7 +63,7 @@ def test_a_comment_funds_the_order_and_the_same_comment_again_is_refused(w: Worl
     assert r == {"ok": True, "kind": "passkey-fund", "sigs": r["sigs"], "wallet": str(w.p.wallet), "order": str(order), "mint": str(w.usdc), "repo_id": REPO,
                  "issue": n, "amount": 20 * USDC, "nonce": 1, "fee": o.fee, "deadline": o.deadline}, r
     assert (o.amount, o.repo_id, o.issue, o.terms, o.source, o.refund_to) == (20 * USDC, REPO, n, TH, w.p.wallet, w.p.wallet)
-    # the fee the live build escrows on 20.00: 0.50 under 2.1 (2.5%), 0.06 under 2.2 (0.30%)
+    # the fee the live build locks on 20.00: 0.50 under 2.1 (2.5%), 0.06 under 2.2 (0.30%)
     assert relay.version(net, w.payer) == w.build.pick(1, 2) and o.fee == w.build.pick(500_000, 60_000)
     assert w.held(order) == 20 * USDC + o.fee == had - w.balance(w.source) and w.nonce() == 1
     # one transaction; the funder spent no SOL, the relay paid the rent of the order and of its token account

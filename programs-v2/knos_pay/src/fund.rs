@@ -199,7 +199,7 @@ struct NewJob<'x> {
     repo: u64, issue: u64, amount: u64, work: i64, mode: u8, kind: u8, faucet: bool, funder_id: u64, owner_id: u64, not_before: i64,
     source: &'x Pubkey, refund_to: &'x Pubkey, terms: [u8; 32], wf_repo: &'x [u8], wf_sha: &'x [u8],
 }
-/// The accounts of an escrow. `auth_signs`: the money comes from a Balance's token account (["auth"] signs the
+/// The accounts of an vault. `auth_signs`: the money comes from a Balance's token account (["auth"] signs the
 /// transfer); otherwise from a token account whose authority signed the transaction.
 struct Escrow<'a, 'b> {
     payer: &'b AccountInfo<'a>, job: &'b AccountInfo<'a>, from: &'b AccountInfo<'a>, authority: &'b AccountInfo<'a>, vault: &'b AccountInfo<'a>,

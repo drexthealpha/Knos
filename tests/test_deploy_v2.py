@@ -175,7 +175,7 @@ def test_every_address_of_the_deployment_is_listed_with_what_it_is():
     ids = oidc.IDS
     for name in ("knos_oidc", "knos_pay", "upgrade_multisig", "upgrade_authority", "guardian_multisig", "guardian", "fee_owner"):
         assert ids[name] in found, name
-    assert found[ids["upgrade_authority"]].startswith("upgrade vault") and found[ids["guardian"]].startswith("guardian vault")
+    assert found[ids["upgrade_authority"]].startswith("upgrade vault") and found[ids["guardian"]].startswith("guardia vault")
     assert found[str(pay.faucet_mint())].startswith("test-USDC mint") and found[str(mc.programdata_address(ids["knos_pay"]))].startswith("knos_pay program data")
     assert sum(what.startswith("GitHub key") for what in found.values()) == 4 and len(found) == len(d.addresses(d.genesis_keys()))
 
@@ -393,7 +393,7 @@ def test_the_shell_script_takes_one_new_mode_a_run_and_each_does_what_the_releas
     assert 'NEW_PROGRAMS="knos_meter knos_passkey upgrade_gate"' in text and 'deploy_one "$name" "$(py id "$name")" "$(new_key "$name")" "$KEYS/$name-buffer.json"' in text
     new = text[text.index("  --new)"):text.index("  --rc)")]
     assert new.index("build $NEW_PROGRAMS") < new.index("deploy_new") < new.index("handover $NEW_PROGRAMS") < new.index("py summary-new")
-    # --rc: fresh keypairs in the key folder, the fee payer as authority, the ids file, and what the staged escrow trusts said aloud
+    # --rc: fresh keypairs in the key folder, the fee payer as authority, the ids file, and what the staged vault trusts said aloud
     rc = text[text.index("rc_deploy() {"):text.index("rc_close() {")]
     assert 'solana-keygen new --no-bip39-passphrase --silent --outfile "$RC/$name-keypair.json"' in rc and 'py rc-ids' in rc and '"$RC/program_ids.json"' in rc
     assert "NOT by the staging verifier" in rc and "export KNOS_PROGRAM_IDS=$RC/program_ids.json" in rc

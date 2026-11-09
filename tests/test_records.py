@@ -1,4 +1,4 @@
-"""Receipts, statements, the SIEM export and invoices (knos.records): all recomputed from the escrows' log lines.
+"""Receipts, statements, the SIEM export and invoices (knos.records): all recomputed from the vaults' log lines.
 
 The recorded inputs are the ones tests/test_network_stats.py reads: every transaction of the first deployment on devnet, and
 twelve jobs played through the second deployment's test build. The check that matters is the first one: what these
@@ -305,7 +305,7 @@ def test_read_gives_both_escrows_oldest_first_and_says_what_it_could_not_read(mo
         return [line("funded", 10, "B", repo=2, issue=2, amount=6)], 0, True
     monkeypatch.setattr(records, "history", fake)
     got = records.read("http://rpc", 200)
-    # the meter's history is read too; a transaction that named the escrow and the meter is in both and counted once
+    # the meter's history is read too; a transaction that named the vault and the meter is in both and counted once
     assert [c[1] for c in calls] == [str(records.pay.PAY_ID), str(records.pay2.PAY_ID), str(records.meter.METER_ID)]
     assert [ev["tx"] for ev in got.events] == ["B", "A"] and [c[0] for c in calls] == ["http://rpc"] * 3 and {c[2] for c in calls} == {200}
     assert got.unread == 2 and got.cut == (2, "meter")
@@ -539,7 +539,7 @@ def orders() -> tuple[list[dict], dict]:
     c.warp(7 * 86_400 + 1)
     c.token_account(taker[1], c.usdc)
     assert terms_.refund(c, taken, pay2.ata(taker[1], c.usdc)), c.err
-    # the Balance was opened before anything here: its line, as the escrow printed it then (it says whose money the orders spent)
+    # the Balance was opened before anything here: its line, as the vault printed it then (it says whose money the orders spent)
     opened = line("balance", 1, "B0", owner=OWNER, authority=str(c.owner.pubkey()), mint=str(c.usdc))
     return [opened, *rec.events()], dict(split=str(split), held=str(held), kept=str(kept), undone=str(undone), standing=str(standing), taken=str(taken), a=a, b=b,
                               taker=taker, repo=REPO, owner=OWNER, maint=MAINT, funder=str(c.funder.pubkey()), balance=str(c.bal))
@@ -686,7 +686,7 @@ def test_knos_statement_meter_is_the_meters_month_and_an_invoice_and_the_export_
     led = Cluster()
     monkeypatch.setattr(cli, "_ledger", lambda: led)
     monkeypatch.setattr(cli, "_fetch", lambda path: {"users/acme": {"id": BUYER}, "users/vendor-bot": {"id": SELLER}}[path])
-    # -- the statement, printed like the escrow's
+    # -- the statement, printed like the vault's
     rc, text, _ = run(capsys, "statement", "--meter", "--buyer", "acme", "--seller", "vendor-bot", "--month", one)
     lines = text.splitlines()
     assert rc == 0 and lines[0].startswith(f"Meter statement for buyer acme (GitHub id {BUYER}) and seller vendor-bot (GitHub id {SELLER}), {one}: UTC days {one}-01 to ")

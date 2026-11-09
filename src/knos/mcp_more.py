@@ -31,7 +31,7 @@ import time
 
 CAPS_KEY = "io.modelcontextprotocol/clientCapabilities"
 LIST_TTL_MS = 300_000
-READ_TTL_MS = 30_000            # escrow state changes; a client may keep a read this long
+READ_TTL_MS = 30_000            # vault state changes; a client may keep a read this long
 CONFIRM_TTL_S = 600
 _SECRET = os.urandom(32)        # signs requestState; a restart only means the person is asked again
 

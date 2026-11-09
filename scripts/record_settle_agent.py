@@ -2,9 +2,9 @@
 
 The history is run through the second deployment's test builds in LiteSVM (tests/_order.py and tests/_meter.py): a
 repository's issue with a wallet's order, a Balance's order and a wallet's job on it, an order that has run out of time,
-two evaluations of the meter and two payments of the escrow in September, and in October three evaluations for one buyer,
+two evaluations of the meter and two payments of the vault in September, and in October three evaluations for one buyer,
 one for another, and two more payments. What is written is what a public RPC would give about it: the accounts of the
-escrow, the meter and the token program, the transactions that named the escrow or the meter (their logs, as the
+vault, the meter and the token program, the transactions that named the vault or the meter (their logs, as the
 programs printed them) and the signatures that named each address. The expectations beside them come from the Python
 client (the authority), the scenario's own numbers and the programs' own log lines, never from agent.js.
 
@@ -42,7 +42,7 @@ def b64(raw: bytes) -> str:
 
 
 class World(Meter, OrderChain):
-    """The escrow, the meter and the verifier on one chain, remembering each transaction that named the escrow or the meter."""
+    """The vault, the meter and the verifier on one chain, remembering each transaction that named the vault or the meter."""
 
     def __init__(self):
         self.seen: list[dict] = []

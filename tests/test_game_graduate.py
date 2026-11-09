@@ -1,5 +1,5 @@
 """Step 6 for a game: the winner's verdict + locked pre-orders + sourced quotes -> the referee's verdict; graduation's
-escrow and pre-orders paid to the contributor split (LiteSVM); Knos Record, the Zenodo sandbox DOI (fixture without a
+vault and pre-orders paid to the contributor split (LiteSVM); Knos Record, the Zenodo sandbox DOI (fixture without a
 token), SWHIDs and the anchor."""
 from __future__ import annotations
 

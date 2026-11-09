@@ -215,7 +215,7 @@ def test_a_standing_order_pays_its_rate_once_per_pull_request_until_less_than_on
     assert not pay_pr(c, order, [(nobody, 10_000, None)], pr=1) and code(c) == 88       # never held: others are waiting
     assert pay_pr(c, order, one, pr=1), c.err
     o = c.order(order)
-    # the order is kept as what is left of it: the amount its payees can still receive, and the fee still escrowed
+    # the order is kept as what is left of it: the amount its payees can still receive, and the fee still held
     assert (o.state, o.amount, o.fee, o.paid, c.balance(ta), c.held(order)) == ("open", 14 * USDC, FEE - FEE * 6 // 20, 0, 6 * USDC, 14 * USDC + FEE - FEE * 6 // 20)
     assert pay.read_marker(c.data(pay.done_pda(order, 1))) == (c.payer.pubkey(), order)
     assert not pay_pr(c, order, one, pr=1) and code(c) == 91                            # one pull request is paid once

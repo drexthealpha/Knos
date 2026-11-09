@@ -12,7 +12,7 @@ result satisfied | needs_revision | max_iterations_reached | failed | interrupte
 The gap Knos fills: the grader belongs to the same platform as the worker and reads a rubric, not sealed tests. So
 `satisfied` is necessary and never sufficient here. When the session is idle with a satisfied outcome, Knos downloads
 the outputs and runs its own judge on them (the referee's sealed checks and re-runs, `judge(files) -> verdict`); only
-Knos's verdict can release escrow, and a refused verdict pays nothing whatever the grader said. The rubric Knos sends
+Knos's verdict can release vault, and a refused verdict pays nothing whatever the grader said. The rubric Knos sends
 holds only the task's public criteria: the sealed tests never enter the session.
 
 Model: claude-opus-5-5 (the skill's default). Nothing here runs without ANTHROPIC_API_KEY; the tests drive it with a

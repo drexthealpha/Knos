@@ -106,7 +106,7 @@ claims none.
   the referrer's share. Orders made before the group was configured keep the 3 server keys until they settle.
 - FAIL verdicts: refunds after the deadline need no verdict. A threshold FAIL verdict is not built.
 
-## Pay on proof from any source
+## Payment after proof from any source
 
 Until 0.3.34 every Knos work order was released by a forge: a workflow at a pinned commit, run on GitHub or
 gitlab.com, whose token `knos_oidc` verified on chain. Research does not all live on a forge.

@@ -1,4 +1,4 @@
-"""Pre-orders on an OPEN demand report, paid to the maker only on proof: Knos's staged escrow (knos.ideas.commit).
+"""Pre-orders on an OPEN demand report, paid to the maker only on proof: Knos's staged vault (knos.ideas.commit).
 
 One pre-order = one commitment with ONE stage, "milestone" (oracle referee_pass), locked on the knos_pay 0.3.34 TEST
 program on devnet as a PANEL order: 2 of 3 referee keys release it to the maker's wallet; past its deadline anyone

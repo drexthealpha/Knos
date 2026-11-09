@@ -15,14 +15,14 @@ from .pins import _no
 from .tokens import _Token, _ints, _units
 
 
-# -- what each audience asks of the escrow, decided with reads alone ----------------------------------------------------
+# -- what each audience asks of the vault, decided with reads alone ----------------------------------------------------
 Group = tuple[list[Instruction], int]       # instructions that go in one transaction together, and their compute units
 
 
 @dataclass
 class _Plan:
     t: _Token
-    groups: list[Group]                     # the escrow's instructions, in order
+    groups: list[Group]                     # the vault's instructions, in order
     done: Callable[[list[str]], dict]       # the result, once they have all landed
     token: bool = True                      # whether they need the token verified (and its account closed behind them)
     alone: bool = False                     # whether the transactions after the one with the last Step depend on nothing but it
@@ -58,7 +58,7 @@ def _decimals(mint: bytes | None) -> int:
 
 
 def _bounds(kind: str, amount: int, decimals: int, least: int = pay.MIN_AMOUNT, what: str = "a bounty") -> None:
-    """The escrow's limits are whole units of the mint, whatever its decimals."""
+    """The vault's limits are whole units of the mint, whatever its decimals."""
     low, high, one = pay.units(least, decimals), pay.units(pay.MAX_AMOUNT, decimals), 10 ** decimals
     if not low <= amount <= high:
         raise _no(kind, f"{what} is from {low / one:,.2f} to {high / one:,.2f}; this token asks for {amount / one:,.2f}")
@@ -88,6 +88,6 @@ class _Ask:
     me: Pubkey
     t: _Token
     now: int
-    v: int                      # the escrow's version on this cluster
+    v: int                      # the vault's version on this cluster
     terms: bytes | None = None
     jwks: dict | None = None

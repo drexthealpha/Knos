@@ -362,7 +362,7 @@ def test_a_comment_spends_a_balance_of_real_money_in_either_token_program(env):
     payee, wallet = user(), Keypair().pubkey()
     r = go(env, pay_jwt(c, REPO, n, payee, wallet))
     assert r["ok"] and r["paid"][0]["mint"] == str(c.usdc) and c.balance(pay.ata(wallet, c.usdc)) == P(19_500_000, 19_940_000), r
-    # a Token-2022 mint with extensions the escrow's list allows: the relay passes the Balance's token program, and
+    # a Token-2022 mint with extensions the vault's list allows: the relay passes the Balance's token program, and
     # makes the payee's and the fee owner's token accounts with it
     coin = c.new_mint22(confidential=True, close_authority=True)
     w, wtok = c.wallet(coin, 100 * USDC)
@@ -469,7 +469,7 @@ def test_the_longest_terms_ride_with_the_last_step_in_a_v1_transaction_and_not_i
     assert r["ok"] and net.terms_of(Pubkey.from_string(r["job"])) == terms, r
     # two transactions, as for any token: the faucet's instruction, the funding with its 600 bytes and the Close all ride with the last Step
     assert net.shape == [1, 1] and chain.MAX_TX_BYTES < max(net.sizes) <= relay.ROOM_V1 < chain.MAX_V1_BYTES, (net.shape, net.sizes)
-    # the legacy path (the 2.0 escrow, or a cluster that takes no v1 transaction): the faucet's instruction rides with
+    # the legacy path (the 2.0 vault, or a cluster that takes no v1 transaction): the faucet's instruction rides with
     # the last Step; the funding has a transaction to itself, and not even the Close fits beside it
     monkeypatch.setattr(net, "takes_v1", False)
     c.warp(60)
@@ -483,9 +483,9 @@ def test_the_longest_terms_ride_with_the_last_step_in_a_v1_transaction_and_not_i
                                                               pay.faucet_balance_pda(org), pay.faucet_mint(), repo, n, terms, used=jwt)], c.payer.pubkey()) == 1208
 
 
-# -- which escrow the cluster runs -----------------------------------------------------------------------------------------
+# -- which vault the cluster runs -----------------------------------------------------------------------------------------
 class Old:
-    """A ledger whose cluster runs the deployed 2.0 escrow: it refuses instruction 12, as that program does, and
+    """A ledger whose cluster runs the deployed 2.0 vault: it refuses instruction 12, as that program does, and
     simulates everything else as the cluster would (knos_meter and knos_passkey are programs of their own). With
     `why`, a cluster that does not answer at all."""
 
@@ -882,7 +882,7 @@ def test_a_jobs_terms_are_the_ones_its_hash_names_whatever_else_was_logged_at_it
     assert net.log_of(job, "knos2:terms ") == 'knos2:terms {"checks":[],"v":2}'      # the newest line, unless told whose and which is meant
     assert net.log_of(job, "knos2:terms ", by=pay.PAY_ID) == "knos2:terms " + _OTHER.decode()
     assert net.log_of(job, "knos2:terms ", lambda line: '"v":1' in line) == "knos2:terms " + _OTHER.decode()
-    assert net.terms_of(job) == _OTHER                          # the escrow's own line, and the hash in the job tells
+    assert net.terms_of(job) == _OTHER                          # the vault's own line, and the hash in the job tells
     # knos-pay itself logging other terms in a transaction that names this address (someone funds a job of their own
     # and lists this one beside it) does not change the answer either
     net.named[job].append("their own job")
@@ -956,7 +956,7 @@ def test_a_token_relayed_twice_or_by_two_relayers_is_done_once(env):
 
 
 def test_a_token_carried_before_is_known_by_what_it_left_on_chain_and_by_nothing_else(env):
-    """What "already" rests on: a job keeps its fund token's time and commenter; a payment is in the escrow's own log,
+    """What "already" rests on: a job keeps its fund token's time and commenter; a payment is in the vault's own log,
     at the proof's own time. Not on what the Balance took last, and not on a line anyone can write."""
     c, net = env
     n = issue()
@@ -1087,7 +1087,7 @@ def test_a_hiccup_of_the_cluster_is_tried_again_and_a_refusal_is_not(env):
     assert go(env, fund, TERMS)["ok"]                            # the same token, on the next pass
     assert relay.transient(TimeoutError()) and relay.transient(chain.RpcError("custom program error: 0x54")) and relay.transient(chain.RpcError("Blockhash not found"))
     assert not relay.transient(chain.RpcError("transaction failed: {'InstructionError': [0, {'Custom': 91}]}"))
-    # the escrow's own refusal, in the words of its client, is a verdict: the job was funded between the read and the send
+    # the vault's own refusal, in the words of its client, is a verdict: the job was funded between the read and the send
     n = issue()
     late = fund_jwt(c, n)
 
@@ -1466,7 +1466,7 @@ def test_a_comment_funds_a_work_order_and_a_proof_pays_its_four_payees_in_two_tr
     assert c.balance(pay.ata(relayer.pubkey(), c.usdc)) == pay.TIP_FIRST == 300_000 and c.balance(c.fee) - fee0 == P(2_200_000, 0)
     print(f"\nPayOrder, four new payees, beside the last Step: {net.sizes[-1]} bytes, {net.units[-1]:,} compute units")
     assert (net.txs, net.waits, net.shape) == (2, 2, [1, 1]) and chain.MAX_TX_BYTES < net.sizes[-1] <= relay.ROOM_V1 and net.units[-1] < chain.MAX_COMPUTE_UNITS
-    # the proof again, by anyone: the order is gone, and the escrow's own log says who was paid; nothing is spent
+    # the proof again, by anyone: the order is gone, and the vault's own log says who was paid; nothing is spent
     n0 = net.txs
     again = go(oenv, proof, None, c.fund())
     assert again == {**{k: v for k, v in r.items() if k not in ("repo_id", "issue", "mint")}, "sigs": r["sigs"][-1:], "already": True} and net.txs == n0, again
@@ -1618,7 +1618,7 @@ def test_an_orders_fund_token_is_refused_before_any_fee_and_the_faucet_funds_one
     net.spent()
     r = go(oenv, jwt, TERMS)
     assert r["ok"] and r["faucet"] and r["fee"] == P(500_000, 60_000) and (net.txs, net.waits) == (2, 2) and c.held(Pubkey.from_string(r["order"])) == P(20_500_000, 20_060_000), r
-    # the deployed 2.0 escrow knows no order: its relay says so, and spends nothing
+    # the deployed 2.0 vault knows no order: its relay says so, and spends nothing
     monkeypatch.setattr(relay, "_VERSION", {("litesvm", pay.PAY_ID): 0})
     for jwt in (order_fund_jwt(c, issue()), order_pay_jwt(c, first, [(77, 10_000, None)])):
         assert refused(oenv, jwt, TERMS, "the payment program on this cluster is version 2.0, which takes no such token yet")
@@ -1668,7 +1668,7 @@ def test_a_neutral_run_the_judge_repository_and_the_arbiter_each_pay_an_order(oe
     assert r == {"ok": True, "kind": "rule", "sigs": r["sigs"], "order": str(disputed), "repo_id": REPO, "issue": n, "mint": str(c.usdc),
                  "paid": [row(seller, 28 * USDC, wallet), row(MAINT, 12 * USDC, buyer)]}, r
     assert c.order(disputed) is None and c.balance(pay.ata(buyer, c.usdc)) == 12 * USDC
-    again = go(oenv, ruling, None, c.fund())                    # by another relayer: the escrow's own log says who was paid
+    again = go(oenv, ruling, None, c.fund())                    # by another relayer: the vault's own log says who was paid
     assert again["ok"] and again["already"] and again["paid"] == r["paid"], again
 
 
@@ -1694,7 +1694,7 @@ def test_a_comment_in_its_judge_repository_funds_a_private_order_and_its_wallets
     scope = pay.scope_of(secret_repo, secret_issue, bytes(range(32)))
     beside = (scope + th).hex().encode()                    # the `knos-terms:` line of the funding comment
     assert relay.private_terms(beside) == relay.private_terms(scope + th) == scope + th and relay.private_terms(TERMS) is None
-    # -- every refusal the escrow would give is given first, for nothing
+    # -- every refusal the vault would give is given first, for nothing
     other = (pay.scope_of(secret_repo, secret_issue, bytes(32)) + th).hex().encode()
     for jwt, terms, want in (
             (private_fund_jwt(c, scope, judge_repo), None, "the order's scope and terms hash did not come with its token"),
@@ -1782,13 +1782,13 @@ def test_a_comment_in_its_judge_repository_funds_a_private_order_and_its_wallets
     v = relay.verify_only(net, me, token(c, "https://vault.acme.example", key=ci, iss=url), JWKS, now=c.now())
     assert v["ok"] and oidc.read_token(c.data(Pubkey.from_string(v["account"]))).issuer == oidc.OTHER, v
     assert oidc.token_issuer(c.data(Pubkey.from_string(v["account"]))) == (oidc.issuer_hash(url), None)
-    # the escrow takes nothing a registered issuer signed, and the relay says so for nothing
+    # the vault takes nothing a registered issuer signed, and the relay says so for nothing
     _n, third = ordered(oenv, options=pay.opts(judge_repo_id=judge_repo))
     theirs = token(c, pay.order_pay_audience(third, "a" * 40, TH, pay.MERGE, 7, payees), key=ci, iss=url, repository_id=judge_repo)
     assert "a token of another issuer is verified for other programs to read" in refused(oenv, theirs, None, "the payment program takes GitHub's tokens only")["why"]
 
 
-# -- a command (Reserve, Cancel) and a revert: the relay refuses what the escrow refuses, and carries what it takes ------------------
+# -- a command (Reserve, Cancel) and a revert: the relay refuses what the vault refuses, and carries what it takes ------------------
 E_ACCOUNTS, E_STATE, E_CLAIMS, E_WORKFLOW, E_AUD = 80, 83, 85, 86, 87     # knos_pay's codes (programs-v2/knos_pay/src/lib.rs)
 JUDGE_REPO, ARBITER = 31_313_131, 7_700_077
 COMMENT = {"file": "fund.yml", "event_name": "issue_comment"}              # the order's COMMAND job answering a comment
@@ -1800,8 +1800,8 @@ ORDERS = {"plain": {}, "neutral": {"flags": pay.F_NEUTRAL}, "judged": {"judge_re
 
 
 def escrow_says(oenv, jwt: str, ix_of) -> int | None:
-    """The escrow's own answer to a token, with no relay in between: the verifier takes the token as it stands and
-    `ix_of(token account)` is sent. None when the escrow did what the token asks, else the escrow's error code."""
+    """The vault's own answer to a token, with no relay in between: the verifier takes the token as it stands and
+    `ix_of(token account)` is sent. None when the vault did what the token asks, else the vault's error code."""
     from _order import code
     c, _net = oenv
     tok = c.verify(jwt, oidc.GITHUB, c.github)
@@ -1817,7 +1817,7 @@ def take_jwt(c: Chain, order: Pubkey, taker: int, days: int = 5, **over) -> str:
     return token(c, pay.take_audience(order, taker, days), **over)
 
 
-# what -> (the order, the take token for `who`, None when the escrow reserves on it, else (its code, what the relay says first))
+# what -> (the order, the take token for `who`, None when the vault reserves on it, else (its code, what the relay says first))
 TAKES = {
     "the order's fund.yml answering the taker's comment": ("plain", lambda c, o, who: take_jwt(c, o, who, actor_id=who, **COMMENT), None),
     "the order's prove.yml on the taker's pull request": ("plain", lambda c, o, who: take_jwt(c, o, who, actor_id=who), None),
@@ -1885,7 +1885,7 @@ def cancel_jwt(c: Chain, order: Pubkey, **over) -> str:
 
 NOT_HIS = "only the commenter who funded the order, or the owner of the balance it came from, cancels it"
 NEUTRAL_CANCEL = "a neutral run cancels nothing"
-# what -> (the order, the cancel token, None when the escrow cancels on it, else (its code, what the relay says first)). MAINT funded every one from OWNER's Balance
+# what -> (the order, the cancel token, None when the vault cancels on it, else (its code, what the relay says first)). MAINT funded every one from OWNER's Balance
 CANCELS = {
     "the order's fund.yml answering the funder's comment": ("plain", lambda c, o: cancel_jwt(c, o, actor_id=MAINT, **COMMENT), None),
     "the order's prove.yml run by the funder": ("plain", lambda c, o: cancel_jwt(c, o, actor_id=MAINT), None),
@@ -1935,7 +1935,7 @@ def revert_jwt(c: Chain, order: Pubkey, head: str = "a" * 40, **over) -> str:
     return token(c, pay.revert_audience(order, head), **over)
 
 
-# what -> (the order, the revert token, None when the escrow sends the holdback back on it, else (its code, what the relay says first))
+# what -> (the order, the revert token, None when the vault sends the holdback back on it, else (its code, what the relay says first))
 REVERTS = {
     "a. the order's prove.yml": ("plain", lambda c, o: revert_jwt(c, o), None),
     "a. the order's prove.yml, whoever else could judge": ("all", lambda c, o: revert_jwt(c, o, actor_id=user()), None),
@@ -2224,7 +2224,7 @@ def test_an_evaluation_is_recorded_by_the_meter_once_and_what_it_would_refuse_co
     c.mint_to(mint, meter.crtok_pda(empty), 50_000)
     r = go(env, short)
     assert r["ok"] and r["accepted"] is False and r["fee"] == 50_000 and c.held(empty) == 0, r
-    # knos_meter never calls the escrow: on a cluster whose escrow is still 2.0 (it refuses Version) an evaluation is
+    # knos_meter never calls the vault: on a cluster whose vault is still 2.0 (it refuses Version) an evaluation is
     # counted all the same, in legacy transactions, from the day the meter is deployed
     old = Old(net)
     assert relay.version(old, c.payer) == 0
@@ -2242,7 +2242,7 @@ def test_an_evaluation_is_recorded_by_the_meter_once_and_what_it_would_refuse_co
     assert r == {"ok": False, "kind": "eval", "why": f"knos_meter ({meter.METER_ID}) is not deployed on this cluster, so no evaluation can be counted here"}, r
     assert (net.txs, lamports(c)) == (n0, sol)
     # once the month is over and no token of it can come again, the relayer takes back the rent of the marks it paid for:
-    # knos_meter's own instruction, sent whatever the escrow's version
+    # knos_meter's own instruction, sent whatever the vault's version
     mine = meter.marks_of(net, c.payer.pubkey())
     assert len(mine) == 3 and relay.close_marks(net, c.payer, c.now()) == [] and relay.close_marks(old, c.payer, c.now()) == []
     c.warp(meter.close_after(c.now()) - c.now())
@@ -2301,12 +2301,12 @@ def test_a_passkey_withdrawal_request_is_simulated_then_sent_at_the_relays_cost(
     r = relay.withdraw(bare, c.payer, ask(USDC, 3))
     assert r["why"] == f"knos_passkey ({pk.PASSKEY_ID}) is not deployed on this cluster, so no passkey wallet can withdraw here" and bare.asked == 0
     assert (net.txs, lamports(c)) == (n0, sol)
-    # knos_passkey never calls the escrow: on a cluster whose escrow is still 2.0 (it refuses Version) the withdrawal is
-    # simulated and sent the same way, the day the passkey program is deployed, not the day the escrow's upgrade executes
+    # knos_passkey never calls the vault: on a cluster whose vault is still 2.0 (it refuses Version) the withdrawal is
+    # simulated and sent the same way, the day the passkey program is deployed, not the day the vault's upgrade executes
     old = Old(net)
     r = relay.withdraw(old, c.payer, ask(USDC, 3))
     assert r["ok"] and r["nonce"] == 3 and c.balance(to) == 13 * USDC and pk.read_wallet(c.data(p.wallet)).nonce == 3, r
-    assert old.asked == 1 and relay.version(old, c.payer) == 0          # its one simulation was the withdrawal's own: the escrow's version is not asked
+    assert old.asked == 1 and relay.version(old, c.payer) == 0          # its one simulation was the withdrawal's own: the vault's version is not asked
     assert relay.withdraw(net, c.payer, ask(USDC, 4))["ok"] and c.balance(to) == 14 * USDC
 
 
@@ -2385,7 +2385,7 @@ def test_every_audience_goes_through_one_table():
         "knos2:fund:": ("fund", 0), "knos2:pay:": ("pay", 0), "knos2:bind:": ("bind", 0), "knos-oidc:key:": ("key", 0), "knos-oidc:ikey:": ("key", 1),
         "knos3:fund:": ("fund", 1), "knos3:pay:": ("pay", 1), "knos3:auto:": ("pay", 1), "knos3:rule:": ("rule", 1), "knos3:take:": ("take", 1), "knos3:cancel:": ("cancel", 1),
         "knos3:revert:": ("revert", 1), "knos3:bind:": ("bind", 1), "knosm:eval:": ("eval", 0),
-        "knosm:batch:": ("batch", 0), "knosm:claim:": ("claim", 0)}     # the meter is a program of its own: no 2.1 escrow
+        "knosm:batch:": ("batch", 0), "knosm:claim:": ("claim", 0)}     # the meter is a program of its own: no 2.1 vault
     assert relay.kind_of("knos3:pay:x") == "pay" and relay.kind_of("knos3:take:x") == "take" and relay.kind_of("knos:fund:1") is None
     assert [prefix for prefix, k in relay.KINDS.items() if k.first] == ["knos-oidc:key:"]         # the first deployment is handed GitHub's and GitLab's keys, nothing else
 
@@ -2403,7 +2403,7 @@ def cost(env, send) -> tuple[int, int, list[int], int, int]:
 
 def test_transactions_waits_and_compute_units_of_every_path(monkeypatch):
     """A relay's time goes into waiting for confirmations, each after the one before. This relay sends a token's
-    chunks side by side and puts the last verification step, the escrow's instruction and the Close into one
+    chunks side by side and puts the last verification step, the vault's instruction and the Close into one
     transaction. Every path is counted here, so a change that costs a transaction or a wait fails; the compute units
     are LiteSVM's. Run with -s to see the table.
     The paths are relayed on a chain of their own from fixed inputs (the payer, the mint, the owner, the ids, the
@@ -2450,17 +2450,17 @@ def test_transactions_waits_and_compute_units_of_every_path(monkeypatch):
     print()
     for path, (txs, waits, shape, most, total) in rows.items():
         print(f"{path:38} {txs} transactions  {waits} waits  per wait {shape!s:15}  compute units: {total:9,} in all, {most:9,} in the largest")
-    two = (2, 2, [1, 1])        # Write + first Step, then last Step + the escrow's instructions + Close: v1 transactions
+    two = (2, 2, [1, 1])        # Write + first Step, then last Step + the vault's instructions + Close: v1 transactions
     assert {path: row[:3] for path, row in rows.items()} == {
         "fund from a Balance": two, "fund, the faucet opened on the way": two, "pay to the address in the proof": two, "pay held (no wallet known)": two,
         "bind (nothing held)": two, "bind, then settle the held job": two, "pay to a bound wallet": two, "key registered": two, "key refreshed": two,
         "refund of an unproven bounty": (1, 1, [1]), "settle of a held bounty": (1, 1, [1]), "verify only (a 1,7xx-byte token)": two}, rows
-    # the last Step and the escrow together, with room to spare under the 1,400,000 a transaction may use
+    # the last Step and the vault together, with room to spare under the 1,400,000 a transaction may use
     assert all(row[3] < chain.MAX_COMPUTE_UNITS - 300_000 for row in rows.values()), rows
 
 
 def test_without_v1_transactions_a_token_takes_four_legacy_ones_and_a_cluster_that_refuses_v1_is_asked_once(env, monkeypatch):
-    """The path of 0.3.12, kept: for the 2.0 escrow (nothing new is sent to it), for a ledger that sends no v1
+    """The path of 0.3.12, kept: for the 2.0 vault (nothing new is sent to it), for a ledger that sends no v1
     transaction, and for a cluster whose validators or endpoint refuse one. That refusal is taken once: the token
     then goes the old way in the same call, and so does every token after it."""
     c, net = env
@@ -2484,7 +2484,7 @@ def test_without_v1_transactions_a_token_takes_four_legacy_ones_and_a_cluster_th
     ok(relay.submit(old, c.payer, pay_jwt(c, repo, n, payee, wallet), None, JWKS, now=c.now()))
     assert (old.refused, net.txs, net.v1s) == (1, 4, 0) and c.balance(pay.ata(wallet, pay.faucet_mint())) == P(4_875_000, 4_950_000)
     assert chain.v1_refused(chain.RpcError("Transaction version (1) is not supported by the requesting client")) and not chain.v1_refused(chain.RpcError("custom program error: 0x54"))
-    # a ledger that sends none, and the 2.0 escrow: four transactions and three waits each, as before
+    # a ledger that sends none, and the 2.0 vault: four transactions and three waits each, as before
     monkeypatch.setattr(net, "takes_v1", False)
     rows = {"fund": cost(env, lambda: ok(go(env, fund_jwt(c, issue()), TERMS))),
             "pay": cost(env, lambda: ok(go(env, pay_jwt(c, REPO, funded(env)[0], user(), wallet)))),
@@ -2704,7 +2704,7 @@ def test_a_v1_transaction_holds_4096_bytes_and_carries_its_limits_in_the_message
         ledger.simulate([pay.version_ix()], payer)
     monkey = {("https://rpc.example", pay.PAY_ID)}
     relay._VERSION.pop(("https://rpc.example", pay.PAY_ID), None)
-    assert relay.version(ledger, payer) == 0 and set(relay._VERSION) >= monkey      # the deployed 2.0 escrow answers exactly this
+    assert relay.version(ledger, payer) == 0 and set(relay._VERSION) >= monkey      # the deployed 2.0 vault answers exactly this
     relay._VERSION.pop(("https://rpc.example", pay.PAY_ID), None)
 
 

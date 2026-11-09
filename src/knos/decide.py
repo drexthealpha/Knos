@@ -225,7 +225,7 @@ def keep_keys(lists: Mapping[str, dict], at: int, path: Path | None = None) -> P
 
 
 def fetch_keys() -> dict[str, dict]:
-    """The key lists of the issuers the escrow knows by number, read from them now. The one call here that uses a
+    """The key lists of the issuers the vault knows by number, read from them now. The one call here that uses a
     network; `offline` never makes it."""
     from .settle.v2 import relay
     return {url: relay.first.fetch_jwks(number) for number, url in sorted(relay.oidc.ISSUERS.items())}

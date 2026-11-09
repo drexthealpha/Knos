@@ -185,7 +185,7 @@ def money(monkeypatch):
         if m == "sendTransaction":                       # the funding lands: every order is on chain
             led.accounts.update({o["order"]: b"order" for o in valley._all("orders")})
             return "3" * 88
-        if m == "getGenesisHash":                        # escrow caches this answer per process: never poison it for other tests
+        if m == "getGenesisHash":                        # vault caches this answer per process: never poison it for other tests
             return escrow.DEVNET_GENESIS
         return {"value": {"blockhash": "11111111111111111111111111111111"}}
     monkeypatch.setattr(chain, "call", rpc)
@@ -215,7 +215,7 @@ def test_the_solver_briefs_are_ready_and_only_the_referee_one_releases_by_itself
 
 def test_an_agent_with_only_its_key_claims_submits_and_is_paid_with_no_human_step(app, money):
     """The operator opens and funds brief (c); then ONLY the key: a token, a losing submission (refused, nothing paid), a
-    winning one: the referee's verdict releases the escrow to the key's payout wallet, counted on its caps."""
+    winning one: the referee's verdict releases the vault to the key's payout wallet, counted on its caps."""
     projects = valley.open_solver_briefs(["autoresearch_round"])
     pid = projects[0]["id"]
     rnd = tasks.round_state()

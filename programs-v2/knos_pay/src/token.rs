@@ -1,4 +1,4 @@
-//! The two token programs this escrow accepts (SPL Token and Token-2022), what it checks of a mint and of a token
+//! The two token programs this vault accepts (SPL Token and Token-2022), what it checks of a mint and of a token
 //! account, and the only token instructions it ever sends: TransferChecked, InitializeAccount3, GetAccountDataSize
 //! CloseAccount (an order's own token account, once empty) and, for the devnet faucet, InitializeMint2 and MintTo. It
 //! also asks the Associated Token Account program to create a payee's token account (PayOrder, SettleOrder).
@@ -24,7 +24,7 @@ pub struct Mint { pub decimals: u8, pub t22: bool }
 
 /// The mint, checked: `token` is SPL Token or Token-2022 and owns it, and it is an initialised mint. With `funding`
 /// (money is about to enter in this mint) a Token-2022 mint's extensions are walked too, see `extensions_ok`. Money
-/// leaving is never held to that: what is in escrow must always be able to go out.
+/// leaving is never held to that: what is in vault must always be able to go out.
 pub fn mint_of(mint: &AccountInfo, token: &AccountInfo, funding: bool) -> Result<Mint, ProgramError> {
     let t22 = *token.key == TOKEN_2022;
     if (!t22 && *token.key != TOKEN) || mint.owner != token.key { return Err(err(E_MINT)); }

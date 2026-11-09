@@ -1137,7 +1137,7 @@ def test_two_jobs_on_one_issue_are_each_accounted_for_and_a_bad_one_never_stops_
                            f"It went to `{WALLET}`, the wallet bound to @mona's GitHub account ([transaction]({EXPLORER}/tx/sig2?cluster=devnet), "
                            "30 s after the merge).")
     assert len(w.signer.asked) == 1 and w.chain.jobs() == []
-    # other terms on the second job: each gets its own decision, and the one that cannot be paid stays in escrow
+    # other terms on the second job: each gets its own decision, and the one that cannot be paid stays in vault
     w = bounty(tmp_path)
     left = w.chain.fund(7, 5_000_000, {**BOUGHT, "checks": [{"app": 15368, "name": "lint"}]}, source=key("wallet"), faucet=False)
     w.chain.bind(MONA)
@@ -1713,7 +1713,7 @@ def test_the_states_follow_the_public_workers_line_and_a_refusal_ends_in_the_sam
     w.hub.__class__ = NoEdits
     assert flow.settle(w.run(w.hub.merge(12))) == 0
     assert [plain(x)[:14] for x in w.hub.knos(12)] == ["Knos: received", "Knos: paid. @m"]
-    # a push that merged a pull request with nothing in escrow says nothing at all, as before
+    # a push that merged a pull request with nothing in vault says nothing at all, as before
     w = world(tmp_path)
     w.hub.pull(12, MONA, "Fixes #7")
     assert flow.settle(w.run(w.hub.merge(12))) == 0 and w.hub.knos(12) == []

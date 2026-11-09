@@ -11,7 +11,7 @@ lives in memory for 30 minutes and is not written to the record.
                 qloo_rank        the confirmed proxies of the products open for pre-order, against the buyer's signals
                                  (one call per product type: a rank is one option type, and scores from separate calls
                                  are not comparable, as Qloo says)
-  3. pre-order: the existing Knos graduation pre-order (knos_wanted.escrow), recorded by knos_wanted.company.
+  3. pre-order: the existing Knos graduation pre-order (knos_wanted.`escrow`), recorded by knos_wanted.company.
 """
 from __future__ import annotations
 

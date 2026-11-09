@@ -1,7 +1,7 @@
 """The GitLab round as one command (scripts/gitlab_round.py): on the simulator, with a stand-in for gitlab.com whose
 tokens the test key signs, a wallet funds an order for a GitLab project, a pipeline that a pipeline started signs
 the pay audience, knos_oidc verifies the token and knos_pay pays the merge request's author. Without credentials the
-command says what is missing and exits 3. A token the escrow would refuse is refused before any fee."""
+command says what is missing and exits 3. A token the vault would refuse is refused before any fee."""
 from __future__ import annotations
 
 import json

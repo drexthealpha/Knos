@@ -1,7 +1,7 @@
 """Paying a variable result with today's fixed-amount orders: one knos_pay order per tier.
 
 Tier k is a work order funded from the buyer's wallet (FundOrderWallet) for the spec's repository and issue, with
-seq = escrow.seq_start + k, the tier's amount, the tier's terms (`knos.outcomes.spec.terms`: the spec's hash, the
+seq = `escrow`.seq_start + k, the tier's amount, the tier's terms (`knos.outcomes.spec.terms`: the spec's hash, the
 tier, its bar) and the pin: the repository's prove.yml at the commit that holds the spec, the lock and the measuring
 code. So:
 

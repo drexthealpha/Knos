@@ -5,7 +5,7 @@ Token Factory) -> the Knos referee judges that code on sealed tests -> paid, fin
 
   1 post       the task (examples/nebius/task: TASK.md, the repository, the hidden acceptance tests) is SEALED by the
                referee (spec hash + judge hash, published before work starts). With --wallets the team funds the
-               bounty into knos_pay escrow on Solana devnet; the terms carry the seal hash.
+               bounty into knos_pay vault on Solana devnet; the terms carry the seal hash.
   2 code       knos.nebius.agent: Nemotron 3 Super writes duration.py and its tests, the agent runs pytest, feeds the
                failures back, until its own tests pass (real runs; the model replies are MOCK without NEBIUS_API_KEY)
   3 check fee  with --wallets the agent pays one raw check (0.02, the decided x402 price) over x402 v2 exact through

@@ -15,7 +15,7 @@
 Two ways to run it: the GitHub Action (actions/gate: a `workflow_run` job named "Knos Gate", after the
 `pull_request` run of knos-gate-pr.yml) or the GitHub
 App (github-app/, which owns the check run and the comment and dispatches the same workflow). docs/reference/REFEREE.md is the page.
-Nothing here needs a wallet, a token on chain or an escrow unless bounties mode is on.
+Nothing here needs a wallet, a token on chain or a vault unless bounties mode is on.
 
 Not the same thing as knos.verdict_gate (the hand-off between two jobs of prove.yml), knos.settle.v2.gate (the
 upgrade gate's on-chain record) or `knos proof gate` (the free claims check of action.yml)."""

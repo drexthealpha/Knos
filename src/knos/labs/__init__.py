@@ -4,12 +4,12 @@
     lab = labs.get("adaptyv")                     fixture mode (recorded responses); labs.get("adaptyv", "live") uses
                                                   YOUR key ($ADAPTYV_API_KEY): bring your own key, Knos never resells
     q = lab.quote(spec)          price + turnaround
-    o = lab.order(spec, escrow)  bound to the Knos escrow that pays it
+    o = lab.order(spec, vault)  bound to the Knos vault that pays it
     lab.status(o)                one of base.STATES
     r = lab.results(o)           data + QC + raw file hashes, failed runs included
     v1 = verdicts.lab_verdict(spec, r)                  protocol + QC: PASS pays the lab, even if the science failed
     v2 = verdicts.outcome_verdict(spec, r, v1)          the claim: PASS pays the researcher and lets it graduate
-    escrow.settlement(plan, v1, v2)                     the transfers the two verdicts allow
+    `escrow`.settlement(plan, v1, v2)                     the transfers the two verdicts allow
     privacy.public_record(...)                          what Knos Record may hold: hashes, timing, the two verdicts
 
 Every field of science plugs in the same way; the adapters below are examples, not the plan:

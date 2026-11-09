@@ -7,12 +7,12 @@ is never printed. What it does, each step once (a step whose account already exi
 
   1. a test mint of its own (6 decimals, no freeze authority) and 1,000 test units to the payer: the faucet's test
      USDC needs a GitHub fund token, and Circle's devnet USDC a web faucet, so the demo mints its own TEST money;
-  2. claim A (synthetic verdict, passed): the milestone escrow funded by the payer, and two buyers' pre-orders in
-     the pool (the escrow open for 30 days, the pre-orders for 90): they stay on chain, locked, for the dashboard;
+  2. claim A (synthetic verdict, passed): the milestone vault funded by the payer, and two buyers' pre-orders in
+     the pool (the vault open for 30 days, the pre-orders for 90): they stay on chain, locked, for the dashboard;
   3. claim B (synthetic): one pre-order with a 60-second deadline, then RefundOrder after it: the money and the fee
      go back to the buyer.
 
-The payout of an escrow needs a GitHub-signed token from the judge repository's pinned prove.yml (knos_oidc verifies
+The payout of a vault needs a GitHub-signed token from the judge repository's pinned prove.yml (knos_oidc verifies
 it on chain): the demo does not fake one. The payout path, split and fee included, runs in LiteSVM against the
 program's test build (tests/test_money_graduation.py), and the audience the judge would sign is written to the output.
 
@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
 
     contributors = [{"role": "researcher", "github_id": 1}, {"role": "agent", "github_id": 2}, {"role": "lab", "github_id": 3},
                     {"role": "referee", "github_id": 4}]
-    # claim A: escrow + two pre-orders, open for 30 days
+    # claim A: vault + two pre-orders, open for 30 days
     pa = plan(_verdict("A"), claim_id="knos-v0329-money-demo-A", repo_id=a.judge_repo, amount=50 * UNIT, contributors=contributors,
               min_buyers=2, min_locked=25 * UNIT)
     e = address(pa, "escrow", payer.pubkey())

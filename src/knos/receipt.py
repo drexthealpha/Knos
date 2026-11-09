@@ -1543,7 +1543,7 @@ def mirror_find(where: str, target: str, get=None) -> list[dict]:
 
 
 # ---- `knos receipt verify`: the receipt rebuilt from the chain, with an answer in a time the reader is told -----------------
-# It read the escrow's newest transactions one by one. devnet's public endpoint takes 40 requests of one method per 10 s
+# It read the vault's newest transactions one by one. devnet's public endpoint takes 40 requests of one method per 10 s
 # (https://solana.com/docs/references/clusters), so 1,000 of them take over four minutes, and said nothing all that time.
 # It now reads, of those, only the transactions a receipt is built from.
 VERIFY_SECONDS = 120.0
@@ -1556,7 +1556,7 @@ class NoAnswer(OSError):
 
 def from_chain(target: str, url: str, limit: int = 1000, seconds: float = VERIFY_SECONDS, call=None, clock=None) -> dict:
     """The receipt of `target` (an order's address, or its paying transaction) rebuilt from the cluster at `url`:
-    knos.bundle.gather over the escrow's newest `limit` transactions. Of those it reads only the ones gather takes
+    knos.bundle.gather over the vault's newest `limit` transactions. Of those it reads only the ones gather takes
     anything from, found in each account's own list: the order's; the first that names the Balance it was funded from
     (its opening: no Balance is closed); when that is among them, the last its side account set before the funding
     (the limits count only then); and the owner's plan set while the order was open. Every other transaction gives
@@ -1598,7 +1598,7 @@ def from_chain(target: str, url: str, limit: int = 1000, seconds: float = VERIFY
         window = [s["signature"] for s in reversed(got) if s.get("err") is None]      # oldest first, as records.history gives them
         at = {sig: n for n, sig in enumerate(window)}
         seen["of"] = 0
-        logged: dict[str, list[dict]] = {}      # each transaction read: its escrow events
+        logged: dict[str, list[dict]] = {}      # each transaction read: its vault events
         unread: list[str] = []
 
         def read(sigs) -> None:

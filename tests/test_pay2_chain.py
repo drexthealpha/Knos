@@ -1162,7 +1162,7 @@ def test_a_token_is_taken_only_with_the_key_account_it_names(chain):
 
 def test_a_token_is_refused_once_its_key_is_revoked():
     """On a chain of its own: a revocation is for ever. The verifier's guardian revokes GitHub's signing key (it leaked,
-    say). From that transaction on the escrow moves nothing on that key's word, the tokens it verified earlier
+    say). From that transaction on the vault moves nothing on that key's word, the tokens it verified earlier
     included. What needs no token goes on, so no money is stuck."""
     c = setup(Chain())
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
@@ -1174,7 +1174,7 @@ def test_a_token_is_refused_once_its_key_is_revoked():
     unproven = fund_balance(c, work=600)
     uses = each_use(c)
     before = untouched(c, uses)
-    # the escrow asks the verifier's whole rule. No instruction puts a key that has verified back to "not active yet",
+    # the vault asks the verifier's whole rule. No instruction puts a key that has verified back to "not active yet",
     # so that state is written here by hand: it is refused with the verifier's code for it
     real = c.svm.get_account(c.key)
     waiting = bytes(real.data[:8]) + (c.now() + 60).to_bytes(8, "little") + bytes(real.data[16:])
@@ -1206,7 +1206,7 @@ def test_a_token_is_refused_once_its_key_is_revoked():
 
 def test_a_token_is_refused_while_its_key_is_expired_and_works_again_once_the_key_is_refreshed():
     """On a chain of its own: the clock moves a month. A key expires 30 days after GitHub's signature last named it.
-    From that second the escrow refuses the tokens it verified. When the rotate workflow's attestation refreshes the
+    From that second the vault refuses the tokens it verified. When the rotate workflow's attestation refreshes the
     key, the same tokens work again for what is left of their own time."""
     c = setup(Chain())
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err
@@ -1436,7 +1436,7 @@ def test_a_mint_that_turns_bad_takes_no_new_money_and_money_in_escrow_still_leav
     assert not c.send([pay.fund_balance_ix(c.payer.pubkey(), tok, c.key, bal, coin, repo, n, TERMS, pay.TOKEN_2022)]) and code(c) == 95
     ix = pay.fund_wallet_ix(w.pubkey(), wtok, coin, REPO, n, 5 * USDC, WF_REPO, WF_SHA, TERMS, token_program=pay.TOKEN_2022)
     assert not c.send([ix], w) and code(c) == 95
-    # what is in escrow is paid, and the Balance's unspent money is withdrawn
+    # what is in vault is paid, and the Balance's unspent money is withdrawn
     payee, wallet = user(), Keypair().pubkey()
     assert do_pay(c, job, pay_token(c, job, payee, wallet), payee, wallet), c.err
     assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == 9_950_000 and c.balance(pay.vault_pda(coin)) == 0

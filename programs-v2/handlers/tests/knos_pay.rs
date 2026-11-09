@@ -93,7 +93,7 @@ fn cancel() {
     r.finish();
 }
 
-/// What FundOrderWallet escrows on top of the amount is `order_fee`: 0.30% with a floor of 0.05, one rate, no tiers.
+/// What FundOrderWallet locks on top of the amount is `order_fee`: 0.30% with a floor of 0.05, one rate, no tiers.
 /// The price book's examples (5.00 -> 0.05, 100.00 -> 0.30, 1,000.00 -> 3.00, 5,000.00 -> 15.00, 100,000.00 ->
 /// 300.00) and the two amounts either side of the floor. Three ways: the literal, the function, and what the program moved.
 #[test]
@@ -113,7 +113,7 @@ fn the_fee_is_thirty_basis_points_with_a_floor_of_five_cents_at_every_size() {
 }
 
 /// A Plan lowers the rate to no less than 10 basis points and no more than the standard 30: 9 and 31 are refused
-/// (E_PLAN), 10 is set, and 1,000.00 funded from the owner's Balance then escrows 1.00 on top.
+/// (E_PLAN), 10 is set, and 1,000.00 funded from the owner's Balance then locks 1.00 on top.
 #[test]
 fn a_plan_lowers_the_rate_to_no_less_than_ten_basis_points() {
     let mut r = Replay::load("order_plan");

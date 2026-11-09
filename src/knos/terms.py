@@ -37,7 +37,7 @@ repository's .knos/policy.yml asks for one.
     window    The proposed default: a work order keeps 10% back for 14 days (`window`). If the change is reverted
               in that time and a judge of the order signs the revert, that share goes back to the funder.
               Otherwise the relay sends it to the payee when the 14 days end. The program holds it
-              for work orders (knos_pay 2.1 and later). A tip, and a bounty on the older escrow, hold nothing
+              for work orders (knos_pay 2.1 and later). A tip, and a bounty on the older vault, hold nothing
               back. Value paid off the chain (a bank transfer, small outcomes netted) has no holdback unless
               the contract between the two sides writes one; nothing enforces that one but the contract.
 
@@ -410,7 +410,7 @@ def window(holdback: int | None = None, warranty: int | None = None, policy_hold
 
     The comment's words come first (`holdback N` in percent, `warranty N` in days), then .knos/policy.yml. When
     neither says a word about either, the default: 10% kept back for 14 days. `holdback 0` in the comment, or
-    `holdback_percent: 0` in the policy, turns it off. `orders`: whether the escrow holds work orders; with no work
+    `holdback_percent: 0` in the policy, turns it off. `orders`: whether the vault holds work orders; with no work
     orders there is no holdback on chain, so nothing is kept back by default."""
     if holdback is not None or warranty is not None:
         return (holdback * 100 if holdback is not None else policy_holdback_bps or 0,

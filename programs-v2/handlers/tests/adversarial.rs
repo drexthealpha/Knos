@@ -525,7 +525,7 @@ fn the_grace_ends_when_no_token_issued_by_the_deadline_can_live_and_the_refund_f
 const FEE_21: u64 = 500_000; // what 2.1 charged on 20.00: 2.5%
 const COMPAT: [&str; 11] = ["paid_tok", "refunded_tok", "reverted_tok", "quorum_tok", "alone_tok", "standing_tok", "fresh_tok", "dest", "fee", "relayer_tok", "funder_tok"];
 
-/// Orders in accounts as 2.1 wrote them (no incarnation, the rate 250, the fee of 2.1 in escrow) under this build.
+/// Orders in accounts as 2.1 wrote them (no incarnation, the rate 250, the fee of 2.1 in vault) under this build.
 /// One is paid: its payee gets the amount, and the fee that leaves is the fee it was funded with, not today's. One
 /// with a holdback is paid and reverted inside its warranty: the holdback and the fee on it go back.
 #[test]

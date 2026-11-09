@@ -366,7 +366,7 @@ def test_the_funding_reply_is_read_by_the_words_knos_writes():
     """The reply links the order's address, not a transaction: 0.3.21 and 0.3.22 read it as "nothing was funded"."""
     assert W.funding(funded_reply(7), 7) == ORDER
     assert W.funding(funded_reply(7).replace("as a work order", "as a private work order"), 7) == ORDER
-    # an older Knos's reply said "is in escrow for issue #N as a work order (": those comments are still on GitHub
+    # an older Knos's reply said "is in vault for issue #N as a work order (": those comments are still on GitHub
     assert W.funding(funded_reply(7).replace("is held for", "is in escrow for").replace(" until the proof passes", ""), 7) == ORDER
     with pytest.raises(W.Stop, match="does not say the money is held for #8"):
         W.funding(funded_reply(7), 8)

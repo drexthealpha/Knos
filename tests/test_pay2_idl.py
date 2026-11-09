@@ -1,4 +1,4 @@
-"""idl/knos_pay_v2.json (Shank format, written by hand: the program is native) against the second escrow's source and
+"""idl/knos_pay_v2.json (Shank format, written by hand: the program is native) against the second vault's source and
 client, beyond what tests/test_idl.py checks for every program (the address, the discriminants, what each builder of
 the client sends and where each account is): every instruction's accounts and arguments as the headers of
 programs-v2/knos_pay/src/lib.rs and order_terms.rs list them, the number of accounts each handler takes, every account
@@ -363,7 +363,7 @@ def test_an_orders_accounts_written_as_the_idl_says_are_read_by_the_client():
 def test_every_error_code_and_bound_of_the_source_is_the_clients():
     claims = set(constants(CLAIMS_RS, "E_", "u32").values())
     assert claims == {60, 61, 62, 63}
-    # the escrow's own codes are 80..99; it passes on the claim reader's and, for a token whose key is no longer usable,
+    # the vault's own codes are 80..99; it passes on the claim reader's and, for a token whose key is no longer usable,
     # the three of knos-oidc's key rule. The client has plain words for every code that is not the claim reader's.
     stale_key = {76, 77, 78}
     own = set(constants(LIB, "E_", "u32").values())

@@ -38,7 +38,7 @@ def code_hash() -> str:
 
     What it is and is not. Computed by the code it names, so on its own it only catches an honest mistake (another
     version installed). The reusable workflow therefore computes the same hash with sha256sum, outside Python, before
-    any of this package runs, and stops when it differs from the lock. The pin that binds is the escrow's: an order
+    any of this package runs, and stops when it differs from the lock. The pin that binds is the vault's: an order
     pays only a token from prove.yml at the commit it pinned, and that commit names the measuring workflow and the
     measuring code. It covers knos/outcomes/*.py only, not the Python interpreter or the standard library."""
     h = hashlib.sha256()

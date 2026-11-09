@@ -63,7 +63,7 @@ def settle_held(ledger, payer: Keypair) -> list[str]:
 def refund_orders_due(ledger, payer: Keypair, now: int) -> list[str]:
     """Sends back every work order nobody can be paid from any more: open past its deadline (`pay_until`: with the
     presentation grace, two hours later), or held past its hold.
-    To the Balance it came from, or to the funding wallet's token account (made if it is gone). Nothing on a 2.0 escrow."""
+    To the Balance it came from, or to the funding wallet's token account (made if it is gone). Nothing on a 2.0 vault."""
     if version(ledger, payer) < 1:
         return []
     me, txs = payer.pubkey(), []
@@ -83,7 +83,7 @@ def refund_orders_due(ledger, payer: Keypair, now: int) -> list[str]:
 
 def settle_orders_held(ledger, payer: Keypair) -> list[str]:
     """Pays every held work order whose payee has bound a wallet since it was held; the tip comes to this relayer's
-    own token account, made the first time. Nothing on a 2.0 escrow."""
+    own token account, made the first time. Nothing on a 2.0 vault."""
     if version(ledger, payer) < 1:
         return []
     me, now = payer.pubkey(), int(ledger.now())
@@ -101,7 +101,7 @@ def settle_orders_held(ledger, payer: Keypair) -> list[str]:
 
 def release_orders_due(ledger, payer: Keypair, now: int) -> list[str]:
     """Sends what every order held back to the wallets recorded when it was paid, once its warranty is over and nobody
-    reverted (Release). Anyone may; the tip comes to this relayer's own token account. Nothing on a 2.0 escrow."""
+    reverted (Release). Anyone may; the tip comes to this relayer's own token account. Nothing on a 2.0 vault."""
     if version(ledger, payer) < 1:
         return []
     me = payer.pubkey()
@@ -122,7 +122,7 @@ def close_markers(ledger, payer: Keypair, now: int, per_tx: int = 8) -> list[str
     single-use marker of a token (`used`) after the time it stores, by which no instruction accepts that token any
     more; and a standing order's marker of a paid pull request (`done`) once its order is closed. Several to a
     transaction. Markers of both builds: 2.1 wrote a `done` of 65 bytes and a quorum marker of 106, 2.2 writes 73 and
-    122, and either program closes what it can read by one rule. Nothing on a 2.0 escrow, which has neither."""
+    122, and either program closes what it can read by one rule. Nothing on a 2.0 vault, which has neither."""
     if version(ledger, payer) < 1:
         return []
     me, ixs = payer.pubkey(), []
@@ -154,7 +154,7 @@ def close_markers(ledger, payer: Keypair, now: int, per_tx: int = 8) -> list[str
 def close_marks(ledger, payer: Keypair, now: int, per_tx: int = 8) -> list[str]:
     """Takes back the rent of the meter's marks this relayer paid for (knos_meter CloseMark), once the month they
     were counted in is over and no token of it can come again. Several to a transaction. knos_meter's own instruction:
-    whatever version the escrow is (a cluster without the meter has no marks)."""
+    whatever version the vault is (a cluster without the meter has no marks)."""
     me = payer.pubkey()
     ixs = [meter.close_mark_ix(me, mark) for mark in meter.closable(meter.marks_of(ledger, me), now)]
     return _each(ledger, payer, [ixs[k:k + per_tx] for k in range(0, len(ixs), per_tx)])

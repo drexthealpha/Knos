@@ -1,6 +1,6 @@
 """Netted settlement of small tickets: many accepted outcomes, one release, no program change.
 
-A 0.32 agent call cannot carry a fee floor of 0.05 and several transactions of its own, and the escrow takes no
+A 0.32 agent call cannot carry a fee floor of 0.05 and several transactions of its own, and the vault takes no
 order under 5.00. So small outcomes accumulate off chain and one release per payee per period pays their sum.
 
     book        a file of JSON Lines both sides keep, each from what it received: a period's header (buyer, seller,
@@ -442,7 +442,7 @@ def differences(mine: Period, theirs: Period) -> list[str]:
 
 def close(book: Book, other: Book | None = None) -> tuple[Net, str]:
     """Closes the open period: (its net, the closing line to append). `other`: the other side's book; its copy of the
-    period must come to the same root and name the same reserve. An unsecured net under 5.00 is not closed: the escrow
+    period must come to the same root and name the same reserve. An unsecured net under 5.00 is not closed: the vault
     takes no order that small, so the period stays open until it holds more. A reserved period needs no new order."""
     p = book.open
     if p is None:
@@ -562,7 +562,7 @@ def reserve_fund(buyer: int, seller: int, funded: str | int, tranche: str | int,
                  seq: int = 0, period: int | str | None = None) -> dict:
     """What the buyer's pinned fund.yml asks the forge to sign to lock a reserve: a standing order of `funded`, paid one
     `tranche` a draw, from the buyer's Balance. `work_s`: how long it stays locked, at most 90 days (the program's
-    bound); after that RefundOrder returns what no draw took. The fee is the escrow's, taken on top at funding.
+    bound); after that RefundOrder returns what no draw took. The fee is the vault's, taken on top at funding.
     `period` (YYYYMM): the month it secures, named in the terms (`reserve_terms`)."""
     from .settle.v2 import pay
     amount, rate = units(funded), units(tranche)
@@ -649,7 +649,7 @@ def draws(p: Period, wallet=None) -> list[dict]:
 
 def compare(n: Net, single_txs: int = 0, netted_txs: int = 0) -> dict:
     """The period paid as one release against each accepted line paid on its own. A line under 1.00 cannot be paid on
-    its own at all (the escrow's least job); `single_fees` is what the floor alone would take if it could.
+    its own at all (the vault's least job); `single_fees` is what the floor alone would take if it could.
     `single_txs`: transactions one single payment takes; `netted_txs`: what the whole period took."""
     b = n.batch
     rates = [e.rate for e in b.evals if e.accepted] if b is not None else []

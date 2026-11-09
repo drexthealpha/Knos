@@ -1,4 +1,4 @@
-"""Wanted (a demand book of escrowed pre-orders), Makeable (a cost check from sourced quotes) and the verdict (all
+"""Wanted (a demand book of held pre-orders), Makeable (a cost check from sourced quotes) and the verdict (all
 three, recorded). Every number here is synthetic test data."""
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ def test_wanted_counts_distinct_buyers_with_money_in_escrow_only(tmp_path):
     book = referee.DemandBook(tmp_path / "demand.json")
     book.lock(SPEC, "Lab A", 100 * USDC, escrow_ref="devnet-order-1")
     book.lock(SPEC, "lab a", 100 * USDC, escrow_ref="devnet-order-2")          # the same buyer twice counts once
-    book.lock(SPEC, "Lab B", 50 * USDC)                                         # a pledge, no escrow: not counted
+    book.lock(SPEC, "Lab B", 50 * USDC)                                         # a pledge, no vault: not counted
     c = book.wanted(SPEC, min_buyers=2, min_locked=200 * USDC)
     assert not c.passed and c.evidence["distinct_buyers"] == 1 and c.evidence["locked"] == 200 * USDC
     assert c.evidence["pledges_not_counted"] == 1 and "1 distinct buyer" in c.reasons[0]

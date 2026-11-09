@@ -1,4 +1,4 @@
-"""Token-2022 extensions that would break an escrow's promise (knos.platform.token22): read from synthetic account bytes
+"""Token-2022 extensions that would break a vault's promise (knos.platform.token22): read from synthetic account bytes
 laid out as the Token-2022 program lays them out, and the refusal `knos fund-wallet` gives for such a mint. The devnet
 mints these mirror are in docs/reference/PLATFORM.md."""
 from __future__ import annotations
@@ -37,7 +37,7 @@ def names(risks):
 
 def test_a_classic_mint_and_a_plain_token_2022_mint_have_nothing_to_say():
     assert T.mint_risks(mint()) == [] and T.extensions(mint()) == {}
-    plain = mint(tlv(18, PK + PK), tlv(19, b"metadata"))      # a metadata pointer and metadata change nothing an escrow pays
+    plain = mint(tlv(18, PK + PK), tlv(19, b"metadata"))      # a metadata pointer and metadata change nothing a vault pays
     assert set(T.extensions(plain)) == {"MetadataPointer", "TokenMetadata"} and T.mint_risks(plain) == []
 
 

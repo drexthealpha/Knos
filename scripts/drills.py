@@ -163,7 +163,7 @@ def fetch(rpc: str, call: Callable = chain.call) -> list[Program]:
 class Svm:
     """LiteSVM with the given program bytes at the real ids, and a clock. It also has the interface knos.settle.v2.relay
     asks of a ledger (send, send_all, simulate, account, infos, now, program_accounts, log_of), so the relay the public
-    worker runs can carry a token here, and asks these bytes which escrow they are (2.0 or 2.1) as it asks a cluster."""
+    worker runs can carry a token here, and asks these bytes which vault they are (2.0 or 2.1) as it asks a cluster."""
     def __init__(self, elfs: dict[str, bytes], now: int):
         self.svm = LiteSVM()
         # what the relay remembers a cluster's version under: these bytes, so another build in the same process is asked anew
@@ -224,7 +224,7 @@ class Svm:
 
     @property
     def version(self) -> int:
-        """2 when the escrow loaded here is 2.2, 1 for 2.1, 0 for 2.0: what its own Version instruction answers."""
+        """2 when the vault loaded here is 2.2, 1 for 2.1, 0 for 2.0: what its own Version instruction answers."""
         return relay.version(self, self.payer)
 
     def account(self, address: Pubkey) -> bytes | None:

@@ -1,4 +1,4 @@
-"""The audit export (knos.audit): everything one organisation's money paid for, from the escrow's log lines, hash-chained.
+"""The audit export (knos.audit): everything one organisation's money paid for, from the vault's log lines, hash-chained.
 
 The fixture is a month of one organisation's orders as `records.events_of` gives them: a plain payment, a standing
 offer paid for two pull requests and refunded its rest, a holdback reverted inside its warranty, an arbiter's ruling

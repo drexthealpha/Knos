@@ -29,7 +29,7 @@ def withdraw(ledger, payer: Keypair, request: str | bytes) -> dict:
         me, w = payer.pubkey(), q.wallet
         result = dict(kind=kind, wallet=str(w), mint=str(q.mint), to=str(q.to), amount=q.amount, nonce=q.nonce)
         got = _read(ledger, [w, q.mint, q.to, passkey.PASSKEY_ID])
-        if _data(got, passkey.PASSKEY_ID) is None:     # knos_passkey never calls the escrow: what a withdrawal needs is that program, whatever the escrow's version
+        if _data(got, passkey.PASSKEY_ID) is None:     # knos_passkey never calls the vault: what a withdrawal needs is that program, whatever the vault's version
             raise _no(kind, f"knos_passkey ({passkey.PASSKEY_ID}) is not deployed on this cluster, so no passkey wallet can withdraw here")
         program = got[q.mint][0] if got.get(q.mint) else None  # type: ignore[index]  # got.get(q.mint) holds it
         if program not in (pay.TOKEN, pay.TOKEN_2022):

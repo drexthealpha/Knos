@@ -8,7 +8,7 @@ hand-written spec, and the template's draft is kept when it does not hold.
 
 A draft is a starting point, not terms: the parties read it, fix the numbers, sign its hash (`knos outcome sign`),
 and only then fund it. Everything a draft cannot know is written as a value that fails validation or is marked
-`EDIT` in a comment: the parties' GitHub ids, the seller's address, the escrow.
+`EDIT` in a comment: the parties' GitHub ids, the seller's address, the vault.
 """
 from __future__ import annotations
 
@@ -167,7 +167,7 @@ def template_draft(goal: str, rows: list[dict], data_path: str, fmt: str, *, syn
 # What the model may decide, as a JSON schema the API enforces (structured outputs: `output_config.format` with type
 # json_schema, no beta header; platform.claude.com/docs/en/build-with-claude/structured-outputs, read 14 Oct 2026). The
 # answer is these fields only, so there is no free text to pick a JSON object out of, and nothing the parties fix
-# themselves (parties, escrow, control, bootstrap, price) can come back changed.
+# themselves (parties, vault, control, bootstrap, price) can come back changed.
 DRAFT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {

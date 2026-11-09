@@ -1,4 +1,4 @@
-//! knos-meter: acceptance without escrow. For a buyer who pays a vendor by invoice and wants a neutral count of what
+//! knos-meter: acceptance without vault. For a buyer who pays a vendor by invoice and wants a neutral count of what
 //! was accepted, and for a vendor who bills per accepted outcome. It moves no customer money: it counts evaluations
 //! that GitHub itself signed (a token verified on chain by knos-oidc, OIDC_ID) and takes its own fee for each from
 //! credits somebody prepaid. This program is upgradeable only through a multisig with a public 8-day time lock, until

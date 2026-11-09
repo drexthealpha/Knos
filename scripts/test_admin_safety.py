@@ -7,7 +7,7 @@
    config authority; or none (immutable), or a program PDA. A spending limit on such a multisig is a path around its vote.
 2. No durable-nonce admin signing: the code that builds admin and upgrade transactions never advances a nonce, and the
    newest transactions of each multisig do not start with AdvanceNonceAccount.
-3. A cap per escrow in knos_pay: the constant in the source and the checks that hold an amount to it.
+3. A cap per vault in knos_pay: the constant in the source and the checks that hold an amount to it.
 
 One line per check, PASS or FAIL and the evidence. Exit 1 when any check fails, 2 when the cluster cannot be read.
 """
@@ -234,7 +234,7 @@ def main() -> int:
             held_by(f"freeze authority faucet test USDC {mint}", str(Pubkey.from_bytes(d[50:82])) if d[46] == 1 else None, auth_pda)
         credits = credit_mints(o.txs)
         for m, a in sorted(credits.items()):
-            # the hook's PDA ["mint-authority", mint]: knos_hook alone mints, and only into the escrow its rules name
+            # the hook's PDA ["mint-authority", mint]: knos_hook alone mints, and only into the vault its rules name
             held_by(f"mint authority project credits {m}", a,
                     pda_of=str(Pubkey.find_program_address([b"mint-authority", bytes(Pubkey.from_string(m))], Pubkey.from_string(HOOK))[0]))
         if not credits:
@@ -269,7 +269,7 @@ def main() -> int:
         print(f"cannot read the cluster: {e}", file=sys.stderr)
         return 2
 
-    # 3. a cap per escrow -----------------------------------------------------------------------------------------------
+    # 3. a cap per vault -----------------------------------------------------------------------------------------------
     lib = (ROOT / "programs-v2" / "knos_pay" / "src" / "lib.rs").read_text(encoding="utf-8")
     m = re.search(r"pub const MAX_AMOUNT: u64 = ([\d_]+);", lib)
     cap = int(m.group(1).replace("_", "")) if m else 0

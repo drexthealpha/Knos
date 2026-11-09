@@ -361,7 +361,7 @@ FORMATS = ("journal", "xero", "quickbooks", "netsuite")
 
 
 def ledger_lines(pid: str) -> list[dict]:
-    """One line per order on the project: locked (a commitment held in escrow), released (paid to the maker), refunded."""
+    """One line per order on the project: locked (a commitment held in vault), released (paid to the maker), refunded."""
     from . import valley
     p = valley.project(pid)
     rows = []

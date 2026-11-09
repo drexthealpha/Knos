@@ -19,7 +19,7 @@ Demand evidence, two kinds:
         lab_qc             a Knos lab adapter verdict for this claim passed protocol + QC
 
      A stage nobody meets by its deadline refunds the buyer (anyone may send RefundOrder). This is the advance market
-     commitment pattern (Gavi's pneumococcal AMC) on a public escrow, priced by config/fees.yaml (payout fee on top of
+     commitment pattern (Gavi's pneumococcal AMC) on a public vault, priced by config/fees.yaml (payout fee on top of
      each order, the graduation fee on release).
 
 Who releases a stage. knos_pay pays an order on a token its judge signs. Today that is the research repository's

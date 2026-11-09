@@ -1,6 +1,6 @@
 """x402 v2 `exact` on Solana, settled by a public facilitator (no key): the per-check price paid in one HTTP round trip.
 
-Knos's own "knos-order" scheme (knos.money.x402, knos.record_api) holds money in escrow and is the right shape for a
+Knos's own "knos-order" scheme (knos.money.x402, knos.record_api) holds money in vault and is the right shape for a
 pre-order or a pack of checks. One check at 0.02 test USDC is too small for an order (the smallest is 5.00), so the
 `/checks` route of knos.money.x402 also offers the standard `exact` scheme: the agent signs ONE token transfer of the
 check's price to the operator's address, the facilitator checks it, pays the network fee and lands it, and the agent

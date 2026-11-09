@@ -1,10 +1,10 @@
-"""Test harness for the second deployment's escrow (programs-v2/knos_pay, 2.2) inside LiteSVM, beside the second
+"""Test harness for the second deployment's vault (programs-v2/knos_pay, 2.2) inside LiteSVM, beside the second
 deployment's verifier. The builds are tests/fixtures/knos_pay_v2_test.so and knos_oidc_v2_test.so (`--features
 testkeys`: they trust the seed-derived test keys of tests/_settle.py, a test claim workflow pin, a test rotate
 workflow pin and a test guardian). Tokens are verified with the second deployment's client, knos.settle.v2.oidc.
 Tests only.
 
-A verifier key stops verifying 30 days after it was registered or last refreshed, and the escrow then refuses the
+A verifier key stops verifying 30 days after it was registered or last refreshed, and the vault then refuses the
 tokens it verified. So a test that moves the clock further than that does it on a chain of its own and needs no token
 afterwards, or refreshes the key (`refresh`). A test that revokes a key has a chain of its own too: that is for ever."""
 from __future__ import annotations
@@ -29,7 +29,7 @@ from knos.chain import said
 from knos.settle.v2 import oidc, pay
 
 FIX = Path(__file__).parent / "fixtures"
-GUARDIAN = Keypair.from_seed(bytes([7]) * 32)     # the test guardian of a testkeys build: the escrow's and the verifier's
+GUARDIAN = Keypair.from_seed(bytes([7]) * 32)     # the test guardian of a testkeys build: the vault's and the verifier's
 USDC_KEY = Keypair.from_seed(bytes([8]) * 32)     # the mint a testkeys build counts as Circle's USDC in the record (TEST_USDC)
 PLAN_SIGNER = Keypair.from_seed(bytes([6]) * 32)  # may sign SetPlan in a testkeys build, beside FEE_OWNER
 WF_REPO, WF_SHA = "drexthealpha/Knos", "c" * 40   # the repository and commit whose fund.yml and prove.yml the tests' jobs pin
@@ -84,7 +84,7 @@ class Chain:
     def __init__(self, pay_build: str = "knos_pay_v2_test.so", oidc_build: str = "knos_oidc_v2_test.so"):
         for build, crate in ((oidc_build, "knos_oidc"), (pay_build, "knos_pay")):
             assert (FIX / build).is_file(), f"tests/fixtures/{build} is missing: build it in programs-v2/{crate} with cargo build-sbf --features testkeys"
-        assert oidc.OIDC_ID == pay.OIDC_ID          # the verifier whose token accounts the escrow accepts
+        assert oidc.OIDC_ID == pay.OIDC_ID          # the verifier whose token accounts the vault accepts
         self.svm = _Slots(LiteSVM())
         self.svm.add_program_from_file(oidc.OIDC_ID, str(FIX / oidc_build))
         self.svm.add_program_from_file(pay.PAY_ID, str(FIX / pay_build))
@@ -112,7 +112,7 @@ class Chain:
         return int(self.svm.get_clock().slot)
 
     def marked(self, ix):
-        """An instruction of the escrow that takes a token, with that token's marker in its place when the
+        """An instruction of the vault that takes a token, with that token's marker in its place when the
         builder was not given one: what a relay does with the JWT it holds, done here from the token account the
         instruction names. (A token account that holds no token gets some marker: the program refuses the token first.)"""
         # Pay (5) and FundOrderBalance (16) are always built with their marker
@@ -138,7 +138,7 @@ class Chain:
         meta = r if ok else r.meta()
         self.err = None if ok else str(r.err())
         self.logs = list(meta.logs())
-        # what the escrow's own instructions used, the programs they called included (not the compute budget instruction)
+        # what the vault's own instructions used, the programs they called included (not the compute budget instruction)
         self.last_cu = sum(int(m.group(1)) for m in (re.match(rf"Program {pay.PAY_ID} consumed (\d+) of", line) for line in self.logs) if m)
         if ok and tag:
             self.cu.setdefault(tag, []).append(self.last_cu)

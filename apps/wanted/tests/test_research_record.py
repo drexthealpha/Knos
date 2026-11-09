@@ -137,5 +137,5 @@ def test_a_second_release_is_refused_by_the_chain_over_http(monkeypatch):
 
 def test_sibyl_is_memory_and_never_gates_a_preorder(monkeypatch):
     monkeypatch.setattr(company, "_record", lambda: None)             # no Sibyl at all
-    with pytest.raises(preorder.Unavailable):                            # what stops this lock is the missing escrow keys
+    with pytest.raises(preorder.Unavailable):                            # what stops this lock is the missing vault keys
         preorder.lock(REP, 10, "guest: t")

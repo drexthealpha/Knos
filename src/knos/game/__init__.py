@@ -15,7 +15,7 @@ calls, judged by the SAME referee, with funders pooling one pot across every att
     knos.game.ladder    the public score (Blum and Hardt's Ladder: no leaderboard probing of the sealed set)
     knos.game.players   Nemotron, Claude Agent SDK, any command, a synthetic scripted human (labelled)
     knos.game.pot       the pooled pot as knos_pay orders (config/fees.yaml game_pot: at most 4 payees an order)
-    knos.game.graduate  step 6: works + wanted + makeable, graduation escrow and pre-orders, the contributor split,
+    knos.game.graduate  step 6: works + wanted + makeable, graduation vault and pre-orders, the contributor split,
                         Knos Record + Zenodo DOI + SWHIDs + devnet anchor
     knos.game.tools     MCP tools; knos.game.server the web page + JSON API; knos.game.cli `knos game`
 

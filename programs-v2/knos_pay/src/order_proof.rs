@@ -1,4 +1,4 @@
-//! PAY ON PROOF FROM ANY SOURCE (0.3.34). Until this build every work order was judged by a forge: a workflow at a
+//! PAY AFTER PROOF FROM ANY SOURCE (0.3.34). Until this build every work order was judged by a forge: a workflow at a
 //! pinned commit, run on GitHub or gitlab.com (order_judge.rs). This file adds two judges that are not forges. The
 //! funder fixes one when he funds the order, and it is stored in the order's spare bytes (O_JUDGE, O_PIN): zero in
 //! every order of an earlier build, which therefore pays, refunds and is judged exactly as before. No instruction
@@ -75,7 +75,7 @@ const _: [(); 0 - !(O_PIN + 32 <= ORDER_LEN && O_RESERVED + 64 == ORDER_LEN) as 
 pub fn judge_kind(order: &AccountInfo) -> Result<u8, ProgramError> { Ok(order.try_borrow_data()?[O_JUDGE]) }
 fn pin_of(order: &AccountInfo) -> Result<[u8; 32], ProgramError> { Ok(order.try_borrow_data()?[O_PIN..O_PIN + 32].try_into().unwrap()) }
 
-/// HOOK of FundOrderWallet, once the order is escrowed: a judged order records its judge and its pin, and logs them.
+/// HOOK of FundOrderWallet, once the order is held: a judged order records its judge and its pin, and logs them.
 pub fn judged(order: &AccountInfo, kind: u8, pin: &[u8]) -> ProgramResult {
     let mut d = order.try_borrow_mut_data()?;
     d[O_JUDGE] = kind;

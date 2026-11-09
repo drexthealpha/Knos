@@ -7,11 +7,13 @@
   </picture>
 </h1>
 
-**A lab pays for each research step only when a test proves it is done.**
+Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death.
+Knos carries research across the valley of death, toward Kardashev II and III.
 
-Play money only.
+## How it works today
+
+Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembers. Test money only.
 
 [Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/near/)
 
@@ -24,7 +26,7 @@ Play money only.
 1. **Is it wanted?** Knos [asks Qloo](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DEMAND_CHECK.md), a service that knows what people like, who would buy the product and in which city.
 2. **Write the deal.** Each step of the work gets a goal and a deadline, plus the test that decides it. They are sealed with a fingerprint, so nobody can change them later.
 3. **Hold the money.** Backers' money waits in a program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana), a public ledger, not with Knos.
-4. **Pay on proof.** The maker sends proof. When the test passes, that step is paid. If nothing passes by the deadline, the backers get their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
+4. **Pass the test.** The maker sends proof. When the test passes, that step is paid. If nothing passes by the deadline, the backers get their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
 
 Four parts, one product: Qloo checks who wants it. InterSystems IRIS checks the proof. NEAR and Solana, two public ledgers, hold and pay play money. Sibyl, Knos's memory, keeps each result.
 
@@ -97,9 +99,8 @@ One person holds every key today. Any change to the programs waits in public for
 <!-- entry:iris -->
 ## Run it on IRIS
 
-**Knos carries research across the valley of death.** Inside InterSystems IRIS, that means a lab pays for each step of
-the work only when its test passes. An AI agent reads the test result and a rule decides; above $50 a person must also say yes.
-Play money only.
+Inside InterSystems IRIS, the production checks each research step's test result before that step is paid. An AI agent reads the test result and a rule decides; above $50 a person must also say yes.
+Every amount is test money.
 
 **One story.** A hospital lab funds a startup to build the online shop for its test kits. Step one pays $120 when the
 shop's checkout answers in under 300 ms, measured by the startup's own GitHub test. The test passes. The AI agent in
@@ -411,7 +412,7 @@ Each bonus with what shows it.
 <!-- entry:near -->
 ## Knos on NEAR
 
-On NEAR testnet, Knos pays a helper only when the test passes. The code is in `near/`, and every path in this
+On NEAR testnet, the jobs contract pays a helper in test tokens once the test passes. The code is in `near/`, and every path in this
 section is under `near/` unless it starts with another top folder.
 
 ![One job, two agents: only the output that passes the locked test is paid](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-4.svg)
@@ -458,7 +459,7 @@ contract, under a spend cap. AI Swarms (`swarms`): two agents on one job, paid b
 
 **A company pays a lab or a developer only when GitHub's signed run proves the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back. The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
 
-Spending limits cap what an agent may spend. Knos pays only for work that is proven done.
+Spending limits cap what an agent may spend. The contract releases test tokens only for work that is proven done.
 
 | What | How |
 |---|---|
@@ -788,7 +789,7 @@ Open [the front door](https://drexthealpha.github.io/Knos/) and type the product
 
 ## Read more
 
-- [Get started](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/START.md): check demand, write a Ready brief, then hold the money and pay on proof.
+- [Get started](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/START.md): check demand, write a Ready brief, then let each step's test decide it.
 
 - [Pricing](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/PRICING.md): what Knos costs. Demand checks are free, 10 a month. The maker keeps 100%; the funder pays the payment program's fee on top: 0.30% of each payout, at least 0.05. Nobody is charged today (devnet, test money).
 

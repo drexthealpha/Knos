@@ -69,11 +69,11 @@ def test_the_apps_home_holds_no_money_or_company_tools_and_paid_holds_them():
 
 def test_every_description_is_a_sentence_of_facts_json():
     facts = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))
-    said = {facts["sentence"], facts["registry_sentence"], facts["job"]}   # the README leads with the job, then the sentence
+    said = {facts["sentence"], facts["registry_sentence"], facts["l1"], facts["l1"] + " " + facts["l2"]}   # the README leads with the two vision lines
     pyproject = re.search(r'(?m)^description = "(.*)"$', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
     npm = json.loads((ROOT / "sdk" / "settle" / "package.json").read_text(encoding="utf-8"))["description"]
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["description"]
-    lead = re.search(r"\*\*(.+?)\*\*", (ROOT / "README.md").read_text(encoding="utf-8").split("</h1>", 1)[1]).group(1)
+    lead = next(line.strip() for line in (ROOT / "README.md").read_text(encoding="utf-8").split("</h1>", 1)[1].splitlines() if line.strip())
     assert {pyproject, npm, server, lead} <= said, {pyproject, npm, server, lead} - said
     tens = (ROOT / "README.md").read_text(encoding="utf-8").split("## Try it in ten seconds", 1)[1].split("\n## ", 1)[0]
     assert tens.strip().startswith("Open [the demand check](https://drexthealpha.github.io/Knos/)")

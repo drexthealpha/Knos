@@ -314,7 +314,7 @@ def _mint(ledger, given: str | None):
     info = ledger.infos([mint])[0]
     if info is None or info[0] not in (pay.TOKEN, pay.TOKEN_2022) or len(info[1]) < 82:
         raise Stop(f"{mint} is not a token mint on this cluster.")
-    if info[0] == pay.TOKEN_2022:        # an extension that lets someone else move, stop or shrink the escrow's money
+    if info[0] == pay.TOKEN_2022:        # an extension that lets someone else move, stop or shrink the vault's money
         from .platform import token22
         risks = token22.mint_risks(bytes(info[1]))
         if token22.refused(risks):
@@ -337,7 +337,7 @@ def _money(units: int, mint, decimals: int = 6) -> str:
 
 
 def _send(ledger, ixs, wallet) -> str:
-    """One transaction, signed and paid for by the wallet. A refusal is said in the escrow's own words."""
+    """One transaction, signed and paid for by the wallet. A refusal is said in the vault's own words."""
     from .settle.v2 import relay
     try:
         return ledger.send(ixs, wallet)
@@ -623,7 +623,7 @@ def _release_pin() -> tuple[str, str]:
 
 
 def reservation_days(reserve: int, days: int) -> int:
-    """A `/knos take` reservation never outlasts the escrow: past `days` the money is back with the funder, and a
+    """A `/knos take` reservation never outlasts the vault: past `days` the money is back with the funder, and a
     reservation would only keep others off an issue nobody can be paid for (V34DOG, v0.3.34 dogfooding)."""
     return max(0, min(int(reserve), int(days)))
 
@@ -865,7 +865,7 @@ def _month(month: str) -> str:
 
 
 def _history(limit: int):
-    """Both escrows' history from the cluster; what could not be read goes to stderr."""
+    """Both vaults' history from the cluster; what could not be read goes to stderr."""
     from . import chain, records
     if limit < 1:
         raise Stop("--limit is a number of transactions, at least 1.")
@@ -937,7 +937,7 @@ def receipts(owner: str = typer.Option(..., "--owner", help="the GitHub login or
 
 
 def _meter_statement(buyer: str, seller: str, month: str, fmt: str) -> None:
-    """`knos statement --meter`: one buyer's and one seller's month at knos_meter, printed like the escrow's statement."""
+    """`knos statement --meter`: one buyer's and one seller's month at knos_meter, printed like the vault's statement."""
     from . import chain, records
     try:
         st = records.meter_statement(_ledger(), _owner(buyer), buyer, _owner(seller), seller, month)

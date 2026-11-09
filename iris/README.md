@@ -1,10 +1,8 @@
 # Knos on InterSystems IRIS
 
-**A lab pays for each research step only when a test proves it is done.**
+Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death.
-
-Play money only.
+Knos carries research across the valley of death, toward Kardashev II and III.
 
 [Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) ·
 [Full install steps](https://github.com/drexthealpha/Knos#run-it-on-iris)

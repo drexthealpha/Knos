@@ -18,7 +18,7 @@ From then on a merged pull request pays that address, and what was held for the 
 `bind_org` is the same for an ORGANISATION (`knos claim --org <organisation> <address>`): a payee that is an
 organisation (a bot's pull request, a vendor's) is paid at the wallet a member names. The workflow file it puts in
 `<organisation>/knos-claim` calls the pinned claim workflow with `kind: org`, and is started by hand by whoever is
-logged in to `gh`: who may is the organisation's own rule (write access to that repository). The escrow never lets it
+logged in to `gh`: who may is the organisation's own rule (write access to that repository). The vault never lets it
 replace a wallet a person bound for his own account.
 
 `claim` is the first deployment's (`knos claim --v1`): it sends what that deployment holds under your account to an
@@ -84,7 +84,7 @@ def _repository(gh: Callable[..., str], repo: str, say: Callable[[str], None], s
     """Makes sure `repo` exists and holds the claim workflow this version of Knos pays by (`org`: an organisation's,
     which calls the claim workflow's later commit with `kind: org`). Returns whether it was made."""
     from .settle.v2 import pay
-    # the one commit of the claim workflow the escrow takes this bind from
+    # the one commit of the claim workflow the vault takes this bind from
     pinned = f"claim.yml@{pay.IDS['claim_sha_org' if org else 'claim_sha']}"
     template, about = (TEMPLATE_ORG, ABOUT_ORG) if org else (TEMPLATE, ABOUT)
     made = False

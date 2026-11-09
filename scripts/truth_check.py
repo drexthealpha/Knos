@@ -552,6 +552,9 @@ def published_problems(stmts: list[Statement]) -> list[Problem]:
 
 ALWAYS = re.compile(r"\b(bulletproof|trustless|zero[- ]latency)\b", re.I)
 MONEY_WORDS = re.compile(r"\b(billions?|free cash flow)\b", re.I)
+# the founder's vision line (docs/facts.json l1) is fixed text, not a money claim
+_FACTS = ROOT / "docs" / "facts.json"
+VISION = json.loads(_FACTS.read_text(encoding="utf-8")).get("l1", "") if _FACTS.is_file() else ""
 MONEY_ABBR = re.compile(r"\b(ARR|FCF)\b")
 SOURCED = re.compile(r"https?://")
 ATTEST = re.compile(r"\battest(?:s|ed|ing|ation)?\b", re.I)    # the SDK README (npm's page) claims nothing is attested
@@ -565,7 +568,8 @@ def word_problems(stmts: list[Statement]) -> list[Problem]:
     for i, s in enumerate(stmts):
         if m := ALWAYS.search(s.text):
             out.append(Problem("word", s.file, s.line, s.text, f'no Knos document says "{m.group(0)}"'))
-        m = MONEY_WORDS.search(s.text) or MONEY_ABBR.search(s.text)
+        said = s.text.replace(VISION, "") if VISION else s.text
+        m = MONEY_WORDS.search(said) or MONEY_ABBR.search(said)
         near = [x.text for x in stmts[max(0, i - 4):i + 1] if x.file == s.file] + list(s.links)   # the sources a sentence follows
         if s.text.startswith("|"):                           # a table row: any row of its table may carry the link
             near += [x.text for x in stmts[i + 1:i + 9] if x.file == s.file and x.text.startswith("|")]

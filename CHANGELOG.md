@@ -2082,7 +2082,7 @@ AI agent work gets paid only when someone other than the agent proves it.
 
 - **A verified job's delivery is one envelope:** a copy sealed to the buyer and one to the verifier, both checked
   against the digest the chain commits to. The verifier reads exactly the work the buyer gets.
-- **ERC-8183 on Tempo** ([docs/ERC8183.md](https://github.com/drexthealpha/Knos/blob/v0.3.9/docs/ERC8183.md)): KnosEscrow on Moderato
+- **ERC-8183 on Tempo** ([docs/ERC8183.md](https://github.com/drexthealpha/Knos/blob/v0.3.9/docs/ERC8183.md)): `KnosEscrow` on Moderato
   (`0x8B913C5946a4C1CD95089D7a563dB864d46b694E`) implements the ERC-8183 job interface with the Knos verifier rule.
   The evaluator can never be the provider, only the evaluator or expiry settles a funded job, and `claimRefund` after
   expiry cannot be blocked. The fee is 2.5%.

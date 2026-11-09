@@ -351,7 +351,7 @@ def _payments(o: dict) -> list[dict]:
 
 
 def graph(events: list[dict], owner_id: int, names=None) -> dict:
-    """The commercial relationships of one GitHub id, from the escrow's log alone: {"owner", "name", "orders",
+    """The commercial relationships of one GitHub id, from the vault's log alone: {"owner", "name", "orders",
     "bounties" (issues' bounties, paid as an order is), "private_orders", "funded", "pays": [...], "paid_by": [...]}. `pays`: each supplier a Balance of this id paid
     ({id, name, wallets, orders, paid, sizes, first, last, payments, median_days_between}); `paid_by`: each funder that
     paid this id. A private order is in it like any other: its line names the payee, the amount and the time."""

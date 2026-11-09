@@ -1,7 +1,7 @@
 """examples/agent_pays_agent: one agent pays another only when a third party accepted the work. Two agents with keys of
 their own run as separate processes against the test builds of knos_pay and knos-oidc in LiteSVM (tests/_rpc_shim.py is
 the RPC endpoint in front of it, signatures verified). The buyer finds a task and opens an order through the x402
-"knos-order" scheme; the seller delivers; the evaluator judges. Accepted: the escrow pays the seller on the signed
+"knos-order" scheme; the seller delivers; the evaluator judges. Accepted: the vault pays the seller on the signed
 acceptance. Not accepted: nothing can release it, and the buyer has everything back after the deadline.
 
 The acceptance is signed here by the test key a test build trusts in GitHub's place, from the order's pinned workflow."""
@@ -92,7 +92,7 @@ def test_the_seller_is_paid_only_when_the_evaluator_signs_the_acceptance(tmp_pat
         assert got["delivery"]["result"] == ["apple", "fig", "kiwi", "pear"] and s.seller_has() == 0
         # delivery alone releases nothing: the order is as it was
         assert s.c.order(order).state == "open"
-        # the evaluator accepts, and only then is there a signature; the escrow pays the seller the amount whole
+        # the evaluator accepts, and only then is there a signature; the vault pays the seller the amount whole
         code, verdict = s.evaluate(got["delivery"])
         assert (code, verdict["accepted"], verdict["digest"]) == (0, True, got["delivery"]["digest"])
         s.c.warp(600)

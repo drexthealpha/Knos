@@ -1,5 +1,5 @@
 """Internal dogfooding (Knos buying its own v0.3.31 work from its own agents, with its own devnet test mint) is never
-outside use: scripts/network_stats.py, which writes the public numbers, counts its escrows and payouts as Knos's own."""
+outside use: scripts/network_stats.py, which writes the public numbers, counts its vaults and payouts as Knos's own."""
 
 from __future__ import annotations
 

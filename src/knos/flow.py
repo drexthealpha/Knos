@@ -4,7 +4,7 @@ maintainer and a contributor read is decided and written here, and every outcome
 summary: none is silent.
 
     knos command   a comment on an issue or a pull request, or a new issue. Acts on its `/knos` line and replies:
-                   fund and tip put money in escrow on Solana, take and release change the issue's assignee, the
+                   fund and tip put money in vault on Solana, take and release change the issue's assignee, the
                    rest is an answer. A comment with no `/knos` line gets no reply.
     knos settle    a push to the default branch (every pull request it merged), a `/knos settle` or `/knos tip`
                    comment, or a workflow_dispatch that names a pull request. For each open job the pull request
@@ -209,7 +209,7 @@ class Run:
 
     def spent(self, owner_id: int):
         """Whole units this owner's money funded in this calendar month (UTC) and did not get back: what a policy's
-        monthly budget is held to (knos.records.month_spent, over the escrows' own log lines). Raises when the
+        monthly budget is held to (knos.records.month_spent, over the vaults' own log lines). Raises when the
         cluster cannot be asked."""
         if self._spent is not None:
             return self._spent(owner_id)
@@ -708,7 +708,7 @@ def _verdict(line: str | None, kind: str, tid: str) -> dict:
 
 def _theirs(r: dict) -> bool:
     """True when the relay refused a token for a reason of the asker's own (knos.ghwords.RELAY: the issue is funded
-    already, nothing is in escrow, an old workflow): the reply says what to do, and the job does not fail for it."""
+    already, nothing is in vault, an old workflow): the reply says what to do, and the job does not fail for it."""
     return not r.get("ok") and not r.get("timeout") and ghwords.user_error(r.get("why"))
 
 
@@ -1487,7 +1487,7 @@ def _can_write(run: Run, rp: dict, account: dict) -> bool | None:
 
 def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> str:
     """`/knos fund` and `/knos tip`: only for someone who can write to the repository. Fix the terms, choose the
-    Balance, have GitHub sign exactly that, carry it to the chain, and say what is now in escrow. Every way it can
+    Balance, have GitHub sign exactly that, carry it to the chain, and say what is now in vault. Every way it can
     stop says what was not done and what to type.
 
     With `att` it is an attestor's run funding a PRIVATE order: `run` is the Run that reads the private repository
@@ -1561,7 +1561,7 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
     if balance is None:
         return no
     payee = ""
-    if tip:     # money that could reach nobody is not put in escrow
+    if tip:     # money that could reach nobody is not put in vault
         comments = terms.pages(f"repos/{run.repo}/issues/{number}/comments", run.github)
         paid = who.payee(pull or {}, None, None, comments, None, who.permission_of(run.repo, run.github), None, run.clock(), "",
                          who.user_of(run.github), strict=True, tip=True)
@@ -1606,7 +1606,7 @@ def _fund(run: Run, cmd, said: dict, on: dict, pull: dict | None, att=None) -> s
             data = terms.canonical({**built.terms, **plan["terms"]})
         except terms.Refused as why:
             return f"Knos: {why}"
-    if plan is None:        # a tip, and a job where the escrow holds no work orders: no order plan asked the procurement gate, so it is asked here
+    if plan is None:        # a tip, and a job where the vault holds no work orders: no order plan asked the procurement gate, so it is asked here
         refused = _gated(run, rp, cmd, commenter, number, again, "Knos: no tip was sent. " if tip else "Knos: nothing was funded. ")
         if refused:
             return refused
@@ -2047,7 +2047,7 @@ def _order_plan(run: Run, rp: dict, cmd, commenter: dict, again: str, att=None, 
 
 def _funded_order(run: Run, cmd, rp: dict, number: int, balance, mint_, faucet: bool, plan: dict, built, r: dict, money: str, took: str,
                   work: int) -> str:
-    """The reply to a funding that opened a work order: what is in escrow and the fee its funder pays on top, the
+    """The reply to a funding that opened a work order: what is in vault and the fee its funder pays on top, the
     terms, the warranty and the arbiter, the deadline, how to earn it, and who can have it paid after a merge."""
     order = _link(run, "order on Solana", "address", r.get("order") or pay.order_pda(pay.scope_of(rp["id"], number), balance, plan["seq"]))
     if plan.get("vendor"):
@@ -2097,7 +2097,7 @@ def reserve_plan(cmd: commands.Reserve, buyer: int, seller: int, balance, issue:
     supplier), with the work seconds that end the lock at the close of `until` (UTC), the tranche (a tenth of the
     amount, in whole cents, when the comment names none) and the period, if named, in the terms. Adds `deadline`
     (the end of `until`; the chain's own clock fixes it to the second) and `period_start`. Raises knos.ledger.Bad, in
-    words, for a reserve the escrow would refuse. The exercise round `net-reserve` calls this too, so the round and
+    words, for a reserve the vault would refuse. The exercise round `net-reserve` calls this too, so the round and
     the comment sign the same audience."""
     import calendar
     from . import netting
@@ -2449,7 +2449,7 @@ def _balance(run: Run, rp: dict, commenter: dict, cmd, number: int, again: str, 
 
 
 def _status(run: Run, on: dict, on_pull: bool) -> str:
-    """`/knos status`: on an issue, what is in escrow for it, its terms and who holds it; on a pull request, what the
+    """`/knos status`: on an issue, what is in vault for it, its terms and who holds it; on a pull request, what the
     automatic check would say now: which bounty it takes, each required check, who is paid and where."""
     number, rp = int(on["number"]), _repo(run)
     if rp is None:
@@ -2474,7 +2474,7 @@ def _status(run: Run, on: dict, on_pull: bool) -> str:
 
 
 def _escrow(run: Run, rp: dict, on: dict) -> str:
-    """What is in escrow for one issue: each job, its terms in words, its deadline, and who holds the issue."""
+    """What is in vault for one issue: each job, its terms in words, its deadline, and who holds the issue."""
     n = int(on["number"])
     try:
         live = sorted([*_jobs(run, rp["id"], n), *_orders(run, rp["id"], n)], key=lambda x: -x[1].amount)
@@ -2729,7 +2729,7 @@ def _finalized(run: Run, sig: str) -> bool:
 
 def settle(run: Run, tests: bool = False, pull: int | None = None, head: str = "", issue: int | None = None) -> int:
     """`knos settle`: pay what merged pull requests earned. A push to the default branch settles every pull request it
-    merged, and says nothing about one with nothing in escrow. A `/knos settle` comment and a workflow_dispatch with
+    merged, and says nothing about one with nothing in vault. A `/knos settle` comment and a workflow_dispatch with
     a pull request's number settle that one and always answer; a `/knos tip` comment pays the tip `knos command`
     has just funded. With `tests` (`--tests --pull N --head SHA`) it is the job that signs after the sandboxed
     judge passed: see `_attest`. Returns the job's exit status: 1 when something could not be read, signed or
@@ -2899,7 +2899,7 @@ def _judged(cases: list[Case], issue: int = 0) -> list[Case]:
 
 def _settle_one(run: Run, rp: dict, pull: dict, since: float, after: str, asked: bool, tips_only: bool, tests: int | None) -> None:
     """One pull request where money moves: decide, sign and relay a token for each case where everything holds, and
-    write the one comment. `asked`: a person asked, so there is an answer even when nothing is in escrow. `tests`
+    write the one comment. `asked`: a person asked, so there is an answer even when nothing is in vault. `tests`
     (not None): the sandboxed judge passed for it, and only the bounty it judged (issue `tests`, 0: the first) is
     this job's to sign; None: the pull request is merged, and what the merge pays is."""
     number, by_tests = int(pull["number"]), tests is not None
@@ -3019,7 +3019,7 @@ def _cleared(run: Run, rp: dict, pull: dict, cases: list[Case]) -> None:
     """What stands between a decision and a payout, for each case where everything else holds: the repository's
     policy (who may be paid at all, and which vendors by a standing offer; a policy that cannot be used pays
     nobody), for a work order the shares a maintainer named with `/knos split`, and the sanctions list for every
-    address money would be sent to. A listed address is not paid: nothing is signed, the money stays in escrow and
+    address money would be sent to. A listed address is not paid: nothing is signed, the money stays in vault and
     the comment says so. An address that could not be screened is not paid either (fail closed): the money stays held
     until the list can be read, and the comment says why."""
     ready = [c for c in cases if c.verdict() == "yes"]
@@ -3347,7 +3347,7 @@ def _attestor_command(run: Run) -> int:
 def _attestor_settle(run: Run) -> int:
     """`knos settle` in an attestor: for each target, the pull request the run names, or every pull request merged into
     its default branch in the last SCAN_DAYS days, is settled as a merge is anywhere (`_settle_one`), against the
-    private orders the attestor funded (`_kept`). A pull request with nothing in escrow gets no comment from a
+    private orders the attestor funded (`_kept`). A pull request with nothing in vault gets no comment from a
     schedule. This job's log gets counts."""
     att, targets, why = _att_open(run)
     if att is None:

@@ -21,7 +21,7 @@ from .plans import Group, _Ask, _Plan, _bounds, _decimals, _limits
 
 
 def _fund_run(kind: str, c: dict, terms: bytes | None, named: str, private: bool = False) -> str:
-    """What the escrow asks of the run behind any fund token (a job's or an order's), and of the terms that came with
+    """What the vault asks of the run behind any fund token (a job's or an order's), and of the terms that came with
     it. Returns the commit of the workflows that ran."""
     _wf_repo, wf_file, wf_sha = _workflow(c)
     if wf_file != "fund.yml":

@@ -8,7 +8,7 @@ nothing here signs or sends a transaction. Amounts are integers in micro-units o
                    config/fees.yaml; only the roles this task names and the config has) when it is installed, else by
                    task.json's shares. The payout fee is the funder's, ON TOP of the bounty (fees.yaml: "the funder pays
                    it on top of the amount"): the contributors receive the whole bounty. The agents' share is divided among the agents whose changes were kept, by count.
-                   Paying it is graduation's job (knos.graduation: an escrow order paying up to 4 payees, devnet).
+                   Paying it is graduation's job (knos.graduation: a vault order paying up to 4 payees, devnet).
 """
 from __future__ import annotations
 

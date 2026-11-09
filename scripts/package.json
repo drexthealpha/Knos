@@ -1,7 +1,7 @@
 {
   "name": "knos-release-scripts",
   "private": true,
-  "description": "Node packages for the release scripts of the current Solana programs (programs-v2/): the Squads v4 SDK (governance.mjs) and, optionally, an embedded Surfpool local validator (surfnet.mjs, for rehearse_fork.sh). Install with `npm ci --prefix scripts`.",
+  "description": "Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.",
   "type": "module",
   "license": "MIT",
   "engines": {

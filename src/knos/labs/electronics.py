@@ -17,7 +17,7 @@ example page, and "PCBWay API for Partners.pdf" (the workflow):
            Price, DeliveryDate, AuditResult}}
   status   POST /api/Pcb/QueryOrderProcess {OrderNo} -> {AllProcess: [names], List: [{Name, Time}] completed so far}
 PCBWay bills in its own way (account balance or web page); it has no x402. Knos pays the partner account's monthly
-bill from escrow, or, in this repository's devnet demo, a lab stand-in that bills over x402 on Solana devnet.
+bill from vault, or, in this repository's devnet demo, a lab stand-in that bills over x402 on Solana devnet.
 
 The LAB verdict holds PCBWay to the fabrication: the board parameters ordered = the ones in CheckOrderDetails, every
 process done, and the QC processes named in the spec (e.g. the electrical test) among them. The OUTCOME verdict holds

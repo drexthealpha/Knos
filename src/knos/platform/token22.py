@@ -1,18 +1,18 @@
-"""Token-2022 extensions, read from a mint's or a token account's bytes: whether money held in escrow in that mint can
+"""Token-2022 extensions, read from a mint's or a token account's bytes: whether money held in vault in that mint can
 be paid out as its terms say (https://solana.com/docs/tokens/extensions, read 14 Oct 2026).
 
 knos_pay holds a bounty in the job's own token account and pays it with one TransferChecked (a CPI). Some extensions of
 a Token-2022 mint let someone other than the funder and the judge decide what happens to that money, or make the
 payment fail, so a bounty funded in such a mint would not be the promise its terms make:
 
-    extension            on        what it does to an escrow                                              Knos
-    PermanentDelegate    mint      the delegate can move or burn ANY account's tokens, the escrow's too    refuse
+    extension            on        what it does to a vault                                              Knos
+    PermanentDelegate    mint      the delegate can move or burn ANY account's tokens, the vault's too    refuse
     Pausable             mint      the pause authority can stop every transfer, the payout's too           refuse
     TransferHook         mint      every transfer runs another program, with accounts knos_pay never passes refuse
     NonTransferable      mint      the tokens cannot move at all                                           refuse
     TransferFeeConfig    mint      a fee is withheld from every transfer: the payee gets less than the terms refuse
     DefaultAccountState  mint      new accounts start frozen (state 2): a payee's new account cannot receive refuse when frozen
-    ConfidentialTransferMint mint  balances may move encrypted, out of what the escrow's terms can read     warn
+    ConfidentialTransferMint mint  balances may move encrypted, out of what the vault's terms can read     warn
     MintCloseAuthority   mint      the mint can be closed once its supply is zero                          warn
     InterestBearingConfig / ScaledUiAmount  mint  the amount shown differs from the raw amount paid        warn
     MemoTransfer         account   an incoming transfer needs a Memo instruction right before it; knos_pay's

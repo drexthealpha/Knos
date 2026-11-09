@@ -1,5 +1,5 @@
 """The plain contract of the Knos task (drexthealpha/knos-e2e#285): ADAPTERS, example specs, dict quotes, no order
-without escrow, settle(), public_view() and leitner.step()."""
+without vault, settle(), public_view() and leitner.step()."""
 from __future__ import annotations
 
 import json

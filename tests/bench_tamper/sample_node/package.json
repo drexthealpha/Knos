@@ -2,7 +2,7 @@
   "name": "slug",
   "version": "1.0.0",
   "private": true,
-  "description": "The sample project: issue 1 is that slugify keeps punctuation.",
+  "description": "Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.",
   "main": "index.js",
   "scripts": {
     "test": "node --test test/*.test.js .knos/acceptance/1/*.test.js"

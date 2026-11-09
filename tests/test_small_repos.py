@@ -1,5 +1,5 @@
 """The four small repositories a release publishes (scripts/small_repos.py): each is this repository's own files and a
-README, the same bytes every time, and what the site, `knos settle --neutral` and the escrow expect of them."""
+README, the same bytes every time, and what the site, `knos settle --neutral` and the vault expect of them."""
 from __future__ import annotations
 import pathlib as _pl
 

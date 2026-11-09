@@ -3,12 +3,12 @@
     verdict(game, orders, quotes, ...)    Works = the winner's final verdict (sealed final set, both seeds, judge
                                           unchanged); Wanted = the pre-orders locked against the game's spec (the
                                           claim's pre-order pool on chain, knos.graduation.pool -> demand_orders, or the
-                                          staged escrow's orders); Makeable = sourced cost quotes against the locked
+                                          staged vault's orders); Makeable = sourced cost quotes against the locked
                                           price. knos.referee.verdict: all three, or no.
-    plan(game, verdict, ...)              knos.graduation.plan: the milestone escrow and pre-order pool of the claim,
+    plan(game, verdict, ...)              knos.graduation.plan: the milestone vault and pre-order pool of the claim,
                                           and the contributor split of config/fees.yaml (knos.splits): researcher (who
                                           posted the goal), agent (the winning player, person or AI), referee.
-    pay_litesvm(root, p, ...)             the escrow and each pre-order paid to the split in LiteSVM (LABEL), because
+    pay_litesvm(root, p, ...)             the vault and each pre-order paid to the split in LiteSVM (LABEL), because
                                           knos_pay pays only on its judge's token (see knos.game.pot).
     permanent(game, ...)                  Knos Record entries (graduation, split, payout) + the Zenodo sandbox DOI
                                           (fixture without a token) + SWHIDs (the winning file's intrinsic id, and a
@@ -69,7 +69,7 @@ def plan(game: Game, v: dict, *, repo_id: int, amount: int, contributors_: list[
 
 
 def pay_litesvm(root, p: dict, wallets: list[str], preorders: list[int]) -> dict:
-    """The milestone escrow (funded by one funder) and each pre-order (one buyer each), funded on the plan's terms in
+    """The milestone vault (funded by one funder) and each pre-order (one buyer each), funded on the plan's terms in
     LiteSVM and paid by a test-build judge token to the split's payees at `wallets` (one per payee, in plan order)."""
     from ..nebius.payout import available
     from .pot import LABEL

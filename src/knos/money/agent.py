@@ -1,7 +1,7 @@
 """The agent side of "submit work for verification and payment": three tools that quote and plan and never sign.
 
     knos_fees       the fee of any line of config/fees.yaml for an amount, or the whole schedule
-    knos_graduate   a passing verdict -> the milestone escrow and pre-order pool it opens, the contributor split, and
+    knos_graduate   a passing verdict -> the milestone vault and pre-order pool it opens, the contributor split, and
                     the unsigned FundOrderWallet instruction a funder's wallet signs
     knos_preorder   a buyer's pre-order in a graduated claim's pool: the unsigned instruction, the fee on top, and
                     (with a ledger) the pool as the chain has it now

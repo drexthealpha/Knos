@@ -1,4 +1,4 @@
-//! Money going out of escrow: Pay and Settle (to the payee), Refund (back to the funder), and Bind (the wallet a
+//! Money going out of vault: Pay and Settle (to the payee), Refund (back to the funder), and Bind (the wallet a
 //! GitHub user is paid at).
 use crate::{err, gh::*, state::*, token::*, *};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, hash::hashv, msg, program_error::ProgramError, pubkey::Pubkey};

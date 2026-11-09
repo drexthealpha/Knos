@@ -122,7 +122,7 @@ def test_the_blink(http):
     assert c == 200 and a["type"] == "action" and a["links"]["actions"][0]["href"].endswith("&units=5") and h["X-Action-Version"]
     assert "set by Qloo" in a["description"] and h["X-Blockchain-Ids"].startswith("solana:")
     c, e, _ = post(base, f"/api/actions/preorder?report={job['report']}&units=5", {"account": "So11111111111111111111111111111111111111112"})
-    assert c == 400 and "holding money is unavailable" in e["message"]                          # no escrow keys in tests: refused plainly
+    assert c == 400 and "holding money is unavailable" in e["message"]                          # no vault keys in tests: refused plainly
 
 
 def test_solana_pay_funds_a_milestone_from_any_wallet(http):

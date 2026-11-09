@@ -1,4 +1,4 @@
-"""Lock pre-orders: one Knos devnet pre-order escrow per demand report, built with Knos's own graduation code.
+"""Lock pre-orders: one Knos devnet pre-order vault per demand report, built with Knos's own graduation code.
 
 A demand report is evidence that people may want a product; a pre-order is a buyer putting test money where that
 evidence points. Each report opens a pre-order POOL in the sense of `knos.graduation` (Knos 0.3.29): the order scope,
@@ -15,8 +15,8 @@ Who signs:
   wallet mode  the buyer's own browser wallet signs; the server only builds the unsigned transaction and relays it.
   passkey      the buyer's own passkey signs (knos_wanted.wallets). The app's devnet TEST wallet (KNOS_WANTED_DEVNET_KEYPAIR)
                only pays fees and mints test units (the faucet); it never buys for anyone (the demo buyer is removed).
-`knos` is an optional dependency (pip install "./apps/wanted[escrow]"); without it the report still works and the button
-says the escrow is unavailable.
+`knos` is an optional dependency (`pip install "./apps/wanted[escrow]"`); without it the report still works and the button
+says the vault is unavailable.
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def knos():
     try:
         from knos import chain, graduation
         from knos.settle.v2 import pay
-    except Exception as why:  # noqa: BLE001 - knos missing or broken: the escrow is off, the report is not
+    except Exception as why:  # noqa: BLE001 - knos missing or broken: the vault is off, the report is not
         raise EscrowUnavailable(f"the knos package is not installed ({type(why).__name__}); pip install './apps/wanted[escrow]'") from None
     return chain, graduation, pay
 

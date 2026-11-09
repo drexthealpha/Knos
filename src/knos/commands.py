@@ -31,7 +31,7 @@ from dataclasses import dataclass, replace
 DAYS, MAX_DAYS = 14, 90                             # until an unpaid bounty goes back; knos-pay's MAX_WORK
 RESERVE, MAX_RESERVE = 7, 90                        # days a `/knos take` lasts
 MIN_UNITS, MAX_UNITS = 1_000_000, 100_000_000_000   # knos-pay's MIN_AMOUNT and MAX_AMOUNT, in millionths
-MAX_BUDGET = 1_000_000_000_000                      # a standing offer's budget as written; the escrow's own cap is said at funding
+MAX_BUDGET = 1_000_000_000_000                      # a standing offer's budget as written; the vault's own cap is said at funding
 MONEY = "test USDC"                                 # what devnet's money is called, everywhere
 
 
@@ -75,7 +75,7 @@ class Offer:
 
     @property
     def units(self) -> int:
-        """What goes into escrow: the whole budget."""
+        """What goes into vault: the whole budget."""
         return self.budget
 
 

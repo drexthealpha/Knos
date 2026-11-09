@@ -50,7 +50,7 @@ CLAIM = dict(file="claim.yml", wf_repo="drexthealpha/knos-oidc-rotate", wf_sha=T
 
 
 def money(c: OrderChain) -> dict:
-    """What every SPL token account on the chain holds: the escrow's, the payees', the funders', FEE_OWNER's, the relayer's."""
+    """What every SPL token account on the chain holds: the vault's, the payees', the funders', FEE_OWNER's, the relayer's."""
     return {str(a): int.from_bytes(bytes(acc.data)[64:72], "little") for a, acc in c.svm.get_program_accounts(pay.TOKEN) if len(bytes(acc.data)) == 165}
 
 

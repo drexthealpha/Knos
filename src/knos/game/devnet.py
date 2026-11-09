@@ -6,7 +6,7 @@ The POT of a game is funded and paid by the referee panel's verdict on chain, wi
     knos game panel DIR --m 2 --keys K1,K2,K3 --program <knos_pay 0.3.34 id> --mint MINT
     knos game fund DIR --wallet FILE --amount 10
     knos game finish DIR && knos game pay DIR --referee FILE     (each referee; the m-th signature pays)
-The legs below that still replay in LiteSVM (the graduation escrow and pre-order release to the contributor split, and
+The legs below that still replay in LiteSVM (the graduation vault and pre-order release to the contributor split, and
 this file's own pot replay) are labelled; they pay on a GitHub-judged order, which a game result has no run for.
 
     python -m knos.game.devnet --wallets DIR --game DIR --out FILE [--origin https://github.com/drexthealpha/Knos]
@@ -22,7 +22,7 @@ buyer-1/2.json) and is never printed. Steps:
      the no-model local agent, labelled), and a synthetic scripted human; then the referee's final verdicts
   4. the pot's split by the verdicts, paid in LiteSVM from the same funder keys (the same order addresses)
   5. two buyers' pre-orders in the result's pre-order pool on devnet; the referee's verdict (works + wanted + makeable)
-  6. graduation: the contributor split paid from the milestone escrow and the pre-orders in LiteSVM
+  6. graduation: the contributor split paid from the milestone vault and the pre-orders in LiteSVM
   7. the permanent record: Knos Record (Sibyl) entries, the winning file's SWHID, a Software Heritage save request
      (live, no key), the Zenodo sandbox deposition (fixture without KNOS_ZENODO_SANDBOX_TOKEN), a devnet anchor
   8. after the deadlines, every devnet order refunded (amount and fee back to its funder or buyer)
@@ -197,7 +197,7 @@ def main(argv=None) -> int:
     out["referee_verdict"]["checks"] = {n: {"passed": c["passed"], "reasons": c["reasons"]} for n, c in v["checks"].items()}
     save()
 
-    # 6. graduation: the split paid from the escrow and the pre-orders (LiteSVM)
+    # 6. graduation: the split paid from the vault and the pre-orders (LiteSVM)
     if v["passed"]:
         gplan = graduate.plan(g, v, repo_id=JUDGE_REPO, amount=30 * UNIT, contributors_=cs, min_buyers=2, min_locked=15 * UNIT, pool_work_s=pay.MIN_WORK)
         out["graduation_plan"] = {"split": gplan["split"], "escrow_payout_fee": gplan["escrow"]["payout_fee"],

@@ -7,7 +7,7 @@ Each step: {n, kind (memory | paper | qloo | decision), title, tool, input, outp
 calls return (check.demand_check(on_call=...)), so the page shows the crossing live by polling GET /api/cross?id=.
 Sibyl is the agent's WORKING MEMORY: before a crossing the agent recalls what it learned about the same paper (the
 product phrase the maker settled on, the last decision); after it, it remembers this crossing. Memory never moves or
-blocks money: escrow rules live in knos_pay on chain.
+blocks money: vault rules live in knos_pay on chain.
 
 The same agent answers Model Context Protocol calls at POST /mcp (JSON-RPC over HTTP, tools/list + tools/call), an
 optional door for other people's agents; the product is the web page.

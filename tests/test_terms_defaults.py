@@ -58,7 +58,7 @@ def test_only_a_tip_asks_nothing_because_the_one_who_tips_has_seen_the_merged_wo
 
 def test_a_work_order_keeps_ten_percent_back_for_fourteen_days_unless_the_comment_or_the_policy_says_otherwise():
     assert terms.window() == (1_000, 14) == (terms.HOLDBACK_PERCENT * 100, terms.WARRANTY_DAYS)
-    assert terms.window(orders=False) == (0, 0)                                          # no work orders on that escrow: nothing held on chain
+    assert terms.window(orders=False) == (0, 0)                                          # no work orders on that vault: nothing held on chain
     assert terms.window(holdback=0) == (0, 0)                                            # `holdback 0` turns it off
     assert terms.window(holdback=20, warranty=30) == (2_000, 30)
     assert terms.window(warranty=30) == (0, 30)                                          # the funder's words decide, as before

@@ -2,7 +2,7 @@
 
     Devnet.load(dir)                 the team's wallet (buyer), the agent's wallet (worker) and the team's test mint, from
                                      key files in `dir` (team.json, agent.json, mint.json); a key is never printed
-    devnet.fund_escrow(...)          knos_pay FundWallet: the team's bounty into escrow, terms fixed (seal hash inside)
+    devnet.`fund_escrow`(...)          knos_pay FundWallet: the team's bounty into vault, terms fixed (seal hash inside)
     devnet.pay_check(...)            x402 v2 `exact`: the agent pays one raw check (0.02) to Knos's treasury through the
                                      public x402.org facilitator (no key; the facilitator pays the network fee)
     final_ms(url, sig, t0)           polls getSignatureStatuses until finalized: (confirmed ms, finalized ms) after t0
@@ -95,7 +95,7 @@ class Devnet:
 
     def fund_escrow(self, *, repo_id: int, issue: int, amount: int, wf_repo: str, wf_sha: str, terms: bytes,
                     work_s: int = 86_400) -> dict:
-        """The team's bounty into knos_pay escrow, plus (idempotent) the treasury's token account of the mint, which the
+        """The team's bounty into knos_pay vault, plus (idempotent) the treasury's token account of the mint, which the
         x402 check pays into."""
         me = self.team.pubkey()
         ixs = [pay.create_ata_ix(me, pay.FEE_OWNER, self.mint),

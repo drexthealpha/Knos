@@ -172,7 +172,7 @@ def at(url: str | None, ask: Callable[[str, list], Any] | None = None) -> str:
 def cached(url: str | None) -> str:
     """The commitment for `url` from what this process already knows (KNOS_COMMITMENT, KNOS_ALPENGLOW, or an answer a
     Ledger or a wait got for that URL), with no request of its own: for read-only checks whose requests are counted
-    (the escrow history reader, the mainnet check). Unknown: confirmed, which on Alpenglow is the same state."""
+    (the vault history reader, the mainnet check). Unknown: confirmed, which on Alpenglow is the same state."""
     word = os.environ.get(ENV, "").strip()
     if word:
         return commitment(word)

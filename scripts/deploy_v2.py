@@ -31,7 +31,7 @@
                     and never makes a second one for the same build
     summary-new     one line about knos_meter, knos_passkey and upgrade_gate. Exit 1 unless all three are deployed
                     and held by the upgrade vault
-    faucet          InitFaucet: the escrow's test-USDC mint
+    faucet          InitFaucet: the vault's test-USDC mint
     keys            RegisterKey and KeyParams for each of GitHub's four genesis keys
     fee-account     the fee owner's token account for the faucet's mint
     addresses       every address of the deployment, each with what it is
@@ -327,7 +327,7 @@ def addresses(keys: list[tuple[str, int]]) -> list[tuple[str, str]]:
     for name in ("knos_oidc", "knos_pay"):
         out += [(f"{name} program", ids[name]), (f"{name} program data (its bytes and upgrade authority)", str(mc.programdata_address(ids[name])))]
     out += [("upgrade multisig (Squads v4, time lock 691200 s)", ids["upgrade_multisig"]), ("upgrade vault (the programs' upgrade authority)", ids["upgrade_authority"]),
-            ("guardian multisig (Squads v4, time lock 0)", ids["guardian_multisig"]), ("guardian vault (the GUARDIAN both programs name)", ids["guardian"]),
+            ("guardian multisig (Squads v4, time lock 0)", ids["guardian_multisig"]), ("guardia vault (the GUARDIAN both programs name)", ids["guardian"]),
             ("test-USDC mint of the faucet", str(mint)), ("fee owner", ids["fee_owner"]), ("fee owner's token account", str(pay.ata(pay.FEE_OWNER, mint))),
             ("pause account of knos_pay", str(pay.pause_pda()))]
     out += [(f"GitHub key {kid[:8]}", str(oidc.key_pda(oidc.GITHUB, n))) for kid, n in keys]

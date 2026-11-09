@@ -161,7 +161,7 @@ pub fn after_pay<'a>(program_id: &Pubkey, relayer: &AccountInfo<'a>, order: &Acc
         mark_done(program_id, relayer, per.get(n * PER + n).ok_or(ProgramError::NotEnoughAccountKeys)?, sys, order.key, o, pr)?;
         if paid < o.amount {
             // A standing order is kept as what is left of it: `amount` what its payees can still receive, `fee` what
-            // is still escrowed for it, `paid` zero. So the fee share of every payment is taken from the fee that is
+            // is still held for it, `paid` zero. So the fee share of every payment is taken from the fee that is
             // really there, whatever a TopUp did to the amount and the fee in between (the floor makes the fee rate
             // of a small order higher than that of the larger order it is topped up to).
             let share = |p: u64| (o.fee as u128 * p as u128 / o.amount as u128) as u64;

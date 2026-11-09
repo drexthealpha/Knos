@@ -1,8 +1,8 @@
 """The plain contract over knos.labs (Knos task V34LABS, drexthealpha/knos-e2e#285): dicts in, dicts out.
 
     ADAPTERS["adaptyv"].quote(ADAPTERS["adaptyv"].example)  -> {"lab", "price", "currency", "turnaround_days", "mode", ...}
-    ADAPTERS[name].order(spec, escrow_ref)                   ValueError without an escrow reference: no order without
-                                                             money in escrow
+    ADAPTERS[name].order(spec, `escrow_ref`)                   ValueError without a vault reference: no order without
+                                                             money in vault
     ADAPTERS[name].status(order) / .results(order)           dicts; results carry the two verdicts
     settle(protocol_ok, qc_ok, outcome_ok)                   {"lab_paid", "researcher_paid"}
     public_view(result)                                      what may be public: hashes, timing, the two verdicts

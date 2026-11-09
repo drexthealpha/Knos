@@ -5,7 +5,7 @@ plus 2 writes/s per partner) is a SUPPLIER / manufacturing-partner API: jobs, mi
 partners with Approved or PIP status", and webhooks. It is not a buyer's ordering API (CAPABILITIES-GAP.md, 2f,
 resolved 14 Oct 2026; re-read 14 Oct: no quote or order-creation endpoint). Buyers order through Xometry's CAD
 add-ins or enterprise PunchOut. Craftcloud (3D printing) publishes a buyer API (api.craftcloud3d.com/api-docs.json:
-price, offer, cart, order, order status) with no declared auth scheme: the next mechanical rail to check. So a Knos buyer orders Xometry parts on its website (knos.labs.manual: Knos holds the escrow,
+price, offer, cart, order, order status) with no declared auth scheme: the next mechanical rail to check. So a Knos buyer orders Xometry parts on its website (knos.labs.manual: Knos holds the vault,
 the buyer brings back the inspection report), and the adapter below names what is missing instead of guessing.
 """
 from __future__ import annotations

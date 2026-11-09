@@ -1,4 +1,4 @@
-"""Milestone evidence checks, sign-in, and the new HTTP routes without escrow keys (no network, no chain)."""
+"""Milestone evidence checks, sign-in, and the new HTTP routes without vault keys (no network, no chain)."""
 import base64
 import hashlib
 import io

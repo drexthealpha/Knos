@@ -13,7 +13,7 @@ network); a summary computed the same way for every supplier; and the supplier's
 reader the supplier granted (header Record-Grant). Without a grant the answer says "not granted". With no signing
 key the answer says it is unsigned. Revenue from lookups is budgeted at zero until someone buys one.
 
-The payment is a Knos work order, as in examples/x402_attested: the caller funds an order in escrow and names it. Two
+The payment is a Knos work order, as in examples/x402_attested: the caller funds an order in vault and names it. Two
 things differ, and both come from the program as it is:
 
     the smallest order knos_pay takes is 5.00 (ORDER_MIN_AMOUNT), so one order buys fifty lookups (PACK), not one;
@@ -31,7 +31,7 @@ single sign-on (`--sso CONFIG`, the self-host bundle's knos.toml with [sso]; kno
 files and the order counts, also need a signed-in person (the site's session cookie; any role): else 401. No answer carries a stack trace: an unforeseen error is a 500 with one line;
 `--debug` or KNOS_DEBUG=1 prints the trace to the operator's terminal, never to the caller. The server keeps the
 count of each order in the memory engine (knos.proof.history's store) when it is given one, so a restart does not
-sell a lookup twice. The escrow pays the server when the order's pinned judge signs an acceptance (PayOrder), or
+sell a lookup twice. The vault pays the server when the order's pinned judge signs an acceptance (PayOrder), or
 returns everything to the caller after the deadline (RefundOrder). No judge for a lookup is built: docs/reference/X402.md says so.
 
 Standard library at import; solders and knos.settle.v2.pay when a payment is checked.

@@ -12,11 +12,11 @@
   sns_owner(name)   the owner of a .sol name (Name Service: the name account under the .sol root), when a project names one.
   price(pair)       a Pyth price read from its devnet price account, for a milestone stated in another currency.
   project_credits(...) a project's credits: a Token-2022 mint whose TransferHook is knos_hook (programs-hook/), with rules
-                    naming the escrow's owner, so a credit moves only into the escrow; each lock's units are minted and
+                    naming the vault's owner, so a credit moves only into the vault; each lock's units are minted and
                     moved in through the hook (a transfer anywhere else fails on chain, Custom(1)).
   evm_verify(...)   an EVM-signed attestation (a lab instrument, a sensor) verified by Solana's Secp256k1 precompile in
                     a transaction: a wrong signature fails the transaction, so success is the proof.
-State (the group mints, the tree, the badges) is kept beside the other server state (escrow._state_dir()).
+State (the group mints, the tree, the badges) is kept beside the other server state (`escrow`._state_dir()).
 """
 from __future__ import annotations
 
@@ -97,7 +97,7 @@ def _create(payer, new, space: int, lamports: int, owner: str):
 # ---- Token-2022 project credits through the transfer hook (programs-hook/knos_hook, deployed on devnet) -----------------
 HOOK = "AFQFtodihz5jAHpVBUk87AkH8FJsQdmHt8Z5NKLWRj1T"
 HOOK_INIT = bytes([43, 34, 13, 49, 167, 88, 235, 235])     # the SPL Transfer Hook interface's InitializeExtraAccountMetaList
-HOOK_MINT = bytes([187, 99, 204, 115, 30, 116, 73, 210])   # knos_hook MintCredits: the hook mints, only into the escrow
+HOOK_MINT = bytes([187, 99, 204, 115, 30, 116, 73, 210])   # knos_hook MintCredits: the hook mints, only into the vault
 CREDIT_LEN = 234                                         # base mint padded to 165, account type 1, TransferHook TLV 2 + 2 + 64
 
 
@@ -121,7 +121,7 @@ def to_hook_ix(mint, current):
 
 
 def _credit_mint(led, pid: str) -> dict:
-    """The project's credit mint, made once: TransferHook -> knos_hook, and the hook's rules naming the escrow's owner."""
+    """The project's credit mint, made once: TransferHook -> knos_hook, and the hook's rules naming the vault's owner."""
     from solders.keypair import Keypair
     st = _state("credits")
     if pid in st:
@@ -150,8 +150,8 @@ def credit_transfer_ix(mint, source, dest, authority, amount: int):
 
 
 def project_credits(pid: str, order: str, units: int, led=None) -> dict:
-    """A locked order's units as the project's credits, held in the escrow: knos_hook mints them into the escrow, at the
-    escrow owner's signature (the mint's authority is the hook's PDA). A mint made before that is handed to the PDA first."""
+    """A locked order's units as the project's credits, held in the vault: knos_hook mints them into the vault, at the
+    vault owner's signature (the mint's authority is the hook's PDA). A mint made before that is handed to the PDA first."""
     led = led or escrow.ledger()
     with _lock:
         done = _state("credit-orders")
@@ -257,7 +257,7 @@ def _ata(owner, mint):
     return Pubkey.find_program_address([bytes(owner), bytes(_pk(TOKEN22)), bytes(mint)], _pk(ATA))[0]
 
 
-# ---- pledge receipts: what is locked, on chain, beside the escrow ------------------------------------------------------
+# ---- pledge receipts: what is locked, on chain, beside the vault ------------------------------------------------------
 RECEIPT_DECIMALS = 6
 
 
@@ -303,7 +303,7 @@ def _freeze(acct, mint, authority):
 
 
 def _accounts(led) -> dict:
-    """The relayer's inbox (where receipts are minted) and the escrow ledger, owned by the app's escrow test wallet:
+    """The relayer's inbox (where receipts are minted) and the vault ledger, owned by the app's vault test wallet:
     RequiredMemoTransfers (a pledge arrives only with its order's claim as a memo) and CpiGuard (no program moves it)."""
     st = _state("receipts")
     if st.get("ledger"):
@@ -325,7 +325,7 @@ def _accounts(led) -> dict:
 
 def pledge_receipt(order: str, claim_id: str, units: int, led=None) -> dict:
     """A locked order's receipt on chain: `units` receipt units minted to the relayer's inbox, then transferred into the
-    escrow ledger with a memo naming the order and its claim (the ledger refuses a transfer without one); it stays frozen."""
+    vault ledger with a memo naming the order and its claim (the ledger refuses a transfer without one); it stays frozen."""
     led = led or escrow.ledger()
     with _lock:
         done = _state("receipt-orders")

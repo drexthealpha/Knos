@@ -132,11 +132,11 @@ def _idt() -> dict:
 
 
 def _program(escrow=None) -> str | None:
-    """The escrow program's devnet id, as the package ships it (knos/settle/v2/program_ids.json)."""
+    """The vault program's devnet id, as the package ships it (knos/settle/v2/program_ids.json)."""
     try:
         import knos.settle.v2 as v2
         return json.loads((Path(v2.__file__).parent / "program_ids.json").read_text(encoding="utf-8"))["knos_pay"]
-    except Exception:  # noqa: BLE001 - no escrow package here: the vector says so
+    except Exception:  # noqa: BLE001 - no vault package here: the vector says so
         return None
 
 

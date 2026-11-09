@@ -8,7 +8,7 @@ hand-written spec, and the template's draft is kept when it does not hold.
 
 A draft is a starting point, not terms: the parties read it, fix the numbers, sign its hash (`knos outcome sign`),
 and only then fund it. Everything a draft cannot know is written as a value that fails validation or is marked
-`EDIT` in a comment: the parties' GitHub ids, the seller's address, the escrow.
+`EDIT` in a comment: the parties' GitHub ids, the seller's address, the vault.
 """
 from __future__ import annotations
 

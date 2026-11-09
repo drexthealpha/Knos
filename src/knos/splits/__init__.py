@@ -5,7 +5,7 @@ config/fees.yaml (`splits.roles`, read through knos.money.fees_config: 60/25/10/
 On chain a share is a payee of the order: an order pays one to four payees (pay.MAX_PAYEES), each `(GitHub id,
 basis points, address or None)`, named by the pay token the order's pinned judge workflow asks GitHub to sign
 (pay.order_pay_audience). The program divides the amount itself: each share rounded down, the last payee the rest
-(`amounts`). So a split is paid automatically, by the escrow, in the transaction that pays the order; nobody
+(`amounts`). So a split is paid automatically, by the vault, in the transaction that pays the order; nobody
 forwards money afterwards.
 
     contributors = [{"role": "researcher", "github_id": 1, "address": "..."}, {"role": "agent", "github_id": 2}]

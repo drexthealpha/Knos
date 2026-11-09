@@ -16,7 +16,7 @@ Two services, two adapters:
   b12_foundry    the b12 Foundry: commissioned synthesis and experimental chemistry in a partner lab at the University
                  of Zurich, run on Chemspeed workflows "from solid dispensing to LC-MS analysis" (b12-labs.com/foundry).
                  Ordered by e-mail; scope and deliverables are agreed before work starts; no public price, no API. So
-                 it is a MANUAL lab (knos.labs.manual): Knos holds the escrow and gives the verdicts on the files the
+                 it is a MANUAL lab (knos.labs.manual): Knos holds the vault and gives the verdicts on the files the
                  buyer brings back (LC-MS traces, NMR, yield).
 
 Compound sourcing with a full documented quote/order/status API also exists (Molport, api.molport.com/openapi.json;
@@ -69,7 +69,7 @@ class B12Selenium(Adapter):
                      ["b12 credits"], self.is_fixture, self.label, a)
 
     def order(self, spec: Spec, escrow_ref: str, quote: Quote | None = None) -> Order:
-        # one idempotency key per (spec, escrow): a retried order is the same order, never a second charge
+        # one idempotency key per (spec, vault): a retried order is the same order, never a second charge
         key = str(uuid.uuid5(uuid.NAMESPACE_URL, f"knos:{spec.hash()}:{escrow_ref}"))
         _s, a, _h = self._call("POST", "/v1/route-searches", self.body(spec), spends=True, headers={"Idempotency-Key": key})
         return Order(self.NAME, a["id"], escrow_ref, spec.hash(), STATE.get(str(a.get("status")), "submitted"), self.is_fixture, self.label, a)

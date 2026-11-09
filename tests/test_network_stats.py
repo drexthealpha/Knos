@@ -1,9 +1,9 @@
-"""The public numbers (scripts/network_stats.py): counted from the escrows' own log lines of both deployments, the
+"""The public numbers (scripts/network_stats.py): counted from the vaults' own log lines of both deployments, the
 public relay log and GitHub, with Knos's own activity, self-payment and faucet money kept out of "outside".
 
 Recorded inputs (tests/web/recorded):
 
-    devnet_first_deployment.json     every transaction of the first deployment's escrow on devnet, as the cluster
+    devnet_first_deployment.json     every transaction of the first deployment's vault on devnet, as the cluster
                                      returned them on 2 Oct 2026
     second_deployment_scenario.json  twelve jobs run through the second deployment's test build in LiteSVM (`scenario`
                                      below), as the program logged them; with the relay log lines a relay would have
@@ -71,7 +71,7 @@ def test_events_come_only_from_the_escrow_and_only_from_transactions_that_succee
     second = tx(200, "r", "knos2:funded repo=5 issue=7 amount=5000000 mode=0 by=900 source=Bal1 faucet=0", 'knos2:terms {"checks":[],"v":1}', program=PAY2)
     assert [(e["event"], e["v"]) for e in network_stats.events_of(second)] == [("funded", 2), ("terms", 2)]
     assert network_stats.events_of(second)[1]["json"] == '{"checks":[],"v":1}' and network_stats.events_of(second)[0]["source"] == "Bal1"
-    # a line is the escrow's only when the escrow printed it: another program in the same transaction can print anything
+    # a line is the vault's only when the vault printed it: another program in the same transaction can print anything
     forged = {"blockTime": 300, "meta": {"err": None, "logMessages": [
         f"Program {PAY2} invoke [1]", "Program log: knos2:balance owner=7 authority=A mint=M", f"Program {PAY2} success",
         "Program Evi1111111111111111111111111111111111111111 invoke [1]", "Program log: knos2:paid repo=1 issue=1 payee=7 amount=99 fee=1 to=W",
@@ -79,7 +79,7 @@ def test_events_come_only_from_the_escrow_and_only_from_transactions_that_succee
         "Program log: knos2:paid repo=1 issue=1 payee=7 amount=99 fee=1 to=W", "Program Evi1111111111111111111111111111111111111111 success"]},
         "transaction": {"message": {"accountKeys": ["r"]}}}
     assert [e["event"] for e in network_stats.events_of(forged)] == ["balance", "paused"]
-    # each escrow speaks its own prefix: a `knos2:` line from the first deployment's program id is nothing
+    # each vault speaks its own prefix: a `knos2:` line from the first deployment's program id is nothing
     assert network_stats.events_of(tx(1, "r", "knos2:paid repo=1 issue=1 payee=7 amount=99 fee=1 to=W", program=PAY1)) == []
     assert network_stats.events_of(tx(1, "r", "knos:paid repo=1 issue=1 author=7 amount=99 fee=1", program=PAY2)) == []
     # a versioned transaction's accounts include the ones it loaded from a table
@@ -264,7 +264,7 @@ def test_the_relay_log_gives_the_latency_a_person_saw():
     ev = events(*history)
     whole = network_stats.latency(lines, ev, get)
     got = {k: _table(v) for k, v in whole.items()}
-    # the one measurement says what it is over: the sample, the days, which escrow paid, and what gave no sample
+    # the one measurement says what it is over: the sample, the days, which vault paid, and what gave no sample
     m = whole["merge_to_paid"]
     assert (m["n"], m["p50"], m["p95"], m["window"], m["deployment"]) == (1, 48, 48, {"from": "1970-01-01", "to": "1970-01-01"}, {"first": 0, "second": 1})
     assert (m["lines"], m["not_timed"]) == (3, 2) and "merged_at" in m["definition"] and "samples" not in m       # one sent nothing, one has no merge time
@@ -464,8 +464,8 @@ LONG_AT = 1_790_000_000
 
 
 def long_history(n: int = 2500, payments: int = 68, prefix: str = "S") -> tuple[list[dict], list[dict]]:
-    """(`n` transactions of the second escrow, oldest first, one a minute; the relay log that paid them). `payments`
-    jobs are funded and paid, spread over the whole history; every other transaction logs nothing of the escrow's.
+    """(`n` transactions of the second vault, oldest first, one a minute; the relay log that paid them). `payments`
+    jobs are funded and paid, spread over the whole history; every other transaction logs nothing of the vault's.
     Each relay line carries its start: the merge, 26 seconds before the paying block."""
     step, txs, log = n // payments, [], []
     for i in range(n):
@@ -592,7 +592,7 @@ def test_the_cache_keeps_what_was_read_so_the_next_build_reads_only_what_is_new(
 
 def test_the_pages_build_has_the_time_to_read_the_whole_history_when_it_has_no_cache(monkeypatch, capsys):
     """The first build with the cache (10 Oct 2026) had none to restore, and read 209 transactions in a budget of
-    300 s, of the 1,427 the second escrow had: the rest waited for later builds, and its stats.json counted 93 jobs
+    300 s, of the 1,427 the second vault had: the rest waited for later builds, and its stats.json counted 93 jobs
     funded of the 476 the site then showed. The Pages build's budget reads that history at the rate that runner read,
     with half of it again to spare; a build that restores the cache asks only for what is new."""
     net = (ROOT / ".github" / "workflows" / "network.yml").read_text(encoding="utf-8")
@@ -614,7 +614,7 @@ TERMS = pay2.terms_json({"accept": "", "checks": [{"app": 15368, "name": "test"}
 
 
 def scenario() -> tuple[list[dict], list[dict], dict]:
-    """Twelve jobs through the second deployment's test build in LiteSVM: (the escrow's transactions as a cluster
+    """Twelve jobs through the second deployment's test build in LiteSVM: (the vault's transactions as a cluster
     would return them, the job accounts left at the end, {name: signature} of the ones the relay log names).
 
         A  an outside organisation (5001) whose wallet opened a Balance; a maintainer (6001) funds by comment:

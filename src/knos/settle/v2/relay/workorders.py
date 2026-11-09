@@ -301,7 +301,7 @@ def _command(kind: str, o: pay.Order, t: _Token) -> tuple[str, int]:
 
 
 def _own_key(kind: str, o: pay.Order, t: _Token) -> Pubkey:
-    """The one token of the escrow's that GitHub did not sign (order_judge::token): a pay token under a PRIVATE key
+    """The one token of the vault's that GitHub did not sign (order_judge::token): a pay token under a PRIVATE key
     pays a PRIVATE order funded from the Balance that the key's registrant opened. It is then the word of the wallet
     whose money it pays out, and of nobody else's. Returns that key's account; refuses every other pairing."""
     mine = [addr for addr, k in t.held if k.private and k.registrant is not None and o.from_balance and o.flags & pay.F_PRIVATE
@@ -339,7 +339,7 @@ def _plan_order_pay(a: _Ask, rule: bool = False, auto: bool = False) -> _Plan:
     o = pay.read_order(ledger.account(order))
     result = dict(kind=kind, order=str(order), **({} if rule else dict(head=p[3], pr=pr)), **(dict(auto=True) if auto else {}))
 
-    def before() -> list[dict]:     # what the escrow logged when another relayer carried this very token
+    def before() -> list[dict]:     # what the vault logged when another relayer carried this very token
         return _order_paid(ledger, order, pr, iat - pay.TOKEN_AHEAD)
 
     def already(rows: list[dict]) -> _Stop:

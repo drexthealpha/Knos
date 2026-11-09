@@ -1,6 +1,6 @@
 """The Record line as a machine-priced API (src/knos/record_api.py, examples/record_api, docs/reference/X402.md "Record"), in the
 Solana runtime (LiteSVM), with two stand-in agents: pay, then the JSON. A replayed payment is refused, a call another
-wallet signed is refused, the free file stays free, and the escrow pays the server on a signed acceptance or goes back."""
+wallet signed is refused, the free file stays free, and the vault pays the server on a signed acceptance or goes back."""
 from __future__ import annotations
 
 import json
@@ -94,7 +94,7 @@ def test_two_agents_pay_then_get_the_json_a_replay_is_refused_and_one_agent_cann
     fee = fees.live(ChainLedger(c)).order(PACK)
     assert got["status"] == 200 and got["body"]["record"]["supplier"] == "codex" and record_page.check(got["body"]["record"]) is None
     assert got["body"]["served"] == {"order": got["order"], "n": 0, "left": 49, "at": c.now(), "record_sha256": got["body"]["record"]["sha256"], "price": "100000"}
-    assert c.balance(a_tok) == 20 * USDC - PACK - fee and c.held(Pubkey.from_string(got["order"])) == PACK + fee       # in escrow, not yet the seller's
+    assert c.balance(a_tok) == 20 * USDC - PACK - fee and c.held(Pubkey.from_string(got["order"])) == PACK + fee       # in vault, not yet the seller's
     # the same payment again, byte for byte, from anyone who saw it: refused
     replay = server.handle("/lookup/codex", {"PAYMENT-SIGNATURE": record_api.encode(got["payment"])})
     assert replay[0] == 402 and "already used" in replay[2]["error"]
@@ -117,7 +117,7 @@ def test_two_agents_pay_then_get_the_json_a_replay_is_refused_and_one_agent_cann
     again = record_api.Server(off, ChainLedger(c), RECORDS, store)
     assert again.used(got["order"]) == 50 and again.handle("/orders/" + mine["order"], {})[2]["used"] == 1
     assert again.handle("/lookup/codex", {"PAYMENT-SIGNATURE": record_api.encode(got["payment"])})[0] == 402
-    # the acceptance: the order's pinned judge signs, and the escrow pays the seller the pack whole
+    # the acceptance: the order's pinned judge signs, and the vault pays the seller the pack whole
     order = Pubkey.from_string(got["order"])
     c.warp(3600)
     assert c.pay(order, [(SELLER_ID, 10_000, seller.pubkey())], pr=12), c.err

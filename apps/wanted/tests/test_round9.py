@@ -192,7 +192,7 @@ def test_release_findings_version_fee_funder_label_and_translations():
     # the fee on what the order holds: 48 units at 2 test units each settle 96
     f48 = preorder.fee_line(48, 2)
     assert f48["on_amount"] == 96 and f48["on_this_preorder"] == preorder.fee_line(96, 1)["on_this_preorder"]
-    # a funder's money is its own escrow, labelled as funder money; a pre-order stays a pre-order
+    # a funder's money is its own vault, labelled as funder money; a pre-order stays a pre-order
     assert "funder" in preorder.FUNDER_VIA and "held for this milestone" in preorder.FUNDER_VIA
     js = (STATIC / "app.js").read_text(encoding="utf-8")
     assert "viaLabel(c)" in js and "factorNote(" not in js

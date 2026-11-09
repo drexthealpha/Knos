@@ -1,7 +1,7 @@
 """The fee the site shows is the fee of the build that is live: tests/web/fee_live.mjs, on a build of the site.
 
 Under knos_pay 2.1 (the 0.3.14 tiers) and under 2.2 (0.30%, at least 0.05): the pricing calculator and the Console's
-escrow step show the live fee, with one line for the next upgrade only when the two differ; an order's refund time
+vault step show the live fee, with one line for the next upgrade only when the two differ; an order's refund time
 shows its grace when it has one. No node, no `playwright` package or no browser: skipped, with the reason."""
 
 from __future__ import annotations

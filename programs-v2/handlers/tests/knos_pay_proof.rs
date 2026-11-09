@@ -1,4 +1,4 @@
-//! knos_pay 0.3.34, pay on proof with no issuer: the test build in LiteSVM, sent the transactions of
+//! knos_pay 0.3.34, pay after proof with no issuer: the test build in LiteSVM, sent the transactions of
 //! programs-v2/testdata/pay_on_proof.json (scripts/rust_test_vectors.py `pay_on_proof`). An order judged by a
 //! 2-of-3 referee panel: one referee twice in one transaction counts once; that referee again, and a verdict signed
 //! for another order, are refused; the second distinct referee pays. Amounts are millionths of test USDC.

@@ -1,4 +1,4 @@
-"""Sending a plan: the token written, the RSA verification stepped, the escrow instruction, the close; `submit` and
+"""Sending a plan: the token written, the RSA verification stepped, the vault instruction, the close; `submit` and
 `verify_only`."""
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ def _round(ledger, payer: Keypair, txs: list[list[Instruction]], v1: bool = Fals
 
 def _land(ledger, payer: Keypair, last: Instruction | None, last_cu: int, groups: list[Group], close: Instruction | None, alone: bool,
           lead: bool = False, v1: bool = False) -> tuple[list[str], bool]:
-    """Sends the last Step, the escrow's groups and the Close in as few transactions and waits as they fit in: the
+    """Sends the last Step, the vault's groups and the Close in as few transactions and waits as they fit in: the
     Step shares its transaction with the groups that fit beside it, and the Close rides in the last one. Groups left
     over go in further transactions, side by side when `alone` says they depend on nothing but the first (with no
     Step to send, on nothing at all, unless `lead` says the first group comes first). Returns (signatures, whether

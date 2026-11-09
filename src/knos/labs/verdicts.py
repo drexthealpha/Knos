@@ -1,7 +1,7 @@
 """The two verdicts on a lab order, kept apart because labs accept only this:
 
     LAB verdict       was the protocol executed as specified, was every run reported (failed runs included), and did
-                      the QC pass (the lab's controls and the checks the order named)? PASS pays the LAB from escrow,
+                      the QC pass (the lab's controls and the checks the order named)? PASS pays the LAB from vault,
                       EVEN IF THE SCIENCE FAILED: a lab is paid for doing the work right, never penalised because a design
                       did not bind, a reaction gave no product or a board missed its spec.
     OUTCOME verdict   did the result meet the researcher's claim? PASS pays the researcher and lets the product
@@ -16,7 +16,7 @@ A claim, and a spec's QC checks, are conditions on the results:
 
 A verdict is signed by m of n referee keys (ed25519) over its canonical bytes: order, evidence hash, spec hash,
 verdict, amount, recipient, mint, expiry, nonce. `check` refuses fewer than m distinct registered signers, a key not in
-the set, an expired verdict, a replayed nonce, or a verdict whose amount or recipient differ from the escrow's.
+the set, an expired verdict, a replayed nonce, or a verdict whose amount or recipient differ from the vault's.
 """
 from __future__ import annotations
 

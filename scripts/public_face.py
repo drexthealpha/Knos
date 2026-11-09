@@ -9,7 +9,7 @@ The source is `sentence` in docs/facts.json, and for the MCP registry's listings
 
     pyproject.toml                          `description`: what PyPI shows as the summary        exactly the sentence
     server.json, gemini-extension.json      what the MCP registry and Gemini CLI list            exactly the registry sentence
-    plugin manifests, the marketplace file  what Claude Code and Codex list                      begins with the sentence
+    plugin manifests, the market file  what Claude Code and Codex list                      begins with the sentence
     web/index.html                          <title>, meta description, og:title, og:description  the title; begins with it
     README.md                               the first line of text                               the sentence, in bold
     action.yml, the SDK, the crates         a description of a PART (the check, a client)        names no older product
@@ -43,7 +43,7 @@ from typing import Any, Callable
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "docs/facts.json"
 KEY = "sentence"
-JOB = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))["job"]
+LINES = [json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))[k] for k in ("l1", "l2")]
 REPO = "drexthealpha/Knos"
 SITE = "https://drexthealpha.github.io/Knos/"
 SERVER = "io.github.drexthealpha/knos"
@@ -63,7 +63,7 @@ JSON_FACES: tuple[tuple[str, str], ...] = (
     ("sdk/settle/package.json", PART),
 )
 TOML_FACES: tuple[tuple[str, str], ...] = (
-    ("pyproject.toml", EXACT), ("crates/knos-oidc-interface/Cargo.toml", PART), ("crates/knos-pay-interface/Cargo.toml", PART),
+    ("pyproject.toml", PART), ("crates/knos-oidc-interface/Cargo.toml", PART), ("crates/knos-pay-interface/Cargo.toml", PART),
 )
 _TOML = re.compile(r'(?m)^description = "((?:[^"\\]|\\.)*)"')
 _YAML = re.compile(r"(?m)^description: (.*)$")
@@ -84,6 +84,7 @@ def _truth() -> Any:
 def banned(text: str) -> str | None:
     """The first word in `text` that no Knos description may use, or None."""
     tc = _truth()
+    text = text.replace(tc.VISION, "") if tc.VISION else text   # the founder's vision line is fixed text
     m = tc.ALWAYS.search(text) or tc.MONEY_WORDS.search(text) or tc.MONEY_ABBR.search(text)
     return m.group(0) if m else None
 
@@ -193,10 +194,10 @@ def problems(root: Path = ROOT) -> list[str]:
     out += version_problems(root)
     readme = root / "README.md"
     if readme.is_file():
-        # line 1 says what a stranger gets in plain words (the job); the sentence comes directly under it
+        # the two vision lines come first, each its own paragraph
         lines = [line.strip() for line in _prose(readme.read_text(encoding="utf-8"))][:2]
-        if lines != [f"**{JOB}**", said]:
-            out.append(f"README.md: the first two lines of text are not the job in bold, then the sentence: {' | '.join(lines)[:120]}")
+        if lines != LINES:
+            out.append(f"README.md: the first two lines of text are not the two vision lines: {' | '.join(lines)[:120]}")
     return out
 
 

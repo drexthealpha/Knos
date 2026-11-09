@@ -72,11 +72,11 @@ def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
     # the IRIS and NEAR sections (between their entry marks) are the contests' long form, outside the front page's parts
     readme = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", read("README.md"), flags=re.S)
     above, below = readme.split("\n---\n", 1)
-    # in plain words: how it works (the valley: demand, Ready, escrow, proof), one use of it (paying AI agents for
+    # in plain words: how it works (the valley: demand, Ready, vault, proof), one use of it (paying AI agents for
     # verified pull requests; the bounty is the smallest example), the ten-second check, why nobody can fudge the
     # count, whether it is real (the table of today's numbers); where to check every claim (the release page), the number, words,
     # the questions people search (tests/test_seo.py)
-    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works", "Paid on proof", "Try it in ten seconds",
+    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works today", "How it works", "Paid on proof", "Try it in ten seconds",
                                                     "Why nobody can fudge the count", "Is it real?", "From a terminal",
                                                     "Check every claim yourself", "Words", "Questions", "Read more"]
     more = above.split("## Read more")[1]

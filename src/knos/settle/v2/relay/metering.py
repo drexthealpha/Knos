@@ -35,7 +35,7 @@ def _plan_eval(a: _Ask) -> _Plan:
     if before is not None:      # counted already (by this token or by another run): the first verdict stands, and a retry is free
         raise _Stop({"ok": True, **result, "sigs": _last(ledger, mark), "already": True, "accepted": before.accepted, "rate": before.rate, "fee": before.fee,
                      "month": before.month})
-    if _data(got, meter.METER_ID) is None:      # what this needs is knos_meter (and the verifier it reads), never a version of the escrow
+    if _data(got, meter.METER_ID) is None:      # what this needs is knos_meter (and the verifier it reads), never a version of the vault
         raise _no(kind, f"knos_meter ({meter.METER_ID}) is not deployed on this cluster, so no evaluation can be counted here")
     pinned = [(addr, cr, held) for addr, cr, held in credits_for(ledger, e.buyer_id) if (cr.wf_repo_hash, cr.wf_sha) == (wf_repo, wf_sha)]
     if not pinned:

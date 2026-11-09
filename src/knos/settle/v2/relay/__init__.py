@@ -48,9 +48,9 @@ worker calls it for every token a workflow posts instead (knos.proof.ghrelay).
 
 A token of an issuer that is not GitHub or GitLab (its `iss` is another URL) is verified under a key the verifier
 holds for that URL (`other_keys`): a registered issuer's, or a PRIVATE one some wallet registered itself. The chain is
-the key set: nothing is fetched from a URL a token names. `verify_only` carries any such token. The escrow takes one
+the key set: nothing is fetched from a URL a token names. `verify_only` carries any such token. The vault takes one
 in a single case: a pay token under a private key pays a PRIVATE order funded from the Balance that the key's own
-registrant opened (never a ruling); everything else of the escrow's is GitHub's alone, and is refused here for nothing.
+registrant opened (never a ruling); everything else of the vault's is GitHub's alone, and is refused here for nothing.
 
 `terms` is the terms JSON whose hash a fund token's audience carries. `jwks` maps an issuer id (or, for any other
 issuer, its URL) to its JWKS document (fetched from the issuer and kept ten minutes when not given). `now` is the chain's time (read from it when not given).
@@ -65,18 +65,18 @@ token of the usual size (the harness's are 1,770 to 1,910 bytes) takes two trans
 asks for:
 
     1  Write, Step(8)             the whole token, and the first half of the RSA verification
-    2  Step(8), <escrow>, Close   the second half, what the audience asks for, and the token account closed again
+    2  Step(8), <vault>, Close   the second half, what the audience asks for, and the token account closed again
 
 A token longer than about 3,700 bytes has its head written first, in Writes side by side. Where v1 transactions cannot
-be used (the deployed 2.0 escrow, a ledger without them, or a cluster that refused one: the relay then falls back by
+be used (the deployed 2.0 vault, a ledger without them, or a cluster that refused one: the relay then falls back by
 itself and stays there) the same token takes four legacy transactions and three waits:
 
     1  Write | Write              the head of the token, side by side (one Write for a token up to 1,756 bytes)
     2  Write, Step(8)             the rest of it, and the first half of the RSA verification
-    3  Step(8), <escrow>, Close   the second half, what the audience asks for, and the token account closed again
+    3  Step(8), <vault>, Close   the second half, what the audience asks for, and the token account closed again
 
-The first deployment's relay sends each chunk, each step, the escrow instruction and the close in a transaction of
-its own and waits for each: seven and seven for the same token. The last Step and the escrow share a transaction when
+The first deployment's relay sends each chunk, each step, the vault instruction and the close in a transaction of
+its own and waits for each: seven and seven for the same token. The last Step and the vault share a transaction when
 both fit in its bytes and in 1,400,000 compute units; on the legacy path a fund with the longest terms (600 bytes)
 does not, and takes two more. tests/test_relay2.py counts every path's transactions, waits and compute units, and
 prints them with -s.

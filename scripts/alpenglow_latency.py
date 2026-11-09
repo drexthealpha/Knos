@@ -1,17 +1,17 @@
 """Measure, on devnet, how long Knos's own transactions take from the send to `confirmed` and to `finalized`, and
 write docs/finality.json (what the stats page shows as "paid and final in N ms").
 
-    python scripts/alpenglow_latency.py --keypair W.json --anchors 30 --escrow 15 [--jsonl rows.jsonl] [--write]
+    python scripts/alpenglow_latency.py --keypair W.json --anchors 30 `--escrow` 15 [--jsonl rows.jsonl] [--write]
 
 Every transaction is OUR OWN TEST TRAFFIC, labelled so in the rows, in the Record entries and in docs/finality.json:
 
   record_anchor   a real Knos Record anchor (knos.record.anchoring.anchor over one labelled "experiment" entry each)
-  escrow_fund     knos_pay FundWallet (4) of 1.00 of our own synthetic test mint on a synthetic issue number, with the
+  `escrow_fund`     knos_pay FundWallet (4) of 1.00 of our own synthetic test mint on a synthetic issue number, with the
                   shortest deadline the program takes (MIN_WORK = 60 s)
-  escrow_refund   knos_pay Refund (7) of that job once the cluster's clock is past its deadline
+  `escrow_refund`   knos_pay Refund (7) of that job once the cluster's clock is past its deadline
 
 A full knos_pay payout needs a GitHub OIDC token of a signed workflow run, which this script cannot make: funding and
-refunding are the escrow transactions anyone can send.
+refunding are the vault transactions anyone can send.
 
 Each transaction is signed first, so its signature is known; ONE WebSocket subscribes to it at `confirmed` and at
 `finalized` (signatureSubscribe) BEFORE it is sent through the Knos ledger (knos.chain.Ledger._submit: preflight

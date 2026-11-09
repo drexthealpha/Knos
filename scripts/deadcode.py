@@ -27,7 +27,7 @@ SRC = ROOT / "src"
 # knos.hermes_plugin: the `hermes_agent.plugins` entry point in pyproject.toml; knos.verify.sealed: the sealed scorer that
 # hermes/gepa and hermes/atropos import (docs/reference/AGENTS.md)
 # knos.money.x402: `python -m knos.money.x402`, the x402 endpoint; knos.money.revenue: writes the revenue data (--out);
-# knos.graduation.devnet: the devnet demo of the escrow and pre-order pool (docs/reference/MONEY.md)
+# knos.graduation.devnet: the devnet demo of the vault and pre-order pool (docs/reference/MONEY.md)
 # knos.zk.__main__: `python -m knos.zk verify DIR`, the Groth16 checker (src/knos/zk)
 # knos.platform.claims: the per-claim account check a relay calls before batching claims (docs/reference/PLATFORM.md)
 # knos.repro.example: `python -m knos.repro.example`, the synthetic example repository (docs/reference/REPRODUCED.md)

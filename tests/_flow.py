@@ -126,7 +126,7 @@ def order_bytes(repo_id: int, issue: int, amount: int, source: Pubkey, terms_has
                 scope: bytes | None = None, judge_repo: int = 0, version: int = 1) -> bytes:
     """A work order as programs-v2/knos_pay lays it out (state.rs): what knos.settle.v2.pay.read_order reads. A PRIVATE
     one: `repo_id` and `issue` 0, its `scope` given, `judge_repo` the repository whose runs pay it. `version`: the
-    knos_pay that funded it (what Version answers), which decides the fee escrowed with it when none is given."""
+    knos_pay that funded it (what Version answers), which decides the fee held with it when none is given."""
     d = bytearray(pay.ORDER_LEN)
     d[0], d[1], d[2], d[3], d[4], d[6], d[7] = 2, state, mode, kind, flags, 6, reserve_days
     d[24:56], d[56:60] = scope or pay.scope_of(repo_id, issue), seq.to_bytes(4, "little")

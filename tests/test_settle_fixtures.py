@@ -276,7 +276,7 @@ def test_the_recorded_rpc_of_the_agent_calls_reads_the_same_in_python():
     for buyer, row in st["meter_accounts"].items():
         month = meter.read_month(data(str(meter.month_pda(int(buyer), st["seller"], want["month"]))), int(buyer), st["seller"], want["month"])
         assert vars(month) == row == st["meter"][buyer]
-    # every payment the statement expects was logged by the escrow, in a transaction of the recording
+    # every payment the statement expects was logged by the vault, in a transaction of the recording
     for paid in st["escrow"]:
         assert paid["line"] in said(rec["transactions"][paid["signature"]]["logs"], str(pay.PAY_ID))
     r = subprocess.run([sys.executable, str(ROOT / "scripts" / "record_settle_agent.py"), "--check"], capture_output=True, text=True, check=False)

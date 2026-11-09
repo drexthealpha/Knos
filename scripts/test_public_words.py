@@ -1,4 +1,4 @@
-"""test_public_words: what a reader of Knos's public files and pages reads. "escrow" in no README, document,
+"""test_public_words: what a reader of Knos's public files and pages reads. `"escrow"` in no README, document,
 description or rendered page text (code identifiers listed apart); the upgrade delay said as the 8-day time lock
 everywhere but in receipts of versions 1 to 5, whose words their format fixes; no private path; no hackathon host in
 the deploy values; the pricing page's exact sentence and no Kickstarter or Upwork market figure; the two links that

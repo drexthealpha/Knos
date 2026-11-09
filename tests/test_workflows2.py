@@ -1252,7 +1252,7 @@ def test_every_yaml_file_under_examples_is_read_by_the_tests_that_know_its_rules
     """Three kinds, each with its own rules, and a file of no kind fails here instead of going unchecked:
     examples/*.yml are what a repository installs for payment (this file: `_files`, `_mine`); examples/adapters/*.yml
     start those workflows and sign nothing (tests/test_adapters.py reads each one, and `_callers` above); the file in
-    examples/gitlab is GitLab's (tests/test_gitlab_pay.py holds the escrow's rules for its tokens), so none of
+    examples/gitlab is GitLab's (tests/test_gitlab_pay.py holds the vault's rules for its tokens), so none of
     GitHub's rules is asked of it here: only that it is YAML a pipeline can load."""
     every = {p.relative_to(EXAMPLES).as_posix() for ext in ("*.yml", "*.yaml") for p in EXAMPLES.rglob(ext)}
     top = {p.name for p in EXAMPLES.glob("*.yml")}

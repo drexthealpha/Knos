@@ -182,6 +182,6 @@ def _failed(kind: str | None, why: BaseException) -> dict:
 
 
 def why_failed(why: BaseException) -> str:
-    """What a failed transaction of the escrow's or the verifier's means, in the words of their clients (for a wallet's
+    """What a failed transaction of the vault's or the verifier's means, in the words of their clients (for a wallet's
     own commands: `knos balance`, `knos fund-wallet`)."""
     return _failed(None, why)["why"]

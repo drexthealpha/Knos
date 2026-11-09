@@ -1,6 +1,6 @@
 """`knos receipt verify` answers in a time the reader is told (knos.receipt.from_chain).
 
-It rebuilt a receipt by reading the escrow's newest 1,000 transactions one by one. devnet's public endpoint takes 40
+It rebuilt a receipt by reading the vault's newest 1,000 transactions one by one. devnet's public endpoint takes 40
 requests of one method per 10 seconds, so that took minutes and printed nothing: the 0.3.25 run saw it "never answer".
 Each request now waits at most what is left of one budget, and past it the command says so in one line. The cluster
 and the clock here are stand-ins: no network, no waiting on the wall clock."""
@@ -16,7 +16,7 @@ from knos.settle.v2 import pay
 
 
 class Slow:
-    """A cluster whose escrow lists `count` transactions and that takes `each` seconds (of a stand-in clock) a request."""
+    """A cluster whose vault lists `count` transactions and that takes `each` seconds (of a stand-in clock) a request."""
 
     def __init__(self, count: int = 1000, each: float = 0.25):
         self.now, self.each, self.asked, self.waits = 0.0, each, [], []
@@ -43,7 +43,7 @@ def test_a_slow_cluster_gets_one_line_in_the_time_given_and_no_request_after_it(
     # this stand-in lists all 1,000 for the order too, so every one is read
     assert said.startswith("no answer from https://api.devnet.solana.com within 120 s (478 of 1,000 transactions read)")
     assert "--rpc URL" in said and "--limit N" in said
-    assert len(c.asked) == 480 and c.now == 120.0       # the escrow's list and the order's, then 478 reads: none past the time
+    assert len(c.asked) == 480 and c.now == 120.0       # the vault's list and the order's, then 478 reads: none past the time
     assert max(c.waits) == 30.0 and min(c.waits) == 0.25        # no request may wait longer than what is left
 
 
@@ -133,8 +133,8 @@ def test_it_rebuilds_the_receipt_gather_builds(tmp_path):
 
 
 def test_it_reads_only_the_transactions_a_receipt_is_built_from():
-    """On devnet's public endpoint (40 requests of one method per 10 s) the 0.3.26 tree read 72 of the escrow's newest
-    996 transactions in its 120 s, and the witnessed order's own were 2 of them. Of the escrow's list it now reads the
+    """On devnet's public endpoint (40 requests of one method per 10 s) the 0.3.26 tree read 72 of the vault's newest
+    996 transactions in its 120 s, and the witnessed order's own were 2 of them. Of the vault's list it now reads the
     order's own, its Balance's opening and side account, and its owner's plan: the receipt is the one gather builds
     over every transaction, for the order and for its paying transaction, in a few seconds of that endpoint."""
     pytest.importorskip("solders.litesvm")
@@ -149,8 +149,8 @@ def test_it_reads_only_the_transactions_a_receipt_is_built_from():
     wallet = c.fund().pubkey()
     c.warp(60)
     assert c.pay(order, [(AUTHOR, 10_000, wallet)], pr=PR, actor_id=MAINT), c.err
-    mine = list(c.named[str(pay.PAY_ID)])                 # every escrow transaction of the harness, oldest first
-    other = [f"other{n:03}" for n in range(1000 - len(mine))]       # the rest of the escrow's newest 1,000: other orders'
+    mine = list(c.named[str(pay.PAY_ID)])                 # every vault transaction of the harness, oldest first
+    other = [f"other{n:03}" for n in range(1000 - len(mine))]       # the rest of the vault's newest 1,000: other orders'
     escrow = other[:500] + mine[:2] + other[500:700] + mine[2:] + other[700:]
     empty = {"slot": 1, "blockTime": 0, "meta": {"err": None, "logMessages": []}, "transaction": {"message": {"accountKeys": ["x"], "instructions": []}}}
     now, asked = [0.0], []

@@ -1,4 +1,4 @@
-//! knos-pay: pay on proof. A funder escrows a bounty for one issue of one GitHub repository. It is paid to the pull
+//! knos-pay: pay after proof. A funder locks a bounty for one issue of one GitHub repository. It is paid to the pull
 //! request author's GitHub account only when GitHub itself signs a token saying the funder's pinned prove.yml
 //! workflow passed for that pull request; the token is verified on chain by knos-oidc. There is no admin, no key of
 //! Knos's in the path, and no wallet needed to earn: the money waits under the author's GitHub user id until they

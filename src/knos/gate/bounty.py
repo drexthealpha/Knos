@@ -1,7 +1,7 @@
-"""Bounties mode of Knos Gate: an issue funded in escrow is paid to the first pull request that passes the hidden tests
+"""Bounties mode of Knos Gate: an issue funded in vault is paid to the first pull request that passes the hidden tests
 AND is merged by the maintainer; a claim that fails Gate is closed.
 
-The money is not new code. A bounty is a knos_pay escrow on Solana devnet (`knos fund-wallet OWNER/REPO#N AMOUNT`, or
+The money is not new code. A bounty is a knos_pay vault on Solana devnet (`knos fund-wallet OWNER/REPO#N AMOUNT`, or
 `/knos fund` on the issue): a job of the repository's own prove.yml, or a work order. It is paid by the program when a
 GitHub-signed run of the pinned workflow says the merged pull request met the terms (knos_oidc); Gate never signs a
 payment and holds no key. What Gate adds:
@@ -64,7 +64,7 @@ def quote(amount: int, kind: str = "job", decimals: int = 6) -> dict:
 
 def treasury(mint: str, escrow: str | None = None) -> dict:
     """Where a bounty's fee lands for `mint`: the fee account of FEE_OWNER (Knos's Squads vault PDA) that knos_pay
-    writes for this escrow account (`pay.fee_account_for`), and account 0 (the associated one)."""
+    writes for this vault account (`pay.fee_account_for`), and account 0 (the associated one)."""
     from solders.pubkey import Pubkey
 
     from ..settle.v2 import pay

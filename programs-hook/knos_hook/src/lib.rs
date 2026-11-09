@@ -1,5 +1,5 @@
 //! knos-hook: Knos's Token-2022 transfer hook for PROJECT CREDITS (a Token-2022 mint with the TransferHook extension
-//! pointing here). A credit moves only into a token account whose owner is the one its rules name: the project's escrow,
+//! pointing here). A credit moves only into a token account whose owner is the one its rules name: the project's vault,
 //! so credits pledged to a milestone cannot leave the milestone flow. Any other transfer fails the whole transaction.
 //!
 //! It speaks the SPL Transfer Hook Interface (spl-transfer-hook-interface), written out by hand so the program depends on
@@ -18,7 +18,7 @@
 //!       accounts: [mint (w), destination token account (w), rules PDA, mint authority PDA ["mint-authority", mint],
 //!                  allowed_owner (signer), Token-2022 program]
 //!       The project's credits are minted by this program alone (the mint's authority is the PDA, so no key can mint
-//!       them), and only into a token account the rules' allowed_owner owns, the escrow, at its own signature.
+//!       them), and only into a token account the rules' allowed_owner owns, the vault, at its own signature.
 //!
 //! ERRORS (Custom): 0 bad instruction, 1 destination not allowed, 2 wrong validation or rules address, 3 not the mint's
 //!   authority, 4 already initialised, 5 not signed by the allowed owner, 6 not Token-2022.

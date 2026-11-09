@@ -1,4 +1,4 @@
-"""The lab escrow: two pots per lab order, released by the two verdicts.
+"""The lab vault: two pots per lab order, released by the two verdicts.
 
     lab pot       the lab's price + the Knos lab order fee (config/fees.yaml `fees.lab_order`, decided 14 Oct 2026: 3%)
                   LAB PASS  -> the price to the lab, the fee to the Knos treasury (even if the science failed)

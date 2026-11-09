@@ -111,7 +111,7 @@ class World:
         return observe.Recorded(self.c.txs, self.accounts)
 
     def fixture(self) -> dict:
-        """What docs/reference/PRIVACY.md is written from: the transactions an order's history needs (the escrow's own, and the
+        """What docs/reference/PRIVACY.md is written from: the transactions an order's history needs (the vault's own, and the
         ones that wrote a token), the two orders' accounts while open, and which is which."""
         def needed(tx: dict) -> bool:
             keys = observe.keys_of(tx)

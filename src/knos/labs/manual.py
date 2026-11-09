@@ -1,9 +1,9 @@
-"""A lab with no ordering API (ordered by e-mail, a web form or a desktop application): Knos still holds the escrow and
+"""A lab with no ordering API (ordered by e-mail, a web form or a desktop application): Knos still holds the vault and
 gives the two verdicts; a person places the order and brings the files back.
 
     lab = Manual()                                    (or a named one: chemistry.B12Foundry, Ginkgo Cloud Lab, ...)
     q = lab.quote(spec)                               the price the lab quoted to the buyer (spec.protocol["quoted_usd"])
-    o = lab.order(spec, escrow_ref)                   the request text for the buyer to send (Knos sends nothing)
+    o = lab.order(spec, `escrow_ref`)                   the request text for the buyer to send (Knos sends nothing)
     r = lab.deliver(o, files, runs, qc, executed)     the files the lab sent back, hashed; the runs and QC as reported
 
 The verdicts then bind the files' hashes exactly as for a lab with an API. Nothing here contacts the lab.

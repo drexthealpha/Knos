@@ -95,4 +95,4 @@ The site's [price page](https://drexthealpha.github.io/Knos/#pricing) reads the 
 
 ## Read more
 
-- [Start here](START.md): check demand, write a Ready brief, then hold the money and pay on proof.
+- [Start here](START.md): check demand, write a Ready brief, then let each step's test decide it.

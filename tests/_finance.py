@@ -1,6 +1,6 @@
 """One organisation's month for the finance tests: its work orders (test_audit.month), its bounties on issues, and both.
 
-The bounties are the second escrow's jobs as `records.events_of` gives their lines: one paid from the organisation's
+The bounties are the second vault's jobs as `records.events_of` gives their lines: one paid from the organisation's
 faucet Balance, one paid from its own Balance, one accepted and held for a payee with no wallet, one refunded, one
 open, and another organisation's. `REFS` is a buyer's refs file for the mix; `write_golden` writes tests/data/finance.
 """

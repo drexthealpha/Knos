@@ -40,7 +40,7 @@ PROGRAMS = [
     ("recr1L3PCGKLbckBqMNcJhuuyU1zgo8nBhfLVsJNwr5", "SPL Record (Solana)", "the app's chain-state records"),
     ("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr", "SPL Memo (Solana)", "the app's fee estimate and its notes on chain"),
     ("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb", "Token-2022 (Solana)", "the app's project credits"),
-    ("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf", "Squads multisig", "the upgrade and guardian vaults"),
+    ("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf", "Squads multisig", "the upgrade and guardia vaults"),
 ]
 
 

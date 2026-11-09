@@ -50,7 +50,7 @@ def test_there_are_24_tasks_and_each_says_first_that_the_money_is_worth_nothing(
         assert (ROOT / "tasks" / t["slug"] / "start.py").read_text(encoding="utf-8").splitlines()[0] == "# Test USDC, no monetary value."
         assert tb.issue_body(t, playground.REPO).splitlines()[0] == tb.FIRST
         assert 2_000_000 <= t["amount"] <= 5_000_000 and t["amount"] <= playground.MOST
-        assert t["amount"] >= pay.ORDER_MIN_AMOUNT                             # what the escrow holds at least: so every task pays 5 today
+        assert t["amount"] >= pay.ORDER_MIN_AMOUNT                             # what the vault holds at least: so every task pays 5 today
         assert t["labels"] == ["knos-funded", "good first issue", "help wanted"] and 1 <= t["deadline_days"] <= commands.MAX_DAYS
         cmd = commands.parse(tb.fund_line(t))
         assert isinstance(cmd, commands.Fund) and cmd.units == t["amount"] and cmd.days == t["deadline_days"] and cmd.auto is False      # the merge pays

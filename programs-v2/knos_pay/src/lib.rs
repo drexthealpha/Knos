@@ -1,5 +1,5 @@
-//! knos-pay, the second deployment: pay on proof. A funder puts a bounty for one issue of one GitHub repository in
-//! escrow. It is paid to the author of the pull request that meets the terms fixed at funding, when GitHub itself
+//! knos-pay, the second deployment: pay after proof. A funder puts a bounty for one issue of one GitHub repository in
+//! vault. It is paid to the author of the pull request that meets the terms fixed at funding, when GitHub itself
 //! signs a token saying the funder's pinned prove.yml workflow saw every funded condition met at the merged commit.
 //! The token is verified on chain by knos-oidc (OIDC_ID). This program is upgradeable only through a multisig with a
 //! public 8-day time lock, until an outside review; then made immutable. In the code below no key of Knos's moves money
@@ -310,7 +310,7 @@
 //!                  (`order`): the marker is closed and its rent goes to rent_to, who paid it.
 //! order_terms.rs gives the layouts of Hb, Done and As and the rules of 18 to 21, 24 and 27 in full.
 //!
-//! 0.3.34: PAY ON PROOF FROM ANY SOURCE. Every token now enters through one interface with one reader per issuer
+//! 0.3.34: PAY AFTER PROOF FROM ANY SOURCE. Every token now enters through one interface with one reader per issuer
 //! family (issuers.rs: GitHub and private keys gh.rs, gitlab.com gl.rs, Google Confidential Space cs.rs, ORCID
 //! orcid.rs); what GitHub and GitLab tokens may do is unchanged. An order may pin a judge that is not a forge
 //! (order_proof.rs): a container image, paid by PayOrder on a Confidential Space token, or m of n referee keys, whose
@@ -326,7 +326,7 @@
 //! extensions are walked, and the mint is refused unless every one is on token::ALLOWED: the extensions that change
 //! nothing about who holds how much or whether a transfer goes through. A transfer hook (even one that names only an
 //! authority), a transfer fee (even of zero), a permanent delegate, a default account state, Pausable,
-//! NonTransferable and every extension this program does not know are refused. Money leaving escrow is never held to
+//! NonTransferable and every extension this program does not know are refused. Money leaving vault is never held to
 //! these rules: what entered can go out. A mint's issuer keeps the powers its mint gives it over every holder
 //! (freezing, by the freeze authority), and this program cannot take them away.
 //!

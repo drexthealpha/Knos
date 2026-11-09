@@ -1,6 +1,6 @@
 """Graduation in the Solana runtime (LiteSVM, the knos_pay 2.2 test build): a verdict that passed opens a milestone
-escrow and a pre-order pool as private knos_pay orders; the pool is read back from the chain and handed to the
-referee's demand book; the escrow pays the contributor split (fees.yaml splits) to four payees in one transaction,
+vault and a pre-order pool as private knos_pay orders; the pool is read back from the chain and handed to the
+referee's demand book; the vault pays the contributor split (fees.yaml splits) to four payees in one transaction,
 with the fee leaving for the treasury and the relayer exactly as the program divides it; a pre-order nobody
 delivers is refunded with its fee. And everything a plan refuses."""
 from __future__ import annotations

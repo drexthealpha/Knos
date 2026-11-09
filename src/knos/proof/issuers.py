@@ -1,4 +1,4 @@
-"""Pay on proof from any source: the client side of knos_pay 0.3.34 (programs-v2/knos_pay/src/{issuers,cs,orcid,order_proof}.rs).
+"""Pay after proof from any source: the client side of knos_pay 0.3.34 (programs-v2/knos_pay/src/{issuers,cs,orcid,order_proof}.rs).
 
 Three ways an order is released besides a forge workflow:
 

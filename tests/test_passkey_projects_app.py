@@ -1,7 +1,7 @@
 """Projects of Knos's web app (apps/wanted valley) moved by passkeys only, end to end inside LiteSVM: the deployed
 LazorKit bytes and the knos_pay 0.3.34 test build (the world of tests/test_passkey_money_app.py). A funder's passkey
 funds a milestone before any maker claims it; a buyer's passkey commits to buy (an allowance, nothing moves); a maker
-claims it, paid to its passkey wallet; a result and an independent check release the escrow to the maker and the
+claims it, paid to its passkey wallet; a result and an independent check release the vault to the maker and the
 allowance is collected. Past the deadline a passkey funding is refunded to the funder's own wallet. Synthetic test
 units; the server never holds a passkey's key."""
 from __future__ import annotations
@@ -59,9 +59,9 @@ def test_a_passkey_funds_a_milestone_before_any_maker_a_buyer_commits_and_the_ma
     assert out["verdict"]["pass"]                       # a human-verified milestone: released when its challenge window ends
     valley.release_due(now=out["verdict"]["ends_s"], led=led)
     # released, by this sweep or by the app's own sweeper that another test in this process started: the milestone is
-    # released and the maker holds the escrow and the collected allowance, whichever sweep got there first
+    # released and the maker holds the vault and the collected allowance, whichever sweep got there first
     assert valley.public_project(valley.project(pid))["milestones"][0]["status"] == "released"
-    assert tokens(c, pay.ata(mv, c.usdc)) == 10 * escrow.UNIT + 6 * escrow.UNIT          # the escrow and the collected allowance
+    assert tokens(c, pay.ata(mv, c.usdc)) == 10 * escrow.UNIT + 6 * escrow.UNIT          # the vault and the collected allowance
     assert tokens(c, pay.ata(bv, c.usdc)) == wallets.FAUCET_UNITS * escrow.UNIT - 6 * escrow.UNIT
 
 

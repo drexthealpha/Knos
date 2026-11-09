@@ -5,13 +5,13 @@ statement. `knos audit show <order>` prints one deliverable as four linked objec
 commercial record, settlement status), `knos audit owed --payee <login>` is the supplier's side, and
 `knos audit export --format netsuite|sap|coupa|quickbooks|generic` writes the files of knos.exports.
 
-Version 2 of the file (this one) lists the bounties on issues (the second escrow's jobs, `knos2:` lines) beside the
+Version 2 of the file (this one) lists the bounties on issues (the second vault's jobs, `knos2:` lines) beside the
 work orders (`knos3:` lines): `record` says which a line is. A version 1 file listed work orders only, so an
 organisation that had only posted bounties got an empty one. Version 2 also adds `source`, `terms_version`,
 `paid_each` and `held_until`. The file names its version in its first line (CSV) or in `version` (JSON), and `verify`
 checks a file of either version by that version's columns.
 
-Everything is recomputed from the second escrow's own log lines (knos.records: `events_of`, `orders_of`), never from a
+Everything is recomputed from the second vault's own log lines (knos.records: `events_of`, `orders_of`), never from a
 database and never from an account's state today. So the file is a function of the chain and the period alone: two
 parties who export the same owner and the same period get the same bytes, and compare one hash (the head) instead of
 the file. Nothing is asked of GitHub: accounts and repositories are their numeric ids.
@@ -69,7 +69,7 @@ What the log does not say, and this file therefore does not: the commit of the w
 order account while the order is open, and in the signed token of the paying transaction, which `transaction` names);
 the head commit of an accepted pull request; names. A history the cluster did not give whole is refused unless
 `--partial`, and then the scope says "partial" and the head is not one to compare.
-The command reads the escrow's newest 1000 transactions at most (knos.records.read): an owner whose orders go further back
+The command reads the vault's newest 1000 transactions at most (knos.records.read): an owner whose orders go further back
 gets a partial file until the reader pages further.
 """
 
@@ -163,7 +163,7 @@ def lines(events: list[dict], owner_id: int, wallets=(), first: str = "", last: 
     for o in orders:
         if o["v"] == 2 and _mine(o, owner_id, wallets):
             out += _order_lines(o, facts.get((o["address"], o["tx"])) or {"judge": {}, "warranty": {}})
-    for j in records.jobs_of(events)[0]:       # the bounties on issues: the second escrow's jobs
+    for j in records.jobs_of(events)[0]:       # the bounties on issues: the second vault's jobs
         if j["v"] == 2 and _mine(j, owner_id, wallets):
             out += _bounty_lines(j, events)
     out = [r for r in out if r["kind"] in _STATE or ((not first or r["date"] >= first) and (not last or r["date"] <= last))]
@@ -273,7 +273,7 @@ def _terms_version(terms) -> str:
 
 def _bounty_lines(j: dict, events: list[dict]) -> list[dict]:
     """The lines of one bounty on an issue (a job of knos.records.jobs_of): paid, refunded, held for a wallet, or open.
-    The escrow pays a bounty once, to one payee, on a prove token of the bounty's own repository, and keeps its fee out
+    The vault pays a bounty once, to one payee, on a prove token of the bounty's own repository, and keeps its fee out
     of the price. `order` is the job's address, so a bounty's billing key reads like an order's."""
     cur = records._currency(j)
     text = records.units_text if cur == records.TEST else (lambda n: "")
@@ -763,7 +763,7 @@ NOT_VISIBLE = ("What a supplier cannot see without the buyer:",
 
 
 def all_lines(events: list[dict], last: str = "") -> list[dict]:
-    """Every line of every work order and bounty of the second escrow, whoever funded it, numbered in time order:
+    """Every line of every work order and bounty of the second vault, whoever funded it, numbered in time order:
     what `owed` and `knos audit show` read when no owner is named. Not a statement: it has no scope and no head."""
     if last:
         end = records.day_of(last, "--to")
@@ -781,7 +781,7 @@ def all_lines(events: list[dict], last: str = "") -> list[dict]:
 
 
 def owed(events: list[dict], payee_id: int, last: str = "", refs: dict | None = None) -> list[dict]:
-    """What the escrow's own lines say is owed to one supplier and not paid yet, and what was taken back, oldest
+    """What the vault's own lines say is owed to one supplier and not paid yet, and what was taken back, oldest
     first. Made from the chain's records alone: no owner is named and no repository is read, so a supplier gets it
     with no access to anything of the buyer's. One row per line:
 
@@ -833,9 +833,9 @@ def owed_lines(rows: list[dict], payee: str) -> list[str]:
 
 
 # ---- reading only what one owner's lines need -------------------------------------------------------------------------
-# Every line of the file comes from the second escrow, and only from the transactions that touched one of the owner's
+# Every line of the file comes from the second vault, and only from the transactions that touched one of the owner's
 # Balances (or a wallet named with --wallet) or one of the orders and bounties funded from them. Reading those, and not
-# the escrow's newest 1,000 transactions (and the first escrow's and the meter's, which no line uses), is what makes an
+# the vault's newest 1,000 transactions (and the first vault's and the meter's, which no line uses), is what makes an
 # export take seconds: the public devnet endpoint answers at most 40 calls of one method per 10 s
 # (https://solana.com/docs/references/clusters), so 1,000 transactions alone take over 4 minutes.
 WORKERS = 4                     # transactions asked for at once; chain.call backs off on a 429
@@ -861,17 +861,17 @@ def _blocks(url: str, sigs: list[dict], workers: int = WORKERS) -> dict[str, lis
 
 
 def owner_history(url: str, owner_id: int, wallets=(), limit: int = 1000, last: str = "", workers: int = WORKERS) -> records.Record | None:
-    """The second escrow's events that one owner's lines can name, as knos.records.Record: the owner's Balances (found
+    """The second vault's events that one owner's lines can name, as knos.records.Record: the owner's Balances (found
     with one getProgramAccounts by the owner id they hold), the wallets in `wallets`, and every order or bounty funded
     from them, each address's own history up to `limit` transactions. Transactions after the day `last` are not read.
-    None when the cluster will not list the Balances (the caller then reads the whole escrow)."""
+    None when the cluster will not list the Balances (the caller then reads the whole vault)."""
     from solders.pubkey import Pubkey
 
     from . import chain
     try:
         found = chain.call(url, "getProgramAccounts", [str(pay2.PAY_ID), {"encoding": "base64", "dataSlice": {"offset": 0, "length": 0}, "filters": [
             {"dataSize": pay2.BALANCE_LEN}, {"memcmp": {"offset": 8, "bytes": chain.b58(int(owner_id).to_bytes(8, "little"))}}]}], timeout=30)
-    except Exception:  # noqa: BLE001 - an endpoint that does not list program accounts: read the whole escrow instead
+    except Exception:  # noqa: BLE001 - an endpoint that does not list program accounts: read the whole vault instead
         return None
     sources = sorted({str(a["pubkey"]) for a in found or []} | {str(w) for w in wallets})
     end = calendar.timegm(time.strptime(records.day_of(last, "--to"), "%Y-%m-%d")) + 86_400 if last else None
@@ -903,7 +903,7 @@ def owner_history(url: str, owner_id: int, wallets=(), limit: int = 1000, last: 
 
 
 def escrow_history(url: str, limit: int = 1000, last: str = "", workers: int = WORKERS) -> records.Record:
-    """The second escrow's newest `limit` transactions (up to the day `last`), several at a time: what an export reads
+    """The second vault's newest `limit` transactions (up to the day `last`), several at a time: what an export reads
     when the cluster will not list an owner's Balances."""
     from . import chain
     got = chain.call(url, "getSignaturesForAddress", [str(pay2.PAY_ID), {"limit": limit}], timeout=30) or []
@@ -916,7 +916,7 @@ def escrow_history(url: str, limit: int = 1000, last: str = "", workers: int = W
 
 
 def history_for(owner_id: int, wallets=(), limit: int = 1000, last: str = "") -> records.Record:
-    """What `knos audit export` reads: the owner's own part of the escrow, else the escrow's newest `limit`."""
+    """What `knos audit export` reads: the owner's own part of the vault, else the vault's newest `limit`."""
     from . import chain, cli, ghwords
     if limit < 1:
         raise cli.Stop("--limit is a number of transactions, at least 1.")
@@ -981,7 +981,7 @@ def register(app, help_lines: list | None = None) -> None:
         a, b = cli._days(first, last)
         owner_id = cli._owner(owner)
         got = history_for(owner_id, wallet, limit, b)
-        short = bool(got.unread or 2 in got.cut)        # the second escrow's history is the one a work order is in
+        short = bool(got.unread or 2 in got.cut)        # the second vault's history is the one a work order is in
         if short and not partial:
             raise cli.Stop("The cluster did not give the payment program's whole history (see above), so the file would not be the one another party gets.",
                            "Run it again, or with --partial for a file that says it is partial.")

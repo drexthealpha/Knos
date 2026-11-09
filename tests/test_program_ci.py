@@ -66,7 +66,7 @@ def test_a_second_deployment_is_a_job_beside_the_first_not_more_steps_in_it():
     assert build["env"] == {"DEPLOYMENT": "${{ matrix.deployment }}", "CARGO_TEST": "${{ matrix.cargo-test }}",
                             "BUILD": "${{ matrix.build }}", "TESTS": "${{ matrix.tests }}"}
     assert "matrix." not in run and "github." not in run                    # values reach the scripts through env only
-    # the first deployment's tests are named; the second's are every test file of the verifier, the escrow and its
+    # the first deployment's tests are named; the second's are every test file of the verifier, the vault and its
     # work orders, the tests of its other two programs (the meter and the passkey wallet), and the tests of the
     # example programs that are built against it
     assert all((ROOT / t).is_file() for t in legs["first"]["tests"].split())
@@ -797,7 +797,7 @@ def test_the_second_deployments_script_builds_test_binaries_with_test_keys_and_l
         # the example programs built on this deployment are built here too, each as it would be deployed, into a target of their own
         assert {"cpi_fund_v2_real.so", "workflow_vault_v2_real.so", "upgrade_gate_v2_real.so", "reader_template_v2_real.so"} <= set(got)
         assert set(_built(root / "examples" / "target" / "deploy")) == {"cpi_fund.so", "workflow_vault.so", "upgrade_gate.so", "reader_template.so"}
-        # what is left to try on a cluster trusts no test key, and the devnet escrow has its faucet
+        # what is left to try on a cluster trusts no test key, and the devnet vault has its faucet
         assert _built(root / "programs-v2" / "target" / "deploy") == {"knos_oidc.so": "knos_oidc", "knos_pay.so": "knos_pay", "knos_meter.so": "knos_meter", "knos_passkey.so": "knos_passkey"}
         # each binary it built is pinned by its hash, once, and the other pins are as they were
         sums = dict(reversed(line.split("  ", 1)) for line in (root / "tests" / "fixtures" / "SHA256SUMS").read_text(encoding="utf-8").splitlines())

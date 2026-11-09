@@ -218,7 +218,7 @@ def test_a_refused_stage_is_reported_as_failures_and_the_run_is_not_ok():
 
 
 def test_a_private_key_cannot_pay_an_order_a_wallet_funded():
-    """Why the cluster tier stops before PayOrder: the escrow refuses a pay token under a test issuer's key."""
+    """Why the cluster tier stops before PayOrder: the vault refuses a pay token under a test issuer's key."""
     from cryptography.hazmat.primitives.asymmetric import rsa
     rpc = FakeRpc()
     c, wallet, key = rpc.c, rpc.c.fund(), rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -238,7 +238,7 @@ def test_a_private_key_cannot_pay_an_order_a_wallet_funded():
     assert tok is not None and oidc.token_issuer(c.data(tok))[1] == me                 # the verifier takes it
     c.send([pay.create_ata_ix(me, pay.FEE_OWNER, o.mint)], wallet)
     ix = pay.pay_order_ix(me, tok, oidc.key_pda(load.ISSUER_URL, n, registrant=me), order, o, [(4242, me)], pr=7)
-    assert not c.send([ix], wallet) and "Custom(84)" in c.err, c.err                    # the escrow does not: E_TOKEN
+    assert not c.send([ix], wallet) and "Custom(84)" in c.err, c.err                    # the vault does not: E_TOKEN
     assert pay.read_order(c.data(order)).state == "open"
 
 

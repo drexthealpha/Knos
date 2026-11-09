@@ -1,9 +1,9 @@
-"""Graduation: a claim whose verdict passed (works, wanted, makeable: knos.referee.verdict) opens a funding escrow for
+"""Graduation: a claim whose verdict passed (works, wanted, makeable: knos.referee.verdict) opens a funding vault for
 its next milestone and a pre-order pool, and pays everyone who contributed when the milestone is accepted.
 
 Both are knos_pay work orders (knos.settle.v2.pay), funded by a wallet, so nothing new holds money:
 
-    the milestone escrow   one order per funder: `amount` for the contributors, the payout fee on top (held with it,
+    the milestone vault   one order per funder: `amount` for the contributors, the payout fee on top (held with it,
                            taken at release, returned on a refund). Paid by the pinned judge workflow's
                            GitHub-signed token to up to four payees, the contributor split (knos.splits); refunded to
                            the funder after the deadline when nobody delivered.
@@ -14,10 +14,10 @@ Both are knos_pay work orders (knos.settle.v2.pay), funded by a wallet, so nothi
 
 The orders are PRIVATE orders (pay.F_PRIVATE, salted): they store no repository and no issue, so a graduation never
 shows up as a bounty on a GitHub issue that does not exist. The salt is sha256("knos-grad:" + claim id): derived from
-the public claim id on purpose, so anyone can find a claim's escrow and pool on chain (`pool`). The judge is the
+the public claim id on purpose, so anyone can find a claim's vault and pool on chain (`pool`). The judge is the
 research repository (judge_repo_id), whose prove.yml asks GitHub to sign the pay token.
 
-No token here pays backers from revenue: a pre-order buys the product, and a funder of the milestone escrow gets the
+No token here pays backers from revenue: a pre-order buys the product, and a funder of the milestone vault gets the
 milestone delivered or the money back. A revenue-sharing token is a founder decision (securities law).
 
 Pure builders and readers, no network: `ledger` is knos.chain.Ledger or the tests' LiteSVM stand-in. Every step
@@ -37,7 +37,7 @@ from ..money import fees_config
 from ..settle.v2 import pay
 
 SALT_TAG = b"knos-grad:"
-POOL_ISSUE = 0                         # the pool's scope; a milestone's escrow is in the scope of its number (1, 2, ...)
+POOL_ISSUE = 0                         # the pool's scope; a milestone's vault is in the scope of its number (1, 2, ...)
 DAY = 86_400
 ESCROW_WORK = 30 * DAY                 # default: the milestone must be delivered within 30 days, else the funder is refunded
 POOL_WORK = 90 * DAY                   # default: pre-orders wait 90 days for delivery
@@ -56,7 +56,7 @@ def salt(claim_id: str) -> bytes:
 
 
 def scope(claim_id: str, repo_id: int, milestone: int = POOL_ISSUE) -> bytes:
-    """The order scope of a claim's milestone escrow (milestone >= 1) or of its pre-order pool (0)."""
+    """The order scope of a claim's milestone vault (milestone >= 1) or of its pre-order pool (0)."""
     return pay.scope_of(repo_id, milestone, salt(claim_id))
 
 
@@ -147,7 +147,7 @@ def plan(verdict: dict, *, claim_id: str, repo_id: int, amount: int, contributor
          work_s: int = ESCROW_WORK, pool_work_s: int = POOL_WORK, min_buyers: int = 1, min_locked: int = 0,
          wf_repo: str = JUDGE_WF_REPO, wf_sha: str | None = None, cfg: fees_config.FeeConfig | None = None) -> dict:
     """What graduating this claim opens: refused unless the verdict passed all three checks. `amount`: what the
-    milestone escrow holds for the contributors (base units of a 6-decimal mint). Nothing is sent."""
+    milestone vault holds for the contributors (base units of a 6-decimal mint). Nothing is sent."""
     cfg = cfg or fees_config.load()
     if not isinstance(verdict, dict) or verdict.get("passed") is not True:
         raise GraduationError("only a verdict that passed (works, wanted and makeable) graduates")
@@ -190,7 +190,7 @@ def _fund(p: dict, part: str, wallet: Pubkey, token: Pubkey, mint: Pubkey, amoun
 
 
 def escrow_ix(p: dict, funder: Pubkey, funder_token: Pubkey, mint: Pubkey, seq: int = 0, token_program: Pubkey = pay.TOKEN) -> Instruction:
-    """FundOrderWallet of the milestone escrow: `funder` signs; the amount and the payout fee leave `funder_token`."""
+    """FundOrderWallet of the milestone vault: `funder` signs; the amount and the payout fee leave `funder_token`."""
     return _fund(p, "escrow", funder, funder_token, mint, p["escrow"]["amount"], seq, token_program, p["escrow"]["work_s"])
 
 
@@ -201,7 +201,7 @@ def preorder_ix(p: dict, buyer: Pubkey, buyer_token: Pubkey, mint: Pubkey, amoun
 
 
 def address(p: dict, part: str, source: Pubkey, seq: int = 0) -> Pubkey:
-    """The order a wallet funds in the escrow ("escrow") or the pool ("pool")."""
+    """The order a wallet funds in the vault (`"escrow"`) or the pool ("pool")."""
     return pay.order_pda(bytes.fromhex(p[part]["scope"]), source, seq, Pubkey.from_string(p["program"]))
 
 
@@ -211,7 +211,7 @@ def refund_ix(relayer: Pubkey, order: Pubkey, o: pay.Order, program: Pubkey | No
 
 
 def pay_audience(p: dict, part: str, order: Pubkey, head_sha: str, pr: int, payees: list | None = None) -> str:
-    """What the judge's prove.yml (in the research repository) asks GitHub to sign to pay `order` (of the escrow or
+    """What the judge's prove.yml (in the research repository) asks GitHub to sign to pay `order` (of the vault or
     the pool) to the contributor split."""
     ps = payees if payees is not None else [(i, b, None if a is None else Pubkey.from_string(a)) for i, b, a in p["payees"]]
     return pay.order_pay_audience(order, head_sha, bytes.fromhex(p[part]["terms_hash"]), p["mode"], pr, ps)
@@ -270,14 +270,14 @@ def pool(ledger, p: dict, mint: str) -> dict:
 
 
 def escrow(ledger, p: dict, mint: str) -> dict:
-    """The milestone escrow's orders in `mint`, counted as `pool` counts them."""
+    """The milestone vault's orders in `mint`, counted as `pool` counts them."""
     now = ledger.now() if hasattr(ledger, "now") else None
     return _summary(p, "escrow", orders(ledger, bytes.fromhex(p["escrow"]["scope"]), Pubkey.from_string(p["program"])), now, str(mint))
 
 
 def demand_orders(p: dict, pool_state: dict, currency: str = "USDC") -> list[dict]:
     """The pool's open orders in the shape knos.referee's DemandBook and referee.wanted count: one per order, its
-    buyer, amount (base units) and escrow reference (the order's address), status "locked"."""
+    buyer, amount (base units) and vault reference (the order's address), status "locked"."""
     return [{"spec_hash": p["spec_hash"], "buyer": r["source"], "amount": r["amount"], "escrow_ref": r["order"], "status": "locked",
              "currency": currency} for r in pool_state["orders"] if r["state"] == "open" and not r["past_deadline"]]
 

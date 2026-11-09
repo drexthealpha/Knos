@@ -89,7 +89,7 @@ def test_fund_terms_with_no_document_a_broken_one_or_no_work_orders_funds_nothin
         assert "says it is a Knos Terms 3 document, and it is not one an order can be funded on: `deadline.late` is refused" in got and w.signer.asked == []
     w.hub.contents[flow.TERMS3] = terms3.dumps(terms3.template("support-resolution"))            # a template that cannot be funded
     assert "These terms cannot fund an order: `support-resolution` describes work nothing can be paid for yet (not built: needs a signing system of record)." in said(w, 7, HUBOT, "/knos fund terms") and w.signer.asked == []
-    w0, _doc = with_terms(tmp_path / "v0", version=0)                                             # the escrow holds no work orders: a job cannot carry these terms
+    w0, _doc = with_terms(tmp_path / "v0", version=0)                                             # the vault holds no work orders: a job cannot carry these terms
     assert "describe a work order, and the payment program on this cluster does not hold work orders yet" in said(w0, 7, HUBOT, "/knos fund 20") and w0.signer.asked == []
     # a file that is not Knos Terms 3 keeps its meaning, and a repository with none funds as it always did
     w.hub.contents[flow.TERMS3] = json.dumps({"standard": "Knos Terms 1", "name": "old"})

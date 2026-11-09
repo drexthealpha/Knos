@@ -1,4 +1,4 @@
-"""Client for knos-meter (programs-v2/knos_meter): acceptance without escrow. A neutral on-chain count of evaluations
+"""Client for knos-meter (programs-v2/knos_meter): acceptance without vault. A neutral on-chain count of evaluations
 that GitHub signed, for a buyer who pays a vendor by invoice and for a vendor who bills per accepted outcome. It moves
 no customer money: each billable evaluation costs a fee from credits somebody prepaid. Pure instruction builders, the
 audience, account readers and the statement; no network. The program is upgradeable only through a multisig with a

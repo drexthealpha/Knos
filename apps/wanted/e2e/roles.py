@@ -18,7 +18,7 @@ Every person starts at the front door (the research products open for backing no
                is paid to a wallet its passkey owns)
   buyer        "Back it" on the same product: devnet test units, then pre-orders the reserve with its OWN passkey wallet
   funder       "Fund a milestone" on it: funds the product's first project milestone from its passkey wallet (its own
-               escrow); then, as the lender, advances the maker cash in TWO taps: "Offer cash now" (the maker's passkey
+               vault); then, as the lender, advances the maker cash in TWO taps: "Offer cash now" (the maker's passkey
                sells the receivable: TransferOwnership) and "Send the advance"; after the release, "Collect"
   maker        publishes its result (a secret gist, static bytes) and posts it: the FROST referee group (2 of 3 hosts
                re-check the page and sign) releases the order to the receivable wallet the lender now owns

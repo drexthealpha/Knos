@@ -1,5 +1,5 @@
 """programs-hook/knos_hook in LiteSVM (Token-2022 is built in): a project-credit mint with the TransferHook extension
-pointing at the hook; its rules name the project's escrow owner; a transfer into the escrow's account passes, a transfer
+pointing at the hook; its rules name the project's vault owner; a transfer into the vault's account passes, a transfer
 to anyone else fails the transaction. Needs the built program (cargo build-sbf): KNOS_HOOK_SO, else skipped."""
 import os
 import struct
@@ -106,7 +106,7 @@ def test_only_the_mint_authority_sets_the_rules(chain):
 
 
 def test_a_lock_becomes_project_credits_held_in_the_escrow_through_the_hook(monkeypatch, tmp_path):
-    """knos_wanted.chainx.project_credits on the hook at its devnet address: the credits land in the escrow's account."""
+    """knos_wanted.chainx.project_credits on the hook at its devnet address: the credits land in the vault's account."""
     from test_chainx import Ledger
 
     from knos_wanted import chainx, escrow, preorder

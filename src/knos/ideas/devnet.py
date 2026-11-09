@@ -1,4 +1,4 @@
-"""Steps 1 and 2 on Solana devnet for three ideas from three different fields, with real API reads and real escrow.
+"""Steps 1 and 2 on Solana devnet for three ideas from three different fields, with real API reads and real vault.
 
     python -m knos.ideas.devnet --wallets DIR --out FILE.json [--fund-from KEYFILE --fund-sol 0.3]
 
@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     for spec in IDEAS:
         k = spec["key"]
         prev = out_ideas.get(k) or {}
-        c = prev.get("claim") or get(spec["ref"], f)                     # step 1: read once; the saved record is what the escrow names
+        c = prev.get("claim") or get(spec["ref"], f)                     # step 1: read once; the saved record is what the vault names
         d = prev.get("demand") or W.demand(c, spec["product"])
         p = W.plan(c, units=10, price=4, stages=spec["stages"], stage_work_s=spec["work"], demand_hash=d.get("hash"))
         funded = []

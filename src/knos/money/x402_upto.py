@@ -6,20 +6,20 @@ authorization settles at most once, is time bound, binds the recipient, and the 
 authorized maximum. The repository's only network document for it is scheme_upto_evm.md (Permit2); there is no
 scheme_upto_svm.md in coinbase/x402 main on 14 Oct 2026. The x402 docs (docs.x402.org/schemes/upto, same day) say the
 SVM implementation uses "the payment-channels program" (github.com/solana-foundation/payment-channels): "the client
-escrows the ceiling amount in an onchain channel (`open`)" and the server settles "with a signed voucher
+locks the ceiling amount in an onchain channel (`open`)" and the server settles "with a signed voucher
 (`settle_and_seal` + `distribute`)". The public facilitator https://x402.org/facilitator/supported lists `upto` only for
 eip155:84532 on that day, so Knos runs the SVM side itself in the docs' "self-managed mode": Knos holds the receiver
 authorizer key that signs vouchers and submits the settlement, with no facilitator.
 
 The program (CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX, the same id on devnet; audited by Cantina, July 2026, per its
 README) is read from its source (program/payment_channels/src, docs/003-program-instructions.md):
-    open (1)          payer escrows `deposit` in the channel PDA's associated token account, commits the payout splits'
+    open (1)          payer locks `deposit` in the channel PDA's associated token account, commits the payout splits'
                       sha256; PDA seeds ["channel", payer, payee, mint, authorized_signer, salt u64, open_slot u64]
     settleAndSeal (4) payee-signed; with has_voucher=1 it reads the Ed25519 precompile instruction right before it: the
                       50-byte voucher [0x56,0x01] || channel || cumulative u64 || expires_at i64, signed by
                       `authorized_signer`; then the channel is SEALED
     distribute (7)    permissionless; pays the splits and the payee's remainder of `settled`, refunds deposit - settled
-                      to the payer, sweeps rounding dust to ATA(TREASURY_OWNER, mint) and closes the escrow
+                      to the payer, sweeps rounding dust to ATA(TREASURY_OWNER, mint) and closes the vault
     withdrawPayer (8) the payer's own refund of deposit - settled once SEALED (an escape route)
 Knos sends Ed25519 + settleAndSeal + distribute as ONE v1 transaction (4,096 bytes, no lookup table), where the
 program's own notes ask for a v0 transaction and a lookup table for many recipients.

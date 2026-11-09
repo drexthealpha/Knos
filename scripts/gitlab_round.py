@@ -17,7 +17,7 @@ What the command does, in order, each step kept so that it is never done twice:
      has to start a pipeline in a browser;
   6. starts a pipeline on the default branch with the pay audience; its trigger job starts the pinned pipeline on
      `knos`, whose job reads the merge request from GitLab's API and leaves the signed token as an artifact;
-  7. holds that token to the escrow's rules offline (no fee is spent on one the program would refuse), has knos_oidc
+  7. holds that token to the vault's rules offline (no fee is spent on one the program would refuse), has knos_oidc
      verify it, and sends PayOrder.
 
 Without a token or a project it prints what is missing and exits 3; so does a step that waits for GitLab (the
@@ -54,7 +54,7 @@ BRANCH = "knos"
 CI_FILE = ".gitlab-ci.yml"
 PINNED = ROOT / "examples" / "gitlab" / CI_FILE
 GL_NS, GL_ID = 8 * 10 ** 17, 9 * 10 ** 17       # programs-v2/knos_pay/src/gl.rs: where namespace ids start, and project and user ids
-TOKEN_LIFE = 3600                               # the escrow refuses a token that lives longer (lib.rs TOKEN_LIFE)
+TOKEN_LIFE = 3600                               # the vault refuses a token that lives longer (lib.rs TOKEN_LIFE)
 ARTIFACT = "knos-token.jwt"
 # What the default branch's own .gitlab-ci.yml needs: a job that starts the pinned pipeline and hands it the audience.
 # A pipeline that a `trigger:` job started is signed with `pipeline_source` "pipeline", which is what PayOrder asks for.
@@ -76,7 +76,7 @@ MISSING = {
 
 
 class Refused(Exception):
-    """A token or a merge request the escrow's rules would not take: said before any fee is spent."""
+    """A token or a merge request the vault's rules would not take: said before any fee is spent."""
 
 
 def missing(env: Mapping[str, str] | None = None, noted: dict | None = None) -> list[str]:

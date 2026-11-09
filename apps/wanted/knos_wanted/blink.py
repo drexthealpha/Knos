@@ -6,7 +6,7 @@
 
 The transaction is the same PANEL order a signed-in pre-order locks (knos.ideas.commit), with the wallet as the funder:
 it creates the wallet's token account for this app's devnet TEST mint, tops it up with test units (the server signs as
-the test mint's authority), and funds the escrow order. The wallet signs and sends it; the server never holds the
+the test mint's authority), and funds the vault order. The wallet signs and sends it; the server never holds the
 wallet's key. Devnet only, test money.
 
 Factoring is real now and signed by passkeys: knos_wanted.wallets (quote, accept, advance, collect).
@@ -138,7 +138,7 @@ def refresh(rec: dict, led=None) -> dict:
 
 # Solana Pay transaction request (docs.solanapay.com, spec "Transaction Request"): a milestone funded from any wallet
 # that scans or opens `solana:<url-encoded link>`. GET answers the label and icon; POST {"account"} answers the same
-# funding transaction a wallet signs on the project page (valley.fund_tx: the milestone's own escrow order).
+# funding transaction a wallet signs on the project page (valley.fund_tx: the milestone's own vault order).
 PAY_PATH = "/api/pay/fund"
 
 

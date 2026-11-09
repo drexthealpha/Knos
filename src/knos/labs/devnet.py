@@ -1,4 +1,4 @@
-"""The lab escrow on Solana devnet: the LAB verdict pays the lab, the OUTCOME verdict (science failed) does not pay
+"""The lab vault on Solana devnet: the LAB verdict pays the lab, the OUTCOME verdict (science failed) does not pay
 the researcher. Real devnet transactions, a test mint of the demo's own (TEST money), lab replies from FIXTURES.
 
     python -m knos.labs.devnet --wallets DIR --referees RDIR --out web/labs_devnet.json [--fields proteins,electronics,materials,chemistry,robotics]

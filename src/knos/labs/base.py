@@ -1,7 +1,7 @@
 """The lab adapter interface: one shape for every cloud lab, fab and ground-truth service Knos sends work to.
 
     quote(spec)                 -> Quote      price, currency, turnaround, what the quote is valid for
-    order(spec, escrow_ref)     -> Order      the lab's order id, bound to the Knos escrow that will pay it
+    order(spec, `escrow_ref`)     -> Order      the lab's order id, bound to the Knos vault that will pay it
     status(order)               -> Status     one of STATES, with the lab's own word kept beside it
     results(order)              -> Results    data + QC + raw files, INCLUDING failed runs (a failed run is a result)
 
@@ -11,7 +11,7 @@ Every adapter runs in one of two modes:
               `fixture: true` and the label of where the response came from). Tests and CI use only this mode.
     live      the user's OWN key for that lab (bring your own key, BYOK), read from one environment variable and
               never printed, logged, recorded or sent anywhere but the lab's own documented host. Knos never resells a
-              lab's service: the order is the user's, at the lab's price; Knos holds the escrow and gives the verdicts.
+              lab's service: the order is the user's, at the lab's price; Knos holds the vault and gives the verdicts.
 
 A live call that would spend money (an order, accepting a quote) also needs KNOS_LABS_LIVE_ORDERS=1, so a stray key in
 an environment can quote but never order by accident.
@@ -93,7 +93,7 @@ class Quote:
 class Order:
     lab: str
     order_id: str
-    escrow_ref: str              # the Knos escrow that pays this order (an address on devnet)
+    escrow_ref: str              # the Knos vault that pays this order (an address on devnet)
     spec_hash: str
     state: str = "submitted"
     fixture: bool = False

@@ -2,7 +2,7 @@
 hand: the programs are native) say what the Python client sends and what the programs' source defines: every
 instruction's discriminant, accounts with their signer and writable flags, and arguments; every account layout; every
 error code; the deployed addresses. knos_oidc_v2 and knos_pay_v2 are the second deployment (programs-v2, clients
-knos.settle.v2.oidc and knos.settle.v2.pay); what is particular to the second escrow (its account layouts, its
+knos.settle.v2.oidc and knos.settle.v2.pay); what is particular to the second vault (its account layouts, its
 readers, its bounds and audiences) is in tests/test_pay2_idl.py."""
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ PROGRAMS = {"knos_oidc": ("programs", "knos_oidc", oidc), "knos_pay": ("programs
             "knos_oidc_v2": ("programs-v2", "knos_oidc", oidc2), "knos_pay_v2": ("programs-v2", "knos_pay", pay2)}
 IDL = {name: json.loads((ROOT / "idl" / f"{name}.json").read_text(encoding="utf-8")) for name in PROGRAMS}
 SRC = {name: (ROOT / tree / crate / "src" / "lib.rs").read_text(encoding="utf-8") for name, (tree, crate, _) in PROGRAMS.items()}
-# the second escrow lists the instructions of an order's terms (18..21, 24, 27) in the header of the file that holds them
+# the second vault lists the instructions of an order's terms (18..21, 24, 27) in the header of the file that holds them
 ORDER_TERMS_RS = (ROOT / "programs-v2" / "knos_pay" / "src" / "order_terms.rs").read_text(encoding="utf-8")
 CLAIMS_RS = (ROOT / "programs" / "knos_oidc" / "src" / "claims.rs").read_text(encoding="utf-8")
 
@@ -37,7 +37,7 @@ JWT = "eyJhbGciOiJSUzI1NiJ9." + "A" * 1000 + ".c2ln"
 JOB = pay.job_pda(REPO, ISSUE, K["funder"])
 ISSUER_URL = "https://oidc.ci.example.dev"       # an RS256 issuer that is neither GitHub nor GitLab
 
-# the second escrow: a Balance of the owner's, a job funded from it and one funded by a wallet in a Token-2022 mint
+# the second vault: a Balance of the owner's, a job funded from it and one funded by a wallet in a Token-2022 mint
 OWNER, SPENDERS, T22 = 424242, [555000, 9], pay2.TOKEN_2022
 TERMS = pay2.terms_json({"checks": [{"app": 15368, "name": "test"}], "mode": "merge", "v": 1})
 BAL, FAUCET_BAL = pay2.balance_pda(OWNER, K["authority"], K["mint"]), pay2.faucet_balance_pda(OWNER)
@@ -319,7 +319,7 @@ def test_every_instruction_of_the_source_is_in_the_idl(program):
     """The header comment of lib.rs lists each instruction as `<tag> <Name>`; the dispatch has one arm per tag."""
     headers = SRC[program] + (ORDER_TERMS_RS if program == "knos_pay_v2" else "")
     listed = {m.group(2): int(m.group(1)) for m in re.finditer(r"^//!   (\d+) (\w+)(?: |$)", headers, re.M)}
-    # an arm is a block, or (the second escrow) a call into the module that holds the instruction
+    # an arm is a block, or (the second vault) a call into the module that holds the instruction
     arms = {int(m.group(1)) for m in re.finditer(r"^        (\d+) => (?:\{|\w+::\w+\()", SRC[program].split("pub fn process")[1], re.M)}
     got = {i["name"]: i["discriminant"]["value"] for i in IDL[program]["instructions"]}
     assert got == listed and set(got.values()) == arms == set(range(len(got)))
@@ -485,7 +485,7 @@ def test_accounts_written_as_the_idl_says_are_read_by_the_client():
 def test_every_error_code_of_the_source_is_in_the_idl():
     claims = set(constants(CLAIMS_RS, "E_", "u32").values())
     assert claims == {60, 61, 62, 63}
-    # knos-pay reads claims with knos-oidc's reader; the second escrow also refuses a token whose key is no longer usable
+    # knos-pay reads claims with knos-oidc's reader; the second vault also refuses a token whose key is no longer usable
     # with the code knos-oidc's own rule (key_usable) gives
     theirs = constants(SRC["knos_oidc_v2"], "E_", "u32")
     stale_key = {theirs[name] for name in re.findall(r"Err\((E_\w+)\)", SRC["knos_oidc_v2"].split("pub fn key_usable(")[1].split("\n}")[0])}
@@ -498,10 +498,10 @@ def test_every_error_code_of_the_source_is_in_the_idl():
         assert codes == sorted(set(codes)) and len({e["name"] for e in errors}) == len(errors) and all(e["msg"] for e in errors)
     assert set(pay.ERRORS) <= {e["code"] for e in IDL["knos_pay"]["errors"]}
     assert set(pay2.ERRORS) == {e["code"] for e in IDL["knos_pay_v2"]["errors"]} - claims
-    # the escrow's own codes are all in lib.rs: no other file of it defines one
+    # the vault's own codes are all in lib.rs: no other file of it defines one
     for path in (ROOT / "programs-v2" / "knos_pay" / "src").glob("*.rs"):
         assert path.name == "lib.rs" or not constants(path.read_text(encoding="utf-8"), "E_", "u32"), path.name
-    # a code the second escrow passes on has the name the second verifier's IDL gives it
+    # a code the second vault passes on has the name the second verifier's IDL gives it
     named = {e["code"]: e["name"] for e in IDL["knos_oidc_v2"]["errors"]}
     assert {e["code"]: e["name"] for e in IDL["knos_pay_v2"]["errors"] if e["code"] < 80} == {c: named[c] for c in claims | stale_key}
     # the second verifier keeps every code of the first with its name, and adds four

@@ -1,5 +1,5 @@
 """How fast `knos audit export` reads the chain (knos.audit.owner_history): only the owner's Balances, its wallets and the
-orders and bounties funded from them, never the escrow's newest 1,000 transactions.
+orders and bounties funded from them, never the vault's newest 1,000 transactions.
 
 A simulated cluster answers the JSON-RPC calls from the log lines of tests/test_audit.py's month (and _finance.py's
 bounties), written back as transactions; it counts the calls. The checks: the file is the same bytes as the one made
@@ -95,7 +95,7 @@ def test_another_owners_transactions_are_not_read_and_nothing_after_the_last_day
 
 
 def test_a_history_the_size_of_the_witnessed_run_takes_a_handful_of_calls_not_a_thousand(cluster):
-    """The witnessed run: one Balance, one order funded and paid, among 1,000 transactions of the escrow by others."""
+    """The witnessed run: one Balance, one order funded and paid, among 1,000 transactions of the vault by others."""
     others = [ev for n in range(500) for ev in base.funded(f"Other{n}", base.T0 + n, f"OF{n}", base.U, source=base.BAL2, by=6002)[:1]]
     others += [ev for n in range(500) for ev in base.paid(f"Other{n}", base.T0 + 600 + n, f"OP{n}", [(8001, base.U)], base.U, base.U, 0)]
     mine = [base.line("balance", base.T0 - 10, "B1", owner=base.ACME, authority=base.WALLET, mint=base.MINT),
@@ -107,7 +107,7 @@ def test_a_history_the_size_of_the_witnessed_run_takes_a_handful_of_calls_not_a_
     assert len(c.calls) <= 8, c.calls                         # 1 listing, 2 histories, 3 transactions
     c.calls.clear()
     audit.escrow_history("http://rpc", 1000, "2026-09-01")
-    assert len(c.calls) >= 1000                               # what 0.3.22 read (three times: both escrows and the meter)
+    assert len(c.calls) >= 1000                               # what 0.3.22 read (three times: both vaults and the meter)
     # at the public endpoint's 40 calls of one method per 10 s, that is over 4 minutes against about a second
 
 

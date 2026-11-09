@@ -1,4 +1,4 @@
-"""The pre-order escrow is built by Knos's own graduation code. Needs the optional `knos` package; no network."""
+"""The pre-order vault is built by Knos's own graduation code. Needs the optional `knos` package; no network."""
 import base64
 import json
 

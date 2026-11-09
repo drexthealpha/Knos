@@ -5,7 +5,7 @@
     - hidden tests were sealed in public before anyone knew whether the base fails them and a correct solution passes:
       `calibrate` judges both first;
     - work delivered as a patch had no judging command: `trees` builds the base and the delivered tree;
-    - a `/knos take` reservation could outlast the escrow (`reservation_days`).
+    - a `/knos take` reservation could outlast the vault (`reservation_days`).
 """
 
 from __future__ import annotations

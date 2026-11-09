@@ -1,4 +1,4 @@
-"""Client for knos-pay, second deployment (programs-v2/knos_pay): the escrow that pays the author of a pull request
+"""Client for knos-pay, second deployment (programs-v2/knos_pay): the vault that pays the author of a pull request
 on a GitHub-signed token verified on chain by knos-oidc. Pure instruction builders, audiences and account readers;
 no network. The program is upgradeable only through a multisig with a public 8-day delay. After an outside review the
 plan is to make it immutable; no outside review exists today (`knos mainnet-check`), so today it is upgradeable.
@@ -43,7 +43,7 @@ from . import load_ids
 
 IDS = load_ids()            # the pinned ids, or a staging deployment named by KNOS_PROGRAM_IDS
 PAY_ID = Pubkey.from_string(IDS["knos_pay"])
-OIDC_ID = Pubkey.from_string(IDS["knos_oidc"])          # the verifier whose token accounts this escrow accepts
+OIDC_ID = Pubkey.from_string(IDS["knos_oidc"])          # the verifier whose token accounts this vault accepts
 FEE_OWNER = Pubkey.from_string(IDS["fee_owner"])        # Knos's Squads vault: receives fees, nothing else
 GUARDIAN = Pubkey.from_string(IDS["guardian"])          # may pause new funding, nothing else
 SYSTEM = Pubkey.from_string("11111111111111111111111111111111")
@@ -670,7 +670,7 @@ class Order:
     holdback_bps: int
     kill_bps: int
     amount: int             # what payees receive in total
-    fee: int                # escrowed on top of it
+    fee: int                # held on top of it
     rate: int               # standing: what one accepted change is paid
     paid: int
     deadline: int

@@ -229,7 +229,7 @@ def test_no_slot_is_a_time_so_the_one_commit_is_complete_before_the_push(tmp_pat
 def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_screen_is_sixty_four_words():
     cc = _script("claims_check")
     for path in ("README.md", "web/index.html"):
-        assert cc.SENTENCE in cc.words(path), path
+        assert cc.SENTENCE in cc.words(path) or cc.L2 in cc.words(path), path
     page = cc.words("web/index.html")
     assert page.index(cc.SENTENCE) < page.index(cc.LONG)                 # what a work order is comes after, folded
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -255,7 +255,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     how, fudge, real = "How it works", "Why nobody can fudge the count", "Is it real?"
     assert "](docs/reference/DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://knos.onrender.com/app/)" in parts["Try it in ten seconds"]
     assert "knos demand " in parts["From a terminal"] and "/api/check" in parts["From a terminal"]
-    assert list(parts).index(how) == 0 and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself")
+    assert list(parts)[:2] == ["How it works today", how] and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself")
     assert parts[real].split("<!-- bench:today -->")[0].count("](docs/reference/DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]
     for zero in ("| 0 |", "Outside funders", "Letters of intent"):                         # no list of zeros above the table
         assert zero not in readme.split("## Is it real?")[0], zero

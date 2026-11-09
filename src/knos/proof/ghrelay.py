@@ -41,7 +41,7 @@ first deployment's relay (knos.settle.relay), `knos2:`, `knos3:` (work orders), 
 (knos.settle.v2.relay, whose table KINDS names every audience it carries), and a key token (`knos-oidc:key:`) to both.
 
 Posting the token in public is acceptable ONLY because it is not a bearer credential here: its audience names one
-action, the escrow accepts it for at most an hour and guards each action against replay, and it is valid only from the
+action, the vault accepts it for at most an hour and guards each action against replay, and it is valid only from the
 workflow commit the bounty pinned. Whoever relays it first only pays the fees; the money goes where the token says.
 
 Discovery (worker finds the comments). Public reads, no install. The repositories the worker knows (those it found a

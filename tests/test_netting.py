@@ -280,7 +280,7 @@ def test_a_thousand_outcomes_settle_as_one_release_on_the_programs_as_they_are()
     # the fee is 0.30% of the net, once: the relayer's tip is paid out of it, and the order is gone
     assert c.balance(c.fee) - fees + c.balance(c.tip) == n.fee and c.balance(c.tip) == pay.TIP and c.data(order) is None
 
-    # against paying singly: the escrow takes no job under 1.00, so one 0.32 outcome cannot be paid alone at all;
+    # against paying singly: the vault takes no job under 1.00, so one 0.32 outcome cannot be paid alone at all;
     # the least order (5.00) shows what one single payment costs in transactions
     assert netting.JOB_MIN == pay.MIN_AMOUNT and netting.ORDER_MIN == pay.ORDER_MIN_AMOUNT and netting.MAX_CAP == pay.MAX_AMOUNT
     start = c.sent

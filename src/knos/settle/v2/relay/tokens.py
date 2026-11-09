@@ -66,7 +66,7 @@ class _Token:
     jwt: str
     c: dict                 # its claims
     aud: str
-    kind: str | None        # what its audience asks of the escrow; None for any other audience
+    kind: str | None        # what its audience asks of the vault; None for any other audience
     issuer: int
     n: int                  # the modulus of the key that signed it
     tid: bytes

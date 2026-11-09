@@ -48,7 +48,7 @@ def rep_bytes(paid_jobs: int, total: int, repositories: int) -> bytes:
 
 
 class Ledger:
-    """The reads knos.mcp makes of a cluster, over a dictionary of accounts for each deployment's escrow (`accounts`:
+    """The reads knos.mcp makes of a cluster, over a dictionary of accounts for each deployment's vault (`accounts`:
     the first's; `second`: the second's, with `logs`: the terms JSON each job's funding transaction logged)."""
 
     def __init__(self, accounts: dict | None = None, down: bool = False, second: dict | None = None, logs: dict | None = None):
@@ -972,7 +972,7 @@ def test_knos_can_pay_names_each_thing_that_would_stop_it(monkeypatch):
     key_of(monkeypatch, usable=False)
     stale = call("knos_can_pay", {"issue": "octo/widgets#7"}, *can_pay_world())["structuredContent"]
     assert stale["can_pay"] is False and stale["neutral_attestation"]["verifier_accepts_a_github_key"] is False and "no GitHub signing key it would accept now" in stale["missing"][-1]
-    # nothing in escrow
+    # nothing in vault
     key_of(monkeypatch)
     none = call("knos_can_pay", {"issue": "octo/widgets#8"}, *can_pay_world())["structuredContent"]
     assert none["can_pay"] is False and none["jobs"] == [] and none["missing"] == ["no open bounty is held for this issue"]

@@ -1,4 +1,4 @@
-"""The faucet mints with the TEST MINT'S AUTHORITY (escrow.demo_key, which made the mint), not the relayer: on the live
+"""The faucet mints with the TEST MINT'S AUTHORITY (`escrow`.demo_key, which made the mint), not the relayer: on the live
 server the two are different keys, and a MintTo signed by the relayer fails ("owner does not match", token error 0x4)."""
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey

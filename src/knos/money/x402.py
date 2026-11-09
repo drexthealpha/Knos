@@ -7,7 +7,7 @@ scheme of docs/reference/X402.md and the plumbing of knos.record_api (headers, l
     GET /fees               the fee schedule (config/fees.yaml, with each line's status), free
     GET /pool/<claim>       a graduated claim's pre-order pool as the chain has it now, free
     GET /preorder/<claim>   402 Payment Required: fund a pre-order in the claim's pool (a private knos_pay order in the
-                            pool's scope). Asked again with PAYMENT-SIGNATURE naming the order: 200 "escrowed" once the
+                            pool's scope). Asked again with PAYMENT-SIGNATURE naming the order: 200 "held" once the
                             chain shows it open, in that pool, on those terms, in that mint, with time left.
     GET /checks             402: a pack of paid checks at the config's x402_check price (the smallest order is 5.00, so
                             one order buys a pack). Each call after that is signed by the wallet that funded the order
@@ -17,7 +17,7 @@ scheme of docs/reference/X402.md and the plumbing of knos.record_api (headers, l
                             and every 402 carries the Bazaar discovery extension so agents can find and call it.
 
 The money never reaches this server: it sits in the order's own token account until the judge pays it, or goes back
-to the payer after the deadline. `PAYMENT-RESPONSE` says "escrowed". Standard library at import; solders when a
+to the payer after the deadline. `PAYMENT-RESPONSE` says "held". Standard library at import; solders when a
 payment is checked.
 """
 from __future__ import annotations

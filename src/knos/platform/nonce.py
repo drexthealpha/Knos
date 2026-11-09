@@ -1,4 +1,4 @@
-"""Durable nonces: an escrow transaction signed now, offline or by several people one after the other, sent later.
+"""Durable nonces: a vault transaction signed now, offline or by several people one after the other, sent later.
 
 A transaction normally names a recent blockhash and dies with it, about 33 s on devnet today (knos.platform.blockhash).
 That is too short for a funder whose approver signs on another machine, a financier who signs an assignment

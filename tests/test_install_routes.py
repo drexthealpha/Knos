@@ -1,7 +1,7 @@
 """Every way to install Knos (docs/reference/INSTALL.md) starts one server and one hook, and each file a host reads is what that
 host's own documentation says it reads:
 
-    .claude-plugin/marketplace.json, plugin/   the plugin Claude Code and Codex install (the hook and the server)
+    .claude-plugin/market.json, plugin/   the plugin Claude Code and Codex install (the hook and the server)
     gemini-extension.json                      the Gemini CLI extension (the server)
     docs/reference/INSTALL.md                            the Cursor and VS Code links, the Codex and Copilot snippets
     action.yml                                 the free check as a GitHub Action, for a `pull_request` workflow
@@ -125,7 +125,7 @@ def test_the_marketplace_lists_one_plugin_and_both_hosts_find_their_manifest_in_
     assert claude["description"] and claude["author"]["name"] and claude["license"] == "MIT"
     assert urlsplit(claude["homepage"]).scheme == "https"                # a homepage that is no URL fails the load
     assert not {"hooks", "mcpServers"} & set(claude)     # Claude Code finds hooks/hooks.json and .mcp.json by itself
-    # Codex installs the same plugin from the same marketplace. Its manifest differs in one thing: the hooks file,
+    # Codex installs the same plugin from the same market. Its manifest differs in one thing: the hooks file,
     # because a hook says which host runs it. Naming a file replaces the default hooks/hooks.json for Codex.
     assert codex == {**claude, "hooks": "./hooks/codex.json"} and (ROOT / "plugin" / "hooks" / "codex.json").is_file()
     for file in ("hooks.json", "codex.json"):
@@ -204,7 +204,7 @@ def test_every_link_and_snippet_on_the_install_page_starts_the_same_server():
     assert codex == ["codex", "mcp", "add", "knos", "--", SERVER["command"], *SERVER["args"]]
     [vscode] = by_start("code", "--add-mcp")
     assert json.loads(vscode[2]) == {"name": "knos", **SERVER}
-    # the plugin's install id is <plugin>@<marketplace>, and the repository is the marketplace
+    # the plugin's install id is <plugin>@<market>, and the repository is the market
     market = _json(".claude-plugin", "marketplace.json")
     plugin = f"{market['plugins'][0]['name']}@{market['name']}"
     for want in (["claude", "plugin", "marketplace", "add", REPO], ["claude", "plugin", "install", plugin],
@@ -258,7 +258,7 @@ def _step(named: str) -> dict:
 def test_the_action_is_the_free_check_with_a_read_only_token_and_pinned_parts():
     doc = _action()
     assert doc["name"] == "Knos check" and doc["runs"]["using"] == "composite"
-    assert len(doc["description"]) < 125                 # GitHub Marketplace refuses to list a longer one
+    assert len(doc["description"]) < 125                 # GitHub Market refuses to list a longer one
     steps = doc["runs"]["steps"]
     body = json.dumps(doc["runs"])
     # nothing a `pull_request` run from a fork does not have
