@@ -1,5 +1,9 @@
 # Knos Gate: the GitHub App
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Not registered. Registering it is the founder's step: see
 [docs/reference/REFEREE.md](../docs/reference/REFEREE.md).
 

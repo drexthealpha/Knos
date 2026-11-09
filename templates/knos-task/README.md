@@ -1,5 +1,9 @@
 # knos-task
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 The files of a repository for one piece of paid work: the "task with no repository" form on the
 [Knos](https://github.com/drexthealpha/Knos) site has you create an empty public repository of your own and add
 these files to it, one link each. They are kept in Knos itself, as `templates/knos-task/`.

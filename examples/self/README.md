@@ -1,5 +1,9 @@
 # A real run of `knos self` (13 Oct 2026)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 What is here, copied unchanged from the loop's state folder after the run:
 
 - `archive.json`: every version (v0 to v5), its parent, diff hash, tier results, decision, payout signatures, audit

@@ -1,5 +1,9 @@
 # knos-oidc-rotate
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Two workflows that the [Knos](https://github.com/drexthealpha/Knos) programs on Solana name by commit sha. A commit
 sha fixes a file's content, so what these workflows do cannot be changed without the programs refusing the result.
 

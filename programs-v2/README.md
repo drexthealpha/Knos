@@ -1,5 +1,9 @@
 # programs-v2/: the programs Knos runs today
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 This folder holds the source of Knos's **second** deployment on Solana [devnet](../docs/WORDS.md#devnet): the four
 programs in use. "v2" means the second deployment, not a version number. Everything here runs on **devnet only**. No
 program runs on mainnet, and no customer uses them yet.

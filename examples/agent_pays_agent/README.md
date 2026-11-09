@@ -1,5 +1,9 @@
 # Agent pays agent, only when the work is accepted
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Two agents, each with its own key, and an evaluator that is not an agent. No AI model is called. The buyer's money
 sits in held money that only a signed acceptance releases. `python -m pytest -q tests/test_agent_pays_agent.py` runs
 both runs below in LiteSVM (a local Solana simulator) with the real program builds.

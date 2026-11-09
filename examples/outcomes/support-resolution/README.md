@@ -1,5 +1,9 @@
 # Support resolutions, counted under agreed terms
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Every ticket, customer and help desk in this folder is made up. Nobody bought this.
 
 A supplier's agent answers support tickets and bills per resolution. The buyer and the supplier agree, before the

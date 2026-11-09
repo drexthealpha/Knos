@@ -1,5 +1,9 @@
 # Did the new triage form change the time to first reply?
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Budget: 90 test USDC, paid when the result is reproduced.
 
 **What to deliver.** Two files in the repository root:

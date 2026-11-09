@@ -1,5 +1,9 @@
 # Issuers: the same verifier, eleven sources of identity
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 `knos-oidc` verifies an RS256 token whoever signed it. Each folder here is one issuer: the documented way to get a
 token there, the claims it signs, which of them a program can gate on, the call that registers its key, and the lines
 of Rust that gate on it. [docs/reference/VERIFIER.md](../../docs/reference/VERIFIER.md) is the one page and the table;

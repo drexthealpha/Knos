@@ -1,5 +1,9 @@
 # oidc_gate: let an instruction run only for a verified workload
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Copy [`template.rs`](template.rs), change the marked lines, build. Your instruction then runs only when a token that
 `knos-oidc` verified on chain says "repository X, branch main, workflow Y", or "Google Cloud service account Z".
 There is no CPI (no call into another program), no oracle (no outside service that reports the result) and no key of

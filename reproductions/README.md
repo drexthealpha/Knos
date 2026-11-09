@@ -1,5 +1,9 @@
 # Reproductions
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 One JSON file per run of `knos reproduce` that someone outside Knos made in a repository of their own:
 `<owner>-<repo>-<run id>.json`, holding the report and the token GitHub signed for it. How to make one (a fork, one button,
 one link) and what each check proves: [docs/reference/REPRODUCE.md](../docs/reference/REPRODUCE.md).

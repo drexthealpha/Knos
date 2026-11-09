@@ -1,5 +1,9 @@
 # Autoresearch, minimal example (SYNTHETIC data, CPU, about a minute)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 A researcher's folder for `knos.autoresearch`. Everything here is a demonstration on synthetic data.
 
     program.md            what the researcher wants, in plain English

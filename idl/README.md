@@ -1,5 +1,9 @@
 # idl/: how to call each program
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 An IDL (interface description) file lists a program's instructions, the accounts each one takes, its data layout and
 its error codes. Another program or app reads it to know how to call the program. These files are written by hand
 from each program's source (the programs are native Solana programs, not Anchor ones). `tests/test_idl.py` and

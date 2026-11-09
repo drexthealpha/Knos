@@ -1,5 +1,9 @@
 # The stand-alone verifier
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 `verify.py` checks a Knos evidence archive with Python 3.8 or later and nothing else. It imports the standard
 library only, it does not import `knos`, and it opens no connection.
 

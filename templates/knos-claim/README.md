@@ -1,5 +1,9 @@
 # knos-claim
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Name the Solana address that [Knos](https://github.com/drexthealpha/Knos) pays your GitHub account at. These files
 are kept in Knos itself, as `templates/knos-claim/`.
 

@@ -1,5 +1,9 @@
 # One ledger row per customer, to the cent
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Budget: 150 test USDC, paid when the check passes.
 
 **What to deliver.** `transform.sql` in the repository root, in SQLite's SQL. It is run in a database that holds two

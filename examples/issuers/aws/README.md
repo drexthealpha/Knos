@@ -1,5 +1,9 @@
 # AWS (IAM outbound identity federation)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 **Supported in part.** RS256 only when asked for: AWS recommends ES384, which is not verified. The RSA key size is not in AWS's documentation and was not measured (the issuer is per account).
 
 | | |

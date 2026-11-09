@@ -1,5 +1,9 @@
 # Auth0
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 **Supported.** RS256, the default; two 2048-bit keys. A tenant set to HS256 or PS256 is not verified. Key sizes read from the issuer's key set on 2026-10-05 (at `https://auth0.auth0.com/.well-known/jwks.json`).
 
 | | |

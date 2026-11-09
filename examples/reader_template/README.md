@@ -1,5 +1,9 @@
 # reader_template: do one thing only when your CI asked for it
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 A complete Solana program, on its own, that releases once when GitHub signed that one workflow of one repository
 asked this program to. `knos-oidc` checked GitHub's signature on chain; this program reads the result. It takes one
 thing from Knos: the crate `knos-oidc-interface = "0.3.14"` from [crates.io](https://crates.io/crates/knos-oidc-interface),

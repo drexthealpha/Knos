@@ -1,5 +1,9 @@
 # knos-attest
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Ask GitHub to sign that a [Knos](https://github.com/drexthealpha/Knos) work order's terms were met, so that the person
 who did the work can ask for the payment himself. These files are kept in Knos itself, as `templates/knos-attest/`.
 

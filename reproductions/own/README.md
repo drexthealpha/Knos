@@ -1,5 +1,9 @@
 # Knos's own runs (never counted)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Files here are runs of `knos reproduce` that Knos made itself, in a repository of `drexthealpha` or started by an
 account of `scripts/own_github_ids.json`. **None is a reproduction. None is counted. None moves a capability.**
 

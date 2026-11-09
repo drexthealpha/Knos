@@ -1,5 +1,9 @@
 # Kubernetes service account tokens (EKS, GKE, self-managed)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 **Supported in part.** RS256 clusters only (a cluster may sign ES256, ES384 or ES512). `aud` is a list, so only `sub` can be gated on.
 
 | | |

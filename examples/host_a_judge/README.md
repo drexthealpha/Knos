@@ -1,4 +1,9 @@
 # Host a referee
+
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 A referee is a GitHub repository of yours that runs a work order's checks again and asks GitHub to sign the result.
 1. [Make an empty repository](https://github.com/new?name=knos-judge&visibility=public&owner=@me) in your own account and add its one file, [`knos-attest.yml`](../knos-attest.yml) (the same as [`templates/knos-attest`](../../templates/knos-attest)), as `.github/workflows/knos-attest.yml`: `python -m knos.host_judge editor <you>/knos-judge` prints the link that opens GitHub's editor with it filled in. It needs no secret, wallet or key.
 2. The buyer names it when funding: `/knos fund 20 checks: unit quorum 2 judge: <you>/knos-judge`. An order funded with neither `judge:` nor `neutral off` also accepts your run.

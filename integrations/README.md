@@ -1,5 +1,9 @@
 # Integrations
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 What a bounty platform, a work platform or any repository can take from Knos and use.
 
 | Folder | What |

@@ -1,5 +1,9 @@
 # "Paid on proof" beside a bounty
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 A platform that lists a bounty Knos paid can show one small picture next to it, linked to the public record of the
 payment. The picture says only what the receipt says: which pull request, how much, in which money, on which day.
 

@@ -1,5 +1,9 @@
 # GitLab CI (gitlab.com)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 **Supported.** RS256; one 4096-bit and two 2048-bit keys. Key sizes read from the issuer's key set on 2026-10-05.
 
 | | |

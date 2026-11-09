@@ -1,5 +1,9 @@
 # Microsoft Entra ID (app and managed identity tokens)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 **Supported.** RS256; seven 2048-bit keys. Key sizes read from the issuer's key set on 2026-10-05 (at `https://login.microsoftonline.com/common/discovery/v2.0/keys`).
 
 | | |

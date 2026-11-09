@@ -1,5 +1,9 @@
 # A supplier's record as a paid lookup: pay, then the JSON
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 A small server anyone can run. **Knos hosts none**: whoever runs it is its seller, and its price is its own. It
 sells one thing, the lookup of a supplier's record ([docs/reference/SUPPLIER.md](../../docs/reference/SUPPLIER.md)), for 0.10 test USDC,
 paid through `knos-order`, Knos's proposed scheme for x402 (paying over HTTP with status 402), as in

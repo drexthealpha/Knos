@@ -1,5 +1,9 @@
 # Measured outcome: support tickets resolved without a person (SYNTHETIC)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Every ticket here is made up (`knos.outcomes.synth`). An "AI agent" handles the treated tickets and people the
 control tickets; the chance that a ticket is solved without escalation or reopening is a parameter of the generator
 (0.45 for control, 0.53 for treated in the sample), so the lift is chosen, not found. This folder shows how a measured

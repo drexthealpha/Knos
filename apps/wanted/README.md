@@ -1,5 +1,9 @@
 # Knos: proven research, funded products (apps/wanted/)
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 **Live:** https://knos.onrender.com/app/. It runs on a free instance that sleeps, so the first visit can take a minute.
 Phone or desktop, nothing to install. **License:** MIT ([LICENSE](LICENSE)).
 

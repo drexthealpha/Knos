@@ -1,5 +1,9 @@
 # knos-pay-interface
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Fund, top up, refund and read a Knos work order from another Solana program.
 
 `knos_pay` holds a work order's money until the proof passes and pays it when GitHub signs that the order's terms were met; the

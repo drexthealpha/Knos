@@ -1,5 +1,9 @@
 # Acceptance checks for issue 138
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Made by `knos accept init` from a reference implementation: 21 inputs (text, seed 16) and the answer the reference
 gave to each, in `cases.json`. `blackbox.py` is the referee. It runs `python3 words.py` in the pull request's tree for every input,
 with the input on standard input, and compares what it prints with the recorded answer (trailing spaces and blank lines at

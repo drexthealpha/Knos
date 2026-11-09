@@ -1,5 +1,9 @@
 # Knos in each coding agent
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 When a coding agent says "done, tests pass", Knos runs that check itself. Some hosts let a hook answer the end of a
 turn. There, a false "done" goes back to the agent, with the check that failed. It also carries what Knos's local
 memory (Sibyl, a memory library Knos uses) holds about claims it refused on this repository before. This page says, host by host, what `knos init --host <name>` writes,

@@ -1,5 +1,9 @@
 # Knos conformance kit, version 4
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Test vectors for Knos's formats, with expected results, and a runner that feeds them to any implementation:
 
     python conformance/run.py --impl "<the command that runs your implementation>"

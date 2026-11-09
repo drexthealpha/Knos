@@ -1,5 +1,9 @@
 # Examples
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Each line is one example: what it shows, and who it is for. Everything here runs on Solana devnet with test USDC,
 which has no monetary value. Folders named `cheats/` and `near_misses/` are not examples: they are wrong submissions
 that the tests run, to show that the checks refuse them ([docs/reference/TAMPER.md](../docs/reference/TAMPER.md)).

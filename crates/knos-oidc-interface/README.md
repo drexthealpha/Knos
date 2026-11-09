@@ -1,5 +1,9 @@
 # knos-oidc-interface
 
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
+
 Read an OIDC token (GitHub Actions, GitLab CI, or any other RS256 issuer) that the knos-oidc program verified on Solana.
 OIDC (OpenID Connect) is the standard a CI service uses to sign a short-lived token saying which run it is.
 
