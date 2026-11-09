@@ -1,6 +1,6 @@
 # Changelog
 
-Prices and figures in older entries are superseded; the current price book is docs/reference/MARKET.md, section "The price book", and each GitHub release's notes are its entry here.
+Prices and figures in older entries are superseded; the current price book is docs/reference/MARKET.md, section "The price book", and each release's notes are its entry here.
 
 Each entry starts with what changed for you, in one or two plain lines ("In short"); the full notes follow.
 

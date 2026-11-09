@@ -54,7 +54,7 @@ a{color:var(--accent)}
   <p>From the launch city's population and Qloo's interest score there: population over 100,000 times that score, never under 10.</p>
   <dl class="facts" data-not-prose>
     <dt>Idea</dt><dd><a href="../crossing/7b4ed16b8c2903dc/">a graphene-coated cycling jacket</a></dd>
-    <dt>City</dt><dd><b data-city>n/a</b>, the metro with the highest mean affinity on <a href="https://docs.qloo.com/reference/insights-api-deep-dive" rel="noopener">Qloo's heatmap</a> (<code>filter.type=urn:heatmap</code>)</dd>
+    <dt>City</dt><dd><b data-city>n/a</b>, the city where <a href="https://docs.qloo.com/reference/insights-api-deep-dive" rel="noopener">Qloo's demand map</a> shows the most interest (<code>filter.type=urn:heatmap</code>)</dd>
     <dt>Population</dt><dd><a href="https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/metro/totals/cbsa-est2023-alldata.csv" rel="noopener">Census, 2023</a></dd>
   </dl>
   <p class="formula" data-not-prose><a href="https://github.com/drexthealpha/Knos/blob/main/apps/wanted/knos_wanted/metros.py" rel="noopener">target = max(10, round(POP / 100,000 &times; mean affinity))</a></p>

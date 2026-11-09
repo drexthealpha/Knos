@@ -2,7 +2,7 @@
 
 # Start here: Knos in five minutes
 
-**In plain words.** Knos takes research to a product people want. First check demand for your idea, then write a Ready brief in [the app](https://knos.onrender.com/app/). Backers' money is held on Solana, and the maker is paid only when a milestone's proof is verified.
+**In plain words.** Knos takes research to a product people want. First check demand for your idea, then write a clear goal in [the app](https://knos.onrender.com/app/). Backers' money is held on Solana, and the maker is paid only when a milestone's proof is verified.
 
 ```mermaid
 flowchart TB
