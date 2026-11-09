@@ -1,7 +1,7 @@
 /// The stub provider (KNOS_LLM_PROVIDER=stub): what a model does in live mode, with no model and no key, so the live
 /// path can be tested anywhere. It calls the agent's own tools in order (the brief, the evidence for the proof's
 /// kind, the nearest criteria), each call written as a tool span by the audit class, then answers in the decision
-/// contract with the rules referee's decision and the usage it would bill (KNOS_LLM_STUB_USD per call, default 0).
+/// contract with the rules referee's decision, 0 tokens (no model ran) and KNOS_LLM_STUB_USD per call (default 0).
 Class Knos.Iris.AI.Stub Extends %RegisteredObject
 {
 
@@ -19,8 +19,8 @@ ClassMethod Decide(briefJSON As %String, kind As %String, payload As %String, ha
     do ##class(Knos.Iris.AI.TraceAudit).Tool("SearchCriteria", "{""hash"":"""_hash_"""}", near, ($zhorolog - t) * 1000)
     set out = {}.%FromJSON(##class(Knos.Iris.Py.Verdict).Decide(briefJSON, kind, payload, hash))
     set usd = $system.Util.GetEnviron("KNOS_LLM_STUB_USD")
-    set out.model = "stub provider", out.referee = "AI Hub agent (stub provider)", out."input_tokens" = $length(briefJSON) + $length(payload) \ 4
-    set out."output_tokens" = $length(out.%ToJSON()) \ 4, out."cost_usd" = $select(usd?1.N.1(1"."1.N):+usd, 1:0), out.tools = 3
+    set out.model = "stub provider", out.referee = "rules referee (stub provider, no AI)", out."input_tokens" = 0
+    set out."output_tokens" = 0, out."cost_usd" = $select(usd?1.N.1(1"."1.N):+usd, 1:0), out.tools = 3
     return out.%ToJSON()
 }
 
