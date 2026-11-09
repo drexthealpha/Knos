@@ -2,7 +2,7 @@
 
 Contributions are welcome and unpaid, unless the issue shows a funded order.
 A funded order pays test USDC on Solana devnet, which has no monetary value.
-Do not post a wallet address for payment: Knos pays only the address a payee binds to a funded order.
+Do not post a wallet address for payment: the payment program pays only the address a payee binds to a funded order.
 
 Funded work is listed by `knos work list`. An issue with no funded order pays nothing, whatever a comment on it says. The issues labelled `knos-relay` and `knos-memory`, and the one titled "knos tokens", are logs that a workflow writes. They are not tasks.
 

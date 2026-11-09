@@ -305,7 +305,7 @@ condition. Any conclusion for Knos is the author's inference, not the guidance's
 | pointing away from transmission | pointing toward it |
 |---|---|
 | The funder is buying a service on its own behalf (4.2.1, users). | Knos wrote the program and deployed it (5.2.2). |
-| Knos holds no key to an order's money and cannot move it in normal operation (4.2.1, factor d). | Knos takes a fee from each payment. |
+| Knos holds no key to an order's money and cannot move it in normal operation (4.2.1, factor d). | The payment program takes a fee from each payment. |
 | The funder and the payee interact with the chain directly, or through a relay that decides nothing (factor c). | Until an outside review Knos can replace the program, after 8 days, and a replacement could move the money. That bears on "total independent control". |
 | | Knos runs the public relay. A relay decides nothing, but today it is the one that carries the tokens, and for a passkey funder it also pays the network fee. |
 | | One person holds every key that can replace the program. |

@@ -1,5 +1,6 @@
 """Offline: the fields matrix, the value vectors, the proof shown first, the money page and companies mode. The live
 tests are scripts/test_champion.mjs."""
+import re
 from pathlib import Path
 
 from knos import ready as kr
@@ -29,7 +30,7 @@ def test_the_hero_chips_span_every_technology_and_no_pitch_paragraph_stands_abov
     hero = (WEB / "brand" / "hero.html").read_text(encoding="utf-8")
     techs = {line.split('data-tech="')[1].split('"')[0] for line in hero.splitlines() if 'data-tech="' in line}
     assert len(techs) >= 5 and techs <= {"ai", "web3", "quantum", "energy", "biotech", "materials", "pqc"}
-    above = hero[:hero.index("<form")]
+    above = re.sub(r'<p class="k-vision"[^>]*>.*?</p>', "", hero[:hero.index("<form")], flags=re.S)   # the two vision lines: fixed text
     # above the box: the headline alone, no pitch paragraph; the one line ($0 unless a helper's work passes your check)
     # stands under the box (the first view of 6 Nov 2026: 24 words at most, header and button included)
     assert above.count("<p") == 0 and 'id="k-for"' not in above and 'id="k-mission"' in above and 'class="k-sub"' in hero

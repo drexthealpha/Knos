@@ -3,7 +3,7 @@
     knos outcome draft "GOAL" --sample data.csv [--out outcome.yaml] [--synthetic] [--llm --llm-key-env NAME]
     knos outcome validate outcome.yaml          every rule the spec breaks, or its hash
     knos outcome hash outcome.yaml              the hash both parties sign and each tier's terms carry
-    knos outcome tiers outcome.yaml             one order per tier: address, terms hash, amount, fee; the total held
+    knos outcome tiers outcome.yaml             one order per tier: address, terms hash, amount, fee; the total escrowed
     knos outcome lock outcome.yaml [--history data.csv] [--out outcome.lock.json]   what is fixed at funding
     knos outcome assign outcome.yaml --data data.csv    who is in the control group (recompute it yourself)
     knos outcome measure outcome.yaml --lock outcome.lock.json [--repo .|--data FILE] [--out result.json] [--record]
@@ -71,7 +71,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
 
     @sub.command("tiers")
     def tiers_(spec: Path = typer.Argument(...), as_json: bool = typer.Option(False, "--json")) -> None:
-        """One knos_pay order per tier, and what the buyer locks in all."""
+        """One knos_pay order per tier, and what the buyer escrows in all."""
         from . import escrow
         s = _load(spec)
         rows, total = escrow.orders(s), escrow.escrowed(s)
@@ -124,7 +124,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
     @sub.command("sign")
     def sign_(spec: Path = typer.Argument(...), role: str = typer.Option(..., "--role"), keypair: Path = typer.Option(..., "--keypair"),
               file: Path = typer.Option(Path("outcome.signatures.json"), "--file")) -> None:
-        """Sign the spec's hash with your wallet (the buyer: `escrow`.funder; the seller: parties.seller.address)."""
+        """Sign the spec's hash with your wallet (the buyer: escrow.funder; the seller: parties.seller.address)."""
         from .. import chain
         from . import sign
         s = _load(spec)

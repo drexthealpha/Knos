@@ -160,8 +160,8 @@ When no operator round is open, the server keeps one sample round open. It is se
 The sample round allows 4 attempts per player. A refused attempt shows no score. A copy of another player's file earns
 nothing: it is credited to the first submitter only.
 
-A scored attempt earns 5 test units when the contributor gives a devnet wallet. Knos pays it from its own devnet test
-wallet. The payment is a knos_pay panel order, released when 2 of the 3 referee hosts sign after each re-checks the
+A scored attempt earns 5 test units when the contributor gives a devnet wallet. The project's own devnet test
+wallet pays it. The payment is a knos_pay panel order, released when 2 of the 3 referee hosts sign after each re-checks the
 verdict ([REFEREE_FROST.md](REFEREE_FROST.md)).
 
 Only proven players are paid. A player is proven when the chain binds a wallet to the player's GitHub id or ORCID iD

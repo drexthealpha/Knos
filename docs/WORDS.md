@@ -148,7 +148,7 @@ Two or three referees who must all pass the same work before it is paid.
 
 ### Ready brief
 
-A plan whose every milestone can be checked. Knos holds money only on a Ready brief.
+A plan whose every milestone can be checked. The payment program holds test money only on a Ready brief.
 
 ### Receipt
 

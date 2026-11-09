@@ -1,6 +1,6 @@
 # Demand check: is it wanted, before anyone builds it
 
-**In plain words.** Knos pays for work that is proven done. Before the work, a maker wants to know whether anyone
+**In plain words.** The payment program pays for work that is proven done. Before the work, a maker wants to know whether anyone
 wants the thing at all.
 
 Knos's demand check asks Qloo's taste data (who, where, rising or not, against which

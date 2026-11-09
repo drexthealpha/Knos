@@ -40,7 +40,7 @@ def _sub(path: Path, old: str, new: str) -> None:
 
 def test_this_tree_says_the_one_sentence_everywhere_it_describes_itself():
     pf = _tool()
-    assert pf.sentence() == SENTENCE and pf.title(SENTENCE) == "Knos. See who wants it, then get paid on proof." and len(pf.title(SENTENCE)) <= 60
+    assert pf.sentence() == SENTENCE and pf.title(SENTENCE) == "Knos. See who wants it, then test each step." and len(pf.title(SENTENCE)) <= 60
     assert pf.problems() == []
     said: list[str] = []
     assert pf.main(["--check"], say=said.append) == 0 and said == [f"every description says: {SENTENCE}"]

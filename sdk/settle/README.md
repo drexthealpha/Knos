@@ -4,7 +4,7 @@ Knos turns any research into a product billions of people use, in days, not year
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
-The JavaScript client for Knos: work paid for on signed acceptance. It derives the addresses, builds the audiences,
+The JavaScript client for the Knos Solana programs. It derives the addresses, builds the audiences,
 instructions and transactions, and reads the accounts of three Solana programs: `knos-pay`, the payment program that holds a
 work order's money until GitHub signs the run that found its terms were met; `knos-oidc`, which verifies GitHub Actions
 and GitLab CI tokens on chain; and `knos-meter`, prepaid credits for evaluations. One file, no dependencies: it

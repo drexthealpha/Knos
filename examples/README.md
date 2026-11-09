@@ -15,7 +15,7 @@ that the tests run, to show that the checks refuse them ([docs/reference/TAMPER.
 | [knos-install.yml](knos-install.yml) | The whole payment flow in 21 lines: a comment funds an issue, the merged pull request is paid. | a maintainer who wants to fund issues |
 | [knos-workflow.yml](knos-workflow.yml) | The same file, with every line explained. | a maintainer who wants to read before installing |
 | [knos-check.yml](knos-check.yml) | The free Knos check on every pull request; reads only, needs no secret. | any repository |
-| [knos-claim.yml](knos-claim.yml) | Names the Solana address Knos pays your GitHub account at. | a person who gets paid |
+| [knos-claim.yml](knos-claim.yml) | Names the Solana address the payment program pays your GitHub account at. | a person who gets paid |
 | [knos-claim-org.yml](knos-claim-org.yml) | The same, for an organisation's account. | an organisation that gets paid |
 | [knos-attest.yml](knos-attest.yml) | Asks GitHub to sign that an order's terms were met, so you can ask for your payment yourself. | a seller, or someone hosting a referee |
 | [knos-attestor.yml](knos-attestor.yml) | Knos for an organisation's private repositories, from one attestor repository. | an organisation with private code |

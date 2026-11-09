@@ -1,9 +1,5 @@
 # knos-task
 
-Knos turns any research into a product billions of people use, in days, not years.
-
-Knos carries research across the valley of death, toward Kardashev II and III.
-
 A repository for one piece of paid work, made from this template by the "task with no repository" form on the
 [Knos](https://github.com/drexthealpha/Knos) site.
 

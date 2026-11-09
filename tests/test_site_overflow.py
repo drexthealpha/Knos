@@ -28,7 +28,7 @@ WORD = re.compile(r"[A-Za-z0-9][\w'’%.,/-]*")
 SIGNING = "GitHub signs which checks ran, and a Solana program checks that signature itself before it pays."
 OUTCOME = "Check an AI agent's pull request before it is paid."       # the check of agent work, one use of Knos: the h1
 WHO = "One use of Knos: pay for code only when its checks pass."   # who it is for, under the h1
-SHORT = "See who wants it, then get paid on proof."      # Knos in a few words, under it (the one sentence is folded under "What is here")
+SHORT = "See who wants it, then test each step."      # Knos in a few words, under it (the one sentence is folded under "What is here")
 
 
 def _words(html: str) -> list[str]:

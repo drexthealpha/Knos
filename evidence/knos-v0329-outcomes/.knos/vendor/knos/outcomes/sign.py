@@ -4,7 +4,7 @@
     file      outcome.signatures.json: {"spec_hash": ..., "signatures": [{"role", "github", "address", "signature"}]}
     comment   the line posted on the order's issue (`comment`), so the hash both signed sits beside the orders
 
-The buyer signs with `escrow`.funder's wallet, the seller with parties.seller.address's. A signature by any other key,
+The buyer signs with escrow.funder's wallet, the seller with parties.seller.address's. A signature by any other key,
 or of another hash, does not verify (`verify`).
 """
 from __future__ import annotations

@@ -241,7 +241,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
     # the check of agent work (one use of Knos) leads with what it does, says it is one use, then Knos in a few words and
     # the number; the one sentence is folded under "What is here", before what a work order is
-    use, short = "Check an AI agent's pull request before it is paid.", "See who wants it, then get paid on proof."
+    use, short = "Check an AI agent's pull request before it is paid.", "See who wants it, then test each step."
     # one h1 on the page, the demand check's mission; this use heads its own section under it (d6b6360)
     assert f">{use}</h2>" in hero and 'id="hero-who"' in hero and f">{short}</p>" in hero
     assert hero.index(use) < hero.index('id="hero-who"') < hero.index(short) < hero.index('id="hero-fact"')

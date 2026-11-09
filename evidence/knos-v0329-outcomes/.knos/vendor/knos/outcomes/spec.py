@@ -1,5 +1,5 @@
 """outcome.yaml: read it, check it against schemas/outcome.schema.json and the rules a schema cannot say, hash it,
-and derive what the vault pins from it (one knos_pay order per tier, each with its own terms).
+and derive what the escrow pins from it (one knos_pay order per tier, each with its own terms).
 
 The hash. `spec_hash` is sha256 of the canonical JSON of the spec as read (keys sorted, no spaces, ASCII), so a
 re-indented file or a new comment keeps its hash and any change of a value does not. Both parties sign that hash
