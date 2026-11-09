@@ -11,7 +11,7 @@
     const g = r.gap || {}, t = r.terms, who = r.who || {};
     const cities = (r.cities || []).map((c) => c && c.name).filter(Boolean).slice(0, 5);
     const where = t && t.city ? `Launch in ${e(t.city)}: ${e(t.target)} pre-orders. ${e(t.rule || "")}`
-      : `No launch city: Qloo gave no heatmap for this idea, so pre-orders cannot open.${cities.length ? ` The cities Qloo named: ${e(cities.join(", "))}.` : ""}`;
+      : `No launch city: Qloo gave no map of where people want this idea, so pre-orders cannot open.${cities.length ? ` The cities Qloo named: ${e(cities.join(", "))}.` : ""}`;
     const aud = [String(who.top_age || "").replace(/_/g, " "), who.top_gender].filter(Boolean).join(", ");
     const rej = (g.rejected || []).map((o) => `${e(o.name)} (${e(o.code)}: ${e(o.why)})`).join("; ");
     const flip = String((g.flip && g.flip.said) || "").replace(/^What would flip this verdict: /, "");
