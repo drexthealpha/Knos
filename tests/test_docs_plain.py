@@ -11,6 +11,7 @@ final "e" and a silent "-ed"; a number counts as two; a word in capitals (USDC) 
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -67,7 +68,8 @@ def test_the_formula_and_the_syllable_rule_give_known_values():
 @pytest.mark.parametrize("rel", sorted(DOCS))
 def test_each_document_opens_with_the_mark_its_title_and_three_plain_sentences(rel):
     page = read(rel)
-    lines = [line for line in page.splitlines() if line.strip()]
+    vision = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))
+    lines = [line for line in page.splitlines() if line.strip() and line.strip() not in (vision["l1"], vision["l2"])]   # the two vision lines (fixed text)
     up = "../" * rel.count("/")
     assert lines[0] == f'<img src="{up}web/brand/mark.svg" height="40" alt="Knos">', rel
     assert ((ROOT / rel).parent / f"{up}web/brand/mark.svg").resolve() == (ROOT / "web" / "brand" / "mark.svg").resolve()

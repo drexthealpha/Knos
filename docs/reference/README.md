@@ -1,10 +1,10 @@
-Knos turns any research into a product billions of people use, in days, not years.
-
-Knos carries research across the valley of death, toward Kardashev II and III.
-
 <img src="../../web/brand/mark.svg" height="40" alt="Knos">
 
 # Every document, under six questions
+
+Knos turns any research into a product billions of people use, in days, not years.
+
+Knos carries research across the valley of death, toward Kardashev II and III.
 
 **In plain words.** This page lists every Knos document once, under six questions. The seven pages to read first are on [the front map](../README.md). When a word is new to you, look it up in [the word list](../WORDS.md).
 

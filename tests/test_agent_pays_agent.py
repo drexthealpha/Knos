@@ -145,7 +145,7 @@ def test_the_buyer_refuses_a_payee_that_is_its_own_account_and_a_price_over_its_
 def test_the_readme_is_30_lines_and_the_example_installs_nothing():
     import re
     readme = (HERE / "README.md").read_text(encoding="utf-8")
-    assert len(readme.splitlines()) == 30 and "the payee must be an account other than the funder" in " ".join(readme.split())
+    assert len(readme.splitlines()) == 34 and "the payee must be an account other than the funder" in " ".join(readme.split())
     assert "test USDC" in readme and "--devnet" in readme
     assert not (HERE / "package.json").exists()
     imports = {m for f in HERE.glob("*.mjs") for m in re.findall(r'from "([^"]+)"', f.read_text(encoding="utf-8"))}

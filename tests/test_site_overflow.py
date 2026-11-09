@@ -27,7 +27,7 @@ WORD = re.compile(r"[A-Za-z0-9][\w'’%.,/-]*")
 # the Paid on proof step's one sentence on signed checks, kept word for word as written: the one statement over 12 words
 SIGNING = "GitHub signs which checks ran, and a Solana program checks that signature itself before it pays."
 OUTCOME = "Check an AI agent's pull request before it is paid."       # the check of agent work, one use of Knos: the h1
-WHO = "One use of Knos: pay for code only when its checks pass."   # who it is for, under the h1
+WHO = "One use of Knos: check an agent's code before anyone is paid."   # who it is for, under the h1
 SHORT = "See who wants it, then test each step."      # Knos in a few words, under it (the one sentence is folded under "What is here")
 
 

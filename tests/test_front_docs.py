@@ -12,6 +12,7 @@ list is a paragraph of its own. Code, tables, headings and HTML lines are not pa
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 from pathlib import Path
 
@@ -81,7 +82,8 @@ def test_a_line_and_a_paragraph_are_measured_as_a_reader_sees_them():
 @pytest.mark.parametrize("rel", FRONT)
 def test_each_front_page_opens_with_the_mark_its_title_and_three_plain_sentences(rel):
     page = read(rel)
-    lines = [line for line in page.splitlines() if line.strip()]
+    vision = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))
+    lines = [line for line in page.splitlines() if line.strip() and line.strip() not in (vision["l1"], vision["l2"])]   # the two vision lines (fixed text)
     assert lines[0] == MARK, rel
     assert lines[1].startswith("# ") and lines[2].startswith(PLAIN), rel
     said = P.summary(page)
