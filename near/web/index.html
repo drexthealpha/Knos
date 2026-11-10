@@ -627,7 +627,7 @@ load();
     if (c && c.pending && tries < 8) { setTimeout(() => counters(tries + 1), 5000); return; }
     if (!c || c.pending) return;
     $("c-proofs").textContent = String(c.proofs); $("c-usd").textContent = `$${c.settled_usd.toFixed(2)}`;
-    $("c-lost").textContent = c.lost_usd === 0 ? "$0" : `${c.failed} failed payments`; $("c-record").href = c.record;
+    $("c-lost").textContent = c.lost_usd === 0 ? "$0" : c.failed == null ? "-" : `${c.failed} failed payments`; $("c-record").href = c.record;
   }
   const ready = Promise.all([
     fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null).then((h) => { next = h && h.next; }),
@@ -727,7 +727,8 @@ load();
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
       el("h3", { textContent: "What each step cost" }),
       el("table", { className: "log" }, rows),
-      el("p", { className: "fine" }, [rc && rc.log && rc.log.near_usd ? `Network fees in dollars at today’s NEAR price ($${rc.log.near_usd}, ` : "Network fees (", rc && rc.log ? out(rc.log.price_source, "source") : "", `); in all ${usd(rc && rc.log && rc.log.total_usd)}. Test money: no real money moved.`]),
+      el("p", { className: "fine" }, rc && rc.log && rc.log.near_usd ? [`Network fees in dollars at today’s NEAR price ($${rc.log.near_usd}, `, out(rc.log.price_source, "source"), `); in all ${usd(rc.log.total_usd)}. Test money: no real money moved.`]
+        : [`Network fees in NEAR; in all ${rc && rc.log ? rc.log.total_near : "-"} NEAR (no NEAR price could be read now). Test money: no real money moved.`]),
     ]);
     const again = el("button", { type: "button", className: "go", textContent: "Prove the same claim again" });
     again.dataset.buy = "";
