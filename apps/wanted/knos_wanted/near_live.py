@@ -141,8 +141,10 @@ def prepare() -> None:
             said = {"a": [ra.get(k, {}).get("said") for k in ("take", "submit")], "b": [rb.get(k, {}).get("said") for k in ("take", "submit")],
                     "check": [x.get("reason") for x in c["attempts"]]}
             raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
+        market = _open_market(p["id"])
         _ready.pop("error", None)
         _ready["job"] = {"id": p["id"], "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
+                         "market": market,
                          "output_sha256": win["output_sha256"],
                          "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
                          "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
@@ -435,8 +437,9 @@ def claim_run() -> dict:
                 raise RuntimeError(f"{what}: {r['said']}")
             return r
 
-        send("market opened", TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps(
-            {"seed": {"id": mid, "question": "Will a helper's work pass this job's test?"}})}, "1 yoctoNEAR")
+        if not ready.get("market"):
+            send("market opened", TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps(
+                {"seed": {"id": mid, "question": "Will a helper's work pass this job's test?"}})}, "1 yoctoNEAR")
         send("you bought Yes for $1.00", TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SHARE_BUY),
              "msg": json.dumps({"buy": {"id": mid, "side": "yes"}})}, "1 yoctoNEAR")
         held = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
@@ -460,3 +463,155 @@ def claim_run() -> dict:
         threading.Thread(target=prepare, daemon=True).start()
         return {"ok": False, "why": str(e)[:200], "steps": steps, "seconds": round(time.time() - t0, 1)}
 
+
+
+# The research buyer's flow on /near/: paste a paper link, see its claim, how likely the claim holds (the price of its
+# market on NEAR testnet) and one offer; order it, and the readied job proves or refutes the claim within seconds.
+CLAIM_Q = "Does HyperLogLog count visitors within 2% using 1.5 kilobytes?"
+KNOWN = {"10.46298/dmtcs.3545": {
+    "paper": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm",
+    "authors": "Flajolet, Fusy, Gandouet and Meunier, 2007", "doi": "https://doi.org/10.46298/dmtcs.3545",
+    "quote": ("For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10^9 with a typical "
+              "accuracy of 2% while using a memory of only 1.5 kilobytes."),
+    "paper_number": "2% typical error, 1.5 kilobytes of memory",
+    "check": "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py"}}
+# What fits a paper Knos has no check for yet: the cheapest checker a buyer can order, its price and time as published
+# (research note D5, read 10 Nov 2026). Each entry: words that pick it, then what is shown.
+CHECKERS = [
+    (("protein", "binder", "enzyme", "antibod", "peptide", "binding"),
+     {"checker": "a cloud lab that tests designed proteins (Adaptyv Bio)", "price": "from $149 per protein, two replicates included",
+      "time": "about 3 weeks", "source": "https://aiwiki.ai/wiki/adaptyv_bio/raw"}),
+    (("theorem", "proof", "conjecture", "lemma", "math."),
+     {"checker": "an open-source Lean proof agent (NEAR AI)", "price": "about $0.17 per problem ($111 for all 672 PutnamBench problems)",
+      "time": "not published", "source": "https://www.kucoin.com/news/flash/near-ai-s-lean-agent-solves-all-672-putnambench-problems-for-111"}),
+    (("simulat", "fluid", "finite element", "aerodynam", "stress", "heat transfer"),
+     {"checker": "a browser engineering simulator (SimScale Community plan)", "price": "free, 2,000 core-hours",
+      "time": "not published", "source": "https://www.simscale.com/pricing/"}),
+]
+RERUN = {"checker": "a person re-running the paper's code and data", "price": "$330 to $763 per paper (2023 estimate)",
+         "time": "not published", "source": "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon"}
+
+
+def _open_market(job_id: str) -> dict | None:
+    """The claim's market for a readied job: seeded by Knos's test account; its price says how likely the claim holds."""
+    try:
+        _jobs()
+        import common
+        from common import call
+        mid = "job:" + job_id
+        args = {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps({"seed": {"id": mid, "question": CLAIM_Q}})}
+        with _lock:
+            common._PREFETCHED.pop(LIVE, None)
+            r = call(LIVE, TOKEN, "ft_transfer_call", args, deposit="1 yoctoNEAR", gas="100 Tgas")
+            common._PREFETCHED.pop(LIVE, None)
+        return {"id": mid, "seed_tx": r["tx"]} if r["ok"] else None
+    except Exception as e:  # noqa: BLE001 - no market: the page says so, the job still proves
+        print("near_live market:", str(e)[:200], file=sys.stderr, flush=True)
+        return None
+
+
+def _paper_meta(url: str) -> dict:
+    """Title and subjects of a paper from its DOI (Crossref) or arXiv id (arXiv's API); empty when neither answers."""
+    import re
+    import urllib.parse
+    doi = re.search(r"(10\.\d{4,9}/[^\s?#]+)", url)
+    arx = re.search(r"arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})", url)
+    try:
+        if doi:
+            req = urllib.request.Request("https://api.crossref.org/works/" + urllib.parse.quote(doi.group(1).rstrip(".")),
+                                         headers={"User-Agent": "knos-near-claims"})
+            with urllib.request.urlopen(req, timeout=6) as r:
+                m = json.loads(r.read())["message"]
+            return {"title": " ".join((m.get("title") or [""])[0].split()), "subjects": " ".join(m.get("subject") or [])}
+        if arx:
+            with urllib.request.urlopen("https://export.arxiv.org/api/query?id_list=" + arx.group(1), timeout=6) as r:
+                x = r.read().decode("utf-8", "replace")
+            t = re.search(r"<entry>.*?<title>(.*?)</title>", x, re.S)
+            cats = " ".join(re.findall(r'term="([^"]+)"', x))
+            return {"title": " ".join(t.group(1).split()) if t else "", "subjects": cats}
+    except Exception:  # noqa: BLE001 - no metadata: the quote falls back to a re-run of code and data
+        return {}
+    return {}
+
+
+def claim_look(url: str) -> dict:
+    """What a pasted paper link gets: for a paper Knos has a check for, its claim word for word, the price of its market
+    and the offer; for any other paper, which checker fits, with its published price and time."""
+    import re
+    url = (url or "").strip()[:500]
+    m = re.search(r"(10\.\d{4,9}/[^\s?#]+)", url)
+    known = KNOWN.get(m.group(1).lower().rstrip(".")) if m else None
+    if not known:
+        meta = _paper_meta(url)
+        words = (meta.get("title", "") + " " + meta.get("subjects", "")).lower()
+        fit = next((c for keys, c in CHECKERS if any(k in words for k in keys)), RERUN)
+        return {"ok": True, "known": False, "title": meta.get("title", ""), "quote": fit}
+    out = {"ok": True, "known": True, **known, "offer_usd": 500}
+    job = _ready.get("job")
+    mk = (job or {}).get("market")
+    if not job:
+        threading.Thread(target=prepare, daemon=True).start()
+        return {**out, "ready": False, "why": "the next proof is being readied; try again in a minute"}
+    out.update(ready=True, job_id=job["id"])
+    if mk:
+        _jobs()
+        from common import view
+        v = view(MARKET, "get_market", {"id": mk["id"]}) or {}
+        out["market"] = {"id": mk["id"], "yes_pct": round(int(v.get("yes_price") or 0) / 10_000), "seed_tx": mk.get("seed_tx")}
+    return out
+
+
+def claim_prove() -> dict:
+    """The ordered proof: the readied job's locked test, both agents' reruns, the payment to the one that passed, the
+    verdict beside the paper's own number, and the claim's market settled by the job."""
+    import re
+    s = status()
+    if not s["live"]:
+        return {"ok": False, "why": "live runs are switched off"}
+    if s["used_today"] >= s["cap_today"]:
+        return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
+    with _lock:
+        ready = _ready.pop("job", None) if _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR else None
+        if ready:
+            today = time.strftime("%Y-%m-%d", time.gmtime())
+            if _day["day"] != today:
+                _day.update(day=today, n=0)
+            _day["n"] += 1
+    if not ready:
+        threading.Thread(target=prepare, daemon=True).start()
+        return {"ok": False, "why": "the next proof is being readied; try again in a minute"}
+    t0 = time.time()
+    try:
+        paid = _release(ready)
+        win = next((a for a in ready["attempts"] if a["passed"]), {})
+        got = re.search(r"within ([\d.]+%), in ([\d,]+ bytes)", win.get("reason", ""))
+        out = {"ok": paid["state"] == "done", "job": paid.get("job"), "attempts": ready["attempts"], "release_url": paid.get("release_url"),
+               "criteria_hash": ready["criteria_hash"], "check": KNOWN["10.46298/dmtcs.3545"]["check"],
+               "verdict": {"paper": KNOWN["10.46298/dmtcs.3545"]["paper_number"],
+                           "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", ""),
+                           "holds": bool(win)}}
+        mk = ready.get("market")
+        if mk and out["ok"]:
+            _jobs()
+            import common
+            from common import call, view
+            with _lock:
+                common._PREFETCHED.pop(LIVE, None)
+                r = call(LIVE, MARKET, "resolve", {"id": mk["id"]}, gas="100 Tgas")
+                common._PREFETCHED.pop(LIVE, None)
+            v = view(MARKET, "get_market", {"id": mk["id"]}) or {}
+            outcome = (v.get("market") or {}).get("outcome")
+            out["market"] = {"id": mk["id"], "settled": outcome, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
+        out["seconds"] = round(time.time() - t0, 1)
+        return out
+    except Exception as e:  # noqa: BLE001 - the page says which step stopped
+        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})", "seconds": round(time.time() - t0, 1)}
+    finally:
+        threading.Thread(target=prepare, daemon=True).start()
+
+
+def claim_code() -> tuple[bytes, str]:
+    """The verified code: the version that passed the locked test, and its sha256 (the one submitted on NEAR testnet)."""
+    import hashlib
+    body = _jobs().pass_agent.SOLUTION.encode("utf-8")
+    return body, hashlib.sha256(body).hexdigest()

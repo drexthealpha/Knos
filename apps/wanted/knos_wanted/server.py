@@ -66,7 +66,7 @@ SESSION_S = 30 * 60
 LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish": (10, 600), "demo": (4, 600),
           "faucet": (2, 3600), "tx": (20, 600), "check": (30, 600), "taste": (30, 600), "mcp": (300, 600), "lock": (6, 600), "auth": (30, 600),
           "milestone": (30, 600), "milestone_one": (10, 3600), "referee": (120, 600), "product": (60, 600),
-          "live": (120, 600), "near_live": (3, 600), "near_guard": (2, 600), "near_market": (5, 600), "near_product": (5, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
+          "live": (120, 600), "near_live": (3, 600), "near_guard": (2, 600), "near_market": (5, 600), "near_product": (5, 600), "near_look": (30, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
@@ -506,6 +506,10 @@ def make_handler(state: State):
             qs = parse_qs(u.query)
             if product_routes.handle_get(self, state, u, qs):
                 return None
+            if u.path == "/api/near/claim/code":           # the verified code: the version that passed the locked test
+                from . import near_live
+                body, sha = near_live.claim_code()
+                return self._send(200, body, "text/x-python; charset=utf-8", headers={**blink.CORS, "Content-Disposition": 'attachment; filename="visitor_counter.py"', "X-Sha256": sha})
             if u.path == "/api/near/totals":                # three live totals of the jobs contract, read from its public record
                 from . import near_live
                 return self._send(200, near_live.totals(), headers=blink.CORS)
@@ -947,6 +951,16 @@ def make_handler(state: State):
                 if not state.allow(self._client(), "near_market"):
                     return self._send(200, {"ok": False, "why": "five buys every 10 minutes from one address"}, headers=blink.CORS)
                 return self._send(200, near_live.buy(str(self._json().get("side") or "")), headers=blink.CORS)
+            if u.path == "/api/near/claim/look":           # a pasted paper link: its claim, its market's price and the offer
+                from . import near_live
+                if not state.allow(self._client(), "near_look"):
+                    return self._send(200, {"ok": False, "why": "thirty looks every 10 minutes from one address"}, headers=blink.CORS)
+                return self._send(200, near_live.claim_look(str(self._json().get("url") or "")), headers=blink.CORS)
+            if u.path == "/api/near/claim/prove":          # the ordered proof: locked test, reruns, verdict, market settled
+                from . import near_live
+                if not state.allow(self._client(), "near_live"):
+                    return self._send(200, {"ok": False, "why": "three live runs every 10 minutes from one address"}, headers=blink.CORS)
+                return self._send(200, near_live.claim_prove(), headers=blink.CORS)
             if u.path == "/api/near/product/buy":          # buy the job's product: $1.00 of test money to the helper who built it
                 from . import near_live
                 if not state.allow(self._client(), "near_product"):
