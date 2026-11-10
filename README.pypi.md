@@ -460,8 +460,10 @@ MIT, the repository's own [LICENSE](https://github.com/drexthealpha/Knos/blob/v0
 practice" ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)). Knos turns any research into a
 product billions of people use, in days, not years.
 
-**What it does on NEAR.** One button turns a real published result into a product you can buy. The result is
-HyperLogLog ([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)).
+**What it does on NEAR.** One button takes a published research result all the way to a product someone buys: the
+paper's own claim becomes a check, code is proven against it, a small AI writes the product page, and the first sale
+settles on NEAR testnet. The result is HyperLogLog
+([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)).
 
 Its abstract says, word for word: "For instance, the new algorithm makes it possible to estimate cardinalities well
 beyond 10^9 with a typical accuracy of 2% while using a memory of only 1.5 kilobytes."
@@ -491,7 +493,7 @@ On the public page (no install, no wallet, test money only):
 5. Click "Buy it: $1 of test money" - see "Bought in about 3 s: Helper A got your $1.00 of test money" and the purchase's
    transaction, then links to the job, both versions, the payment and your purchase on the testnet explorer.
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (47.8 s), with screenshots
+The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (47.6 s), with screenshots
 [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [paid](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-paid.png) and
 [bought](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-3-bought.png).
 
