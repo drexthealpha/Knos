@@ -832,34 +832,33 @@ def _count() -> None:
         _counts.update(at=time.time() - 90, out={**(_counts.get("out") or {"settled_usd": round(proofs * BID / 1e6, 2), "payments": None, "failed": None, "lost_usd": None,
                        "record": "https://testnet.nearblocks.io/address/" + LIVE}), "proofs": proofs, "read_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())})
         base = "https://api-testnet.nearblocks.io/v3/accounts/"
-        paid, failed, sent = 0, 0, 0
-        nxt = ""
-        for _ in range(10):
-            req = urllib.request.Request(base + LIVE + "/txns?limit=100" + (f"&next={nxt}" if nxt else ""), headers={"User-Agent": "knos-near-totals"})
-            body = None
-            for tries in range(4):                     # NearBlocks' free tier answers 429 when asked too fast: wait, ask again
-                try:
-                    with urllib.request.urlopen(req, timeout=20) as r:
-                        body = json.loads(r.read())
-                    break
-                except urllib.error.HTTPError as e:
-                    if e.code != 429 or tries == 3:
-                        raise
-                    time.sleep(4 * (tries + 1))
-            for t in body.get("data") or []:
-                acts = t.get("actions") or []
-                if t.get("receiver_account_id") == TOKEN and any(x.get("method") == "ft_transfer" for x in acts):
-                    args = next((x.get("args") for x in acts if x.get("method") == "ft_transfer"), None)
-                    a = args if isinstance(args, dict) else (json.loads(args) if isinstance(args, str) and args.startswith("{") else {})
-                    if a.get("receiver_id") == TREASURY:
-                        sent += 1
-                        if (t.get("outcomes") or {}).get("status"):
-                            paid += int(a.get("amount") or 0)
-                        else:
-                            failed += 1
-            nxt = (body.get("meta") or {}).get("next_page") or ""
-            if not nxt:
-                break
+
+        def pages(path: str):
+            nxt = ""
+            for _ in range(10):
+                req = urllib.request.Request(base + path + "?limit=100" + (f"&next={nxt}" if nxt else ""), headers={"User-Agent": "knos-near-totals"})
+                body = None
+                for tries in range(4):                 # NearBlocks' free tier answers 429 when asked too fast: wait, ask again
+                    try:
+                        with urllib.request.urlopen(req, timeout=20) as r:
+                            body = json.loads(r.read())
+                        break
+                    except urllib.error.HTTPError as e:
+                        if e.code != 429 or tries == 3:
+                            raise
+                        time.sleep(4 * (tries + 1))
+                yield from (body or {}).get("data") or []
+                nxt = ((body or {}).get("meta") or {}).get("next_page") or ""
+                if not nxt:
+                    return
+
+        # the buyers' payments: each $49 that reached Knos's fee account from the buyer's test account
+        arrived = [int(t.get("delta_amount") or 0) for t in pages(TREASURY + "/ft-txns")
+                   if t.get("contract_account_id") == TOKEN and t.get("involved_account_id") == LIVE and int(t.get("delta_amount") or 0) == PRICE]
+        paid, sent = sum(arrived), len(arrived)
+        # payments that failed: the buyer account's token transfers that did not go through
+        failed = sum(1 for t in pages(LIVE + "/txns") if t.get("receiver_account_id") == TOKEN
+                     and any(x.get("method") == "ft_transfer" for x in t.get("actions") or []) and not (t.get("outcomes") or {}).get("status"))
         _counts.update(at=time.time(), out={"proofs": proofs, "settled_usd": round(paid / 1e6 + proofs * BID / 1e6, 2), "payments": sent,
                                              "failed": failed, "lost_usd": 0 if failed == 0 else None, "record": "https://testnet.nearblocks.io/address/" + LIVE,
                                              "read_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())})
