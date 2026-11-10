@@ -28,23 +28,30 @@ for (let i = 0; i < 240; i++) {
   if (await page.locator("#product:not([hidden]), #steps li.stop").count()) break;
 }
 mark("product");
-await page.locator("#steps li").nth(0).scrollIntoViewIfNeeded();
-await page.waitForTimeout(6000);                       // the paper's own sentence
-await page.locator("#steps li").nth(1).scrollIntoViewIfNeeded();
-await page.waitForTimeout(6000);                       // the two tries and the check
-await page.locator("#steps li").nth(2).scrollIntoViewIfNeeded();
+// each held screen says what to watch: the step is centred and outlined, with a caption at the foot of the frame
+const focus = async (sel, nth, text, ms) => {
+  await page.evaluate(([sel, nth, text]) => {
+    for (const e of document.querySelectorAll(".rec-on")) { e.classList.remove("rec-on"); e.style.outline = ""; }
+    const e = document.querySelectorAll(sel)[nth];
+    if (e) { e.scrollIntoView({ block: "center" }); e.classList.add("rec-on"); e.style.outline = "4px solid #2b3bb8"; e.style.outlineOffset = "4px"; }
+    let c = document.getElementById("rec-caption");
+    if (!c) { c = document.createElement("div"); c.id = "rec-caption"; c.style.cssText = "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:90%;padding:14px 24px;border-radius:14px;background:#151822;color:#fff;font:600 26px/1.3 system-ui,sans-serif;z-index:99;text-align:center"; document.body.append(c); }
+    c.textContent = text;
+  }, [sel, nth, text]);
+  await page.waitForTimeout(ms);
+};
+await focus("#steps li", 0, "1. A real paper from 2007, in its own words", 5000);
+await focus("#steps li", 1, "2. Two helpers sent code. The check passed one, failed the other", 6000);
 await page.screenshot({ path: path.join(out, "2-paid.png") });
-await page.waitForTimeout(4000);                       // paid
-await page.locator("#product").scrollIntoViewIfNeeded();
-await page.waitForTimeout(5000);                       // the product page
+await focus("#steps li", 2, "3. The helper whose code works is paid, on NEAR", 5000);
+await focus("#product", 0, "4. A small AI wrote the product page. Now buy it", 4000);
 const buy = page.locator("#product button");
 if (await buy.count()) {
   await buy.click();
   mark("buy");
   await page.locator("#product [role=status]").filter({ hasText: /^Bought|^Not bought/ }).waitFor({ timeout: 60000 });
   mark((await page.locator("#product [role=status]").innerText()).slice(0, 80));
-  await page.locator("#product").scrollIntoViewIfNeeded();
-  await page.waitForTimeout(800);
+  await focus("#product", 0, "5. Bought with test money. You got the code that passed", 800);
   await page.screenshot({ path: path.join(out, "3-bought.png") });
   await page.waitForTimeout(7000);                     // bought, what you got, where to try it
 }
