@@ -15,7 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
-MISSION = "See who would buy it first."
+MISSION = "Why does good research take 17 years to reach people? Checking that a result really works is slow and costly. So nobody builds on it until it has been checked. Morris and others, 2011"   # every face's first line (web/brand/first.html)
 MOVED = ("passkey", "SAML", "SSO", "Squads", "Xero", "QuickBooks", "devnet SOL")
 
 
@@ -38,7 +38,7 @@ def built(tmp_path_factory):
 def test_the_root_is_the_demand_check_alone(built):
     page = raw((built / "index.html").read_text(encoding="utf-8"))
     h1 = re.findall(r"<h1\b[^>]*>(.*?)</h1>", page, re.S)
-    assert [re.sub(r"<[^>]+>", "", h).strip() for h in h1] == [MISSION]
+    assert [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", h)).strip() for h in h1] == [MISSION]
     assert 'id="k-q"' in page and len(re.findall(r'class="k-chip"', page)) == 6 and "data-more-chips" in page and 'id="k-card"' in page
     steps = re.search(r'<ol class="k-step-list">(.*?)</ol>', page, re.S).group(1)
     assert len(re.findall(r"<li\b", steps)) == 5 and "How do I see it work?" in page

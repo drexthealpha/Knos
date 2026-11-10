@@ -471,7 +471,9 @@ def test_the_site_asks_nobody_but_github_and_devnet():
              # the page where Qloo describes its concentration index, linked beside each launch city's index (a link, never asked)
              "qloo.com",
              # the film's credit (web/brand/steps.html): its template's page and its curator's, as the site asks (links, never asked)
-             "prompt-motion.com", "x.com"}
+             "prompt-motion.com", "x.com",
+             # the first line's source (web/brand/first.html): the paper behind "17 years", a link, never asked
+             "doi.org"}
     # The facts for search engines (JSON-LD, tests/test_seo.py) name schema.org's vocabulary, the licence and the package's
     # page: identifiers a search engine reads, which no browser asks for. They are held to exactly these three hosts, and
     # everything else on the page to the list above (tests/web/seo.mjs counts the requests the pages make in a browser).
