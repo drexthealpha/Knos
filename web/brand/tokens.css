@@ -57,13 +57,8 @@ code, pre, kbd, .mono { font-family: var(--code); }
 .brand { display: flex; gap: 10px; align-items: center; min-height: 44px; font: 650 20px/1 var(--head); letter-spacing: -.01em; text-decoration: none; color: var(--fg); }
 .brand .wordmark { display: none; }
 @supports ((mask-image: url("mark.svg")) or (-webkit-mask-image: url("mark.svg"))) {
-  .brand .wordmark { display: block; height: 38px; aspect-ratio: 3440 / 1268; margin: -4px 0 -4px -3px; background: currentColor;
-    -webkit-mask: url("wordmark.svg") center / contain no-repeat; mask: url("wordmark.svg") center / contain no-repeat;
-    print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  .brand .name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  @media (max-width: 339px) {
-    .brand .wordmark { aspect-ratio: 1856 / 1756; margin-left: 0; -webkit-mask-image: url("mark.svg"); mask-image: url("mark.svg"); }
-  }
+  .brand .wordmark { display: block; aspect-ratio: 1856 / 1756; height: 30px; background: currentColor; -webkit-mask: url("mark.svg") center / contain no-repeat;
+    mask: url("mark.svg") center / contain no-repeat; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 .bar nav { display: flex; gap: 2px; flex-wrap: wrap; flex: 1; min-width: 0; align-items: center; }
 .bar nav a { padding: 6px 10px; border-radius: 8px; text-decoration: none; color: var(--muted); font: 500 var(--s0)/1.6 var(--text); white-space: nowrap; }
@@ -101,7 +96,6 @@ code, pre, kbd, .mono { font-family: var(--code); }
 #k-bar, #k-bar * { box-sizing: border-box; }
 #k-bar button, #k-bar a { margin: 0; box-shadow: none; }
 .bar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 92%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); view-transition-name: bar; }
-.brand .wordmark { height: 32px; margin: -2px 0 -2px -3px; }
 .bar nav { gap: 4px; }
 .bar nav a, .js .more-button { transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease); }
 .bar nav a[aria-current="page"] { background: var(--soft); box-shadow: var(--depth-1); }
@@ -166,15 +160,12 @@ html, body { overflow-x: clip; }
 
 /* The bar, one rule on every page: the crow and the name, the links one press away under Menu, sign in at the pay step
    (UX rules A4 and T1: a first view of 24 words or fewer, header included). */
-.brand .wordmark { aspect-ratio: 1856 / 1756; height: 30px; margin: 0; -webkit-mask-image: url("mark.svg"); mask-image: url("mark.svg"); }
-.brand .name { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 .js #menu { display: inline-flex; }
 .js .bar nav { display: none; order: 3; flex: 0 0 100%; }
 .js .bar.open nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); gap: 2px 8px; padding-top: 4px; }
 .js .bar .tools { margin-left: auto; }
 .bar .tools .signin, .bar .tools #whoBtn.signin { display: none; }
 
-/* The first line of every face (web/brand/first.html): the question a stranger asks, its one-line answer, the goal under it. */
-.k-first { font: 600 clamp(26px, 3.2vw, 40px)/1.15 var(--head); letter-spacing: -.02em; color: var(--fg); max-width: 22em; margin: var(--sp-5) auto var(--sp-2); text-align: center; }
-.k-a { font: 500 clamp(17px, 1.6vw, 21px)/1.45 var(--text); color: var(--fg); max-width: 40em; margin: 0 auto var(--sp-3); text-align: center; }
-.k-goal { font: 400 clamp(24px, 2.8vw, 36px)/1.15 var(--serif); max-width: 22em; margin: 0 auto var(--sp-4); text-align: center; }
+:root .k-first { font: 600 clamp(26px, 3.2vw, 40px)/1.15 var(--head); letter-spacing: -.02em; color: var(--fg); max-width: 22em; margin: var(--sp-5) auto var(--sp-2); text-align: center; }
+:root .k-a { font: 500 clamp(17px, 1.6vw, 21px)/1.45 var(--text); color: var(--fg); max-width: 40em; margin: 0 auto var(--sp-3); text-align: center; }
+:root .k-goal { font: 400 clamp(24px, 2.8vw, 36px)/1.15 var(--serif); max-width: 22em; margin: 0 auto var(--sp-4); text-align: center; }
