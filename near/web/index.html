@@ -131,6 +131,8 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 .product { margin-top: var(--sp-4); padding: var(--sp-5); border: 2px solid var(--accent); border-radius: 24px; background: var(--paper); box-shadow: var(--depth-2); }
 .product h3 { font: 400 clamp(28px, 3vw, 40px)/1.1 var(--serif); margin: 0 0 var(--sp-2); }
 .product p { margin: 0 0 var(--sp-3); font-size: var(--s1); }
+.product p.got { padding: var(--sp-3); border-radius: var(--radius); background: var(--soft); }
+.product p[hidden] { display: none; }
 .links a { margin-right: var(--sp-3); white-space: nowrap; }
 .foot { max-width: 1200px; margin: 0 auto; padding: var(--sp-4) 16px var(--sp-6); border-top: 1px solid var(--line); }
 .foot nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
@@ -597,6 +599,7 @@ load();
   const DOI = "https://doi.org/10.46298/dmtcs.3545";
   const QUOTE = "“For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10⁹ with a typical accuracy of 2% while using a memory of only 1.5 kilobytes.”";
   const CHECK = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py";
+  const CODE = "https://github.com/drexthealpha/Knos/blob/main/near/agents/pass_agent.py";
   const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
   const tx = (h, t) => h ? el("a", { href: NB + h, target: "_blank", rel: "noopener", textContent: t }) : null;
   const who = (a) => String(a || "").startsWith("agent-a") ? "Helper A" : "Helper B";
@@ -631,7 +634,7 @@ load();
       el("p", { textContent: "It says a website can count its different visitors almost exactly, in 1.5 kilobytes of memory." }),
       el("blockquote", {}, [QUOTE, " ", el("a", { href: DOI, target: "_blank", rel: "noopener", textContent: "Flajolet and others, 2007" })])]);
     await wait(1200);
-    const two = add("", "2. Two helpers sent their version. A check ran on each.", [el("p", { textContent: "The check: count 30,000 visitors within 10%, in 1.5 kilobytes." })]);
+    const two = add("", "2. Two helpers sent code for it. A check tested each against the paper.", [el("p", { textContent: "A helper is a program with its own NEAR account that sends code for jobs. The check: count 30,000 visitors within 10%, in 1.5 kilobytes." })]);
     await ready;
     let s = null;
     const showTries = (job) => {
@@ -661,7 +664,9 @@ load();
     add("ok", "4. The product page, written by a small AI", []);
     const buy = el("button", { type: "button", className: "go big", textContent: "Buy it: $1 of test money" }); buy.dataset.buy = "";
     const said = el("p", { className: "fine", role: "status" });
-    $("product").replaceChildren(el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }), buy, said,
+    const got = el("p", { className: "got", hidden: true });
+    const tryit = el("p", { className: "fine", hidden: true }, ["Try it yourself: ", el("a", { href: "https://drexthealpha.github.io/Knos/near/", textContent: "drexthealpha.github.io/Knos/near" }), ". The code: ", el("a", { href: "https://github.com/drexthealpha/Knos", textContent: "github.com/drexthealpha/Knos" }), "."]);
+    $("product").replaceChildren(el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }), buy, said, got, tryit,
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, el("a", { href: page.url, target: "_blank", rel: "noopener", textContent: "The run that wrote it" })]));
     $("product").hidden = false; $("product").scrollIntoView({ block: "nearest" });
     clearInterval(tick); links();
@@ -673,6 +678,8 @@ load();
       const took = ((performance.now() - b0) / 1000).toFixed(1);
       if (!r.ok) { said.textContent = `Not bought: ${r.why || "testnet refused it"}.`; buy.disabled = false; return; }
       said.replaceChildren(`Bought in ${took} s: Helper A got your $1.00 of test money. `, tx(r.tx, "See the purchase on NEAR testnet"));
+      got.replaceChildren(el("b", { textContent: "You got: " }), "the counter’s code, the version that passed. ", el("a", { href: CODE, target: "_blank", rel: "noopener", textContent: "Open your copy" }));
+      got.hidden = false; tryit.hidden = false; $("product").scrollIntoView({ block: "nearest" });
       $("links").append(" ", tx(r.tx, "your purchase"));
     });
     go.disabled = false;
