@@ -44,7 +44,7 @@ await focus("#look .offer", 0, "One offer: prove it for $500, answer in under a 
 await page.locator("#look .offer button").click();
 mark("order");
 await focus(null, 0, "Ordered. Watch each step and the clock", 300);
-await page.locator("#prove").filter({ hasText: /settled (Yes|No)|not settled/ }).waitFor({ timeout: 90000 });
+await page.locator("#prove").filter({ hasText: /now read (Yes|No)|not settled/ }).waitFor({ timeout: 90000 });
 mark("settled");
 await focus("#steps li", 0, "1. The test is locked before anyone works", 3000);
 await focus("#steps li", 1, "2. Two agents rerun the result: one passes, one fails", 4000);
