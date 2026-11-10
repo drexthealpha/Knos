@@ -121,6 +121,9 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 .card.offer { border: 2px solid var(--accent); background: var(--paper); box-shadow: var(--depth-2); }
 .answer { border: 2px solid var(--ink); }
 .why { font: 500 clamp(18px, 1.7vw, 22px)/1.45 var(--text); max-width: 40em; margin: 0 auto var(--sp-3); }
+.k-first { font: inherit; max-width: 40em; margin: var(--sp-4) auto var(--sp-3); letter-spacing: 0; }
+.k-first .k-q { display: block; font: 600 clamp(26px, 3.2vw, 40px)/1.15 var(--head); letter-spacing: -.02em; }
+.k-first .k-a { display: block; font: 500 clamp(18px, 1.7vw, 22px)/1.45 var(--text); margin-top: var(--sp-2); }
 .cost { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-2) var(--sp-4); align-items: baseline; margin: 0 auto var(--sp-5); font-size: var(--s1); }
 .cost a { font-size: var(--s1); }
 .price { font-size: var(--s1); }
@@ -133,7 +136,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 .vs th { width: 10em; color: var(--ink-2); font-weight: 500; }
 .stop { color: var(--bad); }
 .first { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: var(--sp-5) 0; }
-.first .k-mission { font: 400 clamp(36px, 4.4vw, 58px)/1.08 var(--serif); max-width: 19em; margin: 0 auto var(--sp-4); }
+.first .k-mission { font: 400 clamp(26px, 3vw, 38px)/1.15 var(--serif); max-width: 22em; margin: 0 auto var(--sp-4); }
 .give { font: 500 clamp(19px, 1.8vw, 24px)/1.4 var(--text); color: var(--ink-2); margin: 0 auto var(--sp-4); max-width: 34em; }
 .cta { margin: 0 auto var(--sp-5); }
 button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 650 var(--s2)/1.2 var(--text); box-shadow: var(--depth-2); }
@@ -168,8 +171,8 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <body>
 <main>
   <section class="first" aria-labelledby="t-title">
-    <h1 id="t-title" class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</h1>
-    <p class="why"><b>Why does good research take 17 years to reach people?</b> Because checking that a result really works is slow and costly, so nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></p>
+    <h1 id="t-title" class="k-first"><span class="k-q">Why does good research take 17 years to reach people?</span> <span class="k-a">Because checking that a result really works is slow and costly, so nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></span></h1>
+    <p class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</p>
     <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> $49, under a minute.</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
       <label for="paper">Paste a paper link (the sample is HyperLogLog, 2007). Knos proves its main claim and hands you code that works.</label>
