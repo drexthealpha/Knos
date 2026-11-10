@@ -966,7 +966,7 @@ def make_handler(state: State):
                 return self._send(200, near_live.claim_prove(), headers=blink.CORS)
             if u.path in ("/api/near/claim/cap", "/api/near/claim/pay", "/api/near/claim/receipt", "/api/near/claim/reuse", "/api/near/claim/flow"):
                 from . import near_live
-                if not state.allow(self._client(), "near_live" if u.path in ("/api/near/claim/flow", "/api/near/claim/reuse") else "near_look"):
+                if not state.allow(self._client(), "near_live" if u.path == "/api/near/claim/flow" else "near_look"):
                     return self._send(200, {"ok": False, "why": "too many runs from one address; try again in a few minutes"}, headers=blink.CORS)
                 b = self._json()
                 if u.path == "/api/near/claim/cap":

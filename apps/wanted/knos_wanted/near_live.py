@@ -53,7 +53,7 @@ def status() -> dict:
     busy = any(r["state"] == "running" for r in _runs.values())
     job = _ready.get("job")   # read once: a click may take it meanwhile
     ready = bool(job)
-    if on and not ready and not _preparing.locked() and used < daily_cap():   # keep one job ready for the next click
+    if on and (not ready or not _spare) and not _preparing.locked() and used < daily_cap():   # keep two jobs ready
         threading.Thread(target=prepare, daemon=True).start()
     return {"live": on, "used_today": used, "cap_today": daily_cap(), "busy": busy, "ready": ready, "bid": BID, "network": "testnet",
             "account": os.environ.get("KNOS_NEAR_PAYER", ""), "money": "test tokens, not real money",
@@ -80,7 +80,7 @@ def start() -> dict:
         if _day["day"] != today:
             _day.update(day=today, n=0)
         _day["n"] += 1
-        ready = _ready.pop("job", None) if _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR else None
+        ready = _take_ready()
     if ready:   # a job both agents have already tried: the visitor's click sends only the payment
         t0 = time.time()
         out = _release(ready)
@@ -116,6 +116,7 @@ def _run(rid: str) -> None:
 
 
 READY_FOR = 3 * 3600      # a ready job is posted with a 4 h deadline and offered for 3 h of it
+_spare: list = []         # a second ready job, so two buyers in a row are both served
 _ready: dict = {}
 _preparing = threading.Lock()
 
@@ -126,7 +127,7 @@ def prepare() -> None:
     if not _preparing.acquire(blocking=False):
         return
     try:
-        if _ready.get("job") or not status()["live"]:
+        if (_ready.get("job") and _spare) or not status()["live"]:
             return
         j = _jobs()
         posted_at = time.time()
@@ -143,12 +144,16 @@ def prepare() -> None:
             raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
         market = _open_market(p["id"])
         _ready.pop("error", None)
-        _ready["job"] = {"id": p["id"], "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
+        fresh = {"id": p["id"], "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
                          "market": market,
                          "output_sha256": win["output_sha256"],
                          "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
                          "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
                                  "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
+        if _ready.get("job"):
+            _spare.append(fresh)
+        else:
+            _ready["job"] = fresh
         threading.Thread(target=_refresh_last, daemon=True).start()   # the last settled proof, ready for the next visitor
         if os.environ.get("KNOS_NEAR_KEYS_FILE"):
             import common   # near/agents/common.py, on the path once jobs_api is loaded
@@ -176,6 +181,20 @@ def _release(ready: dict) -> dict:
            "posted_at": ready.get("posted_at", ready["at"]), "paid_at": time.time() if r.get("ok") else None}
     return {"state": "done" if r.get("ok") else "failed", "step": "paid" if r.get("ok") else "stopped", "job": job, "paid": paid,
             "seconds": round(time.time() - t0, 1), "why": "" if r.get("ok") else r.get("said", ""), "release_url": r.get("url")}
+
+
+def _take_ready() -> dict | None:
+    """The ready job (call under _lock), with the spare one moved up in its place; a stale job is dropped."""
+    job = _ready.pop("job", None)
+    if job and time.time() - job["at"] >= READY_FOR:
+        job = None
+    if _spare:
+        _ready["job"] = _spare.pop(0)
+    if job is None and _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR:
+        job = _ready.pop("job")
+        if _spare:
+            _ready["job"] = _spare.pop(0)
+    return job
 
 
 def get(rid: str) -> dict | None:
@@ -413,7 +432,7 @@ def claim_run() -> dict:
     if s["used_today"] >= s["cap_today"]:
         return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
     with _lock:
-        ready = _ready.pop("job", None) if _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR else None
+        ready = _take_ready()
         if ready:
             today = time.strftime("%Y-%m-%d", time.gmtime())
             if _day["day"] != today:
@@ -592,7 +611,7 @@ def claim_look(url: str) -> dict:
     mk = (job or {}).get("market")
     if not job:
         threading.Thread(target=prepare, daemon=True).start()
-        return {**out, "ready": False, "why": "the next proof is being readied; try again in a minute"}
+        return {**out, "ready": True, "readying": True}   # an order waits for the job being readied
     out.update(ready=True, job_id=job["id"])
     if mk:
         _jobs()
@@ -612,15 +631,22 @@ def claim_prove() -> dict:
     if s["used_today"] >= s["cap_today"]:
         return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
     with _lock:
-        ready = _ready.pop("job", None) if _ready.get("job") and time.time() - _ready["job"]["at"] < READY_FOR else None
+        ready = _take_ready()
         if ready:
             today = time.strftime("%Y-%m-%d", time.gmtime())
             if _day["day"] != today:
                 _day.update(day=today, n=0)
             _day["n"] += 1
-    if not ready:
+    waited = time.time()
+    while not ready and time.time() - waited < 90:   # the next job is being readied: wait for it, not turn the buyer away
         threading.Thread(target=prepare, daemon=True).start()
-        return {"ok": False, "why": "the next proof is being readied; try again in a minute"}
+        time.sleep(3)
+        with _lock:
+            ready = _take_ready()
+            if ready:
+                _day["n"] += 1
+    if not ready:
+        return {"ok": False, "why": "the next proof is still being readied after 90 s; try again in a minute"}
     t0 = time.time()
     try:
         paid = _release(ready)
@@ -759,6 +785,7 @@ def claim_pay(reuse: bool = False) -> dict:
     import common
     from common import call
     args = {"receiver_id": TREASURY, "amount": str(PRICE), "memo": "knos proof: HyperLogLog claim" + (" (reused result)" if reuse else "")}
+    t_pay = time.time()
     with _lock:
         common._PREFETCHED.pop(LIVE, None)
         try:
@@ -770,7 +797,8 @@ def claim_pay(reuse: bool = False) -> dict:
             common._PREFETCHED.pop(LIVE, None)
             r = call(LIVE, TOKEN, "ft_transfer", args, deposit="1 yoctoNEAR", gas="30 Tgas", wait="EXECUTED_OPTIMISTIC")
         common._PREFETCHED.pop(LIVE, None)
-    return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], "from": LIVE, "to": TREASURY, "usd": PRICE_USD, **({} if r["ok"] else {"why": r["said"]})}
+    return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], "from": LIVE, "to": TREASURY, "usd": PRICE_USD, "seconds": round(time.time() - t_pay, 1),
+            "fee_account": "https://testnet.nearblocks.io/address/" + TREASURY + "?tab=tokentxns", **({} if r["ok"] else {"why": r["said"]})}
 
 
 def claim_receipt(cap: dict | None, pay: dict, settle: dict | None) -> dict:
@@ -801,6 +829,7 @@ def claim_reuse() -> dict:
         return {"ok": False, "why": "no verified result to reuse yet: order the first proof"}
     t0 = time.time()
     pay = claim_pay(reuse=True)
+    pay["seconds"] = round(time.time() - t0, 1)
     return {"ok": pay["ok"], "reused": last["job"], "verdict": last["verdict"], "pay": pay, "seconds": round(time.time() - t0, 1),
             "saved": {"agent_usd": BID / 1e6, "seconds": last["seconds"], "first_seconds": last["seconds"]}, **({} if pay["ok"] else {"why": pay.get("why")})}
 

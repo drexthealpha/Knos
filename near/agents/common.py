@@ -31,10 +31,21 @@ def sha256_file(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+RPC_SPARE = os.environ.get("NEAR_RPC_SPARE", "https://test.rpc.fastnear.com")   # asked when the first answers 429
+
+
 def rpc(method: str, params) -> dict:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    with urllib.request.urlopen(urllib.request.Request(RPC, body, {"Content-Type": "application/json"}), timeout=180) as r:
-        out = json.loads(r.read())
+    for tries in range(5):   # a public RPC answers 429 when asked too fast: wait, then ask it or the spare again
+        url = RPC if tries % 2 == 0 else RPC_SPARE
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, body, {"Content-Type": "application/json"}), timeout=180) as r:
+                out = json.loads(r.read())
+            break
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or tries == 4:
+                raise
+            time.sleep(1.5 * (tries + 1))
     if "error" in out:
         raise RuntimeError(json.dumps(out["error"])[:300])
     return out["result"]
