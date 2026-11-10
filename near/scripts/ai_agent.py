@@ -1,6 +1,6 @@
 """Agent A as an AI model: an open coding model (through Ollama on this machine: no key, nothing paid) is given the job's
 locked test and the paper's claim, writes solution.py, and the locked test judges it. On a failure the model is shown
-the test's own last line and tries again, up to TRIES times. Nothing here is edited by hand: the code that passes is the
+the test's own last lines and tries again, up to TRIES times. Nothing here is edited by hand: the code that passes is the
 model's, word for word, and every try is kept with its result.
 
     python3 near/scripts/ai_agent.py <out.json>     (needs `ollama serve` with MODEL pulled)
@@ -16,7 +16,7 @@ import time
 import urllib.request
 
 MODEL = "qwen2.5-coder:7b"
-TRIES = 6
+TRIES = 10
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TEST = ROOT / "near" / "agents" / "job" / "test_hll.py"
 
@@ -53,7 +53,7 @@ def judge(code: str) -> tuple[bool, str]:
         (d / "solution.py").write_text(code, encoding="utf-8")
         r = subprocess.run([sys.executable, "test_hll.py"], cwd=d, capture_output=True, text=True, timeout=300)
         lines = (r.stdout + r.stderr).strip().splitlines()
-        return r.returncode == 0, (lines[-1] if lines else f"no output, exit {r.returncode}")[:300]
+        return r.returncode == 0, ("\n".join(lines[-8:]) if lines else f"no output, exit {r.returncode}")[:1200]   # the test's last lines, its traceback included
     except subprocess.TimeoutExpired:
         return False, "Failed: the test ran over 300 s."
     finally:
