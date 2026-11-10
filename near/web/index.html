@@ -146,7 +146,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <p class="cta"><button type="button" class="go big" id="go" data-buy>Turn the paper into a product</button></p>
     <p class="loss"><b>17 years</b> <span>&ldquo;It is frequently stated that it takes an average of 17 years for research evidence to reach clinical practice.&rdquo; <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, Wooding and Grant, 2011</a></span></p>
     <div class="run" id="run" hidden>
-      <p class="clock" aria-hidden="true"><b id="secs">0.0</b> s</p>
+      <p class="clock" aria-hidden="true"><b id="secs">0.0</b> s since you pressed</p>
       <ol class="steps" id="steps" aria-live="polite"></ol>
       <article class="product" id="product" hidden aria-live="polite"></article>
       <p class="fine links" id="links"></p>
@@ -631,7 +631,7 @@ load();
       el("p", { textContent: "It says a website can count its different visitors almost exactly, in 1.5 kilobytes of memory." }),
       el("blockquote", {}, [QUOTE, " ", el("a", { href: DOI, target: "_blank", rel: "noopener", textContent: "Flajolet and others, 2007" })])]);
     await wait(1200);
-    const two = add("", "2. Two helpers built it. A check ran on each.", [el("p", { textContent: "The check: count 30,000 visitors within 10%, in 1.5 kilobytes." })]);
+    const two = add("", "2. Two helpers sent their version. A check ran on each.", [el("p", { textContent: "The check: count 30,000 visitors within 10%, in 1.5 kilobytes." })]);
     await ready;
     let s = null;
     const showTries = (job) => {
@@ -641,17 +641,19 @@ load();
     if (next) showTries(next); else { s = await paying; showTries(s.job || (s.last && s.last.job)); }
     two.classList.add("ok");
     await wait(900);
+    const pay = add("", "3. Paying the helper whose version passed", [el("p", { className: "fine", textContent: "Sending $1.00 of test money on NEAR…" })]);
     s = s || await paying;
+    pay.remove();
     const job = s.job || (s.last && s.last.job) || {};
     const txs = job.txs || {};
     if (s.replay || s.state !== "done") {
       add("stop", "3. Not paid this time", [el("p", { textContent: s.why ? `Why: ${s.why}.` : "The payment stopped." })]);
       clearInterval(tick); go.disabled = false; return;
     }
-    add("ok", "3. Helper A is paid $1.00 of test money", [el("p", {}, ["Helper B is paid $0: its work failed the check. ", tx(txs.release, "See the payment")])]);
+    add("ok", "3. Helper A is paid $1.00 of test money", [el("p", {}, ["Helper B is paid $0: its version failed the check. ", tx(txs.release, "See the payment")])]);
     await wait(900);
-    const links = () => $("links").replaceChildren("On NEAR’s public test ledger: ", tx(txs.post, "the job"), tx(txs.submit_a, "Helper A’s work"),
-      tx(txs.submit_b, "Helper B’s work"), tx(txs.release, "the payment"));
+    const links = () => $("links").replaceChildren("On NEAR’s public test ledger: ", tx(txs.post, "the job"), " ", tx(txs.submit_a, "Helper A’s version"), " ",
+      tx(txs.submit_b, "Helper B’s version"), " ", tx(txs.release, "the payment"));
     if (!page || !page.kept) {
       add("stop", "4. No product page this time", [el("p", { textContent: page ? "The small AI’s answers broke its limits, so no text is shown." : "The small AI’s page could not be read now, so no text is shown." })]);
       clearInterval(tick); links(); go.disabled = false; return;
@@ -671,7 +673,7 @@ load();
       const took = ((performance.now() - b0) / 1000).toFixed(1);
       if (!r.ok) { said.textContent = `Not bought: ${r.why || "testnet refused it"}.`; buy.disabled = false; return; }
       said.replaceChildren(`Bought in ${took} s: Helper A got your $1.00 of test money. `, tx(r.tx, "See the purchase"));
-      $("links").append(tx(r.tx, "your purchase"));
+      $("links").append(" ", tx(r.tx, "your purchase"));
     });
     go.disabled = false;
   });
