@@ -961,6 +961,11 @@ def make_handler(state: State):
                 if not state.allow(self._client(), "near_live"):
                     return self._send(200, {"ok": False, "why": "three live runs every 10 minutes from one address"}, headers=blink.CORS)
                 return self._send(200, near_live.claim_prove(), headers=blink.CORS)
+            if u.path == "/api/near/claim/settle":         # the claim's market settled from its paid job
+                from . import near_live
+                if not state.allow(self._client(), "near_look"):
+                    return self._send(200, {"ok": False, "why": "thirty looks every 10 minutes from one address"}, headers=blink.CORS)
+                return self._send(200, near_live.claim_settle(str(self._json().get("market") or "")), headers=blink.CORS)
             if u.path == "/api/near/product/buy":          # buy the job's product: $1.00 of test money to the helper who built it
                 from . import near_live
                 if not state.allow(self._client(), "near_product"):

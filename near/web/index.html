@@ -701,10 +701,13 @@ load();
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
       el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
     await wait(500);
-    const settled = r.market && r.market.settled != null ? `The bet on this claim settled ${r.market.settled ? "Yes" : "No"}.` : "";
-    add("ok", "You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
-      settled ? el("p", { textContent: settled }) : null]);
+    const bet = el("p", { className: "fine", textContent: "Settling the bet on this claim\u2026" });
+    add("ok", "You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]), bet]);
     clearInterval(tick);
+    if (r.market) post("/api/near/claim/settle", { market: r.market.id }).then((m) => {
+      bet.className = ""; bet.textContent = m.ok && m.settled != null ? `The bet on this claim settled ${m.settled ? "Yes: it holds" : "No: it does not hold"}.` : `The bet on this claim is not settled yet: ${m.why || "no answer"}.`;
+    });
+    else bet.remove();
     $("links").replaceChildren(r.release_url ? out(r.release_url, "settled on NEAR testnet") : "");
     order.disabled = false;
   }

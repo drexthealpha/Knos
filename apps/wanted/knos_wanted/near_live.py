@@ -590,24 +590,31 @@ def claim_prove() -> dict:
                "verdict": {"paper": KNOWN["10.46298/dmtcs.3545"]["paper_number"],
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", ""),
                            "holds": bool(win)}}
-        mk = ready.get("market")
-        if mk and out["ok"]:
-            _jobs()
-            import common
-            from common import call, view
-            with _lock:
-                common._PREFETCHED.pop(LIVE, None)
-                r = call(LIVE, MARKET, "resolve", {"id": mk["id"]}, gas="100 Tgas")
-                common._PREFETCHED.pop(LIVE, None)
-            v = view(MARKET, "get_market", {"id": mk["id"]}) or {}
-            outcome = (v.get("market") or {}).get("outcome")
-            out["market"] = {"id": mk["id"], "settled": outcome, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
+        out["market"] = ready.get("market")   # settled next, by POST /api/near/claim/settle, once the job is paid
         out["seconds"] = round(time.time() - t0, 1)
         return out
     except Exception as e:  # noqa: BLE001 - the page says which step stopped
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})", "seconds": round(time.time() - t0, 1)}
     finally:
         threading.Thread(target=prepare, daemon=True).start()
+
+
+def claim_settle(mid: str) -> dict:
+    """Settles a claim's market from its paid job: anyone may ask; the answer is the chain's."""
+    if not str(mid).startswith("job:job-"):
+        return {"ok": False, "why": "no such market"}
+    try:
+        _jobs()
+        import common
+        from common import call, view
+        with _lock:
+            common._PREFETCHED.pop(LIVE, None)
+            r = call(LIVE, MARKET, "resolve", {"id": mid}, gas="100 Tgas", wait="EXECUTED_OPTIMISTIC")
+            common._PREFETCHED.pop(LIVE, None)
+        outcome = ((view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}).get("outcome")
+        return {"ok": r["ok"], "settled": outcome, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
+    except Exception as e:  # noqa: BLE001 - the page says why
+        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
 
 
 def claim_code() -> tuple[bytes, str]:
