@@ -1,6 +1,7 @@
 // A recording of one live /near/ run from its public URL, for near/web/knos-near.mp4: a fresh browser at 1280x800 opens
 // the first screen, asks "Will it work?" of the sample paper, orders the proof, and stays on each step long enough to
-// read it, with a caption saying what to watch. It writes the times each step showed and 3 screenshots.
+// read it, with a caption saying what to watch: the cap, the answer, the receipt, reuse, the counters and the one call
+// for agents. It writes the times each step showed and 3 screenshots.
 //   node near/web/record-live.mjs <url> <out dir>   -> <out>/run.webm, <out>/marks.json, <out>/1-first.png, 2-claim.png, 3-got.png
 import fs from "node:fs";
 import path from "node:path";
@@ -30,30 +31,31 @@ await page.goto(url, { waitUntil: "load", timeout: 120000 });
 await page.locator("#go:not([disabled])").waitFor({ timeout: 60000 });
 mark("open");
 await page.screenshot({ path: path.join(out, "1-first.png") });
-await page.waitForTimeout(2500);                       // line 1 and the 17 years
-await focus("#ask", 0, "An R&D lead pastes a paper link and asks: will it work?", 3500);
+await page.waitForTimeout(2000);                       // the question, its answer and what checking costs
+await focus("#ask", 0, "An R&D lead pastes a paper link and asks: will it work?", 2000);
 await page.locator("#go").click();
 mark("click");
-await page.locator("#look button").waitFor({ timeout: 60000 });
+await page.locator("#look .offer button").waitFor({ timeout: 60000 });
 mark("claim shown");
-await focus("#look .answer", 0, "The answer from Knos's last proof, and one offer: your own proof for $49", 3500);
-await focus("#look .card", 1, "The paper's own claim, word for word", 3500);
+await focus("#look .answer", 0, "The answer, and one price: $49 per proof, paid after the answer", 2500);
 await page.screenshot({ path: path.join(out, "2-claim.png") });
-await focus("#look .card", 2, "In plain words, written by a small AI", 3000);
-await focus("#look .odds", 0, "Your order opens its own market on NEAR at even odds", 3000);
-await focus("#look .answer", 0, "Order the proof: answer in under a minute", 2500);
+await focus("#look .card", 1, "The paper's own claim, word for word", 2000);
 await page.locator("#look .offer button").click();
 mark("order");
-await focus(null, 0, "Ordered. Watch each step and the clock", 1200);
 await focus(null, 0, "", 0);
-await page.locator("#prove").filter({ hasText: /settled (Yes|No)|not settled/ }).waitFor({ timeout: 90000 });
-mark("settled");
-await focus("#steps li", 0, "1. The test is locked before anyone works", 3000);
-await focus("#steps li", 1, "2. Two agents rerun the result: one passes, one fails", 4000);
-await focus("#steps li", 2, "3. The paper's number beside the one measured now", 4500);
-await focus("#steps li", 3, "You got the verified code, and your proof's market settled Yes", 1000);
+await page.locator(".receipt-card").waitFor({ timeout: 120000 });
+mark("receipt");
+await focus("#steps li", 2, "Agents work against a locked test; the cap blocks an over-budget step", 3000);
+await focus("#steps li", 3, "The answer: the paper's number beside the one measured now", 2500);
+await focus(".receipt-card", 0, "The receipt on NEAR testnet: the buyer's $49, the agent's share, Knos's fee", 3500);
+await focus(".receipt-card .log", 0, "What each step cost, each with its record", 2000);
+await page.locator(".receipt-card button").click();
+mark("again");
+await page.locator(".receipt-card [role=status]").filter({ hasText: /^Answer:|Not run/ }).waitFor({ timeout: 60000 });
+await focus(".receipt-card [role=status]", 0, "The same claim again: the verified result is reused, faster", 3000);
 await page.screenshot({ path: path.join(out, "3-got.png") });
-await page.waitForTimeout(4000);
+await focus(".facts .counters", 0, "Live counters, read from NEAR", 2000);
+await focus(".facts .snip", 0, "One call runs it all for an agent", 2500);
 mark("end");
 const video = page.video();
 await ctx.close();
