@@ -633,7 +633,7 @@ load();
     add("", "1. The research: a 2007 paper", [
       el("p", { textContent: "It says a website can count its different visitors almost exactly, in 1.5 kilobytes of memory." }),
       el("blockquote", {}, [QUOTE, " ", el("a", { href: DOI, target: "_blank", rel: "noopener", textContent: "Flajolet and others, 2007" })])]);
-    await wait(1200);
+    await wait(800);
     const two = add("", "2. Two helpers sent code for it. A check tested each against the paper.", [el("p", { textContent: "A helper is a program with its own NEAR account that sends code for jobs. The check: count 30,000 visitors within 10%, in 1.5 kilobytes." })]);
     await ready;
     let s = null;
@@ -643,7 +643,7 @@ load();
     };
     if (next) showTries(next); else { s = await paying; showTries(s.job || (s.last && s.last.job)); }
     two.classList.add("ok");
-    await wait(900);
+    await wait(600);
     const pay = add("", "3. Paying the helper whose version passed", [el("p", { className: "fine", textContent: "Sending $1.00 of test money on NEAR…" })]);
     s = s || await paying;
     pay.remove();
@@ -654,7 +654,7 @@ load();
       clearInterval(tick); go.disabled = false; return;
     }
     add("ok", "3. Helper A is paid $1.00 of test money", [el("p", {}, ["Helper B is paid $0: its version failed the check. ", tx(txs.release, "See the payment on NEAR testnet")])]);
-    await wait(900);
+    await wait(500);
     const links = () => $("links").replaceChildren("On NEAR’s public test ledger: ", tx(txs.post, "the job"), " ", tx(txs.submit_a, "Helper A’s version"), " ",
       tx(txs.submit_b, "Helper B’s version"), " ", tx(txs.release, "the payment"));
     if (!page || !page.kept) {
@@ -668,7 +668,7 @@ load();
     const tryit = el("p", { className: "fine", hidden: true }, ["Try it yourself: ", el("a", { href: "https://drexthealpha.github.io/Knos/near/", textContent: "drexthealpha.github.io/Knos/near" }), ". The code: ", el("a", { href: "https://github.com/drexthealpha/Knos", textContent: "github.com/drexthealpha/Knos" }), "."]);
     $("product").replaceChildren(el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }), buy, said, got, tryit,
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, el("a", { href: page.url, target: "_blank", rel: "noopener", textContent: "The run that wrote it" })]));
-    $("product").hidden = false; $("product").scrollIntoView({ block: "nearest" });
+    $("product").hidden = false; $("product").scrollIntoView({ block: "end" });
     clearInterval(tick); links();
     buy.addEventListener("click", async () => {
       buy.disabled = true; const b0 = performance.now();
