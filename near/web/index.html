@@ -109,6 +109,19 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 <style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
 <style id="k-first-css">
 /* the first screen: line 1, line 2, one button, one sourced figure; the run opens under the button */
+.ask { display: grid; gap: var(--sp-2); max-width: 760px; margin: 0 auto var(--sp-5); text-align: left; }
+.ask label { font: 600 var(--s1)/1.3 var(--text); }
+.ask .row { display: flex; gap: var(--sp-2); }
+.ask input { flex: 1; width: auto; min-width: 0; min-height: 60px; border-radius: 999px; padding: 0 var(--sp-4); font-size: var(--s1); }
+@media (max-width: 640px) { .ask .row { flex-direction: column; } }
+.card { margin-top: var(--sp-4); padding: var(--sp-4) var(--sp-5); border: 1px solid var(--line); border-radius: 18px; background: var(--paper-2); }
+.card h2 { font: 650 var(--s2)/1.3 var(--head); margin: 0 0 var(--sp-2); }
+.card h3 { font: 400 clamp(26px, 2.6vw, 34px)/1.15 var(--serif); margin: 0 0 var(--sp-2); }
+.card blockquote { margin: 0 0 var(--sp-2); padding-left: var(--sp-3); border-left: 3px solid var(--accent); font: 400 var(--s1)/1.5 var(--serif); }
+.card.offer { border: 2px solid var(--accent); background: var(--paper); box-shadow: var(--depth-2); }
+.odds .pct { font: 400 clamp(36px, 4vw, 48px)/1 var(--serif); margin-right: var(--sp-2); }
+.vs th { width: 10em; color: var(--ink-2); font-weight: 500; }
+.stop { color: var(--bad); }
 .first { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: var(--sp-5) 0; }
 .first .k-mission { font: 400 clamp(36px, 4.4vw, 58px)/1.08 var(--serif); max-width: 19em; margin: 0 auto var(--sp-4); }
 .give { font: 500 clamp(19px, 1.8vw, 24px)/1.4 var(--text); color: var(--ink-2); margin: 0 auto var(--sp-4); max-width: 34em; }
@@ -144,13 +157,18 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <main>
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</h1>
-    <p class="give">Press once: a 2007 paper becomes a website visitor counter you can buy, in seconds.</p>
-    <p class="cta"><button type="button" class="go big" id="go" data-buy>Turn the paper into a product</button></p>
+    <form class="ask" id="ask">
+      <label for="paper">Paste a paper link</label>
+      <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
+      <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
+    </form>
     <p class="loss"><b>17 years</b> <span>&ldquo;It is frequently stated that it takes an average of 17 years for research evidence to reach clinical practice.&rdquo; <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, Wooding and Grant, 2011</a></span></p>
-    <div class="run" id="run" hidden>
-      <p class="clock" aria-hidden="true"><b id="secs">0.0</b> s since you pressed</p>
-      <ol class="steps" id="steps" aria-live="polite"></ol>
-      <article class="product" id="product" hidden aria-live="polite"></article>
+    <div class="run" id="run" hidden aria-live="polite">
+      <div id="look"></div>
+      <div id="prove" hidden>
+        <p class="clock" aria-hidden="true"><b id="secs">0.0</b> s since you ordered</p>
+        <ol class="steps" id="steps"></ol>
+      </div>
       <p class="fine links" id="links"></p>
     </div>
   </section>
@@ -588,24 +606,20 @@ load();
 </script>
 <script>
 "use strict";
-// One research result becomes a product, live on NEAR testnet: the paper's own sentence, the two helpers' tries and the
-// check in the repo (near/agents/job/test_hll.py), the payment to the one that passed, the product page the small AI
-// wrote (product-page.yml), and a $1.00 test-money buy with no wallet. Every step shows its second on the clock.
+// The research buyer's flow: paste a paper link, see the paper's claim word for word, a plain page about it, how likely it
+// holds (the price of its market on NEAR testnet) and one offer; order it, and a locked test reruns the result in seconds.
 (() => {
   const $ = (id) => document.getElementById(id);
   const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
-  const HOSTED = "https://knos.onrender.com", NB = "https://testnet.nearblocks.io/txns/";
+  const HOSTED = "https://knos.onrender.com", NB = "https://testnet.nearblocks.io/";
   const GH = "https://api.github.com/repos/drexthealpha/Knos/";
-  const DOI = "https://doi.org/10.46298/dmtcs.3545";
-  const QUOTE = "“For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10⁹ with a typical accuracy of 2% while using a memory of only 1.5 kilobytes.”";
-  const CHECK = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py";
-  const CODE = "https://github.com/drexthealpha/Knos/blob/main/near/agents/pass_agent.py";
+  const post = (path, body) => fetch(HOSTED + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+    .then((r) => r.json()).catch(() => ({ ok: false, why: "the server did not answer" }));
+  const out = (href, text) => el("a", { href, target: "_blank", rel: "noopener", textContent: text });
   const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
-  const tx = (h, t) => h ? el("a", { href: NB + h, target: "_blank", rel: "noopener", textContent: t }) : null;
-  const who = (a) => String(a || "").startsWith("agent-a") ? "Helper A" : "Helper B";
   let next = null, page = null;
 
-  async function productPage() {
+  async function plainPage() {   // the small AI's page about the paper (product-page.yml), read from its public check run
     const runs = await fetch(GH + "actions/workflows/product-page.yml/runs?status=success&per_page=5").then((r) => r.ok ? r.json() : null).catch(() => null);
     for (const run of (runs && runs.workflow_runs) || []) {
       const c = await fetch(GH + `commits/${run.head_sha}/check-runs?check_name=product-page`).then((r) => r.ok ? r.json() : null).catch(() => null);
@@ -617,73 +631,83 @@ load();
   }
   const ready = Promise.all([
     fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null).then((h) => { next = h && h.next; }),
-    productPage().then((p) => { page = p; }),
+    plainPage().then((p) => { page = p; }),
   ]);
 
-  $("go").addEventListener("click", async () => {
-    const go = $("go"); go.disabled = true; $("run").hidden = false;
+  $("ask").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const go = $("go"); go.disabled = true; $("run").hidden = false; $("prove").hidden = true; $("links").replaceChildren();
+    const look = $("look");
+    look.replaceChildren(el("p", { className: "fine", textContent: "Reading the paper…" }));
+    look.scrollIntoView({ block: "start" });
+    const [r] = await Promise.all([post("/api/near/claim/look", { url: $("paper").value }), ready]);
+    go.disabled = false;
+    if (!r.ok) { look.replaceChildren(el("p", { className: "stop", textContent: `Not read: ${r.why || "no answer"}.` })); return; }
+    if (!r.known) {
+      const q = r.quote;
+      look.replaceChildren(el("section", { className: "card" }, [
+        el("h2", { textContent: "No check for this paper in Knos yet" }),
+        r.title ? el("p", {}, [el("b", { textContent: "The paper: " }), r.title]) : null,
+        el("p", {}, [el("b", { textContent: "What can check it: " }), q.checker + "."]),
+        el("p", {}, [el("b", { textContent: "Price: " }), q.price + ". ", el("b", { textContent: "Time: " }), q.time + ". ", out(q.source, "Source")]),
+        el("p", { className: "fine", textContent: "Try the sample link to see a full check run in under a minute." })]));
+      return;
+    }
+    const kids = [
+      el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
+        el("blockquote", {}, [`“${r.quote}”`]), el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])]),
+    ];
+    if (page && page.kept) kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
+      el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }),
+      el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it")])]));
+    else kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
+      el("p", { className: "fine", textContent: "The small AI’s page could not be read now, so no text is shown." })]));
+    if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "How likely this holds" }),
+      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " says the price people pay to bet that it holds."]),
+      el("p", { className: "fine" }, [out(NB + "address/market.knos-swarm-1105.testnet", "Where this number comes from")])]));
+    const order = el("button", { type: "button", className: "go big", textContent: "Order now, pay by invoice after the answer" });
+    order.dataset.buy = "";
+    kids.push(el("section", { className: "card offer" }, [el("h2", { textContent: "Prove it for $500, answer in under a minute" }),
+      el("p", { textContent: "Two agents rerun the paper’s result against a test that is locked when you order. You get the verdict and the code that passed." }),
+      r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
+      el("p", { className: "fine", textContent: "Your company pays $500 after the answer. This is a demo: no invoice is sent." })]));
+    look.replaceChildren(...kids);
+    order.addEventListener("click", () => prove(order));
+  });
+
+  async function prove(order) {
+    order.disabled = true; $("prove").hidden = false;
     const t0 = performance.now(), secs = () => (performance.now() - t0) / 1000;
     const tick = setInterval(() => { $("secs").textContent = secs().toFixed(1); }, 100);
-    const steps = $("steps"); steps.replaceChildren(); $("product").hidden = true; $("links").replaceChildren();
+    const steps = $("steps"); steps.replaceChildren();
     const add = (cls, title, kids = []) => {
       const li = el("li", { className: cls }, [el("span", { className: "at", textContent: secs().toFixed(1) + " s" }), el("h3", { textContent: title }), ...kids]);
       steps.append(li); li.scrollIntoView({ block: "nearest" }); return li;
     };
-    const paying = fetch(HOSTED + "/api/near/live", { method: "POST" }).then((r) => r.json()).catch(() => ({ replay: true, why: "the live runner did not answer" }));
-    add("", "1. The research: a 2007 paper", [
-      el("p", { textContent: "It says a website can count its different visitors almost exactly, in 1.5 kilobytes of memory." }),
-      el("blockquote", {}, [QUOTE, " ", el("a", { href: DOI, target: "_blank", rel: "noopener", textContent: "Flajolet and others, 2007" })])]);
-    await wait(600);
-    const two = add("", "2. Two helpers sent code for it. A check tested each against the paper.", [el("p", { textContent: "A helper is a program with its own NEAR account that sends code for jobs. The check: count 30,000 visitors within 10%, in 1.5 kilobytes." })]);
-    await ready;
-    let s = null;
-    const showTries = (job) => {
-      for (const a of (job && job.attempts) || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${who(a.agent)}: ` }), a.reason || (a.passed ? "passed" : "failed")]));
-      two.append(el("p", { className: "fine" }, [el("a", { href: CHECK, target: "_blank", rel: "noopener", textContent: "The check, in the code" })]));
-    };
-    if (next) showTries(next); else { s = await paying; showTries(s.job || (s.last && s.last.job)); }
+    const proving = post("/api/near/claim/prove");
+    add("ok", "1. The test is locked", [el("p", {}, ["It cannot change now that you ordered: count 30,000 visitors within 10%, in at most 1.5 kilobytes. ",
+      out("https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
+    await wait(700);
+    const two = add("", "2. Two agents rerun the paper’s result", [el("p", { textContent: "An agent is a program with its own account that writes code for a job." })]);
+    for (const a of (next && next.attempts) || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
     two.classList.add("ok");
-    await wait(400);
-    const pay = add("", "3. Paying the helper whose version passed", [el("p", { className: "fine", textContent: "Sending $1.00 of test money on NEAR…" })]);
-    s = s || await paying;
-    pay.remove();
-    const job = s.job || (s.last && s.last.job) || {};
-    const txs = job.txs || {};
-    if (s.replay || s.state !== "done") {
-      add("stop", "3. Not paid this time", [el("p", { textContent: s.why ? `Why: ${s.why}.` : "The payment stopped." })]);
-      clearInterval(tick); go.disabled = false; return;
-    }
-    add("ok", "3. Helper A is paid $1.00 of test money", [el("p", {}, ["The job’s $1.00 of test money, put up by Knos, goes to Helper A. You paid nothing. Helper B gets $0: its version failed the check. ", tx(txs.release, "See the payment on NEAR testnet")])]);
-    await wait(200);
-    const links = () => $("links").replaceChildren("On NEAR’s public test ledger: ", tx(txs.post, "the job"), " ", tx(txs.submit_a, "Helper A’s version"), " ",
-      tx(txs.submit_b, "Helper B’s version"), " ", tx(txs.release, "the payment"));
-    if (!page || !page.kept) {
-      add("stop", "4. No product page this time", [el("p", { textContent: page ? "The small AI’s answers broke its limits, so no text is shown." : "The small AI’s page could not be read now, so no text is shown." })]);
-      clearInterval(tick); links(); go.disabled = false; return;
-    }
-    add("ok", "4. The product page, written by a small AI", []);
-    const buy = el("button", { type: "button", className: "go big", textContent: "Buy it: $1 of test money" }); buy.dataset.buy = "";
-    const said = el("p", { className: "fine", role: "status" });
-    const got = el("p", { className: "got", hidden: true });
-    const tryit = el("p", { className: "fine", hidden: true }, ["Try it yourself: ", el("a", { href: "https://drexthealpha.github.io/Knos/near/", textContent: "drexthealpha.github.io/Knos/near" }), ". The code: ", el("a", { href: "https://github.com/drexthealpha/Knos", textContent: "github.com/drexthealpha/Knos" }), "."]);
-    $("product").replaceChildren(el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }), buy, said, got, tryit,
-      el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, el("a", { href: page.url, target: "_blank", rel: "noopener", textContent: "The run that wrote it" })]));
-    $("product").hidden = false; $("product").scrollIntoView({ block: "end" });
-    clearInterval(tick); links();
-    buy.addEventListener("click", async () => {
-      buy.disabled = true; const b0 = performance.now();
-      const bt = setInterval(() => { said.textContent = `Paying Helper A with test money, no wallet needed. ${((performance.now() - b0) / 1000).toFixed(1)} s`; }, 100);
-      const r = await fetch(HOSTED + "/api/near/product/buy", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
-      clearInterval(bt);
-      const took = ((performance.now() - b0) / 1000).toFixed(1);
-      if (!r.ok) { said.textContent = `Not bought: ${r.why || "testnet refused it"}.`; buy.disabled = false; return; }
-      said.replaceChildren(`Bought in ${took} s: Helper A got your $1.00 of test money. `, tx(r.tx, "See the purchase on NEAR testnet"));
-      got.replaceChildren(el("b", { textContent: "You got: " }), "the counter’s code, the version that passed. ", el("a", { href: CODE, target: "_blank", rel: "noopener", textContent: "Open your copy" }));
-      got.hidden = false; tryit.hidden = false; $("product").scrollIntoView({ block: "nearest" });
-      $("links").append(" ", tx(r.tx, "your purchase"));
-    });
-    go.disabled = false;
-  });
+    await wait(700);
+    const wait3 = add("", "3. Comparing with the paper…");
+    const r = await proving;
+    wait3.remove();
+    if (!r.ok) { add("stop", "3. No verdict this time", [el("p", { textContent: `Why: ${r.why || "the proof stopped"}.` })]); clearInterval(tick); return; }
+    const v = r.verdict;
+    add("ok", v.holds ? "3. Verdict: the claim holds" : "3. Verdict: the claim does not hold", [el("table", { className: "vs" }, [
+      el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
+      el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
+    await wait(500);
+    const settled = r.market && r.market.settled != null ? `The bet on this claim settled ${r.market.settled ? "Yes" : "No"}.` : "";
+    add("ok", "You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
+      settled ? el("p", { textContent: settled }) : null]);
+    clearInterval(tick);
+    $("links").replaceChildren(r.release_url ? out(r.release_url, "settled on NEAR testnet") : "");
+    order.disabled = false;
+  }
 })();
 </script>
 <script>(() => { const m = document.getElementById("menu"), n = document.getElementById("nav"); if (!m || !n) return; m.addEventListener("click", () => { n.hidden = !n.hidden; m.setAttribute("aria-expanded", String(!n.hidden)); }); })();</script>
