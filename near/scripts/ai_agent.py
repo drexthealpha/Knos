@@ -16,7 +16,7 @@ import time
 import urllib.request
 
 MODEL = "qwen2.5-coder:14b"
-TRIES = 6
+TRIES = 12
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TEST = ROOT / "near" / "agents" / "job" / "test_hll.py"
 
