@@ -456,37 +456,75 @@ MIT, the repository's own [LICENSE](https://github.com/drexthealpha/Knos/blob/v0
 <!-- entry:near -->
 ## Knos on NEAR
 
-On NEAR testnet, the jobs contract pays a helper in test tokens once the test passes. The code is in `near/`, and every path in this
-section is under `near/` unless it starts with another top folder.
+**Problem.** "It is frequently stated that it takes an average of 17 years for research evidence to reach clinical
+practice" ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)). Knos turns any research into a
+product billions of people use, in days, not years.
+
+**What it does on NEAR.** One button turns a real published result into a product you can buy. The result: HyperLogLog
+([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)), whose abstract says, word for word:
+"For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10^9 with a typical accuracy
+of 2% while using a memory of only 1.5 kilobytes." The job is to build that. Its check, locked by its sha256 in the NEAR
+jobs contract before any money is held, is `near/agents/job/test_hll.py`: count 30,000 visitors within 10% in at most
+1,536 bytes (it runs in under 1 s). Two helpers send their version; the contract pays only the one the check passed. Then a
+small AI writes the product's page, and a visitor buys it with test money, no wallet.
 
 ![One job, two agents: only the output that passes the locked test is paid](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/docs/diagrams/docs-reference-diagrams-4.svg)
 
 *One job, two agents: only the output that passes the locked test is paid.*
 
-### For a reader checking this project
+### Do this, see that
 
-**Problem.** When you pay an AI agent for work, you pay for its claim that the work is done. Nobody checks the claim
-before the money moves.
+On the public page (no install, no wallet, test money only):
 
-**What it does.** A job's bid waits in a NEAR contract against a test locked by its hash. Agents take the job and submit.
-A checker runs the locked test on each output and signs a token for the one that passes; the contract checks that token,
-then pays. The agent whose output fails is paid 0.
+1. Open https://drexthealpha.github.io/Knos/near/ - see one line, one button "Turn the paper into a product" and "17 years"
+   with its source.
+2. Click the button - see the paper's own sentence and its DOI at 0 s, then both helpers' results at about 1.5 s:
+   "Passed: 30,000 visitors counted within 2.9%, in 1,107 bytes" and "Failed: it keeps 529,075 bytes". A clock counts the
+   seconds since your click.
+3. About 4 s after the click - see "Helper A is paid $1.00 of test money" and a link to that payment on NEAR testnet.
+4. At about 5 s - see the product page "Website Traffic Counter", written by qwen2.5:1.5b-instruct
+   (`.github/workflows/product-page.yml`, once an hour), with when it was written and the run that wrote it.
+5. Click "Buy it: $1 of test money" - see "Bought in about 3 s: Helper A got your $1.00 of test money" and the purchase's
+   transaction, then links to the job, both versions, the payment and your purchase on the testnet explorer.
 
-Do this, see that:
+The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (47.8 s), with screenshots
+[first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [paid](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-paid.png) and
+[bought](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-3-bought.png).
 
-- Open https://drexthealpha.github.io/Knos/near/ and click Post a job - see "Paid: Helper A $1.00. Helper B $0, its work failed."
-  about 4 s later, with a link to the payment on NEAR testnet (4.1 to 4.5 s on six walks, 7 Nov 2026).
-- Under "Will this proof pass?" click Fund its test, then Pay with test money and watch - see a market opened on the job,
-  both helpers' tries, the payment and the market settled, each with its transaction (about 30 s).
-- Click a take, submit or paid link under The job - see each step as its own testnet transaction.
-- Run `python near/scripts/try_testnet.py <you>.testnet` - see your own copy of both contracts release on a signed token
-  and refund after the deadline ([Try it on testnet](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#try-it-on-testnet)).
-- Run `bash near/scripts/verify.sh` - see the contract's sandbox tests and attacks pass ([Tests](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#tests-on-near)).
+Locally (Python 3.10+, no key, nothing sent):
+
+1. Run the check on Helper A's version:
+   `mkdir t && cp near/agents/job/test_hll.py t/ && python -c "import sys; sys.path.insert(0, 'near/agents'); import pass_agent; open('t/solution.py', 'w').write(pass_agent.SOLUTION)" && cd t && python test_hll.py`
+   - see "Passed: 30,000 visitors counted within 2.9%, in 1,107 bytes (the paper: 1.5 kilobytes)."
+2. The same with `fail_agent` in place of `pass_agent` - see "Failed: it keeps 529,075 bytes, over the paper's 1.5
+   kilobytes (1,536 bytes)." and exit code 1.
+3. Run `python near/scripts/try_testnet.py <you>.testnet` - see your own copy of both contracts release on a signed token
+   and refund after the deadline ([Try it on testnet](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#try-it-on-testnet)).
+4. Run `bash near/scripts/verify.sh` - see the contract's sandbox tests and attacks pass ([Tests](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#tests-on-near)).
+
+### Accounts and records on NEAR testnet
+
+| Account | What it does | Record |
+|---|---|---|
+| `jobs.knos-swarm-1105.testnet` | the jobs contract: holds a job's bid against its check's sha256, pays only a passing version | [explorer](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet) |
+| `agent-a.knos-swarm-1105.testnet`, `agent-b.knos-swarm-1105.testnet` | the two helpers, each with a key that can only call the jobs contract | [A](https://testnet.nearblocks.io/address/agent-a.knos-swarm-1105.testnet), [B](https://testnet.nearblocks.io/address/agent-b.knos-swarm-1105.testnet) |
+| `live.knos-swarm-1105.testnet` | the hosted app's capped account: posts each job, pays for a visitor's buy (test money, 20 runs a day) | [explorer](https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet) |
+| `knos-usdc-1102.testnet` | the test dollar (NEP-141, 6 decimals) | [explorer](https://testnet.nearblocks.io/address/knos-usdc-1102.testnet) |
+| `market.knos-swarm-1105.testnet` | the claim market further down the page | [explorer](https://testnet.nearblocks.io/address/market.knos-swarm-1105.testnet) |
+
+One run from the public page on 10 Nov 2026: the payment
+[84tbHmGb…](https://testnet.nearblocks.io/txns/84tbHmGbGJCh6CiYtbtSMgRe48YRRZLkqdq7fbmi1pvR) and the purchase
+[ETEAPaAY…](https://testnet.nearblocks.io/txns/ETEAPaAYdaVaHpEq2v2B9EdtFcb5jNjYka1Q4TVeNffu).
+
+**Libraries, AI-written code and what came before.** The libraries are listed under [Disclosure](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#disclosure); the hosted
+runner adds Python's standard library and `cryptography`, the page loads GSAP 3.12.5 from cdnjs. Most of the code was
+written with Claude Code; the founder set each task and reviewed each change. The product page's words are written by
+qwen2.5:1.5b-instruct, never by hand: when its answers break the limits, the page says so and shows no text.
 
 **What was built in the window.** Everything under `near/` and the hosted runner `apps/wanted/knos_wanted/near_live.py`:
 the diff from the tag `pre-hackathon` (31 Oct 2026) is
-https://github.com/drexthealpha/Knos/compare/pre-hackathon...main (`near/` did not exist at that tag). The tag
-`hackathon-submission` is added when the code is final.
+https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission (`near/` did not exist at the
+first tag; `hackathon-submission` is the submitted commit).
 
 **Built before, on another chain (Q-002).** Knos existed before this window on Solana devnet: the programs in
 `programs-v2/` and the Python package `knos` in `src/knos/` that drives them. Only the NEAR work above is the entry.
@@ -507,7 +545,7 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 
 | What | How |
 |---|---|
-| **Pays on proof** | A funder sends a test token (NEP-141) with `ft_transfer_call`; the contract holds it against a criteria hash and a deadline. |
+| **Held until it passes** | A funder sends a test token (NEP-141) with `ft_transfer_call`; the contract holds it against a criteria hash and a deadline. |
 | **Proof is a signed CI run** | A GitHub Actions OIDC token, checked in the contract: RS256 in pure Rust, issuer, audience = this contract, repository, workflow, commit and a one-time `jti`. Paid on a real one: [run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325), release [`82N9tRK8…`](https://explorer.testnet.near.org/transactions/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj). |
 | **Refund** | After the deadline, the money goes back to the funder. Fee: 0. |
 | **Keys** | GitHub's signing keys are set by 2 of 3 owners (`scripts/github_keys.py`). |
@@ -515,10 +553,10 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 
 ### Run one now
 
-Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/) and click **Post a job**. You see
-"Paid: Helper A $1.00. Helper B $0, its work failed." and a link to the payment on NEAR testnet, within seconds: a job is
-kept ready, posted against its locked test and tried by both agents, so your click sends the payment to the one whose
-output passed.
+Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/) and click **Turn the paper into a
+product**. You see "Helper A is paid $1.00 of test money" and a link to the payment on NEAR testnet, within seconds: a job
+is kept ready, posted against its locked check and tried by both helpers, so your click sends the payment to the one whose
+version passed.
 
 It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs
 a day, three every 10 minutes from one address; past a cap the page shows the last run and says "Replay". The same job from a
