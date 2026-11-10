@@ -493,7 +493,7 @@ On the public page (no install, no wallet, test money only):
 5. Click "Buy it: $1 of test money" - see "Bought in about 3 s: Helper A got your $1.00 of test money" and the purchase's
    transaction, then links to the job, both versions, the payment and your purchase on the testnet explorer.
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (47.7 s), with screenshots
+The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (46.3 s), with screenshots
 [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [paid](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-paid.png) and
 [bought](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-3-bought.png).
 
