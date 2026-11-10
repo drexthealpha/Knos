@@ -149,6 +149,7 @@ def prepare() -> None:
                          "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
                          "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
                                  "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
+        threading.Thread(target=_refresh_last, daemon=True).start()   # the last settled proof, ready for the next visitor
         if os.environ.get("KNOS_NEAR_KEYS_FILE"):
             import common   # near/agents/common.py, on the path once jobs_api is loaded
             common.prefetch(j.CONFIG["relayer"])   # the click then only signs and sends the payment
@@ -534,6 +535,44 @@ def _paper_meta(url: str) -> dict:
     return {}
 
 
+_last: dict = {}
+
+
+def last_proof() -> dict | None:
+    """The newest settled market for the sample claim, read from the market contract (kept 5 minutes): its outcome,
+    when its job was paid, and its id. None when no market for this claim has settled yet."""
+    if _last.get("at") and time.time() - _last["at"] < 300:
+        return _last.get("out")
+    try:
+        _jobs()
+        from common import view
+        ids = [i for i in (view(MARKET, "get_markets", {}) or []) if str(i).startswith("job:job-")]
+        out = None
+        for mid in reversed(ids[-12:]):
+            m = (view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}
+            if m.get("question") == CLAIM_Q and m.get("outcome") is not None:
+                out = {"id": mid, "holds": bool(m["outcome"]), "job": mid[4:],
+                       "record": "https://testnet.nearblocks.io/address/" + MARKET}
+                break
+        _last.update(at=time.time(), out=out)
+        return out
+    except Exception:  # noqa: BLE001 - no last proof shown: the offer still stands
+        return _last.get("out")
+
+
+_lasting = threading.Lock()
+
+
+def _refresh_last() -> None:
+    if not _lasting.acquire(blocking=False):
+        return
+    try:
+        _last.pop("at", None)
+        last_proof()
+    finally:
+        _lasting.release()
+
+
 def claim_look(url: str) -> dict:
     """What a pasted paper link gets: for a paper Knos has a check for, its claim word for word, the price of its market
     and the offer; for any other paper, which checker fits, with its published price and time."""
@@ -546,7 +585,9 @@ def claim_look(url: str) -> dict:
         words = (meta.get("title", "") + " " + meta.get("subjects", "")).lower()
         fit = next((c for keys, c in CHECKERS if any(k in words for k in keys)), RERUN)
         return {"ok": True, "known": False, "title": meta.get("title", ""), "quote": fit}
-    out = {"ok": True, "known": True, **known, "offer_usd": 500}
+    if not (_last.get("at") and time.time() - _last["at"] < 300) and not _lasting.locked():
+        threading.Thread(target=_refresh_last, daemon=True).start()   # read in the background: the click never waits for it
+    out = {"ok": True, "known": True, **known, "offer_usd": 500, "last": _last.get("out")}
     job = _ready.get("job")
     mk = (job or {}).get("market")
     if not job:
@@ -624,6 +665,8 @@ def claim_settle(mid: str) -> dict:
                 break
             time.sleep(1.5)   # a final read lags the optimistic one by a block or two
             outcome = ((view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}).get("outcome")
+        if r["ok"] and outcome is not None:   # the newest proof is this one
+            _last.update(at=time.time(), out={"id": mid, "holds": bool(outcome), "job": mid[4:], "record": "https://testnet.nearblocks.io/address/" + MARKET})
         return {"ok": r["ok"], "settled": outcome, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
     except Exception as e:  # noqa: BLE001 - the page says why
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
