@@ -508,7 +508,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
    saved: $1.00 of agent pay and the seconds.
 7. Below the run - see "Live from NEAR testnet:" proofs run, test dollars settled and lost, read from the chain.
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (52.2 s), with
+The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (57.2 s), with
 screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [the claim](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-claim.png) and
 [what you got](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-3-got.png).
 
@@ -520,7 +520,7 @@ An agent can run the whole flow with one HTTP call: look up the paper, prove the
 
 - see a JSON answer with `"verdict"` (`"holds": true`, the paper's number and the measured one), `"code"` (the link to the
   verified code), `"cap"` (the refused over-budget step), `"settled": true` and `"receipt"` (the payments and each
-  step's fee). It runs on testnet, three runs every 10 minutes from one address.
+  step's fee). It runs on testnet, six runs every 10 minutes from one address.
 
 ### Locally
 
@@ -621,7 +621,7 @@ verified code to download, the receipt and the claim's record updated, within se
 A job is kept ready, posted against its locked test and tried by both agents, so your order sends only the payment and
 the settlement.
 
-It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs a day, three every
+It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs a day, six every
 10 minutes from one address; past a cap the page says the next proof is being readied.
 
 ### Work in the window
