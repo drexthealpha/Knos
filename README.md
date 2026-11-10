@@ -487,10 +487,11 @@ On the public page (no install, no sign-in, test money only):
 
 1. Open https://drexthealpha.github.io/Knos/near/ - see one line, the box "Paste a paper link" holding the HyperLogLog
    DOI, the button "Will it work?" and "17 years" with its source.
-2. Click "Will it work?" - see, about 2 s later, "Answer: not proven yet. Prove it for $500, answer in under a minute"
-   with its order button, then "The paper says" with the claim word for word, "In plain words" written by a small AI
+2. Click "Will it work?" - see, about 2 s later, "Answer: Yes, it held in its last proof" (read from the newest
+   settled market for this claim on NEAR testnet; "Answer: not proven yet" before any) with the $500 offer and its order
+   button, then "The paper says" with the claim word for word, "In plain words" written by a small AI
    (qwen2.5:1.5b-instruct, `.github/workflows/product-page.yml`, once an hour, with when it was written) and "Odds it
-   holds, before the proof" (50% on a new market).
+   holds" for your proof (50% on a new market).
 3. Click "Order now, pay by invoice after the answer" - see a clock and "1. The test is locked" at 0 s, then "2. Two
    agents rerun the paper's result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and
    "Agent B: Failed: it keeps 529,075 bytes".
@@ -501,7 +502,7 @@ On the public page (no install, no sign-in, test money only):
 6. Paste any other paper link - see which checker fits it, with its published price and time and a source (an AlphaFold
    DOI gets a cloud lab that tests designed proteins, from $149 per protein, about 3 weeks).
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (55.5 s), with
+The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (58.0 s), with
 screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
 [what you got](near/web/knos-near-3-got.png).
 
