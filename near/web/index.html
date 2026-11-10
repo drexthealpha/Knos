@@ -767,7 +767,7 @@ load();
       el("table", { className: "vs" }, [
         el("tr", {}, [el("th", { textContent: "You paid" }), el("td", {}, [`$${(rc && rc.buyer_usd) || 49}.00 of test USDC, from a test account Knos holds for you, so you need no wallet. `, pay && pay.url ? out(pay.url, "The payment") : (pay && pay.why) || ""])]),
         el("tr", {}, [el("th", { textContent: "Agent A’s share" }), el("td", {}, [`$${((rc && rc.agent_usd) || 1).toFixed(2)}, paid by the jobs contract when its code passed. `, rc && rc.agent_url ? out(rc.agent_url, "The payment") : ""])]),
-        el("tr", {}, [el("th", { textContent: "Knos keeps" }), el("td", {}, [`$${((rc && rc.knos_usd) || 48).toFixed(2)} of your $49, kept in Knos\u2019s own test account. `, pay && pay.url ? out(pay.url, "Your payment") : "", pay && pay.fee_account ? [" ", out(pay.fee_account, "The account")] : ""])])]),
+        el("tr", {}, [el("th", { textContent: "Knos keeps" }), el("td", {}, [`$${((rc && rc.knos_usd) || 48).toFixed(2)} of your $49, kept in Knos\u2019s own test account. `, pay && pay.url ? out(pay.url, "Your payment") : "", " ", pay && pay.fee_account ? out(pay.fee_account, "The account") : ""])])]),
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
       el("h3", { textContent: "What each step cost" }),
       el("table", { className: "log" }, rows),
