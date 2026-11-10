@@ -15,7 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
-MISSION = "Why does good research take 17 years to reach people? Checking that a result really works is slow and costly. So nobody builds on it until it has been checked. Morris and others, 2011"   # every face's first line (web/brand/first.html)
+MISSION = "Why does good research take 17 years to reach people?"   # every face's first line (web/brand/first.html)
 MOVED = ("passkey", "SAML", "SSO", "Squads", "Xero", "QuickBooks", "devnet SOL")
 
 

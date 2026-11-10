@@ -53,7 +53,7 @@ def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each(
     prose = re.sub(r'<ul[^>]*data-not-prose[^>]*>.*?</ul>', " ", prose, flags=re.S)          # the measured numbers (web/brand/vectors.html)
     prose = re.sub(r'<figure[^>]*data-not-prose[^>]*>.*?</figure>', " ", prose, flags=re.S)       # the crossing's shape: a state and its number
     prose = re.sub(r'<p class="k-vision"[^>]*>.*?</p>', " ", prose, flags=re.S)                  # the two vision lines (fixed text)
-    prose = re.sub(r'<h1 class="k-first".*?</h1>|<p class="k-goal">.*?</p>', " ", prose, flags=re.S)      # every face's first line (fixed text)
+    prose = re.sub(r'<h1 class="k-first".*?</h1>|<p class="k-a">.*?</p>|<p class="k-goal">.*?</p>', " ", prose, flags=re.S)      # every face's first line (fixed text)
     prose = re.sub(r"<(button)\b[^>]*>.*?</\1>", " ", re.sub(r"<!--.*?-->", " ", prose, flags=re.S), flags=re.S)
     n = len(_words(re.sub(r"<button\b[^>]*>.*?</button>", " ", bar, flags=re.S))) + len(_words(prose))
     assert 12 <= n <= 64, n
