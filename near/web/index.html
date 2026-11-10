@@ -119,6 +119,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 .card h3 { font: 400 clamp(26px, 2.6vw, 34px)/1.15 var(--serif); margin: 0 0 var(--sp-2); }
 .card blockquote { margin: 0 0 var(--sp-2); padding-left: var(--sp-3); border-left: 3px solid var(--accent); font: 400 var(--s1)/1.5 var(--serif); }
 .card.offer { border: 2px solid var(--accent); background: var(--paper); box-shadow: var(--depth-2); }
+.answer { border: 2px solid var(--ink); }
 .odds .pct { font: 400 clamp(36px, 4vw, 48px)/1 var(--serif); margin-right: var(--sp-2); }
 .vs th { width: 10em; color: var(--ink-2); font-weight: 500; }
 .stop { color: var(--bad); }
@@ -160,7 +161,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</h1>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper link. Knos checks whether its main claim holds.</label>
+      <label for="paper">Paste a paper link. Before it becomes a product, Knos checks whether its main claim holds.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -572,42 +573,7 @@ $("guard").addEventListener("click", async () => {
 
 $("fund").addEventListener("submit", (ev) => { ev.preventDefault(); act("Fund", "/api/fund", { amount: +$("amount").value, minutes: +$("minutes").value }); });
 load();
-// The pointer (UX rule I2): once per visitor, when nobody has tapped 3 s after the page opened, a 48 px pointer glides to
-// the one button in 0.85 s, presses (0.84 for 0.1 s), releases in 0.22 s while the button dips to 94%, then fades. Gone at
-// the first tap; never with reduced motion. All of it ends within 5 s.
-(() => {
-  const btn = document.getElementById("go");
-  if (!btn || !btn.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  let seen = false;
-  try { seen = localStorage.getItem("k-pointer") === "1"; } catch { seen = false; }
-  if (seen) return;
-  let tapped = false, hand = null;
-  const stop = () => { tapped = true; if (hand) hand.remove(); };
-  addEventListener("pointerdown", stop, { once: true, capture: true });
-  addEventListener("keydown", stop, { once: true, capture: true });
-  setTimeout(async () => {
-    const r = btn.getBoundingClientRect();
-    if (tapped || r.bottom < 0 || r.top > innerHeight) return;
-    try { localStorage.setItem("k-pointer", "1"); } catch { /* shown again next time: harmless */ }
-    hand = document.createElement("div");
-    hand.className = "k-pointer";
-    hand.setAttribute("aria-hidden", "true");
-    hand.style.cssText = "position:fixed;left:0;top:0;width:48px;height:48px;z-index:50;pointer-events:none;transform-origin:8px 6px";
-    hand.innerHTML = '<svg viewBox="0 0 48 48" width="48" height="48"><path d="M8 6 L8 38 L17 30 L23 43 L29 40 L23 27 L35 27 Z" fill="#fff" stroke="#16161d" stroke-width="2.5" stroke-linejoin="round"/></svg>';
-    document.body.append(hand);
-    const x1 = r.left + r.width * 0.55 - 8, y1 = r.top + r.height * 0.55 - 6;
-    const x0 = Math.min(innerWidth - 56, x1 + 220), y0 = Math.min(innerHeight - 56, y1 + 160);
-    const at = (x, y, s) => ({ transform: `translate(${x}px, ${y}px) scale(${s})` });
-    try {
-      await hand.animate([at(x0, y0, 1), at(x1, y1, 1)], { duration: 850, easing: "cubic-bezier(.2,0,0,1)", fill: "forwards" }).finished;
-      await hand.animate([at(x1, y1, 1), at(x1, y1, 0.84)], { duration: 100, fill: "forwards" }).finished;
-      btn.animate([{ scale: "1" }, { scale: "0.94" }, { scale: "1" }], { duration: 320, easing: "cubic-bezier(.2,0,0,1)" });
-      await hand.animate([at(x1, y1, 0.84), at(x1, y1, 1)], { duration: 220, fill: "forwards" }).finished;
-      await hand.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 1200, fill: "forwards" }).finished;
-    } catch { /* stopped by a tap */ }
-    hand.remove();
-  }, 3000);
-})();
+
 </script>
 <script>
 "use strict";
@@ -659,6 +625,8 @@ load();
       return;
     }
     const kids = [
+      el("section", { className: "card answer" }, [el("h2", { textContent: "Answer: not proven yet" }),
+        el("p", { textContent: "Nobody has tested this claim yet. Order the proof below and you get a Yes or No in under a minute." })]),
       el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
         el("blockquote", {}, [`“${r.quote}”`]), el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])]),
     ];
@@ -667,8 +635,8 @@ load();
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it")])]));
     else kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("p", { className: "fine", textContent: "The small AI’s page could not be read now, so no text is shown." })]));
-    if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "How likely this holds, before any proof" }),
-      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " Not proven yet: the odds stay at even until someone proves it. A proof settles them to Yes or No."]),
+    if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "Odds it holds, before the proof" }),
+      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " An open market on NEAR keeps these odds for this claim. Anyone may trade them; only the proof settles them."]),
       el("p", { className: "fine" }, [out(NB + "address/market.knos-swarm-1105.testnet", "Where this number comes from")])]));
     const order = el("button", { type: "button", className: "go big", textContent: "Order now, pay by invoice after the answer" });
     order.dataset.buy = "";
@@ -703,15 +671,15 @@ load();
     wait3.remove();
     if (!r.ok) { add("stop", "3. No verdict this time", [el("p", { textContent: `Why: ${r.why || "the proof stopped"}.` })]); clearInterval(tick); return; }
     const v = r.verdict;
-    add("ok", v.holds ? "3. Verdict: the claim holds" : "3. Verdict: the claim does not hold", [el("table", { className: "vs" }, [
+    add("ok", v.holds ? "3. Answer: Yes, the claim holds" : "3. Answer: No, the claim does not hold", [el("table", { className: "vs" }, [
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
       el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
     await wait(500);
-    const bet = el("p", { className: "fine", textContent: "Settling the bet on this claim\u2026" });
+    const bet = el("p", { className: "fine", textContent: "Settling the claim\u2019s odds on NEAR\u2026" });
     add("ok", "You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]), bet]);
     clearInterval(tick);
     if (r.market) post("/api/near/claim/settle", { market: r.market.id }).then((m) => {
-      bet.className = ""; bet.textContent = m.ok && m.settled != null ? `The bet on this claim settled ${m.settled ? "Yes: it holds" : "No: it does not hold"}.` : `The bet on this claim is not settled yet: ${m.why || "no answer"}.`;
+      bet.className = ""; bet.textContent = m.ok && m.settled != null ? `The claim\u2019s odds on NEAR now read ${m.settled ? "Yes: it holds, for good" : "No: it does not hold, for good"}.` : `The claim\u2019s odds are not settled yet: ${m.why || "no answer"}.`;
     });
     else bet.remove();
     $("links").replaceChildren(r.release_url ? out(r.release_url, "settled on NEAR testnet") : "");
