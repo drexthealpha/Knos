@@ -459,19 +459,23 @@ MIT, the repository's own [LICENSE](LICENSE).
 practice" ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)). Knos turns any research into a
 product billions of people use, in days, not years.
 
-**What it does on NEAR.** One button takes a published research result all the way to a product someone buys: the
-paper's own claim becomes a check, code is proven against it, a small AI writes the product page, and the first sale
-settles on NEAR testnet. The result is HyperLogLog
-([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)).
+**Who it is for.** An R&D lead at a big company holding a paper, who needs to know whether its claim holds before
+building on it. They paste the paper's link and ask "Will it work?". Knos shows the claim word for word, how likely it
+holds, and one offer: prove it for $500, answer in under a minute.
 
-Its abstract says, word for word: "For instance, the new algorithm makes it possible to estimate cardinalities well
-beyond 10^9 with a typical accuracy of 2% while using a memory of only 1.5 kilobytes."
+**What NEAR does here.** Each claim has a market on NEAR testnet whose price says how likely the claim holds. The proof
+is a job whose test is locked by its sha256 in the NEAR jobs contract before anyone works.
 
-The job is to build that. Its check is `near/agents/job/test_hll.py`, locked by its sha256 in the NEAR jobs contract
-before any money is held: count 30,000 visitors within 10% in at most 1,536 bytes. It runs in under 1 s.
+Agents rerun the paper's result. The contract pays only the agent whose code passes, and the claim's market settles Yes
+or No from that job.
 
-Two helpers send their version, and the contract pays only the one the check passed. Then a small AI writes the
-product's page, and a visitor buys it with test money, no wallet.
+The sample paper is HyperLogLog ([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)). Its
+abstract says, word for word: "For instance, the new algorithm makes it possible to estimate cardinalities well beyond
+10^9 with a typical accuracy of 2% while using a memory of only 1.5 kilobytes."
+
+Its locked test is `near/agents/job/test_hll.py`: count 30,000 visitors within 10% in at most 1,536 bytes. It runs in
+under 1 s. Agent A packs 2,048 registers of 5 bits, as the paper's 1.5 kilobytes do, and passes; agent B keeps every
+visitor and fails on memory.
 
 ![One job, two agents: only the output that passes the locked test is paid](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/diagrams/docs-reference-diagrams-4.svg)
 
@@ -479,47 +483,63 @@ product's page, and a visitor buys it with test money, no wallet.
 
 ### Do this, see that
 
-On the public page (no install, no wallet, test money only):
+On the public page (no install, no sign-in, test money only):
 
-1. Open https://drexthealpha.github.io/Knos/near/ - see one line, one button "Turn the paper into a product" and "17 years"
-   with its source.
-2. Click the button - see the paper's own sentence and its DOI at 0 s, then both helpers' results at about 1.5 s:
-   "Passed: 30,000 visitors counted within 2.9%, in 1,107 bytes" and "Failed: it keeps 529,075 bytes". A clock counts the
-   seconds since your click.
-3. About 4 s after the click - see "Helper A is paid $1.00 of test money" and a link to that payment on NEAR testnet.
-4. At about 5 s - see the product page "Website Traffic Counter", written by qwen2.5:1.5b-instruct
-   (`.github/workflows/product-page.yml`, once an hour), with when it was written and the run that wrote it.
-5. Click "Buy it: $1 of test money" - see "Bought in about 3 s: Helper A got your $1.00 of test money" and the purchase's
-   transaction, then links to the job, both versions, the payment and your purchase on the testnet explorer.
+1. Open https://drexthealpha.github.io/Knos/near/ - see one line, the box "Paste a paper link" holding the HyperLogLog
+   DOI, the button "Will it work?" and "17 years" with its source.
+2. Click "Will it work?" - see, about 2 s later, "The paper says" with the claim word for word, "In plain words" written
+   by a small AI (qwen2.5:1.5b-instruct, `.github/workflows/product-page.yml`, once an hour, with when it was written),
+   "How likely this holds" (50% on a new market) and "Prove it for $500, answer in under a minute".
+3. Click "Order now, pay by invoice after the answer" - see a clock and "1. The test is locked" at 0 s, then "2. Two
+   agents rerun the paper's result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and
+   "Agent B: Failed: it keeps 529,075 bytes".
+4. About 4 to 7 s after ordering - see "3. Verdict: the claim holds", with the paper's "2% typical error, 1.5 kilobytes of
+   memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory".
+5. Then see "You got" with "Download the verified code (visitor_counter.py)" and "The bet on this claim settled Yes: it
+   holds.", and one link at the foot, "settled on NEAR testnet", to the payment.
+6. Paste any other paper link - see which checker fits it, with its published price and time and a source (an AlphaFold
+   DOI gets a cloud lab that tests designed proteins, from $149 per protein, about 3 weeks).
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (46.3 s), with screenshots
-[first screen](near/web/knos-near-1-first.png), [paid](near/web/knos-near-2-paid.png) and
-[bought](near/web/knos-near-3-bought.png).
+The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (50.8 s), with
+screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
+[what you got](near/web/knos-near-3-got.png).
 
 Locally (Python 3.10+, no key, nothing sent):
 
-1. Run the check on Helper A's version:
+1. Run the locked test on agent A's code:
    `mkdir t && cp near/agents/job/test_hll.py t/ && python -c "import sys; sys.path.insert(0, 'near/agents'); import pass_agent; open('t/solution.py', 'w').write(pass_agent.SOLUTION)" && cd t && python test_hll.py`
-   - see "Passed: 30,000 visitors counted within 2.9%, in 1,107 bytes (the paper: 1.5 kilobytes)."
+   - see "Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes (the paper: 1.5 kilobytes)."
 2. The same with `fail_agent` in place of `pass_agent` - see "Failed: it keeps 529,075 bytes, over the paper's 1.5
    kilobytes (1,536 bytes)." and exit code 1.
 3. Run `python near/scripts/try_testnet.py <you>.testnet` - see your own copy of both contracts release on a signed token
    and refund after the deadline ([Try it on testnet](#try-it-on-testnet)).
 4. Run `bash near/scripts/verify.sh` - see the contract's sandbox tests and attacks pass ([Tests](#tests-on-near)).
 
+### Price, and who has used Knos
+
+**Price.** A proof costs $500, paid by the buyer's company after the answer (the founder's deep-check price,
+[docs/PRICING.md](docs/PRICING.md)). Nobody has paid for one yet; the page sends no invoice.
+
+**Outside contributors.** Two GitHub accounts outside the team have done paid work for Knos. `jaystay-bot` wrote
+[#32](https://github.com/drexthealpha/Knos/pull/32), [#33](https://github.com/drexthealpha/Knos/pull/33) and
+[#34](https://github.com/drexthealpha/Knos/pull/34), merged on 3 Oct 2026 and paid 48.75 test USDC in all.
+
+`xiasan1992` wrote [#40](https://github.com/drexthealpha/Knos/pull/40),
+[#41](https://github.com/drexthealpha/Knos/pull/41) and [#43](https://github.com/drexthealpha/Knos/pull/43), merged on 4
+Oct 2026; their 37.00 test USDC in bounties waits for them until they link a wallet.
+
 ### Accounts and records on NEAR testnet
 
 | Account | What it does | Record |
 |---|---|---|
-| `jobs.knos-swarm-1105.testnet` | the jobs contract: holds a job's bid against its check's sha256, pays only a passing version | [explorer](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet) |
-| `agent-a.knos-swarm-1105.testnet`, `agent-b.knos-swarm-1105.testnet` | the two helpers, each with a key that can only call the jobs contract | [A](https://testnet.nearblocks.io/address/agent-a.knos-swarm-1105.testnet), [B](https://testnet.nearblocks.io/address/agent-b.knos-swarm-1105.testnet) |
-| `live.knos-swarm-1105.testnet` | the hosted app's capped account: posts each job, pays for a visitor's buy (test money, 20 runs a day) | [explorer](https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet) |
+| `jobs.knos-swarm-1105.testnet` | the jobs contract: holds a job's bid against its test's sha256, pays only a passing agent | [explorer](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet) |
+| `market.knos-swarm-1105.testnet` | each claim's market: its price says how likely the claim holds; it settles only from the job | [explorer](https://testnet.nearblocks.io/address/market.knos-swarm-1105.testnet) |
+| `agent-a.knos-swarm-1105.testnet`, `agent-b.knos-swarm-1105.testnet` | the two agents, each with a key that can only call the jobs contract | [A](https://testnet.nearblocks.io/address/agent-a.knos-swarm-1105.testnet), [B](https://testnet.nearblocks.io/address/agent-b.knos-swarm-1105.testnet) |
+| `live.knos-swarm-1105.testnet` | the hosted app's capped account: posts each job and opens its market (test money, 20 runs a day) | [explorer](https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet) |
 | `knos-usdc-1102.testnet` | the test dollar (NEP-141, 6 decimals) | [explorer](https://testnet.nearblocks.io/address/knos-usdc-1102.testnet) |
-| `market.knos-swarm-1105.testnet` | the claim market further down the page | [explorer](https://testnet.nearblocks.io/address/market.knos-swarm-1105.testnet) |
 
-One run from the public page on 10 Nov 2026: the payment
-[84tbHmGb…](https://testnet.nearblocks.io/txns/84tbHmGbGJCh6CiYtbtSMgRe48YRRZLkqdq7fbmi1pvR) and the purchase
-[ETEAPaAY…](https://testnet.nearblocks.io/txns/ETEAPaAYdaVaHpEq2v2B9EdtFcb5jNjYka1Q4TVeNffu).
+The agent is paid by a plain NEP-141 transfer. Paying it through x402 is blocked: the testnet facilitator asks for an
+API key on its verify and settle calls, and Knos has none yet.
 
 **Libraries.** They are listed under [Disclosure](#disclosure). The hosted runner adds Python's standard library and
 `cryptography`, and the page loads GSAP 3.12.5 from cdnjs.
