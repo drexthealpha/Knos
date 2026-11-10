@@ -190,7 +190,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> paid proofs (reused answers too), <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost<span id="c-refused"></span>. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545"}'</code>
-    <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest result, live: <a href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml"><img src="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml/badge.svg?branch=main" alt="tests" style="vertical-align:middle;height:20px"></a>. Knos has no token.</p>
+    <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest result, live: <a href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml"><img src="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml/badge.svg?branch=main" alt="tests: the latest run's result on GitHub" style="vertical-align:middle;height:20px"></a>. Knos has no token.</p>
     <p><b>Hard to copy:</b> every verified result is kept and reused, and Knos has scored 12,010 companies to find the 38 that both reinvest and build frontier technology, its first buyers.</p>
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
   </section>
@@ -246,7 +246,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     </div>
   </section>
 
-  <section class="panel claim" id="claim" aria-labelledby="t-claim">
+  <section class="panel claim" id="claim" aria-labelledby="t-claim" hidden>
     <h2 id="t-claim">Bet test money on a claim</h2>
     <p class="q" id="m-q">Claim: what the helpers are paid, plus what goes back to the person who posted the job, never adds up to more than the job's money.</p>
     <p class="fine">The prices below are what other bets say the chance is, in test cents per $1.</p>
@@ -409,7 +409,7 @@ async function load() {
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
     $("embedlink").hidden = true;
-    totals(); market();   // the AI-written claim pages (pages()) are not shown: a small model's words are not plain enough
+    totals();   // the AI-written claim pages (pages()) are not shown: a small model's words are not plain enough
     // the hosted runner (knos.onrender.com) posts one live job for any visitor, within its caps; the first view says
     // nothing about it unless live runs are off
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
@@ -687,8 +687,8 @@ load();
     order.dataset.buy = "";
     const kids = [
       el("section", { className: "card answer offer" }, [
-        el("h2", { textContent: r.last ? `Answer: ${r.last.holds ? "Yes, it holds" : "No, it does not hold"}` : "Answer: not proven yet" }),
-        el("p", {}, r.last ? [`Knos last proved it ${when(r.last.job)} (`, out(r.last.record, "the record on NEAR"), "). Your own proof gives you the verified code and a receipt."]
+        el("h2", { textContent: r.last ? `Last proof: ${r.last.holds ? "it held" : "it did not hold"}` : "Not proven yet" }),
+        el("p", {}, r.last ? [`Knos last proved it ${when(r.last.job)} (`, out(r.last.record, "the record on NEAR"), "). Your own proof reruns it now and gives you the verified code and a receipt."]
           : ["Nobody has proven this claim with Knos yet. Your proof gives you a Yes or No, the verified code and a receipt."]),
         el("p", { className: "price" }, [el("b", { textContent: "$49 per proof, pay after the answer." }), " The answer comes in under a minute."]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
@@ -770,7 +770,7 @@ load();
       el("table", { className: "vs" }, [
         el("tr", {}, [el("th", { textContent: "You paid" }), el("td", {}, [pay && pay.ok ? `$${(rc && rc.buyer_usd) || 49}.00 of test USDC, from a test account Knos holds for you, so you need no wallet. ` : `Nothing: the payment failed (${(pay && pay.why) || "no answer"}). `, pay && pay.url ? out(pay.url, pay.ok ? "The payment" : "The failed transaction") : (pay && pay.why) || ""])]),
         el("tr", {}, [el("th", { textContent: "Agent A’s share" }), el("td", {}, [`$${((rc && rc.agent_usd) || 1).toFixed(2)}, paid by the jobs contract when its code passed. `, rc && rc.agent_url ? out(rc.agent_url, "The payment") : ""])]),
-        el("tr", {}, [el("th", { textContent: "Knos keeps" }), el("td", {}, [pay && pay.ok ? `$${((rc && rc.knos_usd) || 48).toFixed(2)} of your $49, kept in Knos\u2019s own test account. ` : "Nothing, as no payment arrived. ", pay && pay.ok && pay.url ? out(pay.url, "Your payment") : "", " ", pay && pay.fee_account ? out(pay.fee_account, "The account") : ""])])]),
+        el("tr", {}, [el("th", { textContent: "Knos keeps" }), el("td", {}, [pay && pay.ok ? `$${((rc && rc.knos_usd) || 48).toFixed(2)} of your $49, kept in Knos\u2019s own test account. ` : "Nothing, as no payment arrived. ", pay && pay.ok && pay.url ? out(pay.url, "Your payment") : "", pay && pay.fee_account ? " \u00b7 " : "", pay && pay.fee_account ? out(pay.fee_account, "The account") : ""])])]),
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
       el("h3", { textContent: "What each step cost" }),
       el("table", { className: "log" }, rows),

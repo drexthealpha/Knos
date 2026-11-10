@@ -37,7 +37,7 @@ await page.locator("#go").click();
 mark("click");
 await page.locator("#look .offer button").waitFor({ timeout: 60000 });
 mark("claim shown");
-await focus("#look .answer", 0, "The answer, and one price: $49 per proof, paid after the answer", 2500);
+await focus("#look .answer", 0, "The last proof, and one price: $49 per proof, paid after the answer", 2500);
 await page.screenshot({ path: path.join(out, "2-claim.png") });
 await focus("#look .card", 1, "The paper's own claim, word for word", 2000);
 await page.locator("#look .offer button").click();
