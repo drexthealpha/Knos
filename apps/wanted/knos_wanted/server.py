@@ -964,7 +964,7 @@ def make_handler(state: State):
                 if not state.allow(self._client(), "near_live"):
                     return self._send(200, {"ok": False, "why": "six live runs every 10 minutes from one address"}, headers=blink.CORS)
                 return self._send(200, near_live.claim_prove(), headers=blink.CORS)
-            if u.path in ("/api/near/claim/cap", "/api/near/claim/pay", "/api/near/claim/receipt", "/api/near/claim/reuse", "/api/near/claim/flow"):
+            if u.path in ("/api/near/claim/cap", "/api/near/claim/pay", "/api/near/claim/receipt", "/api/near/claim/reuse", "/api/near/claim/flow", "/api/near/claim/finish"):
                 from . import near_live
                 if not state.allow(self._client(), "near_live" if u.path == "/api/near/claim/flow" else "near_look"):
                     return self._send(200, {"ok": False, "why": "too many runs from one address; try again in a few minutes"}, headers=blink.CORS)
@@ -977,6 +977,8 @@ def make_handler(state: State):
                     return self._send(200, near_live.claim_receipt(b.get("cap"), b.get("pay") or {}, b.get("settle")), headers=blink.CORS)
                 if u.path == "/api/near/claim/reuse":
                     return self._send(200, near_live.claim_reuse(), headers=blink.CORS)
+                if u.path == "/api/near/claim/finish":
+                    return self._send(200, near_live.claim_finish(b.get("cap"), str(b.get("market") or ""), bool(b.get("reuse"))), headers=blink.CORS)
                 return self._send(200, near_live.claim_flow(str(b.get("url") or "")), headers=blink.CORS)
             if u.path == "/api/near/claim/settle":         # the claim's market settled from its paid job
                 from . import near_live

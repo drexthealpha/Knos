@@ -497,15 +497,17 @@ On the public page (no install, no sign-in, no wallet, test money only):
 3. Click "Prove it: $49, pay after the answer" - see a clock, "1. The test is locked", "2. Two agents rerun the paper's
    result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
-4. About 5 s after ordering - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
+4. Seconds after ordering - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)".
-5. Then see "Receipt, settled on NEAR testnet in seconds": "You paid $49.00 of test USDC", "Agent A's share $1.00",
+5. Then "6. Paying and recording on NEAR", about 10 to 30 s on the test network, and "Receipt, settled on NEAR
+   testnet in" its measured seconds: "You paid $49.00 of test USDC", "Agent A's share $1.00",
    "Knos keeps $48.00", each payment with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
-6. Click "Prove the same claim again" - see "Answer: Yes, in" a shorter time than the first proof, and how much the reuse
-   saved: $1.00 of agent pay and the seconds.
-7. Below the run - see "Live from NEAR testnet:" proofs run, test dollars settled and lost, read from the chain.
+6. Click "Prove the same claim again" - see "Answer: Yes, in" under a second, from the stored verified result, with
+   how many seconds sooner and the $1.00 of agent pay it did not need; then your $49 payment's link.
+7. Below the run - see "Live from NEAR testnet:" paid proofs, test dollars settled and lost, read in your browser
+   from NEAR's public record: each paid proof is one $49 from the buyer's test account to Knos's.
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (57.2 s), with
 screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
@@ -617,8 +619,9 @@ Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/nea
 **Will it work?**, then **Prove it: $49, pay after the answer**. You see the answer beside the paper's own number, the
 verified code to download, the receipt and the claim's record updated, within seconds.
 
-A job is kept ready, posted against its locked test and tried by both agents, so your order sends only the payment and
-the settlement.
+The two agents are fixed programs, not AI models. To answer in seconds, Knos keeps a job ready: posted against its
+locked test, with both agents' code already run and submitted. The spending cap step runs live when you order: NEAR
+refuses agent B's over-budget spend there and then. Your payment and the record's update follow.
 
 It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs a day, six every
 10 minutes from one address; past a cap the page says the next proof is being readied.

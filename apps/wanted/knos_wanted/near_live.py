@@ -827,11 +827,8 @@ def claim_reuse() -> dict:
     last = _proofs.get("last")
     if not last:
         return {"ok": False, "why": "no verified result to reuse yet: order the first proof"}
-    t0 = time.time()
-    pay = claim_pay(reuse=True)
-    pay["seconds"] = round(time.time() - t0, 1)
-    return {"ok": pay["ok"], "reused": last["job"], "verdict": last["verdict"], "pay": pay, "seconds": round(time.time() - t0, 1),
-            "saved": {"agent_usd": BID / 1e6, "seconds": last["seconds"], "first_seconds": last["seconds"]}, **({} if pay["ok"] else {"why": pay.get("why")})}
+    return {"ok": True, "reused": last["job"], "verdict": last["verdict"],
+            "saved": {"agent_usd": BID / 1e6, "first_seconds": last["seconds"]}}
 
 
 _counts: dict = {}
@@ -911,3 +908,12 @@ def claim_flow(url: str) -> dict:
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
     return {"ok": True, "claim": look.get("quote"), "verdict": proof.get("verdict"), "code": "https://knos.onrender.com/api/near/claim/code",
             "cap": cap, "settled": (settle or {}).get("settled"), "receipt": claim_receipt(cap, pay, settle)}
+
+
+def claim_finish(cap: dict | None, market: str = "", reuse: bool = False) -> dict:
+    """After the answer: the buyer's $49, the claim's record updated from the job (a first proof only), the receipt."""
+    t0 = time.time()
+    pay = claim_pay(reuse=reuse)
+    settle = claim_settle(market) if (market and not reuse) else None
+    rc = claim_receipt(cap, pay, settle) if not reuse else {"buyer_usd": PRICE_USD, "pay_url": pay.get("url")}
+    return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": rc, "seconds": round(time.time() - t0, 1)}

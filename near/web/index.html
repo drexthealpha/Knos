@@ -187,7 +187,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> proofs run, <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> paid proofs, <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545"}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; <a href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">every push runs the full test suite</a>, and it passes. Knos has no token.</p>
@@ -622,19 +622,19 @@ load();
     }
     return null;
   }
-  // live counters: proofs run from the server (it reads the claim records on NEAR), payments and failures read here from
-  // NEAR's public record (NearBlocks), so every number on this line comes from the chain
-  async function counters(tries = 0) {
-    const c = await fetch(HOSTED + "/api/near/claim/counters").then((r) => r.ok ? r.json() : null).catch(() => null);
-    if (c && c.pending && tries < 8) { setTimeout(() => counters(tries + 1), 5000); return; }
-    if (!c || c.pending) return;
-    const NBA = "https://api-testnet.nearblocks.io/v3/accounts/";
-    const ft = await fetch(NBA + "knos-payer-1102.testnet/ft-txns?limit=100").then((r) => r.ok ? r.json() : null).catch(() => null);
-    const tx = await fetch(NBA + "live.knos-swarm-1105.testnet/txns?limit=100").then((r) => r.ok ? r.json() : null).catch(() => null);
-    const paid = ((ft && ft.data) || []).filter((x) => x.involved_account_id === "live.knos-swarm-1105.testnet" && x.contract_account_id === "knos-usdc-1102.testnet" && +x.delta_amount === 49000000);
-    const failed = ((tx && tx.data) || []).filter((x) => x.receiver_account_id === "knos-usdc-1102.testnet" && (x.actions || []).some((a) => a.method === "ft_transfer") && !(x.outcomes || {}).status);
-    $("c-proofs").textContent = String(c.proofs);
-    $("c-usd").textContent = ft ? `$${(paid.length * 49 + c.proofs * 1).toFixed(2)}` : `$${c.settled_usd.toFixed(2)}`;
+  // live counters, all read here from NEAR's public record (NearBlocks): a paid proof is one $49 that reached Knos's
+  // account from the buyer's test account; the agents' pay is what the jobs contract sent agent A; lost counts failed transfers
+  async function counters() {
+    const NBA = "https://api-testnet.nearblocks.io/v3/accounts/", LIVE = "live.knos-swarm-1105.testnet", TOKEN = "knos-usdc-1102.testnet";
+    const get = (u) => fetch(NBA + u).then((r) => r.ok ? r.json() : null).catch(() => null);
+    const [ft, ag, tx] = await Promise.all([get("knos-payer-1102.testnet/ft-txns?limit=100"), get("agent-a.knos-swarm-1105.testnet/ft-txns?limit=100"), get(LIVE + "/txns?limit=100")]);
+    if (!ft) return;
+    const paid = (ft.data || []).filter((x) => x.involved_account_id === LIVE && x.contract_account_id === TOKEN && +x.delta_amount === 49000000);
+    const agentPay = ((ag && ag.data) || []).filter((x) => x.involved_account_id === "jobs.knos-swarm-1105.testnet" && x.contract_account_id === TOKEN && +x.delta_amount > 0)
+      .filter((x) => paid.length && +x.block_timestamp >= Math.min(...paid.map((p) => +p.block_timestamp)) - 600e9);
+    const failed = ((tx && tx.data) || []).filter((x) => x.receiver_account_id === TOKEN && (x.actions || []).some((a) => a.method === "ft_transfer") && !(x.outcomes || {}).status);
+    $("c-proofs").textContent = String(paid.length);
+    $("c-usd").textContent = `$${(paid.length * 49 + agentPay.reduce((n, x) => n + x.delta_amount / 1e6, 0)).toFixed(2)}`;
     $("c-lost").textContent = tx ? (failed.length ? `${failed.length} failed payments` : "$0") : "-";
   }
   const ready = Promise.all([
@@ -655,7 +655,8 @@ load();
     if (!r.known) {
       const q = r.quote;
       look.replaceChildren(el("section", { className: "card" }, [
-        el("h2", { textContent: "No check for this paper in Knos yet" }),
+        el("h2", { textContent: "Knos cannot prove this paper yet" }),
+        el("p", { textContent: "Today Knos\u2019s library holds a check for one claim, the sample paper\u2019s. For any other paper it tells you what can check it, at what price and how fast." }),
         r.title ? el("p", {}, [el("b", { textContent: "The paper: " }), r.title]) : null,
         el("p", {}, [el("b", { textContent: "What can check it: " }), q.checker + "."]),
         el("p", {}, [el("b", { textContent: "Price: " }), q.price + ". ", el("b", { textContent: "Time: " }), q.time + ". ", out(q.source, "Source")]),
@@ -698,7 +699,7 @@ load();
     add("ok", "1. The test is locked", [el("p", {}, ["The agents did not write it and cannot change it: count 30,000 visitors within 10%, in at most 1.5 kilobytes. ",
       out("https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
-    const two = add("", "2. Two agents rerun the paper’s result", [el("p", { textContent: "An agent is a program with its own account that writes code for a job." })]);
+    const two = add("", "2. Two agents rerun the paper’s result", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. Their code ran against the locked test before you ordered; the cap below runs now." })]);
     for (const a of (next && next.attempts) || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
     two.classList.add("ok");
     await wait(600);
@@ -715,12 +716,10 @@ load();
       el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
     add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."])]);
     firstSeconds = secs();
-    const paying = add("", "6. Paying and recording on NEAR…", [el("p", { className: "fine", textContent: "Your $49 of test money goes to Knos, then the claim’s record on NEAR is updated." })]);
-    const pay = await post("/api/near/claim/pay");
-    const settle = r.market ? await post("/api/near/claim/settle", { market: r.market.id }) : null;
-    const rc = await post("/api/near/claim/receipt", { cap, pay, settle });
+    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: "Your $49 of test money goes to Knos and the claim\u2019s record on NEAR is updated: about 10 to 30 s on the test network." })]);
+    const fin = await post("/api/near/claim/finish", { cap, market: r.market ? r.market.id : "" });
     paying.remove(); clearInterval(tick);
-    receipt(rc, pay, settle);
+    receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle);
     order.disabled = false;
   }
 
@@ -750,9 +749,12 @@ load();
       const x = await post("/api/near/claim/reuse");
       const took = (performance.now() - t) / 1000;
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
-      said.replaceChildren(el("b", { textContent: `Answer: ${x.verdict.holds ? "Yes" : "No"}, in ${took.toFixed(1)} s instead of ${(firstSeconds || x.saved.first_seconds).toFixed(1)} s. ` }),
-        `No agent reran it: Knos reused the verified result of proof ${x.reused}, so this proof saved $${x.saved.agent_usd.toFixed(2)} of agent pay and ${Math.max(0, (firstSeconds || x.saved.first_seconds) - took).toFixed(1)} s. `,
-        x.pay && x.pay.url ? out(x.pay.url, "Your $49 payment") : "");
+      const first = firstSeconds || x.saved.first_seconds;
+      const paid = el("span", { textContent: "Paying your $49\u2026" });
+      said.replaceChildren(el("b", { textContent: `Answer: ${x.verdict.holds ? "Yes" : "No"}, in ${took.toFixed(1)} s instead of ${first.toFixed(1)} s. ` }),
+        `No agent reran it: Knos reused the verified result of proof ${x.reused}, so the answer came ${(first - took).toFixed(1)} s sooner and needed $${x.saved.agent_usd.toFixed(2)} less agent pay. `, paid);
+      const f = await post("/api/near/claim/finish", { reuse: true });
+      paid.replaceChildren(f.pay && f.pay.url ? out(f.pay.url, "Your $49 payment") : `Payment not made: ${(f.pay && f.pay.why) || f.why || "no answer"}.`);
       counters();
     });
     $("links").replaceChildren(...(rc && rc.agent_url ? [out(rc.agent_url, "settled on NEAR testnet"), " (the public record of this proof)"] : []));
