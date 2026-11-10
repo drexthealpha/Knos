@@ -981,14 +981,14 @@ def make_handler(state: State):
                 if u.path == "/api/near/claim/cap":
                     return self._send(200, near_live.claim_cap(), headers=blink.CORS)
                 if u.path == "/api/near/claim/pay":
-                    return self._send(200, near_live.claim_pay(), headers=blink.CORS)
+                    return self._send(200, near_live.claim_pay(b.get("amount")), headers=blink.CORS)
                 if u.path == "/api/near/claim/receipt":
                     return self._send(200, near_live.claim_receipt(b.get("cap"), b.get("pay") or {}, b.get("settle")), headers=blink.CORS)
                 if u.path == "/api/near/claim/reuse":
                     return self._send(200, near_live.claim_reuse(), headers=blink.CORS)
                 if u.path == "/api/near/claim/finish":
-                    return self._send(200, near_live.claim_finish(b.get("cap"), str(b.get("market") or ""), bool(b.get("reuse"))), headers=blink.CORS)
-                return self._send(200, near_live.claim_flow(str(b.get("url") or "")), headers=blink.CORS)
+                    return self._send(200, near_live.claim_finish(b.get("cap"), str(b.get("market") or ""), b.get("amount")), headers=blink.CORS)
+                return self._send(200, near_live.claim_flow(str(b.get("url") or ""), b.get("amount")), headers=blink.CORS)
             if u.path == "/api/near/claim/settle":         # the claim's market settled from its paid job
                 from . import near_live
                 if not state.allow(self._client(), "near_look"):

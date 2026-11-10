@@ -461,8 +461,8 @@ years for research evidence to reach clinical practice" ([Morris, Wooding and Gr
 Knos's answer: checking that a result really works is slow and costly, so nobody builds on it until it has been checked.
 
 **What checking costs.** Today, checking one paper by hand costs $330 to $763
-([Colliard and others, 2023](https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon)). Knos: $49 per
-proof, pay after the answer, in under a minute.
+([Colliard and others, 2023](https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon)). Knos: under a
+minute, for the test USDC the buyer puts behind the claim. The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public.
 
 **Who it is for.** An R&D lead at a big company holding a paper, who needs to know whether its claim holds before
 building on it. On one screen they paste the link, ask "Will it work?", order the proof and download the verified code.
@@ -470,8 +470,8 @@ building on it. On one screen they paste the link, ask "Will it work?", order th
 **What NEAR does here.** The proof is a job whose test is locked by its sha256 in the NEAR jobs contract before any
 agent starts. The contract pays only the agent whose code passes, and refuses any agent step over its spending cap.
 
-The claim's record on NEAR settles from that job once the answer is in, and the buyer's $49 is a test USDC transfer on
-NEAR testnet. A second proof of the same claim reuses the verified result instead of paying agents again.
+The claim's record on NEAR settles from that job once the answer is in, and the test USDC the buyer put behind the claim moves on
+NEAR testnet. A second proof of the same claim reuses the verified result, free, instead of paying agents again.
 
 The sample paper is HyperLogLog ([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)). Its
 abstract says, word for word: "For instance, the new algorithm makes it possible to estimate cardinalities well beyond
@@ -490,12 +490,12 @@ visitor and fails on memory.
 On the public page (no install, no sign-in, no wallet, test money only):
 
 1. Open https://drexthealpha.github.io/Knos/near/ - see "Why does good research take 17 years to reach people?" with its
-   answer, "Today: checking one paper by hand costs $330 to $763. Knos: $49, under a minute.", the box holding the
+   answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute, for the test USDC you put behind the claim.", the box holding the
    HyperLogLog DOI and the button "Will it work?".
 2. Click "Will it work?" - see, 1 to 4 s later, "Last proof: it held" with when Knos last proved it ("Not proven yet"
-   before any proof), "$49 per proof, pay after the answer." and the button "Prove it: $49, pay after the
-   answer", then the paper's claim word for word and its plain-words page.
-3. Click "Prove it: $49, pay after the answer" - see a clock, "1. The test is locked", "2. Two agents rerun the paper's
+   before any proof), the one rule ("The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public."), the box "Test USDC you put behind this claim:" holding 10
+   and the button "Prove it with 10 test USDC", then the paper's claim word for word and its plain-words page.
+3. Type an amount (1 to 100) or keep 10, and click "Prove it with 10 test USDC" - see a clock, "1. The test is locked", "2. Two agents rerun the paper's
    result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
 4. About 5 to 13 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
@@ -503,13 +503,13 @@ On the public page (no install, no sign-in, no wallet, test money only):
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
 5. Then "6. Paying and recording on NEAR", about 10 to 30 s on the test network, and "Receipt: paid and recorded on
-   NEAR testnet in" those seconds: "You paid $49.00 of test USDC", "Agent A's share $1.00",
-   "Knos keeps $48.00", each payment with its link, "The claim's record on NEAR: updated to holds." and "What each step
+   NEAR testnet in" those seconds: "You put behind the claim 10.00 test USDC", "Agent A's share
+   0.20 test USDC, 1 part in 49" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
-6. Click "Prove the same claim again" - see "Answer: Yes, in" 1 to 2 s, from the stored verified result, with
-   how many seconds sooner and the $1.00 of agent pay it did not need; then your $49 payment's link.
+6. Click "Prove the same claim again" - see "Free: Yes, in" 1 to 2 s, from the stored verified result, with
+   how many seconds sooner, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet:" paid proofs, test dollars settled and lost, read in your browser
-   from NEAR's public record: each paid proof is one $49 from the buyer's test account to Knos's, so the dollars settled are the paid proofs times $49.
+   from NEAR's public record: each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (58.5 s), with
 screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [the claim](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-claim.png) and
@@ -519,7 +519,7 @@ screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v
 
 An agent can run the whole flow with one HTTP call: look up the paper, prove the claim, pay, update the record.
 
-`curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545"}'`
+`curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'`
 
 - see a JSON answer with `"verdict"` (`"holds": true`, the paper's number and the measured one), `"code"` (the link to the
   verified code), `"cap"` (the refused over-budget step), `"paid": true`, `"settled": true` (false, with `"why_not_settled"`, if a step failed) and `"receipt"` (the payments and each
@@ -552,11 +552,8 @@ paper link is the only data a buyer sends. Every push runs the full test suite o
 **Private AI.** The plain-words page is written by qwen2.5:1.5b-instruct in GitHub Actions. Running it on NEAR AI Cloud
 inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BLOCKED, no key is set yet.
 
-**Price.** $49 per proof, paid by the buyer's company after the answer. That is 6.7 times below the cheapest hand check
-of a paper ($330, Colliard and others, 2023).
-
-On Qwen3.8-27B at NEAR AI Cloud's listed $0.04 and $1.35 per million tokens, the model would cost $0.88 a proof if it
-reads 5 million tokens and writes 0.5 million (an assumption), a 98% margin. Nobody has paid for one yet.
+**Price.** No fixed price. The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
+other 48. Nobody has paid real money for one yet.
 
 **Hard to copy.** Every verified result is kept and reused, so each proof makes the next one cheaper. Knos has scored
 12,010 companies to find the 38 that both reinvest and build frontier technology: its first buyers.
@@ -578,7 +575,7 @@ Oct 2026; their 37.00 test USDC in bounties waits for them until they link a wal
 | `agent-a.knos-swarm-1105.testnet`, `agent-b.knos-swarm-1105.testnet` | the two agents, each with a key that can only call the jobs contract | [A](https://testnet.nearblocks.io/address/agent-a.knos-swarm-1105.testnet), [B](https://testnet.nearblocks.io/address/agent-b.knos-swarm-1105.testnet) |
 | `live.knos-swarm-1105.testnet` | the hosted app's capped account: posts each job, opens its record and pays as the buyer's test account (test money, 20 runs a day) | [explorer](https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet) |
 | `knos-usdc-1102.testnet` | the test dollar (NEP-141, 6 decimals) | [explorer](https://testnet.nearblocks.io/address/knos-usdc-1102.testnet) |
-| `knos-payer-1102.testnet` | Knos's own test account, where the buyer's $49 arrives and the fee is kept | [explorer](https://testnet.nearblocks.io/address/knos-payer-1102.testnet) |
+| `knos-payer-1102.testnet` | Knos's own test account, where Knos's fee from each first proof arrives and is kept | [explorer](https://testnet.nearblocks.io/address/knos-payer-1102.testnet) |
 
 The agent is paid by a plain NEP-141 transfer. Paying it through x402 is blocked: the testnet facilitator asks for an
 API key on its verify and settle calls, and Knos has none yet.
@@ -623,7 +620,7 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 ### Run one now
 
 Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/), keep the sample link and click
-**Will it work?**, then **Prove it: $49, pay after the answer**. You see the answer beside the paper's own number, the
+**Will it work?**, then **Prove it with 10 test USDC**. You see the answer beside the paper's own number, the
 verified code to download, the receipt and the claim's record updated, within seconds.
 
 The two agents are fixed programs, not AI models. To answer in seconds, Knos keeps a job ready: posted against its

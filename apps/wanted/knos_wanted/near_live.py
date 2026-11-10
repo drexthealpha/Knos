@@ -606,7 +606,7 @@ def claim_look(url: str) -> dict:
         return {"ok": True, "known": False, "title": meta.get("title", ""), "quote": fit}
     if not (_last.get("at") and time.time() - _last["at"] < 300) and not _lasting.locked():
         threading.Thread(target=_refresh_last, daemon=True).start()   # read in the background: the click never waits for it
-    out = {"ok": True, "known": True, **known, "price_usd": PRICE_USD, "last": _last.get("out"), "reusable": bool(_proofs.get("last"))}
+    out = {"ok": True, "known": True, **known, "amount_default": AMOUNT_DEFAULT, "amount_max": AMOUNT_MAX, "last": _last.get("out"), "reusable": bool(_proofs.get("last"))}
     job = _ready.get("job")
     mk = (job or {}).get("market")
     if not job:
@@ -712,8 +712,18 @@ def claim_code() -> tuple[bytes, str]:
 
 
 # Round 3: the price, the receipt, the spending cap, the cost of each step, reuse, the counters and one call for agents
-PRICE_USD = 49
-PRICE = PRICE_USD * 1_000_000          # $49.00 of test USDC (6 decimals)
+AMOUNT_DEFAULT = 10                    # test USDC a buyer puts behind a claim unless they type another amount
+AMOUNT_MAX = 100
+SHARE_OF = 49                          # the receipt's split: agent A gets 1 part in 49 of the amount, Knos's fee the other 48
+
+
+def _units(amount) -> int:
+    """The buyer's amount in test USDC units (6 decimals), from 1 to AMOUNT_MAX test USDC."""
+    try:
+        a = float(amount if amount not in (None, "") else AMOUNT_DEFAULT)
+    except (TypeError, ValueError):
+        a = AMOUNT_DEFAULT
+    return int(round(max(1.0, min(float(AMOUNT_MAX), a)) * 1_000_000))
 TREASURY = "knos-payer-1102.testnet"   # Knos's own test account, where the fee is kept
 RPC = "https://rpc.testnet.near.org"
 _proofs: dict = {}
@@ -789,19 +799,11 @@ def claim_cap() -> dict:
 _cap_lock = threading.Lock()
 
 
-def claim_pay(reuse: bool = False) -> dict:
-    """The buyer's $49 of test USDC, from a test account Knos holds for the buyer (no wallet needed), to Knos."""
-    _jobs()
+def _transfer(to: str, units: int, memo: str) -> dict:
+    """One test USDC transfer from the buyer test account Knos holds (no wallet needed), with one retry on a stale nonce."""
     import common
     from common import call
-    args = {"receiver_id": TREASURY, "amount": str(PRICE), "memo": "knos proof: HyperLogLog claim" + (" (reused result)" if reuse else "")}
-    t_pay = time.time()
-    try:
-        held = common.ft_balance(LIVE)
-    except Exception:  # noqa: BLE001 - unread: the transfer itself answers
-        held = PRICE
-    if held < PRICE:
-        return {"ok": False, "why": f"the buyer test account holds ${held / 1e6:.2f}, under $49, so no payment was sent", "usd": PRICE_USD}
+    args = {"receiver_id": to, "amount": str(units), "memo": memo}
     with _lock:
         common._PREFETCHED.pop(LIVE, None)
         try:
@@ -813,12 +815,34 @@ def claim_pay(reuse: bool = False) -> dict:
             common._PREFETCHED.pop(LIVE, None)
             r = call(LIVE, TOKEN, "ft_transfer", args, deposit="1 yoctoNEAR", gas="30 Tgas", wait="EXECUTED_OPTIMISTIC")
         common._PREFETCHED.pop(LIVE, None)
-    return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], "from": LIVE, "to": TREASURY, "usd": PRICE_USD, "seconds": round(time.time() - t_pay, 1),
-            "fee_account": "https://testnet.nearblocks.io/address/" + TREASURY + "?tab=tokentxns", **({} if r["ok"] else {"why": r["said"]})}
+    return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], "usd": units / 1e6, **({} if r["ok"] else {"why": r["said"]})}
+
+
+def claim_pay(amount=None) -> dict:
+    """The test USDC the buyer put behind the claim, paid for its first proof: agent A's share (1 part in 49) and Knos's
+    fee (the other 48), each its own transfer from the buyer test account."""
+    _jobs()
+    import common
+    from common import CONFIG
+    units = _units(amount)
+    share = units // SHARE_OF
+    t_pay = time.time()
+    try:
+        held = common.ft_balance(LIVE)
+    except Exception:  # noqa: BLE001 - unread: the transfers themselves answer
+        held = units
+    if held < units:
+        return {"ok": False, "why": f"the buyer test account holds {held / 1e6:.2f} test USDC, under {units / 1e6:.2f}, so nothing was sent", "usd": units / 1e6}
+    agent = _transfer(CONFIG["agents"]["a"], share, "knos proof: agent A's share of the amount behind the HyperLogLog claim")
+    fee = _transfer(TREASURY, units - share, "knos proof: Knos's fee from the amount behind the HyperLogLog claim") if agent["ok"] else {"ok": False, "why": "not sent: the agent's share failed"}
+    ok = agent["ok"] and fee["ok"]
+    return {"ok": ok, "usd": units / 1e6, "agent": agent, "fee": fee, "tx": fee.get("tx"), "url": fee.get("url"), "from": LIVE,
+            "seconds": round(time.time() - t_pay, 1), "fee_account": "https://testnet.nearblocks.io/address/" + TREASURY + "?tab=tokentxns",
+            **({} if ok else {"why": agent.get("why") if not agent["ok"] else fee.get("why")})}
 
 
 def claim_receipt(cap: dict | None, pay: dict, settle: dict | None) -> dict:
-    """The receipt after the result: the buyer's $49, the agent's share, Knos's fee kept, and what each step cost."""
+    """The receipt after the result: the amount behind the claim, agent A's share and Knos's fee, and what each step cost."""
     last = _proofs.get("last") or {}
     txs = last.get("txs") or {}
     from common import CONFIG
@@ -828,14 +852,16 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None) -> dict:
              ("Agent B sent its version", txs.get("submit_b"), b)]
     if cap and cap.get("tx"):
         steps.append(("Agent B's over-budget step, refused", cap["tx"], b))
-    steps.append(("Agent A was paid its share", txs.get("release"), CONFIG["relayer"]))
-    if pay.get("tx"):
-        steps.append(("The buyer's $49 paid to Knos", pay["tx"], LIVE))
+    steps.append(("The job paid agent A for passing", txs.get("release"), CONFIG["relayer"]))
+    if (pay.get("agent") or {}).get("tx"):
+        steps.append(("Agent A's share of your amount", pay["agent"]["tx"], LIVE))
+    if (pay.get("fee") or {}).get("tx"):
+        steps.append(("Knos's fee from your amount", pay["fee"]["tx"], LIVE))
     if settle and settle.get("tx"):
         steps.append(("The claim's record on NEAR updated", settle["tx"], LIVE))
-    share = BID / 1e6
-    return {"buyer_usd": PRICE_USD, "agent_usd": share, "knos_usd": round(PRICE_USD - share, 2), "pay_url": pay.get("url"),
-            "agent_url": last.get("release_url"), "log": action_log(steps)}
+    return {"buyer_usd": pay.get("usd"), "agent_usd": (pay.get("agent") or {}).get("usd"), "knos_usd": (pay.get("fee") or {}).get("usd"),
+            "agent_pay_url": (pay.get("agent") or {}).get("url"), "fee_url": (pay.get("fee") or {}).get("url"),
+            "job_pay_url": last.get("release_url"), "log": action_log(steps)}
 
 
 def claim_reuse() -> dict:
@@ -843,7 +869,7 @@ def claim_reuse() -> dict:
     last = _proofs.get("last")
     if not last:
         return {"ok": False, "why": "no verified result to reuse yet: order the first proof"}
-    return {"ok": True, "reused": last["job"], "verdict": last["verdict"],
+    return {"ok": True, "free": True, "reused": last["job"], "verdict": last["verdict"], "first_url": last.get("release_url"),
             "saved": {"agent_usd": BID / 1e6, "first_seconds": last["seconds"]}}
 
 
@@ -894,9 +920,9 @@ def _count() -> None:
                 if not nxt:
                     return
 
-        # the buyers' payments: each $49 that reached Knos's fee account from the buyer's test account
+        # the buyers' payments: each fee that reached Knos's account from the buyer's test account, one per paid first proof
         arrived = [int(t.get("delta_amount") or 0) for t in pages(TREASURY + "/ft-txns")
-                   if t.get("contract_account_id") == TOKEN and t.get("involved_account_id") == LIVE and int(t.get("delta_amount") or 0) == PRICE]
+                   if t.get("contract_account_id") == TOKEN and t.get("involved_account_id") == LIVE and int(t.get("delta_amount") or 0) > 0]
         paid, sent = sum(arrived), len(arrived)
         # payments that failed: the buyer account's token transfers that did not go through
         failed = sum(1 for t in pages(LIVE + "/txns") if t.get("receiver_account_id") == TOKEN
@@ -911,7 +937,7 @@ def _count() -> None:
         _counting.release()
 
 
-def claim_flow(url: str) -> dict:
+def claim_flow(url: str, amount=None) -> dict:
     """The whole flow in one call, for an agent: look up the paper, prove its claim, pay, settle, and the receipt."""
     look = claim_look(url)
     if not look.get("known"):
@@ -920,7 +946,7 @@ def claim_flow(url: str) -> dict:
     if not proof.get("ok"):
         return {"ok": False, "look": look, "why": proof.get("why")}
     cap = claim_cap()
-    pay = claim_pay()
+    pay = claim_pay(amount)
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
     done = bool(pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
     why = "" if done else ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
@@ -928,13 +954,12 @@ def claim_flow(url: str) -> dict:
             "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle)}
 
 
-def claim_finish(cap: dict | None, market: str = "", reuse: bool = False) -> dict:
-    """After the answer: the buyer's $49, the claim's record updated from the job (a first proof only), the receipt."""
+def claim_finish(cap: dict | None, market: str = "", amount=None) -> dict:
+    """After the answer of a first proof: the amount behind the claim paid, the claim's record updated, the receipt."""
     t0 = time.time()
-    pay = claim_pay(reuse=reuse)
-    settle = claim_settle(market) if (market and not reuse) else None
-    rc = claim_receipt(cap, pay, settle) if not reuse else {"buyer_usd": PRICE_USD, "pay_url": pay.get("url")}
-    return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": rc, "seconds": round(time.time() - t0, 1)}
+    pay = claim_pay(amount)
+    settle = claim_settle(market) if market else None
+    return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": claim_receipt(cap, pay, settle), "seconds": round(time.time() - t0, 1)}
 
 
 def claim_try(n: int) -> dict:

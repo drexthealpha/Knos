@@ -173,7 +173,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-first"><span class="k-q">Why does good research take 17 years to reach people?</span> <span class="k-a">Because checking that a result really works is slow and costly, so nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></span></h1>
     <p class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</p>
-    <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> $49, under a minute.</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
+    <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute, for the test USDC you put behind the claim.</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
       <label for="paper">Paste a paper link (the sample is HyperLogLog, 2007). Knos proves its main claim and hands you code that works.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
@@ -598,7 +598,7 @@ load();
 </script>
 <script>
 "use strict";
-// The research buyer's flow: paste a paper link, get the answer and one offer ($49 per proof, pay after the answer);
+// The research buyer's flow: paste a paper link, put test USDC behind its claim (10 unless typed otherwise);
 // order it, and a locked test reruns the result, a spending cap refuses an over-budget step, the receipt and the cost of
 // each step follow, the claim's record on NEAR updates, and a second proof of the same claim reuses the first result.
 (() => {
@@ -625,8 +625,8 @@ load();
     }
     return null;
   }
-  // live counters, read here from NEAR's public record (NearBlocks): a paid proof is one $49 that reached Knos's account
-  // from the buyer's test account, so the dollars are the paid proofs times $49; lost counts failed transfers of the buyer
+  // live counters, read here from NEAR's public record (NearBlocks): a paid first proof is one fee that reached Knos's
+  // account from the buyer's test account; the dollars are every such fee plus agent A's shares; lost counts failed transfers
   async function counters(after) {
     if (after) {   // a payment just made: read until the count passes the one shown, so this payment is counted
       const was = +($("c-proofs").textContent) || 0;
@@ -644,16 +644,18 @@ load();
     };
     const show = (c) => {
       $("c-proofs").textContent = String(c.proofs);
-      $("c-usd").textContent = `$${(c.proofs * 49).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+      $("c-usd").textContent = `$${(+c.usd || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       $("c-lost").textContent = "$0";   // a refused transfer moves no money, and every paid one is counted above
       $("c-refused").textContent = c.failed ? ` (${c.failed} payments refused by NEAR, none moved money)` : "";
     };
     try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c) show(c); } catch (e) { /* no stored values */ }
     const ft = await get("knos-payer-1102.testnet/ft-txns?limit=100");
     const tx = ft && await get(LIVE + "/txns?limit=100");
-    if (!ft || !tx) return;
+    const ag = tx && await get("agent-a.knos-swarm-1105.testnet/ft-txns?limit=100");
+    if (!ft || !tx || !ag) return;
     const c = {
-      proofs: (ft.data || []).filter((x) => x.involved_account_id === LIVE && x.contract_account_id === TOKEN && +x.delta_amount === 49000000).length,
+      proofs: (ft.data || []).filter((x) => x.involved_account_id === LIVE && x.contract_account_id === TOKEN && +x.delta_amount > 0).length,
+      usd: [ft, ag].reduce((n, d) => n + ((d && d.data) || []).filter((x) => x.involved_account_id === LIVE && x.contract_account_id === TOKEN && +x.delta_amount > 0).reduce((m, x) => m + x.delta_amount / 1e6, 0), 0),
       failed: (tx.data || []).filter((x) => x.receiver_account_id === TOKEN && (x.actions || []).some((a) => a.method === "ft_transfer") && !(x.outcomes || {}).status).length,
     };
     show(c);
@@ -686,14 +688,18 @@ load();
       look.scrollIntoView({ block: "start" });
       return;
     }
-    const order = el("button", { type: "button", className: "go big", textContent: "Prove it: $49, pay after the answer" });
+    const amountIn = el("input", { type: "number", id: "amount", value: String(r.amount_default || 10), min: "1", max: String(r.amount_max || 100), step: "1", style: "width:7em" });
+    const amount = () => Math.max(1, Math.min(r.amount_max || 100, Math.round(+amountIn.value || r.amount_default || 10)));
+    const order = el("button", { type: "button", className: "go big", textContent: `Prove it with ${amount()} test USDC` });
+    amountIn.addEventListener("input", () => { order.textContent = `Prove it with ${amount()} test USDC`; });
     order.dataset.buy = "";
     const kids = [
       el("section", { className: "card answer offer" }, [
         el("h2", { textContent: r.last ? `Last proof: ${r.last.holds ? "it held" : "it did not hold"}` : "Not proven yet" }),
         el("p", {}, r.last ? [`Knos last proved it ${when(r.last.job)} (`, out(r.last.record, "the record on NEAR"), "). Your own proof reruns it now and gives you the verified code and a receipt."]
           : ["Nobody has proven this claim with Knos yet. Your proof gives you a Yes or No, the verified code and a receipt."]),
-        el("p", { className: "price" }, [el("b", { textContent: "$49 per proof, pay after the answer." }), " The answer comes in under a minute."]),
+        el("p", { className: "price" }, [el("b", { textContent: "The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public." })]),
+        el("p", {}, [el("label", { htmlFor: "amount", textContent: "Test USDC you put behind this claim: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
         el("p", { className: "fine", textContent: "This is a demo with test money: no card is charged and no invoice is sent." })]),
       el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
@@ -704,10 +710,10 @@ load();
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it")])]));
     look.replaceChildren(...kids);
     look.scrollIntoView({ block: "start" });
-    order.addEventListener("click", () => prove(order));
+    order.addEventListener("click", () => prove(order, amount()));
   });
 
-  async function prove(order) {
+  async function prove(order, amount) {
     order.disabled = true; $("prove").hidden = false;
     const t0 = performance.now(), secs = () => (performance.now() - t0) / 1000;
     const tick = setInterval(() => { $("secs").textContent = secs().toFixed(1); }, 100);
@@ -754,26 +760,27 @@ load();
     add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
       el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut]);
     firstSeconds = secs();
-    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: "Your $49 of test money goes to Knos and the claim\u2019s record on NEAR is updated: about 10 to 30 s on the test network." })]);
+    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 30 s on the test network.` })]);
     const tPay = performance.now();
-    const fin = await post("/api/near/claim/finish", { cap, market: r.market ? r.market.id : "" });
+    const fin = await post("/api/near/claim/finish", { cap, market: r.market ? r.market.id : "", amount });
     if (fin.pay) fin.pay.seconds = +((performance.now() - tPay) / 1000).toFixed(1);   // the wait the buyer saw, payment and record
     paying.remove(); clearInterval(tick);
-    receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle);
+    receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle, amount);
     const lastLine = document.querySelector("#look .offer p");   // the answer card now names this proof as the last one
     if (lastLine && fin.settle && fin.settle.ok && fin.settle.settled != null) lastLine.replaceChildren("Knos last proved it just now: your proof (", out(fin.settle.url, "the record on NEAR"), ").");
     order.disabled = false;
   }
 
-  function receipt(rc, pay, settle) {
+  function receipt(rc, pay, settle, amount) {
     const rows = ((rc && rc.log && rc.log.rows) || []).map((x) => el("tr", {}, [el("td", { textContent: x.step }),
       el("td", { className: "n", textContent: x.usd != null ? usd(x.usd) : x.near != null ? `${x.near} NEAR` : "" }), el("td", {}, x.url ? out(x.url, "record") : "")]));
+    const ok = pay && pay.ok, tu = (n) => `${(+n || 0).toFixed(2)} test USDC`;
     const box = el("section", { className: "card receipt-card" }, [
-      el("h2", { textContent: !(pay && pay.ok) ? "Payment failed: no $49 moved" : settle && settle.ok && settle.settled != null ? `Receipt: paid and recorded on NEAR testnet in ${pay.seconds} s` : `Receipt: paid on NEAR testnet in ${pay.seconds} s` }),
+      el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt: paid and recorded on NEAR testnet in ${pay.seconds} s` : `Receipt: paid on NEAR testnet in ${pay.seconds} s` }),
       el("table", { className: "vs" }, [
-        el("tr", {}, [el("th", { textContent: "You paid" }), el("td", {}, [pay && pay.ok ? `$${(rc && rc.buyer_usd) || 49}.00 of test USDC, from a test account Knos holds for you, so you need no wallet. ` : `Nothing: the payment failed (${(pay && pay.why) || "no answer"}). `, pay && pay.url ? out(pay.url, pay.ok ? "The payment" : "The failed transaction") : (pay && pay.why) || ""])]),
-        el("tr", {}, [el("th", { textContent: "Agent A’s share" }), el("td", {}, [`$${((rc && rc.agent_usd) || 1).toFixed(2)}, paid by the jobs contract when its code passed. `, rc && rc.agent_url ? out(rc.agent_url, "The payment") : ""])]),
-        el("tr", {}, [el("th", { textContent: "Knos keeps" }), el("td", {}, [pay && pay.ok ? `$${((rc && rc.knos_usd) || 48).toFixed(2)} of your $49, kept in Knos\u2019s own test account. ` : "Nothing, as no payment arrived. ", pay && pay.ok && pay.url ? out(pay.url, "Your payment") : "", pay && pay.fee_account ? " \u00b7 " : "", pay && pay.fee_account ? out(pay.fee_account, "The account") : ""])])]),
+        el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, [ok ? `${tu(rc.buyer_usd)}, from a test account Knos holds for you, so you need no wallet.` : `Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
+        el("tr", {}, [el("th", { textContent: "Agent A\u2019s share" }), el("td", {}, ok ? [`${tu(rc.agent_usd)}, 1 part in 49. `, rc.agent_pay_url ? out(rc.agent_pay_url, "The transfer") : ""] : ["Nothing."])]),
+        el("tr", {}, [el("th", { textContent: "Knos\u2019s fee" }), el("td", {}, ok ? [`${tu(rc.knos_usd)}, the other 48 parts, kept in Knos\u2019s own test account. `, rc.fee_url ? out(rc.fee_url, "The transfer") : "", pay.fee_account ? " \u00b7 " : "", pay.fee_account ? out(pay.fee_account, "The account") : ""] : ["Nothing."])])]),
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
       el("h3", { textContent: "What each step cost" }),
       el("table", { className: "log" }, rows),
@@ -792,14 +799,11 @@ load();
       const took = (performance.now() - t) / 1000;
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
       const first = firstSeconds || x.saved.first_seconds;
-      const paid = el("span", { textContent: "Paying your $49\u2026" });
-      said.replaceChildren(el("b", { textContent: `Answer: ${x.verdict.holds ? "Yes" : "No"}, in ${took.toFixed(1)} s instead of ${first.toFixed(1)} s. ` }),
-        `No agent reran it: Knos reused the verified result of proof ${x.reused}, so the answer came ${(first - took).toFixed(1)} s sooner and needed $${x.saved.agent_usd.toFixed(2)} less agent pay. `, paid);
-      const f = await post("/api/near/claim/finish", { reuse: true });
-      paid.replaceChildren(f.pay && f.pay.url ? out(f.pay.url, "Your $49 payment") : `Payment not made: ${(f.pay && f.pay.why) || f.why || "no answer"}.`);
-      counters(true);
+      said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s instead of ${first.toFixed(1)} s. ` }),
+        `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, so the answer came ${(first - took).toFixed(1)} s sooner. `,
+        x.first_url ? out(x.first_url, "The first proof") : "");
     });
-    $("links").replaceChildren(...(rc && rc.agent_url ? [out(rc.agent_url, "settled on NEAR testnet"), " (the public record of this proof)"] : []));
+    $("links").replaceChildren(...(rc && rc.job_pay_url ? [out(rc.job_pay_url, "settled on NEAR testnet"), " (the public record of this proof)"] : []));
     counters(true);
   }
 })();
