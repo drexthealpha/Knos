@@ -33,19 +33,37 @@
 .iris-watch video{width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#000}
 @media (max-width: 860px){.iris-grid{grid-template-columns:1fr}.iris-page{align-content:start}}
 </style>
+<script>document.documentElement.classList.add("js");try { const t = localStorage.getItem("knos-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="preconnect" href="https://drexthealpha.github.io" crossorigin>
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
 </head>
 <body>
-<header class="bar">
-  <a class="brand" href="../" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
-</header>
+<!-- k-bar -->
+<header class="bar k-bar" id="k-bar">
+  <a class="brand" href="../#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+  <nav id="nav" aria-label="Knos">
+    <a href="../" data-nav="home">Home</a>
+    <a href="../near/" data-nav="near">NEAR app</a>
+    <a href="../iris/" data-nav="iris">IRIS</a>
+    <a href="../proof/" data-nav="proof" data-proof>Proof</a>
+  </nav>
+  <div class="tools">
+    <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+    <button id="theme" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
+  </div>
+</header><script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/Knos/*"},{"not":{"href_matches":"/Knos/wanted.html*"}}]},"eagerness":"moderate"}]}</script>
+<script>addEventListener("load", () => { const s = document.createElement("script"); s.src = "../brand/bar.js"; document.head.append(s); }, { once: true });</script>
+<!-- /k-bar -->
 <main class="iris-page">
+<!-- k-first -->
+<h1 class="k-first" id="k-first"><span class="k-q">Why does good research take 17 years to reach people?</span> <span class="k-a">Because checking that a result really works is slow and costly, so nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></span></h1>
+<p class="k-goal">Knos turns any research into a product billions of people use, in days, not years.</p>
+<!-- /k-first -->
   <div class="iris-grid">
     <div>
-      <h1>Knos on InterSystems IRIS</h1>
-      <p class="means">Knos turns any research into a product billions of people use, in days, not years.</p>
+      <h2>Knos on InterSystems IRIS</h2>
       <p class="means">Knos carries research across the valley of death, toward Kardashev II and III.</p>
       <h2 class="iris-h2">How it works today</h2>
       <p class="means">Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembers. Test money only.</p>

@@ -491,8 +491,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
 1. Open https://drexthealpha.github.io/Knos/near/ - see "Why does good research take 17 years to reach people?" with its
    answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute, for the test USDC you put behind the claim.", the box holding the
    HyperLogLog DOI and the button "Will it work?".
-2. Click "Will it work?" - see, 1 to 4 s later, "Last proof: it held" with when Knos last proved it ("Not proven yet"
-   before any proof), the one rule ("The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public."), the box "Test USDC you put behind this claim:" holding 10
+2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the one rule ("The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public."), the box "Test USDC you put behind this claim:" holding 10
    and the button "Prove it with 10 test USDC", then the paper's claim word for word and its plain-words page.
 3. Type an amount (1 to 100) or keep 10, and click "Prove it with 10 test USDC" - see a clock, "1. The test is locked", "2. Two agents rerun the paper's
    result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
@@ -507,7 +506,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
    cost", every step's network fee with its record.
 6. Click "Prove the same claim again" - see "Free: Yes, in" 1 to 2 s, from the stored verified result, with
    how many seconds sooner, "no test USDC moved" and a link to the first proof.
-7. Below the run - see "Live from NEAR testnet:" paid proofs, test dollars settled and lost, read in your browser
+7. Below the run - see "Live from NEAR testnet:" paid first proofs, test dollars settled and lost, read in your browser
    from NEAR's public record: each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (58.5 s), with

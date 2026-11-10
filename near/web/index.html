@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
 <title>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</title>
-<link rel="icon" href="../brand/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../brand/tokens.css">
 <style>
 /* Hallmark · job: post a job, watch two agents try it, see only the passing one paid, try the guardrails · shape: app screen · genre: modern-minimal · theme: the Knos tokens (web/brand/tokens.css, near/DESIGN.md) */
@@ -14,14 +13,9 @@ html, body { overflow-x: clip; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 var(--s1)/1.5 var(--text); }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-s); }
-.bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); min-height: 56px; padding: var(--sp-2) max(16px, calc((100% - 1200px) / 2)); border-bottom: 1px solid var(--line); }
-.bar strong { font: 650 18px/1 var(--head); margin-right: auto; }
-.bar nav { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
-.bar nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; }
-.bar nav a[aria-current] { color: var(--accent); }
 main { max-width: 1200px; margin: 0 auto; padding: var(--sp-5) 16px 64px; display: grid; gap: var(--sp-6); }
 main > * { min-width: 0; }
-.first { min-height: calc(100svh - 80px); }
+.first { }
 .bar { min-height: 64px; border-bottom: 1px solid var(--line); }
 .k-mission { font: 400 clamp(48px, 6.4vw, 84px)/1.02 var(--serif); letter-spacing: -.01em; margin: var(--sp-4) 0 var(--sp-4); max-width: 12em; }
 .k-mission .k-line { display: block; overflow: hidden; padding-bottom: .08em; } .k-mission .k-line > span { display: block; }
@@ -103,8 +97,6 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   .t td.n { text-align: left; }
 }
 .bar #menu.menu { display: inline-flex; align-items: center; margin-left: auto; min-height: 44px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.3 var(--text); cursor: pointer; }
-.bar #nav { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 4px 16px; } .bar #nav[hidden] { display: none; }
-.bar #nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; } .bar #nav a[aria-current] { color: var(--accent); }
 </style>
 <style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
 <style id="k-first-css">
@@ -121,9 +113,6 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 .card.offer { border: 2px solid var(--accent); background: var(--paper); box-shadow: var(--depth-2); }
 .answer { border: 2px solid var(--ink); }
 .why { font: 500 clamp(18px, 1.7vw, 22px)/1.45 var(--text); max-width: 40em; margin: 0 auto var(--sp-3); }
-.k-first { font: inherit; max-width: 40em; margin: var(--sp-4) auto var(--sp-3); letter-spacing: 0; }
-.k-first .k-q { display: block; font: 600 clamp(26px, 3.2vw, 40px)/1.15 var(--head); letter-spacing: -.02em; }
-.k-first .k-a { display: block; font: 500 clamp(18px, 1.7vw, 22px)/1.45 var(--text); margin-top: var(--sp-2); }
 .cost { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-2) var(--sp-4); align-items: baseline; margin: 0 auto var(--sp-5); font-size: var(--s1); }
 .cost a { font-size: var(--s1); }
 .price { font-size: var(--s1); }
@@ -135,7 +124,7 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
 .odds .pct { font: 400 clamp(36px, 4vw, 48px)/1 var(--serif); margin-right: var(--sp-2); }
 .vs th { width: 10em; color: var(--ink-2); font-weight: 500; }
 .stop { color: var(--bad); }
-.first { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: var(--sp-5) 0; }
+.first { display: flex; flex-direction: column; padding: 0 0 var(--sp-5); }
 .first .k-mission { font: 400 clamp(26px, 3vw, 38px)/1.15 var(--serif); max-width: 22em; margin: 0 auto var(--sp-4); }
 .give { font: 500 clamp(19px, 1.8vw, 24px)/1.4 var(--text); color: var(--ink-2); margin: 0 auto var(--sp-4); max-width: 34em; }
 .cta { margin: 0 auto var(--sp-5); }
@@ -163,16 +152,37 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 .under { margin-top: var(--sp-6); } .under > summary { cursor: pointer; font-weight: 600; color: var(--ink-2); padding: var(--sp-3) 0; }
 .under[open] > * { margin-top: var(--sp-5); }
 .foot { max-width: 1200px; margin: 0 auto; padding: var(--sp-4) 16px var(--sp-6); border-top: 1px solid var(--line); }
-.foot nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-.foot nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; } .foot nav a[aria-current] { color: var(--accent); }
 @media (max-width: 640px) { .loss { flex-direction: column; gap: var(--sp-1); } }
 </style>
+<script>document.documentElement.classList.add("js");try { const t = localStorage.getItem("knos-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
 </head>
 <body>
+<!-- k-bar -->
+<header class="bar k-bar" id="k-bar">
+  <a class="brand" href="../#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+  <nav id="nav" aria-label="Knos">
+    <a href="../" data-nav="home">Home</a>
+    <a href="../near/" data-nav="near">NEAR app</a>
+    <a href="../iris/" data-nav="iris">IRIS</a>
+    <a href="../proof/" data-nav="proof" data-proof>Proof</a>
+  </nav>
+  <div class="tools">
+    <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+    <button id="theme" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
+    <a id="whoBtn" class="signin" href="../wanted.html#signin">Sign in</a>
+  </div>
+</header><script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/Knos/*"},{"not":{"href_matches":"/Knos/wanted.html*"}}]},"eagerness":"moderate"}]}</script>
+<script>addEventListener("load", () => { const s = document.createElement("script"); s.src = "../brand/bar.js"; document.head.append(s); }, { once: true });</script>
+<!-- /k-bar -->
 <main>
-  <section class="first" aria-labelledby="t-title">
-    <h1 id="t-title" class="k-first"><span class="k-q">Why does good research take 17 years to reach people?</span> <span class="k-a">Because checking that a result really works is slow and costly, so nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></span></h1>
-    <p class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</p>
+  <section class="first" aria-labelledby="k-first">
+<!-- k-first -->
+<h1 class="k-first" id="k-first"><span class="k-q">Why does good research take 17 years to reach people?</span> <span class="k-a">Because checking that a result really works is slow and costly, so nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></span></h1>
+<p class="k-goal">Knos turns any research into a product billions of people use, in days, not years.</p>
+<!-- /k-first -->
     <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute, for the test USDC you put behind the claim.</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
       <label for="paper">Paste a paper link (the sample is HyperLogLog, 2007). Knos proves its main claim and hands you code that works.</label>
@@ -190,7 +200,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> paid proofs (reused answers too), <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost<span id="c-refused"></span>. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> paid first proofs, <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost<span id="c-refused"></span>. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545"}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest result, live: <a href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml"><img src="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml/badge.svg?branch=main" alt="tests: the latest run's result on GitHub" style="vertical-align:middle;height:20px"></a>. Knos has no token.</p>
@@ -308,14 +318,6 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
   </details>
 </main>
-<footer class="foot">
-  <nav id="nav" aria-label="Knos">
-    <a href="../">Home</a>
-    <a href="./" aria-current="page">NEAR app</a>
-    <a href="../iris/">IRIS</a>
-    <a href="../proof/">Proof</a>
-  </nav>
-</footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha512-7eHRwcbYkK4d9g/6tD/mhkf++eoTHwpNM9woBxtPUBWm67zeAfFC+HrdoE2GanKeocly/VxeLvIqwvCdk7qScg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js" integrity="sha512-lhK7xTsFM6DPXOtQQyPe+NmpoFEheKDHjM/5QzpFRiE1KySgtBfEzYz4XowvB+CAWcBLBGWinhh41uNaOtrSZA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
@@ -688,18 +690,17 @@ load();
       look.scrollIntoView({ block: "start" });
       return;
     }
-    const amountIn = el("input", { type: "number", id: "amount", value: String(r.amount_default || 10), min: "1", max: String(r.amount_max || 100), step: "1", style: "width:7em" });
+    const amountIn = el("input", { type: "number", id: "claim-amount", value: String(r.amount_default || 10), min: "1", max: String(r.amount_max || 100), step: "1", style: "width:7em" });
     const amount = () => Math.max(1, Math.min(r.amount_max || 100, Math.round(+amountIn.value || r.amount_default || 10)));
     const order = el("button", { type: "button", className: "go big", textContent: `Prove it with ${amount()} test USDC` });
     amountIn.addEventListener("input", () => { order.textContent = `Prove it with ${amount()} test USDC`; });
     order.dataset.buy = "";
     const kids = [
       el("section", { className: "card answer offer" }, [
-        el("h2", { textContent: r.last ? `Last proof: ${r.last.holds ? "it held" : "it did not hold"}` : "Not proven yet" }),
-        el("p", {}, r.last ? [`Knos last proved it ${when(r.last.job)} (`, out(r.last.record, "the record on NEAR"), "). Your own proof reruns it now and gives you the verified code and a receipt."]
-          : ["Nobody has proven this claim with Knos yet. Your proof gives you a Yes or No, the verified code and a receipt."]),
+        el("h2", { textContent: "Prove this claim now" }),
+        el("p", {}, ["Two agents rerun it against a locked test on NEAR. You get a Yes or No, the verified code and a receipt."]),
         el("p", { className: "price" }, [el("b", { textContent: "The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public." })]),
-        el("p", {}, [el("label", { htmlFor: "amount", textContent: "Test USDC you put behind this claim: " }), amountIn]),
+        el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Test USDC you put behind this claim: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
         el("p", { className: "fine", textContent: "This is a demo with test money: no card is charged and no invoice is sent." })]),
       el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
@@ -766,8 +767,6 @@ load();
     if (fin.pay) fin.pay.seconds = +((performance.now() - tPay) / 1000).toFixed(1);   // the wait the buyer saw, payment and record
     paying.remove(); clearInterval(tick);
     receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle, amount);
-    const lastLine = document.querySelector("#look .offer p");   // the answer card now names this proof as the last one
-    if (lastLine && fin.settle && fin.settle.ok && fin.settle.settled != null) lastLine.replaceChildren("Knos last proved it just now: your proof (", out(fin.settle.url, "the record on NEAR"), ").");
     order.disabled = false;
   }
 
@@ -808,6 +807,5 @@ load();
   }
 })();
 </script>
-<script>(() => { const m = document.getElementById("menu"), n = document.getElementById("nav"); if (!m || !n) return; m.addEventListener("click", () => { n.hidden = !n.hidden; m.setAttribute("aria-expanded", String(!n.hidden)); }); })();</script>
 </body>
 </html>

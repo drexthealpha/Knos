@@ -173,3 +173,9 @@ html, body { overflow-x: clip; }
 .js .bar.open nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); gap: 2px 8px; padding-top: 4px; }
 .js .bar .tools { margin-left: auto; }
 .bar .tools .signin, .bar .tools #whoBtn.signin { display: none; }
+
+/* The first line of every face (web/brand/first.html): the question a stranger asks, its one-line answer, the goal under it. */
+.k-first { font: inherit; max-width: 40em; margin: var(--sp-5) auto var(--sp-3); letter-spacing: 0; text-align: center; }
+.k-first .k-q { display: block; font: 600 clamp(26px, 3.2vw, 40px)/1.15 var(--head); letter-spacing: -.02em; color: var(--fg); }
+.k-first .k-a { display: block; font: 500 clamp(17px, 1.6vw, 21px)/1.45 var(--text); margin-top: var(--sp-2); color: var(--fg); }
+.k-goal { font: 400 clamp(24px, 2.8vw, 36px)/1.15 var(--serif); max-width: 22em; margin: 0 auto var(--sp-4); text-align: center; }

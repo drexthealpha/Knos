@@ -59,12 +59,15 @@ PAGES = {
     WEB / "404.html": (SITE, SITE, SITE + WAKE, "brand/tokens.css", True),        # its <base href="/Knos/"> holds at any depth
     WEB / "wanted.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "start" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),
+    WEB / "iris" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),   # the IRIS face, at /iris/
+    ROOT / "near" / "web" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),   # the NEAR face, at /near/
     STATIC / "index.html": ("", SITE, "", "/static/brand/tokens.css", True),
     **{STATIC / n: ("/app/", SITE, "/app/", "/static/brand/tokens.css", True)
        for n in ("trace.html", "with_without.html", "qloo_safe_use.html", "invite.html", "verify.html", "ready.html",
                  "fields.html", "money.html", "companies.html")},
 }
 MARK = re.compile(r"<!-- k-bar -->.*?<!-- /k-bar -->", re.S)
+FIRST = re.compile(r"<!-- k-first -->.*?<!-- /k-first -->", re.S)   # every face's first line (web/brand/first.html)
 PROOF_SLOT = '<div id="k-card" class="k-slot" aria-live="polite"></div>'   # hero.js runs right after the card slot
 HERO = re.compile(r"<!-- k-hero -->.*?<!-- /k-hero -->", re.S)
 VECTORS = re.compile(r"<!-- k-vectors -->.*?<!-- /k-vectors -->", re.S)
@@ -102,6 +105,9 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
         s, n = re.subn(r"<header\b.*?</header>", lambda _: block, s, count=1, flags=re.S)
         if not n:
             s = re.sub(r"<body([^>]*)>", lambda m: f"<body{m.group(1)}>\n{block}", s, count=1)
+    if FIRST.search(s):
+        first = (WEB / "brand" / "first.html").read_text(encoding="utf-8").strip()
+        s = FIRST.sub(lambda _: f"<!-- k-first -->\n{first}\n<!-- /k-first -->", s, count=1)
     if path in HEROES:
         api, app_pages, js = HEROES[path]
         t = (WEB / "brand" / "hero.html").read_text(encoding="utf-8").strip().replace("{API}", api).replace("{APP}", app_pages).replace("{SP}", site or "./")
