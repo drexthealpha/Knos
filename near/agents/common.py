@@ -95,6 +95,8 @@ def _keys() -> dict:
 
 
 _PREFETCHED: dict = {}
+_LAST_NONCE: dict = {}      # the last nonce this process signed with, per account
+_SIGNING: dict = {}         # one lock per account: two threads never sign for one account at once
 
 
 def prefetch(who: str) -> None:
@@ -124,7 +126,9 @@ def _py_signed(who: str, contract: str, method: str, args: dict, deposit: str, g
     s = lambda t: struct.pack("<I", len(t.encode())) + t.encode()   # noqa: E731
     body = json.dumps(args).encode()
     action = bytes([2]) + s(method) + struct.pack("<I", len(body)) + body + struct.pack("<Q", _amount(gas, 10**12)) + _amount(deposit, 10**24).to_bytes(16, "little")
-    tx = s(who) + b"\0" + pub + struct.pack("<Q", ak["nonce"] + 1) + s(contract) + block + struct.pack("<I", 1) + action
+    nonce = max(int(ak["nonce"]), _LAST_NONCE.get(who, 0)) + 1   # a final read can lag this process's own last send
+    _LAST_NONCE[who] = nonce
+    tx = s(who) + b"\0" + pub + struct.pack("<Q", nonce) + s(contract) + block + struct.pack("<I", 1) + action
     return base64.b64encode(tx + b"\0" + sk.sign(hashlib.sha256(tx).digest())).decode()
 
 
@@ -151,7 +155,20 @@ def _send(who: str, signed: str, wait: str = "FINAL") -> dict:
 def call(who: str, contract: str, method: str, args: dict, deposit: str = "0 NEAR", gas: str = "100 Tgas", wait: str = "FINAL") -> dict:
     """One transaction signed by `who`; returns ok, the transaction hash, and the contract's answer or its refusal."""
     if os.environ.get("KNOS_NEAR_KEYS_FILE"):
-        signed = _py_signed(who, contract, method, args, deposit, gas)
+        import threading
+        with _SIGNING.setdefault(who, threading.Lock()):
+            for n in range(3):   # a nonce another signer used meanwhile: read it afresh and sign again
+                signed = _py_signed(who, contract, method, args, deposit, gas)
+                try:
+                    r = _send(who, signed, wait)
+                    break
+                except RuntimeError as e:
+                    if "InvalidNonce" not in str(e) or n == 2:
+                        raise
+                    _PREFETCHED.pop(who, None)
+                    _LAST_NONCE.pop(who, None)
+                    time.sleep(1.5)
+        return _outcome(r)
     else:
         text = near("contract", "call-function", "as-transaction", contract, method, "json-args", json.dumps(args), "prepaid-gas", gas,
                     "attached-deposit", deposit, "sign-as", who, "network-config", "testnet", "sign-with-legacy-keychain", "display")
@@ -159,7 +176,10 @@ def call(who: str, contract: str, method: str, args: dict, deposit: str = "0 NEA
         if not m:
             raise RuntimeError(f"near-cli did not sign {method} for {who}: {text[-300:]}")
         signed = m.group(1)
-    r = _send(who, signed, wait)
+    return _outcome(_send(who, signed, wait))
+
+
+def _outcome(r: dict) -> dict:
     outcomes = [r["transaction_outcome"]] + r["receipts_outcome"]
     fail = next((o["outcome"]["status"]["Failure"] for o in outcomes if "Failure" in o["outcome"]["status"]), None)
     val = r["status"].get("SuccessValue", "")
