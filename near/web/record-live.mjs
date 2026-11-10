@@ -38,7 +38,7 @@ mark("claim shown");
 await focus("#look .card", 0, "The paper's own claim, word for word", 4000);
 await page.screenshot({ path: path.join(out, "2-claim.png") });
 await focus("#look .card", 1, "In plain words, written by a small AI", 3500);
-await focus("#look .odds", 0, "How likely it holds: the price of a bet on it, on NEAR", 3500);
+await focus("#look .odds", 0, "The odds it holds before any proof, set on NEAR", 3500);
 await focus("#look .offer", 0, "One offer: prove it for $500, answer in under a minute", 3500);
 await page.locator("#look .offer button").click();
 mark("order");

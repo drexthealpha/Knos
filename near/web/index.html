@@ -147,6 +147,8 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 .product p.got { padding: var(--sp-3); border-radius: var(--radius); background: var(--soft); }
 .product p[hidden] { display: none; }
 .links a { margin-right: var(--sp-3); white-space: nowrap; }
+.under { margin-top: var(--sp-6); } .under > summary { cursor: pointer; font-weight: 600; color: var(--ink-2); padding: var(--sp-3) 0; }
+.under[open] > * { margin-top: var(--sp-5); }
 .foot { max-width: 1200px; margin: 0 auto; padding: var(--sp-4) 16px var(--sp-6); border-top: 1px solid var(--line); }
 .foot nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .foot nav a { color: var(--ink); text-decoration: none; padding: 10px 2px; font-weight: 500; } .foot nav a[aria-current] { color: var(--accent); }
@@ -158,7 +160,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</h1>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper link</label>
+      <label for="paper">Paste a paper link. Knos checks whether its main claim holds.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -173,6 +175,8 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     </div>
   </section>
 
+  <details class="under">
+    <summary>For developers: the parts underneath, and other runs</summary>
   <p class="k-vision" data-not-prose>Knos carries research across the valley of death, toward Kardashev II and III.</p>
 
   <ul class="totals" id="totals" aria-label="Live totals, each from its public record">
@@ -280,6 +284,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     </table>
     <p class="fine" id="contract"></p>
   </section>
+  </details>
 </main>
 <footer class="foot">
   <nav id="nav" aria-label="Knos">
@@ -639,7 +644,8 @@ load();
     const go = $("go"); go.disabled = true; $("run").hidden = false; $("prove").hidden = true; $("links").replaceChildren();
     const look = $("look");
     look.replaceChildren(el("p", { className: "fine", textContent: "Reading the paper…" }));
-    const [r] = await Promise.all([post("/api/near/claim/look", { url: $("paper").value }), ready]);
+    let [r] = await Promise.all([post("/api/near/claim/look", { url: $("paper").value }), ready]);
+    if (!r.ok && /did not answer/.test(r.why || "")) r = await post("/api/near/claim/look", { url: $("paper").value });   // one more try
     go.disabled = false;
     if (!r.ok) { look.replaceChildren(el("p", { className: "stop", textContent: `Not read: ${r.why || "no answer"}.` })); return; }
     if (!r.known) {
@@ -661,8 +667,8 @@ load();
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it")])]));
     else kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("p", { className: "fine", textContent: "The small AI’s page could not be read now, so no text is shown." })]));
-    if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "How likely this holds" }),
-      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " says the price people pay to bet that it holds."]),
+    if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "How likely this holds, before any proof" }),
+      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " Not proven yet: the odds stay at even until someone proves it. A proof settles them to Yes or No."]),
       el("p", { className: "fine" }, [out(NB + "address/market.knos-swarm-1105.testnet", "Where this number comes from")])]));
     const order = el("button", { type: "button", className: "go big", textContent: "Order now, pay by invoice after the answer" });
     order.dataset.buy = "";
