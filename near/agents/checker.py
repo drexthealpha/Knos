@@ -24,7 +24,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from common import CONFIG, HERE, JOB_DIR, call, sha256_file, view
+from common import CONFIG, HERE, JOB_DIR, JOB_TEST, call, sha256_file, view
 
 # the hosted app signs with its own checker key (KNOS_CHECKER_PEM_FILE, KNOS_CHECKER_KID), which 2 owners set and can remove
 KEY = Path(os.environ.get("KNOS_CHECKER_PEM_FILE") or Path.home() / ".knos-checker" / "checker.pem")
@@ -46,11 +46,11 @@ def sign(claims: dict) -> str:
 
 def run_test(output: Path) -> tuple[bool, str, float]:
     with tempfile.TemporaryDirectory() as d:
-        shutil.copy(JOB_DIR / "test_slug.py", Path(d) / "test_slug.py")
+        shutil.copy(JOB_DIR / JOB_TEST, Path(d) / JOB_TEST)
         shutil.copy(output, Path(d) / "solution.py")
         t0 = time.time()
         try:
-            p = subprocess.run([sys.executable, "-E", "-s", "-B", "test_slug.py"], cwd=d, capture_output=True, text=True, timeout=20)
+            p = subprocess.run([sys.executable, "-E", "-s", "-B", JOB_TEST], cwd=d, capture_output=True, text=True, timeout=20)
         except subprocess.TimeoutExpired:
             return False, "the test ran over 20 s", time.time() - t0
         said = (p.stdout + p.stderr).strip().splitlines()
@@ -72,7 +72,7 @@ def check(job_id: str, release: bool = True) -> dict:
     job = view(CONFIG["contract"], "get_job", {"id": job_id})
     if not job:
         raise SystemExit(f"no job {job_id}")
-    test_hash = sha256_file(JOB_DIR / "test_slug.py")
+    test_hash = sha256_file(JOB_DIR / JOB_TEST)
     out = {"job": job_id, "criteria_hash": job["criteria_hash"], "test_sha256": test_hash, "attempts": []}
     if test_hash != job["criteria_hash"]:
         out["refused"] = "the test file is not the one locked at funding"

@@ -21,6 +21,7 @@ RPC = os.environ.get("NEAR_RPC", "https://rpc.testnet.near.org")
 EXPLORER = "https://explorer.testnet.near.org/transactions/"
 HERE = Path(__file__).resolve().parent
 JOB_DIR = HERE / "job"
+JOB_TEST = "test_hll.py"   # the locked check: HyperLogLog's promise (job/test_hll.py)
 CONFIG = json.loads((HERE / "swarm.json").read_text(encoding="utf-8"))
 # the hosted app posts and releases from its own capped account (live.knos-swarm-1105.testnet), not the maintainer's
 CONFIG.update({k: os.environ[e] for k, e in (("payer", "KNOS_NEAR_PAYER"), ("relayer", "KNOS_NEAR_RELAYER")) if os.environ.get(e)})

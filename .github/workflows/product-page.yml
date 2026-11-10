@@ -1,0 +1,43 @@
+# The NEAR job's product page, written by the small model the claim pages use: every hour (and by hand) this job asks
+# qwen2.5:1.5b-instruct (through Ollama on this runner: no key, nothing paid) for a product name and pitch from the
+# job's research result (near/scripts/product_page.py), and publishes the answer as this commit's "product-page" check
+# run, which the NEAR page reads (GitHub's public API). If no answer keeps to the limits, it publishes that, with no text.
+# Nothing here signs a transaction or holds money; the only token is this run's own, to write the check run.
+name: Product page
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-page
+  cancel-in-progress: false
+
+jobs:
+  page:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Ollama and qwen2.5:1.5b-instruct
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > /tmp/ollama.log 2>&1 &) ; sleep 5
+          ollama pull qwen2.5:1.5b-instruct
+      - name: Write the page
+        run: python3 near/scripts/product_page.py page.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Publish it as the product-page check run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -c 'import json,os; p=json.load(open("page.json")); print(json.dumps({"name": "product-page", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "success", "output": {"title": ("kept " if p["kept"] else "not kept ") + p["written"], "summary": json.dumps(p)}}))' > body.json
+          gh api "repos/$GITHUB_REPOSITORY/check-runs" --input body.json --jq '.html_url'

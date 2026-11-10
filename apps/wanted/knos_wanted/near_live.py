@@ -51,12 +51,14 @@ def status() -> dict:
     used = _day["n"] if _day["day"] == today else 0
     on = os.environ.get("KNOS_NEAR_LIVE") == "on" and bool(os.environ.get("KNOS_NEAR_KEYS_FILE"))
     busy = any(r["state"] == "running" for r in _runs.values())
-    ready = bool(_ready.get("job"))
+    job = _ready.get("job")   # read once: a click may take it meanwhile
+    ready = bool(job)
     if on and not ready and not _preparing.locked() and used < daily_cap():   # keep one job ready for the next click
         threading.Thread(target=prepare, daemon=True).start()
     return {"live": on, "used_today": used, "cap_today": daily_cap(), "busy": busy, "ready": ready, "bid": BID, "network": "testnet",
             "account": os.environ.get("KNOS_NEAR_PAYER", ""), "money": "test tokens, not real money",
-            **({"prepare_error": _ready["error"]} if not ready and _ready.get("error") else {})}
+            **({"prepare_error": _ready["error"]} if not ready and _ready.get("error") else {}),
+            **({"next": {k: job.get(k) for k in ("id", "attempts", "txs")}} if job else {})}   # the waiting job's two tries, before the click
 
 
 def start() -> dict:
@@ -346,6 +348,37 @@ def buy(side: str) -> dict:
                 "yes_c": round(int(v.get("yes_price") or 0) / 10_000), "no_c": round(int(v.get("no_price") or 0) / 10_000),
                 "was_c": round(was / 10_000, 1), "now_c": round(int(v.get(side + "_price") or 0) / 10_000, 1),
                 "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
+    except Exception as e:  # noqa: BLE001 - the page says why
+        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+    finally:
+        _buying.release()
+
+
+def product_buy() -> dict:
+    """Buy the job's product: $1.00 of test money from the app's capped test account to the helper whose work passed
+    (agent A), with no wallet; the answer is the transaction. One at a time, within the day's cap."""
+    s = status()
+    if not s["live"]:
+        return {"ok": False, "why": "live runs are switched off"}
+    if not _buying.acquire(blocking=False):
+        return {"ok": False, "why": "a buy is running; try again in a few seconds"}
+    try:
+        _jobs()
+        import common
+        from common import CONFIG, call
+        maker = CONFIG["agents"]["a"]
+        args = {"receiver_id": maker, "amount": str(SHARE_BUY), "memo": "bought: the visitor counter from the HyperLogLog job"}
+        with _lock:
+            common._PREFETCHED.pop(LIVE, None)
+            try:
+                r = call(LIVE, TOKEN, "ft_transfer", args, deposit="1 yoctoNEAR", gas="30 Tgas", wait="EXECUTED_OPTIMISTIC")
+            except Exception as e:  # noqa: BLE001 - one retry on a stale nonce, anything else is said on the page
+                if "INVALID_TRANSACTION" not in str(e) and "InvalidNonce" not in str(e):
+                    raise
+                time.sleep(2)
+                r = call(LIVE, TOKEN, "ft_transfer", args, deposit="1 yoctoNEAR", gas="30 Tgas", wait="EXECUTED_OPTIMISTIC")
+            common._PREFETCHED.pop(LIVE, None)
+        return {"ok": r["ok"], "paid_usd": SHARE_BUY / 1e6, "to": maker, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
     except Exception as e:  # noqa: BLE001 - the page says why
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
     finally:
