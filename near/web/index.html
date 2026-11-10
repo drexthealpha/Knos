@@ -161,7 +161,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</h1>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper link. Before it becomes a product, Knos checks whether its main claim holds.</label>
+      <label for="paper">Paste a paper link. Knos proves its main claim and hands you code that works.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -624,9 +624,13 @@ load();
         el("p", { className: "fine", textContent: "Try the sample link to see a full check run in under a minute." })]));
       return;
     }
+    const order = el("button", { type: "button", className: "go big", textContent: "Order now, pay by invoice after the answer" });
+    order.dataset.buy = "";
     const kids = [
-      el("section", { className: "card answer" }, [el("h2", { textContent: "Answer: not proven yet" }),
-        el("p", { textContent: "Nobody has tested this claim yet. Order the proof below and you get a Yes or No in under a minute." })]),
+      el("section", { className: "card answer offer" }, [el("h2", { textContent: "Answer: not proven yet. Prove it for $500, answer in under a minute" }),
+        el("p", { textContent: "Two agents rerun the paper\u2019s result against a test locked when you order. You get a Yes or No and the code that passed." }),
+        r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
+        el("p", { className: "fine", textContent: "Your company pays $500 after the answer. This is a demo: no invoice is sent." })]),
       el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
         el("blockquote", {}, [`“${r.quote}”`]), el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])]),
     ];
@@ -636,14 +640,8 @@ load();
     else kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("p", { className: "fine", textContent: "The small AI’s page could not be read now, so no text is shown." })]));
     if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "Odds it holds, before the proof" }),
-      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " An open market on NEAR keeps these odds for this claim. Anyone may trade them; only the proof settles them."]),
+      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " Even odds until it is proven. NEAR records them, and only the proof settles them."]),
       el("p", { className: "fine" }, [out(NB + "address/market.knos-swarm-1105.testnet", "Where this number comes from")])]));
-    const order = el("button", { type: "button", className: "go big", textContent: "Order now, pay by invoice after the answer" });
-    order.dataset.buy = "";
-    kids.push(el("section", { className: "card offer" }, [el("h2", { textContent: "Prove it for $500, answer in under a minute" }),
-      el("p", { textContent: "Two agents rerun the paper’s result against a test that is locked when you order. You get the verdict and the code that passed." }),
-      r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
-      el("p", { className: "fine", textContent: "Your company pays $500 after the answer. This is a demo: no invoice is sent." })]));
     look.replaceChildren(...kids);
     look.scrollIntoView({ block: "start" });
     order.addEventListener("click", () => prove(order));
