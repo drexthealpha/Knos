@@ -927,3 +927,24 @@ def claim_finish(cap: dict | None, market: str = "", reuse: bool = False) -> dic
     settle = claim_settle(market) if (market and not reuse) else None
     rc = claim_receipt(cap, pay, settle) if not reuse else {"buyer_usd": PRICE_USD, "pay_url": pay.get("url")}
     return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": rc, "seconds": round(time.time() - t0, 1)}
+
+
+def claim_try(n: int) -> dict:
+    """The verified code at work: the version that passed the locked test counts n different visitors (each seen twice,
+    as in the test), and says how close its count is and how many bytes it keeps."""
+    import pickle
+    n = max(1_000, min(int(n), 100_000))
+    import types
+    mod = sys.modules.get("solution")
+    if mod is None or not hasattr(mod, "Counter"):   # the module the locked test imports, so its saved size is the test's
+        mod = types.ModuleType("solution")
+        exec(compile(_jobs().pass_agent.SOLUTION, "visitor_counter.py", "exec"), mod.__dict__)   # noqa: S102 - Knos's own verified code
+        sys.modules["solution"] = mod
+    t0, c = time.time(), mod.Counter()
+    tag = f"{time.time_ns()}"
+    for _ in range(2):
+        for i in range(n):
+            c.add(f"visitor-{tag}-{i}")
+    got = c.count()
+    return {"ok": True, "visitors": n, "counted": round(got), "off_pct": round(abs(got - n) / n * 100, 1),
+            "bytes": len(pickle.dumps(c)), "seconds": round(time.time() - t0, 1)}

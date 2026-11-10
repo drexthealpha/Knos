@@ -738,7 +738,17 @@ load();
     add("ok", v.holds ? "4. Answer: Yes, the claim holds" : "4. Answer: No, the claim does not hold", [el("table", { className: "vs" }, [
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
       el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
-    add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."])]);
+    const tryN = el("input", { type: "number", value: "100000", min: "1000", max: "100000", step: "1000", "aria-label": "Visitors to count", style: "width:9em" });
+    const tryBtn = el("button", { type: "button", className: "go", textContent: "Count them with your code" });
+    const tryOut = el("p", { role: "status" });
+    tryBtn.addEventListener("click", async () => {
+      tryBtn.disabled = true; tryOut.textContent = "Counting\u2026";
+      const x = await fetch(`${HOSTED}/api/near/claim/try?n=${encodeURIComponent(tryN.value)}`).then((r) => r.json()).catch(() => ({}));
+      tryOut.textContent = x.ok ? `Counted ${x.counted.toLocaleString("en-US")} of ${x.visitors.toLocaleString("en-US")} visitors (${x.off_pct}% off), keeping ${x.bytes.toLocaleString("en-US")} bytes, in ${x.seconds} s.` : `Not counted: ${x.error || "no answer"}.`;
+      tryBtn.disabled = false;
+    });
+    add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
+      el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut]);
     firstSeconds = secs();
     const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: "Your $49 of test money goes to Knos and the claim\u2019s record on NEAR is updated: about 10 to 30 s on the test network." })]);
     const tPay = performance.now();

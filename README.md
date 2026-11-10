@@ -499,7 +499,8 @@ On the public page (no install, no sign-in, no wallet, test money only):
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
 4. About 5 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
-   code (visitor_counter.py)".
+   code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
+   visitors on the server: how many it counted, how far off and in how many bytes.
 5. Then "6. Paying and recording on NEAR", about 10 to 30 s on the test network, and "Receipt: paid and recorded on
    NEAR testnet in" those seconds: "You paid $49.00 of test USDC", "Agent A's share $1.00",
    "Knos keeps $48.00", each payment with its link, "The claim's record on NEAR: updated to holds." and "What each step
