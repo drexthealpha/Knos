@@ -15,8 +15,8 @@ import tempfile
 import time
 import urllib.request
 
-MODEL = "qwen2.5-coder:7b"
-TRIES = 10
+MODEL = "qwen2.5-coder:14b"
+TRIES = 6
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TEST = ROOT / "near" / "agents" / "job" / "test_hll.py"
 
@@ -61,7 +61,8 @@ def judge(code: str) -> tuple[bool, str]:
 
 
 def main(out: str) -> int:
-    prompt, tries = TASK.format(test=TEST.read_text(encoding="utf-8")), []
+    task = TASK.format(test=TEST.read_text(encoding="utf-8"))
+    prompt, tries = task, []
     for n in range(1, TRIES + 1):
         t0 = time.time()
         code = code_of(ask(prompt))
@@ -70,7 +71,7 @@ def main(out: str) -> int:
         print(f"try {n}: {said}", flush=True)
         if ok:
             break
-        prompt += f"\n\nYour solution.py was:\n```python\n{code}```\nThe locked test printed: {said}\nFix it. Answer with the whole new solution.py in one Python code block."
+        prompt = task + f"\n\nYour last solution.py was:\n```python\n{code}```\nThe locked test printed: {said}\nFix it. Answer with the whole new solution.py in one Python code block."
     won = next((t for t in tries if t["passed"]), None)
     pathlib.Path(out).write_text(json.dumps({"model": MODEL, "tries": tries, "passed": bool(won), "solution": won["code"] if won else None}, indent=1), encoding="utf-8")
     return 0
