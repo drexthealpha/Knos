@@ -707,10 +707,11 @@ load();
       el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
     add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."])]);
     firstSeconds = secs();
-    clearInterval(tick);
+    const paying = add("", "6. Paying and recording on NEAR…", [el("p", { className: "fine", textContent: "Your $49 of test money goes to Knos, then the claim’s record on NEAR is updated." })]);
     const pay = await post("/api/near/claim/pay");
     const settle = r.market ? await post("/api/near/claim/settle", { market: r.market.id }) : null;
     const rc = await post("/api/near/claim/receipt", { cap, pay, settle });
+    paying.remove(); clearInterval(tick);
     receipt(rc, pay, settle);
     order.disabled = false;
   }
