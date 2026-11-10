@@ -487,22 +487,22 @@ On the public page (no install, no sign-in, test money only):
 
 1. Open https://drexthealpha.github.io/Knos/near/ - see one line, the box "Paste a paper link" holding the HyperLogLog
    DOI, the button "Will it work?" and "17 years" with its source.
-2. Click "Will it work?" - see, about 2 s later, "Answer: Yes, it held in its last proof" (read from the newest
-   settled market for this claim on NEAR testnet; "Answer: not proven yet" before any) with the $500 offer and its order
+2. Click "Will it work?" - see, about 2 s later, "Answer: Yes, it holds" with when Knos last proved it (read from the
+   newest settled market for this claim on NEAR testnet; "Answer: not proven yet" before any) with the $500 offer and its order
    button, then "The paper says" with the claim word for word, "In plain words" written by a small AI
-   (qwen2.5:1.5b-instruct, `.github/workflows/product-page.yml`, once an hour, with when it was written) and "Odds for
-   your proof, before it runs" (50% on a new market).
+   (qwen2.5:1.5b-instruct, `.github/workflows/product-page.yml`, once an hour, with when it was written) and "How
+   likely your proof is to say Yes" (50%: your order opens its own market).
 3. Click "Order now, pay by invoice after the answer" - see a clock and "1. The test is locked" at 0 s, then "2. Two
    agents rerun the paper's result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and
    "Agent B: Failed: it keeps 529,075 bytes".
 4. About 4 to 7 s after ordering - see "3. Answer: Yes, the claim holds", with the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory".
-5. Then see "You got" with "Download the verified code (visitor_counter.py)" and "The claim's odds on NEAR now read
-   Yes: it holds, for good.", and one link at the foot, "settled on NEAR testnet", to the payment.
+5. Then see "You got" with "Download the verified code (visitor_counter.py)" and "Your proof's market on NEAR settled
+   Yes: the claim holds.", and one link at the foot, "settled on NEAR testnet", to the payment.
 6. Paste any other paper link - see which checker fits it, with its published price and time and a source (an AlphaFold
    DOI gets a cloud lab that tests designed proteins, from $149 per protein, about 3 weeks).
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (58.0 s), with
+The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (56.8 s), with
 screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
 [what you got](near/web/knos-near-3-got.png).
 
