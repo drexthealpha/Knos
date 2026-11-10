@@ -709,15 +709,19 @@ def _gas(tx: str, sender: str) -> float | None:
 
 
 def near_usd() -> float | None:
-    """NEAR's price in US dollars now (CoinGecko, kept 10 minutes): what a step's fee would cost on mainnet."""
+    """NEAR's price in US dollars now, kept 10 minutes: CoinGecko, else CoinPaprika (no key needed for either). The source
+    used is kept beside it, so the log names it."""
     if _price.get("at") and time.time() - _price["at"] < 600:
         return _price.get("usd")
-    try:
-        req = urllib.request.Request("https://api.coingecko.com/api/v3/simple/price?ids=near&vs_currencies=usd", headers={"User-Agent": "knos-near"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            _price.update(at=time.time(), usd=float(json.loads(r.read())["near"]["usd"]))
-    except Exception:  # noqa: BLE001 - no price: the log shows NEAR only
-        _price["at"] = time.time()
+    _price["at"] = time.time()
+    for src, url, pick in (("https://www.coingecko.com/en/coins/near", "https://api.coingecko.com/api/v3/simple/price?ids=near&vs_currencies=usd", lambda d: d["near"]["usd"]),
+                           ("https://coinpaprika.com/coin/near-near-protocol/", "https://api.coinpaprika.com/v1/tickers/near-near-protocol", lambda d: d["quotes"]["USD"]["price"])):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "knos-near"}), timeout=10) as r:
+                _price.update(usd=round(float(pick(json.loads(r.read()))), 4), source=src)
+            return _price["usd"]
+        except Exception:  # noqa: BLE001 - the next source, else NEAR only
+            continue
     return _price.get("usd")
 
 
@@ -731,7 +735,8 @@ def action_log(steps: list[tuple[str, str | None, str]]) -> dict:
              "near": round(f, 6) if f is not None else None, "usd": round(f * usd, 5) if (f is not None and usd) else None}
             for (what, tx, _), f in zip(steps, fees)]
     total = sum(r["usd"] for r in rows if r["usd"] is not None)
-    return {"rows": rows, "near_usd": usd, "total_usd": round(total, 5), "price_source": "https://www.coingecko.com/en/coins/near"}
+    total_near = sum(r["near"] for r in rows if r["near"] is not None)
+    return {"rows": rows, "near_usd": usd, "total_usd": round(total, 5) if usd else None, "total_near": round(total_near, 6), "price_source": _price.get("source")}
 
 
 def claim_cap() -> dict:
@@ -824,13 +829,23 @@ def _count() -> None:
             m = (view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}
             if m.get("question") == CLAIM_Q and m.get("outcome") is not None:
                 proofs += 1
+        _counts.update(at=time.time() - 90, out={**(_counts.get("out") or {"settled_usd": round(proofs * BID / 1e6, 2), "payments": None, "failed": None, "lost_usd": None,
+                       "record": "https://testnet.nearblocks.io/address/" + LIVE}), "proofs": proofs, "read_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())})
         base = "https://api-testnet.nearblocks.io/v3/accounts/"
         paid, failed, sent = 0, 0, 0
         nxt = ""
         for _ in range(10):
             req = urllib.request.Request(base + LIVE + "/txns?limit=100" + (f"&next={nxt}" if nxt else ""), headers={"User-Agent": "knos-near-totals"})
-            with urllib.request.urlopen(req, timeout=20) as r:
-                body = json.loads(r.read())
+            body = None
+            for tries in range(4):                     # NearBlocks' free tier answers 429 when asked too fast: wait, ask again
+                try:
+                    with urllib.request.urlopen(req, timeout=20) as r:
+                        body = json.loads(r.read())
+                    break
+                except urllib.error.HTTPError as e:
+                    if e.code != 429 or tries == 3:
+                        raise
+                    time.sleep(4 * (tries + 1))
             for t in body.get("data") or []:
                 acts = t.get("actions") or []
                 if t.get("receiver_account_id") == TOKEN and any(x.get("method") == "ft_transfer" for x in acts):
