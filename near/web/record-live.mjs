@@ -22,6 +22,7 @@ const focus = async (sel, nth, text, ms) => {
     let c = document.getElementById("rec-caption");
     if (!c) { c = document.createElement("div"); c.id = "rec-caption"; c.style.cssText = "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:90%;padding:14px 24px;border-radius:14px;background:#151822;color:#fff;font:600 26px/1.3 system-ui,sans-serif;z-index:99;text-align:center"; document.body.append(c); }
     c.textContent = text;
+    c.style.display = text ? "" : "none";   // no caption while a step runs, so none covers it
   }, [sel, nth, text]);
   await page.waitForTimeout(ms);
 };
@@ -35,7 +36,7 @@ await page.locator("#go").click();
 mark("click");
 await page.locator("#look button").waitFor({ timeout: 60000 });
 mark("claim shown");
-await focus("#look .answer", 0, "Not proven yet, and one offer: prove it for $500", 3500);
+await focus("#look .answer", 0, "The answer, from its last proof, and one offer: prove it again for $500", 3500);
 await focus("#look .card", 1, "The paper's own claim, word for word", 3500);
 await page.screenshot({ path: path.join(out, "2-claim.png") });
 await focus("#look .card", 2, "In plain words, written by a small AI", 3000);
@@ -43,7 +44,8 @@ await focus("#look .odds", 0, "The odds it holds, kept on NEAR until a proof set
 await focus("#look .answer", 0, "Order the proof: answer in under a minute", 2500);
 await page.locator("#look .offer button").click();
 mark("order");
-await focus(null, 0, "Ordered. Watch each step and the clock", 300);
+await focus(null, 0, "Ordered. Watch each step and the clock", 1200);
+await focus(null, 0, "", 0);
 await page.locator("#prove").filter({ hasText: /now read (Yes|No)|not settled/ }).waitFor({ timeout: 90000 });
 mark("settled");
 await focus("#steps li", 0, "1. The test is locked before anyone works", 3000);
