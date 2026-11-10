@@ -639,7 +639,6 @@ load();
     const go = $("go"); go.disabled = true; $("run").hidden = false; $("prove").hidden = true; $("links").replaceChildren();
     const look = $("look");
     look.replaceChildren(el("p", { className: "fine", textContent: "Reading the paper…" }));
-    look.scrollIntoView({ block: "start" });
     const [r] = await Promise.all([post("/api/near/claim/look", { url: $("paper").value }), ready]);
     go.disabled = false;
     if (!r.ok) { look.replaceChildren(el("p", { className: "stop", textContent: `Not read: ${r.why || "no answer"}.` })); return; }
@@ -672,6 +671,7 @@ load();
       r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
       el("p", { className: "fine", textContent: "Your company pays $500 after the answer. This is a demo: no invoice is sent." })]));
     look.replaceChildren(...kids);
+    look.scrollIntoView({ block: "start" });
     order.addEventListener("click", () => prove(order));
   });
 
