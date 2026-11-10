@@ -187,7 +187,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> paid proofs, <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> paid proofs (reused answers too), <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost in failed payments. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545"}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest result, live: <a href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml"><img src="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml/badge.svg?branch=main" alt="tests" style="vertical-align:middle;height:20px"></a>. Knos has no token.</p>
@@ -319,7 +319,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 "use strict";
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
-const TX = "https://explorer.testnet.near.org/transactions/";
+const TX = "https://testnet.nearblocks.io/txns/";
 let local = true, hosted = false;
 const HOSTED = "https://knos.onrender.com";
 
@@ -624,7 +624,12 @@ load();
   }
   // live counters, read here from NEAR's public record (NearBlocks): a paid proof is one $49 that reached Knos's account
   // from the buyer's test account, so the dollars are the paid proofs times $49; lost counts failed transfers of the buyer
-  async function counters() {
+  async function counters(after) {
+    if (after) {   // a payment just made: read until the count passes the one shown, so this payment is counted
+      const was = +($("c-proofs").textContent) || 0;
+      for (let n = 0; n < 6; n++) { await counters(); if ((+($("c-proofs").textContent) || 0) > was) return; await wait(5000); }
+      return;
+    }
     const NBA = "https://api-testnet.nearblocks.io/v3/accounts/", LIVE = "live.knos-swarm-1105.testnet", TOKEN = "knos-usdc-1102.testnet";
     const get = async (u) => {
       for (let n = 0; n < 5; n++) {
@@ -636,7 +641,7 @@ load();
     };
     const show = (c) => {
       $("c-proofs").textContent = String(c.proofs);
-      $("c-usd").textContent = `$${(c.proofs * 49).toFixed(2)}`;
+      $("c-usd").textContent = `$${(c.proofs * 49).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
       $("c-lost").textContent = c.failed ? `${c.failed} failed payments` : "$0";
     };
     try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c) show(c); } catch (e) { /* no stored values */ }
@@ -752,7 +757,7 @@ load();
       el("table", { className: "vs" }, [
         el("tr", {}, [el("th", { textContent: "You paid" }), el("td", {}, [`$${(rc && rc.buyer_usd) || 49}.00 of test USDC, from a test account Knos holds for you, so you need no wallet. `, pay && pay.url ? out(pay.url, "The payment") : (pay && pay.why) || ""])]),
         el("tr", {}, [el("th", { textContent: "Agent A’s share" }), el("td", {}, [`$${((rc && rc.agent_usd) || 1).toFixed(2)}, paid by the jobs contract when its code passed. `, rc && rc.agent_url ? out(rc.agent_url, "The payment") : ""])]),
-        el("tr", {}, [el("th", { textContent: "Knos keeps" }), el("td", {}, [`$${((rc && rc.knos_usd) || 48).toFixed(2)} of your $49, kept in Knos\u2019s own test account. `, pay && pay.fee_account ? out(pay.fee_account, "The account") : ""])])]),
+        el("tr", {}, [el("th", { textContent: "Knos keeps" }), el("td", {}, [`$${((rc && rc.knos_usd) || 48).toFixed(2)} of your $49, kept in Knos\u2019s own test account. `, pay && pay.url ? out(pay.url, "Your payment") : "", pay && pay.fee_account ? [" ", out(pay.fee_account, "The account")] : ""])])]),
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
       el("h3", { textContent: "What each step cost" }),
       el("table", { className: "log" }, rows),
@@ -776,10 +781,10 @@ load();
         `No agent reran it: Knos reused the verified result of proof ${x.reused}, so the answer came ${(first - took).toFixed(1)} s sooner and needed $${x.saved.agent_usd.toFixed(2)} less agent pay. `, paid);
       const f = await post("/api/near/claim/finish", { reuse: true });
       paid.replaceChildren(f.pay && f.pay.url ? out(f.pay.url, "Your $49 payment") : `Payment not made: ${(f.pay && f.pay.why) || f.why || "no answer"}.`);
-      counters();
+      counters(true);
     });
     $("links").replaceChildren(...(rc && rc.agent_url ? [out(rc.agent_url, "settled on NEAR testnet"), " (the public record of this proof)"] : []));
-    counters();
+    counters(true);
   }
 })();
 </script>

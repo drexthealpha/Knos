@@ -9,7 +9,7 @@ import urllib.request
 
 RPC = "https://rpc.testnet.near.org"
 CONTRACT = "jobs.knos-swarm-1105.testnet"
-EXPLORER = "https://explorer.testnet.near.org/accounts/"
+EXPLORER = "https://testnet.nearblocks.io/address/"
 _ID = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 KINDS = ("checkrun", "observation", "oru")
 

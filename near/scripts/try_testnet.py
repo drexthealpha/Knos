@@ -29,7 +29,7 @@ RPC = "https://rpc.testnet.near.org"
 WASM = Path(__file__).resolve().parents[1] / "wasm"
 REPO = "you/your-repo"
 WF = f"{REPO}/.github/workflows/proof.yml@refs/heads/main"
-EXPLORER = "https://explorer.testnet.near.org/transactions/"
+EXPLORER = "https://testnet.nearblocks.io/txns/"
 
 
 def rpc(method: str, params) -> dict:

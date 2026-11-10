@@ -17,7 +17,7 @@ import time
 import urllib.request
 
 BASE = os.environ.get("KNOS_WANTED_URL", "https://knos.onrender.com").rstrip("/")
-TX = "https://explorer.testnet.near.org/transactions/"
+TX = "https://testnet.nearblocks.io/txns/"
 
 
 def ready(brief: dict) -> dict:

@@ -41,7 +41,7 @@
       out.textContent = "Paying the bid on NEAR testnet.";
       const p = await post("/api/job/pay", { bid, minutes: 15 });
       out.replaceChildren(p.ok ? `Paid ${bid} test units on testnet, job ${p.id}: ` : `Not paid: ${p.why || "refused"}. `,
-        Object.assign(document.createElement("a"), { href: `https://explorer.testnet.near.org/transactions/${p.tx}`, textContent: "transaction", target: "_blank", rel: "noopener" }));
+        Object.assign(document.createElement("a"), { href: `https://testnet.nearblocks.io/txns/${p.tx}`, textContent: "transaction", target: "_blank", rel: "noopener" }));
       btn.textContent = "Paid";
     } catch (e) {
       out.textContent = `The Knos server did not answer (${base}). Start it with: python near/web/serve.py`;

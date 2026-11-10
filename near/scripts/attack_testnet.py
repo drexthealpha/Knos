@@ -199,7 +199,7 @@ def main() -> int:
 
     lines = ["| Attack | Expected | Actual | Reason | Testnet tx |", "|---|---|---|---|---|"]
     for a, e, res, why, tx in ROWS:
-        link = f"[`{tx[:8]}…`](https://explorer.testnet.near.org/transactions/{tx})" if tx else "none"
+        link = f"[`{tx[:8]}…`](https://testnet.nearblocks.io/txns/{tx})" if tx else "none"
         lines.append(f"| {a} | {e} | {res} | {why.replace('|', '/')} | {link} |")
     table = "\n".join(lines)
     if out:

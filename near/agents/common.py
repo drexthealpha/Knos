@@ -18,7 +18,7 @@ from pathlib import Path
 
 NEAR = os.environ.get("NEAR_CLI", "near")
 RPC = os.environ.get("NEAR_RPC", "https://rpc.testnet.near.org")
-EXPLORER = "https://explorer.testnet.near.org/transactions/"
+EXPLORER = "https://testnet.nearblocks.io/txns/"
 HERE = Path(__file__).resolve().parent
 JOB_DIR = HERE / "job"
 JOB_TEST = "test_hll.py"   # the locked check: HyperLogLog's promise (job/test_hll.py)

@@ -521,17 +521,22 @@ An agent can run the whole flow with one HTTP call: look up the paper, prove the
 
 - see a JSON answer with `"verdict"` (`"holds": true`, the paper's number and the measured one), `"code"` (the link to the
   verified code), `"cap"` (the refused over-budget step), `"settled": true` and `"receipt"` (the payments and each
-  step's fee). It runs on testnet, six runs every 10 minutes from one address.
+  step's fee). It runs on testnet, four agent calls every 10 minutes from one address, apart from the page's own proofs.
 
 ### Locally
 
-With Python 3.10+, no key and nothing sent:
+With Python 3.10+, from the repository's root, no key and nothing sent:
 
 1. Run the locked test on agent A's code:
-   `mkdir t && cp near/agents/job/test_hll.py t/ && python -c "import sys; sys.path.insert(0, 'near/agents'); import pass_agent; open('t/solution.py', 'w').write(pass_agent.SOLUTION)" && cd t && python test_hll.py`
-   - see "Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes (the paper: 1.5 kilobytes)."
-2. The same with `fail_agent` in place of `pass_agent` - see "Failed: it keeps 529,075 bytes, over the paper's 1.5
-   kilobytes (1,536 bytes)." and exit code 1.
+   `mkdir ta && cp near/agents/job/test_hll.py ta/ && python -c "import sys; sys.path.insert(0, 'near/agents'); import pass_agent; open('ta/solution.py', 'w').write(pass_agent.SOLUTION)" && cd ta && python test_hll.py`
+   - see, in about 1 s, "Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes (the paper: 1.5 kilobytes)."
+2. From the root again, the same on agent B's code:
+   `mkdir tb && cp near/agents/job/test_hll.py tb/ && python -c "import sys; sys.path.insert(0, 'near/agents'); import fail_agent; open('tb/solution.py', 'w').write(fail_agent.SOLUTION)" && cd tb && python test_hll.py`
+   - see "Failed: it keeps 529,075 bytes, over the paper's 1.5 kilobytes (1,536 bytes)." and exit code 1.
+
+With a NEAR testnet account of your own, near-cli-rs, Rust and cargo-near on Linux or WSL (these send testnet
+transactions):
+
 3. Run `python near/scripts/try_testnet.py <you>.testnet` - see your own copy of both contracts release on a signed token
    and refund after the deadline ([Try it on testnet](#try-it-on-testnet)).
 4. Run `bash near/scripts/verify.sh` - see the contract's sandbox tests and attacks pass ([Tests](#tests-on-near)).
@@ -632,7 +637,7 @@ Every change since the work began: [pre-hackathon...main](https://github.com/dre
 (the tag `pre-hackathon` is the commit before the first line of `near/`).
 
 No Rust is needed to check or deploy the contract: `near/wasm/` holds the built files and `near/wasm/SHA256SUMS` their
-hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK` and `knos_mock_usdc.wasm: OK`
+hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK`, `knos_mock_usdc.wasm: OK` and `knos_market.wasm: OK`
 (`a5fc5861…`, 280,651 bytes, is the jobs contract deployed at `jobs.knos-swarm-1105.testnet`). Building them again and
 every test: `bash near/scripts/verify.sh` (Rust with `wasm32-unknown-unknown` and `cargo-near` 0.22.0).
 
