@@ -650,7 +650,7 @@ load();
       add("stop", "3. Not paid this time", [el("p", { textContent: s.why ? `Why: ${s.why}.` : "The payment stopped." })]);
       clearInterval(tick); go.disabled = false; return;
     }
-    add("ok", "3. Helper A is paid $1.00 of test money", [el("p", {}, ["Helper B is paid $0: its version failed the check. ", tx(txs.release, "See the payment")])]);
+    add("ok", "3. Helper A is paid $1.00 of test money", [el("p", {}, ["Helper B is paid $0: its version failed the check. ", tx(txs.release, "See the payment on NEAR testnet")])]);
     await wait(900);
     const links = () => $("links").replaceChildren("On NEAR’s public test ledger: ", tx(txs.post, "the job"), " ", tx(txs.submit_a, "Helper A’s version"), " ",
       tx(txs.submit_b, "Helper B’s version"), " ", tx(txs.release, "the payment"));
@@ -672,7 +672,7 @@ load();
       clearInterval(bt);
       const took = ((performance.now() - b0) / 1000).toFixed(1);
       if (!r.ok) { said.textContent = `Not bought: ${r.why || "testnet refused it"}.`; buy.disabled = false; return; }
-      said.replaceChildren(`Bought in ${took} s: Helper A got your $1.00 of test money. `, tx(r.tx, "See the purchase"));
+      said.replaceChildren(`Bought in ${took} s: Helper A got your $1.00 of test money. `, tx(r.tx, "See the purchase on NEAR testnet"));
       $("links").append(" ", tx(r.tx, "your purchase"));
     });
     go.disabled = false;
