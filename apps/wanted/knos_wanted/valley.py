@@ -64,7 +64,7 @@ def _save(kind: str, key: str, obj: dict, chain: bool = True) -> dict:
         if g:
             obj["grounding_snapshot"] = g
     f = _dir(kind) / f"{key}.json"
-    tmp = f.with_suffix(".tmp")
+    tmp = f.with_suffix(f".{os.getpid()}.{threading.get_ident()}.tmp")   # one per writer: two threads saving one record never mix
     tmp.write_text(json.dumps(obj, indent=1, default=str), encoding="utf-8")
     os.replace(tmp, f)
     if kind in ("projects", "orders"):

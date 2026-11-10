@@ -658,7 +658,7 @@ def claim_prove() -> dict:
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", ""),
                            "holds": bool(win)}}
         out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
-        out["market"] = ready.get("market")   # settled next, by POST /api/near/claim/settle, once the job is paid
+        out["market"] = ready.get("market") or _open_market(ready["id"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
             _proofs["last"] = {"job": ready["id"], "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
                                "release_url": paid.get("release_url"), "seconds": round(time.time() - t0, 1), "at": time.time()}
@@ -796,6 +796,12 @@ def claim_pay(reuse: bool = False) -> dict:
     from common import call
     args = {"receiver_id": TREASURY, "amount": str(PRICE), "memo": "knos proof: HyperLogLog claim" + (" (reused result)" if reuse else "")}
     t_pay = time.time()
+    try:
+        held = common.ft_balance(LIVE)
+    except Exception:  # noqa: BLE001 - unread: the transfer itself answers
+        held = PRICE
+    if held < PRICE:
+        return {"ok": False, "why": f"the buyer test account holds ${held / 1e6:.2f}, under $49, so no payment was sent", "usd": PRICE_USD}
     with _lock:
         common._PREFETCHED.pop(LIVE, None)
         try:
@@ -916,8 +922,10 @@ def claim_flow(url: str) -> dict:
     cap = claim_cap()
     pay = claim_pay()
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
+    done = bool(pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
+    why = "" if done else ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
     return {"ok": True, "claim": look.get("quote"), "verdict": proof.get("verdict"), "code": "https://knos.onrender.com/api/near/claim/code",
-            "cap": cap, "settled": (settle or {}).get("settled"), "receipt": claim_receipt(cap, pay, settle)}
+            "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle)}
 
 
 def claim_finish(cap: dict | None, market: str = "", reuse: bool = False) -> dict:

@@ -492,13 +492,13 @@ On the public page (no install, no sign-in, no wallet, test money only):
 1. Open https://drexthealpha.github.io/Knos/near/ - see "Why does good research take 17 years to reach people?" with its
    answer, "Today: checking one paper by hand costs $330 to $763. Knos: $49, under a minute.", the box holding the
    HyperLogLog DOI and the button "Will it work?".
-2. Click "Will it work?" - see, about 2 s later, "Answer: Yes, it holds" with when Knos last proved it ("Answer: not
+2. Click "Will it work?" - see, 2 to 4 s later, "Answer: Yes, it holds" with when Knos last proved it ("Answer: not
    proven yet" before any proof), "$49 per proof, pay after the answer." and the button "Prove it: $49, pay after the
    answer", then the paper's claim word for word and its plain-words page.
 3. Click "Prove it: $49, pay after the answer" - see a clock, "1. The test is locked", "2. Two agents rerun the paper's
    result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
-4. About 5 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
+4. About 5 to 8 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
@@ -522,7 +522,7 @@ An agent can run the whole flow with one HTTP call: look up the paper, prove the
 `curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545"}'`
 
 - see a JSON answer with `"verdict"` (`"holds": true`, the paper's number and the measured one), `"code"` (the link to the
-  verified code), `"cap"` (the refused over-budget step), `"settled": true` and `"receipt"` (the payments and each
+  verified code), `"cap"` (the refused over-budget step), `"paid": true`, `"settled": true` (false, with `"why_not_settled"`, if a step failed) and `"receipt"` (the payments and each
   step's fee). It runs on testnet, four agent calls every 10 minutes from one address, apart from the page's own proofs.
 
 ### Locally
