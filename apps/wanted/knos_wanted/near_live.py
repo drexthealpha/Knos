@@ -594,9 +594,8 @@ def claim_prove() -> dict:
         out["seconds"] = round(time.time() - t0, 1)
         return out
     except Exception as e:  # noqa: BLE001 - the page says which step stopped
-        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})", "seconds": round(time.time() - t0, 1)}
-    finally:
         threading.Thread(target=prepare, daemon=True).start()
+        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})", "seconds": round(time.time() - t0, 1)}
 
 
 def claim_settle(mid: str) -> dict:
@@ -609,12 +608,21 @@ def claim_settle(mid: str) -> dict:
         from common import call, view
         with _lock:
             common._PREFETCHED.pop(LIVE, None)
-            r = call(LIVE, MARKET, "resolve", {"id": mid}, gas="100 Tgas", wait="EXECUTED_OPTIMISTIC")
+            try:
+                r = call(LIVE, MARKET, "resolve", {"id": mid}, gas="100 Tgas", wait="EXECUTED_OPTIMISTIC")
+            except Exception as e:  # noqa: BLE001 - one retry on a stale nonce
+                if "INVALID_TRANSACTION" not in str(e) and "nonce" not in str(e).lower():
+                    raise
+                time.sleep(2)
+                common._PREFETCHED.pop(LIVE, None)
+                r = call(LIVE, MARKET, "resolve", {"id": mid}, gas="100 Tgas", wait="EXECUTED_OPTIMISTIC")
             common._PREFETCHED.pop(LIVE, None)
         outcome = ((view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}).get("outcome")
         return {"ok": r["ok"], "settled": outcome, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
     except Exception as e:  # noqa: BLE001 - the page says why
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+    finally:   # the next job is readied only now, so its transactions never race this one
+        threading.Thread(target=prepare, daemon=True).start()
 
 
 def claim_code() -> tuple[bytes, str]:
