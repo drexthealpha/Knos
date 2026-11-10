@@ -617,7 +617,13 @@ def claim_settle(mid: str) -> dict:
                 common._PREFETCHED.pop(LIVE, None)
                 r = call(LIVE, MARKET, "resolve", {"id": mid}, gas="100 Tgas", wait="EXECUTED_OPTIMISTIC")
             common._PREFETCHED.pop(LIVE, None)
-        outcome = ((view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}).get("outcome")
+        said = str(r.get("said") or "")   # the contract's own answer: "<id> settled Yes by its locked check (Paid)"
+        outcome = True if "settled Yes" in said else False if "settled No" in said else None
+        for _ in range(4):
+            if outcome is not None or not r["ok"]:
+                break
+            time.sleep(1.5)   # a final read lags the optimistic one by a block or two
+            outcome = ((view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}).get("outcome")
         return {"ok": r["ok"], "settled": outcome, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
     except Exception as e:  # noqa: BLE001 - the page says why
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
