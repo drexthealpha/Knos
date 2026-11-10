@@ -80,6 +80,7 @@ def test_a_statement_of_the_shell_is_twelve_words_at_most() -> None:
     page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     body = re.sub(r"<(noscript|details|script|pre|table)\b.*?</\1>", "", page[page.index("<body"):], flags=re.S)
     body = re.sub(r'<p class="k-vision"[^>]*>.*?</p>', "", body, flags=re.S)        # the two vision lines are the founder's fixed text
+    body = re.sub(r'<p class="k-goal">.*?</p>', "", body, flags=re.S)                # so is every face's goal line (web/brand/first.html)
     long = []
     for tag in ("h1", "h2", "h3", "h4", "label", "button", "p", "li", "dd", "dt", "figcaption", "span"):
         for found in re.finditer(rf"<{tag}\b[^>]*>(.*?)</{tag}>", body, re.S):
