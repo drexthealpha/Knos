@@ -459,13 +459,17 @@ MIT, the repository's own [LICENSE](LICENSE).
 practice" ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)). Knos turns any research into a
 product billions of people use, in days, not years.
 
-**What it does on NEAR.** One button turns a real published result into a product you can buy. The result: HyperLogLog
-([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)), whose abstract says, word for word:
-"For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10^9 with a typical accuracy
-of 2% while using a memory of only 1.5 kilobytes." The job is to build that. Its check, locked by its sha256 in the NEAR
-jobs contract before any money is held, is `near/agents/job/test_hll.py`: count 30,000 visitors within 10% in at most
-1,536 bytes (it runs in under 1 s). Two helpers send their version; the contract pays only the one the check passed. Then a
-small AI writes the product's page, and a visitor buys it with test money, no wallet.
+**What it does on NEAR.** One button turns a real published result into a product you can buy. The result is
+HyperLogLog ([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)).
+
+Its abstract says, word for word: "For instance, the new algorithm makes it possible to estimate cardinalities well
+beyond 10^9 with a typical accuracy of 2% while using a memory of only 1.5 kilobytes."
+
+The job is to build that. Its check is `near/agents/job/test_hll.py`, locked by its sha256 in the NEAR jobs contract
+before any money is held: count 30,000 visitors within 10% in at most 1,536 bytes. It runs in under 1 s.
+
+Two helpers send their version, and the contract pays only the one the check passed. Then a small AI writes the
+product's page, and a visitor buys it with test money, no wallet.
 
 ![One job, two agents: only the output that passes the locked test is paid](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/diagrams/docs-reference-diagrams-4.svg)
 
@@ -515,10 +519,12 @@ One run from the public page on 10 Nov 2026: the payment
 [84tbHmGb…](https://testnet.nearblocks.io/txns/84tbHmGbGJCh6CiYtbtSMgRe48YRRZLkqdq7fbmi1pvR) and the purchase
 [ETEAPaAY…](https://testnet.nearblocks.io/txns/ETEAPaAYdaVaHpEq2v2B9EdtFcb5jNjYka1Q4TVeNffu).
 
-**Libraries, AI-written code and what came before.** The libraries are listed under [Disclosure](#disclosure); the hosted
-runner adds Python's standard library and `cryptography`, the page loads GSAP 3.12.5 from cdnjs. Most of the code was
-written with Claude Code; the founder set each task and reviewed each change. The product page's words are written by
-qwen2.5:1.5b-instruct, never by hand: when its answers break the limits, the page says so and shows no text.
+**Libraries.** They are listed under [Disclosure](#disclosure). The hosted runner adds Python's standard library and
+`cryptography`, and the page loads GSAP 3.12.5 from cdnjs.
+
+**AI-written code.** Most of the code was written with Claude Code; the founder set each task and reviewed each change.
+The product page's words are written by qwen2.5:1.5b-instruct, never by hand: when its answers break the limits, the page
+says so and shows no text.
 
 **What was built in the window.** Everything under `near/` and the hosted runner `apps/wanted/knos_wanted/near_live.py`:
 the diff from the tag `pre-hackathon` (31 Oct 2026) is
