@@ -622,12 +622,20 @@ load();
     }
     return null;
   }
-  async function counters(tries = 0) {   // live counters, read by the server from NEAR testnet
+  // live counters: proofs run from the server (it reads the claim records on NEAR), payments and failures read here from
+  // NEAR's public record (NearBlocks), so every number on this line comes from the chain
+  async function counters(tries = 0) {
     const c = await fetch(HOSTED + "/api/near/claim/counters").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (c && c.pending && tries < 8) { setTimeout(() => counters(tries + 1), 5000); return; }
     if (!c || c.pending) return;
-    $("c-proofs").textContent = String(c.proofs); $("c-usd").textContent = `$${c.settled_usd.toFixed(2)}`;
-    $("c-lost").textContent = c.lost_usd === 0 ? "$0" : c.failed == null ? "-" : `${c.failed} failed payments`; $("c-record").href = c.record;
+    const NBA = "https://api-testnet.nearblocks.io/v3/accounts/";
+    const ft = await fetch(NBA + "knos-payer-1102.testnet/ft-txns?limit=100").then((r) => r.ok ? r.json() : null).catch(() => null);
+    const tx = await fetch(NBA + "live.knos-swarm-1105.testnet/txns?limit=100").then((r) => r.ok ? r.json() : null).catch(() => null);
+    const paid = ((ft && ft.data) || []).filter((x) => x.involved_account_id === "live.knos-swarm-1105.testnet" && x.contract_account_id === "knos-usdc-1102.testnet" && +x.delta_amount === 49000000);
+    const failed = ((tx && tx.data) || []).filter((x) => x.receiver_account_id === "knos-usdc-1102.testnet" && (x.actions || []).some((a) => a.method === "ft_transfer") && !(x.outcomes || {}).status);
+    $("c-proofs").textContent = String(c.proofs);
+    $("c-usd").textContent = ft ? `$${(paid.length * 49 + c.proofs * 1).toFixed(2)}` : `$${c.settled_usd.toFixed(2)}`;
+    $("c-lost").textContent = tx ? (failed.length ? `${failed.length} failed payments` : "$0") : "-";
   }
   const ready = Promise.all([
     fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null).then((h) => { next = h && h.next; }),
