@@ -498,17 +498,17 @@ On the public page (no install, no sign-in, no wallet, test money only):
 3. Click "Prove it: $49, pay after the answer" - see a clock, "1. The test is locked", "2. Two agents rerun the paper's
    result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
-4. Seconds after ordering - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
+4. About 5 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)".
-5. Then "6. Paying and recording on NEAR", about 10 to 30 s on the test network, and "Receipt, settled on NEAR
-   testnet in" its measured seconds: "You paid $49.00 of test USDC", "Agent A's share $1.00",
+5. Then "6. Paying and recording on NEAR", about 10 to 30 s on the test network, and "Receipt: paid and recorded on
+   NEAR testnet in" those seconds: "You paid $49.00 of test USDC", "Agent A's share $1.00",
    "Knos keeps $48.00", each payment with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
-6. Click "Prove the same claim again" - see "Answer: Yes, in" under a second, from the stored verified result, with
+6. Click "Prove the same claim again" - see "Answer: Yes, in" 1 to 2 s, from the stored verified result, with
    how many seconds sooner and the $1.00 of agent pay it did not need; then your $49 payment's link.
 7. Below the run - see "Live from NEAR testnet:" paid proofs, test dollars settled and lost, read in your browser
-   from NEAR's public record: each paid proof is one $49 from the buyer's test account to Knos's.
+   from NEAR's public record: each paid proof is one $49 from the buyer's test account to Knos's, so the dollars settled are the paid proofs times $49.
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (55.5 s), with
 screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [the claim](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-claim.png) and
@@ -541,7 +541,7 @@ With Python 3.10+, no key and nothing sent:
 
 **Safety.** The signing keys live only in the hosted server's secret store, never in the page or the repository. The
 paper link is the only data a buyer sends. Every push runs the full test suite on GitHub
-([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)), and it passes. Knos has no token.
+([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)), and the page shows its latest result live. Knos has no token.
 
 **Private AI.** The plain-words page is written by qwen2.5:1.5b-instruct in GitHub Actions. Running it on NEAR AI Cloud
 inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BLOCKED, no key is set yet.

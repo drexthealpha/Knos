@@ -6,6 +6,8 @@ allowance is collected. Past the deadline a passkey funding is refunded to the f
 units; the server never holds a passkey's key."""
 from __future__ import annotations
 
+import time
+
 import pytest
 
 pytest.importorskip("solders.litesvm")
@@ -60,6 +62,10 @@ def test_a_passkey_funds_a_milestone_before_any_maker_a_buyer_commits_and_the_ma
     valley.release_due(now=out["verdict"]["ends_s"], led=led)
     # released, by this sweep or by the app's own sweeper that another test in this process started: the milestone is
     # released and the maker holds the vault and the collected allowance, whichever sweep got there first
+    for _ in range(100):   # the other sweep may still be mid-release: wait for it, up to 10 s
+        if valley.public_project(valley.project(pid))["milestones"][0]["status"] == "released":
+            break
+        time.sleep(0.1)
     assert valley.public_project(valley.project(pid))["milestones"][0]["status"] == "released"
     assert tokens(c, pay.ata(mv, c.usdc)) == 10 * escrow.UNIT + 6 * escrow.UNIT          # the vault and the collected allowance
     assert tokens(c, pay.ata(bv, c.usdc)) == wallets.FAUCET_UNITS * escrow.UNIT - 6 * escrow.UNIT

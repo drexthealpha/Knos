@@ -657,6 +657,7 @@ def claim_prove() -> dict:
                "verdict": {"paper": KNOWN["10.46298/dmtcs.3545"]["paper_number"],
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", ""),
                            "holds": bool(win)}}
+        out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
         out["market"] = ready.get("market")   # settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
             _proofs["last"] = {"job": ready["id"], "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
@@ -771,12 +772,21 @@ def claim_cap() -> dict:
     import common
     from common import CONFIG, call
     b = CONFIG["agents"]["b"]
-    try:
-        r = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, wait="EXECUTED_OPTIMISTIC")
-        common._PREFETCHED.pop(b, None)
-        return {"ok": not r["ok"], "refused": not r["ok"], "said": r["said"], "tx": r["tx"], "url": r["url"], "agent": b, "cap_units": 1, "tried_units": 2}
-    except Exception as e:  # noqa: BLE001 - the page says why
-        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+    why = ""
+    for n in range(4):   # agent B's key also signs the next ready job, so a clashing nonce is fetched again and retried
+        with _cap_lock:
+            common._PREFETCHED.pop(b, None)
+            try:
+                r = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, wait="EXECUTED_OPTIMISTIC")
+                common._PREFETCHED.pop(b, None)
+                return {"ok": not r["ok"], "refused": not r["ok"], "said": r["said"], "tx": r["tx"], "url": r["url"], "agent": b, "cap_units": 1, "tried_units": 2}
+            except Exception as e:  # noqa: BLE001 - retried, then the page says the network was busy
+                why = str(e)[:120]
+        time.sleep(2 + 2 * n)
+    return {"ok": False, "why": "the test network was busy for 4 tries", "detail": why}
+
+
+_cap_lock = threading.Lock()
 
 
 def claim_pay(reuse: bool = False) -> dict:
@@ -812,7 +822,7 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None) -> dict:
              ("Agent B sent its version", txs.get("submit_b"), b)]
     if cap and cap.get("tx"):
         steps.append(("Agent B's over-budget step, refused", cap["tx"], b))
-    steps.append(("Agent A paid its share", txs.get("release"), CONFIG["relayer"]))
+    steps.append(("Agent A was paid its share", txs.get("release"), CONFIG["relayer"]))
     if pay.get("tx"):
         steps.append(("The buyer's $49 paid to Knos", pay["tx"], LIVE))
     if settle and settle.get("tx"):
