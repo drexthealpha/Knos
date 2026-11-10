@@ -461,7 +461,7 @@ product billions of people use, in days, not years.
 
 **Who it is for.** An R&D lead at a big company holding a paper, who needs to know whether its claim holds before
 building on it. They paste the paper's link and ask "Will it work?". Knos shows the claim word for word, how likely it
-holds, and one offer: prove it for $500, answer in under a minute.
+holds, and one offer: $49 per proof, pay after the answer, in under a minute.
 
 **What NEAR does here.** Each research claim gets its own market on NEAR testnet: its price is the odds that the claim
 holds. The claim's test is locked by its sha256 on NEAR before anyone works.
@@ -488,7 +488,7 @@ On the public page (no install, no sign-in, test money only):
 1. Open https://drexthealpha.github.io/Knos/near/ - see one line, the box "Paste a paper link" holding the HyperLogLog
    DOI, the button "Will it work?" and "17 years" with its source.
 2. Click "Will it work?" - see, about 2 s later, "Answer: Yes, it holds" with when Knos last proved it (read from the
-   newest settled market for this claim on NEAR testnet; "Answer: not proven yet" before any) with the $500 offer and its order
+   newest settled market for this claim on NEAR testnet; "Answer: not proven yet" before any) with the $49 offer and its order
    button, then "The paper says" with the claim word for word, "In plain words" written by a small AI
    (qwen2.5:1.5b-instruct, `.github/workflows/product-page.yml`, once an hour, with when it was written) and "How
    likely your proof is to say Yes" (50%: your order opens its own market).
@@ -519,7 +519,7 @@ Locally (Python 3.10+, no key, nothing sent):
 
 ### Price, and who has used Knos
 
-**Price.** A proof costs $500, paid by the buyer's company after the answer (the founder's deep-check price,
+**Price.** $49 per proof, paid by the buyer's company after the answer. That is 6.7 times below the cheapest hand check of a paper ($330, Colliard and others, 2023); on Qwen3.8-27B at NEAR AI Cloud's listed $0.04 and $1.35 per million tokens, the model costs $0.88 a proof if it reads 5 million tokens and writes 0.5 million (an assumption), a 98% margin (the founder's price,
 [docs/PRICING.md](docs/PRICING.md)). Nobody has paid for one yet; the page sends no invoice.
 
 **Outside contributors.** Two GitHub accounts outside the team have done paid work for Knos. `jaystay-bot` wrote

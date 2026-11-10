@@ -36,7 +36,7 @@ await page.locator("#go").click();
 mark("click");
 await page.locator("#look button").waitFor({ timeout: 60000 });
 mark("claim shown");
-await focus("#look .answer", 0, "The answer from Knos's last proof, and one offer: your own proof for $500", 3500);
+await focus("#look .answer", 0, "The answer from Knos's last proof, and one offer: your own proof for $49", 3500);
 await focus("#look .card", 1, "The paper's own claim, word for word", 3500);
 await page.screenshot({ path: path.join(out, "2-claim.png") });
 await focus("#look .card", 2, "In plain words, written by a small AI", 3000);
