@@ -490,8 +490,8 @@ On the public page (no install, no sign-in, test money only):
 2. Click "Will it work?" - see, about 2 s later, "Answer: Yes, it held in its last proof" (read from the newest
    settled market for this claim on NEAR testnet; "Answer: not proven yet" before any) with the $500 offer and its order
    button, then "The paper says" with the claim word for word, "In plain words" written by a small AI
-   (qwen2.5:1.5b-instruct, `.github/workflows/product-page.yml`, once an hour, with when it was written) and "Odds it
-   holds" for your proof (50% on a new market).
+   (qwen2.5:1.5b-instruct, `.github/workflows/product-page.yml`, once an hour, with when it was written) and "Odds for
+   your proof, before it runs" (50% on a new market).
 3. Click "Order now, pay by invoice after the answer" - see a clock and "1. The test is locked" at 0 s, then "2. Two
    agents rerun the paper's result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and
    "Agent B: Failed: it keeps 529,075 bytes".
