@@ -88,7 +88,7 @@ SIGNED_IN = ("/api/preorder", "/api/milestone", "/api/refund", "/api/factor", "/
 # every GET route below (do_GET), for the OpenAPI document (knos_wanted.openapi); the product routes list their own
 PAGES = {"/fields": "fields.html", "/money": "money.html", "/companies": "companies.html", "/trace": "trace.html", "/trace.html": "trace.html", "/with-without": "with_without.html", "/with-without.html": "with_without.html",
          "/qloo-safe-use": "qloo_safe_use.html", "/qloo-safe-use.html": "qloo_safe_use.html", "/invite": "invite.html", "/invite.html": "invite.html"}
-GET_ROUTES = {"/api/near/claim/code": "The verified code of the sample claim: the version that passed its locked test on NEAR testnet, as visitor_counter.py, its sha256 in X-Sha256", "/api/near/market": "The claim markets on NEAR testnet: the open claim's Yes and No prices in cents, the settled claim's record (POST /api/near/market/buy buys $1 of Yes or No)", "/api/near/totals": "Three live totals of the NEAR jobs contract (money paid for passing work, jobs paid, tries), each from its public record", "/api/near/live": "The live NEAR testnet job for a visitor of /near/: on or off, runs used today, the cap, the bid (POST starts one)", "/api/near/live/{run}": "One live NEAR job: its step, then who was paid and every testnet transaction", "/api/progress": "One running check: its live Qloo calls and entities so far (?req=)", "/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the Start page on the front door", "/start/": "301 to the Start page on the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
+GET_ROUTES = {"/api/near/claim/counters": "Live counters of the NEAR claim proofs, read from NEAR testnet: proofs run, test dollars settled, payments that failed", "/api/near/claim/code": "The verified code of the sample claim: the version that passed its locked test on NEAR testnet, as visitor_counter.py, its sha256 in X-Sha256", "/api/near/market": "The claim markets on NEAR testnet: the open claim's Yes and No prices in cents, the settled claim's record (POST /api/near/market/buy buys $1 of Yes or No)", "/api/near/totals": "Three live totals of the NEAR jobs contract (money paid for passing work, jobs paid, tries), each from its public record", "/api/near/live": "The live NEAR testnet job for a visitor of /near/: on or off, runs used today, the cap, the bid (POST starts one)", "/api/near/live/{run}": "One live NEAR job: its step, then who was paid and every testnet transaction", "/api/progress": "One running check: its live Qloo calls and entities so far (?req=)", "/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the Start page on the front door", "/start/": "301 to the Start page on the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
               "/api/money": "The money page: what is held, released and charged, and the price list",
               "/api/vectors": "The seven product-value vectors, measured: cost, speed, friction, trust, capability, access, status",
               "/api/proof": "The latest real verdict this server reached (shown first on both front doors)",
@@ -506,6 +506,9 @@ def make_handler(state: State):
             qs = parse_qs(u.query)
             if product_routes.handle_get(self, state, u, qs):
                 return None
+            if u.path == "/api/near/claim/counters":       # proofs run, test dollars settled, payments failed: from NEAR testnet
+                from . import near_live
+                return self._send(200, near_live.counters(), headers=blink.CORS)
             if u.path == "/api/near/claim/code":           # the verified code: the version that passed the locked test
                 from . import near_live
                 body, sha = near_live.claim_code()
@@ -961,6 +964,20 @@ def make_handler(state: State):
                 if not state.allow(self._client(), "near_live"):
                     return self._send(200, {"ok": False, "why": "three live runs every 10 minutes from one address"}, headers=blink.CORS)
                 return self._send(200, near_live.claim_prove(), headers=blink.CORS)
+            if u.path in ("/api/near/claim/cap", "/api/near/claim/pay", "/api/near/claim/receipt", "/api/near/claim/reuse", "/api/near/claim/flow"):
+                from . import near_live
+                if not state.allow(self._client(), "near_live" if u.path in ("/api/near/claim/flow", "/api/near/claim/reuse") else "near_look"):
+                    return self._send(200, {"ok": False, "why": "too many runs from one address; try again in a few minutes"}, headers=blink.CORS)
+                b = self._json()
+                if u.path == "/api/near/claim/cap":
+                    return self._send(200, near_live.claim_cap(), headers=blink.CORS)
+                if u.path == "/api/near/claim/pay":
+                    return self._send(200, near_live.claim_pay(), headers=blink.CORS)
+                if u.path == "/api/near/claim/receipt":
+                    return self._send(200, near_live.claim_receipt(b.get("cap"), b.get("pay") or {}, b.get("settle")), headers=blink.CORS)
+                if u.path == "/api/near/claim/reuse":
+                    return self._send(200, near_live.claim_reuse(), headers=blink.CORS)
+                return self._send(200, near_live.claim_flow(str(b.get("url") or "")), headers=blink.CORS)
             if u.path == "/api/near/claim/settle":         # the claim's market settled from its paid job
                 from . import near_live
                 if not state.allow(self._client(), "near_look"):

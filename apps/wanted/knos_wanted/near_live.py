@@ -587,7 +587,7 @@ def claim_look(url: str) -> dict:
         return {"ok": True, "known": False, "title": meta.get("title", ""), "quote": fit}
     if not (_last.get("at") and time.time() - _last["at"] < 300) and not _lasting.locked():
         threading.Thread(target=_refresh_last, daemon=True).start()   # read in the background: the click never waits for it
-    out = {"ok": True, "known": True, **known, "offer_usd": 500, "last": _last.get("out")}
+    out = {"ok": True, "known": True, **known, "price_usd": PRICE_USD, "last": _last.get("out"), "reusable": bool(_proofs.get("last"))}
     job = _ready.get("job")
     mk = (job or {}).get("market")
     if not job:
@@ -632,6 +632,9 @@ def claim_prove() -> dict:
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", ""),
                            "holds": bool(win)}}
         out["market"] = ready.get("market")   # settled next, by POST /api/near/claim/settle, once the job is paid
+        if out["ok"]:
+            _proofs["last"] = {"job": ready["id"], "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
+                               "release_url": paid.get("release_url"), "seconds": round(time.time() - t0, 1), "at": time.time()}
         out["seconds"] = round(time.time() - t0, 1)
         return out
     except Exception as e:  # noqa: BLE001 - the page says which step stopped
@@ -679,3 +682,189 @@ def claim_code() -> tuple[bytes, str]:
     import hashlib
     body = _jobs().pass_agent.SOLUTION.encode("utf-8")
     return body, hashlib.sha256(body).hexdigest()
+
+
+# Round 3: the price, the receipt, the spending cap, the cost of each step, reuse, the counters and one call for agents
+PRICE_USD = 49
+PRICE = PRICE_USD * 1_000_000          # $49.00 of test USDC (6 decimals)
+TREASURY = "knos-payer-1102.testnet"   # Knos's own test account, where the fee is kept
+RPC = "https://rpc.testnet.near.org"
+_proofs: dict = {}
+_price: dict = {}
+
+
+def _rpc(method: str, params) -> dict:
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
+    with urllib.request.urlopen(urllib.request.Request(RPC, body, {"Content-Type": "application/json"}), timeout=20) as r:
+        return json.loads(r.read()).get("result") or {}
+
+
+def _gas(tx: str, sender: str) -> float | None:
+    """The NEAR a transaction burned in fees, from its own outcome on testnet."""
+    try:
+        r = _rpc("tx", [tx, sender])
+        return sum(int(o["outcome"]["tokens_burnt"]) for o in [r["transaction_outcome"], *r["receipts_outcome"]]) / 1e24
+    except Exception:  # noqa: BLE001 - the step shows no cost rather than a guessed one
+        return None
+
+
+def near_usd() -> float | None:
+    """NEAR's price in US dollars now (CoinGecko, kept 10 minutes): what a step's fee would cost on mainnet."""
+    if _price.get("at") and time.time() - _price["at"] < 600:
+        return _price.get("usd")
+    try:
+        req = urllib.request.Request("https://api.coingecko.com/api/v3/simple/price?ids=near&vs_currencies=usd", headers={"User-Agent": "knos-near"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            _price.update(at=time.time(), usd=float(json.loads(r.read())["near"]["usd"]))
+    except Exception:  # noqa: BLE001 - no price: the log shows NEAR only
+        _price["at"] = time.time()
+    return _price.get("usd")
+
+
+def action_log(steps: list[tuple[str, str | None, str]]) -> dict:
+    """Each step of a proof with what it cost: the fee its transaction burned, in NEAR and in dollars at today's price."""
+    from concurrent.futures import ThreadPoolExecutor
+    usd = near_usd()
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        fees = list(ex.map(lambda st: _gas(st[1], st[2]) if st[1] else None, steps))
+    rows = [{"step": what, "tx": tx, "url": ("https://testnet.nearblocks.io/txns/" + tx) if tx else None,
+             "near": round(f, 6) if f is not None else None, "usd": round(f * usd, 5) if (f is not None and usd) else None}
+            for (what, tx, _), f in zip(steps, fees)]
+    total = sum(r["usd"] for r in rows if r["usd"] is not None)
+    return {"rows": rows, "near_usd": usd, "total_usd": round(total, 5), "price_source": "https://www.coingecko.com/en/coins/near"}
+
+
+def claim_cap() -> dict:
+    """The spending cap, live: agent B tries to spend 2 test units on a cap of 1, and the jobs contract refuses it."""
+    _jobs()
+    import common
+    from common import CONFIG, call
+    b = CONFIG["agents"]["b"]
+    try:
+        r = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, wait="EXECUTED_OPTIMISTIC")
+        common._PREFETCHED.pop(b, None)
+        return {"ok": not r["ok"], "refused": not r["ok"], "said": r["said"], "tx": r["tx"], "url": r["url"], "agent": b, "cap_units": 1, "tried_units": 2}
+    except Exception as e:  # noqa: BLE001 - the page says why
+        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+
+
+def claim_pay(reuse: bool = False) -> dict:
+    """The buyer's $49 of test USDC, from a test account Knos holds for the buyer (no wallet needed), to Knos."""
+    _jobs()
+    import common
+    from common import call
+    args = {"receiver_id": TREASURY, "amount": str(PRICE), "memo": "knos proof: HyperLogLog claim" + (" (reused result)" if reuse else "")}
+    with _lock:
+        common._PREFETCHED.pop(LIVE, None)
+        try:
+            r = call(LIVE, TOKEN, "ft_transfer", args, deposit="1 yoctoNEAR", gas="30 Tgas", wait="EXECUTED_OPTIMISTIC")
+        except Exception as e:  # noqa: BLE001 - one retry on a stale nonce
+            if "INVALID_TRANSACTION" not in str(e) and "nonce" not in str(e).lower():
+                return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+            time.sleep(2)
+            common._PREFETCHED.pop(LIVE, None)
+            r = call(LIVE, TOKEN, "ft_transfer", args, deposit="1 yoctoNEAR", gas="30 Tgas", wait="EXECUTED_OPTIMISTIC")
+        common._PREFETCHED.pop(LIVE, None)
+    return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], "from": LIVE, "to": TREASURY, "usd": PRICE_USD, **({} if r["ok"] else {"why": r["said"]})}
+
+
+def claim_receipt(cap: dict | None, pay: dict, settle: dict | None) -> dict:
+    """The receipt after the result: the buyer's $49, the agent's share, Knos's fee kept, and what each step cost."""
+    last = _proofs.get("last") or {}
+    txs = last.get("txs") or {}
+    from common import CONFIG
+    a, b = CONFIG["agents"]["a"], CONFIG["agents"]["b"]
+    steps = [("The job and its locked test posted", txs.get("post"), CONFIG["payer"]), ("Agent A took the job", txs.get("take_a"), a),
+             ("Agent A sent its version", txs.get("submit_a"), a), ("Agent B took the job", txs.get("take_b"), b),
+             ("Agent B sent its version", txs.get("submit_b"), b)]
+    if cap and cap.get("tx"):
+        steps.append(("Agent B's over-budget step, refused", cap["tx"], b))
+    steps.append(("Agent A paid its share", txs.get("release"), CONFIG["relayer"]))
+    if pay.get("tx"):
+        steps.append(("The buyer's $49 paid to Knos", pay["tx"], LIVE))
+    if settle and settle.get("tx"):
+        steps.append(("The claim's record on NEAR updated", settle["tx"], LIVE))
+    share = BID / 1e6
+    return {"buyer_usd": PRICE_USD, "agent_usd": share, "knos_usd": round(PRICE_USD - share, 2), "pay_url": pay.get("url"),
+            "agent_url": last.get("release_url"), "log": action_log(steps)}
+
+
+def claim_reuse() -> dict:
+    """A second proof of the same claim: the verified version of the last proof is reused, so no agent reruns it."""
+    last = _proofs.get("last")
+    if not last:
+        return {"ok": False, "why": "no verified result to reuse yet: order the first proof"}
+    t0 = time.time()
+    pay = claim_pay(reuse=True)
+    return {"ok": pay["ok"], "reused": last["job"], "verdict": last["verdict"], "pay": pay, "seconds": round(time.time() - t0, 1),
+            "saved": {"agent_usd": BID / 1e6, "seconds": last["seconds"], "first_seconds": last["seconds"]}, **({} if pay["ok"] else {"why": pay.get("why")})}
+
+
+_counts: dict = {}
+_counting = threading.Lock()
+
+
+def counters() -> dict:
+    """Live counters, read from NEAR testnet (kept 2 minutes, read in the background): proofs run (settled markets of
+    the claim), test dollars settled (the buyers' payments to Knos plus the agents' pay), and payments that failed."""
+    if not (_counts.get("at") and time.time() - _counts["at"] < 120) and not _counting.locked():
+        threading.Thread(target=_count, daemon=True).start()
+    return _counts.get("out") or {"pending": True}
+
+
+def _count() -> None:
+    if not _counting.acquire(blocking=False):
+        return
+    try:
+        _jobs()
+        from common import view
+        ids = [i for i in (view(MARKET, "get_markets", {}) or []) if str(i).startswith("job:job-")]
+        proofs = 0
+        for mid in ids:
+            m = (view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}
+            if m.get("question") == CLAIM_Q and m.get("outcome") is not None:
+                proofs += 1
+        base = "https://api-testnet.nearblocks.io/v3/accounts/"
+        paid, failed, sent = 0, 0, 0
+        nxt = ""
+        for _ in range(10):
+            req = urllib.request.Request(base + LIVE + "/txns?limit=100" + (f"&next={nxt}" if nxt else ""), headers={"User-Agent": "knos-near-totals"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                body = json.loads(r.read())
+            for t in body.get("data") or []:
+                acts = t.get("actions") or []
+                if t.get("receiver_account_id") == TOKEN and any(x.get("method") == "ft_transfer" for x in acts):
+                    args = next((x.get("args") for x in acts if x.get("method") == "ft_transfer"), None)
+                    a = args if isinstance(args, dict) else (json.loads(args) if isinstance(args, str) and args.startswith("{") else {})
+                    if a.get("receiver_id") == TREASURY:
+                        sent += 1
+                        if (t.get("outcomes") or {}).get("status"):
+                            paid += int(a.get("amount") or 0)
+                        else:
+                            failed += 1
+            nxt = (body.get("meta") or {}).get("next_page") or ""
+            if not nxt:
+                break
+        _counts.update(at=time.time(), out={"proofs": proofs, "settled_usd": round(paid / 1e6 + proofs * BID / 1e6, 2), "payments": sent,
+                                             "failed": failed, "lost_usd": 0 if failed == 0 else None, "record": "https://testnet.nearblocks.io/address/" + LIVE,
+                                             "read_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())})
+    except Exception as e:  # noqa: BLE001 - the last good counters stay
+        print("near_live counters:", str(e)[:200], file=sys.stderr, flush=True)
+        _counts["at"] = time.time() - 60
+    finally:
+        _counting.release()
+
+
+def claim_flow(url: str) -> dict:
+    """The whole flow in one call, for an agent: look up the paper, prove its claim, pay, settle, and the receipt."""
+    look = claim_look(url)
+    if not look.get("known"):
+        return {"ok": True, "look": look, "next": "no check for this paper yet: the quote says which checker fits"}
+    proof = claim_prove()
+    if not proof.get("ok"):
+        return {"ok": False, "look": look, "why": proof.get("why")}
+    cap = claim_cap()
+    pay = claim_pay()
+    settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
+    return {"ok": True, "claim": look.get("quote"), "verdict": proof.get("verdict"), "code": "https://knos.onrender.com/api/near/claim/code",
+            "cap": cap, "settled": (settle or {}).get("settled"), "receipt": claim_receipt(cap, pay, settle)}
