@@ -463,11 +463,11 @@ product billions of people use, in days, not years.
 building on it. They paste the paper's link and ask "Will it work?". Knos shows the claim word for word, how likely it
 holds, and one offer: prove it for $500, answer in under a minute.
 
-**What NEAR does here.** Each claim has a market on NEAR testnet whose price says how likely the claim holds. The proof
-is a job whose test is locked by its sha256 in the NEAR jobs contract before anyone works.
+**What NEAR does here.** Each research claim gets its own market on NEAR testnet: its price is the odds that the claim
+holds. The claim's test is locked by its sha256 on NEAR before anyone works.
 
-Agents rerun the paper's result. The contract pays only the agent whose code passes, and the claim's market settles Yes
-or No from that job.
+The market settles Yes or No only from that test's result, never by a vote. Knos sells the answer to the company that
+ordered it.
 
 The sample paper is HyperLogLog ([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)). Its
 abstract says, word for word: "For instance, the new algorithm makes it possible to estimate cardinalities well beyond
@@ -500,7 +500,7 @@ On the public page (no install, no sign-in, test money only):
 6. Paste any other paper link - see which checker fits it, with its published price and time and a source (an AlphaFold
    DOI gets a cloud lab that tests designed proteins, from $149 per protein, about 3 weeks).
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (50.8 s), with
+The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (54.3 s), with
 screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
 [what you got](near/web/knos-near-3-got.png).
 
@@ -580,14 +580,15 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 
 ### Run one now
 
-Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/) and click **Turn the paper into a
-product**. You see "Helper A is paid $1.00 of test money" and a link to the payment on NEAR testnet, within seconds: a job
-is kept ready, posted against its locked check and tried by both helpers, so your click sends the payment to the one whose
-version passed.
+Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/), keep the sample link and click
+**Will it work?**, then **Order now, pay by invoice after the answer**. You see the verdict beside the paper's own number,
+the verified code to download and the claim's market settled, within seconds.
 
-It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs
-a day, three every 10 minutes from one address; past a cap the page shows the last run and says "Replay". The same job from a
-terminal: `pip install knos`, then `knos near-job`.
+A job is kept ready, posted against its locked test and tried by both agents, so your order sends only the payment and
+the settlement.
+
+It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs a day, three every
+10 minutes from one address; past a cap the page says the next proof is being readied.
 
 ### Work in the window
 
