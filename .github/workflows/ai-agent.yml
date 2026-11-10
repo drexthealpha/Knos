@@ -1,0 +1,30 @@
+# Agent A as an AI model: qwen2.5-coder:7b (through Ollama on this runner: no key, nothing paid) writes the NEAR job's
+# solution.py against its locked test (near/scripts/ai_agent.py), and the test judges every try. The run keeps each try,
+# its result and the code, as the artifact "ai-agent". Nothing here signs a transaction or holds money.
+name: AI agent
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  write:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Ollama and qwen2.5-coder:7b
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > /tmp/ollama.log 2>&1 &) ; sleep 5
+          ollama pull qwen2.5-coder:7b
+      - name: The model writes the code; the locked test judges it
+        run: python3 near/scripts/ai_agent.py ai-agent.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ai-agent
+          path: ai-agent.json
