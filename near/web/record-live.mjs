@@ -43,9 +43,10 @@ if (await buy.count()) {
   mark("buy");
   await page.locator("#product [role=status]").filter({ hasText: /^Bought|^Not bought/ }).waitFor({ timeout: 60000 });
   mark((await page.locator("#product [role=status]").innerText()).slice(0, 80));
-  await page.locator("#links").scrollIntoViewIfNeeded();
+  await page.locator("#product").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(out, "3-bought.png") });
-  await page.waitForTimeout(6000);                     // bought, and the ledger links
+  await page.waitForTimeout(7000);                     // bought, what you got, where to try it
 }
 mark("end");
 const video = page.video();
