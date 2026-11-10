@@ -161,7 +161,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <section class="first" aria-labelledby="t-title">
     <h1 id="t-title" class="k-mission">Knos turns any research into a product billions of people use, in days, not years.</h1>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper link. Knos proves its main claim and hands you code that works.</label>
+      <label for="paper">Paste a paper link (the sample is HyperLogLog, 2007). Knos proves its main claim and hands you code that works.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -630,9 +630,9 @@ load();
     const order = el("button", { type: "button", className: "go big", textContent: "Order now, pay by invoice after the answer" });
     order.dataset.buy = "";
     const kids = [
-      el("section", { className: "card answer offer" }, [el("h2", { textContent: r.last ? `Answer: ${r.last.holds ? "Yes" : "No"}, it ${r.last.holds ? "held" : "did not hold"} in its last proof` : "Answer: not proven yet" }),
-        el("p", {}, r.last ? [`Proven ${when(r.last.job)}, kept on NEAR, a public record anyone can check. `, out(r.last.record, "See the record"),
-          ". Prove it again for your company for $500: two agents rerun the result against a test locked when you order, and you get a Yes or No and the code that passed in under a minute."]
+      el("section", { className: "card answer offer" }, [el("h2", { textContent: r.last ? `Answer: ${r.last.holds ? "Yes, it holds" : "No, it does not hold"}` : "Answer: not proven yet" }),
+        el("p", {}, r.last ? [`Knos last proved it ${when(r.last.job)}; the result is kept on NEAR, a public record anyone can check (`, out(r.last.record, "see it"),
+          "). Your own proof, run now for your company, costs $500: two agents rerun the result against a test locked when you order, and you get your own Yes or No, your own record and the code that passed, in under a minute."]
           : ["Prove it for $500: two agents rerun the paper\u2019s result against a test locked when you order, and you get a Yes or No and the code that passed in under a minute."]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
         el("p", { className: "fine", textContent: "Your company pays $500 after the answer. This is a demo: no invoice is sent." })]),
@@ -644,8 +644,8 @@ load();
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it")])]));
     else kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("p", { className: "fine", textContent: "The small AI’s page could not be read now, so no text is shown." })]));
-    if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "Odds for your proof, before it runs" }),
-      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " Even odds until your proof runs. They are kept on NEAR, a public record anyone can check, and only the proof settles them."]),
+    if (r.market) kids.push(el("section", { className: "card odds" }, [el("h2", { textContent: "How likely your proof is to say Yes" }),
+      el("p", {}, [el("b", { className: "pct", textContent: `${r.market.yes_pct}%` }), " Your order opens its own market on NEAR at even odds; only your proof settles it."]),
       el("p", { className: "fine" }, [out(NB + "address/market.knos-swarm-1105.testnet", "Where this number comes from")])]));
     look.replaceChildren(...kids);
     look.scrollIntoView({ block: "start" });
@@ -678,11 +678,11 @@ load();
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
       el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
     await wait(500);
-    const bet = el("p", { className: "fine", textContent: "Settling the claim\u2019s odds on NEAR\u2026" });
+    const bet = el("p", { className: "fine", textContent: "Settling your proof\u2019s market on NEAR\u2026" });
     add("ok", "You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]), bet]);
     clearInterval(tick);
     if (r.market) post("/api/near/claim/settle", { market: r.market.id }).then((m) => {
-      bet.className = ""; bet.textContent = m.ok && m.settled != null ? `The claim\u2019s odds on NEAR now read ${m.settled ? "Yes: it holds, for good" : "No: it does not hold, for good"}.` : `The claim\u2019s odds are not settled yet: ${m.why || "no answer"}.`;
+      bet.className = ""; bet.textContent = m.ok && m.settled != null ? `Your proof\u2019s market on NEAR settled ${m.settled ? "Yes: the claim holds" : "No: the claim does not hold"}.` : `Your proof\u2019s market is not settled yet: ${m.why || "no answer"}.`;
     });
     else bet.remove();
     $("links").replaceChildren(...(r.release_url ? [out(r.release_url, "settled on NEAR testnet"), " (the public record of this proof)"] : []));
