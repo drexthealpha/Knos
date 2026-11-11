@@ -613,7 +613,7 @@ def claim_look(url: str) -> dict:
     s = status()
     if s["used_today"] >= s["cap_today"]:
         left = 86400 - int(time.time()) % 86400
-        return {**out, "ready": False, "why": f"Today's {s['cap_today']} live proofs on NEAR testnet are used. The next can start at 00:00 UTC, "
+        return {**out, "ready": False, "why": f"Today's {s['cap_today']} live proofs on NEAR testnet are used. The next can start at 00:00 UTC, or sooner after a new release, "
                 f"in {left // 3600} h {left % 3600 // 60} min."}
     job = _ready.get("job")
     mk = (job or {}).get("market")

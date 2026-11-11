@@ -79,7 +79,7 @@ await page.evaluate((x) => {
     receipt: { buyer_usd: r.buyer_usd, agent_usd: r.agent_usd, knos_usd: r.knos_usd } }, null, 1);
   document.querySelector(".facts .snip").after(pre);
 }, answer);
-await focus("#rec-flow", 0, "The answer that call returned during this recording", 2000);
+await focus("#rec-flow", 0, "Part of the answer that call returned during this recording", 2000);
 mark("end");                                           // the video ends on the agent call's answer
 const video = page.video();
 await ctx.close();
