@@ -172,7 +172,7 @@ def test_the_answers_agree_with_the_tree():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "The money waits in a program on [Solana](docs/WORDS.md#solana), not with Knos." in readme
     assert "Today one person can still change that program, after a public wait" in readme
-    assert "test dollars" in answers["Does Knos use real money?"] and "devnet" in answers["Does Knos use real money?"]
+    assert "test dollars" in answers["Does Knos use real money?"] and "NEAR testnet" in answers["Does Knos use real money?"]   # the paper proof runs on NEAR testnet
     assert "LIMIT_S = 10" in (WEB / "check.js").read_text(encoding="utf-8")                  # "within ten seconds"
 
 

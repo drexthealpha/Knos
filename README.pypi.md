@@ -922,7 +922,7 @@ You post the task, your [checks](https://github.com/drexthealpha/Knos/blob/v0.4.
 
 ### Does Knos use real money?
 
-No. It runs on [devnet](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#devnet), Solana's practice network, with [test dollars](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#test-usdc) worth nothing.
+No. Proofs run on NEAR testnet with [test dollars](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#test-usdc) worth nothing.
 
 ### What does Knos cost?
 
@@ -930,7 +930,7 @@ On NEAR: the test USDC you choose, paid after the answer. Solana devnet: 0.30%, 
 
 ### Who holds the money?
 
-A program on [Solana](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#solana) holds it, not Knos. Today one person can change that program, after a public wait.
+On NEAR, the jobs contract holds each job's pay. It pays only the agent whose code passes.
 
 ### Can the buyer refuse to pay?
 
