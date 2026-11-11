@@ -76,4 +76,4 @@ def test_every_description_is_a_sentence_of_facts_json():
     lead = next(line.strip() for line in (ROOT / "README.md").read_text(encoding="utf-8").split("</h1>", 1)[1].splitlines() if line.strip())
     assert {pyproject, npm, server, lead} <= said, {pyproject, npm, server, lead} - said
     tens = (ROOT / "README.md").read_text(encoding="utf-8").split("## Try it in ten seconds", 1)[1].split("\n## ", 1)[0]
-    assert tens.strip().startswith("Open [the demand check](https://drexthealpha.github.io/Knos/)")
+    assert tens.strip().startswith("Open [the one page](https://drexthealpha.github.io/Knos/)")   # the one page (scripts/one_page.py)
