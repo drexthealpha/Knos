@@ -532,7 +532,7 @@ An agent can run the whole flow with one HTTP call: look up the paper, prove the
 
 - see a JSON answer with `"verdict"` (`"holds": true`, the paper's number and the measured one), `"code"` (the link to the
   verified code), `"cap"` (the refused over-budget step), `"paid": true`, `"settled": true` (false, with `"why_not_settled"`, if a step failed) and `"receipt"` (the payments and each
-  step's fee). It runs on testnet: the agent call allows four calls every 10 minutes from one address; the page's own proofs have their own limit, six every 10 minutes.
+  step's fee). It runs on testnet: the agent call allows four calls every 10 minutes from one address; the page's own proofs have their own limit, six every 10 minutes. Everyone shares 20 live proofs a day; after that the call answers with the last verified proof, marked `"reused": true`.
 
 ### Locally
 
