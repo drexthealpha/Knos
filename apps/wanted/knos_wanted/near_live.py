@@ -922,8 +922,8 @@ def counters() -> dict:
         threading.Thread(target=_resnap, daemon=True).start()   # read again in the background; answer from the copy held
     if not base:
         base = _snapshot()
-    if not base:
-        return {"pending": True}
+    if not base:   # the record could not be read here: the page reads it and adds this server's confirmed payments
+        return {"pending": True, "paid": [[round(x[0], 3), x[1]] for x in _paid_log]}
     since = int(base.get("as_of_ns") or 0) / 1e9
     new = [x for x in _paid_log if x[0] > since]
     return {"proofs": base["proofs"] + len(new), "usd": round(base["usd"] + sum(x[1] for x in new), 6), "lost_usd": base["lost_usd"],

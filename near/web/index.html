@@ -555,6 +555,7 @@ load();
       if (c.read_at) $("c-at").textContent = ` Full record read at ${c.read_at.slice(11, 16)} UTC${c.since_read ? `, plus ${c.since_read} paid since` : ""}.`;
     };
     try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c && c.proofs != null && c.lost_usd != null) show(c); } catch (e) { /* none kept */ }
+    let held = [];   // this server's confirmed payments, [unix time, test USDC], added to a record read here
     for (let n = 0; n < 5; n++) {
       const c = await fetch(HOSTED + "/api/near/claim/counters").then((r) => r.ok ? r.json() : null).catch(() => null);
       if (c && c.proofs != null) {
@@ -562,7 +563,7 @@ load();
         try { localStorage.setItem("knos-near-counters", JSON.stringify(c)); } catch (e) { /* not kept */ }
         return;
       }
-      if (c && c.pending) break;   // the server could not read the record: read it here
+      if (c && c.pending) { held = c.paid || []; break; }   // the server could not read the record: read it here
       await wait(2000 * (n + 1));   // the server is waking: ask again
     }
     const GH = "https://api.github.com/repos/drexthealpha/Knos/";
@@ -571,7 +572,12 @@ load();
     const run = runs && (runs.workflow_runs || [])[0];
     const checks = run && await gj(`commits/${run.head_sha}/check-runs?check_name=near-counters&per_page=100`);
     const cr = checks && (checks.check_runs || []).filter((x) => x.name === "near-counters").sort((x, y) => (y.completed_at || "").localeCompare(x.completed_at || ""))[0];
-    try { if (cr) show(JSON.parse(cr.output.summary)); } catch (e) { /* not shown */ }
+    try {
+      if (cr) {
+        const base = JSON.parse(cr.output.summary), since = Number(base.as_of_ns || 0) / 1e9, add = held.filter((x) => x[0] > since);
+        show({ ...base, proofs: base.proofs + add.length, usd: base.usd + add.reduce((n, x) => n + x[1], 0), since_read: add.length });
+      }
+    } catch (e) { /* not shown */ }
   }
   fetch(HOSTED + "/api/near/tests").then((r) => r.ok ? r.json() : null).catch(() => null).then((t) => {   // the suite's latest run, from GitHub
     const a = $("tests-run"); if (!a) return;
