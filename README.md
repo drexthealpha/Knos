@@ -521,7 +521,7 @@ An agent can run the whole flow with one HTTP call: look up the paper, prove the
 
 - see a JSON answer with `"verdict"` (`"holds": true`, the paper's number and the measured one), `"code"` (the link to the
   verified code), `"cap"` (the refused over-budget step), `"paid": true`, `"settled": true` (false, with `"why_not_settled"`, if a step failed) and `"receipt"` (the payments and each
-  step's fee). It runs on testnet, four agent calls every 10 minutes from one address, apart from the page's own proofs.
+  step's fee). It runs on testnet: the agent call allows four calls every 10 minutes from one address; the page's own proofs have their own limit, six every 10 minutes.
 
 ### Locally
 
@@ -916,7 +916,7 @@ No. It runs on [devnet](docs/WORDS.md#devnet), Solana's practice network, with [
 
 ### What does Knos cost?
 
-Ten demand checks a month are free; releases will cost companies 1%. Today devnet charges 0.30%, at least 0.05 [test dollars](docs/WORDS.md#test-usdc).
+On NEAR: the test USDC you choose, paid after the answer. Solana devnet: 0.30%, at least 0.05 [test dollars](docs/WORDS.md#test-usdc); releases later 1%.
 
 ### Who holds the money?
 
