@@ -136,7 +136,7 @@ Today Knos earns its fee only when work is accepted. When you get a refund, the 
 
 ## Is it real?
 
-It runs on test money only: [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#test-usdc) on Solana's practice network, [devnet](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#devnet).
+It runs on test money only: [test USDC](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#test-usdc) on NEAR testnet for the paper proof, and on Solana's practice network, [devnet](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WORDS.md#devnet), for the other tools.
 
 There are no customers yet. Nobody has bought anything ([what is not real yet](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/DISCLOSURE.md)).
 
@@ -939,7 +939,7 @@ Neither side alone. A program checks a [signed record](https://github.com/drexth
 
 ### How do I try Knos?
 
-Open [the front door](https://drexthealpha.github.io/Knos/) and type the product you want to build. It says who wants it and where, with no sign-up.
+Open [the front door](https://drexthealpha.github.io/Knos/) and press the button by the sample paper. Then prove it with the test USDC you choose.
 
 
 ## Read more
