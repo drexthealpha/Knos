@@ -36,8 +36,8 @@ await page.evaluate(() => scrollTo(0, 0));
 await page.waitForTimeout(1500);                       // the one page settles its first paint
 await page.screenshot({ path: path.join(out, "1-first.png") });
 mark("open");                                          // the video starts here: a caption on every screen, none held over 3 s
-await focus(null, 0, "Why does good research take 17 years to reach people?", 800);
-await focus(".k-goal", 0, "Knos turns any research into a product billions of people use, in days, not years", 1500);
+await focus(null, 0, "Why does good research take 17 years to reach people?", 2000);
+await focus(".k-goal", 0, "Knos turns any research into a product billions of people use, in days, not years", 2000);
 await focus("#ask", 0, "An R&D lead pastes a paper link and asks: will it work?", 1000);
 await page.locator("#go").click();
 mark("click");

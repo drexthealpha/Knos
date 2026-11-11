@@ -519,7 +519,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
 7. Below the run - see "Live from NEAR testnet, in test dollars:" first proofs paid, settled and lost, read from NEAR's public record
    (in full by a GitHub Action scheduled every 10 minutes, which GitHub may run later, plus the server's own confirmed payments since; the page says how old the full read is): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (35.8 s, no screen held over 3 s; the waits for NEAR testnet and for the count are cut, and the video says so where each is cut; it ends on the agent call's answer, run during the recording), with
+The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (36.6 s, no screen held over 3 s; the waits for NEAR testnet and for the count are cut, and the video says so where each is cut; it ends on the agent call's answer, run during the recording), with
 screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
 [what you got](near/web/knos-near-3-got.png).
 
