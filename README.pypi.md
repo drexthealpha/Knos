@@ -513,10 +513,10 @@ On the public page (no install, no sign-in, no wallet, test money only):
    visitors on the server: how many it counted, how far off and in how many bytes.
 5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network, and "Receipt for proof job-...: paid and
    recorded on NEAR testnet in" those seconds: "You put behind the claim 10.00 test USDC", "Agent A's share
-   1.20 test USDC in all: 0.20 test USDC from your price (1 part in 49) plus the 1.00 this job carried" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
+   1.20 test USDC in all: 0.20 test USDC from your price (1 part in 49) plus the 1.00 the job itself paid for passing its locked test" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
-   how many seconds sooner, "no test USDC moved" and a link to the first proof.
+   against the first proof's seconds from your press to its receipt and its test USDC, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet, in test dollars:" first proofs paid, settled and lost, read from NEAR's public record
    (in full by a GitHub Action scheduled every 10 minutes, which GitHub may run later, plus the server's own confirmed payments since; the page says how old the full read is): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
@@ -620,7 +620,7 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 | What | How |
 |---|---|
 | **Held until it passes** | A funder sends a test token (NEP-141) with `ft_transfer_call`; the contract holds it against a criteria hash and a deadline. |
-| **Proof is a signed CI run** | A GitHub Actions OIDC token, checked in the contract: RS256 in pure Rust, issuer, audience = this contract, repository, workflow, commit and a one-time `jti`. Paid on a real one: [run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325), release [`82N9tRK8…`](https://explorer.testnet.near.org/transactions/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj). |
+| **Proof is a signed CI run** | A GitHub Actions OIDC token, checked in the contract: RS256 in pure Rust, issuer, audience = this contract, repository, workflow, commit and a one-time `jti`. Paid on a real one: [run 41651312325](https://github.com/drexthealpha/Knos/actions/runs/41651312325), release [`82N9tRK8…`](https://testnet.nearblocks.io/txns/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj). |
 | **Refund** | After the deadline, the money goes back to the funder. Fee: 0. |
 | **Keys** | GitHub's signing keys are set by 2 of 3 owners (`scripts/github_keys.py`). |
 | **Network** | NEAR testnet only. Test money. |
@@ -680,13 +680,13 @@ walks these four steps in a fresh browser. One run, 5 Nov 2026:
 
 | Step | Transaction |
 |---|---|
-| Job posted: 1000 test units against the locked test `0b0f037d…` | [`7VS43unm…`](https://explorer.testnet.near.org/transactions/7VS43unmH6GMv36GNBivvcNB8Bxv2CRKFvHKiLcbu7qu) |
-| Agent A takes it, submits its output | [`GzghavUR…`](https://explorer.testnet.near.org/transactions/GzghavURW39UivrETnWFxeunAwEv5Cpm5tKUmhejBQyT), [`oXq8gV4u…`](https://explorer.testnet.near.org/transactions/oXq8gV4u6desS1GuJdK1ZCiTKo4QNAumEQTnTC69A8v) |
-| Agent B takes it, submits its output | [`FmSfyLQ4…`](https://explorer.testnet.near.org/transactions/FmSfyLQ4tu2kc4C9rWgjEP1kAo5788EufnVUWeLsJfNt), [`9CYdyki2…`](https://explorer.testnet.near.org/transactions/9CYdyki2gTVnfr31Ufjirs6j99jdjYU8Zk4yseKsef9z) |
-| The checker: A 5 of 5 cases pass; B fails; the bid paid to A, 25.4 s after the check began | [`5caS1jXH…`](https://explorer.testnet.near.org/transactions/5caS1jXHAj7FbUZRMQog7nqgaBk4baDBkvBEYAQjbnpH) |
-| Agent B pays 2 on a cap of 1: "over the spend cap: 0 spent, 2 asked, cap 1" | [`FdJPJf7R…`](https://explorer.testnet.near.org/transactions/FdJPJf7RLdErvMBdeUkeUWdhqw4VGNEKtw5aVD4VnK4y) |
-| Agent B takes an open job's bid with a token it signed itself: "the token's signature does not verify" | [`E5GUcVks…`](https://explorer.testnet.near.org/transactions/E5GUcVks55r9Rn4b1HJBJagDB1bFbL8YMj41UFHFeHan) |
-| The embedded button pays a bid on testnet after its 1Click quote | [`32suEFMY…`](https://explorer.testnet.near.org/transactions/32suEFMYv7JEzfGLH9vNdpHs81BmVfHzbW7oMPMShxKX) |
+| Job posted: 1000 test units against the locked test `0b0f037d…` | [`7VS43unm…`](https://testnet.nearblocks.io/txns/7VS43unmH6GMv36GNBivvcNB8Bxv2CRKFvHKiLcbu7qu) |
+| Agent A takes it, submits its output | [`GzghavUR…`](https://testnet.nearblocks.io/txns/GzghavURW39UivrETnWFxeunAwEv5Cpm5tKUmhejBQyT), [`oXq8gV4u…`](https://testnet.nearblocks.io/txns/oXq8gV4u6desS1GuJdK1ZCiTKo4QNAumEQTnTC69A8v) |
+| Agent B takes it, submits its output | [`FmSfyLQ4…`](https://testnet.nearblocks.io/txns/FmSfyLQ4tu2kc4C9rWgjEP1kAo5788EufnVUWeLsJfNt), [`9CYdyki2…`](https://testnet.nearblocks.io/txns/9CYdyki2gTVnfr31Ufjirs6j99jdjYU8Zk4yseKsef9z) |
+| The checker: A 5 of 5 cases pass; B fails; the bid paid to A, 25.4 s after the check began | [`5caS1jXH…`](https://testnet.nearblocks.io/txns/5caS1jXHAj7FbUZRMQog7nqgaBk4baDBkvBEYAQjbnpH) |
+| Agent B pays 2 on a cap of 1: "over the spend cap: 0 spent, 2 asked, cap 1" | [`FdJPJf7R…`](https://testnet.nearblocks.io/txns/FdJPJf7RLdErvMBdeUkeUWdhqw4VGNEKtw5aVD4VnK4y) |
+| Agent B takes an open job's bid with a token it signed itself: "the token's signature does not verify" | [`E5GUcVks…`](https://testnet.nearblocks.io/txns/E5GUcVks55r9Rn4b1HJBJagDB1bFbL8YMj41UFHFeHan) |
+| The embedded button pays a bid on testnet after its 1Click quote | [`32suEFMY…`](https://testnet.nearblocks.io/txns/32suEFMYv7JEzfGLH9vNdpHs81BmVfHzbW7oMPMShxKX) |
 
 Agent A was paid 1000; agent B was paid 0. NEAR Intents has no testnet, so the 1Click call is a dry quote only, with 0
 spent on mainnet. The checker runs an agent's output in a subprocess with a 20 s limit and no environment; it is a
@@ -738,10 +738,10 @@ Measured: the release receipt burns 7.33 Tgas (11.68 Tgas for the whole transact
 
 | What | Where |
 |---|---|
-| Contract | [`knos-pay-1103.testnet`](https://explorer.testnet.near.org/accounts/knos-pay-1103.testnet), first deployed in tx [`6Uoen72K…`](https://explorer.testnet.near.org/transactions/6Uoen72KUZnDy1PCknZx5iEQNzfWY2hGgyGmgTdpjAfp); this build since 3 Nov 2026, tx [`AcFJP4Ch…`](https://explorer.testnet.near.org/transactions/AcFJP4ChbxF4Vuwx6qAdHNuugbHgcVNuVcprnzpx1Mfk), code hash `4ZwgX56fbcChxPwP6nu5oJJ8vWYtB2Az9y4jF2K6KcfR` |
-| Test token | [`knos-usdc-1102.testnet`](https://explorer.testnet.near.org/accounts/knos-usdc-1102.testnet) (NEP-141, this repo's `mock-usdc`), tx [`D4PoD9do…`](https://explorer.testnet.near.org/transactions/D4PoD9doUA5Lo7wxWRSQEvnpFPcmHXuqitqnXgYoa8sG) |
+| Contract | [`knos-pay-1103.testnet`](https://testnet.nearblocks.io/address/knos-pay-1103.testnet), first deployed in tx [`6Uoen72K…`](https://testnet.nearblocks.io/txns/6Uoen72KUZnDy1PCknZx5iEQNzfWY2hGgyGmgTdpjAfp); this build since 3 Nov 2026, tx [`AcFJP4Ch…`](https://testnet.nearblocks.io/txns/AcFJP4ChbxF4Vuwx6qAdHNuugbHgcVNuVcprnzpx1Mfk), code hash `4ZwgX56fbcChxPwP6nu5oJJ8vWYtB2Az9y4jF2K6KcfR` |
+| Test token | [`knos-usdc-1102.testnet`](https://testnet.nearblocks.io/address/knos-usdc-1102.testnet) (NEP-141, this repo's `mock-usdc`), tx [`D4PoD9do…`](https://testnet.nearblocks.io/txns/D4PoD9doUA5Lo7wxWRSQEvnpFPcmHXuqitqnXgYoa8sG) |
 | Owners | `knos-own1-1102`, `knos-own2-1102`, `knos-own3-1102` (.testnet): any 2 set GitHub's signing keys |
-| Wasm | `wasm/knos_near.wasm`, 280,651 bytes, sha256 `a5fc586102b9c1b8e68011c8e263563f2b87de113413ff04d5dcfb84321ac50e`, code hash `CAwSqmYHJ7FnW88ivkm9zxczyKstJrGSkmU1pXzyMQ3X`: the jobs contract [`jobs.knos-swarm-1105.testnet`](https://explorer.testnet.near.org/accounts/jobs.knos-swarm-1105.testnet), deployed in [`GGLvdmu5…`](https://explorer.testnet.near.org/transactions/GGLvdmu5ZQvKQVZYT19AYPJRL91GkkozDVkHCNZPPXWt). `knos-pay-1103` runs the build before the jobs: 223,557 bytes, sha256 `3503799e…` (the code hash above) |
+| Wasm | `wasm/knos_near.wasm`, 280,651 bytes, sha256 `a5fc586102b9c1b8e68011c8e263563f2b87de113413ff04d5dcfb84321ac50e`, code hash `CAwSqmYHJ7FnW88ivkm9zxczyKstJrGSkmU1pXzyMQ3X`: the jobs contract [`jobs.knos-swarm-1105.testnet`](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet), deployed in [`GGLvdmu5…`](https://testnet.nearblocks.io/txns/GGLvdmu5ZQvKQVZYT19AYPJRL91GkkozDVkHCNZPPXWt). `knos-pay-1103` runs the build before the jobs: 223,557 bytes, sha256 `3503799e…` (the code hash above) |
 
 Read the rules from the chain:
 
@@ -757,23 +757,23 @@ The payout moves tokens held since funding. At funding the funder moves the amou
 
 A milestone released for a Solana payee with no payout signature by its deadline is refunded like an unreleased one, so it never stays locked; once its payout is signed, it is not.
 
-`scripts/solana_payout.py run` does both on [`knos-pay-1103.testnet`](https://explorer.testnet.near.org/accounts/knos-pay-1103.testnet) (code sha256 `3503799e…`), derived Solana address `DUxGyghGoZNZu85zVJXHLAgsrA3rBt3eVDSGmhk8bzBi`, on 3 Nov 2026:
+`scripts/solana_payout.py run` does both on [`knos-pay-1103.testnet`](https://testnet.nearblocks.io/address/knos-pay-1103.testnet) (code sha256 `3503799e…`), derived Solana address `DUxGyghGoZNZu85zVJXHLAgsrA3rBt3eVDSGmhk8bzBi`, on 3 Nov 2026:
 
 | Step | Transaction |
 |---|---|
 | The funder's 1,000,000 test units moved into the derived address's account, held there | [`5zf4swfJ…`](https://explorer.solana.com/tx/5zf4swfJNBMv7JBvMpvQC7nHxL6SU93GRLZ1Vj7DRv8GqZWztYwywnPqxFUT3sYKHRCjZ8aJgy1stLvWa9Wdj8oo?cluster=devnet) |
-| Milestone funded for the Solana payee | [`EWepDj2u…`](https://explorer.testnet.near.org/transactions/EWepDj2uQ3gESJrrgyKMmbZgjj9iHr9raCwa8RSSpMAD) |
-| Released on a token | [`EVaDjqNV…`](https://explorer.testnet.near.org/transactions/EVaDjqNVUBqVypESpGCFwsbDv2eFBJxd8JZjNmP25wTb) |
-| Transfer of the held units checked, signed by the MPC network | [`4eJPkBn5…`](https://explorer.testnet.near.org/transactions/4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR) |
+| Milestone funded for the Solana payee | [`EWepDj2u…`](https://testnet.nearblocks.io/txns/EWepDj2uQ3gESJrrgyKMmbZgjj9iHr9raCwa8RSSpMAD) |
+| Released on a token | [`EVaDjqNV…`](https://testnet.nearblocks.io/txns/EVaDjqNVUBqVypESpGCFwsbDv2eFBJxd8JZjNmP25wTb) |
+| Transfer of the held units checked, signed by the MPC network | [`4eJPkBn5…`](https://testnet.nearblocks.io/txns/4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR) |
 | The 1,000,000 held units paid on Solana devnet (held account: 1,000,000 before, 0 after) | [`e4e19KWt…`](https://explorer.solana.com/tx/e4e19KWtALEZ5mBHiBjpH5YKuzyHf4bVJyCqDYfcE1UY3smbhkbADxEogho2Sy9DhhqPdWyJCxgTEjMSrjrtMrJ?cluster=devnet) |
-| A second milestone released, never signed: refund before the deadline refused | [`Ce2p5iEP…`](https://explorer.testnet.near.org/transactions/Ce2p5iEPxLCAVRKLxTNC37uMb1kLFamLMquFWKhPSsoZ) |
-| The same milestone refunded after its deadline: the payer's 1,000,000 test units back | [`A67yep8D…`](https://explorer.testnet.near.org/transactions/A67yep8D8g55KxLjySFUqsDLn7J9AdLFEqvidpaHFmVB) |
+| A second milestone released, never signed: refund before the deadline refused | [`Ce2p5iEP…`](https://testnet.nearblocks.io/txns/Ce2p5iEPxLCAVRKLxTNC37uMb1kLFamLMquFWKhPSsoZ) |
+| The same milestone refunded after its deadline: the payer's 1,000,000 test units back | [`A67yep8D…`](https://testnet.nearblocks.io/txns/A67yep8D8g55KxLjySFUqsDLn7J9AdLFEqvidpaHFmVB) |
 
 Not built: when a released Solana milestone is refunded on NEAR, the tokens already held by the derived address stay there; a signed transfer back to the funder is not written yet.
 
 ### The payee needs no NEAR for gas
 
-`relayer/relay.py` is a NEP-366 relayer that pays only for calls to one Knos contract (`knos-pay2-1102.testnet` in the test). `scripts/test_gasless.py` has the payee sign a release as a delegate action; the relayer sends it ([`4XpFZwBM…`](https://explorer.testnet.near.org/transactions/4XpFZwBMGtkPWzCdkwLZkDtB95EPiAWUz7orAPRsyAJG)) and the payee's NEAR balance is the same to the yoctoNEAR.
+`relayer/relay.py` is a NEP-366 relayer that pays only for calls to one Knos contract (`knos-pay2-1102.testnet` in the test). `scripts/test_gasless.py` has the payee sign a release as a delegate action; the relayer sends it ([`4XpFZwBM…`](https://testnet.nearblocks.io/txns/4XpFZwBMGtkPWzCdkwLZkDtB95EPiAWUz7orAPRsyAJG)) and the payee's NEAR balance is the same to the yoctoNEAR.
 
 Every other call the test sends is refused, the token contract's `ft_transfer` among them, and the test prints each with the relayer's reason (the relayer also writes them to its local `relay.log`, not kept in the repository).
 
@@ -799,46 +799,46 @@ The last 3 were sent by `.github/workflows/near-release.yml` ([run 41651312325](
 
 | Attack | Expected | Actual | Reason | Testnet tx |
 |---|---|---|---|---|
-| one owner alone sets a key | not applied | done | proposed knos-test: waiting for a second owner | [`13QkRje9…`](https://explorer.testnet.near.org/transactions/13QkRje9gXLXmVcquyaMTpvCT6C1p6XLbJ3AC3iUyUt5) |
-| the same owner twice | not applied | done | proposed knos-test: waiting for a second owner | [`5Hq9vePk…`](https://explorer.testnet.near.org/transactions/5Hq9vePkiaqrwVL7n6GH8Lcusk9TT654SJkrPryp8afz) |
-| a second owner, same key (control) | key set | done | key knos-test set by 2 owners | [`8buBe2cH…`](https://explorer.testnet.near.org/transactions/8buBe2cHnNnN6VKm1QBdVUmLh6sQw3AzQc8CxzsovkkV) |
-| a key change by a non-owner | refused | refused | only an owner changes the key set | [`FZWCRz4N…`](https://explorer.testnet.near.org/transactions/FZWCRz4NxD9RfAkr4jwmUWx15v2VTmuXZG6TxLQhp6Sm) |
-| a 1024-bit key | refused | refused | n must be a 2048-bit RSA modulus | [`C4dSb9TZ…`](https://explorer.testnet.near.org/transactions/C4dSb9TZh526xBkRSdkAdsHJXMzegTgKTsBRdXDKyWDn) |
-| an honest release (control) | paid | done | a11030449-1: Released | [`J9wcy43C…`](https://explorer.testnet.near.org/transactions/J9wcy43Cmrm2hFtTzar9AtVuZVvG7AN8SB7FFptnahjn) |
-| the same token again (replay) | refused | refused | this token was already used | [`5N969ghk…`](https://explorer.testnet.near.org/transactions/5N969ghkXCb7FuLZH2cfGF12V2M3sXNF7wpjc2p54pe) |
-| a second payment of a paid milestone | refused | refused | the milestone is not funded and open | [`NyiJNrBJ…`](https://explorer.testnet.near.org/transactions/NyiJNrBJ5M6gQyFoNKUG5X69mZaa8hVzLgWdiv4kfPk) |
-| a token from another repository | refused | refused | the token comes from another repository | [`DdPbefRQ…`](https://explorer.testnet.near.org/transactions/DdPbefRQCu7BUkktvp4k8dmf2Cm5QPTxcn2jHqSpqGvh) |
-| a token from another workflow | refused | refused | the token comes from another workflow | [`88r79JUm…`](https://explorer.testnet.near.org/transactions/88r79JUmEFA5dFkNwWCqhTqtAbgZJcFxH2LnLmX7HmvE) |
-| a workflow on another branch | refused | refused | the token comes from another workflow | [`GLcpLbnx…`](https://explorer.testnet.near.org/transactions/GLcpLbnxWHaPeVaQpbxKG32BduVW5FaRtVAJzJFggj67) |
-| altered criteria | refused | refused | the criteria are not the ones locked at funding | [`35b6Bq2H…`](https://explorer.testnet.near.org/transactions/35b6Bq2HeyX9MZntAHZqndzPfy7ZpjhSoC3KErU9Jr7u) |
-| a forged token (unknown key) | refused | refused | the token's key is not in the key set | [`DiSbnkxN…`](https://explorer.testnet.near.org/transactions/DiSbnkxNEFG8nCqcjChGmunEy7ccH5Jvs1upQugL8yLN) |
-| a re-signed token (known kid, other key) | refused | refused | the token's signature does not verify | [`CNuKxmNH…`](https://explorer.testnet.near.org/transactions/CNuKxmNHrHHvgBGJXpJWxKAS2BvTY3gk3Vwv4dcEDZDc) |
-| claims changed after signing | refused | refused | the token's signature does not verify | [`7ts4yPyb…`](https://explorer.testnet.near.org/transactions/7ts4yPybtMHBeJSXD2BsuUhXnjKHESroG3T8VmwpDonA) |
-| a truncated signature | refused | refused | the token's signature does not verify | [`DRHNBrGL…`](https://explorer.testnet.near.org/transactions/DRHNBrGLVwk964VePrupUEvKFrA6vGTVnBkhdcja5uDg) |
-| an expired token | refused | refused | the token has expired | [`C5pBDNVL…`](https://explorer.testnet.near.org/transactions/C5pBDNVL7wMDPQm39jdqBSgiNDmupUcNCFLUnjgBiKWu) |
-| another audience | refused | refused | the token's audience is not this contract | [`95MRk185…`](https://explorer.testnet.near.org/transactions/95MRk185B74knL43BqeqKK7LPyKms3qdf6SqNeHUL6k9) |
-| another issuer | refused | refused | the token is not GitHub's | [`8VQA6SVP…`](https://explorer.testnet.near.org/transactions/8VQA6SVPkwU3bTzmzw1znVXeXBiRpEy7kkFr7P1o2jmm) |
-| alg HS256 | refused | refused | the token is not RS256 | [`bb6ZiMAS…`](https://explorer.testnet.near.org/transactions/bb6ZiMASMGwNtWvfA1LEwj4XW8mdfBgVke9hTezHwmJ) |
-| alg none, no signature | refused | refused | the token is not RS256 | [`oi7eSCkt…`](https://explorer.testnet.near.org/transactions/oi7eSCktX4rwNffGKUQjvjonctNfPi6xPuhkp2B1kDx) |
-| a token naming no commit | refused | refused | the token names no commit | [`36pEPxJe…`](https://explorer.testnet.near.org/transactions/36pEPxJeuj3mHcWQffm51YwGbMJvjXRY5ERmtn3AR529) |
-| not a JWT | refused | refused | the token is not header.payload.signature | [`CfpTUhNN…`](https://explorer.testnet.near.org/transactions/CfpTUhNN5cin5rnzQFpfmZkN2VfjV3fSWfQyECaZvx3m) |
-| a milestone that does not exist | refused | refused | no such milestone | [`3qJyZWBi…`](https://explorer.testnet.near.org/transactions/3qJyZWBi2okDjdH78ULmuqUKAwwA9TNHnRiE9dvai7Fx) |
-| an early refund | refused | refused | the deadline has not passed | [`CdrfBixS…`](https://explorer.testnet.near.org/transactions/CdrfBixSdTQx5C7GbtYuenG7RS3fjCwi7iKjF5Vt13JF) |
-| the private callback called from outside | refused | refused | Method on_paid is private | [`7L5b2MNi…`](https://explorer.testnet.near.org/transactions/7L5b2MNik5tmKUuNv2cTvzkjYbq8uPXGYtAD8LG2A5FP) |
-| funding the same id twice | refused | refused | a milestone with this id exists | [`FbZib4EA…`](https://explorer.testnet.near.org/transactions/FbZib4EA1tyibRnRwAjdM6Qfw3X8weDuKPFX3L4U27Fs) |
-| funding with a past deadline | refused | refused | the deadline is in the past | [`DNm46bgg…`](https://explorer.testnet.near.org/transactions/DNm46bggsBRbTTsekByBXbZNpghesGrmqJ93kwAyFzeQ) |
-| funding without a criteria hash | refused | refused | criteria_hash must be 64 hex | [`DVwYdi1S…`](https://explorer.testnet.near.org/transactions/DVwYdi1SUjWrFYytpWZincAmkLJNQuzZ4sqb6ZkpaR4x) |
-| funding for an unknown chain | refused | refused | payee_chain | [`3ENxYzgY…`](https://explorer.testnet.near.org/transactions/3ENxYzgY9Df4YWkivvuEvmLhytEit9PjBLowSyXMxp4j) |
-| a workflow outside the repository | refused | refused | repository and workflow | [`51m36aiT…`](https://explorer.testnet.near.org/transactions/51m36aiTxVytwLRuRkG7yhtNrJz7BGxqFT4yGbS9eECW) |
-| funding in another token | refused | refused | only the configured USDC funds a milestone | [`9RNJwFWj…`](https://explorer.testnet.near.org/transactions/9RNJwFWjBytYYyDqcFFrMsXFWvRs6t1SLPiWAUpJibPw) |
-| a token under a removed key | refused | refused | the token's key is not in the key set | [`14NEB4zZ…`](https://explorer.testnet.near.org/transactions/14NEB4zZZ753EMj8jLcaBdQiWKHjugDPigSDxUNzq3Qm) |
-| a release after the deadline | refused | refused | the deadline has passed: only a refund is possible | [`AjXQma9b…`](https://explorer.testnet.near.org/transactions/AjXQma9bfPMKcx58cuqK5ReYZpa8HD9RsWyt8EYCsQ4r) |
-| a refund after the deadline, sent by anyone (control) | refunded | done | a11030449-9: Refunded | [`EYVQLExx…`](https://explorer.testnet.near.org/transactions/EYVQLExxFvyXTXkk5iri7vaZNt7g82hExRvM8GKRqN5G) |
-| a release after the refund | refused | refused | the milestone is not funded and open | [`HRE3ykMo…`](https://explorer.testnet.near.org/transactions/HRE3ykMo1rK6vTY1LxGWjRY87D47eWPqUd8vZDjDndfi) |
-| a second refund | refused | refused | the milestone is not funded and open | [`AvcimeGt…`](https://explorer.testnet.near.org/transactions/AvcimeGtYKotYE6nFUtLXqhb3NAXvBUjtTAV68DrA1ai) |
-| a real GitHub token from this workflow (control) | paid | done | n1-milestone-11031410: Released, 1,000,000 test units to the payee, 12.13 Tgas | [`82N9tRK8…`](https://explorer.testnet.near.org/transactions/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj) |
-| the same real token on a second milestone of this workflow | refused | refused | this token was already used | [`HcZ8nBuQ…`](https://explorer.testnet.near.org/transactions/HcZ8nBuQYuYU5LKRVceSfXVdqBnLrj1shyddj3EQBsM2) |
-| the same real token on a milestone funded for another workflow | refused | refused | the token comes from another workflow | [`2H16uPeH…`](https://explorer.testnet.near.org/transactions/2H16uPeHibucBssbaEexq9TPyxqWx9hTjHKMRRfmJbfe) |
+| one owner alone sets a key | not applied | done | proposed knos-test: waiting for a second owner | [`13QkRje9…`](https://testnet.nearblocks.io/txns/13QkRje9gXLXmVcquyaMTpvCT6C1p6XLbJ3AC3iUyUt5) |
+| the same owner twice | not applied | done | proposed knos-test: waiting for a second owner | [`5Hq9vePk…`](https://testnet.nearblocks.io/txns/5Hq9vePkiaqrwVL7n6GH8Lcusk9TT654SJkrPryp8afz) |
+| a second owner, same key (control) | key set | done | key knos-test set by 2 owners | [`8buBe2cH…`](https://testnet.nearblocks.io/txns/8buBe2cHnNnN6VKm1QBdVUmLh6sQw3AzQc8CxzsovkkV) |
+| a key change by a non-owner | refused | refused | only an owner changes the key set | [`FZWCRz4N…`](https://testnet.nearblocks.io/txns/FZWCRz4NxD9RfAkr4jwmUWx15v2VTmuXZG6TxLQhp6Sm) |
+| a 1024-bit key | refused | refused | n must be a 2048-bit RSA modulus | [`C4dSb9TZ…`](https://testnet.nearblocks.io/txns/C4dSb9TZh526xBkRSdkAdsHJXMzegTgKTsBRdXDKyWDn) |
+| an honest release (control) | paid | done | a11030449-1: Released | [`J9wcy43C…`](https://testnet.nearblocks.io/txns/J9wcy43Cmrm2hFtTzar9AtVuZVvG7AN8SB7FFptnahjn) |
+| the same token again (replay) | refused | refused | this token was already used | [`5N969ghk…`](https://testnet.nearblocks.io/txns/5N969ghkXCb7FuLZH2cfGF12V2M3sXNF7wpjc2p54pe) |
+| a second payment of a paid milestone | refused | refused | the milestone is not funded and open | [`NyiJNrBJ…`](https://testnet.nearblocks.io/txns/NyiJNrBJ5M6gQyFoNKUG5X69mZaa8hVzLgWdiv4kfPk) |
+| a token from another repository | refused | refused | the token comes from another repository | [`DdPbefRQ…`](https://testnet.nearblocks.io/txns/DdPbefRQCu7BUkktvp4k8dmf2Cm5QPTxcn2jHqSpqGvh) |
+| a token from another workflow | refused | refused | the token comes from another workflow | [`88r79JUm…`](https://testnet.nearblocks.io/txns/88r79JUmEFA5dFkNwWCqhTqtAbgZJcFxH2LnLmX7HmvE) |
+| a workflow on another branch | refused | refused | the token comes from another workflow | [`GLcpLbnx…`](https://testnet.nearblocks.io/txns/GLcpLbnxWHaPeVaQpbxKG32BduVW5FaRtVAJzJFggj67) |
+| altered criteria | refused | refused | the criteria are not the ones locked at funding | [`35b6Bq2H…`](https://testnet.nearblocks.io/txns/35b6Bq2HeyX9MZntAHZqndzPfy7ZpjhSoC3KErU9Jr7u) |
+| a forged token (unknown key) | refused | refused | the token's key is not in the key set | [`DiSbnkxN…`](https://testnet.nearblocks.io/txns/DiSbnkxNEFG8nCqcjChGmunEy7ccH5Jvs1upQugL8yLN) |
+| a re-signed token (known kid, other key) | refused | refused | the token's signature does not verify | [`CNuKxmNH…`](https://testnet.nearblocks.io/txns/CNuKxmNHrHHvgBGJXpJWxKAS2BvTY3gk3Vwv4dcEDZDc) |
+| claims changed after signing | refused | refused | the token's signature does not verify | [`7ts4yPyb…`](https://testnet.nearblocks.io/txns/7ts4yPybtMHBeJSXD2BsuUhXnjKHESroG3T8VmwpDonA) |
+| a truncated signature | refused | refused | the token's signature does not verify | [`DRHNBrGL…`](https://testnet.nearblocks.io/txns/DRHNBrGLVwk964VePrupUEvKFrA6vGTVnBkhdcja5uDg) |
+| an expired token | refused | refused | the token has expired | [`C5pBDNVL…`](https://testnet.nearblocks.io/txns/C5pBDNVL7wMDPQm39jdqBSgiNDmupUcNCFLUnjgBiKWu) |
+| another audience | refused | refused | the token's audience is not this contract | [`95MRk185…`](https://testnet.nearblocks.io/txns/95MRk185B74knL43BqeqKK7LPyKms3qdf6SqNeHUL6k9) |
+| another issuer | refused | refused | the token is not GitHub's | [`8VQA6SVP…`](https://testnet.nearblocks.io/txns/8VQA6SVPkwU3bTzmzw1znVXeXBiRpEy7kkFr7P1o2jmm) |
+| alg HS256 | refused | refused | the token is not RS256 | [`bb6ZiMAS…`](https://testnet.nearblocks.io/txns/bb6ZiMASMGwNtWvfA1LEwj4XW8mdfBgVke9hTezHwmJ) |
+| alg none, no signature | refused | refused | the token is not RS256 | [`oi7eSCkt…`](https://testnet.nearblocks.io/txns/oi7eSCktX4rwNffGKUQjvjonctNfPi6xPuhkp2B1kDx) |
+| a token naming no commit | refused | refused | the token names no commit | [`36pEPxJe…`](https://testnet.nearblocks.io/txns/36pEPxJeuj3mHcWQffm51YwGbMJvjXRY5ERmtn3AR529) |
+| not a JWT | refused | refused | the token is not header.payload.signature | [`CfpTUhNN…`](https://testnet.nearblocks.io/txns/CfpTUhNN5cin5rnzQFpfmZkN2VfjV3fSWfQyECaZvx3m) |
+| a milestone that does not exist | refused | refused | no such milestone | [`3qJyZWBi…`](https://testnet.nearblocks.io/txns/3qJyZWBi2okDjdH78ULmuqUKAwwA9TNHnRiE9dvai7Fx) |
+| an early refund | refused | refused | the deadline has not passed | [`CdrfBixS…`](https://testnet.nearblocks.io/txns/CdrfBixSdTQx5C7GbtYuenG7RS3fjCwi7iKjF5Vt13JF) |
+| the private callback called from outside | refused | refused | Method on_paid is private | [`7L5b2MNi…`](https://testnet.nearblocks.io/txns/7L5b2MNik5tmKUuNv2cTvzkjYbq8uPXGYtAD8LG2A5FP) |
+| funding the same id twice | refused | refused | a milestone with this id exists | [`FbZib4EA…`](https://testnet.nearblocks.io/txns/FbZib4EA1tyibRnRwAjdM6Qfw3X8weDuKPFX3L4U27Fs) |
+| funding with a past deadline | refused | refused | the deadline is in the past | [`DNm46bgg…`](https://testnet.nearblocks.io/txns/DNm46bggsBRbTTsekByBXbZNpghesGrmqJ93kwAyFzeQ) |
+| funding without a criteria hash | refused | refused | criteria_hash must be 64 hex | [`DVwYdi1S…`](https://testnet.nearblocks.io/txns/DVwYdi1SUjWrFYytpWZincAmkLJNQuzZ4sqb6ZkpaR4x) |
+| funding for an unknown chain | refused | refused | payee_chain | [`3ENxYzgY…`](https://testnet.nearblocks.io/txns/3ENxYzgY9Df4YWkivvuEvmLhytEit9PjBLowSyXMxp4j) |
+| a workflow outside the repository | refused | refused | repository and workflow | [`51m36aiT…`](https://testnet.nearblocks.io/txns/51m36aiTxVytwLRuRkG7yhtNrJz7BGxqFT4yGbS9eECW) |
+| funding in another token | refused | refused | only the configured USDC funds a milestone | [`9RNJwFWj…`](https://testnet.nearblocks.io/txns/9RNJwFWjBytYYyDqcFFrMsXFWvRs6t1SLPiWAUpJibPw) |
+| a token under a removed key | refused | refused | the token's key is not in the key set | [`14NEB4zZ…`](https://testnet.nearblocks.io/txns/14NEB4zZZ753EMj8jLcaBdQiWKHjugDPigSDxUNzq3Qm) |
+| a release after the deadline | refused | refused | the deadline has passed: only a refund is possible | [`AjXQma9b…`](https://testnet.nearblocks.io/txns/AjXQma9bfPMKcx58cuqK5ReYZpa8HD9RsWyt8EYCsQ4r) |
+| a refund after the deadline, sent by anyone (control) | refunded | done | a11030449-9: Refunded | [`EYVQLExx…`](https://testnet.nearblocks.io/txns/EYVQLExxFvyXTXkk5iri7vaZNt7g82hExRvM8GKRqN5G) |
+| a release after the refund | refused | refused | the milestone is not funded and open | [`HRE3ykMo…`](https://testnet.nearblocks.io/txns/HRE3ykMo1rK6vTY1LxGWjRY87D47eWPqUd8vZDjDndfi) |
+| a second refund | refused | refused | the milestone is not funded and open | [`AvcimeGt…`](https://testnet.nearblocks.io/txns/AvcimeGtYKotYE6nFUtLXqhb3NAXvBUjtTAV68DrA1ai) |
+| a real GitHub token from this workflow (control) | paid | done | n1-milestone-11031410: Released, 1,000,000 test units to the payee, 12.13 Tgas | [`82N9tRK8…`](https://testnet.nearblocks.io/txns/82N9tRK8BvB4FpA9yUJb6L6q5FTwT3J1MCzQzN2fWWqj) |
+| the same real token on a second milestone of this workflow | refused | refused | this token was already used | [`HcZ8nBuQ…`](https://testnet.nearblocks.io/txns/HcZ8nBuQYuYU5LKRVceSfXVdqBnLrj1shyddj3EQBsM2) |
+| the same real token on a milestone funded for another workflow | refused | refused | the token comes from another workflow | [`2H16uPeH…`](https://testnet.nearblocks.io/txns/2H16uPeHibucBssbaEexq9TPyxqWx9hTjHKMRRfmJbfe) |
 
 ### Layout
 

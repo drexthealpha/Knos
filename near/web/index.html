@@ -757,7 +757,7 @@ load();
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
       const first = firstSeconds || x.saved.first_seconds;
       said.scrollIntoView({ block: "center" });
-      said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s and 0 test USDC, against the first proof's ${first.toFixed(1)} s and ${tu(rc.buyer_usd)}. ` }),
+      said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s and 0 test USDC, against the first proof's ${first.toFixed(1)} s from your press to its receipt and ${tu(rc.buyer_usd)}. ` }),
         `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, and no agent was paid again. `,
         x.first_url ? out(x.first_url, "The first proof") : "");
     });

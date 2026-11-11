@@ -24,7 +24,7 @@
 // an address of the old single page: the check of a pull request has its own page, every other page is in app.html
 (() => { const go = () => { const h = location.hash, name = h.slice(1).split("=")[0];
   if (/^check(-a-pull-request)?$/.test(name)) location.replace("check/" + (h.startsWith("#check=") && h.length > 7 ? h : ""));
-  else if (name && !/^(home|k-q|near|iris)$/.test(name)) location.replace("app.html" + h); };
+  else if (name && !/^(home|k-q|near|near-flow|iris)$/.test(name)) location.replace("app.html" + h); };
   go(); addEventListener("hashchange", go); })();
 </script>
 <link rel="stylesheet" href="brand/tokens.css">

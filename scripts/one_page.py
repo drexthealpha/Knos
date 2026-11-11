@@ -79,7 +79,7 @@ def main(site: str) -> int:
     # the front door's own tools follow, named as more tools of the same product, so nobody reads them as a second one
     page = page.replace("<!-- k-hero -->", '<h2 class="one-more" id="more-tools">More Knos tools: see who would buy what a proof makes possible, and fund the work it needs</h2>\n<!-- k-hero -->', 1)
     page = page.replace("<!-- k-first -->", '<span id="near"></span>\n<!-- k-first -->', 1)
-    page = page.replace('href="./near/"', 'href="#near"').replace('href="./iris/"', 'href="#iris"')   # the bar jumps within the one page, no hop   # /near/ lands on the first line, the flow under it
+    page = page.replace('href="./near/"', 'href="#near-flow"').replace('href="./iris/"', 'href="#iris"')   # the bar jumps within the one page, no hop   # /near/ lands on the first line, the flow under it
     css += "#near, #near-flow, #iris { scroll-margin-top: 80px; }\n"
     css += ".one-more { font: 600 clamp(22px, 2.4vw, 30px)/1.2 var(--head); max-width: 40em; margin: 96px auto 0; padding-top: 32px; border-top: 1px solid var(--line); text-align: center; }\n"   # a section a link opens is not hidden under the bar
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)
