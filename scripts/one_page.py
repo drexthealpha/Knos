@@ -94,6 +94,7 @@ def main(site: str) -> int:
     page = re.sub(r'(<a class="brand") href="[^"]*"', r'\1 href="#"', page, count=1)
     page = page.replace('<a href="status/">Status</a>', '<a href="tools.html">Older Knos tools</a><a href="status/">Status</a>', 1)
     assert 'href="tools.html"' in page, "the footer has no place for the older tools"
+    page = page.replace("<span>Devnet, test money, no customers yet.</span>", "<span>NEAR testnet, test money, no customers yet.</span>", 1)
     css += "#near, #near-flow, #iris, #who { scroll-margin-top: 80px; }\n"   # a section a link opens is not hidden under the bar
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)
     page = page.replace("</body>", "".join(f"<script>\n{c}\n</script>\n" for c in njs) + "</body>", 1)

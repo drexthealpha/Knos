@@ -203,7 +203,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet, in test dollars: <b id="c-proofs">reading</b> first proofs paid, <b id="c-usd">reading</b> settled, <b id="c-lost">reading</b> lost.<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet, in Knos's own test dollars: <b id="c-proofs">reading</b> first proofs paid, <b id="c-usd">reading</b> settled, <b id="c-lost">reading</b> lost.<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token.</p>
@@ -699,7 +699,8 @@ load();
     const v = r.verdict;
     add("ok", v.holds ? "4. Answer: Yes, the claim holds" : "4. Answer: No, the claim does not hold", [el("table", { className: "vs" }, [
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
-      el("tr", {}, [el("th", { textContent: "Measured" }), el("td", { textContent: v.measured })])])]);
+      el("tr", {}, [el("th", { textContent: "Measured" }), el("td", { textContent: v.measured })]),
+      el("tr", {}, [el("th", { textContent: "The locked test" }), el("td", { textContent: "passes within 10% error on 30,000 visitors, in at most 1.5 kilobytes" })])])]);
     const tryN = el("input", { type: "number", value: "100000", min: "1000", max: "100000", step: "1000", "aria-label": "Visitors to count", style: "width:9em" });
     const tryBtn = el("button", { type: "button", className: "go", textContent: "Count them with your code" });
     const tryOut = el("p", { role: "status" });
@@ -723,7 +724,7 @@ load();
     if (fin.pay) fin.pay.seconds = +((performance.now() - tPay) / 1000).toFixed(1);   // the wait the buyer saw, payment and record
     paying.remove(); firstSeconds = secs(); clearInterval(tick);   // the whole first proof, answer and receipt
     receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle, amount);
-    order.disabled = false;
+    order.disabled = false; order.textContent = `New order: pays ${amount} test USDC again`;
   }
 
   function receipt(rc, pay, settle, amount) {
