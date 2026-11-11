@@ -517,7 +517,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
    how many seconds sooner, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet, in test dollars:" first proofs paid, settled and lost, read from NEAR's public record
-   (in full about every 10 minutes by GitHub Actions, plus the server's own confirmed payments since): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
+   (in full by a GitHub Action scheduled every 10 minutes, which GitHub may run later, plus the server's own confirmed payments since; the page says how old the full read is): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (34.0 s, no screen held over 3 s; the waits for NEAR testnet and for the count are cut, and the video says so where each is cut; it ends on the agent call's answer, run during the recording), with
 screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and

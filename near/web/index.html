@@ -184,6 +184,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <h1 class="k-first" id="k-first">Why does good research take 17 years to reach people?</h1>
 <p class="k-a">Checking that a result really works is slow and costly. So nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></p>
 <p class="k-goal">Knos turns any research into a product billions of people use, in days, not years.</p>
+<p class="k-a k-today">Today: one paper, proved on NEAR in under a minute. Next: any paper.</p>
 <!-- /k-first -->
     <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute on NEAR, for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
@@ -565,7 +566,10 @@ load();
     const money = (n) => `$${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const show = (c) => {
       $("c-proofs").textContent = String(c.proofs); $("c-usd").textContent = money(c.usd); $("c-lost").textContent = money(c.lost_usd);
-      if (c.read_at) $("c-at").textContent = ` Updated ${c.read_at.slice(11, 16)} UTC${c.since_read ? `, with ${c.since_read} newer proofs added` : ""}.`;
+      if (c.read_at) {   // how old the full read is, and the payments added since it, so a late read never looks current
+        const age = Math.max(0, Math.round((Date.now() - Date.parse(c.read_at)) / 60000));
+        $("c-at").textContent = ` Full read of the record ${age < 1 ? "just now" : `${age} min ago`}${c.since_read ? `, plus ${c.since_read} ${c.since_read === 1 ? "payment" : "payments"} since` : ""}.`;
+      }
     };
     try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c && c.proofs != null && c.lost_usd != null) show(c); } catch (e) { /* none kept */ }
     let held = [];   // this server's confirmed payments, [unix time, test USDC], added to a record read here

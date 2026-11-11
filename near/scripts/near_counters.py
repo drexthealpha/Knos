@@ -48,9 +48,15 @@ def main(path: str) -> int:
     paid = [x for x in fee if x.get("involved_account_id") == LIVE and int(x.get("delta_amount") or 0) > 0]
     shares = [x for x in agent if x.get("involved_account_id") == LIVE and int(x.get("delta_amount") or 0) > 0]
     arrived = sum(int(x["delta_amount"]) for x in paid + shares)
-    left = -sum(int(x["delta_amount"]) for x in live if x.get("involved_account_id") in (FEE, AGENT) and int(x.get("delta_amount") or 0) < 0)
     newest = max([int(x.get("block_timestamp") or 0) for x in fee + agent + live] or [0])
-    out = {"proofs": len(paid), "usd": round(arrived / 1e6, 6), "lost_usd": round(max(0, left - arrived) / 1e6, 6), "as_of_ns": str(newest),
+    # lost: a transfer that left the buyer's account for Knos's fee account or agent A and has no arrival with the same
+    # transaction in the receivers' records. The three records are read moments apart, so a transfer younger than 10
+    # minutes may not show its arrival yet; it is not counted as lost until it is older.
+    came = {x.get("transaction_hash") for x in paid + shares}
+    settled_by = newest - 600 * 10**9
+    lost = -sum(int(x["delta_amount"]) for x in live if x.get("involved_account_id") in (FEE, AGENT) and int(x.get("delta_amount") or 0) < 0
+                and x.get("transaction_hash") not in came and int(x.get("block_timestamp") or 0) < settled_by)
+    out = {"proofs": len(paid), "usd": round(arrived / 1e6, 6), "lost_usd": round(lost / 1e6, 6), "as_of_ns": str(newest),
            "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "rows": {"fee": len(fee), "agent": len(agent), "live": len(live)},
            "record": "https://testnet.nearblocks.io/address/" + LIVE + "?tab=tokentxns"}
     with open(path, "w", encoding="utf-8") as f:
