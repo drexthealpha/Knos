@@ -546,7 +546,7 @@ transactions):
 
 **Safety.** The signing keys live only in the hosted server's secret store, never in the page or the repository. The
 paper link is the only data a buyer sends. Every push runs the full test suite on GitHub
-([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)), and the page shows its latest result live. Knos has no token.
+([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)), and the page shows its latest finished run, read from GitHub. Knos has no token.
 
 **Private AI.** The plain-words page is written by qwen2.5:1.5b-instruct in GitHub Actions. Running it on NEAR AI Cloud
 inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BLOCKED, no key is set yet.

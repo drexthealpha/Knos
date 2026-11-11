@@ -996,3 +996,22 @@ def plain_page() -> dict:
     except Exception as e:  # noqa: BLE001 - the page says it could not be read
         print("near_live plain page:", str(e)[:160], file=sys.stderr, flush=True)
     return _plain.get("out") or {"ok": False, "why": "the plain-words page could not be read just now"}
+
+
+_tests: dict = {}
+
+
+def tests_status() -> dict:
+    """The full test suite's latest finished run on main (GitHub Actions, tests.yml), held 5 minutes: passed or not, its link."""
+    if _tests.get("at") and time.time() - _tests["at"] < 300 and _tests.get("out"):
+        return _tests["out"]
+    try:
+        req = urllib.request.Request("https://api.github.com/repos/drexthealpha/Knos/actions/workflows/tests.yml/runs?branch=main&status=completed&per_page=10",
+                                     headers={"User-Agent": "knos-near-tests", "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            runs = [x for x in json.loads(r.read()).get("workflow_runs") or [] if x.get("conclusion") in ("success", "failure")]
+        run = runs[0]
+        _tests.update(at=time.time(), out={"passed": run["conclusion"] == "success", "url": run["html_url"], "sha": run["head_sha"][:8], "at": run["updated_at"]})
+    except Exception as e:  # noqa: BLE001 - the page says it could not be read
+        print("near_live tests:", str(e)[:160], file=sys.stderr, flush=True)
+    return _tests.get("out") or {"why": "the test record could not be read just now"}

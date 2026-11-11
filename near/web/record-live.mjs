@@ -30,6 +30,7 @@ const focus = async (sel, nth, text, ms) => {
 await page.goto(url, { waitUntil: "load", timeout: 120000 });
 await page.locator("#go:not([disabled])").waitFor({ timeout: 60000 });
 await page.evaluate(() => scrollTo(0, 0));
+await page.waitForTimeout(1500);                       // the one page settles its first paint
 mark("open");
 await page.screenshot({ path: path.join(out, "1-first.png") });
 await page.waitForTimeout(1000);                       // the question, its answer and what checking costs
