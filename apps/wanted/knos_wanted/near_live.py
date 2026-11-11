@@ -877,6 +877,7 @@ def claim_reuse() -> dict:
 
 
 _snap: dict = {}
+_snapping = threading.Lock()
 _paid_log: list = []      # this server's own paid first proofs since it started: (unix time, test USDC moved, fee tx)
 
 
@@ -900,10 +901,26 @@ def _snapshot() -> dict | None:
     return _snap.get("out")
 
 
+def _resnap() -> None:
+    if _snapping.acquire(blocking=False):
+        try:
+            _snapshot()
+        finally:
+            _snapping.release()
+
+
+if os.environ.get("KNOS_NEAR_LIVE") == "on":   # the hosted server holds a copy from its start: the first visitor waits on nothing
+    threading.Thread(target=_resnap, daemon=True).start()
+
+
 def counters() -> dict:
     """Live counters: the full count of the public record (the snapshot above), plus every first proof this server has
     paid since that count was read, each a transfer NEAR confirmed (its log). Lost is the record's own figure."""
-    base = _snapshot()
+    base = _snap.get("out")
+    if not (_snap.get("at") and time.time() - _snap["at"] < 300) and not _snapping.locked():
+        threading.Thread(target=_resnap, daemon=True).start()   # read again in the background; answer from the copy held
+    if not base:
+        base = _snapshot()
     if not base:
         return {"pending": True}
     since = int(base.get("as_of_ns") or 0) / 1e9

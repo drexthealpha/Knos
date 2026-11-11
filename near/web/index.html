@@ -598,7 +598,7 @@ load();
     const kids = [
       el("section", { className: "card answer offer" }, [
         el("h2", { textContent: "Prove this claim now" }),
-        el("p", {}, ["Two agents rerun it against a locked test on NEAR. You get a Yes or No, the verified code and a receipt."]),
+        el("p", {}, ["Two agents run against a test locked on NEAR. You get a Yes or No, the verified code and a receipt."]),
         el("p", { className: "price" }, [el("b", { textContent: "Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public." })]),
         el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Test USDC you put behind this claim: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
