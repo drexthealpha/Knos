@@ -893,7 +893,8 @@ def _snapshot() -> dict | None:
             with urllib.request.urlopen(req, timeout=15) as r:
                 return json.loads(r.read())
         run = (get("actions/workflows/near-counters.yml/runs?status=success&per_page=1").get("workflow_runs") or [])[0]
-        cr = next(x for x in get(f"commits/{run['head_sha']}/check-runs?check_name=near-counters").get("check_runs") or [] if x["name"] == "near-counters")
+        crs = [x for x in get(f"commits/{run['head_sha']}/check-runs?check_name=near-counters&per_page=100").get("check_runs") or [] if x["name"] == "near-counters"]
+        cr = max(crs, key=lambda x: x.get("completed_at") or "")   # every read is published on the same commit: the newest one
         _snap.update(at=time.time(), out=json.loads(cr["output"]["summary"]))
     except Exception as e:  # noqa: BLE001 - the last snapshot read stays in use
         print("near_live counters:", str(e)[:160], file=sys.stderr, flush=True)

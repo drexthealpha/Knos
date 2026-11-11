@@ -493,7 +493,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
 1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people?" with its
    answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute, for the test USDC you put behind the claim.", the box holding the
    HyperLogLog DOI and the button "Will it work?".
-2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the one rule ("Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public."), the box "Test USDC you put behind this claim:" holding 10
+2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the price ("Price: the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."), the one rule ("Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public."), the box "Test USDC you put behind this claim:" holding 10
    and the button "Prove it with 10 test USDC", then the paper's claim word for word and its plain-words page.
 3. Type an amount (1 to 100) or keep 10, and click "Prove it with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper's result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
@@ -501,8 +501,8 @@ On the public page (no install, no sign-in, no wallet, test money only):
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
-5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network, and "Receipt: paid and recorded on
-   NEAR testnet in" those seconds: "You put behind the claim 10.00 test USDC", "Agent A's share
+5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network, and "Receipt for proof job-...: paid and
+   recorded on NEAR testnet in" those seconds: "You put behind the claim 10.00 test USDC", "Agent A's share
    0.20 test USDC, 1 part in 49" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with

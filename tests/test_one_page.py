@@ -16,8 +16,8 @@ def test_the_root_is_one_page_and_the_old_addresses_send_on(tmp_path):
                        capture_output=True, text=True, check=False, env=env)
     assert r.returncode == 0, r.stderr
     page = (tmp_path / "site" / "index.html").read_text(encoding="utf-8")
-    first, near, iris = page.index('id="k-first"'), page.index('<section id="near"'), page.index('<section id="iris"')
-    assert first < near < iris and page.count("<h1") == 1
+    first, near, iris = page.index('id="k-first"'), page.index('<section id="near-flow"'), page.index('<section id="iris"')
+    assert page.index('<span id="near">') < first < near < iris and page.count("<h1") == 1
     assert 'id="go"' in page and 'id="counters"' in page and "iris/knos-iris.mp4" in page
     assert "../brand/" not in page[near:iris]
     for sub, to in (("near", "../#near"), ("iris", "../#iris")):

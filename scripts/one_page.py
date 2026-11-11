@@ -63,10 +63,11 @@ def main(site: str) -> int:
     nb = body_of(near).replace("../brand/", "brand/").replace('href="embed.html"', 'href="near/embed.html"')
     njs = [c.replace('fetch("latest.json"', 'fetch("near/latest.json"').replace("../brand/", "brand/") for c in inline_scripts(near)]
     ib = body_of(iris).replace("../brand/", "brand/").replace('"knos-iris.mp4"', '"iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="iris/poster.png"')
-    block = (f'\n<section id="near" class="one-near" aria-label="Prove a paper\'s claim on NEAR">\n{nb}\n</section>\n'
+    block = (f'\n<section id="near-flow" class="one-near" aria-label="Prove a paper\'s claim on NEAR">\n{nb}\n</section>\n'
              f'<section id="iris" class="one-iris iris-page" aria-label="The proof check in InterSystems IRIS">\n{ib}\n</section>\n')
-    css = scoped_css(near, "#near") + scoped_css(iris, "#iris")
+    css = scoped_css(near, "#near-flow") + scoped_css(iris, "#iris")
     page = page.replace(FIRST_END, FIRST_END + block, 1)
+    page = page.replace("<!-- k-first -->", '<span id="near"></span>\n<!-- k-first -->', 1)   # /near/ lands on the first line, the flow under it
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)
     page = page.replace("</body>", "".join(f"<script>\n{c}\n</script>\n" for c in njs) + "</body>", 1)
     (out / "index.html").write_text(page, encoding="utf-8")
