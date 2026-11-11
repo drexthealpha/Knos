@@ -21,6 +21,7 @@ def test_the_root_is_one_page_and_the_old_addresses_send_on(tmp_path):
     assert page.index('<span id="near">') < first < near < iris and page.count("<h1") == 1
     assert 'id="go"' in page and 'id="counters"' in page and "iris/knos-iris.mp4" in page
     assert "../brand/" not in page[near:iris]
+    assert 'href="./near/"' not in page and 'href="./iris/"' not in page and 'href="#near"' in page   # the bar jumps within the page
     for sub, to in (("near", "../#near"), ("iris", "../#iris")):
         stub = (tmp_path / "site" / sub / "index.html").read_text(encoding="utf-8")
         assert f'url={to}"' in stub and f'location.replace("{to}"' in stub
