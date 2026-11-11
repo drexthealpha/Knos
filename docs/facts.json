@@ -646,6 +646,14 @@
    "what": "the length in seconds of the IRIS video, iris/media/knos-iris.mp4",
    "file": "iris/media/README.md",
    "has": "knos-iris.mp4`: 62 seconds"
+  },
+  {
+   "say": [
+    "17"
+   ],
+   "what": "Morris, Wooding and Grant (2011): it is frequently stated that it takes an average of 17 years for research evidence to reach clinical practice (J R Soc Med 104(12):510-520)",
+   "source": "https://doi.org/10.1258/jrsm.2011.110180",
+   "read": "2026-11-11"
   }
  ]
 }

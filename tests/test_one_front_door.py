@@ -73,7 +73,8 @@ def test_every_description_is_a_sentence_of_facts_json():
     pyproject = re.search(r'(?m)^description = "(.*)"$', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
     npm = json.loads((ROOT / "sdk" / "settle" / "package.json").read_text(encoding="utf-8"))["description"]
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["description"]
-    lead = next(line.strip() for line in (ROOT / "README.md").read_text(encoding="utf-8").split("</h1>", 1)[1].splitlines() if line.strip())
+    lead = next(line.strip() for line in (ROOT / "README.md").read_text(encoding="utf-8").split("</h1>", 1)[1].splitlines()
+                if line.strip() and not line.startswith("**Why does good research take 17 years"))   # the first line's question may lead
     assert {pyproject, npm, server, lead} <= said, {pyproject, npm, server, lead} - said
     tens = (ROOT / "README.md").read_text(encoding="utf-8").split("## Try it in ten seconds", 1)[1].split("\n## ", 1)[0]
     assert tens.strip().startswith("Open [the one page](https://drexthealpha.github.io/Knos/)")   # the one page (scripts/one_page.py)

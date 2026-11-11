@@ -7,6 +7,8 @@
   </picture>
 </h1>
 
+**Why does good research take 17 years to reach people?** Checking that a result really works is slow and costly. So nobody builds on it until it has been checked ([Morris and others, 2011](https://doi.org/10.1258/jrsm.2011.110180)).
+
 Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
@@ -23,9 +25,9 @@ Inside a lab's own data system, InterSystems IRIS runs the same proof check. Tes
 | Criterion | What Knos has | Link |
 |---|---|---|
 | Complexity | 22 enabled production items | [iris/src/Knos/Iris/Production.cls L8-L55](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L8-L55) |
-| Clarity of Instructions | 6 install commands (the contest rules require these commands) | [README.md L218-L221](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L218-L221) |
-| Developer Experience | 6 commands from git clone to working check | [README.md L218-L221](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L218-L221) |
-| Applicability | 5 example stories | [README.md L32-L36](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L32-L36) |
+| Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L220-L223](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L220-L223) |
+| Developer Experience | 4 commands from git clone to working check | [README.md L220-L223](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L220-L223) |
+| Applicability | 5 example stories | [README.md L34-L38](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L34-L38) |
 | Usability | 1 page a visitor can use with no sign-in | [index.html](https://drexthealpha.github.io/Knos/index.html) |
 
 ### Who Knos is for
@@ -463,7 +465,7 @@ Knos's answer: checking that a result really works is slow and costly, so nobody
 
 **What checking costs.** Today, checking one paper by hand costs $330 to $763
 ([Colliard and others, 2023](https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon)). Knos: under a
-minute, for the test USDC the buyer puts behind the claim. Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public.
+minute, for the test USDC the buyer puts behind the claim. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public.
 
 **Who it is for.** An R&D lead at a big company holding a paper, who needs to know whether its claim holds before
 building on it. On one screen they paste the link, ask "Will it work?", order the proof and download the verified code.
@@ -493,11 +495,11 @@ On the public page (no install, no sign-in, no wallet, test money only):
 1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people?" with its
    answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute, for the test USDC you put behind the claim.", the box holding the
    HyperLogLog DOI and the button "Will it work?".
-2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the price ("Price: the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."), the one rule ("Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public."), the box "Test USDC you put behind this claim:" holding 10
+2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the price ("Price: the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."), the one rule ("Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public."), the box "Your price, in test USDC:" holding 10
    and the button "Prove it with 10 test USDC", then the paper's claim word for word and its plain-words page.
 3. Type an amount (1 to 100) or keep 10, and click "Prove it with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper's result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
-4. About 4 to 15 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
+4. About 4 to 25 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
@@ -508,7 +510,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
    how many seconds sooner, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet:" paid first proofs, test dollars settled and lost, read from NEAR's public record
-   (in full every 10 minutes by GitHub Actions, plus the server's own confirmed payments since): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
+   (in full about every 10 minutes by GitHub Actions, plus the server's own confirmed payments since): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (54.3 s), with
 screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [the claim](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-claim.png) and
@@ -551,7 +553,7 @@ paper link is the only data a buyer sends. Every push runs the full test suite o
 **Private AI.** The plain-words page is written by qwen2.5:1.5b-instruct in GitHub Actions. Running it on NEAR AI Cloud
 inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BLOCKED, no key is set yet.
 
-**Price.** No fixed price. Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
+**Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
 other 48. Nobody has paid real money for one yet.
 
 **Hard to copy.** Every verified result is kept and reused, so each proof makes the next one cheaper. Knos has scored

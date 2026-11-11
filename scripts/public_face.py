@@ -195,10 +195,14 @@ def problems(root: Path = ROOT) -> list[str]:
     readme = root / "README.md"
     if readme.is_file():
         # the two vision lines come first, each its own paragraph
-        lines = [line.strip() for line in _prose(readme.read_text(encoding="utf-8"))][:2]
+        lines = [line.strip() for line in _prose(readme.read_text(encoding="utf-8"))][:3]
+        lines = lines[1:] if lines and lines[0].startswith(K1) else lines[:2]   # the first line's question may lead (web/brand/first.html)
         if lines != LINES:
             out.append(f"README.md: the first two lines of text are not the two vision lines: {' | '.join(lines)[:120]}")
     return out
+
+
+K1 = "**Why does good research take 17 years to reach people?**"
 
 
 def _prose(text: str):

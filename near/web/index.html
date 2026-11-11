@@ -558,6 +558,7 @@ load();
     let held = [];   // this server's confirmed payments, [unix time, test USDC], added to a record read here
     for (let n = 0; n < 5; n++) {
       const c = await fetch(HOSTED + "/api/near/claim/counters").then((r) => r.ok ? r.json() : null).catch(() => null);
+      if (c && c.proofs != null && c.read_at && Date.now() - Date.parse(c.read_at) > 15 * 60000) { show(c); held = c.paid || []; break; }   // older than 15 min: read it here too
       if (c && c.proofs != null) {
         show(c);
         try { localStorage.setItem("knos-near-counters", JSON.stringify(c)); } catch (e) { /* not kept */ }
@@ -626,7 +627,7 @@ load();
       el("section", { className: "card answer offer" }, [
         el("h2", { textContent: "Prove this claim now" }),
         el("p", {}, ["Two agents run against a test locked on NEAR. You get a Yes or No, the verified code and a receipt."]),
-        el("p", { className: "price" }, [el("b", { textContent: "Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public." })]),
+        el("p", { className: "price" }, [el("b", { textContent: "Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public." })]),
         el("p", {}, [el("b", { textContent: "Price: " }), "the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."]),
         el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Your price, in test USDC: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
@@ -664,6 +665,7 @@ load();
       const when = r.ran_before_s >= 0 ? `Their code ran against the locked test ${ago} before you ordered, so the answer is ready in seconds.`
         : "Their code ran against the locked test after you ordered, while you waited.";
       two.append(el("p", { className: "fine", textContent: when }));
+      if (r.ran_before_s >= 0) for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = `${ago} before`; }
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
       two.classList.add("ok");
     });
@@ -737,7 +739,7 @@ load();
         `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, ${first > took ? `so the answer came ${(first - took).toFixed(1)} s sooner, ` : ""}and no agent was paid again. `,
         x.first_url ? out(x.first_url, "The first proof") : "");
     });
-    $("links").replaceChildren(...(rc && rc.job_pay_url ? ["The job's payment to agent A, on NEAR testnet: ", out(rc.job_pay_url, "its record")] : []));
+    $("links").replaceChildren(...(rc && rc.job_pay_url ? ["Agent A was also paid 1.00 test USDC by the job itself, the pay the job carried when Knos's test account posted it before your order: ", out(rc.job_pay_url, "its record")] : []));
     counters(true);
   }
 })();
