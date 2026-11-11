@@ -61,7 +61,7 @@ def test_any_other_description_of_the_product_fails_the_check_place_by_place(tmp
     _sub(root / "action.yml", "description: ", "description: One shared memory for every coding agent. ")
     _sub(root / "web" / "index.html", f"<title>{pf.title(SENTENCE)}</title>", "<title>Knos: bounties</title>")
     _sub(root / "web" / "index.html", f'<meta property="og:description" content="{SENTENCE}', '<meta property="og:description" content="Escrow for agents.')
-    _sub(root / "README.md", pf.LINES[0], "Pay agents on merge.")
+    _sub(root / "README.md", pf.K1, "Pay agents on merge.")   # the README opens with the 17-year question, no marketing
     found = pf.problems(root)
     assert [f.split(":")[0] for f in found] == ["server.json", "plugin/.claude-plugin/plugin.json", "pyproject.toml", "action.yml", "web/index.html <title>",
                                                 "web/index.html og", "README.md"]

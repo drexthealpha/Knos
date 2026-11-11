@@ -194,11 +194,15 @@ def problems(root: Path = ROOT) -> list[str]:
     out += version_problems(root)
     readme = root / "README.md"
     if readme.is_file():
-        # the two vision lines come first, each its own paragraph
-        lines = [line.strip() for line in _prose(readme.read_text(encoding="utf-8"))][:3]
-        lines = lines[1:] if lines and lines[0].startswith(K1) else lines[:2]   # the first line's question may lead (web/brand/first.html)
-        if lines != LINES:
-            out.append(f"README.md: the first two lines of text are not the two vision lines: {' | '.join(lines)[:120]}")
+        # the README opens with the first line's question (web/brand/first.html) and carries no marketing line:
+        # NEAR HACKATHON's rules ask for "do X - see Y" steps and "No marketing."
+        text = readme.read_text(encoding="utf-8")
+        first = next(iter(_prose(text)), "").strip()
+        if not first.startswith(K1):
+            out.append(f"README.md: the first line of text is not the 17-year question: {first[:120]}")
+        for line in LINES:
+            if line in text:
+                out.append(f"README.md: a marketing line, against the hackathon's rule: {line}")
     return out
 
 

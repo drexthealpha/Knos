@@ -9,10 +9,6 @@
 
 **Why does good research take 17 years to reach people?** Checking that a result really works is slow and costly. So nobody builds on it until it has been checked ([Morris and others, 2011](https://doi.org/10.1258/jrsm.2011.110180)).
 
-Knos turns any research into a product billions of people use, in days, not years.
-
-Knos carries research across the valley of death, toward Kardashev II and III.
-
 ## How it works today
 
 Today the library proves one claim, the HyperLogLog paper's.
@@ -20,6 +16,10 @@ Today the library proves one claim, the HyperLogLog paper's.
 Paste its link and ask "Will it work?". Knos posts the claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
 
 Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only. Try it on one page: https://drexthealpha.github.io/Knos/ ([Do this, see that](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#do-this-see-that)).
+
+## NEAR HACKATHON: the diff
+
+The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `near/`; the tag `hackathon-submission` is the submitted commit. Everything built in the window, file by file: https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. Only that NEAR work is the entry ([Disclosure](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#disclosure)); the steps to try it are under [Do this, see that](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#do-this-see-that).
 
 <!-- entry:criteria -->
 ## The five judged criteria
@@ -187,7 +187,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 | Video | [62 seconds, plays in your browser](https://drexthealpha.github.io/Knos/iris/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
-| Online demo | not hosted: the built-in demo runs on your own machine after the quick start, with no key and no sign-in |
+| Online demo | the IRIS part is not hosted: its built-in demo runs on your own machine after the quick start, with no key and no sign-in (the NEAR proof flow is hosted on the one page) |
 
 ### The contest task, part by part
 
