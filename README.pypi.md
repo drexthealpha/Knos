@@ -81,13 +81,13 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | B6 Embedded Python | 3 | [iris/src/Knos/Iris/Py/Ready.cls L4](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Py/Ready.cls#L4) |
 | B7 IRIS Vector Search usage | 2 | [iris/src/Knos/Iris/Data/Criterion.cls L7](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Data/Criterion.cls#L7) |
 | B8 Docker container usage | 2 | [iris/docker-compose.yml L4](https://github.com/drexthealpha/Knos/blob/main/iris/docker-compose.yml#L4) |
-| B9 ZPM Package deployment | 2 | https://openexchange.intersystems.com/package/Knos |
+| B9 ZPM Package deployment | 2 | `zpm "install knos-iris"` ([the package](https://openexchange.intersystems.com/package/Knos)) |
 | B10 Online Demo | 2 | not hosted |
 | B11 Implement InterSystems Community Idea | 4 | https://ideas.intersystems.com/ideas/DPI-I-689 |
 | B12 Find a bug in Embedded Python | 2 (max 3) | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |
 | B13 First Article on Developer Community | 2 | https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call |
 | B14 Second Article on DC | 1 | https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris |
-| B15 Video | 3 | https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4 |
+| B15 Video | 3 | [Knos on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) ; [the file, 62 s](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4) |
 <!-- /entry:criteria -->
 
 [Watch the 62-second video](https://drexthealpha.github.io/Knos/#iris) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
@@ -188,7 +188,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 
 | What | Where |
 |---|---|
-| Video | [62 seconds, plays in your browser](https://drexthealpha.github.io/Knos/#iris): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4)) |
+| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8), also [on the one page](https://drexthealpha.github.io/Knos/#iris): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | the IRIS part is not hosted: its built-in demo runs on your own machine after the quick start, with no key and no sign-in (the NEAR proof flow is hosted on the one page) |
@@ -254,7 +254,7 @@ with random secrets (never commit `.env`). The first build takes about 3 minutes
 
 ### The model (LLM provider) and its key
 
-The default needs nothing: in replay mode (`KNOS_AI_MODE=replay`) the rules referee decides, with no model.
+Replay mode runs with no key; live mode expects the judge's own OpenAI, Anthropic, Gemini or Bedrock key. The default needs nothing: in replay mode (`KNOS_AI_MODE=replay`) the rules referee decides, with no model.
 
 For the AI Hub agent on a local open model, set `KNOS_AI_MODE=local` in `.env` and start with
 `docker compose --profile local up -d --build`: it pulls `qwen2.5:1.5b-instruct` (about 1 GB) into the `ollama`
