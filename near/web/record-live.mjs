@@ -34,9 +34,8 @@ await page.goto(url, { waitUntil: "load", timeout: 120000 });
 await page.locator("#go:not([disabled])").waitFor({ timeout: 60000 });
 await page.evaluate(() => scrollTo(0, 0));
 await page.waitForTimeout(1500);                       // the one page settles its first paint
-mark("open");
 await page.screenshot({ path: path.join(out, "1-first.png") });
-await page.waitForTimeout(1000);                       // the question, its answer and what checking costs
+mark("open");                                          // the video starts here: a caption on every screen, none held over 3 s
 await focus(null, 0, "Why does good research take 17 years to reach people?", 800);
 await focus(".k-goal", 0, "Knos turns any research into a product billions of people use, in days, not years", 1500);
 await focus("#ask", 0, "An R&D lead pastes a paper link and asks: will it work?", 1000);
@@ -55,8 +54,9 @@ await page.locator(".receipt-card").waitFor({ timeout: 120000 });
 mark("receipt");
 await focus("#steps li", 2, "Agents work against a locked test; the cap blocks an over-budget step", 2000);
 await focus("#steps li", 3, "The answer: the paper's number beside the one measured now", 1500);
+await focus("#steps li", 4, "", 0);                  // the count runs in view, its own clock ticking, no caption over it
 await page.locator("#steps li").nth(4).locator("button").click();
-await page.locator("#steps li").nth(4).locator("[role=status]").filter({ hasText: /^Counted|^Not counted/ }).waitFor({ timeout: 30000 });
+await page.locator("#steps li").nth(4).locator("[role=status]").filter({ hasText: /^There were|^Not counted/ }).waitFor({ timeout: 30000 });
 await focus("#steps li", 4, "The code you got, at work: 100,000 visitors counted in 1.5 kilobytes", 1500);
 await focus(".receipt-card", 0, "The receipt on NEAR testnet: your 10 test USDC, split between agent A and Knos", 2000);
 await focus(".receipt-card .log", 0, "What each step cost, each with its record", 1000);
@@ -78,7 +78,7 @@ await page.evaluate((x) => {
 }, answer);
 await focus("#rec-flow", 0, "The answer that call returned during this recording", 2000);
 await page.evaluate(() => document.getElementById("rec-flow").remove());
-await focus("#iris h2", 0, "The same proof check inside a lab, on InterSystems IRIS", 2500);
+await focus("#iris h2", 0, "The same proof check inside a lab, on InterSystems IRIS", 2000);
 mark("end");
 const video = page.video();
 await ctx.close();
