@@ -21,7 +21,7 @@ const focus = async (sel, nth, text, ms) => {
     const e = sel ? document.querySelectorAll(sel)[nth] : null;
     if (e) { e.scrollIntoView({ block: "center" }); e.classList.add("rec-on"); e.style.outline = "4px solid #2b3bb8"; e.style.outlineOffset = "4px"; }
     let c = document.getElementById("rec-caption");
-    if (!c) { c = document.createElement("div"); c.id = "rec-caption"; c.style.cssText = "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:90%;padding:14px 24px;border-radius:14px;background:#151822;color:#fff;font:600 26px/1.3 system-ui,sans-serif;z-index:99;text-align:center"; document.body.append(c); }
+    if (!c) { c = document.createElement("div"); c.id = "rec-caption"; c.style.cssText = "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:90%;padding:14px 24px;border-radius:14px;background:#151822;color:#fff;font:600 22px/1.3 system-ui,sans-serif;z-index:99;text-align:center"; document.body.append(c); }
     c.textContent = text;
     c.style.display = text ? "" : "none";   // no caption while a step runs, so none covers it
   }, [sel, nth, text]);
@@ -38,6 +38,7 @@ mark("open");
 await page.screenshot({ path: path.join(out, "1-first.png") });
 await page.waitForTimeout(1000);                       // the question, its answer and what checking costs
 await focus(null, 0, "Why does good research take 17 years to reach people?", 800);
+await focus(".k-goal", 0, "Knos turns any research into a product billions of people use, in days, not years", 1500);
 await focus("#ask", 0, "An R&D lead pastes a paper link and asks: will it work?", 1000);
 await page.locator("#go").click();
 mark("click");
@@ -75,7 +76,9 @@ await page.evaluate((x) => {
     receipt: { buyer_usd: r.buyer_usd, agent_usd: r.agent_usd, knos_usd: r.knos_usd } }, null, 1);
   document.querySelector(".facts .snip").after(pre);
 }, answer);
-await focus("#rec-flow", 0, "Its answer, from that call just now", 2000);
+await focus("#rec-flow", 0, "The answer that call returned during this recording", 2000);
+await page.evaluate(() => document.getElementById("rec-flow").remove());
+await focus("#iris h2", 0, "The same proof check inside a lab, on InterSystems IRIS", 2500);
 mark("end");
 const video = page.video();
 await ctx.close();

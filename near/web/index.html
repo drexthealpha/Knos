@@ -205,7 +205,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token.</p>
-    <p><b>Hard to copy:</b> every verified result is kept and reused, and Knos has scored 12,010 companies to find the 38 that both reinvest and build frontier technology, its first buyers.</p>
+    <p><b>Hard to copy:</b> every verified result is kept on NEAR and reused, so proving an order again is free and takes about a second.</p>
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
   </section>
 
@@ -552,7 +552,7 @@ load();
     const money = (n) => `$${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const show = (c) => {
       $("c-proofs").textContent = String(c.proofs); $("c-usd").textContent = money(c.usd); $("c-lost").textContent = money(c.lost_usd);
-      if (c.read_at) $("c-at").textContent = ` Full record read at ${c.read_at.slice(11, 16)} UTC${c.since_read ? `, plus ${c.since_read} paid since` : ""}.`;
+      if (c.read_at) $("c-at").textContent = ` Updated ${c.read_at.slice(11, 16)} UTC${c.since_read ? `, with ${c.since_read} newer proofs added` : ""}.`;
     };
     try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c && c.proofs != null && c.lost_usd != null) show(c); } catch (e) { /* none kept */ }
     let held = [];   // this server's confirmed payments, [unix time, test USDC], added to a record read here
@@ -627,7 +627,6 @@ load();
       el("section", { className: "card answer offer" }, [
         el("h2", { textContent: "Prove this claim now" }),
         el("p", {}, ["Two agents run against a test locked on NEAR. You get a Yes or No, the verified code and a receipt."]),
-        el("p", { className: "price" }, [el("b", { textContent: "Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public." })]),
         el("p", {}, [el("b", { textContent: "Price: " }), "the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."]),
         el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Your price, in test USDC: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
@@ -659,14 +658,14 @@ load();
       out("https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
     const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. A model on NEAR AI Cloud, with its attestation, needs a NEAR AI key that is not set yet (BLOCKED)." })]);
-    for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "readied"; }   // done when the job was readied, not since the order
+    for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "ran earlier"; }   // done when this order's job was readied, not since the click
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
       const ago = r.ran_before_s >= 120 ? `${Math.round(r.ran_before_s / 60)} min` : `${Math.max(0, r.ran_before_s)} s`;
-      const when = r.ran_before_s >= 0 ? `Their code ran against the locked test ${ago} before you ordered, so the answer is ready in seconds.`
+      const when = r.ran_before_s >= 0 ? `This order's own job: its agents ran against the locked test ${ago} before you ordered, so the answer is ready in seconds.`
         : "Their code ran against the locked test after you ordered, while you waited.";
       two.append(el("p", { className: "fine", textContent: when }));
-      if (r.ran_before_s >= 0) for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = `${ago} before`; }
+      if (r.ran_before_s >= 0) for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = `ran ${ago} earlier`; }
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
       two.classList.add("ok");
     });
@@ -715,8 +714,9 @@ load();
     const box = el("section", { className: "card receipt-card" }, [
       el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt for proof ${rc.job || ""}: paid and recorded on NEAR testnet in ${pay.seconds} s` : `Receipt: paid on NEAR testnet in ${pay.seconds} s` }),
       el("table", { className: "vs" }, [
-        el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)}, from a test account Knos holds for you, so you need no wallet. `, out("https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet?tab=tokentxns", "Its transfers")] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
-        el("tr", {}, [el("th", { textContent: "Agent A\u2019s share" }), el("td", {}, ok ? [`${tu(rc.agent_usd)}, 1 part in 49. `, rc.agent_pay_url ? out(rc.agent_pay_url, "The transfer") : ""] : ["Nothing."])]),
+        el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)}, from a test account Knos holds for you, so you need no wallet. Its two transfers: `, rc.agent_pay_url ? out(rc.agent_pay_url, "to agent A") : "", rc.agent_pay_url && rc.fee_url ? ", " : "", rc.fee_url ? out(rc.fee_url, "to Knos") : ""] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
+        el("tr", {}, [el("th", { textContent: "Agent A\u2019s share" }), el("td", {}, ok ? (rc.job_pay_url ? [`${tu((+rc.agent_usd || 0) + 1)} in all: ${tu(rc.agent_usd)} from your price (1 part in 49, `, rc.agent_pay_url ? out(rc.agent_pay_url, "the transfer") : "the transfer", ") plus the 1.00 this job carried when Knos\u2019s test account posted it (", out(rc.job_pay_url, "its record"), ")."]
+          : [`${tu(rc.agent_usd)}, 1 part in 49. `, rc.agent_pay_url ? out(rc.agent_pay_url, "The transfer") : ""]) : ["Nothing."])]),
         el("tr", {}, [el("th", { textContent: "Knos\u2019s fee" }), el("td", {}, ok ? [`${tu(rc.knos_usd)}, the other 48 parts, kept in Knos\u2019s own test account. `, rc.fee_url ? out(rc.fee_url, "The transfer") : "", pay.fee_account ? " \u00b7 " : "", pay.fee_account ? out(pay.fee_account, "The account") : ""] : ["Nothing."])])]),
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
       el("h3", { textContent: "What each step cost" }),
@@ -740,7 +740,7 @@ load();
         `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, ${first > took ? `so the answer came ${(first - took).toFixed(1)} s sooner, ` : ""}and no agent was paid again. `,
         x.first_url ? out(x.first_url, "The first proof") : "");
     });
-    $("links").replaceChildren(...(rc && rc.job_pay_url ? ["Agent A was also paid 1.00 test USDC by the job itself, the pay the job carried when Knos's test account posted it before your order: ", out(rc.job_pay_url, "its record")] : []));
+    $("links").replaceChildren();
     counters(true);
   }
 })();
