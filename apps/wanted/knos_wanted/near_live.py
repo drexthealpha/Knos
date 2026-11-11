@@ -23,7 +23,7 @@ NEAR_SCRIPTS = ROOT / "near" / "scripts"   # near_counters.py: the full count, w
 BID = 1_000_000          # $1.00 of test money (the test token has 6 decimals)
 _lock = threading.Lock()
 _runs: dict[str, dict] = {}
-_day = {"day": "", "n": 0}
+_day = {"day": "", "n": 0, "a": 0}   # n: the page's live proofs today; a: the agent call's, which page proofs never use up
 
 
 def _jobs():
@@ -47,16 +47,25 @@ def daily_cap() -> int:
         return 20
 
 
+def agent_cap() -> int:
+    """The agent call's own live proofs a day, kept apart from the page's so a call always runs once page proofs are used."""
+    try:
+        return max(0, int(os.environ.get("KNOS_NEAR_AGENT_DAILY") or 10))
+    except ValueError:
+        return 10
+
+
 def status() -> dict:
     today = time.strftime("%Y-%m-%d", time.gmtime())
     used = _day["n"] if _day["day"] == today else 0
+    used_a = _day["a"] if _day["day"] == today else 0
     on = os.environ.get("KNOS_NEAR_LIVE") == "on" and bool(os.environ.get("KNOS_NEAR_KEYS_FILE"))
     busy = any(r["state"] == "running" for r in _runs.values())
     job = _ready.get("job")   # read once: a click may take it meanwhile
     ready = bool(job)
-    if on and (not ready or not _spare) and not _preparing.locked() and used < daily_cap():   # keep two jobs ready
+    if on and (not ready or not _spare) and not _preparing.locked() and (used < daily_cap() or used_a < agent_cap()):   # keep two jobs ready
         threading.Thread(target=prepare, daemon=True).start()
-    return {"live": on, "used_today": used, "cap_today": daily_cap(), "busy": busy, "ready": ready, "bid": BID, "network": "testnet",
+    return {"live": on, "used_today": used, "cap_today": daily_cap(), "agent_used_today": used_a, "agent_cap_today": agent_cap(), "busy": busy, "ready": ready, "bid": BID, "network": "testnet",
             "account": os.environ.get("KNOS_NEAR_PAYER", ""), "money": "test tokens, not real money",
             **({"prepare_error": _ready["error"]} if not ready and _ready.get("error") else {}),
             **({"next": {k: job.get(k) for k in ("id", "attempts", "txs")}} if job else {})}   # the waiting job's two tries, before the click
@@ -79,7 +88,7 @@ def start() -> dict:
     with _lock:
         today = time.strftime("%Y-%m-%d", time.gmtime())
         if _day["day"] != today:
-            _day.update(day=today, n=0)
+            _day.update(day=today, n=0, a=0)
         _day["n"] += 1
         ready = _take_ready()
     if ready:   # a job both agents have already tried: the visitor's click sends only the payment
@@ -301,7 +310,7 @@ def guard() -> dict:
         with _lock:
             today = time.strftime("%Y-%m-%d", time.gmtime())
             if _day["day"] != today:
-                _day.update(day=today, n=0)
+                _day.update(day=today, n=0, a=0)
             _day["n"] += 1
         t0 = time.time()
         out = _jobs().guard({})
@@ -437,7 +446,7 @@ def claim_run() -> dict:
         if ready:
             today = time.strftime("%Y-%m-%d", time.gmtime())
             if _day["day"] != today:
-                _day.update(day=today, n=0)
+                _day.update(day=today, n=0, a=0)
             _day["n"] += 1
     if not ready:
         threading.Thread(target=prepare, daemon=True).start()
@@ -629,22 +638,24 @@ def claim_look(url: str) -> dict:
     return out
 
 
-def claim_prove() -> dict:
+def claim_prove(agent: bool = False) -> dict:
     """The ordered proof: the readied job's locked test, both agents' reruns, the payment to the one that passed, the
     verdict beside the paper's own number, and the claim's market settled by the job."""
     import re
     s = status()
     if not s["live"]:
         return {"ok": False, "why": "live runs are switched off"}
-    if s["used_today"] >= s["cap_today"]:
+    if agent and s["agent_used_today"] >= s["agent_cap_today"]:
+        return {"ok": False, "why": f"today's {s['agent_cap_today']} live runs for the agent call are used"}
+    if not agent and s["used_today"] >= s["cap_today"]:
         return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
     with _lock:
         ready = _take_ready()
         if ready:
             today = time.strftime("%Y-%m-%d", time.gmtime())
             if _day["day"] != today:
-                _day.update(day=today, n=0)
-            _day["n"] += 1
+                _day.update(day=today, n=0, a=0)
+            _day["a" if agent else "n"] += 1
     waited = time.time()
     while not ready and time.time() - waited < 90:   # the next job is being readied: wait for it, not turn the buyer away
         threading.Thread(target=prepare, daemon=True).start()
@@ -652,7 +663,7 @@ def claim_prove() -> dict:
         with _lock:
             ready = _take_ready()
             if ready:
-                _day["n"] += 1
+                _day["a" if agent else "n"] += 1
     if not ready:
         return {"ok": False, "why": "the next proof is still being readied after 90 s; try again in a minute"}
     t0 = time.time()
@@ -972,11 +983,11 @@ def claim_flow(url: str, amount=None) -> dict:
     look = claim_look(url)
     if not look.get("known"):
         return {"ok": True, "look": look, "next": "no check for this paper yet: the quote says which checker fits"}
-    proof = claim_prove()
+    proof = claim_prove(agent=True)   # its own daily runs: page proofs never use them up
     if not proof.get("ok"):
         why = str(proof.get("why") or (f"the next proof could not be readied: {_ready['error']}" if _ready.get("error") else "the proof stopped before its answer"))
         last = _proofs.get("last")
-        if last and "live runs are used" in why:   # the day's cap: the last verified proof, reused and marked so, no money moved
+        if last and "live runs" in why and "are used" in why:   # the day's cap: the last verified proof, reused and marked so, no money moved
             return {"ok": True, "reused": True, "job": last["job"], "claim": look.get("quote"), "verdict": last["verdict"],
                     "code": "https://knos.onrender.com/api/near/claim/code", "first_proof": last.get("release_url"), "cap": None,
                     "paid": False, "settled": False, "receipt": None,
