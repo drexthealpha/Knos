@@ -19,10 +19,11 @@ concurrency:
 jobs:
   count:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     permissions:
       contents: read
       checks: write
+      actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -35,3 +36,9 @@ jobs:
         run: |
           python3 -c 'import json,os; c=json.load(open("counters.json")); print(json.dumps({"name": "near-counters", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "success", "output": {"title": "read " + c["read_at"], "summary": json.dumps(c)}}))' > body.json
           gh api "repos/$GITHUB_REPOSITORY/check-runs" --input body.json --jq '.html_url'
+      - name: Start the next read in about 9 minutes (GitHub may delay or drop scheduled runs)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 540
+          gh workflow run near-counters.yml --repo "$GITHUB_REPOSITORY" --ref main
