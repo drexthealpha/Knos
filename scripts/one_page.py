@@ -96,6 +96,9 @@ def main(site: str) -> int:
     assert 'href="tools.html"' in page, "the footer has no place for the older tools"
     page = page.replace("<span>Devnet, test money, no customers yet.</span>", "<span>NEAR testnet, test money, no customers yet.</span>", 1)
     css += "#near, #near-flow, #iris, #who { scroll-margin-top: 80px; }\n"   # a section a link opens is not hidden under the bar
+    # on a phone the first screen holds the question, the cost and the Will it work? button: tighter type above it
+    css += ("@media (max-width: 480px) { :root .k-goal { font-size: 19px; margin-bottom: 6px; } :root .k-today { margin-bottom: 4px; }"
+            " #near-flow .cost { font-size: 13px; line-height: 1.35; margin-bottom: 8px; } #near-flow .ask label { font-size: 13px; line-height: 1.35; } }\n")
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)
     page = page.replace("</body>", "".join(f"<script>\n{c}\n</script>\n" for c in njs) + "</body>", 1)
     (out / "index.html").write_text(page, encoding="utf-8")
