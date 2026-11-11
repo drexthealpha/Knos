@@ -975,6 +975,12 @@ def claim_flow(url: str, amount=None) -> dict:
     proof = claim_prove()
     if not proof.get("ok"):
         why = str(proof.get("why") or (f"the next proof could not be readied: {_ready['error']}" if _ready.get("error") else "the proof stopped before its answer"))
+        last = _proofs.get("last")
+        if last and "live runs are used" in why:   # the day's cap: the last verified proof, reused and marked so, no money moved
+            return {"ok": True, "reused": True, "job": last["job"], "claim": look.get("quote"), "verdict": last["verdict"],
+                    "code": "https://knos.onrender.com/api/near/claim/code", "first_proof": last.get("release_url"), "cap": None,
+                    "paid": False, "settled": False, "receipt": None,
+                    "why_not_settled": f"{why}: this is the last verified proof ({last['job']}), reused; no new run and no money moved"}
         return {"ok": False, "claim": look.get("quote"), "verdict": None, "code": None, "cap": None, "paid": False, "settled": False,
                 "why_not_settled": why, "receipt": None, "why": why}
     cap = claim_cap()
