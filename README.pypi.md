@@ -497,7 +497,7 @@ visitor and fails on memory.
 On the public page (no install, no sign-in, no wallet, test money only):
 
 1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people?" with its
-   answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute, for the test USDC you put behind the claim.", the box holding the
+   answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute on NEAR, for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).", the box holding the
    HyperLogLog DOI and the button "Will it work?".
 2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the price ("Price: the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."), the box "Your price, in test USDC:" holding 10
    and the button "Prove it with 10 test USDC", then the paper's claim word for word and its plain-words page.
@@ -513,7 +513,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
    cost", every step's network fee with its record.
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
    how many seconds sooner, "no test USDC moved" and a link to the first proof.
-7. Below the run - see "Live from NEAR testnet:" paid first proofs, test dollars settled and lost, read from NEAR's public record
+7. Below the run - see "Live from NEAR testnet:" first proofs paid in test dollars, test dollars settled and lost, read from NEAR's public record
    (in full about every 10 minutes by GitHub Actions, plus the server's own confirmed payments since): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (53.9 s; 17 s of waiting for NEAR testnet is cut, and the video says so where it is cut; it ends on the agent call's answer, run during the recording), with
@@ -560,7 +560,7 @@ inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BL
 **Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
 other 48. Nobody has paid real money for one yet.
 
-**Hard to copy.** Every verified result is kept on NEAR and reused, so proving an order again is free and takes about a second.
+**Hard to copy.** Every verified result is kept on NEAR and reused, so proving an order again is free and takes about a second. The 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: its first buyers.
 
 **Outside contributors.** Two GitHub accounts outside the team have done paid work for Knos. `jaystay-bot` wrote
 [#32](https://github.com/drexthealpha/Knos/pull/32), [#33](https://github.com/drexthealpha/Knos/pull/33) and

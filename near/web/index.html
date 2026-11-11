@@ -184,9 +184,9 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <p class="k-a">Checking that a result really works is slow and costly. So nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></p>
 <p class="k-goal">Knos turns any research into a product billions of people use, in days, not years.</p>
 <!-- /k-first -->
-    <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute, for the test USDC you put behind the claim.</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
+    <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute on NEAR, for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper link. Today the library proves one claim, the sample's (HyperLogLog, 2007): Knos proves it and hands you code that works.</label>
+      <label for="paper">Paste a paper's DOI, its permanent web address. Today the library proves one claim, the sample's: HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory. Knos proves it on NEAR and hands you code that works.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -201,11 +201,11 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">reading</b> paid first proofs, <b id="c-usd">reading</b> test dollars settled, <b id="c-lost">reading</b> lost.<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">reading</b> first proofs paid in test dollars, <b id="c-usd">reading</b> test dollars settled, <b id="c-lost">reading</b> lost.<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token.</p>
-    <p><b>Hard to copy:</b> every verified result is kept on NEAR and reused, so proving an order again is free and takes about a second.</p>
+    <p><b>Hard to copy:</b> every verified result is kept on NEAR and reused, so proving an order again is free and takes about a second; and the 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology, its first buyers.</p>
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
   </section>
 
@@ -658,14 +658,14 @@ load();
       out("https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
     const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. A model on NEAR AI Cloud, with its attestation, needs a NEAR AI key that is not set yet (BLOCKED)." })]);
-    for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "ran earlier"; }   // done when this order's job was readied, not since the click
+    for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "done for this order"; }   // done when this order's job was readied, not since the click
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
       const ago = r.ran_before_s >= 120 ? `${Math.round(r.ran_before_s / 60)} min` : `${Math.max(0, r.ran_before_s)} s`;
-      const when = r.ran_before_s >= 0 ? `This order's own job: its agents ran against the locked test ${ago} before you ordered, so the answer is ready in seconds.`
+      const when = r.ran_before_s >= 0 ? `Yes, for this order: each order takes its own job, and this job's agents ran against the locked test ${ago} before you pressed the button, so the answer is ready in seconds.`
         : "Their code ran against the locked test after you ordered, while you waited.";
       two.append(el("p", { className: "fine", textContent: when }));
-      if (r.ran_before_s >= 0) for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = `ran ${ago} earlier`; }
+      if (r.ran_before_s >= 0) for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = `done ${ago} before you pressed`; }
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
       two.classList.add("ok");
     });
