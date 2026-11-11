@@ -500,11 +500,11 @@ On the public page (no install, no sign-in, no wallet, test money only):
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
-5. Then "6. Paying and recording on NEAR", about 10 to 30 s on the test network, and "Receipt: paid and recorded on
+5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network, and "Receipt: paid and recorded on
    NEAR testnet in" those seconds: "You put behind the claim 10.00 test USDC", "Agent A's share
    0.20 test USDC, 1 part in 49" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
-6. Click "Prove the same claim again" - see "Free: Yes, in" under 3 s, from the stored verified result, with
+6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
    how many seconds sooner, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet:" paid first proofs, test dollars settled and lost, read from NEAR's public record
    (in full every 10 minutes by GitHub Actions, plus the server's own confirmed payments since): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.

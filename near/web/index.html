@@ -665,7 +665,7 @@ load();
     add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
       el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut]);
     firstSeconds = secs();
-    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 30 s on the test network.` })]);
+    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s on the test network.` })]);
     const tPay = performance.now();
     const payClock = el("p", { className: "fine", textContent: "0.0 s" });
     paying.append(payClock);
@@ -708,10 +708,10 @@ load();
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
       const first = firstSeconds || x.saved.first_seconds;
       said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s instead of ${first.toFixed(1)} s. ` }),
-        `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, so the answer came ${(first - took).toFixed(1)} s sooner. `,
+        `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, ${first > took ? `so the answer came ${(first - took).toFixed(1)} s sooner, ` : ""}and no agent was paid again. `,
         x.first_url ? out(x.first_url, "The first proof") : "");
     });
-    $("links").replaceChildren(...(rc && rc.job_pay_url ? [out(rc.job_pay_url, "settled on NEAR testnet"), " (the public record of this proof)"] : []));
+    $("links").replaceChildren(...(rc && rc.job_pay_url ? ["The job's payment to agent A, on NEAR testnet: ", out(rc.job_pay_url, "its record")] : []));
     counters(true);
   }
 })();
