@@ -481,7 +481,7 @@ building on it. On one screen they paste the link, ask "Will it work?", order th
 agent starts. The contract pays only the agent whose code passes, and refuses any agent step over its spending cap.
 
 The claim's record on NEAR settles from that job once the answer is in, and the test USDC the buyer put behind the claim moves on
-NEAR testnet. A second proof of the same claim reuses the verified result, free, instead of paying agents again.
+NEAR testnet. Proving the same order again reuses its verified result, free, instead of paying agents again; each new order runs its own job.
 
 The sample paper is HyperLogLog ([Flajolet, Fusy, Gandouet and Meunier, 2007](https://doi.org/10.46298/dmtcs.3545)). Its
 abstract says, word for word: "For instance, the new algorithm makes it possible to estimate cardinalities well beyond
@@ -519,7 +519,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
 7. Below the run - see "Live from NEAR testnet:" first proofs paid in test dollars, test dollars settled and lost, read from NEAR's public record
    (in full about every 10 minutes by GitHub Actions, plus the server's own confirmed payments since): each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (37.9 s, no screen held over 3 s; 20 s of waiting for NEAR testnet is cut, and the video says so where it is cut; it ends on the agent call's answer, run during the recording), with
+The same run, recorded from the public page: [near/web/knos-near.mp4](near/web/knos-near.mp4) (36.0 s, no screen held over 3 s; the waits for NEAR testnet and for the count are cut, and the video says so where each is cut; it ends on the agent call's answer, run during the recording), with
 screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
 [what you got](near/web/knos-near-3-got.png).
 
