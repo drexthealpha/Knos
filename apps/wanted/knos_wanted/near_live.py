@@ -836,6 +836,8 @@ def claim_pay(amount=None) -> dict:
     agent = _transfer(CONFIG["agents"]["a"], share, "knos proof: agent A's share of the amount behind the HyperLogLog claim")
     fee = _transfer(TREASURY, units - share, "knos proof: Knos's fee from the amount behind the HyperLogLog claim") if agent["ok"] else {"ok": False, "why": "not sent: the agent's share failed"}
     ok = agent["ok"] and fee["ok"]
+    if ok:
+        _paid_log.append((time.time(), units / 1e6, fee.get("tx")))
     return {"ok": ok, "usd": units / 1e6, "agent": agent, "fee": fee, "tx": fee.get("tx"), "url": fee.get("url"), "from": LIVE,
             "seconds": round(time.time() - t_pay, 1), "fee_account": "https://testnet.nearblocks.io/address/" + TREASURY + "?tab=tokentxns",
             **({} if ok else {"why": agent.get("why") if not agent["ok"] else fee.get("why")})}
@@ -873,68 +875,40 @@ def claim_reuse() -> dict:
             "saved": {"agent_usd": BID / 1e6, "first_seconds": last["seconds"]}}
 
 
-_counts: dict = {}
-_counting = threading.Lock()
+_snap: dict = {}
+_paid_log: list = []      # this server's own paid first proofs since it started: (unix time, test USDC moved, fee tx)
+
+
+def _snapshot() -> dict | None:
+    """The full count of NEAR testnet's public record, read every 10 minutes by GitHub Actions (near/scripts/
+    near_counters.py, published as the "near-counters" check run); kept here 5 minutes."""
+    if _snap.get("at") and time.time() - _snap["at"] < 300:
+        return _snap.get("out")
+    gh = "https://api.github.com/repos/drexthealpha/Knos/"
+    try:
+        def get(u: str) -> dict:
+            req = urllib.request.Request(gh + u, headers={"User-Agent": "knos-near-counters", "Accept": "application/vnd.github+json"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.loads(r.read())
+        run = (get("actions/workflows/near-counters.yml/runs?status=success&per_page=1").get("workflow_runs") or [])[0]
+        cr = next(x for x in get(f"commits/{run['head_sha']}/check-runs?check_name=near-counters").get("check_runs") or [] if x["name"] == "near-counters")
+        _snap.update(at=time.time(), out=json.loads(cr["output"]["summary"]))
+    except Exception as e:  # noqa: BLE001 - the last snapshot read stays in use
+        print("near_live counters:", str(e)[:160], file=sys.stderr, flush=True)
+        _snap["at"] = time.time() - 240          # ask again in a minute
+    return _snap.get("out")
 
 
 def counters() -> dict:
-    """Live counters, read from NEAR testnet (kept 2 minutes, read in the background): proofs run (settled markets of
-    the claim), test dollars settled (the buyers' payments to Knos plus the agents' pay), and payments that failed."""
-    if not (_counts.get("at") and time.time() - _counts["at"] < 120) and not _counting.locked():
-        threading.Thread(target=_count, daemon=True).start()
-    return _counts.get("out") or {"pending": True}
-
-
-def _count() -> None:
-    if not _counting.acquire(blocking=False):
-        return
-    try:
-        _jobs()
-        from common import view
-        ids = [i for i in (view(MARKET, "get_markets", {}) or []) if str(i).startswith("job:job-")]
-        proofs = 0
-        for mid in ids:
-            m = (view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}
-            if m.get("question") == CLAIM_Q and m.get("outcome") is not None:
-                proofs += 1
-        _counts.update(at=time.time() - 90, out={**(_counts.get("out") or {"settled_usd": round(proofs * BID / 1e6, 2), "payments": None, "failed": None, "lost_usd": None,
-                       "record": "https://testnet.nearblocks.io/address/" + LIVE}), "proofs": proofs, "read_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())})
-        base = "https://api-testnet.nearblocks.io/v3/accounts/"
-
-        def pages(path: str):
-            nxt = ""
-            for _ in range(10):
-                req = urllib.request.Request(base + path + "?limit=100" + (f"&next={nxt}" if nxt else ""), headers={"User-Agent": "knos-near-totals"})
-                body = None
-                for tries in range(4):                 # NearBlocks' free tier answers 429 when asked too fast: wait, ask again
-                    try:
-                        with urllib.request.urlopen(req, timeout=20) as r:
-                            body = json.loads(r.read())
-                        break
-                    except urllib.error.HTTPError as e:
-                        if e.code != 429 or tries == 3:
-                            raise
-                        time.sleep(4 * (tries + 1))
-                yield from (body or {}).get("data") or []
-                nxt = ((body or {}).get("meta") or {}).get("next_page") or ""
-                if not nxt:
-                    return
-
-        # the buyers' payments: each fee that reached Knos's account from the buyer's test account, one per paid first proof
-        arrived = [int(t.get("delta_amount") or 0) for t in pages(TREASURY + "/ft-txns")
-                   if t.get("contract_account_id") == TOKEN and t.get("involved_account_id") == LIVE and int(t.get("delta_amount") or 0) > 0]
-        paid, sent = sum(arrived), len(arrived)
-        # payments that failed: the buyer account's token transfers that did not go through
-        failed = sum(1 for t in pages(LIVE + "/txns") if t.get("receiver_account_id") == TOKEN
-                     and any(x.get("method") == "ft_transfer" for x in t.get("actions") or []) and not (t.get("outcomes") or {}).get("status"))
-        _counts.update(at=time.time(), out={"proofs": proofs, "settled_usd": round(paid / 1e6 + proofs * BID / 1e6, 2), "payments": sent,
-                                             "failed": failed, "lost_usd": 0 if failed == 0 else None, "record": "https://testnet.nearblocks.io/address/" + LIVE,
-                                             "read_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())})
-    except Exception as e:  # noqa: BLE001 - the last good counters stay
-        print("near_live counters:", str(e)[:200], file=sys.stderr, flush=True)
-        _counts["at"] = time.time() - 60
-    finally:
-        _counting.release()
+    """Live counters: the full count of the public record (the snapshot above), plus every first proof this server has
+    paid since that count was read, each a transfer NEAR confirmed (its log). Lost is the record's own figure."""
+    base = _snapshot()
+    if not base:
+        return {"pending": True}
+    since = int(base.get("as_of_ns") or 0) / 1e9
+    new = [x for x in _paid_log if x[0] > since]
+    return {"proofs": base["proofs"] + len(new), "usd": round(base["usd"] + sum(x[1] for x in new), 6), "lost_usd": base["lost_usd"],
+            "read_at": base.get("read_at"), "since_read": len(new), "record": base.get("record")}
 
 
 def claim_flow(url: str, amount=None) -> dict:
