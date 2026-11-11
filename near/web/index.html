@@ -533,6 +533,8 @@ load();
   const post = (path, body) => fetch(HOSTED + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
     .then((r) => r.json()).catch(() => ({ ok: false, why: "the server did not answer" }));
   const out = (href, text) => el("a", { href, target: "_blank", rel: "noopener", textContent: text });
+  // a wait past 400 ms shows its own seconds, every 100 ms, until the answer is in
+  const live = (node, text) => { const t = performance.now(); const f = () => { node.textContent = `${text} ${((performance.now() - t) / 1000).toFixed(1)} s`; }; f(); const id = setInterval(f, 100); return () => clearInterval(id); };
   const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
   const usd = (x) => x == null ? "" : x < 0.01 ? `$${x.toFixed(5)}` : `$${x.toFixed(2)}`;
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -611,9 +613,11 @@ load();
     ev.preventDefault();
     const go = $("go"); go.disabled = true; $("run").hidden = false; $("prove").hidden = true; $("links").replaceChildren();
     const look = $("look");
-    look.replaceChildren(el("p", { className: "fine", textContent: "Reading the paper…" }));
+    const reading = el("p", { className: "fine" }); look.replaceChildren(reading);
+    const read = live(reading, "Reading the paper\u2026");
     let [r] = await Promise.all([post("/api/near/claim/look", { url: $("paper").value }), ready]);
     if (!r.ok && /did not answer/.test(r.why || "")) r = await post("/api/near/claim/look", { url: $("paper").value });   // one more try
+    read();
     go.disabled = false;
     if (!r.ok) { look.replaceChildren(el("p", { className: "stop", textContent: `Not read: ${r.why || "no answer"}.` })); return; }
     if (!r.known) {
@@ -696,8 +700,9 @@ load();
     const tryBtn = el("button", { type: "button", className: "go", textContent: "Count them with your code" });
     const tryOut = el("p", { role: "status" });
     tryBtn.addEventListener("click", async () => {
-      tryBtn.disabled = true; tryOut.textContent = "Counting\u2026";
+      tryBtn.disabled = true; const counting = live(tryOut, "Counting\u2026");
       const x = await fetch(`${HOSTED}/api/near/claim/try?n=${encodeURIComponent(tryN.value)}`).then((r) => r.json()).catch(() => ({}));
+      counting();
       tryOut.textContent = x.ok ? `Counted ${x.counted.toLocaleString("en-US")} of ${x.visitors.toLocaleString("en-US")} visitors (${x.off_pct}% off; the locked test allows 10%), keeping ${x.bytes.toLocaleString("en-US")} bytes, in ${x.seconds} s.${+tryN.value !== x.visitors ? ` It counts 1,000 to 100,000 visitors here.` : ""}` : `Not counted: ${x.error || "no answer"}.`;
       tryBtn.disabled = false;
     });
@@ -742,8 +747,9 @@ load();
     $("steps").after(box);
     box.scrollIntoView({ block: "start" });
     again.addEventListener("click", async () => {
-      again.disabled = true; const t = performance.now(); said.textContent = "Proving it again…";
+      again.disabled = true; const t = performance.now(); const proving2 = live(said, "Proving it again\u2026");
       const x = await post("/api/near/claim/reuse", { job: rc.job || "" });
+      proving2();
       const took = (performance.now() - t) / 1000;
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
       const first = firstSeconds || x.saved.first_seconds;
