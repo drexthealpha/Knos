@@ -8,6 +8,8 @@
 
 **Why does good research take 17 years to reach people?** Checking that a result really works is slow and costly. So nobody builds on it until it has been checked ([Morris and others, 2011](https://doi.org/10.1258/jrsm.2011.110180)).
 
+Knos carries research across the valley of death.
+
 ## How it works today
 
 Today the library proves one claim, the HyperLogLog paper's.
@@ -16,9 +18,11 @@ Paste its link and ask "Will it work?". Knos posts the claim on NEAR with a test
 
 Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only. Try it on one page: https://drexthealpha.github.io/Knos/ ([Do this, see that](#do-this-see-that)).
 
+<!-- entry:diff -->
 ## NEAR HACKATHON: the diff
 
 The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `near/`; the tag `hackathon-submission` is the submitted commit. Everything built in the window, file by file: https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. Only that NEAR work is the entry ([Disclosure](#disclosure)); the steps to try it are under [Do this, see that](#do-this-see-that).
+<!-- /entry:diff -->
 
 <!-- entry:criteria -->
 ## The five judged criteria
@@ -26,9 +30,9 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | Criterion | What Knos has | Link |
 |---|---|---|
 | Complexity | 22 enabled production items | [iris/src/Knos/Iris/Production.cls L8-L55](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L8-L55) |
-| Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L222-L225](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L222-L225) |
-| Developer Experience | 4 commands from git clone to working check | [README.md L222-L225](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L222-L225) |
-| Applicability | 5 example stories | [README.md L36-L40](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L36-L40) |
+| Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L226-L229](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L226-L229) |
+| Developer Experience | 4 commands from git clone to working check | [README.md L226-L229](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L226-L229) |
+| Applicability | 5 example stories | [README.md L40-L44](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L40-L44) |
 | Usability | 1 page a visitor can use with no sign-in | [the one page](https://drexthealpha.github.io/Knos/) |
 
 ### Who Knos is for
