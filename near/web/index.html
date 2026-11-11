@@ -537,52 +537,45 @@ load();
     }
     return null;
   }
-  // live counters, read here from NEAR's public record (NearBlocks), every page of it: a paid first proof is one fee that
-  // reached Knos's account from the buyer's test account; the dollars are those fees plus agent A's shares from it; lost is
-  // what left the buyer's test account for Knos or agent A (its own record) and never arrived (theirs)
+  // live counters from NEAR testnet's public record: the full count, read every 30 minutes by GitHub Actions
+  // (near/scripts/near_counters.py, the "near-counters" check run), brought up to date here from the newest page of each
+  // record. A paid first proof is one fee that reached Knos's account from the buyer's test account; the dollars are those
+  // fees plus agent A's shares; lost is what left the buyer's account for them and never arrived
   async function counters(after) {
     if (after) {   // a payment just made: read until the count passes the one shown, so this payment is counted
       const was = +($("c-proofs").textContent) || 0;
       for (let n = 0; n < 6; n++) { await counters(); if ((+($("c-proofs").textContent) || 0) > was) return; await wait(5000); }
       return;
     }
-    const NBA = "https://api-testnet.nearblocks.io/v3/accounts/", LIVE = "live.knos-swarm-1105.testnet", TOKEN = "knos-usdc-1102.testnet";
-    const FEE = "knos-payer-1102.testnet", AGENT = "agent-a.knos-swarm-1105.testnet";
-    const get = async (u) => {
-      for (let n = 0; n < 6; n++) {
-        const r = await fetch(NBA + u).catch(() => null);
+    const NBA = "https://api-testnet.nearblocks.io/v3/accounts/", GH = "https://api.github.com/repos/drexthealpha/Knos/";
+    const LIVE = "live.knos-swarm-1105.testnet", FEE = "knos-payer-1102.testnet", AGENT = "agent-a.knos-swarm-1105.testnet", TOKEN = "knos-usdc-1102.testnet";
+    const json = async (u, n = 4) => {
+      for (let i = 0; i < n; i++) {
+        const r = await fetch(u).catch(() => null);
         if (r && r.ok) return r.json().catch(() => null);
-        await wait(2000 * (n + 1));   // a busy answer (429): ask again, more slowly
+        await wait(1500 * (i + 1));   // a busy answer (429): ask again, more slowly
       }
       return null;
     };
-    const all = async (acct) => {   // every page of an account's token transfers
-      const rows = [];
-      let next = "";
-      for (let n = 0; n < 20; n++) {
-        const d = await get(`${acct}/ft-txns?limit=100${next ? "&next=" + encodeURIComponent(next) : ""}`);
-        if (!d) return null;
-        rows.push(...(d.data || []).filter((x) => x.contract_account_id === TOKEN));
-        next = (d.meta || {}).next_page || "";
-        if (!next) return rows;
-      }
-      return rows;
-    };
-    const show = (c) => {
-      const money = (n) => `$${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      $("c-proofs").textContent = String(c.proofs);
-      $("c-usd").textContent = money(c.usd);
-      $("c-lost").textContent = money(c.lost);
-    };
-    try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c && c.lost != null) show(c); } catch (e) { /* no stored values */ }
-    const fee = await all(FEE), agent = fee && await all(AGENT), live = agent && await all(LIVE);
+    const money = (n) => `$${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const show = (c) => { $("c-proofs").textContent = String(c.proofs); $("c-usd").textContent = money(c.usd); $("c-lost").textContent = money(c.lost_usd); };
+    let base = null;
+    const runs = await json(GH + "actions/workflows/near-counters.yml/runs?status=success&per_page=1", 2);
+    const run = runs && (runs.workflow_runs || [])[0];
+    const checks = run && await json(GH + `commits/${run.head_sha}/check-runs?check_name=near-counters`, 2);
+    const cr = checks && (checks.check_runs || []).find((x) => x.name === "near-counters");
+    try { base = cr ? JSON.parse(cr.output.summary) : null; } catch (e) { base = null; }
+    if (!base) return;
+    show(base);
+    // newer than the full count: the newest page of each record
+    const since = BigInt(base.as_of_ns || "0");
+    const [fee, agent, live] = [await json(NBA + FEE + "/ft-txns?limit=100"), await json(NBA + AGENT + "/ft-txns?limit=100"), await json(NBA + LIVE + "/ft-txns?limit=100")];
     if (!fee || !agent || !live) return;
-    const fromLive = (rows) => rows.filter((x) => x.involved_account_id === LIVE && +x.delta_amount > 0);
+    const fresh = (d) => (d.data || []).filter((x) => x.contract_account_id === TOKEN && BigInt(x.block_timestamp || "0") > since);
+    const fromLive = (d) => fresh(d).filter((x) => x.involved_account_id === LIVE && +x.delta_amount > 0);
     const arrived = [...fromLive(fee), ...fromLive(agent)].reduce((n, x) => n + x.delta_amount / 1e6, 0);
-    const left = live.filter((x) => (x.involved_account_id === FEE || x.involved_account_id === AGENT) && +x.delta_amount < 0).reduce((n, x) => n - x.delta_amount / 1e6, 0);
-    const c = { proofs: fromLive(fee).length, usd: arrived, lost: Math.max(0, Math.round((left - arrived) * 1e6) / 1e6) };
-    show(c);
-    try { localStorage.setItem("knos-near-counters", JSON.stringify(c)); } catch (e) { /* not kept */ }
+    const left = fresh(live).filter((x) => (x.involved_account_id === FEE || x.involved_account_id === AGENT) && +x.delta_amount < 0).reduce((n, x) => n - x.delta_amount / 1e6, 0);
+    show({ proofs: base.proofs + fromLive(fee).length, usd: base.usd + arrived, lost_usd: base.lost_usd + Math.max(0, Math.round((left - arrived) * 1e6) / 1e6) });
   }
   const ready = Promise.all([
     fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null).then((h) => { next = h && h.next; }),

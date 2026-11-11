@@ -1,0 +1,37 @@
+# The NEAR page's live counters, read in full from NEAR testnet's public record every 30 minutes
+# (near/scripts/near_counters.py) and published as this commit's "near-counters" check run, which the page reads
+# (GitHub's public API) and then brings up to date from the newest page of each record. Nothing here signs a
+# transaction or holds money; the only token is this run's own, to write the check run.
+name: NEAR counters
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: near-counters
+  cancel-in-progress: false
+
+jobs:
+  count:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Read the record
+        run: python3 near/scripts/near_counters.py counters.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Publish it as the near-counters check run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -c 'import json,os; c=json.load(open("counters.json")); print(json.dumps({"name": "near-counters", "head_sha": os.environ["GITHUB_SHA"], "status": "completed", "conclusion": "success", "output": {"title": "read " + c["read_at"], "summary": json.dumps(c)}}))' > body.json
+          gh api "repos/$GITHUB_REPOSITORY/check-runs" --input body.json --jq '.html_url'
