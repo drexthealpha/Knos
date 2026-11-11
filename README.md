@@ -14,7 +14,9 @@ Knos carries research across the valley of death, toward Kardashev II and III.
 
 ## How it works today
 
-Today the library proves one claim, the HyperLogLog paper's: paste its link and ask "Will it work?". Knos posts the claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
+Today the library proves one claim, the HyperLogLog paper's.
+
+Paste its link and ask "Will it work?". Knos posts the claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
 
 Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only. Try it on one page: https://drexthealpha.github.io/Knos/ ([Do this, see that](#do-this-see-that)).
 
@@ -24,9 +26,9 @@ Inside a lab's own data system, InterSystems IRIS runs the same proof check. Tes
 | Criterion | What Knos has | Link |
 |---|---|---|
 | Complexity | 22 enabled production items | [iris/src/Knos/Iris/Production.cls L8-L55](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L8-L55) |
-| Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L220-L223](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L220-L223) |
-| Developer Experience | 4 commands from git clone to working check | [README.md L220-L223](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L220-L223) |
-| Applicability | 5 example stories | [README.md L34-L38](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L34-L38) |
+| Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L222-L225](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L222-L225) |
+| Developer Experience | 4 commands from git clone to working check | [README.md L222-L225](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L222-L225) |
+| Applicability | 5 example stories | [README.md L36-L40](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L36-L40) |
 | Usability | 1 page a visitor can use with no sign-in | [index.html](https://drexthealpha.github.io/Knos/index.html) |
 
 ### Who Knos is for
