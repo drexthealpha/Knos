@@ -528,7 +528,9 @@ load();
   const when = (job) => { const m = /job-(\d\d)(\d\d)(\d\d)(\d\d)/.exec(job || ""); return m ? `on ${+m[2]} ${MONTHS[+m[1] - 1]} at ${m[3]}:${m[4]} UTC` : "before"; };
   let next = null, page = null, firstSeconds = null;
 
-  async function plainPage() {   // the small AI's page about the paper (product-page.yml), read from its public check run
+  async function plainPage() {   // the small AI's page about the paper (product-page.yml): held by the server, else its check run
+    const held = await fetch(HOSTED + "/api/near/claim/plain").then((r) => r.ok ? r.json() : null).catch(() => null);
+    if (held && held.kept != null) return held;
     const runs = await fetch(GH + "actions/workflows/product-page.yml/runs?status=success&per_page=5").then((r) => r.ok ? r.json() : null).catch(() => null);
     for (const run of (runs && runs.workflow_runs) || []) {
       const c = await fetch(GH + `commits/${run.head_sha}/check-runs?check_name=product-page`).then((r) => r.ok ? r.json() : null).catch(() => null);
@@ -606,6 +608,7 @@ load();
       el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
         el("blockquote", {}, [`“${r.quote}”`]), el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])]),
     ];
+    if (!page) kids.push(el("p", { className: "fine", textContent: "The plain-words page about this paper could not be read just now." }));
     if (page && page.kept) kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }),
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it"), ". Private AI on NEAR AI Cloud, with its attestation: BLOCKED, no NEAR AI key is set yet."])]));
@@ -699,7 +702,7 @@ load();
     box.scrollIntoView({ block: "start" });
     again.addEventListener("click", async () => {
       again.disabled = true; const t = performance.now(); said.textContent = "Proving it again…";
-      const x = await post("/api/near/claim/reuse");
+      const x = await post("/api/near/claim/reuse", { job: rc.job || "" });
       const took = (performance.now() - t) / 1000;
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
       const first = firstSeconds || x.saved.first_seconds;

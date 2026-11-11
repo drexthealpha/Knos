@@ -867,9 +867,9 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
             "job_pay_url": last.get("release_url"), "log": action_log(steps)}
 
 
-def claim_reuse() -> dict:
-    """A second proof of the same claim: the verified version of the last proof is reused, so no agent reruns it."""
-    last = _proofs.get("last")
+def claim_reuse(job: str = "") -> dict:
+    """A second proof of the same order: the verified result of its first proof (its job) is reused, so no agent reruns it."""
+    last = (_proofs.get(job) if job else None) or _proofs.get("last")
     if not last:
         return {"ok": False, "why": "no verified result to reuse yet: order the first proof"}
     return {"ok": True, "free": True, "reused": last["job"], "verdict": last["verdict"], "first_url": last.get("release_url"),
@@ -973,3 +973,26 @@ def claim_try(n: int) -> dict:
     got = c.count()
     return {"ok": True, "visitors": n, "counted": round(got), "off_pct": round(abs(got - n) / n * 100, 1),
             "bytes": len(pickle.dumps(c)), "seconds": round(time.time() - t0, 1)}
+
+
+_plain: dict = {}
+
+
+def plain_page() -> dict:
+    """The small model's page about the paper (product-page.yml), from its public check run; held 10 minutes."""
+    if _plain.get("at") and time.time() - _plain["at"] < 600 and _plain.get("out"):
+        return _plain["out"]
+    gh = "https://api.github.com/repos/drexthealpha/Knos/"
+    try:
+        def get(u: str) -> dict:
+            req = urllib.request.Request(gh + u, headers={"User-Agent": "knos-near-plain", "Accept": "application/vnd.github+json"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.loads(r.read())
+        for run in get("actions/workflows/product-page.yml/runs?status=success&per_page=5").get("workflow_runs") or []:
+            cr = next((x for x in get(f"commits/{run['head_sha']}/check-runs?check_name=product-page").get("check_runs") or [] if x["name"] == "product-page"), None)
+            if cr:
+                _plain.update(at=time.time(), out={**json.loads(cr["output"]["summary"]), "url": cr["html_url"]})
+                return _plain["out"]
+    except Exception as e:  # noqa: BLE001 - the page says it could not be read
+        print("near_live plain page:", str(e)[:160], file=sys.stderr, flush=True)
+    return _plain.get("out") or {"ok": False, "why": "the plain-words page could not be read just now"}
