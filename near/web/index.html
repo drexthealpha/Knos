@@ -562,13 +562,26 @@ load();
         try { localStorage.setItem("knos-near-counters", JSON.stringify(c)); } catch (e) { /* not kept */ }
         return;
       }
-      await wait(2000 * (n + 1));   // the server is waking or reading the record: ask again
+      if (c && c.pending) break;   // the server could not read the record: read it here
+      await wait(2000 * (n + 1));   // the server is waking: ask again
     }
+    const GH = "https://api.github.com/repos/drexthealpha/Knos/";
+    const gj = (u) => fetch(GH + u).then((r) => r.ok ? r.json() : null).catch(() => null);
+    const runs = await gj("actions/workflows/near-counters.yml/runs?status=success&per_page=1");
+    const run = runs && (runs.workflow_runs || [])[0];
+    const checks = run && await gj(`commits/${run.head_sha}/check-runs?check_name=near-counters`);
+    const cr = checks && (checks.check_runs || []).find((x) => x.name === "near-counters");
+    try { if (cr) show(JSON.parse(cr.output.summary)); } catch (e) { /* not shown */ }
   }
   fetch(HOSTED + "/api/near/tests").then((r) => r.ok ? r.json() : null).catch(() => null).then((t) => {   // the suite's latest run, from GitHub
     const a = $("tests-run"); if (!a) return;
-    if (!t || t.passed == null) { a.textContent = "see GitHub"; return; }
-    a.textContent = t.passed ? `passed (commit ${t.sha})` : `failed (commit ${t.sha})`; a.href = t.url;
+    const say = (x) => { a.textContent = x.passed ? `passed (commit ${x.sha})` : `failed (commit ${x.sha})`; a.href = x.url; };
+    if (t && t.passed != null) { say(t); return; }
+    fetch("https://api.github.com/repos/drexthealpha/Knos/actions/workflows/tests.yml/runs?branch=main&status=completed&per_page=10")
+      .then((r) => r.ok ? r.json() : null).catch(() => null).then((d) => {
+        const run = ((d && d.workflow_runs) || []).find((x) => x.conclusion === "success" || x.conclusion === "failure");
+        if (run) say({ passed: run.conclusion === "success", sha: run.head_sha.slice(0, 8), url: run.html_url }); else a.textContent = "see GitHub";
+      });
   });
   const ready = Promise.all([
     fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null).then((h) => { next = h && h.next; }),
