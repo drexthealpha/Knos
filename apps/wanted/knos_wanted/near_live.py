@@ -617,6 +617,9 @@ def claim_look(url: str) -> dict:
                 f"in {left // 3600} h {left % 3600 // 60} min."}
     job = _ready.get("job")
     mk = (job or {}).get("market")
+    if not job and _ready.get("error"):
+        threading.Thread(target=prepare, daemon=True).start()
+        return {**out, "ready": False, "why": "The next proof could not be readied on NEAR testnet just now; try again in a few minutes."}
     if not job:
         threading.Thread(target=prepare, daemon=True).start()
         return {**out, "ready": True, "readying": True}   # an order waits for the job being readied
@@ -667,6 +670,8 @@ def claim_prove() -> dict:
         if out["ok"]:
             _proofs["last"] = _proofs[ready["id"]] = {"job": ready["id"], "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
                                "release_url": paid.get("release_url"), "seconds": round(time.time() - t0, 1), "at": time.time()}
+        if not out["ok"]:
+            out["why"] = str(paid.get("why") or f"the job's payment on NEAR testnet stopped at '{paid.get('state')}'")[:200]
         out["seconds"] = round(time.time() - t0, 1)
         out["job_id"] = ready["id"]
         return out
@@ -969,7 +974,7 @@ def claim_flow(url: str, amount=None) -> dict:
         return {"ok": True, "look": look, "next": "no check for this paper yet: the quote says which checker fits"}
     proof = claim_prove()
     if not proof.get("ok"):
-        why = str(proof.get("why") or "no proof ran")
+        why = str(proof.get("why") or (f"the next proof could not be readied: {_ready['error']}" if _ready.get("error") else "the proof stopped before its answer"))
         return {"ok": False, "claim": look.get("quote"), "verdict": None, "code": None, "cap": None, "paid": False, "settled": False,
                 "why_not_settled": why, "receipt": None, "why": why}
     cap = claim_cap()
