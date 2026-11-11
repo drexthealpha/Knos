@@ -214,10 +214,10 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <h2 id="t-who">Who pays</h2>
     <table class="log">
       <tr><th>Buyer</th><th>Today’s price</th><th>Knos</th></tr>
-      <tr><td>AI labs, per training task that grades itself</td><td>$200 to $2,000 (<a href="https://analyticsindiamag.com/ai-news-updates/complex-reinforcement-learning-tasks-can-cost-up-to-20000-each-epochai-report/">Epoch AI, 24 Jan 2026</a>)</td><td>Your own amount, at most $100 to $1,000, paid only after a pass</td></tr>
-      <tr><td>A grid study at PJM</td><td>$500,000 deposit (<a href="https://www.pjm.com/pjmfiles/directory/etariff/FercDockets/9925/20261013-er27-126-000.pdf">PJM, 25 Sep 2026</a>)</td><td>Your own amount, at most $250,000, paid only after a pass</td></tr>
+      <tr><td>AI labs, per training task that grades itself</td><td>$200 to $2,000 (<a href="https://analyticsindiamag.com/ai-news-updates/complex-reinforcement-learning-tasks-can-cost-up-to-20000-each-epochai-report/">Epoch AI, 24 Jan 2026</a>)</td><td>Half or less: up to $1,000 a task, paid only after it passes</td></tr>
+      <tr><td>A grid study at PJM</td><td>$500,000 deposit (<a href="https://www.pjm.com/pjmfiles/directory/etariff/FercDockets/9925/20261013-er27-126-000.pdf">PJM, 25 Sep 2026</a>)</td><td>Half or less: up to $250,000, paid only after it passes</td></tr>
     </table>
-    <p class="fine">No one has bought yet: every run today uses test money.</p>
+    <p class="fine">Prices planned for paying buyers. No one has bought yet: today a proof takes 1 to 100 test USDC.</p>
   </section>
 
   <details class="under">
@@ -731,7 +731,7 @@ load();
       el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt for proof ${rc.job || ""}: paid and recorded on NEAR testnet in ${pay.seconds} s` : `Receipt: paid on NEAR testnet in ${pay.seconds} s` }),
       el("table", { className: "vs" }, [
         el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)}, from a test account Knos holds for you, so you need no wallet. Its two transfers: `, rc.agent_pay_url ? out(rc.agent_pay_url, "to agent A") : "", rc.agent_pay_url && rc.fee_url ? ", " : "", rc.fee_url ? out(rc.fee_url, "to Knos") : ""] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
-        el("tr", {}, [el("th", { textContent: "Agent A\u2019s share" }), el("td", {}, ok ? (rc.job_pay_url ? [`${tu((+rc.agent_usd || 0) + 1)} in all: ${tu(rc.agent_usd)} from your price (1 part in 49, `, rc.agent_pay_url ? out(rc.agent_pay_url, "the transfer") : "the transfer", ") plus the 1.00 this job carried when Knos\u2019s test account posted it (", out(rc.job_pay_url, "its record"), ")."]
+        el("tr", {}, [el("th", { textContent: "Agent A\u2019s share" }), el("td", {}, ok ? (rc.job_pay_url ? [`${tu((+rc.agent_usd || 0) + 1)} in all: ${tu(rc.agent_usd)} from your price (1 part in 49, `, rc.agent_pay_url ? out(rc.agent_pay_url, "the transfer") : "the transfer", ") plus the 1.00 the job itself paid for passing its locked test (", out(rc.job_pay_url, "that payment"), ")."]
           : [`${tu(rc.agent_usd)}, 1 part in 49. `, rc.agent_pay_url ? out(rc.agent_pay_url, "The transfer") : ""]) : ["Nothing."])]),
         el("tr", {}, [el("th", { textContent: "Knos\u2019s fee" }), el("td", {}, ok ? [`${tu(rc.knos_usd)}, the other 48 parts, kept in Knos\u2019s own test account. `, rc.fee_url ? out(rc.fee_url, "The transfer") : "", pay.fee_account ? " \u00b7 " : "", pay.fee_account ? out(pay.fee_account, "The account") : ""] : ["Nothing."])])]),
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
@@ -753,6 +753,7 @@ load();
       const took = (performance.now() - t) / 1000;
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
       const first = firstSeconds || x.saved.first_seconds;
+      said.scrollIntoView({ block: "center" });
       said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s instead of ${first.toFixed(1)} s. ` }),
         `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, ${first > took ? `so the answer came ${(first - took).toFixed(1)} s sooner, ` : ""}and no agent was paid again. `,
         x.first_url ? out(x.first_url, "The first proof") : "");

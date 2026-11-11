@@ -56,7 +56,9 @@ await focus("#steps li", 2, "Agents work against a locked test; the cap blocks a
 await focus("#steps li", 3, "The answer: the paper's number beside the one measured now", 1500);
 await focus("#steps li", 4, "", 0);                  // the count runs in view, its own clock ticking, no caption over it
 await page.locator("#steps li").nth(4).locator("button").click();
+mark("count");
 await page.locator("#steps li").nth(4).locator("[role=status]").filter({ hasText: /^There were|^Not counted/ }).waitFor({ timeout: 30000 });
+mark("counted");
 await focus("#steps li", 4, "The code you got, at work: 100,000 visitors counted in 1.5 kilobytes", 1500);
 await focus(".receipt-card", 0, "The receipt on NEAR testnet: your 10 test USDC, split between agent A and Knos", 2000);
 await focus(".receipt-card .log", 0, "What each step cost, each with its record", 1000);
@@ -65,6 +67,7 @@ mark("again");
 await page.locator(".receipt-card [role=status]").filter({ hasText: /^Free|Not run/ }).waitFor({ timeout: 60000 });
 await focus(".receipt-card [role=status]", 0, "The same claim again: free, the first proof reused", 2000);
 await page.screenshot({ path: path.join(out, "3-got.png") });
+await focus("#iris h2", 0, "The same proof check inside a lab, on InterSystems IRIS", 2000);
 await focus(".facts .counters", 0, "Live counters, read from NEAR", 1000);
 await focus(".facts .snip", 0, "One call runs it all for an agent", 1000);
 const answer = await flow;
@@ -77,9 +80,7 @@ await page.evaluate((x) => {
   document.querySelector(".facts .snip").after(pre);
 }, answer);
 await focus("#rec-flow", 0, "The answer that call returned during this recording", 2000);
-await page.evaluate(() => document.getElementById("rec-flow").remove());
-await focus("#iris h2", 0, "The same proof check inside a lab, on InterSystems IRIS", 2000);
-mark("end");
+mark("end");                                           // the video ends on the agent call's answer
 const video = page.video();
 await ctx.close();
 fs.renameSync(await video.path(), path.join(out, "run.webm"));

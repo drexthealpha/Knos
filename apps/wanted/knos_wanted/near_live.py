@@ -487,7 +487,7 @@ def claim_run() -> dict:
 
 # The research buyer's flow on /near/: paste a paper link, see its claim, how likely the claim holds (the price of its
 # market on NEAR testnet) and one offer; order it, and the readied job proves or refutes the claim within seconds.
-CLAIM_Q = "Does HyperLogLog count visitors within 2% using 1.5 kilobytes?"
+CLAIM_Q = "Does HyperLogLog count 30,000 visitors within 10% using at most 1.5 kilobytes?"   # the locked test that settles it
 KNOWN = {"10.46298/dmtcs.3545": {
     "paper": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm",
     "authors": "Flajolet, Fusy, Gandouet and Meunier, 2007", "doi": "https://doi.org/10.46298/dmtcs.3545",
@@ -948,7 +948,7 @@ def claim_flow(url: str, amount=None) -> dict:
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
     done = bool(pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
     why = "" if done else ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
-    return {"ok": True, "claim": look.get("quote"), "verdict": proof.get("verdict"), "code": "https://knos.onrender.com/api/near/claim/code",
+    return {"ok": True, "job": str(proof.get("job_id") or ""), "claim": look.get("quote"), "verdict": proof.get("verdict"), "code": "https://knos.onrender.com/api/near/claim/code",
             "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle, str(proof.get("job_id") or ""))}
 
 

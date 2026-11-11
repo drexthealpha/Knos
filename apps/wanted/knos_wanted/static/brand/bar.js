@@ -9,7 +9,10 @@
   const fold = (open) => { more.classList.toggle("open", open); moreButton.setAttribute("aria-expanded", String(open)); };
   menu?.addEventListener("click", () => menu.setAttribute("aria-expanded", String(bar.classList.toggle("open"))));
   moreButton?.addEventListener("click", () => fold(!more.classList.contains("open")));
-  document.addEventListener("click", (ev) => { if (more?.classList.contains("open") && (!more.contains(ev.target) || ev.target.closest("a"))) fold(false); });
+  document.addEventListener("click", (ev) => {
+    if (more?.classList.contains("open") && (!more.contains(ev.target) || ev.target.closest("a"))) fold(false);
+    if (bar.classList.contains("open") && ev.target.closest("nav a")) { bar.classList.remove("open"); menu?.setAttribute("aria-expanded", "false"); }   // a choice closes the phone's menu
+  });
   document.addEventListener("keydown", (ev) => {
     if (ev.key !== "Escape") return;
     if (more?.classList.contains("open")) { fold(false); moreButton.focus(); }
