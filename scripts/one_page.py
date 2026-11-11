@@ -45,12 +45,20 @@ def inline_scripts(html: str) -> list[str]:
     return out
 
 
-def redirect(to: str, title: str) -> str:
-    return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>{title}</title>\n'
-            f'<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-            f'<meta http-equiv="refresh" content="0; url={to}">\n<link rel="canonical" href="https://drexthealpha.github.io/Knos/{to[3:]}">\n'
-            f'<script>location.replace("{to}" + (location.hash && location.hash !== "#" ? "" : ""));</script>\n'
-            f'</head><body><p><a href="{to}">{title}</a></p></body></html>\n')
+def head_of(page: str) -> str:
+    """The one page's own title, description and preview tags: a tab, a link preview or a search result of an old
+    address shows the one page, never a page of its own."""
+    tags = re.findall(r'<title>.*?</title>|<meta (?:name|property)="(?:description|og:[a-z:_]+|twitter:[a-z:_]+)"[^>]*>', page, re.S)
+    return "\n".join(tags)
+
+
+def redirect(to: str, head: str) -> str:
+    return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n'
+            f'<script>location.replace("{to}");</script>\n'
+            f'<meta http-equiv="refresh" content="0; url={to}">\n{head}\n'
+            f'<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta name="robots" content="noindex">\n'
+            f'<link rel="canonical" href="https://drexthealpha.github.io/Knos/">\n'
+            f'</head><body><p><a href="{to}">Knos</a></p></body></html>\n')
 
 
 def main(site: str) -> int:
@@ -76,8 +84,9 @@ def main(site: str) -> int:
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)
     page = page.replace("</body>", "".join(f"<script>\n{c}\n</script>\n" for c in njs) + "</body>", 1)
     (out / "index.html").write_text(page, encoding="utf-8")
-    (out / "near" / "index.html").write_text(redirect("../#near", "Knos: prove a paper's claim on NEAR"), encoding="utf-8")
-    (out / "iris" / "index.html").write_text(redirect("../#iris", "Knos: the proof check in InterSystems IRIS"), encoding="utf-8")
+    head = head_of(page)
+    (out / "near" / "index.html").write_text(redirect("../#near", head), encoding="utf-8")
+    (out / "iris" / "index.html").write_text(redirect("../#iris", head), encoding="utf-8")
     print(f"one page: #near ({len(nb)} bytes) and #iris ({len(ib)} bytes) under the first line; /near/ and /iris/ send on")
     return 0
 

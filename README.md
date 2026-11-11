@@ -29,7 +29,7 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L222-L225](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L222-L225) |
 | Developer Experience | 4 commands from git clone to working check | [README.md L222-L225](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L222-L225) |
 | Applicability | 5 example stories | [README.md L36-L40](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L36-L40) |
-| Usability | 1 page a visitor can use with no sign-in | [index.html](https://drexthealpha.github.io/Knos/index.html) |
+| Usability | 1 page a visitor can use with no sign-in | [the one page](https://drexthealpha.github.io/Knos/) |
 
 ### Who Knos is for
 
@@ -183,7 +183,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 
 | What | Where |
 |---|---|
-| Video | [62 seconds, plays in your browser](https://drexthealpha.github.io/Knos/iris/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)) |
+| Video | [62 seconds, plays in your browser](https://drexthealpha.github.io/Knos/#iris): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | the IRIS part is not hosted: its built-in demo runs on your own machine after the quick start, with no key and no sign-in (the NEAR proof flow is hosted on the one page) |
@@ -988,8 +988,7 @@ Every program the app or this site uses, and who can upgrade it, read from devne
 
 This page names no time for an upgrade, so it stays true before and after one. To see whether a change to the
 programs is waiting, done or withdrawn, run `knos status`, or read the site's banner or its
-[upgrade record](https://drexthealpha.github.io/Knos/upgrades.json) ([`web/upgrades.json`](web/upgrades.json) is the
-copy kept here).
+upgrade record, [`web/upgrades.json`](web/upgrades.json).
 
 The first set of programs ([`programs`](programs)) has no upgrade authority, so nobody can change it.
 It stays as a record, and no new task is funded there.

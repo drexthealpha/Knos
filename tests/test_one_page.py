@@ -2,6 +2,7 @@
 IRIS proof check (#iris); /near/ and /iris/ send a visitor on to those sections."""
 import os
 import pathlib
+import re
 import subprocess
 
 import _posix
@@ -23,4 +24,8 @@ def test_the_root_is_one_page_and_the_old_addresses_send_on(tmp_path):
     for sub, to in (("near", "../#near"), ("iris", "../#iris")):
         stub = (tmp_path / "site" / sub / "index.html").read_text(encoding="utf-8")
         assert f'url={to}"' in stub and f'location.replace("{to}"' in stub
+        # a tab, a link preview or a search result of the old address shows the one page itself
+        for tag in re.findall(r'<title>.*?</title>|<meta property="og:(?:title|description|image|url)"[^>]*>', page[:page.index("</head>")], re.S):
+            assert tag in stub, tag
+        assert '<link rel="canonical" href="https://drexthealpha.github.io/Knos/">' in stub and 'content="noindex"' in stub
     assert (tmp_path / "site" / "near" / "pay.js").is_file() and (tmp_path / "site" / "iris" / "knos-iris.mp4").is_file()
