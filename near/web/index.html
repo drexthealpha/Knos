@@ -186,7 +186,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <!-- /k-first -->
     <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute, for the test USDC you put behind the claim.</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper link (the sample is HyperLogLog, 2007). Knos proves its main claim and hands you code that works.</label>
+      <label for="paper">Paste a paper link. Today the library proves one claim, the sample's (HyperLogLog, 2007): Knos proves it and hands you code that works.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -659,6 +659,7 @@ load();
       out("https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
     const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. A model on NEAR AI Cloud, with its attestation, needs a NEAR AI key that is not set yet (BLOCKED)." })]);
+    for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "readied"; }   // done when the job was readied, not since the order
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
       const ago = r.ran_before_s >= 120 ? `${Math.round(r.ran_before_s / 60)} min` : `${Math.max(0, r.ran_before_s)} s`;

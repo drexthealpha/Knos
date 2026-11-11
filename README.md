@@ -14,7 +14,7 @@ Knos carries research across the valley of death, toward Kardashev II and III.
 
 ## How it works today
 
-Paste a paper link and ask "Will it work?". Knos posts the paper's claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
+Today the library proves one claim, the HyperLogLog paper's: paste its link and ask "Will it work?". Knos posts the claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
 
 Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only. Try it on one page: https://drexthealpha.github.io/Knos/ ([Do this, see that](#do-this-see-that)).
 
