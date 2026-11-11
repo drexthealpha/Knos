@@ -631,7 +631,7 @@ locked test, with both agents' code already run and submitted. The spending cap 
 refuses agent B's over-budget spend there and then. Your payment and the record's update follow.
 
 It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs a day, six every
-10 minutes from one address; past a cap the page says the next proof is being readied.
+10 minutes from one address. Once they are used, "Will it work?" says so before any order, with the time the next can start, and the agent call returns `paid` and `settled` false with `why_not_settled` naming the limit.
 
 ### Work in the window
 

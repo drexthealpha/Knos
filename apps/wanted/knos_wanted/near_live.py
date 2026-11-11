@@ -607,6 +607,11 @@ def claim_look(url: str) -> dict:
     if not (_last.get("at") and time.time() - _last["at"] < 300) and not _lasting.locked():
         threading.Thread(target=_refresh_last, daemon=True).start()   # read in the background: the click never waits for it
     out = {"ok": True, "known": True, **known, "amount_default": AMOUNT_DEFAULT, "amount_max": AMOUNT_MAX, "last": _last.get("out"), "reusable": bool(_proofs.get("last"))}
+    s = status()
+    if s["used_today"] >= s["cap_today"]:
+        left = 86400 - int(time.time()) % 86400
+        return {**out, "ready": False, "why": f"Today's {s['cap_today']} live proofs on NEAR testnet are used. The next can start at 00:00 UTC, "
+                f"in {left // 3600} h {left % 3600 // 60} min."}
     job = _ready.get("job")
     mk = (job or {}).get("market")
     if not job:
@@ -614,10 +619,7 @@ def claim_look(url: str) -> dict:
         return {**out, "ready": True, "readying": True}   # an order waits for the job being readied
     out.update(ready=True, job_id=job["id"])
     if mk:
-        _jobs()
-        from common import view
-        v = view(MARKET, "get_market", {"id": mk["id"]}) or {}
-        out["market"] = {"id": mk["id"], "yes_pct": round(int(v.get("yes_price") or 0) / 10_000), "seed_tx": mk.get("seed_tx")}
+        out["market"] = {"id": mk["id"], "seed_tx": mk.get("seed_tx")}
     return out
 
 
@@ -938,7 +940,9 @@ def claim_flow(url: str, amount=None) -> dict:
         return {"ok": True, "look": look, "next": "no check for this paper yet: the quote says which checker fits"}
     proof = claim_prove()
     if not proof.get("ok"):
-        return {"ok": False, "look": look, "why": proof.get("why")}
+        why = str(proof.get("why") or "no proof ran")
+        return {"ok": False, "claim": look.get("quote"), "verdict": None, "code": None, "cap": None, "paid": False, "settled": False,
+                "why_not_settled": why, "receipt": None, "why": why}
     cap = claim_cap()
     pay = claim_pay(amount)
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
