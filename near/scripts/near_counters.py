@@ -42,7 +42,8 @@ def rows(account: str) -> list[dict]:
     raise RuntimeError(f"{account}: more than 200 pages")
 
 
-def main(path: str) -> int:
+def read() -> dict:
+    """The full count, read now (the hosted server calls this too when GitHub's copy is late)."""
     fee, agent = rows(FEE), rows(AGENT)
     live = rows(LIVE)
     paid = [x for x in fee if x.get("involved_account_id") == LIVE and int(x.get("delta_amount") or 0) > 0]
@@ -59,6 +60,11 @@ def main(path: str) -> int:
     out = {"proofs": len(paid), "usd": round(arrived / 1e6, 6), "lost_usd": round(lost / 1e6, 6), "as_of_ns": str(newest),
            "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "rows": {"fee": len(fee), "agent": len(agent), "live": len(live)},
            "record": "https://testnet.nearblocks.io/address/" + LIVE + "?tab=tokentxns"}
+    return out
+
+
+def main(path: str) -> int:
+    out = read()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f)
     print(json.dumps(out))

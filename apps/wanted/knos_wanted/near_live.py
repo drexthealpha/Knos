@@ -19,6 +19,7 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents[3])   # /app in the image
 NEAR_WEB = ROOT / "near" / "web"
+NEAR_SCRIPTS = ROOT / "near" / "scripts"   # near_counters.py: the full count, which the server reads itself when GitHub is late
 BID = 1_000_000          # $1.00 of test money (the test token has 6 decimals)
 _lock = threading.Lock()
 _runs: dict[str, dict] = {}
@@ -885,10 +886,34 @@ _snapping = threading.Lock()
 _paid_log: list = []      # this server's own paid first proofs since it started: (unix time, test USDC moved, fee tx)
 
 
-def _snapshot() -> dict | None:
+def _late(out: dict | None) -> bool:
+    """A count read over 15 minutes ago, or none."""
+    try:
+        import calendar
+        return not out or time.time() - calendar.timegm(time.strptime(out["read_at"], "%Y-%m-%dT%H:%M:%SZ")) > 900
+    except (KeyError, ValueError):
+        return True
+
+
+def _direct() -> None:
+    """Read the full count here, from the same public record and with the same code GitHub Actions runs, when GitHub's
+    copy is late or cannot be fetched from this server's address."""
+    try:
+        if str(NEAR_SCRIPTS) not in sys.path:
+            sys.path.insert(0, str(NEAR_SCRIPTS))
+        import near_counters
+        out = near_counters.read()
+        if _late(_snap.get("out")) or out["read_at"] > (_snap.get("out") or {}).get("read_at", ""):
+            _snap.update(at=time.time(), out=out)
+    except Exception as e:  # noqa: BLE001 - the copy held stays in use
+        print("near_live counters (direct):", str(e)[:160], file=sys.stderr, flush=True)
+
+
+def _snapshot(direct: bool = False) -> dict | None:
     """The full count of NEAR testnet's public record, read every 10 minutes by GitHub Actions (near/scripts/
-    near_counters.py, published as the "near-counters" check run); kept here 5 minutes."""
-    if _snap.get("at") and time.time() - _snap["at"] < 300:
+    near_counters.py, published as the "near-counters" check run); kept here 5 minutes. When that copy is late or GitHub
+    refuses this server, and the caller can wait, the server reads the record itself."""
+    if _snap.get("at") and time.time() - _snap["at"] < 300 and not (direct and _late(_snap.get("out"))):
         return _snap.get("out")
     gh = "https://api.github.com/repos/drexthealpha/Knos/"
     try:
@@ -903,13 +928,15 @@ def _snapshot() -> dict | None:
     except Exception as e:  # noqa: BLE001 - the last snapshot read stays in use
         print("near_live counters:", str(e)[:160], file=sys.stderr, flush=True)
         _snap["at"] = time.time() - 240          # ask again in a minute
+    if direct and _late(_snap.get("out")):
+        _direct()
     return _snap.get("out")
 
 
 def _resnap() -> None:
     if _snapping.acquire(blocking=False):
         try:
-            _snapshot()
+            _snapshot(direct=True)
         finally:
             _snapping.release()
 
