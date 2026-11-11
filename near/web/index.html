@@ -742,7 +742,7 @@ load();
     const again = el("button", { type: "button", className: "go", textContent: "Prove the same claim again" });
     again.dataset.buy = "";
     const said = el("p", { role: "status" });
-    box.append(el("p", {}, [again]), said);
+    if (ok) box.append(el("p", {}, [again]), said);
     $("steps").after(box);
     box.scrollIntoView({ block: "start" });
     again.addEventListener("click", async () => {

@@ -873,9 +873,9 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
 
 def claim_reuse(job: str = "") -> dict:
     """A second proof of the same order: the verified result of its first proof (its job) is reused, so no agent reruns it."""
-    last = (_proofs.get(job) if job else None) or _proofs.get("last")
+    last = _proofs.get(job) if job else None   # this order's own first proof, never another buyer's
     if not last:
-        return {"ok": False, "why": "no verified result to reuse yet: order the first proof"}
+        return {"ok": False, "why": "this order has no paid first proof to reuse yet" if job else "name the order's job: order the first proof"}
     return {"ok": True, "free": True, "reused": last["job"], "verdict": last["verdict"], "first_url": last.get("release_url"),
             "saved": {"agent_usd": BID / 1e6, "first_seconds": last["seconds"]}}
 

@@ -66,7 +66,7 @@ SESSION_S = 30 * 60
 LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish": (10, 600), "demo": (4, 600),
           "faucet": (2, 3600), "tx": (20, 600), "check": (30, 600), "taste": (30, 600), "mcp": (300, 600), "lock": (6, 600), "auth": (30, 600),
           "milestone": (30, 600), "milestone_one": (10, 3600), "referee": (120, 600), "product": (60, 600),
-          "live": (120, 600), "near_live": (6, 600), "near_guard": (2, 600), "near_market": (5, 600), "near_product": (5, 600), "near_look": (30, 600), "near_flow": (4, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
+          "live": (120, 600), "near_live": (6, 600), "near_guard": (2, 600), "near_market": (5, 600), "near_product": (5, 600), "near_look": (30, 600), "near_flow": (4, 600), "near_order": (20, 600), "near_free": (60, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
@@ -517,7 +517,7 @@ def make_handler(state: State):
                 return self._send(200, near_live.plain_page(), headers=blink.CORS)
             if u.path == "/api/near/claim/try":            # the verified code at work on n visitors
                 from . import near_live
-                if not state.allow(self._client(), "near_look"):
+                if not state.allow(self._client(), "near_free"):
                     return self._send(429, {"error": "too many tries from one address; try again in a few minutes"}, headers=blink.CORS)
                 try:
                     n = int((urllib.parse.parse_qs(u.query).get("n") or ["30000"])[0])
@@ -981,7 +981,10 @@ def make_handler(state: State):
                 return self._send(200, near_live.claim_prove(), headers=blink.CORS)
             if u.path in ("/api/near/claim/cap", "/api/near/claim/pay", "/api/near/claim/receipt", "/api/near/claim/reuse", "/api/near/claim/flow", "/api/near/claim/finish"):
                 from . import near_live
-                if not state.allow(self._client(), "near_flow" if u.path == "/api/near/claim/flow" else "near_look"):
+                # the agent call has its own limit; an order's paid steps (cap, payment, receipt) are bounded by the six proofs an
+                # address may order and the day's cap, so they get room for those; the free repeat gets room of its own
+                kind = "near_flow" if u.path == "/api/near/claim/flow" else "near_free" if u.path == "/api/near/claim/reuse" else "near_order"
+                if not state.allow(self._client(), kind):
                     return self._send(200, {"ok": False, "why": "too many runs from one address; try again in a few minutes"}, headers=blink.CORS)
                 b = self._json()
                 if u.path == "/api/near/claim/cap":
