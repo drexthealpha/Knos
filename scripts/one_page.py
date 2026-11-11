@@ -64,7 +64,7 @@ def main(site: str) -> int:
     njs = [c.replace('fetch("latest.json"', 'fetch("near/latest.json"').replace("../brand/", "brand/") for c in inline_scripts(near)]
     ib = body_of(iris).replace("../brand/", "brand/").replace('"knos-iris.mp4"', '"iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="iris/poster.png"')
     block = (f'\n<section id="near" class="one-near" aria-label="Prove a paper\'s claim on NEAR">\n{nb}\n</section>\n'
-             f'<section id="iris" class="one-iris" aria-label="The proof check in InterSystems IRIS">\n{ib}\n</section>\n')
+             f'<section id="iris" class="one-iris iris-page" aria-label="The proof check in InterSystems IRIS">\n{ib}\n</section>\n')
     css = scoped_css(near, "#near") + scoped_css(iris, "#iris")
     page = page.replace(FIRST_END, FIRST_END + block, 1)
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)

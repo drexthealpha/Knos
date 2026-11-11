@@ -29,6 +29,7 @@
 .iris-links a{font-weight:600}
 .iris-watch{margin:0;display:grid;gap:8px}
 .iris-watch figcaption{font-weight:600}
+.iris-page .iris-steps{font:500 13px/1.6 var(--mono,ui-monospace,monospace);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0 0;overflow-x:auto;white-space:pre}
 .iris-page .iris-h2{font:600 var(--s2,20px)/1.2 var(--text);margin:20px 0 0}
 .iris-watch video{width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#000}
 @media (max-width: 860px){.iris-grid{grid-template-columns:1fr}.iris-page{align-content:start}}
@@ -64,14 +65,18 @@
 <!-- /k-first -->
   <div class="iris-grid">
     <div>
-      <h2>Knos on InterSystems IRIS</h2>
-      <p class="means">Knos carries research across the valley of death, toward Kardashev II and III.</p>
-      <h2 class="iris-h2">How it works today</h2>
-      <p class="means">Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembers. Test money only.</p>
+      <h2>The same proof check, inside a lab: InterSystems IRIS</h2>
       <p class="means">In IRIS, a program reads each test result and says pass or fail; above $50 a person must also say yes. It runs inside the lab's own data system (InterSystems IRIS).</p>
+      <h3 class="iris-h2">Install it</h3>
+      <p class="means">Docker with about 4 GB free and the IRIS image from InterSystems' AI Hub early access, then four commands:</p>
+      <pre class="iris-steps">git clone https://github.com/drexthealpha/Knos &amp;&amp; cd Knos/iris
+bash scripts/load-image.sh ~/Downloads/irishealth-community-2026.3.0AI.154.0-docker.tar.gz
+bash scripts/env-secrets.sh &amp;&amp; docker compose up -d --build
+bash scripts/ready.sh</pre>
+      <p class="means">Then open http://localhost:52773/knos/ and press <b>A passing test, $20</b>: the decision appears in a few seconds.</p>
       <ul class="iris-links">
         <li><a href="https://openexchange.intersystems.com/package/Knos">Our page on InterSystems' app store</a></li>
-        <li><a href="https://github.com/drexthealpha/Knos#run-it-on-iris">Install steps and code</a></li>
+        <li><a href="https://github.com/drexthealpha/Knos#quick-start">Install steps</a> and <a href="https://github.com/drexthealpha/Knos/tree/main/iris">code</a></li>
         <li><a href="https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris">An AI that can only say no, inside InterSystems IRIS</a></li>
         <li><a href="https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call">What one AI decision costs in IRIS: tokens and dollars, traced per call</a></li>
       </ul>

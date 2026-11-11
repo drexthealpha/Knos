@@ -6,13 +6,18 @@
   </picture>
 </h1>
 
+**Why does good research take 17 years to reach people?** Checking that a result really works is slow and costly. So
+nobody builds on it until it has been checked ([Morris and others, 2011](https://doi.org/10.1258/jrsm.2011.110180)).
+
 Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
-## How it works today
+## What Knos is
 
-Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembers. Test money only.
+Paste a paper link and ask "Will it work?". Knos posts the paper's claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
+
+Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only. Try it on one page: https://drexthealpha.github.io/Knos/ ([Do this, see that](#do-this-see-that)).
 
 <!-- entry:criteria -->
 ## The five judged criteria
@@ -20,10 +25,10 @@ Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembe
 | Criterion | What Knos has | Link |
 |---|---|---|
 | Complexity | 22 enabled production items | [iris/src/Knos/Iris/Production.cls L8-L55](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L8-L55) |
-| Clarity of Instructions | 6 install commands (the contest rules require these commands) | [README.md L216-L219](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L216-L219) |
-| Developer Experience | 6 commands from git clone to working check | [README.md L216-L219](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L216-L219) |
-| Applicability | 5 example stories | [README.md L30-L34](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L30-L34) |
-| Usability | 3 pages a visitor can use with no sign-in | [index.html](https://drexthealpha.github.io/Knos/index.html); [check/index.html](https://drexthealpha.github.io/Knos/check/index.html); [near/index.html](https://drexthealpha.github.io/Knos/near/index.html) |
+| Clarity of Instructions | 6 install commands (the contest rules require these commands) | [README.md L219-L222](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L219-L222) |
+| Developer Experience | 6 commands from git clone to working check | [README.md L219-L222](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L219-L222) |
+| Applicability | 5 example stories | [README.md L35-L39](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L35-L39) |
+| Usability | 1 page a visitor can use with no sign-in | [index.html](https://drexthealpha.github.io/Knos/index.html) |
 
 ### Who Knos is for
 
@@ -79,7 +84,7 @@ Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembe
 | B15 Video | 3 | https://github.com/drexthealpha/Knos/raw/main/iris/media/knos-iris.mp4 |
 <!-- /entry:criteria -->
 
-[Watch the 62-second video](https://drexthealpha.github.io/Knos/iris/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/near/)
+[Watch the 62-second video](https://drexthealpha.github.io/Knos/#iris) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
 
 ## How it works
 
@@ -87,18 +92,15 @@ Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, Sibyl remembe
 
 *Money moves only when a step passes its test.*
 
-1. **Is it wanted?** Knos [asks Qloo](docs/reference/DEMAND_CHECK.md), a service that knows what people like, who would buy the product and in which city.
-2. **Write the deal.** Each step of the work gets a goal and a deadline, plus the test that decides it. They are sealed with a fingerprint, so nobody can change them later.
-3. **Hold the money.** Backers' money waits in a program on [Solana](docs/WORDS.md#solana), a public ledger, not with Knos.
-4. **Pass the test.** The maker sends proof. When the test passes, that step is paid. If nothing passes by the deadline, the backers get their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
-
-Four parts, one product: Qloo checks who wants it. InterSystems IRIS checks the proof. NEAR and Solana, two public ledgers, hold and pay play money. Sibyl, Knos's memory, keeps each result.
+1. **Write the deal.** Each step of the work gets a goal and a deadline, plus the test that decides it. They are sealed with a fingerprint, so nobody can change them later.
+2. **Hold the money.** Backers' money waits in a program on [Solana](docs/WORDS.md#solana), a public ledger, not with Knos.
+3. **Pass the test.** The maker sends proof. When the test passes, that step is paid. If nothing passes by the deadline, the backers get their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
 
 Add Knos to Claude Code with one command: `claude mcp add --transport http knos https://knos.onrender.com/mcp`
 
 **Open call:** have research waiting for a market? [Cross it on Knos](https://knos.onrender.com/invite): the page counts every crossing and pre-order by people outside Knos, live.
 
-## Paid on proof
+## The proof comes first
 
 The proof is checked before any money moves. A milestone names its checker in the brief. The proof can be:
 
@@ -111,9 +113,10 @@ The proof is checked before any money moves. A milestone names its checker in th
 
 *Nothing is paid on a promise. A missed deadline sends the money back.*
 
-## Try it in ten seconds
+## Try it in a minute
 
-Open [the demand check](https://drexthealpha.github.io/Knos/) in your browser. Type what you are about to build, or press one of the samples. Qloo's taste data says who wants it and where to launch it. The whole crossing runs in [the app](https://knos.onrender.com/app/), with nothing to install and no sign-up.
+Open [the one page](https://drexthealpha.github.io/Knos/), keep the sample paper link and press **Will it work?**, then
+prove it with the test USDC you choose. Nothing to install and no sign-up ([Do this, see that](#do-this-see-that)).
 
 ## Why nobody can fudge the count
 
@@ -439,8 +442,7 @@ The diagram under "How it works" above is the production; `iris/src/Knos/Iris/Pr
 
 ### How it fits Knos
 
-This folder is part of the one Knos product: Qloo checks demand, IRIS checks proof, NEAR and Solana devnet pay, and
-Sibyl remembers each result. The Knos code is imported, not forked: the image runs the repository's `src/knos`.
+This folder is the IRIS side of the one Knos product: the proof check that runs inside a lab's own data system. The Knos code is imported, not forked: the image runs the repository's `src/knos`.
 
 ### Team
 
@@ -488,7 +490,7 @@ visitor and fails on memory.
 
 On the public page (no install, no sign-in, no wallet, test money only):
 
-1. Open https://drexthealpha.github.io/Knos/near/ - see "Why does good research take 17 years to reach people?" with its
+1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people?" with its
    answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute, for the test USDC you put behind the claim.", the box holding the
    HyperLogLog DOI and the button "Will it work?".
 2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the one rule ("Each order posts this claim on NEAR afresh, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public."), the box "Test USDC you put behind this claim:" holding 10
@@ -616,7 +618,7 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 
 ### Run one now
 
-Open [drexthealpha.github.io/Knos/near/](https://drexthealpha.github.io/Knos/near/), keep the sample link and click
+Open [drexthealpha.github.io/Knos/](https://drexthealpha.github.io/Knos/#near), keep the sample link and click
 **Will it work?**, then **Prove it with 10 test USDC**. You see the answer beside the paper's own number, the
 verified code to download, the receipt and the claim's record updated, within seconds.
 
@@ -903,7 +905,9 @@ Qloo, Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](d
 
 ### What is Knos?
 
-Knos takes research from a paper to a product people want.
+Paste a paper link and ask "Will it work?". Knos posts the paper's claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
+
+Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only.
 
 ### How does an AI agent get paid?
 
@@ -915,7 +919,7 @@ No. It runs on [devnet](docs/WORDS.md#devnet), Solana's practice network, with [
 
 ### What does Knos cost?
 
-Ten demand checks a month are free; releases will cost companies 1%. Today devnet charges 0.30%, at least 0.05 [test dollars](docs/WORDS.md#test-usdc).
+The test USDC you put behind a claim pays its first proof, after the answer; proving that order again is free. Test money only.
 
 ### Who holds the money?
 
@@ -931,7 +935,7 @@ Neither side alone. A program checks a [signed record](docs/WORDS.md#signed) of 
 
 ### How do I try Knos?
 
-Open [the front door](https://drexthealpha.github.io/Knos/) and type the product you want to build. It says who wants it and where, with no sign-up.
+Open [the one page](https://drexthealpha.github.io/Knos/), paste a paper link and press **Will it work?**, with no sign-up.
 
 
 ## Read more
