@@ -462,7 +462,7 @@ Knos's answer: checking that a result really works is slow and costly, so nobody
 
 **What checking costs.** Today, checking one paper by hand costs $330 to $763
 ([Colliard and others, 2023](https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon)). Knos: under a
-minute, for the test USDC the buyer puts behind the claim. The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public.
+minute, for the test USDC the buyer puts behind the claim. Your order posts this claim on NEAR with your test USDC behind it. Its first proof pays that amount; every later proof of it is free and public.
 
 **Who it is for.** An R&D lead at a big company holding a paper, who needs to know whether its claim holds before
 building on it. On one screen they paste the link, ask "Will it work?", order the proof and download the verified code.
@@ -492,10 +492,9 @@ On the public page (no install, no sign-in, no wallet, test money only):
 1. Open https://drexthealpha.github.io/Knos/near/ - see "Why does good research take 17 years to reach people?" with its
    answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute, for the test USDC you put behind the claim.", the box holding the
    HyperLogLog DOI and the button "Will it work?".
-2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the one rule ("The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public."), the box "Test USDC you put behind this claim:" holding 10
+2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the one rule ("Your order posts this claim on NEAR with your test USDC behind it. Its first proof pays that amount; every later proof of it is free and public."), the box "Test USDC you put behind this claim:" holding 10
    and the button "Prove it with 10 test USDC", then the paper's claim word for word and its plain-words page.
-3. Type an amount (1 to 100) or keep 10, and click "Prove it with 10 test USDC" - see a clock, "1. The test is locked", "2. Two agents rerun the paper's
-   result" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
+3. Type an amount (1 to 100) or keep 10, and click "Prove it with 10 test USDC" - see a clock, "1. The test is locked", "2. Two agents ran the paper's result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
 4. About 5 to 13 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
@@ -505,7 +504,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
    NEAR testnet in" those seconds: "You put behind the claim 10.00 test USDC", "Agent A's share
    0.20 test USDC, 1 part in 49" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
-6. Click "Prove the same claim again" - see "Free: Yes, in" 1 to 2 s, from the stored verified result, with
+6. Click "Prove the same claim again" - see "Free: Yes, in" 1 to 3 s, from the stored verified result, with
    how many seconds sooner, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet:" paid first proofs, test dollars settled and lost, read in your browser
    from NEAR's public record: each paid first proof is one fee from the buyer's test account to Knos's, and the dollars settled are those fees plus agent A's shares.
@@ -551,7 +550,7 @@ paper link is the only data a buyer sends. Every push runs the full test suite o
 **Private AI.** The plain-words page is written by qwen2.5:1.5b-instruct in GitHub Actions. Running it on NEAR AI Cloud
 inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BLOCKED, no key is set yet.
 
-**Price.** No fixed price. The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
+**Price.** No fixed price. Your order posts this claim on NEAR with your test USDC behind it. Its first proof pays that amount; every later proof of it is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
 other 48. Nobody has paid real money for one yet.
 
 **Hard to copy.** Every verified result is kept and reused, so each proof makes the next one cheaper. Knos has scored

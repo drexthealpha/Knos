@@ -25,7 +25,7 @@ def test_each_page_loads_the_tokens_first_and_carries_the_one_bar():
     no_sign_in = re.sub(r'\n\s*<a id="whoBtn"[^\n]*</a>', "", bar)       # the front door's pages: sign-in stays inside the app
     for page in sync_brand.PAGES:
         s = page.read_text(encoding="utf-8")
-        want = no_sign_in if page.is_relative_to(sync_brand.WEB) else bar
+        want = no_sign_in if page.is_relative_to(sync_brand.WEB) or page.is_relative_to(sync_brand.ROOT / "near") else bar
         sheets = re.findall(r'<link rel="stylesheet" href="([^"]+)"', s)
         assert sheets and sheets[0].endswith("brand/tokens.css"), (page.name, sheets)
         shown = re.search(r"<!-- k-bar -->\n(.*?)\n(?:<script|<!-- /k-bar -->)", s, re.S)[1]

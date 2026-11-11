@@ -29,9 +29,11 @@ const focus = async (sel, nth, text, ms) => {
 };
 await page.goto(url, { waitUntil: "load", timeout: 120000 });
 await page.locator("#go:not([disabled])").waitFor({ timeout: 60000 });
+await page.evaluate(() => scrollTo(0, 0));
 mark("open");
 await page.screenshot({ path: path.join(out, "1-first.png") });
 await page.waitForTimeout(1000);                       // the question, its answer and what checking costs
+await focus(null, 0, "Why does good research take 17 years to reach people?", 1500);
 await focus("#ask", 0, "An R&D lead pastes a paper link and asks: will it work?", 1500);
 await page.locator("#go").click();
 mark("click");
@@ -43,7 +45,7 @@ await page.screenshot({ path: path.join(out, "2-claim.png") });
 await focus("#look .card", 1, "The paper's own claim, word for word", 1500);
 await page.locator("#look .offer button").click();
 mark("order");
-await focus(null, 0, "", 0);
+await focus(null, 0, "Two agents ran it against the locked test; NEAR records and pays each step", 0);
 await page.locator(".receipt-card").waitFor({ timeout: 120000 });
 mark("receipt");
 await focus("#steps li", 2, "Agents work against a locked test; the cap blocks an over-budget step", 2500);

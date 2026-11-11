@@ -95,7 +95,7 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
     late = ('<script>addEventListener("load", () => { const s = document.createElement("script"); '
             f's.src = "{src}"; document.head.append(s); }}, {{ once: true }});</script>\n')
     b = bar(home, site, app)
-    if path.is_relative_to(WEB):              # the front door's pages sign nobody in: sign-in stays inside the app (/app/)
+    if path.is_relative_to(WEB) or path.is_relative_to(ROOT / "near"):   # the site's pages sign nobody in: sign-in stays inside the app (/app/)
         b = re.sub(r'\n\s*<a id="whoBtn"[^\n]*</a>', "", b)
     block = f"<!-- k-bar -->\n{b}\n" + (late if script else "") + "<!-- /k-bar -->"
     if MARK.search(s):

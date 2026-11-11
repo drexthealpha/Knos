@@ -172,7 +172,6 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <div class="tools">
     <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
     <button id="theme" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
-    <a id="whoBtn" class="signin" href="../wanted.html#signin">Sign in</a>
   </div>
 </header><script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/Knos/*"},{"not":{"href_matches":"/Knos/wanted.html*"}}]},"eagerness":"moderate"}]}</script>
 <script>addEventListener("load", () => { const s = document.createElement("script"); s.src = "../brand/bar.js"; document.head.append(s); }, { once: true });</script>
@@ -201,9 +200,9 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">-</b> paid first proofs, <b id="c-usd">-</b> test dollars settled, <b id="c-lost">-</b> lost<span id="c-refused"></span>. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">reading</b> paid first proofs, <b id="c-usd">reading</b> test dollars settled, <b id="c-lost">reading</b> lost. <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
-    <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545"}'</code>
+    <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest result, live: <a href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml"><img src="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml/badge.svg?branch=main" alt="tests: the latest run's result on GitHub" style="vertical-align:middle;height:20px"></a>. Knos has no token.</p>
     <p><b>Hard to copy:</b> every verified result is kept and reused, and Knos has scored 12,010 companies to find the 38 that both reinvest and build frontier technology, its first buyers.</p>
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
@@ -212,12 +211,6 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <details class="under">
     <summary>For developers: the parts underneath, and other runs</summary>
 
-  <ul class="totals" id="totals" aria-label="Live totals, each from its public record">
-    <li><a id="t-paid" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>of test money paid for work that passed</a></li>
-    <li><a id="t-jobs" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=tokentxns"><b>-</b>jobs paid</a></li>
-    <li><a id="t-tries" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet"><b>-</b>tries by helpers</a></li>
-  </ul>
-  <p class="fine">All runs so far, in test money, counted on NEAR's public test ledger. Click a number to see its record.</p>
 
   <ul class="parts" aria-label="The parts">
     <li><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#trending-up"/></svg>First it asks who would buy it</li>
@@ -260,25 +253,6 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     </div>
   </section>
 
-  <section class="panel claim" id="claim" aria-labelledby="t-claim" hidden>
-    <h2 id="t-claim">Bet test money on a claim</h2>
-    <p class="q" id="m-q">Claim: what the helpers are paid, plus what goes back to the person who posted the job, never adds up to more than the job's money.</p>
-    <p class="fine">The prices below are what other bets say the chance is, in test cents per $1.</p>
-    <p class="price"><b id="m-yes">Yes …</b> <b id="m-no">No …</b></p>
-    <p class="fine">A Yes share pays $1 if a computer checks the proof and it passes. A No share pays $1 if it fails. No one can vote. Test money.</p>
-    <p class="buys"><button type="button" class="go" id="buy-yes" data-buy>Bet $1 of test money: true</button> <button type="button" id="buy-no" data-buy>Bet $1 of test money: false</button></p>
-    <p class="fine" id="m-said" role="status"></p>
-    <div class="pages" id="m-pages" hidden><h3>Each claim, explained in plain words by a small AI</h3><ul id="m-page-list"></ul></div>
-    <div class="loop" id="loop">
-      <h3>Or bet on a job and watch it settle</h3>
-      <p class="q">Will a helper's work pass this job's test?</p>
-      <p class="buys"><button type="button" class="go" id="loop-fund" data-buy>Put $1 of test money on a job and watch it pay out</button></p>
-      <p class="fine" id="loop-quote" hidden></p>
-      <p class="buys" id="loop-go-row" hidden><button type="button" class="go" id="loop-go" data-buy>Pay with test money and watch</button></p>
-      <ol class="loop-steps" id="loop-steps" aria-live="polite"></ol>
-    </div>
-    <p class="fine" id="m-done">Settled before: the claim "splitting a job's money never pays out more than the job holds". <a id="m-run" href="https://github.com/drexthealpha/Knos/actions/runs/42333777443">Its proof passed</a>, so Yes won and was <a id="m-paid" href="https://testnet.nearblocks.io/txns/CKLgT3vaPocoEZQjsjTFEpHcb1LmV1oAeBoqtLPMGmvT">paid $36.66 of test money</a>. <a id="m-vote" href="https://testnet.nearblocks.io/txns/371H72CAkzrN1ih486C32y9iFsrKd1ndqZXKxWL5tYyL">A vote was refused</a>.</p>
-  </section>
 
   <section class="panel" aria-labelledby="t-job">
     <h2 id="t-job">The job</h2>
@@ -300,7 +274,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <section class="panel" id="sec-pay" aria-labelledby="t-pay">
     <h2 id="t-pay"><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#wallet"/></svg>Pay with any wallet</h2>
     <p class="fine">One script tag puts this button on any page. It quotes the bid in USDC from Base through NEAR Intents, a quote only.</p>
-    <code class="snip">&lt;script src="http://127.0.0.1:8790/pay.js" data-bid="1000"&gt;&lt;/script&gt;</code>
+    <code class="snip">&lt;script src="https://drexthealpha.github.io/Knos/near/pay.js" data-bid="1000"&gt;&lt;/script&gt;</code>
     <p id="embedlink"><a href="embed.html">A blank page with the button</a></p>
   </section>
 
@@ -415,13 +389,13 @@ async function load() {
     const snap = await fetch("latest.json").then((r) => r.ok ? r.json() : null).catch(() => null);
     if (snap) showJob(snap.job);
     $("embedlink").hidden = true;
-    totals();   // the AI-written claim pages (pages()) are not shown: a small model's words are not plain enough
+   // the AI-written claim pages (pages()) are not shown: a small model's words are not plain enough
     // the hosted runner (knos.onrender.com) posts one live job for any visitor, within its caps; the first view says
     // nothing about it unless live runs are off
     const h = await fetch(HOSTED + "/api/near/live").then((r) => r.ok ? r.json() : null).catch(() => null);
     hosted = !!(h && h.live);
     if (!hosted) { $("busy").hidden = false; $("busy").setAttribute("data-done", ""); $("busy-text").textContent = "Live runs are off now. The last job is shown below."; }
-    $("post").disabled = !hosted; $("guard").disabled = !hosted; $("buy-yes").disabled = $("buy-no").disabled = !hosted;
+    $("post").disabled = !hosted; $("guard").disabled = !hosted;
     return;
   }
   $("contract").textContent = s.contract ? `Milestones: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";
@@ -455,71 +429,6 @@ async function act(label, path, body) {
   return r;
 }
 
-// the three live totals (UX rule H7), each linked to the public record it is read from
-async function totals(tries = 0) {
-  const t = await fetch(HOSTED + "/api/near/totals").then((r) => r.ok ? r.json() : null).catch(() => null);
-  if (t && t.pending && tries < 6) { setTimeout(() => totals(tries + 1), 6000); return; }
-  if (!t || t.error || t.pending) return;
-  $("t-paid").firstChild.textContent = `$${t.paid_usd}`; $("t-paid").href = t.record_money;
-  $("t-jobs").firstChild.textContent = String(t.jobs_paid); $("t-jobs").href = t.record_money;
-  $("t-tries").firstChild.textContent = String(t.tries); $("t-tries").href = t.record;
-}
-
-// the claim market (near/market, LMSR): the open claim's price in cents, read from testnet; one $1 buy of Yes or No
-async function market() {
-  const m = await fetch(HOSTED + "/api/near/market").then((r) => r.ok ? r.json() : null).catch(() => null);
-  if (!m || !m.open) return;
-  $("m-yes").textContent = `Yes ${m.open.yes_c}c`; $("m-no").textContent = `No ${m.open.no_c}c`;
-}
-for (const side of ["yes", "no"]) $("buy-" + side).addEventListener("click", async () => {
-  const b = $("buy-" + side); b.disabled = true; $("m-said").textContent = "Buying on NEAR testnet…";
-  const r = await fetch(HOSTED + "/api/near/market/buy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side }) })
-    .then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
-  b.disabled = false;
-  if (!r.ok) { $("m-said").textContent = `Not bought: ${r.why || "testnet refused it"}.`; return; }
-  $("m-yes").textContent = `Yes ${r.yes_c}c`; $("m-no").textContent = `No ${r.no_c}c`;
-  const S = side === "yes" ? "Yes" : "No";
-  $("m-said").replaceChildren(`Bought ${r.shares} ${S} shares for $1.00. ${S} went from ${r.was_c.toFixed(1)}c to ${r.now_c.toFixed(1)}c. `,
-    el("a", { href: r.url, target: "_blank", rel: "noopener", textContent: "The transaction" }));
-});
-
-// G2: the claim pages qwen2.5:1.5b wrote in GitHub Actions (claim-pages.yml) when a market changed, read from that
-// run's public check run; each shows its price, its proof state and when it was written
-async function pages() {
-  const gh = "https://api.github.com/repos/drexthealpha/Knos/";
-  const runs = await fetch(gh + "actions/workflows/claim-pages.yml/runs?status=success&per_page=5").then((r) => r.ok ? r.json() : null).catch(() => null);
-  for (const run of (runs && runs.workflow_runs) || []) {
-    const c = await fetch(gh + `commits/${run.head_sha}/check-runs?check_name=claim-pages`).then((r) => r.ok ? r.json() : null).catch(() => null);
-    const cr = ((c && c.check_runs) || []).find((x) => x.name === "claim-pages");
-    if (!cr) continue;
-    let list = []; try { list = JSON.parse(cr.output.summary); } catch { return; }
-    $("m-page-list").replaceChildren(...list.map((p) => el("li", {}, [el("p", { textContent: p.text }),
-      el("p", { className: "fine" }, [`Written ${p.written} by ${p.model.startsWith("none") ? "no model (its answers broke the limits)" : "a small model"}, `,
-        el("a", { href: cr.html_url, textContent: "see the run that wrote it" })])])));
-    $("m-pages").hidden = false;
-    return;
-  }
-}
-
-// G3: fund a job's test from Base (a dry 1Click quote, its amounts shown), then one run: a market on the job, $1 on
-// Yes, both helpers' tries, the payment to the one that passed, the market settled by the job, the shares paid
-$("loop-fund").addEventListener("click", async () => {
-  $("loop-fund").disabled = true; $("loop-quote").hidden = false; $("loop-quote").textContent = "Asking 1Click for a quote…";
-  const q = await fetch(HOSTED + "/api/near/claim/quote", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
-  $("loop-fund").disabled = false;
-  if (!q.ok) { $("loop-quote").textContent = `No quote: ${q.why}.`; return; }
-  $("loop-quote").textContent = `From Base you would send ${q.send_usdc.toFixed(2)} USDC; ${q.arrives_usdc.toFixed(6)} arrives on NEAR; 1Click keeps ${q.fee_usdc.toFixed(6)} (${q.fee_pct}%). A quote only: this demo pays with test money.`;
-  $("loop-go-row").hidden = false;
-});
-$("loop-go").addEventListener("click", async () => {
-  const t0 = Date.now(); $("loop-go").disabled = true;
-  $("loop-steps").replaceChildren(el("li", { textContent: "Running on NEAR testnet…" }));
-  const r = await fetch(HOSTED + "/api/near/claim/run", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
-  $("loop-go").disabled = false;
-  const rows = (r.steps || []).map((s) => el("li", {}, [s.ok ? "" : "Stopped: ", s.step, " · ", s.url ? el("a", { href: s.url, target: "_blank", rel: "noopener", textContent: "the transaction" }) : "no transaction"]));
-  rows.push(el("li", { textContent: r.ok ? `Done in ${((Date.now() - t0) / 1000).toFixed(1)} s: Helper A paid $1.00, Helper B $0, the market settled Yes, and your $1.00 on Yes paid back $${r.shares.toFixed(2)}.` : `Not finished: ${r.why}.` }));
-  $("loop-steps").replaceChildren(...rows);
-});
 
 const clock = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
 const of = (paid, p) => +(paid[Object.keys(paid).find((k) => k.startsWith(p))] ?? 0);
@@ -628,8 +537,9 @@ load();
     }
     return null;
   }
-  // live counters, read here from NEAR's public record (NearBlocks): a paid first proof is one fee that reached Knos's
-  // account from the buyer's test account; the dollars are every such fee plus agent A's shares; lost counts failed transfers
+  // live counters, read here from NEAR's public record (NearBlocks), every page of it: a paid first proof is one fee that
+  // reached Knos's account from the buyer's test account; the dollars are those fees plus agent A's shares from it; lost is
+  // what left the buyer's test account for Knos or agent A (its own record) and never arrived (theirs)
   async function counters(after) {
     if (after) {   // a payment just made: read until the count passes the one shown, so this payment is counted
       const was = +($("c-proofs").textContent) || 0;
@@ -637,30 +547,40 @@ load();
       return;
     }
     const NBA = "https://api-testnet.nearblocks.io/v3/accounts/", LIVE = "live.knos-swarm-1105.testnet", TOKEN = "knos-usdc-1102.testnet";
+    const FEE = "knos-payer-1102.testnet", AGENT = "agent-a.knos-swarm-1105.testnet";
     const get = async (u) => {
-      for (let n = 0; n < 5; n++) {
+      for (let n = 0; n < 6; n++) {
         const r = await fetch(NBA + u).catch(() => null);
         if (r && r.ok) return r.json().catch(() => null);
-        await wait(1500 * (n + 1));   // a busy answer (429): ask again, more slowly
+        await wait(2000 * (n + 1));   // a busy answer (429): ask again, more slowly
       }
       return null;
     };
+    const all = async (acct) => {   // every page of an account's token transfers
+      const rows = [];
+      let next = "";
+      for (let n = 0; n < 20; n++) {
+        const d = await get(`${acct}/ft-txns?limit=100${next ? "&next=" + encodeURIComponent(next) : ""}`);
+        if (!d) return null;
+        rows.push(...(d.data || []).filter((x) => x.contract_account_id === TOKEN));
+        next = (d.meta || {}).next_page || "";
+        if (!next) return rows;
+      }
+      return rows;
+    };
     const show = (c) => {
+      const money = (n) => `$${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       $("c-proofs").textContent = String(c.proofs);
-      $("c-usd").textContent = `$${(+c.usd || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      $("c-lost").textContent = "$0";   // a refused transfer moves no money, and every paid one is counted above
-      $("c-refused").textContent = c.failed ? ` (${c.failed} payments refused by NEAR, none moved money)` : "";
+      $("c-usd").textContent = money(c.usd);
+      $("c-lost").textContent = money(c.lost);
     };
-    try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c) show(c); } catch (e) { /* no stored values */ }
-    const ft = await get("knos-payer-1102.testnet/ft-txns?limit=100");
-    const tx = ft && await get(LIVE + "/txns?limit=100");
-    const ag = tx && await get("agent-a.knos-swarm-1105.testnet/ft-txns?limit=100");
-    if (!ft || !tx || !ag) return;
-    const c = {
-      proofs: (ft.data || []).filter((x) => x.involved_account_id === LIVE && x.contract_account_id === TOKEN && +x.delta_amount > 0).length,
-      usd: [ft, ag].reduce((n, d) => n + ((d && d.data) || []).filter((x) => x.involved_account_id === LIVE && x.contract_account_id === TOKEN && +x.delta_amount > 0).reduce((m, x) => m + x.delta_amount / 1e6, 0), 0),
-      failed: (tx.data || []).filter((x) => x.receiver_account_id === TOKEN && (x.actions || []).some((a) => a.method === "ft_transfer") && !(x.outcomes || {}).status).length,
-    };
+    try { const c = JSON.parse(localStorage.getItem("knos-near-counters") || "null"); if (c && c.lost != null) show(c); } catch (e) { /* no stored values */ }
+    const fee = await all(FEE), agent = fee && await all(AGENT), live = agent && await all(LIVE);
+    if (!fee || !agent || !live) return;
+    const fromLive = (rows) => rows.filter((x) => x.involved_account_id === LIVE && +x.delta_amount > 0);
+    const arrived = [...fromLive(fee), ...fromLive(agent)].reduce((n, x) => n + x.delta_amount / 1e6, 0);
+    const left = live.filter((x) => (x.involved_account_id === FEE || x.involved_account_id === AGENT) && +x.delta_amount < 0).reduce((n, x) => n - x.delta_amount / 1e6, 0);
+    const c = { proofs: fromLive(fee).length, usd: arrived, lost: Math.max(0, Math.round((left - arrived) * 1e6) / 1e6) };
     show(c);
     try { localStorage.setItem("knos-near-counters", JSON.stringify(c)); } catch (e) { /* not kept */ }
   }
@@ -700,7 +620,7 @@ load();
       el("section", { className: "card answer offer" }, [
         el("h2", { textContent: "Prove this claim now" }),
         el("p", {}, ["Two agents rerun it against a locked test on NEAR. You get a Yes or No, the verified code and a receipt."]),
-        el("p", { className: "price" }, [el("b", { textContent: "The first proof of a claim pays the test USDC that buyers put behind that claim; every later proof of the same claim is free and public." })]),
+        el("p", { className: "price" }, [el("b", { textContent: "Your order posts this claim on NEAR with your test USDC behind it. Its first proof pays that amount; every later proof of it is free and public." })]),
         el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Test USDC you put behind this claim: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
         el("p", { className: "fine", textContent: "This is a demo with test money: no card is charged and no invoice is sent." })]),
@@ -709,7 +629,7 @@ load();
     ];
     if (page && page.kept) kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }),
-      el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it")])]));
+      el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it"), ". Private AI on NEAR AI Cloud, with its attestation: BLOCKED, no NEAR AI key is set yet."])]));
     look.replaceChildren(...kids);
     look.scrollIntoView({ block: "start" });
     order.addEventListener("click", () => prove(order, amount()));
@@ -729,7 +649,7 @@ load();
     add("ok", "1. The test is locked", [el("p", {}, ["The agents did not write it and cannot change it: count 30,000 visitors within 10%, in at most 1.5 kilobytes. ",
       out("https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
-    const two = add("", "2. Two agents rerun the paper\u2019s result", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account." })]);
+    const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. A model on NEAR AI Cloud, with its attestation, needs a NEAR AI key that is not set yet (BLOCKED)." })]);
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
       const when = r.ran_before_s > 0 ? `Their code ran against the locked test ${Math.max(1, Math.round(r.ran_before_s / 60))} min before you ordered, so the answer is ready in seconds.`
@@ -749,7 +669,7 @@ load();
     const v = r.verdict;
     add("ok", v.holds ? "4. Answer: Yes, the claim holds" : "4. Answer: No, the claim does not hold", [el("table", { className: "vs" }, [
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
-      el("tr", {}, [el("th", { textContent: "Measured now" }), el("td", { textContent: v.measured })])])]);
+      el("tr", {}, [el("th", { textContent: "Measured" }), el("td", { textContent: v.measured })])])]);
     const tryN = el("input", { type: "number", value: "100000", min: "1000", max: "100000", step: "1000", "aria-label": "Visitors to count", style: "width:9em" });
     const tryBtn = el("button", { type: "button", className: "go", textContent: "Count them with your code" });
     const tryOut = el("p", { role: "status" });
@@ -778,7 +698,7 @@ load();
     const box = el("section", { className: "card receipt-card" }, [
       el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt: paid and recorded on NEAR testnet in ${pay.seconds} s` : `Receipt: paid on NEAR testnet in ${pay.seconds} s` }),
       el("table", { className: "vs" }, [
-        el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, [ok ? `${tu(rc.buyer_usd)}, from a test account Knos holds for you, so you need no wallet.` : `Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
+        el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)}, from a test account Knos holds for you, so you need no wallet. `, out("https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet?tab=tokentxns", "Its transfers")] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
         el("tr", {}, [el("th", { textContent: "Agent A\u2019s share" }), el("td", {}, ok ? [`${tu(rc.agent_usd)}, 1 part in 49. `, rc.agent_pay_url ? out(rc.agent_pay_url, "The transfer") : ""] : ["Nothing."])]),
         el("tr", {}, [el("th", { textContent: "Knos\u2019s fee" }), el("td", {}, ok ? [`${tu(rc.knos_usd)}, the other 48 parts, kept in Knos\u2019s own test account. `, rc.fee_url ? out(rc.fee_url, "The transfer") : "", pay.fee_account ? " \u00b7 " : "", pay.fee_account ? out(pay.fee_account, "The account") : ""] : ["Nothing."])])]),
       settle ? el("p", {}, [el("b", { textContent: "The claim’s record on NEAR: " }), settle.ok && settle.settled != null ? `updated to ${settle.settled ? "holds" : "does not hold"}. ` : `not updated yet: ${settle.why || "no answer"}. `, settle.url ? out(settle.url, "The update") : ""]) : null,
