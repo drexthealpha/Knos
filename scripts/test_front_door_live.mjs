@@ -22,7 +22,7 @@ if (!CI) {
 }
 // a result page of a recorded sample (the first chip with a recording)
 const R = `${API}/r/14d68eb782caff05`;
-const PAGES = [SITE, SITE + "demo/", SITE + "check/", SITE + "how-we-test.html", R, API + "/app/"];
+const PAGES = [SITE, SITE + "tools.html", SITE + "demo/", SITE + "check/", SITE + "how-we-test.html", R, API + "/app/"];
 const browser = await chromium.launch();
 
 try {

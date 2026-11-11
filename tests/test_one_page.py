@@ -21,7 +21,12 @@ def test_the_root_is_one_page_and_the_old_addresses_send_on(tmp_path):
     assert page.index('<span id="near">') < first < near < iris and page.count("<h1") == 1
     assert 'id="go"' in page and 'id="counters"' in page and "iris/knos-iris.mp4" in page
     assert "../brand/" not in page[near:iris]
-    assert 'href="./near/"' not in page and 'href="./iris/"' not in page and 'href="#near-flow"' in page   # the bar jumps within the page
+    # one story: the question, the proof on NEAR, the same check inside IRIS, who pays; nothing after it in the page
+    who, main_end = page.index('<section id="who"'), page.index("</main>")
+    assert iris < who < main_end and "k-hero" not in page[:main_end] and 'id="nav"' not in page and 'id="menu"' not in page
+    assert '<a class="brand" href="#"' in page and page.count('href="tools.html"') == 1   # the logo alone, the older tools linked once
+    tools = (tmp_path / "site" / "tools.html").read_text(encoding="utf-8")
+    assert "k-hero" in tools and 'id="near-flow"' not in tools   # the older tools keep working at their own address
     for sub, to in (("near", "../#near"), ("iris", "../#iris")):
         stub = (tmp_path / "site" / sub / "index.html").read_text(encoding="utf-8")
         assert f'url={to}"' in stub and f'location.replace("{to}"' in stub

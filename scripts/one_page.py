@@ -65,23 +65,36 @@ def main(site: str) -> int:
     out = Path(site)
     page = (out / "index.html").read_text(encoding="utf-8")
     assert FIRST_END in page, "the front door has no first line"
+    # the older tools (the demand check, Post a job, the scroll story, how it is built on Solana devnet) keep working
+    # at their own address, the front door as it was; the one page tells one story and links them once in its footer
+    (out / "tools.html").write_text(page, encoding="utf-8")
     near = (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")
     iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
     # NEAR: its files stay under near/; its links to the shared brand are the root's own
     nb = body_of(near).replace("../brand/", "brand/").replace('href="embed.html"', 'href="near/embed.html"')
     njs = [c.replace('fetch("latest.json"', 'fetch("near/latest.json"').replace("../brand/", "brand/") for c in inline_scripts(near)]
     ib = body_of(iris).replace("../brand/", "brand/").replace('"knos-iris.mp4"', '"iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="iris/poster.png"')
+    # the story: the question, paste a paper, the proof on NEAR, the same check inside IRIS, then who pays
+    who = re.search(r'\n\s*<section class="facts who".*?</section>\n', nb, re.S)
+    assert who, "the NEAR page has no Who pays section"
+    nb = nb.replace(who.group(0), "\n", 1)
     block = (f'\n<section id="near-flow" class="one-near" aria-label="Prove a paper\'s claim on NEAR">\n{nb}\n</section>\n'
-             f'<section id="iris" class="one-iris iris-page" aria-label="The proof check in InterSystems IRIS">\n{ib}\n</section>\n')
+             f'<section id="iris" class="one-iris iris-page" aria-label="The proof check in InterSystems IRIS">\n{ib}\n</section>\n'
+             f'<section id="who" class="one-near" aria-label="Who pays">\n{who.group(0).strip()}\n</section>\n')
     # the IRIS page's rules start at its own <main class="iris-page">, which is the #iris section here: "&" is that section
-    css = scoped_css(near, "#near-flow") + scoped_css(iris, "#iris").replace(".iris-page ", "& ").replace(".iris-page{", "&{")
+    css = (scoped_css(near, ":is(#near-flow, #who)") + scoped_css(iris, "#iris").replace(".iris-page ", "& ").replace(".iris-page{", "&{"))
     page = page.replace(FIRST_END, FIRST_END + block, 1)
-    # the front door's own tools follow, named as more tools of the same product, so nobody reads them as a second one
-    page = page.replace("<!-- k-hero -->", '<h2 class="one-more" id="more-tools">More Knos tools: see who would buy what a proof makes possible, and fund the work it needs</h2>\n<!-- k-hero -->', 1)
+    # nothing after the story in the page itself: the front door's own tools leave it (they live on in tools.html)
+    end = page.index(FIRST_END) + len(FIRST_END) + len(block)
+    page = page[:end] + "\n" + page[page.index("</main>"):]
     page = page.replace("<!-- k-first -->", '<span id="near"></span>\n<!-- k-first -->', 1)
-    page = page.replace('href="./near/"', 'href="#near-flow"').replace('href="./iris/"', 'href="#iris"')   # the bar jumps within the one page, no hop   # /near/ lands on the first line, the flow under it
-    css += "#near, #near-flow, #iris { scroll-margin-top: 80px; }\n"
-    css += ".one-more { font: 600 clamp(22px, 2.4vw, 30px)/1.2 var(--head); max-width: 40em; margin: 96px auto 0; padding-top: 32px; border-top: 1px solid var(--line); text-align: center; }\n"   # a section a link opens is not hidden under the bar
+    # the header is the logo alone, which scrolls to the top; no menu of other pages
+    page = re.sub(r'\s*<nav id="nav"[^>]*>.*?</nav>', "", page, count=1, flags=re.S)
+    page = re.sub(r'\s*<button id="menu"[^>]*>Menu</button>', "", page, count=1)
+    page = re.sub(r'(<a class="brand") href="[^"]*"', r'\1 href="#"', page, count=1)
+    page = page.replace('<a href="status/">Status</a>', '<a href="tools.html">Older Knos tools</a><a href="status/">Status</a>', 1)
+    assert 'href="tools.html"' in page, "the footer has no place for the older tools"
+    css += "#near, #near-flow, #iris, #who { scroll-margin-top: 80px; }\n"   # a section a link opens is not hidden under the bar
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)
     page = page.replace("</body>", "".join(f"<script>\n{c}\n</script>\n" for c in njs) + "</body>", 1)
     (out / "index.html").write_text(page, encoding="utf-8")
