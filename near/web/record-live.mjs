@@ -27,6 +27,9 @@ const focus = async (sel, nth, text, ms) => {
   }, [sel, nth, text]);
   await page.waitForTimeout(ms);
 };
+// the one call for agents, run for real while the page is recorded; its answer is shown at the end
+const flow = fetch("https://knos.onrender.com/api/near/claim/flow", { method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ url: "https://doi.org/10.46298/dmtcs.3545", amount: 10 }) }).then((r) => r.json()).catch((e) => ({ ok: false, why: String(e) }));
 await page.goto(url, { waitUntil: "load", timeout: 120000 });
 await page.locator("#go:not([disabled])").waitFor({ timeout: 60000 });
 await page.evaluate(() => scrollTo(0, 0));
@@ -62,7 +65,17 @@ await page.locator(".receipt-card [role=status]").filter({ hasText: /^Free|Not r
 await focus(".receipt-card [role=status]", 0, "The same claim again: free, the first proof reused", 2500);
 await page.screenshot({ path: path.join(out, "3-got.png") });
 await focus(".facts .counters", 0, "Live counters, read from NEAR", 1500);
-await focus(".facts .snip", 0, "One call runs it all for an agent", 2000);
+await focus(".facts .snip", 0, "One call runs it all for an agent", 1500);
+const answer = await flow;
+await page.evaluate((x) => {
+  const pre = document.createElement("pre"); pre.id = "rec-flow";
+  pre.style.cssText = "margin:8px 0;padding:12px;border-radius:10px;background:#151822;color:#e8e8e8;font:13px/1.5 ui-monospace,monospace;white-space:pre-wrap";
+  const r = x.receipt || {};
+  pre.textContent = JSON.stringify({ verdict: { holds: (x.verdict || {}).holds }, cap: { refused: (x.cap || {}).refused }, paid: x.paid, settled: x.settled,
+    receipt: { buyer_usd: r.buyer_usd, agent_usd: r.agent_usd, knos_usd: r.knos_usd } }, null, 1);
+  document.querySelector(".facts .snip").after(pre);
+}, answer);
+await focus("#rec-flow", 0, "Its answer, from that call just now", 2500);
 mark("end");
 const video = page.video();
 await ctx.close();

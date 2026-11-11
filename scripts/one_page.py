@@ -68,8 +68,11 @@ def main(site: str) -> int:
     # the IRIS page's rules start at its own <main class="iris-page">, which is the #iris section here: "&" is that section
     css = scoped_css(near, "#near-flow") + scoped_css(iris, "#iris").replace(".iris-page ", "& ").replace(".iris-page{", "&{")
     page = page.replace(FIRST_END, FIRST_END + block, 1)
+    # the front door's own tools follow, named as more tools of the same product, so nobody reads them as a second one
+    page = page.replace("<!-- k-hero -->", '<h2 class="one-more" id="more-tools">More Knos tools: see who would buy what a proof makes possible, and fund the work it needs</h2>\n<!-- k-hero -->', 1)
     page = page.replace("<!-- k-first -->", '<span id="near"></span>\n<!-- k-first -->', 1)   # /near/ lands on the first line, the flow under it
-    css += "#near, #near-flow, #iris { scroll-margin-top: 80px; }\n"   # a section a link opens is not hidden under the bar
+    css += "#near, #near-flow, #iris { scroll-margin-top: 80px; }\n"
+    css += ".one-more { font: 600 clamp(22px, 2.4vw, 30px)/1.2 var(--head); max-width: 40em; margin: 96px auto 0; padding-top: 32px; border-top: 1px solid var(--line); text-align: center; }\n"   # a section a link opens is not hidden under the bar
     page = page.replace("</head>", f"<style id=\"one-page\">\n{css}</style>\n</head>", 1)
     page = page.replace("</body>", "".join(f"<script>\n{c}\n</script>\n" for c in njs) + "</body>", 1)
     (out / "index.html").write_text(page, encoding="utf-8")
