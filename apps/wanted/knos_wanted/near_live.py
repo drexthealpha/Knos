@@ -660,9 +660,10 @@ def claim_prove() -> dict:
         out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
         out["market"] = ready.get("market") or _open_market(ready["id"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
-            _proofs["last"] = {"job": ready["id"], "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
+            _proofs["last"] = _proofs[ready["id"]] = {"job": ready["id"], "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
                                "release_url": paid.get("release_url"), "seconds": round(time.time() - t0, 1), "at": time.time()}
         out["seconds"] = round(time.time() - t0, 1)
+        out["job_id"] = ready["id"]
         return out
     except Exception as e:  # noqa: BLE001 - the page says which step stopped
         threading.Thread(target=prepare, daemon=True).start()
@@ -843,9 +844,9 @@ def claim_pay(amount=None) -> dict:
             **({} if ok else {"why": agent.get("why") if not agent["ok"] else fee.get("why")})}
 
 
-def claim_receipt(cap: dict | None, pay: dict, settle: dict | None) -> dict:
+def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "") -> dict:
     """The receipt after the result: the amount behind the claim, agent A's share and Knos's fee, and what each step cost."""
-    last = _proofs.get("last") or {}
+    last = (_proofs.get(job) if job else None) or _proofs.get("last") or {}   # this order's own proof
     txs = last.get("txs") or {}
     from common import CONFIG
     a, b = CONFIG["agents"]["a"], CONFIG["agents"]["b"]
@@ -925,15 +926,15 @@ def claim_flow(url: str, amount=None) -> dict:
     done = bool(pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
     why = "" if done else ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
     return {"ok": True, "claim": look.get("quote"), "verdict": proof.get("verdict"), "code": "https://knos.onrender.com/api/near/claim/code",
-            "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle)}
+            "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle, str(proof.get("job_id") or ""))}
 
 
-def claim_finish(cap: dict | None, market: str = "", amount=None) -> dict:
+def claim_finish(cap: dict | None, market: str = "", amount=None, job: str = "") -> dict:
     """After the answer of a first proof: the amount behind the claim paid, the claim's record updated, the receipt."""
     t0 = time.time()
     pay = claim_pay(amount)
     settle = claim_settle(market) if market else None
-    return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": claim_receipt(cap, pay, settle), "seconds": round(time.time() - t0, 1)}
+    return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": {**claim_receipt(cap, pay, settle, job), "job": job}, "seconds": round(time.time() - t0, 1)}
 
 
 def claim_try(n: int) -> dict:

@@ -166,7 +166,8 @@ html, body { overflow-x: clip; }
 .js .bar .tools { margin-left: auto; }
 .bar .tools .signin, .bar .tools #whoBtn.signin { display: none; }
 
-:root .k-first { font: 600 clamp(26px, 3.2vw, 40px)/1.15 var(--head); letter-spacing: -.02em; color: var(--fg); max-width: 22em; margin: var(--sp-5) auto var(--sp-2); text-align: center; }
-:root .k-a { font: 500 clamp(17px, 1.6vw, 21px)/1.45 var(--text); color: var(--fg); max-width: 40em; margin: 0 auto var(--sp-3); text-align: center; }
-:root .k-goal { font: 500 clamp(20px, 2.2vw, 28px)/1.25 var(--text); max-width: 22em; margin: 0 auto var(--sp-4); text-align: center; }
+:root .k-first{font:600 clamp(26px,3.2vw,40px)/1.15 var(--head);letter-spacing:-.02em;color:var(--fg);max-width:22em;margin:var(--sp-5) auto var(--sp-2);text-align:center}
+:root .k-a{font:500 clamp(17px,1.6vw,21px)/1.45 var(--text);color:var(--fg);max-width:40em;margin:0 auto var(--sp-3);text-align:center}
+:root .k-a a{color:var(--accent)}
+:root .k-goal{font:500 clamp(20px,2.2vw,28px)/1.25 var(--text);max-width:22em;margin:0 auto var(--sp-4);text-align:center}
 @media print { .brand .wordmark { aspect-ratio: 3440/1268; -webkit-mask-image: url("wordmark.svg"); mask-image: url("wordmark.svg") } }
