@@ -565,6 +565,12 @@ load();
     }
     const money = (n) => `$${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const show = (c) => {
+      // never a lower total than one already shown: two sources (the server's copy, the record read here) can disagree
+      // for a while, and the higher one is the one with more of NEAR's own record in it
+      let top = null;
+      try { top = JSON.parse(localStorage.getItem("knos-near-counters-top") || "null"); } catch (e) { /* none kept */ }
+      if (top && top.proofs > c.proofs) c = top;
+      else try { localStorage.setItem("knos-near-counters-top", JSON.stringify(c)); } catch (e) { /* not kept */ }
       $("c-proofs").textContent = String(c.proofs); $("c-usd").textContent = money(c.usd); $("c-lost").textContent = money(c.lost_usd);
       if (c.read_at) {   // how old the full read is, and the payments added since it, so a late read never looks current
         const age = Math.max(0, Math.round((Date.now() - Date.parse(c.read_at)) / 60000));
