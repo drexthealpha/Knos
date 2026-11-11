@@ -202,11 +202,11 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">reading</b> first proofs paid in test dollars, <b id="c-usd">reading</b> test dollars settled, <b id="c-lost">reading</b> lost.<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet, in test dollars: <b id="c-proofs">reading</b> first proofs paid, <b id="c-usd">reading</b> settled, <b id="c-lost">reading</b> lost.<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token.</p>
-    <p><b>Hard to copy:</b> every verified result is kept on NEAR and reused, so proving an order again is free and takes about a second; and the 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology, its first buyers.</p>
+    <p><b>Hard to copy:</b> every verified result is kept on NEAR and reused, so proving an order again is free and takes seconds; and the 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology, its first buyers.</p>
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
   </section>
 
@@ -365,7 +365,7 @@ async function api(path, body) {
   return { status: r.status, ok: r.ok && j.ok !== false, ...j };
 }
 
-function busy(text) { $("busy").toggleAttribute("data-done", !text); $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of document.querySelectorAll("main button:not([data-buy])")) b.disabled = !!text || !local; }
+function busy(text) { $("busy").toggleAttribute("data-done", !text); $("busy").hidden = !text; $("busy-text").textContent = text || ""; for (const b of (document.getElementById("near-flow") || document.querySelector("main")).querySelectorAll("button:not([data-buy])")) b.disabled = !!text || !local; }
 const link = (h, t) => h ? el("a", { href: TX + h, textContent: t }) : null;
 
 function showJob(j) {
@@ -708,7 +708,6 @@ load();
     });
     add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
       el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut]);
-    firstSeconds = secs();
     const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s on the test network.` })]);
     const tPay = performance.now();
     const payClock = el("p", { className: "fine", textContent: "0.0 s" });
@@ -718,7 +717,7 @@ load();
     const fin = await post("/api/near/claim/finish", { cap, market: r.market ? r.market.id : "", amount, job: r.job_id || "" });
     clearInterval(payTick);
     if (fin.pay) fin.pay.seconds = +((performance.now() - tPay) / 1000).toFixed(1);   // the wait the buyer saw, payment and record
-    paying.remove(); clearInterval(tick);
+    paying.remove(); firstSeconds = secs(); clearInterval(tick);   // the whole first proof, answer and receipt
     receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle, amount);
     order.disabled = false;
   }
@@ -754,8 +753,8 @@ load();
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
       const first = firstSeconds || x.saved.first_seconds;
       said.scrollIntoView({ block: "center" });
-      said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s instead of ${first.toFixed(1)} s. ` }),
-        `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, ${first > took ? `so the answer came ${(first - took).toFixed(1)} s sooner, ` : ""}and no agent was paid again. `,
+      said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s and 0 test USDC, against the first proof's ${first.toFixed(1)} s and ${tu(rc.buyer_usd)}. ` }),
+        `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, and no agent was paid again. `,
         x.first_url ? out(x.first_url, "The first proof") : "");
     });
     $("links").replaceChildren();

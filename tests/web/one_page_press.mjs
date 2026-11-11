@@ -105,7 +105,7 @@ async function press(page, locator, name) {
   const r = await page.evaluate((limit) => {
     const t = window.__t, p = t.press;
     const first = t.marks.filter((m) => m >= p).sort((a, b) => a - b)[0];
-    const own = /\/api\/near\/claim\/(counters|plain)$|\/api\/near\/(tests|live|totals)$/;   // the page's own background reads, not a press's
+    const own = /\/api\/near\/claim\/(counters|plain)$|\/api\/near\/(tests|live|totals)$|\/api\/qloo\/status$/;   // the page's own background reads, not a press's
     let still = 0, call = "";
     for (const c of t.calls.slice(t.since)) {
       if (own.test(c.url) || c.end === null || c.end - c.start <= limit) continue;

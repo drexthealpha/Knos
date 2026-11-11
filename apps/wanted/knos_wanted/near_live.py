@@ -597,6 +597,8 @@ def claim_look(url: str) -> dict:
     and the offer; for any other paper, which checker fits, with its published price and time."""
     import re
     url = (url or "").strip()[:500]
+    if not re.match(r"(?i)(https?://\S+|doi:\s*10\.\S+|10\.\d{4,9}/\S+)$", url):
+        return {"ok": False, "why": "that is not a paper link: paste a DOI such as https://doi.org/10.46298/dmtcs.3545, or the paper's web address"}
     m = re.search(r"(10\.\d{4,9}/[^\s?#]+)", url)
     known = KNOWN.get(m.group(1).lower().rstrip(".")) if m else None
     if not known:
