@@ -34,6 +34,8 @@ if [ "${KNOS_SPA_AT_ROOT:-}" != 1 ]; then
   rm "$out/index.html"
   mv "$out/app-moved.html" "$out/app.html"
   mv "$out/home.html" "$out/index.html"
+  # ONE PAGE: the NEAR proof flow and the IRIS proof check under the front door's first line; /near/ and /iris/ send on
+  "${PYTHON:-python3}" scripts/one_page.py "$out"
 fi
 # the documents the command palette can open (web/palette.js reads it; without it the palette has no documents)
 "${PYTHON:-python3}" scripts/docs_index.py "$out/docs_index.json"
