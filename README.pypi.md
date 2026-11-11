@@ -465,7 +465,9 @@ Knos's answer: checking that a result really works is slow and costly, so nobody
 
 **What checking costs.** Today, checking one paper by hand costs $330 to $763
 ([Colliard and others, 2023](https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon)). Knos: under a
-minute, for the test USDC the buyer puts behind the claim. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public.
+minute, for the test USDC the buyer puts behind the claim.
+
+Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public.
 
 **Who it is for.** An R&D lead at a big company holding a paper, who needs to know whether its claim holds before
 building on it. On one screen they paste the link, ask "Will it work?", order the proof and download the verified code.

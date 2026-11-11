@@ -687,7 +687,7 @@ load();
     tryBtn.addEventListener("click", async () => {
       tryBtn.disabled = true; tryOut.textContent = "Counting\u2026";
       const x = await fetch(`${HOSTED}/api/near/claim/try?n=${encodeURIComponent(tryN.value)}`).then((r) => r.json()).catch(() => ({}));
-      tryOut.textContent = x.ok ? `Counted ${x.counted.toLocaleString("en-US")} of ${x.visitors.toLocaleString("en-US")} visitors (${x.off_pct}% off; the locked test allows 10%), keeping ${x.bytes.toLocaleString("en-US")} bytes, in ${x.seconds} s.` : `Not counted: ${x.error || "no answer"}.`;
+      tryOut.textContent = x.ok ? `Counted ${x.counted.toLocaleString("en-US")} of ${x.visitors.toLocaleString("en-US")} visitors (${x.off_pct}% off; the locked test allows 10%), keeping ${x.bytes.toLocaleString("en-US")} bytes, in ${x.seconds} s.${+tryN.value !== x.visitors ? ` It counts 1,000 to 100,000 visitors here.` : ""}` : `Not counted: ${x.error || "no answer"}.`;
       tryBtn.disabled = false;
     });
     add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
