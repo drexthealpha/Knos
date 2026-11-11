@@ -634,7 +634,8 @@ load();
     const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. A model on NEAR AI Cloud, with its attestation, needs a NEAR AI key that is not set yet (BLOCKED)." })]);
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
-      const when = r.ran_before_s > 0 ? `Their code ran against the locked test ${Math.max(1, Math.round(r.ran_before_s / 60))} min before you ordered, so the answer is ready in seconds.`
+      const ago = r.ran_before_s >= 120 ? `${Math.round(r.ran_before_s / 60)} min` : `${Math.max(0, r.ran_before_s)} s`;
+      const when = r.ran_before_s >= 0 ? `Their code ran against the locked test ${ago} before you ordered, so the answer is ready in seconds.`
         : "Their code ran against the locked test after you ordered, while you waited.";
       two.append(el("p", { className: "fine", textContent: when }));
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
