@@ -1,4 +1,4 @@
-# The NEAR page's live counters, read in full from NEAR testnet's public record every 30 minutes
+# The NEAR page's live counters, read in full from NEAR testnet's public record every 10 minutes
 # (near/scripts/near_counters.py) and published as this commit's "near-counters" check run, which the page reads
 # (GitHub's public API) and then brings up to date from the newest page of each record. Nothing here signs a
 # transaction or holds money; the only token is this run's own, to write the check run.
@@ -7,7 +7,7 @@ name: NEAR counters
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
