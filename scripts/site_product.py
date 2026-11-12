@@ -154,6 +154,8 @@ def claim_page(header: str, c: dict) -> str:
             f'Every job for this claim is opened on NEAR testnet with this hash as its criteria hash, before any agent starts; '
             f'the checker runs only the file with this hash.</p>\n'
             f'<p><b>What it did not check:</b> {e(c["not_checked"])}.</p>\n'
+            f'<p><b>A test by the paper\'s authors:</b> {e(c.get("outside_test", "not looked for yet"))}'
+            + "".join(f' <a href="{u}">{e(u.split("/")[4])}</a>' for u in c.get("outside_test_links", [])) + '</p>\n'
             f'<h2>Check it yourself, in this browser</h2>\n<p>Your browser fetches the locked test from GitHub, hashes it, and reads '
             f'from NEAR testnet itself the hash this claim\'s newest job locked before any agent started. Then change one byte and check again.</p>\n'
             f'<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
@@ -305,6 +307,7 @@ def status_page(header: str) -> str:
             "<tr><th>Live proofs today</th><td id=\"today\">reading</td></tr>"
             "<tr><th>NEAR testnet's record</th><td id=\"rec\">reading</td></tr>"
             "<tr><th>Latest full test run</th><td id=\"ci\">reading</td></tr>"
+            "<tr><th>Uptime</th><td id=\"up\">reading</td></tr>"
             "</tbody></table>\n<h2>Accounts that keep the demo up</h2>\n<table id=\"bal\"><tbody><tr><td>reading</td></tr></tbody></table>\n"
             "<p class=\"fine\">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>")
     script = LIVE_JS + """(async () => {
@@ -313,6 +316,12 @@ def status_page(header: str) -> str:
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
   $("rec").textContent = c && c.read_at ? `${c.proofs} proofs paid, ${usd(c.lost_usd)} lost, read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
+  // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
+  fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {
+    const since = Date.now() - 7 * 864e5, rows = txt.split("
+").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && Date.parse(x.at) >= since);
+    $("up").textContent = rows.length ? `up ${rows.filter((x) => x.up).length} of ${rows.length} checks in the last 7 days, from ${rows[0].at.slice(0, 16).replace("T", " ")} UTC` : "no checks yet";
+  }).catch(() => { $("up").textContent = "not read"; });
   const b = await getJSON("/api/near/balances"), unit = { near: "NEAR", allowance: "NEAR allowance", usdc: "test USDC" };
   const tb = document.querySelector("#bal tbody");
   if (!b || !b.rows) { tb.innerHTML = "<tr><td>not read</td></tr>"; return; }
