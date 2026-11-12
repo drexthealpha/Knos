@@ -126,7 +126,7 @@ def _today() -> str:
 SYSTEM = ("You review code that has already passed a locked test written before the code. You may only reject it. "
           "Reject if the code games the test instead of doing what the claim says: it reads or inspects the test, hard-codes "
           "expected answers, special-cases the test's inputs, or does not use the method the claim names. Otherwise approve. "
-          'Answer with JSON only: {"approve": true or false, "reason": "at most 25 words"}.')
+          'Do not think aloud. Answer with JSON only, approve first: {"approve": true or false, "reason": "at most 25 words"}.')
 
 
 def review(claim: str, quote: str, test: str, code: str, visitor: str = "") -> dict:
@@ -179,15 +179,23 @@ def review(claim: str, quote: str, test: str, code: str, visitor: str = "") -> d
         cost = round(tin * pin + tout * pout, 6)
         with _lock:
             _state["spent_usd"] = round(_state["spent_usd"] + cost, 6)
-        text = ((out.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+        choice = (out.get("choices") or [{}])[0]
+        text = (choice.get("message") or {}).get("content") or ""
+        if isinstance(text, list):   # some answers come as parts
+            text = "".join(p.get("text", "") for p in text if isinstance(p, dict))
         try:
             j = json.loads(text[text.index("{"): text.rindex("}") + 1])
             approve = j.get("approve") if isinstance(j.get("approve"), bool) else None
             reason = str(j.get("reason") or "")[:200]
-        except ValueError:
-            approve, reason = None, "the answer was not the JSON asked for"
+        except ValueError:   # cut short or wrapped: the approve field and the reason as far as they came
+            import re
+            a = re.search(r'"approve"\s*:\s*(true|false)', text)
+            approve = (a.group(1) == "true") if a else None
+            m = re.search(r'"reason"\s*:\s*"([^"]*)', text)
+            reason = (m.group(1) if m else "")[:200] or "the answer was not the JSON asked for"
         ans = {"model": model, "approve": approve, "reason": reason, "tokens_in": tin, "tokens_out": tout, "cost_usd": cost,
-               "seconds": round(time.time() - t0, 1), "at": int(time.time()), "id": out.get("id")}
+               "seconds": round(time.time() - t0, 1), "at": int(time.time()), "id": out.get("id"),
+               "finish": choice.get("finish_reason"), "chars": len(text)}
         if approve is None:
             ans["note"] = "the model's answer could not be read: the fixed rule decided, the locked test alone"
         with _lock:

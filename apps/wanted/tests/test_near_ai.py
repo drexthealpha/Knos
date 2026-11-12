@@ -92,3 +92,15 @@ def test_the_reviewer_can_only_make_it_stricter():
     from knos_wanted.near_live import final_verdict
     assert final_verdict(True, True) and not final_verdict(True, False)
     assert not final_verdict(False, True) and final_verdict(True, None)
+
+
+def test_an_answer_cut_short_is_still_read(ai, monkeypatch):
+    m, answer, calls = ai
+
+    def urlopen(req, timeout=0):
+        calls.append("x")
+        return _Resp(json.dumps({"choices": [{"message": {"content": '{"approve": false, "reason": "reads the test file'}, "finish_reason": "length"}],
+                                 "usage": {"prompt_tokens": 10, "completion_tokens": 400}}).encode())
+    monkeypatch.setattr(m.urllib.request, "urlopen", urlopen)
+    a = m.review("x", "q", "t", "c", "v")
+    assert a["approve"] is False and a["reason"] == "reads the test file" and a["finish"] == "length"

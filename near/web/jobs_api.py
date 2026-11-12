@@ -43,13 +43,22 @@ def _save(row: dict) -> None:
     JOBS.write_text(json.dumps(rows[:30], indent=1), encoding="utf-8")
 
 
+_POSTING = __import__("threading").Lock()
+_LAST_ID = [""]
+
+
 def post(body: dict) -> dict:
     """The payer opens a job: the bid and the locked test's sha256 go to the contract with a deadline."""
     bid = int(body.get("bid") or 0)
     minutes = int(body.get("minutes") or 10)
     if not (0 < bid <= 1_000_000 and 1 <= minutes <= 1440):
         return {"ok": False, "why": "the bid is 1 to 1,000,000 test units and the deadline 1 to 1,440 minutes"}
-    jid = f"job-{time.strftime('%m%d%H%M%S', time.gmtime())}"
+    with _POSTING:   # ids are to the second: two orders in one second wait for the next, so no id is used twice
+        jid = f"job-{time.strftime('%m%d%H%M%S', time.gmtime())}"
+        while jid <= _LAST_ID[0]:
+            time.sleep(0.2)
+            jid = f"job-{time.strftime('%m%d%H%M%S', time.gmtime())}"
+        _LAST_ID[0] = jid
     test = body.get("test") or JOB_TEST
     if not re.fullmatch(r"test_\w+\.py", test) or not (JOB_DIR / test).is_file():
         return {"ok": False, "why": "no such locked test"}
