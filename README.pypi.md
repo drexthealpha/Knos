@@ -52,7 +52,7 @@ Today the library proves four claims, each from a real paper ([every claim and h
 
 Paste its link and ask "Will it work?". Knos posts the claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
 
-Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only. Try it on one page: https://drexthealpha.github.io/Knos/ ([Do this, see that](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#do-this-see-that)).
+Inside a lab's own data system, InterSystems IRIS runs the same proof check. Test money only. Try it: https://drexthealpha.github.io/Knos/ ([Do this, see that](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#do-this-see-that)).
 
 <!-- entry:diff -->
 ## NEAR HACKATHON: the diff
@@ -69,7 +69,7 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L226-L229](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L226-L229) |
 | Developer Experience | 4 commands from git clone to working check | [README.md L226-L229](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L226-L229) |
 | Applicability | 5 example stories | [README.md L40-L44](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L40-L44) |
-| Usability | 1 page a visitor can use with no sign-in | [the one page](https://drexthealpha.github.io/Knos/) |
+| Usability | 1 page a visitor can use with no sign-in | [For labs](https://drexthealpha.github.io/Knos/labs/) |
 
 ### Who Knos is for
 
@@ -125,7 +125,7 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | B15 Video | 3 | [Knos on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) ; [the file, 62 s](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4) |
 <!-- /entry:criteria -->
 
-[Watch the 62-second video](https://drexthealpha.github.io/Knos/#iris) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
+[Watch the 62-second video](https://drexthealpha.github.io/Knos/labs/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
 
 ## How it works
 
@@ -157,9 +157,9 @@ The proof is checked before any money moves. A milestone names its checker in th
 
 ## Try it in ten seconds
 
-Open [the one page](https://drexthealpha.github.io/Knos/), keep the sample paper link and press **Will it work?**, then
-prove it with the test USDC you choose. Nothing to install and no sign-up ([Do this, see that](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#do-this-see-that)). The
-same account and records also open in [the app](https://knos.onrender.com/app/).
+Open [the front door](https://drexthealpha.github.io/Knos/), press **Try the sample**, then **Prove it yourself on
+NEAR**, and prove it with the test USDC you choose. Nothing to install and no sign-up ([Do this, see
+that](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#do-this-see-that)).
 
 <!-- entry:claims -->
 ## Every claim and how to check it
@@ -242,7 +242,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 
 | What | Where |
 |---|---|
-| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8), also [on the one page](https://drexthealpha.github.io/Knos/#iris): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4)) |
+| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8), also [on the For labs page](https://drexthealpha.github.io/Knos/labs/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | the IRIS part is not hosted: its built-in demo runs on your own machine after the quick start, with no key and no sign-in (the NEAR proof flow is hosted on the one page) |
@@ -552,13 +552,17 @@ visitor and fails on memory.
 
 ### Do this, see that
 
-On the public page (no install, no sign-in, no wallet, test money only):
+On the public pages (no install, no sign-in, no wallet, test money only):
 
 1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people?" with its
-   answer, "Today: checking one paper by hand costs $330 to $763. Knos: under a minute on NEAR, for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).", the box holding the
-   HyperLogLog DOI and the button "Will it work?".
-2. Click "Will it work?" - see, 1 to 4 s later, "Prove this claim now", the price ("Price: the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."), the box "Your price, in test USDC:" holding 10
-   and the button "Prove it with 10 test USDC", then the paper's claim word for word and its plain-words page.
+   answer, "Paste a paper. Knos checks if its claim works.", the paste box, the button "Check it", "Try the sample:
+   HyperLogLog, 2007" and "Today: checking one paper by hand costs $330 to $763 (Colliard and others, 2023). Knos:
+   under a minute on NEAR, for the test USDC you put behind the claim."
+2. Click "Try the sample: HyperLogLog, 2007" - see "Reading the paper..." with a clock, then on the same screen "Yes,
+   the claim holds", the paper's "2% typical error, 1.5 kilobytes of memory", its last proof on NEAR and "Prove it
+   yourself on NEAR". Click that - the Prove page opens and reads the paper: "Prove this claim now", the price ("Price:
+   the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."), the box "Your
+   price, in test USDC:" holding 10 and the button "Prove it with 10 test USDC".
 3. Type an amount (1 to 100) or keep 10, and click "Prove it with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper's result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
 4. About 4 to 25 s after ordering when a job is ready (up to 90 s more while the next one is readied) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
@@ -573,6 +577,9 @@ On the public page (no install, no sign-in, no wallet, test money only):
    against the first proof's seconds from your press to its receipt and its test USDC, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet, in Knos's own test dollars:" proofs paid, settled and lost, read from NEAR's public record
    (in full by a GitHub Action scheduled every 10 minutes, which GitHub may run later, plus the server's own confirmed payments since; the page says how old the full read is): each paid proof is one fee from the buyer's test account to Knos's (until 11 Nov a reused result was also charged one), and the dollars settled are those fees plus agent A's shares.
+8. Open https://drexthealpha.github.io/Knos/claims/ - see each claim with the test USDC behind it and its two markets,
+   "Does it hold?" and "100 behind it in 7 days?". Open a claim and click "Check the test against NEAR" - see
+   "VERIFIED"; click "Change one byte and check again" - see "NOT VERIFIED".
 
 The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (38.2 s, no still of 2.5 s by ffmpeg freezedetect; the waits for NEAR testnet and for the count are cut, each marked on screen; it ends on the agent call's answer, run during the recording), with
 screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [the claim](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-claim.png) and
@@ -681,7 +688,7 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 
 ### Run one now
 
-Open [drexthealpha.github.io/Knos/](https://drexthealpha.github.io/Knos/#near), keep the sample link and click
+Open [the Prove page](https://drexthealpha.github.io/Knos/prove/), keep the sample link and click
 **Will it work?**, then **Prove it with 10 test USDC**. You see the answer beside the paper's own number, the
 verified code to download, the receipt and the claim's record updated, within seconds.
 

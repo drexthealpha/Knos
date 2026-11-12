@@ -82,4 +82,4 @@ def test_every_description_is_a_sentence_of_facts_json():
     assert readme.split("</h1>", 1)[1].strip().startswith("**Why does good research take 17 years")   # the first line's question
     assert facts["l1"] not in readme and facts["l2"] not in readme   # the hackathon's rule: no marketing in the README
     tens = (ROOT / "README.md").read_text(encoding="utf-8").split("## Try it in ten seconds", 1)[1].split("\n## ", 1)[0]
-    assert tens.strip().startswith("Open [the one page](https://drexthealpha.github.io/Knos/)")   # the one page (scripts/one_page.py)
+    assert tens.strip().startswith("Open [the front door](https://drexthealpha.github.io/Knos/)")   # the front door (web/door.html)
