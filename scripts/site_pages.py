@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGES = [("claims/", "Claims"), ("prove/", "Prove"), ("agents/", "For agents"), ("labs/", "For labs")]
 # the product's pages; every other page of the build leaves the published site, each old address sent to the front door
 KEEP = {"index.html", "404.html", "privacy.html", "near/embed.html"}
-CSS = ("#ask label a { display: inline; }\n"   # the Prove page's Claims link sits in its sentence
+CSS = ("#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }\n"   # the Prove page's Claims link sits in its sentence
        ".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
        ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
        ".kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }\n"

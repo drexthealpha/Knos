@@ -1015,7 +1015,7 @@ def make_handler(state: State):
             if u.path == "/api/near/guard":                 # the guardrails, live: helper B over its cap, then with no passing work
                 from . import near_live
                 if not state.allow(self._client(), "near_guard"):
-                    return self._send(200, {"ok": False, "why": "two tries every 10 minutes from one address"}, headers=blink.CORS)
+                    return self._send(200, near_live.guard_last("two tries every 10 minutes from one address"), headers=blink.CORS)
                 return self._send(200, near_live.guard(), headers=blink.CORS)
             if u.path == "/api/near/live":                  # one live testnet job for a visitor of /near/, within its caps
                 if not state.allow(self._client(), "near_live"):

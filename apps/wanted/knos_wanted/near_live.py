@@ -300,6 +300,14 @@ def _totals_read() -> dict:
 
 
 _guarding = threading.Lock()
+_guard_last: dict = {}
+
+
+def guard_last(why: str) -> dict:
+    """The last live guardrail try, marked a replay with why no new one ran; without one, why alone."""
+    if not _guard_last.get("tries"):
+        return {"ok": False, "why": why}
+    return {**_guard_last, "replay": True, "why": why, "age_s": round(time.time() - _guard_last["at"])}
 
 
 def guard() -> dict:
@@ -310,9 +318,9 @@ def guard() -> dict:
     if not s["live"]:
         return {"ok": False, "why": "live runs are switched off"}
     if s["used_today"] >= s["cap_today"]:
-        return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
+        return guard_last(f"today's {s['cap_today']} live runs are used")
     if not _guarding.acquire(blocking=False):
-        return {"ok": False, "why": "a guardrail try is running; try again in a minute"}
+        return guard_last("a guardrail try is running now")
     try:
         with _lock:
             today = time.strftime("%Y-%m-%d", time.gmtime())
@@ -320,8 +328,19 @@ def guard() -> dict:
                 _day.update(day=today, n=0, a=0)
             _day["n"] += 1
         t0 = time.time()
-        out = _jobs().guard({})
+        try:
+            out = _jobs().guard({})
+        except Exception as e:  # noqa: BLE001 - one retry with fresh nonces when a key was used meanwhile
+            if "INVALID_TRANSACTION" not in str(e) and "nonce" not in str(e).lower():
+                raise
+            import common
+            common._PREFETCHED.clear()
+            time.sleep(2)
+            out = _jobs().guard({})
         out["seconds"] = round(time.time() - t0, 1)
+        if out.get("tries"):
+            _guard_last.clear()
+            _guard_last.update(out, at=time.time())
         return out
     except Exception as e:  # noqa: BLE001 - the page says why
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
@@ -737,7 +756,7 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE) -> dict:
                     _day.update(day=today, n=0, a=0)
                 _day["a" if agent else "n"] += 1
         waited = time.time()
-    while not ready and time.time() - waited < 90:   # the next job is being readied: wait for it, not turn the buyer away
+    while not ready and time.time() - waited < (20 if agent else 90):   # the next job is being readied: wait for it (an agent gets the last proof after 20 s)
         threading.Thread(target=prepare, daemon=True).start()
         time.sleep(3)
         with _lock:
@@ -745,7 +764,7 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE) -> dict:
             if ready:
                 _day["a" if agent else "n"] += 1
     if not ready:
-        return {"ok": False, "why": "the next proof is still being readied after 90 s; try again in a minute"}
+        return {"ok": False, "why": f"the next proof is still being readied after {20 if agent else 90} s; try again in a minute"}
     t0 = time.time()
     try:
         paid = _release(ready)
@@ -1292,7 +1311,7 @@ def claim_flow(url: str, amount=None) -> dict:
     if not proof.get("ok"):
         why = str(proof.get("why") or (f"the next proof could not be readied: {_ready['error']}" if _ready.get("error") else "the proof stopped before its answer"))
         last = _proofs.get("last")
-        if last and "live runs" in why and "are used" in why:   # the day's cap: the last verified proof, reused and marked so, no money moved
+        if last and (("live runs" in why and "are used" in why) or "still being readied" in why):   # no live run now: the last verified proof, reused and marked so, no money moved
             return {"ok": True, "reused": True, "job": last["job"], "claim": look.get("quote"), "verdict": last["verdict"],
                     "code": "https://knos.onrender.com/api/near/claim/code", "first_proof": last.get("release_url"), "cap": None,
                     "paid": False, "settled": False, "receipt": None,
@@ -1302,8 +1321,9 @@ def claim_flow(url: str, amount=None) -> dict:
     cap = claim_cap()
     pay = claim_pay(amount, proof.get("claim", SAMPLE))
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
-    done = bool(pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
-    why = "" if done else ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
+    done = bool(cap.get("ok") and pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
+    why = "" if done else ("spending cap step: " + str(cap.get("why") or "not refused on record")) if not cap.get("ok") else \
+        ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
     return {"ok": True, "job": str(proof.get("job_id") or ""), "claim": look.get("quote"), "claim_name": proof.get("claim"), "verdict": proof.get("verdict"),
             "code": "https://knos.onrender.com/api/near/claim/code?claim=" + str(proof.get("claim") or SAMPLE),
             "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle, str(proof.get("job_id") or ""))}

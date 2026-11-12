@@ -531,7 +531,7 @@ $("guard").addEventListener("click", async () => {
     : await fetch(HOSTED + "/api/near/guard", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
   if (!local) { $("guard").disabled = false; if (!r.tries) { $("guards").replaceChildren(el("li", { textContent: `Not run: ${r.why || "no answer"}.` })); busy(""); return; } }
   busy("");
-  $("guards").replaceChildren(...(r.tries || []).map((t) => el("li", {}, [
+  $("guards").replaceChildren(...(r.replay ? [el("li", { textContent: `Last live try, ${Math.round(r.age_s / 60)} min ago (${r.why}):` })] : []), ...(r.tries || []).map((t) => el("li", {}, [
     el("span", { className: t.ok ? "yes" : "no", textContent: t.ok ? "paid" : "refused" }), `: ${t.what}. `, t.ok ? "" : `${t.said}. `, link(t.tx, "transaction")])));
 });
 
@@ -652,7 +652,7 @@ load();
       const q = r.quote;
       look.replaceChildren(el("section", { className: "card" }, [
         el("h2", { textContent: "Knos cannot prove this paper yet" }),
-        el("p", { textContent: "Today Knos\u2019s library holds a check for one claim, the sample paper\u2019s. For any other paper it tells you what can check it, at what price and how fast." }),
+        el("p", { textContent: "Today Knos\u2019s library holds checks for the claims on its Claims page. For any other paper it tells you what can check it, at what price and how fast." }),
         (() => { const b = el("button", { type: "button", className: "go", textContent: "Prove the sample paper instead" }); b.addEventListener("click", () => { $("paper").value = "https://doi.org/10.46298/dmtcs.3545"; $("go").click(); }); return el("p", {}, [b]); })(),
         r.title ? el("p", {}, [el("b", { textContent: "The paper: " }), r.title]) : null,
         el("p", {}, [el("b", { textContent: "What can check it: " }), q.checker + "."]),

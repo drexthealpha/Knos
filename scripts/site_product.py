@@ -232,7 +232,7 @@ def claim_page(header: str, c: dict) -> str:
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");
     for (const [tx, amount, at] of rows) { const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${new Date(at * 1000).toISOString().slice(0, 16).replace("T", " ")}</td><td class="n">${amount == null ? "new" : (+amount).toFixed(2)}</td><td><a href="https://testnet.nearblocks.io/txns/${tx}">${tx.slice(0, 10)}...</a></td>`;
+      tr.innerHTML = `<td>${new Date(at * 1000).toISOString().slice(0, 16).replace("T", " ")}</td><td class="n">${amount == null ? "not read yet" : (+amount).toFixed(2)}</td><td><a href="https://testnet.nearblocks.io/txns/${tx}">${tx.slice(0, 10)}...</a></td>`;
       tb.append(tr); }
     $("receipts").hidden = false; }
 })();""" % (json.dumps(c["name"]), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET),
