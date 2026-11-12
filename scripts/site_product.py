@@ -232,7 +232,7 @@ def claim_page(header: str, c: dict) -> str:
         tr.children[1].append(a); tb.append(tr);
       }
       const early = all.length - rows.length, earlyUsd = all.slice(0, Math.max(0, early)).reduce((s, x) => s + +x[1] / 1e6, 0);
-      $("backed").textContent = `${outside.toFixed(2)} test USDC from outside backers, ${rows.length - rows.filter((x) => !x[3]).length} backings by Knos (test seed).` +
+      $("backed").textContent = `${outside.toFixed(2)} test USDC from outside backers, ${rows.filter((x) => x[3]).length} ${rows.filter((x) => x[3]).length === 1 ? "backing" : "backings"} by Knos (test seed).` +
         (early > 0 ? ` ${early} earlier backings (${earlyUsd.toFixed(2)} test USDC) were recorded before backers were named; all came from Knos's own test buyer.` : "");
       t.hidden = rows.length === 0;
     } catch (err) { $("backed").textContent = "The backers could not be read from NEAR just now."; }
@@ -330,8 +330,7 @@ def status_page(header: str) -> str:
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {
-    const since = Date.now() - 7 * 864e5, rows = txt.split("
-").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && Date.parse(x.at) >= since);
+    const since = Date.now() - 7 * 864e5, rows = txt.split(/\\r?\\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && Date.parse(x.at) >= since);
     $("up").textContent = rows.length ? `up ${rows.filter((x) => x.up).length} of ${rows.length} checks in the last 7 days, from ${rows[0].at.slice(0, 16).replace("T", " ")} UTC` : "no checks yet";
   }).catch(() => { $("up").textContent = "not read"; });
   const b = await getJSON("/api/near/balances"), unit = { near: "NEAR", allowance: "NEAR allowance", usdc: "test USDC" };
