@@ -159,6 +159,11 @@ impl Contract {
         out
     }
 
+    /// Every time tokens were put behind a claim, oldest first: (unix seconds, amount), `limit` from `from_index`.
+    pub fn get_backs(&self, claim: String, from_index: u32, limit: u32) -> Vec<(u64, U128)> {
+        backs().get(&claim).map(|v| v.iter().skip(from_index as usize).take(limit.min(500) as usize).map(|(t, a)| (*t, U128(*a))).collect()).unwrap_or_default()
+    }
+
     /// How many accounts bought in a market (counted from the version that added this count).
     pub fn get_traders(&self, id: String) -> u32 {
         traders().get(&id).copied().unwrap_or(0)
@@ -300,7 +305,8 @@ impl FungibleTokenReceiver for Contract {
                 b.insert(claim.clone(), v);
                 for (who, a) in to {
                     if a.0 > 0 {
-                        ext_ft_core::ext(self.token.clone())
+                        // sent when this call ends (a promise runs once it is dropped)
+                        let _ = ext_ft_core::ext(self.token.clone())
                             .with_attached_deposit(NearToken::from_yoctonear(1))
                             .with_static_gas(GAS)
                             .ft_transfer(who, a, Some(format!("knos: put behind {claim}")));
@@ -344,6 +350,7 @@ mod tests {
         let b = k.get_backed("jump".into(), 0, 10_000);
         assert_eq!((b.total.0, b.count), (10_000_000, 1));
         assert_eq!(k.get_backed("jump".into(), 3_000, 10_000).count, 0);
+        assert_eq!(k.get_backs("jump".into(), 0, 10).iter().map(|(t, a)| (*t, a.0)).collect::<Vec<_>>(), vec![(2_000, 10_000_000)]);
     }
 
     #[test]
