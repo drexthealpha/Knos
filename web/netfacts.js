@@ -15,8 +15,9 @@ const RELAYER = "FRXXJkfpwasEpttH5dvDwkySuJzL5D5swjA52U7TMeRD";  // the app's re
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// an unanswered fact, short enough for a phone's table cell (the reason, cut to its first words)
-const no = (e) => "not answered: " + String(e).replace(/\s+/g, " ").slice(0, 28);
+// an unanswered fact, short enough for a phone's table cell: the reason (an RPC's URL or a long unbroken word) made the
+// rows over 400 px tall at 390 px, so the cell says only that it was not answered; the reason goes to the console
+const no = (e) => { console.warn("netfacts:", String(e).slice(0, 200)); return "not answered just now"; };
 const num = (n) => (typeof n === "number" ? n.toLocaleString("en-US") : String(n));
 
 let id = 0;
