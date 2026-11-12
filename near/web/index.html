@@ -713,7 +713,7 @@ load();
       for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = r.ran_before_s >= 0 ? `done ${ago} before you pressed` : `done ${secs().toFixed(1)} s after you pressed`; }
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
       const w = r.writer || {};
-      two.append(el("p", { className: "fine" }, w.id ? [`Agent A's code was written by ${w.model} on NEAR AI Cloud, call ${w.id}${w.cached ? " (a cached answer for the same claim and test)" : ""}, ${w.tokens_in + w.tokens_out} tokens, $${(+w.cost_usd).toFixed(4)}; `,
+      two.append(el("p", { className: "fine" }, w.id && !w.note ? [`Agent A's code was written by ${w.model} on NEAR AI Cloud, call ${w.id}${w.cached ? " (a cached answer for the same claim and test)" : ""}, ${w.tokens_in + w.tokens_out} tokens, $${(+w.cost_usd).toFixed(4)}; `,
         w.private ? "private: its attestation and the answer's signature verified (" : "not verified private (", out(w.attestation && w.attestation.url || "https://cloud-api.near.ai/v1/attestation/report", "the attestation report"), ")."]
         : [`Agent A's code: a fixed program (${w.note || "no model answer"}).`]));
       two.classList.add("ok");

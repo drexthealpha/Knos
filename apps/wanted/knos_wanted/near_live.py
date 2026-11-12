@@ -750,8 +750,8 @@ def writer_line(w: dict | None) -> str:
     """The verdict's one line about who wrote agent A's code."""
     if not w:
         return "a fixed program"
-    if not w.get("model") or w.get("note") and not w.get("id"):
-        return f"a fixed program ({w.get('note') or 'no model answer'})"
+    if not w.get("model") or w.get("note"):   # no code from the model: the fixed program's code ran, and the line says why
+        return f"a fixed program ({w.get('note') or 'no model answer'}" + (f", call {w['id']}" if w.get("id") else "") + ")"
     private = "private, attestation and signature verified" if w.get("private") else "not verified private"
     return f"{w['model']} on NEAR AI Cloud, call {w.get('id')} ({private})" + (" (a cached answer for the same claim and test)" if w.get("cached") else "")
 

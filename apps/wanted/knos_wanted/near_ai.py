@@ -146,7 +146,8 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
     t0, last = time.time(), ""
     for model in MODELS:   # the fallback only when the first model gives no answer; one answer either way
         att = near_attest.verify_model(model)   # preflight: the attestation verified before the completion is sent
-        body = json.dumps({"model": model, "max_tokens": MAX_TOKENS, "temperature": 0,
+        # thinking off: the reasoning of DeepSeek V4.1 Flash otherwise uses all 800 tokens before any answer (12 Nov)
+        body = json.dumps({"model": model, "max_tokens": MAX_TOKENS, "temperature": 0, "chat_template_kwargs": {"thinking": False},
                            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}).encode()
         req = urllib.request.Request(BASE + "/chat/completions", method="POST", data=body,
                                      headers={"Authorization": "Bearer " + _key(), "Content-Type": "application/json", "User-Agent": "knos-agent/1.0",
