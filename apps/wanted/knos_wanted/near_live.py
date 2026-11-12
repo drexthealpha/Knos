@@ -975,7 +975,9 @@ def counters() -> dict:
     new = [x for x in _paid_log if x[0] > since]
     return {"proofs": base["proofs"] + len(new), "usd": round(base["usd"] + sum(x[1] for x in new), 6), "lost_usd": base["lost_usd"],
             "read_at": base.get("read_at"), "since_read": len(new), "record": base.get("record"),
-            "paid": [[round(x[0], 3), x[1]] for x in _paid_log]}
+            "paid": [[round(x[0], 3), x[1]] for x in _paid_log],
+            "by_claim": {"hyperloglog": {"proofs": base["proofs"] + len(new), "usd": round(base["usd"] + sum(x[1] for x in new), 6)}},
+            "receipts": [[x[2], None, int(x[0]), "hyperloglog"] for x in reversed(new)] + (base.get("receipts") or [])}
 
 
 def claim_flow(url: str, amount=None) -> dict:

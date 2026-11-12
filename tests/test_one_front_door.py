@@ -36,8 +36,8 @@ def built(tmp_path_factory):
 
 
 def test_the_root_is_the_demand_check_alone(built):
-    # the demand check lives on as the older tools' page (scripts/one_page.py writes it as tools.html); the root tells one story
-    page = raw((built / ("tools.html" if (built / "tools.html").is_file() else "index.html")).read_text(encoding="utf-8"))
+    # the demand check left the published product (its source page stays, web/home.html, for the app's own build)
+    page = raw((ROOT / "web" / "home.html").read_text(encoding="utf-8"))
     h1 = re.findall(r"<h1\b[^>]*>(.*?)</h1>", page, re.S)
     assert [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", h)).strip() for h in h1] == [MISSION]
     assert 'id="k-q"' in page and len(re.findall(r'class="k-chip"', page)) == 6 and "data-more-chips" in page and 'id="k-card"' in page
@@ -49,9 +49,12 @@ def test_the_root_is_the_demand_check_alone(built):
 
 
 def test_one_app_app_html_sends_old_links_on_and_the_check_is_its_own_page(built):
-    app = (built / "app.html").read_text(encoding="utf-8")       # one app: knos.onrender.com/app/; no second copy is published
-    assert 'url=https://knos.onrender.com/app/' in app and 'location.replace("https://knos.onrender.com/app/" + location.hash)' in app
-    assert 'id="view-check"' not in app and (built / "check" / "index.html").is_file() and not (built / "app-moved.html").exists()
+    # the older pages left the product: each old address sends a visitor to the front door
+    for old in ("app.html", "tools.html", "wanted.html", "check/index.html", "demo/index.html", "faq.html"):
+        if (built / old).is_file():
+            stub = (built / old).read_text(encoding="utf-8")
+            assert 'http-equiv="refresh"' in stub and 'content="noindex"' in stub and 'id="view-check"' not in stub, old
+    assert not (built / "app-moved.html").exists()
     head = (built / "index.html").read_text(encoding="utf-8").split("</head>")[0]
     assert 'location.replace("check/"' in head and 'location.replace("app.html" + h)' in head and 'addEventListener("hashchange", go)' in head
 

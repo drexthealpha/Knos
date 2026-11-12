@@ -60,6 +60,10 @@ def read() -> dict:
     out = {"proofs": len(paid), "usd": round(arrived / 1e6, 6), "lost_usd": round(lost / 1e6, 6), "as_of_ns": str(newest),
            "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "rows": {"fee": len(fee), "agent": len(agent), "live": len(live)},
            "record": "https://testnet.nearblocks.io/address/" + LIVE + "?tab=tokentxns"}
+    # every paid proof's receipt, newest first: Knos's fee transfer (its transaction, the fee in test USDC, its time) and
+    # the claim it paid for; every proof so far is of the one claim the payments' memos name, HyperLogLog
+    out["receipts"] = [[x.get("transaction_hash"), round(int(x["delta_amount"]) / 1e6, 6), int(int(x.get("block_timestamp") or 0) / 1e9), "hyperloglog"] for x in paid]
+    out["by_claim"] = {"hyperloglog": {"proofs": out["proofs"], "usd": out["usd"]}}
     return out
 
 

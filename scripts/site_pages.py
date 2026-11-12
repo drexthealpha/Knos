@@ -14,8 +14,12 @@ import re
 import sys
 from pathlib import Path
 
+import site_product
+
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = [("prove/", "Prove"), ("labs/", "For labs")]
+PAGES = [("claims/", "Claims"), ("prove/", "Prove"), ("agents/", "For agents"), ("labs/", "For labs")]
+# the product's pages; every other page of the build leaves the published site, each old address sent to the front door
+KEEP = {"index.html", "404.html", "privacy.html", "near/embed.html"}
 CSS = (".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
        ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
        ".kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }\n"
@@ -57,6 +61,24 @@ def redirect(to: str, head: str) -> str:
             f'</head><body><p><a href="{to}">Knos</a></p></body></html>\n')
 
 
+def sweep(out: Path) -> int:
+    """Every page of the build that is not the product's becomes an old address: it sends a visitor to the front door
+    (pricing.html to pricing/). Run again by the pages workflow after its own steps write pages (rank/)."""
+    head = head_of((ROOT / "web" / "door.html").read_text(encoding="utf-8"))
+    keep = KEEP | {f"{p}index.html" for p, _ in PAGES} | {"pricing/index.html", "status/index.html", "near/index.html", "iris/index.html"}
+    keep |= {p.relative_to(out).as_posix() for p in (out / "claim").rglob("index.html")} if (out / "claim").is_dir() else set()
+    moved = {"pricing.html": "pricing/"}
+    gone = 0
+    for p in sorted(out.rglob("*.html")):
+        rel = p.relative_to(out).as_posix()
+        if rel in keep or rel.startswith(("near/story/", "near/vendor/")) or 'http-equiv="refresh"' in p.read_text(encoding="utf-8", errors="replace")[:600]:
+            continue
+        to = "../" * rel.count("/") + moved.get(rel, "")
+        p.write_text(redirect(to or "./", head), encoding="utf-8")
+        gone += 1
+    return gone
+
+
 def main(site: str) -> int:
     out = Path(site)
     door = (ROOT / "web" / "door.html").read_text(encoding="utf-8")
@@ -76,9 +98,15 @@ def main(site: str) -> int:
     head = head_of(door)
     (out / "near" / "index.html").write_text(redirect("../prove/", head), encoding="utf-8")
     (out / "iris" / "index.html").write_text(redirect("../labs/", head), encoding="utf-8")
-    print("product pages: index.html (the front door), prove/, labs/; near/ and iris/ send on")
+    made = site_product.write(out, header)
+    (out / "tools.html").write_text(redirect("./", head), encoding="utf-8")   # linked from earlier posts: sends to the front door
+    gone = sweep(out)
+    print(f"product pages: the front door, {len(made) + 2} pages ({', '.join(['prove/', 'labs/'] + made)}); near/ and iris/ send on; {gone} older pages send to the front door")
     return 0
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--sweep"]:
+        print(f"older pages sent to the front door: {sweep(Path(sys.argv[2]))}")
+        sys.exit(0)
     sys.exit(main(sys.argv[1]))

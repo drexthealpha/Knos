@@ -1,0 +1,16 @@
+{
+  "_": "The claims Knos can prove on NEAR testnet: each from a real paper, with its locked test in near/agents/job/. The test's sha256 is the criteria hash every job for the claim is opened with. Read by the site (scripts/site_pages.py) and the hosted server (apps/wanted/knos_wanted/near_live.py).",
+  "claims": [
+    {
+      "name": "hyperloglog",
+      "plain": "HyperLogLog counts 30,000 different visitors within 10% using at most 1.5 kilobytes of memory.",
+      "paper": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm",
+      "authors": "Flajolet, Fusy, Gandouet and Meunier",
+      "year": 2007,
+      "doi": "10.46298/dmtcs.3545",
+      "quote": "For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10^9 with a typical accuracy of 2% while using a memory of only 1.5 kilobytes.",
+      "paper_number": "2% typical error, 1.5 kilobytes of memory",
+      "test": "test_hll.py"
+    }
+  ]
+}

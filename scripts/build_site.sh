@@ -35,8 +35,7 @@ if [ "${KNOS_SPA_AT_ROOT:-}" != 1 ]; then
   mv "$out/app-moved.html" "$out/app.html"
   mv "$out/home.html" "$out/index.html"
   # THE PRODUCT: the front door (web/door.html) at the root, the proof on NEAR at prove/, the IRIS check at labs/;
-  # /near/ and /iris/ send on. The demand check stays at tools.html until it leaves the product.
-  cp "$out/index.html" "$out/tools.html"
+  # /near/ and /iris/ send on; every older page (the demand check among them) sends to the front door.
   "${PYTHON:-python3}" scripts/site_pages.py "$out"
 fi
 # the documents the command palette can open (web/palette.js reads it; without it the palette has no documents)
@@ -143,3 +142,5 @@ for line in views.read_text(encoding="utf-8").splitlines(keepends=True):
     kept.append(line)
 views.write_text("".join(kept), encoding="utf-8", newline="")
 PY
+# the product only: the steps above wrote older pages (rank/...); in the published build each sends to the front door
+if [ "${KNOS_SPA_AT_ROOT:-}" != 1 ]; then "${PYTHON:-python3}" scripts/site_pages.py --sweep "$out"; fi
