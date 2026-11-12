@@ -125,7 +125,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       el("p", {}, [el("a", { className: "next", href: "prove/#paper=" + encodeURIComponent(url), textContent: "Prove it yourself on NEAR" })]));
   }
   function run(url) { $("paper").value = url; check(url); }
-  $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("paper").value = SAMPLE; } check($("paper").value.trim()); });
+  $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } check(v); });   // an empty box: the sample, said as the sample
   $("sample").addEventListener("click", () => run(SAMPLE));
   fetch(HOSTED + "/api/near/claim/counters").then((r) => r.ok ? r.json() : null).catch(() => null).then((c) => {
     $("count").textContent = c && c.proofs ? `Live from NEAR testnet: ${c.proofs.toLocaleString("en-US")} proofs paid, ${c.usd.toLocaleString("en-US", { style: "currency", currency: "USD" })} in test dollars settled, $0.00 lost.`.replace("$0.00 lost", `${(c.lost_usd || 0).toLocaleString("en-US", { style: "currency", currency: "USD" })} lost`)

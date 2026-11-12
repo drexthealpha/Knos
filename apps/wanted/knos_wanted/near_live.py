@@ -393,8 +393,9 @@ def buy(side: str, market_id: str = "") -> dict:
                 "yes_c": round(int(v.get("yes_price") or 0) / 10_000), "no_c": round(int(v.get("no_price") or 0) / 10_000),
                 "was_c": round(was / 10_000, 1), "now_c": round(int(v.get(side + "_price") or 0) / 10_000, 1),
                 "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
-    except Exception as e:  # noqa: BLE001 - the page says why
-        return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+    except Exception as e:  # noqa: BLE001 - the page says why, in plain words
+        busy = "429" in str(e) or "Too Many" in str(e)
+        return {"ok": False, "why": "NEAR testnet's public servers are busy right now: try again in a minute" if busy else f"testnet did not answer ({str(e)[:120]})"}
     finally:
         _buying.release()
 

@@ -698,7 +698,7 @@ load();
     };
     const sample = !look.name || look.name === "hyperloglog";
     const proving = post("/api/near/claim/prove", { claim: look.name || "hyperloglog" });
-    const capping = post("/api/near/claim/cap");
+    const capping = sample ? post("/api/near/claim/cap") : proving.then(() => post("/api/near/claim/cap"));   // steps in order when the job runs now
     add("ok", "1. The test is locked", [el("p", {}, [`The agents did not write it and cannot change it: ${look.locked || "count 30,000 visitors within 10%, in at most 1.5 kilobytes"}. `,
       out(look.check || "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);

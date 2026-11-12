@@ -68,6 +68,7 @@ async function open(scheme) {
   const cdp = await ctx.newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await page.goto(base, { waitUntil: "load" });
+  await page.waitForLoadState("networkidle");   // a visitor presses once the page has settled
   await page.waitForTimeout(DELAY + 600);
   return { ctx, page };
 }

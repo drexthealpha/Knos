@@ -57,7 +57,7 @@
       "doi": "10.48550/arXiv.2010.02116",
       "arxiv": "2010.02116",
       "quote": "Storing a counter incremented N times would naively consume O(log N) bits of memory. In 1978 Morris described the very first streaming algorithm: the \"Morris Counter\".",
-      "paper_number": "far fewer bits than an exact count",
+      "paper_number": "O(log log N) bits for an approximate count, against O(log N) for an exact one",
       "locked": "count 100,000 events within 10% in at least 19 of 20 runs, in a register of at most 12 bits",
       "question": "Does a Morris counter count 100,000 events within 10% in a 12-bit register?",
       "code_name": "morris_counter.py",

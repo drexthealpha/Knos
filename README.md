@@ -115,7 +115,7 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | B6 Embedded Python | 3 | [iris/src/Knos/Iris/Py/Ready.cls L4](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Py/Ready.cls#L4) |
 | B7 IRIS Vector Search usage | 2 | [iris/src/Knos/Iris/Data/Criterion.cls L7](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Data/Criterion.cls#L7) |
 | B8 Docker container usage | 2 | [iris/docker-compose.yml L4](https://github.com/drexthealpha/Knos/blob/main/iris/docker-compose.yml#L4) |
-| B9 ZPM Package deployment | 2 | `zpm "install knos-iris"` ([the package](https://openexchange.intersystems.com/package/Knos); [its install on build 154, 12 Nov](iris/docs/zpm-install-knos-iris-2026-11-12.log): every phase SUCCESS) |
+| B9 ZPM Package deployment | 2 | `zpm "install knos-iris"` ([the package](https://openexchange.intersystems.com/package/Knos); [its install on build 154, 12 Nov](iris/docs/zpm-install-knos-iris-2026-11-12.log): every phase SUCCESS; that image has no JDK, so the optional Java PEX jar was not built, and the production logged two runtime-lock lines while it started) |
 | B10 Online Demo | 2 | not hosted |
 | B11 Implement InterSystems Community Idea | 4 | https://ideas.intersystems.com/ideas/DPI-I-689 |
 | B12 Find a bug in Embedded Python | 2 (max 3) | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |

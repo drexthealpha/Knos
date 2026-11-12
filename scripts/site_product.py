@@ -181,10 +181,11 @@ def claim_page(header: str, c: dict) -> str:
         const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn", textContent: `Buy ${side === "yes" ? "Yes" : "No"}, 1 test USDC` });
         btn.style.margin = "8px 8px 0 0";
         btn.addEventListener("click", async () => {
-          btn.disabled = true; const t0 = performance.now(); const out = $("traded");
+          const all = [...document.querySelectorAll("[data-trade] button")]; all.forEach((x) => { x.disabled = true; });
+          const t0 = performance.now(); const out = $("traded");
           const tick = setInterval(() => { out.textContent = `Buying on NEAR testnet... ${((performance.now() - t0) / 1000).toFixed(1)} s`; }, 100);
           let x = null; try { x = await fetch(HOSTED + "/api/near/market/buy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side, market: mk.id }) }).then((r) => r.json()); } catch (e) { x = null; }
-          clearInterval(tick); btn.disabled = false;
+          clearInterval(tick); all.forEach((x) => { x.disabled = false; });
           if (x && x.ok) nearView(%s, "get_traders", { id: mk.id }).then((n) => { $(cell).textContent = (cell === "truth" ? truthText : demandText)({ ...mk, traders: n }); }).catch(() => {});
           out.replaceChildren(x && x.ok ? `Bought ${x.shares} shares of ${side === "yes" ? "Yes" : "No"} for ${x.paid_usd.toFixed(2)} test USDC, recorded on NEAR. ` : `Not bought: ${(x && x.why) || "no answer"}.`,
             ...(x && x.url ? [Object.assign(document.createElement("a"), { href: x.url, textContent: "The trade on NEAR" })] : []));

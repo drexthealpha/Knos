@@ -44,6 +44,7 @@ await page.locator("#out .verdict").waitFor({ timeout: 60000 });
 await focus("#out", 0, "The sample's answer, on the same first screen", 2000);
 await page.locator("#out a.next").click();
 await page.locator("#ask").waitFor({ timeout: 60000 });
+await page.waitForFunction(() => !/reading/.test((document.querySelector(".facts .counters") || {}).textContent || ""), null, { timeout: 30000 }).catch(() => {});   // the counters read before they are filmed
 mark("click");
 await page.locator("#look .offer button").waitFor({ timeout: 60000 });
 mark("claim shown");
