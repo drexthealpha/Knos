@@ -312,7 +312,9 @@ Replay mode runs with no key; live mode expects the judge's own OpenAI, Anthropi
 **The live AI Hub run (live run, 12 Nov 2026).** The AI Hub agent decided the Synthea glucose sample through the
 production on NEAR AI Cloud's private model deepseek-ai/DeepSeek-V4.1-Flash-1017, reached through AI Hub's `openai`
 provider at `https://cloud-api.near.ai/v1`: "This FHIR R4 Observation has LOINC 2339-0 glucose with a value of
-122.52 mg/dL, which is under 140 mg/dL." Verdict met; the payout gate waited for a person, as the brief asks. Its span:
+122.52 mg/dL, which is under 140 mg/dL."
+
+Verdict met; the payout gate waited for a person, as the brief asks. Its span:
 1,385 tokens, 46.2 s, session 25 (in + out not split by the span; AI Hub's reply gave no call id in build 154).
 
 To run it yourself, keep the key out of every file: export `KNOS_LOCAL_LLM_URL=https://cloud-api.near.ai/v1`,
