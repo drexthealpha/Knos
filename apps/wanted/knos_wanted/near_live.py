@@ -1353,6 +1353,7 @@ def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
     why = "" if done else ("spending cap step: " + str(cap.get("why") or "not refused on record")) if not cap.get("ok") else \
         ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
     return {"ok": True, "job": str(proof.get("job_id") or ""), "claim": look.get("quote"), "claim_name": proof.get("claim"), "verdict": proof.get("verdict"),
+            "ai": {k: (proof.get("ai") or {}).get(k) for k in ("model", "approve", "cached", "tokens_in", "tokens_out", "cost_usd", "finish", "chars", "note")},
             "code": "https://knos.onrender.com/api/near/claim/code?claim=" + str(proof.get("claim") or SAMPLE),
             "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle, str(proof.get("job_id") or ""))}
 

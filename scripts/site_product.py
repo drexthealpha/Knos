@@ -255,7 +255,7 @@ def agents_page(header: str) -> str:
             f"<h2>The call</h2>\n<pre>{e(flow)}</pre>\n"
             "<p>The answer holds <code>verdict.holds</code> (true or false), <code>cap.refused</code> (an agent's over-budget step "
             "refused on NEAR), <code>paid</code>, <code>settled</code>, <code>receipt</code> with each transfer's link, and <code>code</code>: "
-            "the verified code to download. It takes about 25 s (up to 83 s measured with three orders at once). The agent call has its own 10 live proofs a day; after those it "
+            "the verified code to download. It takes about 25 s (up to 2 min measured with three orders at once). The agent call has its own 10 live proofs a day; after those it "
             "answers with the last verified proof, marked <code>\"reused\": true</code>.</p>\n"
             "<h2>From a terminal</h2>\n"
             f"<pre>git clone {REPO} &amp;&amp; cd Knos\npython3 near/scripts/knos_prove.py https://doi.org/10.46298/dmtcs.3545 10</pre>\n"

@@ -745,7 +745,7 @@ load();
     });
     add("ok", "5. You got", [el("p", {}, [out(`${HOSTED}/api/near/claim/code?claim=${encodeURIComponent(look.name || "hyperloglog")}`, `Download the verified code (${look.code_name || "visitor_counter.py"})`), ", the version that passed the locked test."]),
       ...(sample ? [el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut] : [])]);
-    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s, up to 83 s with three orders at once, on the test network.` })]);
+    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s, up to 2 min with three orders at once, on the test network.` })]);
     const tPay = performance.now();
     const payClock = el("p", { className: "fine", textContent: "0.0 s" });
     paying.append(payClock);
