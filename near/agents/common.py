@@ -49,8 +49,13 @@ def rpc(method: str, params) -> dict:
             with urllib.request.urlopen(urllib.request.Request(url, body, {"Content-Type": "application/json"}), timeout=180) as r:
                 out = json.loads(r.read())
             break
-        except urllib.error.HTTPError as e:
-            if e.code not in (429, 502, 503) or tries == 5:
+        except urllib.error.HTTPError as e:   # 429 busy, 403 a provider refusing, 5xx down: the next RPC
+            if e.code not in (403, 429, 500, 502, 503, 504) or tries == 5:
+                raise
+            if (tries + 1) % len(urls) == 0:
+                time.sleep(1.5 * (tries + 1))
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if tries == 5:
                 raise
             if (tries + 1) % len(urls) == 0:
                 time.sleep(1.5 * (tries + 1))
