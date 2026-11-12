@@ -37,21 +37,23 @@ def sha256_file(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-RPC_SPARE = os.environ.get("NEAR_RPC_SPARE", "https://test.rpc.fastnear.com")   # asked when the first answers 429
+RPC_SPARES = [u for u in os.environ.get("NEAR_RPC_SPARE", "https://near-testnet.drpc.org,https://rpc.testnet.near.org").split(",") if u and u != RPC]   # asked in turn when one answers 429
 
 
 def rpc(method: str, params) -> dict:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    for tries in range(5):   # a public RPC answers 429 when asked too fast: wait, then ask it or the spare again
-        url = RPC if tries % 2 == 0 else RPC_SPARE
+    urls = [RPC, *RPC_SPARES]
+    for tries in range(6):   # a public RPC answers 429 when asked too fast: ask the next one, and wait after a full round
+        url = urls[tries % len(urls)]
         try:
             with urllib.request.urlopen(urllib.request.Request(url, body, {"Content-Type": "application/json"}), timeout=180) as r:
                 out = json.loads(r.read())
             break
         except urllib.error.HTTPError as e:
-            if e.code != 429 or tries == 4:
+            if e.code not in (429, 502, 503) or tries == 5:
                 raise
-            time.sleep(1.5 * (tries + 1))
+            if (tries + 1) % len(urls) == 0:
+                time.sleep(1.5 * (tries + 1))
     if "error" in out:
         raise RuntimeError(json.dumps(out["error"])[:300])
     return out["result"]

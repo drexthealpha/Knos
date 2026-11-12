@@ -188,14 +188,14 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <!-- /k-first -->
     <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute on NEAR, for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper's DOI or arXiv link. Knos proves the claims on its <a href="../claims/">Claims</a> page and hands you code that works; the sample is HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory.</label>
+      <label for="paper"><span>Paste a paper's DOI or arXiv link. Knos proves the claims on its <a href="../claims/">Claims</a> page and hands you code that works; the sample is HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory.</span></label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
     <div class="run" id="run" hidden aria-live="polite">
       <div id="look"></div>
       <div id="prove" hidden>
-        <p class="clock" aria-hidden="true"><b id="secs">0.0</b> s since you ordered</p>
+        <p class="clock" aria-hidden="true"><b id="secs">0.0</b> s since you pressed</p>
         <ol class="steps" id="steps"></ol>
       </div>
       <p class="fine links" id="links"></p>
@@ -744,7 +744,7 @@ load();
     });
     add("ok", "5. You got", [el("p", {}, [out(`${HOSTED}/api/near/claim/code?claim=${encodeURIComponent(look.name || "hyperloglog")}`, `Download the verified code (${look.code_name || "visitor_counter.py"})`), ", the version that passed the locked test."]),
       ...(sample ? [el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut] : [])]);
-    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s on the test network.` })]);
+    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s, up to 80 s when busy, on the test network.` })]);
     const tPay = performance.now();
     const payClock = el("p", { className: "fine", textContent: "0.0 s" });
     paying.append(payClock);

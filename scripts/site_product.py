@@ -119,8 +119,8 @@ def claims_page(header: str, cs: list[dict]) -> str:
                    f'<span class="fine">{e(c["authors"])}, {c["year"]}</span></td>'
                    f'<td class="n" data-behind>reading</td><td data-truth>reading</td><td data-demand>reading</td></tr>' for c in cs)
     body = (f"<h1>Claims</h1>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
-            f"Sorted by the test USDC put behind it.</p>\n"
-            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
+            f"Sorted by the test USDC paid for its proofs.</p>\n"
+            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC paid for proofs</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
             f'<p class="fine">Each claim has two markets on NEAR testnet, priced by an automatic market maker (LMSR): whether it holds, '
             f'settled by its locked test, and whether 100 test USDC are put behind proving it within 7 days, settled by the '
             f'record on NEAR.</p>\n'
@@ -184,7 +184,7 @@ def claim_page(header: str, c: dict) -> str:
           const all = [...document.querySelectorAll("[data-trade] button")]; all.forEach((x) => { x.disabled = true; });
           const t0 = performance.now(); const out = $("traded");
           const tick = setInterval(() => { out.textContent = `Buying on NEAR testnet... ${((performance.now() - t0) / 1000).toFixed(1)} s`; }, 100);
-          let x = null; try { x = await fetch(HOSTED + "/api/near/market/buy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side, market: mk.id }) }).then((r) => r.json()); } catch (e) { x = null; }
+          let x = null; try { x = await fetch(HOSTED + "/api/near/market/buy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side, market: mk.id }), signal: AbortSignal.timeout(45000) }).then((r) => r.json()); } catch (e) { x = { ok: false, why: e.name === "TimeoutError" ? "no answer from the test network in 45 s; press again in a minute" : "the server did not answer" }; }
           clearInterval(tick); all.forEach((x) => { x.disabled = false; });
           if (x && x.ok) nearView(%s, "get_traders", { id: mk.id }).then((n) => { $(cell).textContent = (cell === "truth" ? truthText : demandText)({ ...mk, traders: n }); }).catch(() => {});
           out.replaceChildren(x && x.ok ? `Bought ${x.shares} shares of ${side === "yes" ? "Yes" : "No"} for ${x.paid_usd.toFixed(2)} test USDC, recorded on NEAR. ` : `Not bought: ${(x && x.why) || "no answer"}.`,
@@ -255,7 +255,7 @@ def agents_page(header: str) -> str:
             f"<h2>The call</h2>\n<pre>{e(flow)}</pre>\n"
             "<p>The answer holds <code>verdict.holds</code> (true or false), <code>cap.refused</code> (an agent's over-budget step "
             "refused on NEAR), <code>paid</code>, <code>settled</code>, <code>receipt</code> with each transfer's link, and <code>code</code>: "
-            "the verified code to download. It takes 10 to 45 s. The agent call has its own 10 live proofs a day; after those it "
+            "the verified code to download. It takes about 25 s (up to 80 s measured when the test network is busy). The agent call has its own 10 live proofs a day; after those it "
             "answers with the last verified proof, marked <code>\"reused\": true</code>.</p>\n"
             "<h2>From a terminal</h2>\n"
             f"<pre>git clone {REPO} &amp;&amp; cd Knos\npython3 near/scripts/knos_prove.py https://doi.org/10.46298/dmtcs.3545 10</pre>\n"

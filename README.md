@@ -15,7 +15,7 @@ Knos carries research across the valley of death.
 
 Three commands from a clone of this repository (`git clone https://github.com/drexthealpha/Knos && cd Knos`), each with
 the exact output you should see. They check one claim end to end: the test file, the hash NEAR locked before the
-agents started, and the agent's code passing that test.
+agents started, and the agent's code passing that test. On Windows, use Git Bash and `py -3` for `python3`.
 
 1. The locked test's sha256:
 
@@ -568,7 +568,7 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
-5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network, and "Receipt for proof job-...: paid and
+5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network (up to 80 s measured when three people ordered at once), and "Receipt for proof job-...: paid and
    recorded on NEAR testnet N s after you pressed": "You put behind the claim 10.00 test USDC", "Agent A's share
    1.20 test USDC in all: 0.20 test USDC from your price (1 part in 49) plus the 1.00 the job itself paid for passing its locked test" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.

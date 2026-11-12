@@ -380,8 +380,8 @@ def buy(side: str, market_id: str = "") -> dict:
     s = status()
     if not s["live"]:
         return {"ok": False, "why": "live runs are switched off"}
-    if not _buying.acquire(blocking=False):
-        return {"ok": False, "why": "a buy is running; try again in a few seconds"}
+    if not _buying.acquire(timeout=30):   # buys go one at a time on NEAR: a second waits its turn
+        return {"ok": False, "why": "other buys held the line for 30 s; press again"}
     try:
         mid = market_id or json.loads((NEAR_WEB / "market.json").read_text(encoding="utf-8"))["open"]
         _jobs()
@@ -425,8 +425,8 @@ def product_buy() -> dict:
     s = status()
     if not s["live"]:
         return {"ok": False, "why": "live runs are switched off"}
-    if not _buying.acquire(blocking=False):
-        return {"ok": False, "why": "a buy is running; try again in a few seconds"}
+    if not _buying.acquire(timeout=30):   # buys go one at a time on NEAR: a second waits its turn
+        return {"ok": False, "why": "other buys held the line for 30 s; press again"}
     try:
         _jobs()
         import common
@@ -859,9 +859,11 @@ _price: dict = {}
 
 
 def _rpc(method: str, params) -> dict:
-    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    with urllib.request.urlopen(urllib.request.Request(RPC, body, {"Content-Type": "application/json"}), timeout=20) as r:
-        return json.loads(r.read()).get("result") or {}
+    import common   # the same RPCs in turn as every other read, so one busy RPC does not stop it
+    try:
+        return common.rpc(method, params) or {}
+    except RuntimeError:
+        return {}
 
 
 def _gas(tx: str, sender: str) -> float | None:
