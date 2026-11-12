@@ -91,9 +91,13 @@ BEACON = """<script>
     let seen = false; const mo = new MutationObserver(() => { if (!seen) { seen = true; mo.disconnect(); const ms = Math.round(performance.now() - at); if (ms > 400) send("slow", { ms }); } });
     mo.observe(document.body, { subtree: true, childList: true, characterData: true }); setTimeout(() => { if (!seen) { mo.disconnect(); send("slow", { ms: 400 }); } }, 2000);
     if (/download/i.test(target.textContent)) send("download"); }, { capture: true });
-  const seenText = new Set();
-  setInterval(() => { const t = document.body.textContent;
-    for (const [k, re] of [["result", /Yes, the claim holds|Answer: Yes|Answer: No|Nothing proved matches|cannot prove this paper/], ["proof", /Receipt for proof|Receipt: paid/], ["backed", /Bought .* shares|test USDC behind this proof/], ["error", /Not read|No answer this time|did not answer/]])
+  const seenText = new Set(); let pressed = false;
+  const kinds = [["result", /Yes, the claim holds|Answer: Yes|Answer: No|Nothing proved matches|cannot prove this paper/], ["proof", /Receipt for proof|Receipt: paid/], ["backed", /Bought .* shares|test USDC behind this proof/], ["error", /Not read|No answer this time|did not answer/]];
+  // only text that appears after this visit's first press counts: a page that shows a result as it loads is not one
+  addEventListener("click", (ev) => { if (pressed || !ev.target.closest("button, a")) return; pressed = true;
+    const t = document.body.textContent; for (const [k, re] of kinds) if (re.test(t)) seenText.add(k); }, { capture: true });
+  setInterval(() => { if (!pressed) return; const t = document.body.textContent;
+    for (const [k, re] of kinds)
       if (!seenText.has(k) && re.test(t)) { seenText.add(k); send(k); } }, 1500);   // a light check, off the press path
   addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") send("leave", { s: Math.round((Date.now() - t0) / 1000) }); });
 })();

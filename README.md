@@ -241,7 +241,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 
 | What | Where |
 |---|---|
-| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8), also [on the For labs page](https://drexthealpha.github.io/Knos/labs/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)) |
+| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) (the first cut; the file is 70 s, with the live run of 12 Nov at its end), also [on the For labs page](https://drexthealpha.github.io/Knos/labs/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | the IRIS part is not hosted: its built-in demo runs on your own machine after the quick start, with no key and no sign-in (the NEAR proof flow is hosted on the one page) |
@@ -565,7 +565,7 @@ visitor and fails on memory.
 
 On the public pages (no install, no sign-in, no wallet, test money only):
 
-1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people? Checking it
+1. Open https://drexthealpha.github.io/Knos/ - see "Why does research take 17 years to reach people? Checking it
    is costly", "Ask anything about research", the box, the button "Ask", "Try: HyperLogLog" and "By hand:
    $330 to $763 (Colliard, 2023). Knos: a minute."
 2. Click "Try: HyperLogLog" (or ask a question of your own) - see on the same screen "Yes, the claim holds", the claim,

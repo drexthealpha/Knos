@@ -81,6 +81,9 @@ def _plain(d: dict) -> dict:
             "not_what": dict(d["notwhat"].most_common(5))}
 
 
+AFTER_PRESS = "2026-11-13"   # from this day an answer, a proof or a backing counts only when it appears after a press
+
+
 def summary(days: int = 7) -> dict:
     """The funnel of the last `days` days and the screen people leave from most."""
     _seed()
@@ -88,9 +91,11 @@ def summary(days: int = 7) -> dict:
         out = {d: _plain(v) for d, v in sorted(_days.items())[-days:]}
     tot = Counter()
     leave = Counter()
-    for v in out.values():
+    for day, v in out.items():
         for k in ("visits", "first_press", "first_result", "proof_finished", "backed", "came_back"):
+            if day < AFTER_PRESS and k in ("first_result", "proof_finished", "backed"):
+                continue   # before 13 Nov the page counted these from text a page showed as it loaded, with no press
             tot[k] += int(v.get(k) or 0)
         leave.update(v.get("leave_from") or {})
     return {"days": out, "funnel": {k: tot[k] for k in ("visits", "first_press", "first_result", "proof_finished", "backed", "came_back")},
-            "leave_most": leave.most_common(1)[0][0] if leave else None, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+            "leave_most": leave.most_common(1)[0][0] if leave else None, "results_counted_from": AFTER_PRESS, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}

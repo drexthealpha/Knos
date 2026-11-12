@@ -132,7 +132,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
       behind = out7 != null ? `${out7.toFixed(2)} test USDC from outside backers this week` : "";
     out.replaceChildren(
-      ...(near ? [el("p", { className: "near", textContent: "Not proved yet as asked. The closest claim Knos proved:" })] : []),
+      ...(near ? [el("p", { className: "near", textContent: "Closest proved claim (not your exact question):" })] : []),
       el("p", { className: "verdict", textContent: holds === true ? (near ? "It holds" : "Yes, the claim holds") : holds === false ? "No, the claim fails" : "Not proved yet" }),
       el("p", {}, [`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}. `, holds != null && last.job ? "Proved by its locked test " : "Its locked test is ", link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test),
         ` (sha256 ${c.sha256.slice(0, 8)}...)`, holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),

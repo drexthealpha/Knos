@@ -145,7 +145,7 @@ def _test_text(claim: str) -> str:
     return (ROOT / "near" / "agents" / "job" / CLAIMS[claim]["test"]).read_text(encoding="utf-8")
 
 
-def _make_job(claim: str = SAMPLE, visitor: str = "") -> dict:
+def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
     """One job of a claim, start to just before payment: posted with the claim's locked test, taken and answered by both
     agents (each answer in the job's own folder), each answer run against the test; the passing one is named, nobody is
     paid yet; the claim's market opened. Agent A's code is written by the model on NEAR AI Cloud (one call, cached by
@@ -154,7 +154,9 @@ def _make_job(claim: str = SAMPLE, visitor: str = "") -> dict:
     j = _jobs()
     posted_at = time.time()
     sa, sb = _solutions(claim)
-    if not visitor and time.time() - _asked.get(claim, 0) < ASK_EVERY and claim not in _written:
+    if failed:   # the model's code failed in this very order: agent A's fixed program runs, and the receipt says why
+        writer = {"model": None, "note": f"{failed}; agent A's fixed program then ran in the same order"[:300]}
+    elif not visitor and time.time() - _asked.get(claim, 0) < ASK_EVERY and claim not in _written:
         writer = {"model": None, "note": "the model was asked for this claim less than 6 hours ago and its code did not pass"}
     else:
         if not visitor:
@@ -672,7 +674,7 @@ def last_proof() -> dict | None:
             m = (view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}
             if m.get("question") == CLAIM_Q and m.get("outcome") is not None:
                 out = {"id": mid, "holds": bool(m["outcome"]), "job": mid[4:],
-                       "record": "https://testnet.nearblocks.io/address/" + MARKET}
+                       "record": "https://drexthealpha.github.io/Knos/claim/" + SAMPLE + "/"}
                 break
         _last.update(at=time.time(), out=out)
         return out
@@ -744,7 +746,7 @@ def claim_look(url: str) -> dict:
         last = max(mine, key=lambda p: p.get("at", 0)) if mine else None
         paid = ((_board.get("out") or {}).get("claims") or {}).get(known["name"], {}).get("last_proof")   # read from NEAR
         lp = {"holds": bool(last["verdict"].get("holds")), "job": last["job"], "record": last.get("release_url")} if last else (
-            {"holds": True, "job": paid, "record": "https://testnet.nearblocks.io/address/" + MARKET} if paid else None)
+            {"holds": True, "job": paid, "record": "https://drexthealpha.github.io/Knos/claim/" + known["name"] + "/"} if paid else None)
         return {**out, "last": lp, "reusable": False, "ready": True, "runs_on_order": True}
     job = _ready.get("job")
     mk = (job or {}).get("market")
@@ -760,20 +762,20 @@ def claim_look(url: str) -> dict:
     return out
 
 
-_bal: dict = {}
+_floors: dict = {}   # the accounts against their floors (balances), apart from _bal (the buyer account read above)
 
 
 def balances() -> dict:
     """The accounts that keep the demo up against their floors (scripts/near_balances.py), read at most every 10 minutes."""
-    if _bal.get("at") and time.time() - _bal["at"] < 600:
-        return _bal["out"]
+    if _floors.get("at") and time.time() - _floors["at"] < 600:
+        return _floors["out"]
     import importlib.util
     spec = importlib.util.spec_from_file_location("near_balances", ROOT / "scripts" / "near_balances.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     rows = m.check()
     out = {"ok": all(x["ok"] for x in rows), "rows": rows, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-    _bal.update(at=time.time(), out=out)
+    _floors.update(at=time.time(), out=out)
     return out
 
 
@@ -818,8 +820,11 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
         waited = time.time()
         try:
             ready = _make_job(claim, visitor)
-        except ModelCodeFailed as e:   # said plainly; the order then shows the last verified proof, marked reused
-            return {"ok": False, "model_failed": True, "why": str(e), "seconds": round(time.time() - waited, 1)}
+        except ModelCodeFailed as e:   # said plainly; agent A's fixed program then runs in the same order, so the buyer still gets a verdict
+            try:
+                ready = _make_job(claim, visitor, failed=str(e))
+            except Exception:  # noqa: BLE001 - the order then shows the last verified proof, marked reused
+                return {"ok": False, "model_failed": True, "why": str(e), "seconds": round(time.time() - waited, 1)}
         except Exception as e:  # noqa: BLE001 - the page says which step stopped
             return {"ok": False, "why": f"the job on NEAR testnet stopped: {str(e)[:160]}", "seconds": round(time.time() - waited, 1)}
     else:
@@ -909,7 +914,7 @@ def claim_settle(mid: str) -> dict:
             time.sleep(1.5)   # a final read lags the optimistic one by a block or two
             outcome = ((view(MARKET, "get_market", {"id": mid}) or {}).get("market") or {}).get("outcome")
         if r["ok"] and outcome is not None:   # the newest proof is this one
-            _last.update(at=time.time(), out={"id": mid, "holds": bool(outcome), "job": mid[4:], "record": "https://testnet.nearblocks.io/address/" + MARKET})
+            _last.update(at=time.time(), out={"id": mid, "holds": bool(outcome), "job": mid[4:], "record": "https://drexthealpha.github.io/Knos/claim/" + SAMPLE + "/"})
         return {"ok": r["ok"], "settled": outcome, "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
     except Exception as e:  # noqa: BLE001 - the page says why
         return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
