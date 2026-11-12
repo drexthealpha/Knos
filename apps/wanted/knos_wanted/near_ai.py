@@ -195,7 +195,8 @@ REVIEW = ("You review code that has already passed a locked test written before 
           'Do not think aloud. Answer with JSON only, approve first: {"approve": true or false, "reason": "at most 25 words"}.')
 WRITE = ("You are agent A. Write the Python module solution.py that the locked test below imports, implementing the "
          "paper's method the claim names, so that the test passes. Do not read, open or inspect the test file, and do not "
-         "special-case its inputs. Do not think aloud. Answer with the code only, in one ```python block.")
+         "special-case its inputs. Keep it short: standard library only, under 60 lines, no comments or docstrings. "
+         "Do not think aloud. Answer with the code only, in one ```python block.")
 
 
 def review(claim: str, quote: str, test: str, code: str, visitor: str = "") -> dict:
@@ -221,6 +222,14 @@ def review(claim: str, quote: str, test: str, code: str, visitor: str = "") -> d
     return out
 
 
+def forget_code(claim: str, quote: str, test: str) -> None:
+    """A model-written code that failed its locked test is not kept as the cached answer: the next order asks again."""
+    h = hashlib.sha256(json.dumps({"kind": "write", "claim": claim, "quote": quote, "test": test[:8000]}, sort_keys=True).encode()).hexdigest()
+    with _lock:
+        _state["cache"].pop(h, None)
+        _save()
+
+
 def write_code(claim: str, quote: str, test: str, visitor: str = "") -> dict:
     """Agent A's code for a claim, written by the model: `code` is the module, or None with `note` saying why (the
     fixed program is then used and the order says so)."""
@@ -233,4 +242,6 @@ def write_code(claim: str, quote: str, test: str, visitor: str = "") -> dict:
     out["code"] = code + "\n" if code else None
     if not code and not out.get("note"):
         out["note"] = "the model's answer held no code" + (" (it stopped at max_tokens)" if a.get("finish") == "length" else "")
+    if code and a.get("finish") == "length":
+        out["cut"] = True   # the code may be cut short at max_tokens; the locked test decides
     return out

@@ -164,6 +164,9 @@ def _make_job(claim: str = SAMPLE, visitor: str = "") -> dict:
     win = next((x for x in c["attempts"] if x.get("passed")), None)
     if not win and writer.get("code"):
         reason = next((x.get("reason", "") for x in c["attempts"] if x.get("agent") == ra.get("agent")), "")
+        near_ai.forget_code(claim, CLAIMS[claim]["quote"], _test_text(claim))
+        if writer.get("cut"):
+            reason += f" (the answer stopped at the {near_ai.MAX_TOKENS}-token limit)"
         raise ModelCodeFailed(f"agent A's code, written by {writer['model']} (call {writer.get('id')}), failed the locked test: {reason}"[:240])
     if writer.get("code") and win and win.get("agent") == ra.get("agent"):
         _written[claim] = sa
