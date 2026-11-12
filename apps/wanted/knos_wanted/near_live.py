@@ -1130,6 +1130,7 @@ def _by_claim(read: dict, new: list) -> dict:
 # seeded by Knos's test account. Each market says its trader count, so a thin market says it is thin.
 WEEK = 7 * 24 * 3600
 _board: dict = {}
+_job_claim: dict = {}   # "job:<id>" -> (its claim, its last state read)
 _boarding = threading.Lock()
 
 
@@ -1181,15 +1182,18 @@ def _read_board() -> None:
             jid = p.get("job") or p.get("id")
             if jid and (c not in mine or jid > mine[c]):
                 mine[c] = jid
-        jobs = sorted((i for i in ids if i.startswith("job:job-")), reverse=True)[:16]   # the job id holds its UTC time: newest first
+        # every job market's claim, read once (a job's locked test never changes), its state read again while it can change
+        jobs = sorted((i for i in ids if i.startswith("job:job-")), reverse=True)   # the job id holds its UTC time: newest first
+        todo = [m for m in jobs if m not in _job_claim or _job_claim[m][1] != "Paid"][:400]
         with ThreadPoolExecutor(8) as ex:
-            got = list(ex.map(lambda mid: (mid, view(_jobs().CONFIG["contract"], "get_job", {"id": mid[4:]}) or {}), jobs))
-        paid = {}   # each claim's newest paid job among those read: its last proof, held
-        for mid, j in got:
-            c = hashes.get(tests.get(j.get("criteria_hash", ""), ""))
+            for mid, j in ex.map(lambda mid: (mid, view(_jobs().CONFIG["contract"], "get_job", {"id": mid[4:]}) or {}), todo):
+                _job_claim[mid] = (hashes.get(tests.get(j.get("criteria_hash", ""), ""), ""), j.get("state", ""))
+        paid = {}   # each claim's newest paid job: its last proof, held
+        for mid in jobs:
+            c, state = _job_claim.get(mid, ("", ""))
             if c and (c not in mine or mid[4:] > mine[c]):
                 mine[c] = mid[4:]
-            if c and j.get("state") == "Paid" and (c not in paid or mid[4:] > paid[c]):
+            if c and state == "Paid" and (c not in paid or mid[4:] > paid[c]):
                 paid[c] = mid[4:]
         for p in [v for k, v in _proofs.items() if k != "last"]:
             c = p.get("claim", SAMPLE)
