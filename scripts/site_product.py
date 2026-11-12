@@ -211,7 +211,7 @@ def claim_page(header: str, c: dict) -> str:
     const vt = setInterval(() => { $("verdict").textContent = `Fetching the test and reading NEAR... ${((performance.now() - v0) / 1000).toFixed(1)} s`; }, 100);
     try {
       const b = await board, id = b && b.claims && b.claims[name] && b.claims[name].truth && b.claims[name].truth.id;
-      if (!id) { $("verdict").textContent = "No job of this claim on NEAR yet: order the first proof."; $("verify").disabled = false; return; }
+      if (!id) { clearInterval(vt); $("verdict").textContent = b && b.claims && b.claims[name] && b.claims[name].read_at !== undefined || (b && b.read_at) ? "No job of this claim on NEAR yet: order the first proof." : "Knos is still reading this claim's jobs from NEAR: press again in a few seconds."; $("verify").disabled = false; return; }
       const [file, j] = await Promise.all([fetch(%s).then((r) => r.arrayBuffer()), nearView(%s, "get_job", { id: id.slice(4) })]);
       clearInterval(vt);
       text = new Uint8Array(file); job = { ...j, id: id.slice(4) };
