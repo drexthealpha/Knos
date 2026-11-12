@@ -35,7 +35,7 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 .fine { color: var(--ink-2); }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-@media (max-width: 480px) { th, td { padding: 8px 4px; } }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test USDC behind: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
 """
 
 
@@ -79,17 +79,26 @@ const $ = (id) => document.getElementById(id);
 const usd = (n) => (+n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
 async function getJSON(path) { try { const r = await fetch(HOSTED + path); return r.ok ? await r.json() : null; } catch (e) { return null; } }
 // NEAR testnet, read from this browser: no answer of Knos's server is trusted for these
+const RPCS = ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"];   // two public NEAR testnet RPCs
 async function nearView(contract, method, args) {
-  const body = { jsonrpc: "2.0", id: "k", method: "query", params: { request_type: "call_function", finality: "final", account_id: contract, method_name: method, args_base64: btoa(JSON.stringify(args)) } };
-  const r = await fetch("https://rpc.testnet.near.org", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json());
-  if (!r.result || !r.result.result) throw new Error((r.error && r.error.message) || "no answer");
-  return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result.result)));
+  const body = JSON.stringify({ jsonrpc: "2.0", id: "k", method: "query", params: { request_type: "call_function", finality: "final", account_id: contract, method_name: method, args_base64: btoa(JSON.stringify(args)) } });
+  let last = "no answer";
+  for (const rpc of RPCS) {
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body, signal: ctl.signal }).then((x) => x.json()).finally(() => clearTimeout(t));
+      if (r.result && r.result.result) return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result.result)));
+      last = (r.error && (r.error.cause && r.error.cause.name || r.error.message)) || "no answer";
+      if (/MethodNotFound|does not exist|CodeDoesNotExist/.test(JSON.stringify(r.error || {}))) break;
+    } catch (e) { last = "NEAR's public RPCs are busy"; }
+  }
+  throw new Error(last);
 }
 async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
 const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
 function truthText(m, last) {
+  if (last) return `Holds: proved by its locked test (${last})`;
   if (!m) return "opens with the first order";
-  if (m.outcome == null && last) return `Held in its last proof (${last}); the next proof's market: holds ${Math.round(m.yes_cents)}% before it runs (${thin(m)})`;
   if (m.outcome === true) return "Holds: settled by the locked test";
   if (m.outcome === false) return "Fails: settled by the locked test";
   return `Holds ${Math.round(m.yes_cents)}%, before the proof (${thin(m)})`;
@@ -147,8 +156,9 @@ def claim_page(header: str, c: dict) -> str:
             f'<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
             f'<button class="btn" id="tamper" type="button" disabled>Change one byte and check again</button></p>\n'
             f'<p id="verdict" role="status"></p>\n'
-            f'<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td id="truth">reading</td></tr>'
-            f'<tr><th>100 test USDC behind it within 7 days?</th><td id="demand">reading</td></tr></tbody></table>\n'
+            f'<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth">reading</span><span class="row" data-trade="truth"></span></td></tr>'
+            f'<tr><th>100 test USDC behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
+            f'<p id="traded" role="status" class="fine"></p>\n'
             f'<p class="fine">Priced by an automatic market maker (LMSR) in test USDC; the first settles by the locked test, the '
             f'second by the record of what was put behind the claim. Odds show only before the result.</p>\n'
             f'<h2>Proofs and receipts</h2>\n<p id="proofs">Reading NEAR testnet\'s public record...</p>\n<table id="receipts" hidden><thead><tr><th>When (UTC)</th>'
@@ -158,6 +168,26 @@ def claim_page(header: str, c: dict) -> str:
     script = LIVE_JS + """(async () => {
   const name = %s;
   const board = getJSON("/api/near/claims");
+  // an open market can be traded: 1 test USDC of Yes or No, from the test account Knos holds for you
+  board.then((b) => { const m = (b && b.claims && b.claims[name]) || {};
+    for (const cell of ["truth", "demand"]) {
+      const mk = m[cell];
+      if (!mk || mk.outcome != null || (cell === "truth" && m.last_proof)) continue;
+      const box = document.querySelector(`[data-trade="${cell}"]`);
+      for (const side of ["yes", "no"]) {
+        const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn", textContent: `Buy ${side === "yes" ? "Yes" : "No"}, 1 test USDC` });
+        btn.style.margin = "8px 8px 0 0";
+        btn.addEventListener("click", async () => {
+          btn.disabled = true; const t0 = performance.now(); const out = $("traded");
+          const tick = setInterval(() => { out.textContent = `Buying on NEAR testnet... ${((performance.now() - t0) / 1000).toFixed(1)} s`; }, 100);
+          let x = null; try { x = await fetch(HOSTED + "/api/near/market/buy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side, market: mk.id }) }).then((r) => r.json()); } catch (e) { x = null; }
+          clearInterval(tick); btn.disabled = false;
+          out.replaceChildren(x && x.ok ? `Bought ${x.shares} shares of ${side === "yes" ? "Yes" : "No"} for ${x.paid_usd.toFixed(2)} test USDC: ${side === "yes" ? "Yes" : "No"} went from ${x.was_c}%% to ${x.now_c}%%. ` : `Not bought: ${(x && x.why) || "no answer"}.`,
+            ...(x && x.url ? [Object.assign(document.createElement("a"), { href: x.url, textContent: "The trade on NEAR" })] : []));
+        });
+        box.append(btn);
+      }
+    } });
   board.then(async (b) => { const m = (b && b.claims && b.claims[name]) || {};
     $("truth").textContent = b ? truthText(m.truth, m.last_proof) : "not read"; $("demand").textContent = b ? demandText(m.demand) : "not read";
     // the same two markets, read again by this browser from NEAR itself
@@ -177,15 +207,17 @@ def claim_page(header: str, c: dict) -> str:
          : `: ${changed ? "with one byte changed, " : ""}the test's sha256 is ${mine.slice(0, 16)}..., not the ${String(locked).slice(0, 16)}... NEAR locked${job ? " for " + job.id : ""}.`);
   }
   $("verify").addEventListener("click", async () => {
-    $("verify").disabled = true; $("verdict").textContent = "Fetching the test and reading NEAR...";
+    $("verify").disabled = true; const v0 = performance.now();
+    const vt = setInterval(() => { $("verdict").textContent = `Fetching the test and reading NEAR... ${((performance.now() - v0) / 1000).toFixed(1)} s`; }, 100);
     try {
       const b = await board, id = b && b.claims && b.claims[name] && b.claims[name].truth && b.claims[name].truth.id;
       if (!id) { $("verdict").textContent = "No job of this claim on NEAR yet: order the first proof."; $("verify").disabled = false; return; }
       const [file, j] = await Promise.all([fetch(%s).then((r) => r.arrayBuffer()), nearView(%s, "get_job", { id: id.slice(4) })]);
+      clearInterval(vt);
       text = new Uint8Array(file); job = { ...j, id: id.slice(4) };
       await check(text, false); $("tamper").disabled = false;
-    } catch (err) { $("verdict").textContent = `Not checked: ${err.message}.`; }
-    $("verify").disabled = false;
+    } catch (err) { clearInterval(vt); $("verdict").textContent = `Not checked: ${err.message}. Press the button again in a few seconds.`; }
+    clearInterval(vt); $("verify").disabled = false;
   });
   $("tamper").addEventListener("click", async () => { const t = text.slice(); t[t.length - 2] ^= 1; await check(t, true); });
   const c = await getJSON("/api/near/claim/counters");
@@ -229,7 +261,7 @@ def pricing_page(header: str) -> str:
             "that agent 1.00. Proving the same order again is free.</p>\n"
             "<p>A person checking one paper by hand costs $330 to $763 "
             "(<a href=\"https://labordynamicsinstitute.github.io/crress-book/\">Colliard and others, 2023</a>).</p>\n"
-            "<p>Today this is test money on NEAR testnet: nobody has paid real money and Knos has no customers yet. Knos has no token.</p>")
+            "<p>Today this is test money on NEAR testnet: nobody has paid real money and Knos has no customers yet. Knos has no token and no points.</p>")
     return page(header, "../", "Knos pricing", "The test USDC you choose, paid only after the answer.", body, "", "pricing/")
 
 

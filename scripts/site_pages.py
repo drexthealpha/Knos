@@ -20,7 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGES = [("claims/", "Claims"), ("prove/", "Prove"), ("agents/", "For agents"), ("labs/", "For labs")]
 # the product's pages; every other page of the build leaves the published site, each old address sent to the front door
 KEEP = {"index.html", "404.html", "privacy.html", "near/embed.html"}
-CSS = (".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
+CSS = ("#ask label a { display: inline; }\n"   # the Prove page's Claims link sits in its sentence
+       ".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
        ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
        ".kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }\n"
        ".kh nav { display: flex; flex-wrap: wrap; }\n"
@@ -44,6 +45,15 @@ def with_header(html: str, up: str, here: str) -> str:
     html = re.sub(r'<script>addEventListener\("load", \(\) => \{ const s = document\.createElement\("script"\); s\.src = "[./]*brand/bar\.js";.*?</script>\n?', "", html, flags=re.S)
     if ".kh .logo" not in html:
         html = html.replace("</head>", f'<style id="kh-css">\n{CSS}</style>\n</head>', 1)
+    return html
+
+
+def retitle(html: str, title: str, desc: str) -> str:
+    """A page's own plain title and description, in its tab and its link preview."""
+    html = re.sub(r"<title>.*?</title>", f"<title>{title}</title>", html, count=1, flags=re.S)
+    for attr, value in (('name="description"', desc), ('property="og:title"', title), ('property="og:description"', desc),
+                        ('name="twitter:title"', title), ('name="twitter:description"', desc)):
+        html = re.sub(rf'<meta {attr} content="[^"]*"', f'<meta {attr} content="{value}"', html, count=1)
     return html
 
 
@@ -89,6 +99,8 @@ def main(site: str) -> int:
     # the proof page opens on the proof: its heading says what the page does, the front door asks the question
     near, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">Prove a paper\'s claim on NEAR</h1>', near, count=1, flags=re.S)
     assert n == 1, "the NEAR page has no first block"
+    near = retitle(near, "Knos: prove a paper's claim on NEAR", "Order a proof of a paper's claim on NEAR testnet: the verdict, the verified code and its receipt.")
+    near = re.sub(r'\s*<p class="vision"[^>]*>.*?</p>', "", near, flags=re.S)
     (out / "prove").mkdir(exist_ok=True)
     (out / "prove" / "index.html").write_text(with_header(near, "../", "prove/"), encoding="utf-8")
     iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
@@ -96,6 +108,7 @@ def main(site: str) -> int:
     # the labs page opens on its own heading (its section names the check inside IRIS)
     iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>', iris, count=1, flags=re.S)
     assert n == 1, "the IRIS page has no first block"
+    iris = retitle(iris, "Knos for labs: the same check inside InterSystems IRIS", "The proof check inside a lab's own InterSystems IRIS, with its install steps and video.")
     (out / "labs").mkdir(exist_ok=True)
     (out / "labs" / "index.html").write_text(with_header(iris, "../", "labs/"), encoding="utf-8")
     head = head_of(door)

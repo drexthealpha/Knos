@@ -28,7 +28,7 @@ agents started, and the agent's code passing that test.
 2. The hash NEAR testnet locked for job-1112053239, and that the job paid:
 
    ```bash
-   curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"jobs.knos-swarm-1105.testnet","method_name":"get_job","args_base64":"eyJpZCI6ImpvYi0xMTEyMDUzMjM5In0="}}' | python3 -c 'import json,sys; j=json.loads(bytes(json.load(sys.stdin)["result"]["result"])); print(j["criteria_hash"], j["state"])'
+   curl -s https://rpc.testnet.fastnear.com -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"jobs.knos-swarm-1105.testnet","method_name":"get_job","args_base64":"eyJpZCI6ImpvYi0xMTEyMDUzMjM5In0="}}' | python3 -c 'import json,sys; j=json.loads(bytes(json.load(sys.stdin)["result"]["result"])); print(j["criteria_hash"], j["state"])'
    ```
 
    `ffa9d064744e7ea0cc326039f55a979a588e2c1cdb3f59368ff4a99c986057cb Paid`
@@ -65,9 +65,9 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | Criterion | What Knos has | Link |
 |---|---|---|
 | Complexity | 22 enabled production items | [iris/src/Knos/Iris/Production.cls L8-L55](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L8-L55) |
-| Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L226-L229](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L226-L229) |
-| Developer Experience | 4 commands from git clone to working check | [README.md L226-L229](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L226-L229) |
-| Applicability | 5 example stories | [README.md L40-L44](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L40-L44) |
+| Clarity of Instructions | 4 install commands (the contest rules require these commands) | [README.md L280-L283](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L280-L283) |
+| Developer Experience | 4 commands from git clone to working check | [README.md L280-L283](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L280-L283) |
+| Applicability | 5 example stories | [README.md L75-L79](https://github.com/drexthealpha/Knos/blob/main/README.md?plain=1#L75-L79) |
 | Usability | 1 page a visitor can use with no sign-in | [For labs](https://drexthealpha.github.io/Knos/labs/) |
 
 ### Who Knos is for

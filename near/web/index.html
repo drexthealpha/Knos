@@ -677,8 +677,9 @@ load();
       el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
         el("blockquote", {}, [`“${r.quote}”`]), el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])]),
     ];
-    if (!page) kids.push(el("p", { className: "fine", textContent: "The plain-words page about this paper could not be read just now." }));
-    if (page && page.kept) kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
+    const plainFits = !r.name || r.name === "hyperloglog";   // the plain-words page is the sample paper's
+    if (!page && plainFits) kids.push(el("p", { className: "fine", textContent: "The plain-words page about this paper could not be read just now." }));
+    if (page && page.kept && plainFits) kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }),
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it"), ". Private AI on NEAR AI Cloud, with its attestation: BLOCKED, no NEAR AI key is set yet."])]));
     look.replaceChildren(...kids);

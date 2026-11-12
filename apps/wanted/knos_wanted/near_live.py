@@ -351,22 +351,28 @@ def market() -> dict:
     return out
 
 
-def buy(side: str) -> dict:
-    """One $1.00 buy of Yes or No on the open claim, sent from the app's capped test account; the answer is the shares
-    bought, the new price and the transaction."""
+def buy(side: str, market_id: str = "") -> dict:
+    """One $1.00 buy of Yes or No on an open claim market (a claim's truth or demand market, else the open claim), sent
+    from the app's capped test account; the answer is the shares bought, the new price and the transaction."""
     if side not in ("yes", "no"):
         return {"ok": False, "why": "side: yes or no"}
+    if market_id and not (market_id.startswith(("job:job-", "demand:")) and len(market_id) <= 64):
+        return {"ok": False, "why": "no such market"}
     s = status()
     if not s["live"]:
         return {"ok": False, "why": "live runs are switched off"}
     if not _buying.acquire(blocking=False):
         return {"ok": False, "why": "a buy is running; try again in a few seconds"}
     try:
-        rec = json.loads((NEAR_WEB / "market.json").read_text(encoding="utf-8"))
-        mid = rec["open"]
+        mid = market_id or json.loads((NEAR_WEB / "market.json").read_text(encoding="utf-8"))["open"]
         _jobs()
         import common
         from common import call, view
+        m0 = (view(MARKET, "get_market", {"id": mid}) or {}).get("market")
+        if not m0:
+            return {"ok": False, "why": "no such market"}
+        if m0.get("outcome") is not None:
+            return {"ok": False, "why": "this market is settled: its result is final"}
         before = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
         was = int((view(MARKET, "get_market", {"id": mid}) or {}).get(side + "_price") or 0)
         args = {"receiver_id": MARKET, "amount": str(SHARE_BUY), "msg": json.dumps({"buy": {"id": mid, "side": side}})}
@@ -620,6 +626,26 @@ def last_proof() -> dict | None:
 _lasting = threading.Lock()
 
 
+_bal: dict = {}
+
+
+def _low_balance() -> str:
+    """Why no order can be paid now, when the buyer test account holds less than the largest order and a market's seed
+    (read at most once a minute); empty when it can."""
+    try:
+        if not _bal.get("at") or time.time() - _bal["at"] > 60:
+            _jobs()
+            import common
+            _bal.update(at=time.time(), units=common.ft_balance(LIVE))
+        need = AMOUNT_MAX * 1_000_000 + SEED
+        if _bal["units"] < need:
+            return (f"Knos's buyer test account holds {_bal['units'] / 1e6:,.2f} test USDC, under the {need / 1e6:,.2f} an order "
+                    "and its market need; it is being topped up. Try again later.")
+    except Exception:  # noqa: BLE001 - unread: the payment itself answers
+        return ""
+    return ""
+
+
 def _refresh_last() -> None:
     if not _lasting.acquire(blocking=False):
         return
@@ -653,11 +679,16 @@ def claim_look(url: str) -> dict:
         left = 86400 - int(time.time()) % 86400
         return {**out, "ready": False, "why": f"Today's {s['cap_today']} live proofs on NEAR testnet are used. The next can start at 00:00 UTC, or sooner after a new release, "
                 f"in {left // 3600} h {left % 3600 // 60} min."}
+    low = _low_balance()
+    if low:
+        return {**out, "ready": False, "why": low}
     if known["name"] != SAMPLE:   # its job runs when ordered: both agents and the locked test while the buyer watches
         mine = [p for k, p in _proofs.items() if k != "last" and p.get("claim") == known["name"]]
         last = max(mine, key=lambda p: p.get("at", 0)) if mine else None
-        return {**out, "last": {"holds": bool(last["verdict"].get("holds")), "job": last["job"], "record": last.get("release_url")} if last else None,
-                "reusable": False, "ready": True, "runs_on_order": True}
+        paid = ((_board.get("out") or {}).get("claims") or {}).get(known["name"], {}).get("last_proof")   # read from NEAR
+        lp = {"holds": bool(last["verdict"].get("holds")), "job": last["job"], "record": last.get("release_url")} if last else (
+            {"holds": True, "job": paid, "record": "https://testnet.nearblocks.io/address/" + MARKET} if paid else None)
+        return {**out, "last": lp, "reusable": False, "ready": True, "runs_on_order": True}
     job = _ready.get("job")
     mk = (job or {}).get("market")
     if not job and _ready.get("error"):
@@ -979,8 +1010,9 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
         steps.append(("Knos's fee from your amount", pay["fee"]["tx"], LIVE))
     if settle and settle.get("tx"):
         steps.append(("The claim's record on NEAR updated", settle["tx"], LIVE))
-    return {"buyer_usd": pay.get("usd"), "agent_usd": (pay.get("agent") or {}).get("usd"), "knos_usd": (pay.get("fee") or {}).get("usd"),
-            "agent_pay_url": (pay.get("agent") or {}).get("url"), "fee_url": (pay.get("fee") or {}).get("url"),
+    ok = bool(pay.get("ok"))   # a failed payment's transaction is never shown as a receipt
+    return {"buyer_usd": pay.get("usd") if ok else 0, "agent_usd": (pay.get("agent") or {}).get("usd") if ok else 0, "knos_usd": (pay.get("fee") or {}).get("usd") if ok else 0,
+            "agent_pay_url": (pay.get("agent") or {}).get("url") if ok else None, "fee_url": (pay.get("fee") or {}).get("url") if ok else None,
             "job_pay_url": last.get("release_url"), "log": action_log(steps)}
 
 
@@ -995,6 +1027,7 @@ def claim_reuse(job: str = "") -> dict:
 
 _snap: dict = {}
 _snapping = threading.Lock()
+_top: dict = {}             # the highest counts this server has answered, so a page never sees them go back
 _paid_log: list = []      # this server's own paid first proofs since it started: (unix time, test USDC moved, fee tx)
 
 
@@ -1069,7 +1102,11 @@ def counters() -> dict:
         return {"pending": True, "paid": [[round(x[0], 3), x[1]] for x in _paid_log]}
     since = int(base.get("as_of_ns") or 0) / 1e9
     new = [x for x in _paid_log if x[0] > since]
-    return {"proofs": base["proofs"] + len(new), "usd": round(base["usd"] + sum(x[1] for x in new), 6), "lost_usd": base["lost_usd"],
+    proofs, usd = base["proofs"] + len(new), round(base["usd"] + sum(x[1] for x in new), 6)
+    if proofs < _top.get("proofs", 0) or (proofs == _top.get("proofs") and usd < _top.get("usd", 0)):
+        proofs, usd = _top["proofs"], _top["usd"]   # a fresh read can lag what this server already counted: never go back
+    _top.update(proofs=proofs, usd=usd)
+    return {"proofs": proofs, "usd": usd, "lost_usd": base["lost_usd"],
             "read_at": base.get("read_at"), "since_read": len(new), "record": base.get("record"),
             "paid": [[round(x[0], 3), x[1]] for x in _paid_log],
             "by_claim": _by_claim(base.get("by_claim") or {SAMPLE: {"proofs": base["proofs"], "usd": base["usd"]}}, new),

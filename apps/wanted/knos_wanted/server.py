@@ -971,7 +971,8 @@ def make_handler(state: State):
                 from . import near_live
                 if not state.allow(self._client(), "near_market"):
                     return self._send(200, {"ok": False, "why": "five buys every 10 minutes from one address"}, headers=blink.CORS)
-                return self._send(200, near_live.buy(str(self._json().get("side") or "")), headers=blink.CORS)
+                b = self._json()
+                return self._send(200, near_live.buy(str(b.get("side") or ""), str(b.get("market") or "")), headers=blink.CORS)
             if u.path == "/api/near/claim/look":           # a pasted paper link: its claim, its market's price and the offer
                 from . import near_live
                 if not state.allow(self._client(), "near_look"):
