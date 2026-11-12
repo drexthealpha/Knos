@@ -20,6 +20,10 @@ services:
       KNOS_VERDICT_SECRET: "${KNOS_VERDICT_SECRET:?set KNOS_VERDICT_SECRET in iris/.env}"
       # KNOS_AI_MODE=local: the AI Hub agent asks the ollama service below through AI Hub's "openai" provider
       KNOS_LOCAL_LLM_URL: "${KNOS_LOCAL_LLM_URL:-http://ollama:11434/v1}"
+      # an OpenAI-compatible endpoint with a key (NEAR AI Cloud): the model and the key come from the shell only,
+      # never from a file (README: "The live AI Hub run"); unset, the default stays replay mode with no key
+      KNOS_LOCAL_MODEL: "${KNOS_LOCAL_MODEL:-qwen2.5:1.5b-instruct}"
+      KNOS_LOCAL_LLM_KEY: "${KNOS_LOCAL_LLM_KEY:-}"
     command: ["--after", "sh /home/irisowner/knos/iris/scripts/iris-password.sh"]
     ports:
       - "52773:52773"
