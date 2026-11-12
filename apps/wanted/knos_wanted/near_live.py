@@ -1310,7 +1310,7 @@ def _read_board() -> None:
             if d:
                 opened = int(d["id"].rsplit(":", 1)[1])
                 try:
-                    got = view(MARKET, "get_backed", {"claim": c, "from": opened, "until": opened + WEEK}) or {}
+                    got = view(MARKET, "get_outside", {"claim": c, "from": opened, "until": opened + WEEK}) or {}   # outside backers only
                 except Exception:  # noqa: BLE001 - not read this time
                     got = {}
                 d.update(opened=opened, closes=opened + WEEK, behind_usd=int(got.get("total") or 0) / 1e6, backs=got.get("count", 0), bar_usd=100)

@@ -107,9 +107,9 @@ function truthText(m, last) {
 }
 function demandText(m) {
   if (!m) return "opens soon";
-  if (m.outcome === true) return "Yes: 100 test USDC were put behind it within 7 days";
-  if (m.outcome === false) return "No: under 100 test USDC within 7 days";
-  return `${(+m.behind_usd).toFixed(2)} of 100 test USDC behind it this week, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)} (${thin(m)})`;
+  if (m.outcome === true) return +m.behind_usd >= 100 ? "Yes: 100 test USDC from outside backers within 7 days" : "Yes, settled on Knos's own test money before this rule";
+  if (m.outcome === false) return "No: under 100 test USDC from outside backers within 7 days";
+  return `${(+m.behind_usd).toFixed(2)} of 100 test USDC from outside backers this week, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)} (${thin(m)})`;
 }
 """.replace("__HOSTED__", HOSTED)
 
@@ -164,6 +164,8 @@ def claim_page(header: str, c: dict) -> str:
             f'<p id="traded" role="status" class="fine"></p>\n'
             f'<p class="fine">Priced by an automatic market maker (LMSR) in test USDC; the first settles by the locked test, the '
             f'second by the record of what was put behind the claim.</p>\n'
+            f'<h2>Backers</h2>\n<p id="backed" class="fine">Reading every backer from NEAR...</p>\n'
+            f'<table id="backers" data-market="{MARKET}" hidden><thead><tr><th>When (UTC)</th><th>Backer</th><th class="n">Test USDC</th></tr></thead><tbody></tbody></table>\n'
             f'<h2>Proofs and receipts</h2>\n<p id="proofs">Reading NEAR testnet\'s public record...</p>\n<table id="receipts" hidden><thead><tr><th>When (UTC)</th>'
             f'<th class="n">Fee, test USDC</th><th>Knos\'s fee transfer</th></tr></thead><tbody></tbody></table>\n'
             f'<h2>The record</h2>\n<p>Jobs: <a href="{EXPLORER}{JOBS}">{JOBS}</a>. Claim records: <a href="{EXPLORER}{MARKET}">{MARKET}</a>. '
@@ -200,9 +202,28 @@ def claim_page(header: str, c: dict) -> str:
       if (!id) continue;
       try { const v = await nearView(%s, "get_market", { id }); const traders = await nearView(%s, "get_traders", { id }).catch(() => null);
         const mm = { ...m[cell], id, trades: v.market.trades, traders, outcome: v.market.outcome, yes_cents: +v.yes_price / 10000 };
-        if (cell === "demand") { const g = await nearView(%s, "get_backed", { claim: name, from: m.demand.opened, until: m.demand.closes }); mm.behind_usd = +g.total / 1e6; }
+        if (cell === "demand") { const g = await nearView(%s, "get_outside", { claim: name, from: m.demand.opened, until: m.demand.closes }); mm.behind_usd = +g.total / 1e6; }
         $(cell).textContent = text(mm) + ". Read from NEAR by this browser."; } catch (err) { /* the server's reading stays */ }
     } });
+  // every backer of this claim, read by this browser from NEAR: Knos's own accounts are labelled, and only the others
+  // count toward the demand market
+  (async () => { const t = $("backers"), mk = t.dataset.market;
+    try {
+      const [rows, all] = await Promise.all([nearView(mk, "get_backers", { claim: name, from_index: 0, limit: 200 }), nearView(mk, "get_backs", { claim: name, from_index: 0, limit: 500 })]);
+      const tb = t.querySelector("tbody"), day = (s) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ");
+      let outside = 0;
+      for (const [at, amount, who, own] of rows) {
+        const tr = document.createElement("tr"), a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + who, textContent: own ? "Knos (test seed)" : who });
+        if (!own) outside += +amount / 1e6;
+        tr.append(Object.assign(document.createElement("td"), { textContent: day(at) }), Object.assign(document.createElement("td"), {}), Object.assign(document.createElement("td"), { className: "n", textContent: (+amount / 1e6).toFixed(2) }));
+        tr.children[1].append(a); tb.append(tr);
+      }
+      const early = all.length - rows.length, earlyUsd = all.slice(0, Math.max(0, early)).reduce((s, x) => s + +x[1] / 1e6, 0);
+      $("backed").textContent = `${outside.toFixed(2)} test USDC from outside backers, ${rows.length - rows.filter((x) => !x[3]).length} backings by Knos (test seed).` +
+        (early > 0 ? ` ${early} earlier backings (${earlyUsd.toFixed(2)} test USDC) were recorded before backers were named; all came from Knos's own test buyer.` : "");
+      t.hidden = rows.length === 0;
+    } catch (err) { $("backed").textContent = "The backers could not be read from NEAR just now."; }
+  })();
   let text = null, job = null;
   async function check(bytes, changed) {
     const mine = await sha256(bytes), locked = job && job.criteria_hash;

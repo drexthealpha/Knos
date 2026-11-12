@@ -17,6 +17,9 @@
 //! asks whether at least 100 test tokens are put behind proving the claim within 7 days of the market opening: anyone
 //! puts tokens behind a claim by sending them here (msg "back"), which records them on chain and passes them on to the
 //! agent and the fee account named, so the demand market settles from this contract's own record and nothing else.
+//! Each backing is recorded with its backer's account. Knos names its own accounts (`set_own`); a demand market counts
+//! only the tokens of other accounts, so Knos cannot back its own claims into a Yes. Backings recorded before this
+//! version carry no account and all came from Knos's own test buyer: they count as Knos's.
 //! The split is the contract's rule, not the sender's: 90% to the agent whose work passed, 10% to Knos (amount / 10,
 //! rounded down; the agent gets the rest), so every receipt on NEAR shows exactly that split.
 //! Each market counts its traders (accounts that bought, from this version on), so a thin market says it is thin.
@@ -93,6 +96,14 @@ fn backs() -> LookupMap<String, Vec<(u64, u128)>> {
 fn traders() -> LookupMap<String, u32> {
     LookupMap::new(b"t")
 }
+/// every backing with its backer (unix seconds, amount, account), from the version that records backers
+fn backers() -> LookupMap<String, Vec<(u64, u128, AccountId)>> {
+    LookupMap::new(b"w")
+}
+/// the accounts Knos names as its own (its test buyer, its fee account, its agents)
+fn own() -> LookupMap<AccountId, bool> {
+    LookupMap::new(b"o")
+}
 
 /// "demand:<claim>:<opened>" gives (claim, opened).
 fn demand_of(id: &str) -> Option<(String, u64)> {
@@ -161,6 +172,41 @@ impl Contract {
         out
     }
 
+    /// Every backing of a claim with its backer, oldest first: (unix seconds, amount, account, whether it is Knos's own).
+    pub fn get_backers(&self, claim: String, from_index: u32, limit: u32) -> Vec<(u64, U128, AccountId, bool)> {
+        let o = own();
+        backers().get(&claim).map(|v| v.iter().skip(from_index as usize).take(limit.min(500) as usize)
+            .map(|(t, a, who)| (*t, U128(*a), who.clone(), o.get(who).copied().unwrap_or(false))).collect()).unwrap_or_default()
+    }
+
+    /// The tokens other accounts than Knos's own put behind a claim between two times: what a demand market counts.
+    pub fn get_outside(&self, claim: String, from: u64, until: u64) -> Backed {
+        let o = own();
+        let mut out = Backed { total: U128(0), count: 0 };
+        for (at, amount, who) in backers().get(&claim).map(|v| v.as_slice()).unwrap_or(&[]) {
+            if *at >= from && *at <= until && !o.get(who).copied().unwrap_or(false) {
+                out.total = U128(out.total.0 + amount);
+                out.count += 1;
+            }
+        }
+        out
+    }
+
+    pub fn is_own(&self, account: AccountId) -> bool {
+        own().get(&account).copied().unwrap_or(false)
+    }
+
+    /// Knos (the owner) names an account as its own, or not.
+    pub fn set_own(&mut self, account: AccountId, is_own: bool) {
+        require!(env::predecessor_account_id() == self.owner, "only Knos names its own accounts");
+        let mut o = own();
+        if is_own {
+            o.insert(account, true);
+        } else {
+            o.remove(&account);
+        }
+    }
+
     /// Every time tokens were put behind a claim, oldest first: (unix seconds, amount), `limit` from `from_index`.
     pub fn get_backs(&self, claim: String, from_index: u32, limit: u32) -> Vec<(u64, U128)> {
         backs().get(&claim).map(|v| v.iter().skip(from_index as usize).take(limit.min(500) as usize).map(|(t, a)| (*t, U128(*a))).collect()).unwrap_or_default()
@@ -183,7 +229,7 @@ impl Contract {
         if let Some((claim, opened)) = demand_of(&id) {
             let now = env::block_timestamp() / 1_000_000_000;
             let until = opened + WEEK;
-            let got = self.get_backed(claim.clone(), opened, until.min(now));
+            let got = self.get_outside(claim.clone(), opened, until.min(now));   // outside backers only
             let yes = if got.total.0 >= DEMAND {
                 true
             } else if now > until {
@@ -194,7 +240,7 @@ impl Contract {
             let mut m = m.clone();
             m.outcome = Some(yes);
             self.markets.insert(id.clone(), m);
-            return PromiseOrValue::Value(format!("{id} settled {} by the record: {} put behind {claim} {} times", if yes { "Yes" } else { "No" }, got.total.0, got.count));
+            return PromiseOrValue::Value(format!("{id} settled {} by the record: {} put behind {claim} by outside backers {} times", if yes { "Yes" } else { "No" }, got.total.0, got.count));
         }
         // "job:<id>" follows a job of the jobs contract (paid only to the helper whose output passed its locked test);
         // any other id follows a milestone of `source` (released only by its named workflow's own token)
@@ -307,6 +353,10 @@ impl FungibleTokenReceiver for Contract {
                 let mut v = b.get(&claim).cloned().unwrap_or_default();
                 v.push((now, amount.0));
                 b.insert(claim.clone(), v);
+                let mut w = backers();
+                let mut bv = w.get(&claim).cloned().unwrap_or_default();
+                bv.push((now, amount.0, sender_id.clone()));
+                w.insert(claim.clone(), bv);
                 for (who, a) in to {
                     if a.0 > 0 {
                         // sent when this call ends (a promise runs once it is dropped)
@@ -334,6 +384,14 @@ mod tests {
             .current_account_id("market.testnet".parse().unwrap())
             .block_timestamp(secs * 1_000_000_000)
             .signer_account_id(who.parse().unwrap())
+            .build());
+    }
+
+    fn as_who(who: &str, secs: u64) {
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(who.parse().unwrap())
+            .current_account_id("market.testnet".parse().unwrap())
+            .block_timestamp(secs * 1_000_000_000)
             .build());
     }
 
@@ -376,6 +434,30 @@ mod tests {
         let mut k = c();
         send(&mut k, "buyer.testnet", 3_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", "2700000"], ["fee.testnet", "300000"]]}}));
         assert_eq!(k.get_backed("jump".into(), 0, u64::MAX).total.0, 3_000_000);
+    }
+
+    #[test]
+    fn knos_backing_its_own_claim_does_not_count_and_backers_are_listed() {
+        let mut k = c();
+        send(&mut k, "knos.testnet", SEED_MIN, serde_json::json!({"seed": {"id": "demand:jump:1000", "question": "q"}}));
+        as_who("knos.testnet", 1_500);
+        k.set_own("live.testnet".parse().unwrap(), true);
+        at("buyer.testnet", 2_000);
+        send(&mut k, "live.testnet", DEMAND, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", (DEMAND - DEMAND / 10).to_string()], ["fee.testnet", (DEMAND / 10).to_string()]]}}));
+        assert_eq!(k.get_outside("jump".into(), 0, u64::MAX).total.0, 0);
+        assert_eq!(k.get_backed("jump".into(), 0, u64::MAX).total.0, DEMAND);
+        let b = k.get_backers("jump".into(), 0, 10);
+        assert_eq!((b.len(), b[0].2.as_str(), b[0].3), (1, "live.testnet", true));
+        at("anyone.testnet", 2_100);
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| { let _ = k.resolve("demand:jump:1000".into()); })).is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "only Knos names")]
+    fn only_knos_names_its_own_accounts() {
+        let mut k = c();
+        as_who("someone.testnet", 1_000);
+        k.set_own("someone.testnet".parse().unwrap(), true);
     }
 
     #[test]
