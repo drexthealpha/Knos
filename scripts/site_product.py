@@ -29,6 +29,8 @@ th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--lin
 th { font-weight: 600; }
 td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 code, pre { font: 15px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace; }
+code { overflow-wrap: anywhere; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
 pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
 .btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
 .row a, td a { display: inline-flex; align-items: center; min-height: 44px; }
@@ -101,13 +103,13 @@ function truthText(m, last) {
   if (!m) return "opens with the first order";
   if (m.outcome === true) return "Holds: settled by the locked test";
   if (m.outcome === false) return "Fails: settled by the locked test";
-  return `Holds ${Math.round(m.yes_cents)}%, before the proof (${thin(m)})`;
+  return `not proved yet: its first order runs the locked test (${thin(m)})`;
 }
 function demandText(m) {
   if (!m) return "opens soon";
   if (m.outcome === true) return "Yes: 100 test USDC were put behind it within 7 days";
   if (m.outcome === false) return "No: under 100 test USDC within 7 days";
-  return `Yes ${Math.round(m.yes_cents)}% (${thin(m)}); ${(+m.behind_usd).toFixed(2)} of 100 behind so far, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)}`;
+  return `${(+m.behind_usd).toFixed(2)} of 100 test USDC behind it this week, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)} (${thin(m)})`;
 }
 """.replace("__HOSTED__", HOSTED)
 
@@ -121,7 +123,7 @@ def claims_page(header: str, cs: list[dict]) -> str:
             f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
             f'<p class="fine">Each claim has two markets on NEAR testnet, priced by an automatic market maker (LMSR): whether it holds, '
             f'settled by its locked test, and whether 100 test USDC are put behind proving it within 7 days, settled by the '
-            f'record on NEAR. Odds show only before the result.</p>\n'
+            f'record on NEAR.</p>\n'
             f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>\n'
             f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>Why NEAR refused it</th><th>Record</th></tr></thead><tbody>'
             + "".join(f'<tr><td>{e(a)}</td><td>{e(why)}</td><td><a href="https://testnet.nearblocks.io/txns/{tx}">{tx[:8]}...</a></td></tr>' for a, why, tx in ATTACKS)
@@ -132,7 +134,8 @@ def claims_page(header: str, cs: list[dict]) -> str:
   const by = (c && c.by_claim) || (c && c.proofs != null ? { hyperloglog: { proofs: c.proofs, usd: c.usd } } : {});
   const rows = [...document.querySelectorAll("#claims tbody tr")];
   for (const r of rows) { const x = by[r.dataset.claim] || { proofs: 0, usd: 0 }, m = (b && b.claims && b.claims[r.dataset.claim]) || {};
-    r.querySelector("[data-behind]").textContent = c ? `${usd(x.usd)} (${x.proofs.toLocaleString("en-US")} proofs)` : "not read";
+    const proofs = Math.max(x.proofs || 0, m.proofs || 0), behind = Math.max(+x.usd || 0, +m.behind_usd || 0);   // the larger of the two reads of NEAR
+    r.querySelector("[data-behind]").textContent = c || b ? `${usd(behind)} (${proofs.toLocaleString("en-US")} ${proofs === 1 ? "proof" : "proofs"})` : "not read";
     r.querySelector("[data-truth]").textContent = b ? truthText(m.truth, m.last_proof) : "not read";
     r.querySelector("[data-demand]").textContent = b ? demandText(m.demand) : "not read"; r.dataset.usd = x.usd; }
   rows.sort((a, b) => (+b.dataset.usd || 0) - (+a.dataset.usd || 0)).forEach((r) => r.parentNode.append(r));
@@ -160,7 +163,7 @@ def claim_page(header: str, c: dict) -> str:
             f'<tr><th>100 test USDC behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
             f'<p id="traded" role="status" class="fine"></p>\n'
             f'<p class="fine">Priced by an automatic market maker (LMSR) in test USDC; the first settles by the locked test, the '
-            f'second by the record of what was put behind the claim. Odds show only before the result.</p>\n'
+            f'second by the record of what was put behind the claim.</p>\n'
             f'<h2>Proofs and receipts</h2>\n<p id="proofs">Reading NEAR testnet\'s public record...</p>\n<table id="receipts" hidden><thead><tr><th>When (UTC)</th>'
             f'<th class="n">Fee, test USDC</th><th>Knos\'s fee transfer</th></tr></thead><tbody></tbody></table>\n'
             f'<h2>The record</h2>\n<p>Jobs: <a href="{EXPLORER}{JOBS}">{JOBS}</a>. Claim records: <a href="{EXPLORER}{MARKET}">{MARKET}</a>. '
@@ -182,7 +185,8 @@ def claim_page(header: str, c: dict) -> str:
           const tick = setInterval(() => { out.textContent = `Buying on NEAR testnet... ${((performance.now() - t0) / 1000).toFixed(1)} s`; }, 100);
           let x = null; try { x = await fetch(HOSTED + "/api/near/market/buy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side, market: mk.id }) }).then((r) => r.json()); } catch (e) { x = null; }
           clearInterval(tick); btn.disabled = false;
-          out.replaceChildren(x && x.ok ? `Bought ${x.shares} shares of ${side === "yes" ? "Yes" : "No"} for ${x.paid_usd.toFixed(2)} test USDC: ${side === "yes" ? "Yes" : "No"} went from ${x.was_c}%% to ${x.now_c}%%. ` : `Not bought: ${(x && x.why) || "no answer"}.`,
+          if (x && x.ok) nearView(%s, "get_traders", { id: mk.id }).then((n) => { $(cell).textContent = (cell === "truth" ? truthText : demandText)({ ...mk, traders: n }); }).catch(() => {});
+          out.replaceChildren(x && x.ok ? `Bought ${x.shares} shares of ${side === "yes" ? "Yes" : "No"} for ${x.paid_usd.toFixed(2)} test USDC, recorded on NEAR. ` : `Not bought: ${(x && x.why) || "no answer"}.`,
             ...(x && x.url ? [Object.assign(document.createElement("a"), { href: x.url, textContent: "The trade on NEAR" })] : []));
         });
         box.append(btn);
@@ -223,14 +227,14 @@ def claim_page(header: str, c: dict) -> str:
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
   const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
-  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} proofs paid, ${usd(x.usd)} in test USDC behind this claim, ${usd(c.lost_usd)} lost.`;
+  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "proof" : "proofs"} paid, ${usd(x.usd)} in test USDC behind this claim, ${usd(c.lost_usd)} lost.`;
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");
     for (const [tx, amount, at] of rows) { const tr = document.createElement("tr");
       tr.innerHTML = `<td>${new Date(at * 1000).toISOString().slice(0, 16).replace("T", " ")}</td><td class="n">${amount == null ? "new" : (+amount).toFixed(2)}</td><td><a href="https://testnet.nearblocks.io/txns/${tx}">${tx.slice(0, 10)}...</a></td>`;
       tb.append(tr); }
     $("receipts").hidden = false; }
-})();""" % (json.dumps(c["name"]), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET),
+})();""" % (json.dumps(c["name"]), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET),
               json.dumps(f"https://raw.githubusercontent.com/drexthealpha/Knos/main/near/agents/job/{c['test']}"), json.dumps(JOBS))
     return page(header, "../../", f"{c['plain']} | Knos", c["plain"], body, script, f"claim/{c['name']}/")
 

@@ -1004,10 +1004,14 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
     if cap and cap.get("tx"):
         steps.append(("Agent B's over-budget step, refused", cap["tx"], b))
     steps.append(("The job paid agent A for passing", txs.get("release"), CONFIG["relayer"]))
-    if (pay.get("agent") or {}).get("tx"):
-        steps.append(("Agent A's share of your amount", pay["agent"]["tx"], LIVE))
-    if (pay.get("fee") or {}).get("tx"):
-        steps.append(("Knos's fee from your amount", pay["fee"]["tx"], LIVE))
+    at, ft = (pay.get("agent") or {}).get("tx"), (pay.get("fee") or {}).get("tx")
+    if at and at == ft:   # through the claim market: one transaction splits it
+        steps.append(("Your amount, split between agent A and Knos (one transaction)", at, LIVE))
+    else:
+        if at:
+            steps.append(("Agent A's share of your amount", at, LIVE))
+        if ft:
+            steps.append(("Knos's fee from your amount", ft, LIVE))
     if settle and settle.get("tx"):
         steps.append(("The claim's record on NEAR updated", settle["tx"], LIVE))
     ok = bool(pay.get("ok"))   # a failed payment's transaction is never shown as a receipt
