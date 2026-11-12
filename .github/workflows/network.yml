@@ -13,7 +13,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", "near/web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/live_snapshot.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/site_pages.py", "scripts/demo_data.py", "terms/**", "scripts/upgrade_feed.py", "scripts/test_front_door_live.mjs", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
+    paths: ["web/**", "near/web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/live_snapshot.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/site_pages.py", "scripts/site_product.py", "near/claims/**", "scripts/demo_data.py", "terms/**", "scripts/upgrade_feed.py", "scripts/test_front_door_live.mjs", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
@@ -85,7 +85,7 @@ jobs:
         run: python scripts/task_board.py status --json > _site/tasks.json || python scripts/task_board.py status --json --empty > _site/tasks.json
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: the product only (the steps above write older pages, such as rank/): each sends to the front door
+      - name: "the product only: the steps above write older pages (rank/), each sent to the front door"
         run: python scripts/site_pages.py --sweep _site
       # /quality/: Lighthouse (phone and desktop) and axe (light and dark) on the pages of this very build, written to
       # _site/quality/quality.json with the commit; a page that cannot be measured is written as not measured
