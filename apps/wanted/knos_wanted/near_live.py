@@ -1333,6 +1333,11 @@ def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
     if not proof.get("ok"):
         why = str(proof.get("why") or (f"the next proof could not be readied: {_ready['error']}" if _ready.get("error") else "the proof stopped before its answer"))
         last = _proofs.get("last")
+        if not last:   # after a restart: the claim's last paid proof as NEAR records it
+            paid = ((_board.get("out") or {}).get("claims") or {}).get(look.get("name", SAMPLE), {}).get("last_proof")
+            if paid:
+                last = {"job": paid, "verdict": {"holds": True, "ai_reviewer": "not run again: a reused proof, read from NEAR"},
+                        "release_url": "https://testnet.nearblocks.io/address/" + MARKET}
         if last and (("live runs" in why and "are used" in why) or "still being readied" in why):   # no live run now: the last verified proof, reused and marked so, no money moved
             return {"ok": True, "reused": True, "job": last["job"], "claim": look.get("quote"), "verdict": last["verdict"],
                     "code": "https://knos.onrender.com/api/near/claim/code", "first_proof": last.get("release_url"), "cap": None,
