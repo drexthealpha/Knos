@@ -18,7 +18,7 @@ AGENT_GAS = "10 Tgas"
 
 def run(name: str, solution: str, job: str) -> dict:
     agent = CONFIG["agents"][name]
-    out = HERE / "out" / name
+    out = HERE / "out" / job / name   # one folder per job, so jobs of different claims run side by side
     out.mkdir(parents=True, exist_ok=True)
     (out / "solution.py").write_text(solution, encoding="utf-8")
     h = sha256_file(out / "solution.py")

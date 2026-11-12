@@ -80,7 +80,9 @@ def check(job_id: str, release: bool = True) -> dict:
     names = {v: k for k, v in CONFIG["agents"].items()}
     for a in job["attempts"]:
         r = {"agent": a["agent"], "output_sha256": a["output_sha256"]}
-        f = HERE / "out" / names.get(a["agent"], "?") / "solution.py"
+        f = HERE / "out" / job_id / names.get(a["agent"], "?") / "solution.py"
+        if not f.is_file():   # jobs answered before answers had a folder per job
+            f = HERE / "out" / names.get(a["agent"], "?") / "solution.py"
         if not f.is_file() or sha256_file(f) != a["output_sha256"]:
             r.update(passed=False, reason="the output file is not the one submitted")
         else:
