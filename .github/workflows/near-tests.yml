@@ -18,6 +18,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: |
+            near/market
             near/contract
             near/mock-usdc
             near/sandbox
@@ -28,6 +29,17 @@ jobs:
           cargo install cargo-near --version 0.22.0 --locked
       - name: near/scripts/verify.sh
         run: bash near/scripts/verify.sh | tee near-tests.txt
+      - name: the claim market (near/market), its unit tests and its wasm
+        run: |
+          set -o pipefail
+          (cd near/market && cargo test 2>&1 | tee -a ../../near-tests.txt | tail -15)
+          (cd near/market && cargo near build non-reproducible-wasm --no-abi)
+          w=$(find "${CARGO_TARGET_DIR:-near/market/target}" near/market/target -name knos_market.wasm 2>/dev/null | grep /near/ | head -1); mkdir -p market-wasm; cp "$w" market-wasm/; sha256sum market-wasm/knos_market.wasm | tee -a near-tests.txt
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: market-wasm
+          path: market-wasm/
       - name: the committed wasm is the one in SHA256SUMS
         run: cd near/wasm && sha256sum -c SHA256SUMS
       - if: always()

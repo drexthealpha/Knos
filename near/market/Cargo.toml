@@ -15,6 +15,9 @@ near-contract-standards = "=5.30.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+[dev-dependencies]
+near-sdk = { version = "=5.30.0", features = ["unit-testing"] }
+
 [profile.release]
 codegen-units = 1
 opt-level = "z"
