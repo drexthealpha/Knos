@@ -86,8 +86,9 @@ async function nearView(contract, method, args) {
 }
 async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
 const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
-function truthText(m) {
+function truthText(m, last) {
   if (!m) return "opens with the first order";
+  if (m.outcome == null && last) return `Held in its last proof (${last}); the next proof's market: holds ${Math.round(m.yes_cents)}% before it runs (${thin(m)})`;
   if (m.outcome === true) return "Holds: settled by the locked test";
   if (m.outcome === false) return "Fails: settled by the locked test";
   return `Holds ${Math.round(m.yes_cents)}%, before the proof (${thin(m)})`;
@@ -122,7 +123,7 @@ def claims_page(header: str, cs: list[dict]) -> str:
   const rows = [...document.querySelectorAll("#claims tbody tr")];
   for (const r of rows) { const x = by[r.dataset.claim] || { proofs: 0, usd: 0 }, m = (b && b.claims && b.claims[r.dataset.claim]) || {};
     r.querySelector("[data-behind]").textContent = c ? `${usd(x.usd)} (${x.proofs.toLocaleString("en-US")} proofs)` : "not read";
-    r.querySelector("[data-truth]").textContent = b ? truthText(m.truth) : "not read";
+    r.querySelector("[data-truth]").textContent = b ? truthText(m.truth, m.last_proof) : "not read";
     r.querySelector("[data-demand]").textContent = b ? demandText(m.demand) : "not read"; r.dataset.usd = x.usd; }
   rows.sort((a, b) => (+b.dataset.usd || 0) - (+a.dataset.usd || 0)).forEach((r) => r.parentNode.append(r));
   $("as-of").textContent = c && c.read_at ? `Read from NEAR testnet's public record at ${c.read_at.replace("T", " ").replace("Z", " UTC")}.` : "NEAR testnet's record could not be read just now.";
@@ -157,9 +158,9 @@ def claim_page(header: str, c: dict) -> str:
   const name = %s;
   const board = getJSON("/api/near/claims");
   board.then(async (b) => { const m = (b && b.claims && b.claims[name]) || {};
-    $("truth").textContent = b ? truthText(m.truth) : "not read"; $("demand").textContent = b ? demandText(m.demand) : "not read";
+    $("truth").textContent = b ? truthText(m.truth, m.last_proof) : "not read"; $("demand").textContent = b ? demandText(m.demand) : "not read";
     // the same two markets, read again by this browser from NEAR itself
-    for (const [id, cell, text] of [[m.truth && m.truth.id, "truth", truthText], [m.demand && m.demand.id, "demand", demandText]]) {
+    for (const [id, cell, text] of [[m.truth && m.truth.id, "truth", (x) => truthText(x, m.last_proof)], [m.demand && m.demand.id, "demand", demandText]]) {
       if (!id) continue;
       try { const v = await nearView(%s, "get_market", { id }); const traders = await nearView(%s, "get_traders", { id }).catch(() => null);
         const mm = { ...m[cell], id, trades: v.market.trades, traders, outcome: v.market.outcome, yes_cents: +v.yes_price / 10000 };

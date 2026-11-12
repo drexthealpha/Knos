@@ -254,7 +254,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     plain = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", readme, flags=re.S)      # the contest's own sections
     parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", plain.split("\n---\n", 1)[0])[1:])] * 2))
     how, fudge, real = "How it works", "Why nobody can fudge the count", "Is it real?"
-    assert "](docs/reference/DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://knos.onrender.com/app/)" in parts["Try it in ten seconds"]
+    assert "](docs/reference/DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://drexthealpha.github.io/Knos/)" in parts["Try it in ten seconds"]   # the front door (Round 7: the old app left the public pages)
     assert "knos demand " in parts["From a terminal"] and "/api/check" in parts["From a terminal"]
     assert list(parts)[:2] == ["How it works today", how] and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself")
     assert parts[real].split("<!-- bench:today -->")[0].count("](docs/reference/DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]

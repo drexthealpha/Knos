@@ -1147,10 +1147,17 @@ def _read_board() -> None:
         jobs = sorted((i for i in ids if i.startswith("job:job-")), reverse=True)[:16]   # the job id holds its UTC time: newest first
         with ThreadPoolExecutor(8) as ex:
             got = list(ex.map(lambda mid: (mid, view(_jobs().CONFIG["contract"], "get_job", {"id": mid[4:]}) or {}), jobs))
+        paid = {}   # each claim's newest paid job among those read: its last proof, held
         for mid, j in got:
             c = hashes.get(tests.get(j.get("criteria_hash", ""), ""))
             if c and (c not in mine or mid[4:] > mine[c]):
                 mine[c] = mid[4:]
+            if c and j.get("state") == "Paid" and (c not in paid or mid[4:] > paid[c]):
+                paid[c] = mid[4:]
+        for p in [v for k, v in _proofs.items() if k != "last"]:
+            c = p.get("claim", SAMPLE)
+            if c not in paid or p["job"] > paid[c]:
+                paid[c] = p["job"]
         with ThreadPoolExecutor(8) as ex:
             views = dict(zip(mine, ex.map(lambda jid: _market_view("job:" + jid), mine.values())))
         truth = {c: v for c, v in views.items() if v}
@@ -1170,7 +1177,7 @@ def _read_board() -> None:
                 got = view(MARKET, "get_backed", {"claim": c, "from": opened, "until": opened + WEEK}) or {}
                 d.update(opened=opened, closes=opened + WEEK, behind_usd=int(got.get("total") or 0) / 1e6, backs=got.get("count", 0), bar_usd=100)
             all_ = (view(MARKET, "get_backed", {"claim": c, "from": 0, "until": now}) or {}) if backs_on else {}
-            board[c] = {"truth": truth.get(c), "demand": d, "behind_usd": int(all_.get("total") or 0) / 1e6, "proofs": all_.get("count", 0)}
+            board[c] = {"truth": truth.get(c), "last_proof": paid.get(c), "demand": d, "behind_usd": int(all_.get("total") or 0) / 1e6, "proofs": all_.get("count", 0)}
         _board.update(at=time.time(), out={"claims": board, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "contract": MARKET})
     except Exception as e:  # noqa: BLE001 - the board held stays in use
         print("near_live board:", str(e)[:200], file=sys.stderr, flush=True)

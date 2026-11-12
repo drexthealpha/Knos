@@ -93,6 +93,9 @@ def main(site: str) -> int:
     (out / "prove" / "index.html").write_text(with_header(near, "../", "prove/"), encoding="utf-8")
     iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
     iris = iris.replace('"knos-iris.mp4"', '"../iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="../iris/poster.png"')
+    # the labs page opens on its own heading (its section names the check inside IRIS)
+    iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>', iris, count=1, flags=re.S)
+    assert n == 1, "the IRIS page has no first block"
     (out / "labs").mkdir(exist_ok=True)
     (out / "labs" / "index.html").write_text(with_header(iris, "../", "labs/"), encoding="utf-8")
     head = head_of(door)
