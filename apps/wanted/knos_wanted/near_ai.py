@@ -145,10 +145,12 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
     from . import near_attest
     t0, last = time.time(), ""
     for model in MODELS:   # the fallback only when the first model gives no answer; one answer either way
+        att = near_attest.verify_model(model)   # preflight: the attestation verified before the completion is sent
         body = json.dumps({"model": model, "max_tokens": MAX_TOKENS, "temperature": 0,
                            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}).encode()
         req = urllib.request.Request(BASE + "/chat/completions", method="POST", data=body,
-                                     headers={"Authorization": "Bearer " + _key(), "Content-Type": "application/json", "User-Agent": "knos-agent/1.0"})
+                                     headers={"Authorization": "Bearer " + _key(), "Content-Type": "application/json", "User-Agent": "knos-agent/1.0",
+                                              "x-no-aliasing": "true", "Accept-Encoding": "identity"})
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 raw = r.read()
@@ -169,12 +171,11 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
         text = (choice.get("message") or {}).get("content") or ""
         if isinstance(text, list):
             text = "".join(p.get("text", "") for p in text if isinstance(p, dict))
-        att = near_attest.verify_model(model)
-        sig = near_attest.check_signature(str(out.get("id") or ""), model, body, raw, _key(), att.get("signers") or []) if att.get("ok") else \
+        sig = near_attest.check_signature(str(out.get("id") or ""), model, body, raw, _key(), att) if att.get("ok") else \
             {"ok": False, "why": "the model's attestation did not verify"}
         ans = {"kind": kind, "model": model, "text": text, "id": out.get("id"), "tokens_in": tin, "tokens_out": tout, "cost_usd": cost,
                "finish": choice.get("finish_reason"), "seconds": round(time.time() - t0, 1), "at": int(time.time()),
-               "private": bool(att.get("ok") and sig.get("ok")), "attestation": {"ok": att.get("ok"), "url": att.get("url"), "sha256": att.get("sha256"),
+               "private": bool(att.get("ok") and sig.get("ok") and sig.get("model_bound")), "attestation": {"ok": att.get("ok"), "url": att.get("url"), "sha256": att.get("sha256"),
                                                                                  "why": att.get("why"), "not_checked": att.get("not_checked")},
                "signature": sig}
         with _lock:

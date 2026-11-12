@@ -16,6 +16,7 @@ import json
 import secrets
 import struct
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -101,30 +102,52 @@ def verify_model(model: str, max_age: int = 3600) -> dict:
             ms = [(c["signing_address"].lower(), await check_report(c, nonce)) for c in cands]
             return g, ms
         g, ms = asyncio.run(run())
-        out.update(ok=True, gateway=g, signers=sorted({a for a, _ in ms}), candidates=len(ms))
+        out.update(ok=True, gateway=g, signers=sorted({a for a, _ in ms}), candidates=len(ms),
+                   gateway_signer=str(body["gateway_attestation"].get("signing_address", "")).lower())
     except Exception as e:  # noqa: BLE001 - the page says what failed, and "private" is not claimed
         out.update(ok=False, why=f"{type(e).__name__}: {str(e)[:200]}")
     _cache[model] = out
     return out
 
 
-def check_signature(chat_id: str, model: str, request_body: bytes, response_body: bytes, key: str, signers: list[str]) -> dict:
-    """The reply's signature: its text must be sha256(request bytes):sha256(response bytes), and the address
-    recovered from it (EIP-191 personal message) one of the verified signers."""
+def check_signature(chat_id: str, model: str, request_body: bytes, response_body: bytes, key: str, att: dict) -> dict:
+    """The reply's signature, as NEAR AI's docs describe ("Response Signatures"): GET /v1/signature/{id} (a 404 is
+    asked again for a few seconds), the EIP-191 signer recovered from its text equal to its signing_address, and the
+    text equal to the exact bytes' hashes: "<model>:<request sha256>:<response sha256>" with a signer among the
+    verified model reports for a model-signed reply (provider_tee, the only kind that binds the reply to the model's
+    TEE), "<request sha256>:<response sha256>" with the verified gateway's signer for a gateway-signed one."""
     try:
-        q = urllib.parse.urlencode({"model": model, "signing_algo": "ecdsa"})
+        q = urllib.parse.urlencode({"signing_algo": "ecdsa"})
         req = urllib.request.Request(f"{BASE}/signature/{urllib.parse.quote(chat_id, safe='')}?{q}",
                                      headers={"Authorization": "Bearer " + key, "Accept": "application/json", "User-Agent": "knos-attest/1.0"})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            sig = json.loads(r.read())
-        want = f"{hashlib.sha256(request_body).hexdigest()}:{hashlib.sha256(response_body).hexdigest()}"
-        if sig.get("text") != want:
-            return {"ok": False, "why": "the signed text does not match the request and response bytes"}
+        sig = None
+        for n in range(4):
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    sig = json.loads(r.read())
+                if sig.get("text"):
+                    break
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    raise
+            time.sleep(1.5 * (n + 1))
+        if not sig or not sig.get("text"):
+            return {"ok": False, "why": "no signature was available for this reply"}
+        hashes = f"{hashlib.sha256(request_body).hexdigest()}:{hashlib.sha256(response_body).hexdigest()}"
+        kind = sig.get("signature_kind")
         from eth_account import Account
         from eth_account.messages import encode_defunct
         who = Account.recover_message(encode_defunct(text=sig["text"]), signature=sig["signature"]).lower()
-        if who != str(sig.get("signing_address", "")).lower() or who not in signers:
-            return {"ok": False, "why": "the signer is not a verified attestation's signing address"}
-        return {"ok": True, "signer": who}
+        if who != str(sig.get("signing_address", "")).lower():
+            return {"ok": False, "kind": kind, "why": "the signature does not match its signing address"}
+        if kind == "provider_tee":
+            if sig["text"] != f"{model}:{hashes}" or who not in (att.get("signers") or []):
+                return {"ok": False, "kind": kind, "why": "the model-signed text or signer does not match the verified model report"}
+            return {"ok": True, "kind": kind, "signer": who, "model_bound": True}
+        if kind == "gateway":
+            if sig["text"] != hashes or who != att.get("gateway_signer"):
+                return {"ok": False, "kind": kind, "why": "the gateway-signed text or signer does not match the verified gateway"}
+            return {"ok": True, "kind": kind, "signer": who, "model_bound": False}
+        return {"ok": False, "kind": kind, "why": "the signature's kind is not one the docs define"}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "why": f"{type(e).__name__}: {str(e)[:160]}"}
