@@ -1136,7 +1136,10 @@ _boarding = threading.Lock()
 
 def _market_view(mid: str) -> dict | None:
     from common import view
-    v = view(MARKET, "get_market", {"id": mid}) or {}
+    try:
+        v = view(MARKET, "get_market", {"id": mid}) or {}
+    except Exception:  # noqa: BLE001 - not read this time (a busy public RPC): the board keeps going
+        return None
     m = v.get("market")
     if not m:
         return None
@@ -1184,10 +1187,17 @@ def _read_board() -> None:
                 mine[c] = jid
         # every job market's claim, read once (a job's locked test never changes), its state read again while it can change
         jobs = sorted((i for i in ids if i.startswith("job:job-")), reverse=True)   # the job id holds its UTC time: newest first
-        todo = [m for m in jobs if m not in _job_claim or _job_claim[m][1] != "Paid"][:400]
-        with ThreadPoolExecutor(8) as ex:
-            for mid, j in ex.map(lambda mid: (mid, view(_jobs().CONFIG["contract"], "get_job", {"id": mid[4:]}) or {}), todo):
-                _job_claim[mid] = (hashes.get(tests.get(j.get("criteria_hash", ""), ""), ""), j.get("state", ""))
+        todo = [m for m in jobs if m not in _job_claim or _job_claim[m][1] != "Paid"][:40]   # 40 a read: the public RPC limits bursts
+
+        def job_of(mid: str):
+            try:
+                return mid, view(_jobs().CONFIG["contract"], "get_job", {"id": mid[4:]}) or {}
+            except Exception:  # noqa: BLE001 - read again at the next refresh
+                return mid, None
+        with ThreadPoolExecutor(3) as ex:
+            for mid, j in ex.map(job_of, todo):
+                if j is not None:
+                    _job_claim[mid] = (hashes.get(tests.get(j.get("criteria_hash", ""), ""), ""), j.get("state", ""))
         paid = {}   # each claim's newest paid job: its last proof, held
         for mid in jobs:
             c, state = _job_claim.get(mid, ("", ""))
@@ -1207,7 +1217,9 @@ def _read_board() -> None:
         for c in CLAIMS:
             dem = sorted((i for i in ids if i.startswith(f"demand:{c}:")), key=lambda i: int(i.rsplit(":", 1)[1]))
             d = _market_view(dem[-1]) if dem else None
-            if backs_on and status()["live"] and (d is None or d.get("outcome") is not None):
+            # a new demand market only when the chain lists none for the claim, or its newest was read as settled: a market
+            # that could not be read this time is never taken for a missing one (each seed costs 69.31 test USDC)
+            if backs_on and status()["live"] and (not dem or (d is not None and d.get("outcome") is not None)):
                 try:
                     mid = _seed_demand(c)
                     d = _market_view(mid) if mid else d
@@ -1215,9 +1227,15 @@ def _read_board() -> None:
                     print("near_live demand market:", str(e)[:160], file=sys.stderr, flush=True)
             if d:
                 opened = int(d["id"].rsplit(":", 1)[1])
-                got = view(MARKET, "get_backed", {"claim": c, "from": opened, "until": opened + WEEK}) or {}
+                try:
+                    got = view(MARKET, "get_backed", {"claim": c, "from": opened, "until": opened + WEEK}) or {}
+                except Exception:  # noqa: BLE001 - not read this time
+                    got = {}
                 d.update(opened=opened, closes=opened + WEEK, behind_usd=int(got.get("total") or 0) / 1e6, backs=got.get("count", 0), bar_usd=100)
-            all_ = (view(MARKET, "get_backed", {"claim": c, "from": 0, "until": now}) or {}) if backs_on else {}
+            try:
+                all_ = (view(MARKET, "get_backed", {"claim": c, "from": 0, "until": now}) or {}) if backs_on else {}
+            except Exception:  # noqa: BLE001 - not read this time
+                all_ = {}
             board[c] = {"truth": truth.get(c), "last_proof": paid.get(c), "demand": d, "behind_usd": int(all_.get("total") or 0) / 1e6, "proofs": all_.get("count", 0)}
         _board.update(at=time.time(), out={"claims": board, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "contract": MARKET})
     except Exception as e:  # noqa: BLE001 - the board held stays in use
