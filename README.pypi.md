@@ -581,7 +581,7 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    "Does it hold?" and "100 behind it in 7 days?". Open a claim and click "Check the test against NEAR" - see
    "VERIFIED"; click "Change one byte and check again" - see "NOT VERIFIED".
 
-The same run, recorded from the public pages, front door first: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (49.2 s, no still over 2.5 s by ffmpeg freezedetect; the waits for NEAR testnet and for the count are cut, each marked on screen; it ends on the agent call's answer, run during the recording), with
+The same run, recorded from the public pages, front door first: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (49.7 s, no still over 2.5 s by ffmpeg freezedetect; the waits for NEAR testnet and for the count are cut, each marked on screen; it ends on the agent call's answer, run during the recording), with
 screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [the claim](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-claim.png) and
 [what you got](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-3-got.png).
 
