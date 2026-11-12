@@ -673,6 +673,11 @@ first tag; `hackathon-submission` is the submitted commit).
 The NEAR contract can pay a milestone out on Solana devnet through NEAR Chain Signatures
 ([Paid on Solana by Chain Signatures](#paid-on-solana-by-chain-signatures)).
 
+**Check a PR, built for Colosseum.** The [pull request checker](https://drexthealpha.github.io/Knos/check/) and its pay
+step on Knos's programs on Solana devnet were built 14 Sep to 12 Oct 2026 for Colosseum (tag `v0.3.28`); they are not
+part of this NEAR entry. The NEAR work is the diff from `pre-hackathon` to `hackathon-submission`:
+https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission
+
 **Own older code and libraries (Q-005).** The hosted runner reuses the older app server in `apps/wanted/` (routes, rate
 limits) and its Render deploy. The libraries are listed under [Disclosure](#disclosure). Most of the code was written with Claude Code.
 

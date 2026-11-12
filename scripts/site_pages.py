@@ -3,6 +3,8 @@
 - index.html: the front door (web/door.html): one line, the paste box, one button, the sample answered on that screen.
 - prove/: the whole proof on NEAR (near/web/index.html), its files read from near/.
 - labs/: the same check inside a lab's InterSystems IRIS (web/iris/index.html), its video and poster read from iris/.
+- check/: the pull request checker exactly as entered at Colosseum (tag v0.3.28), from web/check-v0328/: the tag's own
+  check.js and check_rules.js beside it, and its paying step on Knos's programs on Solana devnet.
 - near/ and iris/: old addresses, sent on to prove/ and labs/ at once, with the front door's title and preview.
 
 Every page carries one header: the logo (the front door) and the product's pages. The source pages stay as they are
@@ -17,7 +19,7 @@ from pathlib import Path
 import site_product
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = [("claims/", "Claims"), ("prove/", "Prove"), ("agents/", "For agents"), ("labs/", "For labs")]
+PAGES = [("claims/", "Claims"), ("prove/", "Prove"), ("agents/", "For agents"), ("labs/", "For labs"), ("check/", "Check a PR")]
 # the product's pages; every other page of the build leaves the published site, each old address sent to the front door
 KEEP = {"index.html", "404.html", "privacy.html", "near/embed.html"}
 CSS = ("#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }\n"   # the Prove page's Claims link sits in its sentence
@@ -111,6 +113,18 @@ def main(site: str) -> int:
     iris = retitle(iris, "Knos for labs: the same check inside InterSystems IRIS", "The proof check inside a lab's own InterSystems IRIS, with its install steps and video.")
     (out / "labs").mkdir(exist_ok=True)
     (out / "labs" / "index.html").write_text(with_header(iris, "../", "labs/"), encoding="utf-8")
+    # the checker as entered at Colosseum: the tag's page and files, under the one header, dated as the build
+    chk = (ROOT / "web" / "check-v0328" / "index.html").read_text(encoding="utf-8")
+    built = re.search(r'datetime="(\d{4}-\d{2}-\d{2})"', (out / "check" / "index.html").read_text(encoding="utf-8"))
+    chk = chk.replace("KNOS_BUILD_DATE", built.group(1) if built else "2026-11-12")
+    chk, n = re.subn(r'<header class="bar">.*?</header>', lambda m: header("../", "check/"), chk, count=1, flags=re.S)
+    assert n == 1, "the check page has no header to replace"
+    chk = chk.replace("</head>", f'<style id="kh-css">\n{CSS}</style>\n</head>', 1)
+    (out / "check" / "index.html").write_text(chk, encoding="utf-8")
+    for f in (ROOT / "web" / "check-v0328").rglob("*.js"):   # the tag's check.js and every module it loads (share, badge, motion)
+        to = out / "check" / f.relative_to(ROOT / "web" / "check-v0328")
+        to.parent.mkdir(parents=True, exist_ok=True)
+        to.write_bytes(f.read_bytes())
     head = head_of(door)
     (out / "near" / "index.html").write_text(redirect("../prove/", head), encoding="utf-8")
     (out / "iris" / "index.html").write_text(redirect("../labs/", head), encoding="utf-8")

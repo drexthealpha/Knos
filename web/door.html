@@ -24,6 +24,7 @@
   if (/^(near|near-flow|who)$/.test(name)) location.replace("prove/");
   else if (name === "iris") location.replace("labs/");
   else if (/^check(-a-pull-request)?$/.test(name)) location.replace("check/" + (h.startsWith("#check=") && h.length > 7 ? h : ""));
+  else if (/^(install|claim)$/.test(name)) location.replace("check/" + h);   // the Colosseum entry's install and pay steps
   else if (name && !/^(home|k-q)$/.test(name)) location.replace("app.html" + h); };
   go(); addEventListener("hashchange", go); })();
 </script>
@@ -81,7 +82,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     <p class="cost"><b>Today:</b> checking one paper by hand costs $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard and others, 2023</a>). <b>Knos:</b> under a minute on NEAR, for the test USDC you put behind the claim.</p>
   </section>
   <section class="below" aria-label="How it works">
-    <p>Two agents write code against a test locked on NEAR testnet (test USDC: play dollars there). The one whose code passes is paid, and the result is kept on NEAR, so a second check is free.</p>
+    <p>Two agents write code against a test locked on NEAR testnet. The one whose code passes is paid, and the result is kept on NEAR, so a second check is free.</p>
     <p id="count">Live from NEAR testnet: reading the record...</p>
     <p><a href="prove/">Order a proof</a> · <a href="labs/">The same check inside InterSystems IRIS</a></p>
   </section>

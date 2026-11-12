@@ -50,13 +50,20 @@ def test_the_root_is_the_demand_check_alone(built):
 
 def test_one_app_app_html_sends_old_links_on_and_the_check_is_its_own_page(built):
     # the older pages left the product: each old address sends a visitor to the front door
-    for old in ("app.html", "tools.html", "wanted.html", "check/index.html", "demo/index.html", "faq.html"):
+    for old in ("app.html", "tools.html", "wanted.html", "demo/index.html", "faq.html"):
         if (built / old).is_file():
             stub = (built / old).read_text(encoding="utf-8")
             assert 'http-equiv="refresh"' in stub and 'content="noindex"' in stub and 'id="view-check"' not in stub, old
     assert not (built / "app-moved.html").exists()
     head = (built / "index.html").read_text(encoding="utf-8").split("</head>")[0]
     assert 'location.replace("check/"' in head and 'location.replace("app.html" + h)' in head and 'addEventListener("hashchange", go)' in head
+    # the checker as entered at Colosseum (tag v0.3.28) is a page of the product: the tag's own files, under the one header
+    chk = (built / "check" / "index.html").read_text(encoding="utf-8")
+    assert 'http-equiv="refresh"' not in chk and 'id="check-one"' in chk and '<header class="kh" id="kh">' in chk
+    assert "Built 14 Sep to 12 Oct 2026 for Colosseum" in chk and 'id="install"' in chk and 'id="claim"' in chk
+    assert chk.count("explorer.solana.com/address/") == 4 and 'from "./check.js"' in chk
+    for f in ("check.js", "check_rules.js", "share.js"):
+        assert (built / "check" / f).read_bytes() == (ROOT / "web" / "check-v0328" / f).read_bytes(), f
 
 
 def test_the_apps_home_holds_no_money_or_company_tools_and_paid_holds_them():
