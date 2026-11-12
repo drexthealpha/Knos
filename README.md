@@ -175,8 +175,8 @@ opened with on NEAR testnet, before any agent starts. Run a test on agent A's co
 | A Morris counter counts 100,000 within 10% in 12 bits ([Nelson and Yu, 2020](https://arxiv.org/abs/2010.02116)) | `test_morris.py`, `b91647f1...` | `near/agents/solutions/morris_a.py` | `Passed: 20 of 20 counts of 100,000 events within 10% ...` |
 
 Agent B's code (`fail_agent.py`, `*_b.py`) takes the usual shortcut and prints `Failed: ...` for each. Every verdict
-says what the test checked and what it did not (the claim's page), and an AI reviewer, when one is set, can only turn
-a pass into a fail (`final_verdict` in `apps/wanted/knos_wanted/near_live.py`); none is set today.
+says what the test checked and what it did not (the claim's page), and the AI reviewer can only turn
+a pass into a fail (`final_verdict` in `apps/wanted/knos_wanted/near_live.py`): claude-haiku-5-5 on NEAR AI Cloud.
 <!-- /entry:claims -->
 
 ## Why nobody can fudge the count
@@ -618,8 +618,16 @@ transactions):
 paper link is the only data a buyer sends. Every push runs the full test suite on GitHub
 ([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)), and the page shows its latest finished run, read from GitHub. Knos has no token.
 
-**Private AI.** The plain-words page is written by qwen2.5:1.5b-instruct in GitHub Actions. Running it on NEAR AI Cloud
-inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BLOCKED, no key is set yet.
+**AI on NEAR AI Cloud.** After the locked test passes, one model call reviews agent A's code before anyone is paid:
+anthropic/claude-haiku-5-5 on NEAR AI Cloud (fallback google/gemini-2.5-flash-lite), at most 400 tokens out. It may only
+reject a pass, which then pays nobody; it can never pass a fail. Answers are cached by the sha256 of their input.
+
+Its credit is $10 that cannot be topped up: 10 reviews an hour per visitor, 200 a day, and at $8 spent the fixed rule
+(the locked test alone) decides, and the verdict says so.
+
+[`/api/near/ai`](https://knos.onrender.com/api/near/ai) shows
+the dollars spent, from what figure, and the model's attestation report as NEAR AI Cloud returns it. The plain-words page
+is still written by qwen2.5:1.5b-instruct in GitHub Actions.
 
 **Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
 other 48. Nobody has paid real money for one yet.

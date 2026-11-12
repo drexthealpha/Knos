@@ -38,6 +38,8 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  KNOS_NEAR_AI_OFF: "1"   # no NEAR AI model call ever runs in CI (its $10 credit is for live orders)
 jobs:
   pytest:
     name: pytest (${{ matrix.os }}, ${{ matrix.python }}, ${{ matrix.part }})

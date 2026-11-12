@@ -723,7 +723,16 @@ def claim_look(url: str) -> dict:
     return out
 
 
-def claim_prove(agent: bool = False, claim: str = SAMPLE) -> dict:
+def ai_line(ai: dict | None) -> str:
+    """The verdict's one line about the AI reviewer: what it answered, or why the locked test alone decided."""
+    if not ai or ai.get("approve") is None:
+        return (ai or {}).get("note") or "none set: the locked test alone decided"
+    when = time.strftime("%d %b %H:%M UTC", time.gmtime(ai.get("at") or time.time()))
+    said = "approved the pass" if ai["approve"] else "rejected the pass"
+    return f"{ai['model']} on NEAR AI Cloud {said}: {ai.get('reason') or 'no reason given'}" + (f" (the cached answer of {when} for the same code and test)" if ai.get("cached") else "")
+
+
+def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> dict:
     """The ordered proof: the readied job's locked test, both agents' reruns, the payment to the one that passed, the
     verdict beside the paper's own number, and the claim's market settled by the job."""
     import re
@@ -766,6 +775,17 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE) -> dict:
     if not ready:
         return {"ok": False, "why": f"the next proof is still being readied after {20 if agent else 90} s; try again in a minute"}
     t0 = time.time()
+    ai = None
+    if any(a["passed"] for a in ready["attempts"]):   # one model call at most per order, after the test passed and before anyone is paid
+        from . import near_ai
+        try:
+            ai = near_ai.review(claim, CLAIMS[claim]["quote"], (ROOT / "near" / "agents" / "job" / CLAIMS[claim]["test"]).read_text(encoding="utf-8"),
+                                _solutions(claim)[0], visitor)
+        except Exception as e:  # noqa: BLE001 - a reviewer that breaks leaves the fixed rule
+            ai = {"approve": None, "note": f"the AI reviewer stopped ({type(e).__name__}): the locked test alone decided"}
+        if ai.get("approve") is False:   # stricter only: a pass it rejects is a fail, and the agent is not paid
+            return {"ok": False, "claim": claim, "ai": ai, "why": f"the AI reviewer on NEAR AI Cloud rejected the code that passed the test: {ai.get('reason')}. Nothing was paid",
+                    "verdict": {"holds": False, "ai_reviewer": ai_line(ai)}, "seconds": round(time.time() - t0, 1)}
     try:
         paid = _release(ready)
         win = next((a for a in ready["attempts"] if a["passed"]), {})
@@ -775,8 +795,8 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE) -> dict:
                "criteria_hash": ready["criteria_hash"], "check": k["check"], "claim": claim,
                "verdict": {"paper": k["paper_number"],
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", "").removeprefix("Passed: "),
-                           "holds": final_verdict(bool(win)), "checked": k["locked"], "not_checked": CLAIMS[claim]["not_checked"],
-                           "ai_reviewer": "none set: the locked test alone decided"}}
+                           "holds": final_verdict(bool(win), (ai or {}).get("approve")), "checked": k["locked"], "not_checked": CLAIMS[claim]["not_checked"],
+                           "ai_reviewer": ai_line(ai)}, "ai": ai}
         out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
         out["market"] = ready.get("market") or _open_market(ready["id"], CLAIMS[claim]["question"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
@@ -1304,12 +1324,12 @@ def claims_board() -> dict:
     return out
 
 
-def claim_flow(url: str, amount=None) -> dict:
+def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
     """The whole flow in one call, for an agent: look up the paper, prove its claim, pay, settle, and the receipt."""
     look = claim_look(url)
     if not look.get("known"):
         return {"ok": True, "look": look, "next": "no check for this paper yet: the quote says which checker fits"}
-    proof = claim_prove(agent=True, claim=look.get("name", SAMPLE))   # its own daily runs: page proofs never use them up
+    proof = claim_prove(agent=True, claim=look.get("name", SAMPLE), visitor=visitor)   # its own daily runs: page proofs never use them up
     if not proof.get("ok"):
         why = str(proof.get("why") or (f"the next proof could not be readied: {_ready['error']}" if _ready.get("error") else "the proof stopped before its answer"))
         last = _proofs.get("last")

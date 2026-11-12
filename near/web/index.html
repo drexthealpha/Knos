@@ -234,7 +234,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
       <tr><th>An invoice per task</th><td>Every proof ends in a receipt that prices the task and lists each step's network fee, every line linked on NEAR.</td></tr>
       <tr><th>The path to scale</th><td>Each new claim is one locked test. Every verified result is kept on NEAR and reused for free. The 2 Nov 2026 census found 38 of 12,010 companies to approach first.</td></tr>
       <tr><th>NEAR across chains</th><td>A bid can be quoted in USDC on Base through NEAR Intents, a quote only: NEAR Intents runs on mainnet, and with test money Knos moves nothing there.</td></tr>
-      <tr><th>The added cost of privacy</th><td>Not measured yet: private AI on NEAR AI Cloud needs a NEAR AI key that is not set (BLOCKED).</td></tr>
+      <tr><th>The added cost of privacy</th><td>Not measured yet: the AI reviewer runs on NEAR AI Cloud and each answer shows its tokens and dollars; a private model in a TEE has not been run beside it.</td></tr>
       <tr><th>Leaving</th><td>Nothing of yours is held: you pay only after the answer, so you can stop at any step and there is nothing to withdraw.</td></tr>
     </table>
   </section>
@@ -681,7 +681,7 @@ load();
     if (!page && plainFits) kids.push(el("p", { className: "fine", textContent: "The plain-words page about this paper could not be read just now." }));
     if (page && page.kept && plainFits) kids.push(el("section", { className: "card" }, [el("h2", { textContent: "In plain words" }),
       el("h3", { textContent: page.name }), el("p", { textContent: page.pitch }),
-      el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it"), ". Private AI on NEAR AI Cloud, with its attestation: BLOCKED, no NEAR AI key is set yet."])]));
+      el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it"), "."])]));
     look.replaceChildren(...kids);
     look.scrollIntoView({ block: "start" });
     order.addEventListener("click", () => prove(order, amount(), r));
@@ -702,7 +702,7 @@ load();
     add("ok", "1. The test is locked", [el("p", {}, [`The agents did not write it and cannot change it: ${look.locked || "count 30,000 visitors within 10%, in at most 1.5 kilobytes"}. `,
       out(look.check || "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
-    const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. A model on NEAR AI Cloud, with its attestation, needs a NEAR AI key that is not set yet (BLOCKED)." })]);
+    const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. Once the test passes, an AI reviewer on NEAR AI Cloud reads the code and may only reject it." })]);
     for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = sample ? "done for this order" : "running now"; }   // the sample's job was readied for this order; any other claim's runs now
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
@@ -731,7 +731,8 @@ load();
     add("ok", v.holds ? "4. Answer: Yes, the claim holds" : "4. Answer: No, the claim does not hold", [el("table", { className: "vs" }, [
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
       el("tr", {}, [el("th", { textContent: "Measured" }), el("td", { textContent: v.measured })]),
-      el("tr", {}, [el("th", { textContent: "The locked test" }), el("td", { textContent: look.locked || "passes within 10% error on 30,000 visitors, in at most 1.5 kilobytes" })])])]);
+      el("tr", {}, [el("th", { textContent: "The locked test" }), el("td", { textContent: look.locked || "passes within 10% error on 30,000 visitors, in at most 1.5 kilobytes" })]),
+      el("tr", {}, [el("th", { textContent: "AI reviewer" }), el("td", { textContent: (v.ai_reviewer || "none") + (r.ai && r.ai.cost_usd && !r.ai.cached ? ` (${r.ai.tokens_in + r.ai.tokens_out} tokens, $${r.ai.cost_usd.toFixed(4)}, it can only reject)` : r.ai && r.ai.approve != null ? " (it can only reject)" : "") })])])]);
     const tryN = el("input", { type: "number", value: "100000", min: "1000", max: "100000", step: "1000", "aria-label": "Visitors to count", style: "width:9em" });
     const tryBtn = el("button", { type: "button", className: "go", textContent: "Count them with your code" });
     const tryOut = el("p", { role: "status" });

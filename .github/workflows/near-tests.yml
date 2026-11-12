@@ -9,6 +9,8 @@ on:
 permissions:
   contents: read
 concurrency: {group: near-tests, cancel-in-progress: true}
+env:
+  KNOS_NEAR_AI_OFF: "1"   # no NEAR AI model call ever runs in CI (its $10 credit is for live orders)
 jobs:
   verify:
     runs-on: ubuntu-latest
