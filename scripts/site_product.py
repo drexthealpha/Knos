@@ -79,7 +79,18 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
 LIVE_JS = """const HOSTED = "__HOSTED__";
 const $ = (id) => document.getElementById(id);
 const usd = (n) => (+n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
-async function getJSON(path) { try { const r = await fetch(HOSTED + path); return r.ok ? await r.json() : null; } catch (e) { return null; } }
+// the board and the counters are also files of this site, written by every Pages build (data/): a live answer within
+// 1.2 s is used, else the file is shown at once, with its own read time, so a press never waits on a sleeping server
+const SITE_ROOT = (document.querySelector("#kh .logo") || location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };
+async function getJSON(path) {
+  const live = (async () => { try { const r = await fetch(HOSTED + path); return r.ok ? await r.json() : null; } catch (e) { return null; } })();
+  if (!CACHED[path]) return live;
+  const file = fetch(new URL("data/" + CACHED[path], SITE_ROOT)).then((r) => r.ok ? r.json() : null).catch(() => null);
+  const quick = await Promise.race([live, new Promise((res) => setTimeout(res, 1200, "slow"))]);
+  if (quick && quick !== "slow") return quick;
+  const f = await file;
+  return f && Object.keys(f).length ? f : await live;
+}
 // NEAR testnet, read from this browser: no answer of Knos's server is trusted for these
 const RPCS = ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"];   // two public NEAR testnet RPCs
 async function nearView(contract, method, args) {

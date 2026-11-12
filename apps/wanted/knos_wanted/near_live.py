@@ -1236,8 +1236,13 @@ _job_claim: dict = {}   # "job:<id>" -> (its claim, its last state read)
 _boarding = threading.Lock()
 
 
+_settled: dict = {}   # a settled market never changes: read once, kept for good
+
+
 def _market_view(mid: str) -> dict | None:
     from common import view
+    if mid in _settled:
+        return _settled[mid]
     try:
         v = view(MARKET, "get_market", {"id": mid}) or {}
     except Exception:  # noqa: BLE001 - not read this time (a busy public RPC): the board keeps going
@@ -1250,6 +1255,8 @@ def _market_view(mid: str) -> dict | None:
     except Exception:  # noqa: BLE001 - an older contract counts no traders
         traders = None
     out = {"id": mid, "question": m.get("question"), "trades": m.get("trades", 0), "traders": traders, "outcome": m.get("outcome")}
+    if m.get("outcome") is not None:
+        _settled[mid] = out
     if m.get("outcome") is None:   # the price only before the result
         out["yes_cents"] = round(int(v.get("yes_price") or 0) / 10_000, 1)
     return out

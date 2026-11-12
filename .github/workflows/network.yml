@@ -85,6 +85,11 @@ jobs:
         run: python scripts/task_board.py status --json > _site/tasks.json || python scripts/task_board.py status --json --empty > _site/tasks.json
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: the claims board and the counters as files (data/), shown at once by every page while the live answer loads
+        run: |
+          mkdir -p _site/data
+          curl -fsS -m 90 https://knos.onrender.com/api/near/claims -o _site/data/board.json || echo '{}' > _site/data/board.json
+          curl -fsS -m 90 https://knos.onrender.com/api/near/claim/counters -o _site/data/counters.json || echo '{}' > _site/data/counters.json
       - name: "the product only: the steps above write older pages (rank/), each sent to the front door"
         run: python scripts/site_pages.py --sweep _site
       # /quality/: Lighthouse (phone and desktop) and axe (light and dark) on the pages of this very build, written to
