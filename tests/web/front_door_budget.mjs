@@ -100,10 +100,14 @@ for (const scheme of ["light", "dark"]) {
     const low = texts.map((e) => { const s = getComputedStyle(e), fg = rgb(s.color), b = bg(e), L1 = lum(fg), L2 = lum(b);
       const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05), px = parseFloat(s.fontSize), large = px >= 24 || (px >= 18.66 && +s.fontWeight >= 700);
       return { t: e.textContent.trim().slice(0, 30), ratio: Math.round(ratio * 100) / 100, need: large ? 3 : 4.5 }; }).filter((x) => x.ratio < x.need);
-    return { words, height: document.documentElement.scrollHeight, wide: document.documentElement.scrollWidth, small, tiny, low,
+    const mk = document.querySelector(".kh .mark"), mb = mk && mk.getBoundingClientRect(), mc = mk && rgb(getComputedStyle(mk).backgroundColor), pg = bg(document.body);
+    const markRatio = mk ? (Math.max(lum(mc), lum(pg)) + 0.05) / (Math.min(lum(mc), lum(pg)) + 0.05) : 0;
+    const mark = { w: mb ? Math.round(mb.width) : 0, h: mb ? Math.round(mb.height) : 0, ratio: Math.round(markRatio * 10) / 10, masked: mk ? /mark\.svg/.test(getComputedStyle(mk).maskImage || getComputedStyle(mk).webkitMaskImage) : false };
+    return { mark, words, height: document.documentElement.scrollHeight, wide: document.documentElement.scrollWidth, small, tiny, low,
       h1: box("h1"), input: box("#paper"), go: box("#go"), sample: box("#sample"),
       primaries: [...document.querySelectorAll(".door button.go, .door .go")].filter(vis).length };
   }, { MIN_TEXT });
+  check(`${at} the Knos logo mark shows in the header (drawn in the text colour, 3:1 against the page)`, m.mark.w >= 20 && m.mark.h >= 20 && m.mark.masked && m.mark.ratio >= 3, m.mark);
   check(`${at} one plain line on the first screen`, m.h1 && m.h1.top >= 0 && m.h1.bottom <= H, m.h1);
   check(`${at} the paste box in the middle of the first screen (its centre between 25% and 75% of 844 px)`, m.input && m.input.mid >= H * 0.25 && m.input.mid <= H * 0.75, m.input);
   check(`${at} one primary button, on the first screen`, m.primaries === 1 && m.go && m.go.bottom <= H, { primaries: m.primaries, go: m.go });

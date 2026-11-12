@@ -34,12 +34,15 @@ body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.
 a { color: var(--accent); }
 .kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
 .kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
+.kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
 .kh nav { display: flex; flex-wrap: wrap; }
 .kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
 main { max-width: 760px; margin: 0 auto; padding: 0 16px; }
-.door { min-height: calc(100svh - 76px); display: flex; flex-direction: column; justify-content: center; padding: 8px 0 24px; box-sizing: border-box; }
-h1 { font: 600 clamp(28px, 6vw, 44px)/1.15 var(--head); letter-spacing: -.02em; margin: 0 0 20px; }
+.door { min-height: calc(100svh - 76px); padding: 4vh 0 24px; box-sizing: border-box; }
+.q { margin: 0 0 10px; color: var(--ink-2); }
+.cost { margin: 14px 0 0; }
+h1 { font: 600 clamp(28px, 6vw, 44px)/1.15 var(--head); letter-spacing: -.02em; margin: 0 0 16px; }
 form { display: flex; flex-wrap: wrap; gap: 8px; }
 label.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 input { flex: 1 1 260px; min-height: 52px; box-sizing: border-box; padding: 0 14px; font: 400 17px var(--text); color: var(--ink); background: var(--paper-2);
@@ -61,11 +64,12 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 </head>
 <body>
 <header class="kh" id="kh">
-  <a class="logo" href="./"><img src="brand/mark.svg" width="26" height="26" alt="">Knos</a>
+  <a class="logo" href="./"><span class="mark" aria-hidden="true" style="--m: url(brand/mark.svg)"></span>Knos</a>
   <nav aria-label="Pages"><a href="prove/">Prove</a><a href="labs/">For labs</a></nav>
 </header>
 <main>
   <section class="door" aria-label="Check a paper">
+    <p class="q">Why does good research take 17 years to reach people? Checking that it works is slow and costly. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></p>
     <h1>Paste a paper. Knos checks if its claim works.</h1>
     <form id="ask">
       <label class="sr" for="paper">A paper's link or DOI</label>
@@ -74,9 +78,10 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     </form>
     <button class="sample" id="sample" type="button">Try the sample: HyperLogLog, 2007</button>
     <div class="out" id="out" aria-live="polite"></div>
+    <p class="cost"><b>Today:</b> checking one paper by hand costs $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard and others, 2023</a>). <b>Knos:</b> under a minute on NEAR, for the test USDC you put behind the claim.</p>
   </section>
   <section class="below" aria-label="How it works">
-    <p>Two agents write code against a test locked on NEAR testnet. The one whose code passes is paid, and the result is kept on NEAR, so a second check is free.</p>
+    <p>Two agents write code against a test locked on NEAR testnet (test USDC: play dollars there). The one whose code passes is paid, and the result is kept on NEAR, so a second check is free.</p>
     <p id="count">Live from NEAR testnet: reading the record...</p>
     <p><a href="prove/">Order a proof</a> · <a href="labs/">The same check inside InterSystems IRIS</a></p>
   </section>
@@ -109,7 +114,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (!r.known) {
       const q = r.quote || {};
       out.replaceChildren(el("p", { className: "verdict", textContent: "Knos cannot prove this paper yet" }),
-        el("p", { textContent: `${r.title ? r.title + ". " : ""}What can check it today: ${q.checker || "a person who reruns it"}, ${q.price || ""}, ${q.time || ""}.` }),
+        el("p", { textContent: `${r.title ? r.title + ". " : ""}Today a person checks it: ${q.checker || "someone who reruns it"}. Price: ${q.price || "not published"}. Time: ${q.time || "not published"}.` }),
         el("p", {}, [link(q.source || "prove/", "Source")]), el("p", {}, [el("button", { className: "go", type: "button", textContent: "Try the sample instead", onclick: () => run(SAMPLE) })]));
       return;
     }

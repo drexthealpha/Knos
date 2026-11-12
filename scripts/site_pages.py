@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGES = [("prove/", "Prove"), ("labs/", "For labs")]
 CSS = (".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
        ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
+       ".kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }\n"
        ".kh nav { display: flex; flex-wrap: wrap; }\n"
        ".kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }\n"
        ".kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }\n")
@@ -26,7 +27,7 @@ CSS = (".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max
 def header(up: str, here: str = "") -> str:
     cur = ' aria-current="page"'
     links = "".join(f'<a href="{up}{p}"{cur if p == here else ""}>{name}</a>' for p, name in PAGES)
-    return (f'<header class="kh" id="kh">\n  <a class="logo" href="{up or "./"}"><img src="{up}brand/mark.svg" width="26" height="26" alt="">Knos</a>\n'
+    return (f'<header class="kh" id="kh">\n  <a class="logo" href="{up or "./"}"><span class="mark" aria-hidden="true" style="--m: url({up}brand/mark.svg)"></span>Knos</a>\n'
             f'  <nav aria-label="Pages">{links}</nav>\n</header>')
 
 
@@ -63,6 +64,9 @@ def main(site: str) -> int:
     (out / "door.html").unlink(missing_ok=True)
     near = (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")
     near = near.replace('fetch("latest.json"', 'fetch("../near/latest.json"').replace('href="embed.html"', 'href="../near/embed.html"')
+    # the proof page opens on the proof: its heading says what the page does, the front door asks the question
+    near, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">Prove a paper\'s claim on NEAR</h1>', near, count=1, flags=re.S)
+    assert n == 1, "the NEAR page has no first block"
     (out / "prove").mkdir(exist_ok=True)
     (out / "prove" / "index.html").write_text(with_header(near, "../", "prove/"), encoding="utf-8")
     iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
