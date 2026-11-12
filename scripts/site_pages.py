@@ -12,6 +12,7 @@ Every page carries one header: the logo (the front door) and the product's pages
 
     python3 scripts/site_pages.py <site dir>
 """
+import json
 import re
 import sys
 from pathlib import Path
@@ -91,9 +92,24 @@ def sweep(out: Path) -> int:
     return gone
 
 
+def door_claims() -> list[dict]:
+    """The claims registry as the front door answers from it: each claim, its paper (DOI, arXiv id) and its locked test
+    with the test file's sha256."""
+    import hashlib
+    out = []
+    for c in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]:
+        doi = str(c.get("doi") or "")
+        ax = re.search(r"arxiv\.(\d{4}\.\d{4,5})", doi, re.I)
+        test = ROOT / "near" / "agents" / "job" / c["test"]
+        out.append({k: c[k] for k in ("name", "plain", "quote", "paper", "authors", "year", "test")} |
+                   {"doi": doi, "arxiv": ax.group(1) if ax else "", "sha256": hashlib.sha256(test.read_bytes()).hexdigest()})
+    return out
+
+
 def main(site: str) -> int:
     out = Path(site)
     door = (ROOT / "web" / "door.html").read_text(encoding="utf-8")
+    door = door.replace("/*CLAIMS*/[]/*END*/", json.dumps(door_claims(), ensure_ascii=False).replace("</", "<\\/"))
     (out / "index.html").write_text(with_header(door, "", ""), encoding="utf-8")
     (out / "door.html").unlink(missing_ok=True)
     near = (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")

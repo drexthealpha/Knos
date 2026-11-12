@@ -3,17 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html): one line, the paste box, one
-     button and the sample, whose answer shows on this first screen. The full proof on NEAR is prove/, the IRIS check labs/. -->
-<title>Knos: will this paper work?</title>
-<meta name="description" content="Paste a paper. Knos checks its claim with a test locked on NEAR testnet and pays the agent whose code passes.">
+<!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html): one box, "Ask anything about
+     research". A question, a claim, a link or a paper is answered at once from what Knos has proved on NEAR testnet: the
+     claims registry is written into this page at build time (CLAIMS), their state comes from the site's own data/board.json
+     and then the live server. A paper Knos has no claim for is asked of the server. The visitor's own questions are kept in
+     their browser only (localStorage), so a second visit starts where the first ended. -->
+<title>Knos: ask anything about research</title>
+<meta name="description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
 <meta name="author" content="drexthealpha">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos: will this paper work?">
-<meta property="og:description" content="Paste a paper. Knos checks its claim with a test locked on NEAR testnet and pays the agent whose code passes.">
+<meta property="og:title" content="Knos: ask anything about research">
+<meta property="og:description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -52,6 +55,8 @@ input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid 
 button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-radius: 10px; cursor: pointer; }
 .go { flex: 0 0 auto; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); }
 .go[disabled] { opacity: .75; cursor: progress; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chips button { min-height: 44px; padding: 0 14px; background: transparent; color: var(--ink); border: 2px solid var(--line); font: 500 16px var(--text); }
 .sample { margin-top: 10px; background: transparent; color: var(--ink); border: 2px solid var(--line); font-weight: 500; width: 100%; text-align: left; }
 .out { margin-top: 16px; min-height: 1.5em; }
 .out .verdict { font: 600 24px/1.25 var(--head); margin: 0 0 6px; }
@@ -69,23 +74,20 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   <nav aria-label="Pages"><a href="prove/">Prove</a><a href="labs/">For labs</a></nav>
 </header>
 <main>
-  <section class="door" aria-label="Check a paper">
-    <p class="q">Why does good research take 17 years to reach people? Checking that it works is slow and costly. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></p>
-    <h1>Paste a paper. Knos checks if its claim works.</h1>
+  <section class="door" aria-label="Ask about research">
+    <p class="q">Good research takes 17 years to reach people (<a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, 2011</a>).</p>
+    <h1>Ask anything about research</h1>
     <form id="ask">
-      <label class="sr" for="paper">A paper's link or DOI</label>
-      <input id="paper" name="paper" placeholder="https://doi.org/..." autocomplete="off" spellcheck="false" inputmode="url">
-      <button class="go" id="go" type="submit">Check it</button>
+      <label class="sr" for="paper">Your question</label>
+      <input id="paper" name="paper" placeholder="A question, a claim, a link or a paper" autocomplete="off" spellcheck="false">
+      <button class="go" id="go" type="submit">Ask</button>
     </form>
-    <button class="sample" id="sample" type="button">Try the sample: HyperLogLog, 2007</button>
+    <button class="sample" id="sample" type="button">Try: HyperLogLog in 1.5 KB</button>
+    <div class="chips" id="mine" hidden></div>
     <div class="out" id="out" aria-live="polite"></div>
-    <p class="cost"><b>Today:</b> checking one paper by hand costs $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard and others, 2023</a>). <b>Knos:</b> under a minute on NEAR, for the test USDC you put behind the claim.</p>
+    <p class="cost">By hand: $330 to $763 a paper (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard, 2023</a>). Knos: under a minute.</p>
   </section>
-  <section class="below" aria-label="How it works">
-    <p>Two agents write code against a test locked on NEAR testnet. The one whose code passes is paid, and the result is kept on NEAR, so a second check is free.</p>
-    <p id="count">Live from NEAR testnet: reading the record...</p>
-    <p><a href="prove/">Order a proof</a> · <a href="labs/">The same check inside InterSystems IRIS</a></p>
-  </section>
+  <p id="count" class="fine">Reading NEAR testnet...</p>
 </main>
 <footer>
   <span>NEAR testnet, test money, no customers yet.</span><br>
@@ -93,45 +95,78 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 </footer>
 <script>
 (() => {
-  const HOSTED = "https://knos.onrender.com", SAMPLE = "https://doi.org/10.46298/dmtcs.3545";
+  const HOSTED = "https://knos.onrender.com";
+  const CLAIMS = /*CLAIMS*/[]/*END*/;   // the claims registry, written at build time by scripts/site_pages.py
   const $ = (id) => document.getElementById(id), out = $("out");
   const el = (tag, props, kids) => { const n = Object.assign(document.createElement(tag), props || {}); (kids || []).forEach((k) => k != null && n.append(k)); return n; };
-  const link = (href, text) => el("a", { href, textContent: text, target: href.startsWith("http") ? "_blank" : "", rel: "noopener" });
-  async function post(path, body) {
-    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60000);
-    try { const r = await fetch(HOSTED + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal });
-      return await r.json(); }
-    catch (e) { return { ok: false, why: "Knos's server did not answer. It may be waking up: try again in 30 s." }; }
-    finally { clearTimeout(t); }
+  const link = (href, text, cls) => el("a", { href, textContent: text, className: cls || "", target: href.startsWith("http") ? "_blank" : "", rel: "noopener" });
+  const json = (u, opt) => fetch(u, opt).then((r) => r.ok ? r.json() : null).catch(() => null);
+  // the state of every claim: the site's own file at once, then the live server
+  let board = null;
+  json("data/board.json").then((b) => { if (b && b.claims && !board) board = b; });
+  json(HOSTED + "/api/near/claims").then((b) => { if (b && b.claims) board = b; });
+  // the visitor's own questions, in this browser only
+  const KEY = "knos.memory";
+  const mem = (() => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; } })();
+  const remember = (q, name) => { try { mem.asked = [{ q, name, at: Date.now() }, ...(mem.asked || []).filter((x) => x.q !== q)].slice(0, 5); localStorage.setItem(KEY, JSON.stringify(mem)); } catch { /* no storage */ } };
+  const words = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9.]+/g, " ").split(" ").filter((w) => w.length > 2);
+  const STOP = new Set(words("the and for with does what how can are was this that from into its claim paper papers research about"));
+  function match(text) {
+    const s = text.trim(), id = s.toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").replace(/^doi:/, "").replace(/^https?:\/\/arxiv\.org\/(abs|pdf)\//, "arxiv:").replace(/v\d+$/, "");
+    for (const c of CLAIMS) if ((c.doi && id === c.doi.toLowerCase()) || (c.arxiv && id === "arxiv:" + c.arxiv)) return { c, by: "paper" };
+    if (/^https?:|^10\.\d|^arxiv:/i.test(s)) return null;   // a paper Knos has no claim for: the server says what a check would cost
+    const q = new Set(words(s).filter((w) => !STOP.has(w)));
+    let best = null, top = 0;
+    for (const c of CLAIMS) { const k = new Set(words([c.name.replace(/-/g, " "), c.plain, c.quote, c.paper, c.authors].join(" ")));
+      let n = 0; for (const w of q) if (k.has(w)) n += 1;
+      if (n > top) { top = n; best = c; } }
+    return top >= 1 ? { c: best, by: "words" } : { none: true };
   }
-  async function check(url) {
-    const go = $("go"), t0 = performance.now();
+  function answer(c, live) {
+    const m = (board && board.claims && board.claims[c.name]) || {}, last = live || m.last_proof && { holds: true, job: m.last_proof };
+    const holds = last ? last.holds !== false : null, behind = m.behind_usd != null ? `${(+m.behind_usd).toFixed(2)} test USDC from outside backers this week` : "";
+    out.replaceChildren(
+      el("p", { className: "verdict", textContent: holds === true ? "Yes, the claim holds" : holds === false ? "No, the claim fails" : "Not proved yet" }),
+      el("p", {}, [`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}. `, holds != null && last.job ? "Proved by its locked test " : "Its locked test is ", link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test),
+        ` (sha256 ${c.sha256.slice(0, 8)}...)`, holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),
+      el("p", {}, [link("prove/#paper=" + encodeURIComponent(c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : ""), holds != null ? "Prove it again" : "Prove it", "next"), " ", link(`claim/${c.name}/`, "The claim")]));
+  }
+  function none(text) {
+    out.replaceChildren(el("p", { className: "verdict", textContent: "Nothing proved matches yet" }),
+      el("p", { textContent: `Knos has proved ${CLAIMS.length} claims on NEAR testnet; none is about "${text.slice(0, 60)}". Ask about one of them, or paste a paper's link.` }),
+      el("p", {}, CLAIMS.map((c) => el("button", { type: "button", className: "sample", textContent: c.plain, onclick: () => ask(c.plain) }))));
+  }
+  async function ask(text) {
+    $("paper").value = text;
+    const go = $("go"), t0 = performance.now(), m = match(text);
+    if (m && m.c) {
+      remember(text, m.c.name);
+      if (board && board.claims) { answer(m.c); return; }
+      out.replaceChildren(el("p", { textContent: "Reading NEAR testnet..." }));   // no board yet: the server's last proof of this claim
+      const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: m.c.doi ? "https://doi.org/" + m.c.doi : "https://arxiv.org/abs/" + m.c.arxiv }) });
+      answer(m.c, r && r.last); return;
+    }
+    if (m && m.none) { remember(text, ""); none(text); return; }
     go.disabled = true; $("sample").disabled = true;
     const p = el("p", { textContent: "Reading the paper... 0.0 s" }); out.replaceChildren(p);
     const tick = setInterval(() => { p.textContent = `Reading the paper... ${((performance.now() - t0) / 1000).toFixed(1)} s`; }, 100);
-    const r = await post("/api/near/claim/look", { url });
+    const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: text }) });
     clearInterval(tick); go.disabled = false; $("sample").disabled = false;
-    if (!r.ok) { out.replaceChildren(el("p", { className: "verdict", textContent: "Not read" }), el("p", { textContent: r.why || "No answer." })); return; }
-    if (!r.known) {
-      const q = r.quote || {};
-      out.replaceChildren(el("p", { className: "verdict", textContent: "Knos cannot prove this paper yet" }),
-        el("p", { textContent: `${r.title ? r.title + ". " : ""}Today a person checks it: ${q.checker || "someone who reruns it"}. Price: ${q.price || "not published"}. Time: ${q.time || "not published"}.` }),
-        el("p", {}, [link(q.source || "prove/", "Source")]), el("p", {}, [el("button", { className: "go", type: "button", textContent: "Try the sample instead", onclick: () => run(SAMPLE) })]));
-      return;
-    }
-    const last = r.last || {};
-    out.replaceChildren(
-      el("p", { className: "verdict", textContent: last.holds === true ? "Yes, the claim holds" : last.holds === false ? "No, the claim fails" : "Not proved yet" }),
-      el("p", {}, [`${r.paper.split(":")[0]} (${r.authors}) says: ${r.paper_number}. `, last.holds != null ? "Its locked test on NEAR testnet agrees: " : "", last.job ? link(last.record || "prove/", `the last proof, ${last.job}`) : "", last.job ? "." : ""]),
-      el("p", {}, [el("a", { className: "next", href: "prove/#paper=" + encodeURIComponent(url), textContent: "Prove it yourself on NEAR" })]));
+    if (!r || !r.ok) { out.replaceChildren(el("p", { className: "verdict", textContent: "Not read" }), el("p", {}, [`Knos's server did not answer, so the paper was not read. It may be waking up. `, el("button", { type: "button", className: "go", textContent: "Try again", onclick: () => ask(text) })])); return; }
+    if (r.known) { const c = CLAIMS.find((x) => x.name === r.name); if (c) { remember(text, c.name); answer(c, r.last); return; } }
+    const q = r.quote || {};
+    remember(text, "");
+    out.replaceChildren(el("p", { className: "verdict", textContent: "Knos cannot prove this paper yet" }),
+      el("p", { textContent: `${r.title ? r.title + ". " : ""}Today a person checks it: ${q.checker || "someone who reruns it"}. Price: ${q.price || "not published"}. Time: ${q.time || "not published"}.` }),
+      el("p", {}, [link(q.source || "prove/", "Source")]));
   }
-  function run(url) { $("paper").value = url; check(url); }
-  $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } check(v); });   // an empty box: the sample, said as the sample
-  $("sample").addEventListener("click", () => run(SAMPLE));
-  fetch(HOSTED + "/api/near/claim/counters").then((r) => r.ok ? r.json() : null).catch(() => null).then((c) => {
-    $("count").textContent = c && c.proofs ? `Live from NEAR testnet: ${c.proofs.toLocaleString("en-US")} proofs paid, ${c.usd.toLocaleString("en-US", { style: "currency", currency: "USD" })} of Knos’s own test dollars settled, $0.00 lost.`.replace("$0.00 lost", `${(c.lost_usd || 0).toLocaleString("en-US", { style: "currency", currency: "USD" })} lost`)
-      : "Live from NEAR testnet: the record could not be read just now.";
-  });
+  $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } ask(v); });
+  $("sample").addEventListener("click", () => ask("Does HyperLogLog count a billion items in 1.5 KB?"));
+  // a second visit starts where the first ended: the visitor's last questions, from this browser
+  if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.slice(0, 40), onclick: () => ask(x.q) }))); }
+  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid, Knos's own test money.`; };
+  json("data/counters.json").then(counts);
+  json(HOSTED + "/api/near/claim/counters").then((c) => c ? counts(c) : $("count").textContent.startsWith("Reading") && ($("count").textContent = "NEAR testnet's record could not be read just now."));
 })();
 </script>
 </body>

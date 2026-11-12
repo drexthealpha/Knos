@@ -1,7 +1,7 @@
 // node tests/web/front_door_budget.mjs <site dir>
 // The front door's numbers (Round 7, S1), on a 390 x 844 phone with the CPU slowed 4 times, in light and dark:
 // the first screen holds one plain line, the paste box in the middle of the screen, one primary button and the sample,
-// whose answer appears on that same screen; the page is at most 3 screens tall and at most 150 words; body text is at
+// whose answer appears on that same screen; the page is at most 3 screens tall and at most 60 words, the box within its first 40 (Nielsen 2008: half leave within 10 s); body text is at
 // least 16 px; every touch target is at least 44 px (a link inside a sentence is exempt, as WCAG 2.2 2.5.8 exempts it);
 // text contrast meets WCAG 2.2 AA (4.5:1, or 3:1 for large text); every press shows a visible change within 100 ms
 // (a slower one is reported, and over 200 ms fails); LCP is at most 2.5 s and CLS at most 0.1.
@@ -23,7 +23,7 @@ cpSync(given, root, { recursive: true });
 execFileSync(process.env.PYTHON || "python3", [join(ROOT, "scripts", "site_pages.py"), root], { stdio: "inherit" });
 
 const W = 390, H = 844, DELAY = 900;
-const MAX_WORDS = 150, MAX_SCREENS = 3, MIN_TEXT = 16, MIN_TARGET = 44, PRESS_GOOD = 100, PRESS_FAIL = 200, LCP = 2500, CLS = 0.1;
+const MAX_WORDS = 60, ACTION_WITHIN = 40, FULL = 2500, MAX_SCREENS = 3, MIN_TEXT = 16, MIN_TARGET = 44, PRESS_GOOD = 100, PRESS_FAIL = 200, LCP = 2500, CLS = 0.1;
 let fails = 0;
 const check = (name, cond, detail) => { if (cond) console.log("ok  ", name); else { fails++; console.error("FAIL", name, detail === undefined ? "" : JSON.stringify(detail)); } };
 
@@ -67,6 +67,9 @@ async function open(scheme) {
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  // a phone on slow 4G (Lighthouse's profile: 150 ms round trip, 1.6 Mbps down, 750 kbps up)
+  await cdp.send("Network.enable");
+  await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 150, downloadThroughput: 1.6 * 1024 * 1024 / 8, uploadThroughput: 750 * 1024 / 8 });
   await page.goto(base, { waitUntil: "load" });
   await page.waitForLoadState("networkidle");   // a visitor presses once the page has settled
   await page.waitForTimeout(DELAY + 600);
@@ -89,6 +92,8 @@ for (const scheme of ["light", "dark"]) {
     const vis = (e) => { const r = e.getBoundingClientRect(), s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none"; };
     const box = (s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, mid: (r.top + r.bottom) / 2 }; };
     const words = document.body.innerText.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    const rg = document.createRange(); rg.setStart(document.body, 0); rg.setEndBefore(document.querySelector("#paper") || document.body.lastChild);
+    const before = rg.toString().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
     const texts = [...document.querySelectorAll("body *")].filter((e) => vis(e) && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !e.closest(".sr"));
     const small = texts.filter((e) => parseFloat(getComputedStyle(e).fontSize) < MIN_TEXT).map((e) => `${e.tagName} ${e.textContent.trim().slice(0, 30)} ${getComputedStyle(e).fontSize}`);
     const inline = (a) => a.tagName === "A" && a.parentElement && a.parentElement.tagName === "P" && a.parentElement.textContent.trim().length > a.textContent.trim().length + 8;
@@ -104,7 +109,7 @@ for (const scheme of ["light", "dark"]) {
     const mk = document.querySelector(".kh .mark"), mb = mk && mk.getBoundingClientRect(), mc = mk && rgb(getComputedStyle(mk).backgroundColor), pg = bg(document.body);
     const markRatio = mk ? (Math.max(lum(mc), lum(pg)) + 0.05) / (Math.min(lum(mc), lum(pg)) + 0.05) : 0;
     const mark = { w: mb ? Math.round(mb.width) : 0, h: mb ? Math.round(mb.height) : 0, ratio: Math.round(markRatio * 10) / 10, masked: mk ? /mark\.svg/.test(getComputedStyle(mk).maskImage || getComputedStyle(mk).webkitMaskImage) : false };
-    return { mark, words, height: document.documentElement.scrollHeight, wide: document.documentElement.scrollWidth, small, tiny, low,
+    return { mark, words, before, height: document.documentElement.scrollHeight, wide: document.documentElement.scrollWidth, small, tiny, low,
       h1: box("h1"), input: box("#paper"), go: box("#go"), sample: box("#sample"),
       primaries: [...document.querySelectorAll(".door button.go, .door .go")].filter(vis).length };
   }, { MIN_TEXT });
@@ -116,6 +121,7 @@ for (const scheme of ["light", "dark"]) {
   check(`${at} at most ${MAX_SCREENS} screens tall (${m.height} px)`, m.height <= MAX_SCREENS * H, m.height);
   check(`${at} no sideways scroll`, m.wide <= W, m.wide);
   check(`${at} at most ${MAX_WORDS} words (${m.words})`, m.words <= MAX_WORDS, m.words);
+  check(`${at} the main action within the first ${ACTION_WITHIN} words (${m.before} before the box)`, m.before <= ACTION_WITHIN, m.before);
   check(`${at} body text at least ${MIN_TEXT} px`, m.small.length === 0, m.small);
   check(`${at} touch targets at least ${MIN_TARGET} px`, m.tiny.length === 0, m.tiny);
   check(`${at} text contrast WCAG 2.2 AA`, m.low.length === 0, m.low);
@@ -125,7 +131,9 @@ for (const scheme of ["light", "dark"]) {
   // the sample: one press, its answer on this same screen
   const t1 = await press(page, "#sample");
   check(`${at} "Try the sample": a visible change within ${PRESS_FAIL} ms (${t1} ms; ${t1 != null && t1 <= PRESS_GOOD ? "within" : "over"} ${PRESS_GOOD} ms)`, t1 != null && t1 <= PRESS_FAIL, t1);
-  await page.waitForSelector("#out .verdict", { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelector("#out .verdict"), null, { timeout: 10000, polling: "raf" });
+  const full = await page.evaluate(() => Math.round(performance.now() - window.__v.press));
+  check(`${at} the sample's full answer within ${FULL} ms of the press (${full} ms)`, full <= FULL, full);
   const ans = await page.evaluate(() => { const r = document.querySelector("#out").getBoundingClientRect(), v = document.querySelector("#out .verdict"); return { text: v.textContent, top: Math.round(v.getBoundingClientRect().top), bottom: Math.round(v.getBoundingClientRect().bottom), scrollY }; });
   check(`${at} the sample's answer on the same first screen ("${ans.text}")`, ans.scrollY === 0 && ans.top >= 0 && ans.bottom <= H && /holds/.test(ans.text), ans);
   // the paste box and its button: another paper's answer
