@@ -1,0 +1,11 @@
+{
+  "name": "knos",
+  "version": "0.4.2-dev.1",
+  "description": "One real proof of a paper's claim on NEAR testnet, from the terminal: the claim, the locked test's sha256 and the NEAR receipt.",
+  "bin": { "knos": "knos.mjs" },
+  "files": ["knos.mjs", "README.md"],
+  "engines": { "node": ">=18" },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/drexthealpha/Knos.git", "directory": "npm/knos" },
+  "homepage": "https://drexthealpha.github.io/Knos/"
+}

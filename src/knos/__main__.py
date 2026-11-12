@@ -22,6 +22,9 @@ def main(argv: list[str] | None = None) -> int:
         from . import version
         sys.stdout.write(f"knos {version()}\n")
         return 0
+    if args and args[0] == "prove":   # one real proof on NEAR testnet, with nothing but the standard library
+        from . import near_prove
+        return near_prove.main(args[1:])
     if args and args[0] in FLOW_FIRST:
         from . import flow
         if flow.takes(args):
