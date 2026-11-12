@@ -1,0 +1,26 @@
+
+Node: 00c252546784, Instance: IRIS
+
+USER>
+
+Building dependency graph...Done.
+[USER|knos-iris]	Initialize START
+[USER|knos-iris]	Initialize SUCCESS
+[USER|knos-iris]	Reload START (/usr/irissys/ipm/knos-iris/0.1.9/)
+[USER|knos-iris]	Reload SUCCESS
+[knos-iris]	Module object refreshed.
+[USER|knos-iris]	Validate START
+[USER|knos-iris]	Validate SUCCESS
+[USER|knos-iris]	Compile START
+[USER|knos-iris]	Compile SUCCESS
+[USER|knos-iris]	Activate START
+[USER|knos-iris]	Configure STARTbash: line 1: rm -rf '/usr/irissys/knos/java/build/' && mkdir -p '/usr/irissys/knos/java/build/' && javac -d '/usr/irissys/knos/java/build/' -cp '/usr/irissys/dev/java/lib/1.8/*' '/usr/irissys/knos/iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java' && cd '/usr/irissys/knos/java/build/' && jar xf '/usr/irissys/dev/java/lib/1.8/intersystems-pex-1.0.0-shaded.jar' && jar cf '/usr/irissys/knos/java/knos-iris-pex.jar' -C '/usr/irissys/knos/java/build/' . && rm -rf '/usr/irissys/knos/java/build/': No such file or directory
+Java PEX jar not built (exit 127): the SolanaSubmit item needs a JDK
+
+06:25:04.056:Ens.Director: ERROR <Ens>ErrCanNotAcquireRuntimeLock: Could not acquire runtime global lock within timeout '30'
+06:25:04.080:Ens.Director: ERROR <Ens>ErrCanNotAcquireRuntimeLock: Could not acquire runtime global lock within timeout '30'
+[USER|knos-iris]	Configure SUCCESS
+[USER|knos-iris]	Activate SUCCESS
+USER>
+knos-iris 0.1.9
+USER>
