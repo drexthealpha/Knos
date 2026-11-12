@@ -37,11 +37,11 @@ await page.locator("#sample:not([disabled])").waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500);                       // the front door settles its first paint
 await page.screenshot({ path: path.join(out, "1-first.png") });
 mark("open");                                          // the video starts here: a caption on every screen, none held over 3 s
-await focus(".q", 0, "Why does good research take 17 years to reach people?", 2000);
-await focus("h1", 0, "Paste a paper: Knos checks if its claim works", 1500);
+await focus(".q", 0, "A good result waits 17 years in a paper before people use it", 2500);
+await focus("h1", 0, "Ask Knos anything about research", 1500);
 await page.locator("#sample").click();
 await page.locator("#out .verdict").waitFor({ timeout: 60000 });
-await focus("#out", 0, "The sample's answer, on the same first screen", 2000);
+await focus("#out", 0, "The answer at once: what is proved, by which locked test", 2000);
 await page.locator("#out a.next").click();
 await page.locator("#ask").waitFor({ timeout: 60000 });
 await page.waitForFunction(() => !/reading/.test((document.querySelector(".facts .counters") || {}).textContent || ""), null, { timeout: 30000 }).catch(() => {});   // the counters read before they are filmed
@@ -54,18 +54,18 @@ await page.screenshot({ path: path.join(out, "2-claim.png") });
 await focus("#look .card", 1, "The paper's own claim, word for word", 1000);
 await page.locator("#look .offer button").click();
 mark("order");
-await focus(null, 0, "Two agents ran it against the locked test; NEAR records and pays each step", 0);
+await focus(null, 0, "Now prove it live: two agents race a test locked on NEAR", 0);
 await page.locator(".receipt-card").waitFor({ timeout: 120000 });
 mark("receipt");
-await focus("#steps li", 2, "Agents work against a locked test; the cap blocks an over-budget step", 2000);
-await focus("#steps li", 3, "The answer: the paper's number beside the one measured now", 1500);
+await focus("#steps li", 2, "Agent B tries to overspend; NEAR refuses it", 2500);
+await focus("#steps li", 3, "It holds: the paper's number beside the one measured now", 2000);
 await focus("#steps li", 4, "", 0);                  // the count runs in view, its own clock ticking, no caption over it
 await page.locator("#steps li").nth(4).locator("button").click();
 mark("count");
 await page.locator("#steps li").nth(4).locator("[role=status]").filter({ hasText: /^There were|^Not counted/ }).waitFor({ timeout: 30000 });
 mark("counted");
 await focus("#steps li", 4, "The code you got, at work: 100,000 visitors counted in 1.5 kilobytes", 1500);
-await focus(".receipt-card", 0, "The receipt on NEAR testnet: your 10 test USDC, split between agent A and Knos", 2000);
+await focus(".receipt-card", 0, "The money moves: 90% to the agent whose code passed, 10% to Knos", 2500);
 await focus(".receipt-card .log", 0, "What each step cost, each with its record", 1000);
 await page.locator(".receipt-card button").click();
 mark("again");

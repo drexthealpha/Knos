@@ -84,7 +84,7 @@ def sweep(out: Path) -> int:
     gone = 0
     for p in sorted(out.rglob("*.html")):
         rel = p.relative_to(out).as_posix()
-        if rel in keep or rel.startswith(("near/story/", "near/vendor/")) or 'http-equiv="refresh"' in p.read_text(encoding="utf-8", errors="replace")[:600]:
+        if rel in keep or rel.startswith("near/vendor/") or 'http-equiv="refresh"' in p.read_text(encoding="utf-8", errors="replace")[:600]:
             continue
         to = "../" * rel.count("/") + moved.get(rel, "")
         p.write_text(redirect(to or "./", head), encoding="utf-8")
@@ -126,7 +126,7 @@ def main(site: str) -> int:
     # the labs page opens on its own heading (its section names the check inside IRIS)
     iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>', iris, count=1, flags=re.S)
     assert n == 1, "the IRIS page has no first block"
-    iris = retitle(iris, "Knos for labs: the same check inside InterSystems IRIS", "The proof check inside a lab's own InterSystems IRIS, with its install steps and video.")
+    iris = retitle(iris, "Knos for labs: the check inside InterSystems IRIS", "The proof check inside a lab's own InterSystems IRIS, with its install steps and video.")
     (out / "labs").mkdir(exist_ok=True)
     (out / "labs" / "index.html").write_text(with_header(iris, "../", "labs/"), encoding="utf-8")
     # the checker as entered at Colosseum: the tag's page and files, under the one header, dated as the build

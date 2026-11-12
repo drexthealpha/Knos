@@ -278,7 +278,8 @@ def claim_page(header: str, c: dict) -> str:
     $("receipts").hidden = false; }
 })();""" % (json.dumps(c["name"]), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET),
               json.dumps(f"https://raw.githubusercontent.com/drexthealpha/Knos/main/near/agents/job/{c['test']}"), json.dumps(JOBS))
-    return page(header, "../../", f"{c['plain']} | Knos", c["plain"], body, script, f"claim/{c['name']}/")
+    short = {"hyperloglog": "HyperLogLog", "jump-hash": "jump consistent hash", "xor-filter": "the xor filter", "morris-counter": "the Morris counter"}.get(c["name"], c["name"])
+    return page(header, "../../", f"Knos: does {short} hold?", c["plain"], body, script, f"claim/{c['name']}/")   # a title under 52 characters
 
 
 def agents_page(header: str) -> str:
@@ -313,7 +314,7 @@ def pricing_page(header: str) -> str:
 
 
 def status_page(header: str) -> str:
-    body = ("<h1>Status</h1>\n<table id=\"st\"><tbody>"
+    body = ("<h1>Status</h1>\n<p>Is Knos up right now? Each line is read live.</p>\n<table id=\"st\"><tbody>"
             "<tr><th>The proof service</th><td id=\"svc\">reading</td></tr>"
             "<tr><th>Live proofs today</th><td id=\"today\">reading</td></tr>"
             "<tr><th>NEAR testnet's record</th><td id=\"rec\">reading</td></tr>"
