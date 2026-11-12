@@ -1,0 +1,18 @@
+# Twice a day: the NEAR testnet accounts that keep the live demo up (near/balances.json), each against its floor, read
+# from NEAR's public RPC with no key (scripts/near_balances.py). The run fails, red, when one is under its floor, so a
+# low balance is seen before the demo stops; /status shows the same lines with a red line under a low one.
+name: balances
+on:
+  schedule:
+    - cron: "17 5,17 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  floors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: every balance against its floor
+        run: python3 scripts/near_balances.py

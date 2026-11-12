@@ -1,0 +1,65 @@
+{
+ "_": "The NEAR testnet accounts that keep the live demo up, each with its floor: /status shows each balance and a red line under its floor; balances.yml checks them twice a day and fails when one is low (scripts/near_balances.py). kind: near (the account's NEAR), allowance (its function-call key's NEAR allowance), usdc (its test USDC).",
+ "accounts": [
+  {
+   "account": "live.knos-swarm-1105.testnet",
+   "kind": "near",
+   "floor": 1.0,
+   "what": "Buyer, fees"
+  },
+  {
+   "account": "live.knos-swarm-1105.testnet",
+   "kind": "usdc",
+   "floor": 500.0,
+   "what": "Buyer, test USDC"
+  },
+  {
+   "account": "jobs.knos-swarm-1105.testnet",
+   "kind": "near",
+   "floor": 1.0,
+   "what": "Jobs contract"
+  },
+  {
+   "account": "market.knos-swarm-1105.testnet",
+   "kind": "near",
+   "floor": 1.0,
+   "what": "Market contract"
+  },
+  {
+   "account": "agent-a2.knos-swarm-1105.testnet",
+   "kind": "allowance",
+   "floor": 0.05,
+   "what": "Agent A key"
+  },
+  {
+   "account": "agent-b2.knos-swarm-1105.testnet",
+   "kind": "allowance",
+   "floor": 0.05,
+   "what": "Agent B key"
+  },
+  {
+   "account": "agent-a2.knos-swarm-1105.testnet",
+   "kind": "near",
+   "floor": 0.05,
+   "what": "Agent A"
+  },
+  {
+   "account": "agent-b2.knos-swarm-1105.testnet",
+   "kind": "near",
+   "floor": 0.05,
+   "what": "Agent B"
+  },
+  {
+   "account": "knos-payer-1102.testnet",
+   "kind": "near",
+   "floor": 0.5,
+   "what": "Fee account"
+  },
+  {
+   "account": "knos-swarm-1105.testnet",
+   "kind": "near",
+   "floor": 0.5,
+   "what": "Parent account"
+  }
+ ]
+}

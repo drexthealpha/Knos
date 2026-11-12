@@ -746,6 +746,23 @@ def claim_look(url: str) -> dict:
     return out
 
 
+_bal: dict = {}
+
+
+def balances() -> dict:
+    """The accounts that keep the demo up against their floors (scripts/near_balances.py), read at most every 10 minutes."""
+    if _bal.get("at") and time.time() - _bal["at"] < 600:
+        return _bal["out"]
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("near_balances", ROOT / "scripts" / "near_balances.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    rows = m.check()
+    out = {"ok": all(x["ok"] for x in rows), "rows": rows, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    _bal.update(at=time.time(), out=out)
+    return out
+
+
 def writer_line(w: dict | None) -> str:
     """The verdict's one line about who wrote agent A's code."""
     if not w:

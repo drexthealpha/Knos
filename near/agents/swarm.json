@@ -10,7 +10,7 @@
   "knos-own3-1102.testnet"
  ],
  "agents": {
-  "a": "agent-a.knos-swarm-1105.testnet",
+  "a": "agent-a2.knos-swarm-1105.testnet",
   "b": "agent-b2.knos-swarm-1105.testnet"
  },
  "shop": "shop.knos-swarm-1105.testnet",

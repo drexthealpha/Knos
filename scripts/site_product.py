@@ -305,13 +305,23 @@ def status_page(header: str) -> str:
             "<tr><th>Live proofs today</th><td id=\"today\">reading</td></tr>"
             "<tr><th>NEAR testnet's record</th><td id=\"rec\">reading</td></tr>"
             "<tr><th>Latest full test run</th><td id=\"ci\">reading</td></tr>"
-            "</tbody></table>\n<p class=\"fine\">Each line is read now, from the hosted server and GitHub.</p>")
+            "</tbody></table>\n<h2>Accounts that keep the demo up</h2>\n<table id=\"bal\"><tbody><tr><td>reading</td></tr></tbody></table>\n"
+            "<p class=\"fine\">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>")
     script = LIVE_JS + """(async () => {
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
   $("rec").textContent = c && c.read_at ? `${c.proofs} proofs paid, ${usd(c.lost_usd)} lost, read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
+  const b = await getJSON("/api/near/balances"), unit = { near: "NEAR", allowance: "NEAR allowance", usdc: "test USDC" };
+  const tb = document.querySelector("#bal tbody");
+  if (!b || !b.rows) { tb.innerHTML = "<tr><td>not read</td></tr>"; return; }
+  tb.replaceChildren(...b.rows.map((x) => { const tr = document.createElement("tr");
+    const a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + x.account, textContent: x.what });
+    const th = document.createElement("th"); th.append(a);
+    const td = Object.assign(document.createElement("td"), { textContent: `${x.value == null ? "not read" : x.value} ${unit[x.kind]}, floor ${x.floor}${x.ok ? "" : ": LOW"}` });
+    if (!x.ok) { td.style.color = "#c62828"; td.style.fontWeight = "600"; tr.style.borderBottom = "2px solid #c62828"; }
+    tr.append(th, td); return tr; }));
 })();"""
     return page(header, "../", "Knos status", "The proof service, today's live proofs and the latest test run, read live.", body, script, "status/")
 
