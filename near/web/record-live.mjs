@@ -1,13 +1,14 @@
-// A recording of one live /near/ run from its public URL, for near/web/knos-near.mp4: a fresh browser at 1280x800 opens
-// the first screen, asks "Will it work?" of the sample paper, orders the proof, and stays on each step long enough to
-// read it, with a caption saying what to watch: the cap, the answer, the receipt, reuse, the counters and the one call
-// for agents. It writes the times each step showed and 3 screenshots.
+// A recording of one live run from the public site, for near/web/knos-near.mp4: a fresh browser at 1280x800 opens the
+// front door, tries the sample (answered on that screen), goes on to the Prove page and orders the proof, then shows the
+// claims with their two markets, the browser's own check of a locked test against NEAR, and the one call for agents;
+// each screen holds long enough to read, with a caption saying what to watch. It writes the times each step showed and
+// 3 screenshots.
 //   node near/web/record-live.mjs <url> <out dir>   -> <out>/run.webm, <out>/marks.json, <out>/1-first.png, 2-claim.png, 3-got.png
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const [url = "https://drexthealpha.github.io/Knos/near/", out = "near-video"] = process.argv.slice(2);
+const [url = "https://drexthealpha.github.io/Knos/", out = "near-video"] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: "light", recordVideo: { dir: out, size: { width: 1280, height: 800 } } });
@@ -30,16 +31,19 @@ const focus = async (sel, nth, text, ms) => {
 // the one call for agents, run for real while the page is recorded; its answer is shown at the end
 const flow = fetch("https://knos.onrender.com/api/near/claim/flow", { method: "POST", headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ url: "https://doi.org/10.46298/dmtcs.3545", amount: 10 }) }).then((r) => r.json()).catch((e) => ({ ok: false, why: String(e) }));
+const site = url.replace(/[^/]*$/, "");
 await page.goto(url, { waitUntil: "load", timeout: 120000 });
-await page.locator("#go:not([disabled])").waitFor({ timeout: 60000 });
-await page.evaluate(() => scrollTo(0, 0));
-await page.waitForTimeout(1500);                       // the one page settles its first paint
+await page.locator("#sample:not([disabled])").waitFor({ timeout: 60000 });
+await page.waitForTimeout(1500);                       // the front door settles its first paint
 await page.screenshot({ path: path.join(out, "1-first.png") });
 mark("open");                                          // the video starts here: a caption on every screen, none held over 3 s
-await focus(null, 0, "Why does good research take 17 years to reach people?", 2000);
-await focus(".k-goal", 0, "Knos turns any research into a product billions of people use, in days, not years", 2000);
-await focus("#ask", 0, "An R&D lead pastes a paper link and asks: will it work?", 1000);
-await page.locator("#go").click();
+await focus(".q", 0, "Why does good research take 17 years to reach people?", 2000);
+await focus("h1", 0, "Paste a paper: Knos checks if its claim works", 1500);
+await page.locator("#sample").click();
+await page.locator("#out .verdict").waitFor({ timeout: 60000 });
+await focus("#out", 0, "The sample's answer, on the same first screen", 2000);
+await page.locator("#out a.next").click();
+await page.locator("#ask").waitFor({ timeout: 60000 });
 mark("click");
 await page.locator("#look .offer button").waitFor({ timeout: 60000 });
 mark("claim shown");
@@ -67,9 +71,19 @@ mark("again");
 await page.locator(".receipt-card [role=status]").filter({ hasText: /^Free|Not run/ }).waitFor({ timeout: 60000 });
 await focus(".receipt-card [role=status]", 0, "The same claim again: free, the first proof reused", 2000);
 await page.screenshot({ path: path.join(out, "3-got.png") });
-await focus("#iris h2", 0, "The same proof check inside a lab, on InterSystems IRIS", 2000);
-await focus(".facts .counters", 0, "Live counters, read from NEAR", 1000);
-await focus(".facts .snip", 0, "One call runs it all for an agent", 1000);
+await focus(".facts .counters", 0, "Live counters, read from NEAR", 1500);
+await focus("#t-why", 0, "Why Knos: the middleman it removes, and why a lab could not do this", 2000);
+await page.goto(site + "claims/", { waitUntil: "load" });
+await page.waitForFunction(() => ![...document.querySelectorAll("#claims td")].some((td) => td.textContent === "reading"), null, { timeout: 60000 });
+await focus("#claims", 0, "Four claims from real papers, each with two markets on NEAR: will it hold, will 100 test USDC back it", 2500);
+await page.goto(site + "claim/jump-hash/", { waitUntil: "load" });
+await page.locator("#verify").click();
+await page.locator("#verdict").filter({ hasText: /VERIFIED|Not checked/ }).waitFor({ timeout: 60000 });
+await focus("#verdict", 0, "Your browser checks the locked test against the hash NEAR locked: VERIFIED", 2000);
+await page.locator("#tamper").click();
+await focus("#verdict", 0, "Change one byte of the test: NOT VERIFIED", 2000);
+await page.goto(site + "agents/", { waitUntil: "load" });
+await focus("pre", 0, "One call runs it all for an agent", 1000);
 const answer = await flow;
 await page.evaluate((x) => {
   const pre = document.createElement("pre"); pre.id = "rec-flow";
@@ -77,7 +91,7 @@ await page.evaluate((x) => {
   const r = x.receipt || {};
   pre.textContent = JSON.stringify({ verdict: { holds: (x.verdict || {}).holds }, cap: { refused: (x.cap || {}).refused }, paid: x.paid, settled: x.settled,
     receipt: { buyer_usd: r.buyer_usd, agent_usd: r.agent_usd, knos_usd: r.knos_usd } }, null, 1);
-  document.querySelector(".facts .snip").after(pre);
+  document.querySelector("pre").after(pre);
 }, answer);
 await focus("#rec-flow", 0, "Part of the answer that call returned during this recording", 2000);
 mark("end");                                           // the video ends on the agent call's answer
