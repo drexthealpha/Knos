@@ -132,9 +132,17 @@ _ready: dict = {}
 _preparing = threading.Lock()
 
 
+_making = threading.Lock()   # the agents write their answers to one folder per agent: one job is made at a time
+
+
 def _make_job(claim: str = SAMPLE) -> dict:
     """One job of a claim, start to just before payment: posted with the claim's locked test, taken and answered by both
     agents, each answer run against the test; the passing one is named, nobody is paid yet; the claim's market opened."""
+    with _making:
+        return _make_job_now(claim)
+
+
+def _make_job_now(claim: str) -> dict:
     j = _jobs()
     posted_at = time.time()
     p = j.post({"bid": BID, "minutes": 240, "test": CLAIMS[claim]["test"]})
