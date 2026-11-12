@@ -647,7 +647,7 @@ load();
     const amountIn = el("input", { type: "number", id: "claim-amount", value: String(r.amount_default || 10), min: "1", max: String(r.amount_max || 100), step: "1", style: "width:7em" });
     const amount = () => Math.max(1, Math.min(r.amount_max || 100, Math.round(+amountIn.value || r.amount_default || 10)));
     const order = el("button", { type: "button", className: "go big", textContent: `Prove it with ${amount()} test USDC` });
-    amountIn.addEventListener("input", () => { order.textContent = `Prove it with ${amount()} test USDC`; });
+    amountIn.addEventListener("input", () => { const n = amount(), typed = +amountIn.value; order.textContent = `Prove it with ${n} test USDC` + (amountIn.value !== "" && typed === n ? "" : ` (1 to ${r.amount_max || 100} only)`); });
     order.dataset.buy = "";
     const kids = [
       el("section", { className: "card answer offer" }, [
@@ -764,9 +764,9 @@ load();
       proving2();
       const took = (performance.now() - t) / 1000;
       if (!x.ok) { said.textContent = `Not run: ${x.why || "no answer"}.`; again.disabled = false; return; }
-      const first = firstSeconds || x.saved.first_seconds;
+      const first = firstSeconds != null ? firstSeconds : x.saved.first_answer_seconds, upto = firstSeconds != null ? "from your press to its receipt" : "to its answer";
       said.scrollIntoView({ block: "center" });
-      said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s and 0 test USDC, against the first proof's ${first.toFixed(1)} s from your press to its receipt and ${tu(rc.buyer_usd)}. ` }),
+      said.replaceChildren(el("b", { textContent: `Free: Yes, in ${took.toFixed(1)} s and 0 test USDC, against the first proof's ${first.toFixed(1)} s ${upto} and ${tu(rc.buyer_usd)}. ` }),
         `No agent reran it and no test USDC moved: Knos reused the verified result of the first proof, ${x.reused}, and no agent was paid again. `,
         x.first_url ? out(x.first_url, "The first proof") : "");
     });

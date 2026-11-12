@@ -41,7 +41,7 @@ const ANSWERS = {
   "/api/near/claim/cap": () => ({ ok: true, refused: true, tried_units: 2, cap_units: 1, url: "https://example.org/tx" }),
   "/api/near/claim/finish": () => ({ pay: { ok: true }, settle: { ok: true, settled: true, url: "https://example.org/tx" },
     receipt: { job: "job-1", buyer_usd: 10, agent_usd: 0.2, knos_usd: 9.8, agent_pay_url: "https://example.org/a", fee_url: "https://example.org/f", log: { rows: [] } } }),
-  "/api/near/claim/reuse": () => ({ ok: true, reused: "job-1", saved: { first_seconds: 9 }, first_url: "https://example.org/tx" }),
+  "/api/near/claim/reuse": () => ({ ok: true, reused: "job-1", saved: { first_answer_seconds: 9 }, first_url: "https://example.org/tx" }),
   "/api/near/claim/try": () => ({ ok: true, counted: 98935, visitors: 100000, off_pct: 1.1, bytes: 1364, seconds: 2.4 }),
 };
 const browser = await chromiumOrSkip();

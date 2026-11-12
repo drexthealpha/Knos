@@ -512,7 +512,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
 5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network, and "Receipt for proof job-...: paid and
-   recorded on NEAR testnet in" those seconds: "You put behind the claim 10.00 test USDC", "Agent A's share
+   recorded on NEAR testnet N s after you pressed": "You put behind the claim 10.00 test USDC", "Agent A's share
    1.20 test USDC in all: 0.20 test USDC from your price (1 part in 49) plus the 1.00 the job itself paid for passing its locked test" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
@@ -520,7 +520,7 @@ On the public page (no install, no sign-in, no wallet, test money only):
 7. Below the run - see "Live from NEAR testnet, in Knos's own test dollars:" proofs paid, settled and lost, read from NEAR's public record
    (in full by a GitHub Action scheduled every 10 minutes, which GitHub may run later, plus the server's own confirmed payments since; the page says how old the full read is): each paid proof is one fee from the buyer's test account to Knos's (until 11 Nov a reused result was also charged one), and the dollars settled are those fees plus agent A's shares.
 
-The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (44.1 s, no screen held over 3 s; the waits for NEAR testnet and for the count are cut, and the video says so where each is cut; it ends on the agent call's answer, run during the recording), with
+The same run, recorded from the public page: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (38.2 s, no still of 2.5 s by ffmpeg freezedetect; the waits for NEAR testnet and for the count are cut, each marked on screen; it ends on the agent call's answer, run during the recording), with
 screenshots [first screen](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-1-first.png), [the claim](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-2-claim.png) and
 [what you got](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/web/knos-near-3-got.png).
 

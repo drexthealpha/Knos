@@ -894,7 +894,7 @@ def claim_reuse(job: str = "") -> dict:
     if not last:
         return {"ok": False, "why": "this order has no paid first proof to reuse yet" if job else "name the order's job: order the first proof"}
     return {"ok": True, "free": True, "reused": last["job"], "verdict": last["verdict"], "first_url": last.get("release_url"),
-            "saved": {"agent_usd": BID / 1e6, "first_seconds": last["seconds"]}}
+            "saved": {"agent_usd": BID / 1e6, "first_answer_seconds": last["seconds"]}}   # the first proof's run to its answer, measured on the server
 
 
 _snap: dict = {}
