@@ -570,8 +570,8 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
 5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network (up to 2 min measured with three orders at once), and "Receipt for proof job-...: paid and
-   recorded on NEAR testnet N s after you pressed": "You put behind the claim 10.00 test USDC", "Agent A's share
-   1.20 test USDC in all: 0.20 test USDC from your price (1 part in 49) plus the 1.00 the job itself paid for passing its locked test" and "Knos's fee 9.80 test USDC, the other 48 parts", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
+   recorded on NEAR testnet N s after you pressed": "You put behind the claim 10.00 test USDC behind this proof: 9.00 test USDC to the agent, 1.00 test USDC to Knos", "Agent A's share
+   10.00 test USDC in all: 9.00 test USDC from your price (90%) plus the 1.00 the job itself paid for passing its locked test" and "Knos's fee 1.00 test USDC, 10%", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
    against the first proof's seconds from your press to its receipt and its test USDC, "no test USDC moved" and a link to the first proof.
@@ -637,8 +637,9 @@ visitor, 200 a day, and at $8 spent the fixed program and the locked test alone 
 job saves the ledger on the gh-pages branch (`near-ai-ledger.json`), so a deploy cannot reset it. If agent A's
 model-written code fails the locked test, the order says so and shows the last verified proof, marked reused.
 
-**Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
-other 48. Nobody has paid real money for one yet.
+**Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public.
+
+Of what moves, the agent whose work passed gets 90% and Knos 10%; NEAR's market contract refuses any other split. A failed proof pays nobody. Nobody has paid real money for one yet.
 
 **Hard to copy.** Every verified result is kept on NEAR and reused, so proving an order again is free and takes seconds. The 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: the buyers to approach first (none has bought yet).
 

@@ -269,8 +269,9 @@ def agents_page(header: str) -> str:
 
 def pricing_page(header: str) -> str:
     body = ("<h1>Pricing</h1>\n<p>You choose the test USDC you put behind a claim, from 1 to 100. It is paid only after the answer: "
-            "1 part in 49 to the agent whose code passed the locked test, the other 48 to Knos as its fee. The job itself also pays "
-            "that agent 1.00. Proving the same order again is free.</p>\n"
+            "90% to the agent whose code passed the locked test, 10% to Knos. For example, 3.00 behind a proof: 2.70 to the agent, "
+            "0.30 to Knos. NEAR's market contract refuses any other split. The job itself also pays that agent 1.00. A failed "
+            "proof pays nobody. Proving the same order again is free.</p>\n"
             "<p>A person checking one paper by hand costs $330 to $763 "
             "(<a href=\"https://labordynamicsinstitute.github.io/crress-book/\">Colliard and others, 2023</a>).</p>\n"
             "<p>Today this is test money on NEAR testnet: nobody has paid real money and Knos has no customers yet. Knos has no token and no points.</p>")

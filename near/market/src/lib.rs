@@ -17,6 +17,8 @@
 //! asks whether at least 100 test tokens are put behind proving the claim within 7 days of the market opening: anyone
 //! puts tokens behind a claim by sending them here (msg "back"), which records them on chain and passes them on to the
 //! agent and the fee account named, so the demand market settles from this contract's own record and nothing else.
+//! The split is the contract's rule, not the sender's: 90% to the agent whose work passed, 10% to Knos (amount / 10,
+//! rounded down; the agent gets the rest), so every receipt on NEAR shows exactly that split.
 //! Each market counts its traders (accounts that bought, from this version on), so a thin market says it is thin.
 
 use near_contract_standards::fungible_token::core::ext_ft_core;
@@ -295,9 +297,11 @@ impl FungibleTokenReceiver for Contract {
             }
             Msg::Back { claim, to } => {
                 require!(!claim.is_empty() && claim.len() <= 64, "claim");
-                require!(!to.is_empty() && to.len() <= 4, "to: one to four accounts");
+                require!(to.len() == 2, "to: the agent, then Knos");
                 let sum = to.iter().try_fold(0u128, |s, (_, a)| s.checked_add(a.0)).unwrap_or_else(|| env::panic_str("amounts"));
                 require!(sum == amount.0, "the amounts named must add up to the tokens sent");
+                let fee = amount.0 / 10;
+                require!(to[1].1 .0 == fee && to[0].1 .0 == amount.0 - fee, "a proof pays 90% to the agent and 10% to Knos");
                 let now = env::block_timestamp() / 1_000_000_000;
                 let mut b = backs();
                 let mut v = b.get(&claim).cloned().unwrap_or_default();
@@ -346,7 +350,7 @@ mod tests {
     fn backing_is_recorded_and_must_add_up() {
         let mut k = c();
         at("buyer.testnet", 2_000);
-        send(&mut k, "buyer.testnet", 10_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", "204081"], ["fee.testnet", "9795919"]]}}));
+        send(&mut k, "buyer.testnet", 10_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", "9000000"], ["fee.testnet", "1000000"]]}}));
         let b = k.get_backed("jump".into(), 0, 10_000);
         assert_eq!((b.total.0, b.count), (10_000_000, 1));
         assert_eq!(k.get_backed("jump".into(), 3_000, 10_000).count, 0);
@@ -357,7 +361,21 @@ mod tests {
     #[should_panic(expected = "add up")]
     fn backing_that_does_not_add_up_is_refused() {
         let mut k = c();
-        send(&mut k, "buyer.testnet", 10_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["fee.testnet", "1"]]}}));
+        send(&mut k, "buyer.testnet", 10_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", "1"], ["fee.testnet", "1"]]}}));
+    }
+
+    #[test]
+    #[should_panic(expected = "90% to the agent and 10% to Knos")]
+    fn any_split_but_ninety_ten_is_refused() {
+        let mut k = c();
+        send(&mut k, "buyer.testnet", 3_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", "60000"], ["fee.testnet", "2940000"]]}}));
+    }
+
+    #[test]
+    fn three_test_usdc_pay_2_70_to_the_agent_and_0_30_to_knos() {
+        let mut k = c();
+        send(&mut k, "buyer.testnet", 3_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", "2700000"], ["fee.testnet", "300000"]]}}));
+        assert_eq!(k.get_backed("jump".into(), 0, u64::MAX).total.0, 3_000_000);
     }
 
     #[test]
@@ -366,7 +384,7 @@ mod tests {
         send(&mut k, "knos.testnet", SEED_MIN, serde_json::json!({"seed": {"id": "demand:jump:1000", "question": "q"}}));
         send(&mut k, "knos.testnet", SEED_MIN, serde_json::json!({"seed": {"id": "demand:xor:1000", "question": "q"}}));
         at("buyer.testnet", 2_000);
-        send(&mut k, "buyer.testnet", DEMAND, serde_json::json!({"back": {"claim": "jump", "to": [["fee.testnet", DEMAND.to_string()]]}}));
+        send(&mut k, "buyer.testnet", DEMAND, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", (DEMAND - DEMAND / 10).to_string()], ["fee.testnet", (DEMAND / 10).to_string()]]}}));
         assert!(matches!(k.resolve("demand:jump:1000".into()), PromiseOrValue::Value(_)));
         assert_eq!(k.get_market("demand:jump:1000".into()).unwrap().market.outcome, Some(true));
         at("anyone.testnet", 1_000 + WEEK + 1);
