@@ -207,7 +207,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token.</p>
-    <p><b>Hard to copy:</b> every verified result is kept on NEAR and reused, so proving an order again is free and takes seconds; and the 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology, its first buyers.</p>
+    <p><b>Hard to copy:</b> every verified result is kept on NEAR and reused, so proving an order again is free and takes seconds; and the 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: the buyers to approach first (none has bought yet).</p>
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
   </section>
 
@@ -699,7 +699,7 @@ load();
     const capLi = add("", "3. The spending cap", [el("p", { className: "fine", textContent: "Agent B tries a step that costs more than its budget…" })]);
     const cap = await capping;
     capLi.replaceChildren(el("span", { className: "at", textContent: secs().toFixed(1) + " s" }), el("h3", { textContent: cap.refused ? "3. The spending cap blocked an over-budget step" : "3. The spending cap" }),
-      el("p", {}, cap.refused ? [`Agent B tried to spend ${cap.tried_units} test units on a budget of ${cap.cap_units}. NEAR refused it. `, out(cap.url, "The refusal")] : [`Not shown this time: ${cap.why || "the test network did not answer"}. The agent call and the video show NEAR refusing it.`]));
+      el("p", {}, cap.refused ? [`Agent B tried to spend ${cap.tried_units} units of its spending budget, over its cap of ${cap.cap_units}. NEAR refused it. `, out(cap.url, "The refusal")] : [`Not shown this time: ${cap.why || "the test network did not answer"}. The agent call and the video show NEAR refusing it.`]));
     capLi.className = cap.refused ? "ok" : "stop";
     const r = await proving; await agentsRan;
     if (!r.ok) { add("stop", "4. No answer this time", [el("p", { textContent: `Why: ${r.why || "the proof stopped"}.` })]); clearInterval(tick); return; }
@@ -729,7 +729,7 @@ load();
     const fin = await post("/api/near/claim/finish", { cap, market: r.market ? r.market.id : "", amount, job: r.job_id || "" });
     clearInterval(payTick);
     if (fin.pay) fin.pay.seconds = +((performance.now() - tPay) / 1000).toFixed(1);   // the wait the buyer saw, payment and record
-    paying.remove(); firstSeconds = secs(); clearInterval(tick);   // the whole first proof, answer and receipt
+    paying.remove(); firstSeconds = secs(); clearInterval(tick); $("secs").textContent = firstSeconds.toFixed(1);   // the whole first proof, answer and receipt
     receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle, amount);
     order.disabled = false; order.textContent = `New order: pays ${amount} test USDC again`;
   }
@@ -737,9 +737,10 @@ load();
   function receipt(rc, pay, settle, amount) {
     const rows = ((rc && rc.log && rc.log.rows) || []).map((x) => el("tr", {}, [el("td", { textContent: x.step }),
       el("td", { className: "n", textContent: x.usd != null ? usd(x.usd) : x.near != null ? `${x.near} NEAR` : "" }), el("td", {}, x.url ? out(x.url, "record") : "")]));
+    const when = firstSeconds != null ? `${firstSeconds.toFixed(1)} s` : `${pay.seconds} s`;
     const ok = pay && pay.ok, tu = (n) => `${(+n || 0).toFixed(2)} test USDC`;
     const box = el("section", { className: "card receipt-card" }, [
-      el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt for proof ${rc.job || ""}: paid and recorded on NEAR testnet in ${pay.seconds} s` : `Receipt: paid on NEAR testnet in ${pay.seconds} s` }),
+      el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt for proof ${rc.job || ""}: paid and recorded on NEAR testnet ${when} after you pressed` : `Receipt: paid on NEAR testnet ${when} after you pressed` }),
       el("table", { className: "vs" }, [
         el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)}, from a test account Knos holds for you, so you need no wallet. Its two transfers: `, rc.agent_pay_url ? out(rc.agent_pay_url, "to agent A") : "", rc.agent_pay_url && rc.fee_url ? ", " : "", rc.fee_url ? out(rc.fee_url, "to Knos") : ""] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
         el("tr", {}, [el("th", { textContent: "Agent A\u2019s share" }), el("td", {}, ok ? (rc.job_pay_url ? [`${tu((+rc.agent_usd || 0) + 1)} in all: ${tu(rc.agent_usd)} from your price (1 part in 49, `, rc.agent_pay_url ? out(rc.agent_pay_url, "the transfer") : "the transfer", ") plus the 1.00 the job itself paid for passing its locked test (", out(rc.job_pay_url, "that payment"), ")."]

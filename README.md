@@ -563,7 +563,7 @@ inside a TEE, with its attestation linked, needs a NEAR AI key on the server: BL
 **Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
 other 48. Nobody has paid real money for one yet.
 
-**Hard to copy.** Every verified result is kept on NEAR and reused, so proving an order again is free and takes seconds. The 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: its first buyers.
+**Hard to copy.** Every verified result is kept on NEAR and reused, so proving an order again is free and takes seconds. The 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: the buyers to approach first (none has bought yet).
 
 **Outside contributors.** Two GitHub accounts outside the team have done paid work for Knos. `jaystay-bot` wrote
 [#32](https://github.com/drexthealpha/Knos/pull/32), [#33](https://github.com/drexthealpha/Knos/pull/33) and
