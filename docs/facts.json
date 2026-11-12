@@ -641,11 +641,19 @@
   },
   {
    "say": [
-    "62"
+    "70"
    ],
-   "what": "the length in seconds of the IRIS video, iris/media/knos-iris.mp4",
+   "what": "the length in seconds of the IRIS video file, iris/media/knos-iris.mp4, with its live-run card (12 Nov)",
    "file": "iris/media/README.md",
-   "has": "knos-iris.mp4`: 62 seconds"
+   "has": "knos-iris.mp4`: 70 seconds"
+  },
+  {
+   "say": [
+    "92"
+   ],
+   "what": "the teams that submitted to the Sibyl Labs Hackathon, which Knos v1 won (hack.sibyllabs.org/leaderboard, read 12 Nov 2026)",
+   "file": "web/door.html",
+   "has": "1st of 92, Sibyl Labs Hackathon"
   },
   {
    "say": [

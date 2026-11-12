@@ -18,6 +18,7 @@ from pathlib import Path
 API = "https://api-testnet.nearblocks.io/v3/accounts/"
 TOKEN = "knos-usdc-1102.testnet"
 LIVE, FEE, AGENT = "live.knos-swarm-1105.testnet", "knos-payer-1102.testnet", "agent-a.knos-swarm-1105.testnet"
+AGENT2 = "agent-a2.knos-swarm-1105.testnet"
 MARKET = "market.knos-swarm-1105.testnet"   # since Round 7 the amount behind a claim goes through the claim market, which records it
 RPC = "https://rpc.testnet.near.org"
 CLAIMS = Path(__file__).resolve().parents[1] / "claims" / "claims.json"
@@ -76,7 +77,7 @@ def rows(account: str) -> list[dict]:
 
 def read() -> dict:
     """The full count, read now (the hosted server calls this too when GitHub's copy is late)."""
-    fee, agent = rows(FEE), rows(AGENT)
+    fee, agent = rows(FEE), rows(AGENT) + rows(AGENT2)   # agent A signs as agent-a2 since 12 Nov (Round 8)
     live = rows(LIVE)
     paid = [x for x in fee if x.get("involved_account_id") in (LIVE, MARKET) and int(x.get("delta_amount") or 0) > 0]
     shares = [x for x in agent if x.get("involved_account_id") in (LIVE, MARKET) and int(x.get("delta_amount") or 0) > 0]
@@ -87,16 +88,16 @@ def read() -> dict:
     # minutes may not show its arrival yet; it is not counted as lost until it is older.
     came = {x.get("transaction_hash") for x in paid + shares}
     settled_by = newest - 600 * 10**9
-    lost = -sum(int(x["delta_amount"]) for x in live if x.get("involved_account_id") in (FEE, AGENT) and int(x.get("delta_amount") or 0) < 0
+    lost = -sum(int(x["delta_amount"]) for x in live if x.get("involved_account_id") in (FEE, AGENT, AGENT2) and int(x.get("delta_amount") or 0) < 0
                 and x.get("transaction_hash") not in came and int(x.get("block_timestamp") or 0) < settled_by)
     # through the claim market: each fee that arrived from it is matched to the time it recorded the amount behind a claim
     # (the fee is that amount less agent A's 1 part in 49, within a minute); a recorded amount older than 10 minutes with
     # no fee arrived counts as lost
     claim_of, used = {}, set()
     for claim, at, units in backs():
-        want = units - units // 49
+        want = {units - units // 49, units // 10}   # Knos's fee: 48 parts in 49 before 12 Nov, 1 part in 10 since (Round 8, T16)
         hit = next((x for x in paid if x.get("involved_account_id") == MARKET and x.get("transaction_hash") not in used
-                    and int(x["delta_amount"]) == want and abs(int(int(x.get("block_timestamp") or 0) / 1e9) - at) <= 60), None)
+                    and int(x["delta_amount"]) in want and abs(int(int(x.get("block_timestamp") or 0) / 1e9) - at) <= 60), None)
         if hit:
             used.add(hit["transaction_hash"])
             claim_of[hit["transaction_hash"]] = (claim, units)

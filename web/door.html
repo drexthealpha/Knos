@@ -75,7 +75,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 </header>
 <main>
   <section class="door" aria-label="Ask about research">
-    <p class="q">Good research takes 17 years to reach people (<a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, 2011</a>).</p>
+    <p class="q">Why does research take 17 years to reach people? Checking it is costly (<a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, 2011</a>).</p>
     <h1>Ask anything about research</h1>
     <form id="ask">
       <label class="sr" for="paper">Your question</label>
@@ -117,19 +117,20 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (/^https?:|^10\.\d|^arxiv:/i.test(s)) return null;   // a paper Knos has no claim for: the server says what a check would cost
     const q = new Set(words(s).filter((w) => !STOP.has(w)));
     let best = null, top = 0;
-    for (const c of CLAIMS) { const k = new Set(words([c.name.replace(/-/g, " "), c.plain, c.quote, c.paper, c.authors].join(" ")));
-      let n = 0; for (const w of q) if (k.has(w)) n += 1;
+    for (const c of CLAIMS) { const k = new Set(words([c.name.replace(/-/g, " "), c.plain, c.quote, c.paper, c.authors].join(" "))), name = new Set(words(c.name.replace(/-/g, " ")));
+      let n = 0; for (const w of q) if (k.has(w)) n += name.has(w) ? 2 : 1;   // the claim's own name counts double
       if (n > top) { top = n; best = c; } }
-    return top >= 1 ? { c: best, by: "words" } : { none: true };
+    return top >= 2 ? { c: best, by: "words" } : { none: true };   // one shared word ("memory") is not a match
   }
   function answer(c, live) {
     const m = (board && board.claims && board.claims[c.name]) || {}, last = live || m.last_proof && { holds: true, job: m.last_proof };
-    const holds = last ? last.holds !== false : null, behind = m.behind_usd != null ? `${(+m.behind_usd).toFixed(2)} test USDC from outside backers this week` : "";
+    const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
+      behind = out7 != null ? `${out7.toFixed(2)} test USDC from outside backers this week` : "";
     out.replaceChildren(
       el("p", { className: "verdict", textContent: holds === true ? "Yes, the claim holds" : holds === false ? "No, the claim fails" : "Not proved yet" }),
       el("p", {}, [`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}. `, holds != null && last.job ? "Proved by its locked test " : "Its locked test is ", link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test),
         ` (sha256 ${c.sha256.slice(0, 8)}...)`, holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),
-      el("p", {}, [link("prove/#paper=" + encodeURIComponent(c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : ""), holds != null ? "Prove it again" : "Prove it", "next"), " ", link(`claim/${c.name}/`, "The claim")]));
+      el("p", {}, [link("prove/#paper=" + encodeURIComponent(c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : ""), "Prove it yourself", "next"), " ", link(`claim/${c.name}/`, "The claim")]));
   }
   function none(text) {
     out.replaceChildren(el("p", { className: "verdict", textContent: "Nothing proved matches yet" }),
@@ -165,10 +166,10 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       el("p", {}, [link(q.source || "prove/", "Source")]));
   }
   $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } ask(v); });
-  $("sample").addEventListener("click", () => ask("Does HyperLogLog count a billion items in 1.5 KB?"));
+  $("sample").addEventListener("click", () => ask("Does HyperLogLog count 30,000 visitors in 1.5 KB?"));
   // a second visit starts where the first ended: the visitor's last questions, from this browser
   if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.slice(0, 40), onclick: () => ask(x.q) }))); }
-  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid on NEAR testnet.`; };
+  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid.`; };
   json("data/counters.json").then(counts);
   json(HOSTED + "/api/near/claim/counters").then((c) => c ? counts(c) : $("count").textContent.startsWith("Reading") && ($("count").textContent = "NEAR testnet's record could not be read just now."));
 })();

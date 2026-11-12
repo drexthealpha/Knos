@@ -566,13 +566,11 @@ visitor and fails on memory.
 
 On the public pages (no install, no sign-in, no wallet, test money only):
 
-1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people?" with its
-   answer, "Paste a paper. Knos checks if its claim works.", the paste box, the button "Check it", "Try the sample:
-   HyperLogLog, 2007" and "Today: checking one paper by hand costs $330 to $763 (Colliard and others, 2023). Knos:
-   under a minute on NEAR, for the test USDC you put behind the claim."
-2. Click "Try the sample: HyperLogLog, 2007" - see "Reading the paper..." with a clock, then on the same screen "Yes,
-   the claim holds", the paper's "2% typical error, 1.5 kilobytes of memory", its last proof on NEAR and "Prove it
-   yourself on NEAR". Click that - the Prove page opens and reads the paper: "Prove this claim now", the price ("Price:
+1. Open https://drexthealpha.github.io/Knos/ - see "Why does good research take 17 years to reach people? Checking it
+   is slow and costly", "Ask anything about research", the box, the button "Ask", "Try: HyperLogLog" and "By hand:
+   $330 to $763 (Colliard, 2023). Knos: a minute."
+2. Click "Try: HyperLogLog" (or ask a question of your own) - see on the same screen "Yes, the claim holds", the claim,
+   its locked test and sha256, its last proof on NEAR and "Prove it yourself". Click that - the Prove page opens and reads the paper: "Prove this claim now", the price ("Price:
    the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."), the box "Your
    price, in test USDC:" holding 10 and the button "Prove it with 10 test USDC".
 3. Type an amount (1 to 100) or keep 10, and click "Prove it with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper's result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
@@ -670,7 +668,7 @@ Oct 2026; their 37.00 test USDC in bounties waits for them until they link a wal
 |---|---|---|
 | `jobs.knos-swarm-1105.testnet` | the jobs contract: holds a job's bid against its test's sha256, pays only a passing agent | [explorer](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet) |
 | `market.knos-swarm-1105.testnet` | each claim's record: it settles Yes or No only from the proof's job, never by vote | [explorer](https://testnet.nearblocks.io/address/market.knos-swarm-1105.testnet) |
-| `agent-a.knos-swarm-1105.testnet`, `agent-b.knos-swarm-1105.testnet` | the two agents, each with a key that can only call the jobs contract | [A](https://testnet.nearblocks.io/address/agent-a.knos-swarm-1105.testnet), [B](https://testnet.nearblocks.io/address/agent-b.knos-swarm-1105.testnet) |
+| `agent-a2.knos-swarm-1105.testnet`, `agent-b2.knos-swarm-1105.testnet` (agent-a and agent-b before 12 Nov) | the two agents, each with a key that can only call the jobs contract | [A](https://testnet.nearblocks.io/address/agent-a2.knos-swarm-1105.testnet), [B](https://testnet.nearblocks.io/address/agent-b2.knos-swarm-1105.testnet) |
 | `live.knos-swarm-1105.testnet` | the hosted app's capped account: posts each job, opens its record and pays as the buyer's test account (test money, 20 runs a day) | [explorer](https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet) |
 | `knos-usdc-1102.testnet` | the test dollar (NEP-141, 6 decimals) | [explorer](https://testnet.nearblocks.io/address/knos-usdc-1102.testnet) |
 | `knos-payer-1102.testnet` | Knos's own test account, where Knos's fee from each first proof arrives and is kept | [explorer](https://testnet.nearblocks.io/address/knos-payer-1102.testnet) |
@@ -723,10 +721,17 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 ### Run one now
 
 Open [the Prove page](https://drexthealpha.github.io/Knos/prove/), keep the sample link and click
-**Will it work?**, then **Prove it with 10 test USDC**. You see the answer beside the paper's own number, the
-verified code to download, the receipt and the claim's record updated, within seconds.
+**Will it work?**, then **Prove it with 10 test USDC**.
 
-The two agents are fixed programs, not AI models. To answer in seconds, Knos keeps a job ready: posted against its
+You see the answer beside the paper's own number, the
+verified code to download, the receipt and the claim's record updated: about 25 s for the sample, up to 2 min for a
+claim that runs on order with three orders at once.
+
+Agent A's code is written by a private model on NEAR AI Cloud; when that code fails the locked test, the order says so
+and shows the last verified proof, and a job readied in the background then uses agent A's fixed program, which the
+page names. Agent B is a fixed shortcut that must fail.
+
+To answer in seconds, Knos keeps a job ready: posted against its
 locked test, with both agents' code already run and submitted. The spending cap step runs live when you order: NEAR
 refuses agent B's over-budget spend there and then. Your payment and the record's update follow.
 
