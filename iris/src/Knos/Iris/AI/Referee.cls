@@ -88,7 +88,7 @@ ClassMethod AskLocal(proof As Knos.Iris.Msg.Proof, hash As %String) As %String
         set key = $system.Util.GetEnviron("KNOS_LOCAL_LLM_KEY"), paid = (key '= "")
         set agent.Provider = ##class(%AI.Provider).Create("openai", {"base_url": (base), "api_key": ($select(paid:key, 1:"none"))})
         set agent.Model = model, agent.Temperature = 0
-        set session = agent.CreateSession({"max_iterations":$select(paid:1, 1:2),"max_tokens":$select(paid:800, 1:600)})
+        set session = agent.CreateSession({"max_iterations":($select(paid:1, 1:2)),"max_tokens":($select(paid:800, 1:600))})
         set ask = ##class(Knos.Iris.AI.LocalReferee).Question(hash, proof.BriefJSON, proof.Kind, proof.PayloadJSON)
         for try = 1:1:$select(paid:1, 1:2) {
             set reply = agent.Chat(session, ask)
