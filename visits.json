@@ -1,0 +1,29 @@
+{
+ "days": {
+  "2026-11-12": {
+   "backed": 23,
+   "came_back": 0,
+   "events": {
+    "backed": 37,
+    "error": 37,
+    "leave": 67,
+    "press": 9,
+    "proof": 37,
+    "result": 37,
+    "view": 47
+   },
+   "first_press": 2,
+   "first_result": 23,
+   "leave_from": {
+    "/": 18,
+    "/agents/": 10,
+    "/check/": 12,
+    "/claim/hyperloglog/": 6,
+    "/claims/": 11
+   },
+   "not_what": {},
+   "proof_finished": 23,
+   "visits": 46
+  }
+ }
+}

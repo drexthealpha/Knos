@@ -1,8 +1,35 @@
 {
- "cache": {},
- "calls": 2,
+ "cache": {
+  "600255409d76bf2d115812bdf3c2a88970b15372a98d1c925ece8343861a0b38": {
+   "at": 1794523385,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "3596e40dc908ef417f61bfeba0c982cf1ec1b361ba99104d3dc98ed3bb9babef",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000378,
+   "finish": "stop",
+   "id": "chatcmpl-4aec42a0-ab96-47f7-a748-2659e74a4326",
+   "kind": "review",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 5.4,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e"
+   },
+   "text": "{\"approve\": true, \"reason\": \"Implements genuine HyperLogLog with packed 5-bit registers, hashing, and standard estimation; no test inspection or hard-coded answers.\"}",
+   "tokens_in": 1096,
+   "tokens_out": 41
+  }
+ },
+ "calls": 4,
  "day": "2026-11-12",
  "iris_usd": 0.001662,
- "spent_usd": 0.0,
- "today": 2
+ "spent_usd": 0.000988,
+ "today": 4
 }
