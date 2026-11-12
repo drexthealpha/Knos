@@ -1,10 +1,7 @@
-# The browser gates of the three faces on every push that changes one (spec S1 and S2, TASK-FOUR F1 to F4): the front
-# door (web/, as scripts/build_site.sh builds it), the NEAR app (near/web/, at /near/) and the IRIS page
-# (iris/web/dashboard.html, served here at /iris/ only). scripts/test_faces.mjs walks each page at 390 and 1280 px as a
-# stranger (fresh context, no storage): words before scrolling, header items, paragraph length, banned first-screen
-# words, the nav, axe in light and dark, F3's tasks T-a, T-b and T-d with clicks and seconds, screenshots. Then
-# Lighthouse (mobile preset, one cold run per page), linkinator (every link of the three faces), Hallmark's sloplint and
-# Impeccable's detector. Everything lands in the artifact "faces".
+# The browser checks of the product pages as Pages serves them, after each deploy: Lighthouse (mobile preset, one cold
+# run per page), linkinator (every link) and Hallmark's sloplint and Impeccable's detector, into the artifact "faces".
+# The front door's S1 numbers and every page's header are gated before deploy, in network.yml (tests/web/front_door_budget.mjs);
+# the older face gates (the film, the four-item nav, #menu) went with the pages they checked.
 name: faces
 on:
   # the site as Pages serves it, once each deploy is done (the front door's app calls answer the site's own origin only)
@@ -37,15 +34,10 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.64.1 axe-core@4.11.0 linkinator@8.1.0 impeccable@4.8.0 puppeteer-core@25.16.0
           npx playwright install --with-deps chromium
-      - name: the stranger's gates (words, header, nav, axe, F3 T-a T-b T-d, screenshots)
-        run: node scripts/test_faces.mjs https://drexthealpha.github.io/Knos/ faces http://127.0.0.1:8080/
-      - name: the film, six frames at 0 to 100 percent of its run, CLS, LCP, the still on phones and reduced motion
-        if: always()
-        run: node scripts/test_film_frames.mjs https://drexthealpha.github.io/Knos/ faces/film
       - name: Lighthouse, mobile preset, each face
         if: always()
         run: |
-          for p in "" near/ near/story/ iris; do
+          for p in "" prove/ claims/ claim/hyperloglog/ agents/ iris; do
             n=$(echo "${p:-home}" | tr '/' '-' | sed 's/-$//')
             u="https://drexthealpha.github.io/Knos/$p"; [ "$p" = iris ] && u=http://127.0.0.1:8080/
             npx --yes lighthouse@12.8.2 "$u" --quiet --chrome-flags="--headless=new --no-sandbox" \
@@ -56,18 +48,18 @@ jobs:
       - name: linkinator, the three faces
         if: always()
         run: |
-          npx linkinator https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/near/ https://drexthealpha.github.io/Knos/near/story/ http://127.0.0.1:8080/ \
+          npx linkinator https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/prove/ https://drexthealpha.github.io/Knos/claims/ https://drexthealpha.github.io/Knos/agents/ http://127.0.0.1:8080/ \
             --retry --retry-errors --timeout 20000 --skip "^https://(x\.com|twitter\.com|www\.linkedin\.com)" --format json > faces/links.json || true
           node -e 'const r=require(process.argv[1]); const bad=r.links.filter(l=>l.state==="BROKEN"&&l.status!==429); console.log("links", r.links.length, "broken", bad.length); for (const l of bad) console.log(l.status, l.url, "on", l.parent); process.exit(bad.length?1:0)' "$PWD/faces/links.json" | tee faces/links.txt
       - name: Hallmark sloplint and Impeccable, each face
         if: always()
         run: |
           git clone -q https://github.com/Nutlope/hallmark "$RUNNER_TEMP/hallmark" && git -C "$RUNNER_TEMP/hallmark" checkout -q 4f6a46c6dc325d40ab268c93e25c7b96676ebccd
-          for f in web/home.html near/web/index.html near/web/story/index.html iris/web/dashboard.html; do
+          for f in web/door.html near/web/index.html iris/web/dashboard.html; do
             echo "== $f" | tee -a faces/sloplint.txt
             node "$RUNNER_TEMP/hallmark/skills/hallmark/scripts/sloplint.mjs" "$f" 2>&1 | grep -E "FAIL|sloplint:" | tee -a faces/sloplint.txt || true
           done
-          for u in https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/near/ https://drexthealpha.github.io/Knos/near/story/ http://127.0.0.1:8080/; do
+          for u in https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/prove/ https://drexthealpha.github.io/Knos/claims/ http://127.0.0.1:8080/; do
             echo "== $u" | tee -a faces/impeccable.txt
             timeout 180 npx impeccable detect "$u" 2>&1 | tail -40 | tee -a faces/impeccable.txt || true
           done
