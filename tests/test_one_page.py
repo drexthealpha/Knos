@@ -1,5 +1,5 @@
-"""One page (scripts/one_page.py): the published root carries the first line, then the NEAR proof flow (#near), then the
-IRIS proof check (#iris); /near/ and /iris/ send a visitor on to those sections."""
+"""The product pages (scripts/site_pages.py): the published root is the front door (web/door.html), the proof on NEAR is
+prove/, the IRIS check labs/; every page carries the one header; /near/ and /iris/ send a visitor on."""
 import os
 import pathlib
 import re
@@ -10,28 +10,25 @@ import _posix
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-def test_the_root_is_one_page_and_the_old_addresses_send_on(tmp_path):
+def test_the_root_is_the_front_door_and_the_old_addresses_send_on(tmp_path):
     env = _posix.environ(dict(os.environ))
     env.pop("KNOS_SPA_AT_ROOT", None)
     r = subprocess.run([_posix.bash(), _posix.path(ROOT / "scripts" / "build_site.sh"), _posix.path(tmp_path / "site"), "ab" * 20],
                        capture_output=True, text=True, check=False, env=env)
     assert r.returncode == 0, r.stderr
-    page = (tmp_path / "site" / "index.html").read_text(encoding="utf-8")
-    first, near, iris = page.index('id="k-first"'), page.index('<section id="near-flow"'), page.index('<section id="iris"')
-    assert page.index('<span id="near">') < first < near < iris and page.count("<h1") == 1
-    assert 'id="go"' in page and 'id="counters"' in page and "iris/knos-iris.mp4" in page
-    assert "../brand/" not in page[near:iris]
-    # one story: the question, the proof on NEAR, the same check inside IRIS, who pays; nothing after it in the page
-    who, main_end = page.index('<section id="who"'), page.index("</main>")
-    assert iris < who < main_end and "k-hero" not in page[:main_end] and 'id="nav"' not in page and 'id="menu"' not in page
-    assert '<a class="brand" href="#"' in page and page.count('href="tools.html"') == 1   # the logo alone, the older tools linked once
-    tools = (tmp_path / "site" / "tools.html").read_text(encoding="utf-8")
-    assert "k-hero" in tools and 'id="near-flow"' not in tools   # the older tools keep working at their own address
-    for sub, to in (("near", "../#near"), ("iris", "../#iris")):
-        stub = (tmp_path / "site" / sub / "index.html").read_text(encoding="utf-8")
-        assert f'url={to}"' in stub and f'location.replace("{to}"' in stub
-        # a tab, a link preview or a search result of the old address shows the one page itself
+    site = tmp_path / "site"
+    page = (site / "index.html").read_text(encoding="utf-8")
+    assert page.count("<h1") == 1 and 'id="paper"' in page and 'id="go"' in page and 'id="sample"' in page
+    assert 'id="near-flow"' not in page and "k-hero" not in page   # the proof and the older tools are pages of their own
+    prove = (site / "prove" / "index.html").read_text(encoding="utf-8")
+    labs = (site / "labs" / "index.html").read_text(encoding="utf-8")
+    assert 'id="go"' in prove and 'fetch("../near/latest.json"' in prove and "../iris/knos-iris.mp4" in labs
+    for p in (page, prove, labs):
+        assert p.count('<header class="kh" id="kh">') == 1 and 'id="k-bar"' not in p and "bar.js" not in p
+    assert 'aria-current="page">Prove' in prove and 'aria-current="page">For labs' in labs
+    for sub, to in (("near", "../prove/"), ("iris", "../labs/")):
+        stub = (site / sub / "index.html").read_text(encoding="utf-8")
+        assert f'url={to}"' in stub and f'location.replace("{to}" + location.hash)' in stub and 'content="noindex"' in stub
         for tag in re.findall(r'<title>.*?</title>|<meta property="og:(?:title|description|image|url)"[^>]*>', page[:page.index("</head>")], re.S):
-            assert tag in stub, tag
-        assert '<link rel="canonical" href="https://drexthealpha.github.io/Knos/">' in stub and 'content="noindex"' in stub
-    assert (tmp_path / "site" / "near" / "pay.js").is_file() and (tmp_path / "site" / "iris" / "knos-iris.mp4").is_file()
+            assert tag in stub, tag   # a link preview of the old address shows the front door
+    assert (site / "near" / "pay.js").is_file() and (site / "iris" / "knos-iris.mp4").is_file() and not (site / "door.html").exists()

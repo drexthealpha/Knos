@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html): one line, the paste box, one
+     button and the sample, whose answer shows on this first screen. The full proof on NEAR is prove/, the IRIS check labs/. -->
+<title>Knos: will this paper work?</title>
+<meta name="description" content="Paste a paper. Knos checks its claim with a test locked on NEAR testnet and pays the agent whose code passes.">
+<meta name="author" content="drexthealpha">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Knos">
+<meta property="og:title" content="Knos: will this paper work?">
+<meta property="og:description" content="Paste a paper. Knos checks its claim with a test locked on NEAR testnet and pays the agent whose code passes.">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/">
+<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
+<meta name="twitter:card" content="summary_large_image">
+<script>
+// an old address: the one page's NEAR section is prove/, its IRIS section labs/; the check of a pull request has its
+// own page, and every other old page is in app.html
+(() => { const go = () => { const h = location.hash, name = h.slice(1).split("=")[0];
+  if (/^(near|near-flow|who)$/.test(name)) location.replace("prove/");
+  else if (name === "iris") location.replace("labs/");
+  else if (/^check(-a-pull-request)?$/.test(name)) location.replace("check/" + (h.startsWith("#check=") && h.length > 7 ? h : ""));
+  else if (name && !/^(home|k-q)$/.test(name)) location.replace("app.html" + h); };
+  go(); addEventListener("hashchange", go); })();
+</script>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="brand/tokens.css">
+<style>
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.5 var(--text); }
+a { color: var(--accent); }
+.kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
+.kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
+.kh nav { display: flex; flex-wrap: wrap; }
+.kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
+.kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
+main { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+.door { min-height: calc(100svh - 76px); display: flex; flex-direction: column; justify-content: center; padding: 8px 0 24px; box-sizing: border-box; }
+h1 { font: 600 clamp(28px, 6vw, 44px)/1.15 var(--head); letter-spacing: -.02em; margin: 0 0 20px; }
+form { display: flex; flex-wrap: wrap; gap: 8px; }
+label.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+input { flex: 1 1 260px; min-height: 52px; box-sizing: border-box; padding: 0 14px; font: 400 17px var(--text); color: var(--ink); background: var(--paper-2);
+  border: 2px solid var(--ink-2); border-radius: 10px; }
+input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-radius: 10px; cursor: pointer; }
+.go { flex: 0 0 auto; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); }
+.go[disabled] { opacity: .75; cursor: progress; }
+.sample { margin-top: 10px; background: transparent; color: var(--ink); border: 2px solid var(--line); font-weight: 500; width: 100%; text-align: left; }
+.out { margin-top: 16px; min-height: 1.5em; }
+.out .verdict { font: 600 24px/1.25 var(--head); margin: 0 0 6px; }
+.out p { margin: 0 0 8px; }
+.out .next { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
+.below { border-top: 1px solid var(--line); padding: 24px 0 8px; }
+.below p { margin: 0 0 12px; }
+footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; }
+footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
+</style>
+</head>
+<body>
+<header class="kh" id="kh">
+  <a class="logo" href="./"><img src="brand/mark.svg" width="26" height="26" alt="">Knos</a>
+  <nav aria-label="Pages"><a href="prove/">Prove</a><a href="labs/">For labs</a></nav>
+</header>
+<main>
+  <section class="door" aria-label="Check a paper">
+    <h1>Paste a paper. Knos checks if its claim works.</h1>
+    <form id="ask">
+      <label class="sr" for="paper">A paper's link or DOI</label>
+      <input id="paper" name="paper" placeholder="https://doi.org/..." autocomplete="off" spellcheck="false" inputmode="url">
+      <button class="go" id="go" type="submit">Check it</button>
+    </form>
+    <button class="sample" id="sample" type="button">Try the sample: HyperLogLog, 2007</button>
+    <div class="out" id="out" aria-live="polite"></div>
+  </section>
+  <section class="below" aria-label="How it works">
+    <p>Two agents write code against a test locked on NEAR testnet. The one whose code passes is paid, and the result is kept on NEAR, so a second check is free.</p>
+    <p id="count">Live from NEAR testnet: reading the record...</p>
+    <p><a href="prove/">Order a proof</a> · <a href="labs/">The same check inside InterSystems IRIS</a></p>
+  </section>
+</main>
+<footer>
+  <span>NEAR testnet, test money, no customers yet.</span><br>
+  <a href="https://github.com/drexthealpha/Knos">Source</a><a href="status/">Status</a>
+</footer>
+<script>
+(() => {
+  const HOSTED = "https://knos.onrender.com", SAMPLE = "https://doi.org/10.46298/dmtcs.3545";
+  const $ = (id) => document.getElementById(id), out = $("out");
+  const el = (tag, props, kids) => { const n = Object.assign(document.createElement(tag), props || {}); (kids || []).forEach((k) => k != null && n.append(k)); return n; };
+  const link = (href, text) => el("a", { href, textContent: text, target: href.startsWith("http") ? "_blank" : "", rel: "noopener" });
+  async function post(path, body) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60000);
+    try { const r = await fetch(HOSTED + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal });
+      return await r.json(); }
+    catch (e) { return { ok: false, why: "Knos's server did not answer. It may be waking up: try again in 30 s." }; }
+    finally { clearTimeout(t); }
+  }
+  async function check(url) {
+    const go = $("go"), t0 = performance.now();
+    go.disabled = true; $("sample").disabled = true;
+    const p = el("p", { textContent: "Reading the paper... 0.0 s" }); out.replaceChildren(p);
+    const tick = setInterval(() => { p.textContent = `Reading the paper... ${((performance.now() - t0) / 1000).toFixed(1)} s`; }, 100);
+    const r = await post("/api/near/claim/look", { url });
+    clearInterval(tick); go.disabled = false; $("sample").disabled = false;
+    if (!r.ok) { out.replaceChildren(el("p", { className: "verdict", textContent: "Not read" }), el("p", { textContent: r.why || "No answer." })); return; }
+    if (!r.known) {
+      const q = r.quote || {};
+      out.replaceChildren(el("p", { className: "verdict", textContent: "Knos cannot prove this paper yet" }),
+        el("p", { textContent: `${r.title ? r.title + ". " : ""}What can check it today: ${q.checker || "a person who reruns it"}, ${q.price || ""}, ${q.time || ""}.` }),
+        el("p", {}, [link(q.source || "prove/", "Source")]), el("p", {}, [el("button", { className: "go", type: "button", textContent: "Try the sample instead", onclick: () => run(SAMPLE) })]));
+      return;
+    }
+    const last = r.last || {};
+    out.replaceChildren(
+      el("p", { className: "verdict", textContent: last.holds === true ? "Yes, the claim holds" : last.holds === false ? "No, the claim fails" : "Not proved yet" }),
+      el("p", {}, [`${r.paper.split(":")[0]} (${r.authors}) says: ${r.paper_number}. `, last.holds != null ? "Its locked test on NEAR testnet agrees: " : "", last.job ? link(last.record || "prove/", `the last proof, ${last.job}`) : "", last.job ? "." : ""]),
+      el("p", {}, [el("a", { className: "next", href: "prove/#paper=" + encodeURIComponent(url), textContent: "Prove it yourself on NEAR" })]));
+  }
+  function run(url) { $("paper").value = url; check(url); }
+  $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("paper").value = SAMPLE; } check($("paper").value.trim()); });
+  $("sample").addEventListener("click", () => run(SAMPLE));
+  fetch(HOSTED + "/api/near/claim/counters").then((r) => r.ok ? r.json() : null).catch(() => null).then((c) => {
+    $("count").textContent = c && c.proofs ? `Live from NEAR testnet: ${c.proofs.toLocaleString("en-US")} proofs paid, ${c.usd.toLocaleString("en-US", { style: "currency", currency: "USD" })} in test dollars settled, $0.00 lost.`.replace("$0.00 lost", `${(c.lost_usd || 0).toLocaleString("en-US", { style: "currency", currency: "USD" })} lost`)
+      : "Live from NEAR testnet: the record could not be read just now.";
+  });
+})();
+</script>
+</body>
+</html>

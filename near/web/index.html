@@ -775,5 +775,9 @@ load();
   }
 })();
 </script>
+<script>
+// a paper sent from the front door (prove/#paper=<link>): read it at once
+(() => { const m = location.hash.match(/^#paper=(.+)$/); if (m) { document.getElementById("paper").value = decodeURIComponent(m[1]); document.getElementById("go").click(); } })();
+</script>
 </body>
 </html>

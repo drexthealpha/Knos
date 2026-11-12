@@ -1,5 +1,5 @@
 // node tests/web/one_page_press.mjs <site dir>
-// The goal's 400 ms rule on the one page (https://drexthealpha.github.io/Knos/), at 390 px on a CPU slowed 4 times, as
+// The goal's 400 ms rule on the proof page (https://drexthealpha.github.io/Knos/prove/), at 390 px on a CPU slowed 4 times, as
 // tests/web/front_door.mjs slows it: every press shows a visible change within 400 ms of the input, and while a press
 // waits on the network past 400 ms, the page keeps moving (a clock, a counter or a running animation) at least every
 // 400 ms until the answer is drawn. The network is mocked: the hosted app answers each call after 900 ms with a fixed
@@ -9,7 +9,7 @@
 // The site the web job builds keeps the app at index.html (KNOS_SPA_AT_ROOT=1); the one page is then composed here from
 // that build, as scripts/build_site.sh composes it for the published site.
 import { createServer } from "node:http";
-import { readFileSync, existsSync, mkdtempSync, cpSync, rmSync, renameSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, cpSync, rmSync } from "node:fs";
 import { join, extname, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -20,11 +20,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const given = process.argv[2];
 if (!given || !existsSync(join(given, "index.html"))) { console.error("usage: node tests/web/one_page_press.mjs <site dir>"); process.exit(2); }
 let root = resolve(given), made = null;
-if (!readFileSync(join(given, "index.html"), "utf8").includes('id="near-flow"')) {
+if (!existsSync(join(given, "prove", "index.html"))) {
   made = mkdtempSync(join(tmpdir(), "one-page-")); root = resolve(made, "site");
   cpSync(given, root, { recursive: true });
-  rmSync(join(root, "index.html")); renameSync(join(root, "home.html"), join(root, "index.html"));
-  execFileSync(process.env.PYTHON || "python3", [join(ROOT, "scripts", "one_page.py"), root], { stdio: "inherit" });
+  execFileSync(process.env.PYTHON || "python3", [join(ROOT, "scripts", "site_pages.py"), root], { stdio: "inherit" });
 }
 const LIMIT = 400, DELAY = 900, WIDTH = 390, HEIGHT = 844;
 let fails = 0;
@@ -84,7 +83,7 @@ async function open() {
   });
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
-  await page.goto(base, { waitUntil: "load" });
+  await page.goto(base + "prove/", { waitUntil: "load" });
   await page.waitForTimeout(2500);                          // the first reads (counters, the latest test run) are answered
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   return { ctx, page };
