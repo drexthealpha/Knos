@@ -173,7 +173,7 @@ def main(site: str) -> int:
     chk = chk.replace("KNOS_BUILD_DATE", built.group(1) if built else "2026-11-12")
     chk, n = re.subn(r'<header class="bar">.*?</header>', lambda m: header("../", "check/"), chk, count=1, flags=re.S)
     assert n == 1, "the check page has no header to replace"
-    chk = chk.replace("</head>", f'<style id="kh-css">\n{CSS}</style>\n</head>', 1)
+    chk = chk.replace("</head>", f'<style id="kh-css">\n{CSS}.kh nav {{ display: flex !important; }}\n</style>\n</head>', 1)   # the tag's app.css hides a header nav on phones
     (out / "check" / "index.html").write_text(chk, encoding="utf-8")
     for f in (ROOT / "web" / "check-v0328").rglob("*.js"):   # the tag's check.js and every module it loads (share, badge, motion)
         to = out / "check" / f.relative_to(ROOT / "web" / "check-v0328")
