@@ -37,6 +37,7 @@ jobs:
       - name: Lighthouse, mobile preset, each face
         if: always()
         run: |
+          mkdir -p faces
           for p in "" prove/ claims/ claim/hyperloglog/ agents/ iris; do
             n=$(echo "${p:-home}" | tr '/' '-' | sed 's/-$//')
             u="https://drexthealpha.github.io/Knos/$p"; [ "$p" = iris ] && u=http://127.0.0.1:8080/
@@ -48,12 +49,14 @@ jobs:
       - name: linkinator, the three faces
         if: always()
         run: |
+          mkdir -p faces
           npx linkinator https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/prove/ https://drexthealpha.github.io/Knos/claims/ https://drexthealpha.github.io/Knos/agents/ http://127.0.0.1:8080/ \
             --retry --retry-errors --timeout 20000 --skip "^https://(x\.com|twitter\.com|www\.linkedin\.com)" --format json > faces/links.json || true
           node -e 'const r=require(process.argv[1]); const bad=r.links.filter(l=>l.state==="BROKEN"&&l.status!==429); console.log("links", r.links.length, "broken", bad.length); for (const l of bad) console.log(l.status, l.url, "on", l.parent); process.exit(bad.length?1:0)' "$PWD/faces/links.json" | tee faces/links.txt
       - name: Hallmark sloplint and Impeccable, each face
         if: always()
         run: |
+          mkdir -p faces
           git clone -q https://github.com/Nutlope/hallmark "$RUNNER_TEMP/hallmark" && git -C "$RUNNER_TEMP/hallmark" checkout -q 4f6a46c6dc325d40ab268c93e25c7b96676ebccd
           for f in web/door.html near/web/index.html iris/web/dashboard.html; do
             echo "== $f" | tee -a faces/sloplint.txt
