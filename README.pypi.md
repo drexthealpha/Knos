@@ -11,9 +11,44 @@
 
 Knos carries research across the valley of death.
 
+<!-- entry:judges -->
+## For judges: 2 minutes
+
+Three commands from a clone of this repository (`git clone https://github.com/drexthealpha/Knos && cd Knos`), each with
+the exact output you should see. They check one claim end to end: the test file, the hash NEAR locked before the
+agents started, and the agent's code passing that test.
+
+1. The locked test's sha256:
+
+   ```bash
+   sha256sum near/agents/job/test_jump.py
+   ```
+
+   `ffa9d064744e7ea0cc326039f55a979a588e2c1cdb3f59368ff4a99c986057cb  near/agents/job/test_jump.py`
+
+2. The hash NEAR testnet locked for job-1112053239, and that the job paid:
+
+   ```bash
+   curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"jobs.knos-swarm-1105.testnet","method_name":"get_job","args_base64":"eyJpZCI6ImpvYi0xMTEyMDUzMjM5In0="}}' | python3 -c 'import json,sys; j=json.loads(bytes(json.load(sys.stdin)["result"]["result"])); print(j["criteria_hash"], j["state"])'
+   ```
+
+   `ffa9d064744e7ea0cc326039f55a979a588e2c1cdb3f59368ff4a99c986057cb Paid`
+
+3. Agent A's code against that test:
+
+   ```bash
+   d=$(mktemp -d) && cp near/agents/job/test_jump.py $d/ && cp near/agents/solutions/jump_a.py $d/solution.py && (cd $d && python3 test_jump.py)
+   ```
+
+   `Passed: 9.2% of 100,000 keys moved going from 10 to 11 buckets (the ideal: 9.1%), all to the new one, the fullest bucket 1.5% over the mean, nothing stored.`
+
+Change one byte of the test and the first hash no longer matches the second: the same check runs in your browser on
+each claim's page (https://drexthealpha.github.io/Knos/claim/jump-hash/).
+<!-- /entry:judges -->
+
 ## How it works today
 
-Today the library proves one claim, the HyperLogLog paper's.
+Today the library proves four claims, each from a real paper ([every claim and how to check it](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#every-claim-and-how-to-check-it)).
 
 Paste its link and ask "Will it work?". Knos posts the claim on NEAR with a test locked before any agent starts, agents run against that test, and you get a Yes or No, the verified code to download and a receipt on NEAR testnet for the test USDC you put behind the claim.
 
@@ -125,6 +160,25 @@ The proof is checked before any money moves. A milestone names its checker in th
 Open [the one page](https://drexthealpha.github.io/Knos/), keep the sample paper link and press **Will it work?**, then
 prove it with the test USDC you choose. Nothing to install and no sign-up ([Do this, see that](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#do-this-see-that)). The
 same account and records also open in [the app](https://knos.onrender.com/app/).
+
+<!-- entry:claims -->
+## Every claim and how to check it
+
+Each claim's locked test is a file of `near/agents/job/`; its sha256 is the criteria hash every job for the claim is
+opened with on NEAR testnet, before any agent starts. Run a test on agent A's code with
+`d=$(mktemp -d) && cp near/agents/job/<test> $d/ && cp <agent A's code> $d/solution.py && (cd $d && python3 <test>)`.
+
+| Claim (paper) | Locked test, sha256 | Agent A's code | You should see |
+|---|---|---|---|
+| HyperLogLog counts 30,000 visitors within 10% in 1.5 kilobytes ([Flajolet and others, 2007](https://doi.org/10.46298/dmtcs.3545)) | `test_hll.py`, `55ef830e...` | `SOLUTION` in `near/agents/pass_agent.py` | `Passed: 30,000 visitors counted within ...` |
+| Jump consistent hash moves about 1 key in 11 ([Lamping and Veach, 2014](https://arxiv.org/abs/1406.2294)) | `test_jump.py`, `ffa9d064...` | `near/agents/solutions/jump_a.py` | `Passed: 9.2% of 100,000 keys moved ...` |
+| An xor filter: under 0.5% false positives in 10 bits per key ([Graf and Lemire, 2020](https://doi.org/10.1145/3376122)) | `test_xor.py`, `ffd0f557...` | `near/agents/solutions/xor_a.py` | `Passed: 0.38% false positives on 200,000 other keys ...` |
+| A Morris counter counts 100,000 within 10% in 12 bits ([Nelson and Yu, 2020](https://arxiv.org/abs/2010.02116)) | `test_morris.py`, `b91647f1...` | `near/agents/solutions/morris_a.py` | `Passed: 20 of 20 counts of 100,000 events within 10% ...` |
+
+Agent B's code (`fail_agent.py`, `*_b.py`) takes the usual shortcut and prints `Failed: ...` for each. Every verdict
+says what the test checked and what it did not (the claim's page), and an AI reviewer, when one is set, can only turn
+a pass into a fail (`final_verdict` in `apps/wanted/knos_wanted/near_live.py`); none is set today.
+<!-- /entry:claims -->
 
 ## Why nobody can fudge the count
 

@@ -38,6 +38,15 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 """
 
 
+# attacks tried on NEAR testnet, each refused by the contracts (near/CLAIMS.md)
+ATTACKS = [("Settle a claim by vote", "a market settles only by its locked test", "371H72CAkzrN1ih486C32y9iFsrKd1ndqZXKxWL5tYyL"),
+           ("Change a claim's locked test", "the test is locked when the job is funded", "DVXvKjBMhXhJgXKTNcF1DVMVXWLa7pzZB3ukon9dpkaH"),
+           ("Settle before the test ran", "nothing settles until the locked test has run", "7D9AaoNRccUcmtWFt3yrWkZqq1LYC4ef6zMhttXjny6F"),
+           ("Pay without a passing result", "a release needs the checker's token for a passing output", "E5GUcVks55r9Rn4b1HJBJagDB1bFbL8YMj41UFHFeHan"),
+           ("Use a payment token twice", "each token is used once", "HcZ8nBuQYuYU5LKRVceSfXVdqBnLrj1shyddj3EQBsM2"),
+           ("Spend over an agent's cap", "an agent's spending stops at its cap", "FdJPJf7RLdErvMBdeUkeUWdhqw4VGNEKtw5aVD4VnK4y")]
+
+
 def claims() -> list[dict]:
     """The claims, each with its locked test's sha256 (the criteria hash its jobs are opened with)."""
     out = []
@@ -68,6 +77,14 @@ LIVE_JS = """const HOSTED = "__HOSTED__";
 const $ = (id) => document.getElementById(id);
 const usd = (n) => (+n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
 async function getJSON(path) { try { const r = await fetch(HOSTED + path); return r.ok ? await r.json() : null; } catch (e) { return null; } }
+// NEAR testnet, read from this browser: no answer of Knos's server is trusted for these
+async function nearView(contract, method, args) {
+  const body = { jsonrpc: "2.0", id: "k", method: "query", params: { request_type: "call_function", finality: "final", account_id: contract, method_name: method, args_base64: btoa(JSON.stringify(args)) } };
+  const r = await fetch("https://rpc.testnet.near.org", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json());
+  if (!r.result || !r.result.result) throw new Error((r.error && r.error.message) || "no answer");
+  return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result.result)));
+}
+async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
 const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
 function truthText(m) {
   if (!m) return "opens with the first order";
@@ -94,7 +111,11 @@ def claims_page(header: str, cs: list[dict]) -> str:
             f'<p class="fine">Each claim has two markets on NEAR testnet, priced by an automatic market maker (LMSR): whether it holds, '
             f'settled by its locked test, and whether 100 test USDC are put behind proving it within 7 days, settled by the '
             f'record on NEAR. Odds show only before the result.</p>\n'
-            f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>')
+            f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>\n'
+            f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>Why NEAR refused it</th><th>Record</th></tr></thead><tbody>'
+            + "".join(f'<tr><td>{e(a)}</td><td>{e(why)}</td><td><a href="https://testnet.nearblocks.io/txns/{tx}">{tx[:8]}...</a></td></tr>' for a, why, tx in ATTACKS)
+            + '</tbody></table>\n<p class="fine">And in every live proof, agent B tries to spend over its cap and is refused. The contracts\' '
+              '208 tests, 146 of them attacks, run on every change: <code>bash near/scripts/verify.sh</code>.</p>')
     script = LIVE_JS + """(async () => {
   const [c, b] = await Promise.all([getJSON("/api/near/claim/counters"), getJSON("/api/near/claims")]);
   const by = (c && c.by_claim) || (c && c.proofs != null ? { hyperloglog: { proofs: c.proofs, usd: c.usd } } : {});
@@ -118,6 +139,12 @@ def claim_page(header: str, c: dict) -> str:
             f'<h2>The locked test</h2>\n<p><a href="{test_url}">{e(c["test"])}</a>, sha256 <code>{c["sha256"]}</code>. '
             f'Every job for this claim is opened on NEAR testnet with this hash as its criteria hash, before any agent starts; '
             f'the checker runs only the file with this hash.</p>\n'
+            f'<p><b>What it did not check:</b> {e(c["not_checked"])}.</p>\n'
+            f'<h2>Check it yourself, in this browser</h2>\n<p>Your browser fetches the locked test from GitHub, hashes it, and reads '
+            f'from NEAR testnet itself the hash this claim\'s newest job locked before any agent started. Then change one byte and check again.</p>\n'
+            f'<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
+            f'<button class="btn" id="tamper" type="button" disabled>Change one byte and check again</button></p>\n'
+            f'<p id="verdict" role="status"></p>\n'
             f'<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td id="truth">reading</td></tr>'
             f'<tr><th>100 test USDC behind it within 7 days?</th><td id="demand">reading</td></tr></tbody></table>\n'
             f'<p class="fine">Priced by an automatic market maker (LMSR) in test USDC; the first settles by the locked test, the '
@@ -128,8 +155,37 @@ def claim_page(header: str, c: dict) -> str:
             f'Payments: <a href="{EXPLORER}live.knos-swarm-1105.testnet?tab=tokentxns">the buyer test account</a>.</p>')
     script = LIVE_JS + """(async () => {
   const name = %s;
-  getJSON("/api/near/claims").then((b) => { const m = (b && b.claims && b.claims[name]) || {};
-    $("truth").textContent = b ? truthText(m.truth) : "not read"; $("demand").textContent = b ? demandText(m.demand) : "not read"; });
+  const board = getJSON("/api/near/claims");
+  board.then(async (b) => { const m = (b && b.claims && b.claims[name]) || {};
+    $("truth").textContent = b ? truthText(m.truth) : "not read"; $("demand").textContent = b ? demandText(m.demand) : "not read";
+    // the same two markets, read again by this browser from NEAR itself
+    for (const [id, cell, text] of [[m.truth && m.truth.id, "truth", truthText], [m.demand && m.demand.id, "demand", demandText]]) {
+      if (!id) continue;
+      try { const v = await nearView(%s, "get_market", { id }); const traders = await nearView(%s, "get_traders", { id }).catch(() => null);
+        const mm = { ...m[cell], id, trades: v.market.trades, traders, outcome: v.market.outcome, yes_cents: +v.yes_price / 10000 };
+        if (cell === "demand") { const g = await nearView(%s, "get_backed", { claim: name, from: m.demand.opened, until: m.demand.closes }); mm.behind_usd = +g.total / 1e6; }
+        $(cell).textContent = text(mm) + ". Read from NEAR by this browser."; } catch (err) { /* the server's reading stays */ }
+    } });
+  let text = null, job = null;
+  async function check(bytes, changed) {
+    const mine = await sha256(bytes), locked = job && job.criteria_hash;
+    const ok = mine === locked;
+    $("verdict").replaceChildren(Object.assign(document.createElement("b"), { textContent: ok ? "VERIFIED" : "NOT VERIFIED" }),
+      ok ? `: the test's sha256 ${mine.slice(0, 16)}... is the one NEAR locked for ${job.id} before the agents started (read from NEAR just now).`
+         : `: ${changed ? "with one byte changed, " : ""}the test's sha256 is ${mine.slice(0, 16)}..., not the ${String(locked).slice(0, 16)}... NEAR locked${job ? " for " + job.id : ""}.`);
+  }
+  $("verify").addEventListener("click", async () => {
+    $("verify").disabled = true; $("verdict").textContent = "Fetching the test and reading NEAR...";
+    try {
+      const b = await board, id = b && b.claims && b.claims[name] && b.claims[name].truth && b.claims[name].truth.id;
+      if (!id) { $("verdict").textContent = "No job of this claim on NEAR yet: order the first proof."; $("verify").disabled = false; return; }
+      const [file, j] = await Promise.all([fetch(%s).then((r) => r.arrayBuffer()), nearView(%s, "get_job", { id: id.slice(4) })]);
+      text = new Uint8Array(file); job = { ...j, id: id.slice(4) };
+      await check(text, false); $("tamper").disabled = false;
+    } catch (err) { $("verdict").textContent = `Not checked: ${err.message}.`; }
+    $("verify").disabled = false;
+  });
+  $("tamper").addEventListener("click", async () => { const t = text.slice(); t[t.length - 2] ^= 1; await check(t, true); });
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
   const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
@@ -140,7 +196,8 @@ def claim_page(header: str, c: dict) -> str:
       tr.innerHTML = `<td>${new Date(at * 1000).toISOString().slice(0, 16).replace("T", " ")}</td><td class="n">${amount == null ? "new" : (+amount).toFixed(2)}</td><td><a href="https://testnet.nearblocks.io/txns/${tx}">${tx.slice(0, 10)}...</a></td>`;
       tb.append(tr); }
     $("receipts").hidden = false; }
-})();""" % json.dumps(c["name"])
+})();""" % (json.dumps(c["name"]), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET),
+              json.dumps(f"https://raw.githubusercontent.com/drexthealpha/Knos/main/near/agents/job/{c['test']}"), json.dumps(JOBS))
     return page(header, "../../", f"{c['plain']} | Knos", c["plain"], body, script, f"claim/{c['name']}/")
 
 

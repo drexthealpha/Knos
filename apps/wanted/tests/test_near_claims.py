@@ -39,3 +39,10 @@ def test_each_locked_test_passes_agent_a_and_fails_agent_b(tmp_path):
             said = (p.stdout + p.stderr).strip().splitlines()[-1]
             assert (p.returncode == 0) == should_pass, (c, should_pass, said)
             assert said.startswith("Passed: " if should_pass else "Failed: "), said
+
+
+def test_an_ai_reviewer_can_only_make_a_verdict_stricter():
+    f = near_live.final_verdict
+    assert f(True) and f(True, True)                      # no reviewer, or one that agrees: the test decides
+    assert not f(True, False)                             # a pass the reviewer rejects becomes a fail
+    assert not f(False, True) and not f(False)            # a fail stays a fail, whatever the reviewer says

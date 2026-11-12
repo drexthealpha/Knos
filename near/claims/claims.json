@@ -13,7 +13,8 @@
       "locked": "count 30,000 visitors within 10%, in at most 1.5 kilobytes",
       "question": "Does HyperLogLog count 30,000 visitors within 10% using at most 1.5 kilobytes?",
       "code_name": "visitor_counter.py",
-      "test": "test_hll.py"
+      "test": "test_hll.py",
+      "not_checked": "counts beyond 30,000 visitors, or the paper's 2% figure at a billion items"
     },
     {
       "name": "jump-hash",
@@ -28,7 +29,8 @@
       "locked": "place 100,000 keys in 10 buckets, then 11: between 8.2% and 10.0% move, all to the new bucket, the fullest bucket at most 5% over the mean, nothing stored",
       "question": "Does jump consistent hash move only about 1 key in 11 when 10 buckets become 11?",
       "code_name": "jump_hash.py",
-      "test": "test_jump.py"
+      "test": "test_jump.py",
+      "not_checked": "bucket counts other than 10 and 11, or the paper's claim that it is faster"
     },
     {
       "name": "xor-filter",
@@ -43,7 +45,8 @@
       "locked": "hold 50,000 keys, miss none, say yes to under 0.5% of 200,000 others, in at most 10 bits per key",
       "question": "Does an xor filter give under 0.5% false positives in at most 10 bits per key?",
       "code_name": "xor_filter.py",
-      "test": "test_xor.py"
+      "test": "test_xor.py",
+      "not_checked": "speed, which the paper also claims, or the smaller xor+ variant"
     },
     {
       "name": "morris-counter",
@@ -58,7 +61,8 @@
       "locked": "count 100,000 events within 10% in at least 19 of 20 runs, in a register of at most 12 bits",
       "question": "Does a Morris counter count 100,000 events within 10% in a 12-bit register?",
       "code_name": "morris_counter.py",
-      "test": "test_morris.py"
+      "test": "test_morris.py",
+      "not_checked": "the paper's own new algorithm or its lower bound: only the Morris counter it describes"
     }
   ]
 }

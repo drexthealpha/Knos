@@ -510,10 +510,16 @@ CLAIM_Q = "Does HyperLogLog count 30,000 visitors within 10% using at most 1.5 k
 CLAIMS = {c["name"]: c for c in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]}
 
 
+def final_verdict(test_passed: bool, reviewer: bool | None = None) -> bool:
+    """The verdict: the locked test decides, and an AI reviewer, when one is set, can only make it stricter. A pass it
+    rejects becomes a fail; a fail it approves stays a fail. None set today: the reviewer's answer is None."""
+    return test_passed and reviewer is not False
+
+
 def _known(c: dict) -> dict:
     return {"name": c["name"], "plain": c["plain"], "paper": c["paper"], "authors": f"{c['authors']}, {c['year']}", "doi": "https://doi.org/" + c["doi"],
             "quote": c["quote"], "paper_number": c["paper_number"], "locked": c["locked"], "code_name": c["code_name"],
-            "check": f"https://github.com/drexthealpha/Knos/blob/main/near/agents/job/{c['test']}"}
+            "check": f"https://github.com/drexthealpha/Knos/blob/main/near/agents/job/{c['test']}", "not_checked": c["not_checked"]}
 
 
 KNOWN = {c["doi"].lower(): _known(c) for c in CLAIMS.values()} | {"arxiv:" + c["arxiv"]: _known(c) for c in CLAIMS.values() if c.get("arxiv")}
@@ -718,7 +724,8 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE) -> dict:
                "criteria_hash": ready["criteria_hash"], "check": k["check"], "claim": claim,
                "verdict": {"paper": k["paper_number"],
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", "").removeprefix("Passed: "),
-                           "holds": bool(win), "checked": k["locked"]}}
+                           "holds": final_verdict(bool(win)), "checked": k["locked"], "not_checked": CLAIMS[claim]["not_checked"],
+                           "ai_reviewer": "none set: the locked test alone decided"}}
         out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
         out["market"] = ready.get("market") or _open_market(ready["id"], CLAIMS[claim]["question"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
