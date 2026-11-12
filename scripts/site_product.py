@@ -157,7 +157,7 @@ def claim_page(header: str, c: dict) -> str:
             f'<h2>Check it yourself, in this browser</h2>\n<p>Your browser fetches the locked test from GitHub, hashes it, and reads '
             f'from NEAR testnet itself the hash this claim\'s newest job locked before any agent started. Then change one byte and check again.</p>\n'
             f'<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
-            f'<button class="btn" id="tamper" type="button" disabled>Change one byte and check again</button></p>\n'
+            f'<button class="btn" id="tamper" type="button">Change one byte and check again</button></p>\n'
             f'<p id="verdict" role="status"></p>\n'
             f'<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth">reading</span><span class="row" data-trade="truth"></span></td></tr>'
             f'<tr><th>100 test USDC behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
@@ -220,11 +220,18 @@ def claim_page(header: str, c: dict) -> str:
       const [file, j] = await Promise.all([fetch(%s).then((r) => r.arrayBuffer()), nearView(%s, "get_job", { id: id.slice(4) })]);
       clearInterval(vt);
       text = new Uint8Array(file); job = { ...j, id: id.slice(4) };
-      await check(text, false); $("tamper").disabled = false;
+      await check(text, false);
     } catch (err) { clearInterval(vt); $("verdict").textContent = `Not checked: ${err.message}. Press the button again in a few seconds.`; }
     clearInterval(vt); $("verify").disabled = false;
   });
-  $("tamper").addEventListener("click", async () => { const t = text.slice(); t[t.length - 2] ^= 1; await check(t, true); });
+  $("tamper").addEventListener("click", async () => {
+    if (!text) {   // not checked yet: check first, then change the byte
+      $("verify").click();
+      await new Promise((res) => { const w = setInterval(() => { if (!$("verify").disabled) { clearInterval(w); res(); } }, 100); });
+      if (!text) return;
+    }
+    const t = text.slice(); t[t.length - 2] ^= 1; await check(t, true);
+  });
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
   const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });

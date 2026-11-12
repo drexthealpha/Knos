@@ -721,7 +721,12 @@ load();
       el("p", {}, cap.refused ? [`Agent B tried to spend ${cap.tried_units} units of its spending budget, over its cap of ${cap.cap_units}. NEAR refused it. `, out(cap.url, "The refusal")] : [`Not shown this time: ${cap.why || "the test network did not answer"}. The agent call and the video show NEAR refusing it.`]));
     capLi.className = cap.refused ? "ok" : "stop";
     const r = await proving; await agentsRan;
-    if (!r.ok) { add("stop", "4. No answer this time", [el("p", { textContent: `Why: ${r.why || "the proof stopped"}.` })]); clearInterval(tick); return; }
+    if (!r.ok) {
+      const why = String(r.why || "the proof stopped").includes("{") ? "the test network refused one of its transactions" : (r.why || "the proof stopped");
+      for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "stopped"; }
+      add("stop", "4. No answer this time", [el("p", { textContent: `Why: ${why}. Nothing was paid. ` }), el("button", { className: "btn", type: "button", textContent: "Try again", onclick: () => location.reload() })]);
+      clearInterval(tick); return;
+    }
     const v = r.verdict;
     add("ok", v.holds ? "4. Answer: Yes, the claim holds" : "4. Answer: No, the claim does not hold", [el("table", { className: "vs" }, [
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
