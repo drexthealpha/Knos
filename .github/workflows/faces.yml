@@ -1,5 +1,5 @@
-# The browser checks of the product pages as Pages serves them, after each deploy: Lighthouse (mobile preset, one cold
-# run per page), linkinator (every link) and Hallmark's sloplint and Impeccable's detector, into the artifact "faces".
+# The browser checks of the product pages as Pages serves them, after each deploy: Lighthouse (mobile preset, the median
+# of three cold runs per page), linkinator (every link) and Hallmark's sloplint and Impeccable's detector, into the artifact "faces".
 # The front door's S1 numbers and every page's header are gated before deploy, in network.yml (tests/web/front_door_budget.mjs);
 # the older face gates (the film, the four-item nav, #menu) went with the pages they checked.
 name: faces
@@ -41,9 +41,11 @@ jobs:
           for p in "" prove/ claims/ claim/hyperloglog/ agents/ iris; do
             n=$(echo "${p:-home}" | tr '/' '-' | sed 's/-$//')
             u="https://drexthealpha.github.io/Knos/$p"; [ "$p" = iris ] && u=http://127.0.0.1:8080/
-            npx --yes lighthouse@12.8.2 "$u" --quiet --chrome-flags="--headless=new --no-sandbox" \
-              --output=json --output-path="faces/lighthouse-$n.json" --only-categories=performance,accessibility,best-practices,seo || true
-            node -e 'const r=require(process.argv[1]); const c=r.categories; console.log(process.argv[2], ["performance","accessibility","best-practices","seo"].map(k=>k+" "+c[k].score).join(", "), "CLS", r.audits["cumulative-layout-shift"].numericValue, "LCP ms", Math.round(r.audits["largest-contentful-paint"].numericValue))' "$PWD/faces/lighthouse-$n.json" "$n" | tee -a faces/lighthouse.txt
+            for k in 1 2 3; do   # three cold runs: stray work on a shared runner moves one run's score, so the median counts
+              npx --yes lighthouse@12.8.2 "$u" --quiet --chrome-flags="--headless=new --no-sandbox" \
+                --output=json --output-path="faces/lighthouse-$n-$k.json" --only-categories=performance,accessibility,best-practices,seo || true
+            done
+            node -e 'const rs=[1,2,3].map(k=>{try{return require(process.argv[1]+"-"+k+".json")}catch(e){return null}}).filter(Boolean); const mid=(xs)=>xs.sort((a,b)=>a-b)[Math.floor(xs.length/2)]; const by=(k)=>mid(rs.map(r=>r.categories[k].score)); const r=rs.slice().sort((a,b)=>a.categories.performance.score-b.categories.performance.score)[Math.floor(rs.length/2)]; console.log(process.argv[2], ["performance","accessibility","best-practices","seo"].map(k=>k+" "+by(k)).join(", "), "CLS", r.audits["cumulative-layout-shift"].numericValue, "LCP ms", Math.round(r.audits["largest-contentful-paint"].numericValue), "(median of " + rs.length + " runs)")' "$PWD/faces/lighthouse-$n" "$n" | tee -a faces/lighthouse.txt
           done
           ! grep -E "(performance|accessibility|best-practices|seo) 0\.[0-8]" faces/lighthouse.txt   # under 0.9, out of the good band
       - name: linkinator, the three faces
