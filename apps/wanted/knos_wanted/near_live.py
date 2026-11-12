@@ -198,7 +198,11 @@ def prepare() -> None:
     try:
         if (_ready.get("job") and _spare) or not status()["live"]:
             return
-        fresh = _make_job(SAMPLE)
+        try:
+            fresh = _make_job(SAMPLE)
+        except ModelCodeFailed as e:   # the model was asked (now gated for 6 hours): ready the job with agent A's fixed program at once
+            print("near_live prepare:", f"ModelCodeFailed: {str(e)[:200]}", file=sys.stderr, flush=True)
+            fresh = _make_job(SAMPLE)
         _ready.pop("error", None)
         if _ready.get("job"):
             _spare.append(fresh)
@@ -1181,7 +1185,7 @@ def _snapshot(direct: bool = False) -> dict | None:
         _snap.update(at=time.time(), out=json.loads(cr["output"]["summary"]))
     except Exception as e:  # noqa: BLE001 - the last snapshot read stays in use
         print("near_live counters:", str(e)[:160], file=sys.stderr, flush=True)
-        _snap["at"] = time.time() - 240          # ask again in a minute
+        _snap["at"] = time.time() - (0 if "rate limit" in str(e) else 240)   # ask again in a minute; in 5 when GitHub's hourly limit is used
     if direct and _late(_snap.get("out")):
         _direct()
     return _snap.get("out")
@@ -1465,6 +1469,8 @@ def plain_page() -> dict:
     """The small model's page about the paper (product-page.yml), from its public check run; held 10 minutes."""
     if _plain.get("at") and time.time() - _plain["at"] < 600 and _plain.get("out"):
         return _plain["out"]
+    if time.time() - _plain.get("failed", 0) < 600:   # GitHub refused this server: ask again in 10 minutes, not on every visit
+        return _plain.get("out") or {"ok": False, "why": "the plain-words page could not be read just now"}
     gh = "https://api.github.com/repos/drexthealpha/Knos/"
     try:
         def get(u: str) -> dict:
@@ -1478,6 +1484,7 @@ def plain_page() -> dict:
                 return _plain["out"]
     except Exception as e:  # noqa: BLE001 - the page says it could not be read
         print("near_live plain page:", str(e)[:160], file=sys.stderr, flush=True)
+        _plain["failed"] = time.time()
     return _plain.get("out") or {"ok": False, "why": "the plain-words page could not be read just now"}
 
 
@@ -1488,6 +1495,8 @@ def tests_status() -> dict:
     """The full test suite's latest finished run on main (GitHub Actions, tests.yml), held 5 minutes: passed or not, its link."""
     if _tests.get("at") and time.time() - _tests["at"] < 300 and _tests.get("out"):
         return _tests["out"]
+    if time.time() - _tests.get("failed", 0) < 600:   # GitHub refused this server: ask again in 10 minutes, not on every visit
+        return _tests.get("out") or {"why": "the test record could not be read just now"}
     try:
         req = urllib.request.Request("https://api.github.com/repos/drexthealpha/Knos/actions/workflows/tests.yml/runs?branch=main&status=completed&per_page=10",
                                      headers={"User-Agent": "knos-near-tests", "Accept": "application/vnd.github+json"})
@@ -1497,4 +1506,5 @@ def tests_status() -> dict:
         _tests.update(at=time.time(), out={"passed": run["conclusion"] == "success", "url": run["html_url"], "sha": run["head_sha"][:8], "at": run["updated_at"]})
     except Exception as e:  # noqa: BLE001 - the page says it could not be read
         print("near_live tests:", str(e)[:160], file=sys.stderr, flush=True)
+        _tests["failed"] = time.time()
     return _tests.get("out") or {"why": "the test record could not be read just now"}
