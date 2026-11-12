@@ -137,6 +137,8 @@ class ModelCodeFailed(RuntimeError):
 
 
 _written: dict = {}   # claim -> agent A's model-written code that last passed its locked test (the code a buyer downloads)
+_asked: dict = {}     # claim -> when a job readied in the background last asked the model (at most once in 6 hours: no call in a loop)
+ASK_EVERY = 6 * 3600
 
 
 def _test_text(claim: str) -> str:
@@ -152,7 +154,12 @@ def _make_job(claim: str = SAMPLE, visitor: str = "") -> dict:
     j = _jobs()
     posted_at = time.time()
     sa, sb = _solutions(claim)
-    writer = near_ai.write_code(claim, CLAIMS[claim]["quote"], _test_text(claim), visitor)
+    if not visitor and time.time() - _asked.get(claim, 0) < ASK_EVERY and claim not in _written:
+        writer = {"model": None, "note": "the model was asked for this claim less than 6 hours ago and its code did not pass"}
+    else:
+        if not visitor:
+            _asked[claim] = time.time()
+        writer = near_ai.write_code(claim, CLAIMS[claim]["quote"], _test_text(claim), visitor)
     if writer.get("code"):
         sa = writer["code"]
     p = j.post({"bid": BID, "minutes": 240, "test": CLAIMS[claim]["test"]})

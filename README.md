@@ -580,8 +580,9 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    "Does it hold?" and "100 behind it in 7 days?". Open a claim and click "Check the test against NEAR" - see
    "VERIFIED"; click "Change one byte and check again" - see "NOT VERIFIED".
 
-The same run, recorded from the public pages, front door first: [near/web/knos-near.mp4](near/web/knos-near.mp4) (52.9 s, no still over 2.5 s by ffmpeg freezedetect; each wait cut over 2 s is marked on screen; it ends on the agent call's answer, run during the recording), with
-screenshots [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
+The same run, recorded from the public pages, front door first: [near/web/knos-near.mp4](near/web/knos-near.mp4) (46.7 s, no still over 2.5 s by ffmpeg freezedetect; its sound is a chord pad made by ffmpeg for this video, no outside music; each wait cut over 2 s is marked on screen; it ends on the agent call's answer, run during the recording).
+
+Screenshots: [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
 [what you got](near/web/knos-near-3-got.png).
 
 ### One call for agents
