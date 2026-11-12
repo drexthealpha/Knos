@@ -132,27 +132,49 @@ _ready: dict = {}
 _preparing = threading.Lock()
 
 
-def _make_job(claim: str = SAMPLE) -> dict:
+class ModelCodeFailed(RuntimeError):
+    """Agent A's model-written code did not pass the locked test: the order says so and reuses the last verified proof."""
+
+
+_written: dict = {}   # claim -> agent A's model-written code that last passed its locked test (the code a buyer downloads)
+
+
+def _test_text(claim: str) -> str:
+    return (ROOT / "near" / "agents" / "job" / CLAIMS[claim]["test"]).read_text(encoding="utf-8")
+
+
+def _make_job(claim: str = SAMPLE, visitor: str = "") -> dict:
     """One job of a claim, start to just before payment: posted with the claim's locked test, taken and answered by both
     agents (each answer in the job's own folder), each answer run against the test; the passing one is named, nobody is
-    paid yet; the claim's market opened."""
+    paid yet; the claim's market opened. Agent A's code is written by the model on NEAR AI Cloud (one call, cached by
+    its input); agent B stays the fixed shortcut that must fail."""
+    from . import near_ai
     j = _jobs()
     posted_at = time.time()
+    sa, sb = _solutions(claim)
+    writer = near_ai.write_code(claim, CLAIMS[claim]["quote"], _test_text(claim), visitor)
+    if writer.get("code"):
+        sa = writer["code"]
     p = j.post({"bid": BID, "minutes": 240, "test": CLAIMS[claim]["test"]})
     if not p.get("ok"):
         raise RuntimeError(f"post: {p.get('said') or p.get('why') or p}"[:200])
-    sa, sb = _solutions(claim)
     ra = j.run_agent("a", sa, p["id"])
     rb = j.run_agent("b", sb, p["id"])
     c = j.checker.check(p["id"], release=False)
     win = next((x for x in c["attempts"] if x.get("passed")), None)
+    if not win and writer.get("code"):
+        reason = next((x.get("reason", "") for x in c["attempts"] if x.get("agent") == ra.get("agent")), "")
+        raise ModelCodeFailed(f"agent A's code, written by {writer['model']} (call {writer.get('id')}), failed the locked test: {reason}"[:240])
+    if writer.get("code") and win and win.get("agent") == ra.get("agent"):
+        _written[claim] = sa
     if not win:
         said = {"a": [ra.get(k, {}).get("said") for k in ("take", "submit")], "b": [rb.get(k, {}).get("said") for k in ("take", "submit")],
                 "check": [x.get("reason") for x in c["attempts"]], "refused": c.get("refused")}
         raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
     market = _open_market(p["id"], CLAIMS[claim]["question"])
     return {"id": p["id"], "claim": claim, "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
-            "market": market, "output_sha256": win["output_sha256"],
+            "market": market, "output_sha256": win["output_sha256"], "code_a": sa,
+            "writer": {k: v for k, v in writer.items() if k != "code"},
             "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
             "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
                     "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
@@ -724,6 +746,16 @@ def claim_look(url: str) -> dict:
     return out
 
 
+def writer_line(w: dict | None) -> str:
+    """The verdict's one line about who wrote agent A's code."""
+    if not w:
+        return "a fixed program"
+    if not w.get("model") or w.get("note") and not w.get("id"):
+        return f"a fixed program ({w.get('note') or 'no model answer'})"
+    private = "private, attestation and signature verified" if w.get("private") else "not verified private"
+    return f"{w['model']} on NEAR AI Cloud, call {w.get('id')} ({private})" + (" (a cached answer for the same claim and test)" if w.get("cached") else "")
+
+
 def ai_line(ai: dict | None) -> str:
     """The verdict's one line about the AI reviewer: what it answered, or why the locked test alone decided."""
     if not ai or ai.get("approve") is None:
@@ -754,7 +786,9 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
             _day["a" if agent else "n"] += 1
         waited = time.time()
         try:
-            ready = _make_job(claim)
+            ready = _make_job(claim, visitor)
+        except ModelCodeFailed as e:   # said plainly; the order then shows the last verified proof, marked reused
+            return {"ok": False, "model_failed": True, "why": str(e), "seconds": round(time.time() - waited, 1)}
         except Exception as e:  # noqa: BLE001 - the page says which step stopped
             return {"ok": False, "why": f"the job on NEAR testnet stopped: {str(e)[:160]}", "seconds": round(time.time() - waited, 1)}
     else:
@@ -774,14 +808,15 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
             if ready:
                 _day["a" if agent else "n"] += 1
     if not ready:
+        if str(_ready.get("error", "")).startswith("ModelCodeFailed"):   # the model's code failed the test while the job was readied
+            return {"ok": False, "model_failed": True, "why": str(_ready["error"]).split(": ", 1)[1]}
         return {"ok": False, "why": f"the next proof is still being readied after {20 if agent else 90} s; try again in a minute"}
     t0 = time.time()
     ai = None
     if any(a["passed"] for a in ready["attempts"]):   # one model call at most per order, after the test passed and before anyone is paid
         from . import near_ai
         try:
-            ai = near_ai.review(claim, CLAIMS[claim]["quote"], (ROOT / "near" / "agents" / "job" / CLAIMS[claim]["test"]).read_text(encoding="utf-8"),
-                                _solutions(claim)[0], visitor)
+            ai = near_ai.review(claim, CLAIMS[claim]["quote"], _test_text(claim), ready.get("code_a") or _solutions(claim)[0], visitor)
         except Exception as e:  # noqa: BLE001 - a reviewer that breaks leaves the fixed rule
             ai = {"approve": None, "note": f"the AI reviewer stopped ({type(e).__name__}): the locked test alone decided"}
         if ai.get("approve") is False:   # stricter only: a pass it rejects is a fail, and the agent is not paid
@@ -797,7 +832,7 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
                "verdict": {"paper": k["paper_number"],
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", "").removeprefix("Passed: "),
                            "holds": final_verdict(bool(win), (ai or {}).get("approve")), "checked": k["locked"], "not_checked": CLAIMS[claim]["not_checked"],
-                           "ai_reviewer": ai_line(ai)}, "ai": ai}
+                           "ai_reviewer": ai_line(ai), "agent_a": writer_line(ready.get("writer"))}, "ai": ai, "writer": ready.get("writer")}
         out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
         out["market"] = ready.get("market") or _open_market(ready["id"], CLAIMS[claim]["question"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
@@ -856,7 +891,7 @@ def claim_code(claim: str = SAMPLE) -> tuple[bytes, str, str]:
     and its file name."""
     import hashlib
     claim = claim if claim in CLAIMS else SAMPLE
-    body = _solutions(claim)[0].encode("utf-8")
+    body = (_written.get(claim) or _solutions(claim)[0]).encode("utf-8")   # agent A's model-written code once it has passed
     return body, hashlib.sha256(body).hexdigest(), CLAIMS[claim]["code_name"]
 
 
@@ -1339,7 +1374,7 @@ def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
             if paid:
                 last = {"job": paid, "verdict": {"holds": True, "ai_reviewer": "not run again: a reused proof, read from NEAR"},
                         "release_url": "https://testnet.nearblocks.io/address/" + MARKET}
-        if last and (("live runs" in why and "are used" in why) or "still being readied" in why):   # no live run now: the last verified proof, reused and marked so, no money moved
+        if last and (("live runs" in why and "are used" in why) or "still being readied" in why or proof.get("model_failed")):   # no live run now: the last verified proof, reused and marked so, no money moved
             return {"ok": True, "reused": True, "job": last["job"], "claim": look.get("quote"), "verdict": last["verdict"],
                     "code": "https://knos.onrender.com/api/near/claim/code", "first_proof": last.get("release_url"), "cap": None,
                     "paid": False, "settled": False, "receipt": None,

@@ -1,0 +1,42 @@
+# The live app's records that must outlive a deploy, saved every 30 minutes on the gh-pages branch (a data branch: Pages
+# itself is published by network.yml from an artifact, so nothing here changes the site):
+# - near-ai-ledger.json: the NEAR AI spend, call counts and cached answers (GET /api/near/ai/ledger, no key, no model
+#   call). A restarted server starts from it (knos_wanted.near_ai._seed), so the $8 stop of the $10 credit survives
+#   every deploy. The larger spend and every cached answer are kept when two copies differ.
+# - uptime.jsonl: one line per check, whether /api/near/ai/ledger and one free read (/api/near/claim/counters) answered;
+#   /status reads "up N of M checks in the last 7 days" from it.
+name: ledger
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: {group: ledger, cancel-in-progress: false}
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: read the live app (free reads only)
+        run: |
+          mkdir -p out
+          at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          if curl -fsS -m 90 https://knos.onrender.com/api/near/ai/ledger -o out/ledger.json; then ai=1; else ai=0; rm -f out/ledger.json; fi
+          if curl -fsS -m 90 -o /dev/null https://knos.onrender.com/api/near/claim/counters; then rd=1; else rd=0; fi
+          printf '{"at": "%s", "ledger": %s, "read": %s, "up": %s}\n' "$at" "$ai" "$rd" "$([ $ai = 1 ] && [ $rd = 1 ] && echo true || echo false)" > out/check.json
+          cat out/check.json
+      - name: save on the gh-pages branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init -q w && cd w
+          git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth 1 origin gh-pages; then git checkout -q -b gh-pages FETCH_HEAD; else git checkout -q --orphan gh-pages; fi
+          if [ -s ../out/ledger.json ]; then
+            python3 -c 'import json,sys,os; new=json.load(open(sys.argv[1])); old=json.load(open(sys.argv[2])) if os.path.exists(sys.argv[2]) else {}; new["spent_usd"]=max(float(new.get("spent_usd") or 0),float(old.get("spent_usd") or 0)); new["calls"]=max(int(new.get("calls") or 0),int(old.get("calls") or 0)); c=dict(old.get("cache") or {}); c.update(new.get("cache") or {}); new["cache"]=c; json.dump(new,open(sys.argv[2],"w"),sort_keys=True,indent=1)' ../out/ledger.json near-ai-ledger.json
+          fi
+          cat ../out/check.json >> uptime.jsonl
+          git add near-ai-ledger.json uptime.jsonl 2>/dev/null || git add uptime.jsonl
+          git commit -q -m "ledger and uptime check $(date -u +%Y-%m-%dT%H:%MZ)" && git push -q origin HEAD:gh-pages

@@ -22,7 +22,8 @@ config = ["pyyaml==6.0.3"]   # config/fees.yaml + config/referees.yaml on the mo
 auth = ["cryptography>=42"]   # passkey sign-in (ES256 signature check)
 evidence = ["c2pa-python==0.38.0"]   # C2PA-signed photo/video evidence (knos_wanted.provenance)
 attest = ["sigstore==4.5.0"]   # the code referee's Sigstore attestation, checked against Sigstore's public trust root (knos.threshold.codeattest)
-saml = ["signxml==5.1.0", "lxml==6.1.3"]   # Knos as the SAML service provider for the test IdPs (knos_wanted.saml_sp)
+saml = ["signxml==5.1.0", "lxml==6.1.3"]
+nearai = ["dcap-qvl==0.7.1", "eth-account==0.14.0"]   # NEAR AI Cloud's attestation (Intel TDX quote) and each answer's signature, verified (knos_wanted.near_attest)   # Knos as the SAML service provider for the test IdPs (knos_wanted.saml_sp)
 dev = ["pytest>=8"]
 
 [project.scripts]

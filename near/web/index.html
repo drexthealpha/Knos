@@ -702,7 +702,7 @@ load();
     add("ok", "1. The test is locked", [el("p", {}, [`The agents did not write it and cannot change it: ${look.locked || "count 30,000 visitors within 10%, in at most 1.5 kilobytes"}. `,
       out(look.check || "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
-    const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. Once the test passes, an AI reviewer on NEAR AI Cloud reads the code and may only reject it." })]);
+    const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Agent A writes its code with a private model on NEAR AI Cloud; agent B is a fixed shortcut that must fail. Each has its own NEAR account. Once the test passes, a second model call reviews the code and may only reject it." })]);
     for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = sample ? "done for this order" : "running now"; }   // the sample's job was readied for this order; any other claim's runs now
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
@@ -712,6 +712,10 @@ load();
       two.append(el("p", { className: "fine", textContent: when }));
       for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = r.ran_before_s >= 0 ? `done ${ago} before you pressed` : `done ${secs().toFixed(1)} s after you pressed`; }
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
+      const w = r.writer || {};
+      two.append(el("p", { className: "fine" }, w.id ? [`Agent A's code was written by ${w.model} on NEAR AI Cloud, call ${w.id}${w.cached ? " (a cached answer for the same claim and test)" : ""}, ${w.tokens_in + w.tokens_out} tokens, $${(+w.cost_usd).toFixed(4)}; `,
+        w.private ? "private: its attestation and the answer's signature verified (" : "not verified private (", out(w.attestation && w.attestation.url || "https://cloud-api.near.ai/v1/attestation/report", "the attestation report"), ")."]
+        : [`Agent A's code: a fixed program (${w.note || "no model answer"}).`]));
       two.classList.add("ok");
     });
     await wait(600);
@@ -724,7 +728,8 @@ load();
     if (!r.ok) {
       const why = String(r.why || "the proof stopped").includes("{") ? "the test network refused one of its transactions" : (r.why || "the proof stopped");
       for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "stopped"; }
-      add("stop", "4. No answer this time", [el("p", { textContent: `Why: ${why}. Nothing was paid. ` }), el("button", { className: "btn", type: "button", textContent: "Try again", onclick: () => location.reload() })]);
+      const reused = r.model_failed && look.last && look.last.job ? [el("p", {}, ["The last verified proof of this claim, reused: ", out(look.last.record || "https://testnet.nearblocks.io/", look.last.job), "."])] : [];
+      add("stop", "4. No answer this time", [el("p", { textContent: `Why: ${why}. Nothing was paid. ` }), ...reused, el("button", { className: "btn", type: "button", textContent: "Try again", onclick: () => location.reload() })]);
       clearInterval(tick); return;
     }
     const v = r.verdict;
@@ -732,7 +737,8 @@ load();
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
       el("tr", {}, [el("th", { textContent: "Measured" }), el("td", { textContent: v.measured })]),
       el("tr", {}, [el("th", { textContent: "The locked test" }), el("td", { textContent: look.locked || "passes within 10% error on 30,000 visitors, in at most 1.5 kilobytes" })]),
-      el("tr", {}, [el("th", { textContent: "AI reviewer" }), el("td", { textContent: (v.ai_reviewer || "none") + (r.ai && r.ai.cost_usd && !r.ai.cached ? ` (${r.ai.tokens_in + r.ai.tokens_out} tokens, $${r.ai.cost_usd.toFixed(4)}, it can only reject)` : r.ai && r.ai.approve != null ? " (it can only reject)" : "") })])])]);
+      el("tr", {}, [el("th", { textContent: "AI reviewer" }), el("td", {}, [(v.ai_reviewer || "none") + (r.ai && r.ai.id ? `, call ${r.ai.id}` : "") + (r.ai && r.ai.cost_usd && !r.ai.cached ? ` (${r.ai.tokens_in + r.ai.tokens_out} tokens, $${r.ai.cost_usd.toFixed(4)}, it can only reject)` : r.ai && r.ai.approve != null ? " (it can only reject)" : ""),
+        ...(r.ai && r.ai.attestation && r.ai.attestation.url ? [r.ai.private ? "; private, attestation and signature verified: " : "; not verified private: ", out(r.ai.attestation.url, "attestation report")] : [])])])])]);
     const tryN = el("input", { type: "number", value: "100000", min: "1000", max: "100000", step: "1000", "aria-label": "Visitors to count", style: "width:9em" });
     const tryBtn = el("button", { type: "button", className: "go", textContent: "Count them with your code" });
     const tryOut = el("p", { role: "status" });

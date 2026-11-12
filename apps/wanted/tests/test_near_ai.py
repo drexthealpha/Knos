@@ -1,4 +1,4 @@
-"""The AI reviewer's rules, with NEAR AI Cloud faked: no model is called here and no real key is used."""
+"""The model steps' rules, with NEAR AI Cloud faked: no model is called here, no attestation is fetched, no real key."""
 import importlib
 import io
 import json
@@ -22,54 +22,63 @@ def ai(monkeypatch, tmp_path):
     monkeypatch.setenv("NEAR_AI_API_KEY", FAKE)
     monkeypatch.delenv("KNOS_NEAR_AI_OFF", raising=False)
     monkeypatch.setenv("KNOS_NEAR_AI_LEDGER", str(tmp_path / "ledger.json"))
-    from knos_wanted import near_ai
+    from knos_wanted import near_ai, near_attest
     m = importlib.reload(near_ai)
-    m._state["balance_at"] = 1e18   # no balance read
+    m._state["seeded"] = True   # no saved ledger read
+    monkeypatch.setattr(near_attest, "verify_model", lambda model: {"ok": model.startswith("deepseek"), "signers": ["0xabc"], "url": "u", "sha256": "s"})
+    monkeypatch.setattr(near_attest, "check_signature", lambda *a, **k: {"ok": True, "signer": "0xabc"})
     calls = []
 
-    def answer(approve=True, model_fail=None):
+    def answer(content='{"approve": true, "reason": "uses the claimed method"}', model_fail=None):
         def urlopen(req, timeout=0):
             body = json.loads(req.data) if req.data else {}
             calls.append(body.get("model"))
-            assert req.headers.get("Authorization") == "Bearer " + FAKE
+            assert req.headers.get("Authorization") == "Bearer " + FAKE and body.get("max_tokens") == 800
             if model_fail and body.get("model") == model_fail:
                 raise urllib.error.HTTPError(req.full_url, 503, "busy", {}, None)
-            content = json.dumps({"approve": approve, "reason": "uses the claimed method"})
-            return _Resp(json.dumps({"id": "x", "choices": [{"message": {"content": content}}],
+            return _Resp(json.dumps({"id": "chatcmpl-1", "choices": [{"message": {"content": content}, "finish_reason": "stop"}],
                                      "usage": {"prompt_tokens": 3000, "completion_tokens": 40}}).encode())
         monkeypatch.setattr(m.urllib.request, "urlopen", urlopen)
     return m, answer, calls
 
 
-def test_one_call_then_the_cache(ai):
+def test_one_call_then_the_cache_and_the_answer_is_private(ai):
     m, answer, calls = ai
-    answer(True)
+    answer()
     a = m.review("jump-hash", "q", "test text", "code text", "v1")
     b = m.review("jump-hash", "q", "test text", "code text", "v2")
-    assert a["approve"] is True and not a["cached"] and b["cached"] and calls == ["anthropic/claude-haiku-5-5"]
-    assert a["cost_usd"] == pytest.approx(3000 * 0.10e-6 + 40 * 0.50e-6)
+    assert a["approve"] is True and not a["cached"] and b["cached"] and calls == ["deepseek-ai/DeepSeek-V4.1-Flash-1017"]
+    assert a["cost_usd"] == pytest.approx(3000 * 0.30e-6 + 40 * 1.20e-6) and a["id"] == "chatcmpl-1" and a["private"]
     assert m.status()["spent_usd"] == pytest.approx(a["cost_usd"])
-    assert FAKE not in json.dumps([a, b, m.status()])
+    assert FAKE not in json.dumps([a, b, m.status(), m.ledger()])
 
 
-def test_the_fallback_model_answers_when_the_first_does_not(ai):
+def test_the_fallback_model_answers_and_says_it_is_not_verified_private(ai):
     m, answer, calls = ai
-    answer(True, model_fail="anthropic/claude-haiku-5-5")
+    answer(model_fail="deepseek-ai/DeepSeek-V4.1-Flash-1017")
     a = m.review("x", "q", "t", "c", "v")
-    assert a["model"] == "google/gemini-2.5-flash-lite" and calls == ["anthropic/claude-haiku-5-5", "google/gemini-2.5-flash-lite"]
+    assert a["model"] == "moonshotai/kimi-k2.6" and not a["private"] and calls == ["deepseek-ai/DeepSeek-V4.1-Flash-1017", "moonshotai/kimi-k2.6"]
+
+
+def test_agent_a_writes_its_code_with_one_call(ai):
+    m, answer, calls = ai
+    answer("```python\nclass Counter:\n    pass\n```")
+    w = m.write_code("hyperloglog", "q", "import solution\n", "v")
+    assert w["code"] == "class Counter:\n    pass\n" and len(calls) == 1 and w["kind"] == "write"
 
 
 def test_at_8_dollars_the_fixed_rule_decides_and_says_so(ai):
     m, answer, calls = ai
-    answer(True)
+    answer()
     m._state["spent_usd"] = 8.0
     a = m.review("x", "q", "t", "c", "v")
-    assert a["approve"] is None and "fixed rule" in a["note"] and calls == []
+    assert a["approve"] is None and "locked test alone" in a["note"] and calls == []
+    assert m.write_code("x", "q", "t", "v")["code"] is None and calls == []
 
 
 def test_ten_an_hour_per_visitor_and_200_a_day(ai):
     m, answer, calls = ai
-    answer(True)
+    answer()
     for i in range(10):
         assert m.review("x", "q", "t", f"code {i}", "same")["approve"] is True
     assert m.review("x", "q", "t", "code 10", "same")["approve"] is None
@@ -85,7 +94,7 @@ def test_no_key_no_call(monkeypatch, tmp_path):
     from knos_wanted import near_ai
     m = importlib.reload(near_ai)
     monkeypatch.setattr(m.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no call without a key"))
-    assert m.review("x", "q", "t", "c")["approve"] is None
+    assert m.review("x", "q", "t", "c")["approve"] is None and m.write_code("x", "q", "t")["code"] is None
 
 
 def test_the_reviewer_can_only_make_it_stricter():
@@ -94,13 +103,20 @@ def test_the_reviewer_can_only_make_it_stricter():
     assert not final_verdict(False, True) and final_verdict(True, None)
 
 
-def test_an_answer_cut_short_is_still_read(ai, monkeypatch):
+def test_an_answer_cut_short_is_still_read(ai):
     m, answer, calls = ai
-
-    def urlopen(req, timeout=0):
-        calls.append("x")
-        return _Resp(json.dumps({"choices": [{"message": {"content": '{"approve": false, "reason": "reads the test file'}, "finish_reason": "length"}],
-                                 "usage": {"prompt_tokens": 10, "completion_tokens": 400}}).encode())
-    monkeypatch.setattr(m.urllib.request, "urlopen", urlopen)
+    answer('{"approve": false, "reason": "reads the test file')
     a = m.review("x", "q", "t", "c", "v")
-    assert a["approve"] is False and a["reason"] == "reads the test file" and a["finish"] == "length"
+    assert a["approve"] is False and a["reason"] == "reads the test file"
+
+
+def test_the_attestation_checks_follow_near_ai_docs():
+    import hashlib
+    import struct
+
+    from knos_wanted import near_attest
+    ev = [{"imr": 3, "event_type": 1, "event": "app-id", "event_payload": "ab"}, {"imr": 0, "event_type": 2, "event": "x", "event_payload": ""}]
+    d = hashlib.sha384(struct.pack("<I", 1) + b":app-id:" + bytes.fromhex("ab")).digest()
+    assert near_attest.replay_rtmr3(json.dumps(ev)) == hashlib.sha384(bytes(48) + d).digest()
+    with pytest.raises(ValueError):
+        near_attest.replay_rtmr3([{**ev[0], "digest": "00" * 48}])

@@ -176,7 +176,7 @@ opened with on NEAR testnet, before any agent starts. Run a test on agent A's co
 
 Agent B's code (`fail_agent.py`, `*_b.py`) takes the usual shortcut and prints `Failed: ...` for each. Every verdict
 says what the test checked and what it did not (the claim's page), and the AI reviewer can only turn
-a pass into a fail (`final_verdict` in `apps/wanted/knos_wanted/near_live.py`): claude-haiku-5-5 on NEAR AI Cloud.
+a pass into a fail (`final_verdict` in `apps/wanted/knos_wanted/near_live.py`): DeepSeek V4.1 Flash on NEAR AI Cloud.
 <!-- /entry:claims -->
 
 ## Why nobody can fudge the count
@@ -618,16 +618,23 @@ transactions):
 paper link is the only data a buyer sends. Every push runs the full test suite on GitHub
 ([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)), and the page shows its latest finished run, read from GitHub. Knos has no token.
 
-**AI on NEAR AI Cloud.** After the locked test passes, one model call reviews agent A's code before anyone is paid:
-anthropic/claude-haiku-5-5 on NEAR AI Cloud (fallback google/gemini-2.5-flash-lite), at most 400 tokens out. It may only
-reject a pass, which then pays nobody; it can never pass a fail. Answers are cached by the sha256 of their input.
+**Private AI on NEAR AI Cloud.** Two model calls an order, both to deepseek-ai/DeepSeek-V4.1-Flash-1017 served from
+NEAR AI's attested TEEs (fallback moonshotai/kimi-k2.6), at most 800 tokens out. Agent A writes its code with the first;
+agent B stays the fixed shortcut that must fail.
 
-Its credit is $10 that cannot be topped up: 10 reviews an hour per visitor, 200 a day, and at $8 spent the fixed rule
-(the locked test alone) decides, and the verdict says so.
+After the locked test passes, the second call reviews that code before anyone is paid. It may only reject a pass, which
+then pays nobody; it can never pass a fail.
 
-[`/api/near/ai`](https://knos.onrender.com/api/near/ai) shows
-the dollars spent, from what figure, and the model's attestation report as NEAR AI Cloud returns it. The plain-words page
-is still written by qwen2.5:1.5b-instruct in GitHub Actions.
+Before the page says "private", Knos verifies the model's attestation as NEAR AI's docs describe: the Intel TDX quote with
+dcap-qvl, the report data binding the signer and a fresh nonce, MRCONFIGID and the RTMR3 event log. It then checks each
+answer's signature against that signer. NVIDIA GPU evidence is not checked. Each answer shows its model and call id.
+
+Answers are cached by the sha256 of their input. The credit is $10 that cannot be topped up: 10 calls an hour per
+visitor, 200 a day, and at $8 spent the fixed program and the locked test alone decide, and the verdict says so.
+
+[`/api/near/ai`](https://knos.onrender.com/api/near/ai) shows the dollars spent and the attestation check. A scheduled
+job saves the ledger on the gh-pages branch (`near-ai-ledger.json`), so a deploy cannot reset it. If agent A's
+model-written code fails the locked test, the order says so and shows the last verified proof, marked reused.
 
 **Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public. Of what moves, agent A gets 1 part in 49 and Knos's fee the
 other 48. Nobody has paid real money for one yet.
