@@ -82,15 +82,15 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       <input id="paper" name="paper" placeholder="A question, a claim, a link or a paper" autocomplete="off" spellcheck="false">
       <button class="go" id="go" type="submit">Ask</button>
     </form>
-    <button class="sample" id="sample" type="button">Try: HyperLogLog in 1.5 KB</button>
+    <button class="sample" id="sample" type="button">Try: HyperLogLog</button>
     <div class="chips" id="mine" hidden></div>
     <div class="out" id="out" aria-live="polite"></div>
-    <p class="cost">By hand: $330 to $763 a paper (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard, 2023</a>). Knos: under a minute.</p>
+    <p class="cost">By hand: $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard, 2023</a>). Knos: a minute.</p>
   </section>
   <p id="count" class="fine">Reading NEAR testnet...</p>
 </main>
 <footer>
-  <span>NEAR testnet, test money, no customers yet.</span><br>
+  <span>Test money, no customers yet. <a href="https://hack.sibyllabs.org/leaderboard">1st of 92, Sibyl Labs Hackathon</a>.</span><br>
   <a href="https://github.com/drexthealpha/Knos">Source</a><a href="status/">Status</a>
 </footer>
 <script>
@@ -168,7 +168,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   $("sample").addEventListener("click", () => ask("Does HyperLogLog count a billion items in 1.5 KB?"));
   // a second visit starts where the first ended: the visitor's last questions, from this browser
   if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.slice(0, 40), onclick: () => ask(x.q) }))); }
-  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid, Knos's own test money.`; };
+  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid on NEAR testnet.`; };
   json("data/counters.json").then(counts);
   json(HOSTED + "/api/near/claim/counters").then((c) => c ? counts(c) : $("count").textContent.startsWith("Reading") && ($("count").textContent = "NEAR testnet's record could not be read just now."));
 })();
