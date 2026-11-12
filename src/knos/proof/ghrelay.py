@@ -155,6 +155,7 @@ RELAY_KIND = {"proof": "pay"}   # the comment marker says proof; the relays call
 # buyer's count of a batch, the seller's own count of it
 METER_KINDS = ("eval", "batch", "claim")
 LOG_LABEL = "knos-relay"
+LOG_FULL = 2400          # comments on a log issue before it is closed and a new one opened (GitHub allows 2,500)
 LOG_BOT = "github-actions[bot]"  # who writes the log: the log repository's own workflow. Nobody else's line counts.
 # The repository the relay keeps its public log in, and whose own issues it always scans: the one whose worker.yml runs
 # it (worker.yml passes its own name), Knos's by default.
@@ -705,6 +706,14 @@ def _log_issue(repo: str = "", get=None) -> int | None:
     if repo not in _LOG:
         res = (get or _api)(f"repos/{repo}/issues?labels={LOG_LABEL}&state=open&per_page=1")
         if not res:
+            return None
+        if int(res[0].get("comments") or 0) >= LOG_FULL and repo == HOME_REPO and get is None:
+            # GitHub takes at most 2,500 comments on one issue: a full log is closed and the next line opens a new one
+            # (on 12 Nov 2026 a full log stopped every report, so funded work orders read as not confirmed)
+            try:
+                _HUB.send(f"repos/{repo}/issues/{res[0]['number']}", {"state": "closed"}, method="PATCH")
+            except (RuntimeError, TypeError):
+                pass
             return None
         _LOG[repo] = int(res[0]["number"])
         _LOG_BODY[repo] = str(res[0].get("body") or "")
