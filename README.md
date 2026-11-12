@@ -121,10 +121,10 @@ The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `ne
 | B12 Find a bug in Embedded Python | 2 (max 3) | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |
 | B13 First Article on Developer Community | 2 | https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call |
 | B14 Second Article on DC | 1 | https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris |
-| B15 Video | 3 | [Knos on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) ; [the file, 62 s](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) |
+| B15 Video | 3 | [Knos on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) ; [the file, 70 s with the live run](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) |
 <!-- /entry:criteria -->
 
-[Watch the 62-second video](https://drexthealpha.github.io/Knos/labs/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
+[Watch the 70-second video](https://drexthealpha.github.io/Knos/labs/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
 
 ## How it works
 
