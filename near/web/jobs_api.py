@@ -99,7 +99,7 @@ def guard(body: dict) -> dict:
         g = call(CONFIG["payer"], CONFIG["token"], "ft_transfer_call",
                  {"receiver_id": CONFIG["contract"], "amount": "2", "msg": json.dumps({"budget": {"agent": b, "cap": "1"}})}, "1 yoctoNEAR", "100 Tgas")
         out["budget"] = g
-    over = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, gas="20 Tgas")   # an agent key: little gas, its allowance lasts
+    over = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, gas="10 Tgas")   # an agent key: little gas, its allowance lasts
     out["tries"].append({"what": "helper B pays 2 test units on a cap of 1", **over})
     # the bid of an open job (a fresh one of 1 test unit when none is open), so the refusal is the proof check's
     jid = body.get("id") or next((x["id"] for x in _jobs() if (view(CONFIG["contract"], "get_job", {"id": x["id"]}) or {}).get("state") == "Open"), "")

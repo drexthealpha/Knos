@@ -915,7 +915,7 @@ def claim_cap() -> dict:
         with _cap_lock:
             common._PREFETCHED.pop(b, None)
             try:
-                r = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, gas="20 Tgas", wait="EXECUTED_OPTIMISTIC")
+                r = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, gas="10 Tgas", wait="EXECUTED_OPTIMISTIC")
                 common._PREFETCHED.pop(b, None)
                 return {"ok": not r["ok"], "refused": not r["ok"], "said": r["said"], "tx": r["tx"], "url": r["url"], "agent": b, "cap_units": 1, "tried_units": 2}
             except Exception as e:  # noqa: BLE001 - retried, then the page says the network was busy

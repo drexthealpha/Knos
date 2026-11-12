@@ -13,7 +13,7 @@ from common import CONFIG, HERE, call, sha256_file
 
 # take and submit burn about 2.3 Tgas (measured on testnet); NEAR checks a function-call key's allowance against the gas
 # attached, so attaching little lets what is left of the agent's allowance last hundreds of calls
-AGENT_GAS = "20 Tgas"
+AGENT_GAS = "10 Tgas"
 
 
 def run(name: str, solution: str, job: str) -> dict:
