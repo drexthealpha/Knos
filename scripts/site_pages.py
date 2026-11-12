@@ -82,7 +82,7 @@ BEACON = """<script>
     v = s.day === day ? s.v : [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
     localStorage.setItem("knos.visit", JSON.stringify({ v, day, at: s.day === day ? s.at : Date.now() })); } catch { v = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
   const page = location.pathname.replace(/^\\/Knos/, "") || "/", t0 = Date.now();
-  const send = (e, x) => { try { navigator.sendBeacon(H + "/api/visit", new Blob([JSON.stringify({ v, e, p: page, back, ...(x || {}) })], { type: "application/json" })); } catch { /* no beacon */ } };
+  const send = (e, x) => { try { fetch(H + "/api/visit", { method: "POST", body: JSON.stringify({ v, e, p: page, back, ...(x || {}) }), headers: { "content-type": "text/plain" }, credentials: "omit", keepalive: true, mode: "cors" }).catch(() => {}); } catch { /* no beacon */ } };
   send("view");
   let presses = [];
   addEventListener("click", (ev) => { const at = performance.now(), n = presses.filter((p) => at - p.t < 1000 && Math.abs(p.x - ev.clientX) < 30 && Math.abs(p.y - ev.clientY) < 30).length;

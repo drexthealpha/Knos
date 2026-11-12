@@ -84,14 +84,14 @@ def read() -> dict:
     arrived = sum(int(x["delta_amount"]) for x in paid + shares)
     newest = max([int(x.get("block_timestamp") or 0) for x in fee + agent + live] or [0])
     # lost: a transfer that left the buyer's account for Knos's fee account or agent A and has no arrival with the same
-    # transaction in the receivers' records. The three records are read moments apart, so a transfer younger than 10
+    # transaction in the receivers' records. The three records are read moments apart, so a transfer younger than 60
     # minutes may not show its arrival yet; it is not counted as lost until it is older.
     came = {x.get("transaction_hash") for x in paid + shares}
-    settled_by = newest - 600 * 10**9
+    settled_by = newest - 3600 * 10**9   # the indexer can lag by tens of minutes (Round 8: $46 read as lost at 20:32, $0 at 21:04)
     lost = -sum(int(x["delta_amount"]) for x in live if x.get("involved_account_id") in (FEE, AGENT, AGENT2) and int(x.get("delta_amount") or 0) < 0
                 and x.get("transaction_hash") not in came and int(x.get("block_timestamp") or 0) < settled_by)
     # through the claim market: each fee that arrived from it is matched to the time it recorded the amount behind a claim
-    # (the fee is that amount less agent A's 1 part in 49, within a minute); a recorded amount older than 10 minutes with
+    # (the fee is that amount less agent A's 1 part in 49, within a minute); a recorded amount older than 60 minutes with
     # no fee arrived counts as lost
     claim_of, used = {}, set()
     for claim, at, units in backs():

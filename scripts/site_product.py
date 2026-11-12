@@ -259,17 +259,19 @@ def claim_page(header: str, c: dict) -> str:
     clearInterval(vt); $("verify").disabled = false;
   });
   $("tamper").addEventListener("click", async () => {
-    if (!text) {   // not checked yet: check first, then change the byte
+    if (!text) {
+      $("verdict").textContent = "Checking the test against NEAR first...";   // not checked yet: check first, then change the byte
       $("verify").click();
       await new Promise((res) => { const w = setInterval(() => { if (!$("verify").disabled) { clearInterval(w); res(); } }, 100); });
       if (!text) return;
     }
+    $("verdict").textContent = "Changing one byte and hashing again...";
     const t = text.slice(); t[t.length - 2] ^= 1; await check(t, true);
   });
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
   const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
-  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "proof" : "proofs"} paid, ${usd(x.usd)} in test USDC behind this claim, ${usd(c.lost_usd)} lost.`;
+  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "proof" : "proofs"} paid, ${usd(x.usd)} in test USDC behind this claim.`;
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");
     for (const [tx, amount, at] of rows) { const tr = document.createElement("tr");

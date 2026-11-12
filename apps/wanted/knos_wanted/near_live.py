@@ -789,7 +789,7 @@ def ai_line(ai: dict | None) -> str:
         return (ai or {}).get("note") or "none set: the locked test alone decided"
     when = time.strftime("%d %b %H:%M UTC", time.gmtime(ai.get("at") or time.time()))
     said = "approved the pass" if ai["approve"] else "rejected the pass"
-    return f"{ai['model']} on NEAR AI Cloud {said}: {ai.get('reason') or 'no reason given'}" + (f" (the cached answer of {when} for the same code and test)" if ai.get("cached") else "")
+    return f"{ai['model']} on NEAR AI Cloud {said}: {(ai.get('reason') or 'no reason given').rstrip('.')}" + (f" (the cached answer of {when} for the same code and test)" if ai.get("cached") else "")
 
 
 def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> dict:

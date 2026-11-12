@@ -60,6 +60,7 @@ button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-r
 .sample { margin-top: 10px; background: transparent; color: var(--ink); border: 2px solid var(--line); font-weight: 500; width: 100%; text-align: left; }
 .out { margin-top: 16px; min-height: 1.5em; }
 .out .verdict { font: 600 24px/1.25 var(--head); margin: 0 0 6px; }
+.out .near { margin: 0 0 4px; color: var(--muted, #555); }
 .out p { margin: 0 0 8px; }
 .out .next { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
 .below { border-top: 1px solid var(--line); padding: 24px 0 8px; }
@@ -120,14 +121,18 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     for (const c of CLAIMS) { const k = new Set(words([c.name.replace(/-/g, " "), c.plain, c.quote, c.paper, c.authors].join(" "))), name = new Set(words(c.name.replace(/-/g, " ")));
       let n = 0; for (const w of q) if (k.has(w)) n += name.has(w) ? 2 : 1;   // the claim's own name counts double
       if (n > top) { top = n; best = c; } }
-    return top >= 2 ? { c: best, by: "words" } : { none: true };   // one shared word ("memory") is not a match
+    if (top < 2) return { none: true };
+    // a word or number of the question that the claim does not have: the answer is the closest proved claim, not a yes to the question
+    const own = new Set(words([best.name.replace(/-/g, " "), best.plain, best.quote, best.paper].join(" "))), key = words(best.name.split("-")[0])[0], miss = [...q].filter((w) => !own.has(w) && (w.length > 3 || /\d/.test(w)));
+    return { c: best, by: "words", near: miss.length > 0 || (key && !q.has(key)) };   // one shared word ("memory") is not a match
   }
-  function answer(c, live) {
+  function answer(c, live, near) {
     const m = (board && board.claims && board.claims[c.name]) || {}, last = live || m.last_proof && { holds: true, job: m.last_proof };
     const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
       behind = out7 != null ? `${out7.toFixed(2)} test USDC from outside backers this week` : "";
     out.replaceChildren(
-      el("p", { className: "verdict", textContent: holds === true ? "Yes, the claim holds" : holds === false ? "No, the claim fails" : "Not proved yet" }),
+      ...(near ? [el("p", { className: "near", textContent: "Not proved yet as asked. The closest claim Knos proved:" })] : []),
+      el("p", { className: "verdict", textContent: holds === true ? (near ? "It holds" : "Yes, the claim holds") : holds === false ? "No, the claim fails" : "Not proved yet" }),
       el("p", {}, [`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}. `, holds != null && last.job ? "Proved by its locked test " : "Its locked test is ", link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test),
         ` (sha256 ${c.sha256.slice(0, 8)}...)`, holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),
       el("p", {}, [link("prove/#paper=" + encodeURIComponent(c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : ""), "Prove it yourself", "next"), " ", link(`claim/${c.name}/`, "The claim")]));
@@ -135,19 +140,19 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   function none(text) {
     out.replaceChildren(el("p", { className: "verdict", textContent: "Nothing proved matches yet" }),
       el("p", { textContent: `Knos has proved ${CLAIMS.length} claims on NEAR testnet; none is about "${text.slice(0, 60)}". Ask about one of them, or paste a paper's link.` }),
-      el("p", {}, CLAIMS.map((c) => el("button", { type: "button", className: "sample", textContent: c.plain, onclick: () => ask(c.plain) }))));
+      el("p", {}, CLAIMS.map((c) => el("button", { type: "button", className: "sample", textContent: c.plain, onclick: () => ask(c.plain, true) }))));
   }
   let asked = 0;   // only the newest question's answer is shown: a slow answer to an earlier one is dropped
-  async function ask(text) {
+  async function ask(text, exact) {
     $("paper").value = text;
     const go = $("go"), t0 = performance.now(), m = match(text), mine = ++asked;
     if (m && m.c) {
       remember(text, m.c.name);
       if (!board) { out.replaceChildren(el("p", { textContent: "Reading NEAR testnet..." })); await Promise.race([boardFile, new Promise((res) => setTimeout(res, 1500))]); }
       if (mine !== asked) return;
-      if (board && board.claims) { answer(m.c); return; }   // the site's own board file, or else the server's last proof of this claim
+      if (board && board.claims) { answer(m.c, null, m.near && !exact); return; }   // the site's own board file, or else the server's last proof of this claim
       const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: m.c.doi ? "https://doi.org/" + m.c.doi : "https://arxiv.org/abs/" + m.c.arxiv }) });
-      if (mine === asked) answer(m.c, r && r.last);
+      if (mine === asked) answer(m.c, r && r.last, m.near && !exact);
       return;
     }
     if (m && m.none) { remember(text, ""); none(text); return; }
@@ -166,7 +171,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       el("p", {}, [link(q.source || "prove/", "Source")]));
   }
   $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } ask(v); });
-  $("sample").addEventListener("click", () => ask("Does HyperLogLog count 30,000 visitors in 1.5 KB?"));
+  $("sample").addEventListener("click", () => ask("Does HyperLogLog count 30,000 visitors in 1.5 KB?", true));
   // a second visit starts where the first ended: the visitor's last questions, from this browser
   if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.slice(0, 40), onclick: () => ask(x.q) }))); }
   const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid.`; };
