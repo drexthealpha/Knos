@@ -74,6 +74,44 @@ def redirect(to: str, head: str) -> str:
             f'</head><body><p><a href="{to}">Knos</a></p></body></html>\n')
 
 
+BEACON = """<script>
+// first-party only (knos_wanted.visits): a random visit id that resets every day, no cookie, no IP stored; Do Not Track sends nothing
+(() => { if (navigator.doNotTrack === "1" || window.doNotTrack === "1") return;
+  const H = "https://knos.onrender.com", day = new Date().toISOString().slice(0, 10); let v, back = false;
+  try { const s = JSON.parse(localStorage.getItem("knos.visit") || "{}"); back = !!s.day && s.day !== day && Date.now() - (s.at || 0) < 7 * 864e5;
+    v = s.day === day ? s.v : [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem("knos.visit", JSON.stringify({ v, day, at: s.day === day ? s.at : Date.now() })); } catch { v = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
+  const page = location.pathname.replace(/^\\/Knos/, "") || "/", t0 = Date.now();
+  const send = (e, x) => { try { navigator.sendBeacon(H + "/api/visit", new Blob([JSON.stringify({ v, e, p: page, back, ...(x || {}) })], { type: "application/json" })); } catch { /* no beacon */ } };
+  send("view");
+  let presses = [];
+  addEventListener("click", (ev) => { const at = performance.now(), n = presses.filter((p) => at - p.t < 1000 && Math.abs(p.x - ev.clientX) < 30 && Math.abs(p.y - ev.clientY) < 30).length;
+    presses = [...presses.slice(-5), { t: at, x: ev.clientX, y: ev.clientY }]; if (n >= 2) send("rage");
+    const target = ev.target.closest("button, a"); if (!target) return; send("press");
+    let seen = false; const mo = new MutationObserver(() => { if (!seen) { seen = true; mo.disconnect(); const ms = Math.round(performance.now() - at); if (ms > 400) send("slow", { ms }); } });
+    mo.observe(document.body, { subtree: true, childList: true, characterData: true }); setTimeout(() => { if (!seen) { mo.disconnect(); send("slow", { ms: 400 }); } }, 2000);
+    if (/download/i.test(target.textContent)) send("download"); }, { capture: true });
+  const seenText = new Set();
+  setInterval(() => { const t = document.body.textContent;
+    for (const [k, re] of [["result", /Yes, the claim holds|Answer: Yes|Answer: No|Nothing proved matches|cannot prove this paper/], ["proof", /Receipt for proof|Receipt: paid/], ["backed", /Bought .* shares|test USDC behind this proof/], ["error", /Not read|No answer this time|did not answer/]])
+      if (!seenText.has(k) && re.test(t)) { seenText.add(k); send(k); } }, 1500);   // a light check, off the press path
+  addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") send("leave", { s: Math.round((Date.now() - t0) / 1000) }); });
+})();
+</script>
+"""
+
+
+def beacon(out: Path) -> None:
+    """The first-party visit script on every product page (knos_wanted.visits), just before </body>."""
+    pages = [out / "index.html", out / "prove" / "index.html", out / "labs" / "index.html", out / "check" / "index.html",
+             *[out / p for p in ("claims/index.html", "agents/index.html", "pricing/index.html", "status/index.html")], *(out / "claim").rglob("index.html")]
+    for p in pages:
+        if p.is_file():
+            t = p.read_text(encoding="utf-8")
+            if "knos.visit" not in t and "</body>" in t:
+                p.write_text(t.replace("</body>", BEACON + "</body>", 1), encoding="utf-8")
+
+
 def sweep(out: Path) -> int:
     """Every page of the build that is not the product's becomes an old address: it sends a visitor to the front door
     (pricing.html to pricing/). Run again by the pages workflow after its own steps write pages (rank/)."""
@@ -147,6 +185,7 @@ def main(site: str) -> int:
     site_product.HEADER_CSS = CSS
     made = site_product.write(out, header)
     (out / "tools.html").write_text(redirect("./", head), encoding="utf-8")   # linked from earlier posts: sends to the front door
+    beacon(out)
     gone = sweep(out)
     print(f"product pages: the front door, {len(made) + 2} pages ({', '.join(['prove/', 'labs/'] + made)}); near/ and iris/ send on; {gone} older pages send to the front door")
     return 0

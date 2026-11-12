@@ -320,6 +320,7 @@ def status_page(header: str) -> str:
             "<tr><th>NEAR testnet's record</th><td id=\"rec\">reading</td></tr>"
             "<tr><th>Latest full test run</th><td id=\"ci\">reading</td></tr>"
             "<tr><th>Uptime</th><td id=\"up\">reading</td></tr>"
+            "<tr><th>Visits, 7 days</th><td id=\"funnel\">reading</td></tr>"
             "</tbody></table>\n<h2>Accounts that keep the demo up</h2>\n<table id=\"bal\"><tbody><tr><td>reading</td></tr></tbody></table>\n"
             "<p class=\"fine\">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>")
     script = LIVE_JS + """(async () => {
@@ -333,6 +334,8 @@ def status_page(header: str) -> str:
     const since = Date.now() - 7 * 864e5, rows = txt.split(/\\r?\\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && Date.parse(x.at) >= since);
     $("up").textContent = rows.length ? `up ${rows.filter((x) => x.up).length} of ${rows.length} checks in the last 7 days, from ${rows[0].at.slice(0, 16).replace("T", " ")} UTC` : "no checks yet";
   }).catch(() => { $("up").textContent = "not read"; });
+  getJSON("/api/visits").then((v) => { const f = v && v.funnel;
+    $("funnel").textContent = f ? `${f.visits} visits, ${f.first_press} pressed, ${f.first_result} got an answer, ${f.proof_finished} ran a proof, ${f.backed} backed, ${f.came_back} came back` + (v.leave_most ? `; most leave from ${v.leave_most}` : "") : "not read"; });
   const b = await getJSON("/api/near/balances"), unit = { near: "NEAR", allowance: "NEAR allowance", usdc: "test USDC" };
   const tb = document.querySelector("#bal tbody");
   if (!b || !b.rows) { tb.innerHTML = "<tr><td>not read</td></tr>"; return; }
@@ -347,7 +350,12 @@ def status_page(header: str) -> str:
 
 
 def privacy_page(header: str) -> str:
-    body = ("<h1>Privacy and terms</h1>\n<h2>This site</h2>\n<p>No cookies, analytics or trackers. The paper link you paste goes to the "
+    body = ("<h1>Privacy and terms</h1>\n<h2>This site</h2>\n<p>No cookies and no third-party scripts. "
+            "To learn why people stay or leave, each page sends Knos small events of an anonymous visit: a random id your browser makes and "
+            "resets every day, the page, each press and how long its answer took, whether you got an answer, ran a proof, backed a claim or "
+            "downloaded code, three quick presses on one spot, an error shown, and the last page and its seconds before you leave. No IP "
+            "address, account or cookie is stored with them. If your browser sends Do Not Track, nothing is sent. /status shows the totals. "
+            "The paper link you paste goes to the "
             "Knos server, which reads the paper's title from its public record (Crossref) and answers. Your browser also reads "
             "NEAR testnet's public record.</p>\n<h2>The server</h2>\n<p>No account and no sign-in. It counts requests per address only to "
             "limit them. Every proof and payment is public on NEAR testnet.</p>\n<h2>Terms</h2>\n<p>Test money on NEAR testnet, worth "
