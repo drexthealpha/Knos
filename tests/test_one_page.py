@@ -30,7 +30,7 @@ def test_the_root_is_the_front_door_and_the_old_addresses_send_on(tmp_path):
     assert re.findall(r'>([^<]+)</a>', nav) == ["Claims", "Prove", "For agents", "For labs"]   # one header, on every page
     for rel in ("claims/index.html", "claim/hyperloglog/index.html", "agents/index.html", "pricing/index.html", "status/index.html", "privacy.html"):
         p = (site / rel).read_text(encoding="utf-8")
-        assert p.count('<header class="kh" id="kh">') == 1 and "solana" not in p.lower(), rel
+        assert p.count('<header class="kh" id="kh">') == 1 and ".kh .logo" in p and "solana" not in p.lower(), rel   # the header, styled
     for rel in ("tools.html", "app.html", "check/index.html", "faq.html"):
         assert 'http-equiv="refresh"' in (site / rel).read_text(encoding="utf-8"), rel   # older pages left the product
     for sub, to in (("near", "../prove/"), ("iris", "../labs/")):

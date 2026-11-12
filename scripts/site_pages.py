@@ -101,6 +101,7 @@ def main(site: str) -> int:
     head = head_of(door)
     (out / "near" / "index.html").write_text(redirect("../prove/", head), encoding="utf-8")
     (out / "iris" / "index.html").write_text(redirect("../labs/", head), encoding="utf-8")
+    site_product.HEADER_CSS = CSS
     made = site_product.write(out, header)
     (out / "tools.html").write_text(redirect("./", head), encoding="utf-8")   # linked from earlier posts: sends to the front door
     gone = sweep(out)

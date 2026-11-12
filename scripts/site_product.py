@@ -15,6 +15,7 @@ REPO = "https://github.com/drexthealpha/Knos"
 JOBS = "jobs.knos-swarm-1105.testnet"
 MARKET = "market.knos-swarm-1105.testnet"
 EXPLORER = "https://testnet.nearblocks.io/address/"
+HEADER_CSS = ""   # the one header's styles, set by scripts/site_pages.py before it writes these pages
 
 CSS = """body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--text); }
 a { color: var(--accent); }
@@ -67,7 +68,7 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
             f'<meta property="og:title" content="{e(title)}">\n<meta property="og:description" content="{e(desc)}">\n'
             f'<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">\n'
             f'<link rel="icon" href="{up}icon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
-            f"<style>\n{CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
+            f"<style>\n{CSS}{HEADER_CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
             f'<footer><span>NEAR testnet, test money, no customers yet.</span><br>'
             f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{up}privacy.html">Privacy</a></footer>\n'
             + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
