@@ -32,6 +32,7 @@ RUN useradd --create-home app && mkdir -p /data && chown app /data
 COPY --chown=app near/agents /app/near/agents
 COPY --chown=app near/web/jobs_api.py near/web/latest.json near/web/market.json near/web/totals.json /app/near/web/
 COPY --chown=app near/scripts/near_counters.py /app/near/scripts/
+COPY --chown=app near/claims/claims.json /app/near/claims/
 RUN chown -R app /app/near
 USER app
 ENV KNOS_NEAR_ROOT=/app HOST=0.0.0.0 PORT=8080 KNOS_WANTED_CACHE=/data/qloo-mcp KNOS_WANTED_STATE=/data/state KNOS_WANTED_RECORD=/data/record \

@@ -64,27 +64,45 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
             + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
 
 
-LIVE_JS = """const HOSTED = "%s";
+LIVE_JS = """const HOSTED = "__HOSTED__";
 const $ = (id) => document.getElementById(id);
 const usd = (n) => (+n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
 async function getJSON(path) { try { const r = await fetch(HOSTED + path); return r.ok ? await r.json() : null; } catch (e) { return null; } }
-""" % HOSTED
+const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
+function truthText(m) {
+  if (!m) return "opens with the first order";
+  if (m.outcome === true) return "Holds: settled by the locked test";
+  if (m.outcome === false) return "Fails: settled by the locked test";
+  return `Holds ${Math.round(m.yes_cents)}%, before the proof (${thin(m)})`;
+}
+function demandText(m) {
+  if (!m) return "opens soon";
+  if (m.outcome === true) return "Yes: 100 test USDC were put behind it within 7 days";
+  if (m.outcome === false) return "No: under 100 test USDC within 7 days";
+  return `Yes ${Math.round(m.yes_cents)}% (${thin(m)}); ${(+m.behind_usd).toFixed(2)} of 100 behind so far, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)}`;
+}
+""".replace("__HOSTED__", HOSTED)
 
 
 def claims_page(header: str, cs: list[dict]) -> str:
     rows = "".join(f'<tr data-claim="{e(c["name"])}"><td><a href="../claim/{e(c["name"])}/">{e(c["plain"])}</a><br>'
                    f'<span class="fine">{e(c["authors"])}, {c["year"]}</span></td>'
-                   f'<td class="n" data-behind>reading</td><td class="n" data-proofs>reading</td></tr>' for c in cs)
+                   f'<td class="n" data-behind>reading</td><td data-truth>reading</td><td data-demand>reading</td></tr>' for c in cs)
     body = (f"<h1>Claims</h1>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
             f"Sorted by the test USDC put behind it.</p>\n"
-            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind</th><th class="n">Proofs paid</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
+            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
+            f'<p class="fine">Each claim has two markets on NEAR testnet, priced by an automatic market maker (LMSR): whether it holds, '
+            f'settled by its locked test, and whether 100 test USDC are put behind proving it within 7 days, settled by the '
+            f'record on NEAR. Odds show only before the result.</p>\n'
             f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>')
     script = LIVE_JS + """(async () => {
-  const c = await getJSON("/api/near/claim/counters");
+  const [c, b] = await Promise.all([getJSON("/api/near/claim/counters"), getJSON("/api/near/claims")]);
   const by = (c && c.by_claim) || (c && c.proofs != null ? { hyperloglog: { proofs: c.proofs, usd: c.usd } } : {});
   const rows = [...document.querySelectorAll("#claims tbody tr")];
-  for (const r of rows) { const x = by[r.dataset.claim] || { proofs: 0, usd: 0 };
-    r.querySelector("[data-behind]").textContent = c ? usd(x.usd) : "not read"; r.querySelector("[data-proofs]").textContent = c ? x.proofs.toLocaleString("en-US") : "not read"; r.dataset.usd = x.usd; }
+  for (const r of rows) { const x = by[r.dataset.claim] || { proofs: 0, usd: 0 }, m = (b && b.claims && b.claims[r.dataset.claim]) || {};
+    r.querySelector("[data-behind]").textContent = c ? `${usd(x.usd)} (${x.proofs.toLocaleString("en-US")} proofs)` : "not read";
+    r.querySelector("[data-truth]").textContent = b ? truthText(m.truth) : "not read";
+    r.querySelector("[data-demand]").textContent = b ? demandText(m.demand) : "not read"; r.dataset.usd = x.usd; }
   rows.sort((a, b) => (+b.dataset.usd || 0) - (+a.dataset.usd || 0)).forEach((r) => r.parentNode.append(r));
   $("as-of").textContent = c && c.read_at ? `Read from NEAR testnet's public record at ${c.read_at.replace("T", " ").replace("Z", " UTC")}.` : "NEAR testnet's record could not be read just now.";
 })();"""
@@ -100,15 +118,21 @@ def claim_page(header: str, c: dict) -> str:
             f'<h2>The locked test</h2>\n<p><a href="{test_url}">{e(c["test"])}</a>, sha256 <code>{c["sha256"]}</code>. '
             f'Every job for this claim is opened on NEAR testnet with this hash as its criteria hash, before any agent starts; '
             f'the checker runs only the file with this hash.</p>\n'
+            f'<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td id="truth">reading</td></tr>'
+            f'<tr><th>100 test USDC behind it within 7 days?</th><td id="demand">reading</td></tr></tbody></table>\n'
+            f'<p class="fine">Priced by an automatic market maker (LMSR) in test USDC; the first settles by the locked test, the '
+            f'second by the record of what was put behind the claim. Odds show only before the result.</p>\n'
             f'<h2>Proofs and receipts</h2>\n<p id="proofs">Reading NEAR testnet\'s public record...</p>\n<table id="receipts" hidden><thead><tr><th>When (UTC)</th>'
             f'<th class="n">Fee, test USDC</th><th>Knos\'s fee transfer</th></tr></thead><tbody></tbody></table>\n'
             f'<h2>The record</h2>\n<p>Jobs: <a href="{EXPLORER}{JOBS}">{JOBS}</a>. Claim records: <a href="{EXPLORER}{MARKET}">{MARKET}</a>. '
             f'Payments: <a href="{EXPLORER}live.knos-swarm-1105.testnet?tab=tokentxns">the buyer test account</a>.</p>')
     script = LIVE_JS + """(async () => {
   const name = %s;
+  getJSON("/api/near/claims").then((b) => { const m = (b && b.claims && b.claims[name]) || {};
+    $("truth").textContent = b ? truthText(m.truth) : "not read"; $("demand").textContent = b ? demandText(m.demand) : "not read"; });
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
-  const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
+  const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
   $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} proofs paid, ${usd(x.usd)} in test USDC behind this claim, ${usd(c.lost_usd)} lost.`;
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");

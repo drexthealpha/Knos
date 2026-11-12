@@ -21,6 +21,7 @@ ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents
 NEAR_WEB = ROOT / "near" / "web"
 NEAR_SCRIPTS = ROOT / "near" / "scripts"   # near_counters.py: the full count, which the server reads itself when GitHub is late
 BID = 1_000_000          # $1.00 of test money (the test token has 6 decimals)
+SAMPLE = "hyperloglog"   # the sample claim (near/claims/claims.json), whose jobs are readied ahead
 _lock = threading.Lock()
 _runs: dict[str, dict] = {}
 _day = {"day": "", "n": 0, "a": 0}   # n: the page's live proofs today; a: the agent call's, which page proofs never use up
@@ -131,35 +132,41 @@ _ready: dict = {}
 _preparing = threading.Lock()
 
 
+def _make_job(claim: str = SAMPLE) -> dict:
+    """One job of a claim, start to just before payment: posted with the claim's locked test, taken and answered by both
+    agents, each answer run against the test; the passing one is named, nobody is paid yet; the claim's market opened."""
+    j = _jobs()
+    posted_at = time.time()
+    p = j.post({"bid": BID, "minutes": 240, "test": CLAIMS[claim]["test"]})
+    if not p.get("ok"):
+        raise RuntimeError(f"post: {p.get('said') or p.get('why') or p}"[:200])
+    sa, sb = _solutions(claim)
+    ra = j.run_agent("a", sa, p["id"])
+    rb = j.run_agent("b", sb, p["id"])
+    c = j.checker.check(p["id"], release=False)
+    win = next((x for x in c["attempts"] if x.get("passed")), None)
+    if not win:
+        said = {"a": [ra.get(k, {}).get("said") for k in ("take", "submit")], "b": [rb.get(k, {}).get("said") for k in ("take", "submit")],
+                "check": [x.get("reason") for x in c["attempts"]], "refused": c.get("refused")}
+        raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
+    market = _open_market(p["id"], CLAIMS[claim]["question"])
+    return {"id": p["id"], "claim": claim, "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
+            "market": market, "output_sha256": win["output_sha256"],
+            "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
+            "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
+                    "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
+
+
 def prepare() -> None:
-    """Post a job and have both agents take it and submit, and run the locked test on each output, but pay nobody yet:
-    the job then waits, ready, for a visitor's click (start). One at a time."""
+    """Post a HyperLogLog job and have both agents take it and submit, and run the locked test on each output, but pay
+    nobody yet: the job then waits, ready, for a visitor's click (start). One at a time."""
     if not _preparing.acquire(blocking=False):
         return
     try:
         if (_ready.get("job") and _spare) or not status()["live"]:
             return
-        j = _jobs()
-        posted_at = time.time()
-        p = j.post({"bid": BID, "minutes": 240})
-        if not p.get("ok"):
-            raise RuntimeError(f"post: {p.get('said') or p.get('why') or p}"[:200])
-        ra = j.run_agent("a", j.pass_agent.SOLUTION, p["id"])
-        rb = j.run_agent("b", j.fail_agent.SOLUTION, p["id"])
-        c = j.checker.check(p["id"], release=False)
-        win = next((x for x in c["attempts"] if x.get("passed")), None)
-        if not win:
-            said = {"a": [ra.get(k, {}).get("said") for k in ("take", "submit")], "b": [rb.get(k, {}).get("said") for k in ("take", "submit")],
-                    "check": [x.get("reason") for x in c["attempts"]]}
-            raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
-        market = _open_market(p["id"])
+        fresh = _make_job(SAMPLE)
         _ready.pop("error", None)
-        fresh = {"id": p["id"], "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
-                         "market": market,
-                         "output_sha256": win["output_sha256"],
-                         "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
-                         "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
-                                 "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
         if _ready.get("job"):
             _spare.append(fresh)
         else:
@@ -167,7 +174,7 @@ def prepare() -> None:
         threading.Thread(target=_refresh_last, daemon=True).start()   # the last settled proof, ready for the next visitor
         if os.environ.get("KNOS_NEAR_KEYS_FILE"):
             import common   # near/agents/common.py, on the path once jobs_api is loaded
-            common.prefetch(j.CONFIG["relayer"])   # the click then only signs and sends the payment
+            common.prefetch(_jobs().CONFIG["relayer"])   # the click then only signs and sends the payment
     except Exception as e:  # noqa: BLE001 - no ready job: the next click runs the whole job instead
         _ready["error"] = f"{type(e).__name__}: {str(e)[:200]}"
         print("near_live prepare:", _ready["error"], file=sys.stderr, flush=True)
@@ -498,13 +505,28 @@ def claim_run() -> dict:
 # The research buyer's flow on /near/: paste a paper link, see its claim, how likely the claim holds (the price of its
 # market on NEAR testnet) and one offer; order it, and the readied job proves or refutes the claim within seconds.
 CLAIM_Q = "Does HyperLogLog count 30,000 visitors within 10% using at most 1.5 kilobytes?"   # the locked test that settles it
-KNOWN = {"10.46298/dmtcs.3545": {
-    "paper": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm",
-    "authors": "Flajolet, Fusy, Gandouet and Meunier, 2007", "doi": "https://doi.org/10.46298/dmtcs.3545",
-    "quote": ("For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10^9 with a typical "
-              "accuracy of 2% while using a memory of only 1.5 kilobytes."),
-    "paper_number": "2% typical error, 1.5 kilobytes of memory",
-    "check": "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py"}}
+# the claims Knos can prove (near/claims/claims.json): each from a real paper, each with its locked test and its two
+# agents' code; HyperLogLog's jobs are readied ahead, any other claim's job runs when it is ordered
+CLAIMS = {c["name"]: c for c in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]}
+
+
+def _known(c: dict) -> dict:
+    return {"name": c["name"], "plain": c["plain"], "paper": c["paper"], "authors": f"{c['authors']}, {c['year']}", "doi": "https://doi.org/" + c["doi"],
+            "quote": c["quote"], "paper_number": c["paper_number"], "locked": c["locked"], "code_name": c["code_name"],
+            "check": f"https://github.com/drexthealpha/Knos/blob/main/near/agents/job/{c['test']}"}
+
+
+KNOWN = {c["doi"].lower(): _known(c) for c in CLAIMS.values()} | {"arxiv:" + c["arxiv"]: _known(c) for c in CLAIMS.values() if c.get("arxiv")}
+
+
+def _solutions(claim: str) -> tuple[str, str]:
+    """The two agents' code for a claim: agent A's follows the paper, agent B's is the usual shortcut."""
+    if claim == SAMPLE:
+        j = _jobs()
+        return j.pass_agent.SOLUTION, j.fail_agent.SOLUTION
+    d = ROOT / "near" / "agents" / "solutions"
+    stem = CLAIMS[claim]["test"][len("test_"):-len(".py")]
+    return (d / f"{stem}_a.py").read_text(encoding="utf-8"), (d / f"{stem}_b.py").read_text(encoding="utf-8")
 # What fits a paper Knos has no check for yet: the cheapest checker a buyer can order, its price and time as published
 # (research note D5, read 10 Nov 2026). Each entry: words that pick it, then what is shown.
 CHECKERS = [
@@ -522,14 +544,14 @@ RERUN = {"checker": "a person re-running the paper's code and data", "price": "$
          "time": "not published", "source": "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon"}
 
 
-def _open_market(job_id: str) -> dict | None:
+def _open_market(job_id: str, question: str = CLAIM_Q) -> dict | None:
     """The claim's market for a readied job: seeded by Knos's test account; its price says how likely the claim holds."""
     try:
         _jobs()
         import common
         from common import call
         mid = "job:" + job_id
-        args = {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps({"seed": {"id": mid, "question": CLAIM_Q}})}
+        args = {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps({"seed": {"id": mid, "question": question[:200]}})}
         with _lock:
             common._PREFETCHED.pop(LIVE, None)
             r = call(LIVE, TOKEN, "ft_transfer_call", args, deposit="1 yoctoNEAR", gas="100 Tgas")
@@ -610,7 +632,8 @@ def claim_look(url: str) -> dict:
     if not re.match(r"(?i)(https?://\S+|doi:\s*10\.\S+|10\.\d{4,9}/\S+)$", url):
         return {"ok": False, "why": "that is not a paper link: paste a DOI such as https://doi.org/10.46298/dmtcs.3545, or the paper's web address"}
     m = re.search(r"(10\.\d{4,9}/[^\s?#]+)", url)
-    known = KNOWN.get(m.group(1).lower().rstrip(".")) if m else None
+    a = re.search(r"(?i)(?:arxiv\.org/(?:abs|pdf)/|10\.48550/arxiv\.|arxiv:)(\d{4}\.\d{4,5})", url)
+    known = (KNOWN.get(m.group(1).lower().rstrip(".")) if m else None) or (KNOWN.get("arxiv:" + a.group(1)) if a else None)
     if not known:
         meta = _paper_meta(url)
         words = (meta.get("title", "") + " " + meta.get("subjects", "")).lower()
@@ -624,6 +647,11 @@ def claim_look(url: str) -> dict:
         left = 86400 - int(time.time()) % 86400
         return {**out, "ready": False, "why": f"Today's {s['cap_today']} live proofs on NEAR testnet are used. The next can start at 00:00 UTC, or sooner after a new release, "
                 f"in {left // 3600} h {left % 3600 // 60} min."}
+    if known["name"] != SAMPLE:   # its job runs when ordered: both agents and the locked test while the buyer watches
+        mine = [p for k, p in _proofs.items() if k != "last" and p.get("claim") == known["name"]]
+        last = max(mine, key=lambda p: p.get("at", 0)) if mine else None
+        return {**out, "last": {"holds": bool(last["verdict"].get("holds")), "job": last["job"], "record": last.get("release_url")} if last else None,
+                "reusable": False, "ready": True, "runs_on_order": True}
     job = _ready.get("job")
     mk = (job or {}).get("market")
     if not job and _ready.get("error"):
@@ -638,7 +666,7 @@ def claim_look(url: str) -> dict:
     return out
 
 
-def claim_prove(agent: bool = False) -> dict:
+def claim_prove(agent: bool = False, claim: str = SAMPLE) -> dict:
     """The ordered proof: the readied job's locked test, both agents' reruns, the payment to the one that passed, the
     verdict beside the paper's own number, and the claim's market settled by the job."""
     import re
@@ -649,14 +677,28 @@ def claim_prove(agent: bool = False) -> dict:
         return {"ok": False, "why": f"today's {s['agent_cap_today']} live runs for the agent call are used"}
     if not agent and s["used_today"] >= s["cap_today"]:
         return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
-    with _lock:
-        ready = _take_ready()
-        if ready:
+    claim = claim if claim in CLAIMS else SAMPLE
+    ready = None
+    if claim != SAMPLE:   # no readied pool: the job runs now, while the buyer watches
+        with _lock:
             today = time.strftime("%Y-%m-%d", time.gmtime())
             if _day["day"] != today:
                 _day.update(day=today, n=0, a=0)
             _day["a" if agent else "n"] += 1
-    waited = time.time()
+        waited = time.time()
+        try:
+            ready = _make_job(claim)
+        except Exception as e:  # noqa: BLE001 - the page says which step stopped
+            return {"ok": False, "why": f"the job on NEAR testnet stopped: {str(e)[:160]}", "seconds": round(time.time() - waited, 1)}
+    else:
+        with _lock:
+            ready = _take_ready()
+            if ready:
+                today = time.strftime("%Y-%m-%d", time.gmtime())
+                if _day["day"] != today:
+                    _day.update(day=today, n=0, a=0)
+                _day["a" if agent else "n"] += 1
+        waited = time.time()
     while not ready and time.time() - waited < 90:   # the next job is being readied: wait for it, not turn the buyer away
         threading.Thread(target=prepare, daemon=True).start()
         time.sleep(3)
@@ -670,17 +712,21 @@ def claim_prove(agent: bool = False) -> dict:
     try:
         paid = _release(ready)
         win = next((a for a in ready["attempts"] if a["passed"]), {})
-        got = re.search(r"within ([\d.]+%), in ([\d,]+ bytes)", win.get("reason", ""))
+        got = re.search(r"within ([\d.]+%), in ([\d,]+ bytes)", win.get("reason", "")) if claim == SAMPLE else None
+        k = _known(CLAIMS[claim])
         out = {"ok": paid["state"] == "done", "job": paid.get("job"), "attempts": ready["attempts"], "release_url": paid.get("release_url"),
-               "criteria_hash": ready["criteria_hash"], "check": KNOWN["10.46298/dmtcs.3545"]["check"],
-               "verdict": {"paper": KNOWN["10.46298/dmtcs.3545"]["paper_number"],
-                           "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", ""),
-                           "holds": bool(win)}}
+               "criteria_hash": ready["criteria_hash"], "check": k["check"], "claim": claim,
+               "verdict": {"paper": k["paper_number"],
+                           "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", "").removeprefix("Passed: "),
+                           "holds": bool(win), "checked": k["locked"]}}
         out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
-        out["market"] = ready.get("market") or _open_market(ready["id"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
+        out["market"] = ready.get("market") or _open_market(ready["id"], CLAIMS[claim]["question"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
-            _proofs["last"] = _proofs[ready["id"]] = {"job": ready["id"], "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
+            rec = {"job": ready["id"], "claim": claim, "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
                                "release_url": paid.get("release_url"), "seconds": round(time.time() - t0, 1), "at": time.time()}
+            _proofs[ready["id"]] = rec
+            if claim == SAMPLE:   # the agent call's reuse, once its day's runs are used, is the sample's last proof
+                _proofs["last"] = rec
         if not out["ok"]:
             out["why"] = str(paid.get("why") or f"the job's payment on NEAR testnet stopped at '{paid.get('state')}'")[:200]
         out["seconds"] = round(time.time() - t0, 1)
@@ -726,11 +772,13 @@ def claim_settle(mid: str) -> dict:
         threading.Thread(target=prepare, daemon=True).start()
 
 
-def claim_code() -> tuple[bytes, str]:
-    """The verified code: the version that passed the locked test, and its sha256 (the one submitted on NEAR testnet)."""
+def claim_code(claim: str = SAMPLE) -> tuple[bytes, str, str]:
+    """A claim's verified code: the version that passed its locked test, its sha256 (the one submitted on NEAR testnet)
+    and its file name."""
     import hashlib
-    body = _jobs().pass_agent.SOLUTION.encode("utf-8")
-    return body, hashlib.sha256(body).hexdigest()
+    claim = claim if claim in CLAIMS else SAMPLE
+    body = _solutions(claim)[0].encode("utf-8")
+    return body, hashlib.sha256(body).hexdigest(), CLAIMS[claim]["code_name"]
 
 
 # Round 3: the price, the receipt, the spending cap, the cost of each step, reuse, the counters and one call for agents
@@ -840,12 +888,48 @@ def _transfer(to: str, units: int, memo: str) -> dict:
     return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], "usd": units / 1e6, **({} if r["ok"] else {"why": r["said"]})}
 
 
-def claim_pay(amount=None) -> dict:
+_backs_on: dict = {}
+
+
+def _backs() -> bool:
+    """Whether the deployed claim market records what is put behind a claim (its get_backs view answers)."""
+    if "on" not in _backs_on or time.time() - _backs_on.get("at", 0) > 600:
+        try:
+            from common import view
+            view(MARKET, "get_backs", {"claim": SAMPLE, "from_index": 0, "limit": 1})
+            _backs_on.update(on=True, at=time.time())
+        except Exception:  # noqa: BLE001 - an older contract: the two direct transfers
+            _backs_on.update(on=False, at=time.time())
+    return _backs_on["on"]
+
+
+def _back(claim: str, units: int, to: list) -> dict:
+    """Put `units` behind a claim through the claim market (msg back): recorded there, passed on to `to` in full."""
+    import common
+    from common import call
+    args = {"receiver_id": MARKET, "amount": str(units), "msg": json.dumps({"back": {"claim": claim, "to": to}})}
+    with _lock:
+        common._PREFETCHED.pop(LIVE, None)
+        try:
+            r = call(LIVE, TOKEN, "ft_transfer_call", args, deposit="1 yoctoNEAR", gas="100 Tgas", wait="EXECUTED_OPTIMISTIC")
+        except Exception as e:  # noqa: BLE001 - one retry on a stale nonce
+            if "INVALID_TRANSACTION" not in str(e) and "nonce" not in str(e).lower():
+                return {"ok": False, "why": f"testnet did not answer ({str(e)[:120]})"}
+            time.sleep(2)
+            common._PREFETCHED.pop(LIVE, None)
+            r = call(LIVE, TOKEN, "ft_transfer_call", args, deposit="1 yoctoNEAR", gas="100 Tgas", wait="EXECUTED_OPTIMISTIC")
+        common._PREFETCHED.pop(LIVE, None)
+    return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
+
+
+def claim_pay(amount=None, claim: str = SAMPLE) -> dict:
     """The test USDC the buyer put behind the claim, paid for its first proof: agent A's share (1 part in 49) and Knos's
-    fee (the other 48), each its own transfer from the buyer test account."""
+    fee (the other 48). Sent to the claim market, which records it on chain behind the claim (the demand market settles
+    from that record) and passes both parts on in the same transaction."""
     _jobs()
     import common
     from common import CONFIG
+    claim = claim if claim in CLAIMS else SAMPLE
     units = _units(amount)
     share = units // SHARE_OF
     t_pay = time.time()
@@ -855,11 +939,16 @@ def claim_pay(amount=None) -> dict:
         held = units
     if held < units:
         return {"ok": False, "why": f"the buyer test account holds {held / 1e6:.2f} test USDC, under {units / 1e6:.2f}, so nothing was sent", "usd": units / 1e6}
-    agent = _transfer(CONFIG["agents"]["a"], share, "knos proof: agent A's share of the amount behind the HyperLogLog claim")
-    fee = _transfer(TREASURY, units - share, "knos proof: Knos's fee from the amount behind the HyperLogLog claim") if agent["ok"] else {"ok": False, "why": "not sent: the agent's share failed"}
+    if _backs():
+        b = _back(claim, units, [[CONFIG["agents"]["a"], str(share)], [TREASURY, str(units - share)]])
+        agent = {**b, "usd": share / 1e6}
+        fee = {**b, "usd": (units - share) / 1e6}
+    else:
+        agent = _transfer(CONFIG["agents"]["a"], share, f"knos proof: agent A's share of the amount behind the {claim} claim")
+        fee = _transfer(TREASURY, units - share, f"knos proof: Knos's fee from the amount behind the {claim} claim") if agent["ok"] else {"ok": False, "why": "not sent: the agent's share failed"}
     ok = agent["ok"] and fee["ok"]
     if ok:
-        _paid_log.append((time.time(), units / 1e6, fee.get("tx")))
+        _paid_log.append((time.time(), units / 1e6, fee.get("tx"), claim))
     return {"ok": ok, "usd": units / 1e6, "agent": agent, "fee": fee, "tx": fee.get("tx"), "url": fee.get("url"), "from": LIVE,
             "seconds": round(time.time() - t_pay, 1), "fee_account": "https://testnet.nearblocks.io/address/" + TREASURY + "?tab=tokentxns",
             **({} if ok else {"why": agent.get("why") if not agent["ok"] else fee.get("why")})}
@@ -976,8 +1065,130 @@ def counters() -> dict:
     return {"proofs": base["proofs"] + len(new), "usd": round(base["usd"] + sum(x[1] for x in new), 6), "lost_usd": base["lost_usd"],
             "read_at": base.get("read_at"), "since_read": len(new), "record": base.get("record"),
             "paid": [[round(x[0], 3), x[1]] for x in _paid_log],
-            "by_claim": {"hyperloglog": {"proofs": base["proofs"] + len(new), "usd": round(base["usd"] + sum(x[1] for x in new), 6)}},
-            "receipts": [[x[2], None, int(x[0]), "hyperloglog"] for x in reversed(new)] + (base.get("receipts") or [])}
+            "by_claim": _by_claim(base.get("by_claim") or {SAMPLE: {"proofs": base["proofs"], "usd": base["usd"]}}, new),
+            "receipts": [[x[2], None, int(x[0]), x[3]] for x in reversed(new)] + (base.get("receipts") or [])}
+
+
+def _by_claim(read: dict, new: list) -> dict:
+    """Each claim's paid proofs and test USDC behind it: the full read, plus this server's payments since."""
+    out = {k: dict(v) for k, v in read.items()}
+    for x in new:
+        b = out.setdefault(x[3], {"proofs": 0, "usd": 0.0})
+        b["proofs"] += 1
+        b["usd"] = round(b["usd"] + x[1], 6)
+    return out
+
+
+# The claims board: each claim's two markets on NEAR testnet, read from the claim market contract. The truth market
+# ("job:<id>", the claim's newest job) shows its price while the locked test has not run and only its result after; the
+# demand market ("demand:<claim>:<opened>") asks whether 100 test USDC are put behind proving the claim within 7 days,
+# and settles from the contract's own record of what was put behind it. A claim with no open demand market gets one,
+# seeded by Knos's test account. Each market says its trader count, so a thin market says it is thin.
+WEEK = 7 * 24 * 3600
+_board: dict = {}
+_boarding = threading.Lock()
+
+
+def _market_view(mid: str) -> dict | None:
+    from common import view
+    v = view(MARKET, "get_market", {"id": mid}) or {}
+    m = v.get("market")
+    if not m:
+        return None
+    try:
+        traders = int(view(MARKET, "get_traders", {"id": mid}) or 0)
+    except Exception:  # noqa: BLE001 - an older contract counts no traders
+        traders = None
+    out = {"id": mid, "question": m.get("question"), "trades": m.get("trades", 0), "traders": traders, "outcome": m.get("outcome")}
+    if m.get("outcome") is None:   # the price only before the result
+        out["yes_cents"] = round(int(v.get("yes_price") or 0) / 10_000, 1)
+    return out
+
+
+def _seed_demand(claim: str) -> str | None:
+    """Open the claim's demand market for the next 7 days, seeded by Knos's test account (b ln 2 test USDC)."""
+    import common
+    from common import call
+    mid = f"demand:{claim}:{int(time.time())}"
+    q = f"Will at least 100 test USDC be put behind proving this claim within 7 days? {CLAIMS[claim]['plain']}"[:200]
+    args = {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps({"seed": {"id": mid, "question": q}})}
+    with _lock:
+        common._PREFETCHED.pop(LIVE, None)
+        r = call(LIVE, TOKEN, "ft_transfer_call", args, deposit="1 yoctoNEAR", gas="100 Tgas")
+        common._PREFETCHED.pop(LIVE, None)
+    return mid if r["ok"] else None
+
+
+def _read_board() -> None:
+    if not _boarding.acquire(blocking=False):
+        return
+    try:
+        _jobs()
+        from common import view
+        ids = [str(i) for i in (view(MARKET, "get_markets", {}) or [])]
+        now = int(time.time())
+        hashes = {CLAIMS[c]["test"]: c for c in CLAIMS}
+        tests = _jobs().checker.tests()   # sha256 -> test file
+        from concurrent.futures import ThreadPoolExecutor
+        # each claim's newest job: the ones this server made first, then the newest 16 jobs on chain, read side by side
+        mine = {}
+        for p in [*[v for k, v in _proofs.items() if k != "last"], *([_ready["job"]] if _ready.get("job") else [])]:
+            c = p.get("claim", SAMPLE)
+            jid = p.get("job") or p.get("id")
+            if jid and (c not in mine or jid > mine[c]):
+                mine[c] = jid
+        jobs = sorted((i for i in ids if i.startswith("job:job-")), reverse=True)[:16]   # the job id holds its UTC time: newest first
+        with ThreadPoolExecutor(8) as ex:
+            got = list(ex.map(lambda mid: (mid, view(_jobs().CONFIG["contract"], "get_job", {"id": mid[4:]}) or {}), jobs))
+        for mid, j in got:
+            c = hashes.get(tests.get(j.get("criteria_hash", ""), ""))
+            if c and (c not in mine or mid[4:] > mine[c]):
+                mine[c] = mid[4:]
+        with ThreadPoolExecutor(8) as ex:
+            views = dict(zip(mine, ex.map(lambda jid: _market_view("job:" + jid), mine.values())))
+        truth = {c: v for c, v in views.items() if v}
+        backs_on = _backs()
+        board = {}
+        for c in CLAIMS:
+            dem = sorted((i for i in ids if i.startswith(f"demand:{c}:")), key=lambda i: int(i.rsplit(":", 1)[1]))
+            d = _market_view(dem[-1]) if dem else None
+            if backs_on and status()["live"] and (d is None or d.get("outcome") is not None):
+                try:
+                    mid = _seed_demand(c)
+                    d = _market_view(mid) if mid else d
+                except Exception as e:  # noqa: BLE001 - shown as not open yet
+                    print("near_live demand market:", str(e)[:160], file=sys.stderr, flush=True)
+            if d:
+                opened = int(d["id"].rsplit(":", 1)[1])
+                got = view(MARKET, "get_backed", {"claim": c, "from": opened, "until": opened + WEEK}) or {}
+                d.update(opened=opened, closes=opened + WEEK, behind_usd=int(got.get("total") or 0) / 1e6, backs=got.get("count", 0), bar_usd=100)
+            all_ = (view(MARKET, "get_backed", {"claim": c, "from": 0, "until": now}) or {}) if backs_on else {}
+            board[c] = {"truth": truth.get(c), "demand": d, "behind_usd": int(all_.get("total") or 0) / 1e6, "proofs": all_.get("count", 0)}
+        _board.update(at=time.time(), out={"claims": board, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "contract": MARKET})
+    except Exception as e:  # noqa: BLE001 - the board held stays in use
+        print("near_live board:", str(e)[:200], file=sys.stderr, flush=True)
+    finally:
+        _boarding.release()
+
+
+if os.environ.get("KNOS_NEAR_LIVE") == "on":   # the board is read from the server's start: the first visitor waits on nothing
+    threading.Thread(target=_read_board, daemon=True).start()
+
+
+def claims_board() -> dict:
+    """Every claim with its two markets and the test USDC behind it, read from NEAR testnet (kept a minute). The sample
+    claim's paid proofs before the claim market kept its record are added from the counters' full read."""
+    if not (_board.get("at") and time.time() - _board["at"] < 60):
+        threading.Thread(target=_read_board, daemon=True).start()
+    out = json.loads(json.dumps(_board.get("out") or {"claims": {}}))
+    base = _snap.get("out") or {}
+    if out["claims"].get(SAMPLE) is not None and base.get("proofs") is not None:
+        s = out["claims"][SAMPLE]
+        s["before_record"] = {"proofs": base["proofs"], "usd": base["usd"]}
+    for c, k in CLAIMS.items():
+        out["claims"].setdefault(c, {})
+        out["claims"][c].update(plain=k["plain"], paper=k["paper"], authors=f"{k['authors']}, {k['year']}", doi=k["doi"])
+    return out
 
 
 def claim_flow(url: str, amount=None) -> dict:
@@ -985,7 +1196,7 @@ def claim_flow(url: str, amount=None) -> dict:
     look = claim_look(url)
     if not look.get("known"):
         return {"ok": True, "look": look, "next": "no check for this paper yet: the quote says which checker fits"}
-    proof = claim_prove(agent=True)   # its own daily runs: page proofs never use them up
+    proof = claim_prove(agent=True, claim=look.get("name", SAMPLE))   # its own daily runs: page proofs never use them up
     if not proof.get("ok"):
         why = str(proof.get("why") or (f"the next proof could not be readied: {_ready['error']}" if _ready.get("error") else "the proof stopped before its answer"))
         last = _proofs.get("last")
@@ -997,18 +1208,19 @@ def claim_flow(url: str, amount=None) -> dict:
         return {"ok": False, "claim": look.get("quote"), "verdict": None, "code": None, "cap": None, "paid": False, "settled": False,
                 "why_not_settled": why, "receipt": None, "why": why}
     cap = claim_cap()
-    pay = claim_pay(amount)
+    pay = claim_pay(amount, proof.get("claim", SAMPLE))
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
     done = bool(pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
     why = "" if done else ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
-    return {"ok": True, "job": str(proof.get("job_id") or ""), "claim": look.get("quote"), "verdict": proof.get("verdict"), "code": "https://knos.onrender.com/api/near/claim/code",
+    return {"ok": True, "job": str(proof.get("job_id") or ""), "claim": look.get("quote"), "claim_name": proof.get("claim"), "verdict": proof.get("verdict"),
+            "code": "https://knos.onrender.com/api/near/claim/code?claim=" + str(proof.get("claim") or SAMPLE),
             "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle, str(proof.get("job_id") or ""))}
 
 
 def claim_finish(cap: dict | None, market: str = "", amount=None, job: str = "") -> dict:
     """After the answer of a first proof: the amount behind the claim paid, the claim's record updated, the receipt."""
     t0 = time.time()
-    pay = claim_pay(amount)
+    pay = claim_pay(amount, (_proofs.get(job) or {}).get("claim", SAMPLE))
     settle = claim_settle(market) if market else None
     return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": {**claim_receipt(cap, pay, settle, job), "job": job}, "seconds": round(time.time() - t0, 1)}
 

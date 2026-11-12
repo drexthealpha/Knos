@@ -24,7 +24,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from common import CONFIG, HERE, JOB_DIR, JOB_TEST, call, sha256_file, view
+from common import CONFIG, HERE, JOB_DIR, JOB_TEST, call, sha256_file, tests, view
 
 # the hosted app signs with its own checker key (KNOS_CHECKER_PEM_FILE, KNOS_CHECKER_KID), which 2 owners set and can remove
 KEY = Path(os.environ.get("KNOS_CHECKER_PEM_FILE") or Path.home() / ".knos-checker" / "checker.pem")
@@ -44,13 +44,13 @@ def sign(claims: dict) -> str:
     return f"{head}.{body}.{b64u(sig)}"
 
 
-def run_test(output: Path) -> tuple[bool, str, float]:
+def run_test(output: Path, test: str = JOB_TEST) -> tuple[bool, str, float]:
     with tempfile.TemporaryDirectory() as d:
-        shutil.copy(JOB_DIR / JOB_TEST, Path(d) / JOB_TEST)
+        shutil.copy(JOB_DIR / test, Path(d) / test)
         shutil.copy(output, Path(d) / "solution.py")
         t0 = time.time()
         try:
-            p = subprocess.run([sys.executable, "-E", "-s", "-B", JOB_TEST], cwd=d, capture_output=True, text=True, timeout=20)
+            p = subprocess.run([sys.executable, "-E", "-s", "-B", test], cwd=d, capture_output=True, text=True, timeout=20)
         except subprocess.TimeoutExpired:
             return False, "the test ran over 20 s", time.time() - t0
         said = (p.stdout + p.stderr).strip().splitlines()
@@ -72,10 +72,10 @@ def check(job_id: str, release: bool = True) -> dict:
     job = view(CONFIG["contract"], "get_job", {"id": job_id})
     if not job:
         raise SystemExit(f"no job {job_id}")
-    test_hash = sha256_file(JOB_DIR / JOB_TEST)
-    out = {"job": job_id, "criteria_hash": job["criteria_hash"], "test_sha256": test_hash, "attempts": []}
-    if test_hash != job["criteria_hash"]:
-        out["refused"] = "the test file is not the one locked at funding"
+    test = tests().get(job["criteria_hash"])   # the one test file whose sha256 the job locked at funding
+    out = {"job": job_id, "criteria_hash": job["criteria_hash"], "test_sha256": job["criteria_hash"] if test else None, "test": test, "attempts": []}
+    if not test:
+        out["refused"] = "no test file has the hash locked at funding"
         return out
     names = {v: k for k, v in CONFIG["agents"].items()}
     for a in job["attempts"]:
@@ -84,7 +84,7 @@ def check(job_id: str, release: bool = True) -> dict:
         if not f.is_file() or sha256_file(f) != a["output_sha256"]:
             r.update(passed=False, reason="the output file is not the one submitted")
         else:
-            ok, said, secs = run_test(f)
+            ok, said, secs = run_test(f, test)
             r.update(passed=ok, reason=said, test_seconds=round(secs, 2))
             if ok and job["state"] == "Open" and release:
                 claims = {"iss": ISS, "aud": CONFIG["contract"], "exp": int(time.time()) + 600, "iat": int(time.time()),

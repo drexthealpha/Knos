@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import sys
 import time
 import urllib.request
@@ -49,7 +50,10 @@ def post(body: dict) -> dict:
     if not (0 < bid <= 1_000_000 and 1 <= minutes <= 1440):
         return {"ok": False, "why": "the bid is 1 to 1,000,000 test units and the deadline 1 to 1,440 minutes"}
     jid = f"job-{time.strftime('%m%d%H%M%S', time.gmtime())}"
-    test_hash = sha256_file(JOB_DIR / JOB_TEST)
+    test = body.get("test") or JOB_TEST
+    if not re.fullmatch(r"test_\w+\.py", test) or not (JOB_DIR / test).is_file():
+        return {"ok": False, "why": "no such locked test"}
+    test_hash = sha256_file(JOB_DIR / test)
     msg = {"open_job": {"id": jid, "criteria_hash": test_hash, "deadline_ns": str((int(time.time()) + minutes * 60) * 1_000_000_000)}}
     r = call(CONFIG["payer"], CONFIG["token"], "ft_transfer_call", {"receiver_id": CONFIG["contract"], "amount": str(bid), "msg": json.dumps(msg)},
              "1 yoctoNEAR", "100 Tgas")

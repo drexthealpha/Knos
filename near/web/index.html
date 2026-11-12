@@ -188,7 +188,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <!-- /k-first -->
     <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> under a minute on NEAR, for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
-      <label for="paper">Paste a paper's DOI, its permanent web address. Today the library proves one claim, the sample's: HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory. Knos proves it on NEAR and hands you code that works.</label>
+      <label for="paper">Paste a paper's DOI or arXiv link. Knos proves the claims on its <a href="../claims/">Claims</a> page and hands you code that works; the sample is HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory.</label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -666,10 +666,10 @@ load();
       el("p", { className: "fine" }, [`Written by a small AI (${page.model}) at ${page.written}, from the paper. `, out(page.url, "The run that wrote it"), ". Private AI on NEAR AI Cloud, with its attestation: BLOCKED, no NEAR AI key is set yet."])]));
     look.replaceChildren(...kids);
     look.scrollIntoView({ block: "start" });
-    order.addEventListener("click", () => prove(order, amount()));
+    order.addEventListener("click", () => prove(order, amount(), r));
   });
 
-  async function prove(order, amount) {
+  async function prove(order, amount, look) {
     order.disabled = true; $("prove").hidden = false;
     const t0 = performance.now(), secs = () => (performance.now() - t0) / 1000;
     const tick = setInterval(() => { $("secs").textContent = secs().toFixed(1); }, 100);
@@ -678,20 +678,21 @@ load();
       const li = el("li", { className: cls }, [el("span", { className: "at", textContent: secs().toFixed(1) + " s" }), el("h3", { textContent: title }), ...kids]);
       steps.append(li); li.scrollIntoView({ block: "nearest" }); return li;
     };
-    const proving = post("/api/near/claim/prove");
+    const sample = !look.name || look.name === "hyperloglog";
+    const proving = post("/api/near/claim/prove", { claim: look.name || "hyperloglog" });
     const capping = post("/api/near/claim/cap");
-    add("ok", "1. The test is locked", [el("p", {}, ["The agents did not write it and cannot change it: count 30,000 visitors within 10%, in at most 1.5 kilobytes. ",
-      out("https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
+    add("ok", "1. The test is locked", [el("p", {}, [`The agents did not write it and cannot change it: ${look.locked || "count 30,000 visitors within 10%, in at most 1.5 kilobytes"}. `,
+      out(look.check || "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
     const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Each agent is a fixed program, not an AI model, with its own NEAR account. A model on NEAR AI Cloud, with its attestation, needs a NEAR AI key that is not set yet (BLOCKED)." })]);
-    for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "done for this order"; }   // done when this order's job was readied, not since the click
+    for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = sample ? "done for this order" : "running now"; }   // the sample's job was readied for this order; any other claim's runs now
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
       const ago = r.ran_before_s >= 120 ? `${Math.round(r.ran_before_s / 60)} min` : `${Math.max(0, r.ran_before_s)} s`;
       const when = r.ran_before_s >= 0 ? `Yes, for this order: each order takes its own job, and this job's agents ran against the locked test ${ago} before you pressed the button, so the answer is ready in seconds.`
         : "Their code ran against the locked test after you ordered, while you waited.";
       two.append(el("p", { className: "fine", textContent: when }));
-      if (r.ran_before_s >= 0) for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = `done ${ago} before you pressed`; }
+      for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = r.ran_before_s >= 0 ? `done ${ago} before you pressed` : `done ${secs().toFixed(1)} s after you pressed`; }
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
       two.classList.add("ok");
     });
@@ -707,7 +708,7 @@ load();
     add("ok", v.holds ? "4. Answer: Yes, the claim holds" : "4. Answer: No, the claim does not hold", [el("table", { className: "vs" }, [
       el("tr", {}, [el("th", { textContent: "The paper" }), el("td", { textContent: v.paper })]),
       el("tr", {}, [el("th", { textContent: "Measured" }), el("td", { textContent: v.measured })]),
-      el("tr", {}, [el("th", { textContent: "The locked test" }), el("td", { textContent: "passes within 10% error on 30,000 visitors, in at most 1.5 kilobytes" })])])]);
+      el("tr", {}, [el("th", { textContent: "The locked test" }), el("td", { textContent: look.locked || "passes within 10% error on 30,000 visitors, in at most 1.5 kilobytes" })])])]);
     const tryN = el("input", { type: "number", value: "100000", min: "1000", max: "100000", step: "1000", "aria-label": "Visitors to count", style: "width:9em" });
     const tryBtn = el("button", { type: "button", className: "go", textContent: "Count them with your code" });
     const tryOut = el("p", { role: "status" });
@@ -718,8 +719,8 @@ load();
       tryOut.textContent = x.ok ? `There were ${x.visitors.toLocaleString("en-US")} visitors; your code counted ${x.counted.toLocaleString("en-US")} (${x.off_pct}% off; the locked test allows 10%), keeping ${x.bytes.toLocaleString("en-US")} bytes, in ${x.seconds} s.${+tryN.value !== x.visitors ? ` It counts 1,000 to 100,000 visitors here.` : ""}` : `Not counted: ${x.error || "no answer"}.`;
       tryBtn.disabled = false;
     });
-    add("ok", "5. You got", [el("p", {}, [out(HOSTED + "/api/near/claim/code", "Download the verified code (visitor_counter.py)"), ", the version that passed the locked test."]),
-      el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut]);
+    add("ok", "5. You got", [el("p", {}, [out(`${HOSTED}/api/near/claim/code?claim=${encodeURIComponent(look.name || "hyperloglog")}`, `Download the verified code (${look.code_name || "visitor_counter.py"})`), ", the version that passed the locked test."]),
+      ...(sample ? [el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut] : [])]);
     const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s on the test network.` })]);
     const tPay = performance.now();
     const payClock = el("p", { className: "fine", textContent: "0.0 s" });
