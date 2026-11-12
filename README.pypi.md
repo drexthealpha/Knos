@@ -310,6 +310,16 @@ with random secrets (never commit `.env`). The first build takes about 3 minutes
 
 Replay mode runs with no key; live mode expects the judge's own OpenAI, Anthropic, Gemini or Bedrock key. The default needs nothing: in replay mode (`KNOS_AI_MODE=replay`) the rules referee decides, with no model.
 
+**The live AI Hub run (live run, 12 Nov 2026).** The AI Hub agent decided the Synthea glucose sample through the
+production on NEAR AI Cloud's private model deepseek-ai/DeepSeek-V4.1-Flash-1017, reached through AI Hub's `openai`
+provider at `https://cloud-api.near.ai/v1`: "This FHIR R4 Observation has LOINC 2339-0 glucose with a value of
+122.52 mg/dL, which is under 140 mg/dL." Verdict met; the payout gate waited for a person, as the brief asks. Its span:
+1,385 tokens, 46.2 s, session 25 (in + out not split by the span; AI Hub's reply gave no call id in build 154).
+
+To run it yourself, keep the key out of every file: export `KNOS_LOCAL_LLM_URL=https://cloud-api.near.ai/v1`,
+`KNOS_LOCAL_MODEL=deepseek-ai/DeepSeek-V4.1-Flash-1017` and `KNOS_LOCAL_LLM_KEY` (your NEAR AI key) in the shell, set
+`KNOS_AI_MODE=local` in `.env`, then `docker compose up -d --build`. One model call a decision, at 800 tokens.
+
 For the AI Hub agent on a local open model, set `KNOS_AI_MODE=local` in `.env` and start with
 `docker compose --profile local up -d --build`: it pulls `qwen2.5:1.5b-instruct` (about 1 GB) into the `ollama`
 service and asks it through AI Hub's `openai` provider, with no key and no account. For a cloud model set

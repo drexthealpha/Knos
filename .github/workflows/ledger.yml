@@ -36,7 +36,7 @@ jobs:
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           if git fetch -q --depth 1 origin gh-pages; then git checkout -q -b gh-pages FETCH_HEAD; else git checkout -q --orphan gh-pages; fi
           if [ -s ../out/ledger.json ]; then
-            python3 -c 'import json,sys,os; new=json.load(open(sys.argv[1])); old=json.load(open(sys.argv[2])) if os.path.exists(sys.argv[2]) else {}; new["spent_usd"]=max(float(new.get("spent_usd") or 0),float(old.get("spent_usd") or 0)); new["calls"]=max(int(new.get("calls") or 0),int(old.get("calls") or 0)); c=dict(old.get("cache") or {}); c.update(new.get("cache") or {}); new["cache"]=c; json.dump(new,open(sys.argv[2],"w"),sort_keys=True,indent=1)' ../out/ledger.json near-ai-ledger.json
+            python3 -c 'import json,sys,os; new=json.load(open(sys.argv[1])); old=json.load(open(sys.argv[2])) if os.path.exists(sys.argv[2]) else {}; new["spent_usd"]=max(float(new.get("spent_usd") or 0),float(old.get("spent_usd") or 0)); new["calls"]=max(int(new.get("calls") or 0),int(old.get("calls") or 0)); c=dict(old.get("cache") or {}); c.update(new.get("cache") or {}); new["cache"]=c; new["iris_usd"]=float(old.get("iris_usd") or 0); json.dump(new,open(sys.argv[2],"w"),sort_keys=True,indent=1)' ../out/ledger.json near-ai-ledger.json
           fi
           if [ -s ../out/visits.json ]; then
             python3 -c 'import json,sys,os; new=json.load(open(sys.argv[1])); old=json.load(open(sys.argv[2])) if os.path.exists(sys.argv[2]) else {}; d=dict(old.get("days") or {}); d.update(new.get("days") or {}); json.dump({"days": d}, open(sys.argv[2],"w"), sort_keys=True, indent=1)' ../out/visits.json visits.json

@@ -65,6 +65,7 @@ def _seed() -> None:
             saved = json.loads(r.read())
         with _lock:
             _state["spent_usd"] = max(_state["spent_usd"], float(saved.get("spent_usd") or 0))
+            _state["iris_usd"] = float(saved.get("iris_usd") or 0)   # the IRIS AI Hub run's calls, counted under the same $8 stop
             _state["calls"] = max(_state["calls"], int(saved.get("calls") or 0))
             if saved.get("day") == _today() and int(saved.get("today") or 0) > (_state["today"] if _state["day"] == _today() else 0):
                 _state.update(day=saved["day"], today=int(saved["today"]))
@@ -96,7 +97,7 @@ def ledger() -> dict:
 
 def spent() -> tuple[float, str]:
     _seed()
-    return round(_state["spent_usd"], 6), "the token counts of each answer at the listed prices, kept across deploys on the gh-pages branch"
+    return round(_state["spent_usd"] + _state.get("iris_usd", 0), 6), "the token counts of each answer at the listed prices (with the IRIS AI Hub run's), kept across deploys on the gh-pages branch"
 
 
 def attestation(model: str = MODELS[0]) -> dict:
@@ -127,7 +128,7 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
         hit = _state["cache"].get(h)
         if hit:
             return {**hit, "cached": True, "input_sha256": h}
-        s, _ = round(_state["spent_usd"], 6), ""
+        s, _ = round(_state["spent_usd"] + _state.get("iris_usd", 0), 6), ""
         if s >= STOP_AT_USD:
             return {**base, "note": f"the AI budget is used (${s:.2f} of ${CREDIT_USD:.0f}): the fixed program and the locked test alone decided"}
         if _state["day"] != _today():
