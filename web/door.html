@@ -123,7 +123,8 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       if (n > top) { top = n; best = c; } }
     if (top < 2) return { none: true };
     // a word or number of the question that the claim does not have: the answer is the closest proved claim, not a yes to the question
-    const own = new Set(words([best.name.replace(/-/g, " "), best.plain, best.quote, best.paper].join(" "))), key = words(best.name.split("-")[0])[0], miss = [...q].filter((w) => !own.has(w) && (w.length > 3 || /\d/.test(w)));
+    const st = (w) => w.replace(/s$/, "").replace(/e$/, ""), own = new Set(words([best.name.replace(/-/g, " "), best.plain, best.quote, best.paper].join(" ")).map(st)),
+      key = words(best.name.split("-")[0])[0], miss = [...q].filter((w) => !own.has(st(w)) && (w.length > 3 || /\d/.test(w)));
     return { c: best, by: "words", near: miss.length > 0 || (key && !q.has(key)) };   // one shared word ("memory") is not a match
   }
   function answer(c, live, near) {
