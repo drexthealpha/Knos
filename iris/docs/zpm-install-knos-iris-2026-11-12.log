@@ -1,3 +1,5 @@
+# Note added 12 Nov 2026, not part of the output below: the two Ens.Director ErrCanNotAcquireRuntimeLock lines (06:25:04) are the production's own start during Configure: Ens.Director could not take the production's runtime lock within 30 s while the production was starting. The same line appeared when this image started in a codespace on 12 Nov 19:46. Configure did not fail on it: it ended SUCCESS, then Activate SUCCESS, and zpm "list" showed knos-iris 0.1.9.
+
 
 Node: 00c252546784, Instance: IRIS
 
