@@ -1232,6 +1232,20 @@ def _read_board() -> None:
                 except Exception:  # noqa: BLE001 - not read this time
                     got = {}
                 d.update(opened=opened, closes=opened + WEEK, behind_usd=int(got.get("total") or 0) / 1e6, backs=got.get("count", 0), bar_usd=100)
+                # the bar met, or the week over: anyone may settle it, and the board does, from the contract's own record
+                if d.get("outcome") is None and (d["behind_usd"] >= 100 or now > opened + WEEK) and status()["live"]:
+                    try:
+                        import common
+                        from common import call
+                        with _lock:
+                            common._PREFETCHED.pop(LIVE, None)
+                            r = call(LIVE, MARKET, "resolve", {"id": d["id"]}, gas="100 Tgas")
+                            common._PREFETCHED.pop(LIVE, None)
+                        if r.get("ok"):
+                            d = _market_view(d["id"]) or d
+                            d.update(opened=opened, closes=opened + WEEK, behind_usd=int(got.get("total") or 0) / 1e6, backs=got.get("count", 0), bar_usd=100, settle_tx=r.get("url"))
+                    except Exception as e:  # noqa: BLE001 - settled at a later refresh
+                        print("near_live demand settle:", str(e)[:160], file=sys.stderr, flush=True)
             try:
                 all_ = (view(MARKET, "get_backed", {"claim": c, "from": 0, "until": now}) or {}) if backs_on else {}
             except Exception:  # noqa: BLE001 - not read this time
