@@ -6,7 +6,7 @@
   <Document name="knos-iris.ZPM">
     <Module>
       <Name>knos-iris</Name>
-      <Version>0.1.11</Version>
+      <Version>0.1.12</Version>
       <Description>An IRIS Interoperability production where an AI Hub agent decides if a lab's locked test criteria are met, and only then a payout step runs.</Description>
       <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
       <Packaging>module</Packaging>
