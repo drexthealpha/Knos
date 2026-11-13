@@ -32,7 +32,7 @@ RUN useradd --create-home app && mkdir -p /data && chown app /data
 COPY --chown=app near/agents /app/near/agents
 COPY --chown=app near/web/jobs_api.py near/web/latest.json near/web/market.json near/web/totals.json /app/near/web/
 COPY --chown=app near/scripts/near_counters.py /app/near/scripts/
-COPY --chown=app near/claims/claims.json /app/near/claims/
+COPY --chown=app near/claims/claims.json near/claims/usdc_market.json /app/near/claims/
 COPY --chown=app near/balances.json /app/near/
 COPY --chown=app scripts/near_balances.py /app/scripts/
 RUN chown -R app /app/near

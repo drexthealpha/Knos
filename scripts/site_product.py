@@ -156,6 +156,31 @@ def claims_page(header: str, cs: list[dict]) -> str:
     return page(header, "../", "Knos claims", "Every claim Knos can prove on NEAR testnet, sorted by the test USDC behind it.", body, script, "claims/")
 
 
+def usdc_market() -> dict:
+    return json.loads((ROOT / "near/claims/usdc_market.json").read_text(encoding="utf-8"))
+
+
+def usdc_section(c: dict) -> str:
+    """Round 9 U8: the claim's markets in Circle's NEAR testnet USDC, from the visitor's own wallet. Until live, the block
+    is hidden and loads nothing, except for the end-to-end test, which opens the page at #usdc-test."""
+    u = usdc_market()
+    live = bool(u.get("live"))
+    load = ('<script type="module" src="../../usdc-market.js"></script>' if live else
+            '<script>if (location.hash === "#usdc-test") { document.getElementById("usdc").hidden = false; import("../../usdc-market.js"); }</script>')
+    cfg = {k: u[k] for k in ("market", "token", "jobs", "agent", "fee")} | {"claim": c["name"], "sha256": c["sha256"]}
+    buy = lambda kind, side: f'<button class="btn" type="button" data-act="{kind}-{side}" disabled>{side.title()}, 1 USDC</button>'   # noqa: E731
+    return (f"<section id=\"usdc\" data-cfg='{e(json.dumps(cfg))}'{'' if live else ' hidden'}>\n<h2>Trade or back it from your own wallet</h2>\n"
+            f'<p class="row"><button class="btn" id="u-connect" type="button">Connect your NEAR testnet wallet</button> <span id="u-who"></span></p>\n'
+            f'<p class="fine">Free test USDC: <a href="https://faucet.circle.com/">Circle\'s faucet</a>, network Near Testnet, 20 USDC every 2 hours.</p>\n'
+            f'<table><tbody><tr><th>Does it hold?</th><td><span id="u-truth">reading</span> {buy("truth", "yes")} {buy("truth", "no")}</td></tr>'
+            f'<tr><th>{u["demand_usdc"]} test USDC behind it within 7 days?</th><td><span id="u-demand">reading</span> {buy("demand", "yes")} {buy("demand", "no")}</td></tr></tbody></table>\n'
+            f'<p class="row"><button class="btn" type="button" data-act="back" disabled>Back it, 1 USDC</button> <span id="u-behind"></span></p>\n'
+            f'<p id="u-backers" class="fine"></p>\n<p id="u-said" role="status"></p>\n'
+            f'<p class="fine">Each market seeded with {u["seed_usdc"]:.2f} test USDC by Knos, b = {u["b_usdc"]} USDC. '
+            f'Contract: <a href="{EXPLORER}{u["market"]}">{u["market"]}</a>. Your wallet signs; Knos never holds your key.</p>\n'
+            f'{load}\n</section>\n')
+
+
 def claim_page(header: str, c: dict) -> str:
     test_url = f"{REPO}/blob/main/near/agents/job/{c['test']}"
     src = "https://doi.org/" + c["doi"] if c.get("doi") else c["url"]   # a source with no DOI (a NASA page) links the page itself
@@ -172,14 +197,15 @@ def claim_page(header: str, c: dict) -> str:
             f'<p><b>What it did not check:</b> {e(c["not_checked"])}.</p>\n'
             f'<p><b>A test by the paper\'s authors:</b> {e(c.get("outside_test", "not looked for yet"))}'
             + "".join(f' <a href="{u}">{e(u.split("/")[4])}</a>' for u in c.get("outside_test_links", [])) + '</p>\n'
-            f'<h2>Check it yourself, in this browser</h2>\n<p>Your browser fetches the locked test from GitHub, hashes it, and reads '
-            f'from NEAR testnet itself the hash this claim\'s newest job locked before any agent started. Then change one byte and check again.</p>\n'
-            f'<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
-            f'<button class="btn" id="tamper" type="button">Change one byte and check again</button></p>\n'
-            f'<p id="verdict" role="status"></p>\n'
-            f'<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth">reading</span><span class="row" data-trade="truth"></span></td></tr>'
-            f'<tr><th>100 test USDC behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
-            f'<p id="traded" role="status" class="fine"></p>\n'
+            '<h2>Check it yourself, in this browser</h2>\n<p>Your browser fetches the locked test from GitHub, hashes it, and reads '
+            'from NEAR testnet itself the hash this claim\'s newest job locked before any agent started. Then change one byte and check again.</p>\n'
+            '<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
+            '<button class="btn" id="tamper" type="button">Change one byte and check again</button></p>\n'
+            '<p id="verdict" role="status"></p>\n'
+            '<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth">reading</span><span class="row" data-trade="truth"></span></td></tr>'
+            '<tr><th>100 test USDC behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
+            '<p id="traded" role="status" class="fine"></p>\n'
+            + usdc_section(c) +
             f'<p class="fine">Priced by an automatic market maker (LMSR) in test USDC; the first settles by the locked test, the '
             f'second by the record of what was put behind the claim.</p>\n'
             f'<h2>Backers</h2>\n<p id="backed" class="fine">Reading every backer from NEAR...</p>\n'
@@ -366,7 +392,9 @@ def privacy_page(header: str) -> str:
             "address, account or cookie is stored with them. If your browser sends Do Not Track, nothing is sent. /status shows the totals. "
             "The paper link you paste goes to the "
             "Knos server, which reads the paper's title from its public record (Crossref) and answers. Your browser also reads "
-            "NEAR testnet's public record.</p>\n<h2>The server</h2>\n<p>No account and no sign-in. It counts requests per address only to "
+            "NEAR testnet's public record."
+            + (" On a claim page, the wallet connector (NEAR Wallet Selector) loads from esm.sh; your NEAR testnet wallet signs each trade, and Knos never sees your key." if usdc_market().get("live") else "")
+            + "</p>\n<h2>The server</h2>\n<p>No account and no sign-in. It counts requests per address only to "
             "limit them. Every proof and payment is public on NEAR testnet.</p>\n<h2>Terms</h2>\n<p>Test money on NEAR testnet, worth "
             f'nothing. The code is MIT licensed, with no warranty: <a href="{REPO}/blob/main/LICENSE">the licence</a>. Report a problem in '
             f'<a href="{REPO}/issues">GitHub issues</a>.</p>')

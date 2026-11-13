@@ -1,0 +1,12 @@
+{
+ "_": "Round 9 U8: the claim markets on Circle's NEAR testnet USDC, traded and backed from a visitor's own wallet. The claim pages show them only when live is true: after an end-to-end run with a fresh testnet account funded only from Circle's faucet passes, and CI is green.",
+ "live": false,
+ "market": "usdc-market.knos-swarm-1105.testnet",
+ "token": "3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af",
+ "jobs": "jobs.knos-swarm-1105.testnet",
+ "agent": "agent-a2.knos-swarm-1105.testnet",
+ "fee": "knos-payer-1102.testnet",
+ "b_usdc": 2,
+ "seed_usdc": 1.386295,
+ "demand_usdc": 10
+}

@@ -1421,6 +1421,9 @@ def _read_board() -> None:
                 all_ = {}
             board[c] = {"truth": truth.get(c), "last_proof": paid.get(c), "demand": d, "behind_usd": int(all_.get("total") or 0) / 1e6, "proofs": all_.get("count", 0)}
         _board.update(at=time.time(), out={"claims": board, "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "contract": MARKET})
+        if os.environ.get("KNOS_USDC_MARKETS") == "1":   # Round 9 U8: the Circle USDC markets, once turned on
+            from . import usdc_markets
+            usdc_markets.start()
     except Exception as e:  # noqa: BLE001 - the board held stays in use
         print("near_live board:", str(e)[:200], file=sys.stderr, flush=True)
     finally:
