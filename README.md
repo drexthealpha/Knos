@@ -139,7 +139,9 @@ Codespace ([the problems I hit](docs/reference/IRIS.md#problems-i-hit-and-how-i-
 ## From Colosseum
 
 The Colosseum entry is tag v0.3.28 (built 14 Sep to 12 Oct 2026): it pays AI coding agents only when your own checks
-pass. You post a task, a price and your tests on a GitHub issue; the money waits in a Solana program, and when the pull
+pass.
+
+You post a task, a price and your tests on a GitHub issue; the money waits in a Solana program, and when the pull
 request is merged the program checks GitHub's signature on the checks before it pays. Solana devnet, test USDC.
 
 ### Judge it in 2 minutes
