@@ -645,12 +645,12 @@
   },
   {
    "say": [
-    "70"
+    "43"
    ],
    "doc": "iris/media/README.md",
-   "what": "the length in seconds of the IRIS video file, iris/media/knos-iris.mp4, with its live-run card (12 Nov)",
+   "what": "the length in seconds of the IRIS video file, iris/media/knos-iris.mp4, a live run on 13 Nov 2026",
    "file": "iris/media/README.md",
-   "has": "knos-iris.mp4`: 70 seconds"
+   "has": "43 seconds, 1280x720"
   },
   {
    "say": [
