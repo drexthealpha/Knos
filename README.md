@@ -100,9 +100,9 @@ An InterSystems IRIS production pays each step of lab work only when its test pa
 a rule decides, and above $50 a person approves.
 
 - Online demo: https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/ (live until 23:00 UTC on 13 Nov, and 13:00 to 23:00 UTC on 14 and 15 Nov).
-  Press **A passing test, $20**: the AI Hub agent decides on NEAR AI Cloud (build 154), at most 10 model calls an hour per visitor.
-- Video: [YouTube](https://www.youtube.com/watch?v=s4YNmcEm-M8); MP4: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)
-  (70 s, the live AI Hub run of 12 Nov at its end).
+  GitHub shows a notice first; press Continue. Then press **A passing test, $20**: the AI Hub agent decides on NEAR AI
+  Cloud (build 154), at most 10 model calls an hour per visitor.
+- Video: MP4, a live run on 13 Nov 2026 from the online demo: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4); the first cut, in replay mode: [YouTube](https://www.youtube.com/watch?v=s4YNmcEm-M8).
 - [Judge it in 2 minutes](#judge-it-in-2-minutes-on-iris): one command, no InterSystems login, no key.
 
 ### Judge it in 2 minutes on IRIS
