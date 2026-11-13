@@ -54,9 +54,10 @@ jobs:
       - name: the portal shows Knos.Iris.Production to _SYSTEM with the public password (README step 4)
         run: |
           u="http://localhost:52773/csp/healthshare/knos/EnsPortal.ProductionConfig.zen?\$NAMESPACE=KNOS"
-          curl -fsS -c jar -b jar "$u" -o login.html
-          curl -fsS -c jar -b jar -d "IRISUsername=_SYSTEM&IRISPassword=knos-public-demo&IRISLogin=Login" "$u" -o portal.html
-          grep -o "Knos.Iris.Production" portal.html | head -1 || { grep -o "<title>[^<]*" portal.html; exit 1; }
+          curl -sS -c jar -b jar -o login.html -w "first: HTTP %{http_code}\n" "$u"
+          grep -o "<title>[^<]*" login.html || true
+          curl -sS -L -c jar -b jar -o portal.html -w "signed in: HTTP %{http_code}\n" -d "IRISUsername=_SYSTEM&IRISPassword=knos-public-demo&IRISLogin=Login" "$u"
+          grep -o "<title>[^<]*" portal.html || true
           grep -q "Knos.Iris.Production" portal.html
       - name: the container's log
         if: always()
