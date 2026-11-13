@@ -54,7 +54,7 @@
     "https://github.com/FastFilter/xor_singleheader/tree/5426b7d84994",
     "https://github.com/FastFilter/xorfilter/blob/3fd77f5b8c19/xorfilter_test.go"
    ],
-   "method": "Graf and Lemire's xor filter: each key maps by three hashes to one slot in each third of a table of about 1.23 n + 32 one-byte slots; build by peeling (repeatedly take a slot that only one remaining key maps to, push that key with that slot), then assign in reverse order so each key's 8-bit fingerprint equals the xor of its three slots; if peeling stalls, retry with a new hash seed. Keep only the table (as bytes), the seed and the table size."
+   "method": "Graf and Lemire's xor filter: each key maps by three hashes to one slot in each third of a table of about 1.23 n + 32 one-byte slots; build by peeling (repeatedly take a slot that only one remaining key maps to, push that key with that slot), then assign in reverse order so each key's 8-bit fingerprint equals the xor of its three slots; if peeling stalls, retry with a new hash seed. Keep only the table (as bytes), the seed and the table size. For 50,000 keys it must build in a few seconds: keep the three positions of each key in flat lists of ints, count and xor per slot in lists, peel with one stack, and avoid sets, dicts and per-key objects."
   },
   {
    "name": "morris-counter",
