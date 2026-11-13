@@ -15,7 +15,7 @@ costly ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.1101
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
 | From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | a lab result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-the-intersystems-contest) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/), or on your machine |
+| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-the-intersystems-contest) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/), or on your machine |
 | From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
@@ -27,13 +27,13 @@ A buyer pastes a paper's link and orders a proof of its claim. NEAR locks the cl
 contract before any agent starts, refuses any agent step over its spending cap, and pays only the agent whose code
 passes. The buyer gets a Yes or No, the code and a receipt on NEAR testnet.
 
-Agent A's code is written by a private model on NEAR AI Cloud, its attestation checked; a second model call reviews it
-and may only reject it.
+Agent A's code is written by a private model on NEAR AI Cloud, its attestation checked (a cached answer for the same
+claim and test is reused and says so, with its call id); a second model call reviews it and may only reject it.
 
 ### Judge it in 2 minutes
 
 1. Open https://drexthealpha.github.io/Knos/ and press **Try: HyperLogLog** - see "Yes, the claim holds", the claim,
-   its locked test with its sha256 and its last proof on NEAR.
+   its locked test with its sha256 and its last proof (job-...).
 2. Press **Prove it yourself**, then **Prove it with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
    then "4. Answer: Yes, the claim holds": about 15 s when a job is ready, 1 to 2 min when one is not.
@@ -105,6 +105,8 @@ a rule decides, and above $50 a person approves.
   GitHub shows a notice first; press Continue. Then press **A passing test, $20**: the AI Hub agent decides on NEAR AI
   Cloud (build 154), at most 10 model calls an hour per visitor.
 - Video: MP4, a live run on 13 Nov 2026 from the online demo: [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4); the first cut, in replay mode: [YouTube](https://www.youtube.com/watch?v=s4YNmcEm-M8).
+- Community idea: it implements [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689), each decision step an
+  interoperability message.
 - [Judge it in 2 minutes](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#judge-it-in-2-minutes-on-iris): one command, no InterSystems login, no key.
 
 ### Judge it in 2 minutes on IRIS
@@ -160,8 +162,8 @@ request is merged the program checks GitHub's signature on the checks before it 
    Colosseum (tag v0.3.28)".
 2. Paste `https://github.com/drexthealpha/knos-playground/pull/35` into **Pull request** and press **Check** - see
    "Claims nothing about tests; every check passed."
-3. Press the link "4PovnMjD...2zcDxt" on that page - see a payment of 0.25 test units by the first deployment of
-   Knos's payment program on Solana devnet, 2 Oct 2026.
+3. Press the link "4PovnMjD...2zcDxt" on that page - see a payment of 0.25 test units on Solana devnet, 2 Oct 2026, by
+   program 9UzPF...AdfDi, which the explorer lists as "Unknown Program": the first deployment of Knos's payment program.
 
 The code as entered: https://github.com/drexthealpha/Knos/tree/v0.3.28. More: [docs/reference/COLOSSEUM.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/COLOSSEUM.md).
 

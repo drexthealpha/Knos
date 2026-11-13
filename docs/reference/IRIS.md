@@ -170,7 +170,7 @@ runs `iris.script`, the final stage copies in only the databases the install cha
 tokens. `KNOS_AI_MODE=live` uses the provider and key from the table above.
 
 The online demo makes paid calls on NEAR AI Cloud: its health answer (/api/knosdemo/health) says how many and what
-they cost (llm_calls, llm_usd), counted under the same $8 stop as the NEAR entry. No other paid model call has been made.
+they cost (llm_calls, llm_usd), counted under the same $8 stop as the NEAR entry. Outside that counter, one paid call: the live AI Hub run of 12 Nov (session 25, 1,385 tokens, below).
 
 | | Rules referee | AI Hub agent |
 |---|---|---|
