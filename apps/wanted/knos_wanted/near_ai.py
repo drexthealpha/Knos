@@ -198,7 +198,7 @@ WRITE = ("You are agent A. Write the Python module solution.py that the locked t
          "paper's method the claim names, so that the test passes. Read the test to learn the interface it calls and every "
          "limit it checks: memory as the test counts it (for example len() of the bytes or bytearray it measures), accuracy "
          "and the 20 s time limit, and meet each limit with room to spare. Do not open the test file at run time, and do not "
-         "special-case its inputs. Keep it short: standard library only, under 60 lines, no comments or docstrings. "
+         "special-case its inputs. Keep it short: the answer is cut at 800 tokens, so at most 45 short lines, short names, standard library only, no comments or docstrings. "
          "Do not think aloud. Answer with the code only, in one ```python block.")
 ATTEMPTS = 3   # agent A writes, and when the locked test fails, up to 2 more attempts with the test's own error message
                # (founder, 13 Nov); with the reviewer an order makes at most 4 model calls
