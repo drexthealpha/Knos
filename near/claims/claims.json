@@ -53,7 +53,8 @@
    "outside_test_links": [
     "https://github.com/FastFilter/xor_singleheader/tree/5426b7d84994",
     "https://github.com/FastFilter/xorfilter/blob/3fd77f5b8c19/xorfilter_test.go"
-   ]
+   ],
+   "method": "Graf and Lemire's xor filter: each key maps by three hashes to one slot in each third of a table of about 1.23 n + 32 one-byte slots; build by peeling (repeatedly take a slot that only one remaining key maps to, push that key with that slot), then assign in reverse order so each key's 8-bit fingerprint equals the xor of its three slots; if peeling stalls, retry with a new hash seed. Keep only the table (as bytes), the seed and the table size."
   },
   {
    "name": "morris-counter",
@@ -70,7 +71,8 @@
    "code_name": "morris_counter.py",
    "test": "test_morris.py",
    "not_checked": "the paper's own new algorithm or its lower bound: only the Morris counter it describes",
-   "outside_test": "None found: the paper is proofs, with no test code."
+   "outside_test": "None found: the paper is proofs, with no test code.",
+   "method": "Morris's counter with a base 1 + a: each event raises the register X by one with probability (1 + a) ** -X, and the count is ((1 + a) ** X - 1) / a. Base 2 (a = 1) is far too coarse for 10%; a small a, about 0.002, gives that accuracy while X for 100,000 events stays under 2 ** 12."
   },
   {
    "name": "kepler-10b",

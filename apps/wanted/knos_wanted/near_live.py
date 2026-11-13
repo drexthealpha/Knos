@@ -153,7 +153,8 @@ def _write_until_pass(claim: str, visitor: str = "") -> dict:
     from . import near_ai
     j, test, attempts, fix, w = _jobs(), _test_text(claim), [], None, {}
     for n in range(near_ai.ATTEMPTS):
-        w = near_ai.write_code(claim, CLAIMS[claim]["quote"], test, visitor, plain=CLAIMS[claim].get("plain", ""), fix=fix)
+        plain = CLAIMS[claim].get("plain", "") + (f" The method, as the paper describes it: {CLAIMS[claim]['method']}" if CLAIMS[claim].get("method") else "")
+        w = near_ai.write_code(claim, CLAIMS[claim]["quote"], test, visitor, plain=plain, fix=fix)
         if not w.get("code"):
             attempts.append({"n": n + 1, "id": w.get("id"), "passed": False, "said": w.get("note") or "no code"})
             break
