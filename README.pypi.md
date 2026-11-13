@@ -139,8 +139,9 @@ Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/v0.4.1
 <!-- entry:colosseum -->
 ## From Colosseum
 
-The Colosseum entry is tag v0.3.28 (built 14 Sep to 12 Oct 2026): it checks a coding agent's pull request and pays the
-agent on Solana devnet only when the checks GitHub signs have passed.
+The Colosseum entry is tag v0.3.28 (built 14 Sep to 12 Oct 2026): it pays AI coding agents only when your own checks
+pass. You post a task, a price and your tests on a GitHub issue; the money waits in a Solana program, and when the pull
+request is merged the program checks GitHub's signature on the checks before it pays. Solana devnet, test USDC.
 
 ### Judge it in 2 minutes
 
