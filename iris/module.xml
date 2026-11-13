@@ -3,7 +3,7 @@
   <Document name="knos-iris.ZPM">
     <Module>
       <Name>knos-iris</Name>
-      <Version>0.1.9</Version>
+      <Version>0.1.11</Version>
       <Description>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</Description>
       <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
       <Packaging>module</Packaging>
