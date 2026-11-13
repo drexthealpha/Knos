@@ -35,7 +35,7 @@ and may only reject it.
    its locked test with its sha256 and its last proof on NEAR.
 2. Press **Prove it yourself**, then **Prove it with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
-   then "4. Answer: Yes, the claim holds", in about 5 s when a job is ready and 1 to 2 min when one is not.
+   then "4. Answer: Yes, the claim holds": about 15 s when a job is ready, 1 to 2 min when one is not.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
    and why. Then see "Receipt for proof job-...": 9.00 test USDC to agent A and 1.00 to Knos in one transaction, linked
    on the NEAR explorer. Press **Prove the same claim again** - see "Free: Yes".
@@ -47,7 +47,7 @@ and may only reject it.
    d=$(mktemp -d) && cp near/agents/job/test_jump.py $d/ && cp near/agents/solutions/jump_a.py $d/solution.py && (cd $d && python3 test_jump.py)
    ```
 
-   - see `ffa9d064744e7ea0cc326039f55a979a588e2c1cdb3f59368ff4a99c986057cb  near/agents/job/test_jump.py`, then
+   - see the hash `ffa9d064744e7ea0cc326039f55a979a588e2c1cdb3f59368ff4a99c986057cb` beside the file's name, then
      `ffa9d064744e7ea0cc326039f55a979a588e2c1cdb3f59368ff4a99c986057cb Paid` (the hash NEAR locked for
      job-1112053239), then `Passed: 9.2% of 100,000 keys moved going from 10 to 11 buckets (the ideal: 9.1%), all to
      the new one, the fullest bucket 1.5% over the mean, nothing stored.`
@@ -112,9 +112,9 @@ You need Docker with about 4 GB free.
 
    - see `READY: open http://localhost:52773/knos/ and press a sample button`. This is the public IRIS for Health
      Community image (2026.2) in replay mode; [CI runs it from a fresh checkout](https://github.com/drexthealpha/Knos/actions/workflows/iris-public.yml).
-2. Open http://localhost:52773/knos/ and press **A passing test, $20** - see its decision: met, PAY.
+2. Open http://localhost:52773/knos/ and press **A passing test, $20** - see it marked paid: "Paid in play money".
 3. Press **A passing test, $120: a person must say yes** - see it wait for a person; press **Approve** - see it paid
-   in test money.
+   in play money.
 4. Open http://localhost:52773/csp/sys/UtilHome.csp, sign in as `_SYSTEM` with `knos-public-demo`, then Interoperability >
    Production - see `Knos.Iris.Production` and each decision's Visual Trace.
 
@@ -150,7 +150,8 @@ request is merged the program checks GitHub's signature on the checks before it 
    Colosseum (tag v0.3.28)".
 2. Paste `https://github.com/drexthealpha/knos-playground/pull/35` into **Pull request** and press **Check** - see
    "Claims nothing about tests; every check passed."
-3. Press the link "4PovnMjD...2zcDxt" on that page - see a payment made by Knos's programs on Solana devnet.
+3. Press the link "4PovnMjD...2zcDxt" on that page - see a payment of 0.25 test units by the first deployment of
+   Knos's payment program on Solana devnet, 2 Oct 2026.
 
 The code as entered: https://github.com/drexthealpha/Knos/tree/v0.3.28. More: [docs/reference/COLOSSEUM.md](docs/reference/COLOSSEUM.md).
 

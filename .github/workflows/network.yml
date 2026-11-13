@@ -88,7 +88,13 @@ jobs:
       - name: the claims board and the counters as files (data/), shown at once by every page while the live answer loads
         run: |
           mkdir -p _site/data
-          curl -fsS -m 90 https://knos.onrender.com/api/near/claims -o _site/data/board.json || echo '{}' > _site/data/board.json
+          # a server still reading NEAR answers with no last proof: ask again (up to 5 times) until the board names one, so the
+          # front door's answer says "Yes, the claim holds" with its proof, not "Not proved yet" (judge C, 13 Nov)
+          for i in 1 2 3 4 5; do
+            curl -fsS -m 90 https://knos.onrender.com/api/near/claims -o _site/data/board.json || echo '{}' > _site/data/board.json
+            grep -q '"last_proof": "job-' _site/data/board.json && break
+            sleep 20
+          done
           curl -fsS -m 90 https://knos.onrender.com/api/near/claim/counters -o _site/data/counters.json || echo '{}' > _site/data/counters.json
       - name: "the product only: the steps above write older pages (rank/), each sent to the front door"
         run: python scripts/site_pages.py --sweep _site

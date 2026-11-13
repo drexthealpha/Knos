@@ -19,10 +19,8 @@ jobs:
       - name: docker compose -f docker-compose.public.yml up -d --build
         working-directory: iris
         run: docker compose -f docker-compose.public.yml up -d --build
-      - name: bash scripts/ready.sh
+      - name: bash scripts/ready.sh (as the README runs it, with no password set)
         working-directory: iris
-        env:
-          IRIS_PASSWORD: knos-public-demo
         run: bash scripts/ready.sh
       - name: the sample decision
         run: |

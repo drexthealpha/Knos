@@ -5,6 +5,7 @@ set -uo pipefail
 base="${1:-http://localhost:52773}"
 here="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "$here/.env" ] && { set -a; . "$here/.env"; set +a; }
+IRIS_PASSWORD="${IRIS_PASSWORD:-knos-public-demo}"   # no .env: the public edition's demo password (docker-compose.public.yml)
 if command -v docker >/dev/null && ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx knos-iris; then
   echo "NOT READY: the knos-iris container is not running. Next: docker compose up -d --build (in iris/)"; exit 1
 fi
