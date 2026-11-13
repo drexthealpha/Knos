@@ -37,7 +37,7 @@ ClassMethod Health() As %Status
     do ##class(Ens.Director).GetProductionStatus(.prod, .state)
     set mode = $select($system.Util.GetEnviron("KNOS_AI_MODE")="live" && ($system.Util.GetEnviron("ANTHROPIC_API_KEY")'=""):"live", $system.Util.GetEnviron("KNOS_AI_MODE")="local":"local", 1:"replay")
     set out = {"production": ($case(state, 1:"Running", 2:"Stopped", 3:"Suspended", 4:"Troubled", :"Not running")), "name": (prod),
-      "agent": (mode), "provider": ($select(mode="local":"openai (ollama)", 1:$system.Util.GetEnviron("KNOS_LLM_PROVIDER"))), "model": ($select(mode="local":##class(Knos.Iris.AI.Referee).LocalModel(), 1:"")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector()), "embedding": (##class(Knos.Iris.Py.Embed).Model())}
+      "agent": (mode), "provider": ($select(mode="local":"openai ("_$select($system.Util.GetEnviron("KNOS_LOCAL_LLM_URL")["near.ai":"NEAR AI Cloud", 1:"ollama")_")", 1:$system.Util.GetEnviron("KNOS_LLM_PROVIDER"))), "model": ($select(mode="local":##class(Knos.Iris.AI.Referee).LocalModel(), 1:"")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector()), "embedding": (##class(Knos.Iris.Py.Embed).Model())}
     write out.%ToJSON()
     return $$$OK
 }
