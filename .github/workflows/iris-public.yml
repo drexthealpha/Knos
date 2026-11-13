@@ -1,0 +1,39 @@
+# The IRIS public edition from a fresh checkout, exactly as the README says: no InterSystems login, no key. It builds
+# iris/docker-compose.public.yml on the public IRIS for Health Community image, waits for the ready check, presses the
+# built-in demo's sample "A passing test, $20" and prints the decision it reached.
+name: iris-public
+on:
+  push:
+    branches: [main]
+    paths: ["iris/**", "src/knos/**", ".github/workflows/iris-public.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency: {group: iris-public, cancel-in-progress: true}
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: docker compose -f docker-compose.public.yml up -d --build
+        working-directory: iris
+        run: docker compose -f docker-compose.public.yml up -d --build
+      - name: bash scripts/ready.sh
+        working-directory: iris
+        env:
+          IRIS_PASSWORD: knos-public-demo
+        run: bash scripts/ready.sh
+      - name: the sample decision
+        run: |
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:52773/api/knosdemo/sample/pass
+          for i in $(seq 1 24); do
+            d=$(curl -fsS http://localhost:52773/api/knosdemo/decisions) && echo "$d" | grep -q '"decision"' && break
+            sleep 5
+          done
+          echo "$d" | head -c 2000; echo
+          echo "$d" | grep -q '"decision"'
+      - name: the container's log
+        if: always()
+        working-directory: iris
+        run: docker compose -f docker-compose.public.yml logs --tail 120 iris

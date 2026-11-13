@@ -1,0 +1,33 @@
+# The public edition: Knos on InterSystems IRIS for Health Community from containers.intersystems.com, which needs no
+# login, in replay mode (the rules referee decides; no key, no model download). One command, from iris/:
+#   docker compose -f docker-compose.public.yml up -d --build && bash scripts/ready.sh
+# The contest entry stays on build 154 with AI Hub: docker compose up (docker-compose.yml). This image has no AI Hub, so
+# the AI Hub agent's classes (src/Knos/Iris/AI) are not compiled here and live or local mode is refused; the sample
+# decisions on /knos/ run the same production, rules and Workflow approval as build 154 in replay mode.
+services:
+  iris:
+    build:
+      context: ..
+      dockerfile: iris/Dockerfile
+      args:
+        IMAGE: containers.intersystems.com/intersystems/irishealth-community:2025.1
+        KNOS_FHIR: "0"
+    image: knos-iris:public          # local only, never pushed
+    container_name: knos-iris
+    hostname: knos-iris
+    mem_limit: 3g
+    environment:
+      # demo values for a machine of your own: replay mode moves no money and holds no key; set your own in the shell
+      IRIS_PASSWORD: "${IRIS_PASSWORD:-knos-public-demo}"
+      KNOS_WEBHOOK_SECRET: "${KNOS_WEBHOOK_SECRET:-knos-public-demo-webhook}"
+      KNOS_VERDICT_SECRET: "${KNOS_VERDICT_SECRET:-knos-public-demo-verdict}"
+      KNOS_AI_MODE: replay
+    command: ["--after", "sh /home/irisowner/knos/iris/scripts/iris-password.sh"]
+    ports:
+      - "52773:52773"
+      - "1972:1972"
+    healthcheck:
+      test: ["CMD", "python3", "-I", "/home/irisowner/knos/iris/scripts/knos_http.py", "http://localhost:52773/api/knos/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
