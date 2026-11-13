@@ -94,7 +94,8 @@ yourself): [docs/reference/NEAR.md](docs/reference/NEAR.md).
 An InterSystems IRIS production pays each step of lab work only when its test passed: an AI Hub agent reads the result,
 a rule decides, and above $50 a person approves.
 
-- Online demo: not hosted yet ([why](docs/reference/IRIS.md)).
+- Online demo: not hosted. The free hosts tried ask for billing first; the same image runs on your machine with the one
+  command below, and [CI runs it as a host would](https://github.com/drexthealpha/Knos/actions/workflows/iris-public.yml).
 - Video: [YouTube](https://www.youtube.com/watch?v=s4YNmcEm-M8); MP4: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)
   (70 s, the live AI Hub run of 12 Nov at its end).
 - [Judge it in 2 minutes](#judge-it-in-2-minutes-on-iris): one command, no InterSystems login, no key.
