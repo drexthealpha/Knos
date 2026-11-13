@@ -15,7 +15,12 @@ ClassMethod Demo(feature As %String, brief As %String = "") As %DynamicObject
         if feature = "skill" { do ..Skill(out) }
         elseif feature = "policy" { do ..Policy(out, brief) }
         elseif feature = "mcp" { do ..Mcp(out, brief) }
-        elseif feature = "rag" { do ..Rag(out, brief) }
+        elseif feature = "rag" {
+            // one build at a time: each call drops and rebuilds the same table, so two visitors at once would collide
+            lock +^Knos.Iris.RAG:60
+            if '$test { set out.error = "the knowledge base is being built for another visitor" }
+            else { try { do ..Rag(out, brief) } catch e { set out.error = e.DisplayString() } lock -^Knos.Iris.RAG }
+        }
         elseif feature = "stats" { do ..Stats(out, brief) }
         elseif feature = "workflow" { do ..Workflow(out, brief) }
         else { set out.error = "one of skill, policy, mcp, rag, stats, workflow" }
@@ -29,6 +34,10 @@ ClassMethod Demo(feature As %String, brief As %String = "") As %DynamicObject
     if out.ok && may { set ^Knos.Iris.HubRun(feature, key) = $listbuild(out.%ToJSON(), $zdatetime($ztimestamp, 3, 1)) }
     elseif 'may && $data(^Knos.Iris.HubRun(feature, key), kept) {
         set out = {}.%FromJSON($list(kept, 1)), out."run_at" = $list(kept, 2)_" UTC, by a user who may write; this user may only read"
+    }
+    elseif 'out.ok && $data(^Knos.Iris.HubRun(feature, key), kept) {
+        // a run that failed now (a busy table, a slow model load) shows the last good run, with its time
+        set out = {}.%FromJSON($list(kept, 1)), out."run_at" = $list(kept, 2)_" UTC (the last run that answered)"
     }
     return out
 }
@@ -145,13 +154,15 @@ ClassMethod Rag(out As %DynamicObject, brief As %String = "")
 
 ClassMethod Stats(out As %DynamicObject, brief As %String = "")
 {
-    set out.class = "%AI.Agent.Session.GetStats"
-    set a = ..Agent(), s = a.CreateSession({"max_iterations": 1, "max_tokens": 40})
-    set m = ..FirstMilestone(brief)
-    set r = a.Chat(s, $select(m'="":"In ten words: what proof meets this milestone? "_m, 1:"In five words: what does a referee check?"))
-    set out.model = a.Model
-    set out.reply = $select($isobject(r):r.Content, 1:r)
-    set out.stats = s.GetStats()
+    // the tokens of the referee's own model call, as its span recorded them: no extra call is made for this panel, so
+    // it shows the provider and model that decide, and nothing when no call has run
+    set out.class = "Knos_Iris_Data.Span (the referee's own model call)"
+    set sid = ""
+    if brief '= "" { &sql(SELECT TOP 1 SessionId INTO :sid FROM Knos_Iris_Data.Decision WHERE BriefId = :brief ORDER BY ID DESC) }
+    if sid '= "" { &sql(SELECT TOP 1 Model, Tokens, Ms, CostUSD, SessionId INTO :m, :t, :ms, :c, :s FROM Knos_Iris_Data.Span WHERE Kind = 'llm' AND Tokens > 0 AND SessionId = :sid ORDER BY ID DESC) }
+    else { &sql(SELECT TOP 1 Model, Tokens, Ms, CostUSD, SessionId INTO :m, :t, :ms, :c, :s FROM Knos_Iris_Data.Span WHERE Kind = 'llm' AND Tokens > 0 ORDER BY ID DESC) }
+    if SQLCODE '= 0 { set out.none = "No model call has run for this decision: the rules referee decided it." return }
+    set out.model = m, out.session = +s, out.stats = {"total_tokens": (+t), "total_llm_duration_ms": (+ms), "cost_usd": (+c)}
 }
 
 ClassMethod Workflow(out As %DynamicObject, brief As %String = "")

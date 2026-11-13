@@ -140,6 +140,7 @@ main > * { min-width: 0; }
       <button type="button" data-sample="big">A passing test, $120: a person must say yes</button>
     </div>
     <p class="fine">Test money only. No sign-in needed: this is the built-in demo.</p>
+    <p class="fine" id="hours" hidden>Online until 23:00 UTC tonight, 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov.</p>
   </section>
 
   <section class="panel" aria-labelledby="t-inbox">
@@ -312,8 +313,14 @@ async function showTrace(sid) {
         el("td", { className: "n", textContent: String(s.latency_ms) }),
       ])) : el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No spans in this session." }))),
     ]);
-    const vt = el("a", { href: "/csp/healthshare/knos/EnsPortal.VisualTrace.zen?SESSIONID=" + encodeURIComponent(sid), textContent: "Open session " + sid + " in Visual Trace" });
-    box.replaceChildren(kinds, el("p", { className: "fine", textContent: msgs.length + " messages, " + spans.length + " spans." }), el("div", { className: "scroll", tabIndex: 0, role: "region", ariaLabel: "Trace steps" }, tbl), el("p", {}, vt));
+    // the session's messages, read from IRIS (Ens.MessageHeader): what the portal's Visual Trace draws, with no login
+    const hhmm = (at) => String(at || "").slice(11, 23);
+    const mt = el("table", {}, [
+      el("thead", {}, el("tr", {}, ["Time", "From", "To", "Message"].map((h) => el("th", { scope: "col", textContent: h })))),
+      el("tbody", {}, msgs.map((m) => el("tr", {}, [hhmm(m.at), m.from, m.to, String(m.body || "").replace(/^Knos\.Iris\.Msg\./, "")].map((x) => el("td", { textContent: x || "-" }))))),
+    ]);
+    box.replaceChildren(kinds, el("p", { className: "fine", textContent: msgs.length + " messages, " + spans.length + " spans." }), el("div", { className: "scroll", tabIndex: 0, role: "region", ariaLabel: "Trace steps" }, tbl),
+      el("h3", { textContent: "Session " + sid + ": its messages in IRIS" }), el("div", { className: "scroll", tabIndex: 0, role: "region", ariaLabel: "Session messages" }, mt));
   } catch (e) { box.replaceChildren(el("p", { className: "err", textContent: "Could not load the trace: " + e.message })); }
 }
 
@@ -331,7 +338,7 @@ const HUB = [
   ["Policy", "policy", (r) => `${r.allowed?.tool} allowed. ${r.refused?.tool} with ${(r.refused?.arguments_characters || 0).toLocaleString()} characters refused.`],
   ["MCP tool", "mcp", (r) => `${(r.tools || []).length} tools served at /mcp/knos. ${r.call?.tool}: ${hubBrief(r.call?.answer)}.`],
   ["Knowledge base", "rag", (r) => { const h = (r.answer?.value || [])[0]; return h ? `Top hit, score ${Number(h.score).toFixed(2)}: ${h.text}` : "No hit."; }],
-  ["Tokens", "stats", (r) => `${r.stats?.total_prompt_tokens} in, ${r.stats?.total_completion_tokens} out, ${r.stats?.total_llm_duration_ms} ms, ${r.model}.`],
+  ["Tokens", "stats", (r) => r.none || `${r.stats?.total_tokens} tokens, ${r.stats?.total_llm_duration_ms} ms, $${Number(r.stats?.cost_usd || 0).toFixed(4)}, ${r.model}, session ${r.session}.`],
   ["Workflow", "workflow", (r) => { const t = (r.tasks || [])[0]; return t ? `Task ${t.task}: ${t.done ? (t.action || "answered") : "waiting for an approver"}.` : "No approval needed: $50 or less."; }],
 ];
 function hubBrief(a) {
@@ -352,6 +359,11 @@ async function showHub(brief) {
   }
 }
 $("refresh").addEventListener("click", load);
+if (location.hostname.endsWith(".app.github.dev")) {   // the online demo's hours, on the online demo only: the windows not yet over
+  const W = [["2026-11-13T23:00Z", "until 23:00 UTC on 13 Nov"], ["2026-11-14T23:00Z", "13:00 to 23:00 UTC on 14 Nov"], ["2026-11-16T05:00Z", "13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov"]];
+  const left = W.filter(([end]) => Date.parse(end) > Date.now()).map(([, say]) => say);
+  if (left.length) { $("hours").textContent = "Online " + (left.length > 1 ? left.slice(0, -1).join(", ") + " and " + left[left.length - 1] : left[0]) + "."; $("hours").hidden = false; }
+}
 const SAID = { pass: "Sent a passing test. Look at the newest decision.", fail: "Sent a failing test: nothing is paid.", big: "Sent a passing test for $120: it waits for a person below." };
 for (const b of document.querySelectorAll("[data-sample]")) {
   b.addEventListener("click", async () => {
