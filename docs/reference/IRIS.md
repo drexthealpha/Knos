@@ -22,7 +22,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 | Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) (the first cut; the file is 70 s, with the live run of 12 Nov at its end), also [on the For labs page](https://drexthealpha.github.io/Knos/labs/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](../../iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
-| Online demo | not hosted (13 Nov): InterSystems Cloud Services offers managed services by subscription, none of them a custom image, and Hugging Face's Docker Spaces need billing; the Space image is ready (`iris/space/make_space.py`) and CI runs it as a Space would, as user 1000. The built-in demo runs on your own machine with one command, no key and no sign-in (README, Judge it in 2 minutes) |
+| Online demo | https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/: build 154 in live mode in a GitHub codespace, the AI Hub agent deciding on NEAR AI Cloud (deepseek-ai/DeepSeek-V4.1-Flash-1017), each sample at most one model call, at most 10 an hour per visitor and 100 a day, past a limit the fixed rule with a label saying why. Live until 23:00 UTC on 13 Nov, and 13:00 to 23:00 UTC on 14 and 15 Nov. InterSystems Cloud Services' services are subscriptions and Hugging Face's Docker Spaces need billing, so the free codespace hosts it |
 
 ### The contest task, part by part
 
