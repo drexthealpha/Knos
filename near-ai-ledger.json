@@ -1,5 +1,57 @@
 {
  "cache": {
+  "205943e35300b3e8fca54b96e6aadd56a3ecbc9d7a577f50c98b03291e088449": {
+   "at": 1794530462,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "1f210b992ab6170cff81f4f7a6a4806959b7eebb9dd025c94ae42de705fd3e2e",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000334,
+   "finish": "stop",
+   "id": "chatcmpl-77a73f5b-6e5f-4aa0-bbdc-3f65824e4e59",
+   "kind": "review",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 2.0,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e"
+   },
+   "text": "{\"approve\": true, \"reason\": \"Implements Lamping-Veach jump consistent hash with no storage, matching the claim.\"}",
+   "tokens_in": 996,
+   "tokens_out": 29
+  },
+  "4b9254541374d2e6c1f464971277a629ecd24e7f256aa99c7784621728a2000f": {
+   "at": 1794530504,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "1f210b992ab6170cff81f4f7a6a4806959b7eebb9dd025c94ae42de705fd3e2e",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000303,
+   "finish": "stop",
+   "id": "chatcmpl-eb144840-80fa-40e0-a26a-d8afe3824a62",
+   "kind": "review",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 6.6,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e"
+   },
+   "text": "{\"approve\": true, \"reason\": \"Implements genuine Morris counter with probabilistic increment and exponential estimate, using only register and rng.\"}",
+   "tokens_in": 885,
+   "tokens_out": 31
+  },
   "600255409d76bf2d115812bdf3c2a88970b15372a98d1c925ece8343861a0b38": {
    "at": 1794523385,
    "attestation": {
@@ -25,11 +77,37 @@
    "text": "{\"approve\": true, \"reason\": \"Implements genuine HyperLogLog with packed 5-bit registers, hashing, and standard estimation; no test inspection or hard-coded answers.\"}",
    "tokens_in": 1096,
    "tokens_out": 41
+  },
+  "b4090a1d7c8146fc20fa093616fd188bb7e7a6125e9829be7609abed9b507857": {
+   "at": 1794530408,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "1f210b992ab6170cff81f4f7a6a4806959b7eebb9dd025c94ae42de705fd3e2e",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000406,
+   "finish": "stop",
+   "id": "chatcmpl-e7a7f629-2ac5-4752-b28c-2b09471a472f",
+   "kind": "write",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 3.9,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e"
+   },
+   "text": "```python\ndef bucket(key, n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    key &= (1 << 64) - 1\n    b = -1\n    j = 0\n    while j < n:\n        b = j\n        key = (key * 2862933555777941757 + 1) & ((1 << 64) - 1)\n        j = int((b + 1) * ((1 << 31) / ((key >> 33) + 1)))\n    return b\n```",
+   "tokens_in": 859,
+   "tokens_out": 124
   }
  },
- "calls": 4,
- "day": "2026-11-12",
+ "calls": 9,
+ "day": "2026-11-13",
  "iris_usd": 0.001662,
- "spent_usd": 0.000988,
+ "spent_usd": 0.002958,
  "today": 4
 }

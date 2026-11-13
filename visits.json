@@ -1,29 +1,46 @@
 {
  "days": {
   "2026-11-12": {
-   "backed": 23,
+   "backed": 0,
    "came_back": 0,
    "events": {
-    "backed": 37,
-    "error": 37,
-    "leave": 67,
-    "press": 9,
-    "proof": 37,
-    "result": 37,
-    "view": 47
+    "leave": 68,
+    "view": 28
    },
-   "first_press": 2,
-   "first_result": 23,
+   "first_press": 0,
+   "first_result": 0,
    "leave_from": {
-    "/": 18,
-    "/agents/": 10,
-    "/check/": 12,
-    "/claim/hyperloglog/": 6,
-    "/claims/": 11
+    "/": 28,
+    "/agents/": 4,
+    "/check/": 24,
+    "/claims/": 4,
+    "/prove/": 4
    },
    "not_what": {},
-   "proof_finished": 23,
-   "visits": 46
+   "proof_finished": 0,
+   "visits": 43
+  },
+  "2026-11-13": {
+   "backed": 0,
+   "came_back": 1,
+   "events": {
+    "leave": 431,
+    "press": 33,
+    "slow": 1,
+    "view": 285
+   },
+   "first_press": 20,
+   "first_result": 0,
+   "leave_from": {
+    "/": 134,
+    "/agents/": 48,
+    "/check/": 90,
+    "/claims/": 50,
+    "/prove/": 49
+   },
+   "not_what": {},
+   "proof_finished": 0,
+   "visits": 311
   }
  }
 }
