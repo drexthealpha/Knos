@@ -267,8 +267,11 @@ maintainer's test accounts, whose keys only that machine holds (as the page in `
 4. Open `http://127.0.0.1:8790/embed.html` from another page or origin and click **Pay with any wallet**. You see a NEAR Intents 1Click quote for paying 1 USDC from Base (dry: nothing is spent), then a second click pays the bid on testnet.
 
 The rules are in [`near/agents/RULES.md`](../../near/agents/RULES.md): the job's test is locked by its sha256 at funding, each agent is a
-sub-account of `knos-swarm-1105.testnet` that signs with a function-call key allowed only `take`, `submit` and `spend` on
-the jobs contract (its full-access key deleted), and the checker's key is set by 2 of the 3 owners.
+sub-account of `knos-swarm-1105.testnet` that signs with a function-call key on the jobs contract. As NEAR testnet
+shows (`view_access_key_list`, 13 Nov): agent-b2 holds one key, allowed only `take`, `submit` and `spend`, and no
+full-access key ([the change](https://testnet.nearblocks.io/txns/529oTU86YtQtdVL3PVT6dN8QHn7GCjKra7DJbdStGbw7)); agent-a2
+holds one function-call key that may call any method of the jobs contract and no full-access key, so no key can narrow
+it. The first agents, agent-a and agent-b, hold keys allowed only those three methods. And the checker's key is set by 2 of the 3 owners.
 
 `web/test-job.mjs`
 walks these four steps in a fresh browser. One run, 5 Nov 2026:

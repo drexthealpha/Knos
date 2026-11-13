@@ -94,10 +94,13 @@ def read() -> dict:
     # (the fee is that amount less agent A's 1 part in 49, within a minute); a recorded amount older than 60 minutes with
     # no fee arrived counts as lost
     claim_of, used = {}, set()
-    for claim, at, units in backs():
+    # in time order, each to the nearest unused fee: three backs within 90 s once took one another's fees and left one
+    # counted as lost though its fee arrived (Round 10, V7: GLLC9jdL..., 13 Nov 00:41 UTC)
+    for claim, at, units in sorted(backs(), key=lambda b: b[1]):
         want = {units - units // 49, units // 10}   # Knos's fee: 48 parts in 49 before 12 Nov, 1 part in 10 since (Round 8, T16)
-        hit = next((x for x in paid if x.get("involved_account_id") == MARKET and x.get("transaction_hash") not in used
-                    and int(x["delta_amount"]) in want and abs(int(int(x.get("block_timestamp") or 0) / 1e9) - at) <= 60), None)
+        near = [x for x in paid if x.get("involved_account_id") == MARKET and x.get("transaction_hash") not in used
+                and int(x["delta_amount"]) in want and abs(int(int(x.get("block_timestamp") or 0) / 1e9) - at) <= 60]
+        hit = min(near, key=lambda x: abs(int(int(x.get("block_timestamp") or 0) / 1e9) - at), default=None)
         if hit:
             used.add(hit["transaction_hash"])
             claim_of[hit["transaction_hash"]] = (claim, units)
