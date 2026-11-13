@@ -39,7 +39,8 @@ and may only reject it.
    then "4. Answer: Yes, the claim holds": about 15 s when a job is ready, 1 to 2 min when one is not.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
    and why. Then see "Receipt for proof job-...": 9.00 test USDC to agent A and 1.00 to Knos in one transaction, linked
-   on the NEAR explorer. Press **Prove the same claim again** - see "Free: Yes".
+   on the NEAR explorer ([one from 13 Nov](https://testnet.nearblocks.io/txns/9j5rTduPNkKS9eibA9MRhfdmpUaMe4it4ScyjwPgnuAs)).
+   Press **Prove the same claim again** - see "Free: Yes".
 4. From a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
    `py -3` where the commands say `python3`:
 
@@ -108,7 +109,9 @@ a rule decides, and above $50 a person approves.
 
 ### Judge it in 2 minutes on IRIS
 
-You need Docker with about 4 GB free.
+You need Docker with about 4 GB free. The first build takes about 4 minutes (as in CI); the online demo above needs no
+build. The build prints `ERROR #5373` for the `%AI` classes: expected, as the public image has no AI Hub, and replay
+mode does not use it.
 
 1. Run:
 

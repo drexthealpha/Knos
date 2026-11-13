@@ -239,7 +239,7 @@ Every change since the work began: [pre-hackathon...main](https://github.com/dre
 (the tag `pre-hackathon` is the commit before the first line of `near/`).
 
 No Rust is needed to check or deploy the contract: `near/wasm/` holds the built files and `near/wasm/SHA256SUMS` their
-hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK`, `knos_mock_usdc.wasm: OK` and `knos_market.wasm: OK`
+hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK`, `knos_mock_usdc.wasm: OK`, `knos_market.wasm: OK` and `knos_market_usdc.wasm: OK`
 (`a5fc5861…`, 280,651 bytes, is the jobs contract deployed at `jobs.knos-swarm-1105.testnet`). Building them again and
 every test: `bash near/scripts/verify.sh` (Rust with `wasm32-unknown-unknown` and `cargo-near` 0.22.0).
 

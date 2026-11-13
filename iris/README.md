@@ -4,7 +4,7 @@ Knos turns any research into a product billions of people use, in days, not year
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
-[Watch the 70-second video](https://drexthealpha.github.io/Knos/iris/) ·
+[Watch the 43-second video](https://drexthealpha.github.io/Knos/iris/) ·
 [Full install steps](https://github.com/drexthealpha/Knos#from-the-intersystems-contest)
 
 **One story.** A hospital lab funds a startup to build the online shop for its test kits. Step one pays $120 when the
