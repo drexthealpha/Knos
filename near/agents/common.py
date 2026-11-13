@@ -37,28 +37,29 @@ def sha256_file(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-RPC_SPARES = [u for u in os.environ.get("NEAR_RPC_SPARE", "https://near-testnet.drpc.org,https://rpc.testnet.near.org").split(",") if u and u != RPC]   # asked in turn when one answers 429
+RPC_SPARES = [u for u in os.environ.get("NEAR_RPC_SPARE", "https://rpc.testnet.fastnear.com,https://near-testnet.drpc.org,https://rpc.testnet.near.org").split(",") if u and u != RPC]   # asked in turn when one answers 429
 
 
 def rpc(method: str, params) -> dict:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
     urls = [RPC, *RPC_SPARES]
-    for tries in range(6):   # a public RPC answers 429 when asked too fast: ask the next one, and wait after a full round
+    last = 9   # Round 10: a judge's order met 429 from every RPC within 6 tries; 10 tries over 3 or 4 RPCs, waiting longer
+    for tries in range(last + 1):   # a public RPC answers 429 when asked too fast: ask the next one, and wait after a full round
         url = urls[tries % len(urls)]
         try:
             with urllib.request.urlopen(urllib.request.Request(url, body, {"Content-Type": "application/json"}), timeout=180) as r:
                 out = json.loads(r.read())
             break
         except urllib.error.HTTPError as e:   # 429 busy, 403 a provider refusing, 5xx down: the next RPC
-            if e.code not in (403, 429, 500, 502, 503, 504) or tries == 5:
+            if e.code not in (403, 429, 500, 502, 503, 504) or tries == last:
                 raise
             if (tries + 1) % len(urls) == 0:
-                time.sleep(1.5 * (tries + 1))
+                time.sleep(2.0 * (tries + 1))
         except (urllib.error.URLError, TimeoutError, ConnectionError):
-            if tries == 5:
+            if tries == last:
                 raise
             if (tries + 1) % len(urls) == 0:
-                time.sleep(1.5 * (tries + 1))
+                time.sleep(2.0 * (tries + 1))
     if "error" in out:
         raise RuntimeError(json.dumps(out["error"])[:300])
     return out["result"]

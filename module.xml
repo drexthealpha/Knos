@@ -7,7 +7,7 @@
     <Module>
       <Name>knos-iris</Name>
       <Version>0.1.11</Version>
-      <Description>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</Description>
+      <Description>An IRIS Interoperability production where an AI Hub agent decides if a lab's locked test criteria are met, and only then a payout step runs.</Description>
       <Keywords>interoperability ai-hub fhir workflow pex vector</Keywords>
       <Packaging>module</Packaging>
       <SystemRequirements Version=">=2026.3" Interoperability="enabled"/>

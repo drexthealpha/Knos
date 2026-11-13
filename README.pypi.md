@@ -9,8 +9,8 @@
 
 Knos locks a test before any work starts, an agent does the work, and money moves only if the test passes.
 
-The problem: research takes about 17 years to reach people, because checking that a result really works is slow and
-costly ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)).
+The problem: research takes about 17 years to reach people ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)),
+and checking that a result really works is one slow, costly step on that road.
 
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
@@ -71,7 +71,7 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 | NEAR feature | In Knos | Where |
 |---|---|---|
 | Contracts | the jobs contract locks each test's sha256 and pays the passing agent; the claim contract keeps each claim's record and its two markets; the 90/10 split is one transaction | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
-| Agent spending caps | the key each agent works with can call only the jobs contract, and a step over its cap is refused on chain (Knos also holds each agent account's full key, never used by the agent) | the receipt's "spending cap" step |
+| Agent spending caps | the key each agent works with can call only the jobs contract, and a step over its cap is refused on chain (no agent account in use holds a full-access key: NEAR testnet's `view_access_key_list`) | the receipt's "spending cap" step |
 | Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified before the page says "private" | `apps/wanted/knos_wanted/near_attest.py` |
 | Chain Signatures | a NEAR account pays a Solana address on devnet | [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 

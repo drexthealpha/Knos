@@ -47,7 +47,7 @@ Hub agent (its image has no AI Hub), and the rules referee decides.
 
 | The task asks for | The feature doing it | How to see it |
 |---|---|---|
-| An Interoperability workflow | `Knos.Iris.Production`, 22 items. Services: `ProofIn`, `BriefIn`, `GitHubCheckRunPoller` (custom inbound adapter), `HL7LabIn` (HL7 ORU files), `FHIRLabIn` (FHIR Observation files), `DeadlineWatch` (not paid at the deadline), `DailyDigest` (the day's decisions and model cost), `SpendCapWatch` (alert before the model cap), `ApproverReminder` (payouts left waiting). Processes: `ProofDecision` (BPL), `DecisionRouter` (routing rule). Operations: `BriefLock`, `Referee` (the AI Hub agent), `PayoutApprovers` (Workflow), `SolanaRead` (custom outbound adapter), `SolanaSubmit` (Java PEX), `TraceSink`, `Ens.Alert`, `ReceiptFile` (a JSON receipt per decision), `DecisionFHIR` (a FHIR R4 Task per decision), `ResultHL7Out` (the decision back to the lab as HL7), `DigestFile` | Interoperability > Production |
+| An Interoperability workflow | `Knos.Iris.Production`, 22 items. Services: `ProofIn`, `BriefIn`, `GitHubCheckRunPoller` (custom inbound adapter), `HL7LabIn` (HL7 ORU files), `FHIRLabIn` (FHIR Observation files; FHIR is off in the online demo, `KNOS_FHIR=1` turns it on), `DeadlineWatch` (not paid at the deadline), `DailyDigest` (the day's decisions and model cost), `SpendCapWatch` (alert before the model cap), `ApproverReminder` (payouts left waiting). Processes: `ProofDecision` (BPL), `DecisionRouter` (routing rule). Operations: `BriefLock`, `Referee` (the AI Hub agent), `PayoutApprovers` (Workflow), `SolanaRead` (custom outbound adapter), `SolanaSubmit` (Java PEX), `TraceSink`, `Ens.Alert`, `ReceiptFile` (a JSON receipt per decision), `DecisionFHIR` (a FHIR R4 Task per decision), `ResultHL7Out` (the decision back to the lab as HL7), `DigestFile` | Interoperability > Production |
 | An AI Hub agent | operation `Referee` running `Knos.Iris.AI.LocalReferee`: in the online demo it asks NEAR AI Cloud (deepseek-ai/DeepSeek-V4.1-Flash-1017) through AI Hub's openai provider, one call a sample and no tools (the brief and the proof are in its question); on your machine with `KNOS_AI_MODE=local` it asks `qwen2.5:1.5b-instruct` in the compose file's `ollama` service, no key; in replay mode (the default) the rules referee decides, with no model | the Verdict message of each decision |
 | A decision-making task | the agent answers met, not met or insufficient; code checks that answer, then `Knos.Iris.Rule.PayoutGate` says PAY, HUMAN, REFUND_AT_DEADLINE or REJECT | the Decision message |
 | A person where it matters | IRIS Workflow, role `PayoutApprovers`, for a met decision above 50 USDC | the inbox on `/knos/` or Interoperability > Workflow Inbox |
@@ -89,3 +89,8 @@ A solo founder in Lagos, building Knos since 1 Sep 2026. IRIS, Docker and the bu
 so every IRIS build and test moved to one GitHub Codespace
 ([the problems I hit](https://github.com/drexthealpha/Knos/blob/main/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
 Claude Code wrote most of the code; the design choices above, and every decision about what the agent may do, are mine.
+
+Two problems on build 154 shaped the agent. The small local model, given tools, looked the brief up by the wrong key and
+gave up; so I took its tools away and put the brief and the proof in its question, and code checks its answer. The IPM
+install failed with ERROR #5289 because a ToolSet compiled before its tools; a `DependsOn` fixed the order, and the
+install then passed on build 154.

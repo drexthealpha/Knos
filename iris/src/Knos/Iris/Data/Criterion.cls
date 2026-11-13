@@ -1,4 +1,4 @@
-/// One milestone of a locked brief with its embedding (VECTOR(FLOAT,384)), for the vector search.
+/// One milestone of a locked brief with its embedding (VECTOR(DOUBLE,384)), for the vector search.
 Class Knos.Iris.Data.Criterion Extends %Persistent
 {
 Property BriefHash As %String(MAXLEN = 64);
