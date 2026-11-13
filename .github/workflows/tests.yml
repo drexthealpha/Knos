@@ -87,6 +87,9 @@ jobs:
       - run: uv pip install --system sigstore==4.5.0
       # the app's SAML service provider (apps/wanted/tests/test_saml_sp.py signs and checks real XML signatures)
       - run: uv pip install --system signxml==5.1.0 lxml==6.1.3
+      # numpy at the version the app's image installs: the space, simulation and hardware claims' locked tests import it
+      # (apps/wanted/tests/test_near_claims.py runs every claim's test on agent A's and agent B's code)
+      - run: uv pip install --system numpy==2.3.4
       - run: git config --global user.email ci@example.invalid && git config --global user.name ci
       # Squads Labs' deployed v4 program, read from devnet and checked against its pinned sha256, for the boundary tests
       # (tests/test_boundary.py). It needs the network: when devnet does not answer, those tests skip and say so.
