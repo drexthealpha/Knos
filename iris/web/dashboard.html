@@ -28,7 +28,7 @@ body:not([data-in]) main > section, body:not([data-in]) #fresh, body:not([data-i
 body:not([data-demo]) #try { display: none; }
 .try { display: flex; flex-wrap: wrap; gap: 8px; }
 .dec .rec { display: none; }
-@media (max-width: 460px) { .dec { table-layout: fixed; width: 100%; } .dec th, .dec td { overflow-wrap: anywhere; } }   /* 390 px: the table stays in its box */
+@media (max-width: 460px) { .dec, #trace table { table-layout: fixed; width: 100%; } .dec th, .dec td, #trace th, #trace td { overflow-wrap: anywhere; } }   /* 390 px: the table stays in its box */
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
 h1, h2 { text-wrap: balance; }
 h1 { font: 600 28px/1.15 var(--head); letter-spacing: -.02em; margin: 0; }

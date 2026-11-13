@@ -31,6 +31,30 @@ jobs:
           done
           echo "$d" | head -c 2000; echo
           echo "$d" | grep -q '"decision"'
+      - name: the $120 sample waits for a person, then Approve pays it (README step 3)
+        run: |
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:52773/api/knosdemo/sample/big
+          id=""
+          for i in $(seq 1 24); do
+            id=$(curl -fsS http://localhost:52773/api/knosdemo/tasks | jq -r '[.[] | select(.open)][0].id // empty') && [ -n "$id" ] && break
+            sleep 5
+          done
+          echo "open task: $id"; [ -n "$id" ]
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{"action":"Approve"}' "http://localhost:52773/api/knosdemo/tasks/$id"; echo
+          for i in $(seq 1 24); do
+            d=$(curl -fsS http://localhost:52773/api/knosdemo/tasks | jq -r --arg id "$id" '.[] | select((.id|tostring) == $id) | .action // empty') && [ "$d" = "Approve" ] && break
+            sleep 5
+          done
+          echo "task $id: $d"; [ "$d" = "Approve" ]
+          for i in $(seq 1 24); do
+            p=$(curl -fsS http://localhost:52773/api/knosdemo/decisions | jq -r '[.[] | select(.outcome | test("simulat"))] | length') && [ "$p" -ge 2 ] && break
+            sleep 5
+          done
+          echo "decisions paid in play money: $p"; [ "$p" -ge 2 ]
+      - name: the portal shows Knos.Iris.Production to _SYSTEM with the public password (README step 4)
+        run: |
+          curl -fsS "http://localhost:52773/csp/healthshare/knos/EnsPortal.ProductionConfig.zen?\$NAMESPACE=KNOS&IRISUsername=_SYSTEM&IRISPassword=knos-public-demo" -o portal.html
+          grep -c "Knos.Iris.Production" portal.html
       - name: the container's log
         if: always()
         working-directory: iris
