@@ -17,7 +17,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // an unanswered fact, short enough for a phone's table cell: the reason (an RPC's URL or a long unbroken word) made the
 // rows over 400 px tall at 390 px, so the cell says only that it was not answered; the reason goes to the console
-const no = (e) => { console.warn("netfacts:", String(e).slice(0, 200)); return "not answered just now"; };
+const no = (e) => { console.warn("netfacts:", String(e).slice(0, 200)); return "no answer"; };
 const num = (n) => (typeof n === "number" ? n.toLocaleString("en-US") : String(n));
 
 let id = 0;
@@ -136,8 +136,9 @@ export async function facts(payer, call = rpc) {
 
 export function factsHtml(rows) {
   return `<h3>Network facts, read from devnet now</h3><div class="k-table"><table id="netfacts"><tbody>${rows.map(([n, v, m]) =>
-    // a refusal is words, so it wraps like words; a number stays on one line
-    `<tr><td>${esc(n)}</td><td class="${String(v).startsWith("not answered") ? "small" : "k-num"}">${esc(v)}</td><td class="mono small">${esc(m)}</td></tr>`).join("")}</tbody></table></div>
+    // every value keeps its one line, "no answer" too (as words that wrapped, it squeezed its row past 400 px at 320 px),
+    // and the method's name may break anywhere, so no column is pushed to a few pixels
+    `<tr><td>${esc(n)}</td><td class="k-num">${esc(v)}</td><td class="mono small" style="overflow-wrap:anywhere">${esc(m)}</td></tr>`).join("")}</tbody></table></div>
     <p class="fine" id="finality-clock" aria-live="polite">Finality clock: connecting…</p><ol class="small" id="activity-feed" aria-label="Knos programs, live"></ol>`;
 }
 
