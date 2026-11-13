@@ -65,13 +65,23 @@ ClassMethod LocalModel() As %String
 }
 
 /// The answer as contract JSON with the model's name and its token counts from AI Hub's usage
-ClassMethod Stamp(out As %String, model As %String, reply) As %String
+ClassMethod Stamp(out As %String, model As %String, reply, usd As %Numeric = 0) As %String
 {
     set j = {}.%FromJSON(out), inTok = 0, outTok = 0
     try { set u = reply.Usage, inTok = +u."prompt_tokens", outTok = +u."completion_tokens" set:(inTok+outTok)=0 outTok = +u."total_tokens" } catch { }
     set:j.model="" j.model = model
-    set j."input_tokens" = inTok, j."output_tokens" = outTok
+    set j."input_tokens" = inTok, j."output_tokens" = outTok, j."cost_usd" = usd
     return j.%ToJSON()
+}
+
+/// What a paid call cost from its token counts at NEAR AI Cloud's listed price for DeepSeek-V4.1-Flash-1017
+/// ($0.30 a million input tokens, $1.20 a million output tokens, GET /v1/models, 12 Nov 2026); a reply with only a
+/// total is priced at the output rate, so the count is never low
+ClassMethod Cost(reply) As %Numeric
+{
+    set inTok = 0, outTok = 0
+    try { set u = reply.Usage, inTok = +u."prompt_tokens", outTok = +u."completion_tokens" set:(inTok+outTok)=0 outTok = +u."total_tokens" } catch { }
+    return (inTok * 0.0000003) + (outTok * 0.0000012)
 }
 
 /// The local model's answer as contract JSON, or "" when it gave none (then the rules referee decides)
@@ -90,11 +100,15 @@ ClassMethod AskLocal(proof As Knos.Iris.Msg.Proof, hash As %String) As %String
         set agent.Model = model, agent.Temperature = 0
         set session = agent.CreateSession({"max_iterations":($select(paid:1, 1:2)),"max_tokens":($select(paid:800, 1:600))})
         set ask = ##class(Knos.Iris.AI.LocalReferee).Question(hash, proof.BriefJSON, proof.Kind, proof.PayloadJSON)
+        // a paid endpoint's call takes its place under the spend cap first (else the rules referee decides)
+        return:paid&&'##class(Knos.Iris.AI.Budget).Take(.why) ""
         for try = 1:1:$select(paid:1, 1:2) {
             set reply = agent.Chat(session, ask)
             set text = $select($isobject(reply):reply.Content, 1:reply)
+            set usd = $select(paid:..Cost(reply), 1:0)
+            do:paid ##class(Knos.Iris.AI.Budget).Spend(usd)
             set out = ##class(Knos.Iris.AI.Verdict).Parse(text, hash)
-            return:out'="" ..Stamp(out, model, reply)
+            return:out'="" ..Stamp(out, model, reply, usd)
             set ask = "Your reply was not the JSON object. Reply with the JSON object only, with criteria_hash "_hash_"."
         }
     } catch e {

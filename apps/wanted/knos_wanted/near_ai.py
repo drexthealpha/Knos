@@ -38,9 +38,30 @@ PER_DAY = 200
 LEDGER = Path(os.environ.get("KNOS_NEAR_AI_LEDGER") or (Path(os.environ.get("TMPDIR") or "/tmp") / "knos-near-ai.json"))
 SAVED = os.environ.get("KNOS_NEAR_AI_SAVED", "https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/near-ai-ledger.json")
 
+# the IRIS online demo (U3) asks the same NEAR AI Cloud: its health answer says its calls and its spend from their token
+# counts, which count under the same $8 stop; a restarted demo starts from 0, so only what is new since the last read is added
+IRIS_HEALTH = os.environ.get("KNOS_IRIS_DEMO_HEALTH", "https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/api/knosdemo/health")
+
 _lock = threading.Lock()
 _visits: dict[str, deque] = {}
-_state = {"spent_usd": 0.0, "calls": 0, "day": "", "today": 0, "cache": {}, "seeded": None}
+_state = {"spent_usd": 0.0, "calls": 0, "day": "", "today": 0, "cache": {}, "seeded": None, "iris_usd": 0.0, "iris_seen": 0.0, "iris_read": 0.0}
+
+
+def _iris() -> None:
+    """Add the IRIS demo's new spend, read from its health answer at most every 5 minutes (only with the key)."""
+    if not _key() or time.time() - _state["iris_read"] < 300:
+        return
+    _state["iris_read"] = time.time()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(IRIS_HEALTH, headers={"User-Agent": "knos-ledger/1.0"}), timeout=5) as r:
+            v = float(json.loads(r.read()).get("llm_usd") or 0)
+    except (urllib.error.URLError, OSError, ValueError, TypeError, AttributeError):
+        return   # the demo is down outside its hours: nothing new to add
+    with _lock:
+        seen = float(_state.get("iris_seen") or 0)
+        _state["iris_usd"] = float(_state.get("iris_usd") or 0) + (v - seen if v >= seen else v)
+        _state["iris_seen"] = v
+    _save()
 
 
 def _key() -> str:
@@ -65,7 +86,8 @@ def _seed() -> None:
             saved = json.loads(r.read())
         with _lock:
             _state["spent_usd"] = max(_state["spent_usd"], float(saved.get("spent_usd") or 0))
-            _state["iris_usd"] = float(saved.get("iris_usd") or 0)   # the IRIS AI Hub run's calls, counted under the same $8 stop
+            _state["iris_usd"] = max(float(_state.get("iris_usd") or 0), float(saved.get("iris_usd") or 0))   # the IRIS AI Hub run's calls, counted under the same $8 stop
+            _state["iris_seen"] = float(saved.get("iris_seen") or 0)
             _state["calls"] = max(_state["calls"], int(saved.get("calls") or 0))
             if saved.get("day") == _today() and int(saved.get("today") or 0) > (_state["today"] if _state["day"] == _today() else 0):
                 _state.update(day=saved["day"], today=int(saved["today"]))
@@ -92,11 +114,12 @@ def _today() -> str:
 
 def ledger() -> dict:
     """What the scheduled CI job saves: the spend, the call counts and the cached answers (no key, nothing private)."""
-    return {k: _state[k] for k in ("spent_usd", "calls", "day", "today", "cache")}
+    return {k: _state.get(k) for k in ("spent_usd", "calls", "day", "today", "cache", "iris_usd", "iris_seen")}
 
 
 def spent() -> tuple[float, str]:
     _seed()
+    _iris()
     return round(_state["spent_usd"] + _state.get("iris_usd", 0), 6), "the token counts of each answer at the listed prices (with the IRIS AI Hub run's), kept across deploys on the gh-pages branch"
 
 
@@ -110,7 +133,7 @@ def attestation(model: str = MODELS[0]) -> dict:
 
 def status() -> dict:
     s, src = spent()
-    return {"on": bool(_key()), "model": MODELS[0], "fallback": MODELS[1], "max_tokens": MAX_TOKENS, "calls_per_order": 2,
+    return {"on": bool(_key()), "model": MODELS[0], "fallback": MODELS[1], "max_tokens": MAX_TOKENS, "calls_per_order": 4,
             "spent_usd": s, "spent_from": src, "stop_at_usd": STOP_AT_USD, "credit_usd": CREDIT_USD, "calls": _state["calls"],
             "calls_today": _state["today"] if _state["day"] == _today() else 0, "per_day": PER_DAY,
             "per_visitor_hour": PER_VISITOR_HOUR, "cached_answers": len(_state["cache"])}
@@ -123,12 +146,13 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
     if not _key():
         return {**base, "note": "no NEAR AI key"}
     _seed()
+    _iris()
     h = hashlib.sha256(json.dumps({"kind": kind, **inp}, sort_keys=True).encode()).hexdigest()
     with _lock:
         hit = _state["cache"].get(h)
         if hit:
             return {**hit, "cached": True, "input_sha256": h}
-        s, _ = round(_state["spent_usd"] + _state.get("iris_usd", 0), 6), ""
+        s = round(_state["spent_usd"] + _state.get("iris_usd", 0), 6)
         if s >= STOP_AT_USD:
             return {**base, "note": f"the AI budget is used (${s:.2f} of ${CREDIT_USD:.0f}): the fixed program and the locked test alone decided"}
         if _state["day"] != _today():

@@ -25,6 +25,7 @@ def ai(monkeypatch, tmp_path):
     from knos_wanted import near_ai, near_attest
     m = importlib.reload(near_ai)
     m._state["seeded"] = True   # no saved ledger read
+    m._state["iris_read"] = float("inf")   # no read of the IRIS demo's spend
     monkeypatch.setattr(near_attest, "verify_model", lambda model: {"ok": model.startswith("deepseek"), "signers": ["0xabc"], "url": "u", "sha256": "s"})
     monkeypatch.setattr(near_attest, "check_signature", lambda *a, **k: {"ok": True, "signer": "0xabc", "kind": "provider_tee", "model_bound": True})
     calls = []
