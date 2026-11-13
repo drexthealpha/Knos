@@ -194,16 +194,16 @@ def problems(root: Path = ROOT) -> list[str]:
     out += version_problems(root)
     readme = root / "README.md"
     if readme.is_file():
-        # Round 9, U1: the README opens with what Knos is, then the problem (the 17 years), with no marketing line; the
-        # GOAL line (l1) appears once, at the end, under "Why"; NEAR HACKATHON's rules ask for "do X - see Y" steps
+        # Round 9, U1: the README opens with what Knos is, then the problem (the 17 years), with no marketing line; Round 10,
+        # V5: the GOAL line (l1) is not in the README but once in docs/WHY.md, linked as Why (NEAR HACKATHON: "No marketing.")
         text = readme.read_text(encoding="utf-8")
         first = next(iter(_prose(text)), "").strip()
         head = text.split("\n## ", 1)[0]
         if not first.startswith(K1) or "17 years" not in head:
             out.append(f"README.md: the first line of text does not say what Knos is, then the problem (17 years): {first[:120]}")
-        goal, why = LINES[0], text.split("\n## Why\n", 1)
-        if text.count(goal) > 1 or (goal in text and (len(why) < 2 or goal not in why[1])):
-            out.append(f"README.md: the GOAL line, at most once and only under Why: {goal}")
+        goal, why = LINES[0], root / "docs" / "WHY.md"
+        if goal in text or "](docs/WHY.md)" not in text or (why.is_file() and why.read_text(encoding="utf-8").count(goal) != 1):
+            out.append(f"README.md: the GOAL line, not here but once in docs/WHY.md, linked as Why: {goal}")
         for line in LINES[1:]:
             if line in text:
                 out.append(f"README.md: a marketing line, against the hackathon's rule: {line}")

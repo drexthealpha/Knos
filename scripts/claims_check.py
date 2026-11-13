@@ -42,7 +42,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-PITCH = ["README.md", "web/index.html"]
+PITCH = ["README.md", "web/index.html", "docs/WHY.md"]
 for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page cannot encode every fact ("\u2212")
     try:
         _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
@@ -231,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
             if tok not in allowed:
                 fails += 1
                 print(f"FAIL  {path}: {tok!r} has no fact in docs/facts.json: {line}")
-    for path in ("README.md", "web/index.html"):
+    for path in ("docs/WHY.md", "web/index.html"):   # Round 10, V5: the README carries no marketing line; docs/WHY.md does
         if SENTENCE not in words(path) and L2 not in words(path):
             fails += 1
             print(f"FAIL  {path}: the one sentence is missing")

@@ -228,7 +228,7 @@ def test_no_slot_is_a_time_so_the_one_commit_is_complete_before_the_push(tmp_pat
 
 def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_screen_is_sixty_four_words():
     cc = _script("claims_check")
-    for path in ("README.md", "web/index.html"):
+    for path in ("docs/WHY.md", "web/index.html"):   # Round 10, V5: the README carries no marketing line
         assert cc.SENTENCE in cc.words(path) or cc.L2 in cc.words(path), path
     page = cc.words("web/index.html")
     assert page.index(cc.SENTENCE) < page.index(cc.LONG)                 # what a work order is comes after, folded

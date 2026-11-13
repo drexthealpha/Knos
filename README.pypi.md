@@ -33,7 +33,7 @@ claim and test is reused and says so, with its call id); a second model call rev
 ### Judge it in 2 minutes
 
 1. Open https://drexthealpha.github.io/Knos/ and press **Try: HyperLogLog** - see "Yes, the claim holds", the claim,
-   its locked test with its sha256 and its last proof (job-...).
+   its locked test with its sha256 and its proof (job-...).
 2. Press **Prove it yourself**, then **Prove it with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
    then "4. Answer: Yes, the claim holds": about 15 s when a job is ready, 1 to 2 min when one is not.
@@ -142,8 +142,7 @@ The live run of 12 Nov, the contest task part by part, the bonuses and troublesh
 the one whose test passed. In replay mode PAY runs a devnet simulation of that payout: it proves the gate reached PAY
 and the payout path ran end to end, and no money moves.
 
-**Why I built this.** A solo founder in Lagos, building Knos since 1 Sep 2026; Knos v1 came first of 92 at the Sibyl Labs
-Hackathon. IRIS, Docker and the build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
+**Why I built this.** A solo founder in Lagos, building Knos since 1 Sep 2026. IRIS, Docker and the build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
 Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
 <!-- /entry:iris -->
 
@@ -169,11 +168,8 @@ The code as entered: https://github.com/drexthealpha/Knos/tree/v0.3.28. More: [d
 
 <!-- /entry:colosseum -->
 
-## Why
+## More
 
-Knos carries research across the valley of death. It takes a paper nobody has checked to code anyone can trust and use.
-The goal: Knos turns any research into a product billions of people use, in days, not years.
-
-The full reference: [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md), [docs/reference/IRIS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/IRIS.md) and
+[Why](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WHY.md) Knos exists. The full reference: [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md), [docs/reference/IRIS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/IRIS.md) and
 [docs/reference/COLOSSEUM.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/COLOSSEUM.md). MIT licence. Built by drexthealpha, a
-solo founder; Knos v1 won the [Sibyl Labs Hackathon](https://hack.sibyllabs.org/leaderboard) (1st of 92).
+solo founder.

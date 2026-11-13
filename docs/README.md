@@ -40,6 +40,6 @@ flowchart TB
 
 They ask: does it work, why does it matter, what is new, how do I use it, how do I build on it, and how is it run.
 
-One more file stays in this folder: [INDEX_METHOD.md](INDEX_METHOD.md), the Agent PR Index method, fixed in advance (its hash is published), so it does not move.
+Two more files stay in this folder: [INDEX_METHOD.md](INDEX_METHOD.md), the Agent PR Index method, fixed in advance (its hash is published), so it does not move. And [WHY.md](WHY.md), why Knos exists, linked from the README as Why (Round 10, V5), so it does not move.
 
 `tests/test_docs_map.py` fails when a page in this folder or in `reference/` is missing from its map.

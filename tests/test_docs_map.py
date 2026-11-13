@@ -20,7 +20,8 @@ REFERENCE = DOCS / "reference"
 # the front of docs/: the map itself and these seven pages; every other document is in docs/reference/
 FRONT = ["STORY.md", "START.md", "PRICING.md", "TRUST.md", "NUMBERS.md", "TRANSACTION.md", "WORDS.md"]
 # the one other file that stays in docs/, and the words the front map says it with: scripts/backtest.py publishes its sha256
-FIXED = {"INDEX_METHOD.md": "the Agent PR Index method, fixed in advance (its hash is published), so it does not move"}
+FIXED = {"INDEX_METHOD.md": "the Agent PR Index method, fixed in advance (its hash is published), so it does not move",
+         "WHY.md": "why Knos exists, linked from the README as Why (Round 10, V5), so it does not move"}
 QUESTIONS = ["Does it work?", "Why does it matter?", "What is new?", "How do I use it?", "How do I build on it?", "How is it run and paid for?"]
 STEPS = 7
 WORDS = re.compile(r"[A-Za-z0-9][\w'%.,/-]*")

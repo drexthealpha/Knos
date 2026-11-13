@@ -69,7 +69,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ["README.md", "docs/reference/BENCH.md", "docs/NUMBERS.md", "docs/reference/COLOSSEUM.md"]   # COLOSSEUM.md: refpage.PAGE
 # The front-facing text (scripts/claims_check.py reads the same list): every number in it needs a fact.
-PITCH = ["README.md", "web/index.html"]
+PITCH = ["README.md", "web/index.html", "docs/WHY.md"]   # Round 10, V5: the goal and the record moved to docs/WHY.md
 # The other files that may carry slots. Everything a reader opens first states a release-measured fact through one, so that the
 # release fills them all in one run and no document is left with an older number.
 SLOTTED = ["README.md", "CHANGELOG.md", "docs/reference/DISCLOSURE.md", "docs/reference/WHY.md", "docs/PRICING.md",
