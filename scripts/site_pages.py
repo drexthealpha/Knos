@@ -84,6 +84,7 @@ BEACON = """<script>
   const page = location.pathname.replace(/^\\/Knos/, "") || "/", t0 = Date.now();
   const send = (e, x) => { try { fetch(H + "/api/visit", { method: "POST", body: JSON.stringify({ v, e, p: page, back, ...(x || {}) }), headers: { "content-type": "text/plain" }, credentials: "omit", keepalive: true, mode: "cors" }).catch(() => {}); } catch { /* no beacon */ } };
   send("view");
+  window.knosNotWhat = (why) => send("notwhat", why ? { why: String(why).slice(0, 30) } : {});   // T8: one tap on a result
   let presses = [];
   addEventListener("click", (ev) => { const at = performance.now(), n = presses.filter((p) => at - p.t < 1000 && Math.abs(p.x - ev.clientX) < 30 && Math.abs(p.y - ev.clientY) < 30).length;
     presses = [...presses.slice(-5), { t: at, x: ev.clientX, y: ev.clientY }]; if (n >= 2) send("rage");

@@ -61,6 +61,9 @@ button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-r
 .out { margin-top: 16px; min-height: 1.5em; }
 .out .verdict { font: 600 24px/1.25 var(--head); margin: 0 0 6px; }
 .out .near { margin: 0 0 4px; color: var(--muted, #555); }
+.out .nw-row { margin: 8px 0 0; }
+.out .nw { min-height: 44px; padding: 0 12px; font-size: 16px; background: none; border: 1px solid var(--line, #ccc); border-radius: 10px; color: var(--ink); cursor: pointer; }
+.out .nw-done input { min-height: 44px; font-size: 16px; padding: 0 10px; max-width: 70%; }
 .out p { margin: 0 0 8px; }
 .out .next { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
 .below { border-top: 1px solid var(--line); padding: 24px 0 8px; }
@@ -136,12 +139,23 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       el("p", { className: "verdict", textContent: holds === true ? (near ? "It holds" : "Yes, the claim holds") : holds === false ? "No, the claim fails" : "Not proved yet" }),
       el("p", {}, [`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}. `, holds != null && last.job ? "Proved by its locked test " : "Its locked test is ", link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test),
         ` (sha256 ${c.sha256.slice(0, 8)}...)`, holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),
-      el("p", {}, [link("prove/#paper=" + encodeURIComponent(c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : ""), "Prove it yourself", "next"), " ", link(`claim/${c.name}/`, "The claim")]));
+      el("p", {}, [link("prove/#paper=" + encodeURIComponent(c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : ""), "Prove it yourself", "next"), " ", link(`claim/${c.name}/`, "The claim")]), notWhat());
   }
   function none(text) {
     out.replaceChildren(el("p", { className: "verdict", textContent: "Nothing proved matches yet" }),
       el("p", { textContent: `Knos has proved ${CLAIMS.length} claims on NEAR testnet; none is about "${text.slice(0, 60)}". Ask about one of them, or paste a paper's link.` }),
-      el("p", {}, CLAIMS.map((c) => el("button", { type: "button", className: "sample", textContent: c.plain, onclick: () => ask(c.plain, true) }))));
+      el("p", {}, CLAIMS.map((c) => el("button", { type: "button", className: "sample", textContent: c.plain, onclick: () => ask(c.plain, true) }))), notWhat());
+  }
+  function notWhat() {   // T8: "Not what I need" under each answer; one tap, then an optional word of why
+    const b = el("button", { type: "button", className: "nw", textContent: "Not what I need" });
+    b.onclick = () => {
+      if (window.knosNotWhat) window.knosNotWhat("");
+      const why = el("input", { type: "text", maxLength: 30, placeholder: "Why, in a word? (optional)" }); why.setAttribute("aria-label", "Why, in a word");
+      why.onkeydown = (e) => { if (e.key === "Enter" && why.value.trim()) { if (window.knosNotWhat) window.knosNotWhat(why.value.trim()); why.replaceWith(el("span", { textContent: "Thanks." })); } };
+      b.replaceWith(el("span", { className: "nw-done" }, ["Noted. ", why]));
+      why.focus();
+    };
+    return el("p", { className: "nw-row" }, [b]);
   }
   let asked = 0;   // only the newest question's answer is shown: a slow answer to an earlier one is dropped
   async function ask(text, exact) {

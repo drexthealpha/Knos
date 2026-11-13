@@ -356,7 +356,7 @@ def privacy_page(header: str) -> str:
     body = ("<h1>Privacy and terms</h1>\n<h2>This site</h2>\n<p>No cookies. One outside script host: the Prove page loads the GSAP animation library from cdnjs, pinned by its hash; it sends nothing of yours. "
             "To learn why people stay or leave, each page sends Knos small events of an anonymous visit: a random id your browser makes and "
             "resets every day, the page, each press and how long its answer took, whether you got an answer, ran a proof, backed a claim or "
-            "downloaded code, three quick presses on one spot, an error shown, and the last page and its seconds before you leave. No IP "
+            "downloaded code, three quick presses on one spot, an error shown, a tap on \"Not what I need\" and the word you add to it, and the last page and its seconds before you leave. No IP "
             "address, account or cookie is stored with them. If your browser sends Do Not Track, nothing is sent. /status shows the totals. "
             "The paper link you paste goes to the "
             "Knos server, which reads the paper's title from its public record (Crossref) and answers. Your browser also reads "
