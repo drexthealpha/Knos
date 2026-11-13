@@ -91,7 +91,7 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 - **Libraries.** `near-sdk` and `near-contract-standards` 5.30.0, `base64` 0.22, `serde` 1, `serde_json` 1; tests
   only: `near-sandbox` 0.4.0, `near-api` 0.8.0, `tokio` 1, `rsa` 0.9, `sha2` 0.10, `rand` 0.8; Python: `cryptography`,
   `certifi`, `dcap-qvl` 0.7.1 and `eth-account` 0.14.0 (the attestation and signature checks), `numpy` 2.3.4 (the space,
-  simulation and hardware claims' tests); the site: GSAP 3.12.5 from cdnjs. Tools: Rust, `cargo-near` 0.22.0, near-cli-rs. The full table: [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md#disclosure).
+  simulation and hardware claims' tests); the site: GSAP 3.12.5 from cdnjs. Tools: Rust, `cargo-near` 0.22.0, near-cli-rs. The full table: [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/main/docs/reference/NEAR.md#disclosure).
 
 Everything else (every claim and how to check it, the accounts on NEAR testnet, the tests and attacks, running it
 yourself): [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md).
@@ -106,7 +106,7 @@ a rule decides, and above $50 a person approves.
 - Online demo: https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/ (live until 23:00 UTC on 13 Nov, 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov, when voting ends).
   GitHub shows a notice first; press Continue. Then press **A passing test, $20**: the AI Hub agent decides on NEAR AI
   Cloud (build 154), at most 10 model calls an hour per visitor.
-- Video: MP4, a live run on 13 Nov 2026 from the online demo: [iris/media/knos-iris.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/media/knos-iris.mp4); the first cut, in replay mode: [YouTube](https://www.youtube.com/watch?v=s4YNmcEm-M8).
+- Video: 43 s, a live run on 13 Nov 2026 from the online demo: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4).
 - Community idea: it implements [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689), each decision step an
   interoperability message.
 - [Judge it in 2 minutes](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#judge-it-in-2-minutes-on-iris): one command, no InterSystems login, no key.
@@ -145,7 +145,7 @@ the one whose test passed. In replay mode PAY runs a devnet simulation of that p
 and the payout path ran end to end, and no money moves.
 
 **Why I built this.** A solo founder in Lagos, building Knos since 1 Sep 2026. IRIS, Docker and the build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
-Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
+Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/main/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
 <!-- /entry:iris -->
 
 <!-- entry:colosseum -->

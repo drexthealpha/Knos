@@ -19,7 +19,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 
 | What | Where |
 |---|---|
-| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) (the first cut, replay mode); the file is a live run on 13 Nov 2026 from the online demo, 43 s: the production running in the IRIS portal, one sample decided by the AI Hub agent on NEAR AI Cloud, its trace and the same session in Visual Trace (also [on the For labs page](https://drexthealpha.github.io/Knos/labs/); the file: [iris/media/knos-iris.mp4](../../iris/media/knos-iris.mp4)) |
+| Video | [43 s, a live run](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4): the file is a live run on 13 Nov 2026 from the online demo, 43 s: the production running in the IRIS portal, one sample decided by the AI Hub agent on NEAR AI Cloud, its trace and the same session in Visual Trace (also [on the For labs page](https://drexthealpha.github.io/Knos/labs/); the file: [iris/media/knos-iris.mp4](../../iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/: build 154 in live mode in a GitHub codespace, the AI Hub agent deciding on NEAR AI Cloud (deepseek-ai/DeepSeek-V4.1-Flash-1017), each sample at most one model call, at most 10 an hour per visitor and 100 a day, past a limit the fixed rule with a label saying why. Live until 23:00 UTC on 13 Nov, 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov, when voting ends. InterSystems Cloud Services' services are subscriptions and Hugging Face's Docker Spaces need billing, so the free codespace hosts it |
@@ -355,7 +355,7 @@ MIT, the repository's own [LICENSE](../../LICENSE).
 | B12 Find a bug in Embedded Python | 2 (max 3) | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |
 | B13 First Article on Developer Community | 2 | https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call |
 | B14 Second Article on DC | 1 | https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris |
-| B15 Video | 3 | [Knos on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) ; [the file, 43 s, a live run on 13 Nov 2026](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) |
+| B15 Video | 3 | [the file, 43 s, a live run on 13 Nov 2026](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) |
 
 [Watch the 43-second video](https://drexthealpha.github.io/Knos/labs/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
 <!-- /entry:iris -->
