@@ -1,9 +1,9 @@
 # Knos on IRIS: the full reference
 
-Back to the [README](../README.md#from-the-intersystems-contest).
+Back to the [README](../../README.md#from-the-intersystems-contest).
 
 <!-- entry:iris -->
-### Run it on IRIS
+## Run it on IRIS
 
 Inside InterSystems IRIS, the production checks each research step's test result before that step is paid. An AI agent reads the test result and a rule decides; above $50 a person must also say yes.
 Every amount is test money.
@@ -19,12 +19,12 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 
 | What | Where |
 |---|---|
-| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) (the first cut; the file is 70 s, with the live run of 12 Nov at its end), also [on the For labs page](https://drexthealpha.github.io/Knos/labs/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)) |
+| Video | [62 seconds on the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8) (the first cut; the file is 70 s, with the live run of 12 Nov at its end), also [on the For labs page](https://drexthealpha.github.io/Knos/labs/): one decision, from a test result to a person pressing Approve (the file: [iris/media/knos-iris.mp4](../../iris/media/knos-iris.mp4)) |
 | Idea | every step of the AI's decision kept as a message you can open in IRIS, built here (community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689)) |
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | the IRIS part is not hosted: its built-in demo runs on your own machine after the quick start, with no key and no sign-in (the NEAR proof flow is hosted on the one page) |
 
-#### The contest task, part by part
+### The contest task, part by part
 
 | The task asks for | The feature doing it | How to see it |
 |---|---|---|
@@ -34,7 +34,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 | A person where it matters | IRIS Workflow, role `PayoutApprovers`, for a met decision above 50 USDC | the inbox on `/knos/` or Interoperability > Workflow Inbox |
 | Every step traceable | each model call, tool call, rule and approval is a `Knos.Iris.Msg.Span` in the decision's own session | Visual Trace |
 
-#### What is new, and why
+### What is new, and why
 
 - **The trace is the production's own message log.** Every step of the agent's decision is an interoperability
   message, kept in a Langfuse-style SQL table. A lab cannot send its data to an outside tracing service; IRIS already
@@ -48,7 +48,7 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
   Python from the same `src/knos` that the Knos app uses. Proof against a changed brief is refused before any model is
   asked.
 
-#### Quick start
+### Quick start
 
 You need Docker with about 4 GB free, and the image file `irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64)
 from the [AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems
@@ -71,7 +71,7 @@ builds on:
 Neither image, nor any image built on it, is pushed to a registry. `env-secrets.sh` makes `.env` from `.env.example`
 with random secrets (never commit `.env`). The first build takes about 3 minutes on 4 cores.
 
-#### Troubleshooting
+### Troubleshooting
 
 | What you see | What to do |
 |---|---|
@@ -83,7 +83,7 @@ with random secrets (never commit `.env`). The first build takes about 3 minutes
 | the page asks for a user and password | the agent is not in replay mode: sign in as `_SYSTEM` with the `IRIS_PASSWORD` line of `.env` |
 | `docker compose`: `required` is not allowed | update Docker Compose to version 2.20 or later |
 
-#### The model (LLM provider) and its key
+### The model (LLM provider) and its key
 
 Replay mode runs with no key; live mode expects the judge's own OpenAI, Anthropic, Gemini or Bedrock key. The default needs nothing: in replay mode (`KNOS_AI_MODE=replay`) the rules referee decides, with no model.
 
@@ -114,7 +114,7 @@ service and asks it through AI Hub's `openai` provider, with no key and no accou
 A spend cap is checked before any paid call: at most `KNOS_LLM_MAX_CALLS` calls (default 30) and `KNOS_LLM_MAX_USD`
 dollars (default 2.00).
 
-#### See that it works
+### See that it works
 
 1. `bash scripts/ready.sh` prints `READY: open http://localhost:52773/knos/ and press a sample button`.
 2. On that page: **A passing test, $20** is paid in play money, **A failing test, $20** is not paid, and **A passing
@@ -130,14 +130,14 @@ dollars (default 2.00).
 Every test in one command, with no key: `bash scripts/test-all.sh` (the build, the decisions, one trace through all six
 parts, the bonus checks and the page).
 
-#### What it decides
+### What it decides
 
 An InterSystems IRIS for Health production decides whether submitted proof meets a hash-locked Knos Ready brief: a
 GitHub check run, a lab result (a FHIR Observation or an HL7 ORU^R01) or a Knos referee verdict. The three public
 inputs `scripts/smoke.sh` uses are in `data/public/SOURCES.md`: a Synthea FHIR Observation, an HL7 ORU^R01 lab message
 and a real GitHub check run.
 
-#### How it works
+### How it works
 
 - **Proof comes in through custom adapters.** A check run arrives by webhook at `/api/knos/webhook` (signed with
   `KNOS_WEBHOOK_SECRET`), by `/api/knos/proof`, or as a file the inbound adapter `Knos.Iris.Adapter.CheckRunInbound`
@@ -151,20 +151,20 @@ and a real GitHub check run.
 
 *Proof arrives one of three ways; one process checks, asks the agent, gates, asks a person, then simulates.*
 
-#### Requirements
+### Requirements
 
 Measured in a 4-core, 16 GB GitHub Codespace with `mem_limit: 3g`: build 160 s from the loaded image, health 7 to 9 s
 after the container starts, peak 1,660 MiB in `docker stats`. On a 7.8 GB laptop the container peaked at 1,188 MiB.
 FHIR is off by default (`KNOS_FHIR=0`); `KNOS_FHIR=1` loads R4 and needs about 2 GB more.
 
-#### The image used
+### The image used
 
 `irishealth-community:2026.3.0AI.154.0` (InterSystems IRIS for Health, AI Hub build 154,
 `IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2026.3.0AI (Build 154U)`), from the InterSystems file
 `irishealth-community-2026.3.0AI.154.0-docker.tar.gz` (x64). `iris/Dockerfile` builds on it in stages: a builder stage
 runs `iris.script`, the final stage copies in only the databases the install changed.
 
-#### LLM provider and key
+### LLM provider and key
 
 `KNOS_AI_MODE=replay` (the default) asks no model and says "rules referee (no model key set)". `KNOS_AI_MODE=local` needs no key either: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
 tokens. `KNOS_AI_MODE=live` uses the provider and key from the table above.
@@ -179,13 +179,13 @@ project.
 | Low confidence | | capped at 0.6 when the cited criterion is not in the top 2 by Vector Search, which sends the case to a person |
 | Trace | one span per decision | one span per model or tool call |
 
-#### Start
+### Start
 
 With IPM on any IRIS for Health instance: `zpm "install knos-iris"` or, from a clone,
 `zpm "load <clone>/iris -v"` in a namespace with interoperability on. `module.xml` asks for IRIS 2026.3 or later with
 interoperability enabled.
 
-#### Check that it works
+### Check that it works
 
 ```sh
 set -a; . ./.env; set +a
@@ -194,7 +194,7 @@ curl -s -u "_SYSTEM:$IRIS_PASSWORD" localhost:52773/api/knos/health
 
 The health route answers `{"production":"Running","agent":"local","fhir":"off","java":"ok","vector":"ok",...}`.
 
-#### Walkthrough of the three inputs
+### Walkthrough of the three inputs
 
 - **Check run.** Point a GitHub webhook (check runs) at `/api/knos/webhook`, or drop a file in
   `/home/irisowner/knos/inbox/checkruns/` for `Knos.Iris.Adapter.CheckRunInbound`. Unsigned webhooks get 401.
@@ -202,20 +202,20 @@ The health route answers `{"production":"Running","agent":"local","fhir":"off","
   `<briefId>.hl7` in `inbox/oru/`. OBX-3 and OBX-5 become the Observation's code and value.
 - **Referee verdict.** POST a signed Knos referee verdict (`"kind":"verdict"`, as in `fixtures/verdicts/passed.json`).
 
-#### The Workflow approval
+### The Workflow approval
 
 A met decision above `KNOS_PAYOUT_THRESHOLD_USDC` (default 50) goes to the role `PayoutApprovers`. Approve or Reject in
 the inbox on `/knos/` or in Interoperability > Workflow Inbox. With no answer, the milestone stays held for two days.
 Each AI Hub feature the agent uses answers live at `GET /api/knos/aihub/<feature>`: `skill`, `policy`, `mcp`, `rag`,
 `stats` and `workflow`.
 
-#### Solana devnet
+### Solana devnet
 
 On PAY, IRIS builds Knos's payout instruction and the Java PEX operation simulates it on devnet
 (`simulateTransaction`): a simulation, not a payment. **IRIS never releases money alone.** The custom outbound adapter
 `Knos.Iris.Adapter.SolanaRpcOutbound` does the reads.
 
-#### The trace
+### The trace
 
 Each decision's session in Visual Trace holds the Proof, the agent's Verdict, the Span messages and the Decision.
 `GET /api/knos/traces/<session>` returns them as JSON; the table `Knos_Iris_Data.Span` has the same rows;
@@ -233,7 +233,7 @@ Each decision's session in Visual Trace holds the Proof, the agent's Verdict, th
 Try it: `bash scripts/smoke.sh` prints a `visual trace:` link whose number is the session, then
 `SELECT Name, Kind, Model, Tokens, Ms FROM Knos_Iris_Data.Span WHERE SessionId = <session>` gives every step.
 
-#### Where each part lives
+### Where each part lives
 
 | Part | Where it lives | How to see it |
 |---|---|---|
@@ -246,19 +246,19 @@ Try it: `bash scripts/smoke.sh` prints a `visual trace:` link whose number is th
 | IPM | `module.xml` | `zpm "load <clone>/iris"` |
 | LLM trace as interop messages | `iris/src/Knos/Iris/Msg/Span.cls` | Visual Trace |
 
-#### Platform findings
+### Platform findings
 
 Four reproduce on a clean build 154 container, each with its own `run.sh`:
 
-- [`iris/bugs/1`](iris/bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error. Filed: [python-bugreports#30](https://github.com/intersystems-community/python-bugreports/issues/30).
-- [`iris/bugs/2`](iris/bugs/2): AI Hub's `%AI.ToolMgr.ExecuteTool` runs a tool when a required argument is missing or of
+- [`iris/bugs/1`](../../iris/bugs/1): Embedded Python returns a Python int above 2^63 - 1 to ObjectScript as -1, with no error. Filed: [python-bugreports#30](https://github.com/intersystems-community/python-bugreports/issues/30).
+- [`iris/bugs/2`](../../iris/bugs/2): AI Hub's `%AI.ToolMgr.ExecuteTool` runs a tool when a required argument is missing or of
   the wrong type. Filed: [ai-hub-eap-bugreports#20](https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/20).
-- [`iris/bugs/3`](iris/bugs/3): AI Hub's `%AI.RAG.VectorStore.IRIS` makes its table in SQLUser whatever its `Schema`
+- [`iris/bugs/3`](../../iris/bugs/3): AI Hub's `%AI.RAG.VectorStore.IRIS` makes its table in SQLUser whatever its `Schema`
   says. Filed: [ai-hub-eap-bugreports#21](https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/21).
-- [`iris/bugs/4`](iris/bugs/4): Embedded Python's `iris.sql.exec` with an int past 64 bits fails with a `SystemError`
+- [`iris/bugs/4`](../../iris/bugs/4): Embedded Python's `iris.sql.exec` with an int past 64 bits fails with a `SystemError`
   that names neither the parameter nor its value. Filed: [python-bugreports#31](https://github.com/intersystems-community/python-bugreports/issues/31).
 
-#### Problems I hit, and how I fixed them
+### Problems I hit, and how I fixed them
 
 - **My 8 GB laptop stalled for two days.** IRIS, Docker and the build would not fit, so every IRIS build and test moved
   to one GitHub Codespace, and the compose file caps IRIS at 3 GB.
@@ -272,7 +272,7 @@ Four reproduce on a clean build 154 container, each with its own `run.sh`:
 - **A fresh codespace broke every non-root build step** ("libc.so.6: Permission denied"). Its `/tmp` default ACL was
   the cause; `scripts/codespace-setup.sh` drops it.
 
-#### Tests
+### Tests
 
 `python iris/tests/test_iris_decision.py` runs the core decisions against a running instance: a passing check run, a
 failing one, an altered brief, injection text in the proof and an ORU whose value misses. `python
@@ -281,30 +281,30 @@ holds every part.
 
 `python iris/tests/test_iris_docs.py readme` checks that every file this section names exists.
 
-#### Architecture
+### Architecture
 
 The diagram under "How it works" above is the production; `iris/src/Knos/Iris/Production.cls` lists every item.
 
-#### Known limitations
+### Known limitations
 
 - PAY is a devnet simulation of the payout, not a payment; nothing in iris/ sends money.
 - The link from IRIS's decision to the referee panel's 2 of 3 signatures is not built yet.
 - Solana devnet only, with test money.
 
-#### How it fits Knos
+### How it fits Knos
 
 This folder is the IRIS side of the one Knos product: the proof check that runs inside a lab's own data system. The Knos code is imported, not forked: the image runs the repository's `src/knos`.
 
-#### Team
+### Team
 
 Zulqarnain Abubakar, Developer Community profile: https://community.intersystems.com/user/zulqarnain-abubakar
 
-#### License
+### License
 
-MIT, the repository's own [LICENSE](LICENSE).
+MIT, the repository's own [LICENSE](../../LICENSE).
 
 
-#### Who Knos is for
+### Who Knos is for
 
 - A lab could use Knos when a discovery it made stalls before anyone turns it into a product. https://hms.harvard.edu/news/new-direction-academic-science-aims-bridge-valley-death
 - A hospital lab could use Knos when it must show that a new test meets its performance specifications before it reports patient results. https://www.cms.hhs.gov/clia/downloads/6064bk.pdf
@@ -312,7 +312,7 @@ MIT, the repository's own [LICENSE](LICENSE).
 - A company could use Knos when an AI coding agent sends pull requests that do not pass the project's own checks. https://arxiv.org/abs/2601.15195
 - A funder could use Knos when it releases money only as research milestones are met and needs evidence that each one was. https://arpa-h.gov/news-and-events/arpa-h-101-lifecycle-arpa-h-program
 
-#### Production items
+### Production items
 
 - `ProofIn` (`Knos.Iris.BS.ProofIn`)
 - `BriefIn` (`Knos.Iris.BS.BriefIn`)
@@ -337,7 +337,7 @@ MIT, the repository's own [LICENSE](LICENSE).
 - `ResultHL7Out` (`EnsLib.HL7.Operation.FileOperation`)
 - `DigestFile` (`EnsLib.File.PassthroughOperation`)
 
-### Bonuses
+## Bonuses
 
 | Bonus | Official points | Proof |
 |---|---|---|
@@ -349,7 +349,7 @@ MIT, the repository's own [LICENSE](LICENSE).
 | B6 Embedded Python | 3 | [iris/src/Knos/Iris/Py/Ready.cls L4](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Py/Ready.cls#L4) |
 | B7 IRIS Vector Search usage | 2 | [iris/src/Knos/Iris/Data/Criterion.cls L7](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Data/Criterion.cls#L7) |
 | B8 Docker container usage | 2 | [iris/docker-compose.yml L4](https://github.com/drexthealpha/Knos/blob/main/iris/docker-compose.yml#L4) |
-| B9 ZPM Package deployment | 2 | `zpm "install knos-iris"` ([the package](https://openexchange.intersystems.com/package/Knos); [its install on build 154, 12 Nov](iris/docs/zpm-install-knos-iris-2026-11-12.log): every phase SUCCESS; that image has no JDK, so the optional Java PEX jar was not built, and the production logged two runtime-lock lines while it started) |
+| B9 ZPM Package deployment | 2 | `zpm "install knos-iris"` ([the package](https://openexchange.intersystems.com/package/Knos); [its install on build 154, 12 Nov](../../iris/docs/zpm-install-knos-iris-2026-11-12.log): every phase SUCCESS; that image has no JDK, so the optional Java PEX jar was not built, and the production logged two runtime-lock lines while it started) |
 | B10 Online Demo | 2 | not hosted |
 | B11 Implement InterSystems Community Idea | 4 | https://ideas.intersystems.com/ideas/DPI-I-689 |
 | B12 Find a bug in Embedded Python | 2 (max 3) | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |

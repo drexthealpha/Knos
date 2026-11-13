@@ -80,7 +80,7 @@ def test_the_cited_witness_record_is_in_knos_and_the_documents_link_it():
     record = json.loads((ROOT / "evidence" / "knos-witness-acaa854d" / "witness.json").read_text(encoding="utf-8"))
     assert record
     rel = "evidence/knos-witness-acaa854d/witness.json"
-    for doc in ("README.md", "docs/TRANSACTION.md", "docs/START.md"):
+    for doc in ("docs/reference/COLOSSEUM.md", "docs/TRANSACTION.md", "docs/START.md"):
         text = (ROOT / doc).read_text(encoding="utf-8")
         assert rel in text, doc
         assert "knos-witness/blob/" not in text, doc

@@ -35,6 +35,9 @@ The documents in this folder are listed below, with the seven front pages too.
 | document | what it answers |
 |---|---|
 | [STORY.md](../STORY.md) | one crossing on one page, step by step, each with its evidence |
+| [NEAR.md](NEAR.md) | Knos on NEAR in full: every claim, the accounts on testnet, the tests and attacks, the disclosure |
+| [IRIS.md](IRIS.md) | Knos on InterSystems IRIS in full: the contest task part by part, the bonuses, troubleshooting, the architecture |
+| [COLOSSEUM.md](COLOSSEUM.md) | the pull request check on Solana devnet and the README's old reference sections: what is real today, the programs |
 | [MANIFEST.md](MANIFEST.md) | this release on one page: source, the build live at each public id, every capability's stage, the limits |
 | [CAPABILITIES.md](CAPABILITIES.md) | every capability, the stage it has reached, and the file or transaction that shows it |
 | [BENCH.md](BENCH.md) | every measured number, with the command that reproduces it |

@@ -378,6 +378,12 @@ def targets(root: Path = ROOT) -> list[Path]:
     return [p for p in [root / "README.md", *docs] if p.is_file() and START in p.read_text(encoding="utf-8")]
 
 
+def _relinked(text: str) -> str:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import refpage
+    return refpage.relink(text)
+
+
 def rendered(text: str, body: str) -> str:
     a, b = text.index(START) + len(START), text.index(END)
     return text[:a] + "\n" + body + "\n" + text[b:]
@@ -389,7 +395,9 @@ def render(root: Path = ROOT, check: bool = False) -> list[str]:
     data, changed = load(root), []
     for doc in targets(root):
         old = doc.read_text(encoding="utf-8")
-        new = rendered(old, summary(data) if doc.parent == root else table(data, doc.parent.relative_to(root).as_posix().count("/") * "../" + "../"))
+        page = doc.relative_to(root).as_posix() == "docs/reference/COLOSSEUM.md"   # the README's old reference sections (scripts/refpage.py)
+        new = rendered(old, summary(data) if doc.parent == root else _relinked(summary(data)) if page
+                       else table(data, doc.parent.relative_to(root).as_posix().count("/") * "../" + "../"))
         if new != old:
             changed.append(doc.relative_to(root).as_posix())
             if not check:

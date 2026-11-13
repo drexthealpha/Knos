@@ -32,7 +32,7 @@ def test_the_package_description_is_the_pinned_readme_and_no_relative_link_remai
     assert b.relative_left((ROOT / "README.md").read_text(encoding="utf-8"))
     # pinned to the release, or (a file or folder added after it, linked whole in README.md) to main: never a ref that is gone
     for url in re.findall(r"https://github\.com/drexthealpha/Knos/(?:blob|tree)/[^)\s\"#]+", text):
-        assert f"/v{_version()}/" in url or "/blob/main/" in url or "/tree/main/" in url, url
+        assert f"/v{_version()}/" in url or "/blob/main/" in url or "/tree/main/" in url or url.rstrip(".") == "https://github.com/drexthealpha/Knos/tree/v0.3.28", url   # the Colosseum entry's tag
 
 
 def test_each_kind_of_link_becomes_whole_at_the_tag(tmp_path):

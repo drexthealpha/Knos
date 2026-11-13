@@ -67,10 +67,10 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 
 | NEAR feature | In Knos | Where |
 |---|---|---|
-| Contracts | the jobs contract locks each test's sha256 and pays the passing agent; the claim contract keeps each claim's record and its two markets; the 90/10 split is one transaction | `near/contract/`, `near/market/`; accounts in [docs/near.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/near.md) |
+| Contracts | the jobs contract locks each test's sha256 and pays the passing agent; the claim contract keeps each claim's record and its two markets; the 90/10 split is one transaction | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 | Agent spending caps | each agent key can call only the jobs contract, and a step over its cap is refused on chain | the receipt's "spending cap" step |
 | Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified before the page says "private" | `apps/wanted/knos_wanted/near_attest.py` |
-| Chain Signatures | a NEAR account pays a Solana address on devnet | [docs/near.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/near.md) |
+| Chain Signatures | a NEAR account pays a Solana address on devnet | [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 
 ### The diff, disclosure and libraries
 
@@ -83,10 +83,10 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
   claim code in each order is written by DeepSeek V4.1 Flash on NEAR AI Cloud.
 - **Libraries.** `near-sdk` and `near-contract-standards` 5.30.0, `base64` 0.22, `serde` 1, `serde_json` 1; tests
   only: `near-sandbox` 0.4.0, `near-api` 0.8.0, `tokio` 1, `rsa` 0.9, `sha2` 0.10, `rand` 0.8; Python: `cryptography`
-  and `certifi`. Tools: Rust, `cargo-near` 0.22.0, near-cli-rs. The full table: [docs/near.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/near.md#disclosure).
+  and `certifi`. Tools: Rust, `cargo-near` 0.22.0, near-cli-rs. The full table: [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md#disclosure).
 
 Everything else (every claim and how to check it, the accounts on NEAR testnet, the tests and attacks, running it
-yourself): [docs/near.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/near.md).
+yourself): [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md).
 <!-- /entry:near -->
 
 <!-- entry:iris -->
@@ -116,14 +116,16 @@ You need Docker with about 4 GB free and the image file `irishealth-community-20
 
    - see `READY: open http://localhost:52773/knos/ ...` (the first build takes about 3 minutes on 4 cores).
 2. Open http://localhost:52773/knos/ and press **A passing test, $20** - see its decision within a few seconds.
-3. Press **A passing test, $120** - see it wait for a person; press **Approve** - see it paid in test money.
+3. Press **A passing test, $120: a person must say yes** - see it wait for a person; press **Approve** - see it paid
+   in test money.
 4. Open Interoperability > Production in the management portal - see `Knos.Iris.Production` with its 22 items, and the
    decision's Visual Trace.
 
 The default run is replay mode: no key and no model download. The live AI Hub run on NEAR AI Cloud, the contest task part
-by part, the bonuses, troubleshooting and the architecture: [docs/iris.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/iris.md).
+by part, the bonuses, troubleshooting and the architecture: [docs/reference/IRIS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/IRIS.md).
 <!-- /entry:iris -->
 
+<!-- entry:colosseum -->
 ## From Colosseum
 
 The Colosseum entry is tag v0.3.28 (built 14 Sep to 12 Oct 2026): it checks a coding agent's pull request and pays the
@@ -137,13 +139,15 @@ agent on Solana devnet only when the checks GitHub signs have passed.
    "Claims nothing about tests; every check passed."
 3. Press the link "4PovnMjD...2zcDxt" on that page - see a payment made by Knos's programs on Solana devnet.
 
-The code as entered: https://github.com/drexthealpha/Knos/tree/v0.3.28. More: [docs/colosseum.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/colosseum.md).
+The code as entered: https://github.com/drexthealpha/Knos/tree/v0.3.28. More: [docs/reference/COLOSSEUM.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/COLOSSEUM.md).
+
+<!-- /entry:colosseum -->
 
 ## Why
 
-Knos carries research across the valley of death: from a paper nobody has checked to code anyone can trust and use.
+Knos carries research across the valley of death. It takes a paper nobody has checked to code anyone can trust and use.
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-The full reference: [docs/near.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/near.md), [docs/iris.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/iris.md) and
-[docs/colosseum.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/colosseum.md). MIT licence. Built by drexthealpha, a
+The full reference: [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md), [docs/reference/IRIS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/IRIS.md) and
+[docs/reference/COLOSSEUM.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/COLOSSEUM.md). MIT licence. Built by drexthealpha, a
 solo founder; Knos v1 won the [Sibyl Labs Hackathon](https://hack.sibyllabs.org/leaderboard) (1st of 92).

@@ -77,7 +77,7 @@ def grade(text: str) -> tuple[float, float]:
 
 def window(readme: str) -> str:
     """From the first heading to the end of the section "Is it real?" (its generated table is not prose)."""
-    start = readme.index("\n## ")
+    start = readme.index("\n## ")      # (the page after its title line)
     real = readme.index("\n## Is it real?\n")
     end = readme.find("\n## ", real + 1)
     return readme[start:end]
@@ -91,11 +91,11 @@ def test_the_formula_matches_known_counts():
 
 
 def test_the_readme_reads_at_grade_eight_with_short_sentences():
-    text = prose(window(read("README.md")))
+    text = prose(window(read("docs/reference/COLOSSEUM.md")))   # the README's old reference sections (Round 9, U1)
     level, per = grade(text)
     assert len(sentences(text)) >= 20, "the window lost its prose"
     for kept in ("How it works", "Try it in ten seconds", "Why nobody can fudge the count", "Is it real?"):
-        assert f"\n## {kept}\n" in window(read("README.md")), kept
+        assert f"\n## {kept}\n" in window(read("docs/reference/COLOSSEUM.md")), kept
     assert level <= 8, f"Flesch-Kincaid grade {level:.1f} (at most 8)"
     assert per <= 16, f"{per:.1f} words a sentence on average (at most 16)"
 
@@ -107,7 +107,8 @@ def test_the_logo_leads_and_every_diagram_has_a_caption_and_no_colour():
     # README shows each diagram as its picture (Open Exchange draws no Mermaid); the sources are in docs/reference/DIAGRAMS.md
     source = read("docs/reference/DIAGRAMS.md")
     blocks = list(MERMAID.finditer(source))
-    pictures = list(re.finditer(r"!\[[^\]]*\]\(https://raw\.githubusercontent\.com/drexthealpha/Knos/main/(docs/diagrams/[^)]+\.svg)\)", readme))
+    ref = "".join(read(f"docs/reference/{n}.md") for n in ("COLOSSEUM", "NEAR", "IRIS"))   # Round 9, U1: the diagrams moved with their sections
+    pictures = list(re.finditer(r"!\[[^\]]*\]\(https://raw\.githubusercontent\.com/drexthealpha/Knos/main/(docs/diagrams/[^)]+\.svg)\)", ref))
     assert len(blocks) >= 2 and len(pictures) == len(blocks)
     for block in blocks:
         body = block.group(1)
@@ -115,10 +116,10 @@ def test_the_logo_leads_and_every_diagram_has_a_caption_and_no_colour():
         assert not re.search(r"(?m)^\s*(style|classDef|class|linkStyle)\b|%%\{|theme|#[0-9a-fA-F]{3,6}\b|fill:", body), body
     for found in pictures:
         assert (ROOT / found.group(1)).is_file(), found.group(1)
-        after = [line for line in readme[found.end():].splitlines() if line.strip()][0]
+        after = [line for line in ref[found.end():].splitlines() if line.strip()][0]
         assert re.fullmatch(r"\*[^*]+\*", after), f"no italic caption under the diagram: {after}"
         assert len(WORD.findall(after)) <= 20, after
-    assert "](docs/WORDS.md)" in readme.split("\n---\n", 1)[0]
+    assert "](../WORDS.md)" in read("docs/reference/COLOSSEUM.md").split("\n---\n", 1)[0] and len(readme.splitlines()) <= 250
 
 
 def test_every_word_is_explained_in_under_twenty_words_in_order_and_every_link_to_one_lands():

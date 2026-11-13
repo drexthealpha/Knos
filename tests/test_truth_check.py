@@ -234,7 +234,7 @@ def test_the_readme_today_table_is_generated_from_the_manifest_and_cannot_drift(
     rows = dict((a, b) for a, b, _c in bd.stage_rows(CAPS["capabilities"]))
     assert rows["Exercised at the public devnet program ids"] == "2 of 6: an order paying up to four payees, work orders"
     assert rows["Tested here only"] == "3 of 6, each with the test its row names" and rows["Reproduced by someone else"] == "0 of 6"
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")      # the README's old reference sections (Round 9, U1)
     caps = bd.capabilities()
     for name, said, _where in bd.stage_rows(caps):
         assert f"| {name} | {said} |" in readme, name
@@ -292,7 +292,10 @@ def test_the_readme_names_this_release_from_pyproject_and_the_changelog_and_refu
     what, said, where = bd.release_row()
     version = bd.re.search(r'(?m)^version = "([\d.]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
     assert what == "This copy" and said.startswith(f"Release {version}, ") and "CHANGELOG.md" in where
-    assert f"| {what} | {said} | {where} |" in (ROOT / "README.md").read_text(encoding="utf-8")
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import refpage
+    assert f"| {what} | {said} | {refpage.relink(where)} |" in (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
     (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.3.99"\n', encoding="utf-8")
     (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n## 0.3.98 (October 2026)\n", encoding="utf-8")
     try:

@@ -178,9 +178,9 @@ def test_the_chain_is_asked_for_the_version_and_for_every_signature():
 
 
 def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
-    text, full = (ROOT / "README.md").read_text(encoding="utf-8"), (ROOT / cap.FULL).read_text(encoding="utf-8")
+    text, full = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8"), (ROOT / cap.FULL).read_text(encoding="utf-8")   # Round 9, U1
     assert text.count(cap.START) == text.count(cap.END) == full.count(cap.START) == full.count(cap.END) == 1
-    assert cap.rendered(text, cap.summary(DATA)) == text and cap.rendered(full, cap.table(DATA, "../../")) == full and cap.render(check=True) == []
+    assert cap.rendered(text, cap._relinked(cap.summary(DATA))) == text and cap.rendered(full, cap.table(DATA, "../../")) == full and cap.render(check=True) == []
     # README.md names the capabilities above `tested` under their stage and sends the rest to the document, which has one row each
     block = text[text.index(cap.START):text.index(cap.END)]
     # (at most cap.SHOWN ids a stage, the first in the manifest's order; more than that are said to be in the table)
@@ -188,7 +188,7 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     above = [cid for ids in shown.values() for cid in ids[:cap.SHOWN]]
     assert all(f"`{cid}`" in block for cid in above) and block.count("`") == 2 * len(above) + 2      # and the manifest's name, once
     assert block.count(cap.MORE) == sum(len(ids) > cap.SHOWN for ids in shown.values())
-    assert "**Reproduced by someone else:** none recorded yet." in block and f"]({cap.FULL})" in block
+    assert "**Reproduced by someone else:** none recorded yet." in block and "](CAPABILITIES.md)" in block
     exercised = block[block.index("**Exercised on devnet:**"):block.index("**Deployed on devnet:**")]
     now = shown["exercised"]
     assert all(f"`{cid}`" in exercised for cid in now[:cap.SHOWN]) and exercised.count("`") == 2 * min(len(now), cap.SHOWN)
@@ -210,7 +210,7 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     assert all(c["what"] in rows for c in DATA["capabilities"]) and rows.count("\n| ") == len(DATA["capabilities"]) + 1
     assert "](../../programs-v2/knos_pay/src/order.rs)" in rows
     # a manifest that changed is seen, written, and then the same again
-    for rel in ("README.md", "docs/capabilities.json", cap.FULL):
+    for rel in ("docs/reference/COLOSSEUM.md", "docs/capabilities.json", cap.FULL):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / rel, tmp_path / rel)
     data = _with("order_quorum", what="A work order, said another way.", stage=None, evidence={})
@@ -221,7 +221,7 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     # a capability that leaves a stage above `tested` leaves README.md too
     data = _with("pay_on_merge", stage="tested")
     (tmp_path / "docs" / "capabilities.json").write_text(json.dumps(data), encoding="utf-8")
-    assert "README.md" in cap.render(tmp_path) and "`pay_on_merge`" not in (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "docs/reference/COLOSSEUM.md" in cap.render(tmp_path) and "`pay_on_merge`" not in (tmp_path / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
 
 
 def test_the_site_module_renders_the_same_rows_and_filters_by_stage():

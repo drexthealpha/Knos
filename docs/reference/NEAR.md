@@ -1,13 +1,13 @@
 # Knos on NEAR: the full reference
 
-Back to the [README](../README.md#from-near-hackathon).
+Back to the [README](../../README.md#from-near-hackathon).
 
 <!-- entry:near -->
-### NEAR HACKATHON: the diff
+## NEAR HACKATHON: the diff
 
 The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `near/`; the tag `hackathon-submission` is the submitted commit. Everything built in the window, file by file: https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. Only that NEAR work is the entry ([Disclosure](#disclosure)); the steps to try it are under [Do this, see that](#do-this-see-that).
 
-### Every claim and how to check it
+## Every claim and how to check it
 
 Each claim's locked test is a file of `near/agents/job/`; its sha256 is the criteria hash every job for the claim is
 opened with on NEAR testnet, before any agent starts. Run a test on agent A's code with
@@ -24,7 +24,7 @@ Agent B's code (`fail_agent.py`, `*_b.py`) takes the usual shortcut and prints `
 says what the test checked and what it did not (the claim's page), and the AI reviewer can only turn
 a pass into a fail (`final_verdict` in `apps/wanted/knos_wanted/near_live.py`): DeepSeek V4.1 Flash on NEAR AI Cloud.
 
-### Knos on NEAR
+## Knos on NEAR
 
 **Why does good research take 17 years to reach people?** "It is frequently stated that it takes an average of 17
 years for research evidence to reach clinical practice" ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)).
@@ -57,7 +57,7 @@ visitor and fails on memory.
 
 *One job, two agents: only the output that passes the locked test is paid.*
 
-#### Do this, see that
+### Do this, see that
 
 On the public pages (no install, no sign-in, no wallet, test money only):
 
@@ -86,12 +86,12 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    "Does it hold?" and "100 behind it in 7 days?". Open a claim and click "Check the test against NEAR" - see
    "VERIFIED"; click "Change one byte and check again" - see "NOT VERIFIED".
 
-The same run, recorded from the public pages, front door first: [near/web/knos-near.mp4](near/web/knos-near.mp4) (58.6 s, no still over 4 s by ffmpeg freezedetect; its sound is a chord pad made by ffmpeg for this video, no outside music; each wait cut over 2 s is marked on screen; it ends on the agent call's answer, run during the recording).
+The same run, recorded from the public pages, front door first: [near/web/knos-near.mp4](../../near/web/knos-near.mp4) (58.6 s, no still over 4 s by ffmpeg freezedetect; its sound is a chord pad made by ffmpeg for this video, no outside music; each wait cut over 2 s is marked on screen; it ends on the agent call's answer, run during the recording).
 
-Screenshots: [first screen](near/web/knos-near-1-first.png), [the claim](near/web/knos-near-2-claim.png) and
-[what you got](near/web/knos-near-3-got.png).
+Screenshots: [first screen](../../near/web/knos-near-1-first.png), [the claim](../../near/web/knos-near-2-claim.png) and
+[what you got](../../near/web/knos-near-3-got.png).
 
-#### One call for agents
+### One call for agents
 
 An agent can run the whole flow with one HTTP call: look up the paper, prove the claim, pay, update the record.
 
@@ -101,7 +101,7 @@ An agent can run the whole flow with one HTTP call: look up the paper, prove the
   verified code), `"cap"` (the refused over-budget step), `"paid": true`, `"settled": true` (false, with `"why_not_settled"`, if a step failed) and `"receipt"` (the payments and each
   step's fee). It runs on testnet: the agent call allows four calls every 10 minutes from one address; the page's own proofs have their own limit, six every 10 minutes. The page has 20 live proofs a day and the agent call 10 of its own, which page proofs never use; after those the call answers with the last verified proof, marked `"reused": true`.
 
-#### Locally
+### Locally
 
 With Python 3.10+, from the repository's root, no key and nothing sent:
 
@@ -119,7 +119,7 @@ transactions):
    and refund after the deadline ([Try it on testnet](#try-it-on-testnet)).
 4. Run `bash near/scripts/verify.sh` - see the contract's sandbox tests and attacks pass ([Tests](#tests-on-near)).
 
-#### Safety, price and what is hard to copy
+### Safety, price and what is hard to copy
 
 **Safety.** The signing keys live only in the hosted server's secret store, never in the page or the repository. The
 paper link is the only data a buyer sends. Every push runs the full test suite on GitHub
@@ -157,7 +157,7 @@ Of what moves, the agent whose work passed gets 90% and Knos 10%; NEAR's market 
 [#41](https://github.com/drexthealpha/Knos/pull/41) and [#43](https://github.com/drexthealpha/Knos/pull/43), merged on 4
 Oct 2026; their 37.00 test USDC in bounties waits for them until they link a wallet.
 
-#### Accounts and records on NEAR testnet
+### Accounts and records on NEAR testnet
 
 | Account | What it does | Record |
 |---|---|---|
@@ -213,7 +213,7 @@ Spending limits cap what an agent may spend. The contract releases test tokens o
 | **Keys** | GitHub's signing keys are set by 2 of 3 owners (`scripts/github_keys.py`). |
 | **Network** | NEAR testnet only. Test money. |
 
-#### Run one now
+### Run one now
 
 Open [the Prove page](https://drexthealpha.github.io/Knos/prove/), keep the sample link and click
 **Will it work?**, then **Prove it with 10 test USDC**.
@@ -233,7 +233,7 @@ refuses agent B's over-budget spend there and then. Your payment and the record'
 It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test tokens only): 20 runs a day, six every
 10 minutes from one address. Once they are used, "Will it work?" says so before any order, with the time the next can start, and the agent call returns the last verified proof, marked `reused`, with `why_not_settled` naming the limit.
 
-#### Work in the window
+### Work in the window
 
 Every change since the work began: [pre-hackathon...main](https://github.com/drexthealpha/Knos/compare/pre-hackathon...main)
 (the tag `pre-hackathon` is the commit before the first line of `near/`).
@@ -243,7 +243,7 @@ hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK`, `
 (`a5fc5861…`, 280,651 bytes, is the jobs contract deployed at `jobs.knos-swarm-1105.testnet`). Building them again and
 every test: `bash near/scripts/verify.sh` (Rust with `wasm32-unknown-unknown` and `cargo-near` 0.22.0).
 
-#### Try it on testnet
+### Try it on testnet
 
 Your own copy of the contract, then a release and a refund. About 4 minutes after step 2. You need Python 3.10+ with `cryptography`, and [near-cli-rs](https://github.com/near/near-cli-rs/releases) 0.30.1.
 
@@ -255,7 +255,7 @@ Your own copy of the contract, then a release and a refund. About 4 minutes afte
 
 The page in `web/` runs the same flow from a browser (`python near/web/serve.py`, checked by `web/test-flow.mjs`), but on the maintainer's test accounts (`knos-*-1102.testnet`, `knos-pay2-1102`), whose keys only that machine holds; it does not use your account yet. `web/story/` takes a milestone apart as you scroll.
 
-#### A job two agents try
+### A job two agents try
 
 Post a job with a locked test and a bid; two agents take it; the checker runs the locked test on each output, and only
 the agent whose output passes is paid. You need Python 3.10+ with `cryptography` and near-cli-rs 0.30.1; it runs on the
@@ -266,7 +266,7 @@ maintainer's test accounts, whose keys only that machine holds (as the page in `
 3. Click **Try both** under Guardrails. You see two lines starting "refused", each with its transaction: a payment over agent B's cap, and a release with no passing proof.
 4. Open `http://127.0.0.1:8790/embed.html` from another page or origin and click **Pay with any wallet**. You see a NEAR Intents 1Click quote for paying 1 USDC from Base (dry: nothing is spent), then a second click pays the bid on testnet.
 
-The rules are in [`near/agents/RULES.md`](near/agents/RULES.md): the job's test is locked by its sha256 at funding, each agent is a
+The rules are in [`near/agents/RULES.md`](../../near/agents/RULES.md): the job's test is locked by its sha256 at funding, each agent is a
 sub-account of `knos-swarm-1105.testnet` that signs with a function-call key allowed only `take`, `submit` and `spend` on
 the jobs contract (its full-access key deleted), and the checker's key is set by 2 of the 3 owners.
 
@@ -287,10 +287,10 @@ Agent A was paid 1000; agent B was paid 0. NEAR Intents has no testnet, so the 1
 spent on mainnet. The checker runs an agent's output in a subprocess with a 20 s limit and no environment; it is a
 test-money demo, not a sandbox for hostile code.
 
-#### The claim market
+### The claim market
 
 Each claim has a yes/no market in test tokens: will its locked check pass? The contract is
-[`near/market/src/lib.rs`](near/market/src/lib.rs), deployed at `market.knos-swarm-1105.testnet` (wasm `wasm/knos_market.wasm`).
+[`near/market/src/lib.rs`](../../near/market/src/lib.rs), deployed at `market.knos-swarm-1105.testnet` (wasm `wasm/knos_market.wasm`).
 
 - **Price, no order book.** With few traders on testnet an order book sits empty, so the price comes from an automated
   market maker, Hanson's logarithmic market scoring rule (LMSR). Knos seeds each market with liquidity
@@ -305,11 +305,11 @@ Each claim has a yes/no market in test tokens: will its locked check pass? The c
   its criteria hash is locked at funding and only the named GitHub Actions workflow's own OIDC token can release it.
   `resolve` reads that milestone: Released settles Yes, Refunded (the deadline passed with no passing run) settles No.
   `vote` and `set_test` are refused, always. `redeem` pays each winning share.
-- **The first claim**: [`near/claims/Split.lean`](near/claims/Split.lean), "splitting a bid between two helpers never pays out
-  more than the bid". Its check is [`lean-claim.yml`](.github/workflows/lean-claim.yml): the proof must compile
+- **The first claim**: [`near/claims/Split.lean`](../../near/claims/Split.lean), "splitting a bid between two helpers never pays out
+  more than the bid". Its check is [`lean-claim.yml`](../../.github/workflows/lean-claim.yml): the proof must compile
   with Lean 4.15.0, then the run's token releases the milestone whose criteria hash is the file's sha256.
 
-#### Tests on NEAR
+### Tests on NEAR
 
 Every push that changes `near/` runs them on GitHub: [the `near-tests` runs](https://github.com/drexthealpha/Knos/actions/workflows/near-tests.yml).
 Open the newest run, then its `verify` job: the step `near/scripts/verify.sh` ends with the line below. With Rust
@@ -329,7 +329,7 @@ Or it is a second payment, an early refund or a release after the refund; for a 
 
 Measured: the release receipt burns 7.33 Tgas (11.68 Tgas for the whole transaction) in the latest verify.sh run (5 Nov 2026, a fresh clone); the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
 
-#### On testnet
+### On testnet
 
 | What | Where |
 |---|---|
@@ -344,7 +344,7 @@ Read the rules from the chain:
 near contract call-function as-read-only knos-pay-1103.testnet get_rules json-args '{}' network-config testnet now
 ```
 
-#### Paid on Solana by Chain Signatures
+### Paid on Solana by Chain Signatures
 
 `sign_payout` takes the unsigned Solana message for a released milestone. The contract accepts only one SPL `TransferChecked` of exactly the milestone's amount, in the mint and to the token account locked at funding, then asks `v1.signer-prod.testnet` (path `knos-solana-1`, Ed25519) to sign it. A relayer adds the signature and broadcasts; no Solana key is held anywhere.
 
@@ -366,19 +366,19 @@ A milestone released for a Solana payee with no payout signature by its deadline
 
 Not built: when a released Solana milestone is refunded on NEAR, the tokens already held by the derived address stay there; a signed transfer back to the funder is not written yet.
 
-#### The payee needs no NEAR for gas
+### The payee needs no NEAR for gas
 
 `relayer/relay.py` is a NEP-366 relayer that pays only for calls to one Knos contract (`knos-pay2-1102.testnet` in the test). `scripts/test_gasless.py` has the payee sign a release as a delegate action; the relayer sends it ([`4XpFZwBM…`](https://testnet.nearblocks.io/txns/4XpFZwBMGtkPWzCdkwLZkDtB95EPiAWUz7orAPRsyAJG)) and the payee's NEAR balance is the same to the yoctoNEAR.
 
 Every other call the test sends is refused, the token contract's `ft_transfer` among them, and the test prints each with the relayer's reason (the relayer also writes them to its local `relay.log`, not kept in the repository).
 
-#### An agent that checks who it pays
+### An agent that checks who it pays
 
 `agent/guard.py` answers allow, warn or block for a receiver, from chain: no such account or on the shared blocklist (`agent/blocklist.json`, each entry with its evidence) is a block; a contract, an account under 7 days old or code changed in the last day is a warning that a person resolves.
 
 `scripts/test_agent_guard.py` gives the agent a key that can call only `release`, `refund` and `sign_payout` here, then a task with an injected instruction to pay two other accounts: both are refused, and the chain refuses the key on the token contract.
 
-#### A locked eval
+### A locked eval
 
 `eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract, prints the counts with 95% Wilson intervals, and asserts them: every cheating attempt refused, every honest one paid, and plain CI pass/fail paying every cheat.
 
@@ -386,7 +386,7 @@ Read it for what it is. Each cheat is one of the four things the contract checks
 
 It does not measure cheats the contract does not look for: tests edited and merged to main are outside what it can see.
 
-#### Attacks on testnet
+### Attacks on testnet
 
 36 attacks and 4 controls, each a real transaction on the contract above. The first 37 rows were sent by `scripts/attack_testnet.py`, with tokens signed by an RSA-2048 test key that two owners set as kid `knos-test`, standing in for GitHub's key, so each row changes one thing.
 
@@ -435,7 +435,7 @@ The last 3 were sent by `.github/workflows/near-release.yml` ([run 41651312325](
 | the same real token on a second milestone of this workflow | refused | refused | this token was already used | [`HcZ8nBuQ…`](https://testnet.nearblocks.io/txns/HcZ8nBuQYuYU5LKRVceSfXVdqBnLrj1shyddj3EQBsM2) |
 | the same real token on a milestone funded for another workflow | refused | refused | the token comes from another workflow | [`2H16uPeH…`](https://testnet.nearblocks.io/txns/2H16uPeHibucBssbaEexq9TPyxqWx9hTjHKMRRfmJbfe) |
 
-#### Layout
+### Layout
 
 - `contract/`: the contract (`lib.rs`), RS256 (`rsa.rs`), token parsing (`jwt.rs`), the Solana payout check (`solana.rs`), unit tests (`tests.rs`, `tests/`).
 - `mock-usdc/`: a NEP-141 test token for the sandbox.
@@ -445,7 +445,7 @@ The last 3 were sent by `.github/workflows/near-release.yml` ([run 41651312325](
 
 Changes since the start of this work: [near-pre...main](https://github.com/drexthealpha/Knos/compare/near-pre...main).
 
-#### Disclosure
+### Disclosure
 
 Who wrote it: Claude Code (Anthropic's coding agent) wrote most of the code in this folder. The founder set each task and reviewed each change before it was merged. Commits carry the founder's account.
 

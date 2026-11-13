@@ -233,11 +233,15 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     page = cc.words("web/index.html")
     assert page.index(cc.SENTENCE) < page.index(cc.LONG)                 # what a work order is comes after, folded
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    # Round 9, U1: the README's first screen says what Knos is, then the problem, then a row per contest, in at most 40
+    # lines; the whole README is at most 250 lines; its old reference sections are docs/reference/COLOSSEUM.md
     first = readme.split("</h1>", 1)[1].split("\n## ", 1)[0]             # what GitHub shows before scrolling, under the header
     lines = [line for line in first.splitlines() if line.strip()]
     merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]
     number = f"Of {merged['prs']} merged agent pull requests claiming passing tests, {merged['test_or_build_check_failed']['prs']} failed a test, build, lint or type check."
-    assert lines and len(lines) <= 5
+    assert lines and len(first.splitlines()) <= 40 and len(readme.splitlines()) <= 250
+    for row in ("From NEAR HACKATHON", "From the InterSystems contest", "From Colosseum"):
+        assert f"| {row} |" in first and f"\n## {row}\n" in readme, row
     hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
     # the check of agent work (one use of Knos) leads with what it does, says it is one use, then Knos in a few words and
     # the number; the one sentence is folded under "What is here", before what a work order is
@@ -245,37 +249,28 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     # one h1 on the page, the demand check's mission; this use heads its own section under it (d6b6360)
     assert f">{use}</h2>" in hero and 'id="hero-who"' in hero and f">{short}</p>" in hero
     assert hero.index(use) < hero.index('id="hero-who"') < hero.index(short) < hero.index('id="hero-fact"')
-    paid = readme.split("\n## Paid on proof\n", 1)[1].split("\n## ", 1)[0]
-    assert "/docs/diagrams/" in paid and "referees" in paid and number not in readme          # the old number is no longer told
-    said = re.sub(r"\]\([^)]*\)", " ", first).replace("**", " ")
-    assert len(re.findall(r"[A-Za-z0-9][\w'%.,-]*", said)) <= 64, said
-    # under it, in plain words (tests/test_readme_plain.py reads them): how it works, paid on proof, the ten-second
-    # check, why nobody can fudge the count, then "Is it real?" over the table, then the commands
-    plain = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", readme, flags=re.S)      # the contest's own sections
-    parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", plain.split("\n---\n", 1)[0])[1:])] * 2))
+    ref = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
+    paid = ref.split("\n## Paid only when the proof passes\n", 1)[1].split("\n## ", 1)[0]
+    assert "/docs/diagrams/" in paid and "referees" in paid and number not in readme and number not in ref    # the old number is no longer told
+    # in plain words (tests/test_readme_plain.py reads them): how it works, paid only when the proof passes, the
+    # ten-second check, why nobody can fudge the count, then "Is it real?" over the table, then the commands
+    parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", ref.split("\n---\n", 1)[0])[1:])] * 2))
     how, fudge, real = "How it works", "Why nobody can fudge the count", "Is it real?"
-    assert "](docs/reference/DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://drexthealpha.github.io/Knos/)" in parts["Try it in ten seconds"]   # the front door (Round 7: the old app left the public pages)
+    assert "](DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://drexthealpha.github.io/Knos/)" in parts["Try it in ten seconds"]   # the front door
     assert "knos demand " in parts["From a terminal"] and "/api/check" in parts["From a terminal"]
-    assert list(parts)[:2] == ["How it works today", how] and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself")
-    assert parts[real].split("<!-- bench:today -->")[0].count("](docs/reference/DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]
+    assert list(parts)[0] == how and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself")
+    assert parts[real].split("<!-- bench:today -->")[0].count("](DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]
     for zero in ("| 0 |", "Outside funders", "Letters of intent"):                         # no list of zeros above the table
-        assert zero not in readme.split("## Is it real?")[0], zero
+        assert zero not in ref.split("## Is it real?")[0], zero
     # one table says what is real, with the numbers of NUMBERS.md in a block this script writes; then one link onward
     bd = _script("bench_docs")
-    table = bd.today(json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8")), bd.repo_numbers())
+    table = bd.from_reference(bd.today(json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8")), bd.repo_numbers()))
     assert table in parts[real] and parts[real].count("\n| ") == table.count("\n| ") + 1
     for row in ("| Outside funders | 0 |", "| Buyer interviews held | 0 |", "| Letters of intent | 0 |", "| Shadow counts published | 0 |",
                 "| Paying customers | 0 |", "| Outside security review | none |"):
         assert row in table, row
-    # 190: the eight questions people search (tests/test_seo.py) add 34 lines below the first screen, which holds its
-    # sixty-four words above; the readability tests hold the whole page (tests/test_readme_plain.py)
-    # blank lines between blocks are free: the bound counts the lines a reader reads
-    # the table of every program and its upgrade authority is written from devnet (scripts/program_authorities.py): not counted
-    read = readme.split("<!-- authorities:start -->")[0] + readme.split("<!-- authorities:end -->")[1]
-    # the IRIS and NEAR sections between their entry marks are the contests' long form: not counted
-    read = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", read, flags=re.S)
-    assert len([line for line in read.splitlines() if line.strip()]) < 145 and "first milestone" not in readme
-    assert "](docs/README.md)" in parts["Read more"] and "](docs/NUMBERS.md)" in readme and "](docs/reference/CAPABILITIES.md)" in readme
+    assert "first milestone" not in readme and "first milestone" not in ref
+    assert "](../README.md)" in parts["Read more"] and "](../NUMBERS.md)" in ref and "](CAPABILITIES.md)" in ref
     # what the front page no longer lists is on the map of the documents
     docs_map = (ROOT / "docs" / "reference" / "README.md").read_text(encoding="utf-8")
     for doc in ("SHADOW", "PLAYGROUND", "VERIFIER", "COMPANIES", "TERMS", "PROVENANCE", "CONFORMANCE", "UNWRAPS", "CAPABILITIES"):

@@ -67,7 +67,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ["README.md", "docs/reference/BENCH.md", "docs/NUMBERS.md"]
+DOCS = ["README.md", "docs/reference/BENCH.md", "docs/NUMBERS.md", "docs/reference/COLOSSEUM.md"]   # COLOSSEUM.md: refpage.PAGE
 # The front-facing text (scripts/claims_check.py reads the same list): every number in it needs a fact.
 PITCH = ["README.md", "web/index.html"]
 # The other files that may carry slots. Everything a reader opens first states a release-measured fact through one, so that the
@@ -623,6 +623,18 @@ def devnet_first(f: dict) -> str:
             f"({f['outside_prs']}); they had not been merged when this was read.")
 
 
+def from_reference(text: str) -> str:
+    """A block written for the repository root, with its relative links rewritten for a page in docs/reference/ (the
+    README's old sections moved there, Round 9 U1)."""
+    def fix(m):
+        url = m.group(2)
+        if re.match(r"^(https?:|mailto:|#|/|\.\./)", url):
+            return m.group(0)
+        new = url[len("docs/reference/"):] if url.startswith("docs/reference/") else "../" + url[5:] if url.startswith("docs/") else "../../" + url
+        return f"{m.group(1)}{new})"
+    return re.sub(r"(\]\()([^)\s]+)\)", fix, text)
+
+
 def apply(text: str, gen: dict[str, str]) -> str:
     def repl(m):
         name = m.group(1)
@@ -834,7 +846,7 @@ def main(check: bool = False, root: Path = ROOT) -> int:
         if not p.is_file():
             continue
         old = p.read_text(encoding="utf-8")
-        new = apply(old, gen)
+        new = apply(old, {k: from_reference(v) for k, v in gen.items()} if d == "docs/reference/COLOSSEUM.md" else gen)
         if new != old:
             drift.append(d)
             if not check:

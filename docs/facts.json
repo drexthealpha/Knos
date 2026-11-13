@@ -86,6 +86,7 @@
    "say": [
     "0.05"
    ],
+   "doc": "docs/reference/COLOSSEUM.md",
    "what": "the minimum fee, in a token with 6 decimals such as USDC",
    "file": "programs-v2/knos_pay/src/lib.rs",
    "has": "pub const FEE_MIN: u64 = 50_000;"
@@ -94,6 +95,7 @@
    "say": [
     "1%"
    ],
+   "doc": "docs/reference/COLOSSEUM.md",
    "what": "the release fee decided 23 Oct 2026, paid by the company on top; not on chain until the timelocked upgrade",
    "file": "config/fees.yaml",
    "has": "    rate_bps: 100"
@@ -102,6 +104,7 @@
    "say": [
     "100%"
    ],
+   "doc": "docs/reference/COLOSSEUM.md",
    "what": "the solver keeps 100% of what they are paid; the company pays the payment costs on top of the 1% release fee",
    "file": "config/fees.yaml",
    "has": "the solver keeps 100%\""
@@ -122,6 +125,7 @@
    "say": [
     "10"
    ],
+   "doc": "docs/reference/COLOSSEUM.md",
    "what": "demand checks a month that are free, decided 23 Oct 2026",
    "file": "config/fees.yaml",
    "has": "    free_a_month: 10"
@@ -643,6 +647,7 @@
    "say": [
     "70"
    ],
+   "doc": "iris/media/README.md",
    "what": "the length in seconds of the IRIS video file, iris/media/knos-iris.mp4, with its live-run card (12 Nov)",
    "file": "iris/media/README.md",
    "has": "knos-iris.mp4`: 70 seconds"

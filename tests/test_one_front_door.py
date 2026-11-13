@@ -86,7 +86,8 @@ def test_every_description_is_a_sentence_of_facts_json():
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["description"]
     assert {pyproject, npm, server} <= said, {pyproject, npm, server} - said
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert readme.split("</h1>", 1)[1].strip().startswith("**Why does good research take 17 years")   # the first line's question
-    assert facts["l1"] not in readme and facts["l2"] not in readme   # the hackathon's rule: no marketing in the README
-    tens = (ROOT / "README.md").read_text(encoding="utf-8").split("## Try it in ten seconds", 1)[1].split("\n## ", 1)[0]
+    first = readme.split("</h1>", 1)[1].strip()
+    assert first.startswith("Knos checks whether a research paper's claim holds") and "17 years" in first.split("\n## ", 1)[0]   # U1: what it is, then the problem
+    assert facts["l2"] not in readme and readme.count(facts["l1"]) == 1 and readme.index(facts["l1"]) > readme.index("\n## Why\n")   # the GOAL once, under Why
+    tens = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8").split("## Try it in ten seconds", 1)[1].split("\n## ", 1)[0]
     assert tens.strip().startswith("Open [the front door](https://drexthealpha.github.io/Knos/)")   # the front door (web/door.html)

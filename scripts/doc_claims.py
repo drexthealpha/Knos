@@ -216,10 +216,15 @@ def programs_table(root: Path = ROOT) -> str:
     return "\n".join(lines)
 
 
-def _blocks(text: str, root: Path) -> str:
+def _blocks(text: str, root: Path, doc: str = "") -> str:
     if PROGRAMS_START in text and PROGRAMS_END in text:
         a, b = text.index(PROGRAMS_START) + len(PROGRAMS_START), text.index(PROGRAMS_END)
-        text = text[:a] + "\n" + programs_table(root) + "\n" + text[b:]
+        body = programs_table(root)
+        if doc == "docs/reference/COLOSSEUM.md":   # the README's old reference sections (scripts/refpage.py)
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import refpage
+            body = refpage.relink(body)
+        text = text[:a] + "\n" + body + "\n" + text[b:]
     return text
 
 
@@ -271,7 +276,7 @@ def write(root: Path = ROOT) -> list[str]:
         if not doc.endswith(".md"):
             continue
         old = (root / doc).read_text(encoding="utf-8")
-        new = _blocks(old, root)
+        new = _blocks(old, root, doc)
         lines = new.split("\n")
         for i, _ids, _cell, line in _stage_tables(new, root, known):
             lines[i] = line
@@ -456,7 +461,7 @@ def _problems(root: Path) -> list[str]:
                 ids = re.findall(r"`([a-z][a-z0-9_]*)`", m.group(1))
                 if set(ids) <= known and m.group(2).strip() != stage_words(ids, root):
                     say(f"says {m.group(1)} is {m.group(2).strip()!r}, and {MANIFEST} says {stage_words(ids, root)!r}")
-            if _blocks(text, root) != text:
+            if _blocks(text, root, doc) != text:
                 say("the table of programs is not what the manifest says (`python scripts/doc_claims.py --write`)")
     if len(totals) > 1:
         out.append("the total of payments on devnet has " + f"{len(totals)} values: " + "; ".join(f"{n} in {', '.join(d)}" for n, d in totals.items()))

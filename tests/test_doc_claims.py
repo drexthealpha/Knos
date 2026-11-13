@@ -156,8 +156,8 @@ def test_a_stage_cell_is_the_manifests_words_and_follows_the_manifest(tree):
     other = "2.0" if data["programs"]["knos_pay"]["on_chain"] != "2.0" else "2.1"      # a version the committed table does not give
     data["programs"]["knos_pay"]["on_chain"] = other
     (tree / dc.MANIFEST).write_text(json.dumps(data), encoding="utf-8")
-    _found(tree, "README.md", "the table of programs is not what the manifest says")
-    assert "README.md" in dc.write(tree) and f"`knos-pay`, the payment program | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | runs `{other}`" in (tree / "README.md").read_text(encoding="utf-8")
+    _found(tree, "docs/reference/COLOSSEUM.md", "the table of programs is not what the manifest says")
+    assert "docs/reference/COLOSSEUM.md" in dc.write(tree) and f"`knos-pay`, the payment program | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | runs `{other}`" in (tree / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
 
 
 def test_no_document_names_a_time_for_the_pending_upgrade_that_the_upgrade_record_does_not_have(tree):
@@ -202,7 +202,7 @@ def test_the_release_needs_no_time_that_exists_only_after_the_push():
     release = " ".join((ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8").split())
     assert "## Nothing after the push goes into a commit" in (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
     assert "never by a second commit" in release and "upgrade_proposed" not in release and "--set upgrade" not in release
-    for doc in ("README.md", "docs/reference/SECURITY.md"):                # where the time used to be stamped: they point at the record
+    for doc in ("docs/reference/COLOSSEUM.md", "docs/reference/SECURITY.md"):                # where the time used to be stamped: they point at the record
         text = " ".join((ROOT / doc).read_text(encoding="utf-8").split())
         assert "names no time for" in text and "upgrades.json" in text and "knos status" in text
     assert not [f for f in json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))["facts"] if "text" in f]

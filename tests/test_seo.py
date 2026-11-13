@@ -107,7 +107,7 @@ def sentence() -> str:
 
 def readme_questions() -> list[tuple[str, str]]:
     """README.md's "Questions": (question, answer) with the links' targets taken out."""
-    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")      # the README's old reference sections (Round 9, U1)
     part = text.split("\n## Questions\n", 1)[1].split("\n## ", 1)[0]
     pairs = re.findall(r"(?m)^### (.+)\n\n(.+)$", part)
     return [(q, re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", a)) for q, a in pairs]
@@ -169,8 +169,8 @@ def test_the_answers_agree_with_the_tree():
     assert "demand check" in (ROOT / "docs" / "PRICING.md").read_text(encoding="utf-8")
     assert answers["What is Knos?"] == "Knos takes research from a paper to a product people want."
     assert "across the valley of death" in sentence()                                           # the one sentence
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "The money waits in a program on [Solana](docs/WORDS.md#solana), not with Knos." in readme
+    readme = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
+    assert "The money waits in a program on [Solana](../WORDS.md#solana), not with Knos." in readme
     assert "Today one person can still change that program, after a public wait" in readme
     assert "test dollars" in answers["Does Knos use real money?"] and "NEAR testnet" in answers["Does Knos use real money?"]   # the paper proof runs on NEAR testnet
     assert "LIMIT_S = 10" in (WEB / "check.js").read_text(encoding="utf-8")                  # "within ten seconds"

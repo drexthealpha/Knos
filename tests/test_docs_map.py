@@ -70,22 +70,22 @@ def test_every_reference_document_is_on_the_reference_map_once_under_one_of_six_
 
 def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
     # the IRIS and NEAR sections (between their entry marks) are the contests' long form, outside the front page's parts
-    readme = re.sub(r"<!-- entry:(\w+) -->.*?<!-- /entry:\1 -->", "", read("README.md"), flags=re.S)
+    readme = read("docs/reference/COLOSSEUM.md")      # the README's old reference sections (Round 9, U1)
     above, below = readme.split("\n---\n", 1)
     # in plain words: how it works (the valley: demand, Ready, vault, proof), one use of it (paying AI agents for
     # verified pull requests; the bounty is the smallest example), the ten-second check, why nobody can fudge the
     # count, whether it is real (the table of today's numbers); where to check every claim (the release page), the number, words,
     # the questions people search (tests/test_seo.py)
-    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works today", "How it works", "Paid on proof", "Try it in ten seconds",
+    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works", "Paid only when the proof passes", "Try it in ten seconds",
                                                     "Why nobody can fudge the count", "Is it real?", "From a terminal",
                                                     "Check every claim yourself", "Words", "Questions", "Read more"]
     more = above.split("## Read more")[1]
-    assert links(more) == ["docs/START.md", "docs/PRICING.md", "docs/TRUST.md", "docs/STORY.md", "docs/README.md"]
+    assert links(more) == ["../START.md", "../PRICING.md", "../TRUST.md", "../STORY.md", "../README.md"]
     real = [line for line in above.split("## Is it real?")[1].split("<!-- bench:today -->")[0].splitlines() if line.strip()]
-    assert len(real) == 3 and [links(line) for line in real].count(["docs/reference/DISCLOSURE.md"]) == 1      # three plain lines, one link to the limits
+    assert len(real) == 3 and [links(line) for line in real].count(["DISCLOSURE.md"]) == 1      # three plain lines, one link to the limits
     for said in ("devnet", "test USDC", "test money only", "no customers yet", "One person holds every key today"):
         assert said in " ".join(real), said
-    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "/docs/diagrams/" in above.split("## Paid on proof\n")[1].split("\n## ")[0]
+    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "/docs/diagrams/" in above.split("## Paid only when the proof passes\n")[1].split("\n## ")[0]
     table = above[above.index("<!-- bench:today -->"):above.index("<!-- /bench:today -->")]
     numbers = read("docs/NUMBERS.md")
     printed = re.findall(r"(?m)^\| \d \| ([^:|]+)[^|]*\| (\d+) \|", numbers)
@@ -94,7 +94,7 @@ def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
         assert re.search(rf"(?m)^\| {re.escape(what.strip())} \| {value}\b", table), what
     assert "<!-- programs:start -->" in below and "<!-- capabilities:start -->" in below and "## " not in below
     for rel in links(readme):
-        assert rel.startswith("https://") or (ROOT / rel).exists(), rel
+        assert rel.startswith("https://") or (DOCS / "reference" / rel).exists(), rel
 
 
 def test_the_story_is_one_crossing_each_step_with_evidence_that_exists_and_asks_for_three_things():
@@ -200,7 +200,7 @@ def test_the_release_manifest_is_what_its_sources_give_and_states_what_is_live_f
     assert len(limits) == len(set(limits)) >= 10 and all(page.count(line) == 1 for line in limits)
     assert all("\n" not in line and line.startswith("- **") for line in limits)             # one line each
     assert not re.search(r"\b20\d\d-\d\d-\d\d", page)                                       # no time is printed
-    for rel in ("README.md", "docs/reference/README.md", "docs/STORY.md"):
+    for rel in ("docs/reference/COLOSSEUM.md", "docs/reference/README.md", "docs/STORY.md"):
         assert "MANIFEST.md" in read(rel), rel
 
 

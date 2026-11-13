@@ -76,7 +76,7 @@ def test_the_ipm_module_installs_outside_this_image():
 
 
 def test_readme_keeps_the_idea_link_in_plain_words():
-    whole = (ROOT / "README.md").read_text(encoding="utf-8")
+    whole = (ROOT / "docs" / "reference" / "IRIS.md").read_text(encoding="utf-8")      # Round 9, U1
     text = whole[whole.index("\n## Run it on IRIS\n"):]
     text = text[:text.index("\n## ", 5)]
     assert "https://ideas.intersystems.com/ideas/DPI-I-689" in text

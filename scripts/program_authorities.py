@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from knos import chain  # noqa: E402
 
 OUT = ROOT / "docs" / "program_authorities.json"
-README = ROOT / "README.md"
+README = ROOT / "docs" / "reference" / "COLOSSEUM.md"   # the README's old reference sections (scripts/refpage.py)
 START, END = "<!-- authorities:start -->", "<!-- authorities:end -->"
 UPGRADEABLE = "BPFLoaderUpgradeab1e11111111111111111111111"
 SECOND = json.loads((ROOT / "src" / "knos" / "settle" / "v2" / "program_ids.json").read_text(encoding="utf-8"))

@@ -194,19 +194,23 @@ def problems(root: Path = ROOT) -> list[str]:
     out += version_problems(root)
     readme = root / "README.md"
     if readme.is_file():
-        # the README opens with the first line's question (web/brand/first.html) and carries no marketing line:
-        # NEAR HACKATHON's rules ask for "do X - see Y" steps and "No marketing."
+        # Round 9, U1: the README opens with what Knos is, then the problem (the 17 years), with no marketing line; the
+        # GOAL line (l1) appears once, at the end, under "Why"; NEAR HACKATHON's rules ask for "do X - see Y" steps
         text = readme.read_text(encoding="utf-8")
         first = next(iter(_prose(text)), "").strip()
-        if not first.startswith(K1):
-            out.append(f"README.md: the first line of text is not the 17-year question: {first[:120]}")
-        for line in LINES:
+        head = text.split("\n## ", 1)[0]
+        if not first.startswith(K1) or "17 years" not in head:
+            out.append(f"README.md: the first line of text does not say what Knos is, then the problem (17 years): {first[:120]}")
+        goal, why = LINES[0], text.split("\n## Why\n", 1)
+        if text.count(goal) > 1 or (goal in text and (len(why) < 2 or goal not in why[1])):
+            out.append(f"README.md: the GOAL line, at most once and only under Why: {goal}")
+        for line in LINES[1:]:
             if line in text:
                 out.append(f"README.md: a marketing line, against the hackathon's rule: {line}")
     return out
 
 
-K1 = "**Why does good research take 17 years to reach people?**"
+K1 = "Knos checks whether a research paper's claim holds"   # Round 9, U1: what Knos is, first
 
 
 def _prose(text: str):
