@@ -22,25 +22,23 @@
   },
   "2026-11-13": {
    "backed": 0,
-   "came_back": 1,
+   "came_back": 0,
    "events": {
-    "leave": 431,
-    "press": 33,
-    "slow": 1,
-    "view": 285
+    "leave": 55,
+    "view": 11
    },
-   "first_press": 20,
+   "first_press": 0,
    "first_result": 0,
    "leave_from": {
-    "/": 134,
-    "/agents/": 48,
-    "/check/": 90,
-    "/claims/": 50,
-    "/prove/": 49
+    "/": 29,
+    "/agents/": 2,
+    "/check/": 16,
+    "/claims/": 4,
+    "/prove/": 4
    },
    "not_what": {},
    "proof_finished": 0,
-   "visits": 311
+   "visits": 24
   }
  }
 }

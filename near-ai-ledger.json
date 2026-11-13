@@ -78,6 +78,32 @@
    "tokens_in": 1096,
    "tokens_out": 41
   },
+  "76c508f8d04a83391e98f76e1fb7769695b277da3463b8f595e6c9c7c50c9fa6": {
+   "at": 1794568071,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "f766d48de7a625ff86becea2c8de76c0b587cd9d4ebd2de9dd9e18f4d9252e82",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000644,
+   "finish": "stop",
+   "id": "chatcmpl-cbe8539f-f581-4338-b87f-5e505e2a0753",
+   "kind": "write",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 22.3,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e"
+   },
+   "text": "```python\nimport hashlib\nimport math\nimport pickle\n\nclass Counter:\n    def __init__(self, p=10):\n        self.p = p\n        self.m = 1 << p\n        self.registers = bytearray(self.m)\n\n    def _hash(self, item):\n        h = hashlib.md5(str(item).encode()).digest()\n        return int.from_bytes(h[:8], 'big')\n\n    def add(self, item):\n        h = self._hash(item)\n        idx = h >> (64 - self.p)\n        w = h & ((1 << (64 - self.p)) - 1)\n        if w == 0:\n            rank = 64 - self.p + 1\n        else:\n            rank = (64 - self.p) - w.bit_length() + 1\n        if rank > self.registers[idx]:\n            self.registers[idx] = rank\n\n    def count(self):\n        m = self.m\n        alpha = 0.7213 / (1 + 1.079 / m)\n        s = sum(2.0 ** (-r) for r in self.registers)\n        e = alpha * m * m / s\n        if e <= 2.5 * m:\n            v = self.registers.count(0)\n            if v > 0:\n                e = m * math.log(m / v)\n        return int(round(e))\n\n    def __getstate__(self):\n        return (self.p, bytes(self.registers))\n\n    def __setstate__(self, state):\n        self.p, regs = state\n        self.m = 1 << self.p\n        self.registers = bytearray(regs)\n```",
+   "tokens_in": 684,
+   "tokens_out": 366
+  },
   "b4090a1d7c8146fc20fa093616fd188bb7e7a6125e9829be7609abed9b507857": {
    "at": 1794530408,
    "attestation": {
@@ -105,9 +131,9 @@
    "tokens_out": 124
   }
  },
- "calls": 9,
+ "calls": 10,
  "day": "2026-11-13",
  "iris_usd": 0.001662,
- "spent_usd": 0.002958,
- "today": 4
+ "spent_usd": 0.003602,
+ "today": 5
 }
