@@ -38,6 +38,11 @@ ClassMethod Health() As %Status
     set mode = $select($system.Util.GetEnviron("KNOS_AI_MODE")="live" && ($system.Util.GetEnviron("ANTHROPIC_API_KEY")'=""):"live", $system.Util.GetEnviron("KNOS_AI_MODE")="local":"local", 1:"replay")
     set out = {"production": ($case(state, 1:"Running", 2:"Stopped", 3:"Suspended", 4:"Troubled", :"Not running")), "name": (prod),
       "agent": (mode), "provider": ($select(mode="local":"openai ("_$select($system.Util.GetEnviron("KNOS_LOCAL_LLM_URL")["near.ai":"NEAR AI Cloud", 1:"ollama")_")", 1:$system.Util.GetEnviron("KNOS_LLM_PROVIDER"))), "model": ($select(mode="local":##class(Knos.Iris.AI.Referee).LocalModel(), 1:"")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector()), "embedding": (##class(Knos.Iris.Py.Embed).Model()), "llm_calls": (+$get(^Knos.LLM("calls"))), "llm_usd": (+$get(^Knos.LLM("usd")))}
+    // the model service left alone after a failed call (Knos.Iris.AI.Referee.AskLocal): say so, and until when
+    set now = ($piece($horolog, ",", 1) * 86400) + $piece($horolog, ",", 2), down = $get(^Knos.LLM("down"))
+    if (down '= "") && ((now - $list(down, 1)) < 300) {
+        set out."model_note" = "The model service did not answer just now ("_$list(down, 2)_"): the fixed rule decides samples for about "_(((300 - (now - $list(down, 1))) \ 60) + 1)_" more minutes, and each decision says so."
+    }
     write out.%ToJSON()
     return $$$OK
 }

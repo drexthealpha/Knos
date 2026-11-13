@@ -41,8 +41,8 @@ claim and test is reused and says so, with its call id); a second model call rev
    [one finished order](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1113171221, 13 Nov), saved as the page showed it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
    and why. Then see "Receipt for proof job-..." with "9.00 test USDC to the agent, 1.00 test USDC to Knos" and "One
-   transaction splits it", linked on the NEAR explorer ([one from 13 Nov](https://testnet.nearblocks.io/txns/9j5rTduPNkKS9eibA9MRhfdmpUaMe4it4ScyjwPgnuAs);
-   if the explorer asks for a bot check, `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["9j5rTduPNkKS9eibA9MRhfdmpUaMe4it4ScyjwPgnuAs","live.knos-swarm-1105.testnet"]}'`
+   transaction splits it", linked on the NEAR explorer ([the saved order's split](https://testnet.nearblocks.io/txns/4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq);
+   if the explorer asks for a bot check, `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction).
    Press **Prove the same claim again** - see "Free: Yes".
 4. From a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
@@ -75,6 +75,7 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 | Contracts | the jobs contract locks each test's sha256 and pays the passing agent; the claim contract keeps each claim's record and its two markets; the 90/10 split is one transaction | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 | Agent spending caps | the key each agent works with can call only the jobs contract, and a step over its cap is refused on chain (no agent account in use holds a full-access key: NEAR testnet's `view_access_key_list`) | the receipt's "spending cap" step |
 | Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified before the page says "private" | `apps/wanted/knos_wanted/near_attest.py` |
+| Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
 | Chain Signatures | a NEAR account pays a Solana address on devnet | [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 
 ### The diff, disclosure and libraries

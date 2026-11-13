@@ -7,7 +7,7 @@ An IRIS Interoperability production where an AI Hub agent decides if a lab's loc
 - Video, 43 s, a live run on 13 Nov 2026: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4)
 - [Judge it in 2 minutes](#judge-it-in-2-minutes): on the online demo, or with one command on your machine.
 
-Built and tested on build 154 (`irishealth-community-2026.3.0AI.154.0`).
+Built and tested on build 154 (`irishealth-community-2026.3.0AI.154.0`). Build 109, which the portal lists now, has not been tested.
 
 ## The lab's story
 
@@ -30,7 +30,8 @@ On the online demo:
 1. Open the demo link above (press Continue on GitHub's notice) - see "Decisions" and three sample buttons.
 2. Press **A passing test, $20** - see a new decision marked paid: "Paid in play money".
 3. Click that decision - see "How it decided": the referee's model call on NEAR AI Cloud with its tokens and cost, and the
-   session's messages read from IRIS.
+   session's messages read from IRIS. When NEAR AI Cloud does not answer, a line above the buttons says so, the fixed
+   rule decides, and the referee row says why.
 
 On your machine, with Docker and about 4 GB free (the first build takes about 4 minutes):
 
@@ -79,8 +80,10 @@ bash scripts/env-secrets.sh && docker compose up -d --build
 bash scripts/ready.sh
 ```
 
-When `ready.sh` prints `READY`, open http://localhost:52773/knos/ and press **A passing test, $20**. Replay mode, the
-default, needs no key; the model, its provider and its key are set in `iris/.env`
+When `ready.sh` prints `READY`, open http://localhost:52773/knos/ and press **A passing test, $20**. It starts in replay
+mode, where the rules referee decides and no model is asked. To run the AI Hub agent, set `KNOS_AI_MODE=local` in
+`iris/.env` and start with `docker compose --profile local up -d --build` (a local model, no key); the model, its provider
+and its key are set in `iris/.env`
 ([the full IRIS reference](https://github.com/drexthealpha/Knos/blob/main/docs/reference/IRIS.md)).
 
 ## Why I built this

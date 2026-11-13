@@ -141,6 +141,7 @@ main > * { min-width: 0; }
       <button type="button" data-sample="big">A passing test, $120: a person must say yes</button>
     </div>
     <p class="fine">Test money only. No sign-in needed: this is the built-in demo.</p>
+    <p class="fine" id="model-note" role="status" hidden></p>
     <p class="fine" id="hours" hidden>Online until 23:00 UTC tonight, 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov.</p>
   </section>
 
@@ -152,7 +153,7 @@ main > * { min-width: 0; }
   <section class="panel" aria-labelledby="t-dec">
     <h2 id="t-dec">Latest decisions</h2>
     <table class="dec">
-      <thead><tr><th scope="col">Job</th><th scope="col">Result</th><th scope="col" class="n">Confidence (rules referee in replay mode, AI in live mode)</th><th scope="col" class="n rec">Record</th><th scope="col">What happened</th></tr></thead>
+      <thead><tr><th scope="col">Job</th><th scope="col">Result</th><th scope="col" class="n">Confidence</th><th scope="col" class="n rec">Record</th><th scope="col">What happened</th></tr></thead>
       <tbody id="decisions"><tr><td colspan="5" class="empty">Loading.</td></tr></tbody>
     </table>
   </section>
@@ -355,6 +356,9 @@ async function showHub(brief) {
   }
 }
 $("refresh").addEventListener("click", load);
+// when the model service did not answer just now, say so above the sample buttons (the health answer's model_note)
+async function noteModel() { try { const h = await api("health"); $("model-note").textContent = h.model_note || ""; $("model-note").hidden = !h.model_note; } catch (e) { /* no health answer: nothing to say */ } }
+setTimeout(() => { if ("demo" in document.body.dataset) noteModel(); }, 2500);   // the built-in demo only: no sign-in is asked for
 if (location.hostname.endsWith(".app.github.dev")) {   // the online demo's hours, on the online demo only: the windows not yet over
   const W = [["2026-11-13T23:00Z", "until 23:00 UTC on 13 Nov"], ["2026-11-14T23:00Z", "13:00 to 23:00 UTC on 14 Nov"], ["2026-11-16T05:00Z", "13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov"]];
   const left = W.filter(([end]) => Date.parse(end) > Date.now()).map(([, say]) => say);
@@ -365,7 +369,7 @@ for (const b of document.querySelectorAll("[data-sample]")) {
   b.addEventListener("click", async () => {
     for (const x of document.querySelectorAll("[data-sample]")) x.disabled = true;
     toast("Sending. The decision takes up to a minute when the AI Hub agent asks its model.", 90000);
-    try { await api("sample/" + b.dataset.sample, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: "{}" }); toast(SAID[b.dataset.sample]); selected = 0; await load(); }
+    try { await api("sample/" + b.dataset.sample, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: "{}" }); toast(SAID[b.dataset.sample]); selected = 0; await load(); noteModel(); }
     catch (e) {
       // a gateway that gives up first (HTTP 504) does not stop the decision: say so, and read the list again until it shows
       toast("No answer in time (" + e.message + "). The decision may still arrive: the list below refreshes for a minute.");

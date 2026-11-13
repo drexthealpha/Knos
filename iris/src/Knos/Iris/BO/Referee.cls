@@ -36,7 +36,7 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
         set out = ##class(Knos.Iris.Py.Verdict).Decide(pRequest.BriefJSON, pRequest.Kind, pRequest.PayloadJSON, hash)
     }
     set v = {}.%FromJSON(out)
-    if fixed '= "" { set v.model = "rules referee: "_fixed_", so the fixed rule decided this sample", out = v.%ToJSON() }
+    if fixed '= "" { set v.model = "rules referee: "_fixed_", so the fixed rule decided this sample", v.referee = v.model, out = v.%ToJSON() }
     set pResponse = ##class(Knos.Iris.Msg.Verdict).%New()
     set pResponse.Decision = v.decision, pResponse.Confidence = v.confidence, pResponse.CriteriaHash = v."criteria_hash"
     set pResponse.MilestonesJSON = v.milestones.%ToJSON(), pResponse.Model = v.model, pResponse.Mode = mode
