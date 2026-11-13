@@ -91,37 +91,48 @@ yourself): [docs/reference/NEAR.md](docs/reference/NEAR.md).
 <!-- entry:iris -->
 ## From the InterSystems contest
 
-Inside InterSystems IRIS, a production checks each research step's test result before that step is paid: an AI Hub
-agent reads the result, a rule decides, and above $50 a person must also approve.
+An InterSystems IRIS production pays each step of lab work only when its test passed: an AI Hub agent reads the result,
+a rule decides, and above $50 a person approves.
 
-- Online demo: not hosted yet.
-- Video: [the InterSystems Developers YouTube channel](https://www.youtube.com/watch?v=s4YNmcEm-M8); the file,
-  [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4) (70 s, with the live AI Hub run of 12 Nov at its end).
-- Code: [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the root.
+- Online demo: not hosted yet ([why](docs/reference/IRIS.md)).
+- Video: [YouTube](https://www.youtube.com/watch?v=s4YNmcEm-M8); MP4: [iris/media/knos-iris.mp4](iris/media/knos-iris.mp4)
+  (70 s, the live AI Hub run of 12 Nov at its end).
+- [Judge it in 2 minutes](#judge-it-in-2-minutes-on-iris): one command, no InterSystems login, no key.
 
-### Judge it in 2 minutes
+### Judge it in 2 minutes on IRIS
 
-You need Docker with about 4 GB free and the image file `irishealth-community-2026.3.0AI.154.0-docker.tar.gz` from the
-[AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems login).
+You need Docker with about 4 GB free.
 
-1. Run, from a clone:
+1. Run:
 
    ```sh
    git clone https://github.com/drexthealpha/Knos && cd Knos/iris
-   bash scripts/load-image.sh ~/Downloads/irishealth-community-2026.3.0AI.154.0-docker.tar.gz
-   bash scripts/env-secrets.sh && docker compose up -d --build
-   bash scripts/ready.sh
+   docker compose -f docker-compose.public.yml up -d --build && bash scripts/ready.sh
    ```
 
-   - see `READY: open http://localhost:52773/knos/ ...` (the first build takes about 3 minutes on 4 cores).
-2. Open http://localhost:52773/knos/ and press **A passing test, $20** - see its decision within a few seconds.
+   - see `READY: open http://localhost:52773/knos/ and press a sample button`. This is the public IRIS for Health
+     Community image (2026.2) in replay mode; [CI runs it from a fresh checkout](https://github.com/drexthealpha/Knos/actions/workflows/iris-public.yml).
+2. Open http://localhost:52773/knos/ and press **A passing test, $20** - see its decision: met, PAY.
 3. Press **A passing test, $120: a person must say yes** - see it wait for a person; press **Approve** - see it paid
    in test money.
-4. Open Interoperability > Production in the management portal - see `Knos.Iris.Production` with its 22 items, and the
-   decision's Visual Trace.
+4. Open http://localhost:52773/csp/sys/UtilHome.csp, sign in as `_SYSTEM` with `knos-public-demo`, then Interoperability >
+   Production - see `Knos.Iris.Production` and each decision's Visual Trace.
 
-The default run is replay mode: no key and no model download. The live AI Hub run on NEAR AI Cloud, the contest task part
-by part, the bonuses, troubleshooting and the architecture: [docs/reference/IRIS.md](docs/reference/IRIS.md).
+**The contest entry: build 154 with AI Hub.** With the image file from the
+[AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems login):
+`bash scripts/load-image.sh <the tar>`, `bash scripts/env-secrets.sh && docker compose up -d --build`, then
+`bash scripts/ready.sh`. There the AI Hub agent can decide on a model.
+
+The live run of 12 Nov, the contest task part by part, the bonuses and troubleshooting:
+[docs/reference/IRIS.md](docs/reference/IRIS.md).
+
+**Why a payout step in a lab workflow.** A lab funds outside work in steps, so the last step of the decision is to pay
+the one whose test passed. In replay mode PAY runs a devnet simulation of that payout: it proves the gate reached PAY
+and the payout path ran end to end, and no money moves.
+
+**Why I built this.** A solo founder in Lagos, building Knos since 1 Sep 2026; Knos v1 came first of 92 at the Sibyl Labs
+Hackathon. IRIS, Docker and the build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
+Codespace ([the problems I hit](docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
 <!-- /entry:iris -->
 
 <!-- entry:colosseum -->
