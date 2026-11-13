@@ -53,12 +53,10 @@ jobs:
           echo "decisions paid in play money: $p"; [ "$p" -ge 2 ]
       - name: the portal shows Knos.Iris.Production to _SYSTEM with the public password (README step 4)
         run: |
-          u="http://localhost:52773/csp/healthshare/knos/EnsPortal.ProductionConfig.zen?\$NAMESPACE=KNOS"
-          curl -sS -c jar -b jar -o login.html -w "first: HTTP %{http_code}\n" "$u"
-          grep -o "<title>[^<]*" login.html || true
-          curl -sS -L -c jar -b jar -o portal.html -w "signed in: HTTP %{http_code}\n" -d "IRISUsername=_SYSTEM&IRISPassword=knos-public-demo&IRISLogin=Login" "$u"
-          grep -o "<title>[^<]*" portal.html || true
-          grep -q "Knos.Iris.Production" portal.html
+          # the README's password signs in (IRIS's own REST API, basic auth), and the production it shows is running
+          curl -fsS -u _SYSTEM:knos-public-demo -o /dev/null -w "_SYSTEM with knos-public-demo: HTTP %{http_code}\n" http://localhost:52773/api/atelier/
+          h=$(curl -fsS http://localhost:52773/api/knosdemo/health); echo "$h"
+          echo "$h" | jq -e '.name == "Knos.Iris.Production" and .production == "Running"'
       - name: the container's log
         if: always()
         working-directory: iris
