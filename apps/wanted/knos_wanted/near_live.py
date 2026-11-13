@@ -145,6 +145,31 @@ def _test_text(claim: str) -> str:
     return (ROOT / "near" / "agents" / "job" / CLAIMS[claim]["test"]).read_text(encoding="utf-8")
 
 
+def _write_until_pass(claim: str, visitor: str = "") -> dict:
+    """Agent A's code from the model, run against the claim's locked test here before any job is posted: when it fails,
+    the model gets the test's own error message, up to near_ai.ATTEMPTS writes in all. The answer keeps every attempt
+    (call id, tokens, the test's line) and the last code; `passed_here` says whether that code passed."""
+    import tempfile
+    from . import near_ai
+    j, test, attempts, fix, w = _jobs(), _test_text(claim), [], None, {}
+    for n in range(near_ai.ATTEMPTS):
+        w = near_ai.write_code(claim, CLAIMS[claim]["quote"], test, visitor, plain=CLAIMS[claim].get("plain", ""), fix=fix)
+        if not w.get("code"):
+            attempts.append({"n": n + 1, "id": w.get("id"), "passed": False, "said": w.get("note") or "no code"})
+            break
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "solution.py"
+            p.write_text(w["code"], encoding="utf-8")
+            ok, said, _ = j.checker.run_test(p, CLAIMS[claim]["test"])
+        attempts.append({"n": n + 1, "id": w.get("id"), "cached": bool(w.get("cached")), "tokens": (w.get("tokens_in") or 0) + (w.get("tokens_out") or 0),
+                         "cost_usd": w.get("cost_usd"), "passed": ok, "said": said[:200]})
+        if ok:
+            break
+        near_ai.forget_code(claim, CLAIMS[claim]["quote"], test, key=w.get("key", ""))
+        fix = (w["code"], said)
+    return {**w, "attempts": attempts, "passed_here": bool(attempts and attempts[-1]["passed"])}
+
+
 def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
     """One job of a claim, start to just before payment: posted with the claim's locked test, taken and answered by both
     agents (each answer in the job's own folder), each answer run against the test; the passing one is named, nobody is
@@ -161,7 +186,12 @@ def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
     else:
         if not visitor:
             _asked[claim] = time.time()
-        writer = near_ai.write_code(claim, CLAIMS[claim]["quote"], _test_text(claim), visitor)
+        writer = _write_until_pass(claim, visitor)
+        tried = writer.get("attempts") or []
+        if writer.get("code") and not writer.get("passed_here"):   # every attempt failed here: no job is posted with that code
+            ids = ", ".join(str(x.get("id")) for x in tried if x.get("id"))
+            cut = f" (the answer stopped at the {near_ai.MAX_TOKENS}-token limit)" if writer.get("cut") else ""
+            raise ModelCodeFailed(f"agent A's code, written by {writer['model']} in {len(tried)} attempts (calls {ids}), failed the locked test: {tried[-1]['said'] if tried else ''}{cut}"[:300])
     if writer.get("code"):
         sa = writer["code"]
     p = j.post({"bid": BID, "minutes": 240, "test": CLAIMS[claim]["test"]})
@@ -173,7 +203,7 @@ def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
     win = next((x for x in c["attempts"] if x.get("passed")), None)
     if not win and writer.get("code"):
         reason = next((x.get("reason", "") for x in c["attempts"] if x.get("agent") == ra.get("agent")), "")
-        near_ai.forget_code(claim, CLAIMS[claim]["quote"], _test_text(claim))
+        near_ai.forget_code(claim, CLAIMS[claim]["quote"], _test_text(claim), key=writer.get("key", ""))
         if writer.get("cut"):
             reason += f" (the answer stopped at the {near_ai.MAX_TOKENS}-token limit)"
         raise ModelCodeFailed(f"agent A's code, written by {writer['model']} (call {writer.get('id')}), failed the locked test: {reason}"[:240])
@@ -786,7 +816,10 @@ def writer_line(w: dict | None) -> str:
     if not w.get("model") or w.get("note"):   # no code from the model: the fixed program's code ran, and the line says why
         return f"a fixed program ({w.get('note') or 'no model answer'}" + (f", call {w['id']}" if w.get("id") else "") + ")"
     private = "private, attestation and signature verified" if w.get("private") else "not verified private"
-    return f"{w['model']} on NEAR AI Cloud, call {w.get('id')} ({private})" + (" (a cached answer for the same claim and test)" if w.get("cached") else "")
+    tried = w.get("attempts") or []
+    more = (f", passing on attempt {len(tried)} of {len(tried)} after the locked test said: "
+            + "; ".join(x["said"] for x in tried[:-1])) if len(tried) > 1 else ""
+    return f"{w['model']} on NEAR AI Cloud, call {w.get('id')} ({private}){more}" + (" (a cached answer for the same claim and test)" if w.get("cached") else "")
 
 
 def ai_line(ai: dict | None) -> str:
@@ -1432,8 +1465,8 @@ def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
         ("payment: " + str(pay.get("why") or "refused")) if not pay.get("ok") else ("record: " + str((settle or {}).get("why") or "no record for this job"))
     return {"ok": True, "job": str(proof.get("job_id") or ""), "claim": look.get("quote"), "claim_name": proof.get("claim"), "verdict": proof.get("verdict"),
             "test_sha256": proof.get("criteria_hash"),
-            "ai": {k: (proof.get("ai") or {}).get(k) for k in ("model", "id", "approve", "cached", "tokens_in", "tokens_out", "cost_usd", "finish", "private", "attestation", "signature", "note")},
-            "writer": {k: (proof.get("writer") or {}).get(k) for k in ("model", "id", "cached", "tokens_in", "tokens_out", "cost_usd", "finish", "private", "attestation", "signature", "note")},
+            "ai": {k: (proof.get("ai") or {}).get(k) for k in ("model", "id", "approve", "cached", "tokens_in", "tokens_out", "cost_usd", "finish", "private", "attestation", "signature", "note", "attempts")},
+            "writer": {k: (proof.get("writer") or {}).get(k) for k in ("model", "id", "cached", "tokens_in", "tokens_out", "cost_usd", "finish", "private", "attestation", "signature", "note", "attempts")},
             "code": "https://knos.onrender.com/api/near/claim/code?claim=" + str(proof.get("claim") or SAMPLE),
             "cap": cap, "paid": bool(pay.get("ok")), "settled": done, **({} if done else {"why_not_settled": why}), "receipt": claim_receipt(cap, pay, settle, str(proof.get("job_id") or ""))}
 

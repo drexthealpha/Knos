@@ -195,9 +195,13 @@ REVIEW = ("You review code that has already passed a locked test written before 
           "expected answers, special-cases the test's inputs, or does not use the method the claim names. Otherwise approve. "
           'Do not think aloud. Answer with JSON only, approve first: {"approve": true or false, "reason": "at most 25 words"}.')
 WRITE = ("You are agent A. Write the Python module solution.py that the locked test below imports, implementing the "
-         "paper's method the claim names, so that the test passes. Do not read, open or inspect the test file, and do not "
+         "paper's method the claim names, so that the test passes. Read the test to learn the interface it calls and every "
+         "limit it checks: memory as the test counts it (for example len() of the bytes or bytearray it measures), accuracy "
+         "and the 20 s time limit, and meet each limit with room to spare. Do not open the test file at run time, and do not "
          "special-case its inputs. Keep it short: standard library only, under 60 lines, no comments or docstrings. "
          "Do not think aloud. Answer with the code only, in one ```python block.")
+ATTEMPTS = 3   # agent A writes, and when the locked test fails, up to 2 more attempts with the test's own error message
+               # (founder, 13 Nov); with the reviewer an order makes at most 4 model calls
 
 
 def review(claim: str, quote: str, test: str, code: str, visitor: str = "") -> dict:
@@ -223,19 +227,27 @@ def review(claim: str, quote: str, test: str, code: str, visitor: str = "") -> d
     return out
 
 
-def forget_code(claim: str, quote: str, test: str) -> None:
-    """A model-written code that failed its locked test is not kept as the cached answer: the next order asks again."""
-    h = hashlib.sha256(json.dumps({"kind": "write", "claim": claim, "quote": quote, "test": test[:8000]}, sort_keys=True).encode()).hexdigest()
+def forget_code(claim: str, quote: str, test: str, key: str = "") -> None:
+    """A model-written code that failed its locked test is not kept as the cached answer: the next order asks again.
+    `key` is the failed answer's own cache key (write_code's `key`); without it, the first attempt's plain key."""
+    h = key or hashlib.sha256(json.dumps({"kind": "write", "claim": claim, "quote": quote, "test": test[:8000]}, sort_keys=True).encode()).hexdigest()
     with _lock:
         _state["cache"].pop(h, None)
         _save()
 
 
-def write_code(claim: str, quote: str, test: str, visitor: str = "") -> dict:
+def write_code(claim: str, quote: str, test: str, visitor: str = "", plain: str = "", fix: tuple[str, str] | None = None) -> dict:
     """Agent A's code for a claim, written by the model: `code` is the module, or None with `note` saying why (the
-    fixed program is then used and the order says so)."""
-    a = _call("write", {"claim": claim, "quote": quote, "test": test[:8000]}, WRITE,
-              f"Claim: {quote}\n\nThe locked test ({claim}), which imports solution:\n{test[:8000]}", visitor)
+    fixed program is then used and the order says so). `plain` is the claim in plain words; `fix` is the previous
+    attempt's code and the locked test's own error message, for the next attempt."""
+    inp = {"claim": claim, "quote": quote, "test": test[:8000], **({"plain": plain} if plain else {}),
+           **({"fix_code": fix[0][:6000], "fix_error": fix[1][:400]} if fix else {})}
+    user = (f"Claim: {quote}\n" + (f"In plain words: {plain}\n" if plain else "")
+            + f"\nThe locked test ({claim}), which imports solution:\n{test[:8000]}")
+    if fix:
+        user += f"\n\nYour last solution.py failed the locked test with: {fix[1][:400]}\nFix it. Your last code:\n```python\n{fix[0][:6000]}```"
+    a = _call("write", inp, WRITE, user, visitor)
+    a["key"] = hashlib.sha256(json.dumps({"kind": "write", **inp}, sort_keys=True).encode()).hexdigest()
     text = a.get("text") or ""
     m = re.search(r"```(?:python)?\n(.*?)```", text, re.S) or re.search(r"```(?:python)?\n(.*)", text, re.S)
     code = (m.group(1) if m else "").strip()

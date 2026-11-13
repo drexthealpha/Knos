@@ -715,7 +715,8 @@ load();
       for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = r.ran_before_s >= 0 ? `done ${ago} before you pressed` : `done ${secs().toFixed(1)} s after you pressed`; }
       for (const a of r.attempts || []) two.append(el("p", {}, [el("b", { className: a.passed ? "yes" : "no", textContent: `${String(a.agent).startsWith("agent-a") ? "Agent A" : "Agent B"}: ` }), a.reason]));
       const w = r.writer || {};
-      two.append(el("p", { className: "fine" }, w.id && !w.note ? [`Agent A's code was written by ${w.model} on NEAR AI Cloud, call ${w.id}${w.cached ? " (a cached answer for the same claim and test)" : ""}, ${w.tokens_in + w.tokens_out} tokens, $${(+w.cost_usd).toFixed(4)}; `,
+      const tries = w.attempts || [], fixes = tries.length > 1 ? ` It passed on attempt ${tries.length}: the locked test sent back ${tries.slice(0, -1).map((x) => `"${x.said}" (call ${x.id})`).join(" and ")}.` : "";
+      two.append(el("p", { className: "fine" }, w.id && !w.note ? [`Agent A's code was written by ${w.model} on NEAR AI Cloud, call ${w.id}${w.cached ? " (a cached answer for the same claim and test)" : ""}, ${w.tokens_in + w.tokens_out} tokens, $${(+w.cost_usd).toFixed(4)}.${fixes} `,
         w.private ? "private: its attestation and the answer's signature verified (" : "not verified private (", out(w.attestation && w.attestation.url || "https://cloud-api.near.ai/v1/attestation/report", "the attestation report"), ")."]
         : [`Agent A's code: a fixed program (${w.note || "no model answer"}).`]));
       two.classList.add("ok");
@@ -727,7 +728,7 @@ load();
       el("p", {}, cap.refused ? [`Agent B tried to spend ${cap.tried_units} units of its spending budget, over its cap of ${cap.cap_units}. NEAR refused it. `, out(cap.url, "The refusal")] : [`Not shown this time: ${cap.why || "the test network did not answer"}. The agent call and the video show NEAR refusing it.`]));
     capLi.className = cap.refused ? "ok" : "stop";
     const r = await proving; await agentsRan;
-    aiCost = [r.ai, r.writer].reduce((s, a) => s + (a && !a.cached ? +a.cost_usd || 0 : 0), 0);
+    aiCost = (r.ai && !r.ai.cached ? +r.ai.cost_usd || 0 : 0) + ((r.writer && r.writer.attempts) || [r.writer]).reduce((s, a) => s + (a && !a.cached ? +a.cost_usd || 0 : 0), 0);
     if (!r.ok) {
       const why = String(r.why || "the proof stopped").includes("{") ? "the test network refused one of its transactions" : (r.why || "the proof stopped");
       for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = "stopped"; }
