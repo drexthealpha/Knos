@@ -39,7 +39,8 @@ and may only reject it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
    and why. Then see "Receipt for proof job-...": 9.00 test USDC to agent A and 1.00 to Knos in one transaction, linked
    on the NEAR explorer. Press **Prove the same claim again** - see "Free: Yes".
-4. From a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`; on Windows, Git Bash with `py -3`):
+4. From a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
+   `py -3` where the commands say `python3`:
 
    ```bash
    sha256sum near/agents/job/test_jump.py
@@ -66,7 +67,7 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 | NEAR feature | In Knos | Where |
 |---|---|---|
 | Contracts | the jobs contract locks each test's sha256 and pays the passing agent; the claim contract keeps each claim's record and its two markets; the 90/10 split is one transaction | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](docs/reference/NEAR.md) |
-| Agent spending caps | each agent key can call only the jobs contract, and a step over its cap is refused on chain | the receipt's "spending cap" step |
+| Agent spending caps | the key each agent works with can call only the jobs contract, and a step over its cap is refused on chain (Knos also holds each agent account's full key, never used by the agent) | the receipt's "spending cap" step |
 | Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified before the page says "private" | `apps/wanted/knos_wanted/near_attest.py` |
 | Chain Signatures | a NEAR account pays a Solana address on devnet | [docs/reference/NEAR.md](docs/reference/NEAR.md) |
 
@@ -74,14 +75,19 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 
 - **The diff.** The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `near/`; the tag
   `hackathon-submission` is the submitted commit. Everything built in the window:
-  https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. Only that NEAR work is the entry.
+  https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. The diff also holds work for the
+  other contests; the entry is only the NEAR work: `near/`, the `near_*.py` files of `apps/wanted/knos_wanted/`, the
+  pages under `web/` that call them, and their tests.
+- **Tracks.** Agent Economy (`agents`), AI Swarms (`swarms`), Privacy & Private AI (`privacy`), AI Security & Defense
+  (`security`).
 - **Built before, on another chain.** Knos's pull request check and its programs on Solana devnet were built before the
   window for Colosseum (tag v0.3.28). They are not part of this entry.
 - **AI-written code.** Claude Code wrote most of the code; the founder set each task and reviewed each change. Agent A's
   claim code in each order is written by DeepSeek V4.1 Flash on NEAR AI Cloud.
 - **Libraries.** `near-sdk` and `near-contract-standards` 5.30.0, `base64` 0.22, `serde` 1, `serde_json` 1; tests
-  only: `near-sandbox` 0.4.0, `near-api` 0.8.0, `tokio` 1, `rsa` 0.9, `sha2` 0.10, `rand` 0.8; Python: `cryptography`
-  and `certifi`. Tools: Rust, `cargo-near` 0.22.0, near-cli-rs. The full table: [docs/reference/NEAR.md](docs/reference/NEAR.md#disclosure).
+  only: `near-sandbox` 0.4.0, `near-api` 0.8.0, `tokio` 1, `rsa` 0.9, `sha2` 0.10, `rand` 0.8; Python: `cryptography`,
+  `certifi`, `dcap-qvl` 0.7.1 and `eth-account` 0.14.0 (the attestation and signature checks), `numpy` 2.3.4 (the space,
+  simulation and hardware claims' tests); the site: GSAP 3.12.5 from cdnjs. Tools: Rust, `cargo-near` 0.22.0, near-cli-rs. The full table: [docs/reference/NEAR.md](docs/reference/NEAR.md#disclosure).
 
 Everything else (every claim and how to check it, the accounts on NEAR testnet, the tests and attacks, running it
 yourself): [docs/reference/NEAR.md](docs/reference/NEAR.md).
