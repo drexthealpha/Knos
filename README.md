@@ -6,17 +6,16 @@
   </picture>
 </h1>
 
-Knos checks whether a research paper's claim holds: two agents write code against a test that NEAR locks before they
-start, and only the agent whose code passes is paid.
+Knos locks a test before any work starts, an agent does the work, and money moves only if the test passes.
 
 The problem: research takes about 17 years to reach people, because checking that a result really works is slow and
 costly ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)).
 
-| You judge for | Read | Try it live |
-|---|---|---|
-| From NEAR HACKATHON | [Knos on NEAR](#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | [Knos on IRIS](#from-the-intersystems-contest) | the IRIS production, on your machine |
-| From Colosseum | [The ten-second check](#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
+| You judge for | The same loop, used for | Read | Try it live |
+|---|---|---|---|
+| From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
+| From the InterSystems contest | a lab result's criteria, checked in IRIS | [Knos on IRIS](#from-the-intersystems-contest) | the IRIS production, on your machine |
+| From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
 

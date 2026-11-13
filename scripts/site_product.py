@@ -129,7 +129,8 @@ def claims_page(header: str, cs: list[dict]) -> str:
     rows = "".join(f'<tr data-claim="{e(c["name"])}"><td><a href="../claim/{e(c["name"])}/">{e(c["plain"])}</a><br>'
                    f'<span class="fine">{e(c["authors"])}, {c["year"]}</span></td>'
                    f'<td class="n" data-behind>reading</td><td data-truth>reading</td><td data-demand>reading</td></tr>' for c in cs)
-    body = (f"<h1>Claims</h1>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
+    body = (f"<h1>Claims</h1>\n<p>Knos locks a test before any work starts, an agent does the work, and money moves only if the "
+            f"test passes. Here the work is code that proves a paper's claim.</p>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
             f"Sorted by the test USDC paid for its proofs.</p>\n"
             f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC paid for proofs</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
             f'<p class="fine">Each claim has two markets on NEAR testnet, priced by an automatic market maker (LMSR): whether it holds, '

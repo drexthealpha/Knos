@@ -210,7 +210,7 @@ def problems(root: Path = ROOT) -> list[str]:
     return out
 
 
-K1 = "Knos checks whether a research paper's claim holds"   # Round 9, U1: what Knos is, first
+K1 = "Knos locks a test before any work starts"   # Round 9, U1: what Knos does, the one loop, first
 
 
 def _prose(text: str):
