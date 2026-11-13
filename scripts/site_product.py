@@ -157,10 +157,14 @@ def claims_page(header: str, cs: list[dict]) -> str:
 
 def claim_page(header: str, c: dict) -> str:
     test_url = f"{REPO}/blob/main/near/agents/job/{c['test']}"
+    src = "https://doi.org/" + c["doi"] if c.get("doi") else c["url"]   # a source with no DOI (a NASA page) links the page itself
+    said = "The paper says" if c.get("doi") else "The page says"
     body = (f'<p class="fine"><a href="../../claims/">Claims</a></p>\n<h1>{e(c["plain"])}</h1>\n'
-            f'<p>From <a href="https://doi.org/{e(c["doi"])}">{e(c["paper"])}</a>, {e(c["authors"])}, {c["year"]}. The paper says: '
+            f'<p>From <a href="{e(src)}">{e(c["paper"])}</a>, {e(c["authors"])}, {c["year"]}. {said}: '
             f'&ldquo;{e(c["quote"])}&rdquo;</p>\n'
-            f'<p><a class="btn" href="../../prove/#paper={e("https://doi.org/" + c["doi"])}">Prove it on NEAR</a></p>\n'
+            + (f'<p><b>Caveat:</b> {e(c["caveat"])}</p>\n' if c.get("caveat") else "")
+            + (f'<p class="fine">Data: {e(c["data_credit"])}</p>\n' if c.get("data_credit") else "")
+            + f'<p><a class="btn" href="../../prove/#paper={e(src)}">Prove it on NEAR</a></p>\n'
             f'<h2>The locked test</h2>\n<p><a href="{test_url}">{e(c["test"])}</a>, sha256 <code>{c["sha256"]}</code>. '
             f'Every job for this claim is opened on NEAR testnet with this hash as its criteria hash, before any agent starts; '
             f'the checker runs only the file with this hash.</p>\n'
@@ -280,7 +284,8 @@ def claim_page(header: str, c: dict) -> str:
     $("receipts").hidden = false; }
 })();""" % (json.dumps(c["name"]), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET),
               json.dumps(f"https://raw.githubusercontent.com/drexthealpha/Knos/main/near/agents/job/{c['test']}"), json.dumps(JOBS))
-    short = {"hyperloglog": "HyperLogLog", "jump-hash": "jump consistent hash", "xor-filter": "the xor filter", "morris-counter": "the Morris counter"}.get(c["name"], c["name"])
+    short = {"hyperloglog": "HyperLogLog", "jump-hash": "jump consistent hash", "xor-filter": "the xor filter", "morris-counter": "the Morris counter",
+             "kepler-10b": "Kepler-10b's period", "landsat-8-orbit": "Landsat 8's orbit", "cmapss-engine-life": "the engine-life baseline"}.get(c["name"], c["name"])
     return page(header, "../../", f"Knos: does {short} hold?", c["plain"], body, script, f"claim/{c['name']}/")   # a title under 52 characters
 
 

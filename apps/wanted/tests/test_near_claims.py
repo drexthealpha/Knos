@@ -2,8 +2,6 @@
 file whose sha256 a job locks, and that test passes agent A's code and fails agent B's, run the way the checker runs it."""
 import hashlib
 import json
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -21,24 +19,26 @@ def test_every_claim_has_a_real_paper_link_and_a_locked_test():
     for c in claims:
         sha = hashlib.sha256((ROOT / "near" / "agents" / "job" / c["test"]).read_bytes()).hexdigest()
         assert tests[sha] == c["test"]
-        links = ["https://doi.org/" + c["doi"]] + ([f"https://arxiv.org/abs/{c['arxiv']}"] if c.get("arxiv") else [])
+        links = [near_live.link_of(c)] + ([f"https://arxiv.org/abs/{c['arxiv']}"] if c.get("arxiv") else [])   # a source with no DOI: its page
         for link in links:
             assert near_live.claim_look(link)["name"] == c["name"], link
 
 
 def test_each_locked_test_passes_agent_a_and_fails_agent_b(tmp_path):
+    """Run as the checker runs it (near/agents/checker.py run_test): the claim's module name, its data next to the test,
+    its time limit. The first four tests print "Passed: " or "Failed: "; the space, simulation and hardware tests (U7)
+    print their own lines, unchanged."""
+    import checker
     for c in near_live.CLAIMS:
         a, b = near_live._solutions(c)
         test = near_live.CLAIMS[c]["test"]
         for code, should_pass in ((a, True), (b, False)):
-            d = tmp_path / f"{c}-{should_pass}"
-            d.mkdir()
-            shutil.copy(ROOT / "near" / "agents" / "job" / test, d / test)
-            (d / "solution.py").write_text(code, encoding="utf-8")
-            p = subprocess.run([sys.executable, "-E", "-s", "-B", test], cwd=d, capture_output=True, text=True, timeout=60)
-            said = (p.stdout + p.stderr).strip().splitlines()[-1]
-            assert (p.returncode == 0) == should_pass, (c, should_pass, said)
-            assert said.startswith("Passed: " if should_pass else "Failed: "), said
+            f = tmp_path / f"{c}-{should_pass}.py"
+            f.write_text(code, encoding="utf-8")
+            ok, said, _secs = checker.run_test(f, test)
+            assert ok == should_pass, (c, should_pass, said)
+            if c in ("hyperloglog", "jump-hash", "xor-filter", "morris-counter"):
+                assert said.startswith("Passed: " if should_pass else "Failed: "), said
 
 
 def test_an_ai_reviewer_can_only_make_a_verdict_stricter():

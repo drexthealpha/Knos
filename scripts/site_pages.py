@@ -145,7 +145,8 @@ def door_claims() -> list[dict]:
         ax = re.search(r"arxiv\.(\d{4}\.\d{4,5})", doi, re.I)
         test = ROOT / "near" / "agents" / "job" / c["test"]
         out.append({k: c[k] for k in ("name", "plain", "quote", "paper", "authors", "year", "test")} |
-                   {"doi": doi, "arxiv": ax.group(1) if ax else "", "sha256": hashlib.sha256(test.read_bytes()).hexdigest()})
+                   {"doi": doi, "arxiv": ax.group(1) if ax else str(c.get("arxiv") or ""), "url": str(c.get("url") or ""),
+                    "sha256": hashlib.sha256(test.read_bytes()).hexdigest()})
     return out
 
 

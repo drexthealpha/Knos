@@ -71,6 +71,83 @@
    "test": "test_morris.py",
    "not_checked": "the paper's own new algorithm or its lower bound: only the Morris counter it describes",
    "outside_test": "None found: the paper is proofs, with no test code."
+  },
+  {
+   "name": "kepler-10b",
+   "field": "space",
+   "plain": "The planet Kepler-10b goes around its star once every 0.837495 days, found again in NASA's public Kepler light curve.",
+   "paper": "Kepler's First Rocky Planet: Kepler-10b",
+   "authors": "Batalha and others",
+   "year": 2011,
+   "doi": "10.1088/0004-637X/729/1/27",
+   "arxiv": "1102.0605",
+   "quote": "T[BJD] = 2454964.57375 (+0.00060/-0.00082) + N x 0.837495 (+0.000004 / -0.000005) days",
+   "paper_number": "an orbital period of 0.837495 days (+0.000004 / -0.000005)",
+   "locked": "find the period in 4 years of Kepler light curve inside 0.837490 to 0.837499 days and within 3 sigma of NASA's DR25 value, in under 20 s",
+   "question": "Does Kepler-10b go around its star every 0.837495 days?",
+   "code_name": "kepler10b_period.py",
+   "test": "test_kepler10b_period.py",
+   "module": "kepler10b_period",
+   "data": [
+    "kepler10_lc.csv"
+   ],
+   "timeout_s": 90,
+   "not_checked": "the planet's size, mass or transit depth: only its orbital period",
+   "outside_test": "None found: the paper publishes the ephemeris, not code.",
+   "caveat": "The 2011 paper used 8 months of data; this test uses all 4 public years, and the answer must still fall inside the 2011 interval.",
+   "data_credit": "NASA Kepler mission light curves of KIC 11904151 from MAST at STScI (public domain)"
+  },
+  {
+   "name": "landsat-8-orbit",
+   "field": "simulation",
+   "plain": "Landsat 8's published orbit, 705 km up and tilted 98.2 degrees, is sun-synchronous: simulated with Earth's equatorial bulge, its orbit plane turns 0.98565 degrees a day.",
+   "paper": "Landsat 8 Quick Facts",
+   "authors": "NASA Goddard Space Flight Center",
+   "year": "page read 13 Nov 2026",
+   "url": "https://landsat.gsfc.nasa.gov/satellites/landsat-8/",
+   "quote": "Altitude: 705 km (438 mi) ... Inclination: 98.2 degrees ... Orbit: Near-polar, sun-synchronous ... Period of Revolution: 99 minutes; ~14.5 orbits/day",
+   "paper_number": "sun-synchronous: the orbit plane turns 360 degrees a tropical year, 0.98565 degrees a day, and one orbit takes 99 minutes",
+   "locked": "simulate the published orbit 5 days with Earth's J2 bulge: the plane turns within 1% of 0.98565 degrees a day, an orbit takes 99 minutes within 0.5, energy is kept, and a polar orbit does not turn, in under 18 s",
+   "question": "Does Landsat 8's orbit turn with the Sun, 0.98565 degrees a day?",
+   "code_name": "orbit.py",
+   "test": "test_landsat8_sunsync.py",
+   "data": [
+    "data/earthfact.html",
+    "data/landsat8.html"
+   ],
+   "timeout_s": 90,
+   "said_from": "[Landsat 8] RAAN rate",
+   "not_checked": "Landsat 8's real tracking data: only a simulation from the published orbit",
+   "outside_test": "None found: NASA publishes the orbit, not code.",
+   "caveat": "The plus or minus 1% tolerance was set by Knos, because NASA publishes rounded values (98.2 degrees, 99 minutes).",
+   "data_credit": "NASA's Earth Fact Sheet (NSSDC) and NASA Goddard's Landsat 8 page (public domain)"
+  },
+  {
+   "name": "cmapss-engine-life",
+   "field": "hardware",
+   "plain": "A plain Ridge regression predicts how many cycles NASA's simulated FD001 jet engines have left, off by 16.634 cycles RMS.",
+   "paper": "Remaining Useful Life Estimation for Turbofan Engines: A Comparative Study of Classical, CNN, and LSTM Approaches",
+   "authors": "Galchar, Goel and Kanu",
+   "year": 2026,
+   "doi": "10.48550/arXiv.2604.27234",
+   "arxiv": "2604.27234",
+   "quote": "Table III, Raw Ridge Regression, FD001: RMSE 16.634, MAE 13.570",
+   "paper_number": "RMSE 16.634 and MAE 13.570 cycles on the 100 FD001 test engines",
+   "locked": "Ridge regression trained on 80 of the 100 training engines: RMSE within 0.005 of 16.634 and MAE within 0.005 of 13.570, in under 20 s",
+   "question": "Does a Ridge baseline predict FD001 engine life with an RMSE of 16.634 cycles?",
+   "code_name": "engine_life.py",
+   "test": "test_cmapss_ridge_fd001.py",
+   "data": [
+    "data/train_FD001.txt",
+    "data/test_FD001.txt",
+    "data/RUL_FD001.txt"
+   ],
+   "timeout_s": 90,
+   "said_from": "RMSE=",
+   "not_checked": "the paper's CNN and LSTM results, or any real engine: only its Ridge baseline on NASA's simulated engines",
+   "outside_test": "None found: the preprint publishes no code.",
+   "caveat": "The figure comes from a 2026 preprint that is not peer-reviewed.",
+   "data_credit": "NASA Ames Prognostics Center of Excellence, C-MAPSS turbofan data (Saxena and others, 2008)"
   }
  ]
 }

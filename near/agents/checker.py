@@ -44,17 +44,38 @@ def sign(claims: dict) -> str:
     return f"{head}.{body}.{b64u(sig)}"
 
 
+def _claim_of(test: str) -> dict:
+    """The claim whose locked test this is (near/claims/claims.json): its module name, its data files and its time limit.
+    A test that imports its own module (`kepler10b_period`) or reads data next to it says so there; the test is unchanged."""
+    try:
+        claims = json.loads((HERE.parent / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]
+    except (OSError, ValueError, KeyError):
+        return {}
+    return next((c for c in claims if c.get("test") == test), {})
+
+
 def run_test(output: Path, test: str = JOB_TEST) -> tuple[bool, str, float]:
+    c = _claim_of(test)
+    limit = float(c.get("timeout_s") or 20)
     with tempfile.TemporaryDirectory() as d:
         shutil.copy(JOB_DIR / test, Path(d) / test)
         shutil.copy(output, Path(d) / "solution.py")
+        if c.get("module"):   # the name the locked test imports agent A's or B's code under
+            shutil.copy(output, Path(d) / f"{c['module']}.py")
+        for rel in c.get("data") or []:   # the data the test reads next to itself; it checks each file's sha256
+            (Path(d) / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(JOB_DIR / rel, Path(d) / rel)
         t0 = time.time()
         try:
-            p = subprocess.run([sys.executable, "-E", "-s", "-B", test], cwd=d, capture_output=True, text=True, timeout=20)
+            p = subprocess.run([sys.executable, "-E", "-s", "-B", test], cwd=d, capture_output=True, text=True, timeout=limit)
         except subprocess.TimeoutExpired:
-            return False, "the test ran over 20 s", time.time() - t0
+            return False, f"the test ran over {limit:.0f} s", time.time() - t0
         said = (p.stdout + p.stderr).strip().splitlines()
-        return p.returncode == 0, said[-1] if said else "", time.time() - t0
+        line = said[-1] if said else ""
+        measured = [x for x in said if c.get("said_from") and x.strip().startswith(c["said_from"])]
+        if measured and line in ("PASS", "") or measured and line.startswith(("FAIL", "AssertionError")):
+            line = f"{measured[-1].strip()}: {'PASS' if p.returncode == 0 else line}"   # the measured number beside the verdict
+        return p.returncode == 0, line, time.time() - t0
 
 
 def release_one(job_id: str, payee: str, output_sha256: str, criteria_hash: str) -> dict:

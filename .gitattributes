@@ -2,3 +2,6 @@
 *.png binary
 *.so binary
 *.bin binary
+# the data the locked tests of the space, simulation and hardware claims read: kept byte for byte (their sha256 is locked in each test)
+near/agents/job/*.csv -text
+near/agents/job/data/** -text

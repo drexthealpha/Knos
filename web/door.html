@@ -115,9 +115,10 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const remember = (q, name) => { try { mem.asked = [{ q, name, at: Date.now() }, ...(mem.asked || []).filter((x) => x.q !== q)].slice(0, 5); localStorage.setItem(KEY, JSON.stringify(mem)); } catch { /* no storage */ } };
   const words = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9.]+/g, " ").split(" ").filter((w) => w.length > 2);
   const STOP = new Set(words("the and for with does what how can are was this that from into its claim paper papers research about"));
+  const src = (c) => c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : c.url || "";   // the claim's source link
   function match(text) {
     const s = text.trim(), id = s.toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").replace(/^doi:/, "").replace(/^https?:\/\/arxiv\.org\/(abs|pdf)\//, "arxiv:").replace(/v\d+$/, "");
-    for (const c of CLAIMS) if ((c.doi && id === c.doi.toLowerCase()) || (c.arxiv && id === "arxiv:" + c.arxiv)) return { c, by: "paper" };
+    for (const c of CLAIMS) if ((c.doi && id === c.doi.toLowerCase()) || (c.arxiv && id === "arxiv:" + c.arxiv) || (c.url && s.toLowerCase().replace(/\/$/, "") === c.url.toLowerCase().replace(/\/$/, ""))) return { c, by: "paper" };
     if (/^https?:|^10\.\d|^arxiv:/i.test(s)) return null;   // a paper Knos has no claim for: the server says what a check would cost
     const q = new Set(words(s).filter((w) => !STOP.has(w)));
     let best = null, top = 0;
@@ -139,7 +140,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       el("p", { className: "verdict", textContent: holds === true ? (near ? "It holds" : "Yes, the claim holds") : holds === false ? "No, the claim fails" : "Not proved yet" }),
       el("p", {}, [`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}. `, holds != null && last.job ? "Proved by its locked test " : "Its locked test is ", link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test),
         ` (sha256 ${c.sha256.slice(0, 8)}...)`, holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),
-      el("p", {}, [link("prove/#paper=" + encodeURIComponent(c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : ""), "Prove it yourself", "next"), " ", link(`claim/${c.name}/`, "The claim")]), notWhat());
+      el("p", {}, [link("prove/#paper=" + encodeURIComponent(src(c)), "Prove it yourself", "next"), " ", link(`claim/${c.name}/`, "The claim")]), notWhat());
   }
   function none(text) {
     out.replaceChildren(el("p", { className: "verdict", textContent: "Nothing proved matches yet" }),
@@ -166,7 +167,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       if (!board) { out.replaceChildren(el("p", { textContent: "Reading NEAR testnet..." })); await Promise.race([boardFile, new Promise((res) => setTimeout(res, 1500))]); }
       if (mine !== asked) return;
       if (board && board.claims) { answer(m.c, null, m.near && !exact); return; }   // the site's own board file, or else the server's last proof of this claim
-      const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: m.c.doi ? "https://doi.org/" + m.c.doi : "https://arxiv.org/abs/" + m.c.arxiv }) });
+      const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: src(m.c) }) });
       if (mine === asked) answer(m.c, r && r.last, m.near && !exact);
       return;
     }

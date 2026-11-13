@@ -611,13 +611,19 @@ def final_verdict(test_passed: bool, reviewer: bool | None = None) -> bool:
     return test_passed and reviewer is not False
 
 
+def link_of(c: dict) -> str:
+    """The claim's source: its DOI's link, or (a source with no DOI) its page."""
+    return "https://doi.org/" + c["doi"] if c.get("doi") else c["url"]
+
+
 def _known(c: dict) -> dict:
-    return {"name": c["name"], "plain": c["plain"], "paper": c["paper"], "authors": f"{c['authors']}, {c['year']}", "doi": "https://doi.org/" + c["doi"],
+    return {"name": c["name"], "plain": c["plain"], "paper": c["paper"], "authors": f"{c['authors']}, {c['year']}", "doi": link_of(c),
             "quote": c["quote"], "paper_number": c["paper_number"], "locked": c["locked"], "code_name": c["code_name"],
             "check": f"https://github.com/drexthealpha/Knos/blob/main/near/agents/job/{c['test']}", "not_checked": c["not_checked"]}
 
 
-KNOWN = {c["doi"].lower(): _known(c) for c in CLAIMS.values()} | {"arxiv:" + c["arxiv"]: _known(c) for c in CLAIMS.values() if c.get("arxiv")}
+KNOWN = ({c["doi"].lower(): _known(c) for c in CLAIMS.values() if c.get("doi")} | {"arxiv:" + c["arxiv"]: _known(c) for c in CLAIMS.values() if c.get("arxiv")}
+         | {"url:" + c["url"].lower().rstrip("/"): _known(c) for c in CLAIMS.values() if c.get("url")})   # a source with no DOI: its page
 
 
 def _solutions(claim: str) -> tuple[str, str]:
@@ -754,7 +760,8 @@ def claim_look(url: str) -> dict:
         return {"ok": False, "why": "that is not a paper link: paste a DOI such as https://doi.org/10.46298/dmtcs.3545, or the paper's web address"}
     m = re.search(r"(10\.\d{4,9}/[^\s?#]+)", url)
     a = re.search(r"(?i)(?:arxiv\.org/(?:abs|pdf)/|10\.48550/arxiv\.|arxiv:)(\d{4}\.\d{4,5})", url)
-    known = (KNOWN.get(m.group(1).lower().rstrip(".")) if m else None) or (KNOWN.get("arxiv:" + a.group(1)) if a else None)
+    known = ((KNOWN.get(m.group(1).lower().rstrip(".")) if m else None) or (KNOWN.get("arxiv:" + a.group(1)) if a else None)
+             or KNOWN.get("url:" + re.sub(r"[?#].*$", "", url).lower().rstrip("/")))
     if not known:
         meta = _paper_meta(url)
         words = (meta.get("title", "") + " " + meta.get("subjects", "")).lower()
@@ -1432,7 +1439,7 @@ def claims_board() -> dict:
         s["before_record"] = {"proofs": base["proofs"], "usd": base["usd"]}
     for c, k in CLAIMS.items():
         out["claims"].setdefault(c, {})
-        out["claims"][c].update(plain=k["plain"], paper=k["paper"], authors=f"{k['authors']}, {k['year']}", doi=k["doi"])
+        out["claims"][c].update(plain=k["plain"], paper=k["paper"], authors=f"{k['authors']}, {k['year']}", doi=k.get("doi") or k.get("url"))
     return out
 
 

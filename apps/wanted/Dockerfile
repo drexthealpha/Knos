@@ -25,7 +25,7 @@ COPY plugin/skills ./plugin/skills
 COPY apps/wanted ./apps/wanted
 COPY examples/autoresearch ./examples/autoresearch
 COPY docs/idt/summary.json ./docs/idt/summary.json
-RUN pip install --no-cache-dir . "./apps/wanted[escrow,auth,config,evidence,attest,saml,nearai]" && sh apps/wanted/bridge/install.sh
+RUN pip install --no-cache-dir . "./apps/wanted[escrow,auth,config,evidence,attest,saml,nearai]" "numpy==2.3.4" && sh apps/wanted/bridge/install.sh
 WORKDIR /app
 RUN useradd --create-home app && mkdir -p /data && chown app /data
 # the NEAR job runner of /near/ (knos_wanted.near_live): the agents, the checker and the job code, writable by the app
