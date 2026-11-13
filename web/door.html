@@ -189,7 +189,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } ask(v); });
   $("sample").addEventListener("click", () => ask("Does HyperLogLog count 30,000 visitors in 1.5 KB?", true));
   // a second visit starts where the first ended: the visitor's last questions, from this browser
-  if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.slice(0, 40), onclick: () => ask(x.q) }))); }
+  if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.length > 40 ? x.q.slice(0, 40).replace(/\s+\S*$/, "") + "..." : x.q, title: x.q, onclick: () => ask(x.q) }))); }
   const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid.`; };
   json("data/counters.json").then(counts);
   json(HOSTED + "/api/near/claim/counters").then((c) => c ? counts(c) : $("count").textContent.startsWith("Reading") && ($("count").textContent = "NEAR testnet's record could not be read just now."));
