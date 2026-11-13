@@ -15,6 +15,9 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
     set mode = $case($get(^Knos.LLM("mode"), ..Mode), "live":"live", "local":"local", :"replay")   // ^Knos.LLM("mode"): the tests' override
     set out = ""
     set refused = ""
+    // the online demo's limit for this sample (Knos.Iris.REST.Demo.Sample): the fixed rule decides, and says why
+    set fixed = $get(^Knos.Demo("fixed", pRequest.BriefId))
+    if fixed '= "" { set mode = "replay" }
     if (mode = "live") || (mode = "local") { set out = ##class(Knos.Iris.AI.Referee).Ask(pRequest, hash, .refused) set:out="" mode = "replay" }
     // a model's verdict can only be made stricter: the rules referee reads the same proof's structured fields, and
     // when it says not met or insufficient where the model says more, its answer stands (met < insufficient < not met)
@@ -30,6 +33,7 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
         set out = ##class(Knos.Iris.Py.Verdict).Decide(pRequest.BriefJSON, pRequest.Kind, pRequest.PayloadJSON, hash)
     }
     set v = {}.%FromJSON(out)
+    if fixed '= "" { set v.model = "rules referee: "_fixed_", so the fixed rule decided this sample", out = v.%ToJSON() }
     set pResponse = ##class(Knos.Iris.Msg.Verdict).%New()
     set pResponse.Decision = v.decision, pResponse.Confidence = v.confidence, pResponse.CriteriaHash = v."criteria_hash"
     set pResponse.MilestonesJSON = v.milestones.%ToJSON(), pResponse.Model = v.model, pResponse.Mode = mode

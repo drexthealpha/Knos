@@ -268,7 +268,7 @@ async function loadDecisions() {
   const body = $("decisions");
   try {
     await readMode();
-    const sure = (d, tail) => agentMode === "replay" ? "fixed rule" : Math.round(d.confidence * 100) + "%" + tail;
+    const sure = (d, tail) => agentMode === "replay" || /^rules referee/.test(d.referee || "") ? "fixed rule" : Math.round(d.confidence * 100) + "%" + tail;
     const rows = await api("decisions");
     body.replaceChildren();
     if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No decision yet." }))); return []; }
