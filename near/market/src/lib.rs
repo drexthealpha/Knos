@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn a_sized_deployment_takes_its_own_seed_and_demand_bar() {
         at("knos.testnet", 1_000);
-        let mut k = Contract::new_sized("usdc.testnet".parse().unwrap(), "src.testnet".parse().unwrap(), "knos.testnet".parse().unwrap(), U128(2_000_000), U128(10_000_000));
+        let mut k = Contract::new_sized("token.testnet".parse().unwrap(), "src.testnet".parse().unwrap(), "knos.testnet".parse().unwrap(), U128(2_000_000), U128(10_000_000));
         assert_eq!(seed_min(2_000_000), 1_386_295);
         let cfg = k.get_config();
         assert_eq!(cfg["b"], "2000000");
@@ -540,7 +540,7 @@ mod tests {
     #[should_panic(expected = "the seed must cover b * ln 2")]
     fn a_sized_deployment_refuses_a_seed_under_b_ln_2() {
         at("knos.testnet", 1_000);
-        let mut k = Contract::new_sized("usdc.testnet".parse().unwrap(), "src.testnet".parse().unwrap(), "knos.testnet".parse().unwrap(), U128(2_000_000), U128(10_000_000));
+        let mut k = Contract::new_sized("token.testnet".parse().unwrap(), "src.testnet".parse().unwrap(), "knos.testnet".parse().unwrap(), U128(2_000_000), U128(10_000_000));
         send(&mut k, "knos.testnet", 1_386_294, serde_json::json!({"seed": {"id": "demand:jump:1000", "question": "q"}}));
     }
 }
