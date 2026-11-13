@@ -166,6 +166,8 @@ def _write_until_pass(claim: str, visitor: str = "") -> dict:
         if ok:
             break
         near_ai.forget_code(claim, CLAIMS[claim]["quote"], test, key=w.get("key", ""))
+        print(f"near_live model code failed ({claim}, attempt {n + 1}, call {w.get('id')}): {said[:200]}\n{w['code'][:4000]}",
+              file=sys.stderr, flush=True)   # the server's own log only: what the model wrote, to see why a claim's code fails
         fix = (w["code"], said)
     return {**w, "attempts": attempts, "passed_here": bool(attempts and attempts[-1]["passed"])}
 
