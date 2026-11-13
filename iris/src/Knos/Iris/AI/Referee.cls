@@ -88,6 +88,10 @@ ClassMethod Cost(reply) As %Numeric
 ClassMethod AskLocal(proof As Knos.Iris.Msg.Proof, hash As %String) As %String
 {
     set model = ..LocalModel()
+    // after a failed call the model service is left alone for 5 minutes: a visitor then gets the fixed rule at once, with
+    // why, instead of waiting minutes on an overloaded service (13 Nov: NEAR AI Cloud took 131 s to say overloaded)
+    set now = ($piece($horolog, ",", 1) * 86400) + $piece($horolog, ",", 2), down = $get(^Knos.LLM("down"))
+    if (down '= "") && ((now - $list(down, 1)) < 300) { set %knosAskWhy = $list(down, 2)_" a few minutes ago" return "" }
     try {
         // no tools: the brief and the proof are in the question (Knos.Iris.AI.LocalReferee says why)
         set agent = ##class(Knos.Iris.AI.LocalReferee).%New()
@@ -115,6 +119,7 @@ ClassMethod AskLocal(proof As Knos.Iris.Msg.Proof, hash As %String) As %String
         $$$LOGWARNING("the local AI Hub referee failed: "_e.DisplayString())
         // why, in a few plain words, for the decision's label (Knos.Iris.BO.Referee): the fixed rule then decides
         set err = e.DisplayString(), %knosAskWhy = $select(err["overloaded":"the model service said it was overloaded", err["sending request":"the request to the model service did not get through", 1:"the model service gave an error")
+        set ^Knos.LLM("down") = $listbuild(($piece($horolog, ",", 1) * 86400) + $piece($horolog, ",", 2), %knosAskWhy)
     }
     return ""
 }
