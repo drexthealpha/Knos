@@ -30,11 +30,13 @@ RUN ln -sfn /home/irisowner/knos/src/knos /usr/irissys/mgr/python/knos \
  && ln -sfn /home/irisowner/knos/iris/python/knos_iris /usr/irissys/mgr/python/knos_iris
 
 # ---- jar: the Java PEX operation, compiled with the image's own JDK against its own PEX jar (no Maven, no other image) -
-# the PEX jar by pattern: build 154 ships intersystems-pex-1.0.0-shaded.jar; the public 2026.2 image (U4) another version
+# the PEX jar by pattern: build 154 ships intersystems-pex-1.0.0-shaded.jar; the public 2026.2 image (U4) has none, and
+# there the jar holds the operation's own classes only
 FROM base AS jar
 RUN --mount=type=bind,source=iris/java,target=/tmp/java \
     javac -d /tmp/pex -cp "/usr/irissys/dev/java/lib/1.8/*" /tmp/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java \
- && (cd /tmp/pex && jar xf "$(ls /usr/irissys/dev/java/lib/1.8/intersystems-pex-*-shaded.jar | head -n 1)") \
+ && pex="$(ls /usr/irissys/dev/java/lib/1.8/*pex*.jar 2>/dev/null | head -n 1)" \
+ && if [ -n "$pex" ]; then (cd /tmp/pex && jar xf "$pex"); else echo "no PEX jar in this image: the operation's classes only"; fi \
  && jar cf /home/irisowner/knos/java/knos-iris-pex.jar -C /tmp/pex . && rm -rf /tmp/pex
 
 # ---- builder: IRIS installs the KNOS namespace, then loads and compiles Knos and sets it up ---------------------------
