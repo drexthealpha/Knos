@@ -895,7 +895,8 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
     if any(a["passed"] for a in ready["attempts"]):   # one model call at most per order, after the test passed and before anyone is paid
         from . import near_ai
         try:
-            ai = near_ai.review(claim, CLAIMS[claim]["quote"], _test_text(claim), ready.get("code_a") or _solutions(claim)[0], visitor)
+            said = CLAIMS[claim]["quote"] + (f" The method, as the paper describes it: {CLAIMS[claim]['method']}" if CLAIMS[claim].get("method") else "")
+            ai = near_ai.review(claim, said, _test_text(claim), ready.get("code_a") or _solutions(claim)[0], visitor)   # the reviewer knows the method too (13 Nov: it rejected a base 1 + a Morris counter as not Morris's)
         except Exception as e:  # noqa: BLE001 - a reviewer that breaks leaves the fixed rule
             ai = {"approve": None, "note": f"the AI reviewer stopped ({type(e).__name__}): the locked test alone decided"}
         if ai.get("approve") is False:   # stricter only: a pass it rejects is a fail, and the agent is not paid
