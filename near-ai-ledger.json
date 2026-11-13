@@ -104,6 +104,32 @@
    "tokens_in": 684,
    "tokens_out": 366
   },
+  "9e1596130cc975a1e3c9483f2dd246179a1f7b79c2803894cfca2ddeec73f30a": {
+   "at": 1794589576,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "b754f295c729702416fab9dd62c547dfebfb92c07eff537f9afa216f3208763e",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000334,
+   "finish": "stop",
+   "id": "chatcmpl-b7283b2a-8b80-4866-b858-7a96b6cc1a4d",
+   "kind": "review",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 12.0,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e"
+   },
+   "text": "{\"approve\": true, \"reason\": \"Implements genuine HyperLogLog with hashing and registers, no test inspection or hard-coded answers.\"}",
+   "tokens_in": 981,
+   "tokens_out": 33
+  },
   "b4090a1d7c8146fc20fa093616fd188bb7e7a6125e9829be7609abed9b507857": {
    "at": 1794530408,
    "attestation": {
@@ -131,9 +157,10 @@
    "tokens_out": 124
   }
  },
- "calls": 10,
+ "calls": 11,
  "day": "2026-11-13",
+ "iris_seen": 0.0038874,
  "iris_usd": 0.001662,
- "spent_usd": 0.003602,
- "today": 5
+ "spent_usd": 0.003936,
+ "today": 6
 }
