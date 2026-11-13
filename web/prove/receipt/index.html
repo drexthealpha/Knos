@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="One finished proof on NEAR testnet, saved as the page showed it: the locked test, both agents, the refused step, the answer and the receipt, every step linked on NEAR.">
+<title>Knos: a finished proof on NEAR (job-1113171221)</title>
+<link rel="stylesheet" href="../../brand/tokens.css">
+<style>
+/* Hallmark · job: post a job, watch two agents try it, see only the passing one paid, try the guardrails · shape: app screen · genre: modern-minimal · theme: the Knos tokens (web/brand/tokens.css, near/DESIGN.md) */
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 var(--s1)/1.5 var(--text); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-s); }
+main { max-width: 1200px; margin: 0 auto; padding: var(--sp-5) 16px 64px; display: grid; gap: var(--sp-6); }
+main > * { min-width: 0; }
+.first { }
+.bar { min-height: 64px; border-bottom: 1px solid var(--line); }
+.k-mission { font: 400 clamp(48px, 6.4vw, 84px)/1.02 var(--serif); letter-spacing: -.01em; margin: var(--sp-4) 0 var(--sp-4); max-width: 12em; }
+.k-mission .k-line { display: block; overflow: hidden; padding-bottom: .08em; } .k-mission .k-line > span { display: block; }
+@media (prefers-reduced-motion: no-preference) { .k-mission .k-line > span { animation: k-headrise .8s cubic-bezier(.625,.05,0,1) both; } .k-mission .k-line + .k-line > span { animation-delay: .08s; } }
+@media (prefers-reduced-motion: reduce) { .k-mission .k-line > span { animation: k-fade .4s ease both; } }
+@keyframes k-headrise { from { translate: 0 110%; } to { translate: 0 0; } } @keyframes k-fade { from { opacity: 0; } }
+.k-ask { display: flex; gap: var(--sp-2); max-width: 640px; padding: 6px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--depth-2); }
+.k-ask input { flex: 1; min-width: 0; width: auto; border: 0; background: transparent; padding: 12px 16px; color: var(--ink); }
+.k-ask input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.k-ask button.go { border-radius: 999px; min-height: 48px; padding: 12px 24px; font-size: var(--s1); }
+@media (max-width: 560px) { .k-ask { flex-direction: column; border-radius: 24px; } }
+.sub { margin: var(--sp-3) 0 0; font: 500 17px/1.5 var(--text); color: var(--ink-2); }
+.receipt { margin: var(--sp-2) 0 0; font: 500 var(--s0)/1.5 var(--text); color: var(--ink-2); }
+.receipt b { color: var(--ink); }
+.ic, .k-i { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.k-i { width: 24px; height: 24px; flex: none; vertical-align: -6px; margin-right: 6px; } .go .k-i { stroke: currentColor; }
+.receipt:not(:empty)::before { content: ""; display: inline-block; width: 24px; height: 24px; margin-right: 6px; vertical-align: -6px; background: var(--accent); -webkit-mask: url(../brand/icons/coins.svg) center/24px no-repeat; mask: url(../brand/icons/coins.svg) center/24px no-repeat; }
+.claim .buys[hidden] { display: none; } .claim .pages ul { margin: 0; padding-left: 1.2em; } .claim .pages p { margin: 0 0 4px; } .claim .pages { border-top: 1px solid var(--line); margin-top: var(--sp-4); padding-top: var(--sp-4); }
+.claim .loop { border-top: 1px solid var(--line); margin-top: var(--sp-4); padding-top: var(--sp-4); } .claim h3 { font: 600 var(--s1)/1.3 var(--head); margin: 0 0 var(--sp-2); } .loop-steps { margin: var(--sp-2) 0 0; padding-left: 1.2em; line-height: 1.7; }
+.claim .q { font: 600 var(--s1)/1.35 var(--text); margin: 0 0 var(--sp-2); } .claim .price { display: flex; gap: var(--sp-4); margin: 0 0 var(--sp-2); } .claim .price b { font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); font-variant-numeric: tabular-nums; } .claim .buys { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.parts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 0; list-style: none; } .parts li { display: flex; align-items: center; font-weight: 500; }
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
+.totals a { display: block; padding: var(--sp-4); border: 1px solid var(--line); border-radius: 18px; background: var(--paper-2); color: var(--ink-2); text-decoration: none; }
+.totals a:hover { border-color: var(--accent); }
+.totals b { display: block; font: 400 clamp(36px, 4vw, 48px)/1.1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
+#show[hidden] { display: none; }
+@media (min-width: 900px) { .first { text-align: center; } .first .k-mission, .first .k-ask, .first .stage, .first .sub, .first .receipt { margin-inline: auto; } .first .status { justify-content: center; } }
+h1, h2 { text-wrap: balance; margin: 0; }
+h1 { font: 600 clamp(32px, 4.4vw, 48px)/1.05 var(--head); letter-spacing: -.025em; max-width: 16em; }
+h2 { font: 600 var(--s2)/1.3 var(--head); letter-spacing: -.015em; margin-bottom: var(--sp-3); }
+.fine { color: var(--ink-2); font-size: var(--s-1); }
+.panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; padding: var(--sp-4); }
+button, .btn { min-height: 44px; padding: 12px 18px; border-radius: var(--radius); border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.2 var(--text); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+button.go { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button:disabled, button.go:disabled { background: var(--soft); color: var(--ink-2); border-color: var(--line); cursor: not-allowed; }
+/* the money: the bid held on NEAR streams to the agent whose output passed; the one that failed stays at 0 */
+.stage { display: block; width: 100%; max-width: 600px; height: auto; margin: var(--sp-5) 0 var(--sp-3); overflow: visible; }
+.stage .box { fill: var(--paper-2); stroke: var(--line); stroke-width: 1.5; }
+.stage .box.win { stroke: var(--ok); stroke-width: 3; }
+.stage .wire { fill: none; stroke: var(--line); stroke-width: 3; }
+.stage .wire.lit { stroke: var(--accent); }
+.stage .wire.cut { stroke-dasharray: 6 8; }
+.stage .k { font: 500 24px/1 var(--text); fill: var(--ink-2); }
+.stage .v { font: 650 48px/1 var(--head); fill: var(--ink); font-variant-numeric: tabular-nums; }
+.stage .tag { font: 600 24px/1 var(--text); } .stage .ic.ok { stroke: var(--ok); }
+.stage .tag.yes { fill: var(--ok); } .stage .tag.no { fill: var(--bad); }
+.stage .coin { fill: var(--accent); }
+.fees { margin: 0; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font: 400 var(--s-1)/1.4 var(--text); color: var(--ink-2); padding: var(--sp-2); }
+td { padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--line); vertical-align: top; }
+td.n, th.n { text-align: right; }
+.id { font-family: var(--code); font-size: var(--s0); overflow-wrap: anywhere; }
+.yes { color: var(--ok); font-weight: 600; } .no { color: var(--bad); font-weight: 600; }
+.txs a { margin-right: var(--sp-2); white-space: nowrap; }
+.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); margin: 0 0 var(--sp-4); padding: 0; list-style: none; }
+.nums li { background: var(--soft); border-radius: var(--radius); padding: var(--sp-3); }
+.nums b { display: block; font: 600 var(--s3)/1.1 var(--head); font-variant-numeric: tabular-nums; }
+.empty { border: 1px dashed var(--line); border-radius: var(--radius-s); padding: var(--sp-3); color: var(--ink-2); }
+.status { display: flex; gap: var(--sp-3); align-items: center; min-height: 24px; margin: var(--sp-3) 0 0; }
+.status[hidden] { display: none; }
+.status[data-done] .spinner { display: none; }
+code.snip { display: block; padding: var(--sp-3); border-radius: var(--radius-s); background: var(--soft); font: 400 var(--s-1)/1.5 var(--code); overflow-wrap: anywhere; }
+form.fund { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: end; }
+label { display: grid; gap: var(--sp-1); font-size: var(--s0); font-weight: 500; }
+input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); border: 1px solid var(--ink-2); background: var(--paper); color: var(--ink); font: 400 var(--s1)/1.4 var(--text); }
+/* From Uiverse.io by AqFox (https://uiverse.io/AqFox/tiny-jellyfish-70), MIT License (c) 2023 Uiverse.io; colour and size from the Knos tokens */
+.spinner { flex: none; width: 20px; height: 20px; border: 4px var(--accent) double; border-left-style: solid; border-radius: 50%; }
+@media (prefers-reduced-motion: no-preference) {
+  .spinner { animation: spinner-aib1d7 .75s infinite linear; }
+  .track .coin { transition: transform 900ms var(--ease); }
+}
+@keyframes spinner-aib1d7 { to { transform: rotate(360deg); } }
+@media (max-width: 640px) {
+  .t thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .t, .t tbody, .t tr, .t td { display: block; }
+  .t tbody tr { padding: var(--sp-3) 0; border-top: 1px solid var(--line); }
+  .t td { border: 0; padding: var(--sp-1) 0; }
+  .t td.n { text-align: left; }
+}
+.bar #menu.menu { display: inline-flex; align-items: center; margin-left: auto; min-height: 44px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.3 var(--text); cursor: pointer; }
+</style>
+<style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
+<style id="k-first-css">
+/* the first screen: line 1, line 2, one button, one sourced figure; the run opens under the button */
+.ask { display: grid; gap: var(--sp-2); max-width: 760px; margin: 0 auto var(--sp-5); text-align: left; }
+.ask label { font: 600 var(--s1)/1.3 var(--text); }
+.ask .row { display: flex; gap: var(--sp-2); }
+.ask input { flex: 1; width: auto; min-width: 0; min-height: 60px; border-radius: 999px; padding: 0 var(--sp-4); font-size: var(--s1); }
+@media (max-width: 640px) { .ask .row { flex-direction: column; } }
+.card { margin-top: var(--sp-4); padding: var(--sp-4) var(--sp-5); border: 1px solid var(--line); border-radius: 18px; background: var(--paper-2); }
+.card h2 { font: 650 var(--s2)/1.3 var(--head); margin: 0 0 var(--sp-2); }
+.card h3 { font: 400 clamp(26px, 2.6vw, 34px)/1.15 var(--serif); margin: 0 0 var(--sp-2); }
+.card blockquote { margin: 0 0 var(--sp-2); padding-left: var(--sp-3); border-left: 3px solid var(--accent); font: 400 var(--s1)/1.5 var(--serif); }
+.card.offer { border: 2px solid var(--accent); background: var(--paper); box-shadow: var(--depth-2); }
+.answer { border: 2px solid var(--ink); }
+#look, .receipt-card, #steps li { scroll-margin-top: 96px; }
+.why { font: 500 clamp(18px, 1.7vw, 22px)/1.45 var(--text); max-width: 40em; margin: 0 auto var(--sp-3); }
+.cost { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-2) var(--sp-4); align-items: baseline; margin: 0 auto var(--sp-5); font-size: var(--s1); }
+.cost a { font-size: var(--s1); }
+.price { font-size: var(--s1); }
+.log td { padding: var(--sp-1) var(--sp-2); }
+.facts { max-width: 860px; margin: var(--sp-6) auto 0; display: grid; gap: var(--sp-2); }
+.facts p { margin: 0; }
+.counters b { font: 400 clamp(26px, 2.6vw, 34px)/1 var(--serif); }
+.vision { font: 400 clamp(20px, 2vw, 26px)/1.4 var(--serif); margin-top: var(--sp-4) !important; }
+.odds .pct { font: 400 clamp(36px, 4vw, 48px)/1 var(--serif); margin-right: var(--sp-2); }
+.vs th { width: 10em; color: var(--ink-2); font-weight: 500; }
+.who h2 { margin: 0; } .who table { width: 100%; } .who th { text-align: left; color: var(--ink-2); font-weight: 500; }
+.stop { color: var(--bad); }
+.first { display: flex; flex-direction: column; padding: 0 0 var(--sp-5); }
+.first .k-mission { font: 400 clamp(26px, 3vw, 38px)/1.15 var(--serif); max-width: 22em; margin: 0 auto var(--sp-4); }
+.give { font: 500 clamp(19px, 1.8vw, 24px)/1.4 var(--text); color: var(--ink-2); margin: 0 auto var(--sp-4); max-width: 34em; }
+.cta { margin: 0 auto var(--sp-5); }
+button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 650 var(--s2)/1.2 var(--text); box-shadow: var(--depth-2); }
+.loss { display: flex; gap: var(--sp-3); align-items: baseline; max-width: 46em; margin: 0 auto; color: var(--ink-2); font-size: var(--s0); text-align: left; }
+.loss b { font: 400 clamp(32px, 3.4vw, 44px)/1 var(--serif); color: var(--ink); white-space: nowrap; }
+.run { max-width: 760px; margin: var(--sp-5) auto 0; text-align: left; }
+.run[hidden] { display: none; }
+.clock { margin: 0 0 var(--sp-3); font: 500 var(--s1)/1 var(--text); color: var(--ink-2); }
+.clock b { font: 400 clamp(36px, 4vw, 48px)/1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.steps li { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--line); border-radius: 18px; background: var(--paper-2); }
+.steps li .at { float: right; margin-left: var(--sp-3); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.steps li h3 { font: 650 var(--s1)/1.3 var(--head); margin: 0 0 var(--sp-1); }
+.steps li p { margin: var(--sp-1) 0 0; }
+.steps li blockquote { margin: var(--sp-2) 0 0; padding-left: var(--sp-3); border-left: 3px solid var(--accent); color: var(--ink-2); }
+.steps li.ok { border-color: var(--ok); }
+.steps li.stop { border-color: var(--bad); }
+.product { margin-top: var(--sp-4); padding: var(--sp-5); border: 2px solid var(--accent); border-radius: 24px; background: var(--paper); box-shadow: var(--depth-2); }
+.product h3 { font: 400 clamp(28px, 3vw, 40px)/1.1 var(--serif); margin: 0 0 var(--sp-2); }
+.product p { margin: 0 0 var(--sp-3); font-size: var(--s1); }
+.product p.got { padding: var(--sp-3); border-radius: var(--radius); background: var(--soft); }
+.product p[hidden] { display: none; }
+.links a { margin-right: var(--sp-3); white-space: nowrap; }
+.under { margin-top: var(--sp-6); } .under > summary { cursor: pointer; font-weight: 600; color: var(--ink-2); padding: var(--sp-3) 0; }
+.under[open] > * { margin-top: var(--sp-5); }
+.foot { max-width: 1200px; margin: 0 auto; padding: var(--sp-4) 16px var(--sp-6); border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .loss { flex-direction: column; gap: var(--sp-1); } }
+</style>
+<style>.saved { max-width: 760px; margin: var(--sp-5) auto 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 8px; }</style>
+<link rel="icon" href="../../icon.svg" type="image/svg+xml">
+</head>
+<body>
+<main>
+  <p class="saved"><b>A finished order, saved as the page showed it:</b> job-1113171221, 13 Nov 2026, test money only (no card,
+  no real money). Every link opens its record on NEAR testnet. <a href="../">Order your own on the Prove page</a>.</p>
+  <section class="first" aria-labelledby="k-first">
+<h1 class="k-first" id="k-first">Prove a paper's claim on NEAR</h1>
+    <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> about a minute on NEAR (up to 2 min while a job is readied), for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
+    <form class="ask" id="ask">
+      <label for="paper"><span>Paste a paper's DOI or arXiv link. Knos proves the claims on its <a href="../../claims/">Claims</a> page and hands you code that works; the sample is HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory.</span></label>
+      <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false" readonly="">
+      <button type="submit" class="go big" id="go" data-buy="" disabled="">Will it work?</button></span>
+    </form>
+    <div class="run" id="run" aria-live="polite">
+      <div id="look"><section class="card answer offer"><h2>Prove this claim now</h2><p>Two agents run against a test locked on NEAR. You get a Yes or No, the verified code and a receipt.</p><p><b>Price: </b>the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free.</p><p><label for="claim-amount">Your price, in test USDC: </label><input type="number" id="claim-amount" min="1" max="100" step="1" style="width: 7em;" value="10" readonly=""></p><button type="button" class="go big" data-buy="" disabled="">Start a new order (10 test USDC)</button><p class="fine">This is a demo with test money: no card is charged and no invoice is sent.</p></section><section class="card"><h2>The paper says</h2><blockquote>“For instance, the new algorithm makes it possible to estimate cardinalities well beyond 10^9 with a typical accuracy of 2% while using a memory of only 1.5 kilobytes.”</blockquote><p class="fine"><a href="https://doi.org/10.46298/dmtcs.3545" target="_blank" rel="noopener">HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm (Flajolet, Fusy, Gandouet and Meunier, 2007)</a></p></section><section class="card"><h2>In plain words</h2><h3>Website Traffic Counter</h3><p>Easily track your website's visitor count with minimal memory usage. Use 1.5 kilobytes to count millions of visitors accurately.</p><p class="fine">Written by a small AI (qwen2.5:1.5b-instruct) at 2026-11-13 14:21 UTC, from the paper. <a href="https://github.com/drexthealpha/Knos/runs/131941763094" target="_blank" rel="noopener">The run that wrote it</a>.</p></section></div>
+      <div id="prove">
+        <p class="clock" aria-hidden="true"><b id="secs">26.4</b> s since you pressed</p>
+        <ol class="steps" id="steps"><li class="ok"><span class="at">done 131 min before you pressed</span><h3>1. The test is locked</h3><p>The agents did not write it and cannot change it: count 30,000 visitors within 10%, in at most 1.5 kilobytes. <a href="https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py" target="_blank" rel="noopener">Read the test</a></p></li><li class="ok"><span class="at">done 131 min before you pressed</span><h3>2. Two agents ran the paper’s result against the locked test</h3><p>Agent A: code from a private model on NEAR AI Cloud, or its fixed program when the model's code for this claim failed (named below). Agent B: a fixed shortcut that must fail. Each has its own NEAR account. Once the test passes, a second model call reviews the code and may only reject it.</p><p class="fine">Yes, for this order: each order takes its own job, and this job's agents ran against the locked test 131 min before you pressed the button, so the answer is ready in seconds.</p><p><b class="yes">Agent A: </b>Passed: 30,000 visitors counted within 3.6%, in 1,073 bytes (the paper: 1.5 kilobytes).</p><p><b class="no">Agent B: </b>Failed: it keeps 529,075 bytes, over the paper's 1.5 kilobytes (1,536 bytes).</p><p class="fine">Agent A's code was written by deepseek-ai/DeepSeek-V4.1-Flash-1017 on NEAR AI Cloud, call chatcmpl-cbe8539f-f581-4338-b87f-5e505e2a0753 (a cached answer for the same claim and test), 1050 tokens, $0.0006. private: its attestation and the answer's signature verified (<a href="https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017" target="_blank" rel="noopener">the attestation report</a>).</p></li><li class="ok"><span class="at">3.1 s</span><h3>3. The spending cap blocked an over-budget step</h3><p>Agent B tried to spend 2 units of its spending budget, over its cap of 1. NEAR refused it. <a href="https://testnet.nearblocks.io/txns/H8yKFyvML4DLNrdppTc78ESC6JKeygAev5D2Ngx8L2u3" target="_blank" rel="noopener">The refusal</a></p></li><li class="ok"><span class="at">9.1 s</span><h3>4. Answer: Yes, the claim holds</h3><table class="vs"><tr><th>The paper</th><td>2% typical error, 1.5 kilobytes of memory</td></tr><tr><th>Measured</th><td>3.6% error on 30,000 visitors, 1,073 bytes of memory</td></tr><tr><th>The locked test</th><td>count 30,000 visitors within 10%, in at most 1.5 kilobytes</td></tr><tr><th>AI reviewer</th><td>deepseek-ai/DeepSeek-V4.1-Flash-1017 on NEAR AI Cloud approved the pass: Implements genuine HyperLogLog with hashing and registers, no test inspection or hard-coded answers (the cached answer of 13 Nov 17:06 UTC for the same code and test), call chatcmpl-b7283b2a-8b80-4866-b858-7a96b6cc1a4d (it can only reject); private, attestation and signature verified: <a href="https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017" target="_blank" rel="noopener">attestation report</a></td></tr></table></li><li class="ok"><span class="at">9.1 s</span><h3>5. You got</h3><p><a href="https://knos.onrender.com/api/near/claim/code?claim=hyperloglog" target="_blank" rel="noopener">Download the verified code (visitor_counter.py)</a>, the version that passed the locked test.</p><p>Try it now: visitors <input type="number" min="1000" max="100000" step="1000" style="width: 9em;" value="100000" readonly=""> <button type="button" class="go" disabled="">Count them with your code</button></p><p role="status"></p></li></ol><section class="card receipt-card"><h2>Receipt for proof job-1113171221: paid and recorded on NEAR testnet 26.4 s after you pressed</h2><table class="vs"><tr><th>You put behind the claim</th><td>10.00 test USDC behind this proof: 9.00 test USDC to the agent, 1.00 test USDC to Knos. From a test account Knos holds for you, so you need no wallet. One transaction splits it between agent A and Knos: <a href="https://testnet.nearblocks.io/txns/4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq" target="_blank" rel="noopener">the split</a></td></tr><tr><th>Agent A’s share</th><td>10.00 test USDC in all: 9.00 test USDC from your price (90%, <a href="https://testnet.nearblocks.io/txns/4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq" target="_blank" rel="noopener">the transfer</a>) plus the 1.00 the job itself paid for passing its locked test (<a href="https://testnet.nearblocks.io/txns/9pBVnfneGA2PiaANNo8cZWvjMnX98c95RJBqJ5aZCEev" target="_blank" rel="noopener">that payment</a>).</td></tr><tr><th>Knos kept, less costs</th><td>1.00 fee − $0.02 network fees − $0.0000 model calls = 0.9845 (test USDC counted as dollars).</td></tr><tr><th>Knos’s fee</th><td>1.00 test USDC, 10%, kept in Knos’s own test account. <a href="https://testnet.nearblocks.io/txns/4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq" target="_blank" rel="noopener">The transfer</a> · <a href="https://testnet.nearblocks.io/address/knos-payer-1102.testnet?tab=tokentxns" target="_blank" rel="noopener">The account</a></td></tr></table><p><b>The claim’s record on NEAR: </b>updated to holds. <a href="https://testnet.nearblocks.io/txns/F1tjQVaix9B2nxcU1fMy4LsKvRKFbFhLSFiag7BDFZuW" target="_blank" rel="noopener">The update</a></p><h3>What each step cost</h3><table class="log"><tr><td>The job and its locked test posted</td><td class="n">$0.00211</td><td><a href="https://testnet.nearblocks.io/txns/DbsdgBQQhDnf57Kb5rMSL5vtoNkwP2nubSpc8nXVZGi1" target="_blank" rel="noopener">record</a></td></tr><tr><td>Agent A took the job</td><td class="n">$0.00071</td><td><a href="https://testnet.nearblocks.io/txns/2hqU9r2bxxeTEFvehRxKffnprLq8uA9mwsjangEQcD6K" target="_blank" rel="noopener">record</a></td></tr><tr><td>Agent A sent its version</td><td class="n">$0.00072</td><td><a href="https://testnet.nearblocks.io/txns/3xZukEkoHAqwzY14dG7ZbZHpsKa6EDSYXUffhTZ9h7mT" target="_blank" rel="noopener">record</a></td></tr><tr><td>Agent B took the job</td><td class="n">$0.00072</td><td><a href="https://testnet.nearblocks.io/txns/hzJ6NAfGoYoriHKHPxJAFaHE7T9i6ErtmeRRNqk2crs" target="_blank" rel="noopener">record</a></td></tr><tr><td>Agent B sent its version</td><td class="n">$0.00073</td><td><a href="https://testnet.nearblocks.io/txns/9BiU1oqjVX732c72eByYJduh9HKEz8JcLeYwybYXYcBD" target="_blank" rel="noopener">record</a></td></tr><tr><td>Agent B's over-budget step, refused</td><td class="n">$0.00061</td><td><a href="https://testnet.nearblocks.io/txns/H8yKFyvML4DLNrdppTc78ESC6JKeygAev5D2Ngx8L2u3" target="_blank" rel="noopener">record</a></td></tr><tr><td>The job paid agent A for passing</td><td class="n">$0.00405</td><td><a href="https://testnet.nearblocks.io/txns/9pBVnfneGA2PiaANNo8cZWvjMnX98c95RJBqJ5aZCEev" target="_blank" rel="noopener">record</a></td></tr><tr><td>Your amount, split between agent A and Knos (one transaction)</td><td class="n">$0.00379</td><td><a href="https://testnet.nearblocks.io/txns/4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq" target="_blank" rel="noopener">record</a></td></tr><tr><td>The claim's record on NEAR updated</td><td class="n">$0.00207</td><td><a href="https://testnet.nearblocks.io/txns/F1tjQVaix9B2nxcU1fMy4LsKvRKFbFhLSFiag7BDFZuW" target="_blank" rel="noopener">record</a></td></tr></table><p class="fine">Network fees in dollars at today’s NEAR price ($3.5316, <a href="https://coinpaprika.com/coin/near-near-protocol/" target="_blank" rel="noopener">source</a>); in all $0.02. Test money: no real money moved.</p><p><button type="button" class="go" data-buy="" disabled="">Prove the same claim again</button></p><p role="status"></p></section>
+      </div>
+      <p class="fine links" id="links"></p>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

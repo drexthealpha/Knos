@@ -36,7 +36,9 @@ claim and test is reused and says so, with its call id); a second model call rev
    its locked test with its sha256 and its proof (job-...).
 2. Press **Prove it yourself**, then **Prove it with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
-   then "4. Answer: Yes, the claim holds": about 15 s when a job is ready, 1 to 2 min when one is not.
+   then "4. Answer: Yes, the claim holds": about 15 s when a job is ready, 1 to 2 min when one is not. The order uses
+   test money only. To see every step and the receipt without ordering, open
+   [one finished order](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1113171221, 13 Nov), saved as the page showed it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
    and why. Then see "Receipt for proof job-...": 9.00 test USDC to agent A and 1.00 to Knos in one transaction, linked
    on the NEAR explorer ([one from 13 Nov](https://testnet.nearblocks.io/txns/9j5rTduPNkKS9eibA9MRhfdmpUaMe4it4ScyjwPgnuAs)).
