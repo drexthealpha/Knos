@@ -14,7 +14,7 @@ costly ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.1101
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
 | From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](#from-the-intersystems-contest) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/), or on your machine |
+| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](iris/README.md) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/), or on your machine |
 | From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
@@ -113,8 +113,8 @@ a rule decides, and above $50 a person approves.
 ### Judge it in 2 minutes on IRIS
 
 You need Docker with about 4 GB free. The first build takes about 4 minutes (as in CI); the online demo above needs no
-build. The build prints `ERROR #5373` for the `%AI` classes: expected, as the public image has no AI Hub, and replay
-mode does not use it.
+build. This one-command edition does not run the AI Hub agent (its image has no AI Hub): the rules referee decides.
+Built and tested on build 154.
 
 1. Run:
 

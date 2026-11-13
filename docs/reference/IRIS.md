@@ -24,29 +24,10 @@ Built and tested on the version of IRIS with AI built in (AI Hub build 154, iris
 | Code | [iris/](https://github.com/drexthealpha/Knos/tree/main/iris); the IPM package is `module.xml` at the repository root |
 | Online demo | https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/: build 154 in live mode in a GitHub codespace, the AI Hub agent deciding on NEAR AI Cloud (deepseek-ai/DeepSeek-V4.1-Flash-1017), each sample at most one model call, at most 10 an hour per visitor and 100 a day, past a limit the fixed rule with a label saying why. Live until 23:00 UTC on 13 Nov, 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov, when voting ends. InterSystems Cloud Services' services are subscriptions and Hugging Face's Docker Spaces need billing, so the free codespace hosts it |
 
-### The contest task, part by part
+### The contest task, and what is new
 
-| The task asks for | The feature doing it | How to see it |
-|---|---|---|
-| An Interoperability workflow | `Knos.Iris.Production`, 22 items. Services: `ProofIn`, `BriefIn`, `GitHubCheckRunPoller` (custom inbound adapter), `HL7LabIn` (HL7 ORU files), `FHIRLabIn` (FHIR Observation files), `DeadlineWatch` (not paid at the deadline), `DailyDigest` (the day's decisions and model cost), `SpendCapWatch` (alert before the model cap), `ApproverReminder` (payouts left waiting). Processes: `ProofDecision` (BPL), `DecisionRouter` (routing rule). Operations: `BriefLock`, `Referee` (the AI Hub agent), `PayoutApprovers` (Workflow), `SolanaRead` (custom outbound adapter), `SolanaSubmit` (Java PEX), `TraceSink`, `Ens.Alert`, `ReceiptFile` (a JSON receipt per decision), `DecisionFHIR` (a FHIR R4 Task per decision), `ResultHL7Out` (the decision back to the lab as HL7), `DigestFile` | Interoperability > Production |
-| An AI Hub agent | operation `Referee` running `Knos.Iris.AI.LocalReferee` on `qwen2.5:1.5b-instruct` in the compose file's `ollama` service with `KNOS_AI_MODE=local`, no key; in the online demo the same LocalReferee asks NEAR AI Cloud (deepseek-ai/DeepSeek-V4.1-Flash-1017) through AI Hub's openai provider, one call a sample and no tools (the brief and the proof are in its question); in replay mode (the default) the rules referee decides, with no model | the Verdict message of each decision |
-| A decision-making task | the agent answers met, not met or insufficient; code checks that answer, then `Knos.Iris.Rule.PayoutGate` says PAY, HUMAN, REFUND_AT_DEADLINE or REJECT | the Decision message |
-| A person where it matters | IRIS Workflow, role `PayoutApprovers`, for a met decision above 50 USDC | the inbox on `/knos/` or Interoperability > Workflow Inbox |
-| Every step traceable | each model call, tool call, rule and approval is a `Knos.Iris.Msg.Span` in the decision's own session | Visual Trace |
-
-### What is new, and why
-
-- **The trace is the production's own message log.** Every step of the agent's decision is an interoperability
-  message, kept in a Langfuse-style SQL table. A lab cannot send its data to an outside tracing service; IRIS already
-  keeps an audited record of every message, so the trace stays inside the lab's own IRIS.
-- **An agent that can only say no.** A lab cannot let a model pay anyone. So the agent has no tool that moves money: it
-  may only say met, not met or insufficient. Code checks that answer, and a person approves anything large.
-- **Vector Search keeps the agent honest.** The proof's two nearest criteria come from IRIS Vector Search
-  (snowflake-arctic-embed-s, run in Embedded Python). A verdict that cites a criterion outside those two is capped at
-  0.6 confidence and goes to a person.
-- **The brief is locked by a hash.** The brief is hashed with Knos's own `knos.ready.criteria_hash`, run in Embedded
-  Python from the same `src/knos` that the Knos app uses. Proof against a changed brief is refused before any model is
-  asked.
+Both are in [iris/README.md](../../iris/README.md), the IRIS judge page: the contest task part by part, and what is
+new, and why.
 
 ### Quick start
 
@@ -345,14 +326,14 @@ MIT, the repository's own [LICENSE](../../LICENSE).
 | B2 Production Extension (PEX) | 3 | [iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java L20](https://github.com/drexthealpha/Knos/blob/main/iris/java/src/main/java/knos/iris/pex/SolanaSubmitOperation.java#L20) |
 | B3 Workflow Engine | 2 | [iris/src/Knos/Iris/Production.cls L19](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Production.cls#L19) |
 | B4 Custom Adapter | 2 | [iris/src/Knos/Iris/Adapter/CheckRunInbound.cls L5](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Adapter/CheckRunInbound.cls#L5) |
-| B5 Find a bug in AI Hub | 2 (max 3) | https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/20 ; https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/21 |
+| B5 Find a bug in AI Hub | 3 | https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/20 ; https://github.com/intersystems-community/ai-hub-eap-bugreports/issues/21 |
 | B6 Embedded Python | 3 | [iris/src/Knos/Iris/Py/Ready.cls L4](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Py/Ready.cls#L4) |
 | B7 IRIS Vector Search usage | 2 | [iris/src/Knos/Iris/Data/Criterion.cls L7](https://github.com/drexthealpha/Knos/blob/main/iris/src/Knos/Iris/Data/Criterion.cls#L7) |
 | B8 Docker container usage | 2 | [iris/docker-compose.yml L4](https://github.com/drexthealpha/Knos/blob/main/iris/docker-compose.yml#L4) |
 | B9 ZPM Package deployment | 2 | `zpm "install knos-iris"` ([the package](https://openexchange.intersystems.com/package/Knos); [its install on build 154, 12 Nov](../../iris/docs/zpm-install-knos-iris-2026-11-12.log): every phase SUCCESS; that image has no JDK, so the optional Java PEX jar was not built, and the production logged two runtime-lock lines while it started) |
-| B10 Online Demo | 2 | https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/, live 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov, when voting ends (GitHub shows a notice first: press Continue) |
+| B10 Online Demo | claimed 13 Nov (2), not in the table yet | https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/, live 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov, when voting ends (GitHub shows a notice first: press Continue) |
 | B11 Implement InterSystems Community Idea | 4 | https://ideas.intersystems.com/ideas/DPI-I-689 |
-| B12 Find a bug in Embedded Python | 2 (max 3) | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |
+| B12 Find a bug in Embedded Python | 3 | https://github.com/intersystems-community/python-bugreports/issues/30 ; https://github.com/intersystems-community/python-bugreports/issues/31 |
 | B13 First Article on Developer Community | 2 | https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call |
 | B14 Second Article on DC | 1 | https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris |
 | B15 Video | 3 | [the file, 43 s, a live run on 13 Nov 2026](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) |

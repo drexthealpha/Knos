@@ -179,6 +179,8 @@ ClassMethod Traces(s As %Integer) As %Status
 /// One AI Hub feature, run live: skill, policy, mcp, rag, stats or workflow (Knos.Iris.AI.Hub)
 ClassMethod AIHub(f As %String) As %Status
 {
+    // the public one-command edition (no AI Hub in its image) leaves the AI Hub classes out: say so, not an error
+    if '##class(%Dictionary.CompiledClass).%ExistsId("Knos.Iris.AI.Hub") { write {"feature": (f), "absent": 1, "ok": 0, "note": "This edition runs no AI Hub agent: its image has no AI Hub."}.%ToJSON() return $$$OK }
     set out = ##class(Knos.Iris.AI.Hub).Demo(f, $get(%request.Data("brief", 1)))
     set:'out.ok %response.Status = $select(out.error [ "one of skill":404, 1:500)
     write out.%ToJSON()

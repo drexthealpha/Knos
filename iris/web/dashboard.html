@@ -354,6 +354,7 @@ async function showHub(brief) {
     try {
       const r = await api("aihub/" + f + "?brief=" + encodeURIComponent(hubFor));
       if (hubFor !== (brief || "")) return;
+      if (r.absent) { box.replaceChildren(el("li", { className: "empty", textContent: r.note })); return; }   // the public edition: no AI Hub
       li.replaceChildren(el("strong", { textContent: name }), " ", say(r));
     } catch (e) { li.replaceChildren(el("strong", { textContent: name }), " ", el("span", { className: "err", textContent: e.message })); }
   }

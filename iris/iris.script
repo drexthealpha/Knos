@@ -4,7 +4,14 @@ zn "HSLIB"
 ; the KNOS namespace, unless iris/scripts/namespace.script made it already (iris/Dockerfile runs that as its own cached step)
 if '##class(%SYS.Namespace).Exists("KNOS") { set sc = ##class(HS.Util.Installer.Foundation).Install("KNOS") if 'sc { do $system.Status.DisplayError(sc) } }
 zn "KNOS"
-set sc = $system.OBJ.LoadDir("/home/irisowner/knos/iris/src", "ck", .err, 1)
+; with AI Hub (build 154) every class compiles; the public image (2026.2) has no %AI classes, so the eight AI Hub classes
+; are loaded, then dropped before the compile: the build prints no ERROR #5373, and replay mode never calls them
+set hub = ##class(%Dictionary.CompiledClass).%ExistsId("%AI.Agent")
+if hub { set sc = $system.OBJ.LoadDir("/home/irisowner/knos/iris/src", "ck", .err, 1) }
+if 'hub { set sc = $system.OBJ.LoadDir("/home/irisowner/knos/iris/src", "-c-d", .err, 1) }
+if 'hub { set ai = "Knos.Iris.AI.Hub,Knos.Iris.AI.LocalReferee,Knos.Iris.AI.MCP,Knos.Iris.AI.Referee,Knos.Iris.AI.RefereeToolSet,Knos.Iris.AI.RefereeTools,Knos.Iris.AI.ToolPolicy,Knos.Iris.AI.TraceAudit" for i = 1:1:$length(ai, ",") { do $system.OBJ.Delete($piece(ai, ",", i), "-d") } }
+if 'hub { write "This edition has no AI Hub: its eight AI Hub classes are left out, and the rules referee decides.", ! }
+if 'hub && sc { set sc = $system.OBJ.CompilePackage("Knos", "ck-d") }
 if 'sc { do $system.Status.DisplayError(sc) }
 set sc = ##class(Knos.Iris.Setup).Install(+$system.Util.GetEnviron("KNOS_FHIR"))
 if 'sc { do $system.Status.DisplayError(sc) }
