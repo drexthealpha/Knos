@@ -67,17 +67,15 @@
   <div class="iris-grid">
     <div>
       <h2>The same proof check, inside a lab: InterSystems IRIS</h2>
-      <p class="means">In IRIS, an AI Hub agent reads each test result and can only say no (with no model key, a rules referee does); a rule decides pass or fail; above $50 a person must also say yes. It runs inside the lab's own data system (InterSystems IRIS).</p>
+      <p class="means">In IRIS, an AI Hub agent reads each test result and says met or not met; it cannot pay anyone (with no model key, a rules referee answers instead); a rule decides; above $50 a person must also say yes. It runs inside the lab's own data system (InterSystems IRIS).</p>
       <h3 class="iris-h2">Install it</h3>
-      <p class="means">Docker with about 4 GB free and the IRIS image from InterSystems' AI Hub early access, then four commands:</p>
+      <p class="means">Docker with about 4 GB free, no InterSystems login and no key: one command, on the public IRIS for Health Community image.</p>
       <pre class="iris-steps">git clone https://github.com/drexthealpha/Knos &amp;&amp; cd Knos/iris
-bash scripts/load-image.sh ~/Downloads/irishealth-community-2026.3.0AI.154.0-docker.tar.gz
-bash scripts/env-secrets.sh &amp;&amp; docker compose up -d --build
-bash scripts/ready.sh</pre>
+docker compose -f docker-compose.public.yml up -d --build &amp;&amp; bash scripts/ready.sh</pre>
       <p class="means">Then open http://localhost:52773/knos/ and press <b>A passing test, $20</b>: the decision appears in a few seconds.</p>
       <ul class="iris-links">
         <li><a href="https://openexchange.intersystems.com/package/Knos">Our page on InterSystems' app store</a></li>
-        <li><a href="https://github.com/drexthealpha/Knos#quick-start">Install steps</a> and <a href="https://github.com/drexthealpha/Knos/tree/main/iris">code</a></li>
+        <li><a href="https://github.com/drexthealpha/Knos#from-the-intersystems-contest">Install steps, and build 154 with AI Hub</a> and <a href="https://github.com/drexthealpha/Knos/tree/main/iris">code</a></li>
         <li><a href="https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris">An AI that can only say no, inside InterSystems IRIS</a></li>
         <li><a href="https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call">What one AI decision costs in IRIS: tokens and dollars, traced per call</a></li>
       </ul>

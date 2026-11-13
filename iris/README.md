@@ -5,7 +5,7 @@ Knos turns any research into a product billions of people use, in days, not year
 Knos carries research across the valley of death, toward Kardashev II and III.
 
 [Watch the 70-second video](https://drexthealpha.github.io/Knos/iris/) ·
-[Full install steps](https://github.com/drexthealpha/Knos#run-it-on-iris)
+[Full install steps](https://github.com/drexthealpha/Knos#from-the-intersystems-contest)
 
 **One story.** A hospital lab funds a startup to build the online shop for its test kits. Step one pays $120 when the
 checkout answers in under 300 ms. The test passes and an AI agent in IRIS says yes. Then the lab's approver presses
@@ -28,4 +28,4 @@ When `ready.sh` prints `READY`, open http://localhost:52773/knos/ and press **A 
 default, needs no key: the rules referee decides, with no model.
 
 Troubleshooting and all 22 parts of the production are in
-[the full IRIS section](https://github.com/drexthealpha/Knos#run-it-on-iris).
+[the full IRIS section](https://github.com/drexthealpha/Knos#from-the-intersystems-contest).

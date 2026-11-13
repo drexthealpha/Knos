@@ -27,7 +27,7 @@ def test_the_root_is_the_front_door_and_the_old_addresses_send_on(tmp_path):
         assert p.count('<header class="kh" id="kh">') == 1 and 'id="k-bar"' not in p and "bar.js" not in p
     assert 'aria-current="page">Prove' in prove and 'aria-current="page">For labs' in labs
     nav = re.search(r'<nav aria-label="Pages">(.*?)</nav>', page).group(1)
-    assert re.findall(r'>([^<]+)</a>', nav) == ["Claims", "Prove", "For agents", "For labs", "Check a PR"]   # one header, on every page
+    assert re.findall(r'>([^<]+)</a>', nav) == ["Claims", "Prove", "For agents", "For labs (IRIS)", "Check a PR"]   # one header, on every page
     for rel in ("claims/index.html", "claim/hyperloglog/index.html", "agents/index.html", "pricing/index.html", "status/index.html", "privacy.html"):
         p = (site / rel).read_text(encoding="utf-8")
         assert p.count('<header class="kh" id="kh">') == 1 and ".kh .logo" in p and "solana" not in p.lower(), rel   # the header, styled
