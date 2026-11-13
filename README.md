@@ -14,7 +14,7 @@ costly ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.1101
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
 | From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | a lab result's criteria, checked in IRIS | [Knos on IRIS](#from-the-intersystems-contest) | the IRIS production, on your machine |
+| From the InterSystems contest | a lab result's criteria, checked in IRIS | [Knos on IRIS](#from-the-intersystems-contest) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/) (13:00 to 23:00 UTC), or on your machine |
 | From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
