@@ -44,6 +44,8 @@ ClassMethod File(path As %String, type As %String) As %Status
     set sc = s.LinkToFile($system.Util.GetEnviron("KNOS_IRIS_HOME")_"/"_path)
     if $$$ISERR(sc) || 's.Size { set %response.Status = 404 return $$$OK }
     set %response.ContentType = type
+    // fonts and images are bytes: no character set, no conversion (a font sent through UTF-8 grew from 18,736 to 28,223 bytes)
+    if (type '[ "text") && (type '[ "javascript") && (type '[ "json") && (type '[ "svg") { set %response.CharSet = "", %response.NoCharSetConvert = 1 }
     do %response.SetHeader("Cache-Control", "public, max-age=3600")
     do s.OutputToDevice()
     return $$$OK

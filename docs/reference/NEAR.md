@@ -164,7 +164,7 @@ Oct 2026; their 37.00 test USDC in bounties waits for them until they link a wal
 | `jobs.knos-swarm-1105.testnet` | the jobs contract: holds a job's bid against its test's sha256, pays only a passing agent | [explorer](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet) |
 | `market.knos-swarm-1105.testnet` | each claim's record: it settles Yes or No only from the proof's job, never by vote | [explorer](https://testnet.nearblocks.io/address/market.knos-swarm-1105.testnet) |
 | `agent-a2.knos-swarm-1105.testnet`, `agent-b2.knos-swarm-1105.testnet` (agent-a and agent-b before 12 Nov) | the two agents, each with a key that can only call the jobs contract | [A](https://testnet.nearblocks.io/address/agent-a2.knos-swarm-1105.testnet), [B](https://testnet.nearblocks.io/address/agent-b2.knos-swarm-1105.testnet) |
-| `live.knos-swarm-1105.testnet` | the hosted app's capped account: posts each job, opens its record and pays as the buyer's test account (test money, 20 runs a day) | [explorer](https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet) |
+| `live.knos-swarm-1105.testnet` | the hosted app's buyer test account: posts each job, opens its record and pays as the buyer (test money); the app allows 20 runs a day, and the account holds a full-access key | [explorer](https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet) |
 | `knos-usdc-1102.testnet` | the test dollar (NEP-141, 6 decimals) | [explorer](https://testnet.nearblocks.io/address/knos-usdc-1102.testnet) |
 | `knos-payer-1102.testnet` | Knos's own test account, where Knos's fee from each first proof arrives and is kept | [explorer](https://testnet.nearblocks.io/address/knos-payer-1102.testnet) |
 
