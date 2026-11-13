@@ -120,6 +120,14 @@ pub struct Contract {
     source: AccountId,
     markets: IterableMap<String, Market>,
     holdings: LookupMap<String, (u128, u128)>,
+    /// LMSR liquidity of every market here, and a demand market's bar (Round 9, U8: set at init; `new` keeps B and DEMAND)
+    b: u128,
+    demand: u128,
+}
+
+/// b * ln 2, rounded up: the least seed that covers a market's worst case
+pub fn seed_min(b: u128) -> u128 {
+    ((b as f64) * std::f64::consts::LN_2).ceil() as u128
 }
 
 fn key(id: &str, who: &AccountId) -> String {
@@ -146,7 +154,19 @@ pub fn yes_price(q_yes: u128, q_no: u128, b: u128) -> u128 {
 impl Contract {
     #[init]
     pub fn new(token: AccountId, source: AccountId, owner: AccountId) -> Self {
-        Self { owner, token, source, markets: IterableMap::new(b"m"), holdings: LookupMap::new(b"h") }
+        Self { owner, token, source, markets: IterableMap::new(b"m"), holdings: LookupMap::new(b"h"), b: B, demand: DEMAND }
+    }
+
+    /// A deployment with its own liquidity and demand bar, in the token's units (Circle's USDC has 6 decimals)
+    #[init]
+    pub fn new_sized(token: AccountId, source: AccountId, owner: AccountId, b: U128, demand: U128) -> Self {
+        require!(b.0 >= 1_000_000 && demand.0 >= 1_000_000, "b and the demand bar are at least 1 token");
+        Self { owner, token, source, markets: IterableMap::new(b"m"), holdings: LookupMap::new(b"h"), b: b.0, demand: demand.0 }
+    }
+
+    /// The token, b, the least seed (b * ln 2) and a demand market's bar, in the token's units
+    pub fn get_config(&self) -> serde_json::Value {
+        serde_json::json!({"token": self.token, "b": U128(self.b), "seed_min": U128(seed_min(self.b)), "demand": U128(self.demand), "owner": self.owner})
     }
 
     pub fn get_market(&self, id: String) -> Option<View> {
@@ -230,12 +250,12 @@ impl Contract {
             let now = env::block_timestamp() / 1_000_000_000;
             let until = opened + WEEK;
             let got = self.get_outside(claim.clone(), opened, until.min(now));   // outside backers only
-            let yes = if got.total.0 >= DEMAND {
+            let yes = if got.total.0 >= self.demand {
                 true
             } else if now > until {
                 false
             } else {
-                env::panic_str(&format!("not settled yet: {} of {} behind {claim}, {} s left", got.total.0, DEMAND, until - now))
+                env::panic_str(&format!("not settled yet: {} of {} behind {claim}, {} s left", got.total.0, self.demand, until - now))
             };
             let mut m = m.clone();
             m.outcome = Some(yes);
@@ -312,8 +332,8 @@ impl FungibleTokenReceiver for Contract {
                 require!(sender_id == self.owner, "only Knos seeds a market");
                 require!(!id.is_empty() && id.len() <= 64 && question.len() <= 200, "id and question");
                 require!(!self.markets.contains_key(&id), "this market exists");
-                require!(amount.0 >= SEED_MIN, "the seed must cover b * ln 2");
-                let m = Market { id: id.clone(), question, b: U128(B), q_yes: U128(0), q_no: U128(0), pool: amount, outcome: None, trades: 0 };
+                require!(amount.0 >= seed_min(self.b), "the seed must cover b * ln 2");
+                let m = Market { id: id.clone(), question, b: U128(self.b), q_yes: U128(0), q_no: U128(0), pool: amount, outcome: None, trades: 0 };
                 self.markets.insert(id, m);
             }
             Msg::Buy { id, side } => {
@@ -492,5 +512,35 @@ mod tests {
         }
         assert_eq!(k.get_traders("job:j1".into()), 2);
         assert_eq!(k.get_market("job:j1".into()).unwrap().market.trades, 3);
+    }
+
+    #[test]
+    fn a_sized_deployment_takes_its_own_seed_and_demand_bar() {
+        at("knos.testnet", 1_000);
+        let mut k = Contract::new_sized("usdc.testnet".parse().unwrap(), "src.testnet".parse().unwrap(), "knos.testnet".parse().unwrap(), U128(2_000_000), U128(10_000_000));
+        assert_eq!(seed_min(2_000_000), 1_386_295);
+        let cfg = k.get_config();
+        assert_eq!(cfg["b"], "2000000");
+        assert_eq!(cfg["seed_min"], "1386295");
+        assert_eq!(cfg["demand"], "10000000");
+        at("knos.testnet", 1_000);
+        send(&mut k, "knos.testnet", 1_386_295, serde_json::json!({"seed": {"id": "demand:jump:1000", "question": "q"}}));
+        assert_eq!(k.get_market("demand:jump:1000".into()).unwrap().market.b.0, 2_000_000);
+        // ten tokens from outside backers settle the demand market Yes; the bar is this deployment's own
+        at("buyer.testnet", 2_000);
+        send(&mut k, "buyer.testnet", 10_000_000, serde_json::json!({"back": {"claim": "jump", "to": [["agent.testnet", "9000000"], ["fee.testnet", "1000000"]]}}));
+        as_who("anyone.testnet", 3_000);
+        match k.resolve("demand:jump:1000".into()) {
+            PromiseOrValue::Value(s) => assert!(s.contains("settled Yes"), "{s}"),
+            _ => panic!("a demand market settles from the record"),
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "the seed must cover b * ln 2")]
+    fn a_sized_deployment_refuses_a_seed_under_b_ln_2() {
+        at("knos.testnet", 1_000);
+        let mut k = Contract::new_sized("usdc.testnet".parse().unwrap(), "src.testnet".parse().unwrap(), "knos.testnet".parse().unwrap(), U128(2_000_000), U128(10_000_000));
+        send(&mut k, "knos.testnet", 1_386_294, serde_json::json!({"seed": {"id": "demand:jump:1000", "question": "q"}}));
     }
 }
