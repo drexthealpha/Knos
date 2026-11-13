@@ -37,3 +37,30 @@ jobs:
         if: always()
         working-directory: iris
         run: docker compose -f docker-compose.public.yml logs --tail 120 iris
+  space:
+    # the online demo's image (iris/space/make_space.py) built from this commit and run as a Hugging Face Docker Space
+    # runs it: as user ID 1000, on port 52773, then the same sample
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: the Space's Dockerfile, at this commit
+        run: python3 iris/space/make_space.py "$GITHUB_SHA" space
+      - name: docker build (as the Space builds it)
+        run: docker build -t knos-space space
+      - name: docker run --user 1000 (as the Space runs it)
+        run: |
+          docker run -d --name knos-space --user 1000 -p 52773:52773 knos-space
+          for i in $(seq 1 60); do curl -fsS -u _SYSTEM:knos-public-demo http://localhost:52773/api/knos/health && break; sleep 5; done
+          echo
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:52773/api/knosdemo/sample/pass
+          for i in $(seq 1 24); do
+            d=$(curl -fsS http://localhost:52773/api/knosdemo/decisions) && echo "$d" | grep -q '"decision"' && break
+            sleep 5
+          done
+          echo "$d" | head -c 1500; echo
+          echo "$d" | grep -q '"decision"'
+          curl -fsS -o /dev/null -w "/knos/ %{http_code}\n" http://localhost:52773/knos/
+      - name: the container's log
+        if: always()
+        run: docker logs --tail 150 knos-space || true
