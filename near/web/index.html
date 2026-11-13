@@ -767,7 +767,7 @@ load();
     if (fin.pay) fin.pay.seconds = +((performance.now() - tPay) / 1000).toFixed(1);   // the wait the buyer saw, payment and record
     paying.remove(); firstSeconds = secs(); clearInterval(tick); $("secs").textContent = firstSeconds.toFixed(1);   // the whole first proof, answer and receipt
     receipt(fin.receipt || {}, fin.pay || { why: fin.why }, fin.settle, amount);
-    order.disabled = false; order.textContent = `New order: pays ${amount} test USDC again`;
+    order.disabled = false; order.textContent = `Start a new order (${amount} test USDC)`;
   }
 
   function receipt(rc, pay, settle, amount) {

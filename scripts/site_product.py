@@ -353,7 +353,7 @@ def status_page(header: str) -> str:
 
 
 def privacy_page(header: str) -> str:
-    body = ("<h1>Privacy and terms</h1>\n<h2>This site</h2>\n<p>No cookies and no third-party scripts. "
+    body = ("<h1>Privacy and terms</h1>\n<h2>This site</h2>\n<p>No cookies. One outside script host: the Prove page loads the GSAP animation library from cdnjs, pinned by its hash; it sends nothing of yours. "
             "To learn why people stay or leave, each page sends Knos small events of an anonymous visit: a random id your browser makes and "
             "resets every day, the page, each press and how long its answer took, whether you got an answer, ran a proof, backed a claim or "
             "downloaded code, three quick presses on one spot, an error shown, and the last page and its seconds before you leave. No IP "

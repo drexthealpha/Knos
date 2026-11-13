@@ -574,7 +574,7 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    price, in test USDC:" holding 10 and the button "Prove it with 10 test USDC".
 3. Type an amount (1 to 100) or keep 10, and click "Prove it with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper's result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
-4. About 5 to 75 s after ordering (about 5 s when a job is ready for the claim; about a minute when its agents run on order) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
+4. About 5 s to 2 min after ordering (about 5 s when a job is ready for the claim; 1 to 2 min when its agents run on order) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
