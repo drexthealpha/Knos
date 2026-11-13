@@ -18,7 +18,10 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
     // the online demo's limit for this sample (Knos.Iris.REST.Demo.Sample): the fixed rule decides, and says why
     set fixed = $get(^Knos.Demo("fixed", pRequest.BriefId))
     if fixed '= "" { set mode = "replay" }
+    kill %knosAskWhy
     if (mode = "live") || (mode = "local") { set out = ##class(Knos.Iris.AI.Referee).Ask(pRequest, hash, .refused) set:out="" mode = "replay" }
+    // the model was asked and did not answer: the fixed rule decides, and the label says why (not "no model key set")
+    if (out = "") && (refused = "") && (fixed = "") && ($get(%knosAskWhy) '= "") { set fixed = %knosAskWhy }
     // a model's verdict can only be made stricter: the rules referee reads the same proof's structured fields, and
     // when it says not met or insufficient where the model says more, its answer stands (met < insufficient < not met)
     if (out '= "") && (refused = "") { set out = ..Stricter(out, ##class(Knos.Iris.Py.Verdict).Decide(pRequest.BriefJSON, pRequest.Kind, pRequest.PayloadJSON, hash)) }

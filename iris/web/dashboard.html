@@ -28,6 +28,7 @@ body:not([data-in]) main > section, body:not([data-in]) #fresh, body:not([data-i
 body:not([data-demo]) #try { display: none; }
 .try { display: flex; flex-wrap: wrap; gap: 8px; }
 .dec .rec { display: none; }
+@media (max-width: 460px) { .dec { table-layout: fixed; width: 100%; } .dec th, .dec td { overflow-wrap: anywhere; } }   /* 390 px: the table stays in its box */
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 40px; }
 h1, h2 { text-wrap: balance; }
 h1 { font: 600 28px/1.15 var(--head); letter-spacing: -.02em; margin: 0; }
@@ -216,7 +217,7 @@ function plainOutcome(d) {
 function jobName(b) { const m = /shop-(pass|fail|big)-/.exec(b || ""); return m ? { pass: "Sample: a passing test, $20", fail: "Sample: a failing test, $20", big: "Sample: a passing test, $120" }[m[1]] : (b || "-").replace(/^github:/, ""); }
 function dollars(subject) { const m = /\((\d+(?:\.\d+)?) USDC\)/.exec(subject || ""); return m ? "$" + m[1] : ""; }
 let toastTimer;
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3000); }
+function toast(msg, ms = Math.max(3000, msg.length * 70)) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms); }
 let selected = 0;
 
 async function loadTasks() {
@@ -363,9 +364,13 @@ const SAID = { pass: "Sent a passing test. Look at the newest decision.", fail: 
 for (const b of document.querySelectorAll("[data-sample]")) {
   b.addEventListener("click", async () => {
     for (const x of document.querySelectorAll("[data-sample]")) x.disabled = true;
-    toast("Sending. The check takes a few seconds.");
+    toast("Sending. The decision takes up to a minute when the AI Hub agent asks its model.", 90000);
     try { await api("sample/" + b.dataset.sample, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: "{}" }); toast(SAID[b.dataset.sample]); selected = 0; await load(); }
-    catch (e) { toast("Not sent: " + e.message); }
+    catch (e) {
+      // a gateway that gives up first (HTTP 504) does not stop the decision: say so, and read the list again until it shows
+      toast("No answer in time (" + e.message + "). The decision may still arrive: the list below refreshes for a minute.");
+      selected = 0; for (const s of [5, 15, 30, 60]) setTimeout(load, s * 1000);
+    }
     for (const x of document.querySelectorAll("[data-sample]")) x.disabled = false;
   });
 }

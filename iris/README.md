@@ -3,7 +3,7 @@
 An IRIS Interoperability production where an AI Hub agent decides if a lab's locked test criteria are met, and only then a payout step runs.
 
 - Online demo, no login: https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/ (GitHub shows a notice first: press Continue).
-  Online 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov, when voting ends.
+  Online until 23:00 UTC on 13 Nov, 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov, when voting ends.
 - Video, 43 s, a live run on 13 Nov 2026: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4)
 - [Judge it in 2 minutes](#judge-it-in-2-minutes): on the online demo, or with one command on your machine.
 

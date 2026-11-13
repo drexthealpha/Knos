@@ -113,6 +113,8 @@ ClassMethod AskLocal(proof As Knos.Iris.Msg.Proof, hash As %String) As %String
         }
     } catch e {
         $$$LOGWARNING("the local AI Hub referee failed: "_e.DisplayString())
+        // why, in a few plain words, for the decision's label (Knos.Iris.BO.Referee): the fixed rule then decides
+        set err = e.DisplayString(), %knosAskWhy = $select(err["overloaded":"the model service said it was overloaded", err["sending request":"the request to the model service did not get through", 1:"the model service gave an error")
     }
     return ""
 }

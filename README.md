@@ -39,8 +39,10 @@ claim and test is reused and says so, with its call id); a second model call rev
    test money only. To see every step and the receipt without ordering, open
    [one finished order](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1113171221, 13 Nov), saved as the page showed it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
-   and why. Then see "Receipt for proof job-...": 9.00 test USDC to agent A and 1.00 to Knos in one transaction, linked
-   on the NEAR explorer ([one from 13 Nov](https://testnet.nearblocks.io/txns/9j5rTduPNkKS9eibA9MRhfdmpUaMe4it4ScyjwPgnuAs)).
+   and why. Then see "Receipt for proof job-..." with "9.00 test USDC to the agent, 1.00 test USDC to Knos" and "One
+   transaction splits it", linked on the NEAR explorer ([one from 13 Nov](https://testnet.nearblocks.io/txns/9j5rTduPNkKS9eibA9MRhfdmpUaMe4it4ScyjwPgnuAs);
+   if the explorer asks for a bot check, `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["9j5rTduPNkKS9eibA9MRhfdmpUaMe4it4ScyjwPgnuAs","live.knos-swarm-1105.testnet"]}'`
+   shows the same transaction).
    Press **Prove the same claim again** - see "Free: Yes".
 4. From a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
    `py -3` where the commands say `python3`:
