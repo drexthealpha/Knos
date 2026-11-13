@@ -248,7 +248,8 @@ def write_code(claim: str, quote: str, test: str, visitor: str = "", plain: str 
         user += (f"\n\nYour last solution.py failed the locked test with: {fix[1][:400]}\nFix it. Measure the way the test measures "
                  "(read its code: what it times, counts or serializes) and leave room under each limit: when it says you are over "
                  "a limit, keep less (only what the method needs, in the most compact form the test counts), do not just tune a "
-                 f"constant. Your last code:\n```python\n{fix[0][:6000]}```")
+                 "constant; when it says too few results were accurate enough, use the method's own accuracy parameter as its "
+                 f"analysis sets it, within the test's other limits. Your last code:\n```python\n{fix[0][:6000]}```")
     a = _call("write", inp, WRITE, user, visitor)
     a["key"] = hashlib.sha256(json.dumps({"kind": "write", **inp}, sort_keys=True).encode()).hexdigest()
     text = a.get("text") or ""
