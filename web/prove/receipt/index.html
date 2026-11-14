@@ -162,9 +162,13 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 main { font-size: 16px; }
 .go, a { min-height: 44px; }
 .go { min-width: 44px; padding: 10px 16px; }
-.log td, .vs td { overflow-wrap: anywhere; }
+.log td, .vs td { overflow-wrap: break-word; }
+.log td.n { white-space: nowrap; }
+.log td:last-child a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; white-space: nowrap; }
 code { overflow-wrap: anywhere; }
 .run { max-width: 760px; margin: var(--sp-5) auto 0; }
+main p a, main td a:not(.go), main li a, main small a { padding: 12px 0; margin: -12px 0; }
+main th, main p, main small, main .fine, main .go, main .fine a, main a { font-size: 16px; }
 </style>
 <link rel="icon" href="../../icon.svg" type="image/svg+xml">
 </head>

@@ -97,6 +97,13 @@ input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-
   .t td.n { text-align: left; }
 }
 .bar #menu.menu { display: inline-flex; align-items: center; margin-left: auto; min-height: 44px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 var(--s0)/1.3 var(--text); cursor: pointer; }
+/* a 390 px phone: every link a 44 px tap target, the cost on one line, no text under 16 px */
+@media (max-width: 460px) {
+  main p a, main td a, main li a { padding: 12px 0; margin: -12px 0; }
+  .log td.n { white-space: nowrap; }
+  .log td:last-child a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; white-space: nowrap; }
+  main th, main small, main .fine, main .fine a { font-size: 16px; }
+}
 </style>
 <style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
 <style id="k-first-css">
