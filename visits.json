@@ -24,22 +24,38 @@
    "backed": 0,
    "came_back": 0,
    "events": {
-    "leave": 334,
+    "leave": 450,
     "press": 13,
-    "view": 146
+    "view": 144
    },
-   "first_press": 3,
+   "first_press": 2,
    "first_result": 0,
    "leave_from": {
-    "/": 130,
+    "/": 196,
     "/agents/": 30,
-    "/check/": 79,
-    "/claims/": 31,
+    "/check/": 131,
+    "/claims/": 30,
     "/prove/": 33
    },
    "not_what": {},
    "proof_finished": 0,
-   "visits": 194
+   "visits": 248
+  },
+  "2026-11-14": {
+   "backed": 0,
+   "came_back": 0,
+   "events": {
+    "leave": 32
+   },
+   "first_press": 0,
+   "first_result": 0,
+   "leave_from": {
+    "/": 24,
+    "/check/": 8
+   },
+   "not_what": {},
+   "proof_finished": 0,
+   "visits": 16
   }
  }
 }
