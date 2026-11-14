@@ -9,6 +9,8 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const out = process.argv[2] || "near-demo";
+// with a job and a payment transaction given, page A is kept from an earlier run in <out> and only page B is recorded again
+const [, , , keepJob, keepSplit] = process.argv;
 const SITE = "https://drexthealpha.github.io/Knos/";
 const REFUSED = "FShgZgDA6pUwY3KxJ4yi76CDBGX8F1oiihR5NN97BFgw";   // W3: a payout to a lookalike of agent-a2, refused by the jobs contract
 fs.mkdirSync(out, { recursive: true });
@@ -38,16 +40,23 @@ const flash = async (page, f, now) => {
 };
 
 // ---- page A: the order -----------------------------------------------------------------------------------------
-const a = await ctx.newPage(); const ta = clock(Date.now());
+let jobTx = keepJob, splitTx = keepSplit, summary = {}, a = null;
+if (keepJob) {
+  const old = JSON.parse(fs.readFileSync(path.join(out, "cuts.json"), "utf-8"));
+  cuts.push(...old.cuts.filter((c) => c.f === "a")); syncs.a = old.syncs.a; summary = old.summary;
+} else {
+a = await ctx.newPage(); const ta = clock(Date.now());
 await a.goto(SITE, { waitUntil: "load", timeout: 120000 });
 await a.locator("#sample:not([disabled])").waitFor({ timeout: 60000 });
 await a.waitForTimeout(1200);
 await flash(a, "a", ta);
 await say(a, "Good research waits 17 years to reach people", "h1");
 let s = ta(); await a.waitForTimeout(4200); cuts.push({ f: "a", from: s, to: ta(), what: "problem" });
-await say(a, "Pick one paper's claim: HyperLogLog", "#sample");
-s = ta(); await a.waitForTimeout(900);
-await a.locator("#sample").click();
+// Jump Hash: the claim whose locked test the private model's code passes (HyperLogLog's ready job runs the fixed program)
+await a.locator("#paper").fill("Does jump consistent hash move only 1 key in 11?");
+await say(a, "Ask about one paper's claim: Jump Hash", "#paper");
+s = ta(); await a.waitForTimeout(1400);
+await a.locator("#go").click();
 await a.locator("#out .verdict").waitFor({ timeout: 60000 });
 await say(a, "Its test is locked by its hash", "#out");
 await a.waitForTimeout(2600); cuts.push({ f: "a", from: s, to: ta(), what: "claim and hash" });
@@ -87,18 +96,19 @@ s = ta(); await a.waitForTimeout(4600); cuts.push({ f: "a", from: s, to: ta(), w
 const links = await a.evaluate(() => [...document.querySelectorAll(".receipt-card a, #steps a")].map((x) => ({ text: x.closest("tr, p, li")?.innerText.slice(0, 120) || x.textContent, href: x.href })).filter((x) => /tx\/\?h=|nearblocks\.io\/txns\//.test(x.href)));
 const hashIn = (href) => new URL(href).searchParams.get("h") || href.split("/txns/")[1] || null;
 const hashOf = (re) => { const l = links.find((x) => re.test(x.text)); return l ? hashIn(l.href) : null; };
-const jobTx = hashOf(/job and its locked test posted|locked test posted/i) || (links[0] && hashIn(links[0].href));
-const splitTx = hashOf(/held it with the job|in one transaction|the split|release/i);
-const summary = { order_at_s: tOrder, model, private: priv, holds, writer: writer.slice(0, 400), job_tx: jobTx, split_tx: splitTx, links };
+jobTx = hashOf(/job and its locked test posted|locked test posted/i) || (links[0] && hashIn(links[0].href));
+splitTx = hashOf(/jobs contract paid|sent by the jobs contract|held it with the job/i);
+summary = { order_at_s: tOrder, model, private: priv, holds, writer: writer.slice(0, 400), job_tx: jobTx, split_tx: splitTx, links };
 await say(a, "", null);
 await flash(a, "a", ta);
 await a.close();
+}
 
 // ---- page B: the same order on NEAR, then the card --------------------------------------------------------------
 const b = await ctx.newPage(); const tb = clock(Date.now());
-await b.goto(SITE + "tx/", { waitUntil: "load" }); await flash(b, "b", tb);
+await b.goto(SITE + "tx/", { waitUntil: "load", timeout: 120000 }); await flash(b, "b", tb);
 const tx = async (h, caption, ms, sel = "#moved li") => {
-  await b.goto(SITE + "tx/?h=" + h, { waitUntil: "load" });
+  await b.goto(SITE + "tx/?h=" + h, { waitUntil: "load", timeout: 120000 });
   await b.waitForFunction(() => !/Reading it/.test(document.getElementById("verdict").textContent), null, { timeout: 60000 });
   await say(b, caption, sel);
   const t = tb(); await b.waitForTimeout(ms); cuts.push({ f: "b", from: t, to: tb(), what: caption });
@@ -111,10 +121,10 @@ await b.setContent(`<body style="margin:0;height:100vh;display:grid;place-items:
   <p style="font:500 34px/1.5 ui-monospace,monospace;margin:0">drexthealpha.github.io/Knos</p><p style="font:500 34px/1.5 ui-monospace,monospace;margin:0">github.com/drexthealpha/Knos</p></div></body>`);
 let t = tb(); await b.waitForTimeout(4600); cuts.push({ f: "b", from: t, to: tb(), what: "card" });
 await flash(b, "b", tb);
-const va = a.video(), vb = b.video();
+const va = a && a.video(), vb = b.video();
 await b.close(); await ctx.close();
-fs.renameSync(await va.path(), path.join(out, "a.webm"));
+if (va) fs.renameSync(await va.path(), path.join(out, "a.webm"));
 fs.renameSync(await vb.path(), path.join(out, "b.webm"));
 fs.writeFileSync(path.join(out, "cuts.json"), JSON.stringify({ summary, cuts, syncs }, null, 1));
-console.log(JSON.stringify({ model, private: priv, holds, job_tx: jobTx, split_tx: splitTx, cuts: cuts.map((c) => c.what + " " + (c.to - c.from).toFixed(1) + "s") }));
+console.log(JSON.stringify({ model: summary.model, private: summary.private, holds: summary.holds, job_tx: jobTx, split_tx: splitTx, cuts: cuts.map((c) => c.what + " " + (c.to - c.from).toFixed(1) + "s") }));
 await browser.close();

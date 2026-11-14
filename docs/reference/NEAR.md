@@ -89,7 +89,9 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    "Does it hold?" and "100 behind it in 7 days?". Open a claim and click "Check the test against NEAR" - see
    "VERIFIED"; click "Change one byte and check again" - see "NOT VERIFIED".
 
-The same run, recorded from the public pages, front door first: [near/web/knos-near.mp4](../../near/web/knos-near.mp4) (58.6 s, no still over 4 s by ffmpeg freezedetect; its sound is a chord pad made by ffmpeg for this video, no outside music; each wait cut over 2 s is marked on screen; it ends on the agent call's answer, run during the recording).
+One real order on the live site, recorded on 14 Nov from a fresh browser at 1280x720: [near/web/knos-near.mp4](../../near/web/knos-near.mp4) (51 s, no sound; job-1114200906, where the private model wrote agent A's code).
+
+The agents' wait is sped up and its caption says so; each NEAR transaction is read on the site's own transaction page; near/web/record-demo.mjs recorded it and near/web/cut-demo.py cut it. The 12 Nov cut: [knos-near-2026-11-12.mp4](../../near/web/knos-near-2026-11-12.mp4).
 
 Screenshots: [first screen](../../near/web/knos-near-1-first.png), [the claim](../../near/web/knos-near-2-claim.png) and
 [what you got](../../near/web/knos-near-3-got.png).

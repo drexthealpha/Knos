@@ -62,7 +62,7 @@ orders on 14 Nov ran the fixed program; the receipt and the release transaction 
      job-1112053239), then `Passed: 9.2% of 100,000 keys moved going from 10 to 11 buckets (the ideal: 9.1%), all to
      the new one, the fullest bucket 1.5% over the mean, nothing stored.`
 
-Video, recorded from the live pages on 12 Nov, before the jobs contract paid the split itself: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4). An agent runs the same flow in
+Video, 51 s: one real order on the live site on 14 Nov (job-1114200906), where the private model on NEAR AI Cloud wrote agent A's code and the jobs contract paid 9.00 and 1.00: [near/web/knos-near.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near.mp4) (the 12 Nov cut: [knos-near-2026-11-12.mp4](https://github.com/drexthealpha/Knos/blob/v0.4.1/near/web/knos-near-2026-11-12.mp4)). An agent runs the same flow in
 one call:
 
 ```bash
