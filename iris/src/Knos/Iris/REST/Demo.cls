@@ -53,6 +53,10 @@ ClassMethod Sample(k As %String) As %Status
         if why = "" { set ^Knos.Demo("day", day) = $get(^Knos.Demo("day", day)) + 1, ^Knos.Demo("who", who, hour) = $get(^Knos.Demo("who", who, hour)) + 1 }
         else { set ^Knos.Demo("fixed", id) = why }
         lock -^Knos.Demo
+    } else {
+        // replay mode (the one-command edition): the AI Hub agent's answer to this sample, recorded in the online demo,
+        // is replayed (iris/fixtures/recorded; Knos.Iris.BO.Referee.Recorded): no model is asked
+        set ^Knos.Demo("recorded", id) = k
     }
     set sc = ##class(Ens.Director).CreateBusinessService("BriefIn", .svc)
     if $$$ISERR(sc) return ..Fail(sc)

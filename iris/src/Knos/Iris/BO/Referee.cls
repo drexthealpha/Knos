@@ -19,7 +19,11 @@ Method Decide(pRequest As Knos.Iris.Msg.Proof, Output pResponse As Knos.Iris.Msg
     set fixed = $get(^Knos.Demo("fixed", pRequest.BriefId))
     if fixed '= "" { set mode = "replay" }
     kill %knosAskWhy
+    set asked = mode
     if (mode = "live") || (mode = "local") { set out = ##class(Knos.Iris.AI.Referee).Ask(pRequest, hash, .refused) set:out="" mode = "replay" }
+    // replay mode only: a sample of the one-command edition replays the AI Hub agent's answer recorded in the online
+    // demo; a live or local run that got no answer never does, so a recorded answer never stands in for a live one
+    if (out = "") && (asked = "replay") && (fixed = "") { set out = ..Recorded($get(^Knos.Demo("recorded", pRequest.BriefId)), hash, pRequest.PayloadJSON) }
     // the model was asked and did not answer: the fixed rule decides, and the label says why (not "no model key set")
     if (out = "") && (refused = "") && (fixed = "") && ($get(%knosAskWhy) '= "") { set fixed = %knosAskWhy }
     // a model's verdict can only be made stricter: the rules referee reads the same proof's structured fields, and
@@ -56,6 +60,31 @@ ClassMethod Stricter(model As %String, rules As %String) As %String
     set:+r.confidence<+m.confidence m.confidence = r.confidence
     set m.model = m.model_" (made stricter by the rules referee)"
     return m.%ToJSON()
+}
+
+/// The AI Hub agent's answer to sample k (pass, fail or big), recorded unchanged in the online demo
+/// (iris/fixtures/recorded/k.json), for this run: "" unless it answers this very brief (the same criteria hash). Each
+/// sample run has its own check run id, so the answer cites this run's; no tokens or cost, since no model is asked.
+ClassMethod Recorded(k As %String, hash As %String, payload As %String) As %String
+{
+    return:'$listfind($listbuild("pass", "fail", "big"), k) ""
+    set path = ##class(Knos.Iris.Util).Home()_"iris/fixtures/recorded/"_k_".json"
+    return:'##class(%File).Exists(path) ""
+    try {
+        set f = ##class(%Stream.FileCharacter).%New(), f.TranslateTable = "UTF8"
+        $$$ThrowOnError(f.LinkToFile(path))
+        set rec = {}.%FromJSON(f), v = rec.answer
+        return:v."criteria_hash"'=hash ""
+        set id = {}.%FromJSON(payload).%Get("check_run").%Get("id", "", "string")
+        set it = v.milestones.%GetIterator()
+        while it.%GetNext(, .m) { set m.evidence = ["checkrun:"_id] }
+        set v.model = rec.model_" via AI Hub, its answer to this sample recorded "_rec."recorded_at"_" in the online demo, replayed: no model asked"
+        set v."input_tokens" = 0, v."output_tokens" = 0, v."cost_usd" = 0
+        return v.%ToJSON()
+    } catch e {
+        $$$LOGWARNING("the recorded answer for "_k_" was not read: "_e.DisplayString())
+    }
+    return ""
 }
 
 /// One step of the decision as a Span message in this session (DPI-I-689)

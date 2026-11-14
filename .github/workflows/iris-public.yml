@@ -24,7 +24,9 @@ jobs:
         run: bash scripts/ready.sh
       - name: the sample decision
         run: |
-          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:52773/api/knosdemo/sample/pass
+          r=$(curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:52773/api/knosdemo/sample/pass); echo "$r"
+          # the agent's answer recorded in the online demo is replayed (iris/fixtures/recorded/pass.json), not the fixed rule
+          echo "$r" | jq -e '.decision == "met" and (.referee | test("replayed: no model asked"))'
           for i in $(seq 1 24); do
             d=$(curl -fsS http://localhost:52773/api/knosdemo/decisions) && echo "$d" | grep -q '"decision"' && break
             sleep 5
@@ -77,7 +79,9 @@ jobs:
           docker run -d --name knos-space --user 1000 -p 52773:52773 knos-space
           for i in $(seq 1 60); do curl -fsS -u _SYSTEM:knos-public-demo http://localhost:52773/api/knos/health && break; sleep 5; done
           echo
-          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:52773/api/knosdemo/sample/pass
+          r=$(curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:52773/api/knosdemo/sample/pass); echo "$r"
+          # the agent's answer recorded in the online demo is replayed (iris/fixtures/recorded/pass.json), not the fixed rule
+          echo "$r" | jq -e '.decision == "met" and (.referee | test("replayed: no model asked"))'
           for i in $(seq 1 24); do
             d=$(curl -fsS http://localhost:52773/api/knosdemo/decisions) && echo "$d" | grep -q '"decision"' && break
             sleep 5

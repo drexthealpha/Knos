@@ -243,7 +243,7 @@ async function loadTasks() {
 }
 
 function taskText(msg) {
-  const who = agentMode === "replay" ? "The fixed rule" : "The AI";
+  const who = agentMode === "replay" ? "The referee" : "The AI";
   const m = /^(\[.*\])/s.exec(msg || "");
   try {
     return JSON.parse(m ? m[1] : "[]").map((x) => x.met === true ? who + " says the test passed." : x.met === false ? who + " says the test failed." : who + " could not tell.").join(" ") || msg;
@@ -259,13 +259,13 @@ async function answer(id, action, acts) {
   } catch (e) { toast("Not saved: " + e.message); for (const b of acts.querySelectorAll("button")) b.disabled = false; }
 }
 
-let agentMode, agentModeP;   // the health answer's "agent", read once: in replay mode a fixed rule decides, so no percent is shown
+let agentMode, agentModeP;   // the health answer's "agent", read once: in replay mode a sample replays the agent's recorded answer, anything else the fixed rule (no percent)
 const readMode = async () => { agentModeP = agentModeP || api("health").then((h) => h.agent || "").catch(() => ""); agentMode = await agentModeP; };
 async function loadDecisions() {
   const body = $("decisions");
   try {
     await readMode();
-    const sure = (d, tail) => agentMode === "replay" || /^rules referee/.test(d.referee || "") ? "fixed rule" : Math.round(d.confidence * 100) + "%" + tail;
+    const sure = (d, tail) => /^rules referee/.test(d.referee || "") || (agentMode === "replay" && !/replayed/.test(d.referee || "")) ? "fixed rule" : Math.round(d.confidence * 100) + "%" + tail;
     const rows = await api("decisions");
     body.replaceChildren();
     if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No decision yet." }))); return []; }
