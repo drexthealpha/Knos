@@ -45,17 +45,22 @@
    "backed": 0,
    "came_back": 0,
    "events": {
-    "leave": 32
+    "leave": 96,
+    "press": 15,
+    "view": 69
    },
-   "first_press": 0,
+   "first_press": 9,
    "first_result": 0,
    "leave_from": {
-    "/": 24,
-    "/check/": 8
+    "/": 44,
+    "/agents/": 10,
+    "/check/": 8,
+    "/claims/": 12,
+    "/prove/": 12
    },
    "not_what": {},
    "proof_finished": 0,
-   "visits": 16
+   "visits": 66
   }
  }
 }
