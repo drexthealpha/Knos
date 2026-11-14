@@ -79,6 +79,13 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 | Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
 | Chain Signatures | a separate payout path, not part of the order flow: `knos-pay-1103.testnet`'s `sign_payout` had NEAR's MPC signer sign a Solana devnet payout on 3 Nov ([tx 4eJPkBn5…](https://testnet.nearblocks.io/txns/4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR)) | [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 
+Keys, as NEAR testnet's `view_access_key_list` shows them: the jobs and claim market contracts hold none (deleted
+14 Nov, linked in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md)).
+
+Agent-a, agent-b and agent-b2 hold keys allowed only
+`take`, `submit` and `spend`; agent-a2's one key may call any jobs method and has no full-access key to narrow it; the
+buyer test account live.knos-swarm-1105 and the fee account knos-payer-1102 hold full-access keys, to sign as the buyer.
+
 Tokens: orders settle in `knos-usdc-1102.testnet`, Knos's own test USDC; the claim markets of the wallet test use Circle's
 testnet USDC, which the jobs contract also takes (`get_totals` counts each token); no order has settled in it yet. NEAR
 Intents appears only as a dry 1Click quote, with no money moved.

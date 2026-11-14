@@ -281,6 +281,16 @@ it.
 
 The first agents, agent-a and agent-b, hold keys allowed only those three methods. And the checker's key is set by 2 of the 3 owners.
 
+The jobs contract and the claim market contract hold no keys at all since 14 Nov 2026, after the jobs contract's last
+deploy passed: [jobs.knos-swarm-1105.testnet's DeleteKey](https://testnet.nearblocks.io/txns/HQfVb6aWMA3c9Vr58ZQ6hFqVH29AEHGwK9VJYibroBWT)
+and [market.knos-swarm-1105.testnet's DeleteKey](https://testnet.nearblocks.io/txns/4HTTbh8WCLPcHM7cvCw6gqEfxih8ReFse6W9WWzMNFr9).
+`view_access_key_list` returns no key for either, so nobody can redeploy them, and their code and state change only
+through their own methods.
+
+The buyer test account live.knos-swarm-1105 and the fee account knos-payer-1102 keep their
+full-access keys: they sign as the buyer and hold Knos's test money. usdc-market.knos-swarm-1105 keeps one until the
+wallet test of its Circle markets.
+
 `web/test-job.mjs`
 walks these four steps in a fresh browser. One run, 5 Nov 2026:
 
