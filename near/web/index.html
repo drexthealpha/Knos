@@ -498,7 +498,7 @@ async function hostedRun() {
     if (s.state === "done") {
       const job = s.job || {};
       $("receipt").replaceChildren(...[`Paid at ${clock(job.paid_at)}, ${s.seconds} s after your tap. `,
-        s.release_url ? el("a", { href: s.release_url, target: "_blank", rel: "noopener", textContent: "See the payment" }) : null,
+        s.release_url ? el("a", { href: String(s.release_url).replace(/^https:\/\/testnet\.nearblocks\.io\/txns\//, TX), target: "_blank", rel: "noopener", textContent: "See the payment" }) : null,
         el("br"), "Fee: 10% of what the buyer puts behind a claim. Test money for now."].filter(Boolean));
       payout(+(job.bid ?? 1000000), a, b);
     }
@@ -565,7 +565,8 @@ load();
   const GH = "https://api.github.com/repos/drexthealpha/Knos/";
   const post = (path, body) => fetch(HOSTED + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
     .then((r) => r.json()).catch(() => ({ ok: false, why: "the server did not answer" }));
-  const out = (href, text) => el("a", { href, target: "_blank", rel: "noopener", textContent: text });
+  // a transaction link opens the site's own transaction page, which reads it from NEAR (the explorer shows a bot check)
+  const out = (href, text) => el("a", { href: String(href || "").replace(/^https:\/\/testnet\.nearblocks\.io\/txns\//, TX), target: "_blank", rel: "noopener", textContent: text });
   // a wait past 400 ms shows its own seconds, every 100 ms, until the answer is in
   const live = (node, text) => { const t = performance.now(); const f = () => { node.textContent = `${text} ${((performance.now() - t) / 1000).toFixed(1)} s`; }; f(); const id = setInterval(f, 100); return () => clearInterval(id); };
   const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
