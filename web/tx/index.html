@@ -76,7 +76,7 @@ function refusal(st) {
     if (j && j.event === "ft_transfer") {
       for (const d of j.data) $("moved").append(el("li", `${(Number(d.amount) / 1e6).toFixed(2)} from ${d.old_owner_id} to ${d.new_owner_id}`));
       $("moved-h").hidden = false;
-    } else { $("said").append(el("li", o.executor_id + ": " + line.slice(0, 400))); $("said-h").hidden = false; }
+    } else { $("said").append(el("li", o.outcome.executor_id + ": " + line.slice(0, 400))); $("said-h").hidden = false; }
   }
   const x = document.createElement("a"); x.href = "https://testnet.nearblocks.io/txns/" + h; x.textContent = "The same transaction on the NEAR explorer"; x.rel = "noopener";
   $("more").append(x);
