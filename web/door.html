@@ -172,7 +172,10 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     const go = $("go"), t0 = performance.now(), m = match(text), mine = ++asked;
     if (m && m.c) {
       remember(text, m.c.name);
-      if (!board) { out.replaceChildren(el("p", { textContent: "Reading NEAR testnet..." })); await Promise.race([boardFile, new Promise((res) => setTimeout(res, 1500))]); }
+      // something visible at once, then one frame for the browser to paint it before the answer is built
+      out.replaceChildren(el("p", { textContent: "Reading NEAR testnet..." }));
+      await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0)));
+      if (!board) await Promise.race([boardFile, new Promise((res) => setTimeout(res, 1500))]);
       if (mine !== asked) return;
       if (board && board.claims) { answer(m.c, null, m.near && !exact); return; }   // the site's own board file, or else the server's last proof of this claim
       const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: src(m.c) }) });

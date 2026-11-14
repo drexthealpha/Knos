@@ -228,11 +228,12 @@ main th, main p, main small, main .fine, main .go, main .fine a, main a { font-s
 <script>
 document.getElementById("sig-check").addEventListener("click", () => {
   const said = document.getElementById("sig-said");
-  try {
+  said.textContent = "Checking in your browser...";   // shown at once: the recovery below takes about a second
+  setTimeout(() => { try {
     const text = document.getElementById("sig-text").textContent, sig = document.getElementById("sig-hex").textContent;
     const got = ethers.verifyMessage(text, sig).toLowerCase(), want = document.getElementById("sig-signer").textContent.toLowerCase();
     said.textContent = got === want ? "Your browser recovered " + got + ": the same signer the contract logged." : "Your browser recovered " + got + ", not " + want + ".";
-  } catch (e) { said.textContent = "Could not check here: " + e.message; }
+  } catch (e) { said.textContent = "Could not check here: " + e.message; } }, 30);
 });
 (async () => {
   const accounts = ["jobs.knos-swarm-1105.testnet", "market.knos-swarm-1105.testnet", "usdc-market.knos-swarm-1105.testnet",
