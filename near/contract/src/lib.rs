@@ -35,6 +35,14 @@ enum Key {
     Jobs,
     CheckerKeys,
     Budgets,
+    // Round 11: kept in their own prefixes, read and written where they are used, so the stored contract state is unchanged
+    JobToken,
+    Totals,
+    Records,
+    Rules,
+    AgentRules,
+    Daily,
+    Holds,
 }
 
 /// A Solana payout of a released milestone: the message the contract asked the MPC network to sign, and the answer
@@ -372,17 +380,20 @@ impl Knos {
 impl FungibleTokenReceiver for Knos {
     /// Funding: only the configured USDC; msg is a `Fund`. Any refusal panics, so the token returns the whole amount.
     fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
-        require!(env::predecessor_account_id() == self.usdc, "only the configured USDC funds a milestone");
+        let token = env::predecessor_account_id();
+        // the configured test USDC, or Circle's testnet USDC for a job (Round 11): nothing else is taken
+        require!(token == self.usdc || token.as_str() == jobs::CIRCLE_USDC, "only the configured USDC funds a milestone");
         require!(amount.0 > 0, "amount");
         let f: Fund = match serde_json::from_str(&msg) {
             Ok(f) => f,
             Err(_) => {
                 // an open job or an agent's budget (jobs.rs); anything else is refused and the token returns it all
                 let o: jobs::FundMsg = serde_json::from_str(&msg).unwrap_or_else(|_| env::panic_str("msg is not a milestone, a job or a budget"));
-                self.fund_other(sender_id, amount, o);
+                self.fund_other(sender_id, amount, o, token);
                 return PromiseOrValue::Value(U128(0));
             }
         };
+        require!(token == self.usdc, "only the configured USDC funds a milestone");
         require!(!f.id.is_empty() && f.id.len() <= 64, "id");
         require!(!self.milestones.contains_key(&f.id), "a milestone with this id exists");
         require!(is_hex(&f.criteria_hash, 64), "criteria_hash must be 64 hex");

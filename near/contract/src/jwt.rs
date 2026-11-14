@@ -34,6 +34,10 @@ pub struct CheckerClaims {
     pub payee: String,
     pub output_sha256: String,
     pub criteria_hash: String,
+    /// the text NEAR AI Cloud signed for the model call that wrote this output ("request hash:response hash"); when the
+    /// checker names it, `release_job_verified` pays only on a signature of exactly this text
+    #[serde(default)]
+    pub model_text: Option<String>,
 }
 
 pub struct Token<C = Claims> {

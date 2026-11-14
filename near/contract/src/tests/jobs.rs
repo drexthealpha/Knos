@@ -2,7 +2,7 @@
 //! refuses a payment over its cap. "adversarial" marks the attacks.
 
 use super::*;
-use crate::jobs::{JobState, CHECKER_ISS};
+use crate::jobs::{recover_signer, JobState, CHECKER_ISS, CIRCLE_USDC};
 
 const OUT_A: &str = "aaaa000000000000000000000000000000000000000000000000000000000001";
 const OUT_B: &str = "bbbb000000000000000000000000000000000000000000000000000000000002";
@@ -273,4 +273,160 @@ fn adversarial_a_msg_that_is_none_of_the_three_is_refused() {
     let mut c = with_checker();
     ctx(USDC, NOW);
     let _ = c.ft_on_transfer(acct("payer.testnet"), U128(1), r#"{"pay_me":{}}"#.into());
+}
+
+// ---- Round 11: the split, the totals, the spending rules, the rejection record and the model signature ----
+
+fn rules(c: &mut Knos, agent: &str, daily: u128, hold: u128, allow: &[&str]) {
+    ctx("owner.testnet", NOW);
+    c.set_agent_rules(acct(agent), U128(daily), U128(hold), allow.iter().map(|a| acct(a)).collect());
+}
+
+#[test]
+fn a_job_opened_since_the_upgrade_is_in_the_totals_and_they_add_up() {
+    let c = two_agents();
+    let t = c.get_totals();
+    assert_eq!(t[USDC]["locked"], "3000000");
+    assert_eq!(t[USDC]["open"], "3000000");
+    assert_eq!(t[USDC]["conserved"], true);
+}
+
+#[test]
+fn a_job_funded_in_circle_usdc_is_counted_in_circle_usdc() {
+    let mut c = with_checker();
+    ctx(CIRCLE_USDC, NOW);
+    let _ = c.ft_on_transfer(acct("payer.testnet"), U128(500_000), job_msg("jc", NOW + 3600));
+    assert_eq!(c.get_totals()[CIRCLE_USDC]["locked"], "500000");
+}
+
+#[test]
+#[should_panic(expected = "a budget is funded in the configured USDC")]
+fn adversarial_a_budget_in_another_token_is_refused() {
+    let mut c = with_checker();
+    ctx(CIRCLE_USDC, NOW);
+    let msg = serde_json::json!({"budget": {"agent": "agent-b.testnet", "cap": "5"}}).to_string();
+    let _ = c.ft_on_transfer(acct("owner.testnet"), U128(5), msg);
+}
+
+#[test]
+#[should_panic(expected = "over the daily cap: 2 spent today, 2 asked, daily cap 3")]
+fn adversarial_a_spend_over_the_daily_cap_is_refused() {
+    let mut c = with_checker();
+    budget(&mut c, "agent-b.testnet", 10, 10);
+    rules(&mut c, "agent-b.testnet", 3, 0, &[]);
+    ctx("agent-b.testnet", NOW);
+    let _ = c.spend(acct("shop.testnet"), U128(2));
+    let _ = c.spend(acct("shop.testnet"), U128(2));
+}
+
+#[test]
+#[should_panic(expected = "agent-a3.testnet is not on agent-b.testnet's payee allow-list")]
+fn adversarial_a_payout_to_a_lookalike_off_the_allow_list_is_refused() {
+    let mut c = with_checker();
+    budget(&mut c, "agent-b.testnet", 10, 10);
+    rules(&mut c, "agent-b.testnet", 0, 0, &["agent-a2.testnet"]);
+    ctx("agent-b.testnet", NOW);
+    let _ = c.spend(acct("agent-a3.testnet"), U128(1));
+}
+
+#[test]
+fn a_spend_over_the_hold_line_waits_for_the_approver() {
+    let mut c = with_checker();
+    budget(&mut c, "agent-b.testnet", 10, 10);
+    rules(&mut c, "agent-b.testnet", 0, 2, &[]);
+    ctx(accounts(0).as_str(), NOW);
+    c.set_approver(acct("approver.testnet"));
+    ctx("agent-b.testnet", NOW);
+    let _ = c.spend(acct("shop.testnet"), U128(3));
+    let h = c.get_hold(U64(0)).unwrap();
+    assert_eq!((h.agent, h.amount.0), (acct("agent-b.testnet"), 3));
+}
+
+#[test]
+#[should_panic(expected = "only the approver releases a held spend")]
+fn adversarial_only_the_approver_releases_a_held_spend() {
+    let mut c = with_checker();
+    budget(&mut c, "agent-b.testnet", 10, 10);
+    rules(&mut c, "agent-b.testnet", 0, 2, &[]);
+    ctx(accounts(0).as_str(), NOW);
+    c.set_approver(acct("approver.testnet"));
+    ctx("agent-b.testnet", NOW);
+    let _ = c.spend(acct("shop.testnet"), U128(3));
+    let _ = c.approve_spend(U64(0));
+}
+
+#[test]
+#[should_panic(expected = "Knos is paused by an owner: nothing moves but refunds")]
+fn adversarial_nothing_is_taken_while_paused() {
+    let mut c = with_checker();
+    open(&mut c, "j1");
+    ctx(accounts(0).as_str(), NOW);
+    c.pause(true);
+    ctx("agent-a.testnet", NOW);
+    c.take("j1".into());
+}
+
+#[test]
+#[should_panic(expected = "only an owner may")]
+fn adversarial_a_stranger_cannot_pause() {
+    let mut c = with_checker();
+    ctx("mallory.testnet", NOW);
+    c.pause(true);
+}
+
+#[test]
+fn the_payer_records_a_rejected_solution_on_the_agents_record() {
+    let mut c = two_agents();
+    ctx("payer.testnet", NOW);
+    c.record_rejection("j1".into(), acct("agent-b.testnet"), OUT_B.into(), "hard-codes the answer the test checks".into());
+    assert_eq!(c.get_agent_record(acct("agent-b.testnet")).rejected, 1);
+}
+
+#[test]
+#[should_panic(expected = "only the job's payer or an owner records a rejection")]
+fn adversarial_a_stranger_cannot_record_a_rejection() {
+    let mut c = two_agents();
+    ctx("mallory.testnet", NOW);
+    c.record_rejection("j1".into(), acct("agent-b.testnet"), OUT_B.into(), "x".into());
+}
+
+#[test]
+fn the_model_signature_recovers_its_signer() {
+    // the example of web3.js eth.accounts.sign("Some data", key) for the address 0x2c7536E3605D9C16a7a3D7b1898e529396a65c23
+    ctx("alice", NOW);
+    let sig = "0xb91467e570a6466aa9e9876cbcd013baba02900b8979d43fe208a4a4f339f5fd6007e74cd82e037b800186422fc2da167c747ef045e5d18a5f5d4300f8e1a0291c";
+    assert_eq!(recover_signer("Some data", sig), "2c7536e3605d9c16a7a3d7b1898e529396a65c23");
+}
+
+#[test]
+#[should_panic(expected = "is not a NEAR AI signing address the owners added")]
+fn adversarial_a_model_signature_from_an_address_not_added_is_refused() {
+    let mut c = two_agents();
+    let mut cl = checker("j1", "agent-a.testnet", OUT_A, "c-m");
+    cl["model_text"] = "Some data".into();
+    ctx("relayer.testnet", NOW);
+    let sig = "0xb91467e570a6466aa9e9876cbcd013baba02900b8979d43fe208a4a4f339f5fd6007e74cd82e037b800186422fc2da167c747ef045e5d18a5f5d4300f8e1a0291c";
+    let _ = c.release_job_verified("j1".into(), ctoken(&cl), "Some data".into(), sig.into());
+}
+
+#[test]
+fn a_model_signature_from_an_added_address_releases_the_job() {
+    let mut c = two_agents();
+    ctx(accounts(0).as_str(), NOW);
+    c.add_model_signer("0x2c7536E3605D9C16a7a3D7b1898e529396a65c23".into());
+    let mut cl = checker("j1", "agent-a.testnet", OUT_A, "c-v");
+    cl["model_text"] = "Some data".into();
+    ctx("relayer.testnet", NOW);
+    let sig = "0xb91467e570a6466aa9e9876cbcd013baba02900b8979d43fe208a4a4f339f5fd6007e74cd82e037b800186422fc2da167c747ef045e5d18a5f5d4300f8e1a0291c";
+    let _ = c.release_job_verified("j1".into(), ctoken(&cl), "Some data".into(), sig.into());
+    assert_eq!(c.get_job("j1".into()).unwrap().state, JobState::Paying);
+}
+
+#[test]
+#[should_panic(expected = "the checker's token names another model call")]
+fn adversarial_a_signature_for_another_model_call_is_refused() {
+    let mut c = two_agents();
+    let cl = checker("j1", "agent-a.testnet", OUT_A, "c-w");
+    ctx("relayer.testnet", NOW);
+    let _ = c.release_job_verified("j1".into(), ctoken(&cl), "Some data".into(), "00".into());
 }

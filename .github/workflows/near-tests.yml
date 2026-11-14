@@ -31,6 +31,16 @@ jobs:
           cargo install cargo-near --version 0.22.0 --locked
       - name: near/scripts/verify.sh
         run: bash near/scripts/verify.sh | tee near-tests.txt
+      - name: the jobs contract's wasm, as verify.sh built it (Round 11, deployed from this artifact)
+        if: always()
+        run: |
+          w=$(find /tmp/near-target near/contract/target -name knos_near.wasm 2>/dev/null | head -1); mkdir -p jobs-wasm
+          [ -n "$w" ] && cp "$w" jobs-wasm/ && sha256sum jobs-wasm/knos_near.wasm | tee -a near-tests.txt || echo "no knos_near.wasm built"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: jobs-wasm
+          path: jobs-wasm/
       - name: the claim market (near/market), its unit tests and its wasm
         run: |
           set -o pipefail
