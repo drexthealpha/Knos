@@ -142,7 +142,7 @@ main > * { min-width: 0; }
     </div>
     <p class="fine">Test money only. No sign-in needed: this is the built-in demo.</p>
     <p class="fine" id="model-note" role="status" hidden></p>
-    <p class="fine" id="hours" hidden>Online until 23:00 UTC tonight, 13:00 to 23:00 UTC on 14 Nov, and from 13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov.</p>
+    <p class="fine" id="hours" hidden>Online without a break until 05:00 UTC on 16 Nov, when voting ends.</p>
   </section>
 
   <section class="panel" aria-labelledby="t-inbox">
@@ -351,6 +351,7 @@ async function showHub(brief) {
       const r = await api("aihub/" + f + "?brief=" + encodeURIComponent(hubFor));
       if (hubFor !== (brief || "")) return;
       if (r.absent) { box.replaceChildren(el("li", { className: "empty", textContent: r.note })); return; }   // the public edition: no AI Hub
+      if (r.loading) { li.replaceChildren(el("strong", { textContent: name }), " ", el("span", { className: "fine", textContent: r.note })); continue; }   // still warming: a plain note
       li.replaceChildren(el("strong", { textContent: name }), " ", say(r));
     } catch (e) { li.replaceChildren(el("strong", { textContent: name }), " ", el("span", { className: "err", textContent: e.message })); }
   }
@@ -360,7 +361,7 @@ $("refresh").addEventListener("click", load);
 async function noteModel() { try { const h = await api("health"); $("model-note").textContent = h.model_note || ""; $("model-note").hidden = !h.model_note; } catch (e) { /* no health answer: nothing to say */ } }
 setTimeout(() => { if ("demo" in document.body.dataset) noteModel(); }, 2500);   // the built-in demo only: no sign-in is asked for
 if (location.hostname.endsWith(".app.github.dev")) {   // the online demo's hours, on the online demo only: the windows not yet over
-  const W = [["2026-11-13T23:00Z", "until 23:00 UTC on 13 Nov"], ["2026-11-14T23:00Z", "13:00 to 23:00 UTC on 14 Nov"], ["2026-11-16T05:00Z", "13:00 UTC on 15 Nov to 05:00 UTC on 16 Nov"]];
+  const W = [["2026-11-16T05:00Z", "without a break until 05:00 UTC on 16 Nov, when voting ends"]];
   const left = W.filter(([end]) => Date.parse(end) > Date.now()).map(([, say]) => say);
   if (left.length) { $("hours").textContent = "Online " + (left.length > 1 ? left.slice(0, -1).join(", ") + " and " + left[left.length - 1] : left[0]) + "."; $("hours").hidden = false; }
 }

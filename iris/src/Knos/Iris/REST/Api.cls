@@ -187,6 +187,8 @@ ClassMethod AIHub(f As %String) As %Status
     // the public one-command edition (no AI Hub in its image) leaves the AI Hub classes out: say so, not an error
     if '##class(%Dictionary.CompiledClass).%ExistsId("Knos.Iris.AI.Hub") { write {"feature": (f), "absent": 1, "ok": 0, "note": "This edition runs no AI Hub agent: its image has no AI Hub."}.%ToJSON() return $$$OK }
     set out = ##class(Knos.Iris.AI.Hub).Demo(f, $get(%request.Data("brief", 1)))
+    // the knowledge base's first build after a start (the embedding model loading) can fail once: a plain note, not an error
+    if 'out.ok && (f = "rag") { write {"feature": "rag", "loading": 1, "ok": 0, "note": "The knowledge base is still loading after a start: it answers from the next decision."}.%ToJSON() return $$$OK }
     set:'out.ok %response.Status = $select(out.error [ "one of skill":404, 1:500)
     write out.%ToJSON()
     return $$$OK

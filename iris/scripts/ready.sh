@@ -21,6 +21,8 @@ done
 field() { printf '%s' "$h" | sed -n "s/.*\"$1\":\"\\([^\"]*\\)\".*/\\1/p"; }
 prod=$(field production); agent=$(field agent)
 if [ "$prod" != "Running" ]; then echo "NOT READY: the production is ${prod:-unknown}. Next: docker compose restart iris, then run this again"; exit 1; fi
+# warm the AI Hub knowledge base (its embedding model loads on the first build), so a first visitor sees no wait or error
+for _ in 1 2; do curl -s -o /dev/null -m 120 -u "_SYSTEM:${IRIS_PASSWORD:-}" "$base/api/knos/aihub/rag" 2>/dev/null || true; done
 if [ "$agent" = replay ]; then
   echo "READY: open $base/knos/ and press a sample button (the built-in demo in replay mode: no key and no sign-in)."
 else
