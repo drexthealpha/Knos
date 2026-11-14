@@ -65,7 +65,10 @@ function refusal(st) {
   const ok = "SuccessValue" in t.status && !failed;
   $("verdict").textContent = ok ? "Succeeded" : "Refused by the contract: " + refusal(failed ? failed.outcome.status : t.status);
   $("verdict").className = "verdict " + (ok ? "ok" : "no");
-  for (const [k, v] of [["Signed by", tx.signer_id], ["Sent to", tx.receiver_id], ["Method", fc.method_name || Object.keys(a)[0] || String(a)], ["Hash", tx.hash]]) {
+  // a job opened with a locked test carries the test's sha256 in its arguments (ft_transfer_call's msg)
+  let locked = "";
+  try { const args = JSON.parse(atob(fc.args || "")); const msg = typeof args.msg === "string" ? JSON.parse(args.msg) : args.msg || {}; locked = (msg.open_job || msg).criteria_hash || args.criteria_hash || ""; } catch { /* no JSON arguments */ }
+  for (const [k, v] of [["Signed by", tx.signer_id], ["Sent to", tx.receiver_id], ["Method", fc.method_name || Object.keys(a)[0] || String(a)], ...(locked ? [["Locked test sha256", locked]] : []), ["Hash", tx.hash]]) {
     $("facts").append(el("dt", k), el("dd", v));
   }
   for (const o of t.receipts_outcome) for (const line of o.outcome.logs) {
