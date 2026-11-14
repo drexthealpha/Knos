@@ -70,6 +70,13 @@ button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-r
 .below p { margin: 0 0 12px; }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
+/* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
+@media (max-width: 460px) {
+  main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
+  main button, main .btn, main label, main summary, main code, main pre, main small, main th, main .fine, main input, main select { font-size: 16px; }
+  main summary { display: flex; align-items: center; min-height: 44px; }
+  nav a { display: inline-flex; align-items: center; min-height: 44px; }
+}
 </style>
 </head>
 <body>

@@ -38,6 +38,13 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
 @media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test USDC behind: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+/* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
+@media (max-width: 460px) {
+  main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
+  main button, main .btn, main label, main summary, main code, main pre, main small, main th, main .fine, main input, main select { font-size: 16px; }
+  main summary { display: flex; align-items: center; min-height: 44px; }
+  nav a { display: inline-flex; align-items: center; min-height: 44px; }
+}
 """
 
 
