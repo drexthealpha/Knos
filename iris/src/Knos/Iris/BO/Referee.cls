@@ -77,7 +77,7 @@ ClassMethod Recorded(k As %String, hash As %String, payload As %String) As %Stri
         return:v."criteria_hash"'=hash ""
         set id = {}.%FromJSON(payload).%Get("check_run").%Get("id", "", "string")
         set it = v.milestones.%GetIterator()
-        while it.%GetNext(, .m) { set m.evidence = ["checkrun:"_id] }
+        while it.%GetNext(, .m) { set m.evidence = [("checkrun:"_id)] }
         set v.model = rec.model_" via AI Hub, its answer to this sample recorded "_rec."recorded_at"_" in the online demo, replayed: no model asked"
         set v."input_tokens" = 0, v."output_tokens" = 0, v."cost_usd" = 0
         return v.%ToJSON()
