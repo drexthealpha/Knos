@@ -96,32 +96,34 @@ with a key (the online demo uses NEAR AI Cloud), export its endpoint and model (
 Twelve held-out cases, each with the decision a careful lab reviewer gives, were committed
 ([faf9c4b1](https://github.com/drexthealpha/Knos/commit/faf9c4b1), [iris/fixtures/heldout/cases.json](fixtures/heldout/cases.json))
 before either referee saw them. On 14 Nov the AI Hub agent (DeepSeek-V4.1-Flash-1017 on NEAR AI Cloud, the online demo's
-container) and the fixed rule each decided all twelve; Knos itself takes the stricter of the two.
+container) and the fixed rule each decided all twelve, twice: run 1 with the agent capped at 800 tokens, run 2 at 2,500.
+Knos itself takes the stricter of the agent and the fixed rule.
 
-| Case | Expected | AI Hub agent | Fixed rule | Knos (the stricter) |
-|---|---|---|---|---|
-| h01 check passed, p95 188 ms | met | met | met | met |
-| h02 check failed | not met | not met | not met | not met |
-| h03 "success", but its p95 is 412 ms | not met | no answer | met | **met (wrong)** |
-| h04 "success", p95 exactly 300 ms | not met | no answer | met | **met (wrong)** |
-| h05 p95 299 ms | met | met | met | met |
-| h06 run skipped | insufficient | not met | not met | not met |
-| h07 run still in progress | insufficient | not met | not met | not met |
-| h08 a different check passed | insufficient | insufficient | insufficient | insufficient |
-| h09 failed, text asks for met | not met | not met | not met | not met |
-| h10 neutral, 0 requests sent | insufficient | not met | not met | not met |
-| h11 one glucose value, 12 samples asked | insufficient | not met | met | not met |
-| h12 glucose 7.4 mmol/L | not met | not met | not met | not met |
-| **Right** | | **6 of 12** | **6 of 12** | **6 of 12** |
-| **Would pay wrongly** | | **0** | **3** | **2** |
+| Case | Expected | Agent, run 1 | Agent, run 2 | Fixed rule | Knos, run 2 |
+|---|---|---|---|---|---|
+| h01 check passed, p95 188 ms | met | met | met | met | met |
+| h02 check failed | not met | not met | not met | not met | not met |
+| h03 "success", but its p95 is 412 ms | not met | no answer | not met | met | not met |
+| h04 "success", p95 exactly 300 ms | not met | no answer | met | met | **met (wrong)** |
+| h05 p95 299 ms | met | met | met | met | met |
+| h06 run skipped | insufficient | not met | not met | not met | not met |
+| h07 run still in progress | insufficient | not met | not met | not met | not met |
+| h08 a different check passed | insufficient | insufficient | insufficient | insufficient | insufficient |
+| h09 failed, text asks for met | not met | not met | not met | not met | not met |
+| h10 neutral, 0 requests sent | insufficient | not met | not met | not met | not met |
+| h11 one glucose value, 12 samples asked | insufficient | not met | not met | met | not met |
+| h12 glucose 7.4 mmol/L | not met | not met | not met | not met | not met |
+| **Right** | | **6 of 12** | **7 of 12** | **6 of 12** | **7 of 12** |
+| **Would pay wrongly** | | **0** | **1** | **3** | **1** |
 
-The agent never said met wrongly; the fixed rule did three times, because it reads only a check's name and conclusion.
-On h03 and h04 the agent reasoned in its reply past its 800-token cap and never gave the JSON, so the fixed rule decided
-and would have paid.
+In run 1, Knos would have paid wrongly twice; in run 2, once. The fixed rule reads only a check's name and conclusion, so
+it says met three times where it should not. In run 1 the agent reasoned in its reply past its 800-token cap on h03 and
+h04 and never gave the JSON, so the fixed rule decided; DeepSeek V4 Flash thinks by default, so run 2 raised the cap.
 
-On h06, h07 and h10 both said not met where the right answer is insufficient: nothing is paid
-either way, but a not met refunds the funder where an insufficient would ask a person. The ten answered calls cost
-$0.0056 in all.
+In run 2 the agent caught h03 (a "success" whose own number misses the target) and missed h04 (300 ms is not under 300).
+On h06, h07 and h10 both said not met where the right answer is insufficient: nothing is paid either way, but a not met
+refunds the funder where an insufficient would ask a person. The ten answered calls of run 1 cost $0.0056, the twelve of
+run 2 $0.0086. The online demo runs at the run 2 cap.
 
 ## What I ran into on AI Hub
 
@@ -130,7 +132,7 @@ $0.0056 in all.
 - The IPM install failed with ERROR #5289: a ToolSet compiled before its tools; a `DependsOn` fixed the order.
 - The small local model, given tools, looked the brief up by the wrong key and gave up, so the agent has no tools now.
 - The knowledge base's embedding model loads on its first build, so the first decision after a start got HTTP 500; `ready.sh` now warms it.
-- DeepSeek on NEAR AI Cloud, capped at 800 tokens, sometimes reasons in its reply and never reaches the JSON (h03, h04 above).
+- DeepSeek V4 Flash on NEAR AI Cloud thinks by default: capped at 800 tokens it sometimes reasoned in its reply and never reached the JSON (h03, h04 above), so the cap is now 2,500.
 - Embedded Python, beside AI Hub: an int above 2^63 - 1 arrives in ObjectScript as -1 ([python-bugreports#30](https://github.com/intersystems-community/python-bugreports/issues/30), [repro](bugs/1)), and `iris.sql.exec` with one fails with a bare `SystemError` ([python-bugreports#31](https://github.com/intersystems-community/python-bugreports/issues/31), [repro](bugs/4)).
 
 ## Each bonus, and why a lab needs it

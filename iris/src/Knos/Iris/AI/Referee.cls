@@ -98,11 +98,11 @@ ClassMethod AskLocal(proof As Knos.Iris.Msg.Proof, hash As %String) As %String
         set base = $system.Util.GetEnviron("KNOS_LOCAL_LLM_URL")
         set:base="" base = "http://ollama:11434/v1"
         // an OpenAI-compatible endpoint that needs a key (NEAR AI Cloud): the key comes from the environment only
-        // (KNOS_LOCAL_LLM_KEY, passed through by docker compose from the shell), one model call a decision, 800 tokens
+        // (KNOS_LOCAL_LLM_KEY, passed through by docker compose from the shell), one model call a decision, 2500 tokens: DeepSeek V4.1 Flash thinks by default, and at 800 it reasoned past the cap and gave no JSON on 2 of 12 held-out cases (14 Nov)
         set key = $system.Util.GetEnviron("KNOS_LOCAL_LLM_KEY"), paid = (key '= "")
         set agent.Provider = ##class(%AI.Provider).Create("openai", {"base_url": (base), "api_key": ($select(paid:key, 1:"none"))})
         set agent.Model = model, agent.Temperature = 0
-        set session = agent.CreateSession({"max_iterations":($select(paid:1, 1:2)),"max_tokens":($select(paid:800, 1:600))})
+        set session = agent.CreateSession({"max_iterations":($select(paid:1, 1:2)),"max_tokens":($select(paid:2500, 1:600))})
         set ask = ##class(Knos.Iris.AI.LocalReferee).Question(hash, proof.BriefJSON, proof.Kind, proof.PayloadJSON)
         // a paid endpoint's call takes its place under the spend cap first (else the rules referee decides)
         return:paid&&'##class(Knos.Iris.AI.Budget).Take(.why) ""
