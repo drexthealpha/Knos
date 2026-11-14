@@ -15,7 +15,7 @@ and checking that a result really works is one slow, costly step on that road.
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
 | From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/README.md) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/), or on your machine |
+| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/README.md) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/) (up at any hour until voting ends), or on your machine |
 | From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
@@ -36,13 +36,14 @@ claim and test is reused and says so, with its call id); a second model call rev
    its locked test with its sha256 and its proof (job-...).
 2. Press **Prove it yourself**, then **Prove it with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
-   then "4. Answer: Yes, the claim holds": about 15 s when a job is ready, 1 to 2 min when one is not. The order uses
-   test money only. To see every step and the receipt without ordering, open
-   [one finished order](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1113171221, 13 Nov), saved as the page showed it.
+   then "4. Answer: Yes, the claim holds": about 15 to 35 s when a job is ready, 1 to 2 min when one is not. The order
+   uses test money only. To see every step and the receipt without ordering, open
+   [one finished order](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1114145004, 14 Nov), saved as the page showed it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
-   and why. Then see "Receipt for proof job-..." with "9.00 test USDC to the agent, 1.00 test USDC to Knos" and "One
-   transaction splits it", linked on the NEAR explorer ([the saved order's split](https://testnet.nearblocks.io/txns/4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq);
-   if the explorer asks for a bot check, `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["4WYZFfYBY5kE4LJ7181btY8JaLt69FdDjKBfEWUdk9Mq","live.knos-swarm-1105.testnet"]}'`
+   and why. Then see "Receipt for proof job-..." with "9.00 test USDC to the agent, 1.00 test USDC to Knos" and "The
+   jobs contract held it with the job", linked on the NEAR explorer ([the saved order's release](https://testnet.nearblocks.io/txns/CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH),
+   where both transfers come from `jobs.knos-swarm-1105.testnet`; if the explorer asks for a bot check,
+   `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction).
    Press **Prove the same claim again** - see "Free: Yes".
 4. From a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
@@ -72,11 +73,15 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 
 | NEAR feature | In Knos | Where |
 |---|---|---|
-| Contracts | the jobs contract locks each test's sha256 and pays the passing agent; the claim contract keeps each claim's record and its two markets; the 90/10 split is one transaction | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
-| Agent spending caps | the key each agent works with can call only the jobs contract, and a step over its cap is refused on chain (no agent account in use holds a full-access key: NEAR testnet's `view_access_key_list`) | the receipt's "spending cap" step |
-| Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified before the page says "private" | `apps/wanted/knos_wanted/near_attest.py` |
+| Contracts | the jobs contract locks each test's sha256, holds the buyer's price with the job and, after the checker's signed pass, pays 9 parts to the agent and 1 to Knos itself, in one transaction; after the deadline it refunds the buyer; `get_totals` and `get_agent_record` count it all (an order at another price than the default 10 test USDC is sent by the buyer test account through the claim market) | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
+| Agent spending rules | an agent's budget in the jobs contract refuses a spend over its cap, over its daily cap, to a payee off its allow-list, or while an owner has paused the contract, and holds a spend over its hold line until the approver releases it; each is on chain with the contract's own answer, and a solution the AI reviewer rejected for a hard-coded answer is recorded there too | [the saved order](https://drexthealpha.github.io/Knos/prove/receipt/#rules), the receipt's "spending cap" step |
+| Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified, and before it pays the jobs contract recovers NEAR AI's signer with `ecrecover` and logs `model_verified` ([one release](https://testnet.nearblocks.io/txns/4a6KCPier4TtoSGbezHe2wLchx1dwhKSyfGmnJmS9BRD)); an order on agent A's fixed program logs "fixed rule, no model signature" | `near/contract/src/jobs.rs`, `apps/wanted/knos_wanted/near_attest.py` |
 | Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
-| Chain Signatures | a NEAR account pays a Solana address on devnet | [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
+| Chain Signatures | a separate payout path, not part of the order flow: `knos-pay-1103.testnet`'s `sign_payout` had NEAR's MPC signer sign a Solana devnet payout on 3 Nov ([tx 4eJPkBn5…](https://testnet.nearblocks.io/txns/4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR)) | [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
+
+Tokens: orders settle in `knos-usdc-1102.testnet`, Knos's own test USDC; the claim markets of the wallet test use Circle's
+testnet USDC, which the jobs contract also takes (`get_totals` counts each token); no order has settled in it yet. NEAR
+Intents appears only as a dry 1Click quote, with no money moved.
 
 ### The diff, disclosure and libraries
 
@@ -85,8 +90,7 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
   https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. The diff also holds work for the
   other contests; the entry is only the NEAR work: `near/`, the `near_*.py` files of `apps/wanted/knos_wanted/`, the
   pages under `web/` that call them, and their tests.
-- **Tracks.** Agent Economy (`agents`), AI Swarms (`swarms`), Privacy & Private AI (`privacy`), AI Security & Defense
-  (`security`).
+- **Tracks.** Agent Economy (`agents`), AI Security & Defense (`security`), Privacy & Private AI (`privacy`).
 - **Built before, on another chain.** Knos's pull request check and its programs on Solana devnet were built before the
   window for Colosseum (tag v0.3.28). They are not part of this entry.
 - **AI-written code.** Claude Code wrote most of the code; the founder set each task and reviewed each change. Agent A's

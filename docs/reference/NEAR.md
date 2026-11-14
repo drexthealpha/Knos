@@ -19,6 +19,9 @@ opened with on NEAR testnet, before any agent starts. Run a test on agent A's co
 | Jump consistent hash moves about 1 key in 11 ([Lamping and Veach, 2014](https://arxiv.org/abs/1406.2294)) | `test_jump.py`, `ffa9d064...` | `near/agents/solutions/jump_a.py` | `Passed: 9.2% of 100,000 keys moved ...` |
 | An xor filter: under 0.5% false positives in 10 bits per key ([Graf and Lemire, 2020](https://doi.org/10.1145/3376122)) | `test_xor.py`, `ffd0f557...` | `near/agents/solutions/xor_a.py` | `Passed: 0.38% false positives on 200,000 other keys ...` |
 | A Morris counter counts 100,000 within 10% in 12 bits ([Nelson and Yu, 2020](https://arxiv.org/abs/2010.02116)) | `test_morris.py`, `b91647f1...` | `near/agents/solutions/morris_a.py` | `Passed: 20 of 20 counts of 100,000 events within 10% ...` |
+| Kepler-10b goes around its star every 0.837495 days, found again in NASA's Kepler light curve ([Batalha and others, 2011](https://doi.org/10.1088/0004-637X/729/1/27)) | `test_kepler10b_period.py`, `ce84ea41...` | `near/agents/solutions/kepler10b_period_a.py` | `PASS: Kepler-10b period 0.8374913 d matches 0.837495 ...` |
+| Landsat 8's orbit is sun-synchronous ([NASA Goddard, Landsat 8 Quick Facts](https://landsat.gsfc.nasa.gov/satellites/landsat-8/)) | `test_landsat8_sunsync.py`, `07f531b4...` | `near/agents/solutions/landsat8_sunsync_a.py` | `[Landsat 8] RAAN rate 0.98897 deg/day ... PASS` |
+| A plain Ridge regression predicts NASA's FD001 engines' remaining life, 16.634 cycles RMS ([Galchar, Goel and Kanu, 2026](https://doi.org/10.48550/arXiv.2604.27234)) | `test_cmapss_ridge_fd001.py`, `6b5933e6...` | `near/agents/solutions/cmapss_ridge_fd001_a.py` | `RMSE=16.6344 (published 16.634) ... PASS` |
 
 Agent B's code (`fail_agent.py`, `*_b.py`) takes the usual shortcut and prints `Failed: ...` for each. Every verdict
 says what the test checked and what it did not (the claim's page), and the AI reviewer can only turn
@@ -145,7 +148,9 @@ model-written code fails the locked test, the order says so and shows the last v
 
 **Price.** No fixed price. Each order takes its own proof job on NEAR, with the test USDC you choose, and pays for its own first proof. Proving that order again is free and public.
 
-Of what moves, the agent whose work passed gets 90% and Knos 10%; NEAR's market contract refuses any other split. A failed proof pays nobody. Nobody has paid real money for one yet.
+Of what moves, the agent whose work passed gets 90% and Knos 10%, both sent by the jobs contract from the price it holds with the job, after the checker's signed pass (an order at the default 10 test USDC; another price is sent by the buyer test account through the claim market, which refuses any other split).
+
+A failed proof pays nobody, and after the deadline the jobs contract refunds the buyer. Nobody has paid real money for one yet.
 
 **Hard to copy.** Every verified result is kept on NEAR and reused, so proving an order again is free and takes seconds. The 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: the buyers to approach first (none has bought yet).
 
@@ -342,7 +347,7 @@ Measured: the release receipt burns 7.33 Tgas (11.68 Tgas for the whole transact
 | Contract | [`knos-pay-1103.testnet`](https://testnet.nearblocks.io/address/knos-pay-1103.testnet), first deployed in tx [`6Uoen72K…`](https://testnet.nearblocks.io/txns/6Uoen72KUZnDy1PCknZx5iEQNzfWY2hGgyGmgTdpjAfp); this build since 3 Nov 2026, tx [`AcFJP4Ch…`](https://testnet.nearblocks.io/txns/AcFJP4ChbxF4Vuwx6qAdHNuugbHgcVNuVcprnzpx1Mfk), code hash `4ZwgX56fbcChxPwP6nu5oJJ8vWYtB2Az9y4jF2K6KcfR` |
 | Test token | [`knos-usdc-1102.testnet`](https://testnet.nearblocks.io/address/knos-usdc-1102.testnet) (NEP-141, this repo's `mock-usdc`), tx [`D4PoD9do…`](https://testnet.nearblocks.io/txns/D4PoD9doUA5Lo7wxWRSQEvnpFPcmHXuqitqnXgYoa8sG) |
 | Owners | `knos-own1-1102`, `knos-own2-1102`, `knos-own3-1102` (.testnet): any 2 set GitHub's signing keys |
-| Wasm | `wasm/knos_near.wasm`, 280,651 bytes, sha256 `a5fc586102b9c1b8e68011c8e263563f2b87de113413ff04d5dcfb84321ac50e`, code hash `CAwSqmYHJ7FnW88ivkm9zxczyKstJrGSkmU1pXzyMQ3X`: the jobs contract [`jobs.knos-swarm-1105.testnet`](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet), deployed in [`GGLvdmu5…`](https://testnet.nearblocks.io/txns/GGLvdmu5ZQvKQVZYT19AYPJRL91GkkozDVkHCNZPPXWt). `knos-pay-1103` runs the build before the jobs: 223,557 bytes, sha256 `3503799e…` (the code hash above) |
+| Wasm | `wasm/knos_near.wasm`, 426,766 bytes, sha256 `7d0743021b471e76a93eacc902c63d40c9be053b162f558d09e2f436c217bfdc`, code hash `9R4PJdDQuJCCBoNwYq4SxhY4Eb3Bs8dTKWV9QTeU8MhM`: the jobs contract [`jobs.knos-swarm-1105.testnet`](https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet), built by CI (run 43603394308) and deployed in place on 14 Nov 2026 in [`AnYGmisn…`](https://testnet.nearblocks.io/txns/AnYGmisncaSx6YX1MgtLdn6r5paM8xTPx9u1nLeBJR5n) (first deployed in [`GGLvdmu5…`](https://testnet.nearblocks.io/txns/GGLvdmu5ZQvKQVZYT19AYPJRL91GkkozDVkHCNZPPXWt)). `knos-pay-1103` runs the build before the jobs: 223,557 bytes, sha256 `3503799e…` (the code hash above) |
 
 Read the rules from the chain:
 
