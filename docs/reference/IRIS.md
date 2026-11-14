@@ -187,7 +187,8 @@ The health route answers `{"production":"Running","agent":"local","fhir":"off","
 
 A met decision above `KNOS_PAYOUT_THRESHOLD_USDC` (default 50) goes to the role `PayoutApprovers`. Approve or Reject in
 the inbox on `/knos/` or in Interoperability > Workflow Inbox. With no answer, the milestone stays held for two days.
-Each AI Hub feature the agent uses answers live at `GET /api/knos/aihub/<feature>`: `skill`, `policy`, `mcp`, `rag`,
+
+The deciding agent has no tools (the brief and the proof are in its question). Each AI Hub feature Knos sets up beside it answers live at `GET /api/knos/aihub/<feature>`: `skill`, `policy`, `mcp`, `rag`,
 `stats` and `workflow`.
 
 ### Solana devnet
@@ -204,7 +205,7 @@ Each decision's session in Visual Trace holds the Proof, the agent's Verdict, th
 
 | Langfuse | Here |
 |---|---|
-| Trace, observations, parent links | the session, `Knos.Iris.Msg.Span` messages with `ParentId` |
+| Trace and observations | the session, `Knos.Iris.Msg.Span` messages (`ParentId` is left empty: every span hangs off the session) |
 | Generation with model, tokens, cost | the `llm` span, from AI Hub's usage |
 | Trace viewer | Visual Trace |
 | Query and export | `Knos_Iris_Data.Span` in SQL, and `GET /api/knos/traces/<session>` |
@@ -338,5 +339,5 @@ MIT, the repository's own [LICENSE](../../LICENSE).
 | B14 Second Article on DC | 1 | https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris |
 | B15 Video | 3 | [the file, 43 s, a live run on 13 Nov 2026](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) |
 
-[Watch the 43-second video](https://drexthealpha.github.io/Knos/labs/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://drexthealpha.github.io/Knos/#near)
+[Watch the 43-second video](https://drexthealpha.github.io/Knos/labs/) · [An AI that can only say no, inside InterSystems IRIS](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) · [What one AI decision costs in IRIS: tokens and dollars, traced per call](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) · [Install steps below](#run-it-on-iris) · [Try it live in your browser](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/)
 <!-- /entry:iris -->

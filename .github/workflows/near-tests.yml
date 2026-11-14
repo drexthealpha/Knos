@@ -31,6 +31,10 @@ jobs:
           cargo install cargo-near --version 0.22.0 --locked
       - name: near/scripts/verify.sh
         run: bash near/scripts/verify.sh | tee near-tests.txt
+      - name: the test counts, in the run's summary (readable without a GitHub login)
+        if: always()
+        run: |
+          { echo '```'; grep -E "test result|passed|failed" near-tests.txt | tail -20; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true
       - name: the jobs contract's wasm, as verify.sh built it (Round 11, deployed from this artifact)
         if: always()
         run: |

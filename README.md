@@ -26,8 +26,9 @@ A buyer pastes a paper's link and orders a proof of its claim. NEAR locks the cl
 contract before any agent starts, refuses any agent step over its spending cap, and pays only the agent whose code
 passes. The buyer gets a Yes or No, the code and a receipt on NEAR testnet.
 
-Agent A's code is written by a private model on NEAR AI Cloud, its attestation checked (a cached answer for the same
-claim and test is reused and says so, with its call id); a second model call reviews it and may only reject it.
+Agent A's code comes from a private model on NEAR AI Cloud, its attestation checked, or, when no model-written code is
+ready, from agent A's fixed program. The release transaction says which: `model_verified`, or "fixed rule, no model
+signature". A second model call reviews the code and may only reject it.
 
 ### Judge it in 2 minutes
 
@@ -35,7 +36,7 @@ claim and test is reused and says so, with its call id); a second model call rev
    its locked test with its sha256 and its proof (job-...).
 2. Press **Prove it yourself**, then **Prove it with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
-   then "4. Answer: Yes, the claim holds": about 15 to 35 s when a job is ready, 1 to 2 min when one is not. The order
+   then "4. Answer: Yes, the claim holds": 15 to 80 s when a job is ready (orders on 14 Nov), 1 to 2 min when one is not. The order
    uses test money only. To see every step and the receipt without ordering, open
    [one finished order](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1114145004, 14 Nov), saved as the page showed it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
@@ -122,13 +123,22 @@ a rule decides, and above $50 a person approves.
 - Video: 43 s, a live run on 13 Nov 2026 from the online demo: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4).
 - Community idea: it implements [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689), each decision step an
   interoperability message.
-- [Judge it in 2 minutes](#judge-it-in-2-minutes-on-iris): one command, no InterSystems login, no key.
+- [Judge it in 2 minutes](#judge-it-in-2-minutes-on-iris): on the online demo, no login and no key.
 
 ### Judge it in 2 minutes on IRIS
 
-You need Docker with about 4 GB free. The first build takes about 4 minutes (as in CI); the online demo above needs no
-build. This one-command edition does not run the AI Hub agent (its image has no AI Hub): the rules referee decides.
-Built and tested on build 154.
+1. Open https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/ and press Continue on GitHub's notice - see
+   "Decisions" and three sample buttons.
+2. Press **A passing test, $20** - see a new decision marked paid: "Paid in play money". Click it - see "How it
+   decided": the AI Hub agent's model call on NEAR AI Cloud with its tokens and cost, and the session's messages.
+3. Press **A passing test, $120: a person must say yes** - see it wait for a person; press **Approve** - see it paid
+   in play money.
+
+### Run it on your machine (about 6 minutes)
+
+You need Docker with about 4 GB free; the first build takes about 4 minutes, as in CI. This one-command edition is the
+public IRIS for Health Community image (2026.2), which has no AI Hub: its samples replay the AI Hub agent's answers
+recorded in the online demo, and the rules referee decides anything else.
 
 1. Run:
 
@@ -137,12 +147,9 @@ Built and tested on build 154.
    docker compose -f docker-compose.public.yml up -d --build && bash scripts/ready.sh
    ```
 
-   - see `READY: open http://localhost:52773/knos/ and press a sample button`. This is the public IRIS for Health
-     Community image (2026.2) in replay mode; [CI runs it from a fresh checkout](https://github.com/drexthealpha/Knos/actions/workflows/iris-public.yml).
+   - see `READY: open http://localhost:52773/knos/ and press a sample button`. [CI runs it from a fresh checkout](https://github.com/drexthealpha/Knos/actions/workflows/iris-public.yml).
 2. Open http://localhost:52773/knos/ and press **A passing test, $20** - see it marked paid: "Paid in play money".
-3. Press **A passing test, $120: a person must say yes** - see it wait for a person; press **Approve** - see it paid
-   in play money.
-4. Open http://localhost:52773/csp/sys/UtilHome.csp, sign in as `_SYSTEM` with `knos-public-demo`, then Interoperability >
+3. Open http://localhost:52773/csp/sys/UtilHome.csp, sign in as `_SYSTEM` with `knos-public-demo`, then Interoperability >
    Production - see `Knos.Iris.Production` and each decision's Visual Trace.
 
 **The contest entry: build 154 with AI Hub.** With the image file from the

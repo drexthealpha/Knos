@@ -128,11 +128,12 @@ transactions):
 paper link is the only data a buyer sends. Every push runs the full test suite on GitHub
 ([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)), and the page shows its latest finished run, read from GitHub. Knos has no token.
 
-**Private AI on NEAR AI Cloud.** Two model calls an order, both to deepseek-ai/DeepSeek-V4.1-Flash-1017 served from
-NEAR AI's attested TEEs (fallback moonshotai/kimi-k2.6), at most 800 tokens out. Agent A writes its code with the first;
-agent B stays the fixed shortcut that must fail.
+**Private AI on NEAR AI Cloud.** At most four model calls an order (agent A writes, and up to twice more when the locked test fails, then one review), each to deepseek-ai/DeepSeek-V4.1-Flash-1017 served from
+NEAR AI's attested TEEs (fallback moonshotai/kimi-k2.6), at most 800 tokens out.
 
-After the locked test passes, the second call reviews that code before anyone is paid. It may only reject a pass, which
+Agent A writes its code with the first; agent B stays the fixed shortcut that must fail.
+
+After the locked test passes, the last call reviews that code before anyone is paid. It may only reject a pass, which
 then pays nobody; it can never pass a fail.
 
 Before the page says "private", Knos verifies the model's attestation as NEAR AI's docs describe: the Intel TDX quote with
@@ -202,7 +203,8 @@ https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submissio
 limits) and its Render deploy. The libraries are listed under [Disclosure](#disclosure). Most of the code was written with Claude Code.
 
 **Tracks it fits.** Agent Economy (`agents`): agents with their own sub-accounts whose keys can only call the jobs
-contract, under a spend cap. AI Swarms (`swarms`): two agents on one job, paid by the result of a locked test.
+contract, under spending rules the contract enforces. Security (`security`): keys limited to named methods, and contracts
+with no keys at all. Private AI (`privacy`): the model runs in NEAR AI's attested TEEs, and the contract checks its signature.
 
 **The test is locked before money is held and checked before money moves: nobody is paid on a claim.** (Demand is checked first, by Qloo, on the [site](https://drexthealpha.github.io/Knos/).)
 
@@ -245,7 +247,7 @@ Every change since the work began: [pre-hackathon...main](https://github.com/dre
 
 No Rust is needed to check or deploy the contract: `near/wasm/` holds the built files and `near/wasm/SHA256SUMS` their
 hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK`, `knos_mock_usdc.wasm: OK`, `knos_market.wasm: OK` and `knos_market_usdc.wasm: OK`
-(`a5fc5861…`, 280,651 bytes, is the jobs contract deployed at `jobs.knos-swarm-1105.testnet`). Building them again and
+(`7d074302…`, 426,766 bytes, is the jobs contract deployed at `jobs.knos-swarm-1105.testnet`). Building them again and
 every test: `bash near/scripts/verify.sh` (Rust with `wasm32-unknown-unknown` and `cargo-near` 0.22.0).
 
 ### Try it on testnet
