@@ -237,7 +237,9 @@ async function loadTasks() {
     box.replaceChildren();
     if (!tasks.length) { box.append(el("p", { className: "empty", textContent: "Nothing is waiting. A payment over $50 waits here until a person says yes." })); return 0; }
     for (const t of tasks) {
-      const acts = el("div", { className: "acts" }, [
+      // the online demo: only the visitor who sent a sample may answer its task (the server refuses anyone else)
+      const theirs = agentMode !== "replay" && !mine.has(t.session);
+      const acts = el("div", { className: "acts" }, theirs ? [el("span", { className: "fine", textContent: "Only the visitor who sent it can answer." })] : [
         el("button", { type: "button", className: "go", textContent: "Approve", onclick: () => answer(t.id, "Approve", acts) }),
         el("button", { type: "button", textContent: "Reject", onclick: () => answer(t.id, "Reject", acts) }),
       ]);

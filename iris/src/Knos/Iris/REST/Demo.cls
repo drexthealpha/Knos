@@ -52,6 +52,8 @@ ClassMethod Sample(k As %String) As %Status
                           $get(^Knos.Demo("who", who, hour)) >= 10:"your 10 model calls this hour are used", 1:"")
         if why = "" { set ^Knos.Demo("day", day) = $get(^Knos.Demo("day", day)) + 1, ^Knos.Demo("who", who, hour) = $get(^Knos.Demo("who", who, hour)) + 1 }
         else { set ^Knos.Demo("fixed", id) = why }
+        // who sent this sample: only they may answer its approval task (Answer, below)
+        set ^Knos.Demo("own", id) = who
         lock -^Knos.Demo
     } else {
         // replay mode (the one-command edition): the AI Hub agent's answer to this sample, recorded in the online demo,
@@ -65,6 +67,25 @@ ClassMethod Sample(k As %String) As %Status
     // a check run is proof once: each sample gets its own run id
     set payload = $replace(..Read(home_"checkruns/"_$select(k = "fail":"fail", 1:"pass")_".json"), "4242004", run)
     return ..Run({"id": (id), "kind": "checkrun", "payload": ({}.%FromJSON(payload))})
+}
+
+/// The hosted online demo: a visitor may answer only the approval task of a sample they sent (the task's subject names
+/// its brief, and Sample recorded who sent that brief). Elsewhere the approver's answer goes through unchanged.
+ClassMethod Answer(id As %Integer) As %Status
+{
+    if $system.Util.GetEnviron("KNOS_DEMO_LIVE") = "1" {
+        set t = ##class(EnsLib.Workflow.TaskResponse).%OpenId(id)
+        if $isobject(t) {
+            set brief = $piece($piece(t.%Subject, "Pay ", 2), " (", 1)
+            set who = $piece($get(%request.CgiEnvs("HTTP_X_FORWARDED_FOR"), $get(%request.CgiEnvs("REMOTE_ADDR"))), ",", 1)
+            if (brief = "") || ($get(^Knos.Demo("own", brief)) '= who) {
+                set %response.Status = 403
+                write {"error": "only the visitor who sent this sample may answer it"}.%ToJSON()
+                return $$$OK
+            }
+        }
+    }
+    return ##super(id)
 }
 
 ClassMethod Read(path As %String) As %String
