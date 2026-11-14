@@ -45,23 +45,23 @@
    "backed": 0,
    "came_back": 0,
    "events": {
-    "leave": 1033,
-    "press": 36,
-    "slow": 8,
-    "view": 257
+    "leave": 1724,
+    "press": 54,
+    "slow": 10,
+    "view": 587
    },
-   "first_press": 12,
+   "first_press": 24,
    "first_result": 0,
    "leave_from": {
-    "/": 334,
-    "/check/": 236,
-    "/claims/": 48,
-    "/prove/": 119,
+    "/": 598,
+    "/check/": 380,
+    "/claims/": 118,
+    "/prove/": 188,
     "/status/": 209
    },
    "not_what": {},
    "proof_finished": 0,
-   "visits": 449
+   "visits": 890
   }
  }
 }
