@@ -355,12 +355,14 @@ async function showHub(brief) {
   for (const [i, [name, f, say]] of HUB.entries()) {
     const li = box.children[i];
     try {
-      const r = await api("aihub/" + f + "?brief=" + encodeURIComponent(hubFor));
+      // one retry after 2 s: a panel that loses a race with a first build answers on the second ask
+      const ask = () => api("aihub/" + f + "?brief=" + encodeURIComponent(hubFor));
+      const r = await ask().catch(() => new Promise((ok) => setTimeout(ok, 2000)).then(ask));
       if (hubFor !== (brief || "")) return;
       if (r.absent) { box.replaceChildren(el("li", { className: "empty", textContent: r.note })); return; }   // the public edition: no AI Hub
       if (r.loading) { li.replaceChildren(el("strong", { textContent: name }), " ", el("span", { className: "fine", textContent: r.note })); continue; }   // still warming: a plain note
       li.replaceChildren(el("strong", { textContent: name }), " ", say(r));
-    } catch (e) { li.replaceChildren(el("strong", { textContent: name }), " ", el("span", { className: "err", textContent: e.message })); }
+    } catch (e) { li.replaceChildren(el("strong", { textContent: name }), " ", el("span", { className: "fine", textContent: "Not answered this time; it runs again on the next decision you open." })); }
   }
 }
 $("refresh").addEventListener("click", load);

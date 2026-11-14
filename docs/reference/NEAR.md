@@ -78,8 +78,8 @@ On the public pages (no install, no sign-in, no wallet, test money only):
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
 5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network (up to 2 min measured with three orders at once), and "Receipt for proof job-...: paid and
-   recorded on NEAR testnet N s after you pressed": "You put behind the claim 10.00 test USDC behind this proof: 9.00 test USDC to the agent, 1.00 test USDC to Knos", "Agent A's share
-   10.00 test USDC in all: 9.00 test USDC from your price (90%) plus the 1.00 the job itself paid for passing its locked test" and "Knos's fee 1.00 test USDC, 10%", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
+   recorded on NEAR testnet N s after you pressed": "You put behind the claim 10.00 test USDC behind this proof: 9.00 test USDC to the agent, 1.00 test USDC to Knos", "Agent A got, in all:
+   9.00", sent by the jobs contract and "Knos's fee 1.00 test USDC, 10%", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
 6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
    against the first proof's seconds from your press to its receipt and its test USDC, "no test USDC moved" and a link to the first proof.
