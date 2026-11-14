@@ -15,7 +15,7 @@ and checking that a result really works is one slow, costly step on that road.
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
 | From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/README.md) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/) (without a break until voting ends), or on your machine |
+| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/README.md) | [the video](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4) or one command on your machine (the online demo is offline during voting) |
 | From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
@@ -119,22 +119,20 @@ yourself): [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0
 An InterSystems IRIS production pays each step of lab work only when its test passed: an AI Hub agent reads the result,
 a rule decides, and above $50 a person approves.
 
-- Online demo: https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/ (online without a break until 05:00 UTC on 16 Nov, when voting ends).
-  GitHub shows a notice first; press Continue. Then press **A passing test, $20**: the AI Hub agent decides on NEAR AI
-  Cloud (build 154), at most 10 model calls an hour per visitor.
-- Video: 43 s, a live run on 13 Nov 2026 from the online demo: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4).
+- **The online demo is offline during voting.** It ran in a GitHub codespace, whose free hours ran out on 14 Nov at
+  about 21:20 UTC. Watch the video, or run Knos with one command on your machine (below).
+- Video: 43 s, a live run on 13 Nov 2026 from the online demo, downloadable with no login: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4).
 - Community idea: it implements [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689), each decision step an
   interoperability message.
-- [Judge it in 2 minutes](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#judge-it-in-2-minutes-on-iris): on the online demo, no login and no key.
+- [Judge it in 2 minutes](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#judge-it-in-2-minutes-on-iris): with the video, no login and no key.
 
 ### Judge it in 2 minutes on IRIS
 
-1. Open https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/ and press Continue on GitHub's notice - see
-   "Decisions" and three sample buttons.
-2. Press **A passing test, $20** - see a new decision marked paid: "Paid in play money". Click it - see "How it
-   decided": the AI Hub agent's model call on NEAR AI Cloud with its tokens and cost, and the session's messages.
-3. Press **A passing test, $120: a person must say yes** - see it wait for a person; press **Approve** - see it paid
-   in play money.
+The online demo is offline during voting, so these steps use the video; the next section runs it on your machine.
+
+1. Open [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4) (43 s) - see
+   the production running in the IRIS portal and one sample decided by the AI Hub agent on NEAR AI Cloud.
+2. Watch on - see that decision's trace, then the same session in Visual Trace.
 
 ### Run it on your machine (about 6 minutes)
 

@@ -2,10 +2,10 @@
 
 An IRIS Interoperability production where an AI Hub agent decides if a lab's locked test criteria are met, and only then a payout step runs.
 
-- Online demo, no login: https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/ (GitHub shows a notice first: press Continue).
-  Online without a break until 05:00 UTC on 16 Nov, when voting ends.
-- Video, 43 s, a live run on 13 Nov 2026: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4)
-- [Judge it in 2 minutes](#judge-it-in-2-minutes): on the online demo, or with one command on your machine.
+- **The online demo is offline during voting.** It ran in a GitHub codespace, whose free hours ran out on 14 Nov at
+  about 21:20 UTC, so it stays down. Watch the video, or run Knos with one command on your machine.
+- Video, 43 s, a live run on 13 Nov 2026, downloadable with no login: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4)
+- [Judge it in 2 minutes](#judge-it-in-2-minutes): with the video, or with one command on your machine.
 
 Built and tested on build 154 (`irishealth-community-2026.3.0AI.154.0`). Build 109, which the portal lists now, is
 untested: on 14 Nov `containers.intersystems.com` had no `2027.1.0AI.109.0` image ("no such manifest"), and the portal's
@@ -27,13 +27,11 @@ Two choices are mine, and they shape the rest:
 
 ## Judge it in 2 minutes
 
-On the online demo:
+With the video (the online demo is offline during voting):
 
-1. Open the demo link above (press Continue on GitHub's notice) - see "Decisions" and three sample buttons.
-2. Press **A passing test, $20** - see a new decision marked paid: "Paid in play money".
-3. Click that decision - see "How it decided": the referee's model call on NEAR AI Cloud with its tokens and cost, and the
-   session's messages read from IRIS. When NEAR AI Cloud does not answer, a line above the buttons says so, the fixed
-   rule decides, and the referee row says why.
+1. Open [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) (43 s) - see
+   the production running in the IRIS portal and one sample decided by the AI Hub agent on NEAR AI Cloud.
+2. Watch on - see that decision's trace, then the same session in Visual Trace.
 
 On your machine, with Docker and about 4 GB free (the first build takes about 4 minutes):
 
@@ -123,7 +121,7 @@ h04 and never gave the JSON, so the fixed rule decided; DeepSeek V4 Flash thinks
 In run 2 the agent caught h03 (a "success" whose own number misses the target) and missed h04 (300 ms is not under 300).
 On h06, h07 and h10 both said not met where the right answer is insufficient: nothing is paid either way, but a not met
 refunds the funder where an insufficient would ask a person. The ten answered calls of run 1 cost $0.0056, the twelve of
-run 2 $0.0086. The online demo runs at the run 2 cap.
+run 2 $0.0086. The online demo ran at the run 2 cap until it went offline.
 
 ## What I ran into on AI Hub
 
@@ -144,7 +142,7 @@ run 2 $0.0086. The online demo runs at the run 2 cap.
 - **Vector Search:** the proof's two nearest criteria come from IRIS, so a verdict citing anything else goes to a person.
 - **Docker:** the lab runs it on its own machine with one command, so its data stays inside.
 - **ZPM:** an IRIS team installs it into its own instance with `zpm "install knos-iris"`.
-- **Online demo:** a judge or a lab sees a live decision without installing anything.
+- **Online demo:** it ran from 13 to 14 Nov so a judge could see a live decision without installing anything; it is offline during voting, since its codespace's free hours ran out.
 - **Community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689):** a lab must audit every step an AI took, and the production's own message log is that audit.
 - **Bug reports:** each one filed above has a repro, so the next lab building on AI Hub does not lose the same day.
 - **Articles and video:** the [first](https://community.intersystems.com/post/what-one-ai-decision-costs-iris-tokens-and-dollars-traced-call) and [second](https://community.intersystems.com/post/ai-can-only-say-no-inside-intersystems-iris) article explain the design to a lab's IRIS team; the video shows one decision end to end.
