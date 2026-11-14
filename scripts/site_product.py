@@ -47,7 +47,13 @@ ATTACKS = [("Settle a claim by vote", "a market settles only by its locked test"
            ("Settle before the test ran", "nothing settles until the locked test has run", "7D9AaoNRccUcmtWFt3yrWkZqq1LYC4ef6zMhttXjny6F"),
            ("Pay without a passing result", "a release needs the checker's token for a passing output", "E5GUcVks55r9Rn4b1HJBJagDB1bFbL8YMj41UFHFeHan"),
            ("Use a payment token twice", "each token is used once", "HcZ8nBuQYuYU5LKRVceSfXVdqBnLrj1shyddj3EQBsM2"),
-           ("Spend over an agent's cap", "an agent's spending stops at its cap", "FdJPJf7RLdErvMBdeUkeUWdhqw4VGNEKtw5aVD4VnK4y")]
+           ("Spend over an agent's cap", "an agent's spending stops at its cap", "FdJPJf7RLdErvMBdeUkeUWdhqw4VGNEKtw5aVD4VnK4y"),
+           # Round 11, W3: the jobs contract's own answers, 14 Nov 2026
+           ("Pay agent-a2.knos-swarn-1105.testnet, one letter off agent-a2", "the payee is not on the agent's allow-list", "FShgZgDA6pUwY3KxJ4yi76CDBGX8F1oiihR5NN97BFgw"),
+           ("Spend past the day's cap", "over the daily cap: 4 spent today, daily cap 4", "HbfZUGFttohzRimGQHqvDugkQxiy8SQJZrtHTQTqX67b"),
+           ("Take a job while an owner has paused the contract", "nothing moves but refunds while paused", "3taNnSqwfPhYTJxQaxXrnkCst7ZD4XyW1G3ZmvhJ4YE1"),
+           ("Spend over the hold line", "held until the approver released it", "DGnkLSSL8NxjE5L2DBg9rYYjc4gJrSFj2SdPz6HwKgLJ"),
+           ("Pass with a hard-coded answer (count() returns 30000)", "the AI reviewer rejected it; the rejection is on chain", "6ZfhCrRVPGgmVEkqPZT5JSD6Wq9tMX5PjUGsnvFpifmn")]
 
 
 def claims() -> list[dict]:
@@ -137,10 +143,10 @@ def claims_page(header: str, cs: list[dict]) -> str:
             f'settled by its locked test, and whether 100 test USDC are put behind proving it within 7 days, settled by the '
             f'record on NEAR.</p>\n'
             f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>\n'
-            f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>Why NEAR refused it</th><th>Record</th></tr></thead><tbody>'
+            f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>What NEAR did</th><th>Record</th></tr></thead><tbody>'
             + "".join(f'<tr><td>{e(a)}</td><td>{e(why)}</td><td><a href="https://testnet.nearblocks.io/txns/{tx}">{tx[:8]}...</a></td></tr>' for a, why, tx in ATTACKS)
             + '</tbody></table>\n<p class="fine">And in every live proof, agent B tries to spend over its cap and is refused. The contracts\' '
-              '208 tests, 146 of them attacks, run on every change: <code>bash near/scripts/verify.sh</code>.</p>')
+              '223 tests, 155 of them attacks, run on every change: <code>bash near/scripts/verify.sh</code>.</p>')
     script = LIVE_JS + """(async () => {
   const [c, b] = await Promise.all([getJSON("/api/near/claim/counters"), getJSON("/api/near/claims")]);
   const by = (c && c.by_claim) || (c && c.proofs != null ? { hyperloglog: { proofs: c.proofs, usd: c.usd } } : {});
