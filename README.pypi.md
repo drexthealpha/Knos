@@ -47,7 +47,7 @@ signature". A second model call reviews the code and may only reject it.
    `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction).
    Press **Prove the same claim again** - see "Free: Yes".
-4. From a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
+4. Optional, about 2 minutes more, from a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
    `py -3` where the commands say `python3`:
 
    ```bash
