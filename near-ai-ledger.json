@@ -78,6 +78,34 @@
    "tokens_in": 1096,
    "tokens_out": 41
   },
+  "63a7c7d5798abb834557d0507eb2dda50e73aa740409a36d58ba469107460b87": {
+   "at": 1794667609,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "f4f433028517042b0f6b05f21c4e00b113d40d29960454642b8acbf21e35b559",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000425,
+   "finish": "stop",
+   "id": "chatcmpl-84d72af0-9369-4478-9626-d3caee04744d",
+   "kind": "write",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 10.1,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signature": "0x055aecc3cb0d78552198ad314ad290771d01abc4dfb05c9adf719520454af2272599cc40c4f6a38e110e5089fd0dedc36da5c3ceed726b2552fbae781d4aa2441b",
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
+    "text": "deepseek-ai/DeepSeek-V4.1-Flash-1017:412671bbe1f50a6908a1c2636d5a518749ea5ec25f08e5d4ebd36307d30f5350:e58451eed614329c38a79abe5a6e8e789bd1706c3095ca2abe6627468ca3cdad"
+   },
+   "text": "```python\ndef bucket(key, n):\n    if n <= 0:\n        raise ValueError\n    b = -1\n    j = 0\n    k = key & 0xFFFFFFFFFFFFFFFF\n    while j < n:\n        b = j\n        k = (k * 2862933555777941757 + 1) & 0xFFFFFFFFFFFFFFFF\n        j = int((b + 1) * (float(1 << 31) / float((k >> 33) + 1)))\n    return b\n```",
+   "tokens_in": 954,
+   "tokens_out": 116
+  },
   "76c508f8d04a83391e98f76e1fb7769695b277da3463b8f595e6c9c7c50c9fa6": {
    "at": 1794568071,
    "attestation": {
@@ -155,12 +183,40 @@
    "text": "```python\ndef bucket(key, n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    key &= (1 << 64) - 1\n    b = -1\n    j = 0\n    while j < n:\n        b = j\n        key = (key * 2862933555777941757 + 1) & ((1 << 64) - 1)\n        j = int((b + 1) * ((1 << 31) / ((key >> 33) + 1)))\n    return b\n```",
    "tokens_in": 859,
    "tokens_out": 124
+  },
+  "cfe8d779a276824f5e5635e5578ca314b0fc7c24ad83451c2b1dce373073a2b6": {
+   "at": 1794667714,
+   "attestation": {
+    "not_checked": "NVIDIA GPU evidence",
+    "ok": true,
+    "sha256": "f4f433028517042b0f6b05f21c4e00b113d40d29960454642b8acbf21e35b559",
+    "url": "https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017",
+    "why": null
+   },
+   "cost_usd": 0.000334,
+   "finish": "stop",
+   "id": "chatcmpl-8b1cb258-f525-41e9-9978-9ee07ff7131b",
+   "kind": "review",
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+   "private": true,
+   "seconds": 1.8,
+   "signature": {
+    "kind": "provider_tee",
+    "model_bound": true,
+    "ok": true,
+    "signature": "0x204b47095c0a721df5978e3c7a9567d28af88ad61d036b9de5813648c8bf2ee81b649325dbb18b709d831dc95f5ce5d6de5df3c34c4c06ad5cce4fb76b6548e51b",
+    "signer": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
+    "text": "deepseek-ai/DeepSeek-V4.1-Flash-1017:9be82ade3dad50ca11b00f6322e2b9c89025cacda9a2cfe11a67f3c016913b8f:63af34e63fbc792d8240a116fc6f98bfb5757f436cb63307caf493e451eaf6da"
+   },
+   "text": "{\"approve\": true, \"reason\": \"Implements Lamping-Veach jump consistent hash with no storage, matching the claim and test.\"}",
+   "tokens_in": 988,
+   "tokens_out": 31
   }
  },
- "calls": 11,
- "day": "2026-11-13",
- "iris_seen": 0.0,
+ "calls": 13,
+ "day": "2026-11-14",
+ "iris_seen": 0.0280056,
  "iris_usd": 0.001662,
- "spent_usd": 0.003936,
- "today": 6
+ "spent_usd": 0.004695,
+ "today": 2
 }
