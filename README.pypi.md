@@ -15,7 +15,7 @@ and checking that a result really works is one slow, costly step on that road.
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
 | From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/README.md) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/) (without a break until 05:00 UTC on 16 Nov), or on your machine |
+| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](https://github.com/drexthealpha/Knos/blob/v0.4.1/iris/README.md) | [the online demo](https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/knos/) (without a break until voting ends), or on your machine |
 | From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
@@ -27,9 +27,9 @@ A buyer pastes a paper's link and orders a proof of its claim. NEAR locks the cl
 contract before any agent starts, refuses any agent step over its spending cap, and pays only the agent whose code
 passes. The buyer gets a Yes or No, the code and a receipt on NEAR testnet.
 
-Agent A's code comes from a private model on NEAR AI Cloud, its attestation checked, or, when no model-written code is
-ready, from agent A's fixed program. The release transaction says which: `model_verified`, or "fixed rule, no model
-signature". A second model call reviews the code and may only reject it.
+Agent A runs either its fixed program or code a private model on NEAR AI Cloud wrote, its attestation checked. Most
+orders on 14 Nov ran the fixed program; the receipt and the release transaction say which (`model_verified`, or
+"fixed rule, no model signature"). A model call reviews the code and may only reject it; a cached review says so.
 
 ### Judge it in 2 minutes
 

@@ -232,7 +232,8 @@ async function loadTasks() {
   const box = $("tasks");
   try {
     await readMode();
-    const tasks = (await api("tasks")).filter((t) => t.open);
+    // this visitor's own tasks first, marked: the sessions its sample presses returned (kept in this tab only)
+    const tasks = (await api("tasks")).filter((t) => t.open).sort((a, b) => mine.has(b.session) - mine.has(a.session));
     box.replaceChildren();
     if (!tasks.length) { box.append(el("p", { className: "empty", textContent: "Nothing is waiting. A payment over $50 waits here until a person says yes." })); return 0; }
     for (const t of tasks) {
@@ -241,7 +242,8 @@ async function loadTasks() {
         el("button", { type: "button", textContent: "Reject", onclick: () => answer(t.id, "Reject", acts) }),
       ]);
       box.append(el("div", { className: "task" }, [
-        el("div", {}, [el("strong", { textContent: dollars(t.subject) ? "Pay " + dollars(t.subject) + " of play money for this test result?" : (t.subject || ("Task " + t.id)) }), el("div", { className: "fine", textContent: taskText(t.message) })]),
+        el("div", {}, [el("strong", { textContent: dollars(t.subject) ? "Pay " + dollars(t.subject) + " of play money for this test result?" : (t.subject || ("Task " + t.id)) }),
+          el("div", { className: "fine", textContent: (mine.has(t.session) ? "Yours, session " : "Another visitor's, session ") + t.session + ". " + taskText(t.message) })]),
         acts,
       ]));
     }
@@ -286,7 +288,7 @@ async function loadDecisions() {
         el("td", { className: "meta", textContent: sure(d, " sure") }),
       ]);
       tr.setAttribute("aria-selected", String(d.session === selected));
-      const open = () => { showTrace(d.session); showHub(d.brief); };
+      const open = () => { showTrace(d.session); showHub(d.brief); $("trace").scrollIntoView({ block: "start" }); };
       tr.addEventListener("click", open);
       tr.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } });
       body.append(tr);
@@ -374,12 +376,20 @@ if (location.hostname.endsWith(".app.github.dev")) {   // the online demo's hour
   const left = W.filter(([end]) => Date.parse(end) > Date.now()).map(([, say]) => say);
   if (left.length) { $("hours").textContent = "Online " + (left.length > 1 ? left.slice(0, -1).join(", ") + " and " + left[left.length - 1] : left[0]) + "."; $("hours").hidden = false; }
 }
+const mine = new Set((() => { try { return JSON.parse(sessionStorage.getItem("knos-mine") || "[]"); } catch { return []; } })());
 const SAID = { pass: "Sent a passing test. Look at the newest decision.", fail: "Sent a failing test: nothing is paid.", big: "Sent a passing test for $120: it waits for a person below." };
 for (const b of document.querySelectorAll("[data-sample]")) {
   b.addEventListener("click", async () => {
     for (const x of document.querySelectorAll("[data-sample]")) x.disabled = true;
     toast("Sending. The decision takes up to a minute when the AI Hub agent asks its model.", 90000);
-    try { await api("sample/" + b.dataset.sample, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: "{}" }); toast(SAID[b.dataset.sample]); selected = 0; await load(); noteModel(); }
+    try {
+      const r = await api("sample/" + b.dataset.sample, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: "{}" });
+      if (r && r.session) { mine.add(r.session); try { sessionStorage.setItem("knos-mine", JSON.stringify([...mine])); } catch { /* this tab only */ } }
+      const gate = (r && r.gate) || "";
+      toast(gate === "PAY" ? "Paid in play money: see the newest decision below." : gate === "HUMAN" ? "Held for a person: your task is first under Waiting for a person." : gate ? "Not paid: see the newest decision below." : SAID[b.dataset.sample]);
+      selected = 0; await load(); noteModel();
+      (gate === "HUMAN" ? $("tasks") : $("decisions")).scrollIntoView({ block: "start" });
+    }
     catch (e) {
       // a gateway that gives up first (HTTP 504) does not stop the decision: say so, and read the list again until it shows
       toast("No answer in time (" + e.message + "). The decision may still arrive: the list below refreshes for a minute.");
