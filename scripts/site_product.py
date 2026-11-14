@@ -144,7 +144,7 @@ def claims_page(header: str, cs: list[dict]) -> str:
             f'record on NEAR.</p>\n'
             f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>\n'
             f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>What NEAR did</th><th>Record</th></tr></thead><tbody>'
-            + "".join(f'<tr><td>{e(a)}</td><td>{e(why)}</td><td><a href="https://testnet.nearblocks.io/txns/{tx}">{tx[:8]}...</a></td></tr>' for a, why, tx in ATTACKS)
+            + "".join(f'<tr><td>{e(a)}</td><td>{e(why)}</td><td><a href="https://drexthealpha.github.io/Knos/tx/?h={tx}">{tx[:8]}...</a></td></tr>' for a, why, tx in ATTACKS)
             + '</tbody></table>\n<p class="fine">And in every live proof, agent B tries to spend over its cap and is refused. The contracts\' '
               '223 tests, 155 of them attacks, run on every change: <code>bash near/scripts/verify.sh</code>.</p>')
     script = LIVE_JS + """(async () => {
@@ -312,7 +312,7 @@ def claim_page(header: str, c: dict) -> str:
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");
     for (const [tx, amount, at] of rows) { const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${new Date(at * 1000).toISOString().slice(0, 16).replace("T", " ")}</td><td class="n">${amount == null ? "not read yet" : (+amount).toFixed(2)}</td><td><a href="https://testnet.nearblocks.io/txns/${tx}">${tx.slice(0, 10)}...</a></td>`;
+      tr.innerHTML = `<td>${new Date(at * 1000).toISOString().slice(0, 16).replace("T", " ")}</td><td class="n">${amount == null ? "not read yet" : (+amount).toFixed(2)}</td><td><a href="https://drexthealpha.github.io/Knos/tx/?h=${tx}">${tx.slice(0, 10)}...</a></td>`;
       tb.append(tr); }
     $("receipts").hidden = false; }
 })();""" % (json.dumps(c["name"]), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET), json.dumps(MARKET),

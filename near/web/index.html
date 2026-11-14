@@ -338,7 +338,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 "use strict";
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
-const TX = "https://testnet.nearblocks.io/txns/";
+const TX = "https://drexthealpha.github.io/Knos/tx/?h=";   // read from NEAR in the browser: the explorer shows a bot check to a fresh browser
 let local = true, hosted = false;
 const HOSTED = "https://knos.onrender.com";
 

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos: a NEAR testnet transaction</title>
+<link rel="icon" href="../brand/mark.svg">
+<link rel="stylesheet" href="../brand/tokens.css">
+<style>
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.5 var(--text); }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+h1 { font: 600 24px/1.25 var(--text); margin: 16px 0 8px; }
+.verdict { font-size: 20px; font-weight: 600; margin: 8px 0 16px; }
+.ok { color: var(--ok, #1a7f37); } .no { color: var(--bad, #b42318); }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 16px; }
+dt { color: var(--ink-2); } dd { margin: 0; overflow-wrap: break-word; }
+code { font: 400 16px/1.5 var(--code); overflow-wrap: anywhere; }
+ul { padding-left: 20px; } li { margin: 6px 0; overflow-wrap: break-word; }
+a { color: inherit; display: inline-flex; align-items: center; min-height: 44px; }
+@media (max-width: 460px) { dl { grid-template-columns: 1fr; gap: 0 0; } dd { margin-bottom: 8px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>NEAR testnet transaction</h1>
+  <p class="verdict" id="verdict">Reading it from NEAR…</p>
+  <dl id="facts"></dl>
+  <h2 id="moved-h" hidden>Test USDC moved</h2>
+  <ul id="moved"></ul>
+  <h2 id="said-h" hidden>What the contract wrote</h2>
+  <ul id="said"></ul>
+  <p id="more"></p>
+</main>
+<script>
+// Read from NEAR's public archival RPC in your browser, with no explorer and no bot check.
+const RPC = ["https://archival-rpc.testnet.fastnear.com", "https://archival-rpc.testnet.near.org"];
+const SENDERS = ["live.knos-swarm-1105.testnet", "agent-a.knos-swarm-1105.testnet", "agent-a2.knos-swarm-1105.testnet",
+  "agent-b2.knos-swarm-1105.testnet", "jobs.knos-swarm-1105.testnet", "market.knos-swarm-1105.testnet", "knos-own1-1102.testnet",
+  "knos-own2-1102.testnet", "knos-own3-1102.testnet", "knos-payer-1102.testnet", "knos-pay-1103.testnet", "knos-usdc-1102.testnet"];
+const $ = (id) => document.getElementById(id);
+const el = (tag, text) => { const e = document.createElement(tag); e.textContent = text; return e; };
+const h = new URLSearchParams(location.search).get("h") || "";
+async function rpc(url, params) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params }) });
+  return (await r.json()).result;
+}
+async function find() {
+  const s = new URLSearchParams(location.search).get("s");
+  for (const url of RPC) for (const who of s ? [s] : SENDERS) {
+    try { const t = await rpc(url, [h, who]); if (t) return t; } catch { /* the next sender or RPC */ }
+  }
+  return null;
+}
+function refusal(st) {
+  const e = JSON.stringify(st.Failure || {});
+  const m = /ExecutionError":"([^"]*)/.exec(e);
+  return m ? m[1].replace(/^Smart contract panicked: /, "") : e.slice(0, 200);
+}
+(async () => {
+  if (!/^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(h)) { $("verdict").textContent = "Add ?h= and a transaction hash to the address."; return; }
+  const t = await find();
+  if (!t) { $("verdict").textContent = "NEAR testnet did not find this transaction from a Knos account."; return; }
+  const tx = t.transaction, a = tx.actions[0] || {}, fc = a.FunctionCall || {};
+  const failed = t.receipts_outcome.find((o) => o.outcome.status && o.outcome.status.Failure);
+  const ok = "SuccessValue" in t.status && !failed;
+  $("verdict").textContent = ok ? "Succeeded" : "Refused by the contract: " + refusal(failed ? failed.outcome.status : t.status);
+  $("verdict").className = "verdict " + (ok ? "ok" : "no");
+  for (const [k, v] of [["Signed by", tx.signer_id], ["Sent to", tx.receiver_id], ["Method", fc.method_name || Object.keys(a)[0] || String(a)], ["Hash", tx.hash]]) {
+    $("facts").append(el("dt", k), el("dd", v));
+  }
+  for (const o of t.receipts_outcome) for (const line of o.outcome.logs) {
+    const j = line.startsWith("EVENT_JSON:") ? (() => { try { return JSON.parse(line.slice(11)); } catch { return null; } })() : null;
+    if (j && j.event === "ft_transfer") {
+      for (const d of j.data) $("moved").append(el("li", `${(Number(d.amount) / 1e6).toFixed(2)} from ${d.old_owner_id} to ${d.new_owner_id}`));
+      $("moved-h").hidden = false;
+    } else { $("said").append(el("li", o.executor_id + ": " + line.slice(0, 400))); $("said-h").hidden = false; }
+  }
+  const x = document.createElement("a"); x.href = "https://testnet.nearblocks.io/txns/" + h; x.textContent = "The same transaction on the NEAR explorer"; x.rel = "noopener";
+  $("more").append(x);
+})();
+</script>
+</body>
+</html>
