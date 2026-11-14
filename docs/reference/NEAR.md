@@ -325,7 +325,7 @@ Open the newest run, then its `verify` job: the step `near/scripts/verify.sh` en
 bash near/scripts/verify.sh
 ```
 
-It prints `208/208 tests passed (146 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line.
+It prints `223/223 tests passed (155 of them attacks)`, the contract's unit tests and then the sandbox flow, and fails when that print is not this line.
 
 Each attack changes one thing and must be refused with the contract's own reason. The thing changed is one of these: the token's issuer, audience, expiry, repository, workflow, commit, header, form or signature; the funding message; the key set.
 

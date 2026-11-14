@@ -143,11 +143,11 @@ def check_signature(chat_id: str, model: str, request_body: bytes, response_body
         if kind == "provider_tee":
             if sig["text"] != f"{model}:{hashes}" or who not in (att.get("signers") or []):
                 return {"ok": False, "kind": kind, "why": "the model-signed text or signer does not match the verified model report"}
-            return {"ok": True, "kind": kind, "signer": who, "model_bound": True}
+            return {"ok": True, "kind": kind, "signer": who, "model_bound": True, "text": sig["text"], "signature": sig["signature"]}
         if kind == "gateway":
             if sig["text"] != hashes or who != att.get("gateway_signer"):
                 return {"ok": False, "kind": kind, "why": "the gateway-signed text or signer does not match the verified gateway"}
-            return {"ok": True, "kind": kind, "signer": who, "model_bound": False}
+            return {"ok": True, "kind": kind, "signer": who, "model_bound": False, "text": sig["text"], "signature": sig["signature"]}
         return {"ok": False, "kind": kind, "why": "the signature's kind is not one the docs define"}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "why": f"{type(e).__name__}: {str(e)[:160]}"}

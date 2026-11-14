@@ -51,8 +51,8 @@ def post(body: dict) -> dict:
     """The payer opens a job: the bid and the locked test's sha256 go to the contract with a deadline."""
     bid = int(body.get("bid") or 0)
     minutes = int(body.get("minutes") or 10)
-    if not (0 < bid <= 1_000_000 and 1 <= minutes <= 1440):
-        return {"ok": False, "why": "the bid is 1 to 1,000,000 test units and the deadline 1 to 1,440 minutes"}
+    if not (0 < bid <= 100_000_000 and 1 <= minutes <= 1440):
+        return {"ok": False, "why": "the price is 1 to 100,000,000 test units and the deadline 1 to 1,440 minutes"}
     with _POSTING:   # ids are to the second: two orders in one second wait for the next, so no id is used twice
         jid = f"job-{time.strftime('%m%d%H%M%S', time.gmtime())}"
         while jid <= _LAST_ID[0]:

@@ -21,6 +21,7 @@ ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents
 NEAR_WEB = ROOT / "near" / "web"
 NEAR_SCRIPTS = ROOT / "near" / "scripts"   # near_counters.py: the full count, which the server reads itself when GitHub is late
 BID = 1_000_000          # $1.00 of test money (the test token has 6 decimals)
+ORDER_UNITS = 10_000_000   # Round 11, W2: an order's job holds the buyer's default price (10 test USDC); the jobs contract pays 9 and 1 from it
 SAMPLE = "hyperloglog"   # the sample claim (near/claims/claims.json), whose jobs are readied ahead
 _lock = threading.Lock()
 _runs: dict[str, dict] = {}
@@ -197,7 +198,7 @@ def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
             raise ModelCodeFailed(f"agent A's code, written by {writer['model']} in {len(tried)} attempts (calls {ids}), failed the locked test: {tried[-1]['said'] if tried else ''}{cut}"[:300])
     if writer.get("code"):
         sa = writer["code"]
-    p = j.post({"bid": BID, "minutes": 240, "test": CLAIMS[claim]["test"]})
+    p = j.post({"bid": ORDER_UNITS, "minutes": 240, "test": CLAIMS[claim]["test"]})
     if not p.get("ok"):
         raise RuntimeError(f"post: {p.get('said') or p.get('why') or p}"[:200])
     ra = j.run_agent("a", sa, p["id"])
@@ -217,7 +218,7 @@ def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
                 "check": [x.get("reason") for x in c["attempts"]], "refused": c.get("refused")}
         raise RuntimeError(f"no output passed: {json.dumps(said)}"[:200])
     market = _open_market(p["id"], CLAIMS[claim]["question"])
-    return {"id": p["id"], "claim": claim, "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
+    return {"id": p["id"], "claim": claim, "bid": ORDER_UNITS, "at": time.time(), "posted_at": posted_at, "criteria_hash": c["criteria_hash"], "payee": win["agent"],
             "market": market, "output_sha256": win["output_sha256"], "code_a": sa,
             "writer": {k: v for k, v in writer.items() if k != "code"},
             "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
@@ -256,16 +257,20 @@ def prepare() -> None:
 
 def _release(ready: dict) -> dict:
     j, t0 = _jobs(), time.time()
+    # agent A's code from the model: its NEAR AI Cloud signature goes to the contract, which checks it before it pays
+    sig = (ready.get("writer") or {}).get("signature") or {}
+    model = sig if sig.get("ok") and ready["payee"] == j.CONFIG["agents"]["a"] else None
     try:
-        r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
+        r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"], model)
     except Exception as e:  # noqa: BLE001 - a nonce fetched earlier went stale (another instance, during a deploy, sent with
         # it; testnet answers InvalidNonce or a bare INVALID_TRANSACTION): fetch afresh and send once more
         if "nonce" not in str(e).lower() and "INVALID_TRANSACTION" not in str(e):
             raise
-        r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"])
+        r = j.checker.release_one(ready["id"], ready["payee"], ready["output_sha256"], ready["criteria_hash"], model)
     agents = [x["agent"] for x in ready["attempts"]]
-    paid = {a: (BID if a == ready["payee"] and r.get("ok") else 0) for a in agents}
-    job = {"id": ready["id"], "bid": BID, "txs": {**ready["txs"], **({"release": r["tx"]} if r.get("ok") else {})},
+    bid = int(ready.get("bid") or BID)
+    paid = {a: ((bid - bid // FEE_OF) if a == ready["payee"] and r.get("ok") else 0) for a in agents}
+    job = {"id": ready["id"], "bid": bid, "model_verified": bool(r.get("model_verified")), "txs": {**ready["txs"], **({"release": r["tx"]} if r.get("ok") else {})},
            "paid": paid, "check_to_paid_s": round(time.time() - t0, 1), "attempts": ready["attempts"], "ok": bool(r.get("ok")),
            "posted_at": ready.get("posted_at", ready["at"]), "paid_at": time.time() if r.get("ok") else None}
     return {"state": "done" if r.get("ok") else "failed", "step": "paid" if r.get("ok") else "stopped", "job": job, "paid": paid,
@@ -917,7 +922,8 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
         out["market"] = ready.get("market") or _open_market(ready["id"], CLAIMS[claim]["question"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
             rec = {"job": ready["id"], "claim": claim, "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
-                               "release_url": paid.get("release_url"), "seconds": round(time.time() - t0, 1), "at": time.time()}
+                               "release_url": paid.get("release_url"), "seconds": round(time.time() - t0, 1), "at": time.time(),
+                   "bid": (paid.get("job") or {}).get("bid"), "model_verified": (paid.get("job") or {}).get("model_verified")}
             _proofs[ready["id"]] = rec
             if claim == SAMPLE:   # the agent call's reuse, once its day's runs are used, is the sample's last proof
                 _proofs["last"] = rec
@@ -1118,7 +1124,7 @@ def _back(claim: str, units: int, to: list) -> dict:
     return {"ok": r["ok"], "tx": r["tx"], "url": r["url"], **({} if r["ok"] else {"why": r["said"]})}
 
 
-def claim_pay(amount=None, claim: str = SAMPLE) -> dict:
+def claim_pay(amount=None, claim: str = SAMPLE, job: str = "") -> dict:
     """The test USDC the buyer put behind the claim, paid for its first proof: 90% to agent A, whose work passed, and 10%
     to Knos. Sent to the claim market, which records it on chain behind the claim (the demand market settles from that
     record), refuses any other split, and passes both parts on in the same transaction."""
@@ -1129,6 +1135,17 @@ def claim_pay(amount=None, claim: str = SAMPLE) -> dict:
     units = _units(amount)
     share = units - units // FEE_OF
     t_pay = time.time()
+    last = _proofs.get(job) if job else None
+    if last and int(last.get("bid") or 0) == units and (last.get("txs") or {}).get("release"):
+        # Round 11, W2: the order's job held this price; the jobs contract paid 9 parts to agent A and 1 to Knos in the
+        # release itself, after the checker's signed pass: nothing more is sent by any account
+        tx = last["txs"]["release"]
+        b = {"ok": True, "tx": tx, "url": last.get("release_url") or "https://testnet.nearblocks.io/txns/" + tx}
+        _paid_log.append((time.time(), units / 1e6, tx, claim))
+        return {"ok": True, "usd": units / 1e6, "agent": {**b, "usd": share / 1e6}, "fee": {**b, "usd": (units - share) / 1e6}, "tx": tx,
+                "url": b["url"], "from": CONFIG["contract"], "contract": True, "seconds": round(time.time() - t_pay, 1),
+                "model_verified": bool(last.get("model_verified")),
+                "fee_account": "https://testnet.nearblocks.io/address/" + TREASURY + "?tab=tokentxns"}
     try:
         held = common.ft_balance(LIVE)
     except Exception:  # noqa: BLE001 - unread: the transfers themselves answer
@@ -1161,9 +1178,14 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
              ("Agent B sent its version", txs.get("submit_b"), b)]
     if cap and cap.get("tx"):
         steps.append(("Agent B's over-budget step, refused", cap["tx"], b))
-    steps.append(("The job paid agent A for passing", txs.get("release"), CONFIG["relayer"]))
     at, ft = (pay.get("agent") or {}).get("tx"), (pay.get("fee") or {}).get("tx")
-    if at and at == ft:   # through the claim market: one transaction splits it
+    if pay.get("contract"):   # Round 11: the release itself, sent by the jobs contract
+        steps.append(("The jobs contract paid 9 parts to agent A and 1 to Knos, after the checker's signed pass (one transaction)", txs.get("release"), CONFIG["relayer"]))
+    else:
+        steps.append(("The job paid agent A for passing", txs.get("release"), CONFIG["relayer"]))
+    if pay.get("contract"):
+        pass
+    elif at and at == ft:   # through the claim market: one transaction splits it
         steps.append(("Your amount, split between agent A and Knos (one transaction)", at, LIVE))
     else:
         if at:
@@ -1175,7 +1197,8 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
     ok = bool(pay.get("ok"))   # a failed payment's transaction is never shown as a receipt
     return {"buyer_usd": pay.get("usd") if ok else 0, "agent_usd": (pay.get("agent") or {}).get("usd") if ok else 0, "knos_usd": (pay.get("fee") or {}).get("usd") if ok else 0,
             "agent_pay_url": (pay.get("agent") or {}).get("url") if ok else None, "fee_url": (pay.get("fee") or {}).get("url") if ok else None,
-            "job_pay_url": last.get("release_url"), "log": action_log(steps)}
+            "job_pay_url": None if pay.get("contract") else last.get("release_url"), "contract": bool(pay.get("contract")),
+            "model_verified": bool(pay.get("model_verified")), "log": action_log(steps)}
 
 
 def claim_reuse(job: str = "") -> dict:
@@ -1472,7 +1495,7 @@ def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
         return {"ok": False, "claim": look.get("quote"), "verdict": None, "code": None, "cap": None, "paid": False, "settled": False,
                 "why_not_settled": why, "receipt": None, "why": why}
     cap = claim_cap()
-    pay = claim_pay(amount, proof.get("claim", SAMPLE))
+    pay = claim_pay(amount, proof.get("claim", SAMPLE), str(proof.get("job_id") or ""))
     settle = claim_settle((proof.get("market") or {}).get("id", "")) if proof.get("market") else None
     done = bool(cap.get("ok") and pay.get("ok") and settle and settle.get("ok") and settle.get("settled") is not None)
     why = "" if done else ("spending cap step: " + str(cap.get("why") or "not refused on record")) if not cap.get("ok") else \
@@ -1488,7 +1511,7 @@ def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
 def claim_finish(cap: dict | None, market: str = "", amount=None, job: str = "") -> dict:
     """After the answer of a first proof: the amount behind the claim paid, the claim's record updated, the receipt."""
     t0 = time.time()
-    pay = claim_pay(amount, (_proofs.get(job) or {}).get("claim", SAMPLE))
+    pay = claim_pay(amount, (_proofs.get(job) or {}).get("claim", SAMPLE), job)
     settle = claim_settle(market) if market else None
     return {"ok": pay.get("ok", False), "pay": pay, "settle": settle, "receipt": {**claim_receipt(cap, pay, settle, job), "job": job}, "seconds": round(time.time() - t0, 1)}
 

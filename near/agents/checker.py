@@ -78,13 +78,30 @@ def run_test(output: Path, test: str = JOB_TEST) -> tuple[bool, str, float]:
         return p.returncode == 0, line, time.time() - t0
 
 
-def release_one(job_id: str, payee: str, output_sha256: str, criteria_hash: str) -> dict:
-    """Sign the token for the agent whose output passed and send release_job: the one step a visitor waits for."""
+def release_one(job_id: str, payee: str, output_sha256: str, criteria_hash: str, model: dict | None = None) -> dict:
+    """Sign the token for the agent whose output passed and send the release: the one step a visitor waits for. With a
+    NEAR AI Cloud signature of the model call that wrote that output ({text, signature, signer}) from a signer the owners
+    added on chain, the token names its text and release_job_verified checks the signature with ecrecover before it
+    pays; otherwise release_job, which logs "fixed rule, no model signature"."""
     claims = {"iss": ISS, "aud": CONFIG["contract"], "exp": int(time.time()) + 600, "iat": int(time.time()),
               "jti": str(uuid.uuid4()), "job": job_id, "payee": payee, "output_sha256": output_sha256, "criteria_hash": criteria_hash}
     t0 = time.time()
+    verified = False
+    if model and model.get("text") and model.get("signature") and model.get("signer"):
+        try:
+            signers = (view(CONFIG["contract"], "get_switches", {}) or {}).get("model_signers") or []
+            verified = str(model["signer"]).lower().removeprefix("0x") in signers
+        except Exception:  # noqa: BLE001 - an older contract or an unread view: the plain release
+            verified = False
     # every receipt executed, the payment callback included; finality follows within seconds
-    r = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": job_id, "token": sign(claims)}, gas="120 Tgas", wait="EXECUTED_OPTIMISTIC")
+    if verified:
+        claims["model_text"] = model["text"]
+        r = call(CONFIG["relayer"], CONFIG["contract"], "release_job_verified",
+                 {"id": job_id, "token": sign(claims), "model_text": model["text"], "model_signature": model["signature"]},
+                 gas="150 Tgas", wait="EXECUTED_OPTIMISTIC")
+    else:
+        r = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": job_id, "token": sign(claims)}, gas="150 Tgas", wait="EXECUTED_OPTIMISTIC")
+    r["model_verified"] = verified
     r["seconds"] = round(time.time() - t0, 1)
     return r
 
