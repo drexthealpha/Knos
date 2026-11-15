@@ -1,27 +1,21 @@
-# knos-task
+# knos-witness
 
-A repository for one piece of paid work, made from this template by the "task with no repository" form on the
-[Knos](https://github.com/drexthealpha/Knos) site.
+The record of one witnessed transaction of Knos 0.3.23 on Solana devnet, part of Knos's Colosseum entry (tag v0.3.28):
+[docs/TRANSACTION.md](https://github.com/drexthealpha/Knos/blob/main/docs/TRANSACTION.md). It is frozen. Its files and
+its history are also kept in Knos, under `repos/knos-witness`.
 
-What happens here:
+What happened here, in 2026-10:
 
-To reproduce what Knos says it does, with nothing installed: press **Use this template**, then in your new repository
-open **Actions**, choose **knos reproduce** and press **Run workflow**. GitHub signs the report
-([how](https://github.com/drexthealpha/Knos/blob/main/docs/REPRODUCE.md)).
+1. An issue said what to build, with the acceptance files (`.knos/acceptance/<issue>/`): pairs of an input and the
+   answer it must get.
+2. A comment funded the issue, `/knos fund <amount> tests`. The money was held on Solana until the proof passed, and
+   the terms were fixed at that moment.
+3. A pull request solved it. Knos ran the solution on every recorded input in a sandbox. When every answer matched,
+   GitHub signed that it did, and the payment program paid the author. No merge and no decision of the funder's was
+   needed, and nobody could change the terms afterwards.
 
-For a task:
+The files in `.github/workflows/` are the callers of that release, pinned by commit; their comments say what each
+trigger did. Reproduce what Knos says, with nothing installed:
+[docs/reference/REPRODUCE.md](https://github.com/drexthealpha/Knos/blob/main/docs/reference/REPRODUCE.md).
 
-1. You open an issue that says what you want built, and add the acceptance files the form made
-   (`.knos/acceptance/<issue>/`): pairs of an input and the answer it must get.
-2. You fund the issue with a comment, `/knos fund <amount> tests`. The money goes into an escrow on Solana, and the
-   terms are fixed at that moment.
-3. Anyone opens a pull request that solves it. Knos runs the solution on every recorded input in a sandbox. When every
-   answer matches, GitHub signs that it did, and the escrow pays the author. No merge and no decision of yours is
-   needed, and nobody can change the terms afterwards.
-
-The files in `.github/workflows/` are copied from
-[drexthealpha/Knos/examples](https://github.com/drexthealpha/Knos/tree/main/examples): Knos's two callers, and
-`knos-reproduce.yml`, which runs only when you start it by hand. Their comments say what each trigger does and what the
-file can and cannot do in this repository. They need no secret.
-
-On Solana devnet today, in test USDC.
+Solana devnet, test USDC with no monetary value.
