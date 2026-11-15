@@ -1,6 +1,6 @@
 """The published site's product pages, after scripts/build_site.sh has copied web/ and near/web/ into the site:
 
-- index.html: the front door (web/door.html): one line, the ask box (a question, a claim, a link or a paper), one button, the sample answered on that screen.
+- index.html: the front door (web/door.html): one line, the ask box (a question or a paper's link), one button, the sample answered on that screen.
 - prove/: the whole proof on NEAR (near/web/index.html), its files read from near/.
 - labs/: the same check inside a lab's InterSystems IRIS (web/iris/index.html), its video and poster read from iris/.
 - check/: the pull request checker exactly as entered at Colosseum (tag v0.3.28), from web/check-v0328/: the tag's own
@@ -106,7 +106,7 @@ BEACON = """<script>
     mo.observe(document.body, { subtree: true, childList: true, characterData: true }); setTimeout(() => { if (!seen) { mo.disconnect(); send("slow", { ms: 400 }); } }, 2000);
     if (/download/i.test(target.textContent)) send("download"); }, { capture: true });
   const seenText = new Set(); let pressed = false;
-  const kinds = [["result", /Yes, the claim holds|Answer: Yes|Answer: No|Nothing proved matches|cannot prove this paper/], ["proof", /Receipt for proof|Receipt: paid/], ["backed", /Bought .* shares|test USDC behind this proof/], ["error", /Not read|No answer this time|did not answer/]];
+  const kinds = [["result", /Yes, the claim holds|Answer: Yes|Answer: No|Nothing proved matches|cannot prove this paper/], ["proof", /Receipt for proof|Receipt: paid/], ["backed", /Bought .* shares|test USDC behind this proof|test USDC moved on NEAR testnet: /], ["error", /Not read|No answer this time|did not answer/]];
   // only text that appears after this visit's first press counts: a page that shows a result as it loads is not one
   addEventListener("click", (ev) => { if (pressed || !ev.target.closest("button, a")) return; pressed = true;
     const t = document.body.textContent; for (const [k, re] of kinds) if (re.test(t)) seenText.add(k); }, { capture: true });
@@ -183,7 +183,8 @@ def main(site: str) -> int:
     iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
     iris = iris.replace('"knos-iris.mp4"', '"../iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="../iris/poster.png"')
     # the labs page opens on its own heading (its section names the check inside IRIS)
-    iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>', iris, count=1, flags=re.S)
+    iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>\n<p class="k-a">This page is for labs that keep their data in InterSystems IRIS: '
+                      'there Knos checks each lab step\'s test result against terms set before the work.</p>', iris, count=1, flags=re.S)
     assert n == 1, "the IRIS page has no first block"
     iris = retitle(iris, "Knos for labs: the check inside InterSystems IRIS", "The proof check inside a lab's own InterSystems IRIS, with its install steps and video.")
     (out / "labs").mkdir(exist_ok=True)

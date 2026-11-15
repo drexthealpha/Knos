@@ -39,7 +39,7 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 .fine { color: var(--ink-2); }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test USDC behind: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Behind it: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -96,13 +96,13 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
             f'<link rel="apple-touch-icon" href="{up}brand/apple-touch-icon.png">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
             f"<style>\n{CSS}{HEADER_CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
             f'<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>{GOAL}</span><br>'
-            f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{HOSTED}/app/">Demand check</a><a href="{up}privacy.html">Privacy</a></footer>\n'
+            f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{up}privacy.html">Privacy</a></footer>\n'
             + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
 
 
 LIVE_JS = """const HOSTED = "__HOSTED__";
 const $ = (id) => document.getElementById(id);
-const usd = (n) => (+n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
+const usd = (n) => (+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test USDC";   // test money: never a dollar sign
 // the board and the counters are also files of this site, written by every Pages build (data/): a live answer within
 // 1.2 s is used, else the file is shown at once, with its own read time, so a press never waits on a sleeping server
 const SITE_ROOT = (document.querySelector("#kh .logo") || location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };
@@ -113,7 +113,7 @@ async function getJSON(path) {
   const quick = await Promise.race([live, new Promise((res) => setTimeout(res, 1200, "slow"))]);
   if (quick && quick !== "slow") return quick;
   const f = await file;
-  return f && Object.keys(f).length ? f : await live;
+  return f && Object.keys(f).length && !f.pending ? f : await live;   // a file the build wrote before it read NEAR says pending
 }
 // NEAR testnet, read from this browser: no answer of Knos's server is trusted for these
 const RPCS = ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"];   // two public NEAR testnet RPCs
@@ -166,8 +166,8 @@ def claims_page(header: str, cs: list[dict]) -> str:
     rows = "".join(f'<tr data-claim="{e(c["name"])}"><td><a href="../claim/{e(c["name"])}/">{e(c["plain"])}</a><br>'
                    f'<span class="fine">{e(c["authors"])}, {c["year"]}</span></td>'
                    f'<td class="n" data-behind>reading</td><td data-truth>reading</td><td data-demand>reading</td></tr>' for c in cs)
-    body = (f"<h1>Claims</h1>\n<p>Knos locks a test before any work starts, an agent does the work, and money moves only if the "
-            f"test passes. Here the work is code that proves a paper's claim.</p>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
+    body = (f"<h1>Claims</h1>\n<p>Knos locks a test before any work starts, and test money moves to the agent that did the work only "
+            f"if that test passes. Here the work is code that proves a paper's claim.</p>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
             f"Sorted by the test USDC behind each claim.</p>\n"
             f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind it</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
             f'<p class="fine">Each claim has two markets on NEAR testnet, their prices moving with each trade: whether it holds, '
@@ -228,13 +228,14 @@ def claim_page(header: str, c: dict) -> str:
             + (f'<p><b>Caveat:</b> {e(c["caveat"])}</p>\n' if c.get("caveat") else "")
             + (f'<p class="fine">Data: {e(c["data_credit"])}</p>\n' if c.get("data_credit") else "")
             + f'<p><a class="btn" href="../../prove/#paper={e(src)}">Prove it on NEAR</a></p>\n'
-            f'<h2>The locked test</h2>\n<p><a href="{test_url}">{e(c["test"])}</a>, sha256 <code>{c["sha256"]}</code>. '
-            f'Every job for this claim is opened on NEAR testnet with this hash as its criteria hash, before any agent starts; '
-            f'the checker runs only the file with this hash.</p>\n'
+            f'<h2>The locked test</h2>\n<p><a href="{test_url}">{e(c["test"])}</a>. Every job for this claim is locked on NEAR testnet to this '
+            f'exact file before any agent starts, and the checker runs only this file.</p>\n'
             f'<p><b>What it did not check:</b> {e(c["not_checked"])}.</p>\n'
             f'<p><b>A test by the paper\'s authors:</b> {e(c.get("outside_test", "not looked for yet"))}'
             + "".join(f' <a href="{u}">{e(u.split("/")[4])}</a>' for u in c.get("outside_test_links", [])) + '</p>\n'
-            '<h2>Check it yourself, in this browser</h2>\n<p>Your browser fetches the locked test from GitHub, hashes it, and reads '
+            '<h2>Check it yourself, in this browser</h2>\n'
+            f'<p>The test file\'s sha256, its fingerprint: <code>{c["sha256"]}</code></p>\n'
+            '<p>Your browser fetches the locked test from GitHub, hashes it, and reads '
             'from NEAR testnet itself the hash this claim\'s newest job locked before any agent started. Then change one byte and check again.</p>\n'
             '<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
             '<button class="btn" id="tamper" type="button">Change one byte and check again</button></p>\n'
@@ -261,7 +262,7 @@ def claim_page(header: str, c: dict) -> str:
       if (!mk || mk.outcome != null || (cell === "truth" && m.last_proof)) continue;
       const box = document.querySelector(`[data-trade="${cell}"]`);
       for (const side of ["yes", "no"]) {
-        const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn", textContent: `Buy ${side === "yes" ? "Yes" : "No"}, 1 test USDC` });
+        const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn", textContent: cell === "truth" ? `I think it ${side === "yes" ? "holds" : "fails"}, 1 test USDC` : `I think ${side}, 1 test USDC` });
         btn.style.margin = "8px 8px 0 0";
         btn.addEventListener("click", async () => {
           const all = [...document.querySelectorAll("[data-trade] button")]; all.forEach((x) => { x.disabled = true; });
@@ -338,8 +339,10 @@ def claim_page(header: str, c: dict) -> str:
   });
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
-  const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
-  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "transfer" : "transfers"} into Knos's fee account for this claim, with ${usd(x.usd)} of test USDC; Knos's own test account's transfers are counted, so some of this money moved between Knos's own accounts.`;
+  // the counters before they were split by claim were all HyperLogLog's; an answer with neither is not read
+  const x = c.by_claim ? (c.by_claim[name] || { proofs: 0, usd: 0 }) : name === "hyperloglog" && c.proofs != null ? { proofs: c.proofs, usd: c.usd } : null;
+  if (!x || x.proofs == null) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
+  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "transfer" : "transfers"} into Knos's fee account for this claim, with ${usd(x.usd)}; Knos's own test account's transfers are counted, so some of this money moved between Knos's own accounts.`;
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");
     for (const [tx, amount, at] of rows) { const tr = document.createElement("tr");
@@ -356,12 +359,14 @@ def claim_page(header: str, c: dict) -> str:
 def agents_page(header: str) -> str:
     flow = (f'curl -X POST {HOSTED}/api/near/claim/flow -H "Content-Type: application/json" \\\n'
             '  -d \'{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}\'')
-    body = ("<h1>For agents</h1>\n<p class=\"lead\">One call proves a paper's claim on NEAR testnet: it reads the paper, runs the locked "
-            "test, puts the test USDC behind the claim and returns the verdict, the verified code and the receipt.</p>\n"
+    body = ("<h1>For agents</h1>\n<p>This page is for people who build software agents: your agent asks Knos to check a paper's "
+            "claim, and Knos answers with the verdict and the code that passed.</p>\n"
+            "<p class=\"lead\">One call proves a paper's claim on NEAR testnet: it reads the paper, runs the locked "
+            "test with test USDC held with the job and returns the verdict, the verified code and the receipt.</p>\n"
             f"<h2>The call</h2>\n<pre>{e(flow)}</pre>\n"
             "<p>The answer holds <code>verdict.holds</code> (true or false), <code>cap.refused</code> (an agent's over-budget step "
             "refused on NEAR), <code>paid</code>, <code>settled</code>, <code>receipt</code> with each transfer's link, and <code>code</code>: "
-            "the verified code to download. It takes about 25 s (up to 2 min measured with three orders at once). The agent call has its own 10 live proofs a day; after those it "
+            "the verified code to download. It takes 15 to 80 s when a job is ready and 1 to 2 min when one is not (checks on 14 Nov). The agent call has its own 10 live proofs a day; after those it "
             "answers with the last verified proof, marked <code>\"reused\": true</code>. <code>verdict.agent_a</code> says who wrote agent A's code: "
             "the private model on NEAR AI Cloud, or agent A's fixed program when the model's code for that claim failed its locked test.</p>\n"
             "<h2>From a terminal</h2>\n"
@@ -375,16 +380,16 @@ def agents_page(header: str) -> str:
 
 
 def pricing_page(header: str) -> str:
-    body = ("<h1>Pricing</h1>\n<p>Reading a claim and its proof is free. Nobody pays for a proof.</p>\n"
-            "<h2>A check</h2>\n<p>Each check runs with test money held with the job on NEAR testnet. When the agent's code "
-            "passes the locked test, the jobs contract sends 9 parts to that agent and keeps 1 part in 10 for Knos's account. "
-            "A failed check pays nobody. Checking the same claim again is free.</p>\n"
+    body = ("<h1>Pricing</h1>\n<p>Reading a claim and its proof is free.</p>\n"
+            "<h2>A new check</h2>\n<p>Running a new check holds test USDC with the job on NEAR testnet; no real money moves. When the agent's code "
+            "passes the locked test, the jobs contract sends 9 parts to that agent and 1 part to Knos's test account. "
+            "If no code passes by the deadline, the test USDC goes back. Checking the same claim again is free.</p>\n"
             "<h2>Backing a claim</h2>\n<p>You can put 1 to 100 test USDC behind a claim. NEAR's market contract sends 90% to the "
             "agent whose code passed and 10% to Knos, and refuses any other split.</p>\n"
             "<p>A reproducibility service spends $330 to $763 to check one paper "
             "(<a href=\"https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/\">Perignon, citing Colliard and others</a>).</p>\n"
             "<p>Today this is test money on NEAR testnet: nobody has paid real money and Knos has no customers yet. Knos has no token and no points.</p>")
-    return page(header, "../", "Knos pricing", "Reading a claim and its proof is free; checks run with test money on NEAR testnet.", body, "", "pricing/")
+    return page(header, "../", "Knos pricing", "Reading a claim and its proof is free; a new check holds test USDC with its job on NEAR testnet.", body, "", "pricing/")
 
 
 def status_page(header: str) -> str:
@@ -403,7 +408,7 @@ def status_page(header: str) -> str:
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
   $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many from Knos's own test account; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
-  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade, ${usd(j.usd)} in test USDC paid out by it` : "not read"; });
+  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade (its get_agent_record passes); ${usd(j.usd)} released by it for jobs opened since then, the agent's 9 parts and Knos's 1 part together (its get_totals)` : "not read"; });
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {
@@ -416,7 +421,7 @@ def status_page(header: str) -> str:
   const tb = document.querySelector("#bal tbody");
   if (!b || !b.rows) { tb.innerHTML = "<tr><td>not read</td></tr>"; return; }
   tb.replaceChildren(...b.rows.map((x) => { const tr = document.createElement("tr");
-    const a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + x.account, textContent: x.what });
+    const a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + x.account, textContent: String(x.what).replace(/^Buyer, fees$/, "Knos's own test account, NEAR for fees").replace(/^Buyer, /, "Knos's own test account, ") });
     const th = document.createElement("th"); th.append(a);
     const td = Object.assign(document.createElement("td"), { textContent: `${x.value == null ? "not read" : x.value} ${unit[x.kind]}, floor ${x.floor}${x.ok ? "" : ": LOW"}` });
     if (!x.ok) { td.style.color = "#c62828"; td.style.fontWeight = "600"; tr.style.borderBottom = "2px solid #c62828"; }
@@ -499,7 +504,7 @@ def llms_txt(cs: list[dict]) -> str:
     call = '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'
     return (
         "# Knos\n\n> Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.\n\n"
-        "Knos locks a test before any work starts; an agent does the work; test money moves only if the test passes. Here the "
+        "Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes. Here the "
         "work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a "
         "second check is free. Test money only and no customers yet.\n\n"
         f"## Pages\n\n- [Front door]({base}): ask about research, see what is proved and by which locked test\n"

@@ -2,7 +2,7 @@
 
 > Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.
 
-Knos locks a test before any work starts; an agent does the work; test money moves only if the test passes. Here the work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a second check is free. Test money only and no customers yet.
+Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes. Here the work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a second check is free. Test money only and no customers yet.
 
 ## Pages
 

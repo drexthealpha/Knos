@@ -34,10 +34,11 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
 
 ### Judge it in 2 minutes
 
-1. Open https://drexthealpha.github.io/Knos/ and press **Try: HyperLogLog** - see "Yes, the claim holds", the claim,
-   its locked test with its sha256 and its proof (job-...).
+1. Open https://drexthealpha.github.io/Knos/ and press **Try: HyperLogLog** - see "Yes, the claim holds" and "Proved by
+   its locked test test_hll.py, job-...". The test file's sha256 is one tap on: press **The claim** and see "The test
+   file's sha256, its fingerprint".
 2. Press **Prove it yourself**, then **Run the check with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
-   the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
+   the paper’s result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
    then "4. Answer: Yes, the claim holds": 15 to 80 s when a job is ready (checks on 14 Nov), 1 to 2 min when one is not. The check
    uses test money only. To see every step and the receipt without running one, open
    [one finished check](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1114145004, 14 Nov), saved as the page showed it.
@@ -45,7 +46,7 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
    and why. Then see "Receipt for proof job-..." with "9.00 to the agent whose code passed, 1.00 to Knos's test account" and "The
    jobs contract held it with the job", each transaction read from NEAR's RPC in your browser, with no explorer and no
    bot check ([the saved check's release](https://drexthealpha.github.io/Knos/tx/?h=CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH):
-   "9.00 from jobs.knos-swarm-1105.testnet to agent-a2..." and "1.00 from jobs.knos-swarm-1105.testnet to knos-payer-1102.testnet").
+   "9.00 test USDC from jobs.knos-swarm-1105.testnet to agent-a2..." and "1.00 test USDC from jobs.knos-swarm-1105.testnet to knos-payer-1102.testnet").
    From a terminal, `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction.
    After a live run (the saved page does not have it), press **Prove the same claim again** - see "Free: Yes".

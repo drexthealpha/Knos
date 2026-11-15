@@ -178,7 +178,7 @@ def test_the_answers_agree_with_the_tree():
     assert answers["What is Knos?"] == "Knos takes research from a paper to a product people want."
     assert "across the valley of death" in sentence()                                           # the one sentence
     readme = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
-    assert "The money waits in a program on [Solana](../WORDS.md#solana), not with Knos." in readme
+    assert "The money waited in a program on [Solana](../WORDS.md#solana), not with Knos." in readme   # the Colosseum entry, told in the past
     assert "Today one person can still change that program, after a public wait" in readme
     assert "test dollars" in answers["Does Knos use real money?"] and "NEAR testnet" in answers["Does Knos use real money?"]
     assert "LIMIT_S = 10" in (WEB / "check.js").read_text(encoding="utf-8")                  # "within ten seconds"
