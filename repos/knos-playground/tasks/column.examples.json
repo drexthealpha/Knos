@@ -1,0 +1,14 @@
+[
+ {
+  "input": "1",
+  "output": "A"
+ },
+ {
+  "input": "27",
+  "output": "AA"
+ },
+ {
+  "input": "703",
+  "output": "AAA"
+ }
+]

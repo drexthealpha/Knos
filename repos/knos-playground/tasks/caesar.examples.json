@@ -1,0 +1,14 @@
+[
+ {
+  "input": "3 Hello, World!",
+  "output": "Khoor, Zruog!"
+ },
+ {
+  "input": "-1 abc",
+  "output": "zab"
+ },
+ {
+  "input": "27 Zebra 9",
+  "output": "Afcsb 9"
+ }
+]

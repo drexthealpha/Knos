@@ -1,0 +1,14 @@
+[
+ {
+  "input": "aaabcc",
+  "output": "a3b1c2"
+ },
+ {
+  "input": "abc",
+  "output": "a1b1c1"
+ },
+ {
+  "input": "zzzzzzzzzzzz",
+  "output": "z12"
+ }
+]

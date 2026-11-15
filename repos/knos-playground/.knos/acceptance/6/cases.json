@@ -1,0 +1,116 @@
+{
+ "v": 1,
+ "issue": 6,
+ "task": "roman",
+ "run": [
+  "python3",
+  "tasks/roman.py"
+ ],
+ "seed": 101,
+ "cases": [
+  {
+   "input": "4",
+   "output": "IV"
+  },
+  {
+   "input": "1994",
+   "output": "MCMXCIV"
+  },
+  {
+   "input": "3999",
+   "output": "MMMCMXCIX"
+  },
+  {
+   "input": "1",
+   "output": "I"
+  },
+  {
+   "input": "3",
+   "output": "III"
+  },
+  {
+   "input": "9",
+   "output": "IX"
+  },
+  {
+   "input": "14",
+   "output": "XIV"
+  },
+  {
+   "input": "40",
+   "output": "XL"
+  },
+  {
+   "input": "90",
+   "output": "XC"
+  },
+  {
+   "input": "400",
+   "output": "CD"
+  },
+  {
+   "input": "444",
+   "output": "CDXLIV"
+  },
+  {
+   "input": "900",
+   "output": "CM"
+  },
+  {
+   "input": "2024",
+   "output": "MMXXIV"
+  },
+  {
+   "input": "3888",
+   "output": "MMMDCCCLXXXVIII"
+  },
+  {
+   "input": "2381",
+   "output": "MMCCCLXXXI"
+  },
+  {
+   "input": "3470",
+   "output": "MMMCDLXX"
+  },
+  {
+   "input": "798",
+   "output": "DCCXCVIII"
+  },
+  {
+   "input": "3721",
+   "output": "MMMDCCXXI"
+  },
+  {
+   "input": "3954",
+   "output": "MMMCMLIV"
+  },
+  {
+   "input": "2209",
+   "output": "MMCCIX"
+  },
+  {
+   "input": "3785",
+   "output": "MMMDCCLXXXV"
+  },
+  {
+   "input": "1470",
+   "output": "MCDLXX"
+  },
+  {
+   "input": "1914",
+   "output": "MCMXIV"
+  },
+  {
+   "input": "199",
+   "output": "CXCIX"
+  },
+  {
+   "input": "2718",
+   "output": "MMDCCXVIII"
+  },
+  {
+   "input": "2063",
+   "output": "MMLXIII"
+  }
+ ]
+}

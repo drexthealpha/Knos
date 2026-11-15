@@ -1,0 +1,14 @@
+[
+ {
+  "input": "the cat and the hat",
+  "output": "the"
+ },
+ {
+  "input": "b a B A",
+  "output": "a"
+ },
+ {
+  "input": "One",
+  "output": "one"
+ }
+]

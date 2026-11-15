@@ -1,0 +1,108 @@
+{
+ "v": 1,
+ "issue": 12,
+ "task": "weekday",
+ "run": [
+  "python3",
+  "tasks/weekday.py"
+ ],
+ "seed": 107,
+ "cases": [
+  {
+   "input": "2026-10-07",
+   "output": "Wednesday"
+  },
+  {
+   "input": "2000-02-29",
+   "output": "Tuesday"
+  },
+  {
+   "input": "1900-03-01",
+   "output": "Thursday"
+  },
+  {
+   "input": "1900-01-01",
+   "output": "Monday"
+  },
+  {
+   "input": "1900-12-31",
+   "output": "Monday"
+  },
+  {
+   "input": "2100-12-31",
+   "output": "Friday"
+  },
+  {
+   "input": "2024-03-01",
+   "output": "Friday"
+  },
+  {
+   "input": "2023-03-01",
+   "output": "Wednesday"
+  },
+  {
+   "input": "2100-03-01",
+   "output": "Monday"
+  },
+  {
+   "input": "1999-12-31",
+   "output": "Friday"
+  },
+  {
+   "input": "1963-10-19",
+   "output": "Saturday"
+  },
+  {
+   "input": "2096-12-22",
+   "output": "Saturday"
+  },
+  {
+   "input": "2008-08-25",
+   "output": "Monday"
+  },
+  {
+   "input": "1979-03-14",
+   "output": "Wednesday"
+  },
+  {
+   "input": "2039-02-09",
+   "output": "Wednesday"
+  },
+  {
+   "input": "1975-10-02",
+   "output": "Thursday"
+  },
+  {
+   "input": "2081-11-09",
+   "output": "Sunday"
+  },
+  {
+   "input": "1980-04-06",
+   "output": "Sunday"
+  },
+  {
+   "input": "2050-04-05",
+   "output": "Tuesday"
+  },
+  {
+   "input": "2088-09-05",
+   "output": "Sunday"
+  },
+  {
+   "input": "1962-06-04",
+   "output": "Monday"
+  },
+  {
+   "input": "1919-03-03",
+   "output": "Monday"
+  },
+  {
+   "input": "2026-04-05",
+   "output": "Sunday"
+  },
+  {
+   "input": "2017-05-03",
+   "output": "Wednesday"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "v": 1,
+ "issue": 7,
+ "task": "rle",
+ "run": [
+  "python3",
+  "tasks/rle.py"
+ ],
+ "seed": 102,
+ "cases": [
+  {
+   "input": "aaabcc",
+   "output": "a3b1c2"
+  },
+  {
+   "input": "abc",
+   "output": "a1b1c1"
+  },
+  {
+   "input": "zzzzzzzzzzzz",
+   "output": "z12"
+  },
+  {
+   "input": "a",
+   "output": "a1"
+  },
+  {
+   "input": "aA",
+   "output": "a1A1"
+  },
+  {
+   "input": "aabbbAAa",
+   "output": "a2b3A2a1"
+  },
+  {
+   "input": "xxxxxxxxxxxy",
+   "output": "x11y1"
+  },
+  {
+   "input": "AAbbbbAAAA",
+   "output": "A2b4A4"
+  },
+  {
+   "input": "bbbb",
+   "output": "b4"
+  },
+  {
+   "input": "bbabbbbbbBBBBBbAAAA",
+   "output": "b2a1b6B5b1A4"
+  },
+  {
+   "input": "BBBBBBbbbb",
+   "output": "B6b4"
+  },
+  {
+   "input": "AAAAbbbbAAABBBB",
+   "output": "A4b4A3B4"
+  },
+  {
+   "input": "bbbbbbbbbaaaaaaaabbbaaaaAAAAbb",
+   "output": "b9a8b3a4A4b2"
+  },
+  {
+   "input": "BBbbBBbbbbbaa",
+   "output": "B2b2B2b5a2"
+  },
+  {
+   "input": "AAabBBBAAABBBBbbbb",
+   "output": "A2a1b1B3A3B4b4"
+  },
+  {
+   "input": "AAaaaabbbbbb",
+   "output": "A2a4b6"
+  },
+  {
+   "input": "aaBBBBbAAABB",
+   "output": "a2B4b1A3B2"
+  },
+  {
+   "input": "BBbaaaa",
+   "output": "B2b1a4"
+  },
+  {
+   "input": "bbbbb",
+   "output": "b5"
+  },
+  {
+   "input": "bb",
+   "output": "b2"
+  },
+  {
+   "input": "BBBBBAA",
+   "output": "B5A2"
+  }
+ ]
+}

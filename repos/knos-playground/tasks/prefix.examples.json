@@ -1,0 +1,14 @@
+[
+ {
+  "input": "flower flow flight",
+  "output": "fl"
+ },
+ {
+  "input": "dog cat",
+  "output": ""
+ },
+ {
+  "input": "same same",
+  "output": "same"
+ }
+]

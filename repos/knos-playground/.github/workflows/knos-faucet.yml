@@ -1,0 +1,62 @@
+# .github/workflows/knos-faucet.yml: the test USDC faucet of this repository, and nothing else.
+# Written by scripts/small_repos.py of drexthealpha/Knos: the `faucet` job below is that repository's
+# .github/workflows/worker.yml job of the same name, byte for byte, so a rebuild of this repository keeps it.
+# It answers `/knos faucet <address>` on the issue labelled `faucet` with a fixed amount of test USDC, which has no
+# monetary value (docs/FAUCET.md there has every rule). Secrets: KNOS_FAUCET_KEY (holds test USDC, no SOL) and
+# KNOS_RELAY_KEY (pays the fee). Without both it says so and ends green. No relay runs here.
+name: knos faucet
+run-name: faucet for a comment
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  # The faucet: one comment, one answer. Nothing of the comment reaches a shell: knos.faucet reads the event's file as
+  # data, and nothing the requester wrote but a base58 address reaches its reply. The code is Knos's, wherever this file
+  # runs: the checkout names the repository, at the ref the variable KNOS_FAUCET_REF names (default: main, the code the
+  # relay job of this file runs). The install is by hash (requirements/faucet.txt: what the relay installs, and the
+  # memory engine the journal is kept in); no cache of any kind.
+  faucet:
+    if: >-
+      github.event_name == 'issue_comment' && github.repository == (vars.KNOS_FAUCET_REPO || 'drexthealpha/knos-playground')
+      && !github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'faucet')
+      && github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write         # the faucet's one reply, and its edit
+    concurrency:
+      group: knos-faucet
+      cancel-in-progress: false
+    env:
+      KNOS_HOME: ${{ github.workspace }}/.knos-faucet-home
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: drexthealpha/Knos
+          ref: ${{ vars.KNOS_FAUCET_REF || 'main' }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      - name: install what the faucet needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/faucet.txt
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: answer the request, once
+        env:
+          KNOS_FAUCET_KEY: ${{ secrets.KNOS_FAUCET_KEY }}
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_FAUCET_KEY" ] || { echo "no KNOS_FAUCET_KEY secret: the faucet answers nobody here. Skipped."; exit 0; }
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: nothing would pay the transfer's fee. Skipped."; exit 0; }
+          python -m knos.faucet --event "$GITHUB_EVENT_PATH"

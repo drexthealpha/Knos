@@ -1,0 +1,14 @@
+[
+ {
+  "input": "(a[b]{c})",
+  "output": "yes"
+ },
+ {
+  "input": "(]",
+  "output": "no"
+ },
+ {
+  "input": "(()",
+  "output": "no"
+ }
+]

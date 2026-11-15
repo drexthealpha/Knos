@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: What the playground is, its limits, and how it is counted
+    url: https://github.com/drexthealpha/Knos/blob/main/docs/reference/PLAYGROUND.md
+    about: One screen.

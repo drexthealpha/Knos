@@ -1,0 +1,14 @@
+[
+ {
+  "input": "2026-10-07",
+  "output": "Wednesday"
+ },
+ {
+  "input": "2000-02-29",
+  "output": "Tuesday"
+ },
+ {
+  "input": "1900-03-01",
+  "output": "Thursday"
+ }
+]

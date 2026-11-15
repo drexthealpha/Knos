@@ -1,0 +1,29 @@
+{
+ "v": 1,
+ "tasks": {
+  "6": "roman",
+  "7": "rle",
+  "8": "caesar",
+  "9": "top-word",
+  "10": "brackets",
+  "11": "binary-add",
+  "12": "weekday",
+  "13": "merge-intervals",
+  "14": "outside-reproduce",
+  "15": "outside-shadow",
+  "16": "outside-fund",
+  "17": "outside-install",
+  "18": "outside-judge",
+  "19": "median",
+  "20": "snake-case",
+  "21": "luhn",
+  "22": "outside-compose",
+  "23": "outside-gate",
+  "24": "outside-keyholder",
+  "25": "outside-tamper",
+  "26": "outside-witness",
+  "27": "outside-reproduce",
+  "28": "outside-shadow",
+  "29": "outside-fund"
+ }
+}

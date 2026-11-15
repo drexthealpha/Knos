@@ -1,0 +1,96 @@
+{
+ "v": 1,
+ "issue": 105,
+ "run": [
+  "python3",
+  "words.py"
+ ],
+ "input": "text",
+ "seed": 16,
+ "cases": [
+  {
+   "input": "",
+   "output": ""
+  },
+  {
+   "input": " ",
+   "output": ""
+  },
+  {
+   "input": "a",
+   "output": "a"
+  },
+  {
+   "input": "A",
+   "output": "A"
+  },
+  {
+   "input": "Hello, World!",
+   "output": "World! Hello,"
+  },
+  {
+   "input": "  leading and trailing  ",
+   "output": "trailing and leading"
+  },
+  {
+   "input": "a  b",
+   "output": "b a"
+  },
+  {
+   "input": "x-y_z",
+   "output": "x-y_z"
+  },
+  {
+   "input": "100%",
+   "output": "100%"
+  },
+  {
+   "input": "6iv9b4 b8p6/k csDZVe!fZ)O9,jDO",
+   "output": "csDZVe!fZ)O9,jDO b8p6/k 6iv9b4"
+  },
+  {
+   "input": "ogY",
+   "output": "ogY"
+  },
+  {
+   "input": "_3lxl7ke&ttuA1",
+   "output": "_3lxl7ke&ttuA1"
+  },
+  {
+   "input": "ToZ",
+   "output": "ToZ"
+  },
+  {
+   "input": "Hp/X(yT4V3cSykBX0h\"B0?Rf.ZS",
+   "output": "Hp/X(yT4V3cSykBX0h\"B0?Rf.ZS"
+  },
+  {
+   "input": "s1",
+   "output": "s1"
+  },
+  {
+   "input": "cpoQZI5LBIb8azk1t\"CR0&nIbOvV1\"L",
+   "output": "cpoQZI5LBIb8azk1t\"CR0&nIbOvV1\"L"
+  },
+  {
+   "input": "Buz;f:kJac?mIynp  TcaiG1",
+   "output": "TcaiG1 Buz;f:kJac?mIynp"
+  },
+  {
+   "input": "Q1(9WE)z",
+   "output": "Q1(9WE)z"
+  },
+  {
+   "input": "zQF6d:cSc4!0,0\"l;sE:FcwfvH",
+   "output": "zQF6d:cSc4!0,0\"l;sE:FcwfvH"
+  },
+  {
+   "input": "0",
+   "output": "0"
+  },
+  {
+   "input": "IY.tK,hSWbBTkPRU",
+   "output": "IY.tK,hSWbBTkPRU"
+  }
+ ]
+}

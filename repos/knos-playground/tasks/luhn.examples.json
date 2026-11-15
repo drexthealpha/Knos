@@ -1,0 +1,14 @@
+[
+ {
+  "input": "79927398713",
+  "output": "valid"
+ },
+ {
+  "input": "79927398710",
+  "output": "invalid"
+ },
+ {
+  "input": "0",
+  "output": "valid"
+ }
+]

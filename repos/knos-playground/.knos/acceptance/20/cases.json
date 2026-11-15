@@ -1,0 +1,108 @@
+{
+ "v": 1,
+ "issue": 20,
+ "task": "snake-case",
+ "run": [
+  "python3",
+  "tasks/snake_case.py"
+ ],
+ "seed": 110,
+ "cases": [
+  {
+   "input": "parseHTTPResponse",
+   "output": "parse_http_response"
+  },
+  {
+   "input": "userId",
+   "output": "user_id"
+  },
+  {
+   "input": "HTMLParser",
+   "output": "html_parser"
+  },
+  {
+   "input": "x",
+   "output": "x"
+  },
+  {
+   "input": "X",
+   "output": "x"
+  },
+  {
+   "input": "ABC",
+   "output": "abc"
+  },
+  {
+   "input": "aB",
+   "output": "a_b"
+  },
+  {
+   "input": "getURL",
+   "output": "get_url"
+  },
+  {
+   "input": "URLOfNode",
+   "output": "url_of_node"
+  },
+  {
+   "input": "toXMLNodeId",
+   "output": "to_xml_node_id"
+  },
+  {
+   "input": "toOfv2NameXML",
+   "output": "to_ofv2_name_xml"
+  },
+  {
+   "input": "Av2",
+   "output": "av2"
+  },
+  {
+   "input": "getURLAURL",
+   "output": "get_urlaurl"
+  },
+  {
+   "input": "NamegetA",
+   "output": "nameget_a"
+  },
+  {
+   "input": "toOfXMLXMLNode",
+   "output": "to_of_xmlxml_node"
+  },
+  {
+   "input": "AURLv2A",
+   "output": "aur_lv2_a"
+  },
+  {
+   "input": "XMLIdOfXMLv2",
+   "output": "xml_id_of_xm_lv2"
+  },
+  {
+   "input": "OfIdNameOfURL",
+   "output": "of_id_name_of_url"
+  },
+  {
+   "input": "NodeNodeOfIdXML",
+   "output": "node_node_of_id_xml"
+  },
+  {
+   "input": "OfXMLId",
+   "output": "of_xml_id"
+  },
+  {
+   "input": "toXML",
+   "output": "to_xml"
+  },
+  {
+   "input": "getNamev2",
+   "output": "get_namev2"
+  },
+  {
+   "input": "OfNameA",
+   "output": "of_name_a"
+  },
+  {
+   "input": "NodeAANodeget",
+   "output": "node_aa_nodeget"
+  }
+ ]
+}

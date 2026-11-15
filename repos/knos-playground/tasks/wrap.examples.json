@@ -1,0 +1,14 @@
+[
+ {
+  "input": "10 the quick brown fox",
+  "output": "the quick\nbrown fox"
+ },
+ {
+  "input": "3 a bb ccc dddd",
+  "output": "a\nbb\nccc\ndddd"
+ },
+ {
+  "input": "20 one",
+  "output": "one"
+ }
+]

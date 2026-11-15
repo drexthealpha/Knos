@@ -1,0 +1,100 @@
+{
+ "v": 1,
+ "issue": 9,
+ "task": "top-word",
+ "run": [
+  "python3",
+  "tasks/top_word.py"
+ ],
+ "seed": 104,
+ "cases": [
+  {
+   "input": "the cat and the hat",
+   "output": "the"
+  },
+  {
+   "input": "b a B A",
+   "output": "a"
+  },
+  {
+   "input": "One",
+   "output": "one"
+  },
+  {
+   "input": "z y z y",
+   "output": "y"
+  },
+  {
+   "input": "Kiwi kiwi fig",
+   "output": "kiwi"
+  },
+  {
+   "input": "plum fig Apple",
+   "output": "apple"
+  },
+  {
+   "input": "Apple Apple",
+   "output": "apple"
+  },
+  {
+   "input": "FIG pear apple pear apple Pear apple Pear",
+   "output": "pear"
+  },
+  {
+   "input": "FIG FIG pear",
+   "output": "fig"
+  },
+  {
+   "input": "fig kiwi FIG apple fig",
+   "output": "fig"
+  },
+  {
+   "input": "pear plum plum Apple fig apple pear Pear",
+   "output": "pear"
+  },
+  {
+   "input": "Pear apple",
+   "output": "apple"
+  },
+  {
+   "input": "kiwi FIG Pear FIG Apple Pear",
+   "output": "fig"
+  },
+  {
+   "input": "plum plum",
+   "output": "plum"
+  },
+  {
+   "input": "Apple apple apple apple",
+   "output": "apple"
+  },
+  {
+   "input": "kiwi pear",
+   "output": "kiwi"
+  },
+  {
+   "input": "plum apple Apple plum",
+   "output": "apple"
+  },
+  {
+   "input": "pear apple Pear",
+   "output": "pear"
+  },
+  {
+   "input": "apple Apple",
+   "output": "apple"
+  },
+  {
+   "input": "Pear plum kiwi",
+   "output": "kiwi"
+  },
+  {
+   "input": "Apple kiwi fig pear pear plum pear pear fig",
+   "output": "pear"
+  },
+  {
+   "input": "Apple plum",
+   "output": "apple"
+  }
+ ]
+}

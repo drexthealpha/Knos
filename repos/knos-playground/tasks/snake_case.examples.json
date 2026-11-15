@@ -1,0 +1,14 @@
+[
+ {
+  "input": "parseHTTPResponse",
+  "output": "parse_http_response"
+ },
+ {
+  "input": "userId",
+  "output": "user_id"
+ },
+ {
+  "input": "HTMLParser",
+  "output": "html_parser"
+ }
+]

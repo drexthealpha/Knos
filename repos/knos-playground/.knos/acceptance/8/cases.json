@@ -1,0 +1,96 @@
+{
+ "v": 1,
+ "issue": 8,
+ "task": "caesar",
+ "run": [
+  "python3",
+  "tasks/caesar.py"
+ ],
+ "seed": 103,
+ "cases": [
+  {
+   "input": "3 Hello, World!",
+   "output": "Khoor, Zruog!"
+  },
+  {
+   "input": "-1 abc",
+   "output": "zab"
+  },
+  {
+   "input": "27 Zebra 9",
+   "output": "Afcsb 9"
+  },
+  {
+   "input": "0 Same",
+   "output": "Same"
+  },
+  {
+   "input": "26 Same",
+   "output": "Same"
+  },
+  {
+   "input": "-27 Bcd",
+   "output": "Abc"
+  },
+  {
+   "input": "13 Uryyb",
+   "output": "Hello"
+  },
+  {
+   "input": "31 a-b_c It is 9:30.",
+   "output": "f-g_h Ny nx 9:30."
+  },
+  {
+   "input": "29 It is 9:30. Quiz",
+   "output": "Lw lv 9:30. Txlc"
+  },
+  {
+   "input": "28 xyz WXYZ abc",
+   "output": "zab YZAB cde"
+  },
+  {
+   "input": "34 xyz It is 9:30.",
+   "output": "fgh Qb qa 9:30."
+  },
+  {
+   "input": "-12 a-b_c Room 101",
+   "output": "o-p_q Fcca 101"
+  },
+  {
+   "input": "51 It is 9:30. xyz",
+   "output": "Hs hr 9:30. wxy"
+  },
+  {
+   "input": "2 xyz Quiz",
+   "output": "zab Swkb"
+  },
+  {
+   "input": "-32 WXYZ abc xyz",
+   "output": "QRST uvw rst"
+  },
+  {
+   "input": "-55 Quiz xyz",
+   "output": "Nrfw uvw"
+  },
+  {
+   "input": "28 Quiz WXYZ abc",
+   "output": "Swkb YZAB cde"
+  },
+  {
+   "input": "6 Room 101 Quiz",
+   "output": "Xuus 101 Waof"
+  },
+  {
+   "input": "35 a-b_c It is 9:30.",
+   "output": "j-k_l Rc rb 9:30."
+  },
+  {
+   "input": "14 It is 9:30. It is 9:30.",
+   "output": "Wh wg 9:30. Wh wg 9:30."
+  },
+  {
+   "input": "-7 Quiz It is 9:30.",
+   "output": "Jnbs Bm bl 9:30."
+  }
+ ]
+}

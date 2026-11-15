@@ -1,0 +1,112 @@
+{
+ "v": 1,
+ "issue": 21,
+ "task": "luhn",
+ "run": [
+  "python3",
+  "tasks/luhn.py"
+ ],
+ "seed": 111,
+ "cases": [
+  {
+   "input": "79927398713",
+   "output": "valid"
+  },
+  {
+   "input": "79927398710",
+   "output": "invalid"
+  },
+  {
+   "input": "0",
+   "output": "valid"
+  },
+  {
+   "input": "18",
+   "output": "valid"
+  },
+  {
+   "input": "59",
+   "output": "valid"
+  },
+  {
+   "input": "4539578763621486",
+   "output": "valid"
+  },
+  {
+   "input": "1234567812345678",
+   "output": "invalid"
+  },
+  {
+   "input": "00",
+   "output": "valid"
+  },
+  {
+   "input": "91",
+   "output": "valid"
+  },
+  {
+   "input": "357366923683274",
+   "output": "valid"
+  },
+  {
+   "input": "64635709",
+   "output": "valid"
+  },
+  {
+   "input": "3976164",
+   "output": "valid"
+  },
+  {
+   "input": "81415735380067",
+   "output": "valid"
+  },
+  {
+   "input": "847778192025",
+   "output": "valid"
+  },
+  {
+   "input": "789053725",
+   "output": "valid"
+  },
+  {
+   "input": "2986997099322894",
+   "output": "valid"
+  },
+  {
+   "input": "4507051916534",
+   "output": "valid"
+  },
+  {
+   "input": "3997186631441",
+   "output": "invalid"
+  },
+  {
+   "input": "23177400",
+   "output": "invalid"
+  },
+  {
+   "input": "36910",
+   "output": "invalid"
+  },
+  {
+   "input": "85",
+   "output": "invalid"
+  },
+  {
+   "input": "539845",
+   "output": "invalid"
+  },
+  {
+   "input": "6549",
+   "output": "invalid"
+  },
+  {
+   "input": "2689596168",
+   "output": "invalid"
+  },
+  {
+   "input": "98410",
+   "output": "invalid"
+  }
+ ]
+}

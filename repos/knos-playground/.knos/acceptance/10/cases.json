@@ -1,0 +1,108 @@
+{
+ "v": 1,
+ "issue": 10,
+ "task": "brackets",
+ "run": [
+  "python3",
+  "tasks/brackets.py"
+ ],
+ "seed": 105,
+ "cases": [
+  {
+   "input": "(a[b]{c})",
+   "output": "yes"
+  },
+  {
+   "input": "(]",
+   "output": "no"
+  },
+  {
+   "input": "(()",
+   "output": "no"
+  },
+  {
+   "input": "",
+   "output": "yes"
+  },
+  {
+   "input": ")(",
+   "output": "no"
+  },
+  {
+   "input": "([)]",
+   "output": "no"
+  },
+  {
+   "input": "{[()]}",
+   "output": "yes"
+  },
+  {
+   "input": "((",
+   "output": "no"
+  },
+  {
+   "input": "a(b)c]",
+   "output": "no"
+  },
+  {
+   "input": "[(])",
+   "output": "no"
+  },
+  {
+   "input": "{}{}[",
+   "output": "no"
+  },
+  {
+   "input": "x",
+   "output": "yes"
+  },
+  {
+   "input": "[{(([{",
+   "output": "no"
+  },
+  {
+   "input": "{[[)[))(",
+   "output": "no"
+  },
+  {
+   "input": "][)]{]]",
+   "output": "no"
+  },
+  {
+   "input": "})}){",
+   "output": "no"
+  },
+  {
+   "input": "{[([",
+   "output": "no"
+  },
+  {
+   "input": "{([}})}]",
+   "output": "no"
+  },
+  {
+   "input": "{{}}]{",
+   "output": "no"
+  },
+  {
+   "input": "]{[{}(",
+   "output": "no"
+  },
+  {
+   "input": "([])",
+   "output": "yes"
+  },
+  {
+   "input": "((([])))",
+   "output": "yes"
+  },
+  {
+   "input": "([{",
+   "output": "no"
+  },
+  {
+   "input": "}])",
+   "output": "no"
+  }
+ ]
+}

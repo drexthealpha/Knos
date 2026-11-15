@@ -1,0 +1,14 @@
+[
+ {
+  "input": "the lord of the rings",
+  "output": "The Lord of the Rings"
+ },
+ {
+  "input": "a tale OF two cities",
+  "output": "A Tale of Two Cities"
+ },
+ {
+  "input": "don't look back",
+  "output": "Don't Look Back"
+ }
+]
