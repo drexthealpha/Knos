@@ -43,9 +43,9 @@ TERMS = pay.terms_json({"accept": "", "checks": [{"app": 15368, "name": "test"}]
 TH = pay.terms_hash(TERMS)
 JWKS = {oidc.GITHUB: {"keys": [{"kty": "RSA", "alg": "RS256", "e": "AQAB", "kid": "k", "n": b64(oidc.modulus_bytes(modulus(signing_key())))}]}}
 _COUNT = [1000, 3_000_000]
-# The public program ids run knos_pay 2.1 until the upgrade to 2.2 executes, and the relay decides by the Version the
+# The public program ids run knos_pay 2.2 since 9 Oct 2026 (proposal 8), and the relay decides by the Version the
 # cluster answers. So every test of this file runs twice: against the tree's build (2.2) and against the build that
-# is live (2.1, the 0.3.17 release's). P(old, new) is what a test pins for each: `old` is the number 0.3.17 pinned.
+# was live before it (2.1, the 0.3.17 release's). P(old, new) is what a test pins for each: `old` is the number 0.3.17 pinned.
 LIVE = Live()
 P = LIVE.pick
 
@@ -747,7 +747,7 @@ PAY_REFUSALS = {
     "payee 0": (lambda c, n: pay_jwt(c, REPO, n, 0), "malformed audience or claims"),
     "a head that is not a commit": (lambda c, n: token(c, pay.pay_audience(REPO, n, 77, "main", TH, 0)), "malformed audience or claims"),
     "an address that is not a key": (lambda c, n: token(c, pay.pay_audience(REPO, n, 77, "a" * 40, TH, 0)[:-1] + "0OIl"), "malformed audience or claims"),
-    "the escrow's own account as the address": (lambda c, n: pay_jwt(c, REPO, n, 77, pay.auth_pda()), "the address this token names is the payment program's own account"),
+    "the payment program's own account as the address": (lambda c, n: pay_jwt(c, REPO, n, 77, pay.auth_pda()), "the address this token names is the payment program's own account"),
     "a self-hosted runner": (lambda c, n: pay_jwt(c, REPO, n, 77, runner_environment="self-hosted"), "not from a GitHub-hosted runner"),
 }
 
@@ -898,8 +898,8 @@ def test_the_genesis_keys_are_the_ones_the_verifier_holds():
     github = oidc.jwks_keys(json.loads((FIX / "github_jwks_2026-10-02.json").read_text()))
     assert {oidc.key_hash(n).hex() for _kid, n in github} == relay.GENESIS
     # and the two workflows it knows a token by are the ones the programs pin
-    escrow = (ROOT / "programs-v2" / "knos_pay" / "src" / "lib.rs").read_text(encoding="utf-8")
-    assert f'CLAIM_REF: &[u8] = b"{relay.CLAIM_REF}"' in escrow and f'CLAIM_SHA: &[u8; 40] = b"{pay.IDS["claim_sha"]}"' in escrow
+    program = (ROOT / "programs-v2" / "knos_pay" / "src" / "lib.rs").read_text(encoding="utf-8")
+    assert f'CLAIM_REF: &[u8] = b"{relay.CLAIM_REF}"' in program and f'CLAIM_SHA: &[u8; 40] = b"{pay.IDS["claim_sha"]}"' in program
     assert f'ROTATE_REF: &[u8] = b"{relay.ROTATE_REF}"' in pins and f'ROTATE_SHA: &[u8; 40] = b"{oidc.IDS["rotate_sha"]}"' in pins
     assert relay.CLAIM_SHAS - {TEST_CLAIM_SHA} == {pay.IDS["claim_sha"]} and relay.ROTATE_SHAS - {TEST_ROTATE_SHA} == {oidc.IDS["rotate_sha"]}
     assert relay.ATTESTERS - {(OWNER, REPO)} == {(142920951, 1353152983), (142920951, 1401432540)}
@@ -1547,7 +1547,7 @@ ORDER_PAY_REFUSALS = {
     "five payees": (lambda c, o: order_pay_jwt(c, o, [(70 + k, 2000, None) for k in range(5)]), "malformed audience or claims"),
     "a payee named twice": (lambda c, o: order_pay_jwt(c, o, [(77, 5000, None), (77, 5000, None)]), "malformed audience or claims"),
     "a split with a payee nobody can pay yet": (lambda c, o: order_pay_jwt(c, o, [(user(), 5000, Keypair().pubkey()), (user(), 5000, None)]), "a split is paid whole or not at all"),
-    "the escrow's own account as an address": (lambda c, o: order_pay_jwt(c, o, [(77, 10_000, pay.auth_pda())]), "is the payment program's own account"),
+    "the payment program's own account as an address": (lambda c, o: order_pay_jwt(c, o, [(77, 10_000, pay.auth_pda())]), "is the payment program's own account"),
     "a standing order's payee with no wallet": (lambda c, o: order_pay_jwt(c, _standing(c), [(77, 10_000, None)], terms=__import__("_order").TERMS), "a standing order, and one with a holdback, is never held"),
     "a self-hosted runner": (lambda c, o: order_pay_jwt(c, o, [(77, 10_000, None)], runner_environment="self-hosted"), "not from a GitHub-hosted runner"),
     # the words of error 103, as the client has them
@@ -1799,7 +1799,7 @@ ORDERS = {"plain": {}, "neutral": {"flags": pay.F_NEUTRAL}, "judged": {"judge_re
           "all": {"flags": pay.F_NEUTRAL, "judge_repo_id": JUDGE_REPO, "arbiter_id": ARBITER}}
 
 
-def escrow_says(oenv, jwt: str, ix_of) -> int | None:
+def vault_says(oenv, jwt: str, ix_of) -> int | None:
     """The vault's own answer to a token, with no relay in between: the verifier takes the token as it stands and
     `ix_of(token account)` is sent. None when the vault did what the token asks, else the vault's error code."""
     from _order import code
@@ -1861,7 +1861,7 @@ TAKES = {
 
 
 @pytest.mark.parametrize("what", list(TAKES))
-def test_a_take_token_is_carried_exactly_when_the_escrow_reserves_on_it(oenv, what):
+def test_a_take_token_is_carried_exactly_when_the_payment_program_reserves_on_it(oenv, what):
     c, net = oenv
     kind, make, verdict = TAKES[what]
     who = user()
@@ -1876,7 +1876,7 @@ def test_a_take_token_is_carried_exactly_when_the_escrow_reserves_on_it(oenv, wh
         return
     code, why = verdict
     assert refused(oenv, jwt, None, why)["kind"] == "take"
-    assert escrow_says(oenv, jwt, reserve_with(c, order)) == code and c.order(order).reserved_by == 0
+    assert vault_says(oenv, jwt, reserve_with(c, order)) == code and c.order(order).reserved_by == 0
 
 
 def cancel_jwt(c: Chain, order: Pubkey, **over) -> str:
@@ -1915,7 +1915,7 @@ CANCELS = {
 
 
 @pytest.mark.parametrize("what", list(CANCELS))
-def test_a_cancel_token_is_carried_exactly_when_the_escrow_cancels_on_it(oenv, what):
+def test_a_cancel_token_is_carried_exactly_when_the_payment_program_cancels_on_it(oenv, what):
     c, net = oenv
     kind, make, verdict = CANCELS[what]
     n, order = (0, c.fund_wallet(amount=10 * USDC)) if kind == "wallet" else ordered(oenv, options=pay.opts(**ORDERS[kind]), work=30 * 86_400)
@@ -1928,7 +1928,7 @@ def test_a_cancel_token_is_carried_exactly_when_the_escrow_cancels_on_it(oenv, w
         return
     code, why = verdict
     assert refused(oenv, jwt, None, why)["kind"] == "cancel"
-    assert escrow_says(oenv, jwt, lambda tok: pay.cancel_ix(c.payer.pubkey(), order, tok, c.key)) == code and c.order(order).cancel_at == 0
+    assert vault_says(oenv, jwt, lambda tok: pay.cancel_ix(c.payer.pubkey(), order, tok, c.key)) == code and c.order(order).cancel_at == 0
 
 
 def revert_jwt(c: Chain, order: Pubkey, head: str = "a" * 40, **over) -> str:
@@ -1961,7 +1961,7 @@ REVERTS = {
 
 
 @pytest.mark.parametrize("what", list(REVERTS))
-def test_a_revert_token_is_carried_exactly_when_the_escrow_returns_the_holdback_on_it(oenv, what):
+def test_a_revert_token_is_carried_exactly_when_the_payment_program_returns_the_holdback_on_it(oenv, what):
     c, net = oenv
     kind, make, verdict = REVERTS[what]
     n, order = ordered(oenv, 50 * USDC, options=pay.opts(holdback_bps=2000, warranty_days=2, **ORDERS[kind]))
@@ -1978,7 +1978,7 @@ def test_a_revert_token_is_carried_exactly_when_the_escrow_returns_the_holdback_
     assert refused(oenv, jwt, None, why)["kind"] == "revert"
     o = c.order(order)
     ix_of = lambda tok: pay.revert_ix(c.payer.pubkey(), tok, c.key, order, o, pay.read_holdback(c.data(pay.hb_pda(order))))  # noqa: E731
-    assert escrow_says(oenv, jwt, ix_of) == code and c.order(order).state == "warranty" and c.balance(pay.baltok_pda(c.bal)) == bal0
+    assert vault_says(oenv, jwt, ix_of) == code and c.order(order).state == "warranty" and c.balance(pay.baltok_pda(c.bal)) == bal0
     assert go(oenv, revert_jwt(c, order))["ok"] and c.order(order) is None        # and the order's own judge still reverts it
 
 
@@ -1995,9 +1995,9 @@ def test_a_private_order_has_no_command_job_and_its_judge_repository_reverts_it(
     for run in (lambda a: dict(COMMENT, repository_id=judge_repo, actor_id=a), lambda a: dict(repository_id=judge_repo, actor_id=a),
                 lambda a: dict(COMMENT, repository_id=0, actor_id=a), by_hand):
         take, cancel = take_jwt(c, order, who, **run(who)), cancel_jwt(c, order, **run(MAINT))
-        assert refused(oenv, take, None, NO_COMMAND)["kind"] == "take" and escrow_says(oenv, take, reserve_with(c, order)) == E_CLAIMS
+        assert refused(oenv, take, None, NO_COMMAND)["kind"] == "take" and vault_says(oenv, take, reserve_with(c, order)) == E_CLAIMS
         assert refused(oenv, cancel, None, NO_COMMAND)["kind"] == "cancel"
-        assert escrow_says(oenv, cancel, lambda tok: pay.cancel_ix(c.payer.pubkey(), order, tok, c.key)) == E_CLAIMS
+        assert vault_says(oenv, cancel, lambda tok: pay.cancel_ix(c.payer.pubkey(), order, tok, c.key)) == E_CLAIMS
     assert (c.order(order).reserved_by, c.order(order).cancel_at) == (0, 0)
     assert go(oenv, order_pay_jwt(c, order, [(who, 10_000, Keypair().pubkey())], terms=_SECRET, file="attest.yml", repository_id=judge_repo))["ok"]
     assert refused(oenv, revert_jwt(c, order, repository_id=REPO), None, NO_JUDGE)["kind"] == "revert"
@@ -2029,7 +2029,7 @@ def test_an_order_is_reserved_then_cancelled_and_its_taker_gets_the_kill_fee(oen
     c.warp(pay.TOKEN_AHEAD + 60)
     assert refused(oenv, token(c, pay.cancel_audience(order), actor_id=MAINT), None, "the order was cancelled already")
     late = token(c, pay.take_audience(order, other, 5), actor_id=other)
-    assert refused(oenv, late, None, "a cancelled order takes no new reservation")["kind"] == "take" and escrow_says(oenv, late, reserve_with(c, order)) == E_STATE
+    assert refused(oenv, late, None, "a cancelled order takes no new reservation")["kind"] == "take" and vault_says(oenv, late, reserve_with(c, order)) == E_STATE
     # past the notice the money goes back; the taker, who has bound a wallet, is sent the kill fee first (10% of 40)
     assert go(oenv, bind_jwt(c, taker, wallet))["ok"]
     cranker, bal0 = c.fund(), c.balance(pay.baltok_pda(c.bal))

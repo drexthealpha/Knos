@@ -15,7 +15,7 @@ SENTENCE = "Knos carries research across the valley of death."
 # characters, over the 100 the MCP registry takes, so a new registry listing needs that limit settled first.
 REGISTRY = SENTENCE
 FACES = ("docs/facts.json", "pyproject.toml", "server.json", "gemini-extension.json", "plugin/.claude-plugin/plugin.json",
-         "plugin/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json", "sdk/settle/package.json", "sdk/settle/README.md", "action.yml", "web/index.html", "README.md")
+         "plugin/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json", "sdk/settle/package.json", "sdk/settle/README.md", "action.yml", "web/door.html", "README.md")
 
 
 def _tool():
@@ -40,11 +40,15 @@ def _sub(path: Path, old: str, new: str) -> None:
 
 def test_this_tree_says_the_one_sentence_everywhere_it_describes_itself():
     pf = _tool()
-    assert pf.sentence() == SENTENCE and pf.title(SENTENCE) == "Knos. See who wants it, then test each step." and len(pf.title(SENTENCE)) <= 60
+    assert pf.sentence() == SENTENCE and pf.door_title("Ask anything about research. More.") == "Knos: ask anything about research"
     assert pf.problems() == []
     said: list[str] = []
-    assert pf.main(["--check"], say=said.append) == 0 and said == [f"every description says: {SENTENCE}"]
-    assert re.search(r'(?m)^description = "([^"]*)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1) == " ".join(pf.LINES)   # the two vision lines
+    assert pf.main(["--check"], say=said.append) == 0
+    assert said[-1] == f"no description names an older product; the registry and plugin lists say: {SENTENCE}"
+    # the front door's own words differ from the sentence until the founder picks one: printed as a note, not hidden
+    assert said[:-1] == ([pf.door_split()] if pf.door_split() else [])
+    summary = re.search(r'(?m)^description = "([^"]*)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
+    assert summary.startswith(pf.K1) and f"The goal: {pf.LINES[0]}" in summary   # what Knos does, then the vision line labelled as the goal
     for rel in ("server.json", "gemini-extension.json"):
         assert json.loads((ROOT / rel).read_text(encoding="utf-8"))["description"] == REGISTRY
     assert pf.registry_sentence() == REGISTRY == SENTENCE                # the one line, word for word
@@ -55,16 +59,18 @@ def test_this_tree_says_the_one_sentence_everywhere_it_describes_itself():
 def test_any_other_description_of_the_product_fails_the_check_place_by_place(tmp_path):
     pf, root = _tool(), _copy(tmp_path)
     assert pf.problems(root) == []
-    _sub(root / "pyproject.toml", " ".join(pf.LINES), "Bounties that pay. " + " ".join(pf.LINES))
+    _sub(root / "pyproject.toml", 'description = "', 'description = "Bounties that pay. ')
     _sub(root / "server.json", REGISTRY, "Bounties that pay when the pull request is merged.")
     _sub(root / "plugin" / ".claude-plugin" / "plugin.json", SENTENCE, "A plugin.")
     _sub(root / "action.yml", "description: ", "description: One shared memory for every coding agent. ")
-    _sub(root / "web" / "index.html", f"<title>{pf.title(SENTENCE)}</title>", "<title>Knos: bounties</title>")
-    _sub(root / "web" / "index.html", f'<meta property="og:description" content="{SENTENCE}', '<meta property="og:description" content="Escrow for agents.')
+    door = (root / "web" / "door.html").read_text(encoding="utf-8")
+    title = re.search(r"<title>([^<]*)</title>", door).group(1)
+    _sub(root / "web" / "door.html", f"<title>{title}</title>", "<title>Knos: bounties</title>")
+    _sub(root / "web" / "door.html", '<meta property="og:description" content="', '<meta property="og:description" content="Escrow for agents. ')
     _sub(root / "README.md", pf.K1, "Pay agents on merge.")   # the README opens with the 17-year question, no marketing
     found = pf.problems(root)
-    assert [f.split(":")[0] for f in found] == ["server.json", "plugin/.claude-plugin/plugin.json", "pyproject.toml", "action.yml", "web/index.html <title>",
-                                                "web/index.html og", "README.md"]
+    assert [f.split(":")[0] for f in found] == ["server.json", "plugin/.claude-plugin/plugin.json", "pyproject.toml", "action.yml", "web/door.html <title>",
+                                                "web/door.html og", "README.md"]
     assert "older product" in found[0] and "does not begin with the sentence" in found[1] and "older product" in found[2] and "older product" in found[3]
     said: list[str] = []
     assert pf.main(["--check"], say=said.append, root=root) == 1 and said[-1] == "7 description(s) are not the one sentence"

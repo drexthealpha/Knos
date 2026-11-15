@@ -4,6 +4,9 @@ tests/web/procure.mjs runs web/procure.js in node on the cases the Python answer
 tests/web/procure_site.mjs builds nothing itself: this file builds the site (scripts/build_site.sh) and runs it in
 headless Chromium, where an offer is created in three fields and the envelope is seen to change. No node, no
 `playwright` package or no browser: skipped, with the reason.
+
+web/index.html, the page that loads these screens, is not published (the Pages build replaces it with the app.html
+stub), so the screens are not on the live site; they are tested here as code.
 """
 from __future__ import annotations
 

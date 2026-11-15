@@ -295,7 +295,7 @@ def test_what_a_line_carries_that_is_not_a_known_field_does_not_reach_the_export
 
 
 # ---- reading the chain ------------------------------------------------------------------------------------------------
-def test_read_gives_both_escrows_oldest_first_and_says_what_it_could_not_read(monkeypatch):
+def test_read_gives_both_payment_programs_oldest_first_and_says_what_it_could_not_read(monkeypatch):
     calls, history = [], records.history
 
     def fake(url, program, limit):
@@ -474,7 +474,7 @@ def test_knos_invoice_writes_a_page_and_a_csv(capsys, world, tmp_path):
 
 def test_the_records_commands_are_listed_under_money_in_the_help(capsys):
     rc, text, _ = run(capsys, "--help")
-    money = text[text.index("Paid on proof"):text.index("Run Knos")]
+    money = text[text.index("Checks and receipts"):text.index("Run Knos")]
     assert rc == 0 and all(f"│ {name} " in money for name in ("receipts", "statement", "export", "invoice"))
     assert "--meter" in " ".join(money.split())                                     # the meter's statement is named where statements are
     rc, text, _ = run(capsys, "statement", "--help")

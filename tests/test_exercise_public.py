@@ -404,7 +404,7 @@ def test_a_step_done_outside_is_held_to_the_chain_and_what_it_cannot_show_is_not
         got = run(w, new(), only="passkey", say=said.append)
         assert got["exercises"]["passkey_funder"]["status"] == "needs run: the site's Buy page"
         guide = next(line for line in said if line.startswith("  NEEDS A RUN of the site's Buy page: "))
-        for press in ("https://drexthealpha.github.io/Knos/#buy", "`Create a passkey wallet`", "`Sign the order with the passkey`", "`Read the order from devnet`",
+        for press in (ex.BUY_PAGE, "python -m http.server 8000 -d web", "`Create a passkey wallet`", "`Sign the order with the passkey`", "`Read the order from devnet`",
                       "note passkey --keys <keys> fund=<that transaction>"):
             assert press in guide
         buttons = (ROOT / "web" / "buyer.js").read_text(encoding="utf-8")
@@ -497,8 +497,9 @@ def test_propose_proposes_exactly_knos_oidc_and_knos_pay_as_one_set_and_refuses_
     def unread(address):
         raise AssertionError("propose read the cluster")
     assert ex.RELEASE_PROPOSES == () and ex.propose("rpc", keys, so, said.append, unread, deploy, root) == 1 and not calls
-    assert said[-1] == ("refused: this release proposes nothing. Its tree changes no program, and knos_oidc 2.2 is proposal 7 and knos_pay 2.2 is proposal 8 "
-                        "already: `status --want 2.2` says whether they executed. Nothing was read, written or proposed.")
+    assert said[-1] == ("refused: this release proposes nothing. knos_oidc 2.2 was proposal 7 and knos_pay 2.2 was proposal 8; the later builds are proposals 13 "
+                        "(knos_pay) and 14 and 15 (knos_oidc), made outside this command (web/upgrades.json): `status --want later` says whether they executed. "
+                        "Nothing was read, written or proposed.")
     assert ex.propose_oidc("rpc", keys, so, said.append, unread, deploy, root) == 1 and not calls and "provenance" not in said[-1]
     assert ex.main(["propose", "--rpc", "rpc", "--keys", str(keys), "--so-dir", str(so)], said.append) == 1 and said[-1].startswith("refused: this release proposes nothing")
     said.clear()
@@ -685,6 +686,34 @@ def test_status_want_2_2_exits_0_only_when_proposals_7_and_8_executed_and_json_n
     (alone / "web" / "upgrades.json").write_text(json.dumps(feed), encoding="utf-8")
     assert ex.next_proposals(cluster(ELF), alone) == {n: {"proposal": i, "version": "2.2", "status": "Approved", "read": "web/upgrades.json, as it was generated"}
                                                       for n, i in ex.NEXT_PROPOSALS.items()}
+
+
+def test_status_knows_the_later_proposals_13_to_15_by_the_feeds_entry_and_want_later_says_whether_they_executed(tmp_path, monkeypatch):
+    root = tree(tmp_path)
+    monkeypatch.setattr(ex, "next_proposals", lambda account, root=None: {n: {"proposal": i, "version": "2.2", "status": "Executed"} for n, i in ex.NEXT_PROPOSALS.items()})
+    feed = json.loads((root / "web" / "upgrades.json").read_text(encoding="utf-8"))
+    feed["entries"][:0] = [{"index": 13, "program": "knos_pay", "build_hash": NEXT_HASH["knos_pay"], "status": "executed", "squads_status": "Executed"},
+                           {"index": 15, "program": "knos_oidc", "build_hash": NEXT_HASH["knos_oidc"], "status": "executed", "squads_status": "Executed"}]
+    (root / "web" / "upgrades.json").write_text(json.dumps(feed), encoding="utf-8")
+    later = cluster({**ELF, **NEXT})
+    said: list[str] = []
+    # a later build is no build nobody recorded: status goes on, and it is past 2.2
+    assert ex.status("rpc", said.append, later, root) == 0 and "the build of proposal 13" in said[1]
+    assert ex.status("rpc", said.append, later, root, want="2.2") == 0
+    said.clear()
+    assert ex.status("rpc", said.append, later, root, want="later") == 0 and said[-1].endswith("run the builds of the later proposals at the public ids")
+    said.clear()
+    assert ex.status("rpc", said.append, cluster(ELF), root, want="later") == 3 and "not the build of proposal 14 or 15" in said[-1]
+
+
+def test_the_staging_rehearsal_needs_its_repository_named_and_has_no_default(tmp_path, monkeypatch):
+    keys = tmp_path / "keys"
+    keys.mkdir()
+    monkeypatch.setenv("KNOS_PROGRAM_IDS", str(tmp_path / "ids.json"))
+    monkeypatch.setattr(ex, "Public", lambda *a, **k: type("P", (), {"cfg": {}})())
+    with pytest.raises(SystemExit):
+        ex.main(["rehearse", "--rc", "--phase", "before", "--rpc", "https://api.devnet.solana.com", "--keys", str(keys)], lambda s: None)
+    assert "knos-rc" not in (ROOT / "scripts" / "exercise_public.py").read_text(encoding="utf-8")
 
 
 @pytest.fixture(scope="module")

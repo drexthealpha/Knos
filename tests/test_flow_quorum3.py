@@ -1,11 +1,11 @@
-"""Two things a funding comment could not reach before, each from the comment to the program (knos_pay 2.1 in LiteSVM):
+"""Two things a funding comment could not reach before, each from the comment to the program (knos_pay's test build of this tree in LiteSVM):
 
   1. `quorum 3 judge: owner/repo`: three independent readers. The comment names the judge repository, GitHub's API
      gives its id, the id goes into the order's options (the 48 bytes the fund token signs and the program reads:
      order.rs `judge_repo_id`, order_judge.rs judge c), and the order pays only after the buyer's run, a neutral run
      and the judge repository's run have each passed the same pull request. Two readers of one owner are one.
-  2. An outcome that is not code (examples/outcomes/data-labelling): the comment `knos terms show data-labelling`
-     gives funds an order on that example's black-box suite; the cheating file that passes the naive check is
+  2. An outcome that is not code (examples/outcomes/data-labelling): the comment that `knos terms show data-labelling`
+     gives (`/knos fund 40 checks: none`) funds an order on that example's black-box suite; the cheating file that passes the naive check is
      refused and not paid; the honest one is paid. The deliverable and the evaluation the meter would count are named.
 
 The flow runs against tests/_flow.py's GitHub and relay; what it signed is then presented to the real program in

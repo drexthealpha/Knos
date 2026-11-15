@@ -1,5 +1,6 @@
 """The gate with a bounty's terms: a description's words can be found false, and they never stand in for a check.
-The two cases reproduced against 0.3.11 are the first two tests."""
+The two cases reproduced against 0.3.11 are the first test and
+test_no_claim_and_a_failing_check_is_not_a_false_claim_and_is_not_paid_on_terms."""
 
 from __future__ import annotations
 

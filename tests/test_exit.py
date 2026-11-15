@@ -1,6 +1,7 @@
 """knos exit --before-upgrade (src/knos/exit.py) against knos_pay's test build in LiteSVM, with a pending upgrade
 proposal built in the Squads layouts src/knos/mainnet_check.py reads (the builders of tests/test_site_recorded.py on
-the real devnet multisig account). Each exit the plan names is then sent to the program, so the plan and the program
+a snapshot of the devnet upgrade multisig from before 11 Oct 2026, when its time lock was 48 hours (8 days since
+11 Oct 2026, proposal 9; docs/reference/GOVERNANCE.md). Each exit the plan names is then sent to the program, so the plan and the program
 cannot disagree."""
 from __future__ import annotations
 

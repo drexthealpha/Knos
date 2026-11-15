@@ -1,4 +1,4 @@
-"""The rules referee compares a lab value with its target only in the target's own unit (sweep 22, CODE.md 2.15): a
+"""The rules referee compares a lab value with its target only in the target's own unit: a
 glucose of 5.5 mmol/L never passes a "< 100 mg/dL" target, and the same unit written another way still compares."""
 import json
 

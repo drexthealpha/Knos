@@ -288,7 +288,8 @@ def test_the_tables_in_the_privacy_document_are_the_commands_and_the_record_they
 
 # an issue's bounty on the public program ids, as devnet logged it (knos-e2e issue 211, funded from the faucet's Balance
 # by comment and paid on merge): a job's knos2 lines, which carry no `order`
-FAUCET_BALANCE, BOUNTY_ESCROW, BOUNTY_REPO, BOUNTY_OWNER = ("EuuemHS1W5j6BRrtJadXZ59AxXphWa3pEdKTyHzd8HyU", "79ELTFsEMBz1xZL4jUL5HHKUd71My8QrNPaaJvJkiraF",
+# (each transaction: https://explorer.solana.com/tx/<signature>?cluster=devnet, the two signatures of BOUNTY_TXS)
+FAUCET_BALANCE, BOUNTY_VAULT, BOUNTY_REPO, BOUNTY_OWNER = ("EuuemHS1W5j6BRrtJadXZ59AxXphWa3pEdKTyHzd8HyU", "79ELTFsEMBz1xZL4jUL5HHKUd71My8QrNPaaJvJkiraF",
                                                             1_401_439_243, 142_920_951)
 BOUNTY_TXS = (("v9QEbniaNfaQYsKHaj2HtXF9E4edxR5XsWNBmARv1x2Po9EMYv3k8wsBPzptVxJL1hGMJwNpyYk1mX1TYjR9kdJ", 1_791_150_973,
                [f"knos2:funded repo={BOUNTY_REPO} issue=211 amount=5000000 mode=0 by={BOUNTY_OWNER} source={FAUCET_BALANCE} faucet=1",
@@ -299,7 +300,7 @@ BOUNTY_TXS = (("v9QEbniaNfaQYsKHaj2HtXF9E4edxR5XsWNBmARv1x2Po9EMYv3k8wsBPzptVxJL
 
 def _bounty_txs() -> list[dict]:
     program = str(pay.PAY_ID)
-    return [{"blockTime": at, "transaction": {"signatures": [sig], "message": {"accountKeys": [str(Keypair.from_seed(bytes([9]) * 32).pubkey()), BOUNTY_ESCROW, program]}},
+    return [{"blockTime": at, "transaction": {"signatures": [sig], "message": {"accountKeys": [str(Keypair.from_seed(bytes([9]) * 32).pubkey()), BOUNTY_VAULT, program]}},
              "meta": {"err": None, "logMessages": [f"Program {program} invoke [1]", *(f"Program log: {line}" for line in lines), f"Program {program} success"]}}
             for sig, at, lines in BOUNTY_TXS]
 
@@ -316,13 +317,13 @@ def test_an_issues_bounty_is_in_the_graph_and_its_address_is_named_a_bounty_neve
     assert said[0] == f"GitHub id {BOUNTY_OWNER}: 0 work orders and 1 bounty on an issue funded from its Balances (0 private), 5.000000 in all."
     assert all("shows no payment" not in line for line in said)
     src = observe.Recorded(txs)
-    for target in (BOUNTY_ESCROW, BOUNTY_TXS[1][0]):
+    for target in (BOUNTY_VAULT, BOUNTY_TXS[1][0]):
         with pytest.raises(LookupError, match=rf"{target} is an issue's bounty \(repository id {BOUNTY_REPO}, issue 211\), not a work order") as why:
             observe.order_facts(src, target)
         assert "logged nothing" not in str(why.value)
     # nothing at all is still nothing
     with pytest.raises(LookupError, match="No work order was found"):
-        observe.order_facts(observe.Recorded([]), BOUNTY_ESCROW)
+        observe.order_facts(observe.Recorded([]), BOUNTY_VAULT)
 
 
 def test_the_command_prints_the_table_and_the_graph_as_text_and_as_json(monkeypatch):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 import urllib.request
 from pathlib import Path
@@ -89,7 +90,8 @@ def test_the_agent_card_has_every_required_field_of_a2a_1_0():
 def test_the_published_card_file_is_the_one_the_server_serves():
     path = ROOT / "examples" / "a2a" / ".well-known" / "agent-card.json"
     got = json.loads(path.read_text(encoding="utf-8"))
-    want = a2a.card(got["url"], version=got["version"])
+    version = re.search(r'(?m)^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
+    want = a2a.card(got["url"], version=version)          # the package's own version, not the one the file says
     assert got == want
 
 

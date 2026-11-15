@@ -131,7 +131,7 @@ def test_the_meter_adapter_starts_the_repositorys_own_attest_workflow_with_an_ev
     assert "run_attempt" in claims and "event_name" not in claims
 
 
-# ---- and one the program accepts: knos_pay 2.1 in LiteSVM ---------------------------------------------------------------
+# ---- and one the program accepts: knos_pay 2.2 in LiteSVM ---------------------------------------------------------------
 
 def test_the_rules_an_adapter_relies_on_are_the_programs():
     judge = (ROOT / "programs-v2" / "knos_pay" / "src" / "order_judge.rs").read_text(encoding="utf-8")
@@ -304,7 +304,4 @@ def test_a_tracker_adapter_asks_the_tracker_and_believes_only_its_answer(tmp_pat
     asked = [ln for ln in (tmp_path / "log").read_text(encoding="utf-8").splitlines() if ln.startswith("curl")]
     assert asked == [] or all(ln.startswith("curl https://") for ln in asked)
     assert "client_payload" not in step(ADAPTERS / name)[1]["run"] and "github.event" not in json.dumps(step(ADAPTERS / name)[0]["env"])
-
-
-# ---- the document -----------------------------------------------------------------------------------------------------
 

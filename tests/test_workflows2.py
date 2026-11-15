@@ -120,7 +120,7 @@ def _mine() -> list[Path]:
 
 
 def _install(name: str, job: str) -> str:
-    """The one script that installs knos in a job of the three called workflows."""
+    """The one script that installs knos in a job of the published workflows."""
     if (name, job) == ("prove.yml", "settle"):     # the lock goes to a file, and PyPI is waited for first (tests/test_pypi_wait.py)
         run = next(str(s["run"]) for s in _steps(_jobs(name)[job]) if "--require-hashes" in str(s.get("run") or ""))
         wait = run[run.index("python3 -I - "):run.index("\nWAIT\n") + 6]
@@ -154,7 +154,7 @@ def _script(name: str):
 # ---- the files: no pull_request_target, one text per file, every action a pinned commit ------------------------------
 
 def test_every_workflow_parses_and_none_is_started_by_pull_request_target():
-    """GitHub blocks that trigger on public repositories by default from 2 Nov 2026. Nothing of Knos's uses it: not
+    """GitHub blocks that trigger on public repositories by default from 2 Dec 2026. Nothing of Knos's uses it: not
     as a trigger, not in a condition, not in the action a repository can call from its own workflow."""
     for path in [*_files(), ROOT / "action.yml"]:
         doc = _doc(path)
@@ -182,17 +182,17 @@ def test_what_a_repository_installs_is_what_knos_runs_on_itself():
 def test_every_action_is_a_commit_listed_in_action_pins_and_every_called_workflow_is_a_pinned_one():
     """A tag can be moved to other code; a commit cannot. Third-party actions are the commits scripts/action_pins.json
     lists for their tags. The workflows Knos calls are named by commit too: its own published ones (one commit for
-    all three, or the placeholder until the release) and the two the programs pin."""
+    all four, or the placeholder until the release) and the two the programs pin."""
     pins = json.loads((ROOT / "scripts" / "action_pins.json").read_text(encoding="utf-8"))["pins"]
     ids = json.loads((ROOT / "programs-v2" / "program_ids.json").read_text(encoding="utf-8"))
     called = set()
     for path in _files():
         for name, ref, tag in re.findall(r"^\s*(?:- )?uses:\s*(\S+?)@(\S+)(?:\s+#\s*(\S+))?", path.read_text(encoding="utf-8"), re.M):
             if name == SUPPLIER:     # (tested first: since the cutover the supplier's file and the published set share a home)
-                # the supplier's one line calls Knos's own repository at the tag of a release (docs/reference/SUPPLIER.md, section 3): the
-                # tag names a commit in scripts/action_pins.json, and the release moves both
+                # the supplier's one line calls Knos's own repository at the tag of a release (docs/reference/SUPPLIER.md, "3. One
+                # line to install"): that tag names its commit in scripts/action_pins.json, and the release moves both
                 assert path.name == "knos-supplier.yml" and re.fullmatch(r"v\d+\.\d+\.\d+", ref), (path.name, name, ref)
-                assert any(re.fullmatch(r"drexthealpha/Knos@v\d+\.\d+\.\d+", k) and re.fullmatch(SHA, v) for k, v in pins.items()), "no commit is listed for a Knos tag"
+                assert re.fullmatch(SHA, pins.get(f"drexthealpha/Knos@{ref}", "")), f"no commit is listed for drexthealpha/Knos@{ref}"
             elif name.startswith(CALLED):
                 assert name[len(CALLED):] in PUBLISHED and (ref == PLACEHOLDER or re.fullmatch(SHA, ref)), (path.name, name, ref)
                 called.add(ref)
@@ -576,7 +576,7 @@ def test_the_release_the_workflows_install_is_this_one():
 
 
 def test_no_job_of_the_payment_flow_restores_or_saves_a_cache():
-    """A cache written by a run of pull request code could be read by a job that signs, so nothing in the three
+    """A cache written by a run of pull request code could be read by a job that signs, so nothing in the four
     published workflows restores one, saves one or lets an action do either, and `cache-mode: read` is on every job."""
     for name in PUBLISHED:
         for job_name, job in _jobs(name).items():
@@ -636,7 +636,8 @@ def test_no_job_that_signs_or_sees_a_secret_uses_a_cache():
             ("release.yml", "registry"), ("release.yml", "crates"), ("release.yml", "npmjs"), ("network.yml", "deploy"),
             ("index.yml", "index")} <= sensitive, sorted(sensitive)
     # the release: no job of it holds a way into PyPI (the wheel is uploaded before the push, by scripts/release.py), so the
-    # ones that sign or see a secret are the three above and no other; and none of its jobs restores anything at all, since
+    # ones that sign or see a secret are the three above and the two trusted-publishing jobs (crates-trusted, npm-trusted),
+    # and no other; and none of its jobs restores anything at all, since
     # what its build makes is held to the lock and attached to the release
     rel = _doc(WF / "release.yml")["jobs"]
     assert {job for name, job in sensitive if name == "release.yml"} == {"registry", "crates", "npmjs", "crates-trusted", "npm-trusted"}
@@ -1191,7 +1192,7 @@ def test_the_seller_calls_attest_by_hand_from_a_repository_of_his_own_and_it_ask
     assert job["uses"].startswith(f"{CALLED}attest.yml@")
     # it grants exactly what the called job asks for, no more: GitHub refuses a run in which a called job asks for more
     assert job["permissions"] == _jobs(ATTEST)["attest"]["permissions"] == {"contents": "read", "issues": "write", "id-token": "write"}
-    # the same inputs the called workflow takes, handed over one for one; kind is a choice of the four
+    # the same inputs the called workflow takes, handed over one for one; kind is a choice of the five
     mine, theirs = doc["on"]["workflow_dispatch"]["inputs"], _doc(WF / ATTEST)["on"]["workflow_call"]["inputs"]
     assert set(mine) == set(theirs) and {k: v["required"] for k, v in mine.items()} == {k: v["required"] for k, v in theirs.items()}
     assert mine["kind"]["type"] == "choice" and mine["kind"]["options"] == ["pay", "take", "revert", "rule", "eval"]       # eval: a buyer's, for knos_meter
@@ -1459,7 +1460,7 @@ def test_the_published_set_is_the_source_byte_for_byte_with_the_lock_written_in(
     assert (out / "LICENSE").read_bytes() == (ROOT / "LICENSE").read_bytes()
     readme = (out / "README.md").read_text(encoding="utf-8")
     assert f"knos {_release()} from PyPI" in readme and "REHEARSAL" not in readme and all(f"`.github/workflows/{n}`" in readme for n in PUBLISHED)
-    assert "names this repository and one commit of it" in readme and not re.search(r"\bimmutable\b|nobody can change", readme, re.I)
+    assert "names one commit of them" in readme and not re.search(r"\bimmutable\b|nobody can change", readme, re.I)
     assert "--require-hashes" in readme and "requirements/sign.txt" in readme
     assert pub.HOME == CALLED.split("/.github")[0] and pub.HOMES == (OLD_CALLED.split("/.github")[0], pub.HOME) and pub.main(["check", str(out), "--lock", str(lock)]) == 0
     assert "byte for byte" in capsys.readouterr().out

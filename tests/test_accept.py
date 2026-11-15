@@ -238,7 +238,7 @@ def test_knos_accept_init_writes_the_bundle_and_says_what_to_do_next(tmp_path, c
 
 def test_knos_accept_is_listed_under_the_repositorys_workflows_and_has_its_own_help(capsys):
     rc, text = say(capsys, "--help")
-    assert rc == 0 and "│ accept " in text[text.index("Paid on proof"):text.index("Run Knos")]
+    assert rc == 0 and "│ accept " in text[text.index("Checks and receipts"):text.index("Run Knos")]
     rc, text = say(capsys, "accept")
     assert rc == 0 and "init" in text
     rc, text = say(capsys, "accept", "init", "--help")

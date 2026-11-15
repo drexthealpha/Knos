@@ -6,7 +6,8 @@ And what keeps the suite inside five minutes (.github/workflows/tests.yml; scrip
 
     pytest -m "not slow" -n auto        the local loop: everything but the tests listed in tests/slow.txt
     pytest -m slow                      those (a test that takes over 5 seconds: a compiler, a browser, a long walk)
-    pytest --shard 2/3                  one third of the tests, by a hash of each test's id; CI runs every third
+    pytest --shard 2/3                  shard 2 of 3, by a hash of each test's id; CI runs halves on Ubuntu and
+                                        quarters on macOS and Windows (tests.yml)
     pytest --no-skips                   a skipped test fails (CI's web job: a missing browser must not pass)
 """
 
@@ -144,7 +145,7 @@ def repo(tmp_path, monkeypatch):
     r = tmp_path / "repo"
     (r / "src").mkdir(parents=True)
     (r / "src" / "auth.py").write_text("def login():\n    return True\n", encoding="utf-8")
-    (r / ".env").write_text("STRIPE_KEY=sk_live_quokka_9931\n", encoding="utf-8")
+    (r / ".env").write_text("STRIPE_KEY=sk_test_quokka_9931\n", encoding="utf-8")
     (r / "README.md").write_text("# demo\n", encoding="utf-8")
 
     def git(*args: str) -> None:

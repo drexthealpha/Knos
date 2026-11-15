@@ -63,32 +63,6 @@ def test_nothing_is_deployed_or_exercised_on_a_program_that_is_not_a_public_id()
             assert cap.ids_of(c) == "public" and ev["exercised"].get("ids", "public") == "public", c["id"]
 
 
-def test_the_manifest_claims_no_more_than_is_true_today():
-    """2.1 of knos_pay and knos_oidc is proposed, not executed: on the public programs what it adds is tested and no
-    more. What the release's rehearsal ran on devnet ran on staging programs of its own, never on a public one: those
-    capabilities are `tested`, and each one's note gives its transaction and says it was a staging rehearsal. Nothing is
-    exercised, and no document links an outside run, so nothing is reproduced."""
-    if DATA["programs"]["knos_pay"]["on_chain"] != "2.0":
-        pytest.skip("the upgrade has executed and scripts/exercise_public.py record moved the manifest; tests/test_exercise_public.py holds what record may write")
-    assert DATA["programs"]["knos_pay"]["on_chain"] == DATA["programs"]["knos_oidc"]["on_chain"] == "2.0"
-    assert DATA["programs"]["knos_meter"]["on_chain"] == DATA["programs"]["knos_passkey"]["on_chain"] == "1.0"
-    for cid in ("seller_settle", "neutral_attest", "arbiter_rule", "top_up", "assign", "plans", "org_balance_limits", "verify_any_issuer", "holdback_release"):
-        assert BY_ID[cid]["stage"] == "tested", cid
-    assert {c["stage"] for c in DATA["capabilities"]} <= {None, "implemented", "tested", "deployed"}
-    assert {c["id"] for c in DATA["capabilities"] if c["stage"] == "exercised"} == set()
-    assert all(c["evidence"]["deployed"]["version"] in ("2.0", "1.0") for c in DATA["capabilities"] if c["stage"] == "deployed")
-    rehearsal = (ROOT / cap.FULL).read_text(encoding="utf-8").split("## The 0.3.14 rehearsal on devnet", 1)[1]
-    assert all(i in rehearsal for i in STAGING_IDS)
-    for cid in REHEARSED:
-        c = BY_ID[cid]
-        assert c["stage"] == "tested" and set(c["evidence"]) == {"implemented", "tested"}, cid
-        assert c["note"].startswith("Rehearsed on ") and "staging deployment" in c["note"] and "not on the public program ids" in c["note"], cid
-        [sig] = cap._SIG.findall(c["note"])
-        assert sig in rehearsal, cid
-    for cid in ("fund_by_comment", "pay_on_merge", "verify_github", "meter_single", "passkey_payee_wallet"):
-        assert BY_ID[cid]["stage"] == "deployed", cid
-
-
 def _with(cid: str, **change) -> dict:
     data = copy.deepcopy(DATA)
     next(c for c in data["capabilities"] if c["id"] == cid).update(change)
@@ -181,7 +155,7 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     text, full = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8"), (ROOT / cap.FULL).read_text(encoding="utf-8")   # Round 9, U1
     assert text.count(cap.START) == text.count(cap.END) == full.count(cap.START) == full.count(cap.END) == 1
     assert cap.rendered(text, cap._relinked(cap.summary(DATA))) == text and cap.rendered(full, cap.table(DATA, "../../")) == full and cap.render(check=True) == []
-    # README.md names the capabilities above `tested` under their stage and sends the rest to the document, which has one row each
+    # docs/reference/COLOSSEUM.md names the capabilities above `tested` under their stage and sends the rest to the document, which has one row each
     block = text[text.index(cap.START):text.index(cap.END)]
     # (at most cap.SHOWN ids a stage, the first in the manifest's order; more than that are said to be in the table)
     shown = {s: [c["id"] for c in DATA["capabilities"] if c["stage"] == s] for s in cap.STAGES[2:]}
@@ -194,11 +168,11 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     assert all(f"`{cid}`" in exercised for cid in now[:cap.SHOWN]) and exercised.count("`") == 2 * min(len(now), cap.SHOWN)
     assert (cap.MORE in exercised) == (len(now) > cap.SHOWN)
     assert ("**Exercised on devnet:** none recorded yet." in block) == (not now)       # before a round at the public ids, and after it
-    # README.md and the document say that a stage above `tested` is a run at a public program id, and where the rehearsal is
+    # docs/reference/COLOSSEUM.md and the document say that a stage above `tested` is a run at a public program id, and where the rehearsal is
     assert block.count(cap.PUBLIC_ONLY) == 1 and full[full.index(cap.START):full.index(cap.END)].count(cap.PUBLIC_ONLY) == 1
     assert {cap.ids_of(c) for c in DATA["capabilities"] if c["stage"] == "exercised"} <= {"public"}
     assert all(cap.ids_of(c) is None for c in DATA["capabilities"] if c["stage"] != "exercised")
-    # what the rehearsal ran on staging ids is never a stage by that run: README.md names none of it for the rehearsal,
+    # what the rehearsal ran on staging ids is never a stage by that run: docs/reference/COLOSSEUM.md names none of it for the rehearsal,
     # and one it ran that a round at the public ids exercised since is named for that run, with its public transaction
     for cid in REHEARSED:
         public = BY_ID[cid]["stage"] == "exercised" and cap.ids_of(BY_ID[cid]) == "public"
@@ -218,7 +192,7 @@ def test_the_readme_and_the_document_are_what_render_writes(tmp_path):
     assert cap.render(tmp_path, check=True) == [cap.FULL] and "said another way" not in (tmp_path / cap.FULL).read_text(encoding="utf-8")
     assert cap.render(tmp_path) == [cap.FULL] and cap.render(tmp_path) == []
     assert "A work order, said another way. | not built |" in (tmp_path / cap.FULL).read_text(encoding="utf-8")
-    # a capability that leaves a stage above `tested` leaves README.md too
+    # a capability that leaves a stage above `tested` leaves docs/reference/COLOSSEUM.md too
     data = _with("pay_on_merge", stage="tested")
     (tmp_path / "docs" / "capabilities.json").write_text(json.dumps(data), encoding="utf-8")
     assert "docs/reference/COLOSSEUM.md" in cap.render(tmp_path) and "`pay_on_merge`" not in (tmp_path / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")

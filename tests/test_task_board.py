@@ -1,6 +1,8 @@
-"""The playground's tasks (tasks/) and the board that keeps them open and funded (scripts/task_board.py): every
+"""The playground's tasks (tasks/) and the board that kept them open and funded (scripts/task_board.py): every
 reference passes its own checks, plausible wrong answers and a tampering pull request do not, and the board opens,
-funds and reports within its limits against a forge and a chain that are both made up here."""
+funds and reports within its limits against a forge and a chain that are both made up here. tasks/ left the public
+repository on 28 Oct 2026, so this whole file skips there; the build step that writes the site's empty board is held
+apart, with no skip, by tests/test_task_board_build.py."""
 from __future__ import annotations
 import pathlib as _pl
 
@@ -587,16 +589,6 @@ def test_the_boards_document_is_what_an_agent_reads_and_why_is_one_sentence():
                     "so the public worker's signed run cannot pay it.\nFix: A maintainer comments `/knos tip <amount>` on the merged pull request #38; the old order "
                     "goes back to its funder at its deadline. Fund the next task only where the repository calls drexthealpha/Knos at the published commit."]
 
-
-def test_the_sites_build_writes_the_empty_board_without_solders():
-    """scripts/build_site.sh runs `status --json --empty` with a bare python3 (tests.yml's web job installs no package):
-    the script must not import knos.settle.v2.pay, and so solders, to say it read nothing."""
-    blocked = ("import runpy, sys; sys.modules['solders'] = None; sys.argv = [sys.argv[1], 'status', '--json', '--empty']; "
-               "runpy.run_path(sys.argv[0], run_name='__main__')")
-    run = subprocess.run([sys.executable, "-c", blocked, str(ROOT / "scripts" / "task_board.py")], capture_output=True, text=True, encoding="utf-8",
-                         env={**os.environ, "PYTHONPATH": ""}, timeout=60)
-    assert run.returncode == 0, run.stderr
-    assert json.loads(run.stdout) == {"v": 1, "read": False, "repository": playground.REPO, "note": tb.FIRST, "tasks": []}
 
 
 # ---- the repository a release publishes keeps what the board wrote --------------------------------------------------------------

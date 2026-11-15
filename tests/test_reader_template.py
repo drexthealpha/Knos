@@ -114,7 +114,7 @@ def test_the_readme_names_the_line_that_prevents_each_of_the_five_mistakes_and_t
     use = readme.split("## Use this template")[1].split("## Five mistakes")[0]
     assert len(use.strip().splitlines()) <= 30 and "cargo build-sbf" in use and "solana program deploy -u devnet" in use
     assert source.count("// CHANGE") == 2
-    # a workspace of its own: nothing is taken from this repository by path, only the published crate by tag
+    # a workspace of its own: nothing is taken from this repository by path, only the crate published on crates.io, by version
     cargo = (here / "Cargo.toml").read_text(encoding="utf-8")
     assert "path =" not in cargo and "[workspace]" in cargo and 'knos-oidc-interface = "0.3.14"' in cargo     # the crate as published on crates.io
     compose = (root / "docs" / "reference" / "COMPOSE.md").read_text(encoding="utf-8")

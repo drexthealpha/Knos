@@ -38,7 +38,7 @@ def test_healthz_tries_again_after_a_cold_start_and_says_each_answer():
     finally:
         srv.shutdown()
     assert naps == [20.0, 20.0] and [s.split(":")[1].split()[0] for s in said] == ["503", "502", "200"]
-    # three failures: False after three tries; no answer at all is said by name; http is refused before anything is sent
+    # all tries fail: False after the last one (here 2); no answer at all is said by name; http is refused before anything is sent
     assert not chain.healthz("https://x.invalid/healthz", tries=2, opener=lambda r, timeout: (_ for _ in ()).throw(OSError("down")),
                              sleep=naps.append, say=said.append)
     assert said[-1].startswith("healthz attempt 2: OSError")

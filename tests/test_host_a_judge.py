@@ -179,7 +179,10 @@ def test_the_line_that_names_a_host_is_one_the_funding_comment_grammar_reads():
 def test_the_page_says_what_a_host_is_paid_and_what_they_can_and_cannot_do():
     readme = (ROOT / "examples" / "host_a_judge" / "README.md").read_text(encoding="utf-8")
     lib = (ROOT / "programs-v2" / "knos_pay" / "src" / "lib.rs").read_text(encoding="utf-8")
-    assert len(readme.splitlines()) == 15   # the page, then the two vision lines (fixed text) under the title
+    lines = readme.splitlines()
+    vision = [line for line in lines if "billions of people" in line or "Kardashev" in line]
+    assert all(line.startswith("The goal: ") for line in vision if "billions" in line), vision   # labelled as the goal, never a present fact
+    assert lines[0] == "# Host a referee" and len(lines) <= 20               # one short page
     assert "pub const TIP: u64 = 50_000;" in lib and "pub const TIP_FIRST: u64 = 300_000;" in lib            # the two figures the page and the module state
     for where in (readme, host_judge.PAID):
         assert "0.05 test USDC" in where and "0.30" in where and ("Nothing by the order" in where or "paid nothing by the order" in where)

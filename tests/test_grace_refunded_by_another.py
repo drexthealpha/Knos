@@ -1,7 +1,8 @@
 """The grace after-round of scripts/exercise_public.py when someone else refunded the order first.
 
-In the 0.3.24 release run the public relay refunded the grace order 41 s after its grace ended, before the round did,
-and the round failed with "the order is not there". RefundOrder is anyone's once the grace is over: the round now reads
+When the public relay refunds the grace order before the round does, a round that only sends its own refund fails
+with "the order is not there". CHANGELOG.md (0.3.25) records the run at the public ids on 10 Oct: the relay refunded
+the order 41 s after the grace ended, and the round, reading that refund, passed. RefundOrder is anyone's once the grace is over: the round now reads
 knos_pay's own line of that refund (the amount and the fee as funded), notes who sent it, and passes; a refund of any
 other sum, or none, is still a failure."""
 from __future__ import annotations

@@ -11,7 +11,7 @@ from solders.pubkey import Pubkey
 
 from knos.platform import blockhash, nonce
 
-MEMO = Pubkey.from_string("MemoSq4gqABAXib96qFbncnwChSh2xN4ztzp7gLPnzE")
+MEMO = Pubkey.from_string("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
 
 
 def nonce_bytes(authority: Pubkey, value: Hash, version: int = 1, state: int = 1) -> bytes:

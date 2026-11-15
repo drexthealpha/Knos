@@ -1,5 +1,5 @@
 """`knos task post` (src/knos/buyer.py): a buyer posts a task with sealed hidden tests, sees the fee before funding,
-and nothing is sent or funded without being asked. Written from Knos's own first-customer run (v0.3.31 PAIN.md)."""
+and nothing is sent or funded without being asked."""
 
 from __future__ import annotations
 

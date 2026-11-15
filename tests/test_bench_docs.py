@@ -243,14 +243,15 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     for row in ("From NEAR HACKATHON", "From the InterSystems contest", "From Colosseum"):
         assert f"| {row} |" in first and f"\n## {row}\n" in readme, row
     hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
-    # the check of agent work (one use of Knos) leads with what it does, says it is one use, then Knos in a few words and
-    # the number; the one sentence is folded under "What is here", before what a work order is
+    # web/index.html is the older app page, not the front door (Pages publishes web/door.html at the root and web/index.html
+    # only as the app.html stub): this holds that source file's hero. The check of agent work (one use of Knos) leads with
+    # what it does, says it is one use, then Knos in a few words and the number
     use, short = "Check an AI agent's pull request before it is paid.", "See who wants it, then test each step."
     # one h1 on the page, the demand check's mission; this use heads its own section under it (d6b6360)
     assert f">{use}</h2>" in hero and 'id="hero-who"' in hero and f">{short}</p>" in hero
     assert hero.index(use) < hero.index('id="hero-who"') < hero.index(short) < hero.index('id="hero-fact"')
     ref = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
-    paid = ref.split("\n## Paid only when the proof passes\n", 1)[1].split("\n## ", 1)[0]
+    paid = ref.split("\n## Paid only when the test passes\n", 1)[1].split("\n## ", 1)[0]
     assert "/docs/diagrams/" in paid and "referees" in paid and number not in readme and number not in ref    # the old number is no longer told
     # in plain words (tests/test_readme_plain.py reads them): how it works, paid only when the proof passes, the
     # ten-second check, why nobody can fudge the count, then "Is it real?" over the table, then the commands

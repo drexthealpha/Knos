@@ -144,7 +144,7 @@ def test_a_mark_from_before_close_mark_stands_and_nobody_closes_it():
 
 
 def test_what_a_relayer_pays_for_evaluations_and_gets_back():
-    """The numbers of the cost line (docs/PRICING.md, Meter): printed with `pytest -s`."""
+    """What a relayer pays for evaluations and gets back, printed with `pytest -s`."""
     chain = Meter()
     mint, _, credits = paid(chain, 5 * USDC)
     relayer, n = chain.fund(), 30
@@ -174,7 +174,7 @@ def test_what_a_relayer_pays_for_evaluations_and_gets_back():
         closes += 1
     assert meter.marks_of(chain.ledger, relayer.pubkey()) == []
     assert chain.lamports(relayer.pubkey()) == start - (n + verify_txs + closes) * 5000 - token_rent      # every lamport of the marks' rent is back
-    cluster = (128 + meter.MARK_LEN) * 5080      # the rent rule docs/PRICING.md cites (SIMD-0437); LiteSVM still holds 6960 a byte
+    cluster = (128 + meter.MARK_LEN) * 5080      # the rent rule of SIMD-0437; LiteSVM still holds 6960 a byte
     print(f"\nmeter: one billable evaluation = {verify_txs} transactions to verify the token + 1 Record ({record_size} bytes, {record_cu} compute units) "
           f"= {(verify_txs + 1) * 5000} lamports of signatures. Its mark is {meter.MARK_LEN} bytes: {cluster} lamports of the relayer's rent "
           f"({rent} in LiteSVM), {1000 * cluster / 1e9:.5f} SOL per 1,000 evaluations, locked until two hours into the next month and then returned "

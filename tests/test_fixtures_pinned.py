@@ -1,8 +1,8 @@
 """Pinned fixtures: every data file listed in tests/fixtures/SHA256SUMS still has the hash recorded there.
 
 A fixture that changes changes what the tests prove, so a change must show up in review as an edit to SHA256SUMS too.
-That holds for the program binaries of the second deployment as well: tests/fixtures/knos_oidc_v2_*.so are what the
-tests of programs-v2 run, and scripts/build_programs_v2.sh rewrites their lines when it rebuilds them.
+That holds for the program binaries of the second deployment as well: tests/fixtures/*_v2_*.so are what the
+tests of programs-v2 run (and tests/fixtures/live/knos_pay_v2_test.so, the kept 2.1 build: tests/_pay21.py), and scripts/build_programs_v2.sh rewrites their lines when it rebuilds them.
 
 Line endings of text files are normalised to LF before hashing (the repo checks text out as LF; this keeps a CRLF
 checkout green). Regenerate a line with: tr -d '\\r' < PATH | sha256sum
@@ -51,5 +51,5 @@ def test_binary_fixtures_are_binary_to_git_and_the_second_deployments_builds_are
     attrs = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
     assert all(f"*{suffix} binary" in attrs for suffix in BINARY)
     pinned = {p for _, p in _entries()}
-    built = {f"tests/fixtures/{f.name}" for f in (ROOT / "tests" / "fixtures").glob("*_v2_*.so")}
+    built = {f.relative_to(ROOT).as_posix() for f in (ROOT / "tests" / "fixtures").rglob("*_v2_*.so")}     # live/ too: the kept 2.1 build
     assert built and built <= pinned, f"not pinned in tests/fixtures/SHA256SUMS: {sorted(built - pinned)}"

@@ -29,19 +29,17 @@ Three referees see each one:
 | written by | cheating submissions | accepted by Knos, black box (the tables on this page) |
 |---|---|---|
 | Knos's author | 204 | 0 |
-| outsiders, through the `tamper` task | 0 | 0 |
+| outsiders | 0 | 0 |
 
-Every cheat counted in the first row was written by Knos's author. An outsider can change that: the `tamper` task (tasks/outside/tamper.json) pays 5 test USDC for a submission the referee ACCEPTS on a funded task although it does not do what the task asks; a refused one pays nothing.
+Every cheat counted in the first row was written by Knos's author. No paid task for outside cheats is open: the task files left the repository on 28 Oct 2026, and nothing here offers a payment for a cheat.
 
-So every outside cheat was accepted by the referee it was written against; the second row says how many this tree's referee still accepts.
-
-An accepted cheat joins tests/bench_tamper/outside/cases.py with its author's account id and pull request, is checked again by every later referee (`python scripts/tamper_bench.py --authors`), and is counted by scripts/outsiders.py as `outside_cheats` only when the account is not one of Knos's own.
+A cheat an outsider sends that the referee accepts joins tests/bench_tamper/outside/cases.py with its author's account id and pull request, is checked again by every later referee (`python scripts/tamper_bench.py --authors`), and is counted by scripts/outsiders.py as `outside_cheats` only when the account is not one of Knos's own (scripts/own_github_ids.json).
 
 No outsider has submitted a cheat yet: the outside row is 0 of 0, not a rate.
 <!-- authors:end -->
 
 <!-- measured:begin -->
-Measured with the referee as it is in this tree (`src/knos/judge.py`, SHA-256 6fa7a9bb64f6...): the 63 attacks on slugify, the attacks on the six real tasks, the tasks that are not code, the cheats aimed at what a pull request may add, the honest submissions and the escapes. Nothing on this page is carried over from an earlier referee. The whole page in one run: `python scripts/tamper_bench.py` (longer than three minutes on a shared machine); part by part: `--slug`, `--real`, `--accept`, `--allowed`, `--honest`, `--escape`.
+Measured with the referee as it is in this tree (`src/knos/judge.py`, SHA-256 2062d17a6b69...): nothing. Carried over from a run with an earlier referee, and to be measured again before a release: the 63 attacks on slugify, the attacks on the six real tasks, the tasks that are not code, the cheats aimed at what a pull request may add, the honest submissions and the escapes. The whole page in one run: `python scripts/tamper_bench.py` (longer than three minutes on a shared machine); part by part: `--slug`, `--real`, `--accept`, `--allowed`, `--honest`, `--escape`.
 <!-- measured:end -->
 
 <!-- honest:begin -->

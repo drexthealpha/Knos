@@ -152,7 +152,7 @@ def test_a_stage_cell_is_the_manifests_words_and_follows_the_manifest(tree):
     assert dc.stage_words(["ledger_dedup"], tree) == "exercised on devnet, on staging program ids" and dc.value("capabilities.exercised.staging", tree) == 1
     _found(tree, DEMO, "the stage of ledger_dedup", "'exercised on devnet, on staging program ids'")
     data = json.loads(json.dumps(staged))
-    # README.md's table of programs is the manifest's versions
+    # docs/reference/COLOSSEUM.md's table of programs is the manifest's versions
     other = "2.0" if data["programs"]["knos_pay"]["on_chain"] != "2.0" else "2.1"      # a version the committed table does not give
     data["programs"]["knos_pay"]["on_chain"] = other
     (tree / dc.MANIFEST).write_text(json.dumps(data), encoding="utf-8")

@@ -40,7 +40,7 @@ PAID = (f"Knos: paid. @mona received 19.50 {MONEY} for issue #7: the bounty of 2
 
 HELD = (f"Knos: held for @mona. 20.00 {MONEY} for issue #7 waits for them until 2027-03-20 15:13 UTC, because no wallet is "
         "known for them: none is bound to their GitHub account and no `/knos address` comment counted. To receive it, @mona binds a "
-        "wallet: https://drexthealpha.github.io/Knos/#payee=mona in the browser, or `knos claim <their Solana address>` in a terminal. It "
+        "wallet: `knos claim <their Solana address>` in a terminal. It "
         "is then paid, less a fee of 0.50; after that date it goes back to where it came from "
         f"([transaction]({EXPLORER}/tx/sig2?cluster=devnet), 34 s after the merge).")
 
@@ -69,8 +69,8 @@ def bounty(tmp_path, bought: dict = BOUGHT, units: int = 20_000_000, author: dic
 
 def plain(text: str, most: int = 1100) -> str:
     """What every comment must be: Knos speaking, nothing left unfilled, no line that reads as a command, short."""
-    text, _, line = text.partition("\n\n[![paid on proof: #")     # a payment's badge line (knos.badge, tests/test_badge.py) is read apart
-    assert not line or (re.search(r"\b[Pp]aid\. ", text) and line.endswith(".html)") and "\n" not in line), line
+    text, _, line = text.partition("\n\n[![checked by Knos: #")     # a payment's badge line (knos.badge, tests/test_badge.py) is read apart
+    assert not line or (re.search(r"\b[Pp]aid\. ", text) and line.endswith(".json)") and "\n" not in line), line
     assert text.startswith(("Knos", flow.MARK)) and len(text) <= most, (len(text), text)
     assert not any(bad in text for bad in ("None", "{", "}", "  ", "Traceback", " ,")), text
     assert commands.parse(text) is None
@@ -1030,7 +1030,7 @@ def test_a_push_says_nothing_about_a_pull_request_with_nothing_in_escrow_and_a_p
     assert plain(w.hub.knos(12)[-1]) == (
         "Knos: nothing to pay: no bounty is open on the issue this pull request closes (#7), and no tip waits for it. The bounty on "
         f"issue #7 (20.00 {MONEY}) is already held for @mona until 2027-03-20 15:13 UTC: it is paid when they bind a wallet "
-        "(`knos claim <their Solana address>` in a terminal, or https://drexthealpha.github.io/Knos/#claim in the browser).")
+        "(`knos claim <their Solana address>` in a terminal).")
     # what a dispatch or a comment cannot settle is on the run's page
     capsys.readouterr()
     w.hub.pull(14, MONA, "Fixes #7")

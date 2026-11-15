@@ -1,4 +1,4 @@
-"""`knos work list` prints the rows knos_find_work returns (it crashed on a key the rows no longer carry: PAIN.md 05:17)."""
+"""`knos work list` prints the rows knos_find_work returns (it crashed on a key the rows no longer carry)."""
 from __future__ import annotations
 
 from typer.testing import CliRunner

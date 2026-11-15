@@ -6,7 +6,10 @@ from tests/data/shadow_cases.json served over HTTP: a row per line, the disputed
 and both downloads equal to the Python's, the budget shown and respected, the sample marked as a sample, every
 statement twelve words at most, nothing running off the side at 320 and 390 px, and nobody asked but the page's own
 server and api.github.com, with GET, no body and no login. No node, no `playwright` package or no browser: skipped,
-with the reason."""
+with the reason.
+
+web/index.html, the page that loads this control, is not published (the Pages build replaces it with the app.html
+stub), so the control is not on the live site; it is tested here as code."""
 
 from __future__ import annotations
 

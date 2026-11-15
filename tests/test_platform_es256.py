@@ -1,5 +1,5 @@
 """ES256 through the secp256r1 precompile (SIMD-0075, active on devnet) at top level, with the instructions-sysvar
-check in knos-oidc's VerifyEs256 (programs-v2/knos_oidc/src/es256.rs). New in v0.3.29: in a v1 transaction (4,096
+check in knos-oidc's VerifyEs256 (programs-v2/knos_oidc/src/es256.rs). New in 0.4.0 (the 0.3.29 branch): in a v1 transaction (4,096
 bytes, SIMD-0385) a token whose signing input is far longer than the 780 bytes a legacy transaction leaves is verified
 in one transaction (knos.platform.verify.es256_v1_ixs). Under the test build of today's program and under the sBPF v2
 build (tests/fixtures/platform/knos_oidc_v2_test.so)."""

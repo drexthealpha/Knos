@@ -38,9 +38,9 @@ def test_the_svg_is_one_file_with_an_accessible_title_and_nothing_fetched():
         text = badge.svg(data)
         root = ET.fromstring(text)                                            # well-formed, whatever the repository is called
         ns = "{http://www.w3.org/2000/svg}"
-        assert root.get("role") == "img" and root.get("aria-label") == f"paid on proof: {badge.message(data)}"
+        assert root.get("role") == "img" and root.get("aria-label") == f"checked by Knos: {badge.message(data)}"
         assert root[0].tag == f"{ns}title" and root[0].text == badge.title(data)    # the title is the first child, as readers expect
-        assert [t.text for t in root.iter(f"{ns}text")] == ["paid on proof", badge.message(data)]
+        assert [t.text for t in root.iter(f"{ns}text")] == ["checked by Knos", badge.message(data)]
         low = text.lower()
         assert not any(w in low for w in ("<script", "<image", "<a ", "href", "@font-face", "@import", "url(", "<style", "<foreignobject"))
         assert text.count("http") == 1 and "http://www.w3.org/2000/svg" in text     # the namespace is the only address in it
@@ -49,8 +49,8 @@ def test_the_svg_is_one_file_with_an_accessible_title_and_nothing_fetched():
 
 
 def test_the_markdown_links_the_badge_to_the_repositorys_record_on_the_site():
-    assert badge.markdown(PR, "knos-paid-12.svg") == ("[![paid on proof: #12: 100.00 test USDC, 2026-10-03](knos-paid-12.svg)]"
-                                                      "(https://drexthealpha.github.io/Knos/r/o/r.html)")
+    assert badge.markdown(PR, "knos-paid-12.svg") == ("[![checked by Knos: #12: 100.00 test USDC, 2026-10-03](knos-paid-12.svg)]"
+                                                      "(https://drexthealpha.github.io/Knos/r/o/r.json)")
     site = (ROOT / "scripts" / "pages_data.py").read_text(encoding="utf-8")   # the route is the one the site builds
     assert f'SITE = "{badge.SITE}"' in site and "{SITE}/{kind}/{path}.html" in site
 
@@ -68,14 +68,14 @@ def test_a_badge_is_made_from_the_receipts_and_from_nothing_else():
 def test_the_payment_comment_ends_with_one_badge_line_and_other_comments_are_untouched():
     paid = "Knos: paid. @ann received 100.00 test USDC for issue #3, in full: its funder paid a fee of 2.50 on top, from which the relayer that sent it takes its tip; Knos keeps the rest. It went to `W` (tx, 21 s)."
     got = badge.said("o/r", 12, paid, NOW)
-    assert got.startswith(paid + "\n\n[![paid on proof: #12: 100.00 test USDC, 2026-10-04](https://img.shields.io/badge/paid_on_proof-")
-    assert got.endswith("-57606a)](https://drexthealpha.github.io/Knos/r/o/r.html)") and "%2312%3A_100.00_test_USDC%2C_2026--10--04" in got
+    assert got.startswith(paid + "\n\n[![checked by Knos: #12: 100.00 test USDC, 2026-10-04](https://img.shields.io/badge/checked_by_Knos-")
+    assert got.endswith("-57606a)](https://drexthealpha.github.io/Knos/r/o/r.json)") and "%2312%3A_100.00_test_USDC%2C_2026--10--04" in got
     order = "Knos: paid. The work order on issue #3 paid 80.00 test USDC in full (its funder paid a fee of 2.00 on top, from which the relayer that sent it takes its tip; Knos keeps the rest): @a 40.00 (50%) to `W` (tx, 3 s)."
     assert "#12: 80.00 test USDC, 2026-10-04" in badge.said("o/r", 12, order, NOW)
     held = "Held for @ann. 20.00 test USDC for issue #7 waits for them until 2027-03-20. It is then paid in full."
     both = paid + "\n\nPaid. @ann received 4.875 test USDC as a tip for this pull request: the tip of 5.00 less a fee of 0.125." + "\n\n" + held
     got = badge.said("o/r", 12, both, NOW)
-    assert got.count("[![paid on proof") == 1 and got.endswith(".html)") and "#12: 104.875 test USDC, 2026-10-04" in got   # one line, at the end; what is held is not in it
+    assert got.count("[![checked by Knos") == 1 and got.endswith(".json)") and "#12: 104.875 test USDC, 2026-10-04" in got   # one line, at the end; what is held is not in it
     for other in ("Knos: held for @ann. 100.00 test USDC for issue #3 waits for them until 2026-11-01.", "Knos: not paid yet. @ann would have received 5.00 test USDC.",
                   "Knos: paid. With no amount in it.", "Knos: nothing is held."):
         assert badge.said("o/r", 12, other, NOW) == other                      # nothing reached a wallet, or nothing says how much: no badge

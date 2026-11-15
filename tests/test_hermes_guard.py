@@ -1,5 +1,5 @@
-"""Hermes Agent's own Skills Guard, run offline on what Knos ships for agents: the Hermes skill, the Claude Code and
-OpenClaw skills, the directory plugin, and the plugin's code. The scanner is tests/data/hermes_skills_guard.py.txt, an
+"""Hermes Agent's own Skills Guard, run offline on each skill Knos ships for agents (the folders named in the test
+below; the Hermes skill folders and the directory plugin left the repository on 28 Oct 2026). The scanner is tests/data/hermes_skills_guard.py.txt, an
 unmodified copy of tools/skills_guard.py at NousResearch/hermes-agent@8f817911 (MIT). A community source (any GitHub
 tap, a well-known endpoint) is blocked at `caution` or `dangerous`, so everything must come out `safe`."""
 

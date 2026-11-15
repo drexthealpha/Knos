@@ -1,6 +1,7 @@
-"""The front door's first screen at the bare address: research products people can back now (web/index.html
-#view-home, web/home.js, scripts/front_snapshot.py), read from the files with no browser (tests/web/home.mjs holds the
-same in Chromium). Everything technical is one page away (#view-verify); the check of agent work keeps #check."""
+"""The old first screen of web/index.html (#view-home, web/home.js, scripts/front_snapshot.py): research products
+people could back, read from the files with no browser. The bare address no longer serves it: the front door is
+web/door.html (tests/test_one_page.py) and the build publishes web/index.html only as the app.html stub. This file
+keeps the source page in its word budget for the app's own build (KNOS_SPA_AT_ROOT=1)."""
 from __future__ import annotations
 
 import re
@@ -58,10 +59,7 @@ def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each(
     n = len(_words(re.sub(r"<button\b[^>]*>.*?</button>", " ", bar, flags=re.S))) + len(_words(prose))
     assert 12 <= n <= 64, n
     assert 'data-not-prose aria-label="Research products open for backing now"' in home
-    # one nav on all three faces (web/brand/bar.html, near/web, iris/web): Home, NEAR app, IRIS, Proof, nothing else
-    bar_all = PAGE[PAGE.index('<header class="bar k-bar"'):PAGE.index("</header>")]
-    nav = bar_all[bar_all.index('<nav id="nav"'):bar_all.index("</nav>")]
-    assert [re.sub(r"<[^>]+>", "", a).strip() for a in re.findall(r"<a\b[^>]*>.*?</a>", nav)] == ["Home", "NEAR app", "IRIS", "Proof"]
+    # the published header (five names) is held by tests/test_one_page.py, not here
 
 
 def test_the_page_decides_its_first_view_before_the_first_paint_and_the_router_knows_it():

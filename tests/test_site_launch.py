@@ -1,8 +1,9 @@
 """Launch day for a stranger: the missing page, the page whose data did not load, a cheap phone, a shared link, privacy.
 
-The tags of a shared link (web/index.html <head>) and the card they name; the 404 page GitHub Pages answers a missing
-address with (web/404.html); the privacy and terms page (web/privacy.html), each of its lines held to the code it
-describes; the line every page shows when a data file does not load (web/retry.js). In a browser, on a build of web/:
+The tags of a shared link to the root (web/door.html <head>, the front door Pages serves) and the card they name; the
+fuller tag set of web/index.html, which Pages no longer serves (the app's build, KNOS_SPA_AT_ROOT=1, still opens it); the 404 page GitHub Pages answers a missing
+address with (web/404.html); the privacy and terms page as web/privacy.html says it, each of its lines held to the code it
+describes (Pages publishes the privacy.html scripts/site_product.py writes instead, with NEAR testnet lines); the line every page shows when a data file does not load (web/retry.js). In a browser, on a build of web/:
 tests/web/launch.mjs (404, privacy, data files refused) and tests/web/android.mjs (360 x 740, CPU 4x slower, slow 4G).
 No node, no `playwright` package or no browser: those two are skipped, with the reason."""
 
@@ -64,8 +65,17 @@ def _link(head: _Head, rel: str) -> list[str]:
     return [a.get("href", "") for t, a in head.tags if t == "link" and a.get("rel") == rel]
 
 
+def test_a_shared_link_to_the_front_door_names_it_and_one_address() -> None:
+    head = _head("door.html")                                   # the root Pages serves (scripts/site_pages.py)
+    title = head.title.strip()
+    assert title.startswith("Knos") and _meta(head, "og:title") == [title]
+    (description,) = _meta(head, "description")
+    assert 40 <= len(description) <= 160 and _meta(head, "og:description") == [description]
+    assert _link(head, "canonical") == [SITE] == _meta(head, "og:url") and _meta(head, "og:image") == [SITE + "brand/card.png"]
+
+
 def test_a_shared_link_has_every_tag_and_one_address() -> None:
-    head = _head("index.html")
+    head = _head("index.html")                                  # not served by Pages; the app's build opens it
     title = head.title.strip()
     assert title.startswith("Knos. ") and _meta(head, "og:title") == [title] and _meta(head, "twitter:title") == [title]
     (description,) = _meta(head, "description")

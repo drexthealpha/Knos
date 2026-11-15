@@ -1,4 +1,4 @@
-"""knos_pay 0.3.35 (programs-v2/knos_pay, lib.rs CLAIM_REF_KNOS): Bind (8) and BindOrg (25) take the pinned claim
+"""knos_pay since the 0.3.35 branch, released in 0.4.0 (programs-v2/knos_pay, lib.rs CLAIM_REF_KNOS): Bind (8) and BindOrg (25) take the pinned claim
 workflow from BOTH of its homes, drexthealpha/knos-oidc-rotate and Knos's branch `oidc-rotate` (the same commits:
 CLAIM_SHA for Bind, CLAIM_SHA or CLAIM_SHA_ORG for BindOrg), and from no look-alike: not someone else's Knos, not
 drexthealpha/Knos-x, not another case. LiteSVM, the testkeys build tests/fixtures/knos_pay_v2_0335_test.so

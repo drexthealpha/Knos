@@ -1,7 +1,8 @@
 """No page of the site scrolls sideways at 320, 360, 390, 768 or 1280 px: tests/web/overflow.mjs, run on a build of web/.
-The budget of the first screen and of what moves: tests/web/motion.mjs, and the words of the shell counted from the file.
+The words of the old shell (web/index.html) are counted from the file: Pages no longer serves that page (the front door
+is web/door.html), but the app's build (KNOS_SPA_AT_ROOT=1) still opens it.
 
-The measuring is in the node script (headless Chromium through the `playwright` package, as tests/web/site.mjs). This
+The measuring is in the node script (headless Chromium through the `playwright` package). This
 file builds the site as the Pages build does and runs it. No node, no package or no browser: skipped, with the reason."""
 
 from __future__ import annotations
@@ -20,15 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 BROWSERS = "/opt/pw-browsers"          # where this project's machines keep Chromium; anywhere else playwright's default holds
 
 
-ONE = "Knos carries research across the valley of death."
 WORD = re.compile(r"[A-Za-z0-9][\w'’%.,/-]*")
 
 
-# the Paid on proof step's one sentence on signed checks, kept word for word as written: the one statement over 12 words
+# the payment step's one sentence on signed checks, kept word for word as written: the one statement over 12 words
 SIGNING = "GitHub signs which checks ran, and a Solana program checks that signature itself before it pays."
-OUTCOME = "Check an AI agent's pull request before it is paid."       # the check of agent work, one use of Knos: the h1
-WHO = "One use of Knos: check an agent's code before anyone is paid."   # who it is for, under the h1
-SHORT = "See who wants it, then test each step."      # Knos in a few words, under it (the one sentence is folded under "What is here")
 
 
 def _words(html: str) -> list[str]:
@@ -49,7 +46,7 @@ def _run(tmp_path: Path, script: str, says: str) -> None:
     run = subprocess.run([node, str(ROOT / "tests" / "web" / script), str(site)], env=env, capture_output=True, text=True, encoding="utf-8", timeout=600)
     said = run.stdout.strip().splitlines()
     if run.returncode == 0 and said and said[-1].startswith("SKIP"):
-        # a script may hold what needs no browser (motion.mjs's weights) before it looks for one: those still count
+        # a script may hold what needs no browser before it looks for one: those still count
         assert all(line.startswith("ok") for line in said[:-1]) and "FAIL" not in run.stderr, run.stdout + run.stderr
         pytest.skip(said[-1][5:])
     assert run.returncode == 0, "\n".join(line for line in (run.stdout + run.stderr).splitlines() if not line.startswith("ok"))
@@ -75,7 +72,7 @@ def test_the_figure_on_the_first_screen_is_the_measured_one() -> None:
 
 
 def test_a_statement_of_the_shell_is_twelve_words_at_most() -> None:
-    """Every heading, label, button and sentence the shell (web/index.html) shows without a press. What is longer is
+    """Every heading, label, button and sentence the old shell (web/index.html, not served by Pages) shows without a press. What is longer is
     folded under a <details>; a table's cell is data, a block of code is the thing itself, and neither is counted."""
     page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     body = re.sub(r"<(noscript|details|script|pre|table)\b.*?</\1>", "", page[page.index("<body"):], flags=re.S)

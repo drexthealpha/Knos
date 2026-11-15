@@ -23,6 +23,7 @@ LIVE_REPLY = {"id": "x", "object": "chat.completion", "model": sources.SUPER,
 
 
 def test_the_ids_and_prices_are_the_catalogs_as_read():
+    # prices as read from the Token Factory catalog on 14 Oct 2026 (src/knos/nebius/sources.py); held to the code, not re-read
     assert sources.BASE_URL == "https://api.tokenfactory.nebius.com/v1/"
     assert sources.SUPER == "nvidia/nemotron-3-super-120b-a12b" and sources.ULTRA == "nvidia/Nemotron-3-Ultra-550b-a55b"
     assert sources.PRICE_PER_M == {sources.SUPER: (0.30, 0.90), sources.ULTRA: (1.00, 3.00)}

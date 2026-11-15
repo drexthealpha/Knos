@@ -53,7 +53,7 @@ def test_knos_fee_account_only_receives_fees_and_lowers_a_rate():
             for allowed in ALLOWED:
                 rest = allowed.sub("", rest)
             assert not re.search(r"(?<![\w])FEE_OWNER(?![\w])", rest), f"{rel}: FEE_OWNER is used for something else: {code.strip()}"
-            assert path.parts[-3] in ("knos_pay", "knos_meter"), f"{rel}: only the escrow and the meter name Knos's account"
+            assert path.parts[-3] in ("knos_pay", "knos_meter"), f"{rel}: only the payment program and the meter name Knos's account"
     # it is named where fees are received (jobs, orders, the holdback's release, the meter) and where a Plan is set
     assert len(named) >= 6, named
     for program in ("knos_oidc", "knos_passkey"):

@@ -1,4 +1,6 @@
-"""The pricing page is a calculator (web/pricing.js, web/price.js), and it gives the numbers of src/knos/billing.py.
+"""The old pricing calculator (web/pricing.html, web/pricing.js, web/price.js) gives the numbers of src/knos/billing.py.
+Pages no longer publishes it: the build sends pricing.html on to pricing/ (scripts/site_pages.py), and the pricing/ page visitors see is written by
+scripts/site_product.py, with no calculator. These tests hold the calculator's source while it stays in the tree.
 
 tests/web/price.mjs holds the arithmetic to tests/data/billing_vectors.json with no browser; tests/web/pricing.mjs opens
 the calculator in headless Chromium and types the years of that file into it. No node, no `playwright` package or no

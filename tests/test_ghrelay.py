@@ -43,7 +43,7 @@ def test_relay_one_reports_in_words_and_checks_the_marker():
     paid = {"ok": True, "kind": "pay", "sigs": ["s1", "s2", "s3", "s4"], "issue": 7, "author_id": 4242,
             "paid": [{"job": "J1", "amount": 5_000_000, "fee": 125_000, "mint": "M", "waits": 0}]}
     r = ghrelay.relay_one(None, None, "proof", "x.y.z", submit=lambda *a: dict(paid))
-    assert r["ok"] and "4.88 is now waiting under GitHub user id 4242 for issue #7" in r["note"] and "#claim" in r["note"]
+    assert r["ok"] and "4.88 is now waiting under GitHub user id 4242 for issue #7" in r["note"] and "`knos claim <address>`" in r["note"]
     line = ghrelay.log_line("proof", "o/r", 9, "x.y.z", r)
     assert line.startswith(f"knos-relay proof o/r#9 {ghrelay.token_id('x.y.z')} ok sig=s2,s3,s4 note=")
     waits = dict(paid, paid=[dict(paid["paid"][0], waits=3600)])

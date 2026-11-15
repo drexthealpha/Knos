@@ -1,7 +1,9 @@
-"""Lighthouse measures EVERY page (apps/wanted/lighthouserc.js, run by .github/workflows/lighthouse.yml): each view and
-each page a module fills or a page added by name on the front door (web/views.js, web/front.js MOUNTS), the site's
-other HTML files, and every view of the app (apps/wanted static/app.js VIEWS), all at performance and accessibility
-of 90 or more on a phone. A page added to the site or the app without a line here fails this test."""
+"""What Lighthouse measures (apps/wanted/lighthouserc.js, run by .github/workflows/lighthouse.yml), at performance and
+accessibility of 90 or more on a phone: every view and module page of the older single-page app (web/views.js,
+web/front.js MOUNTS; web/index.html, which the Pages build no longer publishes at the root), four named HTML files, and
+every view of the app (apps/wanted static/app.js VIEWS). A view added to those lists without a line in lighthouserc.js
+fails this test. The pages the Pages build publishes from scripts/site_pages.py (the front door web/door.html,
+claims/, prove/, agents/, labs/, pricing/, status/) are not in these lists, and nothing here checks that they are."""
 from __future__ import annotations
 
 import functools
@@ -38,7 +40,7 @@ def test_every_view_of_the_app_is_measured():
     app = _list("app")
     js = (ROOT / "apps" / "wanted" / "knos_wanted" / "static" / "app.js").read_text(encoding="utf-8")
     views = re.findall(r'"(\w+)"', re.search(r"const VIEWS = \[(.*?)\];", js)[1])
-    moved = {"buy", "teams"}                       # the Paid on proof page's views (apps/wanted server.MOVED_VIEWS): at /paid
+    moved = {"buy", "teams"}                       # the money page's views (apps/wanted server.MOVED_VIEWS): at /paid
     assert {"" if v == "home" else (f"paid#{v}" if v in moved else f"#{v}") for v in views} <= set(app) and "verify" in app
 
 

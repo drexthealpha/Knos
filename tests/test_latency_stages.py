@@ -187,7 +187,8 @@ def test_the_command_prints_the_six_stages_alone_as_markdown(tmp_path):
     assert said[2] == "| merge to paid, the whole wait | GitHub's `merged_at` to the block that paid | not recorded | not recorded | not recorded |"     # offline: no merge time, so nothing was timed
 
 
-def test_the_five_clocks_are_separate_rows_each_with_its_own_sample_and_no_number_without_one():
+def test_the_clocks_are_six_separate_rows_each_with_its_own_sample_and_no_number_without_one():
+    # five clocks in six rows: chain inclusion is one clock, read at two commitments (scripts/latency_stages.py CLOCKS)
     doc, get, when = sample()
     r = ls.report(doc["comments"], doc["events"], get, when)
     rows = r["clocks"]

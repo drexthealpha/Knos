@@ -223,7 +223,7 @@ def test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how
     assert "1 of 1 bundle restored byte for byte from the export alone" in restored.seconds and "knos vault restore" in restored.recovers
     assert "all 3 paid on the first pass after GitHub answered, 3 s later (603 s after their comments); none paid twice" in github.seconds and "502 for 600 s" in github.broken
     assert "(no transaction was sent)" in key.sees and "this signing key expired" in key.sees and key.seconds.startswith("paid 121 s after the key expired")
-    assert killed.seconds == "answered 3 s after the kill (3 s of passes); the payee holds 4.875 once, after two sends of the same token"
+    assert killed.seconds == "answered 3 s after the kill (3 s of passes); the payee holds 4.95 once, after two sends of the same token"
     assert "on try 6 (tries at 3, 6, 9, 21, 42, 72 s); paid once" in rpc.seconds and rpc.seconds.startswith("paid 12 s after the endpoint answered again")
     assert "`test`: did not run on this commit" in evidence.sees and "No token is signed" in evidence.sees and "paid 30 s after `/knos settle`" in evidence.seconds
     assert reset.seconds.startswith("0 s for the record: ") and "The orders are not recovered" in reset.seconds and "--mirror DIR" in reset.recovers

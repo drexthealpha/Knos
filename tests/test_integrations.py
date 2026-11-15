@@ -245,5 +245,7 @@ def test_the_badge_a_platform_shows_is_the_one_knos_draws_and_links_to_the_repos
     assert "test USDC" in readme and "not a score" in readme
 
 
-# ---- the document -------------------------------------------------------------------------------------------------------
 
+if __name__ == "__main__":
+    with open(HOOK / "fixtures.json", "w", encoding="utf-8", newline=chr(10)) as f:
+        f.write(_text())

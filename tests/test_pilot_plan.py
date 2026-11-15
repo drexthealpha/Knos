@@ -1,7 +1,7 @@
 """scripts/pilot_plan.py's fair test: the draw that puts each task in a group, buyer by buyer, gives
 the same bytes from the same list and seed and keeps the groups even; the size of the test follows the two-proportion
-formula (checked on R's own `power.prop.test` examples); and the page states the sizes the script prints, the lead
-number as backtest.json holds it, and that nothing has been run. Fixed inputs, no network, no clock."""
+formula (checked on R's own `power.prop.test` examples); and the command line writes the file and prints the size.
+Fixed inputs, no network, no clock."""
 from __future__ import annotations
 
 import hashlib
@@ -17,8 +17,6 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import pilot_plan as pp  # noqa: E402
 
-REVIEWED = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]
-LEAD = REVIEWED["test_or_build_check_failed"]
 TASKS = [("acme", f"task-{n}") for n in range(1, 10)] + [("globex", f"slot {n}") for n in range(1, 7)]
 
 

@@ -1,5 +1,5 @@
-"""Test harness for work orders (knos_pay 2.1) inside LiteSVM, built on tests/_pay2.py: a chain with a stand-in for
-Circle's USDC that the test build's record counts as real money, FEE_OWNER's fee account, a repository owner's
+"""Test harness for work orders (knos_pay 2.1 and later) inside LiteSVM, built on tests/_pay2.py: a chain with a
+stand-in for Circle's USDC that the test build's record counts as real money, FEE_OWNER's fee account, a repository owner's
 Balance, a sponsor's wallet and the relayer's own token account for tips; and the tokens GitHub would sign for an
 order. Tests only."""
 from __future__ import annotations

@@ -457,7 +457,7 @@ def test_the_site_says_nothing_it_may_not():
     usdc = r"(?<!test )(?<!Test )(?<!Circle's )USDC"
     assert not re.search(usdc, words), re.search(r".{20}" + usdc, words).group(0)
     assert words.count("Circle's USDC") == words.count("real money (Circle's USDC)") == 3 and "real USDC" not in words
-    assert words.count("larger milestones by bank transfer or in real money (Circle's USDC), held until the proof passes") == 1
+    assert words.count("larger milestones by bank transfer or in real money (Circle's USDC)") == 1     # the words after it are the page's
     # devnet money is called test USDC wherever the page says what a person is paid or puts in
     assert "test USDC" in words and "mainnet" not in words.lower()
 

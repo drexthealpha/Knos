@@ -1,7 +1,7 @@
 """The Hermes plugin (knos.hermes_plugin): register(ctx) adds knos_verify, knos_receipt, knos_bounty_claim and
 knos_outcome_check through ctx.register_tool exactly as Hermes's PluginContext takes them (hermes_cli/plugins.py
 @8f817911: name, toolset, schema, handler, ...; a handler is handler(args, **kwargs) -> JSON text, never raising),
-and the pip entry point and the directory plugin both reach it."""
+and the pip entry point reaches it."""
 
 from __future__ import annotations
 

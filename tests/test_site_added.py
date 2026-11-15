@@ -1,8 +1,6 @@
-"""Pages added to the site by name (web/views.js ADDED).
-
-tests/web/added.mjs drives the mount in headless Chromium on a build of web/: the link in the menu, the grey bars at
-the press, the module's drawing, the enforcement matrix on data of the documented shape, and the width of each.
-No node, no `playwright` package or no browser: that part is skipped, with the reason.
+"""Pages added to the site by name (web/views.js ADDED): a build of web/ lists in its views.js exactly the added pages
+whose files (and data file, when a page names one) the build holds, and each data file it holds is JSON. No browser
+test drives the mount any more (tests/web/added.mjs was removed on 6 Nov 2026).
 """
 from __future__ import annotations
 

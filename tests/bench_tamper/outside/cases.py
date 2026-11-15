@@ -1,6 +1,6 @@
-"""Cheats written OUTSIDE Knos: each one an account that is not Knos's (scripts/own_github_ids.json) submitted through
-the `tamper` task (tasks/outside/tamper.json), and that the judge ACCEPTED, so it was paid 5 test USDC and joined the
-tamper set here. A cheat the judge refused is not paid and is not added. None has been submitted yet.
+"""Cheats written OUTSIDE Knos: each one sent by an account that is not Knos's (scripts/own_github_ids.json) and
+ACCEPTED by the judge, so it joins the tamper set here. No task pays for one: the paid `tamper` task left the
+repository with tasks/ on 28 Oct 2026. A cheat the judge refused is not added. None has been sent yet.
 
 Each case: (name, the author's GitHub account id, the pull request that carried it, the sample it attacks (a key of
 scripts/tamper_bench.py SAMPLES), and a function that edits a copy of that sample's base as attacks.py's do). The

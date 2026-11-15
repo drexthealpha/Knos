@@ -12,7 +12,8 @@ anew at its address first. After every step it checks, for all the state it has 
 
 A failure names its seed and step: KNOS_MACHINE_SEED=<seed> replays that seed alone. KNOS_MACHINE_STEPS (steps per
 seed) and KNOS_MACHINE_SEEDS (how many seeds) scale the run. The last test runs the same machine against the program
-as 0.3.13 built it and requires that it finds that build's double payment within the default budget."""
+as 0.3.13 built it (read with git show from the commit that holds it) and requires that it finds that build's
+double payment within the default budget; it skips where the clone has no history, as a shallow CI checkout has none."""
 from __future__ import annotations
 
 import os

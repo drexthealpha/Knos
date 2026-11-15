@@ -143,7 +143,7 @@ def test_a_cluster_that_was_not_ready_is_asked_again_and_a_programs_refusal_is_a
     assert len(calls) == 3
 
 
-def test_the_logs_of_a_transaction_are_asked_for_with_version_1_and_are_the_escrows_own_lines(monkeypatch):
+def test_the_logs_of_a_transaction_are_asked_for_with_version_1_and_are_the_payment_programs_own_lines(monkeypatch):
     """A transaction a relay sends to a 2.1 program is a version 1 transaction, and a cluster refuses to give one to a
     reader that names a lower version: the rehearsal would then print no line of it."""
     asked = []

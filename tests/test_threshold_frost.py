@@ -1,7 +1,9 @@
 """Knos's referee panel as a FROST 2-of-3 threshold key (knos.threshold; the Zcash Foundation's frost-ed25519 3.0.0 via
 tools/knos-frost). Round trip, every pair of hosts, refusal with one share, the distributed key generation, and the
 aggregated signature releasing a 1-of-1 PANEL order (the group key) through the Ed25519 precompile on the knos_pay
-0.3.34 test build in LiteSVM. Synthetic test units; keys and shares are made per test (never the devnet shares)."""
+0.3.34 test build in LiteSVM. Synthetic test units; keys and shares are made per test (never the devnet shares).
+The module runs only where tools/knos-frost is built: the pytest job of CI does not build it, so there it skips
+(.github/workflows/referee.yml builds knos-frost to sign, and runs no pytest)."""
 from __future__ import annotations
 
 import base64

@@ -1,5 +1,5 @@
-"""The rounds 0.3.25 adds to scripts/exercise_rounds/ for the capabilities deployed at the public program ids with no
-exercising transaction recorded: tip (fund_by_comment, pay_on_merge), meter-single, passkey-payee, gate (upgrade_gate),
+"""The rounds 0.3.25 adds to scripts/exercise_rounds/ for the capabilities deployed at the public program ids that had no
+exercising transaction recorded then: tip (fund_by_comment, pay_on_merge), meter-single, passkey-payee, gate (upgrade_gate),
 guardian (key_guardian) and pause; and why hold_and_bind has none. Each runs against a fake cluster here (accounts,
 logs and histories held in memory; no network, no node): what it sends, what it reads back and what it records.
 meter-single also runs on the simulator. Nothing here is evidence of the public program ids."""
@@ -131,7 +131,7 @@ def test_the_pause_round_runs_only_when_named(ex):
 
 def test_the_nine_deployed_capabilities_each_have_a_round_or_a_reason(ex):
     caps = {c["id"]: c for c in json.loads((ROOT / "docs" / "capabilities.json").read_text(encoding="utf-8"))["capabilities"]}
-    # 0.3.25's rounds at the public ids exercised five of them; the others stay deployed, and nothing else is deployed alone
+    # some are exercised at the public ids today (docs/capabilities.json); the others stay deployed, and nothing else is deployed alone
     assert {i for i, c in caps.items() if c["stage"] == "deployed"} <= set(NINE) and all(caps[c]["stage"] in ("deployed", "exercised") for c in NINE)
     plan = ex.exercisable()         # what is still below `exercised`, and the round that would run it
     rounds = {"verify_gitlab": "gitlab", "key_guardian": "guardian", "fund_by_comment": "tip", "pay_on_merge": "tip", "pause": "pause",

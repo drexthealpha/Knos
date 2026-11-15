@@ -1,4 +1,4 @@
-"""The referee panel's trust model in Knos's client tools (0.3.34 FIX PHASE 2): a spent verdict stays spent across
+"""The referee panel's trust model in Knos's client tools (fix phase 2 of the 0.3.34 branch, released in 0.4.0): a spent verdict stays spent across
 processes, panels come from the published registry (config/referees.yaml) and never hold a party's own key unless
 --unlisted-panel says so (and the output says UNLISTED PANEL), and the MCP graduation tool takes only a signed
 verdict. Synthetic keys and data; the registry in these tests is a temporary file (KNOS_REFEREES)."""

@@ -335,7 +335,7 @@ def test_bounty_and_due_say_what_both_deployments_hold(world, monkeypatch, build
     assert knos("bounty", "octo/widgets#7")[1].strip() == "No bounty is held for octo/widgets#7. A maintainer funds one by commenting on the issue: /knos fund 20"
     assert knos("due", "mona")[1].splitlines() == [
         f"mona (GitHub user id {mona}) has named no wallet: a payment whose pull request gives no address is held for them.",
-        "Name a wallet, and what is held is sent there: knos claim <address>   (or in the browser: https://drexthealpha.github.io/Knos/#claim)"]
+        "Name a wallet, and what is held is sent there: knos claim <address>"]
     go = lambda jwt, terms=None: relay2.submit(net, c.payer, jwt, terms, JWKS, now=c.now())  # noqa: E731
     assert go(faucet_jwt(c, 7, org, repo), TERMS)["ok"]
     job = pay.job_pda(repo, 7, pay.faucet_balance_pda(org))
@@ -359,7 +359,7 @@ def test_bounty_and_due_say_what_both_deployments_hold(world, monkeypatch, build
     said = knos("due", "mona")[1].splitlines()
     assert said[2:] == [f"The first deployment (Knos 0.3.11 and earlier) holds 4.88 of {pay1.faucet_mint()} for mona.",
                         "On the first deployment (Knos 0.3.11 and earlier): paid for 1 pull request(s) in 1 repository, 4.88 in all.",
-                        "Name a wallet, and what is held is sent there: knos claim <address>   (or in the browser: https://drexthealpha.github.io/Knos/#claim)",
+                        "Name a wallet, and what is held is sent there: knos claim <address>",
                         "Send what the first deployment holds to any address: knos claim --v1 <address>"], said
     # mona binds a wallet: the held payment follows, and her record says what was test money
     wallet = Keypair().pubkey()

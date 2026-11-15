@@ -1,4 +1,4 @@
-"""Back up the record, lose it, restore it, get the same statements byte for byte (the pre-launch list, item 10).
+"""Back up the record, lose it, restore it, get the same statements byte for byte.
 
 The backup is `knos archive make` (src/knos/archive.py): one deterministic .zip of the log of events, the ledgers and
 the statements, with its own verifier. The restore is unzipping it. Nothing here needs a network or a clock."""

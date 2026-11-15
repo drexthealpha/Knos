@@ -10,7 +10,7 @@ import time
 import urllib.error
 
 import pytest
-from _pay21 import each_build, pay21_build  # noqa: F401 - the fixtures `build` and `pay21`: a test that takes `build` runs on knos_pay 2.2 and on the live 2.1
+from _pay21 import each_build, pay21_build  # noqa: F401 - the fixtures `build` and `pay21`: a test that takes `build` runs on knos_pay 2.2 (the public build since 9 Oct 2026) and on 2.1 (the build before it)
 from solders.keypair import Keypair
 
 from knos.proof import ghrelay
@@ -928,7 +928,6 @@ def test_a_job_relays_its_own_token_from_a_file_with_knos_relay(build, monkeypat
     # the same token a second time (the public worker finding a copy, or the step run again) pays nobody twice
     flow.relay(str(tmp_path / "pay"), **kw)
     again = result()
-    print(again)
     assert (again.get("already") or not again["ok"]) and c.balance(pay.ata(wallet, pay.faucet_mint())) == build.pick(4_875_000, 4_950_000)
     assert asked == []                                                                          # GitHub was never asked: no poll, no comment fetch
     # the fee key under the name a repository's own workflow may give it: it is the relay's key, when there is no other

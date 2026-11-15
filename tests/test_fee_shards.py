@@ -46,7 +46,7 @@ def pays(c, order: Pubkey, payees, fee: Pubkey) -> bool:
     return c.send([c.pay_ix(order, c.pay_token(order, payees), payees, fee_token=fee)], tag="pay_order")
 
 
-@pytest.mark.parametrize("live", [False, True], ids=["2.2 (proposals 7 and 8)", "2.1 (live at the public id today)"])
+@pytest.mark.parametrize("live", [False, True], ids=["2.2 (live at the public id since proposal 8)", "2.1 (the build before it)"])
 def test_pay_order_and_settle_order_take_a_seeded_token_account_of_the_fee_owner_and_nothing_else(live, request):
     pytest.importorskip("solders.litesvm")
     from _order import USDC, OrderChain, code, user

@@ -1,12 +1,8 @@
-"""The four small repositories a release publishes (scripts/small_repos.py): each is this repository's own files and a
-README, the same bytes every time, and what the site, `knos settle --neutral` and the vault expect of them."""
+"""The small repositories a release publishes (scripts/small_repos.py REPOS): each is this repository's own files and a
+README, the same bytes every time, and what the site, `knos settle --neutral` and the vault expect of them. The
+playground's tests need tasks/, which left the public repository on 28 Oct 2026: they skip here and run where that
+folder is kept; the rest run everywhere."""
 from __future__ import annotations
-import pathlib as _pl
-
-import pytest as _pt
-
-if not (_pl.Path(__file__).resolve().parents[1] / "tasks").is_dir():
-    _pt.skip("tasks/ left the public repository; this test runs where that folder is kept", allow_module_level=True)
 
 import importlib.util
 import json
@@ -18,6 +14,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+needs_tasks = pytest.mark.skipif(not (ROOT / "tasks").is_dir(), reason="tasks/ left the public repository; this test runs where that folder is kept")
 
 
 def _script(name: str):
@@ -36,7 +33,7 @@ SOURCES = {"knos-task": {".github/workflows/knos.yml": "examples/knos-workflow.y
            "knos-claim-org": {".github/workflows/knos-claim.yml": "examples/knos-claim-org.yml"}}
 
 
-@pytest.mark.parametrize("name", sorted(r.REPOS))
+@pytest.mark.parametrize("name", [pytest.param(n, marks=needs_tasks) if n == "knos-playground" else n for n in sorted(r.REPOS)])
 def test_each_repository_is_the_sources_byte_for_byte_and_the_same_every_time(name, tmp_path, capsys):
     files = r.files(name)
     assert name in SOURCES or name == "knos-playground"
@@ -154,6 +151,7 @@ def _rules():
     return r._playground()
 
 
+@needs_tasks
 def test_the_playground_holds_the_callers_a_template_that_funds_and_checks_for_every_slot():
     yaml = pytest.importorskip("yaml")
     p, files = _rules(), r.files("knos-playground")
@@ -200,6 +198,7 @@ def test_the_playground_holds_the_callers_a_template_that_funds_and_checks_for_e
     assert p.FUND in readme and "issues/new?template=fund-a-test-task.md" in readme and not re.search(r"\bhave (funded|used|tried)\b|\busers\b", readme)
 
 
+@needs_tasks
 def test_the_starter_file_fails_its_checks_and_one_changed_line_passes_them(tmp_path):
     p, files = _rules(), r.files("knos-playground")
     for name in ("blackbox.py", "cases.json"):
@@ -230,6 +229,7 @@ def test_the_tree_id_is_the_one_the_pinned_workflows_script_computes(name):
     assert r.tree_id(r.files(name)) == _script("pinned_workflows").tree_id(r.files(name))
 
 
+@needs_tasks
 def test_the_release_plan_rebuilds_after_the_stamp_every_repository_that_calls_the_pinned_workflows():
     pub, plan = _script("pinned_workflows"), (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
     [step] = [ln for ln in plan.splitlines() if ln.startswith("python scripts/small_repos.py build ")]
@@ -244,6 +244,7 @@ def test_the_release_plan_rebuilds_after_the_stamp_every_repository_that_calls_t
     assert set(names) == set(r.FOLDED) and f"{', '.join(names[:-1])} and {names[-1]} are template repositories" in " ".join((r.__doc__ or "").split())
 
 
+@needs_tasks
 def test_a_rebuild_of_the_playground_keeps_the_faucet_workflow_and_it_is_the_workers_own_job():
     """The 0.3.19 run added a faucet-only workflow to the playground by hand; a rebuild would have dropped it. Now it is
     one of the playground's files, made from the worker's own `faucet` job, so it cannot drift from what was tested."""

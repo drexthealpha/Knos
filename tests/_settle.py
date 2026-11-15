@@ -29,7 +29,8 @@ def b64(b: bytes) -> str:
 
 
 class SeedKey:
-    """An RSA test key derived from a fixed seed (no key file is committed): `primes` primes of bits/primes bits each,
+    """An RSA test key derived from a fixed seed (its primes are also kept in tests/data/seed_keys.json, which tests/conftest.py
+    loads to skip the search): `primes` primes of bits/primes bits each,
     found by Miller-Rabin over a seeded generator. The test build of knos-oidc trusts exactly these two moduli
     (pins.rs TEST_GENESIS). Signs PKCS#1 v1.5 SHA-256 in plain Python."""
     DIGEST_INFO = bytes.fromhex("3031300d060960864801650304020105000420")

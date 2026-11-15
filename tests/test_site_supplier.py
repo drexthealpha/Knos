@@ -5,7 +5,10 @@ answer for each; this file checks it against the Python (and writes it with WRIT
 holds the page's function to it. With `page` the script opens the control in headless Chromium: the published samples,
 the tree in three classes, one path tried, the refusal table searched, a GitHub issue read with one GET, every
 statement twelve words at most, nothing running off the side from 320 to 1280 px, nobody else asked. No node, no
-`playwright` package or no browser: skipped, with the reason."""
+`playwright` package or no browser: skipped, with the reason.
+
+web/index.html, the page that loads this control, is not published (the Pages build replaces it with the app.html
+stub), so the control is not on the live site; it is tested here as code."""
 
 from __future__ import annotations
 

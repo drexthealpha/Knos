@@ -105,7 +105,7 @@ def test_checks_answers_402_with_an_exact_requirement_at_the_decided_price_and_t
     assert st == 402 and ra.decode(h["payment-required"]) == body
     (req,) = body["accepts"]
     each = fees_config.micro(fees_config.load().doc["fees"]["x402_check"]["usd_each"])
-    assert req == X.requirement(each, MINT, PAY_TO, FEE_PAYER) and each == 20_000          # 0.02, DECISIONS 14 Oct
+    assert req == X.requirement(each, MINT, PAY_TO, FEE_PAYER) and each == 20_000          # 0.02, config/fees.yaml fees.x402_check, decided 14 Oct 2026
     baz = body["extensions"]["bazaar"]
     assert baz["info"]["input"] == {"type": "http", "method": "GET"} and baz["schema"]["$schema"].endswith("2020-12/schema")
     assert "exact" in body["resource"]["description"]

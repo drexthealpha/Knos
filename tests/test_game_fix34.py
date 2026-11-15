@@ -3,7 +3,7 @@
 1. Sealed-seed exfiltration (JUDGE-CLINICAL cheat 1): a candidate read the sealed file through a path built with
    chr() and regenerated the hidden labels. Now refused statically (AR-FILE), and masked at run time where the OS gives
    the candidate its own namespace.
-2. Sybil pot capture (JUDGE-MATERIALS cheat 7): one actor joined as three players (two sharing a payee) with the same
+2. Sybil pot capture (found in review): one actor joined as three players (two sharing a payee) with the same
    file and took all paid places. Now: one player per identity and per payee, identical files credit only the first
    submitter, anonymous players are never paid.
 3. A CSV task works in the game (and a malformed one is refused with a clear message).
@@ -145,7 +145,7 @@ def test_a_game_can_require_an_identity(tmp_path):
 
 
 def test_the_judges_sybil_one_file_three_names_is_paid_once(tmp_path):
-    """JUDGE-MATERIALS cheat 7: three players, the same file; one honest player with another file."""
+    """Sybil pot capture, found in review: three players, the same file; one honest player with another file."""
     g = _game(tmp_path)
     same = attempt(g.baseline(), 0.9, 0.9, "sybil")
     s1 = g.join("s1", github_id=31, payee=W1)["player"]

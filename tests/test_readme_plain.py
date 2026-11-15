@@ -1,4 +1,5 @@
-"""README.md is written for a reader who has never heard of GitHub Actions, Solana, held money or a hash.
+"""docs/reference/COLOSSEUM.md (the README's old reference sections, moved there in Round 9, U1) is written for a reader
+who has never heard of GitHub Actions, Solana, held money or a hash.
 
 Its prose from the first heading through "Is it real?" is measured with the Flesch-Kincaid grade level:
 
@@ -7,10 +8,12 @@ Its prose from the first heading through "Is it real?" is measured with the Fles
 (Kincaid, Fishburne, Rogers and Chissom, 1975, https://apps.dtic.mil/sti/pdfs/ADA006655.pdf), computed here with no
 dependency. Code, tables, HTML, Mermaid blocks, headings and link targets are taken out first; a link keeps its words.
 Syllables are counted by vowel groups, less a silent final "e"; a word in capitals (AI, USDC) is read letter by letter;
-a number counts one. The page must read at grade 8 or lower, with 16 words a sentence or fewer on average.
+a number counts one. The page must read at grade 8 or lower, with 16 words a sentence or fewer on average. README.md
+itself is not graded here.
 
-Also held: the logo comes first, at least two Mermaid diagrams each with an italic caption under it and no colour or
-theme set, docs/WORDS.md linked, and docs/WORDS.md itself (alphabetical, each meaning under 20 words).
+Also held: README.md's logo comes first; the Mermaid sources in docs/reference/DIAGRAMS.md (at least two, each with an
+italic caption under it and no colour or theme set) are drawn as SVG pictures in COLOSSEUM.md, NEAR.md and IRIS.md;
+COLOSSEUM.md links docs/WORDS.md, and docs/WORDS.md itself is alphabetical with each meaning under 20 words.
 """
 
 from __future__ import annotations
@@ -22,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORD = re.compile(r"[A-Za-z0-9][\w'%.,-]*")
 MERMAID = re.compile(r"(?ms)^```mermaid\n(.*?)^```\n")
 TERMS = ["AI agent", "Pull request", "Merge", "Checks (CI)", "GitHub Actions", "Signed", "Token (OIDC)", "Solana", "Devnet", "USDC",
-         "Test USDC", "Money held until the proof passes", "Wallet", "Passkey", "Hash", "Invoice", "Ledger", "Reconcile", "Statement", "Holdback", "Warranty",
+         "Test USDC", "Held money", "Wallet", "Passkey", "Hash", "Invoice", "Ledger", "Reconcile", "Statement", "Holdback", "Warranty",
          "Refund", "Program", "Program id", "Upgrade", "Multisig", "Time lock", "Relay", "Meter", "Evaluation", "Assurance level",
          "Qloo", "Demand check", "Ready brief", "Criteria hash", "Milestone", "Pre-order", "Referee"]
 
@@ -104,7 +107,7 @@ def test_the_logo_leads_and_every_diagram_has_a_caption_and_no_colour():
     readme = read("README.md")
     lines = [line for line in readme.splitlines() if line.strip()]
     assert lines[0] == "<h1>" and lines[1].strip() == "<picture>" and "wordmark-light.svg" in lines[4] and lines[6] == "</h1>"
-    # README shows each diagram as its picture (Open Exchange draws no Mermaid); the sources are in docs/reference/DIAGRAMS.md
+    # the reference pages (COLOSSEUM, NEAR, IRIS) show each diagram as its picture; the sources are in docs/reference/DIAGRAMS.md
     source = read("docs/reference/DIAGRAMS.md")
     blocks = list(MERMAID.finditer(source))
     ref = "".join(read(f"docs/reference/{n}.md") for n in ("COLOSSEUM", "NEAR", "IRIS"))   # Round 9, U1: the diagrams moved with their sections

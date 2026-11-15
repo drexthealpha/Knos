@@ -75,7 +75,7 @@ def test_a_jobs_bounds_and_fee_floor_are_whole_units_of_its_mint(chain):
     assert fund_job(c, n, 10 ** 9, nine, w, wtok), c.err
     job, payee, wallet = pay.job_pda(REPO, n, w.pubkey()), user(), Keypair().pubkey()
     assert pay_job(c, job, job_token(c, job, payee, wallet), payee, wallet), c.err
-    # 2.5% of one unit is under the floor of 0.05 of a unit
+    # 0.30% of one unit is under the floor of 0.05 of a unit
     assert c.balance(pay.ata(pay.FEE_OWNER, nine)) == 5 * 10 ** 7 == pay.fee_of(10 ** 9, 9)
     assert c.balance(pay.ata(wallet, nine)) == 10 ** 9 - 5 * 10 ** 7
 

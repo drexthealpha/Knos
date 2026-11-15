@@ -13,7 +13,7 @@ import urllib.error
 import pytest
 
 import test_worker as tw
-from _pay21 import each_build, pay21_build  # noqa: F401 - the fixtures `build` and `pay21`: a test that takes `build` runs on knos_pay 2.2 and on the live 2.1
+from _pay21 import each_build, pay21_build  # noqa: F401 - the fixtures `build` and `pay21`: a test that takes `build` runs on knos_pay 2.2 (live since 9 Oct 2026) and on 2.1 (the build before it)
 from test_worker import HOME, PAYER, TERMS, Ledger, fund_aud, jwt
 
 from knos.proof import ghrelay

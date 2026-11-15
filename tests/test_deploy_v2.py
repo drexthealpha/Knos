@@ -175,7 +175,7 @@ def test_every_address_of_the_deployment_is_listed_with_what_it_is():
     ids = oidc.IDS
     for name in ("knos_oidc", "knos_pay", "upgrade_multisig", "upgrade_authority", "guardian_multisig", "guardian", "fee_owner"):
         assert ids[name] in found, name
-    assert found[ids["upgrade_authority"]].startswith("upgrade vault") and found[ids["guardian"]].startswith("guardia vault")
+    assert found[ids["upgrade_authority"]].startswith("upgrade vault") and found[ids["guardian"]].startswith("guardian vault")
     assert found[str(pay.faucet_mint())].startswith("test-USDC mint") and found[str(mc.programdata_address(ids["knos_pay"]))].startswith("knos_pay program data")
     assert sum(what.startswith("GitHub key") for what in found.values()) == 4 and len(found) == len(d.addresses(d.genesis_keys()))
 
@@ -433,12 +433,12 @@ def test_the_shell_script_takes_one_new_mode_a_run_and_each_does_what_the_releas
         assert alone.returncode == 2 and "--ungated goes with --propose" in alone.stderr
         lone = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--new", "--replace"], capture_output=True, text=True)
         assert lone.returncode == 2 and "--replace goes with --propose" in lone.stderr
-        # 0.3.19 changes no program: --propose refuses in this tree before a key or the cluster is read (no KNOS_KEYS, no network here)
+        # this tree proposes nothing by itself: --propose refuses before a key or the cluster is read (no KNOS_KEYS, no network here)
         env = {k: v for k, v in os.environ.items() if k not in ("KNOS_CHANGES", "KNOS_KEYS", "KNOS_RPC")}
         for flags in (["--propose"], ["--propose", "--replace"], ["--propose", "--ungated"]):
             none = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), *flags], capture_output=True, text=True, env=env, timeout=60)
-            assert none.returncode == 1 and none.stdout == "" and none.stderr.startswith("refused: this release proposes nothing."), (flags, none.stderr)
-            assert "Nothing was read, written or proposed." in none.stderr and "proposals 7 and 8 already" in none.stderr
+            assert none.returncode == 1 and none.stdout == "" and none.stderr.startswith("refused: this release proposes nothing by itself."), (flags, none.stderr)
+            assert "Nothing was read, written or proposed." in none.stderr and "proposals 13, 14 and 15 of the upgrade multisig already" in none.stderr
         assert 'RELEASE_PROPOSES=""' in text
         said = subprocess.run([bash, str(ROOT / "scripts" / "deploy_v2.sh"), "--help"], capture_output=True, text=True).stdout
         assert all(flag in said for flag in ("--new", "--rc ", "--rc-close", "--propose [--replace] [--ungated]", "KNOS_GATE_TOKENS", "KNOS_RC_SO_DIR",

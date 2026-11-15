@@ -178,7 +178,7 @@ def test_it_reads_only_the_transactions_a_receipt_is_built_from():
 
 def test_an_auto_orders_payment_is_named_for_what_it_is():
     """The witnessed order of 0.3.24 was funded `auto` and paid by its own black-box checks before any merge: the
-    program's judge e (Judge::Auto), which no receipt version names. It is said in those words, not as a payment no
+    program's judge 4 (Judge::Auto), which no receipt version names. It is said in those words, not as a payment no
     judge's token made."""
     def tx(*lines: str) -> dict:
         logs = [f"Program {pay.PAY_ID} invoke [1]", *(f"Program log: {line}" for line in lines), f"Program {pay.PAY_ID} success"]

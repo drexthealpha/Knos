@@ -146,7 +146,7 @@ def _hermes_block(text: str) -> list[str]:
         return json.loads(include[len("include: "):])
     doc = yaml.safe_load(text)
     assert set(doc) == {"mcp_servers", "hooks"} and set(doc["hooks"]) == {"pre_verify", "pre_llm_call"}
-    assert doc["hooks"]["pre_verify"] == [{"command": _hook("hermes"), "timeout": 300}]      # 300 is Hermes's cap
+    assert doc["hooks"]["pre_verify"] == [{"command": _hook("hermes"), "timeout": 300}]      # 300 s, what src/knos/init.py writes (no Hermes source for a cap is named here)
     assert {k: doc["mcp_servers"]["knos"][k] for k in SERVER} == SERVER
     return doc["mcp_servers"]["knos"]["tools"]["include"]
 

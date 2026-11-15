@@ -1,4 +1,5 @@
-"""The fee fold of the Fund page (#fund, "How it pays, the fee"). knos_pay 2.2 runs at the public id since 9 October
+"""The fee fold of the Fund page (#fund, "How it pays, the fee") in web/index.html, a source page the bare address no
+longer serves (the front door is web/door.html). knos_pay 2.2 runs at the public id since 9 October
 2026: the fold states its rule (0.30% of the amount, at least 0.05) in the words knos.fees.words(2) and web/price.js
 feeWords(2) give, and web/fund_fee.js draws the rule again from what the program (or upgrades.json) answers, as
 Pricing does. Nobody answering leaves the words; 2.1 answering says the fee charged before the upgrade."""

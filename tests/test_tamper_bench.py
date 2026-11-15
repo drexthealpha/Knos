@@ -527,7 +527,7 @@ def test_the_report_states_both_rates_with_their_sample_sizes_and_what_is_still_
     assert again == doc                                                     # the block is replaced in place, never doubled
 
 
-# ---- who wrote the cheats: the authors, or outsiders through the `tamper` task ----------------------------------------
+# ---- who wrote the cheats: the authors, or outsiders (no paid task asks for an outside cheat) ---------------------------
 
 def test_the_page_separates_the_authors_cheats_from_the_outsiders_and_claims_no_outside_rate():
     bench = _bench()
@@ -536,8 +536,8 @@ def test_the_page_separates_the_authors_cheats_from_the_outsiders_and_claims_no_
     cheats = bench.cheat_totals(doc)
     assert bench.outside_cases() == [] and bench.run_outside() == []
     assert f"| Knos's author | {sum(b for _, b in cheats)} | {sum(a for a, _ in cheats)} |" in block
-    assert "| outsiders, through the `tamper` task | 0 | 0 |" in block and "0 of 0, not a rate" in block
-    assert "tasks/outside/tamper.json" in block and "outside_cheats" in block
+    assert "| outsiders | 0 | 0 |" in block and "0 of 0, not a rate" in block and "outside_cheats" in block
+    assert "tasks/outside" not in block and "test USDC" not in block       # tasks/ left the repo on 28 Oct: no offer, no payment
     assert "\n".join(bench.authors_section(cheats, [])) == "<!-- authors:begin -->" + block + "<!-- authors:end -->"
     assert doc.index("<!-- authors:begin -->") < doc.index("<!-- honest:begin -->")
     assert bench.place_authors(doc, bench.authors_section(cheats, [])) == doc        # replaced in place, never doubled
@@ -550,7 +550,7 @@ def test_an_outside_case_is_judged_again_and_listed_with_its_author(monkeypatch)
     rows = bench.run_outside([("a cheat from outside", 4242, "https://github.com/o/r/pull/1", "python", lambda pr: None)])
     assert rows == [{**row, "author": 4242, "pull": "https://github.com/o/r/pull/1", "sample": "python"}]
     text = "\n".join(bench.authors_section([(0, 63)], rows))
-    assert "| outsiders, through the `tamper` task | 1 | 1 |" in text
+    assert "| outsiders | 1 | 1 |" in text
     assert "| a cheat from outside | 4242 | https://github.com/o/r/pull/1 | python | refused | accepted |" in text
 
 

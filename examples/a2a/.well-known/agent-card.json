@@ -14,7 +14,7 @@
   "organization": "Knos",
   "url": "https://github.com/drexthealpha/Knos"
  },
- "version": "0.3.12",
+ "version": "0.4.1",
  "documentationUrl": "https://github.com/drexthealpha/Knos/blob/main/docs/reference/A2A.md",
  "capabilities": {
   "streaming": false,

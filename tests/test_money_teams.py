@@ -1,6 +1,5 @@
-"""Knos for teams: the verified-merge price in the one fee config, usage metered per team and per agent, invoices that
-bill only what the chain confirms (first verification free, LiteSVM never billed), "paid and final in N ms", and the
-business model labelled a model."""
+"""Knos for teams: usage metered per team and per agent, invoices that bill only the bounty lines the chain confirms
+(a check is never billed, LiteSVM never billed), "paid and final in N ms", and the business model labelled a model."""
 from __future__ import annotations
 
 import copy
@@ -79,21 +78,18 @@ def test_usage_is_metered_per_team_and_per_agent():
         teams.event("verification", "", "a")
 
 
-def test_the_invoice_bills_what_the_chain_confirms_and_the_first_verification_is_free(cfg):
+def test_the_invoice_bills_only_bounty_lines_the_chain_confirms_and_never_a_check(cfg):
     chain = {"F1": {"found": True, "finalized": True}, "X1": {"found": True, "finalized": True},
              "P2": {"found": True, "finalized": True, "err": None}}
     inv = teams.invoice(_events(), "acme", "2026-10", check=lambda s: chain.get(s, {"found": False}), cfg=cfg)
-    by = [(x["line"], x["usd"]) for x in inv["lines"]]
-    assert by[2] == ("verified merge", "0.00") and "first verification is free" in inv["lines"][2]["why"]
-    assert ("verified merge", "1.00") in by and by.count(("verification (refused)", "0.00")) == 2
+    assert [x["line"] for x in inv["lines"]][0] == "bounty funded, held until its test passes" and len(inv["lines"]) == 3
+    assert not any("verif" in x["line"] or "check" in x["line"] for x in inv["lines"])
     paid = [x for x in inv["lines"] if x["line"].startswith("bounty paid")]
     assert paid[0]["usd"] == "0.00" and "LiteSVM" in paid[0]["evidence"] and paid[0]["would_bill_usd"] == "0.94"
     assert paid[1]["usd"] == "0.94" and paid[1]["onchain_part_usd"] == "0.06" and paid[1]["whole_fee_usd"] == "1.00"
-    x = next(x for x in inv["lines"] if x["line"].startswith("agent check"))
-    assert x["usd"] == "0.00" and x["paid_on_chain_usd"] == "0.02" and x["evidence"] == "finalized on devnet"
-    assert inv["due_usd"] == "1.94" and inv["test_money"] and "knos_pay" in inv["pay_with"]
-    # November: the free one was used in October, so it is billed
-    assert teams.invoice(_events(), "acme", "2026-11", cfg=cfg)["due_usd"] == "1.00"
+    assert paid[1]["line"] == "bounty paid: Knos bounty fee (5%), off-chain part" and "0.30% (at least 0.05)" in paid[1]["why"]
+    assert inv["due_usd"] == "0.94" and inv["test_money"] and "knos_pay" in inv["pay_with"]
+    assert teams.invoice(_events(), "acme", "2026-11", cfg=cfg)["due_usd"] == "0.00"      # a verification alone bills nothing
 
 
 def test_a_transaction_the_chain_does_not_confirm_is_not_billed(cfg):
@@ -119,17 +115,17 @@ def test_the_dashboard_and_the_record_file(tmp_path, cfg):
         teams.record(e, p)
     d = teams.dashboard(teams.load(p), "acme", cfg=cfg)
     assert d["totals"]["verifications"] == 5 and d["totals"]["failing_merges_blocked"] == 1 and d["cheats_by_rule"] == {"test_edited": 1}
-    assert "No dollar value" in d["money_saved"]["means"] and d["first_verification_free"] == 1
+    assert "No dollar value" in d["money_saved"]["means"] and "first_verification_free" not in d
     assert len(p.read_text().splitlines()) == 9 and teams.load(tmp_path / "none.jsonl") == []
 
 
 def test_the_model_is_price_times_volume_and_says_it_is_a_model(cfg):
     zero = business.model({}, cfg)
     assert zero["month_total"] == "0.00" and zero["label"].startswith("MODEL, not a forecast") and "free cash flow" in zero["label"]
-    m = business.model({"verified_merges": 1000, "agent_checks": 50_000, "bounty_volume_usd": 10_000, "task_packages": 10,
-                        "task_package_price_usd": 2000}, cfg)
-    assert m["month"] == {"verified_merge": "1000.00", "agent_checks": "1000.00", "bounty_fee": "500.00", "task_packages": "2000.00"}
-    assert m["month_total"] == "4500.00" and m["year_total"] == "54000.00"
+    m = business.model({"bounty_volume_usd": 10_000, "task_packages": 10, "task_package_price_usd": 2000}, cfg)
+    assert m["month"] == {"bounty_fee": "500.00", "task_packages": "2000.00"}
+    assert m["month_total"] == "2500.00" and m["year_total"] == "30000.00"
+    assert not any("check" in p["line"] or "merge" in p["line"] for p in business.prices(cfg))     # nobody pays for a check
 
 
 def test_the_teams_page_is_not_published():

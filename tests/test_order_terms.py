@@ -1,4 +1,4 @@
-"""What a work order can promise (knos_pay 2.1, order_terms.rs) in the Solana runtime (LiteSVM): a holdback kept
+"""What a work order can promise (order_terms.rs, added in knos_pay 2.1; run on the tree's 2.2 build) in the Solana runtime (LiteSVM): a holdback kept
 through a warranty (Release, Revert), a standing offer paid once per pull request, a reservation, a cancellation with
 notice and a kill fee, an assigned payment, and markers closed once they no longer matter. Every refusal an attacker
 would try, and a random walk over every instruction in which what entered each order equals what left it plus what
@@ -21,7 +21,7 @@ from knos.settle.v2 import oidc, pay  # noqa: E402
 
 WALK_N = int(os.environ.get("KNOS_FUZZ_N", "500"))   # read at import: conftest clears KNOS_* per test
 WALK_SEED = int(os.environ.get("KNOS_FUZZ_SEED", "313"))
-FEE = pay.order_fee(20 * USDC)                       # 0.50 on an order of 20
+FEE = pay.order_fee(20 * USDC)                       # 0.06 on an order of 20 (0.30%, above the 0.05 floor)
 
 
 def bal(c: OrderChain, *accounts: Pubkey) -> list[int]:

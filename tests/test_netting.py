@@ -38,7 +38,7 @@ def closed(text: str, other: str | None = None) -> tuple[netting.Net, str]:
     return n, text + line + "\n"
 
 
-def test_amounts_are_millionths_and_the_fee_is_the_escrows_own():
+def test_amounts_are_millionths_and_the_fee_is_knos_pays_own():
     assert netting.units("0.32") == 320_000 and netting.units("20") == 20_000_000 and netting.units(7) == 7
     for bad in ("0.0000001", "-1", "a lot"):
         with pytest.raises(Bad):
@@ -253,7 +253,7 @@ def test_a_thousand_outcomes_settle_as_one_release_on_the_programs_as_they_are()
     assert c.claim(aud["seller"], repository_owner_id=SUPPLIER), c.err
     mine, theirs = sides()
     assert netting.anchored(n, mine, theirs) == [] and mine.chain == theirs.chain and (mine.evaluations, mine.accepted, mine.value) == (1000, 999, n.value)
-    assert mine.fees == 0                                   # 1,000 evaluations are inside the month's free 100,000
+    assert mine.fees == 0                                   # 1,000 evaluations are inside the deployed meter's free 10,000 a month (meter.FREE_PER_MONTH)
 
     # 2. one order of exactly the net, funded from the Balance on terms that carry the root; the fee on top
     fees, before = c.balance(c.fee), c.balance(pay.baltok_pda(bal))

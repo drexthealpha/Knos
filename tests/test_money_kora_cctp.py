@@ -13,7 +13,7 @@ from solders.transaction import VersionedTransaction
 
 from knos.money import cctp, kora
 
-MEMO = Pubkey.from_string("MemoSq4gqABAXib96qFbncnwChSh2xN4ztzp7gLPnzE")
+MEMO = Pubkey.from_string("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
 PAY = Pubkey.from_string("5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k")
 
 

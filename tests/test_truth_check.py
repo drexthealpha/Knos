@@ -210,7 +210,7 @@ def test_none_published_and_neither_has_been_published_are_found_too(tmp_path):
                                    "Each crate is published on crates.io.\n\nOn 4 October none was published on npm, before the first publish.\n")
     found = [p for p in _tool().problems(root) if p.rule == "published"]
     assert [(p.file, p.line) for p in found] == [("docs/reference/COMPOSE.md", 1), ("docs/reference/COMPOSE.md", 3)]
-    assert "knos-settle 0.3.20 is on npm" in found[0].against and 'this says "none published"' in found[0].against
+    assert "knos-settle 0.4.0 is on npm" in found[0].against and 'this says "none published"' in found[0].against
 
 
 def test_an_old_meter_price_in_a_comparison_table_is_found_cell_by_cell(tmp_path):
@@ -315,4 +315,4 @@ def test_every_index_figure_names_its_basis():
     bench = (ROOT / "docs" / "reference" / "BENCH.md").read_text(encoding="utf-8")
     assert bench.count("first claiming PR per repository: any check failed") == 2 and "every claiming PR: any check failed" in bench
     head = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("\n## ", 1)[0]
-    assert "superseded" in head and "docs/reference/MARKET.md" in head
+    assert "superseded" in head and "docs/reference/MARKET.md" not in head           # MARKET.md was deleted on 27 Oct

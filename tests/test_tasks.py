@@ -237,7 +237,6 @@ GOOD = {"reproduce": {"actor_id": 4242, "verified": True, "file": "reproductions
         "witness": {"actor_id": 4242, "repository_owner_id": 4242, "funded_tx": "F" * 64, "failed_run": "https://github.com/run/1", "paid_tx": "P" * 64,
                     "replay_refused": "https://github.com/c/1", "statements_agree": True, "verified": "passed"}}
 KIND_NAMES = ["reproduce", "shadow", "fund", "install", "judge", "compose", "gate", "keyholder", "tamper", "witness"]
-JUDGEBOX_FILES = ("tamper",)        # tasks/outside/tamper.json is written with the judge's cheat bounty: held to the code once it is there
 
 
 def test_every_kind_states_its_evidence_and_counter_and_only_an_outside_actor_is_counted():

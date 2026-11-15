@@ -171,7 +171,7 @@ def test_bad_tokens_are_reported_not_raised(env):
 
 
 def test_the_worker_pass_relays_oldest_first_retries_the_rate_limit_and_cranks(env, monkeypatch, tmp_path):
-    """ghrelay.once(): what `knos relay` runs every 10 seconds. Two bounties funded seconds apart in one repository
+    """ghrelay.once(): what `knos relay --serve` runs every 3 seconds by default (--every). Two bounties funded seconds apart in one repository
     are found newest first; both end up funded, in GitHub's order. A payment whose window has passed is released."""
     import time
 

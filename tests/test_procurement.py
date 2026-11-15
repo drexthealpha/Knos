@@ -90,7 +90,7 @@ def test_an_envelope_shows_before_and_after_and_refuses_by_the_amount_over():
     c = controls.commitment(but(OFFER, outcome="feature", suppliers=["hubot"]))
     # the fee of knos_pay 2.2 (0.30%): 1.20 on each month's 400 ...
     assert c == {"suppliers": 1, "periods": 3, "cap": 400 * U, "fee": 1_200_000, "value": 1200 * U, "leaves": 1_203_600_000}
-    # ... and under the 0.3.14 fee, which the public program charges until that upgrade executes: 10.00 on each
+    # ... and under the 0.3.14 fee, which orders funded under knos_pay 2.1 (before 9 Oct 2026) keep: 10.00 on each
     assert controls.commitment(but(OFFER, outcome="feature", suppliers=["hubot"]), rule=fees.OLD) == {
         "suppliers": 1, "periods": 3, "cap": 400 * U, "fee": 10 * U, "value": 1200 * U, "leaves": 1230 * U}
     fine = controls.fit(ENV, c["leaves"])

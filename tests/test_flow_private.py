@@ -27,8 +27,8 @@ ATTESTOR, ATTESTOR_ID = "acme/knos-settle", 31_313_131
 TARGET, TARGET_ID = "acme/vault-core", 918_273_645
 ISSUE, PULL = 41_077, 41_123                # numbers no hash or address holds by chance
 ACME = user("acme", 9000, "Organization")
-# The chain answers Version 2 (knos_pay 2.2: 0.30%, at least 0.05), then 1 (2.1, which the public ids run until the
-# upgrade: the 0.3.14 tiers): every test runs on both, and P(old, new) is what it pins for each.
+# The chain answers Version 2 (knos_pay 2.2: 0.30%, at least 0.05), then 1 (2.1, which the public ids ran until
+# proposal 8 executed on 9 Oct 2026: the 0.3.14 tiers): every test runs on both, and P(old, new) is what it pins for each.
 LIVE = Live()
 P = LIVE.pick
 

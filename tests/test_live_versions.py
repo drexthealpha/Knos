@@ -1,8 +1,8 @@
-"""knos_meter and knos_passkey 1.0 keep running until the proposals that upgrade them execute, so the 0.3.14 relay asks
-each which build it is before it sends what only 1.1 has (knos.settle.v2.live): a batch for the meter, a passkey
-wallet's Fund. On LiteSVM with the builds of this tree (1.1) nothing changes. Against a 1.0 program the answer is a
-plain sentence with the date the upgrade executes, read from the upgrade multisig on the same cluster, and nothing is
-sent.
+"""knos_meter and knos_passkey 1.1 run on devnet since proposals 5 and 6 executed (docs/reference/MANIFEST.md). A
+cluster that still runs 1.0 is asked which build it is before the relay sends what only 1.1 has (knos.settle.v2.live): a
+batch for the meter, a passkey wallet's Fund. On LiteSVM with the builds of this tree (1.1) nothing changes. Against a
+1.0 program the answer is a plain sentence with the date the upgrade executes, read from the upgrade multisig on the
+same cluster, and nothing is sent.
 
 The 1.0 program here is the 1.1 build behind a ledger that answers the version question as 1.0 does: "invalid
 instruction data", in LiteSVM's words and in a cluster's. Those words were measured against the two programs as
@@ -32,6 +32,8 @@ from knos.settle.v2 import live, meter, passkey, relay  # noqa: E402
 LITESVM = "transaction failed: TransactionErrorInstructionError((1, Fieldless(InvalidInstructionData)))"
 CLUSTER = "transaction failed: {'InstructionError': [0, 'InvalidInstructionData']}"
 APPROVED = 1_791_300_000                      # when the proposals of this build were approved
+LOCK = 172_800      # the time lock in the multisig account tests/fixtures/governance_v2.json recorded (48 h); the lock in force
+                    # on devnet is 691,200 s (scripts/governance.mjs), so the dates here follow the recorded account
 BUFFER = IDS["fee_owner"]                     # any address: the proposal's buffer is not read here
 
 
@@ -118,13 +120,13 @@ def test_a_batch_against_knos_meter_1_0_is_refused_in_plain_words_with_the_date_
         aud = meter.batch_audience(BUYER, SELLER, month, 0, 10, 8, 16_000_000, root, kind)
         r = relay.submit(net, c.payer, token(c, aud, file="attest.yml", repository_owner_id=owner, run_attempt=1), None, JWKS, now=c.now())
         assert not r["ok"] and r["kind"] == kind and net.txs == 0, r
-        when = live._when(APPROVED + 172_800)
+        when = live._when(APPROVED + LOCK)
         assert r["why"].startswith(f"this needs knos_meter 1.1, which executes on {when} or shortly after (proposal 5 of the upgrade multisig"), r["why"]
         assert "The cluster runs knos_meter 1.0 until then" in r["why"] and "Nothing was sent and nothing was charged" in r["why"]
         assert "invalid instruction" not in r["why"].lower() and "InstructionError" not in r["why"]         # not the program's raw refusal
     assert c.book() is None and c.book(claim=True) is None                # no Ledger account was written
     # the time lock is over and nobody executed yet: said so, not promised for a date that has passed
-    late = live.needs(net, c.payer, "knos_meter", APPROVED + 172_800 + 60)
+    late = live.needs(net, c.payer, "knos_meter", APPROVED + LOCK + 60)
     assert late.startswith(f"this needs knos_meter 1.1, which could be executed since {when} and has not been yet (proposal 5")
 
 
@@ -137,7 +139,7 @@ def test_a_passkey_funding_against_knos_passkey_1_0_is_refused_in_plain_words_an
     before = (w.balance(w.source), w.lamports(w.payer.pubkey()), w.nonce())
     r = relay.passkey_fund(net, w.payer, line, REPO, n)
     assert not r["ok"] and r["kind"] == "passkey-fund" and getattr(net, "sent", 0) == 0, r
-    assert r["why"].startswith(f"this needs knos_passkey 1.1, which executes on {live._when(APPROVED + 172_800)} or shortly after (proposal 6 of the upgrade multisig"), r["why"]
+    assert r["why"].startswith(f"this needs knos_passkey 1.1, which executes on {live._when(APPROVED + LOCK)} or shortly after (proposal 6 of the upgrade multisig"), r["why"]
     assert "The cluster runs knos_passkey 1.0 until then" in r["why"] and "the chain would refuse it" not in r["why"]
     assert (w.balance(w.source), w.lamports(w.payer.pubkey()), w.nonce()) == before
     # the same line, once 1.1 runs (the harness's own build): funded
@@ -155,7 +157,7 @@ def test_the_sentence_without_a_date_when_the_upgrade_is_not_approved_or_not_pro
         assert said.startswith("this needs knos_passkey 1.1, " + words), said
     # of two approved proposals for one program the newer one is named (the older would be the one --replace withdraws)
     both = proposals((2, "Approved", "knos_passkey"), (6, "Approved", "knos_passkey"))
-    assert live.executes(old(Counted, passkey.PASSKEY_ID, LITESVM, both)(w), "knos_passkey") == (APPROVED + 172_800, 6, True)
+    assert live.executes(old(Counted, passkey.PASSKEY_ID, LITESVM, both)(w), "knos_passkey") == (APPROVED + LOCK, 6, True)
 
 
 def test_what_both_builds_have_is_built_as_0_3_13_built_it():

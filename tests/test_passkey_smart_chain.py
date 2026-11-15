@@ -1,6 +1,6 @@
 """A passkey signs a buyer's pre-order and a maker's sale of a receivable, inside LiteSVM, with the bytes deployed on
 devnet: LazorKit's smart wallet (tests/thirdparty/lazorkit_devnet_FLb7.so, dumped from FLb7fyAtkfA4TSa2uYcAT8QKHd2pkoMHgmqfnXFXo7ao)
-beside the knos_pay 0.3.34 test build (knos_pay_v2_0334_test.so). Every assertion is a real P-256 ECDSA signature of a
+beside the knos_pay test build of the 0.3.34 branch (knos_pay_v2_0334_test.so). Every assertion is a real P-256 ECDSA signature of a
 software authenticator (tests/test_passkey_chain.py's `Passkey`), verified by LiteSVM's secp256r1 precompile; nobody
 else's key moves the money. A relayer pays the fees and the rents. Synthetic test units."""
 from __future__ import annotations

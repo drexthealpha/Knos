@@ -1,8 +1,8 @@
 """A quorum, the presentation grace and the upgrade between them, from the comment to the program through the relay
 (knos.flow, knos.settle.v2.relay, the knos_pay builds in LiteSVM).
 
-The public program ids run knos_pay 2.1 until the upgrade to 2.2 executes, so the relay meets both and decides by the
-Version the cluster answers:
+The public program ids run knos_pay 2.2 since 9 Oct 2026 (proposal 8); the relay still decides by the Version the
+cluster answers, so the 2.1 build is kept here as the case before the upgrade:
 
   - 2.2 counts judges by the owner of the repository each ran in. Two judges of one owner move nothing, and the
     comment on the pull request says why; two owners pay. Under 2.1 the same two tokens paid: what 0.3.17 did.
@@ -135,7 +135,7 @@ def test_two_judges_of_one_owner_move_nothing_and_the_comment_says_why_and_two_o
 
 def test_a_judges_word_recorded_before_the_upgrade_counts_for_nothing_and_the_relay_says_who_signs_again(tmp_path, pay21):
     raw, options = funded_by_the_comment(tmp_path, 1)
-    c = OrderChain(pay_build=pay21)                                     # the build that is live
+    c = OrderChain(pay_build=pay21)                                     # the build that was live before 9 Oct 2026
     env = c, net = c, Net(c)
     relay.forget()
     try:

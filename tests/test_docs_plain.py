@@ -96,7 +96,7 @@ def test_each_diagram_is_mermaid_with_no_colours_and_an_italic_caption(rel):
 
 
 def test_the_map_lists_the_new_documents_and_draws_the_six_questions():
-    page = read("docs/reference/README.md")         # the map of every document; docs/README.md holds the eight front pages
+    page = read("docs/reference/README.md")         # the map of every document; docs/README.md holds the seven front pages
     assert "| [COMPANIES.md](COMPANIES.md) |" in page
     assert "| [WORDS.md](../WORDS.md) |" in page
     body = MERMAID.findall(page)[0][0]

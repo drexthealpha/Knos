@@ -1,4 +1,4 @@
-"""P-cheatfp (v0.3.31 dogfooding): two cheat rules refused honest work. Each false positive is now passed, and the
+"""P-cheatfp (dogfooding on the 0.3.31 branch, released in 0.4.0): two cheat rules refused honest work. Each false positive is now passed, and the
 cheat each rule exists for is still refused, and the 63 known cases are all still caught."""
 
 from __future__ import annotations

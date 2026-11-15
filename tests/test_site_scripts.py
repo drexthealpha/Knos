@@ -1,5 +1,6 @@
-"""The first screen and the story (web/index.html, docs/STORY.md): the outcome comes first, and the story's seven beats
-name the same public round as the site. Everything here reads files.
+"""The old first screen and the story (web/index.html, docs/STORY.md): the outcome comes first, and every devnet
+transaction docs/STORY.md cites is on the story page (web/story.js). web/index.html is no longer served by Pages (the
+front door is web/door.html); the app's build (KNOS_SPA_AT_ROOT=1) still opens it. Everything here reads files.
 """
 
 from __future__ import annotations
@@ -9,7 +10,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTCOME = "Check an AI agent's pull request before it is paid."
-STEPS = ["one", "two", "three", "four", "five", "six", "seven"]
 
 
 def read(rel: str) -> str:

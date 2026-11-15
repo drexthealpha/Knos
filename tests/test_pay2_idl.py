@@ -363,7 +363,7 @@ def test_an_orders_accounts_written_as_the_idl_says_are_read_by_the_client():
 def test_every_error_code_and_bound_of_the_source_is_the_clients():
     claims = set(constants(CLAIMS_RS, "E_", "u32").values())
     assert claims == {60, 61, 62, 63}
-    # the vault's own codes are 80..99; it passes on the claim reader's and, for a token whose key is no longer usable,
+    # the vault's own codes are 80..103; it passes on the claim reader's and, for a token whose key is no longer usable,
     # the three of knos-oidc's key rule. The client has plain words for every code that is not the claim reader's.
     stale_key = {76, 77, 78}
     own = set(constants(LIB, "E_", "u32").values())

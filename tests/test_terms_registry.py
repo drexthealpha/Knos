@@ -4,7 +4,8 @@ terms/ is what scripts/terms_registry.py publishes from knos.terms_templates; a 
 edit to a listed file fails here, and a changed template becomes the next version); `verify` names the template and
 version of a terms JSON or a hash, or says it is not a published template; `cite` gives the sentence a contract
 carries. docs/reference/TERMS.md states the canonical form knos.terms writes, and its example is a published version. The
-page that browses the registry (web/terms.js) is run in headless Chromium by tests/web/terms.mjs.
+page that browses the registry (web/terms.js) is run in headless Chromium by tests/web/terms.mjs; no published page
+loads web/terms.js (terms.html is not on the live site), so that page is tested here as code.
 """
 from __future__ import annotations
 

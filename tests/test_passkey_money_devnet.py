@@ -1,6 +1,7 @@
 """The passkey money flows on DEVNET, end to end, through the web app's own code (knos_wanted.wallets): opt-in, it
 sends real devnet transactions. KNOS_DEVNET_E2E=1 and KNOS_E2E_RELAYER (a devnet relayer key file with ~0.1 SOL)
-switch it on; KNOS_E2E_OUT names a JSON file for every signature. Programs: LazorKit FLb7fy... (the passkey wallet),
+switch it on; KNOS_E2E_OUT names a JSON file for every signature. Only a person sets them: no workflow does, so in CI
+and in a plain pytest run the whole file skips, and no run's output is kept in the repository. Programs: LazorKit FLb7fy... (the passkey wallet),
 knos_pay 0.3.34 test program FaMHCjzy... (the vault). The passkeys are software P-256 authenticators
 (tests/test_passkey_chain.py); the relayer pays fees, rents and mints test units, and signs nothing else.
 

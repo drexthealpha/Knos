@@ -215,13 +215,13 @@ def test_the_payment_comment_says_paid_and_final_in_n_ms():
 # ---- the latency figures ---------------------------------------------------------------------------------------------
 def test_the_latency_parser_gives_p50_and_p95_by_nearest_rank_and_skips_what_is_not_a_measure():
     rows = [json.dumps({"kind": "record_anchor", "finalized_ms": v, "err": None}) for v in range(1, 21)]      # 1..20 ms
-    rows += [json.dumps({"kind": "escrow_fund", "finalized_ms": 1000}), json.dumps({"kind": "escrow_fund", "finalized_ms": 3000})]
-    rows += ["", "not json", json.dumps({"kind": "escrow_fund", "finalized_ms": None}), json.dumps({"kind": "x", "finalized_ms": 5, "err": "failed"}),
+    rows += [json.dumps({"kind": "vault_fund", "finalized_ms": 1000}), json.dumps({"kind": "vault_fund", "finalized_ms": 3000})]
+    rows += ["", "not json", json.dumps({"kind": "vault_fund", "finalized_ms": None}), json.dumps({"kind": "x", "finalized_ms": 5, "err": "failed"}),
              json.dumps({"kind": "x", "finalized_ms": True}), json.dumps({"kind": "x", "finalized_ms": -1})]
     got = finality.parse(rows)
     assert got["skipped"] == 5
     assert got["by_kind"]["record_anchor"] == {"n": 20, "p50": 10, "p95": 19, "min": 1, "max": 20}
-    assert got["by_kind"]["escrow_fund"] == {"n": 2, "p50": 1000, "p95": 3000, "min": 1000, "max": 3000}
+    assert got["by_kind"]["vault_fund"] == {"n": 2, "p50": 1000, "p95": 3000, "min": 1000, "max": 3000}
     assert got["all"]["n"] == 22 and got["all"]["p50"] == 11 and got["all"]["p95"] == 1000
     assert finality.parse([{"kind": "k", "knos_wait_ms": 7}], "knos_wait_ms")["all"]["p50"] == 7
     assert finality.summary([]) == {"n": 0, "p50": None, "p95": None, "min": None, "max": None}
@@ -234,7 +234,7 @@ def test_the_committed_measurement_is_labelled_and_has_at_least_thirty_runs():
     m = json.loads(p.read_text(encoding="utf-8"))
     assert "internal dogfooding" in m["label"] and "our own devnet test traffic" in m["label"]
     assert m["all"]["n"] >= 30 and m["all"]["p50"] <= m["all"]["p95"]
-    assert set(m["by_kind"]) <= {"record_anchor", "escrow_fund", "escrow_refund"} and m["consensus"]["why"] == "cert"
+    assert set(m["by_kind"]) <= {"record_anchor", "vault_fund", "vault_refund"} and m["consensus"]["why"] == "cert"
 
 
 def test_the_stats_page_carries_the_finality_block():

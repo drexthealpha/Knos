@@ -1,9 +1,10 @@
 """The Squads accounts the site's upgrade banner (web/upgrade.js) is tested on: the upgrade multisig and its proposals, as the program lays them out.
 
-The multisig account is the real one of devnet (tests/fixtures/governance_v2.json), with its transaction index set to 5: the real one has made no
-proposal yet, and a banner has to be tested on some. The five proposals are built here with the layouts src/knos/mainnet_check.py reads (and
+The multisig account is a snapshot of the devnet one from before 11 Oct 2026 (tests/fixtures/governance_v2.json), with its old 48-hour time lock
+kept on purpose and its transaction index set to 5. The real one's index is newer (proposals up to 9 by 11 Oct 2026, docs/reference/GOVERNANCE.md);
+the five here are built so the banner has known cases. The five proposals are built here with the layouts src/knos/mainnet_check.py reads (and
 scripts/governance.mjs makes), at the addresses its `proposal_address` and `transaction_address` derive. What `pending_proposals` reads from
-them is recorded beside them, and tests/web/site.mjs holds web/upgrade.js to the same answer. Written by `python tests/test_site_recorded.py`."""
+them is recorded beside them (no browser test reads that file since tests/web/site.mjs was deleted on 6 Nov 2026). Written by `python tests/test_site_recorded.py`."""
 
 from __future__ import annotations
 
@@ -91,7 +92,7 @@ def test_the_recorded_accounts_are_what_these_builders_write_and_the_reader_read
     assert json.loads(RECORDED.read_text(encoding="utf-8")) == json.loads(json.dumps(got)), "regenerate: python tests/test_site_recorded.py"
     pending = {p["index"]: p for p in got["pending"]}
     assert sorted(pending) == [1, 3, 4, 5] and "2" not in pending                     # the executed one is not pending
-    assert (pending[4]["status"], pending[4]["kind"], pending[4]["program"], pending[4]["buffer"], pending[4]["executes_at"]) == ("Approved", "upgrade", IDS["knos_pay"], BUFFER_PAY, NOW - 5 * 3600 + 172_800)
+    assert (pending[4]["status"], pending[4]["kind"], pending[4]["program"], pending[4]["buffer"], pending[4]["executes_at"]) == ("Approved", "upgrade", IDS["knos_pay"], BUFFER_PAY, NOW - 5 * 3600 + 172_800)   # the snapshot's 48-hour lock
     assert (pending[3]["status"], pending[3]["approved"], pending[3]["threshold"], pending[3]["executes_at"]) == ("Active", 1, 2, None)
     assert pending[1]["kind"] == "config" and pending[5]["status"] == "Draft"
 

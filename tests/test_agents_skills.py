@@ -1,6 +1,6 @@
-"""The agent skills: Claude Code (plugin/skills/, loaded with the Knos plugin), OpenClaw (integrations/skills/openclaw/) and the site's
-/.well-known/skills/ copy. Each says the same three things: run knos verify before a pull request,
-never open one where the AI policy bans it, disclose AI use."""
+"""The agent skills: Claude Code (plugin/skills/, loaded with the Knos plugin) and OpenClaw
+(integrations/skills/openclaw/). Each holds the same rules for an agent that opens a pull request, as the test below
+names them. The site's web/.well-known/skills/ copy is not checked here."""
 
 from __future__ import annotations
 

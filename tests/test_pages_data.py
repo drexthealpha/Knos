@@ -98,7 +98,7 @@ def github():
 
 
 def build(evs=None, get=None, **kw):
-    return pages_data.build(scenario() if evs is None else evs, COMMENTS, get, kw.pop("index", None), kw.pop("accounts", None), pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset(), **kw)
+    return pages_data.build(scenario() if evs is None else evs, COMMENTS, get, kw.pop("index", None), kw.pop("stats", None), pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset(), **kw)
 
 
 def load(files, path):
@@ -115,52 +115,25 @@ def test_every_file_carries_its_source_and_when_it_was_generated():
             data = json.loads(text)
             assert data["generated"] == iso(NOW) and data["source"]["summary"], path
             assert data["source"]["chain"]["events"] == len(scenario())
-    assert {"bounties.json", "bounties.rss", "u/alice.json", "u/alice.html", "r/octo/widgets.json", "r/octo/widgets.html", "badge/u/alice.json", "badge/r/octo/widgets.json",
-            "rank/earners.json", "rank/earners.html", "rank/funders.json", "rank/funders.html", "rank/agents.json", "rank/agents.html", "latency.json",
+    assert not {"bounties.json", "bounties.rss", "rank/agents.json", "rank/agents.html"} & set(files)     # the old task feed and the agents' rank are not written
+    assert {"u/alice.json", "u/alice.html", "r/octo/widgets.json", "r/octo/widgets.html", "badge/u/alice.json", "badge/r/octo/widgets.json",
+            "rank/earners.json", "rank/earners.html", "rank/funders.json", "rank/funders.html", "latency.json",
             "operations.json", "OPERATIONS.md", "records.json"} <= set(files)
 
 
 def test_a_build_with_nothing_measured_has_every_file_and_says_so(tmp_path):
     assert pages_data.main(["--out", str(tmp_path), "--empty"]) == 0
     got = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file()}
-    assert {"bounties.json", "bounties.rss", "rank/earners.json", "rank/agents.html", "latency.json", "operations.json", "OPERATIONS.md", "records.json"} <= got
-    assert json.loads((tmp_path / "bounties.json").read_text())["count"] == 0
-    agents = json.loads((tmp_path / "rank/agents.json").read_text())
-    assert agents["entries"] == [] and "not measured" in agents["note"]
+    assert {"rank/earners.json", "latency.json", "operations.json", "OPERATIONS.md", "records.json"} <= got
+    assert not {"bounties.json", "bounties.rss", "rank/agents.json"} & got
     assert json.loads((tmp_path / "latency.json").read_text())["merge_to_paid"]["all_time"]["n"] == 0
     assert "No runs to show" in (tmp_path / "OPERATIONS.md").read_text()
 
 
-# ---- bounties --------------------------------------------------------------------------------------------------------
-def test_an_open_funded_task_is_listed_with_its_terms_in_words_and_as_json_and_its_funders_record():
-    key = Pubkey.from_bytes(bytes([8]) * 32)
-    evs = scenario() + events(fund(T0 + 80, "f7", 20, 2, 0, terms=True, source=str(key)), fund(T0 + 90, "f8", 20, 3, 502, faucet=1, source=BAL))
-    acct = lambda deadline, faucet=False: type("Job", (), {"deadline": deadline, "mint": Pubkey.from_string(USDC), "faucet": faucet})()      # noqa: E731
-    accounts = {str(pay2.job_pda(20, 2, key)): acct(NOW + 86_400), str(pay2.job_pda(20, 3, Pubkey.from_string(BAL))): acct(NOW - 5, True)}
-    files = build(evs, github(), accounts=accounts)
-    data = load(files, "bounties.json")
-    assert data["count"] == 1 and data["expired_not_listed"] == 1
-    b = data["bounties"][0]
-    assert (b["repository"], b["issue"], b["amount"], b["mint_kind"], b["currency"], b["deployment"]) == ("acme/gadgets", 2, 5_000_000, "real", "USDC", "second")
-    assert b["url"] == "https://github.com/acme/gadgets/issues/2" and b["deadline"] == iso(NOW + 86_400) and b["reserved_until"] is None
-    assert b["terms"]["json"]["checks"] == [{"app": -1, "name": "test"}] and "test" in " ".join(b["terms"]["words"])
-    assert b["funder"]["id"].startswith("wallet:") and b["funder"]["login"] is None and b["funder"]["record"] is None
-    rss = files["bounties.rss"]
-    assert rss.startswith("<?xml") and "<guid isPermaLink=\"false\">f7</guid>" in rss and "5.00 USDC for acme/gadgets#2" in rss
-
-
-def test_without_the_programs_accounts_no_deadline_is_invented():
-    evs = scenario() + events(fund(T0 + 80, "f7", 20, 2, 502))
-    data = load(build(evs), "bounties.json")
-    assert data["count"] == 1 and data["bounties"][0]["deadline"] is None and "not measured" in data["note"]
-    assert data["bounties"][0]["funder"]["id"] == "gh:502" and data["bounties"][0]["funder"]["login"] == "funder-two"
-    assert data["bounties"][0]["funder"]["record"] == "u/funder-two.json"
-
-
-def test_third_party_text_is_escaped_in_the_feed_and_the_pages():
+def test_third_party_text_is_escaped_in_the_pages():
     evs = events(fund(T0, "fx", 20, 1, 502, terms=False))
     files = pages_data.build(evs, None, None, None, None, pages_data.Names(users={502: "x"}, repos={20: "a/b"}), NOW, own=OWN, own_wallets=frozenset())
-    assert "<script" not in files["bounties.rss"]
+    assert all("<script" not in text for text in files.values())
     assert pages_data.esc('<img src=x onerror="1">') == "&lt;img src=x onerror=&quot;1&quot;&gt;"
     page = pages_data.page("<b>t</b>", "", {"source": {"summary": "<i>s</i>"}, "generated": "g"})
     assert "<b>t</b>" not in page and "<i>s</i>" not in page
@@ -315,21 +288,6 @@ def test_a_mint_that_is_not_circles_is_test_money_and_real_is_never_assumed():
     assert pages_data.mint_kind({"faucet": False}, None) == "test"
     assert pages_data.mint_kind({"faucet": False}, ["x", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"]) == "real"
     assert pages_data.mint_kind({"faucet": True}, [USDC]) == "test"
-
-
-def test_agents_are_ranked_by_the_indexs_false_claim_rate_with_intervals_and_the_month():
-    def row(agent, repo, n, failed):
-        return {"agent": agent, "repo": repo, "number": n, "sha": "s", "class": "failed" if failed else "passed", "failed_checks": ["test"] if failed else [], "phrase": "tests pass"}
-    rows = [row("copilot", f"o/r{i}", 1, i < 3) for i in range(10)] + [row("devin", f"o/d{i}", 1, i < 1) for i in range(10)] + [row("codex", "o/x", 1, False)]
-    index = build_index(rows, "2026-10-02", ["2026-06-04", "2026-10-01"], 5)
-    r = load(build(index=index), "rank/agents.json")
-    assert r["month"] == "2026-10" and r["window"] == ["2026-06-04", "2026-10-01"] and r["root"] == index["root"]
-    got = [(e["rank"], e["agent"], e["repositories"], e["false_claim_rate"]) for e in r["entries"] if e["repositories"]]
-    assert got == [(1, "codex", 1, 0.0), (2, "devin", 10, 0.1), (3, "copilot", 10, 0.3)]
-    copilot = next(e for e in r["entries"] if e["agent"] == "copilot")
-    assert copilot["ci95"] == [0.1078, 0.6032] and copilot["name"] == "GitHub Copilot coding agent"
-    html = build(index=index)["rank/agents.html"]
-    assert "2026-10" in html and "GitHub Copilot coding agent" in html and "30.0%" in html
 
 
 # ---- latency ---------------------------------------------------------------------------------------------------------
@@ -530,35 +488,11 @@ def orders_scenario() -> list[dict]:
     )
 
 
-def order_accounts() -> dict:
-    from _flow import order_bytes
-    usdc, bal, th = Pubkey.from_string(USDC), Pubkey.from_string(BAL), pay2.terms_hash(TERMS.encode())
-    mk = lambda issue, amount, **kw: pay2.read_order(order_bytes(10, issue, amount, bal, th, deadline=NOW + 14 * 86_400, mint=usdc, **kw))  # noqa: E731
-    reserved = bytearray(order_bytes(10, 31, 40_000_000, bal, th, deadline=NOW + 14 * 86_400, mint=usdc, flags=4, reserve_days=7, kill_bps=1000, arbiter=77))
-    reserved[128:136], reserved[136:144] = (602).to_bytes(8, "little"), (NOW + 5 * 86_400).to_bytes(8, "little")
-    return {order(1): pay2.read_order(bytes(reserved)),
-            order(2): mk(32, 50_000_000, flags=4, state=4, paid=40_000_000, holdback_bps=2000, warranty_days=1),
-            order(3): mk(33, 15_000_000, flags=4 | 8, rate=10_000_000, fee=225_000)}
-
-
-def test_open_work_orders_are_listed_with_what_they_promise_and_a_split_is_counted_for_each_payee():
+def test_a_split_of_a_work_order_is_counted_for_each_payee():
     sys.path.insert(0, str(ROOT / "tests"))
     comments = [{"created_at": iso(T0 + 1010), "body": f"knos-relay proof octo/widgets#12 0123456789abcdef ok asked={T0 + 940} sig=opay2 queue=2 workflow=30 wait=3 chain=5 "
                                                     "note=paid t=8\n", "user": {"login": "github-actions[bot]"}}]
-    files = pages_data.build(orders_scenario(), comments, None, None, order_accounts(), pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset())
-    data = load(files, "bounties.json")
-    # the order in its warranty is paid, not open; the reserved one and the standing offer are on offer
-    assert data["count"] == 2 and [b["issue"] for b in data["bounties"]] == [33, 31]
-    standing, taken = data["bounties"]
-    assert (taken["amount"], taken["currency"], taken["deadline"], taken["reserved_until"], taken["terms"]["json"]["reserve"]) == (
-        40_000_000, "USDC", iso(NOW + 14 * 86_400), iso(NOW + 5 * 86_400), 7)
-    assert taken["order"] == {"address": order(1), "seq": 0, "on_offer": 40_000_000, "fee": 1_000_000, "standing": False, "rate": None, "holdback_bps": 0,
-                              "warranty_days": 0, "reserved_by": 602, "reserved_until": iso(NOW + 5 * 86_400), "reserve_days": 7, "kill_bps": 1000,
-                              "cancelled_at": None, "neutral": True, "arbiter_id": 77}
-    assert (standing["amount"], standing["order"]["standing"], standing["order"]["rate"], standing["order"]["on_offer"], standing["reserved_until"]) == (
-        15_000_000, True, 10_000_000, 15_000_000, None)
-    assert taken["funder"]["login"] == "funder-one" and taken["funder"]["funded"] == 3 and taken["funder"]["paid"] == 1
-    assert "Reserved until" in files["bounties.rss"] and "A standing offer: 10.00 for each accepted pull request." in files["bounties.rss"]
+    files = pages_data.build(orders_scenario(), comments, None, None, None, pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset())
     # each payee's own share: alice 28 of the split and 10 of the standing offer, bob 12
     alice, bob = load(files, "u/alice.json"), load(files, "u/bob.json")
     assert alice["as_earner"]["paid_merges"] == 2 and alice["as_earner"]["amounts"]["real"] == {"count": 2, "amount": 38_000_000}
@@ -577,13 +511,6 @@ def test_open_work_orders_are_listed_with_what_they_promise_and_a_split_is_count
     lat = load(files, "latency.json")
     assert lat["merge_to_paid"]["all_time"]["n"] == 1 and lat["merge_to_paid"]["all_time"]["split"]["queue"]["n"] == 1
     assert lat["merge_to_paid"]["all_time"]["split"]["chain"]["p50"] == 5 and "only when it could measure it" in lat["definitions"]["split"]
-    # with no accounts read, what the log says is listed and nothing is invented
-    blind = load(pages_data.build(orders_scenario(), None, None, None, None, pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset()), "bounties.json")
-    o = next(b for b in blind["bounties"] if b["issue"] == 31)["order"]
-    assert (o["reserved_by"], o["reserved_until"], o["holdback_bps"], o["warranty_days"], o["on_offer"]) == (602, iso(NOW + 5 * 86_400), None, None, 40_000_000)
-    assert next(b for b in blind["bounties"] if b["issue"] == 33)["order"]["on_offer"] == 15_000_000
-
-
 # ---- one number, one pipeline ----------------------------------------------------------------------------------------
 def test_the_documents_and_the_site_state_one_merge_to_paid(tmp_path):
     """merge to paid is measured by network_stats.measure() and by nothing else: latency.json, stats.json (the Numbers
@@ -667,7 +594,7 @@ def test_each_owner_of_a_work_order_or_a_bounty_gets_an_audit_file_whose_months_
 
     from knos import audit
     evs = orders_scenario()
-    files = pages_data.build(evs, None, None, None, order_accounts(), pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset())
+    files = pages_data.build(evs, None, None, None, None, pages_data.Names(**NAMES), NOW, own=OWN, own_wallets=frozenset())
     assert [p for p in files if p.startswith("audit/")] == ["audit/501.json"]            # the Balance's owner, by id: no name from GitHub is needed
     doc = load(files, "audit/501.json")
     month = datetime.datetime.fromtimestamp(T0, datetime.timezone.utc).strftime("%Y-%m")

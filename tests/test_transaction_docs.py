@@ -1,5 +1,5 @@
-"""The one transaction (docs/TRANSACTION.md): every link leads to a file, and the witnessed links are the ones the
-README gives."""
+"""The one transaction (docs/TRANSACTION.md): every link leads to a file, and the witnessed links are the ones
+docs/reference/COLOSSEUM.md gives (the README's old reference sections; the test keeps its old name)."""
 from __future__ import annotations
 
 import json

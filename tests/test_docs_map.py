@@ -1,7 +1,7 @@
 """docs/README.md is the front map: the seven pages a stranger reads first, each on it once, and nothing else in docs/*.md.
 docs/reference/README.md is the map of every other document: every file in docs/reference/*.md is on it once, under one
 of six questions, and every link on either map leads to a file. docs/STORY.md and web/story.js tell the three-minute
-demonstration in seven beats, each with evidence that exists in the repository; what follows the last beat is an
+demonstration in six beats, each with evidence that exists in the repository; what follows the last beat is an
 invitation and claims nobody. docs/reference/MANIFEST.md is what scripts/release_manifest.py writes from its sources."""
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ FRONT = ["STORY.md", "START.md", "PRICING.md", "TRUST.md", "NUMBERS.md", "TRANSA
 FIXED = {"INDEX_METHOD.md": "the Agent PR Index method, fixed in advance (its hash is published), so it does not move",
          "WHY.md": "why Knos exists, linked from the README as Why (Round 10, V5), so it does not move"}
 QUESTIONS = ["Does it work?", "Why does it matter?", "What is new?", "How do I use it?", "How do I build on it?", "How is it run and paid for?"]
-STEPS = 7
 WORDS = re.compile(r"[A-Za-z0-9][\w'%.,/-]*")
 
 
@@ -70,14 +69,13 @@ def test_every_reference_document_is_on_the_reference_map_once_under_one_of_six_
 
 
 def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
-    # the IRIS and NEAR sections (between their entry marks) are the contests' long form, outside the front page's parts
     readme = read("docs/reference/COLOSSEUM.md")      # the README's old reference sections (Round 9, U1)
     above, below = readme.split("\n---\n", 1)
     # in plain words: how it works (the valley: demand, Ready, vault, proof), one use of it (paying AI agents for
     # verified pull requests; the bounty is the smallest example), the ten-second check, why nobody can fudge the
     # count, whether it is real (the table of today's numbers); where to check every claim (the release page), the number, words,
     # the questions people search (tests/test_seo.py)
-    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works", "Paid only when the proof passes", "Try it in ten seconds",
+    assert re.findall(r"(?m)^## (.+)$", above) == ["How it works", "Paid only when the test passes", "Try it in ten seconds",
                                                     "Why nobody can fudge the count", "Is it real?", "From a terminal",
                                                     "Check every claim yourself", "Words", "Questions", "Read more"]
     more = above.split("## Read more")[1]
@@ -86,7 +84,7 @@ def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
     assert len(real) == 3 and [links(line) for line in real].count(["DISCLOSURE.md"]) == 1      # three plain lines, one link to the limits
     for said in ("devnet", "test USDC", "test money only", "no customers yet", "One person holds every key today"):
         assert said in " ".join(real), said
-    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "/docs/diagrams/" in above.split("## Paid only when the proof passes\n")[1].split("\n## ")[0]
+    assert above.index("## How it works") < above.index("<!-- bench:today -->") and "/docs/diagrams/" in above.split("## Paid only when the test passes\n")[1].split("\n## ")[0]
     table = above[above.index("<!-- bench:today -->"):above.index("<!-- /bench:today -->")]
     numbers = read("docs/NUMBERS.md")
     printed = re.findall(r"(?m)^\| \d \| ([^:|]+)[^|]*\| (\d+) \|", numbers)
@@ -130,7 +128,7 @@ def test_the_front_pages_point_where_a_stranger_can_go_and_name_no_removed_folde
 
 
 
-def test_the_page_tells_the_same_seven_beats_and_stands_still_under_reduced_motion():
+def test_the_page_tells_the_same_six_beats_and_stands_still_under_reduced_motion():
     source = read("web/story.js")
     assert "export function renderStory(el, ctx" in source and "prefersReduced" in source
     assert not re.search(r"https?://(?!drexthealpha\.github\.io|github\.com/drexthealpha|explorer\.solana\.com)", source)

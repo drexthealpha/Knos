@@ -270,7 +270,7 @@ def test_the_cases_file_is_what_the_python_answers_and_each_rule_is_in_it():
     # the price book's table, to the cent, under the 0.3.18 fee (0.30%, at least 0.05) ...
     assert [(controls.money(r["amount"]), controls.money(r["fee"]), r["effectivePct"]) for r in got["feeTable"]] == [
         ("5.00", "0.05", "1.00"), ("20.00", "0.06", "0.30"), ("1,000.00", "3.00", "0.30"), ("5,000.00", "15.00", "0.30"), ("50,000.00", "150.00", "0.30")]
-    # ... and under the 0.3.14 fee, which the public program charges until knos_pay 2.2 is live
+    # ... and under the 0.3.14 fee, which an order funded under knos_pay 2.1 keeps
     assert [(controls.money(r["amount"]), controls.money(r["fee"]), r["effective_pct"]) for r in controls.fee_table(rule=fees.OLD)] == [
         ("5.00", "0.40", "8.00"), ("20.00", "0.50", "2.50"), ("1,000.00", "25.00", "2.50"), ("5,000.00", "65.00", "1.30"), ("50,000.00", "515.00", "1.03")]
     # the same decision under the 0.3.14 fee: 4,935.643565 and its fee of 64.356435 were exactly the 5,000 left of a day

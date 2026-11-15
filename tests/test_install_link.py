@@ -91,7 +91,7 @@ def test_the_link_opens_githubs_editor_with_the_exact_file_and_fits():
     query = urllib.parse.parse_qs(url.query, strict_parsing=True)
     assert (url.scheme, url.netloc, url.path) == ("https", "github.com", "/acme/widgets/new/main")
     assert query == {"filename": [".github/workflows/knos.yml"], "value": [text]}          # the file comes back byte for byte
-    assert len(link) < init.URL_LIMIT // 3                                                 # 2,573 of GitHub's 8,191 bytes
+    assert len(link) < init.URL_LIMIT // 3                                                 # 2,553 of GitHub's 8,191 bytes (measured)
     assert init.install_link("https://github.com/acme/widgets.git@release/1.x", "a").startswith("https://github.com/acme/widgets/new/release/1.x?")
     # the long file does not fit in a link, which is why there is a short one
     with pytest.raises(ValueError, match="GitHub takes at most 8191"):

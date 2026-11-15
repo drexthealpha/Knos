@@ -596,7 +596,7 @@ def test_a_proof_pays_the_address_the_token_carries(chain):
     c.token_account(wallet, c.usdc)
     sol0 = c.lamports(c.payer.pubkey())
     assert do_pay(c, job, tok, payee, wallet), c.err
-    # 2.5% to the fee account, the rest to the wallet the author named; the job is gone
+    # the fee floor of 0.05 to the fee account (0.30% of 5.00 is less), the rest to the wallet the author named; the job is gone
     assert (c.balance(pay.ata(wallet, c.usdc)), c.balance(c.fee) - fee0, vault0 - c.balance(pay.vault_pda(c.usdc))) == (4_950_000, 50_000, 5 * USDC)
     assert c.data(job) is None
     assert c.said("knos2:") == [f"knos2:paid repo={REPO} issue={j.issue} payee={payee} amount=4950000 fee=50000 to={wallet}"]

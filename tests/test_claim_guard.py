@@ -26,8 +26,8 @@ Thank you for the pull request. One thing to set straight, so that nobody waits 
 
 - Issue #17 is a log written by a workflow. It is not a task and carries no payment.
 - Issue #17 has no funded order, so no payment is attached to it or to work done for it.
-- Knos pays only orders funded with `/knos fund`, on Solana devnet, in test USDC that has no monetary value.
-- A payment goes to the Solana address or passkey its payee binds. An address on another chain cannot be paid.
+- On GitHub, Knos pays only orders funded with `/knos fund`, on Solana devnet, in test USDC that has no monetary value.
+- A GitHub payment goes to the Solana address or passkey its payee binds.
 - Funded work is listed by `knos work list`. The playground shows a funded order from start to finish: https://github.com/drexthealpha/Knos
 - Funded tasks anyone may take carry the label `knos-funded` there: https://github.com/drexthealpha/Knos/issues?q=is%3Aissue+is%3Aopen+label%3Aknos-funded
 

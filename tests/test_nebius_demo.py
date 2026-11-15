@@ -1,5 +1,6 @@
 """The golden path end to end in MOCK mode (no key): the referee's runs are real, every model and search number is
-labelled MOCK, zeros stay zeros, and the committed panel in examples/nebius is such a run."""
+labelled MOCK, zeros stay zeros, and the panel in examples/nebius is such a run (that folder left
+the public repository on 28 Oct 2026, so here this module skips)."""
 from __future__ import annotations
 import pathlib as _pl
 

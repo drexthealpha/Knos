@@ -266,7 +266,7 @@ def test_knos_bounties_lists_open_work_largest_first_with_what_the_author_gets()
     assert about(unnamed) == (None, None, None)
     assert got["open"] == 3 and got["cluster"] == "devnet" and got["note"] == "test USDC, no real value"
     for said in ("Fixes #<issue>", "No wallet is needed to start", "GitHub account", "`/knos address <Solana address>`", "held for that account for 180 days",
-                 "knos claim <address>", "https://drexthealpha.github.io/Knos/#claim"):
+                 "knos claim <address>"):
         assert said in got["how"]
 
 
@@ -405,7 +405,7 @@ def test_knos_due_shows_what_waits_what_was_paid_and_how_to_claim():
     assert old["waiting"] == [{"mint": str(pay.faucet_mint()), "amount_usdc": "19.50"}] and old["waiting_usdc"] == "19.50"
     assert old["paid"] == {"pull_requests": 3, "repositories": 2, "total_usdc": "61.25"}
     assert got["said"] == "mona has bound no wallet. The first deployment (Knos 0.3.11 and earlier) holds 19.50 USDC for mona."
-    assert "knos claim <address>" in got["how"] and "https://drexthealpha.github.io/Knos/#claim" in got["how"] and "knos claim --v1 <address>" in got["how"]
+    assert "knos claim <address>" in got["how"] and "#claim" not in got["how"] and "knos claim --v1 <address>" in got["how"]
     assert (got["wallet"], got["held"], got["balances"]) == (None, [], []) and got["record"]["paid"] == 0
     github.pages["users/nobody"] = {"id": 5, "login": "nobody"}
     empty = call("knos_due", {"login": "nobody"}, ledger, github)["structuredContent"]
@@ -533,7 +533,7 @@ def test_knos_due_shows_the_bound_wallet_what_is_held_the_record_and_the_balance
                       "test_paid": 5, "test_total_usdc": "97.50", "self_paid": 1}
     assert mona["said"] == ("mona has bound no wallet. 1 payment is held for mona until a wallet is bound. The first deployment (Knos 0.3.11 and earlier) holds "
                             "19.50 USDC for mona.")
-    assert mona["how"].startswith("Bind a wallet as this GitHub account with `knos claim <address>` or at https://drexthealpha.github.io/Knos/#claim: "
+    assert mona["how"].startswith("Bind a wallet as this GitHub account with `knos claim <address>`: "
                                   "what is held is sent there") and mona["balances"] == []
     assert mona["first_deployment"]["waiting_usdc"] == "19.50"
     hubot = call("knos_due", {"login": "hubot"}, ledger, github)["structuredContent"]
@@ -877,7 +877,7 @@ def test_knos_settle_checks_the_merge_and_the_escrow_before_it_hands_back_the_co
     assert out["post"] == {"comment": "/knos settle", "on": "https://github.com/octo/widgets/pull/12",
                            "as": "anyone with a GitHub account: it makes the payment or tries it again"}
     assert isinstance(commands.parse("/knos settle", on_pull=True), commands.Settle)
-    assert (out["can"], out["missing"], out["merged"], out["closes"], out["escrow"]) == (True, [], True, [7], [{"issue": 7, "bounties": 4}])
+    assert (out["can"], out["missing"], out["merged"], out["closes"], out["held"]) == (True, [], True, [7], [{"issue": 7, "bounties": 4}])
     for body, merged, missing in (("Fixes #7", False, "the pull request is not merged: nothing is paid before a maintainer merges it"),
                                   ("Refactors things.", True, "its description closes no issue (it needs `Fixes #<issue>`)"),
                                   ("Fixes #8", True, "none of the issues it closes has a held bounty")):

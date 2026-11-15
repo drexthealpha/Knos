@@ -203,7 +203,7 @@ def test_understood_says_what_was_understood_and_what_happens_next():
     assert c.reply("understood", c.Settle()) == "Knos: trying this pull request's payment again. The result follows here."
     assert c.reply("understood", c.Help()) == "Knos acts on the first line of a comment that starts with `/knos`:\n" + "\n".join(
         f"- `{form}`: {c._ABOUT[name]}" for name, form in c.FORMS.items())
-    assert c.reply("understood", c.Status(), text="20 test USDC is in escrow for issue #7.") == "Knos: 20 test USDC is in escrow for issue #7."
+    assert c.reply("understood", c.Status(), text="20 test USDC is held for issue #7.") == "Knos: 20 test USDC is held for issue #7."
     assert c.reply("understood", c.Take()) == "Knos: understood `/knos take`."            # knos.who.take writes the real one
 
 

@@ -115,7 +115,8 @@ def test_both_counts_are_published_each_under_the_name_of_what_it_counts():
 
 def test_the_docs_quote_what_the_published_index_counts():
     """docs/bench.json is the published index (release index-2026-10-02) counted again from its own 2,431 records:
-    `python scripts/bench_docs.py --from index.json`. The headline and the stricter count, pinned."""
+    `python scripts/bench_docs.py --from index.json`. The headline and the stricter count, pinned. The docs stay on that
+    scan: an index.json the site serves from a later scan is not counted here until bench_docs.py is run on it."""
     ix = json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8"))["market"]["index"]
     o, r = ix["overall"], ix["overall"]["first_pr_per_repo"]
     assert (ix["n_prs"], o["prs"], r["repos"]) == (2431, 2431, 826)
@@ -611,6 +612,7 @@ def test_the_committed_weekly_file_is_the_committed_sample_cut_by_week_and_the_p
         assert agent["all_weeks"] == agent_pr_index._add(agent["weeks"])
     if later:
         assert ("not whole weeks" in series["source"]) == any(not w["full_week"] for a in series["agents"].values() for w in a["weeks"] if w["week"] in later)
+    # the committed series stops at the week of 2026-09-28: no later week has been merged into docs/agent_weekly.json
     assert series["name"] == "Agent PR Index" and series["latest_week"] == "2026-09-28" and "**Agent PR Index, week of 2026-09-28.**" in page
     # the two weeks read on 2026-10-05 keep every number they were published with (0.3.15), and say what cannot be derived
     for name, was in PUBLISHED_0315.items():

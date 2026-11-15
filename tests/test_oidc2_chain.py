@@ -1,7 +1,7 @@
 """The second deployment of knos-oidc in the Solana runtime (LiteSVM, the testkeys build): tokens are verified as in
 the first deployment, and a signing key now has a life. GitHub's four keys are the root. Any other key enters on
 GitHub's own signature from the pinned rotate workflow run in the attester's repository, waits a day and the
-guardian's approval, expires 30 days after it was last attested, and can be revoked for ever. Prints the compute
+key admin's approval (the guardian in the test build, the upgrade vault in the real one), expires 30 days after it was last attested, and can be revoked for ever. Prints the compute
 units of every step."""
 from __future__ import annotations
 
@@ -911,7 +911,7 @@ def test_the_real_build_trusts_none_of_the_test_values():
         assert not send(GH, github[0]) and code(c) == 79
     assert not c.send_unsigned([oidc.revoke_ix(GUARDIAN.pubkey(), GH, github[0])]) and code(c) == 79
     assert not c.key(GH, github[0]).revoked
-    # the real guardian revokes, and the key is gone
+    # the guardian cannot revoke here (a brake only); the key admin, the upgrade vault, revokes and the key is gone
     assert not c.send_unsigned([oidc.revoke_ix(oidc.GUARDIAN, GH, github[0])]) and code(c) == 79      # a brake only
     assert c.send_unsigned([oidc.revoke_ix(oidc.KEY_ADMIN, GH, github[0])]), c.err
     assert c.key(GH, github[0]).revoked and not c.send_unsigned([oidc.approve_ix(oidc.KEY_ADMIN, GH, github[0])]) and code(c) == 78

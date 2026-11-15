@@ -1,8 +1,8 @@
-"""The knos_pay build the public program ids run until the upgrade to 2.2 executes (2.1, the 0.3.17 release's test
-build), for tests that run one client against BOTH builds: the relay, the workflows and the commands decide by the
+"""The knos_pay build the public program ids ran until proposal 8 upgraded them to 2.2 on 9 Oct 2026 (2.1, the 0.3.17
+release's test build), kept for tests that run one client against BOTH builds: the relay, the workflows and the commands decide by the
 Version the cluster answers, never by the tree.
 
-The file is not kept twice. Where the tree holds the live builds (tests/fixtures/live/) it is read from there; else
+The file is not kept twice. Where the tree holds the kept 2.1 build (tests/fixtures/live/) it is read from there; else
 it is taken from the commit of the 0.3.17 release (`git show`) into a directory pytest made. Either way its bytes are
 the pinned ones (SHA256), or the tests that need it are skipped with the reason.
 

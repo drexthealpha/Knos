@@ -415,7 +415,7 @@ def test_every_public_cluster_but_the_one_checked_is_asked(monkeypatch, here, ot
     assert got == {name: {"devnet": False, "testnet": None, "mainnet-beta": True}[name] for name in others}
 
 
-# ---- the live claim "48" (scripts/claims_check.py, LIVE["upgrade_delay"]) --------------------------------------------
+# ---- the live claim "8 days" (scripts/claims_check.py, LIVE["upgrade_delay"]) ----------------------------------------
 
 def _claims_check():
     import importlib.util

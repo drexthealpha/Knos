@@ -1,17 +1,23 @@
-"""What a search engine and a link preview read of the site, held to the files and to a build of them.
+"""What a search engine and a link preview read of the site, held to the files and to two builds of them.
 
-    the first screen   web/index.html: a title of 60 characters at most, written for a person; a description of 155 at
-                       most that begins with the one sentence (scripts/public_face.py); the author; the share tags say the
-                       same; a SoftwareApplication in JSON-LD, with no rating and no review (none exists)
-    the questions      web/faq.html, its FAQPage and README.md's "Questions" give the same questions and the same words;
-                       each answer is two sentences of twelve words at most, at grade 8 or lower (tests/test_readme_plain.py)
-    pages to index     web/faq.html and web/check/index.html: their own title, description and canonical address, one h1,
+    the app's page     web/index.html, the one-page app (the published build leaves it out; the front door at the bare
+                       address is web/door.html, tests/test_one_page.py): a title of 60 characters at most, written for a
+                       person; a description of 155 at most that begins with the one sentence (scripts/public_face.py);
+                       the author; the share tags say the same; a SoftwareApplication in JSON-LD, with no rating and no review
+    the questions      web/faq.html, its FAQPage and docs/reference/COLOSSEUM.md's "Questions" give the same questions and
+                       the same words; each answer is two sentences of twelve words at most, at grade 8 or lower
+                       (tests/test_readme_plain.py), and none puts a price on a proof
+    source pages       web/faq.html and web/check/index.html: their own title, description and canonical address, one h1,
                        3 to 5 links inside the site, 2 or 3 to GitHub's or Solana's documentation, nothing loaded from
-                       another host, and "Last updated" with the date scripts/build_site.sh stamps
-    sitemap, llms.txt  every address of web/sitemap.xml is a page the build has, with the build's date; web/llms.txt
-                       has the shape of https://llmstxt.org/ (an H1, a one-line summary, lists of links, "Optional" last)
-                       and every link in it leads to a file
-The pages in a browser (words, width, requests): tests/web/seo.mjs, run here on a build; skipped with no node or browser.
+                       another host, and "Last updated" with the date scripts/build_site.sh stamps. The published build
+                       sends faq.html on to the front door and serves the Colosseum checker at check/, so these are held
+                       on the app's build (KNOS_SPA_AT_ROOT=1)
+    sitemap, llms.txt  the published build's (KNOS_SPA_AT_ROOT=0) sitemap.xml and llms.txt, written by
+                       scripts/site_product.py, are web/sitemap.xml and web/llms.txt word for word; every address of the
+                       sitemap is a page that build has, with a date; llms.txt has the shape of https://llmstxt.org/ (an H1,
+                       the front door's own description as its one-line summary, lists of links, "Optional" last), every
+                       link in it leads to a file, and it never sells a proof
+The pages in a browser (words, width, requests): tests/web/seo.mjs, run here on the app's build; skipped with no node or browser.
 """
 
 from __future__ import annotations
@@ -105,9 +111,10 @@ def sentence() -> str:
     return json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))["sentence"]
 
 
-def readme_questions() -> list[tuple[str, str]]:
-    """README.md's "Questions": (question, answer) with the links' targets taken out."""
-    text = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")      # the README's old reference sections (Round 9, U1)
+def colosseum_questions() -> list[tuple[str, str]]:
+    """docs/reference/COLOSSEUM.md's "Questions" (the README's old reference section, Round 9, U1): (question, answer) with
+    the links' targets taken out."""
+    text = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
     part = text.split("\n## Questions\n", 1)[1].split("\n## ", 1)[0]
     pairs = re.findall(r"(?m)^### (.+)\n\n(.+)$", part)
     return [(q, re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", a)) for q, a in pairs]
@@ -152,11 +159,12 @@ def test_the_first_screen_says_what_it_is_in_json_ld_and_claims_no_rating():
 def test_the_questions_say_the_same_words_on_the_page_in_its_json_ld_and_in_the_readme():
     shown = [(q, a) for q, a in page("faq.html").folds]
     assert 6 <= len(shown) <= 8
-    assert shown == faq_ld() == readme_questions()
+    assert shown == faq_ld() == colosseum_questions()
     for q, a in shown:
         said = [s for s in re.split(r"(?<=[.!?])\s+", a) if s]
         assert len(said) <= 2 and all(len(WORD.findall(s)) <= 12 for s in said), (q, a)
         assert not re.search(r"\b(wallets?|hash(es|ed)?|pin(s|ned)?|token accounts?)\b", a, re.I), a     # the site's record words
+        assert not re.search(r"you choose|(order|buy|price|pay) (a|per) proof|paid on proof|pay on proof", a, re.I), a   # nobody pays for a proof
     level, _per = plain.grade(" ".join(a for _q, a in shown))
     assert level <= 8, f"the answers read at grade {level:.1f}"
 
@@ -172,7 +180,7 @@ def test_the_answers_agree_with_the_tree():
     readme = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
     assert "The money waits in a program on [Solana](../WORDS.md#solana), not with Knos." in readme
     assert "Today one person can still change that program, after a public wait" in readme
-    assert "test dollars" in answers["Does Knos use real money?"] and "NEAR testnet" in answers["Does Knos use real money?"]   # the paper proof runs on NEAR testnet
+    assert "test dollars" in answers["Does Knos use real money?"] and "NEAR testnet" in answers["Does Knos use real money?"]
     assert "LIMIT_S = 10" in (WEB / "check.js").read_text(encoding="utf-8")                  # "within ten seconds"
 
 
@@ -225,17 +233,15 @@ def built_file(url: str) -> str:
     return path + "index.html" if path == "" or path.endswith("/") else path
 
 
-def test_the_sitemap_lists_every_public_page_and_names_each_ones_source_for_its_date():
+def test_the_sitemap_lists_the_published_pages_and_names_each_ones_source_for_its_date():
     urls = sitemap()
-    assert [u for u, _d in urls][:4] == [SITE, SITE + "check/", SITE + "faq.html", SITE + "privacy.html"] and len(urls) >= 18
-    for want in ("proof/", "forecasts/", "status/", "calls/", "try/", "how-we-test.html", "pricing.html", "docs/"):
+    assert urls[0] == (SITE, "git:web/door.html")                                   # the front door at the bare address
+    for want in ("claims/", "prove/", "agents/", "labs/", "pricing/", "status/", "privacy.html", "check/"):
         assert SITE + want in [u for u, _d in urls], want
-    assert sum(u.startswith(SITE + "results/") for u, _d in urls) == 6
+    claims = [u for u, _d in urls[2:]][:[u for u, _d in urls].index(SITE + "prove/") - 2]
+    assert claims and all(u.startswith(SITE + "claim/") for u in claims)           # one page per claim, after the list
     for url, d in urls:
-        src = d.removeprefix("git:")
-        assert d.startswith("git:web/") and (ROOT / src).is_file(), (url, d)          # scripts/sitemap_dates.py dates it from git
-        built = "home.html" if url == SITE else built_file(url)
-        assert (WEB / built).is_file() and [h for r, h in page(built).links if r == "canonical"] == [url], url
+        assert d.startswith("git:") and (ROOT / d.removeprefix("git:")).is_file(), (url, d)   # scripts/sitemap_dates.py dates it from git
 
 
 def test_the_front_door_says_what_it_is_and_what_it_costs_in_json_ld():
@@ -249,10 +255,13 @@ def test_the_front_door_says_what_it_is_and_what_it_costs_in_json_ld():
     assert offer["@type"] == "Offer" and offer["price"] == "0" and offer["description"] in pricing and offer["url"] == SITE + "pricing.html"
 
 
-def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere():
-    text = (WEB / "llms.txt").read_text(encoding="utf-8")
+def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere(published: Path):
+    text = (published / "llms.txt").read_text(encoding="utf-8")
+    assert text == (WEB / "llms.txt").read_text(encoding="utf-8")                   # web/llms.txt is the published text
     lines = text.splitlines()
-    assert lines[0] == "# Knos" and lines[1] == "" and lines[2] == f"> {sentence()}"              # the one line opens it
+    (door,) = page("door.html").meta["description"]
+    assert lines[0] == "# Knos" and lines[1] == "" and lines[2] == f"> {door}"      # the front door's own line opens it
+    assert not re.search(r"(order|buy|price|pay) (a|per) proof|paid on proof|pay on proof|paste a paper", text, re.I)
     heads = re.findall(r"(?m)^## (.+)$", text)
     assert heads[-1] == "Optional" and len(heads) >= 2 and not re.search(r"(?m)^#{3,} ", text)
     items = re.findall(r"(?m)^- \[([^\]]+)\]\(([^)]+)\)(?:: .+)?$", text)
@@ -260,23 +269,42 @@ def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere():
     raw = "https://raw.githubusercontent.com/drexthealpha/Knos/main/"
     for _name, url in items:
         if url.startswith(SITE):
-            assert (WEB / built_file(url)).is_file(), url
+            assert (published / built_file(url)).is_file(), url
         elif url.startswith(raw):
             assert (ROOT / url.removeprefix(raw)).is_file(), url
         else:
             assert url in ("https://github.com/drexthealpha/Knos", "https://pypi.org/project/knos/", "https://knos.onrender.com/mcp", "https://knos.onrender.com/app/") or url.startswith("https://github.com/drexthealpha/Knos/tree/main/"), url
 
 
+def test_the_published_sitemap_is_the_source_and_every_address_is_a_page_of_the_build(published: Path):
+    urls = sitemap(published)
+    assert [u for u, _d in urls] == [u for u, _d in sitemap()]
+    assert all(DATE.match(d) for _u, d in urls)                                      # each page's own last commit (scripts/sitemap_dates.py)
+    for url, _d in urls:
+        assert (published / built_file(url)).is_file(), url
+
+
 # ---- a build ------------------------------------------------------------------------------------------------------------
+
+def _build(tmp_path_factory, spa: str) -> Path:
+    site = tmp_path_factory.mktemp("seo") / "site"
+    env = _posix.environ({**os.environ, "PYTHON": _posix.path(sys.executable), "PYTHONPATH": str(ROOT / "src"), "KNOS_SPA_AT_ROOT": spa})
+    run = subprocess.run([_posix.bash(), _posix.path(ROOT / "scripts" / "build_site.sh"), _posix.path(site), "c" * 40],
+                         env=env, capture_output=True, text=True, encoding="utf-8", timeout=600)
+    assert run.returncode == 0, run.stdout + run.stderr
+    return site
+
 
 @pytest.fixture(scope="module")
 def built(tmp_path_factory) -> Path:
-    site = tmp_path_factory.mktemp("seo") / "site"
-    env = _posix.environ({**os.environ, "PYTHON": _posix.path(sys.executable), "PYTHONPATH": str(ROOT / "src")})
-    run = subprocess.run([_posix.bash(), _posix.path(ROOT / "scripts" / "build_site.sh"), _posix.path(site), "c" * 40],
-                         env=env, capture_output=True, text=True, encoding="utf-8", timeout=120)
-    assert run.returncode == 0, run.stdout + run.stderr
-    return site
+    """The app's build (KNOS_SPA_AT_ROOT=1): every page of web/ served whole, as the tests that open them need."""
+    return _build(tmp_path_factory, "1")
+
+
+@pytest.fixture(scope="module")
+def published(tmp_path_factory) -> Path:
+    """The build GitHub Pages publishes (KNOS_SPA_AT_ROOT=0): the front door at the root, older pages sent on."""
+    return _build(tmp_path_factory, "0")
 
 
 def test_the_build_stamps_one_date_on_every_page_and_dates_the_sitemap_from_git(built: Path):
@@ -288,9 +316,6 @@ def test_the_build_stamps_one_date_on_every_page_and_dates_the_sitemap_from_git(
     for rel in PAGES:
         text = (built / rel).read_text(encoding="utf-8")
         assert "KNOS_BUILD_DATE" not in text and f'Last updated <time datetime="{stamp}">{stamp}</time>' in text
-    for url, _d in sitemap(built):
-        assert (built / built_file(url)).is_file(), url
-    assert (built / "llms.txt").read_bytes() == (WEB / "llms.txt").read_bytes()
     assert html.unescape(page("faq.html", built).title) == page("faq.html").title
 
 

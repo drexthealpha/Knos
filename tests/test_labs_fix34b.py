@@ -1,4 +1,4 @@
-"""FIX PHASE 2 (judges JUDGE-MATERIALS-2, JUDGE-CLINICAL-2): lab verdict replay refused across processes; every lab
+"""Fixes from a second review of the labs: lab verdict replay refused across processes; every lab
 runnable with `python -m knos.labs try`; the devnet run supports every field it lists and always writes what ran;
 referee keys never in the buyer's folder; PyLabRobot: one install script, the recorded runs as the labelled default."""
 from __future__ import annotations

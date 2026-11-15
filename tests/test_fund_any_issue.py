@@ -1,9 +1,10 @@
-"""What the site's "Fund any issue" card (web/anyissue.js) is held to: the terms it fixes and the instruction it asks the client for.
+"""The recorded answers for the "Fund any issue" card (web/anyissue.js, in web/index.html's Fund section, a page the
+bare address no longer serves): the terms it fixes and the instruction it asks the client for.
 
 Python is the reference. The terms are made by src/knos/terms.py (`canonical`, `terms_hash`, `describe`) from the names and globs as a
 funder types them (src/knos/commands.py reads a list the same way), and the funding instruction by src/knos/settle/v2/pay.py
-(`fund_order_wallet_ix`), for the wallet and the issue tests/web/site.mjs uses. tests/web/site.mjs gives the page the same boxes and
-holds the terms it shows, their hash, the arguments it hands the client and the transaction its wallet is given to these answers.
+(`fund_order_wallet_ix`). Only this Python half is checked: tests/web/site.mjs, which held web/anyissue.js to these answers in
+a browser, was deleted on 6 Nov 2026, and the NOTE inside the recorded file still names it.
 Written by `python tests/test_fund_any_issue.py`; the test below fails when the file is not what this makes."""
 
 from __future__ import annotations
@@ -87,7 +88,7 @@ def recorded() -> dict:
             "order": {"args": {"funder": str(funder), "funderToken": str(funder_token), "mint": str(USDC), "repoId": REPO_ID, "issue": ISSUE, "amount": AMOUNT, "wfRepo": WF_REPO,
                                "wfSha": WF_SHA, "terms": terms.decode("ascii"), "mode": P.MERGE, "workS": WORK_S, "options": options.hex()},
                      "scope": P.scope_of(REPO_ID, ISSUE).hex(), "orders": orders, "ix": ixs,
-                     "fee": fees.OLD.order(AMOUNT),      # what the public program (knos_pay 2.1) takes on this order: the page is tested against that build
+                     "fee": fees.OLD.order(AMOUNT),      # the knos_pay 2.1 rule (0.50 on 20); 2.2, live since 9 Oct 2026, takes fees.NEW.order: 0.06
                      "terms_checks": ["test"], "terms_paths": ["src/**"], "terms_sha256": hashlib.sha256(terms).hexdigest(),
                      "describe": T.describe(T.parse(terms), "funder")}}
 

@@ -108,7 +108,7 @@ def test_the_pinned_jobs_checks_are_the_ones_the_carrier_repeats():
     assert trigger["trigger"] == {"project": "$CI_PROJECT_PATH", "branch": gr.BRANCH} and trigger["variables"] == {"KNOS_AUD": "$KNOS_AUD"}
 
 
-def test_the_claims_are_held_to_the_escrows_rules_one_by_one():
+def test_the_claims_are_held_to_the_vaults_rules_one_by_one():
     project = {"id": 20, "path": "g/p", "namespace_id": 72}
     good = {"iss": "https://gitlab.com", "iat": 1000, "exp": 1300, "runner_environment": "gitlab-hosted", "ref_type": "branch", "ref_protected": "true",
             "pipeline_source": "pipeline", "ref_path": "refs/heads/knos", "project_path": "g/p", "ci_config_ref_uri": "gitlab.com/g/p//.gitlab-ci.yml@refs/heads/knos",

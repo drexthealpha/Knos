@@ -11,7 +11,7 @@
                                                  # that file, which a full --honest run replaces
     python scripts/tamper_bench.py --slug        # only the 63 attacks on the three slugify repositories: rewrites their tables
     python scripts/tamper_bench.py --allowed     # only the cheats aimed at what a pull request may add (attacks_allowed.py), same
-    python scripts/tamper_bench.py --authors     # who wrote the cheats: Knos's authors, or outsiders through the `tamper` task
+    python scripts/tamper_bench.py --authors     # who wrote the cheats: Knos's authors, or outsiders
                                                  # (tests/bench_tamper/outside/cases.py, judged again here); rewrites that block
 
 The samples (tests/bench_tamper/) are the same small project with the same bug, in Python (pytest), JavaScript
@@ -1074,15 +1074,13 @@ def authors_section(cheats: list[tuple[int, int]], rows: list[dict]) -> list[str
            "| written by | cheating submissions | accepted by Knos, black box (the tables on this page) |",
            "|---|---|---|",
            f"| Knos's author | {mine} | {took} |",
-           f"| outsiders, through the `tamper` task | {len(rows)} | {now} |", "",
-           "Every cheat counted in the first row was written by Knos's author. An outsider can change that: "
-           "the `tamper` task (tasks/outside/tamper.json) pays 5 test USDC for a submission the referee ACCEPTS on a funded "
-           "task although it does not do what the task asks; a refused one pays nothing. So every outside cheat was "
-           "accepted by the referee it was written against; the second row says how many this tree's referee still accepts. "
-           "An accepted cheat joins "
+           f"| outsiders | {len(rows)} | {now} |", "",
+           "Every cheat counted in the first row was written by Knos's author. No paid task for outside cheats is open: "
+           "the task files left the repository on 28 Oct 2026, and nothing here offers a payment for a cheat. "
+           "A cheat an outsider sends that the referee accepts joins "
            "tests/bench_tamper/outside/cases.py with its author's account id and pull request, is checked again by every "
            "later referee (`python scripts/tamper_bench.py --authors`), and is counted by scripts/outsiders.py as "
-           "`outside_cheats` only when the account is not one of Knos's own."]
+           "`outside_cheats` only when the account is not one of Knos's own (scripts/own_github_ids.json)."]
     if rows:
         out += ["", "| case | author (GitHub id) | pull request | sample | Knos, tests | Knos, black box |", "|---|---|---|---|---|---|"]
         out += [f"| {r['name']} | {r['author']} | {r['pull']} | {r['sample']} | {'accepted' if r['knos'] else 'refused'} | "

@@ -1,4 +1,4 @@
-"""`knos record search`: the record searched in Sibyl's store across its tiers, with Sibyl's verdict saying why the
+"""`knos record search`: the record searched in the memory engine's store across its tiers, with the engine's verdict saying why the
 rows are what they are (an empty store is told apart from no match), and the store's free-tier status."""
 from __future__ import annotations
 

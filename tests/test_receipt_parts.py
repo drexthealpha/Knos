@@ -1,8 +1,8 @@
 """The five parts of a receipt (knos.receipt.parts): Identity, Execution, Acceptance, Consequence, Assurance.
 
-A view over receipts of version 4 and 5: nothing is added to a receipt and no version is new. tests/data/receipt_parts.json
-holds receipts and what the view says of each; web/verifier.js reads the same receipts in the page and is held to the same
-answer, word for word (here with node alone, and in tests/web/verifier.mjs).
+A view over receipts of version 4 to 6 (every receipt Knos writes now is version 6: RECEIPT.md): nothing is added to
+a receipt and no version is new. tests/data/receipt_parts.json holds receipts and what the view says of each;
+web/verifier.js reads the same receipts in the page and is held to the same answer, word for word (here with node alone, and in tests/web/verifier.mjs).
 
     WRITE_RECEIPT_PARTS=1 pytest tests/test_receipt_parts.py       writes the file again
 """
@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "tests" / "data" / "receipt_parts.json"
 V4 = json.loads((ROOT / "docs" / "receipt" / "vectors.v4.json").read_text(encoding="utf-8"))["valid_v4"]
 V5 = json.loads((ROOT / "docs" / "receipt" / "vectors.v5.json").read_text(encoding="utf-8"))["valid_v5"]
+V6 = json.loads((ROOT / "docs" / "receipt" / "vectors.v6.json").read_text(encoding="utf-8"))["valid_v6"]
 
 
 def _by(name: str) -> dict:
@@ -41,14 +42,14 @@ def _suite(r5: dict) -> dict:
 
 
 def _cases() -> list[dict]:
-    rows = [(v["name"], v["receipt"]) for v in [*V4, *V5]]
+    rows = [(v["name"], v["receipt"]) for v in [*V4, *V5, *V6]]
     rows += [("a suite decided and one evaluator outside the supplier's control ran it again", _suite(_by("rerun: an arbiter"))),
              ("a suite decided and two evaluators of different owners agree", _suite(_by("agreed: a neutral")))]
     return [{"name": name, "receipt": r, "parts": rc.parts(r)} for name, r in rows]
 
 
 def test_the_file_of_cases_is_what_the_view_says_today():
-    want = json.dumps({"about": "receipts of version 4 and 5 and what knos.receipt.parts says of each (tests/test_receipt_parts.py writes this)",
+    want = json.dumps({"about": "receipts of version 4 to 6 and what knos.receipt.parts says of each (tests/test_receipt_parts.py writes this)",
                        "cases": _cases()}, indent=1, sort_keys=True) + "\n"
     if os.environ.get("WRITE_RECEIPT_PARTS"):
         CASES.write_text(want, encoding="utf-8", newline="\n")
@@ -59,7 +60,7 @@ def test_every_receipt_reads_in_five_parts_in_order_each_one_line():
     for case in _cases():
         got = case["parts"]
         assert [p["id"] for p in got["parts"]] == list(rc.FIVE) == ["identity", "execution", "acceptance", "consequence", "assurance"]
-        assert got["kind"] == rc.PARTS_KIND and got["receipt"] == rc.digest(case["receipt"]) and got["version"] in (4, 5)
+        assert got["kind"] == rc.PARTS_KIND and got["receipt"] == rc.digest(case["receipt"]) and got["version"] in (4, 5, 6)
         for p in got["parts"]:
             assert p["title"] == rc.FIVE_TITLES[p["id"]] and p["asks"].endswith("?") and "\n" not in p["line"] and p["line"].endswith(".") and p["more"], case["name"]
         assert got["authorises_payment"] is rc.authorises_payment(case["receipt"])

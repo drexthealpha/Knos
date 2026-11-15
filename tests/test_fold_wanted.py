@@ -24,7 +24,7 @@ def test_the_apps_own_suite_passes_against_this_knos():
 def test_the_app_installs_knos_from_this_tree_not_from_a_pinned_commit():
     project = (APP / "pyproject.toml").read_text(encoding="utf-8")
     assert "git+https://github.com/drexthealpha/Knos@" not in project, "the folded app must use the Knos of its own commit"
-    assert 'escrow = ["knos", "solders>=0.29"]' in project
+    assert 'hold = ["knos", "solders>=0.29"]' in project               # the extra that installs the hold code
     docker = (APP / "Dockerfile").read_text(encoding="utf-8")
     assert "COPY src ./src" in docker and "COPY apps/wanted ./apps/wanted" in docker and "apps/wanted/Dockerfile" in docker
 

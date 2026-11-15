@@ -131,7 +131,8 @@ def test_the_upgrade_feed_says_which_fee_for_whoever_asks_no_chain():
     assert fees.feed_version(feed(entry(7, "knos_oidc", "executed"), entry(4, "knos_pay", "executed"))) == 1             # another program's upgrade
     assert fees.feed_version(feed(entry(8, "knos_pay", "executed"), entry(4, "knos_pay", "executed"))) == 2
     assert fees.feed_version({}) is None and fees.feed_version(None) is None and fees.feed_version({"entries": "x"}) is None
-    # the committed feed of this tree: no proposal of knos_pay after the 2.1 one has executed, so the site's fallback is the 0.3.14 fee
+    # the committed feed of this tree: proposal 8 of knos_pay has executed, so the site's fallback is the 0.3.18 fee (the
+    # assertion reads the feed, so it holds on either side)
     committed = json.loads((ROOT / "web" / "upgrades.json").read_text(encoding="utf-8"))
     ran = [e["index"] for e in committed["entries"] if e["program"] == "knos_pay" and e["status"] == "executed" and e["index"] > fees.OLD_PAY_PROPOSALS]
     assert fees.feed_version(committed) == (2 if ran else 1)
@@ -175,5 +176,5 @@ def test_every_document_that_states_the_fee_says_both_sides_and_what_an_older_or
         text = " ".join((ROOT / rel).read_text(encoding="utf-8").split())
         assert keeps in text, rel
         assert "0.30%" in text and "0.05" in text, rel                                  # the 0.3.18 fee
-        assert ("2.5% of the first 1,000" in text or "0.3.14 fee" in text) and "0.40" in text, rel     # and the one the public program charges until 2.2 is live
+        assert ("2.5% of the first 1,000" in text or "0.3.14 fee" in text) and "0.40" in text, rel     # and the one knos_pay 2.1 charged, which older orders keep
         assert "knos_pay 2.2" in text, rel

@@ -31,12 +31,13 @@ def test_adapters_cover_every_field_with_one_interface():
         assert a() is a
 
 
-def test_every_example_is_quoted_from_fixtures_with_a_positive_price():
+def test_every_example_is_quoted_from_fixtures_and_a_free_lab_at_zero():
     for name, a in labs.ADAPTERS.items():
         q = a.quote(a.example)
-        assert isinstance(q, dict) and q["price"] > 0 and isinstance(q["turnaround_days"], int) and q["mode"] == "fixture", (name, q)
+        assert isinstance(q, dict) and (q["price"] > 0 or q["price_basis"].startswith("free")) and isinstance(q["turnaround_days"], int) and q["mode"] == "fixture", (name, q)
     assert labs.ADAPTERS["adaptyv"].quote(labs.ADAPTERS["adaptyv"].example)["price"] == 1060.0
-    assert "x402_check" in labs.ADAPTERS["materials_project"].quote(None)["price_basis"]
+    q = labs.ADAPTERS["materials_project"].quote(None)
+    assert q["price"] == 0 and q["price_basis"].startswith("free")
 
 
 @pytest.mark.parametrize("ref", [None, ""])

@@ -97,7 +97,7 @@ def test_the_action_has_the_mode_off_by_default_and_applies_it_with_the_jobs_own
     assert "secrets." not in json.dumps(doc) and "pull_request_target" not in json.dumps(doc)
 
 
-# ---- review findings 34-35 (v0.3.29 fix phase) -------------------------------------------------------------------------
+# ---- review findings 34-35 (fix phase of the 0.3.29 branch) ----------------------------------------------------------
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
 def test_the_scope_globs_reach_knos_as_written_never_expanded_by_the_shell(tmp_path):

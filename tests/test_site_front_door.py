@@ -1,7 +1,8 @@
-"""The front door (web/front_door.js): tests/web/front_door.mjs, on a build of the site.
+"""The invoice check (web/front_door.js), one tool of Knos: tests/web/front_door.mjs, on a build of the site. The front
+door itself is web/door.html (tests/test_one_page.py); this module is served as a file, not as the first screen.
 
-Your own invoice is the first thing the site checks. The node script holds the module to src/knos/ids.py and to
-examples/shadow/ with no browser; then, in headless Chromium: the first screen says 56 words at most and holds one
+The node script holds the module to src/knos/ids.py and to
+examples/shadow/ with no browser; then, in headless Chromium: the check's screen says 56 words at most and holds one
 control; the sample falls into the four groups with no request at all; a pasted invoice with a line billed twice has
 it flagged; a named repository asks nobody but api.github.com; nothing runs off the side at 320 px. No node, no
 `playwright` package or no browser: skipped, with the reason."""
@@ -77,7 +78,7 @@ def test_every_button_the_documents_say_to_press_is_on_the_site():
     import re
 
     web = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "web").rglob("*") if p.suffix in (".html", ".js"))
-    web += (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")   # the one page carries the NEAR flow (scripts/one_page.py)
+    web += (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")   # the one page carries the NEAR flow (scripts/site_pages.py)
     shown = set(re.findall(r">\s*([^<>{}$]+?)\s*<", web)) | set(re.findall(r'"([^"<>]+)"', web))
     # the IRIS page (iris/web/dashboard.html, at /knos/ on the reader's own IRIS): its sample buttons name a $ amount
     shown |= set(re.findall(r"<button[^>]*>\s*([^<>]+?)\s*</button>", (ROOT / "iris" / "web" / "dashboard.html").read_text(encoding="utf-8")))

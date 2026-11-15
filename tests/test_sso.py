@@ -19,7 +19,7 @@ from knos.standalone_verify import SHA256_INFO, G, N, ec_mul
 NOW = 1_790_000_000                  # a fixed clock: the provider and the gate read the same one
 CLIENT = "knos-selfhost"
 SESSION_KEY = "s" * 16 + "e" * 16 + "fixed-test-session-key"
-# RSA-2048, made once for this file and written down so every run signs with the same key (never used elsewhere)
+# RSA-2048, made once for this file and written down so every run signs with the same key (never used elsewhere; tests/ is allowlisted in .gitleaks.toml)
 RSA_N = int(
     "b762f7e3324b2ba6108a5089c938ebd3288466276989b68e2990d71f3ba98ed188a2b10eb8b0c740da553585fd3497d630c9"
     "9acc3859be0c73ebd71aa873233972ba17bdc4ded576bc54aa4d92fa5af27fd808e20e21bc3b6efc8850a3ae92ebf1e803fc"

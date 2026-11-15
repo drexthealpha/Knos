@@ -118,7 +118,7 @@ def test_the_index_row_is_kept_apart_and_labelled_as_public_pull_requests():
         assert p["week"] == top["week"] and p["weeks"] == row["weeks"] and p["dispute"] == row["dispute"] and doc["as_of"] == top["read"]
         assert doc["orders"]["sample"] == 0 and all(c == {"n": 0, "from": "nothing on record", "evidence": []} for c in doc["orders"]["counts"].values())
         assert "score" not in json.dumps({k: v for k, v in doc.items() if k not in ("not_a_score", "limits")}).lower()
-        assert doc["rule"] == record_page.RULE and doc["links"]["page"].endswith(f"#record={doc['supplier']}")
+        assert doc["rule"] == record_page.RULE and doc["links"]["page"] == f"{record_page.RAW}/{doc['supplier']}.json"
     assert record_page.build("nobody-measured", index=INDEX, as_of="2026-10-06")["public"] is None
     with pytest.raises(ValueError):
         record_page.slug("///")
@@ -190,7 +190,7 @@ def test_the_commands_write_the_record_its_badge_and_the_receipt_for_an_invoice(
     image = tmp_path / "b.svg"
     got = CliRunner().invoke(cli.app, ["badge", "record", "vendor-x", "--records", str(out), "--out", str(image)])
     assert got.exit_code == 0 and image.read_text(encoding="utf-8") == record_page.badge_svg(doc)
-    assert f"]({image.as_posix()})]({record_page.SITE}/#record=vendor-x)" in got.output
+    assert f"]({image.as_posix()})]({record_page.RAW}/vendor-x.json)" in got.output
     assert CliRunner().invoke(cli.app, ["badge", "record", "nobody", "--records", str(out)]).exit_code != 0
     # the receipt: one page and its JSON, from an acceptance receipt that checks
     receipt = json.loads((ROOT / "docs" / "receipt" / "vectors.v4.json").read_text(encoding="utf-8"))["valid_v4"][0]["receipt"]

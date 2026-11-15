@@ -18,7 +18,7 @@ def test_no_argument_and_help_print_the_one_flows_four_headings_in_order(capsys)
     assert rc == 0
     assert _help(capsys, "--help") == (0, bare)
     at = lambda text: bare.index(text)  # noqa: E731
-    demand, hold, paid, run = at("Check demand"), at("Hold money"), at("Paid on proof"), at("Run Knos")
+    demand, hold, paid, run = at("Check demand"), at("Hold money"), at("Checks and receipts"), at("Run Knos")
     assert demand < hold < paid < run
     assert [bare.index(f"│ {n} ") for n in ("demand", "idea", "idt")] == sorted(bare.index(f"│ {n} ") for n in ("demand", "idea", "idt"))
     for name in ("demand", "idt", "idea"):
@@ -37,7 +37,7 @@ def test_an_organisations_claim_and_the_meters_statement_are_in_the_help(capsys)
     rc, bare = _help(capsys, "--help")
     said = " ".join(bare.replace("│", " ").split())
     assert rc == 0 and "`claim --org`: an organisation's." in said and "`statement --meter`: evaluations billed." in said
-    assert bare.index("Paid on proof") < bare.index("--org") < bare.index("--meter") < bare.index("Run Knos")
+    assert bare.index("Checks and receipts") < bare.index("--org") < bare.index("--meter") < bare.index("Run Knos")
     rc, text = _help(capsys, "claim", "--help")
     assert rc == 0 and "--org" in text and "organisation" in text
     rc, text = _help(capsys, "statement", "--help")

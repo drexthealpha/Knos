@@ -14,7 +14,7 @@ SPEC = "a" * 64
 USDC = 1_000_000            # micro-USDC per USDC
 
 
-def test_wanted_counts_distinct_buyers_with_money_in_escrow_only(tmp_path):
+def test_wanted_counts_distinct_buyers_with_money_held_only(tmp_path):
     book = referee.DemandBook(tmp_path / "demand.json")
     book.lock(SPEC, "Lab A", 100 * USDC, escrow_ref="devnet-order-1")
     book.lock(SPEC, "lab a", 100 * USDC, escrow_ref="devnet-order-2")          # the same buyer twice counts once
