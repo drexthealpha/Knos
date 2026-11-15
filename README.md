@@ -1,7 +1,8 @@
 # knos-e2e
 
-A tiny repository used to rehearse Knos end to end on Solana devnet: an issue is funded with one comment, a pull
-request is checked, merged and paid to its author's GitHub account. Nothing here is real money.
+Knos's rehearsal repository for the Colosseum part of Knos (tag v0.3.28): issues are funded with one comment and pull
+requests are checked and paid on Solana devnet, in test USDC with no monetary value. Its files and history are also in
+Knos, under `repos/knos-e2e`.
 
 `slugify(title)` in `slug.py` turns a title into a URL slug: lowercase words joined by single hyphens, for example
 `slugify("Hello World")` gives `hello-world`.
