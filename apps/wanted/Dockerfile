@@ -20,7 +20,7 @@ WORKDIR /src
 COPY pyproject.toml README.md README.pypi.md LICENSE ./
 COPY src ./src
 COPY terms ./terms
-COPY config/fees.yaml config/leitner.yaml config/referee-frost.json ./config/
+COPY config/fees.yaml config/leitner.yaml config/referees.yaml config/referee-frost.json ./config/
 COPY plugin/skills ./plugin/skills
 COPY apps/wanted ./apps/wanted
 COPY examples/autoresearch ./examples/autoresearch

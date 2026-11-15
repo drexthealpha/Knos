@@ -8,14 +8,14 @@ Back to the [README](../../README.md#from-colosseum).
 
 *Money moves only when a step passes its test.*
 
-1. **Is it wanted?** Knos [checks who would buy it](DEMAND_CHECK.md) and in which city, before any work is paid.
-2. **Write the deal.** Each step of the work gets a goal and a deadline, plus the test that decides it. They are sealed with a fingerprint, so nobody can change them later.
-3. **Hold the money.** Backers' money waits in a program on [Solana](../WORDS.md#solana), a public ledger, not with Knos.
-4. **Pass the test.** The maker sends proof. When the test passes, that step is paid. If nothing passes by the deadline, the backers get their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
+1. **Is it wanted?** Knos [checked who would buy it](DEMAND_CHECK.md) and in which city, before any work was paid.
+2. **Write the deal.** Each step of the work got a goal and a deadline, plus the test that decided it. They were sealed with a fingerprint, so nobody could change them later.
+3. **Hold the money.** Backers' money waited in a program on [Solana](../WORDS.md#solana), a public ledger, not with Knos.
+4. **Pass the test.** The maker sent proof. When the test passed, that step was paid. If nothing passed by the deadline, the backers got their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
 
-Add Knos to Claude Code with one command: `claude mcp add --transport http knos https://knos.onrender.com/mcp`
+The entry added Knos to Claude Code with one command: `claude mcp add --transport http knos https://knos.onrender.com/mcp`
 
-**Open call:** have research waiting for a market? [Cross it on Knos](https://knos.onrender.com/invite): the page counts every crossing and pre-order by people outside Knos, live.
+**Open call, then:** research waiting for a market could be [crossed on Knos](https://knos.onrender.com/invite), and that page counted every crossing and pre-order by people outside Knos.
 
 ## Paid only when the test passes
 

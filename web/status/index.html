@@ -62,12 +62,12 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <main>
 <h1>Status</h1>
 <p>Is Knos up right now? Each line is read live.</p>
-<table id="st"><tbody><tr><th>The proof service</th><td id="svc">reading</td></tr><tr><th>Live proofs today</th><td id="today">reading</td></tr><tr><th>NEAR testnet's record</th><td id="rec">reading</td></tr><tr><th>Latest full test run</th><td id="ci">reading</td></tr><tr><th>Uptime</th><td id="up">reading</td></tr><tr><th>Visits, 7 days</th><td id="funnel">reading</td></tr></tbody></table>
+<table id="st"><tbody><tr><th>The proof service</th><td id="svc">reading</td></tr><tr><th>Live proofs today</th><td id="today">reading</td></tr><tr><th>Jobs paid to agents</th><td id="jobs">reading</td></tr><tr><th>NEAR testnet's record</th><td id="rec">reading</td></tr><tr><th>Latest full test run</th><td id="ci">reading</td></tr><tr><th>Uptime</th><td id="up">reading</td></tr><tr><th>Visits, 7 days</th><td id="funnel">reading</td></tr></tbody></table>
 <h2>Accounts that keep the demo up</h2>
 <table id="bal"><tbody><tr><td>reading</td></tr></tbody></table>
 <p class="fine">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>
 </main>
-<footer><span>NEAR testnet, test money, no customers yet.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="../privacy.html">Privacy</a></footer>
+<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="https://knos.onrender.com/app/">Demand check</a><a href="../privacy.html">Privacy</a></footer>
 <script>
 const HOSTED = "https://knos.onrender.com";
 const $ = (id) => document.getElementById(id);
@@ -101,7 +101,20 @@ async function nearView(contract, method, args) {
   throw new Error(last);
 }
 async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
-const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
+const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", too few to trust the price" : ""}`;
+// jobs paid to agents: the jobs contract's own count, read from this browser (get_totals and get_agent_record, since its
+// 14 Nov 2026 upgrade; each pass of an agent is one job paid to it), else the hosted server's copy of the same read
+const AGENTS = ["agent-a", "agent-a2", "agent-b", "agent-b2"].map((a) => a + ".knos-swarm-1105.testnet");
+async function jobsPaid() {
+  try {
+    const [t, ...r] = await Promise.all([nearView("jobs.knos-swarm-1105.testnet", "get_totals", {}), ...AGENTS.map((a) => nearView("jobs.knos-swarm-1105.testnet", "get_agent_record", { agent: a }))]);
+    const k = t["knos-usdc-1102.testnet"] || {};
+    return { jobs: r.reduce((n, x) => n + (+x.passes || 0), 0), usd: (+k.paid || 0) / 1e6, at: new Date().toISOString() };
+  } catch (e) {
+    const t = await getJSON("/api/near/totals"), u = t && t.since_upgrade;
+    return u ? { jobs: u.jobs_paid, usd: +u.paid_usd, at: u.read_at } : null;
+  }
+}
 function truthText(m, last) {
   if (last) return `Holds: proved by its locked test (${last})`;
   if (!m) return "opens with the first check";
@@ -119,7 +132,8 @@ function demandText(m) {
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
-  $("rec").textContent = c && c.read_at ? `${c.proofs} proofs, ${usd(c.lost_usd)} lost, read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many from Knos's own test account; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade, ${usd(j.usd)} in test USDC paid out by it` : "not read"; });
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {

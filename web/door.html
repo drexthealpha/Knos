@@ -70,6 +70,8 @@ button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-r
 .below p { margin: 0 0 12px; }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
+footer summary { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; cursor: pointer; text-decoration: underline; }
+footer details p { margin: 0 0 8px; color: var(--ink); }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -103,7 +105,8 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 </main>
 <footer>
   <span>Test money, no customers yet.</span><br>
-  <a href="https://github.com/drexthealpha/Knos">Source</a><a href="status/">Status</a>
+  <a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a>
+  <details class="goal"><summary>Goal</summary><p>The goal: Knos turns any research into a product billions of people use, in days, not years.</p></details>
 </footer>
 <script>
 (() => {
@@ -147,12 +150,12 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       ...(near ? [el("p", { className: "near", textContent: "Closest proved claim (not your exact question):" })] : []),
       el("p", { className: "verdict", textContent: holds === true ? (near ? "It holds" : "Yes, the claim holds") : holds === false ? "No, the claim fails" : "Not proved yet" }),
       el("p", {}, [`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}. `, holds != null && last.job ? "Proved by its locked test " : "Its locked test is ", link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test),
-        ` (sha256 ${c.sha256.slice(0, 8)}...)`, holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),
+        holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : "", ". ", behind ? behind + "." : ""].flat()),
       el("p", {}, [link("prove/#paper=" + encodeURIComponent(src(c)), "Prove it yourself", "next"), " ", link(`claim/${c.name}/`, "The claim")]), notWhat());
   }
   function none(text) {
     out.replaceChildren(el("p", { className: "verdict", textContent: "Nothing proved matches yet" }),
-      el("p", { textContent: `Knos has proved ${CLAIMS.length} claims on NEAR testnet; none is about "${text.slice(0, 60)}". Ask about one of them, or paste a paper's link.` }),
+      el("p", { textContent: `Knos has proved ${CLAIMS.length} claims on NEAR testnet; none is about "${text.slice(0, 60)}". Ask about one of them, or enter a paper's link.` }),
       el("p", {}, CLAIMS.map((c) => el("button", { type: "button", className: "sample", textContent: c.plain, onclick: () => ask(c.plain, true) }))), notWhat());
   }
   function notWhat() {   // T8: "Not what I need" under each answer; one tap, then an optional word of why
@@ -201,9 +204,16 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   $("sample").addEventListener("click", () => ask("Does HyperLogLog count 30,000 visitors in 1.5 KB?", true));
   // a second visit starts where the first ended: the visitor's last questions, from this browser
   if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.length > 40 ? x.q.slice(0, 40).replace(/\s+\S*$/, "") + "..." : x.q, title: x.q, onclick: () => ask(x.q) }))); }
-  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs run on NEAR testnet.`; };
-  json("data/counters.json").then(counts);
-  json(HOSTED + "/api/near/claim/counters").then((c) => c ? counts(c) : $("count").textContent.startsWith("Reading") && ($("count").textContent = "NEAR testnet's record could not be read just now."));
+  // jobs paid to agents: the jobs contract's own record, read from this browser (each pass in get_agent_record is one job
+  // paid to that agent, counted since the contract's 14 Nov 2026 upgrade), else the hosted server's copy of the same read
+  const JOBS = "jobs.knos-swarm-1105.testnet", AGENTS = ["agent-a", "agent-a2", "agent-b", "agent-b2"].map((a) => a + ".knos-swarm-1105.testnet");
+  const view = async (method, args) => { for (const rpc of ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"]) {
+    const r = await json(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: "k", method: "query",
+      params: { request_type: "call_function", finality: "final", account_id: JOBS, method_name: method, args_base64: btoa(JSON.stringify(args)) } }) });
+    if (r && r.result && r.result.result) return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result.result))); } throw new Error("no answer"); };
+  const counts = (n) => { $("count").textContent = n == null ? "Jobs paid: not read just now." : `${n.toLocaleString("en-US")} jobs paid to agents since 2026-11-14.`; };
+  Promise.all(AGENTS.map((agent) => view("get_agent_record", { agent }))).then((r) => counts(r.reduce((n, x) => n + (+x.passes || 0), 0)))
+    .catch(() => json(HOSTED + "/api/near/totals").then((t) => counts(t && t.since_upgrade ? t.since_upgrade.jobs_paid : null)));
 })();
 </script>
 </body>

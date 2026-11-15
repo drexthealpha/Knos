@@ -16,6 +16,7 @@ REPO = "https://github.com/drexthealpha/Knos"
 JOBS = "jobs.knos-swarm-1105.testnet"
 MARKET = "market.knos-swarm-1105.testnet"
 EXPLORER = "https://testnet.nearblocks.io/address/"
+GOAL = "The goal: Knos turns any research into a product billions of people use, in days, not years."
 HEADER_CSS = ""   # the one header's styles, set by scripts/site_pages.py before it writes these pages
 
 CSS = """body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--text); }
@@ -94,8 +95,8 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
             f'{theme_colors()}<link rel="icon" href="{up}icon.svg" type="image/svg+xml">\n<link rel="icon" href="{up}favicon.ico" sizes="16x16 32x32 48x48">\n'
             f'<link rel="apple-touch-icon" href="{up}brand/apple-touch-icon.png">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
             f"<style>\n{CSS}{HEADER_CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
-            f'<footer><span>NEAR testnet, test money, no customers yet.</span><br>'
-            f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{up}privacy.html">Privacy</a></footer>\n'
+            f'<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>{GOAL}</span><br>'
+            f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{HOSTED}/app/">Demand check</a><a href="{up}privacy.html">Privacy</a></footer>\n'
             + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
 
 
@@ -131,7 +132,20 @@ async function nearView(contract, method, args) {
   throw new Error(last);
 }
 async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
-const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
+const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", too few to trust the price" : ""}`;
+// jobs paid to agents: the jobs contract's own count, read from this browser (get_totals and get_agent_record, since its
+// 14 Nov 2026 upgrade; each pass of an agent is one job paid to it), else the hosted server's copy of the same read
+const AGENTS = ["agent-a", "agent-a2", "agent-b", "agent-b2"].map((a) => a + ".knos-swarm-1105.testnet");
+async function jobsPaid() {
+  try {
+    const [t, ...r] = await Promise.all([nearView("__JOBS__", "get_totals", {}), ...AGENTS.map((a) => nearView("__JOBS__", "get_agent_record", { agent: a }))]);
+    const k = t["knos-usdc-1102.testnet"] || {};
+    return { jobs: r.reduce((n, x) => n + (+x.passes || 0), 0), usd: (+k.paid || 0) / 1e6, at: new Date().toISOString() };
+  } catch (e) {
+    const t = await getJSON("/api/near/totals"), u = t && t.since_upgrade;
+    return u ? { jobs: u.jobs_paid, usd: +u.paid_usd, at: u.read_at } : null;
+  }
+}
 function truthText(m, last) {
   if (last) return `Holds: proved by its locked test (${last})`;
   if (!m) return "opens with the first check";
@@ -145,7 +159,7 @@ function demandText(m) {
   if (m.outcome === false) return "No: under 100 test USDC from outside backers within 7 days";
   return `${(+m.behind_usd).toFixed(2)} of 100 test USDC from outside backers this week, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)} (${thin(m)})`;
 }
-""".replace("__HOSTED__", HOSTED)
+""".replace("__HOSTED__", HOSTED).replace("__JOBS__", JOBS)
 
 
 def claims_page(header: str, cs: list[dict]) -> str:
@@ -156,25 +170,25 @@ def claims_page(header: str, cs: list[dict]) -> str:
             f"test passes. Here the work is code that proves a paper's claim.</p>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
             f"Sorted by the test USDC behind each claim.</p>\n"
             f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind it</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
-            f'<p class="fine">Each claim has two markets on NEAR testnet, priced by an automatic market maker (LMSR): whether it holds, '
+            f'<p class="fine">Each claim has two markets on NEAR testnet, their prices moving with each trade: whether it holds, '
             f'settled by its locked test, and whether 100 test USDC are put behind it within 7 days, settled by the '
-            f'record on NEAR.</p>\n'
+            f'record on NEAR. Test USDC behind it counts every amount the claim market recorded, Knos\'s own test account\'s '
+            f'included; the last column counts outside accounts only.</p>\n'
             f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>\n'
             f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>What NEAR did</th><th>Record</th></tr></thead><tbody>'
             + "".join(f'<tr><td>{e(a)}</td><td>{e(why)}</td><td><a href="https://drexthealpha.github.io/Knos/tx/?h={tx}">{tx[:8]}...</a></td></tr>' for a, why, tx in ATTACKS)
             + '</tbody></table>\n<p class="fine">And in every live proof, agent B tries to spend over its cap and is refused. The contracts\' '
               '223 tests, 155 of them attacks, run on every change: <code>bash near/scripts/verify.sh</code>.</p>')
     script = LIVE_JS + """(async () => {
-  const [c, b] = await Promise.all([getJSON("/api/near/claim/counters"), getJSON("/api/near/claims")]);
-  const by = (c && c.by_claim) || (c && c.proofs != null ? { hyperloglog: { proofs: c.proofs, usd: c.usd } } : {});
+  // the claim market's own record of what was put behind each claim (get_backed): its total and how many times
+  const b = await getJSON("/api/near/claims");
   const rows = [...document.querySelectorAll("#claims tbody tr")];
-  for (const r of rows) { const x = by[r.dataset.claim] || { proofs: 0, usd: 0 }, m = (b && b.claims && b.claims[r.dataset.claim]) || {};
-    const proofs = Math.max(x.proofs || 0, m.proofs || 0), behind = Math.max(+x.usd || 0, +m.behind_usd || 0);   // the larger of the two reads of NEAR
-    r.querySelector("[data-behind]").textContent = c || b ? `${usd(behind)} (${proofs.toLocaleString("en-US")} ${proofs === 1 ? "proof" : "proofs"})` : "not read";
+  for (const r of rows) { const m = (b && b.claims && b.claims[r.dataset.claim]) || {}, n = +m.proofs || 0, behind = +m.behind_usd || 0;
+    r.querySelector("[data-behind]").textContent = b ? `${usd(behind)} (${n.toLocaleString("en-US")} ${n === 1 ? "time" : "times"})` : "not read";
     r.querySelector("[data-truth]").textContent = b ? truthText(m.truth, m.last_proof) : "not read";
-    r.querySelector("[data-demand]").textContent = b ? demandText(m.demand) : "not read"; r.dataset.usd = x.usd; }
+    r.querySelector("[data-demand]").textContent = b ? demandText(m.demand) : "not read"; r.dataset.usd = behind; }
   rows.sort((a, b) => (+b.dataset.usd || 0) - (+a.dataset.usd || 0)).forEach((r) => r.parentNode.append(r));
-  $("as-of").textContent = c && c.read_at ? `Read from NEAR testnet's public record at ${c.read_at.replace("T", " ").replace("Z", " UTC")}.` : "NEAR testnet's record could not be read just now.";
+  $("as-of").textContent = b && b.read_at ? `Read from NEAR testnet's claim market at ${b.read_at.replace("T", " ").replace("Z", " UTC")}.` : "NEAR testnet's record could not be read just now.";
 })();"""
     return page(header, "../", "Knos claims", "Every claim Knos can prove on NEAR testnet, sorted by the test USDC behind it.", body, script, "claims/")
 
@@ -229,14 +243,14 @@ def claim_page(header: str, c: dict) -> str:
             '<tr><th>100 test USDC behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
             '<p id="traded" role="status" class="fine"></p>\n'
             + usdc_section(c) +
-            f'<p class="fine">Priced by an automatic market maker (LMSR) in test USDC; the first settles by the locked test, the '
-            f'second by the record of what was put behind the claim.</p>\n'
+            f'<p class="fine">Prices in test USDC move with each trade. The first market settles by the locked test, the '
+            f'second by NEAR\'s record of what was put behind the claim.</p>\n'
             f'<h2>Backers</h2>\n<p id="backed" class="fine">Reading every backer from NEAR...</p>\n'
             f'<table id="backers" data-market="{MARKET}" hidden><thead><tr><th>When (UTC)</th><th>Backer</th><th class="n">Test USDC</th></tr></thead><tbody></tbody></table>\n'
-            f'<h2>Proofs and receipts</h2>\n<p id="proofs">Reading NEAR testnet\'s public record...</p>\n<table id="receipts" hidden><thead><tr><th>When (UTC)</th>'
+            f'<h2>Receipts</h2>\n<p id="proofs">Reading NEAR testnet\'s public record...</p>\n<table id="receipts" hidden><thead><tr><th>When (UTC)</th>'
             f'<th class="n">Knos\'s fee, test USDC (48 of 49 parts before 12 Nov, 1 in 10 since)</th><th>Knos\'s fee transfer</th></tr></thead><tbody></tbody></table>\n'
             f'<h2>The record</h2>\n<p>Jobs: <a href="{EXPLORER}{JOBS}">{JOBS}</a>. Claim records: <a href="{EXPLORER}{MARKET}">{MARKET}</a>. '
-            f'Payments: <a href="{EXPLORER}live.knos-swarm-1105.testnet?tab=tokentxns">the buyer test account</a>.</p>')
+            f'Payments: <a href="{EXPLORER}live.knos-swarm-1105.testnet?tab=tokentxns">Knos\'s own test account that sends the test money</a>.</p>')
     script = LIVE_JS + """(async () => {
   const name = %s;
   const board = getJSON("/api/near/claims");
@@ -325,7 +339,7 @@ def claim_page(header: str, c: dict) -> str:
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
   const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
-  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "proof" : "proofs"}, ${usd(x.usd)} in test USDC behind this claim.`;
+  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "transfer" : "transfers"} into Knos's fee account for this claim, with ${usd(x.usd)} of test USDC; Knos's own test account's transfers are counted, so some of this money moved between Knos's own accounts.`;
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");
     for (const [tx, amount, at] of rows) { const tr = document.createElement("tr");
@@ -377,6 +391,7 @@ def status_page(header: str) -> str:
     body = ("<h1>Status</h1>\n<p>Is Knos up right now? Each line is read live.</p>\n<table id=\"st\"><tbody>"
             "<tr><th>The proof service</th><td id=\"svc\">reading</td></tr>"
             "<tr><th>Live proofs today</th><td id=\"today\">reading</td></tr>"
+            "<tr><th>Jobs paid to agents</th><td id=\"jobs\">reading</td></tr>"
             "<tr><th>NEAR testnet's record</th><td id=\"rec\">reading</td></tr>"
             "<tr><th>Latest full test run</th><td id=\"ci\">reading</td></tr>"
             "<tr><th>Uptime</th><td id=\"up\">reading</td></tr>"
@@ -387,7 +402,8 @@ def status_page(header: str) -> str:
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
-  $("rec").textContent = c && c.read_at ? `${c.proofs} proofs, ${usd(c.lost_usd)} lost, read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many from Knos's own test account; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade, ${usd(j.usd)} in test USDC paid out by it` : "not read"; });
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {

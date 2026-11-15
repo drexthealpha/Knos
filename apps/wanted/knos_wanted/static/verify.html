@@ -35,7 +35,7 @@
   <p>Each line says what checks a claim. Open a fold for the proof.</p>
 
   <div class="card"><h2>Demand: live taste data, decided by code</h2>
-    <p>Qloo's taste data is the demand oracle. Published rules decide, never a language model.</p>
+    <p>The demand numbers come from Qloo's taste data. Published rules decide, never a language model.</p>
     <details><summary>The rules and their limits</summary>
       <p class="small">Every number names the Qloo call that produced it. The verdict, audience, cities, price tier, target and reserve come from
       <span class="mono">check.RULES</span> (<a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/DEMAND_CHECK.md" rel="noopener">DEMAND_CHECK.md</a>).
@@ -43,7 +43,7 @@
       every Qloo figure is aggregate taste, not a prediction about one person.</p></details></div>
 
   <div class="card"><h2>Money: held on Solana, released when the check passes</h2>
-    <p>Every payment is held in a knos_pay order until its milestone check passes.</p>
+    <p>Every payment waits in Knos's payment program on Solana devnet until its milestone check passes.</p>
     <details><summary>Who can release it</summary>
       <p class="small">A release needs the referee group's signature, which the program checks on chain. The group is a FROST
       2-of-3 key: three separate hosts (this server, GitHub Actions, a third machine) each re-check the evidence; two must sign.
@@ -67,14 +67,14 @@
       a milestone's funding, a commitment to buy, a receivable's sale, an advance and its collection are each signed by the
       person's own passkey. The server only pays the fee and relays.</p></details></div>
 
-  <div class="card"><h2>Record: an append-only journal</h2>
-    <p>Every decision, lock and release is written down, and its root anchored on devnet. <span id="anchor" class="small muted"></span></p>
+  <div class="card"><h2>Record: a journal that is only ever added to</h2>
+    <p>Every step is written down, and a fingerprint of the whole journal is saved on Solana devnet. <span id="anchor" class="small muted"></span></p>
     <details><summary>What memory can and cannot prove</summary>
       <p class="small">The journal is hash-chained; its Merkle root is anchored in a Memo transaction. The agents' memory store is the
       working memory beside it: lexical search only, a 5 MiB free store, no tamper evidence and no sync, so the proofs stay
       on chain and in the journal.</p></details></div>
 
-  <div class="card"><h2>Code: open, tested, one repository</h2>
+  <div class="card"><h2>Code: open and tested</h2>
     <p>MIT licensed: <a href="https://github.com/drexthealpha/Knos" rel="noopener">github.com/drexthealpha/Knos</a>, the app in <span class="mono">apps/wanted/</span>.</p></div>
 </main>
 <footer class="wrap muted small"><p>Devnet test money everywhere on this site: no real funds.</p></footer>

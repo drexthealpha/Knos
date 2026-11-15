@@ -53,6 +53,17 @@ def with_header(html: str, up: str, here: str) -> str:
     return html
 
 
+def with_goal(html: str, up: str) -> str:
+    """The goal and the pricing page, one line at the foot of a composed page (the front door has its own footer, the
+    pages of scripts/site_product.py theirs): the vision is one tap or less from every screen, always labelled the goal."""
+    if site_product.GOAL.split(": ", 1)[1] in html:
+        return html
+    foot = (f'<footer class="kgoal" style="max-width:760px;margin:0 auto;padding:16px;color:var(--ink-2);font-size:16px">'
+            f'<span>{site_product.GOAL}</span><br><a href="{up}pricing/" style="display:inline-flex;align-items:center;min-height:44px">Pricing</a></footer>\n')
+    i = html.rfind("</body>")
+    return html[:i] + foot + html[i:] if i >= 0 else html
+
+
 def retitle(html: str, title: str, desc: str) -> str:
     """A page's own plain title and description, in its tab and its link preview."""
     html = re.sub(r"<title>.*?</title>", f"<title>{title}</title>", html, count=1, flags=re.S)
@@ -168,7 +179,7 @@ def main(site: str) -> int:
     near = retitle(near, "Knos: prove a paper's claim on NEAR", "Run the check of a paper's claim on NEAR testnet: the verdict, the verified code and its receipt.")
     near = re.sub(r'\s*<p class="vision"[^>]*>.*?</p>', "", near, flags=re.S)
     (out / "prove").mkdir(exist_ok=True)
-    (out / "prove" / "index.html").write_text(with_header(near, "../", "prove/"), encoding="utf-8")
+    (out / "prove" / "index.html").write_text(with_goal(with_header(near, "../", "prove/"), "../"), encoding="utf-8")
     iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
     iris = iris.replace('"knos-iris.mp4"', '"../iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="../iris/poster.png"')
     # the labs page opens on its own heading (its section names the check inside IRIS)
@@ -176,7 +187,7 @@ def main(site: str) -> int:
     assert n == 1, "the IRIS page has no first block"
     iris = retitle(iris, "Knos for labs: the check inside InterSystems IRIS", "The proof check inside a lab's own InterSystems IRIS, with its install steps and video.")
     (out / "labs").mkdir(exist_ok=True)
-    (out / "labs" / "index.html").write_text(with_header(iris, "../", "labs/"), encoding="utf-8")
+    (out / "labs" / "index.html").write_text(with_goal(with_header(iris, "../", "labs/"), "../"), encoding="utf-8")
     # the checker as entered at Colosseum: the tag's page and files, under the one header, dated as the build
     chk = (ROOT / "web" / "check-v0328" / "index.html").read_text(encoding="utf-8")
     built = re.search(r'datetime="(\d{4}-\d{2}-\d{2})"', (out / "check" / "index.html").read_text(encoding="utf-8"))
@@ -184,7 +195,7 @@ def main(site: str) -> int:
     chk, n = re.subn(r'<header class="bar">.*?</header>', lambda m: header("../", "check/"), chk, count=1, flags=re.S)
     assert n == 1, "the check page has no header to replace"
     chk = chk.replace("</head>", f'<style id="kh-css">\n{CSS}.kh nav {{ display: flex !important; }}\n</style>\n</head>', 1)   # the tag's app.css hides a header nav on phones
-    (out / "check" / "index.html").write_text(chk, encoding="utf-8")
+    (out / "check" / "index.html").write_text(with_goal(chk, "../"), encoding="utf-8")
     for f in (ROOT / "web" / "check-v0328").rglob("*.js"):   # the tag's check.js and every module it loads (share, badge, motion)
         if f.name == "palette.js":   # opens the earlier one-page app's pages (front.js): motion.js catches the missing file
             continue
@@ -201,6 +212,7 @@ def main(site: str) -> int:
         p = out / rel
         if p.is_file() and 'id="kh"' not in (t := p.read_text(encoding="utf-8")):
             t = t.replace("<body>\n", f"<body>\n{header(up, '')}\n", 1).replace("</head>", f'<style id="kh-css">\n{CSS}</style>\n</head>', 1)
+            t = with_goal(t, up)
             p.write_text(t, encoding="utf-8")
     head = head_of(door)
     (out / "near" / "index.html").write_text(redirect("../prove/", head), encoding="utf-8")
