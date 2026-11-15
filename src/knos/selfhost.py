@@ -123,7 +123,7 @@ def check(text: str, base: Path | None = None) -> Checked:
     if not isinstance(rpc, str) or not re.match(r"https?://[^\s/]+", rpc):
         err("chain.rpc must be the RPC endpoint's URL (https://...)")
     elif "mainnet" in rpc:
-        err(f"chain.rpc {rpc} names mainnet: Knos runs on devnet only")
+        err(f"chain.rpc {rpc} names mainnet: Knos's Solana programs run on devnet only")
     programs = chain.get("programs", {})
     if not isinstance(programs, dict):
         err("chain.programs is a table of program ids (leave it out to use the pinned ones)")

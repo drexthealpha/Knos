@@ -7,7 +7,7 @@ In order, the first refusal decides (no candidate code runs before step 5):
 
     1. the referee is main's     the running judging code's hash (knos.referee.judge_hash) is main's tree's; the
                                  candidate's own judging code is hashed too and, when it differs, the candidate is a
-                                 referee change: refused here (it goes through `knos self referee-check` and the founder)
+                                 referee change: refused here (it goes through `knos self referee` and the founder)
     2. lineage                   the candidate commit descends from the parent the loop chose
     3. trust split               no core path (targets.yml core + CODEOWNERS), nothing outside the product
     4. cheat rules               knos.cheats.scan_diff with the target's scope and the core, plus the loop's own rules
@@ -92,7 +92,7 @@ def judge(req: dict, *, main_root=None, cfg: dict | None = None) -> dict:
     if v["candidate_judge_hash"] != v["judge_hash"]:
         findings.append(_cheats.Finding("self.referee_in_agent_pr", "judge_drift", "",
                                         "the candidate changes the judging code: a referee change goes through the founder "
-                                        "(knos self referee-check), never through the loop; main's referee judged this"))
+                                        "(knos self referee), never through the loop; main's referee judged this"))
     findings += config.agent_findings(paths, cfg, t.get("scope") or ())
     findings += _cheats.scan_diff(diff, base_dir=parent_dir, scope=tuple(t.get("scope") or ()), core=tuple(config.core_globs(cfg)))
     static, counts = rules.static_findings(diff, parent_dir, cand_dir)

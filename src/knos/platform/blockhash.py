@@ -7,7 +7,7 @@ devnet at slot 487,296,000) left the count unchanged and so shortened the wall-c
 (proposals/0525-reduce-slot-times.md: "any user-facing ... behavior measured in number of slots may become shorter in
 wall-clock time").
 
-Measured on devnet on 14 Oct 2026 at 19:59 UTC (v0329/agents/V34CAP/bh-measure.txt): lastValidBlockHeight minus the
+Measured on devnet on 14 Oct 2026 at 19:59 UTC: lastValidBlockHeight minus the
 `confirmed` block height was 134 to 146 blocks (mean 143) while the block height rose 232 blocks in 54.0 s (4.297 a
 second; getRecentPerformanceSamples: 236 to 240 ms a slot), so a blockhash fetched at `confirmed` had about 33 s left.
 Docs that said "about a minute" or "60 to 90 seconds" were written for 400 ms slots.

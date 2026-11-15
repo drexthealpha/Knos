@@ -1,8 +1,8 @@
 """Intent Disambiguation Tax (IDT): the reasoning a model spends working out what an unclear brief means.
 
 Knos removes it before money locks (knos.ready) and hands every agent the brief in the form that needs the least
-interpretation. Deterministic here; the model-side forms run through Claude Code in print mode (`claude -p`), the
-only model Knos uses (the operator's own subscription; no API key, no local model).
+interpretation. Deterministic here; the model-side forms here run through Claude Code in print mode (`claude -p`), on
+the operator's own subscription; no API key is read by this module.
 
   sketch(brief)            the explicit intent prefix every agent run receives first: goal, constraints, success
                            check, scope, as JSON fields, never prose (I1, I10)

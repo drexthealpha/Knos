@@ -111,8 +111,8 @@ SINCE 0.3.22, PAY WORK IS PARTITIONED BY ORDER, AND THE FEE ACCOUNT IS ONE OF K.
                        Balance's own account: its lane is `order:<address>`. One owner's orders now spread over N
                        relays (part_of of each order), and one order's tokens still leave one at a time, on one
                        relay. A funding from a Balance keeps the owner's lane: the Balance takes its fundings in the
-                       order GitHub issued them. Measured on 8 October 2026, before this change: 40 orders of ONE owner, one relay, 0.097 paid a
-                       second; nothing has been measured with order lanes yet.
+                       order GitHub issued them. Measured on 8 October 2026: 40 orders of ONE owner, one relay, 0.097 paid a second; with order
+                       lanes, 4 relays and 4 fee accounts, 0.189 a second (docs/reference/LOAD.md).
     K fee accounts     the program takes any token account of the mint that FEE_OWNER owns as the fee account
                        (`is_owned(fee_tok, token, mint, FEE_OWNER)`). `pay.fee_account_for(order, ...)` picks one of K
                        (sha256 of the order, modulo K): account 0 is FEE_OWNER's associated one, 1..K-1 are seeded

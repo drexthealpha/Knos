@@ -1,5 +1,5 @@
-"""Knos as a Hermes Agent plugin: `register(ctx)` adds four tools (and the money engine's quote tools when this install
-has knos.money.agent).
+"""Knos as a Hermes Agent plugin: `register(ctx)` adds four tools and the money engine's quote tools
+(knos.money.agent).
 
     knos_verify          run Knos on a committed change before a pull request: AI policy, cheat checks, tests twice, signed receipt
     knos_receipt         check a receipt: shape, digest, ed25519 signature, and what it says
@@ -7,7 +7,7 @@ has knos.money.agent).
     knos_outcome_check   whether an outcome's measurement drifted from what was funded (spec, window, salt, control share, data)
 
 Loaded by Hermes from the pip entry point group "hermes_agent.plugins" (knos = "knos.hermes_plugin:register", in
-knos's pyproject.toml), or from a directory plugin (hermes/plugin/knos/ in the Knos repository, which imports this).
+knos's pyproject.toml).
 Hermes's contract (hermes_cli/plugins.py, PluginContext.register_tool; website/docs/developer-guide/plugins/index.md):
 a handler is `handler(args: dict, **kwargs) -> str` returning JSON, and never raises.
 

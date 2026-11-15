@@ -99,10 +99,10 @@
   "Nothing recorded is not the same as nothing done."
  ],
  "links": {
-  "page": "https://drexthealpha.github.io/Knos/#record=codex",
+  "page": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/codex.json",
   "file": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/codex.json",
   "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+record%3A+codex&agent=codex&week=2026-09-28",
   "specification": "https://github.com/drexthealpha/Knos/blob/main/docs/reference/SUPPLIER.md"
  },
- "sha256": "1e7eca3f3a6555a63c395d0bdeb489ac605c34f2f2ef902316b251a88679d125"
+ "sha256": "70121c05249574ebdfd96f7f9f86ce67e59ac6624e69f125b98e9fd6bbfa1931"
 }

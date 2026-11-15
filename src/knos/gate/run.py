@@ -12,7 +12,8 @@
     7. with `post`: the one comment (edited in place), the labels, closing (on_fail: close)
     8. Knos Record: one "verification" entry and one "cheat" entry per finding (knos.record, when installed)
 
-Output folder: verdict.json, comment.md, and with a receipt receipt.json, receipt.html, badge.svg."""
+Output folder: verdict.json, comment.md, summary.md, knos-gate.sarif, annotations.json, and receipt.json, receipt.html,
+badge.svg when signed (receipt.unsigned.json when not)."""
 from __future__ import annotations
 
 import json
@@ -104,8 +105,11 @@ def run(*, base: Path, pr_dir: Path, diff: str, repo: str, pr: int, head: str, b
                 for f in tmp.glob("hidden*"):
                     f.unlink()          # the suite's output and report name the hidden tests: they never leave the runner
         if cfg["public_tests"]:
-            public = sealed.run(cfg["public_tests"]["command"], pr_dir, tmp / "public.xml", tmp / "public.log",
-                                timeout=cfg["public_tests"]["timeout"], sandbox=sandbox)
+            try:
+                public = sealed.run(cfg["public_tests"]["command"], pr_dir, tmp / "public.xml", tmp / "public.log",
+                                    timeout=cfg["public_tests"]["timeout"], sandbox=sandbox)
+            except sealed.Refused as why:
+                error = error or str(why)
     v = V.decide(cfg, findings, hidden, public, repo=repo, pr=pr, head=head, base=base_sha, run_url=run_url,
                  library=lib_name, error=error)
     return _finish(v, cfg, out, rerun_said, hidden_lines, keypair, issuer_name, env, cheat_lib, pull, diff)

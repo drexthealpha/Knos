@@ -66,7 +66,7 @@ def withdraw(ledger, payer: Keypair, request: str | bytes) -> dict:
 
 def _rent(size: int, ledger=None) -> int:
     """The lamports that keep an account of `size` bytes: what the cluster says (`ledger.rent`, getMinimumBalanceFor
-    RentExemption: a rent cut is used the day it is live, v0.3.29), else the old parameters: 3,480 a byte and year, two
+    RentExemption: a rent cut is used the day it is live), else the old parameters: 3,480 a byte and year, two
     years, 128 bytes of overhead."""
     ask = getattr(ledger, "rent", None)
     if ask is not None:

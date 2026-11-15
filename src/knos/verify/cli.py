@@ -18,7 +18,7 @@ def register(app, help_lines: list | None = None) -> None:
     def verify_(tree: Path = typer.Option(Path("."), "--tree", help="your checkout, with the change committed (default: here)"),
                 base: str = typer.Option("", "--base", help="the branch the change is measured against (default: origin/HEAD, main or master)"),
                 tests: str = typer.Option("", "--tests", help="the test command, when the repository's is not found by itself"),
-                runs: int = typer.Option(2, "--runs", min=1, max=5, help="how many times the tests run; the re-runs must agree"),
+                runs: int = typer.Option(2, "--runs", min=1, max=3, help="how many times the tests run; the re-runs must agree"),
                 agent: str = typer.Option("", "--agent", help="the agent's name for the AI-use line (Claude Code, Hermes, OpenClaw, ...)"),
                 no_ai: bool = typer.Option(False, "--no-ai", help="the change was made without AI: the AI-use line says so"),
                 human_confirmed: bool = typer.Option(False, "--human-confirmed", help="a person confirms the repository's condition for AI-made work is met (conditional policies only; never for banned)"),

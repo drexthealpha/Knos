@@ -26,7 +26,7 @@ MCP_TOOLS: list[dict[str, Any]] = [
                     "uspto), each a Knos Claim record; titles inside `untrusted`. Sends nothing.",
      "properties": {"source": {"type": "string", "description": "openalex, arxiv, pubmed, europepmc, biorxiv, medrxiv, crossref, clinicaltrials or uspto"},
                     "words": {"type": "string", "description": "search words"},
-                    "limit": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5, "description": "how many"}},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 25, "default": 5, "description": "how many"}},
      "required": ["source", "words"]},
     {"name": "knos_idea_in", "title": "An idea from a person, a player or an agent",
      "description": "Make a Knos Claim record from a stated idea: the statement, its field (given or guessed), who says it (an ORCID iD "
@@ -42,10 +42,10 @@ MCP_TOOLS: list[dict[str, Any]] = [
                     "(inside `untrusted`). Shows the iD exists; owning it is 'sign in with ORCID'. Sends nothing.",
      "properties": {"who": {"type": "string", "description": "orcid:0000-0000-0000-0000 or github:login"}}, "required": ["who"]},
     {"name": "knos_idea_wanted", "title": "Is the idea wanted? Demand + pull commitment plan",
-     "description": "Step 2 (wall 1, money before proof): Knos's demand check on the product the idea would become (Qloo via its "
-                    "official MCP harness; a labelled MOCK until QLOO_API_KEY) and the plan of a pull commitment: a buyer commits "
-                    "to buy `units` at `price` if the result is verified, held in one knos_pay order per stage and released "
-                    "stage by stage (preprint posted, trial registered, results posted, referee pass, lab QC...). Returns the plan "
+     "description": "Step 2 (wall 1): Knos's demand check on the product the idea would become (Qloo via its "
+                    "official MCP harness; a labelled MOCK until QLOO_API_KEY) and the plan of a pre-order: a buyer locks test "
+                    "money to buy `units` at `price`, held in one knos_pay order per stage and released "
+                    "stage by stage at named milestones (preprint posted, trial registered, results posted, referee pass, lab QC...). Returns the plan "
                     "with amounts, fees (config/fees.yaml) and deadlines; it signs and sends nothing (`knos idea commit` locks it).",
      "properties": {"ref": _REF,
                     "units": {"type": "integer", "minimum": 1, "maximum": 1_000_000, "default": 10, "description": "N units the buyer commits to"},
@@ -127,7 +127,7 @@ def idea_wanted(args: dict) -> dict:
     return {**shape(c), "demand": {k: v for k, v in d.items() if k != "idea"}, "commitment": p["commitment"], "commitment_hash": p["commitment_hash"],
             "stages": stages, "buyer_pays": p["buyer_pays"], "program": p["program"], "cluster": "devnet",
             "lock_with": f"knos idea get {args['ref']} --out idea.json && knos idea commit idea.json --units {p['commitment']['units']} "
-                         f"--price {p['commitment']['price']} --payee <github:id|orcid:iD>@<wallet> --panel M:<referee keys> --program <knos_pay 0.3.34 id> "
+                         f"--price {p['commitment']['price']} --payee <github:id|orcid:iD>@<wallet> --panel M:<referee keys> --program <knos_pay panel test build id> "
                          f"--wallet <your devnet key> --mint <test mint>" + (f" --demand {d['hash']}" if d.get("hash") else ""),
             "sends": "nothing"}
 

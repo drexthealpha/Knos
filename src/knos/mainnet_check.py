@@ -13,6 +13,7 @@ evidence it was judged on.
                         config authority either
     workflow pins       the commits of the rotate and claim workflows that the programs pin are in the on-chain
                         binaries and exist on GitHub
+    new programs        knos_meter and knos_passkey, where deployed, are executable and held by the upgrade vault
     GitHub's keys       every key GitHub publishes today has a key account that verifies now: registered, ready, a
                         genesis key or approved by the guardian, not revoked, not expired; with each one's expiry
     other clusters      the two program ids are in use on no other public cluster (an address is derived from the
@@ -43,6 +44,7 @@ chain, each line with what to do when it fails:
                         buffer and when it can execute (the Squads accounts are read as scripts/governance.mjs
                         documents them: see `proposals`)
     guardian            the GUARDIAN both programs name is vault 0 of the pinned guardian multisig
+    new programs        knos_meter and knos_passkey, where deployed, are executable and held by the upgrade vault
     GitHub's keys       every key GitHub publishes today is registered, usable now and more than 7 days from expiry
     key refresh         the last Refresh of a key is under 7 days old (a key lives 30 days from its last one)
     new funding         not paused

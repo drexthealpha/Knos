@@ -6,7 +6,7 @@ is the Treasury's own file, and the digital currency addresses are in it:
     file     SDN.CSV, the Specially Designated Nationals list as comma-separated values
     url      https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV  (SDN_URL below). The older
              https://www.treasury.gov/ofac/downloads/sdn.csv answers with a redirect to it.
-    page     https://ofac.treasury.gov/specially-designated-nationals-list-sdn-list  (the same data as SDN_ADVANCED.XML,
+    page     https://ofac.treasury.gov/sanctions-list-service  (the same data as SDN_ADVANCED.XML,
              https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ADVANCED.XML, where an address is
              a "Digital Currency Address - <ticker>" feature)
     format   twelve columns: ent_num, SDN_Name, SDN_Type, Program, Title, Call_Sign, Vess_type, Tonnage, GRT, Vess_flag,

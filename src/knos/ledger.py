@@ -1780,6 +1780,7 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
                events_log: Path = typer.Option(None, "--events", help="also take the batch into this log of events (`knos events`); default: the file KNOS_EVENTS names, else none"),
                format_: int = typer.Option(FORMAT, "--format", help="the commitment format of the root: 2 hashes every field of every evaluation; 1 hashes the ids only")) -> None:
         """Add one batch to a ledger and print what its token must say: the root, the totals and the audience. Corrections waiting beside the ledger ride in it."""
+        waiting = None
         try:
             had = read(ledger) if ledger.exists() else []
             known = {e.id for s in had for e in s.evals}
@@ -1799,10 +1800,12 @@ def register(app, out, Stop, help_rows: list | None = None, panel: str | None = 
             if had and (b.buyer, b.seller) != (had[0].declared["buyer"], had[0].declared["seller"]):
                 raise Stop(f"{ledger} is the ledger of buyer {had[0].declared['buyer']} and seller {had[0].declared['seller']}; these evaluations are of another pair.",
                            "Keep one ledger file per buyer and seller.")
+        except UnicodeDecodeError:
+            raise Stop(f"Cannot read {events} as UTF-8 text.") from None
         except OSError:
             raise Stop(f"Cannot read {events}.") from None
         except (Bad, ValueError) as why:
-            raise Stop(f"{events}: {why}." if isinstance(why, Bad) else f"A line of {waiting} is not JSON.") from None
+            raise Stop(f"{events}: {why}." if isinstance(why, Bad) else f"A line of {waiting or events} is not JSON.") from None
         with ledger.open("a", encoding="utf-8", newline="\n") as f:
             f.write(dump([b]))
         from . import events as _events

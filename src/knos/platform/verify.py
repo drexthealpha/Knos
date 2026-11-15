@@ -1,9 +1,9 @@
-"""One-transaction RS256 verification (v0.3.29). docs/reference/PLATFORM.md has the measured numbers.
+"""One-transaction RS256 verification. docs/reference/PLATFORM.md has the measured numbers.
 
 knos-oidc's Step instruction does `squarings` of the 16 squarings of s^65537 mod n per call. A build of knos-oidc
 for sBPF v2 does its arithmetic on 64-bit limbs (programs-v2/knos_oidc/src/rsa64.rs: the PQR instructions
 make a 64 x 64 -> 128-bit product two instructions), so ONE Step(16) verifies a 2048-bit GitHub token inside one
-transaction's 1,400,000 compute units. Since v0.3.30 a build for sBPF v3 does too: the v3 of Agave 4.4 has no
+transaction's 1,400,000 compute units. A build for sBPF v3 does too: the v3 of Agave 4.4 has no
 128-bit multiply, so its 64-bit limbs make each product from four 32-bit ones (rsa64.rs `h`); measured on a local
 Agave 4.4 validator, ONE Step(16) fits a 2048-bit token of up to V3_ONE_STEP_MAX bytes (not the largest, MAX_JWT),
 and a 4096-bit key keeps the two-step plan. A build for sBPF v0 (what devnet runs today) still needs two: Step(8),
@@ -48,7 +48,7 @@ def sbpf_version(elf: bytes | None) -> int | None:
 
 
 def fast(elf: bytes | None) -> bool:
-    """Whether this build of knos-oidc does its RSA on 64-bit limbs: built for sBPF v2 (`uhmul64`) or, since v0.3.30,
+    """Whether this build of knos-oidc does its RSA on 64-bit limbs: built for sBPF v2 (`uhmul64`) or,
     v3 (four 32-bit products per 128-bit one: slower than v2, faster than 32-bit limbs)."""
     v = sbpf_version(elf)
     return v in (2, 3)

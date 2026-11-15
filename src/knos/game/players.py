@@ -9,7 +9,7 @@
     command(...)         any other agent behind a command line (prompt on stdin, the new file on stdout), the same
                          protocol as knos.autoresearch's CommandProposer: `claude -p`, `codex exec -`, `hermes ...`,
                          or `python -m knos.game.local_agent` (no model: deterministic hill-climbing, labelled).
-    agents over MCP      any MCP host plays with the tools knos_game_state / _join / _submit / _board / _mine.
+    agents over MCP      any MCP host plays with the tools knos_game_state / _data / _join / _submit / _board / _mine.
     SyntheticHuman       a scripted stand-in for a person, labelled "synthetic scripted human" everywhere: it edits
                          the CONFIG block the way a person tuning by hand might. Real people play on the web page.
 

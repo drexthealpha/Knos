@@ -177,7 +177,7 @@ class Game:
         attempts through the web page or MCP needs it (only its sha256 is kept). `label`: what the player is when it is not a live person or a live model (e.g. "synthetic scripted
         human", "MOCK Nemotron reply"): shown next to the name everywhere. `payee`: the Solana address its prize goes to.
 
-        Identity (v0.3.34, after an outside judge took a pot's three paid places with one person behind three players):
+        Identity (after an outside judge took a pot's three paid places with one person behind three players):
         at most one of `github_id`, `orcid` (an ORCID iD, check digit verified) or `pubkey` + `signature` (an ed25519
         key and its signature of join_message(game id, name)). Each identity and each payee joins a game once; a
         second player with the same identity or the same payee is refused. A player with no identity plays and is
@@ -415,7 +415,7 @@ class Game:
             files = json.loads((self.root / "attempts" / f"{top['n']}.json").read_text(encoding="utf-8"))["files"]
             v = j.judge(files, None, stage="final")
             reasons = []
-            # Forfeiture rule (v0.3.34): refusals count only against LATER attempts. Reaching max_refusals stops a player
+            # Forfeiture rule: refusals count only against LATER attempts. Reaching max_refusals stops a player
             # from submitting again; it never voids an honest attempt made before (an outside judge saw an honest win
             # voided by two later refusals). Attempts are kept in order, so every scored attempt here predates the stop.
             if moved_reason:

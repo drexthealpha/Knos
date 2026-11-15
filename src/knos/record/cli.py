@@ -4,6 +4,7 @@
     knos record anchor [DIR] [--keypair FILE] [--dry-run]
     knos record journal [DIR] [--json] [--claim ID] [--kind KIND]
     knos record prove SEQ [DIR]        the Merkle audit path of one line in its anchored batch
+    knos record search QUERY [--root DIR] [--limit N] [--json]
 """
 
 from __future__ import annotations

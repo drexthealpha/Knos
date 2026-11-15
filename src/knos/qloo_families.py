@@ -201,7 +201,7 @@ def options(raw: dict | None) -> dict:
     raw = dict(raw or {})
     unknown = sorted(k for k in raw if k not in FIELDS)
     if unknown:
-        raise ValueError(f"unknown demand option(s): {', '.join(unknown)} (see knos_wanted.families / docs/qloo)")
+        raise ValueError(f"unknown demand option(s): {', '.join(unknown)} (see knos_wanted.families / docs/reference/QLOO-COVERAGE.md)")
     out = {k: coerce(k, v) for k, v in raw.items()}
     # a WKT area typed where a name goes: Qloo reads filter.location.query as a name ("POINT(...)" found High Point, NC),
     # so it is sent as filter.location, the parameter Qloo documents for WKT

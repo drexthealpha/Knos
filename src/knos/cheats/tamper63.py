@@ -3,8 +3,8 @@ language (Python/pytest, JavaScript/node:test, Ruby/minitest), as docs/reference
 
 Each case is real: it names the function in tests/bench_tamper/<module> that builds the cheating pull request from the
 sample's base, and the rule of this library that must refuse it (`expect`). tests/test_referee_cheats.py builds every
-case and checks that the rule fires and the referee refuses it; the six cases no path or text rule can see in
-principle (a no-op claim, constants for the visible examples, forgery from inside the process) are ALSO judged end to
+case and checks that the rule fires and the referee refuses it; the nine cases no path or text rule can see in
+principle (three kinds: a no-op claim, constants for the visible examples, forgery from inside the process) are ALSO judged end to
 end by the sealed black-box tests in tests/test_referee_works.py.
 """
 

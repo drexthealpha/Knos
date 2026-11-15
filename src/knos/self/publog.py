@@ -4,13 +4,13 @@ the file itself; Record refuses anything that looks like a secret, a key, an e-m
 
 One iteration writes, in order (domain "self", claim "self:<target>:<version>"):
 
-    claim         WARM   the version's state: target, parent, lineage, commit, diff hash, decision, stage
     experiment    COLD   the attempt: agent, parent, diff hash, the HGM parent choice
     verification  COLD   one per tier that ran (public, sealed, shadow, audit): pass/fail, counts, metric
     cheat         COLD   one per refusing finding (rule, category, path)
     refusal       COLD   when refused or held: the reasons
     verdict       COLD   the decision, the referee's judge_hash (main's) and the candidate's
     payout        COLD   when paid: amount, fee, devnet signatures
+    claim         WARM   the version's state: target, parent, lineage, commit, diff hash, decision, stage
 """
 
 from __future__ import annotations

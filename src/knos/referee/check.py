@@ -22,7 +22,7 @@ class Check:
 
 
 def record_module():
-    """knos.record when this install has it (Knos Record, v0.3.29), else None: the referee then decides the same and
+    """knos.record when this install has it (Knos Record), else None: the referee then decides the same and
     says in its evidence that nothing was recorded."""
     try:
         from .. import record  # type: ignore[attr-defined]

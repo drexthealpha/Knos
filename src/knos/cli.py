@@ -624,7 +624,7 @@ def _release_pin() -> tuple[str, str]:
 
 def reservation_days(reserve: int, days: int) -> int:
     """A `/knos take` reservation never outlasts the vault: past `days` the money is back with the funder, and a
-    reservation would only keep others off an issue nobody can be paid for (V34DOG, v0.3.34 dogfooding)."""
+    reservation would only keep others off an issue nobody can be paid for (V34DOG dogfooding, before 0.4.0)."""
     return max(0, min(int(reserve), int(days)))
 
 
@@ -783,7 +783,7 @@ def due(login: str = typer.Argument(..., help="a GitHub login")) -> None:
         out.print(f"On the first deployment (Knos 0.3.11 and earlier): paid for {old.paid_jobs} pull request(s) in {old.repositories} repositor{'y' if old.repositories == 1 else 'ies'}, "
                   f"{_usdc(old.total_paid)} in all.", markup=False)
     if not bound:
-        out.print("Name a wallet, and what is held is sent there: knos claim <address>   (or in the browser: https://drexthealpha.github.io/Knos/#claim)", markup=False)
+        out.print("Name a wallet, and what is held is sent there: knos claim <address>", markup=False)
     if owed:
         out.print("Send what the first deployment holds to any address: knos claim --v1 <address>", markup=False)
 
@@ -1094,7 +1094,7 @@ _HELP = [    # (command or group, its panel (None: the first, "Commands"), the o
     ("keys", MONEY, "The signing keys the verifier holds, and whether GitHub's all verify."),
     ("receipt", MONEY, "Check an acceptance receipt against the specification and print its digest."),
     ("record", MONEY, "A payee's record as the program keeps it: paid, distinct funders, test money and self-paid apart."),
-    ("badge", MONEY, "Write a \"paid on proof\" badge (SVG) for a repository or a pull request, and its Markdown."),
+    ("badge", MONEY, "Write a \"checked by Knos\" badge (SVG) for a repository or a pull request, and its Markdown."),
     ("receipts", MONEY, "One row per payment for an owner, from the chain's log (csv or jsonl)."),
     ("statement", MONEY, "What one seller was paid in a month; `statement --meter`: evaluations billed. `statement make`: an invoice's statement."),
     ("export", MONEY, "Every event of the payment programs as JSON Lines for a SIEM."),
@@ -1104,8 +1104,9 @@ _HELP = [    # (command or group, its panel (None: the first, "Commands"), the o
 
 
 # commands of the products Knos was before it became one (approval chains, netting, advances against an order, the
-# evidence vault, the game rounds): they still run for whoever used them, and `knos --help` no longer lists them
-OLD_PRODUCTS = frozenset({"approve", "net", "advance", "vault", "game"})
+# evidence vault, the game rounds, the old price book): they still run for whoever used them, and `knos --help` no
+# longer lists them
+OLD_PRODUCTS = frozenset({"approve", "net", "advance", "vault", "game", "bill"})
 
 
 def _arrange() -> None:
@@ -1215,13 +1216,13 @@ def load(command: str | None = None) -> None:
     _arrange()
 
 
-CHECK_DEMAND, HOLD_MONEY, PAID_ON_PROOF, RUN_KNOS = "Check demand", "Hold money", "Paid on proof", "Run Knos"
-FLOW = (CHECK_DEMAND, HOLD_MONEY, PAID_ON_PROOF, RUN_KNOS)
+CHECK_DEMAND, HOLD_MONEY, CHECKS_RECEIPTS, RUN_KNOS = "Check demand", "Hold money", "Checks and receipts", "Run Knos"
+FLOW = (CHECK_DEMAND, HOLD_MONEY, CHECKS_RECEIPTS, RUN_KNOS)
 _HEADINGS = {CHECK_DEMAND: ("demand", "ready", "idt", "idea"),
-             HOLD_MONEY: ("fund-wallet", "balance", "bounty", "terms", "faucet", "advance", "budget", "boundary", "net", "exit"),
-             PAID_ON_PROOF: ("iris-check", "near-job", "check", "receipt", "receipts", "record", "statement", "export", "invoice", "badge", "due", "claim", "settle", "review", "attest",
+             HOLD_MONEY: ("fund-wallet", "balance", "bounty", "terms", "faucet", "budget", "boundary", "exit"),
+             CHECKS_RECEIPTS: ("iris-check", "near-job", "check", "receipt", "receipts", "record", "statement", "export", "invoice", "badge", "due", "claim", "settle", "review", "attest",
                              "relay", "work", "task", "proof", "judge", "accept", "verify", "preflight", "keep", "appeal", "outcome",
-                             "referee", "cheats", "command", "canary", "mcp", "agent", "gate", "game")}
+                             "referee", "cheats", "command", "canary", "mcp", "agent", "gate")}
 
 
 def heading(name: str) -> str:

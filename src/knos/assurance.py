@@ -57,7 +57,7 @@ def _check(level: str | None) -> str | None:
 
 def of_receipt(r: dict, declared=()) -> dict:
     """The assurance of a valid acceptance receipt of any version: {level, receipt_level, identity_proved, proved,
-    ladder, never}. `level` is None when no issuer signed the run (a version 4 or 5 receipt whose
+    ladder, never}. `level` is None when no issuer signed the run (a version 4, 5 or 6 receipt whose
     issuer_authenticated is null): it is then not even workflow-reported. `declared`: the control relationships the
     terms declare, as knos.receipt.assurance_of takes them (a version 5 receipt carries its own)."""
     from . import receipt as rc

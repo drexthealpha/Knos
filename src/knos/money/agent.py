@@ -1,4 +1,4 @@
-"""The agent side of "submit work for verification and payment": three tools that quote and plan and never sign.
+"""The agent side of Knos's money: three tools that quote and plan and never sign.
 
     knos_fees       the fee of any line of config/fees.yaml for an amount, or the whole schedule
     knos_graduate   a passing verdict -> the milestone vault and pre-order pool it opens, the contributor split, and
@@ -31,8 +31,8 @@ def _tool(name: str, title: str, description: str, properties: dict, required: l
 TOOLS = [
     _tool("knos_fees", "Knos fees",
           "The fee Knos charges, from its one fee config: for `kind` (payout, bounty, funding, graduation, task_package, "
-          "verification, x402_check) and an amount (or a count, for verification and x402_check), or the whole schedule "
-          "with each line's status (live on devnet, proposed, or a placeholder not set yet). Test money on devnet.",
+          "verification, x402_check, verified_merge) and an amount (or a count, for verification, x402_check and verified_merge), "
+          "or the whole schedule with each line's status (live on devnet, decided, proposed, or placeholder). Test money on devnet.",
           {"kind": {"type": "string", "enum": list(fees_config.KINDS)}, "amount": _AMOUNT,
            "count": {"type": "integer", "minimum": 0}, "used": {"type": "integer", "minimum": 0}}, []),
     _tool("knos_graduate", "Graduate a verified claim",

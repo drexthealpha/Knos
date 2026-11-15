@@ -54,7 +54,8 @@ def _contributors(contributors: Any, cfg: fees_config.FeeConfig) -> list[dict]:
 
 def payees(contributors: Any, cfg: fees_config.FeeConfig | None = None) -> list[tuple[int, int, Any]]:
     """The payees of a pay token for these contributors: (GitHub id, bps, address or None), bps adding up to 10000,
-    in the config's role order. An address left out: the payee is paid at the wallet it bound, else held for it."""
+    in the config's role order. An address left out: the payee is paid at the wallet it bound; with no bound wallet a
+    split of more than one payee is refused until each payee binds one (a single payee is held)."""
     cfg = cfg or fees_config.load()
     cs = _contributors(contributors, cfg)
     shares = dict(cfg.shares([c["role"] for c in cs]))

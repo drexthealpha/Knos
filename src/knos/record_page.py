@@ -80,7 +80,8 @@ def dispute_url(who: str, week: str | None = None) -> str:
 
 
 def page_url(who: str) -> str:
-    return f"{SITE}/#record={who}"
+    """Where a reader opens the record: its file as published (no site page renders a #record= link)."""
+    return f"{RAW}/{who}.json"
 
 
 # ---- the public part: the agent's row of the index -------------------------------------------------------------------

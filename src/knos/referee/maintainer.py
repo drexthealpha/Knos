@@ -21,7 +21,8 @@ ALL_LABELS = tuple(sorted({*LABELS.values(), CHEAT_LABEL}))
 def maintainer(base_dir, diff_text: str, *, scope=(), core=(), mode: str = "label", checks_passed: bool | None = None,
                record: bool = False, record_root=None, repo: str = "") -> dict:
     """{"mode", "labels", "close", "comment", "findings", "refused"}. `scope`: the issue's allowed paths (globs);
-    `checks_passed`: the pull request's own checks, when the caller read them (None: not read, not judged)."""
+    `checks_passed`: the Knos check's result on this pull request (claims and repository rules), when the caller ran
+    it (None: not run, not judged)."""
     if mode not in MODES:
         raise ValueError(f"mode {mode!r} is not one of {', '.join(MODES)}")
     found = cheats.scan_diff(diff_text, base_dir=base_dir, scope=scope, core=core, claim=False)

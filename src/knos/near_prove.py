@@ -1,4 +1,4 @@
-"""`knos prove [paper link] [test USDC]`: one real proof of a paper's claim on NEAR testnet, from the terminal.
+"""`knos prove [paper link] [test USDC held with the job]`: one real proof of a paper's claim on NEAR testnet, from the terminal.
 
 It makes the one call the hosted service answers (POST https://knos.onrender.com/api/near/claim/flow) and prints the
 claim, the sha256 of the test NEAR locked before any agent started, the verdict, and the receipt's NEAR transactions.
@@ -20,7 +20,7 @@ def main(args: list[str]) -> int:
         return 0
     url = args[0] if args else SAMPLE
     amount = float(args[1]) if len(args) > 1 else 3
-    print(f"Proving the claim of {url} on NEAR testnet with {amount:g} test USDC (about 25 s)...", flush=True)
+    print(f"Proving the claim of {url} on NEAR testnet, {amount:g} test USDC held with the job (about 25 s)...", flush=True)
     req = urllib.request.Request(HOSTED, json.dumps({"url": url, "amount": amount}).encode(),
                                  {"Content-Type": "application/json", "User-Agent": "knos-cli"})
     try:
@@ -43,7 +43,8 @@ def main(args: list[str]) -> int:
         print(f"Reviewer: {v['ai_reviewer']}")
     rc = d.get("receipt") or {}
     if rc:
-        print(f"Receipt: {rc.get('buyer_usd')} test USDC behind the proof, {rc.get('agent_usd')} to the agent, {rc.get('knos_usd')} to Knos")
+        print(f"Receipt: {rc.get('buyer_usd')} test USDC held with the job; {rc.get('agent_usd')} to the agent whose code passed the locked test, "
+              f"{rc.get('knos_usd')} kept for Knos's account")
         for k in ("fee_url", "agent_pay_url", "job_pay_url"):
             if rc.get(k):
                 print(f"  NEAR: {rc[k]}")

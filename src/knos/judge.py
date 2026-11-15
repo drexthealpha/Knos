@@ -47,12 +47,13 @@ Languages (picked from the acceptance bundle's files, or `runner = "..."` in .kn
     node     `node --test`, JUnit report               acceptance: *.test.js / .mjs / .cjs / .ts
     go       `go test -json`                           acceptance: *_test.go (one package)
     rust     `cargo test`                              acceptance: *.rs, built as integration tests
+    ruby     minitest                                  acceptance: test_*.rb / *_test.rb
     command  any language or framework                 acceptance: a `check` script (or `[judge] run = "..."`);
                                                        exit 0 means done. No sentinel in this mode.
     blackbox any language, and forgery-proof           acceptance: a `blackbox` script that runs as the judge and
                                                        reaches the pull request's code only through "$KNOS_RUN ..."
 
-What is and is not stopped (docs/reference/SECURITY.md says the same): in the first five runners the code under test shares a
+What is and is not stopped (docs/reference/SECURITY.md says the same): in every runner but blackbox the code under test shares a
 process with the test runner, so a pull request written to forge the runner's report from inside is not stopped by
 the report alone. The blackbox runner closes that: the check never loads the pull request's code, so nothing that
 code does can change the verdict except producing the right output. An implementation that special-cases fixed
@@ -60,8 +61,8 @@ example inputs passes any check made of fixed examples; a blackbox check with ge
 weakness either. For everything else there is the default mode, which pays on a maintainer's merge instead (and, for
 a bounty funded on the first deployment, the review window in which its funder can veto a tests-mode payment).
 
-Assurance, said in every verdict (`assurance`, and one sentence, `assurance_means`): in-process (the first five
-runners), black-box (the blackbox runner on this machine, behind the sandbox above when the machine has one), hermetic
+Assurance, said in every verdict (`assurance`, and one sentence, `assurance_means`): in-process (every runner but
+blackbox), black-box (the blackbox runner on this machine, behind the sandbox above when the machine has one), hermetic
 (the blackbox runner with an `image`: "$KNOS_RUN" runs the pull request's code in a container of that image, pinned by
 digest, with no network, a read-only root, a tmpfs work directory, another user, no capabilities, the tree mounted
 read-only and memory, CPU, process and time limits; the check, its reference and the judge stay outside). The digest

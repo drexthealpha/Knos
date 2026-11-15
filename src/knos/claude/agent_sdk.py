@@ -75,7 +75,7 @@ def options(cwd: str, editable: str | None = None, model: str = MODEL, max_turns
     from claude_agent_sdk import ClaudeAgentOptions, HookMatcher  # type: ignore[import-not-found]
     return ClaudeAgentOptions(
         cwd=cwd, model=model, max_turns=max_turns, permission_mode="acceptEdits",
-        allowed_tools=["Read", "Glob", "Grep", "Write", "Edit", "Bash", "mcp__knos__knos_find_work", "mcp__knos__knos_bounty"],
+        allowed_tools=["Read", "Glob", "Grep", "Write", "Edit", "Bash", "mcp__knos__knos_find_work", "mcp__knos__knos_bounty", "mcp__knos__knos_verify"],
         mcp_servers={"knos": {"type": "stdio", "command": "knos", "args": ["mcp"]}},
         hooks={"PreToolUse": [HookMatcher(matcher=GUARDED_TOOLS, hooks=[make_guard(editable)])]},
         system_prompt=("You are one of several independent attempts on a research task judged by the Knos referee. Change only the "

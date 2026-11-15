@@ -1,5 +1,5 @@
-"""`knos mcp`: paid work and claim checks for a coding agent, over the Model Context Protocol on stdio. It offers 20
-tools, in five groups (and the money engine's quote tools when this install has knos.money.agent).
+"""`knos mcp`: paid work and claim checks for a coding agent, over the Model Context Protocol on stdio. It offers 23
+tools: 20 in five groups, and the three money tools knos_fees, knos_graduate and knos_preorder (knos.money.agent).
 
 Read only (public Solana and GitHub data: no key, no wallet, nothing written):
 
@@ -93,7 +93,7 @@ INSTRUCTIONS = (
     "(never open a pull request where it says banned), runs the cheat checks and the repository's tests, and returns a "
     "signed receipt and the lines to paste into the description, which disclose AI use.")
 
-CLAIM = "`knos claim <address>` or at https://drexthealpha.github.io/Knos/#claim"
+CLAIM = "`knos claim <address>`"
 HOW = ("Open a pull request whose description says `Fixes #<issue>`. No wallet is needed to start: the payment goes "
        "to the wallet bound to the pull request author's GitHub account, else to the address in their "
        "`/knos address <Solana address>` comment on the pull request, and with neither it is held for that account "
@@ -285,7 +285,7 @@ def _money_call(name: str, args: dict) -> dict:
             except ValueError:
                 raise Failed(f"{name}: {key} must be JSON text.") from None
     if name == "knos_graduate":
-        # 0.3.34: the MCP tool takes only a verdict m referees of Knos's registry signed (graduation.signed_verdict)
+        # the MCP tool takes only a verdict m referees of Knos's registry signed (graduation.signed_verdict)
         from . import graduation
         try:
             label = graduation.signed_verdict(given.get("verdict"), str(given.get("claim_id")), funder=given.get("funder"))
@@ -542,7 +542,7 @@ class Server:
 
     def _discover(self, params: dict) -> dict:
         # the extensions (tasks, skills) are listed to a client that sends its own extension capabilities; a client
-        # that names none gets the core capabilities, exactly as before 0.3.34
+        # that names none gets the core capabilities, exactly as before
         caps = mcp_more.capabilities()
         if mcp_ext.client_speaks_extensions(params):
             caps = {**caps, "extensions": mcp_ext.capabilities()}
@@ -1055,15 +1055,15 @@ class Server:
         merged = bool(pr.get("merged") or pr.get("merged_at"))
         issues = closing.closed_by(pr)[:10]
         repo_id = int(self._field(f"repos/{repo}", "id")) if issues else 0
-        escrow = [{"issue": i, "bounties": len(self._chain(lambda ledger, i=i: relay.jobs_for(ledger, repo_id, i)))
+        held = [{"issue": i, "bounties": len(self._chain(lambda ledger, i=i: relay.jobs_for(ledger, repo_id, i)))
                    + len(self._chain(lambda ledger, i=i: relay1.jobs_for(ledger, repo_id, i)))} for i in issues]
         missing = (([] if merged else ["the pull request is not merged: nothing is paid before a maintainer merges it"])
                    + ([] if issues else ["its description closes no issue (it needs `Fixes #<issue>`)"])
-                   + (["none of the issues it closes has a held bounty"] if issues and not any(e["bounties"] for e in escrow) else []))
+                   + (["none of the issues it closes has a held bounty"] if issues and not any(e["bounties"] for e in held) else []))
         can = self._verdict(missing, [])
         url = f"https://github.com/{repo}/pull/{n}"
         return {"pr": f"{repo}#{n}", "post": self._post("/knos settle", url, "anyone with a GitHub account: it makes the payment or tries it again"), "sent": False,
-                "can": can, "missing": missing, "merged": merged, "closes": issues, "escrow": escrow,
+                "can": can, "missing": missing, "merged": merged, "closes": issues, "held": held,
                 "said": f"Post `/knos settle` on {url}: it pays what the merged pull request earned, or says what is missing." if can
                 else f"Do not post it yet: {'; '.join(missing)}.", "cluster": _cluster(), "note": _note()}
 

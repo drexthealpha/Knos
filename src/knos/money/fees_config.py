@@ -7,7 +7,7 @@
                                         bounty_platform, lab_order
     cfg.platform(kind, amount)          a whole Knos fee (bounty_platform 5%, lab_order 3%) split into the on-chain part
                                         knos_pay takes and the off-chain rest (the program's rate is compiled in)
-    cfg.price(kind, count, used=0)      a count-based line: verification, x402_check (the month's free ones first)
+    cfg.price(kind, count, used=0)      a count-based line: verification, x402_check, verified_merge (the month's free ones first)
     cfg.split(amount, roles=None)       the contributor split, rounded exactly as knos_pay pays several payees
     cfg.bounty(amount), cfg.task_package(price)
     cfg.credit_tiers, cfg.decided(), cfg.placeholders(), cfg.public()
@@ -215,7 +215,7 @@ def validate(doc: Any) -> list[str]:
     if p:
         return p
     if doc.get("network") != "solana devnet":
-        p.append("network: Knos runs on solana devnet only")
+        p.append("network: Knos's Solana programs run on devnet only")
     if str(doc.get("revenue_today")) != "0":
         p.append("revenue_today: on devnet every fee is test money, so it is \"0\"")
 

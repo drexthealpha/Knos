@@ -56,8 +56,7 @@ def _gh(*args: str, inp: str | None = None) -> str:
         r = subprocess.run(["gh", *args], capture_output=True, text=True, input=inp, timeout=120, check=False)
     except FileNotFoundError:
         raise Cannot("`knos claim` uses GitHub's `gh` command, which is not installed here. Install it "
-                     "(https://cli.github.com) and run `gh auth login`, or claim in the browser: "
-                     "https://drexthealpha.github.io/Knos/#claim") from None
+                     "(https://cli.github.com) and run `gh auth login`.") from None
     if r.returncode:
         raise Cannot((r.stderr or r.stdout).strip()[:300] or f"gh {' '.join(args[:2])} failed")
     return r.stdout

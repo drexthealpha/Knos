@@ -1,5 +1,5 @@
-"""What a repository's one workflow file runs: four commands, one per job (and two more that run elsewhere: `knos
-attest` in anyone's repository, `knos canary` in a repository kept for it). The YAML only starts them. Everything a
+"""What a repository's one workflow file runs: four commands, one per job (and three more that run elsewhere: `knos
+attest` in anyone's repository, `knos canary` in a repository kept for it, `knos relay` in the public worker). The YAML only starts them. Everything a
 maintainer and a contributor read is decided and written here, and every outcome ends in a comment or in the job's
 summary: none is silent.
 
@@ -90,13 +90,12 @@ ANSWER = "<!-- knos-answer {} -->"      # the first line of an attestor's reply:
 ANSWERED = re.compile(r"<!-- knos-answer (\d+) -->|<!-- knos-private-order \{\"answers\":(\d+),")
 SCAN_DAYS = 3                           # how far back an attestor's run looks for funding comments and merges
 MAX_ASKED = 20                          # of each, how many one run acts on in one repository
-BIND = "`knos claim <their Solana address>` in a terminal, or https://drexthealpha.github.io/Knos/#claim in the browser"
+BIND = "`knos claim <their Solana address>` in a terminal"
 
 
 def _bind(login: str) -> str:
-    """How a payee whose money is held binds a wallet: the payout page for their login (a passkey wallet, no seed
-    phrase; docs/reference/SUPPLIER.md), or `knos claim` in a terminal."""
-    return f"https://drexthealpha.github.io/Knos/#payee={login.lstrip('@')} in the browser, or `knos claim <their Solana address>` in a terminal"
+    """How a payee whose money is held binds a wallet: `knos claim` in a terminal (no published page binds one)."""
+    return BIND
 OPEN = ("A wallet opens one for that id with `knos balance open`, lists the GitHub ids that may spend it, and adds money "
         "with `knos balance deposit`.")
 WRITERS = "people with write access to this repository"
@@ -2456,7 +2455,7 @@ def _status(run: Run, on: dict, on_pull: bool) -> str:
         run.failed = True
         return "Knos: GitHub did not answer for this repository. Comment `/knos status` again."
     if not on_pull:
-        return _escrow(run, rp, on)
+        return _held_for_issue(run, rp, on)
     pull = _pull(run, number)
     if pull is None:
         run.failed = True
@@ -2473,7 +2472,7 @@ def _status(run: Run, on: dict, on_pull: bool) -> str:
     return _join(parts or [_nothing(run, pull, closes, listed, held, False, merged)])
 
 
-def _escrow(run: Run, rp: dict, on: dict) -> str:
+def _held_for_issue(run: Run, rp: dict, on: dict) -> str:
     """What is in vault for one issue: each job, its terms in words, its deadline, and who holds the issue."""
     n = int(on["number"])
     try:
@@ -2705,7 +2704,7 @@ def _settled(run: Run, cases: list) -> None:
 
 
 def _finalized(run: Run, sig: str) -> bool:
-    """Whether the cluster finalized `sig` within FINAL_WAIT seconds (on an Alpenglow cluster, FINAL_WAIT_ALPENGLOW:
+    """Whether the cluster finalized `sig` within FINAL_WAIT seconds (finality.final_wait: FINAL_WAIT_ALPENGLOW_S on an Alpenglow cluster:
     finality there is the target ~150 ms, not TowerBFT's 12.8 s after confirmation). A payment this process waited for
     at `finalized` (the default on Alpenglow: knos.platform.finality) is final already: nothing is asked again. A
     ledger with no way to ask says nothing."""
@@ -3865,9 +3864,9 @@ def _reason_said(v: dict) -> str:
 
 
 def _unpaid(run: Run, word: str, about: dict, record: str) -> tuple[dict | None, str]:
-    """What a run that paid nothing leaves: (a version 5 receipt with the verdict `word`, rejected or insufficient_evidence,
-    which never authorises payment (knos.receipt.unpaid4, then build5 for its assurance level; the version 4 receipt
-    itself should that step fail), the same evaluation as a ledger line that says that verdict).
+    """What a run that paid nothing leaves: (a version 6 receipt with the verdict `word`, rejected or insufficient_evidence,
+    which never authorises payment (knos.receipt.unpaid4, then build5 for its assurance level and build6; the version 4
+    receipt itself should that step fail), the same evaluation as a ledger line that says that verdict).
     `about`: {"address", "order", "case", "pull"}. `record`: the run's own verdict line, whose sha256 the receipt names.
     Either is None or "" when the run does not know enough to write it: it is a record, never a condition."""
     from . import ids, ledger
@@ -3972,7 +3971,7 @@ def _appeal_ended(run: Run, v: dict, c: Case, pull: dict) -> str:
 
 def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str = "", plan: str = "", judge: str = "",
            judge_fn=None) -> int:
-    """`knos attest --repository R --pull P --order O --kind pay|take|revert|rule|eval [--payees ...]`: what attest.yml runs,
+    """`knos attest --repository R --pull P --order O --kind pay|take|revert|rule|eval|batch|claim [--payees ...]`: what attest.yml runs,
     in ANY repository. `run.repo` is R, the repository the work order is for, and nothing is read of it but GitHub's
     public record: the pull request and its merge, each required check of the order's terms at its last commit, the
     issues it closes, the default branch's history (a revert). The rules are settle's own (`_decide`); when they
@@ -4052,7 +4051,8 @@ def attest(run: Run, order: str, kind: str, pull: int | None = None, payees: str
                                                         f"@{actor['login']} (id {actor['id']})." if o.arbiter_id else "names no arbiter, so nobody can rule on it."))
         try:
             ruled = pay.payees_of("x:" + payees.strip())
-            assert 1 <= len(ruled) <= pay.MAX_PAYEES and sum(bps for _i, bps, _a in ruled) == 10_000 and all(i > 0 and bps > 0 for i, bps, _a in ruled)
+            if not (1 <= len(ruled) <= pay.MAX_PAYEES and sum(bps for _i, bps, _a in ruled) == 10_000 and all(i > 0 and bps > 0 for i, bps, _a in ruled)):
+                raise ValueError("payees")
         except Exception:  # noqa: BLE001
             return no("A ruling names who is paid: `--payees` is one to four entries `id.bps.address` separated by commas, where id is a "
                       "GitHub user id, the bps add up to 10000, and address is a Solana address or `-` for the id's bound wallet.")
@@ -4266,7 +4266,7 @@ def _token_comment(run: Run, here: str, issue: int, order: str, since: str) -> s
 
 # ---- knos canary: one full round, timed --------------------------------------------------------------------------------
 
-CANARY_WAIT, CANARY_EVERY = 300, 5      # seconds each leg may take (the payment's five minutes are the release's promise), and between looks
+CANARY_WAIT, CANARY_EVERY = 300, 5      # seconds each leg may take (five minutes for the payment), and between looks
 LEGS = ("fund", "open", "check", "merge", "pay")
 
 
@@ -4715,7 +4715,8 @@ def _parser():
     s.add_argument("--order", required=True, help="the work order's address (eval: <work order's 32-byte id in hex>.<milestone>.<rate>)")
     s.add_argument("--kind", required=True, choices=KINDS, help="pay: the merge met the terms. take: reserve the order. revert: the merge was reverted "
                                                                 "during the warranty. rule: you are the order's arbiter. eval: record one evaluation for "
-                                                                "the meter, run in the buyer's repository (merged = accepted, closed without merge = rejected).")
+                                                                "the meter, run in the buyer's repository (merged = accepted, closed without merge = rejected). batch, "
+                                                                "claim: one batch of a ledger file for knos_meter (knos.ledger.attest_batch).")
     s.add_argument("--pull", type=int, default=0, help="the pull request's number (pay, revert, eval)")
     s.add_argument("--payees", default="", help="rule: who is paid, as id.bps.address entries separated by commas")
     s.add_argument("--plan", default="", metavar="DIR", help="the job before the one that signs: write DIR/plan.json, what to fetch to run "
@@ -4791,7 +4792,7 @@ def _dispatch(a, sub) -> int | str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """`python -m knos.flow <command|settle|review|check|attest|canary> ...`, and what the `knos` console script runs for those
+    """`python -m knos.flow <command|settle|review|check|attest|canary|relay> ...`, and what the `knos` console script runs for those
     words. Whatever is wrong with the command line is one line, never a traceback; the exit status is the job's."""
     import sys
     args = list(sys.argv[1:] if argv is None else argv)

@@ -5,7 +5,7 @@ is not reproduced, a notice for the authors. Only `publish` writes to <out>/publ
 is not `reproduced` with every claim holding, no cheat rule fired and a digest that checks. A contested result goes
 to its authors privately first; Knos never publishes it. There is no flag that changes this.
 
-The badge is drawn with knos.badge's drawing (the same mark, size and fonts as "paid on proof" and "Knos-verified"),
+The badge is drawn with knos.badge's drawing (the same mark, size and fonts as "checked by Knos" and "Knos-verified"),
 from a result that checks and from nothing else. The result page has one section per claim; the funding link a spec
 names appears there and only there, and only on a reproduced result.
 """

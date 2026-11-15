@@ -28,7 +28,7 @@ import time
 import urllib.parse
 
 PERCENTILE = 75
-DEFAULT_MAX = 200_000            # micro-lamports a unit: 0.0002 lamports; a payout of 40,000 units then pays at most 8 lamports more
+DEFAULT_MAX = 200_000            # micro-lamports a unit: 0.2 lamports; a payout of 40,000 units then pays at most 8,000 lamports (0.000008 SOL) more
 HEADROOM = 1.15
 MIN_UNITS, MAX_UNITS = 5_000, 1_400_000
 

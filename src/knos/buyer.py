@@ -1,5 +1,5 @@
 """Post a task as a buyer: one command from a written spec and a folder of hidden tests to an issue, a seal and the
-exact funding command (`knos task post`, docs/START.md).
+exact funding command (`knos task post`, an older flow kept for the tasks already funded).
 
 What a buyer needs before work starts, in order, and which existing piece does each:
 
@@ -72,7 +72,7 @@ def check_bundle(bundle: Path) -> list[str]:
 
 
 # What knos.judge's overlay always takes from the base (judge.restored, runner python/command/blackbox): a sealed test
-# that reads one of these sees the base's copy, whatever the work delivered. Found by V34DOG while buying v0.3.34.
+# that reads one of these sees the base's copy, whatever the work delivered. Found by V34DOG while buying, before 0.4.0.
 FROM_BASE = ("pyproject.toml", "setup.cfg", "pytest.ini", "tox.ini", "conftest.py")
 
 

@@ -5,8 +5,8 @@ statement. `knos audit show <order>` prints one deliverable as four linked objec
 commercial record, settlement status), `knos audit owed --payee <login>` is the supplier's side, and
 `knos audit export --format netsuite|sap|coupa|quickbooks|generic` writes the files of knos.exports.
 
-Version 2 of the file (this one) lists the bounties on issues (the second vault's jobs, `knos2:` lines) beside the
-work orders (`knos3:` lines): `record` says which a line is. A version 1 file listed work orders only, so an
+Version 3 of the file (this one) adds `outcome` and the four ids (knos.ids) to version 2, which listed the bounties
+on issues (the second vault's jobs, `knos2:` lines) beside the work orders (`knos3:` lines): `record` says which a line is. A version 1 file listed work orders only, so an
 organisation that had only posted bounties got an empty one. Version 2 also adds `source`, `terms_version`,
 `paid_each` and `held_until`. The file names its version in its first line (CSV) or in `version` (JSON), and `verify`
 checks a file of either version by that version's columns.
@@ -104,11 +104,14 @@ OUTCOMES = {"accepted": "accepted", "pending": "insufficient_evidence", "expired
 MOVES = ("paid", "released", "kill", "refunded", "reverted")       # the kinds of line in which money moved
 BOUNTY_JUDGE = ("repository", "prove.yml of the pinned workflows, run in the bounty's own repository")
 SUMS = ("paid_units", "fee_units", "refunded_units", "reverted_units")
-# knos3:settled judge=N (programs-v2/knos_pay/src/order_pay.rs, `Judge`), and what order_judge.rs requires of each
+# knos3:settled judge=N (programs-v2/knos_pay/src/order_pay.rs, `Judge`: 0 to 6, 9 none), and what order_judge.rs requires of each
 JUDGES = {0: ("repository", "prove.yml of the pinned workflows, run in the order's own repository"),
           1: ("neutral", "attest.yml of the pinned workflows, started by hand by the owner of the repository it ran in"),
           2: ("attestor", "prove.yml or attest.yml of the pinned workflows, run in the judge repository the order named at funding"),
           3: ("arbiter", "attest.yml of the pinned workflows, started by hand by the arbiter the order named at funding"),
+          4: ("auto", "prove.yml of the pinned workflows: the order's own black-box checks, paid with no merge"),
+          5: ("attested", "an attested proof the order named (order_proof.rs ATTESTED)"),
+          6: ("panel", "m-of-n referee panel verdict"),
           9: ("none", "no token: a payment the program had already accepted (a held payment settled, or a holdback released)")}
 KINDS = ("paid", "released", "kill", "refunded", "reverted", "open", "held")
 _STATE = ("open", "held")       # lines that say what an order is at the end of the period, whenever it was funded
@@ -368,7 +371,7 @@ def export(events: list[dict], owner_id: int, fmt: str = "csv", first: str = "",
 
 
 def write(scope: dict, rows: list[dict], head: str, fmt: str) -> str:
-    """The file. A version 2 file names its version: the first line of the CSV is `knos.audit-export,version,2`, and
+    """The file. A file of version 2 or later names its version: the first line of the CSV is `knos.audit-export,version,2`, and
     the JSON has `version`. A scope of version 1 is written as version 1 was: its columns first, and no version line."""
     sums, columns, version = totals(rows), columns_of(scope), int(scope["version"])
     if fmt == "json":
@@ -468,7 +471,7 @@ def verify(text: str) -> list[str]:
 #     ref        the buyer's own reference for the deliverable (a purchase order or an invoice line), and a payment made
 #                by bank. From a side file (`--refs refs.csv`): the terms an order is paid under are hashed on chain and
 #                have no free-text field, so a reference is never put there.
-#     receipt    the acceptance receipt of the paying transaction (knos.receipt, version 3): the Balance's limits when
+#     receipt    the acceptance receipt of the paying transaction (knos.receipt, version 3 or later): the Balance's limits when
 #                it funded, and each evaluator's owner, starter and independence flags.
 #     approval   for an order a Squads vault funded: the multisig, its threshold, its members and who approved
 #                (`squads_approval` reads them from the chain).
@@ -586,7 +589,7 @@ def record(rows: list[dict], ref: dict | None = None, receipt: dict | None = Non
         said = (MULTISIG.format(threshold=k, members=n, approved="" if who is None else f", and {len(who)} did") if k >= 2 else ONE_OF.format(members=n))
     else:
         said = {"wallet": ONE_WALLET, "faucet": FAUCET}.get(role, NO_SECOND)
-    c3 = (receipt or {}).get("commercial_authorisation") if (receipt or {}).get("version") in (3, 4) else None
+    c3 = (receipt or {}).get("commercial_authorisation") if (receipt or {}).get("version") in (3, 4, 5, 6) else None
     seen = (receipt or {}).get("evaluator_observed") if c3 else None
     judged = [r for r in rows if r["judge"]]
     evaluators = ([{k: e.get(k) for k in ("kind", "repository_id", "owner_id", "actor_id", "runner", "independent_of_buyer", "independent_of_seller")}

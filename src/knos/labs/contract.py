@@ -8,8 +8,7 @@
     public_view(result)                                      what may be public: hashes, timing, the two verdicts
 
 `mode` is "fixture" unless YOUR key for that lab is in the environment (bring your own key), then "live". A lab whose
-service is free (computed data, simulation) is quoted at the Knos check price (config/fees.yaml `x402_check`), and the
-quote says so in `price_basis`. Examples marked synthetic are made up for the example, never a lab's price.
+service is free (computed data, simulation) is quoted at 0, and the quote says so in `price_basis`. Examples marked synthetic are made up for the example, never a lab's price.
 """
 from __future__ import annotations
 
@@ -97,9 +96,7 @@ class Lab:
         else:
             price, currency = Decimal(q.amount_usd or "0"), q.currency
         if price <= 0:
-            from ..money import fees_config
-            price = Decimal(fees_config.load().doc["fees"]["x402_check"]["usd_each"])
-            basis = "the Knos check price (config/fees.yaml x402_check): the lab's data or simulation is free"
+            price, basis = Decimal(0), "free: the lab's data or simulation costs nothing"
         return {"lab": self.name, "field": self.field, "price": float(price), "price_text": str(price), "currency": currency,
                 "price_basis": basis, "turnaround_days": q.turnaround_days if q.turnaround_days is not None else 0,
                 "mode": a.mode, "fixture": a.mode == "fixture", "source": q.source}

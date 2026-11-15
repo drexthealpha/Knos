@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("status", help="which mode each provider is in (no key is ever printed)")
     fl = sub.add_parser("flow", help="one task end to end: post, code on Nemotron, referee, paid, metered (flow.json + flow.html in --out)")
     fl.add_argument("--out", default="")
-    fl.add_argument("--root", default=".", help="the Knos checkout (examples/nebius/task)")
+    fl.add_argument("--root", default=".", help="a folder that has examples/nebius/task (kept outside the public repository)")
     fl.add_argument("--wallets", default="", help="a folder with team.json, agent.json, mint.json (devnet keys; never printed): funds the held money and pays the check on devnet")
     fl.add_argument("--team", default="knos-internal-dogfooding")
     fl.add_argument("--rounds", type=int, default=4)

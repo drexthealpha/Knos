@@ -24,7 +24,7 @@ function render() {
   const s = state;
   $("title").textContent = s.title;
   $("meta").textContent = `Field: ${s.field}. Round ${s.round} of ${s.rules.rounds}, ${s.rules.per_round} attempts a round. Metric: ${s.metric} (${s.direction}). `
-    + `To be paid, an attempt must beat the baseline by ${s.min_lift} on the final sealed set. Status: ${s.status}. Spec ${s.spec_hash.slice(0, 16)}.`;
+    + `To be paid, an attempt must beat the baseline by ${s.min_lift} on the final sealed set, and the player must have a GitHub or ORCID identity. Status: ${s.status}. Spec ${s.spec_hash.slice(0, 16)}.`;
   $("program").textContent = s.program;
   $("idea").textContent = s.idea;
   $("synthetic").hidden = !s.synthetic;

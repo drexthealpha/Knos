@@ -3,8 +3,8 @@
 The x402 `upto` scheme (github.com/coinbase/x402 specs/schemes/upto/scheme_upto.md, read 14 Oct 2026): "transfers up to
 a maximum amount, with final charges determined at settlement based on actual resource consumption"; each
 authorization settles at most once, is time bound, binds the recipient, and the settled amount is at most the
-authorized maximum. The repository's only network document for it is scheme_upto_evm.md (Permit2); there is no
-scheme_upto_svm.md in coinbase/x402 main on 14 Oct 2026. The x402 docs (docs.x402.org/schemes/upto, same day) say the
+authorized maximum. On 14 Oct 2026 the repository's only network document for it was scheme_upto_evm.md (Permit2);
+scheme_upto_svm.md, published since, now specifies the SVM side, and this module predates it (its field names may differ). The x402 docs (docs.x402.org/schemes/upto, same day) say the
 SVM implementation uses "the payment-channels program" (github.com/solana-foundation/payment-channels): "the client
 locks the ceiling amount in an onchain channel (`open`)" and the server settles "with a signed voucher
 (`settle_and_seal` + `distribute`)". The public facilitator https://x402.org/facilitator/supported lists `upto` only for

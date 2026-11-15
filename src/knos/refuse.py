@@ -1,7 +1,7 @@
 """What Knos will not fund (the published refuse list, inside the Ready check).
 
 A brief is refused, never "Not ready but fixable", when its words name one of these. The list is public
-(docs/reference/REFUSE.md is generated from it) so a refusal is automatic and anyone can audit it.
+(docs/reference/REFUSE.md describes it; GET /api/refuse serves the full list) so a refusal is automatic and anyone can audit it.
 
     weapons                 arms, munitions, explosives for harm
     military_first          a product whose first customer or use is military

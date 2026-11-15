@@ -2,6 +2,7 @@
    python -m knos.labs try LAB                one order of LAB's example through quote, order, status, results and the two
                                               verdicts, on the lab's FIXTURES (no network, no money). LAB is one of:
                                               adaptyv, b12_selenium, b12_foundry, materials_project, pcbway, xometry, pylabrobot
+                                              (jlcpcb and manual are listed by catalogue but have no example to try)
    python -m knos.labs try pylabrobot --live  robotics on a real PyLabRobot install instead of the recorded runs
                                               (install it once: sh scripts/install_pylabrobot.sh)"""
 from __future__ import annotations

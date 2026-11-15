@@ -351,7 +351,7 @@ def sample_deliverable() -> dict:
     return {"id": ids.deliverable(controls.published_terms()["bugfix"], f"{controls.SAMPLE_REPOSITORY}#31"), "offer": "bug-fix-octocat", "outcome": "bug-fix", "supplier": "octocat",
             "artifact": "pull request #31", "requirements": [{"name": "unit", "passed": True}, {"name": "lint", "passed": True}, {"name": "only src/ and tests/ changed", "passed": True}],
             "verdict": "accepted", "evaluations": 2, "invoice_lines": 1, "amount": "50", "paid": "50", "held": "0", "credited": "0", "owed": "0", "disputed": False,
-            "evidence": "audit/drexthealpha.json"}
+            "evidence": "audit/<owner id>.json (a sample path)"}
 
 
 # ---- the commands -------------------------------------------------------------------------------------------------------

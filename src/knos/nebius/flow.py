@@ -3,7 +3,8 @@ Token Factory) -> the Knos referee judges that code on sealed tests -> paid, fin
 
     python -m knos.nebius flow --out DIR [--wallets DIR] [--team NAME] [--rounds N]
 
-  1 post       the task (examples/nebius/task: TASK.md, the repository, the hidden acceptance tests) is SEALED by the
+  1 post       the task (<root>/examples/nebius/task: TASK.md, base/, hidden/; kept outside the public repository since
+               28 Oct 2026, so --root names a folder that has it) is SEALED by the
                referee (spec hash + judge hash, published before work starts). With --wallets the team funds the
                bounty into knos_pay vault on Solana devnet; the terms carry the seal hash.
   2 code       knos.nebius.agent: Nemotron 3 Super writes duration.py and its tests, the agent runs pytest, feeds the
@@ -94,6 +95,9 @@ def run_flow(root: Path, out: Path, *, wallets: Path | None = None, team: str = 
 
     # 1. post: seal, then fund
     td = task_dir(root)
+    if not all((td / part).exists() for part in ("TASK.md", "base", "hidden")):
+        raise FileNotFoundError(f"no task at {td} (TASK.md, base/, hidden/): the task folder is kept outside the public "
+                                "repository; pass --root a folder that has examples/nebius/task")
     for name in ("base", "pr", "sealed"):
         shutil.rmtree(out / name, ignore_errors=True)
     shutil.copytree(td / "base", out / "base")

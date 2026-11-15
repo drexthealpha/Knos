@@ -1,8 +1,8 @@
 """One plain answer to a claim of payment where nothing was funded (.github/workflows/claims.yml runs this).
 
-Knos pays one thing: an order funded with `/knos fund`, on Solana devnet, in test USDC, to the Solana address or the
+On GitHub, Knos pays one thing: an order funded with `/knos fund`, on Solana devnet, in test USDC, to the Solana address or the
 passkey its payee bound. Pull requests arrive that claim a payment anyway: they carry the commands of bounty
-platforms (`/claim`, `/attempt`, `/opire try`), or a wallet address on another chain, against an issue nobody
+platforms (`/claim`, `/attempt` and similar), or a wallet address on another chain, against an issue nobody
 funded: sometimes against an issue that is not a task at all, such as the one the relay writes its log in. Left
 unanswered, that reads as a debt. This module answers it once, in words that accuse nobody:
 
@@ -110,8 +110,8 @@ def answer(pull: bool, logs: list[int], plain: list[int]) -> str:
     else:
         lines.append(f"- No funded order is attached to {this}, so no payment is attached to it.")
     lines += [
-        "- Knos pays only orders funded with `/knos fund`, on Solana devnet, in test USDC that has no monetary value.",
-        "- A payment goes to the Solana address or passkey its payee binds. An address on another chain cannot be paid.",
+        "- On GitHub, Knos pays only orders funded with `/knos fund`, on Solana devnet, in test USDC that has no monetary value.",
+        "- A GitHub payment goes to the Solana address or passkey its payee binds.",
         f"- Funded work is listed by `knos work list`. The playground shows a funded order from start to finish: {PLAYGROUND}",
         f"- Funded tasks anyone may take carry the label `{FUNDED_LABEL}` there: {FUNDED}",
         "",

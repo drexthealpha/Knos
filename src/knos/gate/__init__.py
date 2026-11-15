@@ -1,4 +1,4 @@
-"""Knos Gate: a maintainer's check on every outside pull request, against tests its author could not see.
+"""The gate of Knos: a maintainer's check on every outside pull request, against tests its author could not see.
 
     .knos/gate.yml            the maintainer's config (knos.gate.config: schema, loader, defaults)
     sealed hidden tests       a bundle the pull request's author cannot read (a repository secret or a private

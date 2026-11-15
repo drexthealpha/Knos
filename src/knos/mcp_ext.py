@@ -10,10 +10,10 @@ long tool (`knos_verify`), the server answers at once with a CreateTaskResult (r
 that did not declare support": a client that did not gets the blocking answer, as before.
 
 Skills (io.modelcontextprotocol/skills, SEP-2640 Final; modelcontextprotocol.io/extensions/skills/overview, same day).
-An agent connected to `knos mcp` discovers the Knos skills (how to verify before a pull request, how to earn and fund)
+An agent connected to `knos mcp` discovers the Knos skills (verify before a pull request; prove a claim on NEAR)
 with `skills/list` / `skills/get` and reads them with `resources/read` at skill://<name>/<file>, each file listed with
-its sha256 and size so the host verifies what it loads. The skills are the files the plugin and Hermes already ship
-(plugin/skills/*, hermes/knos), served from the wheel's copy (knos/_skills) or the source tree.
+its sha256 and size so the host verifies what it loads. The skills are the plugin's files (plugin/skills/*), served
+from the wheel's copy (knos/_skills) or the source tree.
 """
 from __future__ import annotations
 
@@ -117,7 +117,7 @@ def _skill_roots() -> list[Path]:
     here = Path(__file__).resolve().parent
     roots = [here / "_skills"]
     tree = here.parents[1]
-    roots += [tree / "plugin" / "skills", tree / "hermes"]
+    roots += [tree / "plugin" / "skills"]
     return [r for r in roots if r.is_dir()]
 
 

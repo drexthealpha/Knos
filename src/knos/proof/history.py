@@ -5,12 +5,13 @@ that history makes required.
     observe(...)  later evidence about a commit, e.g. CI failed at 54ce98ad (entity `proof_outcome`)
     lint()        claims the evidence contradicts: "shipped" at a commit whose CI failed
     learn()       each contradiction becomes a required check (entity `proof_rule`): from then on, a claim of that kind
-                  runs that check whatever the message says. (Sibyl's own self-learning, a paid feature, is not called;
-                  account has Sibyl Pro (playbooks across the journal); the rules here need no tier. Each flagged PR
+                  runs that check whatever the message says. (The memory engine's own self-learning, a paid feature, is not
+                  called: the rules here need no tier.) Each flagged PR
                   (a repo-rule violation) becomes a `repo_rule`, required as `rule:<id>` on every claim after.
-    repo_rules()  the repo's own rules: CONTRIBUTING.md parsed into machine-checkable rules (stored in Sibyl the first
-                  time, recalled from Sibyl after) plus the rules past rejections taught it (entity `repo_rule`)
-    lint_pr()     every place a PR's diff or commits break one of those rules, citing the rule's line and the PR's
+    repo_rules()  the repo's own rules: CONTRIBUTING.md parsed into machine-checkable rules (stored in the memory engine the
+                  first time, recalled from it after) plus the rules past rejections taught it (entity `repo_rule`)
+    lint_pr(), lint_learned()
+                  every place a PR's diff or commits break one of those rules, citing the rule's line and the PR's file:line or commit.
     learn_tamper()  a caught tamper (a prove.judge finding's `pattern`) becomes a `tamper` entity and two proof_rules
                   scoped repo=... and agent=...: every later proof for that repo or by that agent must run
                   `tamper:<pattern>` (required_for / tamper_checks_required)
@@ -43,6 +44,12 @@ that history makes required.
                   (REFERENCE), and a closed period is an entity moved to the archive (ARCHIVE). `knos recall exception`
                   (knos.recall) answers from them: how the same exception under the same terms ended before.
 
+    order_outcome(), orders(), terms_supported()
+                  how each past order here ended, and the published template that supports its terms
+    protections_recalled()
+                  what a supplier should ask for before starting under these terms: each remembered dispute, appeal
+                  won or late acceptance becomes the protection that covers it
+
     approval_kept(), approval_recalled()
                   the approver's defence six months later, in the buyer's tenant: one entity per commitment (WARM) holds
                   every approval record given for it (who, amount, policy version, evidence hash, why, expiry), each one
@@ -50,7 +57,7 @@ that history makes required.
 
     outcome_granted(), grant_withdrawn(), onboarded(), reuse(), supplier_brings()
                   supplier reuse, in the SUPPLIER's tenant: what a buyer granted it to carry (accepted terms, results,
-                  value; WARM, a withdrawn grant ARCHIVED), and each buyer's time from first order to first payment, so
+                  value; WARM), and each buyer's time from first order to first payment, so
                   the second buyer's onboarding is set against the first's. `knos recall supplier` answers from them.
 
     line_decided(), line_decisions()
@@ -570,6 +577,7 @@ def _order_row(body) -> bool:
             and all(isinstance(x, str) and 1 <= len(x) <= 200 for x in body["failed"]))
 
 
+# knos.flow writes `paid` and `refunded` today; a warranty revert and a dispute are not written here yet.
 def order_outcome(store, repo, order, outcome: str, template: str = "", version: int = 0, policy: str = "",
                   failed=(), seq: int | None = None) -> dict:
     """Remember how one order in `repo` ended: `outcome` is one of OUTCOMES. `template` and `version` name the published

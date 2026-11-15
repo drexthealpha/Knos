@@ -9,6 +9,10 @@
                                                            request and posts the comment as you
     knos task why OWNER/REPO#N [--pull M]                  one sentence: why a merged pull request was not paid, and what fixes it
     knos task kinds [--json]                               the tasks that are not code puzzles, each with its evidence
+    knos task post SPEC --tests DIR --repo R --amount N    (older flow, kept for the tasks already funded) post a task
+                                                           with hidden tests, sealed, as a funded issue
+    knos task calibrate --tests DIR --base B --reference R  your own solution against the hidden tests before sealing
+    knos task judge --seal F --hidden DIR --commit C --patch P   judge a delivered patch against the sealed tests
 
 REF is a task's issue number on the board, its slug, or owner/repo#number.
 
@@ -26,7 +30,7 @@ copy) names that copy: the public worker's run is signed for the public workflow
 task board therefore funds only where the repository calls the public pinned workflows (`scripts/task_board.py`,
 `unpinned`), and `explain` says so when it finds an order that names another.
 
-TASKS THAT ARE NOT CODE PUZZLES (KINDS; tasks/outside/<kind>.json holds the same text). Each has evidence a
+TASKS THAT ARE NOT CODE PUZZLES (KINDS below holds each kind's text). Each has evidence a
 machine checks (`accepts`) and one counter it can move. `keyholder` counts an OFFER of a key, never a holder: a key
 is held only once the multisig seats it (docs/TRUST.md). `witness` is the whole transaction, end to end, in a
 repository of the stranger's own (examples/witnessed). A counter moves only when the account that did it is not one
@@ -393,7 +397,7 @@ def accepts(kind: str, e: dict) -> tuple[bool, str]:
 
 
 def kind_file(kind: str) -> str:
-    """tasks/outside/<kind>.json, byte for byte."""
+    """The JSON of one kind, as the board publishes it."""
     return json.dumps({"kind": kind, **KINDS[kind]}, indent=1, ensure_ascii=False) + "\n"
 
 

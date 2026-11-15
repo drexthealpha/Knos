@@ -3,6 +3,9 @@
     knos terms list            all eight, one sentence each
     knos terms show <name>     the comment to post, the sentence, the terms JSON knos-pay hashes, and its sha256
     knos terms diff <a> <b>    what changed between two versions of an acceptance policy, in plain words
+    knos terms cite <name> [version]     the sentence a contract carries to name a published template by hash
+    knos terms verify <hash|file>        which published template and version these terms are
+    knos terms propose <owner/repo>      proposed terms 3 for a public repository, from a template
 
     bugfix             named checks must pass; only src/ and tests/ may change
     feature-blackbox   paid when the black-box acceptance suite (.knos/acceptance/<issue>/) passes
@@ -25,8 +28,9 @@ fund another: examples/terms/<name>.json is `export(name)`, and the tests hold t
 The terms of a real bounty also carry facts of the repository it is funded in, which no template can know: the id
 of the GitHub App that produces each check, the hash of the acceptance bundle, the hash of the repository's policy,
 the vendor's account id. Each template says under `assumes` which sample facts its JSON was made with. The comment is
-what you copy; the reply to it shows your repository's own terms and their hash. No template asks for more than
-100: on devnet the program's faucet gives at most 100 test USDC per comment, so each works with no Balance.
+what you copy; the reply to it shows your repository's own terms and their hash. No code template asks for more
+than 100 (data-transformation asks 150 and needs a Balance): on devnet the program's faucet gives at most 100 test
+USDC per comment, so the others work with no Balance.
 
 An ACCEPTANCE POLICY is the terms an order was funded on, and its version is their sha256: the hash the order keeps,
 every pay token carries, and the meter records as `policy`. Nobody edits a version; a change is a new version with a

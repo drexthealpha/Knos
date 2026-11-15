@@ -43,7 +43,7 @@ class Manual(Adapter):
         text = (f"Order request (send it yourself through {self.CONTACT}):\n"
                 f"  work: {spec.title or 'as in the attached protocol'}\n"
                 f"  protocol sha256: {sha256_hex(repr(sorted(spec.protocol.items())))}\n"
-                f"  payment: held by Knos until the proof passes ({escrow_ref}); released to the lab when the protocol was executed as\n"
+                f"  payment: held in a Knos order ({escrow_ref}); released to the lab when the protocol was executed as\n"
                 f"  specified and QC passed, whatever the scientific outcome.\n"
                 f"  please return: every run's raw files (failed runs included) and the QC record.")
         self.states[oid] = "submitted"

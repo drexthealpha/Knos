@@ -8,6 +8,7 @@
     knos statement pay <file> --rail bank --payer-name N --payer-account IBAN --payees payees.csv
                                         a payment file for the payer's own bank (ISO 20022 pain.001): the approved lines whose policy is met
     knos statement status <file> --from <the bank's status report>     marks the lines of each transfer paid, or payable again
+    knos statement settle-sync <file> [--order ADDR]   records the chain's payment of each agreed line
     knos statement complete <file> --sources sources.json
                                         the statement against the orders the chain paid and the GitHub sources its lines
                                         name: deleted, omitted, late and duplicated, each an exception (knos.completeness)
@@ -900,7 +901,7 @@ def as_pdf(st: dict, status: dict | None = None) -> bytes:
 
 
 def write(st: dict, out: Path, status: dict | None = None, name: str = NAME) -> list[Path]:
-    """<name>.json (only when it is not there yet: a statement is never rewritten), <name>.csv and <name>.pdf in `out`."""
+    """<name>.json, <name>.csv and <name>.pdf in `out` (an existing file of the same name is replaced)."""
     out.mkdir(parents=True, exist_ok=True)
     files = [(out / f"{name}.json", canonical(st)), (out / f"{name}.csv", as_csv(st, status).encode("utf-8", "surrogatepass")),
              (out / f"{name}.pdf", as_pdf(st, status))]

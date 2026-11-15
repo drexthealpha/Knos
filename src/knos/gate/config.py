@@ -23,7 +23,7 @@
                                        # there: installs what the tests need into the test environment
     on_fail: comment                   # comment | label | close
     label: knos-gate-failed
-    pass_label: ""                     # e.g. knos-verified: an opt-in bypass signal for Vouch or PR caps
+    pass_label: ""                     # e.g. knos-verified: an opt-in bypass signal for other pull request tools
     outside_only: true                 # judge only pull requests from outside collaborators
     receipt: true
     bounties:
@@ -52,7 +52,7 @@ _LABEL = re.compile(r"^[^\x00-\x1f,]{0,50}$")
 
 SCHEMA: dict = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://github.com/drexthealpha/Knos/src/knos/gate/gate.schema.json",
+    "$id": "https://raw.githubusercontent.com/drexthealpha/Knos/main/src/knos/gate/gate.schema.json",
     "title": "Knos Gate config (.knos/gate.yml)",
     "type": "object",
     "additionalProperties": False,

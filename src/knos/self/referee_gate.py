@@ -111,7 +111,7 @@ def founder_approved(candidate_hash: str, approval: dict | None, keys) -> tuple[
     if not keys:
         return False, "no founder approval key in targets.yml: every referee change waits for the founder"
     if not approval:
-        return False, "no founder signature over the candidate referee's judge_hash"
+        return False, "no founder signature over the candidate referee's loop hash (knos-self:referee:<candidate_loop_hash>)"
     from ..receipt2 import ed25519
     if approval.get("key") not in keys:
         return False, "the approving key is not one targets.yml lists"

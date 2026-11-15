@@ -1,4 +1,4 @@
-"""The two tools `knos mcp` (and the Hermes plugin) offer for this: knos_verify and knos_receipt.
+"""The two tools `knos mcp` offers for this: knos_verify and knos_receipt.
 
 knos_receipt only reads a file. knos_verify is NOT read-only: it runs the repository's tests (or the command given in
 `tests`) on this machine, in a throwaway clone, and writes the receipt inside the checkout. So it is marked

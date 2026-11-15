@@ -25,7 +25,7 @@ and it remembers each preflight's result. Memory also changes what it recommends
 under these terms, or by this supplier, ended in a dispute, was won on appeal or was accepted late, the report's
 `recommend` names the protection that covers it (a reserve, an arbiter, a deadline), why, and the recalled evidence
 ids (history.protections_recalled). With the engine absent it works the same, says memory is off and recommends
-nothing from history: delete the memory layer and this answer changes (docs/TRUST.md says what the memory engine
+nothing from history: delete the memory layer and this answer changes (docs/reference/DISCLOSURE.md says what the memory engine
 is and what Knos depends on it for; tests/test_sibyl_is_load_bearing.py shows it).
 
 `knos keep <order or transaction> --out DIR` writes the supplier's own copy of everything about a deliverable: the

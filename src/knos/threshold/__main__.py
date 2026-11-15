@@ -1,7 +1,7 @@
 """python -m knos.threshold <command>: Knos's FROST referee hosts.
 
     dkg-local --out DIR [--group PATH]     run the DKG as three separate processes on this machine (one per host);
-                                           writes DIR/share-render.json, share-github.json, share-pc.json (0600) and
+                                           writes DIR/share-render.json, share-gh.json, share-pc.json (0600) and
                                            the PUBLIC group record (default config/referee-frost.json)
     dkg-party --id N --relay DIR --run ID --out FILE    one DKG party (what dkg-local starts; or one per host)
     sign-session --session ID [--coordinator URL] [--github-oidc] [--verdicts DIR]   one signing session (GitHub

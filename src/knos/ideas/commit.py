@@ -1,7 +1,7 @@
 """The commitment file: what `knos idea commit` locked, and what `sign`, `release`, `refund` and `state` read.
 
     knos idea commit idea.json --units 10 --price 4 --payee orcid:0000-...@<wallet> --panel 2:<k1>,<k2>,<k3> \\
-                               --program <knos_pay 0.3.34 id> --wallet buyer.json --mint <mint>   -> idea.commit.json
+                               --program <knos_pay panel test build id> --wallet buyer.json --mint <mint>   -> idea.commit.json
     knos idea sign idea.commit.json stage1 --referee referee.json                -> one referee's signed verdict (a file)
     knos idea release idea.commit.json stage1 --sig a.json --sig b.json --wallet relayer.json   (m signatures: paid)
     knos idea refund idea.commit.json stage2 --sig a.json --sig b.json --wallet relayer.json    (m FAIL verdicts: refunded now)

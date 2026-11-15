@@ -4,7 +4,7 @@ model call:
 - an idea: (a) the input as typed, always first; (b) up to 2 nearest recorded ideas, nearest meaning the most shared
   content words (lower-cased, the stop words of stopwords.txt dropped, Porter-stemmed), ties to the most recent
   recording, each sharing 2 or more content words and the input's last noun, with the words that differ; (c) one
-  broader reading, the input without its first content word before the last noun, when it has 3 or more content words.
+  broader reading, the last two content words of the input's noun phrase, when it has 3 or more content words.
   An input that is a recorded idea word for word (lower-cased) needs no step.
 - a paper (a DOI, an arXiv id, a doi.org or arxiv.org URL, or text starting with "paper:"; nothing else is a paper):
   the paper from OpenAlex (Crossref when OpenAlex has no answer), its title, year, citations and top concepts; the input

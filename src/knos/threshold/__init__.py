@@ -2,13 +2,13 @@
 
 Three referee hosts each hold one key SHARE, made by FROST's distributed key generation (no dealer; no machine ever
 holds the whole key). Any two of the three produce ONE standard Ed25519 signature under the group public key; one
-share alone produces nothing. The knos_pay 0.3.34 PANEL order pins that group key as a 1-of-1 panel
+share alone produces nothing. The PANEL order of the knos_pay panel test build pins that group key as a 1-of-1 panel
 (order_proof.rs: panel_of accepts 1 <= m <= n), so Solana's Ed25519 precompile checks the aggregated signature exactly
 as it checks a single referee's, and the program pays at the first (and only) panel key: m = 1.
 
     participant 1  render   the Knos app server (knos.onrender.com): its share in a Render secret file
-    participant 2  github   GitHub Actions in drexthealpha/Knos (.github/workflows/referee.yml): a repository secret
-    participant 3  pc       the founder's PC (WSL daemon): ~/knos/v0329-wallets/REFEREE-FROST/share-pc.json
+    participant 2  gh       GitHub Actions in drexthealpha/Knos (.github/workflows/referee.yml): a repository secret
+    participant 3  pc       a machine the operator keeps (WSL daemon): its share in a local file, never committed
 
 The cryptography is the Rust crate itself, run as `knos-frost` (tools/knos-frost, a JSON command): this module only
 moves its packages between hosts. Modules: session (the coordinator on the app server), participant (each host's

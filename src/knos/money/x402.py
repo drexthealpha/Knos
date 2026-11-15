@@ -1,7 +1,7 @@
-"""The x402 endpoint for graduation, pre-orders and paid checks (devnet test USDC), on the proposed "knos-order"
+"""The x402 endpoint for graduation and pre-orders, with a metered-call demo (devnet test USDC), on the proposed "knos-order"
 scheme of docs/reference/X402.md and the plumbing of knos.record_api (headers, limits, the socket): nothing forked.
 
-    python -m knos.money.x402 --plans PLANS.json --offer OFFER.json [--port 8403]     (anyone runs it; Knos hosts none)
+    python -m knos.money.x402 --plans PLANS.json --mint MINT --offer OFFER.json [--port 8403]     (anyone runs it; Knos hosts none)
 
     GET /health             whether it answers; what it sells
     GET /fees               the fee schedule (config/fees.yaml, with each line's status), free
@@ -9,8 +9,9 @@ scheme of docs/reference/X402.md and the plumbing of knos.record_api (headers, l
     GET /preorder/<claim>   402 Payment Required: fund a pre-order in the claim's pool (a private knos_pay order in the
                             pool's scope). Asked again with PAYMENT-SIGNATURE naming the order: 200 "held" once the
                             chain shows it open, in that pool, on those terms, in that mint, with time left.
-    GET /checks             402: a pack of paid checks at the config's x402_check price (the smallest order is 5.00, so
-                            one order buys a pack). Each call after that is signed by the wallet that funded the order
+    GET /checks             402: an x402 protocol demo on devnet, not a Knos price (Knos charges no price for a check):
+                            a pack of metered calls in test USDC at the config's x402_check line (the smallest order is
+                            5.00, so one order covers a pack). Each call after that is signed by the wallet that funded the order
                             over "knos-check:<order>:<n>", n counting from 0; a replay or another wallet's call is refused.
                             With --exact-asset/--pay-to it also accepts the standard x402 `exact` scheme for ONE check at
                             that price, settled by a public facilitator (knos.money.x402_exact; x402.org's needs no key),
@@ -222,8 +223,8 @@ class Server:
         o, why = self.verify_pool_order(p, order)
         if o is None:
             return self._required([self.requirement(claim, p, None)], why, resource, f"a pre-order of graduated claim {claim}")  # type: ignore[arg-type]  # verify_pool_order: (None, why) always says why
-        resp = {"success": True, "network": DEVNET, "transaction": "", "payer": str(o.source), "status": "escrowed", "order": order}
-        return 200, {"payment-response": ra.encode(resp)}, {"escrowed": True, "claim": claim, "order": order, "amount": o.amount, "fee": o.fee,
+        resp = {"success": True, "network": DEVNET, "transaction": "", "payer": str(o.source), "status": "held", "order": order}
+        return 200, {"payment-response": ra.encode(resp)}, {"held": True, "claim": claim, "order": order, "amount": o.amount, "fee": o.fee,
                                                            "deadline": o.deadline, "said": "Held by knos_pay: paid to the makers on accepted delivery, "
                                                                                            "refunded with its fee after the deadline."}
 
@@ -293,7 +294,7 @@ class Server:
             return 402, {}, {"error": f"the order's {self.checks} checks are used: fund another"}
         self._used[order] = used + 1
         self._save()                    # kept before the answer: a restart never sells this call again
-        resp = {"success": True, "network": DEVNET, "transaction": "", "payer": str(o.source), "status": "escrowed", "order": order}
+        resp = {"success": True, "network": DEVNET, "transaction": "", "payer": str(o.source), "status": "held", "order": order}
         return 200, {"payment-response": ra.encode(resp)}, {"paid": True, "order": order, "n": n, "left": self.checks - used - 1,
                                                            "run": "knos verify runs the check; this endpoint meters it"}
 

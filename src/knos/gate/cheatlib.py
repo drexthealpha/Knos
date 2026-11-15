@@ -11,7 +11,7 @@ config can say (what `.knos/gate.yml` denies and protects, the folder the hidden
     gate.hidden_dir_written      sealed_tests_changed  refuse    a file where the hidden tests are placed
     gate.test_edited             test_edited           refuse    an existing test edited or deleted (knos.judge's rule)
     gate.runner_tampering        runner_tampering      refuse    conftest.py, pytest.ini, tox.ini, setup.cfg, sitecustomize.py,
-                                                                 usercustomize.py, *.pth, pyproject.toml's [tool.pytest]
+                                                                 usercustomize.py, noxfile.py, *.pth, pyproject.toml's [tool.pytest]
     gate.out_of_scope            out_of_scope          refuse    a path scope.deny matches, or scope.allow does not
     gate.data_tampering          data_tampering        refuse    a path `protect` matches
     gate.core_path               core_path             refuse    a path `core` matches

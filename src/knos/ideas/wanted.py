@@ -1,13 +1,13 @@
-"""Wanted? Step 2 of the one flow, wall 1 (money comes before proof): demand evidence, then money locked before proof
-and released in stages as the proof arrives.
+"""Wanted? Step 2 of the one flow, wall 1: demand evidence, then a buyer's test money locked for the product and
+released stage by stage at named milestones.
 
 Demand evidence, two kinds:
   1. the demand check (apps/wanted, knos_wanted): Qloo taste evidence for the product the idea would become, through
      Qloo's official MCP harness. With no Qloo key it runs Knos's labelled MOCK server; every report says which.
      Directional demand evidence, not a sales forecast.
   2. money: buyers' PRE-ORDERS (the claim's pre-order pool, scope 0 of knos.graduation: paid to the makers when the
-     product is delivered) and PULL COMMITMENTS, advance-market-commitment style: "I buy N units at price P if the
-     result is verified". A pull commitment is locked as one knos_pay private order per STAGE (milestone k = scope k of
+     product is delivered) and PULL COMMITMENTS, advance-market-commitment style: "I buy N units at price P once the
+     named milestones are met". A pull commitment is locked as one knos_pay private order per STAGE (milestone k = scope k of
      the claim), each holding its share of N x P and each released when its milestone oracle is met and the judge signs:
 
         preprint_posted    the claim's preprint exists on arXiv / bioRxiv / medRxiv (read live)
@@ -22,10 +22,9 @@ Demand evidence, two kinds:
      commitment pattern (Gavi's pneumococcal AMC) on a public vault, priced by config/fees.yaml (payout fee on top of
      each order, the graduation fee on release).
 
-Who releases a stage. knos_pay pays an order on a token its judge signs. Today that is the research repository's
-pinned
-prove.yml, signed by GitHub (`release_audience` gives the exact audience); the issuer-agnostic path (an m-of-n signed
-referee verdict, ORCID and Confidential Space tokens) is V34PAY's knos_pay change. `check()` produces the oracle's
+Who releases a stage: the research repository's pinned prove.yml, signed by GitHub, on the public program
+(`release_audience` gives the exact audience); or m of n referee keys pinned at commit (section 4), on the knos_pay
+test build that has the panel path. `check()` produces the oracle's
 evidence and its sha256, which is what either judge signs over. Nothing in this module signs a release.
 
 Pure builders and readers; `ledger` is knos.chain.Ledger or a test stand-in. Devnet only for anything sent.
@@ -368,7 +367,7 @@ def release_audience(p: dict, part: str, order: Pubkey, evidence_hash: str, pr: 
     head = evidence_hash[:40]
     return {"route": "github-oidc (knos_pay today)", "audience": pay.order_pay_audience(order, head, bytes.fromhex(p[part]["terms_hash"]), p["mode"], pr, ps),
             "head_sha_is": "the first 40 hex of the oracle's evidence_hash", "evidence_hash": evidence_hash,
-            "next_route": "an m-of-n signed Knos referee verdict over (order, evidence_hash, amount, recipient, expiry): knos_pay's issuer-agnostic release (next)"}
+            "next_route": "an m-of-n referee panel (knos idea commit --panel), on the knos_pay build with the panel path"}
 
 
 def refund_ix(relayer: Pubkey, order: Pubkey, o: pay.Order, program: Pubkey | None = None) -> Instruction:
@@ -397,7 +396,7 @@ def state(ledger, p: dict, mint: str) -> dict:
     return out
 
 
-# ---- 4. stages judged by a referee panel: released on m-of-n signed verdicts (knos_pay 0.3.34) ----------------------
+# ---- 4. stages judged by a referee panel: released on m-of-n signed verdicts (the knos_pay panel test build) ----------------------
 # A stage can be a PANEL order instead of a GitHub-judged one: the buyer pins m-of-n referee keys when locking it, and
 # the stage is released when m referees sign the verdict "stage k met" over the oracle's evidence hash (PASS, paid to
 # the payees), or refunded at once when m sign "stage k missed" (FAIL). knos.proof.issuers builds the instructions;

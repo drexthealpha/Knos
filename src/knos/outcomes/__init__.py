@@ -1,4 +1,4 @@
-"""Knos Outcomes: pay for a result measured from data, not only for tests that pass.
+"""Measured outcomes in Knos: pay for a result measured from data, not only for tests that pass.
 
     spec      outcome.yaml: the metric, the data, the window, a randomized control group, the bar, tiers under a cap
     assign    who is in control: a hash of a public salt and the item id, recomputable by either side

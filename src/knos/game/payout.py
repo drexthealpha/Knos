@@ -1,4 +1,4 @@
-"""The game's pot on chain, paid by the referee panel's verdict (knos_pay 0.3.34 m-of-n path), to PROVEN players only.
+"""The game's pot on chain, paid by the referee panel's verdict (the m-of-n path of the knos_pay panel test build), to PROVEN players only.
 
     set_panel(game, m, keys, program, mint)   the game's referee panel (m of n ed25519 keys), the knos_pay program
                                               and the mint; fixed once a pledge exists
@@ -14,8 +14,8 @@
     payees(ledger, game)                      the pot's split over the referee's final verdicts among PROVEN players only
                                               (knos.game.pot.split), as (id, bps, wallet) for the verdict
     evidence(game)                            sha256 of the canonical final verdicts: what the referees sign over
-    sign(referee, order, o, game, payees)     one referee's PASS (or FAIL when no proven player passed)
-    verdict_ixs(relayer, order, o, game, payees, signatures)   [ed25519 precompile, PayOrder/RefundOrder with data]
+    sign(referee, game, order, o, rows)       one referee's PASS (or FAIL when no proven player passed)
+    verdict_ixs(relayer, game, order, o, rows, signatures)   [ed25519 precompile, PayOrder/RefundOrder with data]
 
 Unproven players play and are ranked; they are never paid. The referee keys are the game operator's: a funder who
 also holds them could pay itself, so the panel's holders are named in the game state for every funder to see before
@@ -132,7 +132,7 @@ def proven(ledger, game, pid: str, program: Pubkey = BINDINGS_PROGRAM) -> dict:
     programs = [program]
     pp = game.s["pot"].get("panel") or {}
     if pp.get("program") and Pubkey.from_string(pp["program"]) != program:
-        programs.append(Pubkey.from_string(pp["program"]))      # an ORCID Bind (8) lives where knos_pay 0.3.34 runs
+        programs.append(Pubkey.from_string(pp["program"]))      # an ORCID Bind (8) lives where the knos_pay panel test build runs
     b = None
     for prog in programs:
         b = pay.read_bind(ledger.account(pay.bind_pda(uid, prog)))

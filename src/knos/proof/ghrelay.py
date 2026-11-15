@@ -506,8 +506,8 @@ def _note2(r: dict) -> str | None:
         words = (", ".join(out) + f" for order {r['order']}.") if out else ""
         if held:
             words += (f"{_usdc(held[0]['amount'])} of order {r['order']} is held for GitHub user id {held[0]['payee_id']} until {_day(held[0]['held_until'])}. "
-                      "It is sent once they name a wallet: `knos claim <their Solana address>`, or "
-                      "https://drexthealpha.github.io/Knos/#claim. After that date it goes back to its funder.")
+                      "It is sent once they name a wallet: `knos claim <their Solana address>`. "
+                      "After that date it goes back to its funder.")
         if r.get("held_back"):
             words += (f" {_usdc(r['held_back'])} more is held back until {_day(r['warranty_until'])}, the end of the order's warranty: it follows then, "
                       "unless the change is reverted first.")
@@ -544,8 +544,8 @@ def _note2(r: dict) -> str | None:
         out = [f"{net(sent)} was paid to {sent[0]['to']} for issue #{r['issue']} (GitHub user id {r['payee_id']})."] if sent else []
         if held:
             out.append(f"{net(held)} is held for GitHub user id {r['payee_id']} for issue #{r['issue']} until {_day(held[0]['held_until'])}. "
-                       "It is sent once they name a wallet: `knos claim <their Solana address>`, or "
-                       "https://drexthealpha.github.io/Knos/#claim. After that date it goes back to its funder.")
+                       "It is sent once they name a wallet: `knos claim <their Solana address>`. "
+                       "After that date it goes back to its funder.")
         return " ".join(out)
     if k == "bind":
         got = r["settled"]
@@ -594,7 +594,7 @@ def note(r: dict) -> str:
         hold = max(p["waits"] for p in r["paid"])
         when = "is now waiting under" if not hold else f"will be released in {wait(hold).replace(' after', '')} (a maintainer's /knos veto on the issue takes it back) to"
         return (f"{_usdc(net)} {when} GitHub user id {r['author_id']} for issue #{r['issue']}. "
-                f"Claim it to any address: https://drexthealpha.github.io/Knos/#claim")
+                "Claim it to any address: `knos claim <address>`")
     if k == "veto":
         return f"{len(r['vetoed'])} payment(s) taken back."
     if k == "claim":

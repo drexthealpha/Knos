@@ -45,7 +45,7 @@ again even when the message does not mention it, and a block says what failed la
 nothing is owed.
 
 A hook is a local aid, and a person can remove it. What cannot be removed by the agent is the same check at the merge:
-prove.yml's `check` job runs it on the pull request, on GitHub (knos.judge.gate).
+`knos proof gate` runs it on the pull request, on GitHub (action.yml; knos.judge.gate).
 """
 
 from __future__ import annotations

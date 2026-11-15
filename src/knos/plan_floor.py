@@ -1,8 +1,7 @@
 """The contract floor of a Plan, which the program does not enforce, enforced by the only Knos tool that signs one.
 
 knos_pay lets FEE_OWNER set a Plan (SetPlan, instruction 14) for one repository owner's orders at 10 to 30 basis points
-(`PLAN_BPS_MIN` = 10 in programs-v2/knos_pay/src/lib.rs). The price book's floor is 0.20%: the earlier 0.10% tier is
-withdrawn. So: the program allows 10 bps; Knos signs no Plan below 20 bps; the check proves which Plans exist.
+(`PLAN_BPS_MIN` = 10 in programs-v2/knos_pay/src/lib.rs). Knos's own rule is a floor of 0.20% (FLOOR_BPS below). So: the program allows 10 bps; Knos signs no Plan below 20 bps; the check proves which Plans exist.
 
     build(...)        the SetPlan instruction, refused below FLOOR_BPS: the one Knos builder of SetPlan for a cluster
     plans(call)       every Plan account of knos_pay on a cluster: one getProgramAccounts, filtered by the Plan's length
@@ -18,7 +17,7 @@ import base64
 from dataclasses import dataclass
 from typing import Any, Callable
 
-FLOOR_BPS = 20             # the contract floor (price book 3.1); the program's own floor is PLAN_BPS_MIN = 10
+FLOOR_BPS = 20             # Knos's own floor for a Plan it signs; the program's own floor is PLAN_BPS_MIN = 10
 DOC = "the program allows 10 bps; Knos signs no Plan below 20 bps; the check proves which Plans exist."     # pinned to the enforcement table (knos.enforce)
 
 

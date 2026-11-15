@@ -1,4 +1,4 @@
-"""Task packages as rows for a training environment (Hermes Atropos BaseEnv, owned by AGENTS: hermes/atropos/) and as
+"""Task packages as rows for a training environment (an Atropos BaseEnv) and as
 a sealed spec for the referee (knos.referee). A row carries only what the solver may see: the statement, the
 repository and base commit, the scope, and the hashes that bind the hidden tests. The reward comes from `score`,
 which grades a candidate patch against the sealed tests (knos.taskpack.grade) on the grader's side: a row holds no path to

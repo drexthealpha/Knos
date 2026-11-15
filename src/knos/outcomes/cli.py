@@ -76,7 +76,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
         s = _load(spec)
         rows, total = escrow.orders(s), escrow.escrowed(s)
         if as_json:
-            typer.echo(json.dumps({"orders": rows, "escrowed": total}, indent=2))
+            typer.echo(json.dumps({"orders": rows, "held": total}, indent=2))
             return
         for o in rows:
             typer.echo(f"{o['name']:<12} seq {o['seq']:<5} {o['amount'] / 1e6:>10.2f} + fee {o['fee'] / 1e6:.2f}  order {o['address']}  terms {o['terms_hash'][:16]}")

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/drexthealpha/Knos/src/knos/gate/gate.schema.json",
+  "$id": "https://raw.githubusercontent.com/drexthealpha/Knos/main/src/knos/gate/gate.schema.json",
   "title": "Knos Gate config (.knos/gate.yml)",
   "type": "object",
   "additionalProperties": false,

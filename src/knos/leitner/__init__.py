@@ -2,13 +2,13 @@
 
 Every verified claim, product, lab, agent and sealed test sits in a box (config/leitner.yaml; default 1 -> 3 -> 7 ->
 30 days, labs counted in orders). Passing a re-check moves the item up one box, so things that keep passing are
-checked less and less; ANY failure drops it to box 1 and PAUSES its payouts and graduation until it passes again.
+checked less and less; ANY failure drops it to box 1 and PAUSES its payouts until it passes again.
 
     s = Scheduler.load()                         the config, and the state file (KNOS_HOME/leitner/state.json)
     s.add("claim:42", "claim", now)              a newly verified item starts in box 1
     s.due(now)                                   what to re-check now (days), or s.due_orders("lab:x", n) (orders)
     s.result("claim:42", passed, now, cost=1)    promote, or demote to box 1 and pause
-    s.can_pay("claim:42")                        False while paused: knos.labs and knos.graduation ask this first
+    s.can_pay("claim:42")                        False while paused: the lab vault demo (knos.labs.devnet) asks this first
     rotate(tests, cfg)                           sealed tests nobody fails are retired; tests that catch cheats stay hot
 
     synthetic_history(...)  /  dashboard()       cost per verification before (re-check everything daily) and after

@@ -11,7 +11,7 @@ code. So:
     - a tier whose bar was not reached is never signed for, and its money goes back to the funder after the
       deadline with RefundOrder, which needs no token.
 
-Nothing here talks to the network: instruction builders and plans. `knos.outcomes.demo` sends them on devnet.
+Nothing here talks to the network: instruction builders and plans; a caller signs and sends them.
 """
 from __future__ import annotations
 

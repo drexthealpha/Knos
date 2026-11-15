@@ -1,8 +1,8 @@
 """The acceptance receipt: one JSON document that says who signed what, about which artifact, under which terms, and
 what was paid for it. It is derived from public facts only (the order, the judge's signed token, the program's
 log lines of the paying transaction), so anyone can rebuild it and compare digests. docs/reference/RECEIPT.md is the
-specification; docs/receipt/acceptance-receipt.v1 to v5.schema.json are the JSON Schemas; docs/receipt/vectors.json,
-vectors.v4.json and vectors.v5.json hold the conformance vectors.
+specification; docs/receipt/acceptance-receipt.v1 to v6.schema.json are the JSON Schemas; docs/receipt/vectors.json,
+vectors.v4.json, vectors.v5.json and vectors.v6.json hold the conformance vectors.
 
 Version 3 keeps five things apart, in this order: what the issuer authenticated, what the evaluator observed, which
 policy produced the verdict, who authorised the money and under which limit, and what trust remains; it records who
@@ -21,7 +21,10 @@ Version 5 adds `assurance`: how much was verified, as one of four levels (report
 relationships the terms declare ("these accounts are one party"). `build5` writes a version 4 receipt as version 5;
 `assurance_of` reads the level of a receipt of any version (an older one is `reported` unless its evidence shows more).
 
-`parts` reads a receipt of version 4 or 5 in five parts, each one line: Identity, Execution, Acceptance, Consequence,
+Version 6 is version 5 with its trust line naming the upgrade multisig's 8-day time lock (in force since 11 Oct 2026)
+in place of the 48-hour delay. `build6` writes a version 5 receipt as version 6; every receipt Knos writes now is version 6.
+
+`parts` reads a receipt of version 4, 5 or 6 in five parts, each one line: Identity, Execution, Acceptance, Consequence,
 Assurance (the level, and what stayed trusted or outside the evaluation). It is a view, not a version: `explain`
 prints it (`knos receipt explain FILE`), and an acceptance that stands on a weak test reads WEAK however valid its
 signature.
@@ -38,7 +41,7 @@ import re
 
 from . import ids as _ids
 
-TYPE, VERSION = "knos.acceptance-receipt", 4          # `check` still reads versions 1, 2 and 3, and version 5 (`build5`)
+TYPE, VERSION = "knos.acceptance-receipt", 4          # `check` still reads versions 1, 2 and 3, and versions 5 and 6 (`build5`, `build6`)
 JUDGES = ("repository", "neutral", "attestor", "arbiter")     # the program's judge a, b, c, d (its log says 0, 1, 2, 3)
 MODES = ("merge", "tests")
 CLAIMS = ("actor_id", "event_name", "exp", "iat", "job_workflow_ref", "job_workflow_sha", "repository_id", "repository_owner_id", "run_attempt",
@@ -758,7 +761,7 @@ def dispute(r4: dict, *, role: str, by: str, at: int, reason: str) -> dict:
     The disputed receipt authorises none."""
     why = check(r4)
     if why or r4["version"] not in (4, 5, 6) or r4["disputed"] is not None:
-        raise ValueError(why or "a receipt of version 4 or 5 that is not disputed already is contested (write an older one as version 4 first: build4)")
+        raise ValueError(why or "a receipt of version 4, 5 or 6 that is not disputed already is contested (write an older one as version 4 first: build4)")
     o = r4["evaluator_observed"]
     r = {**r4, "evaluator_observed": {**o, "verdict": "disputed"},
          "disputed": {"by": {"role": role, "id": by}, "at": at, "reason": reason, "contests": {"sha256": digest(r4), "verdict": o["verdict"]}}}
@@ -1241,7 +1244,7 @@ def _render4(r: dict) -> list[str]:
                 f"   It contests the receipt sha256:{d['contests']['sha256']}, whose verdict was {_ids.VERDICT_WORDS[d['contests']['verdict']]}."]
     out += ["", "What this evidence does not show", *(f"   - {s}" for s in r["limitations"])]
     if a is not None and r["transaction"] is not None:      # everything a version 3 receipt prints, under its five headings
-        body = _render3({**{k: r[k] for k in _KEYS3}, "version": 3})
+        body = _render3({**{k: r[k] for k in _KEYS3}, "version": 3}, shown=r["version"])
         out += ["", *body[2:-2]]
     else:
         out += ["", f"5. {HEADINGS['trust_remaining']}", *(f"   - {t}" for t in r["trust_remaining"]),
@@ -1255,10 +1258,11 @@ def render(r: dict) -> list[str]:
     return _render4(r) if r["version"] >= 4 else _render3(r)
 
 
-def _render3(r: dict) -> list[str]:
+def _render3(r: dict, shown: int | None = None) -> list[str]:
     """The receipt in lines a person reads: the five parts under their headings, in order, then the amendments and the
     payment. The parties still trusted are named in one line beside the verdict. A receipt of version 1 or 2 is
-    shown the same way, and says what it does not carry."""
+    shown the same way, and says what it does not carry. `shown`: the version of the receipt this body is printed for
+    (a version 4 to 6 receipt prints its version 3 parts here), so the trusted line names that version's delay."""
     old = r["version"] == 1
     a = ({"provider": "github", "issuer": r["judge"]["issuer"], "claims": r["judge"]["claims"], "token_sha256": r["judge"]["token_sha256"],
           "verified": {"program": None, "key": r["judge"]["key"], "transaction": None}} if old else r["issuer_authenticated"])
@@ -1279,7 +1283,7 @@ def _render3(r: dict) -> list[str]:
            f"   The token is recognised by sha256 of its signature: {a['token_sha256']}.", "",
            f"2. {HEADINGS['evaluator_observed']}",
            f"   The pinned judge ({o['judge']['kind']}, version {o['judge']['version']}) gave the verdict: {o['verdict']}.",
-           f"   {trusted_line(a['provider'], p['mode'], o['judge']['kind'], o['judge']['version'], r['version'])}",
+           f"   {trusted_line(a['provider'], p['mode'], o['judge']['kind'], o['judge']['version'], shown or r['version'])}",
            ("   Named checks: not recorded in a version 1 receipt." if o["checks"] is None else "   Named checks: none were required." if not o["checks"]
             else "   Named checks: " + "; ".join(f"{e['name']}: {e['conclusion']}" for e in o["checks"]) + "."),
            f"   Artifact: commit {o['artifact']['commit']}, pull request {o['artifact']['pull_request']}.",
@@ -1303,7 +1307,7 @@ def _render3(r: dict) -> list[str]:
     return out
 
 
-# ---- the five parts: one view over a receipt of version 4 or 5 ------------------------------------------------------------
+# ---- the five parts: one view over a receipt of version 4, 5 or 6 --------------------------------------------------------
 FIVE = ("identity", "execution", "acceptance", "consequence", "assurance")      # in this order, everywhere
 FIVE_TITLES = {"identity": "Identity", "execution": "Execution", "acceptance": "Acceptance", "consequence": "Consequence", "assurance": "Assurance"}
 FIVE_ASKS = {"identity": "Who produced the evidence?", "execution": "Which evaluator ran, on which inputs?", "acceptance": "Which agreed test passed?",
@@ -1334,7 +1338,7 @@ def _amount(units: str, decimals: int) -> str:
 
 
 def outside_of(r: dict, level: str) -> tuple[list[str], list[str]]:
-    """What stayed trusted or outside the evaluation of a version 4 or 5 receipt, in plain sentences, as two lists: the
+    """What stayed trusted or outside the evaluation of a version 4, 5 or 6 receipt, in plain sentences, as two lists: the
     ones that make the acceptance WEAK (each alone is enough), then the ones every receipt carries. Computed from the
     receipt's own fields and the level `assurance_of` gave: nothing here is typed by anyone."""
     o, p, c = r["evaluator_observed"], r["policy"], r["commercial_authorisation"] or {}
@@ -1357,7 +1361,7 @@ def outside_of(r: dict, level: str) -> tuple[list[str], list[str]]:
 
 
 def parts(r: dict, declared=()) -> dict:
-    """A receipt of version 4 or 5 read in five parts, each one line and the facts behind it. A VIEW: nothing is added
+    """A receipt of version 4, 5 or 6 read in five parts, each one line and the facts behind it. A VIEW: nothing is added
     to the receipt, and no new version exists. A version 3 receipt is read as the version 4 receipt `build4` makes of
     it; versions 1 and 2 are refused (they do not say who funded).
 
@@ -1377,7 +1381,7 @@ def parts(r: dict, declared=()) -> dict:
     if r["version"] == 3:
         r = build4(r)
     if r["version"] not in (4, 5, 6):
-        raise ValueError(f"a receipt of version {r['version']} does not say who funded or what was left unshown: `knos bundle make` writes the same payment as version 5")
+        raise ValueError(f"a receipt of version {r['version']} does not say who funded or what was left unshown: `knos bundle make` writes the same payment as version 6")
     o, a, p, m, src, got, d = r["evaluator_observed"], r["issuer_authenticated"], r["policy"], r["amounts"], r["evidence_source"], r["ids"], r["disputed"]
     assured = r["assurance"] if r["version"] in (5, 6) else assurance_of(r, declared)
     level, verdict = assured["level"], o["verdict"]
@@ -1701,7 +1705,7 @@ def attest(r: dict, keypair: str | None = None, rpc: str | None = None, timeout:
             return {"attested": False, "why": "the attestation script needs Node and scripts/sas_receipt.mjs (npm ci --prefix scripts)"}
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "receipt.json"
-            path.write_bytes(canonical(r))          # as it is: the attestation's digest is this receipt's, whatever its version (the script reads 1 to 5)
+            path.write_bytes(canonical(r))          # as it is: the attestation's digest is this receipt's, whatever its version (the script reads 1 to 6)
             done = (run or subprocess.run)([node, str(script), str(path), "--send", "--keypair", keypair, *(["--rpc", rpc] if rpc else [])],
                                            capture_output=True, text=True, timeout=timeout)
             if done.returncode != 0:

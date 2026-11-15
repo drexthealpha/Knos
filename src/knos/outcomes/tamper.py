@@ -1,6 +1,6 @@
 """The cheat checks of a measurement: what was fixed at funding (the lock) against what the run sees now.
 
-Each finding names a category that the cheat library and Knos Record use (knos.cheats; NOTES "REFEREE API"):
+Each finding names a category that the cheat library and Knos Record use (knos.cheats; docs/reference/REFEREE.md):
 
     spec_hash_changed       the spec's hash is not the one the lock (and the orders' terms) carry
     window_changed          the measurement window moved

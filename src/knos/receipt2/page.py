@@ -20,7 +20,7 @@ def badge(envelope: dict) -> str:
     color = {"passed": "#2e7d32", "refused": "#c62828"}.get(r["verdict"], "#546e7a")
     if r["mode"] == "public-tests-only" and r["verdict"] == "passed":
         color = "#546e7a"
-    left, right = "knos gate", word
+    left, right = "knos", word
     lw, rw = 8 + 7 * len(left), 10 + 7 * len(right)
     w = lw + rw
     t = html.escape
@@ -72,7 +72,7 @@ body{{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;ma
 table{{border-collapse:collapse;width:100%}}th,td{{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top;word-break:break-all}}
 th{{width:34%;color:var(--muted);font-weight:500}}code{{font-size:13px}}
 </style></head><body>
-<h1>Knos Receipt</h1>
+<h1>Knos receipt</h1>
 <p>{badge(envelope)}</p>
 <table>{''.join(rows)}</table>
 <h2>Cheat-check findings</h2><ul>{flist}</ul>
@@ -80,7 +80,7 @@ th{{width:34%;color:var(--muted);font-weight:500}}code{{font-size:13px}}
 <p>Save this page and run <code>knos gate receipt verify FILE</code>. The verifier needs only Python's standard library
 (Ed25519, RFC 8032). The signed receipt is embedded below.</p>
 {f'<p><a href="{html.escape(run)}">The run on GitHub</a></p>' if run else ''}
-<p><a href="{html.escape(r['links']['install'])}">Turn on Knos Gate for your repo</a></p>
+<p><a href="{html.escape(r['links']['install'])}">Turn on the Knos check for your repo</a></p>
 <script type="application/json" id="knos-receipt">{blob}</script>
 </body></html>
 """

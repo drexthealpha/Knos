@@ -99,10 +99,10 @@
   "Nothing recorded is not the same as nothing done."
  ],
  "links": {
-  "page": "https://drexthealpha.github.io/Knos/#record=copilot",
+  "page": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/copilot.json",
   "file": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/copilot.json",
   "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+record%3A+copilot&agent=copilot&week=2026-09-28",
   "specification": "https://github.com/drexthealpha/Knos/blob/main/docs/reference/SUPPLIER.md"
  },
- "sha256": "93620954898f572405a84e3877e50aac44a043cf747df37158ec1d98c0b3a047"
+ "sha256": "737d3f36295bc074f71be99d30f212386b4b11598e25d4ca38a6229a8da2bfe5"
 }

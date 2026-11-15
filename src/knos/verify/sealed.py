@@ -1,5 +1,5 @@
-"""Sealed tasks as training and evolution signal: the shared core of the Hermes GEPA judge (hermes/gepa/) and the
-Atropos environment (hermes/atropos/).
+"""Sealed tasks as training and evolution signal: the shared core of a skill-evolution judge and a training
+environment (knos.taskpack.atropos).
 
 A sealed task is a folder:
 
@@ -12,7 +12,7 @@ A candidate is the text a model wrote: it must hold a unified diff (in a ```diff
 copy of base/, and the copy is judged:
 
     knos.referee installed   referee.judge_candidate(base, pr, seal) -> {"reward", "passed", "reasons", "cheats"}:
-                             sealed hidden tests, locked judge hash, cheat library, re-run (REFEREE API in NOTES)
+                             sealed hidden tests, locked judge hash, cheat library, re-run (docs/reference/REFEREE.md)
     otherwise (fallback)     ONLY when the caller passes allow_unsealed=True (demos): the local cheat rules on the
                              diff, then the task's `check` command in the copy, which must exit 0 AND write a JUnit
                              report with no failure (and `expect_tests` tests, when the task says how many).

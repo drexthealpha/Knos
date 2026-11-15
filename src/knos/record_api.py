@@ -1,4 +1,4 @@
-"""A supplier's record as a machine-priced API: pay, then the JSON (examples/record_api, docs/reference/X402.md "Record").
+"""An experiment, not the business: a supplier's record served behind a test-USDC payment, then the JSON (examples/record_api, docs/reference/X402.md "Record").
 
     knos record serve      (python -m knos.record_api) a small server anyone can run. Knos hosts none.
 
@@ -51,7 +51,7 @@ from typing import Any, Callable
 
 SCHEME, X402_VERSION = "knos-order", 2
 DEVNET = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"       # x402's network id of Solana devnet (CAIP-2)
-PRICE = 100_000                                          # 0.10 of a 6-decimal token: price book 3, the Record line
+PRICE = 100_000                                          # 0.10 of a 6-decimal token: the old price book's Record line (knos.billing, an old proposal)
 PACK = 50                                                # lookups one order buys: the smallest order is 5.00
 STATE = "knos_record_api"                                # the state document the counts are kept in
 PAYER_HEADER = "attested-payer"

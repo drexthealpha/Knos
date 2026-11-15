@@ -1,4 +1,4 @@
-"""python -m knos.autoresearch run <task dir> [--out DIR] [--iterations N] [--proposer local|cmd:<command>] [--seed S]
+"""python -m knos.autoresearch run <task dir> [--out DIR] [--iterations N] [--proposer local|cmd:<command>|sdk:claude] [--seed S]
                                           [--sealed FILE] [--record DIR] [--no-knos-record] [--anchor]"""
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("task")
     r.add_argument("--out", default="")
     r.add_argument("--iterations", type=int, default=12)
-    r.add_argument("--proposer", default="local", help="local (default, deterministic, no key) or cmd:<command line>")
+    r.add_argument("--proposer", default="local", help="local (default, deterministic, no key), cmd:<command line> or sdk:claude")
     r.add_argument("--seed", type=int, default=0, help="the local proposer's seed")
     r.add_argument("--sealed", default=None, help="the referee's sealed file (default: the one task.json names)")
     r.add_argument("--record", default=None, help="Knos Record directory (default: <out>/record)")

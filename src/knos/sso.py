@@ -52,7 +52,6 @@ LEEWAY = 60                                                # seconds of clock di
 MAX_BODY, MAX_TOKEN, MAX_FETCH = 4096, 16384, 1 << 20
 _CATEGORY, _HEAD = "sso-audit", "sso-audit-head"
 _DOMAIN = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+")
-_LOOPBACK = ("127.0.0.1", "localhost", "[::1]")
 
 Fetch = Callable[[str, bytes | None, dict[str, str]], tuple[int, bytes]]
 
@@ -367,7 +366,7 @@ class Audit:
                 problems.append(f"line {i} was changed")
                 break
             prev = line["hash"]
-        head = self.store.state(_HEAD)
+        head = self.store.state(_HEAD) or {}
         if lines and not problems and (head.get("seq") != len(lines) - 1 or head.get("hash") != prev):
             problems.append("the head does not name the last line: a line was removed")
         return problems

@@ -116,7 +116,7 @@ class Devnet:
         req = X.requirement(amount, str(self.mint), str(pay.FEE_OWNER), fp, memo=memo)
         bh = Hash.from_string(chain.call(self.url, "getLatestBlockhash", [{"commitment": "confirmed"}])["value"]["blockhash"])
         p = X.payment(req, self.agent, bh, decimals=self.decimals,
-                      resource={"url": "https://drexthealpha.github.io/Knos/checks", "description": "one Knos referee check", "mimeType": "application/json"})
+                      resource={"url": "https://drexthealpha.github.io/Knos/", "description": "test payment for a Knos run (devnet)", "mimeType": "application/json"})
         t0 = time.perf_counter()
         try:
             s = f.verify_and_settle(p, req, confirm=X.confirm_on(self.url))

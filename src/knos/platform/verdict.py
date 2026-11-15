@@ -1,6 +1,6 @@
 """A referee verdict, off chain: the message m of n re-runners sign, and the rule that releases or refunds on it.
 
-This is the off-chain mirror of knos_pay 0.3.34's referee-panel path (programs-v2/knos_pay/src/order_proof.rs):
+This is the off-chain mirror of the knos_pay panel test build's referee-panel path (programs-v2/knos_pay/src/order_proof.rs):
 
     on chain                                  here
     the order's address                       job
@@ -19,9 +19,6 @@ Layout (139 bytes): b"knos-verdict-v1" | job 32 | evidence_hash 32 | "PASS" or "
 expiry i64 LE | nonce u64 LE.
 """
 from __future__ import annotations
-
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 MAGIC = b"knos-verdict-v1"
 VERDICTS = ("PASS", "FAIL")
@@ -85,10 +82,12 @@ def outcome(msg: bytes) -> str:
 
 
 def _valid(key: bytes, sig: bytes, msg: bytes) -> bool:
+    """An Ed25519 check with solders (a runtime dependency), so a plain `pip install knos` needs no `cryptography`."""
+    from solders.pubkey import Pubkey
+    from solders.signature import Signature
     try:
-        Ed25519PublicKey.from_public_bytes(key).verify(sig, msg)
-        return True
-    except (InvalidSignature, ValueError):
+        return len(key) == 32 and len(sig) == 64 and Signature.from_bytes(sig).verify(Pubkey.from_bytes(key), msg)
+    except ValueError:
         return False
 
 

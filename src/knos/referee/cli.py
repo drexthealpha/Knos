@@ -73,7 +73,7 @@ def register(app: Any, help_lines: list | None = None) -> None:
     def maintainer_cmd(base: Path = typer.Option(..., "--base"), diff: Path = typer.Option(..., "--diff"),
                        mode: str = typer.Option("label", "--mode", help="off, comment, label or close"),
                        scope: list[str] = typer.Option([], "--scope", help="a path glob the issue allows (repeat)"),
-                       checks: str = typer.Option("", "--checks", help="passed or failed: the pull request's own checks, when read"),
+                       checks: str = typer.Option("", "--checks", help="passed or failed: the Knos check's result on this pull request (claims and repository rules), when the caller ran it"),
                        out: Path = typer.Option(None, "--out")) -> None:
         """The free maintainer mode: what to label (and, in close mode, whether to close). Runs none of the PR's code.
         Exit 0 always when it decided; the decision is in the JSON."""

@@ -149,7 +149,7 @@ def run_once(repo: Path, spec: dict, *, name: str, split: str, data_seed: int | 
         if not isinstance(metrics, dict):
             row["why"] = "the entry's metrics file is not a JSON object"
     except (OSError, ValueError):
-        row["why"] = "the entry wrote no metrics file ({out}, also in KNOS_METRICS_OUT)"
+        row["why"] = f"the entry wrote no metrics file ({out_file}, also in KNOS_METRICS_OUT)"
     return row
 
 

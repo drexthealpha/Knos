@@ -7,6 +7,7 @@
     knos recall supplier ID --buyer ORG [--memory DIR] [--json]
     knos recall decisions STATEMENT --buyer ORG [--terms HASH] [--memory DIR] [--json]
                                     what was accepted, refused or authorised before, for each line's supplier and terms
+    knos recall queue --buyer ORG [--memory DIR] [--json]
 
 `approval` answers the approver's question six months later: who approved this commitment, what amount, under which
 policy version and why, whether the record is intact (it agrees with the engine's append-only journal) and, given the
@@ -353,7 +354,7 @@ def _onboard(buyer, supplier_id, memory, **when) -> dict | None:
 # ---- the command ------------------------------------------------------------------------------------------------------
 
 def register(app: Any, help_lines: list | None = None) -> None:
-    """`knos recall exception`. `help_lines`: cli._HELP, which gets the command's line."""
+    """`knos recall ...`. `help_lines`: cli._HELP, which gets the command's line."""
     import importlib
     typer = importlib.import_module("typer")
     if help_lines is not None:

@@ -41,7 +41,8 @@ MONEY = "test USDC"
 NOT_BUILT = "not built: needs a signing system of record"
 ANYONE = "*"            # an evaluator's repository or owner: any, as long as it is neither party's
 MAX_AMOUNT = 100_000 * 10**6
-MAX_DAYS = 365
+MAX_DAYS = 365          # an appeal window's most days (dispute.within_days)
+MAX_ORDER_DAYS = 90     # knos_pay opens an order for at most 90 days and a warranty of at most 90 (MAX_WORK)
 ASSURANCE = ("reported", "rerun", "agreed")      # the levels a receipt can reach (knos.receipt.LEVELS without the unreachable `attested`), rising
 SILENCE_MAX = 90                                 # the most days a month may wait for the other party before one party may close it
 _B58 = re.compile(r"[1-9A-HJ-NP-Za-km-z]{32,44}")
@@ -196,7 +197,7 @@ def _key(value, what: str) -> str:
 
 def _window(d, _doc) -> dict:
     d = _keys(d, "window", ("warranty_days", "holdback_percent"), ("period_close",))
-    days, held = _int(d["warranty_days"], 0, 365, "`window.warranty_days`"), _int(d["holdback_percent"], 0, 50, "`window.holdback_percent`")
+    days, held = _int(d["warranty_days"], 0, MAX_ORDER_DAYS, "`window.warranty_days`"), _int(d["holdback_percent"], 0, 50, "`window.holdback_percent`")
     if bool(days) != bool(held):
         raise Refused("`window`: a warranty needs a holdback and a holdback a warranty. With nothing held, nothing can come back.")
     out: dict = {"warranty_days": days, "holdback_percent": held}
@@ -313,7 +314,7 @@ def _deadline(d, _doc) -> dict:
     d = _keys(d, "deadline", ("days", "late"))
     if d["late"] != "refused":
         raise Refused("`deadline.late` is refused: the program refuses a token presented after the deadline, and nothing here can say otherwise")
-    return {"days": _int(d["days"], 1, MAX_DAYS, "`deadline.days`"), "late": "refused"}
+    return {"days": _int(d["days"], 1, MAX_ORDER_DAYS, "`deadline.days`"), "late": "refused"}
 
 
 def _policy(d, _doc) -> dict:

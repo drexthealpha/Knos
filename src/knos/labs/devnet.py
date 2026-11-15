@@ -84,10 +84,13 @@ def field_case(field: str) -> dict:
 
 
 def _price_units(lab: str, spec: Spec) -> tuple[int, str]:
-    """The lab pot's price in test units and what it stands for (the contract quote: a free service is priced at the
-    Knos check price; b12 credits are shown as test units because a credit's USD price is not published)."""
+    """The lab pot's price in test units and what it stands for (the contract quote; a free service gets a stake of
+    one test unit so the demo still has an order to release; b12 credits are shown as test units because a credit's
+    USD price is not published)."""
     from .contract import adapters
     q = adapters()[lab].quote(spec)
+    if q["price"] <= 0:
+        return UNIT, q["price_basis"] + " (the demo holds a stake of 1 unit of its own test money)"
     return int(round(q["price"] * UNIT)), q["price_basis"] + (" (credits shown as test units)" if q["currency"] == "credits" else "")
 
 
@@ -323,8 +326,8 @@ def main(argv: list[str] | None = None) -> int:
     failed: list[dict] = []
 
     def write() -> None:            # after every field: what ran is never lost when a later field fails
-        out = {"what": "the Knos lab's money, held on Solana devnet until the proof passes: real transactions, TEST money (the demo's own mint), "
-                       "lab replies from FIXTURES; the LAB verdict pays the lab even though the science failed, the OUTCOME verdict does not pay "
+        out = {"what": "the Knos lab demo on Solana devnet: the LAB verdict releases the lab's test money, real transactions, TEST money "
+                       "(the demo's own mint), lab replies from FIXTURES; the LAB verdict pays the lab even though the science failed, the OUTCOME verdict does not pay "
                        "the researcher",
                "synthetic": True, "cluster": "devnet", "mint": str(d.mint), "multisig": str(d.ms), "m": M,
                "referees": [str(k.pubkey()) for k in d.referees],

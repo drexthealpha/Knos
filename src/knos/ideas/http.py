@@ -23,7 +23,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-USER_AGENT = "Knos/0.3.34 (+https://github.com/drexthealpha/Knos; research-to-product for all science)"
+from .. import version
+
+USER_AGENT = f"Knos/{version()} (+https://github.com/drexthealpha/Knos)"
 TIMEOUT_S = 30.0
 RETRIES = 2
 

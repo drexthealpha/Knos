@@ -26,7 +26,7 @@ order under 5.00. So small outcomes accumulate off chain and one release per pay
                 whole value of an unsecured one until the supplier writes it `settled`. `open --max-exposure` bounds
                 it over the whole book, and `add` refuses the line that would pass it.
 
-What the chain enforces and what it does not is ENFORCED below and docs/reference/COMPANIES.md#netting-and-reserves, word for word.
+What the chain enforces and what it does not is ENFORCED below; `knos net statement` prints it.
 
 Standard library only at import; the fee is knos.settle.v2.pay's own function, asked for when a fee is computed.
 """
@@ -702,14 +702,14 @@ def _mirror(log: Path | None, events_) -> None:
 
 
 def register(app, help_lines: list | None = None) -> None:
-    """`knos net open | add | dispute | close | statement`, on the main app. `help_lines`: cli._HELP."""
+    """`knos net open | reserve | add | dispute | close | settled | statement`, on the main app. `help_lines`: cli._HELP."""
     import importlib
     typer = importlib.import_module("typer")       # named here and not imported: this module stays usable on an install without the command line
 
     net = typer.Typer(add_completion=False, no_args_is_help=True, help="Net small accepted outcomes into one release per supplier per period.")
     app.add_typer(net, name="net")
     if help_lines is not None:
-        help_lines.append(("net", "For money", "Net small outcomes into one release: open, add, dispute, close, settled, statement."))
+        help_lines.append(("net", "For money", "Net small outcomes into one release: open, reserve, add, dispute, close, settled, statement."))
 
     def stop(said: str, fix: str = ""):
         from . import cli

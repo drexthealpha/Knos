@@ -12,7 +12,7 @@ Why it matters. A receipt's assurance level (knos.receipt.assurance_of) is compu
 While one account funds, delivers and evaluates, the level stays `reported`. A host changes that, and needs two
 minutes: an empty repository of their own (`template_link`) that they add examples/knos-attest.yml to and nothing
 else (`editor_link` fills GitHub's editor in; templates/knos-attest/ of Knos holds the same file), and one press of
-"Run workflow". The host needs no secret, no wallet and no key. No GitHub template repository is involved (0.3.31).
+"Run workflow". The host needs no secret, no wallet and no key. No GitHub template repository is involved.
 
 Two ways an order reaches a host's repository (both exist in knos_pay 2.1; this module adds no rule):
 
@@ -33,7 +33,6 @@ from __future__ import annotations
 import re
 from urllib.parse import quote
 
-TEMPLATE = "templates/knos-attest"                       # the folder of drexthealpha/Knos that holds the same file
 WORKFLOW_PATH = ".github/workflows/knos-attest.yml"
 NAME = "knos-judge"                                      # what the host's repository is called unless they say otherwise
 URL_LIMIT = 8191                                         # the longest link GitHub's editor takes (web/install.js)

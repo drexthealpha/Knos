@@ -3,7 +3,7 @@ record anchor. --game names YOUR game (made with `knos game new` and played): it
 holding no game does it build the SYNTHETIC rings example with scripted players (labelled).
 
 The POT of a game is funded and paid by the referee panel's verdict on chain, with the command line, not here:
-    knos game panel DIR --m 2 --keys K1,K2,K3 --program <knos_pay 0.3.34 id> --mint MINT
+    knos game panel DIR --m 2 --keys K1,K2,K3 --program <knos_pay panel test build id> --mint MINT
     knos game fund DIR --wallet FILE --amount 10
     knos game finish DIR && knos game pay DIR --referee FILE     (each referee; the m-th signature pays)
 The legs below that still replay in LiteSVM (the graduation vault and pre-order release to the contributor split, and
@@ -114,7 +114,7 @@ def main(argv=None) -> int:
     if own:
         g = Game.open(a.game)
     else:
-        g = Game.create(a.game, TASK, title="Synthetic rings classifier, many attempts at once", field="ml-research", game_id=f"knos-v0334-{stamp}",
+        g = Game.create(a.game, TASK, title="Synthetic rings classifier, many attempts at once", field="ml-research", game_id=f"knos-game-{stamp}",
                         rules={"rounds": a.rounds, "per_round": 2, "ladder_eta": 0.01, "max_refusals": 2, "identity_required": True})
     out["game"] = {"id": g.s["id"], "spec_hash": g.s["seal"]["spec_hash"], "judge_hash": g.s["seal"]["judge_hash"], "dir": str(a.game)}
     pp = pot.plan(g.s["id"], g.s["seal"]["spec_hash"], JUDGE_REPO, work_s=pay.MIN_WORK)

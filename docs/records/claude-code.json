@@ -99,10 +99,10 @@
   "Nothing recorded is not the same as nothing done."
  ],
  "links": {
-  "page": "https://drexthealpha.github.io/Knos/#record=claude-code",
+  "page": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/claude-code.json",
   "file": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/claude-code.json",
   "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+record%3A+claude-code&agent=claude-code&week=2026-09-28",
   "specification": "https://github.com/drexthealpha/Knos/blob/main/docs/reference/SUPPLIER.md"
  },
- "sha256": "b074827b9e8c8184c5048156a9638dd44b1e3f125cbb0fd4872da0cf904a736f"
+ "sha256": "e7b1a1738f3f49757195a9f07997fdf8bbe81cbc4fd7bc696a174b949494150a"
 }

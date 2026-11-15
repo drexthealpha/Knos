@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         except chain.RpcError as e:
             print("refund", e, file=sys.stderr)
     state = {k: W.state(led, v["plan"], str(mint)) for k, v in out_ideas.items()}
-    out = {"what": "Knos steps 1-2 (idea in, wanted?) on Solana devnet: three ideas from three fields, real API reads, real money held until the proof passes on the public "
+    out = {"what": "Knos steps 1-2 (idea in, wanted?) on Solana devnet: three ideas from three fields, real API reads, real devnet transactions on the public "
                    "knos_pay program in the demo's own TEST mint (test money, 0 revenue). Demand check: Qloo MOCK (labelled) until QLOO_API_KEY.",
            "cluster": "devnet", "program": str(pay.PAY_ID), "mint": str(mint), "payer": str(payer.pubkey()), "buyer": str(buyer.pubkey()),
            "ideas": out_ideas, "state": state, "signatures": sigs}

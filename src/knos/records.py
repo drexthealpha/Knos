@@ -187,7 +187,7 @@ def jobs_of(events: list[dict]) -> tuple[list[dict], dict]:
         v, name = ev["v"], ev["event"]
         if name == "balance":
             address = _address(lambda e=ev: pay2.balance_pda(e["owner"], _key(e["authority"]), _key(e["mint"])))
-            balances[address] = {"owner": ev["owner"], "authority": str(ev["authority"])}        # the wallet whose money it is
+            balances[address] = {"owner": ev["owner"], "authority": str(ev["authority"]), "mint": str(ev.get("mint", ""))}        # the wallet whose money it is
             other["balances"] += str(ev["authority"]) != faucet_authority
         elif name == "funded":
             job = {"v": v, "repo": ev.get("repo"), "issue": ev.get("issue"), "amount": ev.get("amount", 0), "at": ev["at"], "tx": ev.get("tx"),
@@ -509,12 +509,12 @@ RECEIPT_COLUMNS = ("date", "time", "deployment", "repository_id", "repository", 
 """A receipt, a row of `knos receipts`, in this order:
 
     date, time          UTC day and ISO 8601 time of the paying transaction's block
-    deployment          1 or 2: which escrow paid
+    deployment          1 or 2: which vault paid
     repository_id       GitHub's id of the repository; `repository` its owner/name (empty when GitHub was not asked or could not say)
     issue               the issue the bounty was on; pull_request the pull request when the log line names it (else empty)
     payee_id, payee     the paid GitHub account's id, and its login (as for the repository)
     wallet              the Solana address that received the money (empty for the first deployment, whose log does not print it)
-    amount, fee, total  what reached the wallet, what the escrow kept, and the two together: decimals of `currency`
+    amount, fee, total  what reached the wallet, what the vault kept, and the two together: decimals of `currency`
                         (empty for a mint that is not test USDC); `*_units` the same as integers, the mint's smallest unit.
                         A work order's payee receives the whole amount: its fee is what its funder paid on top, written
                         on the first row of each paying transaction (0 on the other payees' rows of a split)

@@ -85,7 +85,7 @@ class Change:
     visible_literals: frozenset = frozenset()   # groups of string literals, one per line of the tests the author could read
     errors: list = field(default_factory=list)  # what could not be read (an unparseable diff header): each refuses
     # group -> the Reach of the test files that hold it (what those tests import). A group with no entry here is
-    # taken to exercise every file (the strict reading of 0.3.30, for a Change built by hand).
+    # taken to exercise every file (the strict reading, for a Change built by hand).
     literal_tests: dict = field(default_factory=dict)
 
     def paths(self) -> list[str]:
@@ -169,7 +169,7 @@ def visible_literals(base: Path | None, test_dirs: Iterable[str]) -> frozenset:
     return frozenset(visible_literal_tests(base, test_dirs))
 
 
-# ---- what a test exercises (v0.3.31, P-cheatfp): the modules it imports, requires or runs -------------------------------
+# ---- what a test exercises (P-cheatfp): the modules it imports, requires or runs -------------------------------
 
 @dataclass(frozen=True)
 class Reach:

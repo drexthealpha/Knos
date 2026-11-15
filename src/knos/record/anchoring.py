@@ -25,7 +25,7 @@ _MEMO = re.compile(r"^knos-record:v1 root=([0-9a-f]{64}) first=(\d+) last=(\d+) 
 CLUSTERS = {"devnet": "https://api.devnet.solana.com", "localnet": "http://127.0.0.1:8899"}
 # The anchoring keys a verifier trusts unless told otherwise. A rewritten journal re-anchored with any other wallet is
 # refused. Whoever holds a pinned key can still rewrite and re-anchor: the pin moves trust to that key, it does not
-# remove it (docs/reference/KNOS_RECORD.md). The key here is the v0.3.29 build's own devnet record wallet.
+# remove it (docs/reference/KNOS_RECORD.md). The key here is the record build's own devnet record wallet.
 PINNED_SIGNERS = frozenset({"8aukezen9sAALWShcZKK3hi8WawBi4vR6qmLf764PGBv"})
 
 

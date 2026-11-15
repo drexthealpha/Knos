@@ -11,7 +11,7 @@
     knos game pot DIR                          the pot: pledges and the orders locked ON CHAIN, the split by the verdicts
                                                among PROVEN players (config/fees.yaml game_pot)
     knos game panel DIR --m 2 --keys K1,K2,K3 --program ID --mint MINT
-                                               the game's referee panel (m of n ed25519 keys) on a knos_pay 0.3.34 program
+                                               the game's referee panel (m of n ed25519 keys) on the knos_pay panel test build (devnet FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4)
     knos game fund DIR --wallet FILE --amount 20 [--seq N] [--days 7]
                                                pool money into the pot: a PANEL order of knos_pay in the game's scope
     knos game pay DIR --referee FILE [--relayer FILE]
@@ -81,7 +81,7 @@ def main(argv=None) -> int:
     s.add_argument("dir")
     s.add_argument("--m", type=int, required=True)
     s.add_argument("--keys", required=True, help="the referees' public keys, comma separated")
-    s.add_argument("--program", required=True, help="the knos_pay 0.3.34 program id (devnet)")
+    s.add_argument("--program", required=True, help="the knos_pay panel test build id (devnet)")
     s.add_argument("--mint", required=True)
     s = sub.add_parser("fund")
     s.add_argument("dir")

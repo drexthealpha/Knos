@@ -71,7 +71,7 @@ def terms(kind: str, claim_id: str, spec_hash: str, milestone: int, shares: list
                            "split": {r: b for r, b in shares}})
 
 
-# == a SIGNED verdict (0.3.34): what the MCP tool knos_graduate requires ==============================================
+# == a SIGNED verdict: what the MCP tool knos_graduate requires ==============================================
 # The verdict object may carry `signed`: {"message": hex, "signatures": [[key, sig hex], ...], "m": int, "keys": [key, ...]}
 # (keys as base58 or hex). The message is knos.platform.verdict.message(job, evidence, "PASS", 0, recipient, expiry,
 # nonce) with job = graduation_job(claim_id) and evidence = graduation_evidence(spec_hash): m distinct keys of a panel

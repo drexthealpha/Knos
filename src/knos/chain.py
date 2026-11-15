@@ -355,7 +355,7 @@ class Ledger:
 
     def rent(self, size: int) -> int:
         """The lamports that keep an account of `size` bytes, as the cluster says today (so a rent cut is used as soon
-        as it is live: knos.platform, v0.3.29)."""
+        as it is live: knos.platform)."""
         return int(call(self.url, "getMinimumBalanceForRentExemption", [int(size)]))
 
     def account(self, address: Pubkey) -> bytes | None:
@@ -460,7 +460,7 @@ class Ledger:
 def ledger() -> Ledger:
     c = os.environ.get("KNOS_CLUSTER", "devnet")
     if c not in CLUSTERS:
-        raise Refused(f"Knos runs on devnet (or a localnet) only; {c!r} is not available.")
+        raise Refused(f"Knos's Solana programs run on devnet (or a localnet) only; {c!r} is not available.")
     # each signed transaction to the endpoint and any second one (KNOS_RPC_SECOND), sent again until its signature is
     # confirmed: knos.settle.v2.fanout (in a devnet load test of 0.3.24 on 9 Oct 2026, 22 of 40 were paid because single sends lost their answers)
     from .settle.v2.fanout import FanLedger

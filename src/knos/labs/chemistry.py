@@ -21,7 +21,7 @@ Two services, two adapters:
 
 Compound sourcing with a full documented quote/order/status API also exists (Molport, api.molport.com/openapi.json;
 Mcule, doc.mcule.com): the next chemistry rail. IBM RXN for Chemistry is not used:
-its README says the hosted service reaches end of service on 28 Oct 2026.
+its README said the hosted service would reach end of service on 28 Oct 2026 (read 14 Oct 2026).
 """
 from __future__ import annotations
 

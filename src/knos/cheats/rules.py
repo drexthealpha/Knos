@@ -118,7 +118,7 @@ def detects_test(change: Change):
                      "the code checks whether it is running under a test runner")
 
 
-# v0.3.31 (P-cheatfp): a literal that names ANOTHER file under .knos/ (.knos/gate.yml, .knos/proof.toml) is not the
+# P-cheatfp: a literal that names ANOTHER file under .knos/ (.knos/gate.yml, .knos/proof.toml) is not the
 # acceptance bundle. Still refused: the folder itself (".knos", ".knos/", "/.knos/"), which is how code tells the
 # bundle's tests from the others, and anything under .knos/acceptance.
 KNOS_REF = re.compile(r"\.knos(?![\w-])(/[^'\"\s]*)?")
@@ -129,7 +129,7 @@ def _names_the_bundle(line: str) -> bool:
         return False
     refs = [ref for m in LITERAL.finditer(line) for ref in KNOS_REF.finditer(m.group(2))]
     if not refs:
-        return True                      # the 0.3.30 pattern matched and no literal could be read: fail closed
+        return True                      # the earlier pattern matched and no literal could be read: fail closed
     for ref in refs:
         rest = re.sub(r"^(?:\./|/)+", "", ref.group(1) or "").lower()
         if not rest or not re.match(r"[\w-]", rest) or rest.startswith("acceptance"):
@@ -267,7 +267,7 @@ def _exercised(change: Change, reach: tuple) -> set:
 def hardcoded_answers(change: Change):
     """Source that adds both an input and the answer one visible test line expects for it: answers to the examples,
     not the fix. One literal shared with a test (an error message a test matches) never fires; a pair does.
-    v0.3.31 (P-cheatfp): only when the test that holds the pair exercises the changed file (imports it, directly or
+    P-cheatfp: only when the test that holds the pair exercises the changed file (imports it, directly or
     through another changed file); a new module that merely shares protocol constants ("POST", "Content-Type") with
     a test of another module is not refused."""
     if not change.visible_literals:

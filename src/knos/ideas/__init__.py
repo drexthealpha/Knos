@@ -1,7 +1,6 @@
 """Idea in: step 1 of the one flow Knos runs, for every field of science.
 
-Schmidhuber's machine economy (arXiv 2212.11279, Sec 20) needs a layer that says what research is real and pays for
-it; Knos is that layer, and research dies in the valley of death on three walls. Every crossing starts here: an idea
+Research dies in the valley of death on three walls. Every crossing starts here: an idea
 from anyone, made into ONE record the rest of Knos (wanted, attempts, referee, labs, graduation) reads.
 
 Where an idea comes from (`origin.kind`):

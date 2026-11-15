@@ -9,7 +9,7 @@ candidate as __main__. The candidate itself may not open files at all (judge.py 
 bytes()-built strings, eval/exec/compile/__import__/getattr), and writes {"predictions": [0|1, ...]} through
 knos_io.output(). It may print one JSON line with its own validation score; the referee never uses it to decide.
 
-Isolation (v0.3.34, after an outside judge read the sealed seed through a computed path):
+Isolation (after an outside judge read the sealed seed through a computed path):
   - where the OS allows it (Linux with unprivileged user namespaces: `unshare --user --map-root-user --mount --net`),
     the candidate runs in its own mount and network namespace, and every path in `mask` (the task's sealed file and
     its folder, the game's folder, the operator's key folders) is covered by an empty tmpfs (a file: /dev/null) before

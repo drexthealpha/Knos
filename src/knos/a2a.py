@@ -48,8 +48,8 @@ def card(url: str, version: str | None = None) -> dict:
     from . import version as installed
     return {
         "name": "Knos",
-        "description": ("The referee and the payment program for machine and human research work: Knos re-runs the work against sealed checks, "
-                        "refuses known cheats, and releases held money on Solana only on verified proof."),
+        "description": ("Knos checks research work: it re-runs the work against sealed checks and refuses known cheats, "
+                        "on Solana devnet and NEAR testnet, in test money."),
         "supportedInterfaces": [{"url": url, "protocolBinding": "JSONRPC", "protocolVersion": PROTOCOL_VERSION}],
         # the same endpoint where A2A 0.3.0 cards named it (top-level url, preferredTransport); the methods answered are 1.0's
         "url": url, "preferredTransport": "JSONRPC",
@@ -70,7 +70,7 @@ def card(url: str, version: str | None = None) -> dict:
              "examples": ["https://github.com/OWNER/REPO/pull/12"], "inputModes": ["application/json", "text/plain"], "outputModes": ["application/json"]},
             {"id": "find-work", "name": "Find funded work",
              "description": "Lists open work orders with held money that an agent can take, with the terms that decide payment.",
-             "tags": ["work", "bounty", "held-until-proof"],
+             "tags": ["work", "bounty", "funded"],
              "examples": ['{"skill": "find-work"}'], "inputModes": ["application/json"], "outputModes": ["application/json"]},
         ],
     }

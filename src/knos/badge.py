@@ -1,6 +1,6 @@
 """A badge and a track record, both read from the chain and neither saying more than the receipt does.
 
-    knos badge <owner/repo>        an SVG: "paid on proof", and how many payments the program made for pull requests
+    knos badge <owner/repo>        an SVG: "checked by Knos", and how many payments the program made for pull requests
                                    to that repository, in which money, as of which day
     knos badge <owner/repo>#<pr>   an SVG: what that pull request was paid, in which money, on which day
     knos record <login or id>      knos_pay's reputation account for a payee (state.rs R_*), with its caveats
@@ -12,7 +12,7 @@
     knos badge record <slug>       an SVG from a supplier's record file, in the same drawing as the two above
 
 `knos badge` writes the SVG to a file and prints the Markdown that shows it and links it to the repository's record on
-the site (r/<owner>/<repo>.html, the page that lists every payment with its transaction). The SVG is one file with no
+the site (r/<owner>/<repo>.json, the file that lists every payment with its transaction). The SVG is one file with no
 script, no link and no font of its own: text is drawn in whatever sans-serif the reader has, at a fixed width.
 
 A badge states its scope and its date. A count is "as of" a day, because the next payment changes it; a payment has
@@ -37,7 +37,7 @@ from decimal import Decimal
 from pathlib import Path
 
 SITE = "https://drexthealpha.github.io/Knos"
-LABEL = "paid on proof"
+LABEL = "checked by Knos"
 TEST = "test USDC"
 
 CAVEATS = (
@@ -80,10 +80,10 @@ def message(data: dict) -> str:
 def title(data: dict) -> str:
     """The accessible title: the same facts as a sentence, and what they do not mean."""
     if data.get("pr"):
-        return (f"Paid on proof: pull request #{data['pr']} of {data['repo']} was paid {data['amount']} {data['money']} on "
+        return (f"Checked by Knos: pull request #{data['pr']} of {data['repo']} was paid {data['amount']} {data['money']} on "
                 f"{data['date']} (UTC), after the checks its funder named passed at the merge. This is a payment, not a score of the work.")
     n = int(data["count"])
-    return (f"Paid on proof: {n} payment{_s(n)} in {data['money']} for pull requests to {data['repo']}, as of {data['as_of']} "
+    return (f"Checked by Knos: {n} payment{_s(n)} in {data['money']} for pull requests to {data['repo']}, as of {data['as_of']} "
             "(UTC). Each was made after the checks its funder named passed at the merge. This is a count of payments, not a score of the work.")
 
 
@@ -173,8 +173,8 @@ def verified_markdown(v: dict, image: str) -> str:
 
 
 def receipt_url(repo: str) -> str:
-    """The repository's record on the site: every payment for it, each with its transaction."""
-    return f"{SITE}/r/{urllib.parse.quote(repo)}.html"
+    """The repository's record file on the site: every payment for it, each with its transaction."""
+    return f"{SITE}/r/{urllib.parse.quote(repo)}.json"
 
 
 def markdown(data: dict, image: str) -> str:
@@ -259,7 +259,7 @@ def register(app) -> None:
                   records_dir: Path = typer.Option(Path("docs/records"), "--records", help="with `record`: the folder the record files are in"),
                   to_file: Path = typer.Option(None, "--out", help="where the SVG is written (default: knos-paid.svg, or knos-paid-<pr>.svg)"),
                   limit: int = typer.Option(1000, "--limit", help="how many of each payment program's newest transactions to read (at most 1000)")) -> None:
-        """Write a "paid on proof" badge (an SVG) for a repository or one pull request, and print the Markdown that links it to the record."""
+        """Write a "checked by Knos" badge (an SVG) for a repository or one pull request, and print the Markdown that links it to the record."""
         from . import cli, records
         if where == "record":
             record_page = importlib.import_module("knos.record_page")     # named, not imported: it reads the memory engine, which a job that signs does not install

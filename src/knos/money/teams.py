@@ -3,12 +3,10 @@
 Who pays: a TEAM that runs coding agents (Claude Code, Codex, Hermes, Devin, a Nemotron agent on Token Factory...).
 What it pays (config/fees.yaml, read through knos.money.fees_config; nothing here types a price):
 
-    verified_merge   per pull request the Knos referee verified, billed to the team (decided 14 Oct 2026: a starting
-                     price), the team's first `free_first` verifications free
-    x402_check       per raw check an AGENT buys itself over x402 (exact scheme): paid on chain at the call, so the
-                     invoice shows it as paid, never bills it again
-    bounty_platform  5% of a bounty the team funded in knos_pay (held until the proof passes); the program takes its 0.30% (at least 0.05)
-                     at payout, the rest is invoiced off chain until a program upgrade carries it
+    bounty_platform  a planned share of a bounty the team funded in knos_pay (held until its test passes); the program
+                     takes its on-chain fee (`onchain`: rate_bps, floor_usd) at payout, the rest would be invoiced off chain
+
+Nobody pays for a check: a verification and an x402 test payment are counted in the usage, never put on an invoice.
 
 The usage record is an append-only JSONL file (one event a line, `record`), written by the flow that did the work
 (`python -m knos.nebius flow`, the Gate, `knos verify`). An event that names a transaction is billed only when the
@@ -107,6 +105,12 @@ def _usd(units: int, decimals: int = 6) -> Decimal:
     return Decimal(int(units)) / (10 ** int(decimals))
 
 
+def pct(bps) -> str:
+    """Basis points as a percentage: 500 -> '5%', 30 -> '0.30%'."""
+    b = int(bps)
+    return f"{b // 100}%" if b % 100 == 0 else f"{Decimal(b) / 100:.2f}%"
+
+
 def _q(d: Decimal) -> str:
     return str(d.quantize(Decimal("0.01"), ROUND_HALF_UP))
 
@@ -131,40 +135,18 @@ def _on_chain(ev: dict, check: ChainCheck | None) -> dict:
 
 def invoice(events: Iterable[dict], team: str, month: str | None = None, *, check: ChainCheck | None = None,
             cfg: fees_config.FeeConfig | None = None) -> dict:
-    """The team's invoice for a month (all months when None), line by line, each with the chain's evidence."""
+    """The team's invoice for a month (all months when None), line by line, each with the chain's evidence. Only the
+    bounty lines are on it: a verification or an x402 test payment is usage (`usage`), never a charge."""
     cfg = cfg or fees_config.load()
     f = cfg.doc["fees"]
     evs = sorted((e for e in events if e.get("team") == team), key=lambda e: e.get("at", ""))
-    vm_each = Decimal(f["verified_merge"]["usd_each"])
-    free_left = int(f["verified_merge"].get("free_first") or 0)
     lines, due = [], Decimal(0)
-    for ev in evs:                                   # the free verifications are the team's first ones ever
-        in_month = month is None or _month(ev) == month
-        if ev["kind"] == "verification":
-            free = free_left > 0
-            free_left -= 1 if free else 0
-            if not in_month:
-                continue
-            if not ev.get("passed"):
-                lines.append({"at": ev["at"], "agent": ev["agent"], "task": ev.get("task"), "line": "verification (refused)",
-                              "usd": "0.00", "why": "a refused change is not a verified merge: no charge", "cheats": ev.get("cheats") or []})
-                continue
-            usd = Decimal(0) if free else vm_each
-            lines.append({"at": ev["at"], "agent": ev["agent"], "task": ev.get("task"), "line": "verified merge",
-                          "usd": _q(usd), "status": f["verified_merge"]["status"],
-                          "why": "the team's first verification is free" if free
-                          else f"{f['verified_merge']['usd_each']} USD per verified merge (decided 14 Oct 2026, starting price)"})
-            due += usd
-        elif not in_month:
+    for ev in evs:
+        if month is not None and _month(ev) != month:
             continue
-        elif ev["kind"] == "x402_check":
+        if ev["kind"] == "escrow_funded":
             ch = _on_chain(ev, check)
-            lines.append({"at": ev["at"], "agent": ev["agent"], "task": ev.get("task"), "line": "agent check over x402 (paid at the call)",
-                          "usd": "0.00", "paid_on_chain_usd": _q(_usd(ev.get("amount_units", 0), ev.get("decimals", 6))), **ch,
-                          "why": "the agent paid it on chain when it called; never billed again"})
-        elif ev["kind"] == "escrow_funded":
-            ch = _on_chain(ev, check)
-            lines.append({"at": ev["at"], "agent": ev["agent"], "task": ev.get("task"), "line": "bounty funded, held until the proof passes", "usd": "0.00",
+            lines.append({"at": ev["at"], "agent": ev["agent"], "task": ev.get("task"), "line": "bounty funded, held until its test passes", "usd": "0.00",
                           "held_usd": _q(_usd(ev.get("amount_units", 0), ev.get("decimals", 6))), **ch,
                           "why": "the team's own money, held by knos_pay until a verdict pays it or the deadline returns it: no charge"})
         elif ev["kind"] == "payout":
@@ -174,14 +156,15 @@ def invoice(events: Iterable[dict], team: str, month: str | None = None, *, chec
             rest = max(Decimal(0), whole - onchain)
             ch = _on_chain(ev, check)
             usd = rest if ch["billable"] else Decimal(0)
-            lines.append({"at": ev["at"], "agent": ev["agent"], "task": ev.get("task"), "line": "bounty paid: Knos bounty fee (5%), off-chain part",
+            lines.append({"at": ev["at"], "agent": ev["agent"], "task": ev.get("task"), "line": f"bounty paid: Knos bounty fee ({pct(f['bounty_platform']['rate_bps'])}), off-chain part",
                           "usd": _q(usd), "paid_usd": _q(amount), "onchain_part_usd": _q(onchain), "whole_fee_usd": _q(whole),
                           "would_bill_usd": _q(rest), **ch,
-                          "why": "5% of the bounty (decided 14 Oct 2026): the program takes its 0.30% (at least 0.05) at payout, the rest is invoiced"
+                          "why": f"{pct(f['bounty_platform']['rate_bps'])} of the bounty (a planned price): the program takes its "
+                          f"{pct(f['bounty']['rate_bps'])} (at least {f['bounty']['floor_usd']}) at payout, the rest is invoiced"
                           + ("" if ch["billable"] else "; not billed: this payout is not a confirmed devnet transaction")})
             due += usd
     return {"team": team, "month": month or "all", "currency": "USD", "lines": lines, "due_usd": _q(due),
-            "test_money": True, "pay_with": "USDC on Solana (x402 exact via the x402.org facilitator, or held by knos_pay until the proof passes)",
+            "test_money": True, "pay_with": "USDC on Solana, taken by knos_pay at payout or invoiced",
             "note": "devnet: every amount is test money, and Knos's revenue is 0"}
 
 
@@ -213,8 +196,7 @@ def dashboard(events: list[dict], team: str, *, check: ChainCheck | None = None,
             "money_saved": {"failing_merges_blocked": int(tot.get("failing_merges_blocked", 0)),
                             "means": "pull requests whose agent said its tests pass and the referee refused: each one is a failing merge that did not happen. No dollar value is put on it here (none is sourced)."},
             "cheats_by_rule": dict(rules), "per_agent": u, "paid_and_final": latency(mine),
-            "invoice": invoice(mine, team, check=check, cfg=cfg),
-            "first_verification_free": int(cfg.doc["fees"]["verified_merge"].get("free_first") or 0)}
+            "invoice": invoice(mine, team, check=check, cfg=cfg)}
 
 
 def rpc_check(url: str | None = None) -> ChainCheck:

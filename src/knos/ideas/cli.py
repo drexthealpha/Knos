@@ -10,6 +10,7 @@
     knos idea commit idea.json --units 10 --price 4 --wallet KEY --mint MINT     lock the stages on devnet (signs)
     knos idea preorder idea.json 5 --wallet KEY --mint MINT                      a pre-order in the idea's pool (signs)
     knos idea state idea.json --mint MINT           every stage and the pool as the chain has them
+    knos idea sign|release|refund COMMIT STAGE ...  a referee's verdict; release or refund a stage
 """
 from __future__ import annotations
 
@@ -204,7 +205,7 @@ def register(app, help_lines: list | None = None) -> None:
                    price: int = typer.Option(..., PRICE, min=1), stages: str = typer.Option(None, STAGES),
                    payee: str = typer.Option(..., "--payee", help="who is paid when a stage is released: github:<id>@<wallet>, orcid:<iD>@<wallet> or a wallet address (required; nothing is assumed)"),
                    panel: str = typer.Option(None, "--panel", help="M:key1,key2,key3: the referee panel that releases each stage (M of the keys; never the funder's)"),
-                   program: str = typer.Option(None, "--program", help="with --panel: the knos_pay build with the panel path (0.3.34; on devnet its test id)"),
+                   program: str = typer.Option(None, "--program", help="with --panel: the knos_pay build with the panel path (on devnet, the panel test build's id)"),
                    wallet: Path = typer.Option(..., WALLET, help="the buyer's devnet keypair file (signs)"),
                    mint: str = typer.Option(..., MINT, help="the 6-decimal test mint the stages are paid in"),
                    stage_seconds: str = typer.Option(None, "--stage-seconds", help="one deadline per stage in seconds, comma separated (min 60)"),
@@ -224,7 +225,7 @@ def register(app, help_lines: list | None = None) -> None:
         who = guard(lambda: C.parse_payee(payee))
         pnl = guard(lambda: C.parse_panel(panel, kp.pubkey(), who.get("wallet"), unlisted_panel)[:2]) if panel else None
         if pnl is not None and not program:
-            raise Stop("--panel needs --program: the knos_pay build with the referee-panel path (the public program gets it with the 0.3.34 upgrade)")
+            raise Stop("--panel needs --program: the knos_pay build with the referee-panel path (the public program does not have it yet)")
         work = [int(x) for x in stage_seconds.split(",")] if stage_seconds else None
         led, m = _devnet(), Pubkey.from_string(mint)
         prog = Pubkey.from_string(program) if program else pay.PAY_ID

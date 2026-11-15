@@ -2,7 +2,7 @@
 seller hold the same bytes and either can re-derive the verdict with no network.
 
     MANIFEST.json   {"type", "version", "order", "files": {name: sha256}}
-    receipt.json    the acceptance receipt, version 5 (or 4, 3, or 2), in canonical form (docs/reference/RECEIPT.md)
+    receipt.json    the acceptance receipt, version 6 (or 5, 4, 3, or 2), in canonical form (docs/reference/RECEIPT.md)
     token.jwt       the raw token the issuer signed, as it was written to knos_oidc
     key.json        the issuer's public key that verified it: {issuer, kid, n, e, account}
     terms.json      the order's terms, the bytes that were hashed at funding

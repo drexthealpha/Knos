@@ -1,5 +1,5 @@
-"""The verdict: Works and Wanted and Makeable, all three, or no. And the referee as a reward for agents in training
-(Hermes GEPA skill evolution, Atropos environments): the same checks, one number."""
+"""The verdict: Works and Wanted and Makeable, all three, or no. And the referee as a reward for agents in training:
+the same checks, one number."""
 
 from __future__ import annotations
 

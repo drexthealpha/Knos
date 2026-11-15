@@ -26,6 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .. import version
 from .engine import Game, GameError
 
 STATIC = Path(__file__).parent / "static"
@@ -57,7 +58,7 @@ def make_handler(game: Game, limiter: Limiter | None = None):
     lim = limiter or Limiter()
 
     class H(BaseHTTPRequestHandler):
-        server_version = "knos-game/0.3.34"
+        server_version = f"knos-game/{version()}"
 
         def log_message(self, fmt, *args):  # no request logging: keys travel in bodies, never in URLs
             pass

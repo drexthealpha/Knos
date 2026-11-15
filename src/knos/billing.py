@@ -1,9 +1,12 @@
-"""The billing rule, as code: what one customer owes for one month, line by line, with the rule behind each line.
+"""An OLD PROPOSAL, kept for the customers who were shown it: the billing rule, as code, of a price book Knos no
+longer offers. Knos's prices are docs/PRICING.md (decided 23 Oct 2026); this module is not them, and `knos --help` no
+longer lists `knos bill`. Nobody pays for a check under either.
+
+What one customer owes for one month, line by line, with the rule behind each line.
 
     a month's invoice = Control + Meter + Acceptance on value reconciled off chain + Record lookups
 
-The price book: PROPOSED prices, nothing sold (docs/PRICING.md, section 3; BOOK below is the same six lines, five columns
-each):
+The old price book: PROPOSED prices, never sold (BOOK below is the same six lines, five columns each):
 
     Check       free, forever
     Meter       proposed: 100,000 evaluations a month free per organisation, then 0.002 USD (the deployed knos_meter
