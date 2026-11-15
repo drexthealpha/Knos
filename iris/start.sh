@@ -8,15 +8,15 @@ tar="${1:-}"
 want="irishealth-community:2026.3.0AI.154.0"
 say() { echo "== $*"; }
 if ! docker image inspect "$want" > /dev/null 2>&1; then
-  [ -n "$tar" ] || { echo "usage: bash start.sh <the build 154 image tar> (README step 0 says where to download it)" >&2; exit 2; }
+  [ -n "$tar" ] || { echo "usage: bash start.sh <the build 154 image tar> (iris/README.md, "Build 154 with AI Hub", says where to download it)" >&2; exit 2; }
   say "loading the IRIS image from $tar"
   bash scripts/load-image.sh "$tar"
 fi
 if [ ! -f .env ]; then
-  say "making iris/.env (random password and signing secrets; the agent runs on the local model, no key)"
+  say "making iris/.env (random password and signing secrets; replay mode, no key)"
   cp .env.example .env && bash scripts/env-secrets.sh > /dev/null
 fi
-say "building and starting IRIS and the local model (the first start pulls the model, about 1 GB)"
+say "building and starting IRIS in replay mode (no model; KNOS_AI_MODE=local and --profile local start one)"
 docker compose up -d --build
 set -a; . ./.env; set +a
 say "waiting for the production"

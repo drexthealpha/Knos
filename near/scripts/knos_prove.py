@@ -4,7 +4,8 @@ hosted server), printed as lines a person can read. Standard library only.
     python3 near/scripts/knos_prove.py <paper link or DOI> [test USDC, 1 to 100]
 
 Prints the claim, the verdict, the spending cap's refusal, each payment with its NEAR explorer link and the verified
-code's address; exits 0 when the claim was proved and paid, 1 otherwise."""
+code's address; exits 0 when the claim was proved and its test money moved on NEAR (9 parts to agent A, 1 part in
+10 to Knos), 1 otherwise."""
 import json
 import sys
 import urllib.request
@@ -35,10 +36,10 @@ def lines(r: dict) -> list[str]:
         out.append(f"spending cap: agent B asked {cap.get('tried_units')} units over its cap of {cap.get('cap_units')}, refused on NEAR: {cap.get('url')}")
     rc = r.get("receipt") or {}
     if r.get("paid"):
-        out += [f"paid: {rc.get('buyer_usd')} test USDC behind the claim",
-                f"  agent A's share {rc.get('agent_usd')}: {rc.get('agent_pay_url')}",
-                f"  Knos's fee {rc.get('knos_usd')}: {rc.get('fee_url')}",
-                f"  the job's pay to agent A: {rc.get('job_pay_url')}"]
+        out += [f"test money moved: {rc.get('buyer_usd')} test USDC held with the job",
+                f"  agent A's 9 parts {rc.get('agent_usd')}: {rc.get('agent_pay_url')}",
+                f"  Knos's 1 part in 10 {rc.get('knos_usd')}: {rc.get('fee_url')}",
+                *([f"  the job's pay to agent A: {rc.get('job_pay_url')}"] if rc.get("job_pay_url") else [])]
     out.append(f"recorded on NEAR: {'yes' if r.get('settled') else 'no'}")
     if r.get("code"):
         out.append(f"verified code: {r['code']}")

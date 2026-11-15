@@ -2,7 +2,7 @@
 
     python3 near/scripts/product_page.py <out.json>     (in .github/workflows/product-page.yml; the standard library only)
 
-The job (near/agents/job/test_hll.py) asks helpers to build what one published result promises. This asks
+The job (near/agents/job/test_hll.py) asks agents to build what one published result promises. This asks
 qwen2.5:1.5b-instruct, through the Ollama on the runner (http://127.0.0.1:11434, no key), for a product name of at most
 5 words and a pitch of at most 2 sentences and 40 words, for a person who knows nothing about software, from the
 paper's own sentence. An answer that breaks a limit or uses a banned word is asked again (6 tries). If none is kept,

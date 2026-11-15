@@ -30,7 +30,7 @@ jobs:
           rustup target add wasm32-unknown-unknown
           cargo install cargo-near --version 0.22.0 --locked
       - name: near/scripts/verify.sh
-        run: bash near/scripts/verify.sh | tee near-tests.txt
+        run: set -o pipefail; bash near/scripts/verify.sh | tee near-tests.txt
       - name: the test counts, in the run's summary (readable without a GitHub login)
         if: always()
         run: |

@@ -22,6 +22,9 @@
       <FileCopy Name="iris/fixtures/" Target="${mgrdir}../knos/iris/fixtures/"/>
       <FileCopy Name="iris/java/" Target="${mgrdir}../knos/iris/java/"/>
       <FileCopy Name="iris/merge.cpf" Target="${mgrdir}../knos/iris/merge.cpf"/>
+      <!-- the page at /knos/ (Knos.Iris.REST.Api.UI) and the AI Hub skill (Knos.Iris.AI.Hub.SkillPath) read these -->
+      <FileCopy Name="iris/web/" Target="${mgrdir}../knos/iris/web/"/>
+      <FileCopy Name="iris/skills/" Target="${mgrdir}../knos/iris/skills/"/>
       <!-- KNOS_FHIR=0: no FHIR server; Setup compiles the Java PEX jar with the instance's own JDK, then starts the production -->
       <Invoke Class="Knos.Iris.Setup" Method="Install">
         <Arg>0</Arg>

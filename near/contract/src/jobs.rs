@@ -88,7 +88,8 @@ pub struct AgentRules {
     pub allow: Vec<AccountId>,
 }
 
-/// The owners' switches: paused stops take, submit, release and spend (a refund still runs); the approver releases
+/// The owners' switches: paused stops take, submit, release_job and spend (a refund, a milestone release and a Solana
+/// payout still run); the approver releases
 /// held spends; the NEAR AI signing addresses a model signature may come from
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Debug, Default)]
@@ -323,7 +324,8 @@ impl Knos {
         format!("rules set for {agent}")
     }
 
-    /// An owner pauses or resumes take, submit, release and spend; a refund still runs
+    /// An owner pauses or resumes take, submit, release_job and spend; a refund, a milestone release and a Solana payout
+    /// still run
     pub fn pause(&mut self, paused: bool) -> String {
         self.only_owner();
         let mut sw = self.switches();

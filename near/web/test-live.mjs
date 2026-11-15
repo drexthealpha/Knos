@@ -1,11 +1,12 @@
-// The stranger on the live /near/ page (spec S1): a fresh browser, the public URL only. Reads the first screen, clicks
-// Post a job once, follows the live testnet run to the payment. Screenshots at each step, clicks and seconds.
-//   node near/web/test-live.mjs <url, e.g. https://drexthealpha.github.io/Knos/near/> <out dir>
+// The stranger on the live /prove/ page (spec S1): a fresh browser, the public URL only. Reads the first screen, opens
+// "For developers" and clicks "Run the sample job" once, follows the live testnet run to the payment. Screenshots at
+// each step, clicks and seconds.
+//   node near/web/test-live.mjs <url, e.g. https://drexthealpha.github.io/Knos/prove/> <out dir>
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const [url = "https://drexthealpha.github.io/Knos/near/", out = "near-live"] = process.argv.slice(2);
+const [url = "https://drexthealpha.github.io/Knos/prove/", out = "near-live"] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -14,9 +15,12 @@ page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
 const t0 = Date.now(), steps = [];
 const shot = async (name, note) => { await page.screenshot({ path: path.join(out, `${name}.png`) }); steps.push({ name, s: Math.round((Date.now() - t0) / 100) / 10, note }); };
 await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
-await page.locator("#busy-text").filter({ hasText: /Live on NEAR testnet|Last run shown/ }).waitFor({ timeout: 120000 });
+await page.locator("#go").waitFor({ timeout: 120000 });
 await shot("1-first-screen", await page.locator("#busy-text").innerText());
-const btn = page.getByRole("button", { name: "Post a job" });
+await page.locator("details.under").evaluate((d) => { d.open = true; });   // the sample job sits under "For developers"
+const btn = page.getByRole("button", { name: "Run the sample job" });
+await btn.waitFor({ timeout: 60000 });
+await page.waitForTimeout(5000);   // the page asks the hosted runner whether live runs are on, then enables the button
 const enabled = await btn.isEnabled();
 let clicks = 0;
 if (enabled) { await btn.click(); clicks++; }

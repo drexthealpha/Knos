@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# I1 test_iris_up: from a fresh clone and the README's own commands: load and retag the image, `docker compose up -d
+# I1 test_iris_up: from a fresh clone and iris/README.md's own commands ("Build 154 with AI Hub"): load and retag the image, `docker compose up -d
 # --build`, then the health route within 180 s of the container starting (production Running, java ok, vector ok,
 # fhir off), then the 5 core decisions right (iris/tests/test_iris_decision.py, its first 5 cases), with the peak memory
-# measured during the build and the run (the Docker VM's used memory and the container's own, every 5 s) under 2.5 GB.
+# measured during the build and the run (the host's used memory, the Docker VM's under Windows, and the container's own,
+# every 5 s) under 2.5 GB.
 #   bash iris/tests/test_iris_up.sh <image tar> <commit sha> <result file>
 set -uo pipefail
 tar="$1"; sha="$2"; out="$3"
@@ -14,13 +15,13 @@ cd "$work/Knos/iris"
 # the memory sampler: the VM's used memory (MiB) and knos-iris's own, the largest of each kept
 peak="$work/peak.txt"; echo "0 0" > "$peak"
 ( while :; do
-    vm=$(wsl.exe -d docker-desktop -e free -m 2>/dev/null | tr -d '\r' | awk '/^Mem:/ {print $3}')
+    vm=$( { command -v wsl.exe > /dev/null && wsl.exe -d docker-desktop -e free -m || free -m; } 2>/dev/null | tr -d '\r' | awk '/^Mem:/ {print $3}')
     ct=$(docker stats --no-stream --format '{{.MemUsage}}' knos-iris 2>/dev/null | awk '{v=$1; if (v ~ /GiB/) {sub(/GiB/,"",v); v*=1024} else {sub(/MiB/,"",v)}; print int(v)}')
     read -r pv pc < "$peak"; [ "${vm:-0}" -gt "$pv" ] && pv=$vm; [ "${ct:-0}" -gt "$pc" ] && pc=$ct; echo "$pv $pc" > "$peak"
     sleep 5
   done ) & sampler=$!
 trap 'kill $sampler 2>/dev/null' EXIT
-# the README's commands, as it gives them (section "Run it")
+# iris/README.md's commands, as it gives them (section "Build 154 with AI Hub")
 bash scripts/load-image.sh "$tar" | tail -2 | while read -r l; do log "     $l"; done
 cp .env.example .env && bash scripts/env-secrets.sh >/dev/null
 set -a; . ./.env; set +a

@@ -1,4 +1,5 @@
-/// I3: one method per bonus row of the build spec, each answering JSON with what it saw (iris/tests/test_iris_bonuses.py reads them).
+/// I3: one method per bonus row of the build spec, each answering JSON with what it saw. Nothing calls it today:
+/// iris/tests/test_iris_bonuses.py checks the bonuses on its own; run a method by hand to see one row.
 Class Knos.Iris.Test.Bonuses
 {
 /// Embedded Python: Knos's hash inside IRIS equals the golden one made by Knos outside it; a vague brief lists what is missing

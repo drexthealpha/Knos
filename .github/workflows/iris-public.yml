@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: the Knos modules in iris/python/knos/ are byte for byte src/knos (iris/python/VENDORED.txt)
+        run: python3 iris/tests/test_iris_vendored.py
       - name: docker compose -f docker-compose.public.yml up -d --build
         working-directory: iris
         run: docker compose -f docker-compose.public.yml up -d --build
@@ -64,7 +66,8 @@ jobs:
         working-directory: iris
         run: docker compose -f docker-compose.public.yml logs --tail 120 iris
   space:
-    # the online demo's image (iris/space/make_space.py) built from this commit and run as a Hugging Face Docker Space
+    # a Hugging Face Docker Space build of the public edition (iris/space/make_space.py), kept as a CI check; the online
+    # demo itself ran in a GitHub codespace. Built from this commit and run as a Space
     # runs it: as user ID 1000, on port 52773, then the same sample
     runs-on: ubuntu-latest
     timeout-minutes: 60

@@ -3,7 +3,8 @@
 //! run is the proof, with a deadline. `release` pays only on a GitHub Actions OIDC token (RS256) verified here, in pure
 //! Rust: its signature under a key the owners set, its issuer, its audience (this contract), its repository and
 //! workflow, its commit and expiry, and a `jti` never used before. `refund` returns the money to the payer once the
-//! deadline has passed with no release. The fee is 0. The key set changes only when 2 of the 3 owners send the same key.
+//! deadline has passed with no release. A milestone's fee is 0; a job's is 1 part in 10 (jobs.rs FEE_PARTS). The
+//! key set changes only when 2 of the 3 owners send the same key.
 
 pub mod jobs;
 mod jwt;
@@ -70,7 +71,8 @@ pub enum State {
 pub struct Milestone {
     pub id: String,
     pub payer: AccountId,
-    /// "near" pays the address on NEAR; another chain (solana, ethereum) is paid by a Chain Signatures payout
+    /// "near" pays the address on NEAR; "solana" is paid by a Chain Signatures payout; "ethereum" is accepted but has no
+    /// payout yet (sign_payout takes only solana), so it is refunded after its deadline
     pub payee_chain: String,
     pub payee_address: String,
     pub amount: U128,

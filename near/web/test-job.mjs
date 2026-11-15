@@ -36,17 +36,17 @@ async function step(name, width, run, limit = 3) {
 }
 
 // U3 at 1280 (the transactions are real; one job), then the first screen at 390
-await step("u3-post-a-job", 1280, async (page, click, waitFor, say) => {
+await step("u3-run-the-sample-job", 1280, async (page, click, waitFor, say) => {
   await page.goto(app, { waitUntil: "domcontentloaded" });
-  await click(page.getByRole("button", { name: "Post a job" }));
-  await waitFor((ms) => page.locator("#busy-text", { hasText: /^Paid:|The run stopped|Not posted/ }).waitFor({ timeout: ms }), 300000);
+  await click(page.getByRole("button", { name: "Run the sample job" }));
+  await waitFor((ms) => page.locator("#busy-text", { hasText: /^Paid:|The run stopped|Not opened/ }).waitFor({ timeout: ms }), 300000);
   const said = await page.locator("#busy-text").innerText();
   await page.locator("#t-job").scrollIntoViewIfNeeded();
   const rows = await page.locator("#agents tr").allInnerTexts();
   const links = await page.locator("#jobline a, #agents a").evaluateAll((as) => as.map((a) => [a.textContent, a.href]));
   result.u3 = { said, rows, links };
   say(said);
-  return /^Paid:/.test(said) && rows.some((r) => /agent-a[\s\S]*passed[\s\S]*1000/.test(r)) && rows.some((r) => /agent-b[\s\S]*failed[\s\S]*\b0\b/.test(r));
+  return /^Paid:/.test(said) && rows.some((r) => /Agent A[\s\S]*passed[\s\S]*\$0\.\d/.test(r)) && rows.some((r) => /Agent B[\s\S]*failed[\s\S]*\$0$/.test(r.trim()));   // agent A gets 9 parts of the bid (FEE_PARTS in near/contract/src/jobs.rs)
 });
 await step("near-first-screen", 390, async (page) => { await page.goto(app, { waitUntil: "domcontentloaded" }); return true; }, 0);
 

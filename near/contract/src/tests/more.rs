@@ -260,7 +260,7 @@ fn a_paid_release_ends_released() {
 }
 
 #[test]
-fn an_ethereum_payout_is_released_for_its_signature() {
+fn an_ethereum_milestone_is_released_with_no_payout_yet() {
     let mut c = contract();
     ctx(USDC, NOW);
     let _ = c.ft_on_transfer(acct("payer.testnet"), U128(7), fund_msg("eth", "ethereum", "0x580C000000000000000000000000000000bB3A", NOW + 3600));

@@ -2,7 +2,7 @@
 name = "knos-mock-usdc"
 version = "0.1.0"
 edition = "2021"
-description = "A NEP-141 test token with 6 decimals, standing in for USDC in the sandbox tests only"
+description = "A NEP-141 test token with 6 decimals, standing in for USDC in the sandbox tests and on testnet"
 license = "MIT"
 publish = false
 

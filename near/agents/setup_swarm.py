@@ -6,6 +6,11 @@ Writes near/agents/swarm.json. Every step prints its transaction. Keys stay in ~
     NEAR_CLI=<near-cli-rs> python near/agents/setup_swarm.py <parent>.testnet
 
 The parent must exist with test NEAR (near account create-account sponsor-by-faucet-service <parent>.testnet ...).
+
+This script made agent-a and agent-b (keys for take, submit and spend only). The agents the jobs run as since 12 Nov,
+agent-a2 and agent-b2 (swarm.json), were added by hand, not by this script: agent-b2's key may call only take, submit
+and spend; agent-a2's one function-call key may call any method of the jobs contract (near/agents/RULES.md, rule 8).
+Running this again rewrites swarm.json to agent-a and agent-b.
 """
 from __future__ import annotations
 

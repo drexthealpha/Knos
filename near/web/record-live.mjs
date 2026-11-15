@@ -1,4 +1,4 @@
-// A recording of one live run from the public site, for near/web/knos-near.mp4: a fresh browser at 1280x800 opens the
+// A recording of one live run from the public site, for the 12 Nov cut, near/web/knos-near-2026-11-12.mp4: a fresh browser at 1280x800 opens the
 // front door, tries the sample (answered on that screen), goes on to the Prove page and orders the proof, then shows the
 // claims with their two markets, the browser's own check of a locked test against NEAR, and the one call for agents;
 // each screen holds long enough to read, with a caption saying what to watch. It writes the times each step showed and
@@ -76,7 +76,7 @@ await focus(".facts .counters", 0, "Live counters, read from NEAR", 1500);
 await focus("#t-why", 0, "Why Knos: the middleman it removes, and why a lab could not do this", 2000);
 await page.goto(site + "claims/", { waitUntil: "load" });
 await page.waitForFunction(() => ![...document.querySelectorAll("#claims td")].some((td) => td.textContent === "reading"), null, { timeout: 60000 });
-await focus("#claims", 0, "Four claims from real papers, each with two markets on NEAR: will it hold, will 100 test USDC back it", 2500);
+await focus("#claims", 0, "Claims from real papers, each with two markets on NEAR: will it hold, will 100 test USDC back it", 2500);
 await page.goto(site + "claim/jump-hash/", { waitUntil: "load" });
 await page.locator("#verify").click();
 await page.locator("#verdict").filter({ hasText: /VERIFIED|Not checked/ }).waitFor({ timeout: 60000 });

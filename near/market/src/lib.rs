@@ -18,10 +18,13 @@
 //! puts tokens behind a claim by sending them here (msg "back"), which records them on chain and passes them on to the
 //! agent and the fee account named, so the demand market settles from this contract's own record and nothing else.
 //! Each backing is recorded with its backer's account. Knos names its own accounts (`set_own`); a demand market counts
-//! only the tokens of other accounts, so Knos cannot back its own claims into a Yes. Backings recorded before this
+//! only the tokens of accounts Knos has not named as its own. Backings recorded before this
 //! version carry no account and all came from Knos's own test buyer: they count as Knos's.
-//! The split is the contract's rule, not the sender's: 90% to the agent whose work passed, 10% to Knos (amount / 10,
-//! rounded down; the agent gets the rest), so every receipt on NEAR shows exactly that split.
+//! The split is the contract's rule, not the sender's: 90% to the first account named and 10% to the second (amount / 10,
+//! rounded down; the first gets the rest), so every receipt on NEAR shows exactly that split. The contract checks the
+//! amounts, not who the two accounts are.
+//! near/wasm/knos_market.wasm is the 12 Nov build (CI run 43269271503) deployed to market.knos-swarm-1105.testnet;
+//! get_config and new_sized came later and run only in knos_market_usdc.wasm (usdc-market.knos-swarm-1105.testnet).
 //! Each market counts its traders (accounts that bought, from this version on), so a thin market says it is thin.
 
 use near_contract_standards::fungible_token::core::ext_ft_core;
@@ -262,7 +265,7 @@ impl Contract {
             self.markets.insert(id.clone(), m);
             return PromiseOrValue::Value(format!("{id} settled {} by the record: {} put behind {claim} by outside backers {} times", if yes { "Yes" } else { "No" }, got.total.0, got.count));
         }
-        // "job:<id>" follows a job of the jobs contract (paid only to the helper whose output passed its locked test);
+        // "job:<id>" follows a job of the jobs contract (paid only to the agent whose output passed its locked test);
         // any other id follows a milestone of `source` (released only by its named workflow's own token)
         let (to, method, key) = match id.strip_prefix("job:") {
             Some(job) => (JOBS.parse::<AccountId>().unwrap_or_else(|_| env::panic_str("jobs")), "get_job", job.to_string()),

@@ -128,8 +128,8 @@ main > * { min-width: 0; }
 <svg id="k-icons" width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="trending-up" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></symbol><symbol id="shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></symbol><symbol id="wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></symbol><symbol id="history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></symbol></svg>
 <main>
   <form class="panel signin" id="login" hidden aria-labelledby="t-login">
-    <h1 id="t-login" class="k-mission"><span class="k-line"><span>Pay only for proof</span></span> <span class="k-line"><span>that passes.</span></span></h1>
-    <p class="sub">$0 unless a helper's work passes your check</p>
+    <h1 id="t-login" class="k-mission"><span class="k-line"><span>Knos carries research</span></span> <span class="k-line"><span>across the valley of death.</span></span></h1>
+    <p class="sub">Sign in to see each decision, its trace and the approver's inbox.</p>
     <p class="fine" id="login-msg"></p>
     <label for="user">User</label><input id="user" name="user" autocomplete="username" value="_SYSTEM" required>
     <label for="pass">Password</label><input id="pass" name="pass" type="password" autocomplete="current-password" required>
@@ -149,7 +149,6 @@ main > * { min-width: 0; }
     </div>
     <p class="fine">Test money only. No sign-in needed: this is the built-in demo.</p>
     <p class="fine" id="model-note" role="status" hidden></p>
-    <p class="fine" id="hours" hidden>Online without a break until 05:00 UTC on 16 Nov, when voting ends.</p>
   </section>
 
   <section class="panel" aria-labelledby="t-inbox">
@@ -218,8 +217,8 @@ function gatePill(g) { const p = el("span", { className: "pill", textContent: GA
 function plainOutcome(d) {
   if (d.gate === "PAY") return /person/.test(d.outcome || "") ? "Paid in play money after a person said yes. No real money moved." : "Paid in play money. No real money moved.";
   if (d.gate === "HUMAN" || d.gate === "HELD") return "Held until a person says yes.";
-  if (d.gate === "REJECT") return "Not paid: the test did not pass.";
-  if (d.gate === "REFUND_AT_DEADLINE") return "Not paid: the test failed. The backers get their money back.";
+  if (d.gate === "REJECT") return "Not paid: the brief changed after it was locked, or the verdict's signature did not verify.";
+  if (d.gate === "REFUND_AT_DEADLINE") return "Not paid: the test failed. The funder gets the money back.";
   return d.outcome || "-";
 }
 function jobName(b) { const m = /shop-(pass|fail|big)-/.exec(b || ""); return m ? { pass: "Sample: a passing test, $20", fail: "Sample: a failing test, $20", big: "Sample: a passing test, $120" }[m[1]] : (b || "-").replace(/^github:/, ""); }
@@ -373,11 +372,6 @@ $("refresh").addEventListener("click", load);
 // when the model service did not answer just now, say so above the sample buttons (the health answer's model_note)
 async function noteModel() { try { const h = await api("health"); $("model-note").textContent = h.model_note || ""; $("model-note").hidden = !h.model_note; } catch (e) { /* no health answer: nothing to say */ } }
 setTimeout(() => { if ("demo" in document.body.dataset) noteModel(); }, 2500);   // the built-in demo only: no sign-in is asked for
-if (location.hostname.endsWith(".app.github.dev")) {   // the online demo's hours, on the online demo only: the windows not yet over
-  const W = [["2026-11-16T05:00Z", "without a break until 05:00 UTC on 16 Nov, when voting ends"]];
-  const left = W.filter(([end]) => Date.parse(end) > Date.now()).map(([, say]) => say);
-  if (left.length) { $("hours").textContent = "Online " + (left.length > 1 ? left.slice(0, -1).join(", ") + " and " + left[left.length - 1] : left[0]) + "."; $("hours").hidden = false; }
-}
 const mine = new Set((() => { try { return JSON.parse(sessionStorage.getItem("knos-mine") || "[]"); } catch { return []; } })());
 const SAID = { pass: "Sent a passing test. Look at the newest decision.", fail: "Sent a failing test: nothing is paid.", big: "Sent a passing test for $120: it waits for a person below." };
 for (const b of document.querySelectorAll("[data-sample]")) {

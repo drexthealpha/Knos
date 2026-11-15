@@ -1,6 +1,7 @@
 """The NEAR page's live counters, read from NEAR testnet's public record (NearBlocks), every page of it, slowly enough
-for its free tier. A paid first proof is one fee that reached Knos's fee account from the buyer's test account; the
-dollars are those fees plus agent A's shares from that account; lost is what the buyer's test account's own record says
+for its free tier. A job paid (the output key `proofs`, which the page and the hosted app read) is one fee, Knos's
+1 part in 10, that reached Knos's fee account from the buyer's test account, the claim market or, since 14 Nov, the
+jobs contract itself; nobody pays for a proof. The dollars are those fees plus agent A's shares from the same accounts; lost is what the buyer's test account's own record says
 left it for Knos's fee account or agent A and the receivers' records do not show arriving.
 
     python3 near/scripts/near_counters.py <out.json>
@@ -20,6 +21,7 @@ TOKEN = "knos-usdc-1102.testnet"
 LIVE, FEE, AGENT = "live.knos-swarm-1105.testnet", "knos-payer-1102.testnet", "agent-a.knos-swarm-1105.testnet"
 AGENT2 = "agent-a2.knos-swarm-1105.testnet"
 MARKET = "market.knos-swarm-1105.testnet"   # since Round 7 the amount behind a claim goes through the claim market, which records it
+JOBS = "jobs.knos-swarm-1105.testnet"   # since 14 Nov the jobs contract sends the agent its 9 parts and Knos its 1 part in 10 itself
 RPC = "https://rpc.testnet.near.org"
 CLAIMS = Path(__file__).resolve().parents[1] / "claims" / "claims.json"
 
@@ -79,8 +81,8 @@ def read() -> dict:
     """The full count, read now (the hosted server calls this too when GitHub's copy is late)."""
     fee, agent = rows(FEE), rows(AGENT) + rows(AGENT2)   # agent A signs as agent-a2 since 12 Nov (Round 8)
     live = rows(LIVE)
-    paid = [x for x in fee if x.get("involved_account_id") in (LIVE, MARKET) and int(x.get("delta_amount") or 0) > 0]
-    shares = [x for x in agent if x.get("involved_account_id") in (LIVE, MARKET) and int(x.get("delta_amount") or 0) > 0]
+    paid = [x for x in fee if x.get("involved_account_id") in (LIVE, MARKET, JOBS) and int(x.get("delta_amount") or 0) > 0]
+    shares = [x for x in agent if x.get("involved_account_id") in (LIVE, MARKET, JOBS) and int(x.get("delta_amount") or 0) > 0]
     arrived = sum(int(x["delta_amount"]) for x in paid + shares)
     newest = max([int(x.get("block_timestamp") or 0) for x in fee + agent + live] or [0])
     # lost: a transfer that left the buyer's account for Knos's fee account or agent A and has no arrival with the same

@@ -68,5 +68,5 @@ def test_proof_from_another_repository_than_the_locked_brief_is_refused():
     why = bridge.repo_mismatch("github:example/shop", brief, json.dumps({"payload": run}))
     assert "attacker/fork" in why and "example/shop" in why
     assert bridge.repo_mismatch("github:example/shop", brief, json.dumps({"payload": json.dumps(run)})) == why  # payload sent as text
-    assert bridge.repo_mismatch("lab-glucose", "{}", json.dumps({"payload": "MSH|^~\&|"})) == ""                # no repository on either side
+    assert bridge.repo_mismatch("lab-glucose", "{}", json.dumps({"payload": "MSH|^~\\&|"})) == ""                # no repository on either side
     assert bridge.repo_mismatch("site-7", json.dumps({"repository": "lab/site-7"}), json.dumps({"repository": "lab/site-8"})) != ""

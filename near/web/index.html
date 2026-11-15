@@ -7,7 +7,7 @@
 <title>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</title>
 <link rel="stylesheet" href="../brand/tokens.css">
 <style>
-/* Hallmark · job: post a job, watch two agents try it, see only the passing one paid, try the guardrails · shape: app screen · genre: modern-minimal · theme: the Knos tokens (web/brand/tokens.css, near/DESIGN.md) */
+/* Hallmark · job: run the sample job, watch two agents try it, see only the passing one paid, try the guardrails · shape: app screen · genre: modern-minimal · theme: the Knos tokens (web/brand/tokens.css, near/DESIGN.md) */
 * { box-sizing: border-box; }
 html, body { overflow-x: clip; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 var(--s1)/1.5 var(--text); }
@@ -215,39 +215,27 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet, in Knos's own test dollars: <b id="c-proofs">reading</b> proofs paid, <b id="c-usd">reading</b> settled, <b id="c-lost">reading</b> lost (left the buyer, never arrived).<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
-    <p><b>For agents:</b> one call runs it all and returns the verdict, the code and the receipt:</p>
+    <p class="counters" id="counters">Live from NEAR testnet, in Knos's own test dollars: <b id="c-proofs">reading</b> jobs paid to agents, <b id="c-usd">reading</b> settled, <b id="c-lost">reading</b> lost (left the buyer, never arrived).<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p><b>For agents:</b> one call runs it all and returns the verdict with its receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
-    <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token and no points.</p>
+    <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push to main runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token and no points.</p>
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
   </section>
 
-  <details class="buyers"><summary>For buyers: who pays, and why Knos</summary>
-  <section class="facts who" aria-labelledby="t-who">
-    <h2 id="t-who">Who pays</h2>
-    <p>The same proof, a test locked before the work and pay only after it passes, for buyers who already pay for checked work:</p>
-    <table class="log">
-      <tr><th>Buyer</th><th>Today’s price</th><th>Knos</th></tr>
-      <tr><td>AI labs, per training task that grades itself</td><td>$200 to $2,000 (<a href="https://analyticsindiamag.com/ai-news-updates/complex-reinforcement-learning-tasks-can-cost-up-to-20000-each-epochai-report/">Epoch AI, 24 Jan 2026</a>)</td><td>Half or less: up to $1,000 a task, paid only after it passes</td></tr>
-      <tr><td>A grid study at PJM</td><td>$500,000 deposit (<a href="https://www.pjm.com/pjmfiles/directory/etariff/FercDockets/9925/20261013-er27-126-000.pdf">PJM, 25 Sep 2026</a>)</td><td>Half or less: up to $250,000, paid only after it passes</td></tr>
-    </table>
-    <p class="fine">Prices planned for paying buyers. No one has bought yet: today a proof takes 1 to 100 test USDC.</p>
-  </section>
-
+  <details class="buyers"><summary>For buyers: why Knos</summary>
   <section class="facts why" aria-labelledby="t-why">
     <h2 id="t-why">Why Knos</h2>
     <table class="log">
       <tr><th>Today</th><td>You find someone to re-run the paper, send them the paper and its code, agree a price, wait weeks and pay their invoice: $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard and others, 2023</a>).</td></tr>
       <tr><th>With Knos</th><td>One screen: paste the paper and get the verdict with its receipt in about a minute.</td></tr>
       <tr><th>The middleman it removes</th><td>The replication service paid to re-run a paper by hand.</td></tr>
-      <tr><th>The category</th><td>Checkout for verified research: a claim is paid for only once its locked test passes.</td></tr>
       <tr><th>Why a frontier lab could not</th><td>A lab can write the code, but a buyer cannot trust it to grade its own work: NEAR holds the locked test and the rule that pays only on a pass, and neither Knos nor the lab can change them.</td></tr>
       <tr><th>A firm's work, by agents</th><td>Two agents write the code and a checker runs the locked test, the work of a replication firm. Agent A is paid into <a href="https://testnet.nearblocks.io/address/agent-a2.knos-swarm-1105.testnet?tab=tokentxns">its own NEAR account</a>; agent B's spending comes out of its own budget on NEAR, under a cap.</td></tr>
-      <tr><th>An invoice per task</th><td>Every proof ends in a receipt that prices the task and lists each step's network fee, every line linked on NEAR.</td></tr>
+      <tr><th>A receipt per task</th><td>Every check ends in a receipt that lists each step's network fee, every line linked on NEAR.</td></tr>
       <tr><th>The path to scale</th><td>Each new claim is one locked test. Every verified result is kept on NEAR and reused for free. The 2 Nov 2026 census found 38 of 12,010 companies to approach first.</td></tr>
       <tr><th>NEAR across chains</th><td>A bid can be quoted in USDC on Base through NEAR Intents, a quote only: NEAR Intents runs on mainnet, and with test money Knos moves nothing there.</td></tr>
-      <tr><th>The added cost of privacy</th><td>Not measured yet: the AI reviewer runs on NEAR AI Cloud and each answer shows its tokens and dollars; a private model in a TEE has not been run beside it.</td></tr>
-      <tr><th>Leaving</th><td>Nothing of yours is held: you pay only after the answer, so you can stop at any step and there is nothing to withdraw.</td></tr>
+      <tr><th>The added cost of privacy</th><td>Not measured yet: agent A's model and the reviewer run privately on NEAR AI Cloud, with the TEE attestation checked; the same calls on a non-private model have not been timed beside them.</td></tr>
+      <tr><th>Leaving</th><td>Only test money moves: the test USDC behind a check is held with its job on NEAR and goes back if no agent's code passes by the deadline. You can stop at any step.</td></tr>
     </table>
   </section>
   </details>
@@ -267,13 +255,13 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <h2 id="t-hand">The same job, step by step: test money pays only work that passes</h2>
     <form class="k-ask" id="jobform">
       <input id="job" name="job" aria-label="What should be built?" placeholder="What should be built?" value="Sample job: count website visitors in 1.5 kilobytes (HyperLogLog, 2007)" readonly>
-      <button class="go" type="submit" id="post"><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#send"/></svg>Post a job →</button>
+      <button class="go" type="submit" id="post"><svg class="k-i" aria-hidden="true"><use href="../brand/icons.svg#send"/></svg>Run the sample job →</button>
     </form>
-    <p class="sub">$0 of test money unless a helper's work passes your check</p>
+    <p class="sub">$0 of test money unless an agent's work passes the locked test</p>
     <p class="status" id="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></p>
     <div id="show">
     <svg class="stage" id="stage" viewBox="0 0 720 330" role="img" aria-labelledby="stage-say">
-      <title id="stage-say">The money held on NEAR moves to Helper A, whose work passed. Helper B failed and gets $0.</title>
+      <title id="stage-say">The money held on NEAR moves to Agent A, whose work passed. Agent B failed and gets $0.</title>
       <path class="wire" id="toA" d="M350 165 C 390 165, 385 80, 420 80"/>
       <path class="wire cut" id="toB" d="M350 165 C 390 165, 385 250, 420 250"/>
       <rect class="box" x="10" y="95" width="340" height="140" rx="20"/>
@@ -282,12 +270,12 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
       <text class="v" x="26" y="212" id="pot">$1.00</text>
       <rect class="box" id="boxA" x="420" y="10" width="290" height="140" rx="20"/>
       <use class="ic" href="../brand/icons.svg#users" x="436" y="26" width="48" height="48"/>
-      <text class="k" x="494" y="58">Helper A</text>
+      <text class="k" x="494" y="58">Agent A</text>
       <g id="tagA" opacity="0"><rect x="432" y="22" width="56" height="56" fill="var(--paper-2)"/><use class="ic ok" href="../brand/icons.svg#circle-check" x="436" y="26" width="48" height="48"/><text class="tag yes" x="696" y="58" text-anchor="end">passed</text></g>
       <text class="v" x="436" y="128" id="gotA">$0</text>
       <rect class="box" x="420" y="180" width="290" height="140" rx="20"/>
       <use class="ic" href="../brand/icons.svg#users" x="436" y="196" width="48" height="48"/>
-      <text class="k" x="494" y="228">Helper B</text>
+      <text class="k" x="494" y="228">Agent B</text>
       <text class="tag no" x="696" y="228" text-anchor="end" id="tagB" opacity="0">failed</text>
       <text class="v" x="436" y="298" id="gotB">$0</text>
       <g id="coins"></g>
@@ -302,15 +290,15 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <h2 id="t-job">The job</h2>
     <ul class="nums" id="nums" aria-label="The job in numbers"></ul>
     <table class="t">
-      <thead><tr><th scope="col">Helper</th><th scope="col">Took it, sent work</th><th scope="col">Check</th><th scope="col" class="n">Paid (test money)</th></tr></thead>
-      <tbody id="agents"><tr><td colspan="4" class="empty">No job yet. Post one above.</td></tr></tbody>
+      <thead><tr><th scope="col">Agent</th><th scope="col">Took it, sent work</th><th scope="col">Check</th><th scope="col" class="n">Paid (test money)</th></tr></thead>
+      <tbody id="agents"><tr><td colspan="4" class="empty">No job yet. Run one above.</td></tr></tbody>
     </table>
     <p class="fine" id="jobline"></p>
   </section>
 
   <section class="panel" aria-labelledby="t-guard">
     <h2 id="t-guard">Two payments the rules block</h2>
-    <p class="fine">Helper B may spend 1 test unit at most. It tries to pay 2, then to take the money with no passing work.</p>
+    <p class="fine">Agent B may spend 1 test unit at most. It tries to pay 2, then to take the money with no passing work.</p>
     <button type="button" id="guard">Try both payments and see them refused</button>
     <ul id="guards"></ul>
   </section>
@@ -323,7 +311,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="panel" id="sec-ms" aria-labelledby="t-ms">
-    <h2 id="t-ms">One milestone</h2>
+    <h2 id="t-ms">An earlier Knos flow, local only: one milestone</h2>
     <form class="fund" id="fund">
       <label for="amount">Amount (millionths of a test dollar)<input id="amount" name="amount" type="number" min="1" max="10000000" value="1000" required></label>
       <label for="minutes">Deadline (minutes)<input id="minutes" name="minutes" type="number" min="1" max="1440" value="2" required></label>
@@ -412,13 +400,13 @@ function showJob(j) {
     const att = a.find((x) => x.agent === ag) || {};
     const key = ag.startsWith("agent-a") ? "a" : "b";
     return el("tr", {}, [
-      el("td", {}, el("a", { href: "https://testnet.nearblocks.io/address/" + ag, textContent: (ag.startsWith("agent-a") ? "Helper A" : "Helper B") + ": its public record" })),
+      el("td", {}, el("a", { href: "https://testnet.nearblocks.io/address/" + ag, textContent: (ag.startsWith("agent-a") ? "Agent A" : "Agent B") + ": its public record" })),
       el("td", { className: "txs" }, [link(j.txs?.[`take_${key}`], "took the job (record)"), " ", link(j.txs?.[`submit_${key}`], "sent its work (record)")]),
       el("td", {}, att.passed == null ? "" : el("span", { className: att.passed ? "yes" : "no", textContent: att.passed ? "passed" : "failed" })),
       el("td", { className: "n", textContent: usd(+(paid[ag] ?? 0)) }),
     ]);
   }));
-  $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "posted (record)"), " ", link(j.txs?.release, "paid (record)")].filter(Boolean));
+  $("jobline").replaceChildren(...[`Job ${j.id}: `, link(j.txs?.post, "opened (record)"), " ", link(j.txs?.release, "paid (record)")].filter(Boolean));
 }
 
 async function load() {
@@ -480,7 +468,7 @@ const of = (paid, p) => +(paid[Object.keys(paid).find((k) => k.startsWith(p))] ?
 
 async function hostedRun() {
   at("test");
-  busy("Two helpers are trying it. Your money waits on NEAR.");
+  busy("Two agents are trying it. Your money waits on NEAR.");
   $("post").disabled = true;
   const s = await fetch(HOSTED + "/api/near/live", { method: "POST" }).then((r) => r.json()).catch(() => ({ replay: true, why: "the live runner did not answer" }));
   if (s.replay) {
@@ -490,11 +478,11 @@ async function hostedRun() {
     return;
   }
   const jobPanel = document.querySelector('[aria-labelledby="t-job"]');
-  if (s.state) {   // a job both helpers had already tried: the click paid the one that passed, and the answer is here
+  if (s.state) {   // a job both agents had already tried: the click paid the one that passed, and the answer is here
     // "Paid" is drawn in the same task the answer arrives in (UX rule F3), then the money moves
     busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
     const a = of(s.paid || {}, "agent-a"), b = of(s.paid || {}, "agent-b");
-    $("busy-text").textContent = s.state === "done" ? `Paid: Helper A ${usd(a)}. Helper B ${usd(b)}, its work failed.` : `The payment stopped: ${s.why || "see the job below"}.`;
+    $("busy-text").textContent = s.state === "done" ? `Paid: Agent A ${usd(a)}. Agent B ${usd(b)}, its work failed.` : `The payment stopped: ${s.why || "see the job below"}.`;
     if (s.state === "done") {
       const job = s.job || {};
       $("receipt").replaceChildren(...[`Paid at ${clock(job.paid_at)}, ${s.seconds} s after your tap. `,
@@ -527,11 +515,11 @@ $("jobform").addEventListener("submit", (ev) => ev.preventDefault());
 $("post").addEventListener("click", async () => {
   if (!local) return hostedRun();
   at("test");
-  busy("Posting the job: the bid is held against the locked test.");
+  busy("Opening the job: the bid is held against the locked test.");
   const p = await api("/api/job/post", { bid: 1000, minutes: 15 });
-  if (!p.ok) { busy(""); $("busy").hidden = false; $("busy-text").textContent = `Not posted: ${p.why || "see the transaction"}. Try again.`; return; }
+  if (!p.ok) { busy(""); $("busy").hidden = false; $("busy-text").textContent = `Not opened: ${p.why || "see the transaction"}. Try again.`; return; }
   at("held");
-  busy("Two helpers take it and send their work. The check runs on each.");
+  busy("Two agents take it and send their work. The check runs on each.");
   const r = await api("/api/job/run", { id: p.id });
   busy("");
   $("busy").hidden = false; $("busy").setAttribute("data-done", "");
@@ -540,7 +528,7 @@ $("post").addEventListener("click", async () => {
 });
 
 $("guard").addEventListener("click", async () => {
-  busy("Helper B tries both. Each try is a real request the contract must refuse.");
+  busy("Agent B tries both. Each try is a real request the contract must refuse.");
   const r = local ? await api("/api/job/guard", {})
     : await fetch(HOSTED + "/api/near/guard", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false, why: "the live runner did not answer" }));
   if (!local) { $("guard").disabled = false; if (!r.tries) { $("guards").replaceChildren(el("li", { textContent: `Not run: ${r.why || "no answer"}.` })); busy(""); return; } }
@@ -589,7 +577,7 @@ load();
   }
   // live counters (the hosted server, GET /api/near/claim/counters): the full count of NEAR testnet's public record, read
   // every 10 minutes by GitHub Actions, plus every first proof the server has paid since, each a transfer NEAR confirmed.
-  // A paid first proof is one fee that reached Knos's account from the buyer's test account; lost is the record's own figure
+  // a job paid is one fee that reached Knos's account (1 part in 10 of a released job); lost is the record's own figure
   async function counters(after) {
     if (after) {   // a payment just made: read until the count passes the one shown, so this payment is counted
       const was = +($("c-proofs").textContent) || 0;
@@ -678,15 +666,15 @@ load();
     }
     const amountIn = el("input", { type: "number", id: "claim-amount", value: String(r.amount_default || 10), min: "1", max: String(r.amount_max || 100), step: "1", style: "width:7em" });
     const amount = () => Math.max(1, Math.min(r.amount_max || 100, Math.round(+amountIn.value || r.amount_default || 10)));
-    const order = el("button", { type: "button", className: "go big", textContent: `Prove it with ${amount()} test USDC` });
-    amountIn.addEventListener("input", () => { const n = amount(), typed = +amountIn.value; order.textContent = `Prove it with ${n} test USDC` + (amountIn.value !== "" && typed === n ? "" : ` (1 to ${r.amount_max || 100} only)`); });
+    const order = el("button", { type: "button", className: "go big", textContent: `Run the check with ${amount()} test USDC` });
+    amountIn.addEventListener("input", () => { const n = amount(), typed = +amountIn.value; order.textContent = `Run the check with ${n} test USDC` + (amountIn.value !== "" && typed === n ? "" : ` (1 to ${r.amount_max || 100} only)`); });
     order.dataset.buy = "";
     const kids = [
       el("section", { className: "card answer offer" }, [
-        el("h2", { textContent: "Prove this claim now" }),
-        el("p", {}, ["Two agents run against a test locked on NEAR. You get a Yes or No, the verified code and a receipt."]),
-        el("p", {}, [el("b", { textContent: "Price: " }), "the test USDC you choose (1 to 100), paid only after the answer. Proving this order again: free."]),
-        el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Your price, in test USDC: " }), amountIn]),
+        el("h2", { textContent: "Check this claim now" }),
+        el("p", {}, ["Two agents run against a test locked on NEAR. You get a Yes or No with the verified code."]),
+        el("p", {}, [el("b", { textContent: "Test money: " }), "the test USDC you choose (1 to 100) is held with the job; the jobs contract sends 9 parts to the agent whose code passed the locked test and keeps 1 part in 10 for Knos. Checking this order again: free."]),
+        el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Test USDC held with the job: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next proof is being readied." }),
         el("p", { className: "fine", textContent: "This is a demo with test money: no card is charged and no invoice is sent." })]),
       el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
@@ -791,7 +779,7 @@ load();
       el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt for proof ${rc.job || ""}: paid and recorded on NEAR testnet ${when} after you pressed` : `Receipt: paid on NEAR testnet ${when} after you pressed` }),
       el("table", { className: "vs" }, [
         el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)} behind this proof: ${tu(rc.agent_usd)} to the agent, ${tu(rc.knos_usd)} to Knos. From a test account Knos holds for you, so you need no wallet. ${rc.contract ? "The jobs contract held it with the job and, after the checker's signed pass, paid both parts itself in one transaction: " : rc.agent_pay_url && rc.agent_pay_url === rc.fee_url ? "One transaction splits it between agent A and Knos: " : "Its two transfers: "}`, ...(rc.agent_pay_url && rc.agent_pay_url === rc.fee_url ? [out(rc.agent_pay_url, "the split")] : [rc.agent_pay_url ? out(rc.agent_pay_url, "to agent A") : "", rc.agent_pay_url && rc.fee_url ? ", " : "", rc.fee_url ? out(rc.fee_url, "to Knos") : ""])] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
-        el("tr", {}, [el("th", { textContent: "Agent A got, in all" }), el("td", {}, ok ? (rc.contract ? [`${tu(rc.agent_usd)}, 90%, sent by the jobs contract${rc.model_verified ? " after it checked the model's signature (model_verified)" : ""}: `, rc.agent_pay_url ? out(rc.agent_pay_url, "the release") : "the release", "."] : rc.job_pay_url ? [`${tu((+rc.agent_usd || 0) + 1)} in all: ${tu(rc.agent_usd)} from your price (90%, `, rc.agent_pay_url ? out(rc.agent_pay_url, "the transfer") : "the transfer", ") plus the 1.00 the job itself paid for passing its locked test (", out(rc.job_pay_url, "that payment"), ")."]
+        el("tr", {}, [el("th", { textContent: "Agent A got, in all" }), el("td", {}, ok ? (rc.contract ? [`${tu(rc.agent_usd)}, 90%, sent by the jobs contract${rc.model_verified ? " after it checked the model's signature (model_verified)" : ""}: `, rc.agent_pay_url ? out(rc.agent_pay_url, "the release") : "the release", "."] : rc.job_pay_url ? [`${tu((+rc.agent_usd || 0) + 1)} in all: ${tu(rc.agent_usd)} from your test USDC (90%, `, rc.agent_pay_url ? out(rc.agent_pay_url, "the transfer") : "the transfer", ") plus the 1.00 the job itself paid for passing its locked test (", out(rc.job_pay_url, "that payment"), ")."]
           : [`${tu(rc.agent_usd)}, 90%. `, rc.agent_pay_url ? out(rc.agent_pay_url, "The transfer") : ""]) : ["Nothing."])]),
         ...(ok && rc.log && rc.log.total_usd != null ? [el("tr", {}, [el("th", { textContent: "Knos kept, less costs" }), el("td", { textContent:
           `${(+rc.knos_usd || 0).toFixed(2)} fee \u2212 $${(+rc.log.total_usd || 0).toFixed(4)} network fees \u2212 $${aiCost.toFixed(4)} model calls = ${((+rc.knos_usd || 0) - (+rc.log.total_usd || 0) - aiCost).toFixed(4)} (test USDC counted as dollars).` })])] : []),

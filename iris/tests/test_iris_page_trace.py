@@ -56,7 +56,7 @@ def main() -> int:
                 page.wait_for_timeout(5000)
                 row = page.locator("#decisions tr", has_text=repo).first
                 outcome = row.inner_text() if row.count() else ""
-                if "pay" in outcome.split("\t")[1:2] or "approved by a person" in outcome:
+                if "after a person said yes" in outcome:   # the row's words for PAY after an approval (dashboard.html plainOutcome)
                     break
             row.click()
             for _ in range(30):              # the Decision message follows the approval by the time the payout is simulated
@@ -69,7 +69,7 @@ def main() -> int:
         br.close()
     lines.append(f"     decision row: {outcome.replace(chr(9), ' | ')}")
     lines.append(f"     trace kinds on the page: {kinds.replace(chr(10), ' ')}")
-    paid = "approved by a person" in outcome
+    paid = "after a person said yes" in outcome
     one = bool(re.search(r"Decision 1\b", kinds))
     lines.append(f"{'ok  ' if paid else 'FAIL'} the decision is PAY after the approval")
     lines.append(f"{'ok  ' if one else 'FAIL'} the page's trace reads Decision 1")

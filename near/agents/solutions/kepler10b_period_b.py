@@ -4,7 +4,8 @@ period grid: 10,000 evenly spaced trial periods between 0.5 and 5 days (a step o
 4.5e-4 d), taking the argmax directly with no refinement. That grid is fine for one
 quarter of data but far too coarse for a 4-year baseline: over ~1750 orbits a period
 error of only ~5e-5 d shifts the last transits by ~0.09 d, more than the 1.8-hour
-transit itself, so the true period is never sampled and a nearby grid point wins."""
+transit itself, so the true period is never sampled and a nearby grid point wins.
+On a slow machine the locked test may stop it first for running over 20 s."""
 import numpy as np
 
 

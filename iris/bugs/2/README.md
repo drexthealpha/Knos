@@ -1,7 +1,5 @@
 # AI Hub: ExecuteTool runs a tool with arguments its own schema refuses
 
-Knos turns any research into a product billions of people use, in days, not years.
-
 Knos carries research across the valley of death, toward Kardashev II and III.
 
 Build: `IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2026.3.0AI (Build 154U)`.

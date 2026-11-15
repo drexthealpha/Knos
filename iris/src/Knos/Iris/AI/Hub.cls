@@ -54,9 +54,7 @@ ClassMethod Agent() As Knos.Iris.AI.LocalReferee
 
 ClassMethod SkillPath() As %String
 {
-    set home = $system.Util.GetEnviron("KNOS_IRIS_HOME")
-    set:home="" home = "/home/irisowner/knos"
-    return home_"/iris/skills/knos-proof"
+    return ##class(Knos.Iris.Util).Home()_"iris/skills/knos-proof"
 }
 
 ClassMethod Skill(out As %DynamicObject)

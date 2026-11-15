@@ -133,7 +133,7 @@ XData BPL [ XMLNamespace = "http://www.intersystems.com/bpl" ]
 <response type='Knos.Iris.Msg.RpcResponse'><assign property='context.Slot' value='callresponse.ResultJSON' action='set'/></response>
 </call>
 <code name='Chain span'><![CDATA[
- set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "chain", s.Name = "devnet slot before the relay", s.OutputJSON = $extract(context.Slot, 1, 2000)
+ set s = ##class(Knos.Iris.Msg.Span).%New(), s.Kind = "chain", s.Name = "devnet slot after the simulation", s.OutputJSON = $extract(context.Slot, 1, 2000)
  do ..%Process.SendRequestAsync("TraceSink", s, 0)
 ]]></code>
 </true>

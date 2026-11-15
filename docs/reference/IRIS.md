@@ -66,7 +66,7 @@ with random secrets (never commit `.env`). The first build takes about 3 minutes
 
 ### The model (LLM provider) and its key
 
-Replay mode runs with no key; live mode expects the judge's own OpenAI, Anthropic, Gemini or Bedrock key. The default needs nothing: in replay mode (`KNOS_AI_MODE=replay`) the rules referee decides, with no model.
+Replay mode runs with no key; live mode expects the judge's own OpenAI, Anthropic, Gemini or Bedrock key. The default needs nothing: in replay mode (`KNOS_AI_MODE=replay`) the three samples replay the AI Hub agent's answers recorded in the online demo (`iris/fixtures/recorded/`), and any other proof is decided by the rules referee, with no model.
 
 **The live AI Hub run (live run, 12 Nov 2026).** The AI Hub agent decided the Synthea glucose sample through the
 production on NEAR AI Cloud's private model deepseek-ai/DeepSeek-V4.1-Flash-1017, reached through AI Hub's `openai`
@@ -106,10 +106,10 @@ dollars (default 2.00).
    After **Approve**, its Visual Trace link shows the proof, the agent's verdict, the rule, the approval and the devnet
    simulation, in order.
 4. Each decision also leaves files for the lab's own systems: `docker exec knos-iris ls /home/irisowner/knos/outbox/receipts /home/irisowner/knos/outbox/fhir /home/irisowner/knos/outbox/hl7`
-   lists, for each decision, a receipt, a task record and a lab result in the formats hospital systems read (JSON, FHIR R4 Task, HL7 ORU).
+   lists, for each decision, a receipt in JSON. Beside it are a FHIR R4 Task and an HL7 ORU lab result, the formats hospital systems read.
 
-Every test in one command, with no key: `bash scripts/test-all.sh` (the build, the decisions, one trace through all six
-parts, the bonus checks and the page).
+The tests that need a running container, in one command, with no key: `bash scripts/test-all.sh` (the build, the
+decisions, one trace through all six parts, the bonus checks and the page).
 
 ### What it decides
 
@@ -147,7 +147,7 @@ runs `iris.script`, the final stage copies in only the databases the install cha
 
 ### LLM provider and key
 
-`KNOS_AI_MODE=replay` (the default) asks no model and says "rules referee (no model key set)". `KNOS_AI_MODE=local` needs no key either: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
+`KNOS_AI_MODE=replay` (the default) asks no model: the three samples replay the agent's recorded answers, and any other proof says "rules referee (no model key set)". `KNOS_AI_MODE=local` needs no key either: measured on 5 Nov 2026 on 4 cores, 7 to 18 s a decision, about 670
 tokens. `KNOS_AI_MODE=live` uses the provider and key from the table above.
 
 The online demo makes paid calls on NEAR AI Cloud: its health answer (/api/knosdemo/health) says how many and what
@@ -261,7 +261,13 @@ failing one, an altered brief, injection text in the proof and an ORU whose valu
 iris/tests/test_iris_one_trace.py` sends one check run through the whole production and checks that its one session
 holds every part.
 
-`python iris/tests/test_iris_docs.py readme` checks that every file this section names exists.
+`python iris/tests/test_iris_docs.py readme` checks that every file this page's IRIS section names exists.
+
+Run by hand, with no container: `python -m pytest -q iris/tests/test_embed_quality.py` (needs `pip install fastembed`)
+scores the vector search's embedding on 40 labelled proof-to-criterion pairs. `iris/scripts/vm-setup.sh` takes a fresh
+Ubuntu 24.04 VM to the running referee in replay mode. Two IRIS sessions to pipe into `iris session` in the container:
+`iris/scripts/install-fhir.script` runs the install with FHIR on, and `iris/scripts/load-classes.script` reloads the
+classes from `iris/src`.
 
 ### Architecture
 
@@ -271,7 +277,7 @@ The diagram under "How it works" above is the production; `iris/src/Knos/Iris/Pr
 
 - PAY is a devnet simulation of the payout, not a payment; nothing in iris/ sends money.
 - The link from IRIS's decision to the referee panel's 2 of 3 signatures is not built yet.
-- Solana devnet only, with test money.
+- Test money only: PAY simulates on Solana devnet, and the NEAR entry runs on NEAR testnet.
 
 ### How it fits Knos
 
@@ -279,7 +285,7 @@ This folder is the IRIS side of the one Knos product: the proof check that runs 
 
 ### Team
 
-Zulqarnain Abubakar, Developer Community profile: https://community.intersystems.com/user/zulqarnain-abubakar
+drexthealpha (the Developer Community account that submitted the entry).
 
 ### License
 

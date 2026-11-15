@@ -4,6 +4,8 @@
 /// brief's hash no longer matches its lock. The agent can only say no or ask a person: money still needs the chain's rules.
 Class Knos.Iris.Rule.PayoutGate
 {
+/// hashOk: ProofDecision rejects a changed brief before it calls the gate, so it always passes 1; the argument keeps the
+/// gate whole for any other caller.
 ClassMethod Decide(decision As %String, confidence As %Numeric, amount As %Numeric, threshold As %Numeric, kind As %String, hashOk As %Boolean) As %String
 {
     if 'hashOk return "REJECT"

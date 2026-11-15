@@ -9,7 +9,7 @@ the milestone's amount from its own account into a token account owned by the co
 (v1.signer-prod.testnet, path knos-solana-1, Ed25519), where it is held; the NEAR milestone is funded with payee_chain
 solana, released on a token, and sign_payout has the MPC network sign the transfer of exactly those held tokens to the
 payee. The run checks the derived account held the amount before and holds none after. A second milestone is released
-and left with no payout signature past its deadline: refund returns its NEAR deposit to the payer. Keys are never
+and left with no payout signature past its deadline: refund returns its test USDC to the payer. Keys are never
 printed; the relayer never holds the key that moves the payout.
 """
 from __future__ import annotations

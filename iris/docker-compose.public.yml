@@ -1,5 +1,6 @@
 # The public edition: Knos on InterSystems IRIS for Health Community from containers.intersystems.com, which needs no
-# login, in replay mode (the rules referee decides; no key, no model download). One command, from iris/:
+# login, in replay mode (the three samples replay the AI Hub agent's answers recorded in the online demo; any other proof
+# is decided by the rules referee; no key, no model download). One command, from iris/:
 #   docker compose -f docker-compose.public.yml up -d --build && bash scripts/ready.sh
 # The contest entry stays on build 154 with AI Hub: docker compose up (docker-compose.yml). This image has no AI Hub, so
 # the AI Hub agent's classes (src/Knos/Iris/AI) are not compiled here and live or local mode is refused; the sample

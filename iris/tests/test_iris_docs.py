@@ -1,5 +1,5 @@
-"""I5 test_iris_readme, I7 test_iris_articles, I8 test_iris_one_product: the README's sections and the rules' items, the
-two articles, and the one product's three links to iris/.
+"""I5 test_iris_readme, I7 test_iris_articles, I8 test_iris_one_product: the IRIS reference's sections and the rules'
+items (docs/reference/IRIS.md, "Run it on IRIS"), the two articles, and the one product's three links to iris/.
 
     python iris/tests/test_iris_docs.py readme|articles|one_product [result file] [the I1 result line]
 """
@@ -12,10 +12,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 IRIS = ROOT / "iris"
-# Why: README.md, one README for the whole product, carries the one line ("Knos carries research across the valley of death.").
-ONE = "Knos carries research across the valley of death."
-# Why: README.md and docs/START.md (outside iris/, not edited here) link iris/ with their own words; the link is what counts.
-IRIS_URL = "](https://github.com/drexthealpha/Knos/tree/main/iris)"
+# Why: README.md, docs/START.md and web/llms.txt (outside iris/, not edited here) link iris/ with their own words, by a
+# full GitHub link or a relative one; the link is what counts.
+IRIS_URL = re.compile(r"\]\((?:https://github\.com/drexthealpha/Knos/tree/main/)?iris(?:/|\))")
 # Why: the README's real headings. The spec's "Why it is technically interesting" is "How it works", its "Contest
 # bonuses" is "Where each part lives" (the README names no contest), and its profile and license are two sections.
 SECTIONS = ["What it decides", "How it works", "Requirements", "The image used", "LLM provider and key", "Start",
@@ -35,7 +34,7 @@ def named_paths(t: str) -> list[str]:
             w = w.strip("\"'")
             w = w.rstrip(";,")
             w = w[2:] if w.startswith("./") else w
-            if not w or w[0] in "/<{^" or ":" in w or "<" in w or w in RUNTIME:
+            if not w or w[0] in "/<{^" or ":" in w or "<" in w or "=" in w or w in RUNTIME:   # "=": an env assignment, not a path
                 continue
             if "/" in w or w.endswith(EXT) or w == "Dockerfile":
                 out.append(w)
@@ -52,8 +51,8 @@ def exists(p: str) -> bool:
 
 
 def iris_section() -> str:
-    """The README's IRIS part: from its heading to the next top-level section."""
-    t = (ROOT / "README.md").read_text(encoding="utf-8")
+    """The IRIS reference's IRIS part (docs/reference/IRIS.md): from its heading to the next top-level section."""
+    t = (ROOT / "docs" / "reference" / "IRIS.md").read_text(encoding="utf-8")
     start = t.index("\n## Run it on IRIS\n")
     end = t.find("\n## ", start + 1)
     return t[start:end if end > 0 else len(t)]
@@ -80,7 +79,7 @@ def readme(lines, i1: str) -> int:
              "the LLM provider and its variable": "KNOS_LLM_PROVIDER" in t and "ANTHROPIC_API_KEY" in t,
              "start": "docker compose up -d --build" in t, "health check": "/api/knos/health" in t,
              "IRIS never releases money alone": "IRIS never releases money alone" in t,
-             "the Developer Community profile": "https://community.intersystems.com/user/zulqarnain-abubakar" in t,
+             "the team, by its account name only (the founder stays anonymous)": "drexthealpha" in t and "community.intersystems.com/user/" not in t,
              "the idea DPI-I-689, linked": "https://ideas.intersystems.com/ideas/DPI-I-689" in t,
              "the measured memory": bool(re.search(r"peak[^.\n]{0,80}\d+ MiB", t)),
              "the rules-against-agent table, the agent column needing a model key": "needs a model key" in t and "| Rules referee |" in t}
@@ -113,18 +112,18 @@ def one_product(lines) -> int:
     fails = 0
     for f in ("README.md", "docs/START.md", "web/llms.txt"):
         t = (ROOT / f).read_text(encoding="utf-8")
-        hit = IRIS_URL in t
+        hit = bool(IRIS_URL.search(t))
         fails += not hit
         lines.append(f"{'ok  ' if hit else 'FAIL'} {f} links iris/")
-    one = ONE in (ROOT / "README.md").read_text(encoding="utf-8")
-    fails += not one
-    lines.append(f"{'ok  ' if one else 'FAIL'} README.md carries the one line")
+    back = "../../README.md" in (ROOT / "docs" / "reference" / "IRIS.md").read_text(encoding="utf-8")
+    fails += not back
+    lines.append(f"{'ok  ' if back else 'FAIL'} docs/reference/IRIS.md links back to README.md")
     # Why: "the IRIS referee" outside iris/ (a CI comment, a test docstring) describes the step; only the folder's own name counts
     grep = subprocess.run(["git", "-C", str(ROOT), "grep", "-nIiE", "Knos ?Referee ?on ?IRIS|KnosIRIS", "--", ".", ":!iris"], capture_output=True, text=True).stdout.strip()
     names = [ln for ln in grep.splitlines() if ln]
     fails += bool(names)
     lines.append(f"{'ok  ' if not names else 'FAIL'} second product names outside iris/: {len(names)}" + (f" ({names[:2]})" if names else ""))
-    lines.append("PASS test_iris_one_product: the 3 links, the one line, 0 second product names" if not fails else f"FAIL test_iris_one_product: {fails} failed")
+    lines.append("PASS test_iris_one_product: the 3 links, the link back, 0 second product names" if not fails else f"FAIL test_iris_one_product: {fails} failed")
     return fails
 
 

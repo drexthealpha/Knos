@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Every IRIS test in one command, in replay mode (no key): build and start, health, the decisions, the one-trace test and
+# The IRIS tests that need a running container, in one command, in replay mode (no key): build and start, health, the decisions, the one-trace test and
 # the bonuses test. Prints seconds and the container's peak memory; exits 0 only when every step passes.
 #   bash iris/scripts/test-all.sh [result file]
 set -uo pipefail
@@ -48,6 +48,7 @@ zpm=/tmp/zpm-0.10.10.xml
 [ -s "$zpm" ] || curl -fsSL -o "$zpm" https://github.com/intersystems/ipm/releases/download/v0.10.10/zpm-0.10.10.xml
 echo "daa2adabd66b488f57187d29712e54b0c25bbe000794fbf2a35a882c458b788a  $zpm" | sha256sum -c --quiet && export KNOS_ZPM_XML="$zpm"
 step bonuses python3 tests/test_iris_bonuses.py knos-iris /tmp/iris-bonuses.txt "${hl:-}"
+step live_ready python3 tests/test_iris_live_ready.py knos-iris /tmp/iris-live.txt
 step dashboard bash -c 'curl -fsS http://localhost:52773/knos/ | grep -q "Knos" && test "$(curl -s -o /dev/null -w %{http_code} http://localhost:52773/api/knos/decisions)" = 401 && curl -fsS -u "_SYSTEM:$IRIS_PASSWORD" http://localhost:52773/api/knos/decisions | python3 -c "import json,sys; d=json.load(sys.stdin); assert isinstance(d, list) and d, d"'
 
 log "total $(( $(date +%s) - t0 )) s, peak $(cat "$peak") MiB, $fails failed"

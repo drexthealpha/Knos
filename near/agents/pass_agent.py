@@ -1,5 +1,6 @@
 """Agent A: its output passes the job's locked test (near/agents/job/test_hll.py): HyperLogLog, the 2007 paper's method,
-with 2,048 registers of 5 bits each (1,280 bytes), as the paper's 1.5 kilobytes.
+with 2,048 registers of 5 bits each (1,280 bytes of registers plus one spare byte; 1,364 bytes saved), as the
+paper's 1.5 kilobytes.
 
     python near/agents/pass_agent.py <job id>
 """

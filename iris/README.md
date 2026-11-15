@@ -73,7 +73,7 @@ the same production, and the referee row says so; no model is asked. Any other p
 | An AI Hub agent | operation `Referee` running `Knos.Iris.AI.LocalReferee`: in the online demo it asks NEAR AI Cloud (deepseek-ai/DeepSeek-V4.1-Flash-1017) through AI Hub's openai provider, one call a sample and no tools (the brief and the proof are in its question); on your machine with `KNOS_AI_MODE=local` it asks `qwen2.5:1.5b-instruct` in the compose file's `ollama` service, no key; in replay mode (the default) a sample replays the agent's answer recorded in the online demo, and the rules referee decides any other proof, with no model | the Verdict message of each decision |
 | A decision-making task | the agent answers met, not met or insufficient; code checks that answer, then `Knos.Iris.Rule.PayoutGate` says PAY, HUMAN, REFUND_AT_DEADLINE or REJECT | the Decision message |
 | A person where it matters | IRIS Workflow, role `PayoutApprovers`, for a met decision above 50 USDC | the inbox on `/knos/` or Interoperability > Workflow Inbox |
-| Every step traceable | each model call, tool call, rule and approval is a `Knos.Iris.Msg.Span` in the decision's own session | the trace on `/knos/`, or Visual Trace |
+| Every step traceable | each model call, tool call and rule is a `Knos.Iris.Msg.Span`, and the approval is the Workflow task message, all in the decision's own session | the trace on `/knos/`, or Visual Trace |
 
 ## What is new, and why
 
@@ -157,11 +157,11 @@ run 2 $0.0086. The online demo ran at the run 2 cap until it went offline.
 
 - **Workflow Engine:** a payout above $50 waits in the `PayoutApprovers` inbox, because a lab will not let software pay a large sum alone.
 - **Custom adapters:** `CheckRunInbound` reads test results where the startup's CI writes them; `SolanaRpcOutbound` reads the payout's chain state, which no stock adapter does.
-- **PEX (Java):** `SolanaSubmit` only sends a transaction that Knos's own code built and signed, and holds no key, so the part that talks to the chain cannot sign.
+- **PEX (Java):** `SolanaSubmit` simulates on devnet a transaction that Knos's own code built, and holds no key, so the part that talks to the chain cannot sign.
 - **Embedded Python:** the brief's hash is Knos's own `knos.ready` code, so the lab and the payer check the same lock.
 - **Vector Search:** the proof's two nearest criteria come from IRIS, so a verdict citing anything else goes to a person.
 - **Docker:** the lab runs it on its own machine with one command, so its data stays inside.
-- **ZPM:** an IRIS team installs it into its own instance with `zpm "install knos-iris"`.
+- **ZPM:** an IRIS team installs it into its own instance with `zpm "install knos-iris"` (the registry lists it as 0.1.14, the same package as Open Exchange 1.0.0).
 - **Online demo:** it ran from 13 to 14 Nov so a judge could see a live decision without installing anything; it is offline during voting, since its codespace's free hours ran out.
 - **Community idea [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689):** a lab must audit every step an AI took, and the production's own message log is that audit.
 - **Bug reports:** each one filed above has a repro, so the next lab building on AI Hub does not lose the same day.
@@ -177,4 +177,5 @@ Claude Code wrote most of the code; the design choices above, and every decision
 Two problems on build 154 shaped the agent. The small local model, given tools, looked the brief up by the wrong key and
 gave up; so I took its tools away and put the brief and the proof in its question, and code checks its answer. The IPM
 install failed with ERROR #5289 because a ToolSet compiled before its tools; a `DependsOn` fixed the order, and the
-install then passed on build 154.
+install then passed on build 154; on an instance with no JDK the Java PEX jar is not built (log:
+[iris/docs/zpm-install-knos-iris-2026-11-12.log](docs/zpm-install-knos-iris-2026-11-12.log), version 0.1.9 then).

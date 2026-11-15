@@ -7,9 +7,9 @@ the pipeline, and SQL can read it.
 
 ## The Span message
 
-`Knos.Iris.Msg.Span` carries trace id, span id, parent, kind (llm, tool, rag, policy, rule, workflow, chain), name,
+`Knos.Iris.Msg.Span` carries trace id, span id, parent, kind (llm, tool, rag, policy, rule, chain, verdict), name,
 input, output, score, milliseconds, tokens, cost and model. The referee sends one for its call; the BPL sends one for the
-gate; Workflow adds the approval. `TraceSink` keeps each in `Knos_Iris_Data.Span` with its session id.
+gate; the approval is the Workflow task message in the same session. `TraceSink` keeps each in `Knos_Iris_Data.Span` with its session id.
 
 ## The `%AI.Policy.Audit` hook
 
@@ -32,9 +32,9 @@ each tool call the agent makes as a span, so tool calls sit between the referee'
 
 ## Tokens and cost per decision
 
-Each Verdict carries input tokens, output tokens and cost in US dollars, from the provider's own usage. In replay mode the
-recorded usage is shown, and a rules decision shows 0. A table across the four providers needs a key for each; the
-numbers will be added from live runs.
+Each Verdict carries input tokens, output tokens and cost in US dollars, from the provider's own usage. A replayed or
+rules decision shows 0 tokens. On NEAR AI Cloud (DeepSeek-V4.1-Flash-1017) the 12 held-out calls cost $0.0086 at a
+2,500-token cap (iris/README.md, "Measured: the agent against the fixed rule").
 
 ## Building with IRIS Agentic Dev
 

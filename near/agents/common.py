@@ -1,8 +1,8 @@
 """What the agents and the checker share: testnet calls through near-cli-rs, each signed with the caller's own key in
 ~/.near-credentials (a key never leaves that folder and is never printed), and the job's files.
 
-An agent signs with a function-call key that may call only the jobs contract's take, submit and spend, with a gas
-allowance (near/agents/setup_swarm.py adds it). It cannot send NEAR or add keys.
+Agent B signs with a function-call key limited to the jobs contract's take, submit and spend, with a gas allowance;
+agent A's key (agent-a2) may call any method of the jobs contract. Neither can send NEAR or add keys.
 """
 from __future__ import annotations
 
@@ -22,12 +22,12 @@ EXPLORER = "https://testnet.nearblocks.io/txns/"
 HERE = Path(__file__).resolve().parent
 JOB_DIR = HERE / "job"
 JOB_TEST = "test_hll.py"   # the locked check: HyperLogLog's promise (job/test_hll.py)
-# the claims' locked tests (near/agents/job/test_*.py), each by its sha256: a job names its test by that hash
 CONFIG = json.loads((HERE / "swarm.json").read_text(encoding="utf-8"))
 # the hosted app posts and releases from its own capped account (live.knos-swarm-1105.testnet), not the maintainer's
 CONFIG.update({k: os.environ[e] for k, e in (("payer", "KNOS_NEAR_PAYER"), ("relayer", "KNOS_NEAR_RELAYER")) if os.environ.get(e)})
 
 
+# the claims' locked tests (near/agents/job/test_*.py), each by its sha256: a job names its test by that hash
 def tests() -> dict:
     """Every locked test of near/agents/job/, keyed by its sha256 (the criteria hash a job is opened with)."""
     return {sha256_file(p): p.name for p in sorted(JOB_DIR.glob("test_*.py"))}

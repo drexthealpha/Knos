@@ -14,6 +14,6 @@ grep -E '^SANDBOX ' "$log"
 line="$passed/$((passed + failed)) tests passed ($attacks of them attacks)"
 echo "$line, exit $rc"
 [ "$rc" = 0 ] && [ "$failed" = 0 ] && [ "$passed" -gt 0 ] || exit 1
-# the README's test line is this print, never a number typed apart from it
+# docs/reference/NEAR.md's test line is this print, never a number typed apart from it
 want="It prints \`$line\`"
-grep -qF "$want" "$here/../README.md" || { echo "README.md (Knos on NEAR) does not say: $want"; exit 1; }
+grep -qF "$want" "$here/../docs/reference/NEAR.md" || { echo "docs/reference/NEAR.md does not say: $want"; exit 1; }

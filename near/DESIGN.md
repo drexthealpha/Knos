@@ -117,7 +117,7 @@ Plain and exact: a ledger you can trust, not a show. Dark first; the light theme
 
 ## Typography
 
-Bricolage Grotesque for headings, Geist for text, JetBrains Mono with tabular figures for amounts, hashes and ids. Self-hosted woff2 with `font-display: optional`.
+Bricolage Grotesque for headings, Geist for text, JetBrains Mono with tabular figures for amounts, hashes and ids. Self-hosted woff2 with `font-display: optional`. Instrument Serif (`--serif`, `font-display: swap`) sets the large figures and the first-screen lines.
 
 ## Layout
 

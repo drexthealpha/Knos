@@ -26,7 +26,8 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 NEAR = os.environ.get("NEAR_CLI", "near")
 RPC = "https://rpc.testnet.near.org"
 S = "1102"
-# the contract runs near/wasm/ (knos-pay-1103: knos-pay-1102's older state does not load in this code); the token,
+# the contract is knos-pay-1103 (code sha256 3503799e, an earlier build of near/contract than near/wasm/knos_near.wasm;
+# knos-pay-1102's older state does not load in it); the token,
 # payer, payee and owners are the 1102 accounts
 KNOS, USDC, FAKE = os.environ.get("KNOS_CONTRACT", "knos-pay-1103.testnet"), f"knos-usdc-{S}.testnet", f"knos-fake-{S}.testnet"
 PAYER, PAYEE = f"knos-payer-{S}.testnet", f"knos-payee-{S}.testnet"

@@ -51,7 +51,6 @@ ClassMethod Install(fhir As %Boolean = 0) As %Status
     return sc
 }
 
-/// Starts the production, every 10 s for at most 10 minutes, until it runs
 /// The online demo's read-only user: role KnosDemo reads the KNOS database and the four tables the page shows, and
 /// nothing else; /api/knos refuses its POSTs (Knos.Iris.REST.Api.OnPreDispatch). Run from namespace KNOS.
 ///   do ##class(Knos.Iris.Setup).DemoUser("demo", "<password>")
@@ -77,6 +76,7 @@ ClassMethod DemoUser(user As %String, password As %String) As %Status
     return sc
 }
 
+/// Starts the production, every 10 s for at most 10 minutes, until it runs
 ClassMethod StartWhenFree()
 {
     for i = 1:1:60 {

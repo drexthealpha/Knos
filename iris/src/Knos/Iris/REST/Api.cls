@@ -31,11 +31,19 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 </Routes>
 }
 
+/// Live mode runs only with the key of the provider KNOS_LLM_PROVIDER names, anthropic when unset (the stub provider
+/// needs none), as Knos.Iris.AI.Referee.Provider reads it
+ClassMethod LiveKey() As %Boolean
+{
+    set p = $zconvert($system.Util.GetEnviron("KNOS_LLM_PROVIDER"), "L")
+    return $case(p, "stub":1, "openai":($system.Util.GetEnviron("OPENAI_API_KEY")'=""), "gemini":($system.Util.GetEnviron("GEMINI_API_KEY")'=""), "bedrock":($system.Util.GetEnviron("AWS_ACCESS_KEY_ID")'=""), :($system.Util.GetEnviron("ANTHROPIC_API_KEY")'=""))
+}
+
 ClassMethod Health() As %Status
 {
     set prod = "", state = 0
     do ##class(Ens.Director).GetProductionStatus(.prod, .state)
-    set mode = $select($system.Util.GetEnviron("KNOS_AI_MODE")="live" && ($system.Util.GetEnviron("ANTHROPIC_API_KEY")'=""):"live", $system.Util.GetEnviron("KNOS_AI_MODE")="local":"local", 1:"replay")
+    set mode = $select($system.Util.GetEnviron("KNOS_AI_MODE")="live" && ..LiveKey():"live", $system.Util.GetEnviron("KNOS_AI_MODE")="local":"local", 1:"replay")
     set out = {"production": ($case(state, 1:"Running", 2:"Stopped", 3:"Suspended", 4:"Troubled", :"Not running")), "name": (prod),
       "agent": (mode), "provider": ($select(mode="local":"openai ("_$select($system.Util.GetEnviron("KNOS_LOCAL_LLM_URL")["near.ai":"NEAR AI Cloud", 1:"ollama")_")", 1:$system.Util.GetEnviron("KNOS_LLM_PROVIDER"))), "model": ($select(mode="local":##class(Knos.Iris.AI.Referee).LocalModel(), 1:"")), "fhir": (..Fhir()), "java": (..Java()), "vector": (..Vector()), "embedding": (##class(Knos.Iris.Py.Embed).Model()), "llm_calls": (+$get(^Knos.LLM("calls"))), "llm_usd": (+$get(^Knos.LLM("usd")))}
     // the model service left alone after a failed call (Knos.Iris.AI.Referee.AskLocal): say so, and until when
@@ -180,7 +188,6 @@ ClassMethod Traces(s As %Integer) As %Status
     return $$$OK
 }
 
-/// The 50 latest decisions, newest first
 /// One AI Hub feature, run live: skill, policy, mcp, rag, stats or workflow (Knos.Iris.AI.Hub)
 ClassMethod AIHub(f As %String) As %Status
 {
@@ -195,6 +202,7 @@ ClassMethod AIHub(f As %String) As %Status
     return $$$OK
 }
 
+/// The 50 latest decisions, newest first
 ClassMethod Decisions() As %Status
 {
     set out = []
@@ -247,7 +255,7 @@ ClassMethod Answer(id As %Integer) As %Status
 ClassMethod UI() As %Status
 {
     set f = ##class(%Stream.FileCharacter).%New(), f.TranslateTable = "UTF8"
-    set sc = f.LinkToFile($system.Util.GetEnviron("KNOS_IRIS_HOME")_"/iris/web/dashboard.html")
+    set sc = f.LinkToFile(##class(Knos.Iris.Util).Home()_"iris/web/dashboard.html")
     if $$$ISERR(sc) || 'f.Size return ..Fail($$$ERROR($$$GeneralError, "iris/web/dashboard.html not found"))
     set %response.ContentType = "text/html"
     do %response.SetHeader("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")

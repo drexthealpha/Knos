@@ -30,7 +30,7 @@ ClassMethod Provider(Output keyVar As %String) As %String
     return p
 }
 
-/// The model of a provider: KNOS_LLM_MODEL, else the default the README's table names
+/// The model of a provider: KNOS_LLM_MODEL, else this method's own default
 ClassMethod Model(provider As %String) As %String
 {
     set m = $system.Util.GetEnviron("KNOS_LLM_MODEL")

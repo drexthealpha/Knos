@@ -1,5 +1,5 @@
 {
- "_": "The claims Knos can prove on NEAR testnet: each from a real paper (its words quoted from its abstract), with its locked test in near/agents/job/ and its two agents' code in near/agents/ (hyperloglog) or near/agents/solutions/. The test's sha256 is the criteria hash every job for the claim is opened with. Read by the site (scripts/site_pages.py) and the hosted server (apps/wanted/knos_wanted/near_live.py).",
+ "_": "The claims Knos can prove on NEAR testnet: each from a published source (a paper, or NASA's own page for Landsat 8), its words quoted, with its locked test in near/agents/job/ and its two agents' code in near/agents/ (hyperloglog) or near/agents/solutions/. The test's sha256 is the criteria hash every job for the claim is opened with. Read by the site (scripts/site_pages.py) and the hosted server (apps/wanted/knos_wanted/near_live.py).",
  "claims": [
   {
    "name": "hyperloglog",

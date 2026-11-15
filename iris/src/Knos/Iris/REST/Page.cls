@@ -41,7 +41,7 @@ ClassMethod Font(f As %String) As %Status
 ClassMethod File(path As %String, type As %String) As %Status
 {
     set s = ##class(%Stream.FileBinary).%New()
-    set sc = s.LinkToFile($system.Util.GetEnviron("KNOS_IRIS_HOME")_"/"_path)
+    set sc = s.LinkToFile(##class(Knos.Iris.Util).Home()_path)
     if $$$ISERR(sc) || 's.Size { set %response.Status = 404 return $$$OK }
     set %response.ContentType = type
     // fonts and images are bytes: no character set, no conversion (a font sent through UTF-8 grew from 18,736 to 28,223 bytes)

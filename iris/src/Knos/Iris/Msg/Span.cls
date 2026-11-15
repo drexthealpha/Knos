@@ -1,5 +1,5 @@
-/// One step of a decision as an interoperability message (DPI-I-689): every prompt, tool call, rule and approval
-/// shows in Visual Trace in the decision's own session.
+/// One step of a decision as an interoperability message (DPI-I-689): every prompt, tool call and rule shows in Visual
+/// Trace in the decision's own session, beside the Workflow task message that carries the approval.
 Class Knos.Iris.Msg.Span Extends (Ens.Request, %JSON.Adaptor)
 {
 Property TraceId As %String(MAXLEN = 64);

@@ -1,4 +1,4 @@
-"""The job endpoints of near/web/serve.py: post a job with a locked test and a bid, let two agents take it, have the
+"""The job endpoints of near/web/serve.py: open a job with a locked test and a bid, let two agents take it, have the
 checker run the test and pay only the agent that passed, try the two guardrails, and quote paying the bid in USDC on
 Base through NEAR Intents 1Click (dry: a quote only, nothing is spent). Every action is a testnet transaction signed on
 this machine with the keys in ~/.near-credentials; the page never holds a key.
@@ -95,7 +95,7 @@ def run(body: dict) -> dict:
     _save(row)
     # what a copy of the page with no server shows (Pages): the last run, public data only
     (HERE / "latest.json").write_text(json.dumps({"job": row, "contract": CONFIG["contract"]}, indent=1) + "\n", encoding="utf-8")
-    ok = bool(rel and rel["ok"]) and row["paid"][a] == row["bid"] and row["paid"][b] == 0
+    ok = bool(rel and rel["ok"]) and row["paid"][a] == row["bid"] - row["bid"] // 10 and row["paid"][b] == 0   # 9 parts to the agent (jobs.rs FEE_PARTS)
     return {"ok": ok, "id": jid, "job": row, "agents": [ra, rb], "check": c, "paid": row["paid"], "check_to_paid_s": row["check_to_paid_s"]}
 
 
@@ -109,7 +109,7 @@ def guard(body: dict) -> dict:
                  {"receiver_id": CONFIG["contract"], "amount": "2", "msg": json.dumps({"budget": {"agent": b, "cap": "1"}})}, "1 yoctoNEAR", "100 Tgas")
         out["budget"] = g
     over = call(b, CONFIG["contract"], "spend", {"to": CONFIG["shop"], "amount": "2"}, gas="10 Tgas")   # an agent key: little gas, its allowance lasts
-    out["tries"].append({"what": "helper B pays 2 test units on a cap of 1", **over})
+    out["tries"].append({"what": "agent B pays 2 test units on a cap of 1", **over})
     # the bid of an open job (a fresh one of 1 test unit when none is open), so the refusal is the proof check's
     jid = body.get("id") or next((x["id"] for x in _jobs() if (view(CONFIG["contract"], "get_job", {"id": x["id"]}) or {}).get("state") == "Open"), "")
     if not jid:
@@ -125,7 +125,7 @@ def guard(body: dict) -> dict:
     p = checker.b64u(json.dumps(claims).encode())
     forged = f"{head}.{p}." + checker.b64u(key.sign(f"{head}.{p}".encode(), padding.PKCS1v15(), hashes.SHA256()))
     rel = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": jid, "token": forged}, gas="120 Tgas")
-    out["tries"].append({"what": f"helper B takes the money of job {jid} with no passing work (a token it signed itself)", **rel})
+    out["tries"].append({"what": f"agent B takes the money of job {jid} with no passing work (a token it signed itself)", **rel})
     out["ok"] = all(not t["ok"] for t in out["tries"])
     return out
 

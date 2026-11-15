@@ -1,5 +1,6 @@
 Knos modules copied into iris/python/knos/ so module.xml installs from iris/ alone.
-Source: src/knos/ at commit 013d15f55f496f4fc554b54a0d56e3686ba4eba5 (the last commit that changed any of them).
+Source: src/knos/, byte for byte, as of the commit that carries this tree (Round 12 re-copied idt.py and
+settle/__init__.py after their wording changed in src/knos).
 iris/tests/test_iris_vendored.py fails when a file here differs from src/knos or the list changes.
 
 knos/__init__.py                   package marker

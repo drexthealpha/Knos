@@ -1,10 +1,10 @@
-# An AI agent that can only say no: deciding payouts on proof with AI Hub and IRIS Interoperability
+# An AI that can only say no, inside InterSystems IRIS
 
 ## The problem
 
 Research is paid for before anyone knows whether it worked. Knos turns a request into a Ready brief: each milestone has
-a measurable target, a named verifier and a deadline, and the brief is locked by its hash. Money is held on Solana and
-paid only on proof. The hard part is deciding, at scale and without trusting a model's word, whether a piece of proof
+a measurable target, a named verifier and a deadline, and the brief is locked by its hash. A step is paid only when its
+test passes, in play money here. The hard part is deciding, at scale and without trusting a model's word, whether a piece of proof
 meets the milestone as written.
 
 ## The production
@@ -34,8 +34,8 @@ built yet.
 ## The decision contract, and the missing structured output
 
 The agent answers `{"criteria_hash","decision":"met|not_met|insufficient","milestones":[{"key","met","evidence","reason"}],"confidence"}`.
-AI Hub on build 154 has no structured-output parameter, so `Knos.Iris.AI.Verdict.Parse` checks the reply and asks once
-more; a second miss is `insufficient`, which sends the milestone to a person.
+AI Hub on build 154 has no structured-output parameter, so `Knos.Iris.AI.Verdict.Parse` checks the reply and, on a free
+local model, asks once more; with no valid reply the rules referee decides, and the decision says so.
 
 ## Policies
 
@@ -44,7 +44,8 @@ guarantee: there is nothing to authorize.
 
 ## Replay and live
 
-`KNOS_AI_MODE=replay` needs no key: the rules referee, with no model,
+`KNOS_AI_MODE=replay` needs no key: the three samples replay the AI Hub agent's answers recorded in the online demo,
+and any other proof is decided by the rules referee, with no model. The rules referee
 reads only structured fields (a check run's name and conclusion, an Observation's code and value). Injection text in
 a proof changes nothing there. `live` asks the provider in `.env`. The health route says which mode ran.
 

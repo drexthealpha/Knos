@@ -1,4 +1,5 @@
-"""The online demo's files (Round 9, U3): a Hugging Face Docker Space that runs the public edition of Knos on IRIS
+"""A Hugging Face Docker Space build of the public edition, kept as a CI check (iris-public.yml, job space); the online
+demo itself ran in a GitHub codespace. The Space runs the public edition of Knos on IRIS
 (iris/docker-compose.public.yml: IRIS for Health Community 2026.2, replay mode, no key). The Space's Dockerfile is
 iris/Dockerfile with its sources taken from a clone of this repository at one commit (a Space builds from its own
 files, not from this repository), plus what a Space needs: the port, and the container's user ID 1000.

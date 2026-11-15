@@ -1,33 +1,32 @@
 {
+ "_": "The last paid job a copy of the page with no server shows: job-1114145004 (14 Nov 2026), read from its saved receipt (web/prove/receipt/index.html): 10 test USDC held with the job, 9 parts paid to agent A by the jobs contract and 1 part in 10 to Knos's account (knos-payer-1102.testnet, not an agent, so not in paid).",
  "job": {
-  "id": "job-1106043506",
-  "bid": 1000,
-  "test_sha256": "0b0f037db5322e7d34d811af09699dc81a878dc1bdeb525af03bbfb69625647a",
-  "posted_at": 1793939723,
+  "id": "job-1114145004",
+  "bid": 10000000,
+  "test_sha256": "55ef830ef15276e6b6bb75c249fb54eb09788f2fcee240bde2a293c066a29df3",
   "txs": {
-   "post": "e89soH3MLSHaTtC3prusW5uUS6UnbDcKX6bQrH4ZEz6",
-   "take_a": "BKQBWkEpfUM758EQqLnoBgbaigAtcpDJmfCefjhNKFhy",
-   "submit_a": "Hgqrx2TJJ3ndoFyYzyyhHk4eCR8EjXAFdHZJshbqrBbX",
-   "take_b": "96VhKxuDeDejq9SHTUyWP9tMWgZqKLZwFH912q1d78Nz",
-   "submit_b": "13h68JRFoABizC222Uxj3ofVJxKcpKrynd8Cu15mXq4u",
-   "release": "BZx2jn49kLYavzwmB1vbmCNub4FjH9W8z1fQ5vESb6w"
+   "post": "4Nt4XD9V2XTZxEKaj4UxB7dooLwMVDy9cutgDN57jyaX",
+   "take_a": "5QPd2jtD4oHsVwentGg6XfWi5EkhwxnUuV1A3ZztmKUK",
+   "submit_a": "9RLPtAS4ZZeE5kNxdKDFftokzjBWo11jqULxLYELPGWL",
+   "take_b": "DxHkBPdfQAebUB6GcKX2PXNhj4enSgVtxTkCedW1Yxgp",
+   "submit_b": "7HMUtEavxgPMsi9MJbbEYRi88zjxV2FoBSUoC36XYc5E",
+   "release": "CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH"
   },
   "ok": true,
   "paid": {
-   "agent-a.knos-swarm-1105.testnet": 1000,
-   "agent-b.knos-swarm-1105.testnet": 0
+   "agent-a2.knos-swarm-1105.testnet": 9000000,
+   "agent-b2.knos-swarm-1105.testnet": 0
   },
-  "check_to_paid_s": 30.2,
   "attempts": [
    {
-    "agent": "agent-a.knos-swarm-1105.testnet",
+    "agent": "agent-a2.knos-swarm-1105.testnet",
     "passed": true,
-    "reason": "5 of 5 cases pass"
+    "reason": "Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes (the paper: 1.5 kilobytes)."
    },
    {
-    "agent": "agent-b.knos-swarm-1105.testnet",
+    "agent": "agent-b2.knos-swarm-1105.testnet",
     "passed": false,
-    "reason": "AssertionError: slug('Hello, World!') = 'hello,-world!', want 'hello-world'"
+    "reason": "Failed: it keeps 529,075 bytes, over the paper's 1.5 kilobytes (1,536 bytes)."
    }
   ]
  },

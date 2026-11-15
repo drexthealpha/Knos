@@ -1,5 +1,5 @@
-//! A NEP-141 test token (6 decimals) for the sandbox tests: the owner holds the whole supply at init. Never deployed to
-//! testnet; there the contract uses testnet USDC.
+//! A NEP-141 test token (6 decimals): the owner holds the whole supply at init. It runs the sandbox tests and, as
+//! knos-usdc-1102.testnet, is the test USDC of the testnet contracts.
 
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC};
 use near_contract_standards::fungible_token::{FungibleToken, FungibleTokenCore, FungibleTokenResolver};

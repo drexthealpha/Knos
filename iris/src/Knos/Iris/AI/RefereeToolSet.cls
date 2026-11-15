@@ -1,4 +1,4 @@
-/// The referee's read tools as one AI Hub tool set, the form the IRIS MCP gateway loads (Knos.Iris.AI.RefereeMCP)
+/// The referee's read tools as one AI Hub tool set, the form the IRIS MCP gateway loads (Knos.Iris.AI.MCP)
 Class Knos.Iris.AI.RefereeToolSet Extends %AI.ToolSet [ DependsOn = Knos.Iris.AI.RefereeTools ]
 {
 

@@ -8,7 +8,7 @@
 | TraceId | the same session, as the span carries it | observation.traceId |
 | SpanId | this step | observation.id |
 | ParentId | the step it belongs to | observation.parentObservationId |
-| Kind | llm, tool, rag, policy, rule, workflow, chain | observation.type (GENERATION for llm, SPAN otherwise) |
+| Kind | llm, tool, rag, policy, rule, chain, verdict | observation.type (GENERATION for llm, SPAN otherwise) |
 | Name | the item or tool | observation.name |
 | Model | the model that answered | observation.model |
 | InputJSON, OutputJSON | what went in and out | observation.input, observation.output |

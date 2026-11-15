@@ -4,7 +4,7 @@
  "open": "claim-refund-1107",
  "settled": {
   "id": "claim-split-1107",
-  "claim": "Splitting a bid between two helpers never pays out more than the bid.",
+  "claim": "Splitting a bid between two agents never pays out more than the bid.",
   "proof": "near/claims/Split.lean",
   "criteria_hash": "db99df690b8b5d59297dd47f8775ffd8445a1ff6cc24664db0148a02ce85c186",
   "run": "https://github.com/drexthealpha/Knos/actions/runs/42333777443",

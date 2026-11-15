@@ -4,7 +4,7 @@
 
 Reads the markets of market.knos-swarm-1105.testnet from the testnet RPC: the two Lean claims and the newest job market.
 For each, asks qwen2.5:1.5b-instruct through the Ollama on this runner (http://127.0.0.1:11434, no key) for at most two
-short sentences a stranger reads: the claim, the price of Yes in cents, the proof's state. A text over 40 words or with
+short sentences a stranger reads: the claim, the chance of Yes in percent, the proof's state. A text over 40 words or with
 a word from the banned list is asked again (6 tries), else the market's own facts are written plainly instead and the
 page says so. Writes [{id, claim, yes_c, status, text, words, model, written}] to <out.json>.
 """
@@ -20,8 +20,10 @@ import urllib.request
 RPC = "https://rpc.testnet.near.org"
 MARKET = "market.knos-swarm-1105.testnet"
 MODEL = "qwen2.5:1.5b-instruct"
-CLAIMS = {"claim-split-1107": "Splitting a bid between two helpers never pays out more than the bid.",
-          "claim-refund-1107": "The two helpers' pay plus the refund always equals the bid."}
+# the two Lean claims model an older two-agent split of a bid (near/claims/Split.lean, Refund.lean); the jobs contract
+# today pays one agent 9 parts and Knos 1 part in 10
+CLAIMS = {"claim-split-1107": "Splitting a bid between two agents never pays out more than the bid.",
+          "claim-refund-1107": "The two agents' pay plus the refund always equals the bid."}
 BANNED = ("escrow", "hash", "json", "lmsr", "oracle", "smart contract", "blockchain", "devnet", "sibyl", "kardashev")
 
 
@@ -42,14 +44,14 @@ def ask(prompt: str) -> str:
 def page(mid: str, v: dict) -> dict:
     m = v["market"]
     yes_c = round(int(v["yes_price"]) / 10_000)
-    claim = CLAIMS.get(mid, "A helper's work passes this job's test.")
-    what = "the helper's work" if mid.startswith("job:") else "the proof"
+    claim = CLAIMS.get(mid, "An agent's work passes this job's test.")
+    what = "the agent's work" if mid.startswith("job:") else "the proof"
     status = (f"settled Yes: {what} passed its check" if m["outcome"] is True else f"settled No: {what} failed its check"
               if m["outcome"] is False else f"open: {what} has not been checked yet")
     prompt = (f"Write exactly two short sentences, under 35 words in all, for someone who knows nothing about software.\n"
               f"The first sentence is this, word for word: {claim}\n"
-              + (f"The second sentence says that a Yes share costs {yes_c} cents and that the market is {status}.\n" if m["outcome"] is None
-                 else f"The second sentence says that the market is {status}, and that Yes last traded at {yes_c} cents.\n")
+              + (f"The second sentence says that the chance of Yes reads {yes_c}% and that the claim is {status}.\n" if m["outcome"] is None
+                 else f"The second sentence says that the claim is {status}, and that the chance of Yes last read {yes_c}%.\n")
               + "No other facts, no hype, no labels.")
     for _ in range(6):
         text = re.sub(r"^(claim|answer)\s*:\s*", "", ask(prompt).strip('"'), flags=re.I)

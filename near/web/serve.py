@@ -4,7 +4,8 @@
 
 Listens on 127.0.0.1 only. Each action is a testnet transaction near-cli signs with the test accounts in
 ~/.near-credentials (the page never holds a key). The proof is a GitHub-shaped OIDC token signed by a test RSA key
-that two owners set at start, standing in for GitHub's key (see README.md, "Attacks on testnet").
+that two owners set at start, standing in for GitHub's key (see docs/reference/NEAR.md, "Attacks on testnet"). The
+milestone panel is an earlier Knos flow, kept for this local page only.
 """
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ S = "1102"
 KNOS, USDC, PAYER, PAYEE = f"knos-pay2-{S}.testnet", f"knos-usdc-{S}.testnet", f"knos-payer-{S}.testnet", f"knos-payee-{S}.testnet"
 OWN = [f"knos-own{i}-{S}.testnet" for i in (1, 2, 3)]
 REPO = "drexthealpha/knos"
-WF = f"{REPO}/.github/workflows/near-proof.yml@refs/heads/main"
+WF = f"{REPO}/.github/workflows/near-proof.yml@refs/heads/main"   # a stand-in name: the test key signs the token, and no such workflow file exists
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 KID = f"knos-web-{int(time.time())}"
 IDS = HERE / "milestones.local.json"
