@@ -1,0 +1,154 @@
+name: knos fund
+
+# A reusable workflow. A repository's own knos.yml (examples/knos-workflow.yml) calls it for a comment that has a line
+# starting with /knos, and for a new issue whose description funds it. It is one job: install knos, run one command.
+# The command holds all the logic and is tested without GitHub:
+#
+#     knos command --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"
+#
+# It reads the comment, does what it says and always answers with a comment: fund and tip (fix the bounty's terms,
+# choose the balance that pays, ask GitHub for a token, have it carried to Solana), take and release (assign the
+# issue), and for every other command the reply itself. `/knos help` lists the commands.
+#
+# What GitHub signs here. knos-pay (the second deployment) opens a bounty only on a GitHub Actions OIDC token whose
+# audience is
+#
+#     knos2:fund:<issue>:<amount units>:<mode>:<terms hash>:<work seconds>:<balance address>
+#
+# from a file named fund.yml, in a run that a comment or a new issue started (`issue_comment`, `issues`), on a
+# GitHub-hosted runner, in the run's first attempt. GitHub also signs who commented (`actor_id`): only the owner of
+# the balance, or a spender the owner listed, can spend it with a comment. The job on chain records this file's
+# repository and commit (`job_workflow_ref`, `job_workflow_sha`); from then on only prove.yml of the same repository
+# at the same commit can pay it. Running a failed run again mints a token the chain refuses (GitHub signs a re-run
+# with the first run's actor, whoever pressed the button): comment again instead.
+#
+# How GitHub runs this, which the design rests on:
+#   - A reusable workflow called from another repository sees the caller's event: `github.event`, the file at
+#     $GITHUB_EVENT_PATH, `github.repository` and the job's token are all the calling repository's.
+#   - `issue_comment` and `issues` run the workflow file of the calling repository's default branch, with that
+#     repository's token, also when the comment is on a pull request from a fork, and whoever commented: anyone who
+#     can comment starts this job. So it checks out nothing and runs nothing from the repository or a pull request;
+#     what people wrote reaches the command as a file, never a shell; and who may do what is decided by the command
+#     (GitHub's answer about that person's access) and, where money moves, by the chain from GitHub's signature.
+#   - Only a new comment and a newly opened issue count (the job's own condition), whatever events a caller listens
+#     for: an edit can be made by someone who is not the author.
+#   - It takes no inputs: nothing a caller passes can change which code runs here. A caller chooses when to call it,
+#     and nothing else. Its one output tells the caller that a payment should be tried next; it decides no payment.
+#   - A run started by hand or by a timer (`workflow_dispatch`, `schedule`) is an ATTESTOR's: one repository of an
+#     organisation that funds PRIVATE work orders for the organisation's other repositories, which run no workflow
+#     (examples/knos-attestor.yml). The command tells such a run by its event, and does nothing unless the
+#     .knos/policy.yml of the repository it runs in names that very repository as the attestor. Then it answers the
+#     `/knos fund` comments on issues of the repositories that policy lists. It reads them through KNOS_READ_TOKEN
+#     and checks nothing out; who may fund, the terms and the balance are decided as for any comment. The token it
+#     asks GitHub for names no repository but the attestor: issue 0, and a hash where the terms would be. In a
+#     repository that is no attestor such a run funds nothing and says so.
+#
+# Both secrets are optional. With KNOS_RELAY_KEY (a Solana key that pays transaction fees; it never holds a
+# bounty's money) the job carries its own token to Solana. Without it the token is posted as a comment and Knos's
+# public relay (worker.yml in drexthealpha/Knos) carries it; anyone else can. The token is public on purpose: it
+# names one action, the chain takes it once, and the signature on it is GitHub's. KNOS_READ_TOKEN is an attestor's
+# alone: a token of the organisation's that reads the repositories it attests for. It goes to the one step that runs
+# the command, and the command sends it to api.github.com and nowhere else.
+#
+# The install, in every Knos job: uv at a version whose checksum the pinned setup-uv action checks, then knos.
+#   - A job that signs (this one, and settle and attest in prove.yml) installs from a hash-locked list written into the
+#     step itself: `uv pip install --require-hashes`, so uv refuses any file whose sha256 is not in the list, and
+#     `--no-deps --no-build`, so nothing else comes with it and nothing is built from source. The list is
+#     requirements/sign.txt of drexthealpha/Knos (every third-party package by hash) and one more line: the knos wheel
+#     of the release, by hash. Both are in the file at the commit a bounty records, so that commit names the hash of
+#     everything these jobs install. It is also published as requirements/sign.txt in this repository. No date cutoff
+#     is needed: a package released tomorrow is not in the list and cannot be installed.
+#   - The jobs that sign nothing and hold no secret (review and judge in prove.yml, and check.yml) install the one exact
+#     release from PyPI with dependencies no newer than UV_EXCLUDE_NEWER, ignoring any uv configuration in the
+#     working directory. The release writes that time once PyPI has its wheel (scripts/pinned_workflows.py cutoff).
+# The runner is ubuntu-24.04 by name: its image has Python 3.12, and `ubuntu-latest` will move to a newer Ubuntu (GitHub's notice, 2026). No
+# job here restores or saves an Actions cache (`enable-cache: false`, and `cache-mode: read` on every job): a cache
+# written by a run of pull request code could be read by a job that signs, so every run downloads what it installs.
+on:
+  workflow_call:
+    secrets:
+      KNOS_RELAY_KEY:
+        description: >-
+          Optional. A Solana key that pays transaction fees, so this run carries its own token to Solana. Without it
+          the token is posted as a comment and Knos's public relay carries it.
+        required: false
+      KNOS_READ_TOKEN:
+        description: >-
+          Optional, and only for an organisation's attestor repository (examples/knos-attestor.yml): a fine-grained
+          token that reads the repositories the attestor's policy lists, and writes Knos's comments on their issues
+          and pull requests. No other repository passes it, and without it this job reads only its own repository.
+        required: false
+    outputs:
+      settle:
+        description: >-
+          The number of the pull request whose payment should be tried now (`/knos settle`, or a tip that was just
+          funded); empty otherwise. The calling file runs prove.yml when it is set.
+        value: ${{ jobs.command.outputs.settle }}
+
+permissions: {}
+
+jobs:
+  command:
+    if: >-
+      (github.event_name == 'issue_comment' && github.event.action == 'created') ||
+      (github.event_name == 'issues' && github.event.action == 'opened') ||
+      github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # one command at a time for an issue or a pull request, each in its turn (GitHub keeps up to 100 waiting), so a
+    # comment is not dropped because another one came in
+    concurrency:
+      group: knos-command-${{ github.event.issue.number }}
+      queue: max
+    cache-mode: read
+    permissions:
+      contents: read          # the repository's files, read through GitHub's API (there is no checkout)
+      issues: write           # the reply; assigning an issue for /knos take
+      pull-requests: write    # the reply, when the comment is on a pull request
+      checks: read            # which checks the repository runs: a bounty's terms name them
+      statuses: read          # the same, for checks that report as commit statuses
+      actions: read           # which event starts each check's workflow
+      id-token: write         # the fund token
+    outputs:
+      settle: ${{ steps.command.outputs.settle }}
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
+          ignore-empty-workdir: true
+      - name: install knos and what it needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r - <<'LOCK'
+          # This file was autogenerated by uv via the following command:
+          #    uv pip compile requirements/sign.in --generate-hashes --python-version 3.12 --no-config -o requirements/sign.txt
+          jsonalias==0.1.1 \
+              --hash=sha256:64f04d935397d579fc94509e1fcb6212f2d081235d9d6395bd10baedf760a769 \
+              --hash=sha256:a56d2888e6397812c606156504e861e8ec00e188005af149f003c787db3d3f18
+              # via solders
+          solders==0.29.0 \
+              --hash=sha256:00524baf575ae5edb2ba43cdb1d80491c59efdc16b48fec96a6f929c0401d0e4 \
+              --hash=sha256:09e80c545c728f434f627d3b4714675a0f654c4d387f3339d54f7d09d59f3f1c \
+              --hash=sha256:62e8a5bb4bc8628d5fe49faa56aca149dce284a9f8bf5f3c56c4721e561be84b \
+              --hash=sha256:785841623bdd7b8dedc68e7c794b54327d3b03e1ab9697eda90a139ca3c98cfe \
+              --hash=sha256:9d2e011ff1d5f82a7de81d6eb89f54d002189f50ee48d4a15d7b51849e04b1c3 \
+              --hash=sha256:c17098cab72a1c202ec4cc0ce3ecbff4296c9de97000e05944337ba5ddb681a8 \
+              --hash=sha256:f36db7b43088866081b5d37ff62668551e30dd136b9ee58a5fb524fcd828082d
+              # via -r requirements/sign.in
+          typing-extensions==4.16.0 \
+              --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
+              --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
+              # via solders
+          knos==0.3.28 --hash=sha256:8eb0a43dfcc345b5d8208f6eb9faeb19c50466edd4b286dae07ab78ddcf68693
+          LOCK
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: knos command
+        id: command
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY }}
+          KNOS_READ_TOKEN: ${{ secrets.KNOS_READ_TOKEN }}
+        run: knos command --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"

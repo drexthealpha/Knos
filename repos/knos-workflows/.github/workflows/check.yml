@@ -1,0 +1,69 @@
+name: knos check (reusable workflow)
+
+# A reusable workflow: the check on every pull request, with no bounty needed and no money moved. A repository calls
+# it from its own knos-check.yml (examples/knos-check.yml), on `pull_request`. One job: install knos, run one command.
+# The command holds the logic and is tested without GitHub:
+#
+#     knos check --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"
+#
+# It checks out nothing and runs none of the pull request's code. It reads the pull request through GitHub's API and
+# holds it against:
+#   - its own words: a "tests pass" or "CI is green" in the description is compared with GitHub's record of the head
+#     commit's checks;
+#   - the repository's rules (CONTRIBUTING.md), read from the base commit, so a pull request cannot edit what it is
+#     held to; and what earlier pull requests taught, read from the issue labelled knos-memory;
+#   - when it closes a funded issue, the bounty's terms: what its author still needs for the payment.
+# The result is the job's own conclusion (the status "check / claims" on the pull request) and its summary. The check
+# is advice: nothing about money depends on it, and prove.yml checks again at the merge.
+#
+# How GitHub runs this, which the design rests on:
+#   - `pull_request` runs with a token that can only read when the pull request comes from a fork, and passes it no
+#     secret and no id-token. This job asks for nothing more in any case: every permission below is read.
+#   - `pull_request` runs the workflow files as the pull request has them, so a pull request can change the calling
+#     file for its own run. That is why this check is advice, and why what must not be bent runs elsewhere: the
+#     review (prove.yml, on `workflow_run`) and the merge (prove.yml, on `push`) run the default branch's files.
+#   - The first run for a first-time contributor's pull request waits until a maintainer approves it (GitHub's
+#     default for pull requests from forks).
+#   - A reusable workflow called from another repository sees the caller's event: `github.event`, the file at
+#     $GITHUB_EVENT_PATH, `github.repository` and the job's token are all the calling repository's.
+#   - It takes no inputs and no secret: nothing a caller passes can change which code runs here.
+#
+# The install steps are fund.yml's. This job neither restores nor saves an Actions cache.
+on:
+  workflow_call: {}
+
+permissions: {}
+
+jobs:
+  claims:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # the newest run for a pull request replaces an older one still going: its head or its description has changed
+    concurrency:
+      group: knos-check-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    cache-mode: read
+    permissions:
+      contents: read          # CONTRIBUTING.md of the base commit, read through GitHub's API (there is no checkout)
+      pull-requests: read
+      issues: read            # the issue it closes, and the knos-memory issue
+      checks: read            # GitHub's record of the head commit
+      statuses: read
+      actions: read
+    steps:
+      - name: uv, with no cache
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false      # nothing is restored into a job that runs here, and nothing is saved from it
+          ignore-empty-workdir: true
+      - name: install knos, this one requirement exactly
+        env:
+          UV_EXCLUDE_NEWER: "2026-10-11T12:54:00Z"   # knos 0.3.28 reached PyPI at 2026-10-11T12:43:21Z
+        run: uv tool install --no-config "knos==0.3.28"
+      - name: knos check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: knos check --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"
