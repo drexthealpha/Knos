@@ -39,7 +39,9 @@ PLACEHOLDER = ("Users\\\\me\\\\", "Users\\\\Jos")      # made-up folders in a do
 
 
 def files(*globs: str) -> list[str]:
-    return subprocess.run(["git", "ls-files", *globs], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
+    # repos/ holds the side repositories as they were, with their history (git subtree): their words are history
+    return [r for r in subprocess.run(["git", "ls-files", *globs], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
+            if not r.startswith("repos/")]
 
 
 def prose(rel: str, text: str) -> str:
@@ -103,12 +105,12 @@ def main() -> int:
     rest = {r: n for r, n in hour.items() if r not in OLD_FORMAT | CHECKERS}
     ok(not rest, f'"{OLD_DELAY}" outside receipts of versions 1 to 5: {sum(rest.values())} {rest}; in them (allowed: their digests '
                  f'cover the words): {sum(n for r, n in hour.items() if r in OLD_FORMAT)} in { {r: n for r, n in hour.items() if r in OLD_FORMAT} }')
-    private = [r for r in subprocess.run(["git", "grep", "-l", "-i", PRIVATE], cwd=ROOT, capture_output=True, text=True).stdout.split() if r != SELF]
+    private = [r for r in subprocess.run(["git", "grep", "-l", "-i", PRIVATE, "--", ":!repos"], cwd=ROOT, capture_output=True, text=True).stdout.split() if r != SELF]
     ok(not private, f"private paths: {len(private)} {private}")
-    hits = subprocess.run(["git", "grep", "-n", "-I", "-i", "-E", HOME], cwd=ROOT, capture_output=True, text=True).stdout.splitlines()
+    hits = subprocess.run(["git", "grep", "-n", "-I", "-i", "-E", HOME, "--", ":!repos"], cwd=ROOT, capture_output=True, text=True).stdout.splitlines()
     home = sorted({h.split(":", 1)[0] for h in hits if not h.startswith(SELF + ":") and not any(x in h for x in PLACEHOLDER)})
     ok(not home, f"a Windows user folder in any file: {len(home)} {home}")
-    host = subprocess.run(["git", "grep", "-l", "hackathon" + ".api.qloo.com"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+    host = subprocess.run(["git", "grep", "-l", "hackathon" + ".api.qloo.com", "--", ":!repos"], cwd=ROOT, capture_output=True, text=True).stdout.split()
     ok(not host, f"the hackathon host in any file (deploy values included): {len(host)} {host}")
     pricing = " ".join(prose("p.html", (ROOT / "web" / "pricing.html").read_text(encoding="utf-8")).split())
     ok(PRICING in pricing, f'pricing.html says exactly "{PRICING}"')
