@@ -1,0 +1,147 @@
+name: knos claim
+
+# How a GitHub account, or a GitHub organisation, names the Solana address its Knos payments go to. Called as a
+# reusable workflow from a repository named `knos-claim` that the account or organisation owns (the template
+# drexthealpha/knos-claim makes one in a click; `knos claim <address>` makes one from a terminal).
+#
+# It asks GitHub for an OIDC token whose audience is
+#
+#     knos2:bind:<solana address>      kind user (the default): a personal account
+#     knos3:bind:<solana address>      kind org: an organisation
+#
+# and posts it on an issue in the calling repository for a relayer to carry to Solana (Knos's always-on worker does;
+# anyone can). knos-pay accepts a bind token only if GitHub's signature says all of this:
+#
+#   - the job ran THIS file at THIS commit (job_workflow_ref, job_workflow_sha), on a GitHub-hosted runner;
+#   - that repository is named knos-claim;
+#   - it was started by hand (workflow_dispatch), with the address typed into the form. No link can fill that form in
+#     for you, so nobody can get you to name their address with one click;
+#   - kind user: the run was started by the owner of the repository it ran in (actor_id == repository_owner_id), so
+#     the repository is a personal account's and the account is the one that is paid;
+#   - kind org: the repository's owner is not the person who started the run (repository_owner_id != actor_id), so it
+#     is an organisation's, and the organisation is the one that is paid.
+#
+# Nobody else can get GitHub to sign that for a personal account, so nobody else can choose where its money goes.
+# For an organisation, see the next paragraph.
+#
+# Who can bind an organisation's wallet: anyone who can start a workflow by hand in the organisation's knos-claim
+# repository. GitHub allows that to everyone with write access to it, not only to owners. GitHub's signature says that
+# the run was in the organisation's repository and who started it, and knos-pay does not tell members apart, so any
+# of them can name the address. A later run replaces the address an earlier one named. So an organisation should give
+# write access to its knos-claim repository only to people it trusts with where its payments go. A run of kind org in
+# a personal account's repository, or of kind user in an organisation's, is refused by knos-pay.
+#
+# The token names one address and nothing else. This file takes no secret and is never changed: another commit is
+# another sha, which the program does not accept.
+on:
+  workflow_call:
+    inputs:
+      address:
+        description: Solana address that receives this GitHub account's (or organisation's) Knos payments
+        required: true
+        type: string
+      kind:
+        description: "user for a personal account's repository, org for an organisation's"
+        required: false
+        type: string
+        default: user
+      relay-log:
+        description: repository whose public relay log reports what happened to the token
+        required: false
+        type: string
+        default: drexthealpha/Knos
+
+permissions: {}
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write
+      issues: write
+    steps:
+      - name: ask GitHub for the token, post it, wait for a relayer
+        env:
+          ADDRESS: ${{ inputs.address }}
+          KIND: ${{ inputs.kind }}
+          LOG_REPO: ${{ inputs.relay-log }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
+
+          B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+          API = "https://api.github.com"
+          repo = os.environ["GITHUB_REPOSITORY"]
+          address = os.environ["ADDRESS"].strip()
+          log_repo = os.environ.get("LOG_REPO") or "drexthealpha/Knos"
+          kind = os.environ.get("KIND") or "user"
+
+          def is_address(s):
+              """A canonical base58 32-byte public key, as Solana prints one."""
+              if not 32 <= len(s) <= 44 or any(c not in B58 for c in s):
+                  return False
+              n = 0
+              for c in s:
+                  n = n * 58 + B58.index(c)
+              if n >= 1 << 256:
+                  return False
+              raw = n.to_bytes(32, "big")
+              return len(s) - len(s.lstrip("1")) == len(raw) - len(raw.lstrip(b"\0"))
+
+          def call(url, body=None, method=None, headers=None):
+              head = {"Accept": "application/vnd.github+json", "User-Agent": "knos-claim"}
+              if url.startswith(API):
+                  head["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
+              head.update(headers or {})
+              req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None,
+                                           method=method or ("POST" if body is not None else "GET"), headers=head)
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
+
+          if not is_address(address):
+              sys.exit(f"{address!r} is not a Solana address")
+          if not re.fullmatch(r"[\w.-]+/[\w.-]+", log_repo):
+              sys.exit("relay-log is not owner/name")
+          if kind not in ("user", "org"):
+              sys.exit("kind is user or org")
+          aud = ("knos3:bind:" if kind == "org" else "knos2:bind:") + address
+          tok = call(os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=" + urllib.parse.quote(aud, safe=""),
+                     headers={"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]})["value"]
+          tid = hashlib.sha256(tok.encode()).hexdigest()[:16]
+          who = "organisation" if kind == "org" else "account"
+          issue = call(f"{API}/repos/{repo}/issues", {"title": "knos claim", "body": f"Knos payments for this GitHub {who} go to `{address}`."})
+          n = issue["number"]
+          call(f"{API}/repos/{repo}/issues/{n}/comments",
+               {"body": f"knos-bind: {tok}\n\n<sub>knosrelay: a GitHub-signed token that can only name {address}. Anyone can carry it to Solana.</sub>"})
+          print(f"posted bind token {tid} on {repo}#{n}; waiting for a relayer")
+
+          line, end = "", time.time() + 600
+          while time.time() < end and not line:
+              time.sleep(5)
+              try:
+                  logs = call(f"{API}/repos/{log_repo}/issues?labels=knos-relay&state=open&per_page=1")
+                  if not logs:
+                      continue
+                  since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 1800))
+                  for c in call(f"{API}/repos/{log_repo}/issues/{logs[0]['number']}/comments?per_page=100&since={since}"):
+                      if (c.get("user") or {}).get("login") != "github-actions[bot]":
+                          continue
+                      for ln in (c.get("body") or "").splitlines():
+                          if ln.startswith("knos-relay ") and f" {tid} " in ln:
+                              line = ln
+              except (urllib.error.URLError, OSError, ValueError, KeyError):
+                  continue
+          ok = " ok " in line
+          if not line:
+              body = "Knos: no relayer has carried this token yet. It stays valid for an hour; run the workflow again after that."
+          elif ok:
+              body = "Knos: " + (line.split(" note=", 1)[1] if " note=" in line else "done.")
+          else:
+              body = "Knos: the claim was refused: " + line.split(" fail ", 1)[-1]
+          call(f"{API}/repos/{repo}/issues/{n}/comments", {"body": body})
+          call(f"{API}/repos/{repo}/issues/{n}", {"state": "closed"}, method="PATCH")
+          print(body)
+          sys.exit(0 if ok else 1)
+          PY

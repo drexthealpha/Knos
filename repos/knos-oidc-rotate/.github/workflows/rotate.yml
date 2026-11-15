@@ -1,0 +1,163 @@
+name: rotate
+
+# The only way a new issuer key enters knos-oidc. This workflow reads an issuer's public key set on a GitHub-hosted
+# runner, and for every RS256 key asks GitHub for an OIDC token whose audience names the key's hash:
+#
+#     knos-oidc:key:<issuer id>:<sha256 of the key's modulus, hex>                          GitHub Actions (0), GitLab CI (1)
+#     knos-oidc:ikey:<sha256 of the issuer's URL, hex>:<sha256 of the key's modulus, hex>  any other issuer
+#
+# With no `issuer` input it reads the two issuers knos-oidc knows by number, GitHub Actions and GitLab CI, and the
+# audiences are the first kind. With `issuer` (an https URL, as the issuer writes its `iss`) it reads that one issuer
+# and the audiences are the second kind. Which key is attested is never up to the caller: the hash comes only from a
+# key set this job fetched itself, over TLS, from the issuer. The caller can name an issuer, nothing else: this file
+# has no checkout and no secret, its script reads only the values GitHub gives the job and the `issuer` input, and a
+# caller's own `env` does not reach a called workflow. For an `issuer` the job fetches
+# <issuer>/.well-known/openid-configuration (its `issuer` must be that same URL), then the `jwks_uri` named there,
+# which must be on the same host; it follows no redirect, and it attests at most 20 keys.
+#
+# knos-oidc (a Solana program) has this file's repository, path and commit sha fixed in its binary. Its
+# RegisterKey and RegisterIssuerKey accept a key only if the key's hash is one of its genesis constants, or a token like
+# the above, signed by GitHub with a key it already trusts, names it. So GitHub's own signature vouches for the next
+# key: no person, and no key of Knos's, can add one. This file uses only the Python standard library, takes
+# one input (`issuer`) and no secrets, and is never changed: a new version would be a new commit sha, which the program
+# would not accept.
+#
+# The tokens are posted as comments on a new issue in the repository that runs this (public: each names one key
+# hash and nothing else; the word "knosrelay" lets a relayer find them). For an `issuer` each comment begins with a
+# line `knos-issuer: <url>`, which a relayer needs to send RegisterIssuerKey (the audience holds only the URL's hash).
+# Anyone may carry them to Solana; Knos's always-on worker does. A relayer skips a key the chain already has, so a run
+# with nothing new costs nothing. It can be started three ways, and the token says the same thing each time
+# (job_workflow_ref and job_workflow_sha name THIS file at THIS commit): on its own schedule here; by hand; or called
+# as a reusable workflow from any other repository, by anyone. So rotation does not depend on this repository staying
+# active, or on Knos.
+#
+# A run started by hand (workflow_dispatch) in anyone's own repository works as a caller: a workflow there with
+# `on: workflow_dispatch` that `uses:` this file at the pinned commit, with `id-token: write` and `issues: write`, and
+# with Issues turned on in that repository (a fork has them off). knos-oidc's Refresh takes such a token, as long as
+# the person who started the run owns the repository it ran in. Such a run can only refresh a key that is already
+# registered. It cannot register one: RegisterKey and RegisterIssuerKey take only a run, by the schedule or by hand,
+# in a repository of the account the program names. A new key, and a new issuer, enter through that account's runs.
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      issuer:
+        description: "https URL of one more issuer to attest instead of GitHub and GitLab (empty: those two)"
+        required: false
+        type: string
+        default: ""
+  workflow_call:
+    inputs:
+      issuer:
+        description: "https URL of one more issuer to attest instead of GitHub and GitLab (empty: those two)"
+        required: false
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      issues: write
+    steps:
+      - name: read the issuers' key sets, ask GitHub to sign each key's hash, post the tokens
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUER: ${{ inputs.issuer }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os, re, urllib.parse, urllib.request
+
+          ISSUERS = {0: "https://token.actions.githubusercontent.com", 1: "https://gitlab.com"}
+          MAX_ISS, MAX_KEYS, MAX_REPLY = 200, 20, 1 << 20   # knos-oidc takes an issuer URL of at most 200 bytes
+
+          def get(url, headers=None):
+              req = urllib.request.Request(url, headers=headers or {"User-Agent": "knos-oidc-rotate"})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
+
+          class Straight(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+
+          def fetch(url):
+              """A GET of a page of the issuer named by the caller: no redirect (a 3xx is an error), a short reply."""
+              req = urllib.request.Request(url, headers={"User-Agent": "knos-oidc-rotate"})
+              with urllib.request.build_opener(Straight).open(req, timeout=30) as r:
+                  raw = r.read(MAX_REPLY + 1)
+              if len(raw) > MAX_REPLY:
+                  raise SystemExit(f"{url}: the reply is too long")
+              return json.loads(raw)
+
+          def post(path, body):
+              req = urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",
+                                           data=json.dumps(body).encode(), method="POST",
+                                           headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                                                    "Accept": "application/vnd.github+json", "User-Agent": "knos-oidc-rotate"})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
+
+          def key_hashes(jwks):
+              """sha256 of the modulus of every RS256 key of 2048 or 4096 bits in a key set."""
+              for k in jwks["keys"]:
+                  if k.get("kty") != "RSA" or k.get("e") != "AQAB" or k.get("alg", "RS256") != "RS256":
+                      continue
+                  n = base64.urlsafe_b64decode(k["n"] + "=" * (-len(k["n"]) % 4)).lstrip(b"\0")
+                  if len(n) not in (256, 512):
+                      continue
+                  yield hashlib.sha256(n).hexdigest()
+
+          def attest(aud):
+              return get(os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=" + urllib.parse.quote(aud, safe=""),
+                         {"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]})["value"]
+
+          lines, hashes, head = [], [], ""
+          other = os.environ.get("ISSUER", "").strip()
+          if not other:
+              intro = "Keys in the issuers' sets today:\n"
+              for issuer, url in ISSUERS.items():
+                  jwks_uri = get(url + "/.well-known/openid-configuration")["jwks_uri"]
+                  if not jwks_uri.startswith("https://"):
+                      raise SystemExit(f"{url}: jwks_uri is not https")
+                  for h in key_hashes(get(jwks_uri)):
+                      lines.append(f"knos-key: {attest(f'knos-oidc:key:{issuer}:{h}')}")
+                      hashes.append(f"{issuer}:{h}")
+          else:
+              # a public DNS name over https and a path of plain characters: one spelling, and no address of the runner's own
+              name = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:[A-Za-z]{2,}|xn--[A-Za-z0-9-]+)"
+              if len(other) > MAX_ISS or not re.fullmatch(rf"https://{name}(?::[0-9]{{1,5}})?(?:/[A-Za-z0-9._~%+:/-]*)?", other):
+                  raise SystemExit(f"{other!r} is not an https issuer URL on a public host name, of at most {MAX_ISS} characters")
+              host = urllib.parse.urlsplit(other).netloc.lower()
+              # the discovery document says which issuer it is for: it must be this one, spelt as the issuer writes `iss`
+              conf = fetch(other.rstrip("/") + "/.well-known/openid-configuration")
+              if conf.get("issuer") != other:
+                  raise SystemExit(f"{other}: the discovery document names another issuer")
+              uri = str(conf.get("jwks_uri"))
+              if urllib.parse.urlsplit(uri).scheme != "https" or urllib.parse.urlsplit(uri).netloc.lower() != host:
+                  raise SystemExit(f"{other}: jwks_uri is not https on the issuer's own host")
+              found = list(dict.fromkeys(key_hashes(fetch(uri))))
+              if len(found) > MAX_KEYS:
+                  raise SystemExit(f"{other}: the key set holds more than {MAX_KEYS} keys")
+              ih = hashlib.sha256(other.encode()).hexdigest()
+              intro, head = f"Keys in the key set of {other} today:\nknos-issuer: {other}\n", f"knos-issuer: {other}\n\n"
+              for h in found:
+                  lines.append(f"knos-key: {attest(f'knos-oidc:ikey:{ih}:{h}')}")
+                  hashes.append(f"{ih}:{h}")
+          if not lines:
+              raise SystemExit("no keys found")
+          issue = post("issues", {"title": "knos-oidc keys", "body": intro + "\n".join(hashes)})
+          # a comment is at most 65,536 characters: a few tokens each
+          for i in range(0, len(lines), 8):
+              post(f"issues/{issue['number']}/comments", {"body": head + "\n\n".join(lines[i:i + 8]) + "\n\nknosrelay"})
+          req = urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/{issue['number']}",
+                                       data=json.dumps({"state": "closed"}).encode(), method="PATCH",
+                                       headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                                                "Accept": "application/vnd.github+json", "User-Agent": "knos-oidc-rotate"})
+          urllib.request.urlopen(req, timeout=30).read()
+          print(f"posted {len(lines)} key tokens on issue #{issue['number']}")
+          PY
