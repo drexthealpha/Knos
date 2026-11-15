@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html): one box, "Ask anything about
-     research". A question, a claim, a link or a paper is answered at once from what Knos has proved on NEAR testnet: the
+     research". A question or a paper's link is answered at once from what Knos has proved on NEAR testnet: the
      claims registry is written into this page at build time (CLAIMS), their state comes from the site's own data/board.json
      and then the live server. A paper Knos has no claim for is asked of the server. The visitor's own questions are kept in
      their browser only (localStorage), so a second visit starts where the first ended. -->
@@ -70,8 +70,10 @@ button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-r
 .below p { margin: 0 0 12px; }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-footer summary { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; cursor: pointer; text-decoration: underline; }
-footer details p { margin: 0 0 8px; color: var(--ink); }
+/* the goal, one tap on the first screen, under the sample and above the answer, so an answer never pushes it out of sight */
+.goal { margin: 0 0 8px; }
+.goal summary { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; cursor: pointer; text-decoration: underline; color: var(--ink-2); }
+.goal p { margin: 0 0 8px; color: var(--ink); }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -90,13 +92,14 @@ footer details p { margin: 0 0 8px; color: var(--ink); }
   <section class="door" aria-label="Ask about research">
     <p class="q">Research takes 17 years to reach people (<a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, 2011</a>).</p>
     <h1>Ask anything about research</h1>
-    <p class="near">Answers come with NEAR receipts.</p>
+    <p class="near">Every answer names its proving test.</p>
     <form id="ask">
       <label class="sr" for="paper">Your question</label>
-      <input id="paper" name="paper" placeholder="A question, a claim, a link or a paper" autocomplete="off" spellcheck="false">
+      <input id="paper" name="paper" placeholder="A question or a paper's link" autocomplete="off" spellcheck="false">
       <button class="go" id="go" type="submit">Ask</button>
     </form>
     <button class="sample" id="sample" type="button">Try: HyperLogLog</button>
+    <details class="goal"><summary>Goal</summary><p>The goal: Knos turns any research into a product billions of people use, in days, not years.</p></details>
     <div class="chips" id="mine" hidden></div>
     <div class="out" id="out" aria-live="polite"></div>
     <p class="cost">Checking one paper by hand: $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/">Perignon, citing Colliard</a>).</p>
@@ -106,7 +109,6 @@ footer details p { margin: 0 0 8px; color: var(--ink); }
 <footer>
   <span>Test money, no customers yet.</span><br>
   <a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a>
-  <details class="goal"><summary>Goal</summary><p>The goal: Knos turns any research into a product billions of people use, in days, not years.</p></details>
 </footer>
 <script>
 (() => {

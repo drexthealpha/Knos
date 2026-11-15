@@ -38,15 +38,15 @@ that](NEAR.md#do-this-see-that)).
 
 ## Why nobody can fudge the count
 
-The terms of a brief are locked by a [hash](../WORDS.md#hash) before any money moves. A changed target or deadline gives a different hash. So a change cannot hide.
+In the Colosseum entry the terms of a brief were locked by a [hash](../WORDS.md#hash) before any money moved. A changed target or deadline gave a different hash. So a change could not hide.
 
-The money waits in a program on [Solana](../WORDS.md#solana), not with Knos. That program pays only when the checks pass. At the deadline it refunds the backers instead.
+The money waited in a program on [Solana](../WORDS.md#solana), not with Knos. That program paid only when the checks passed. At the deadline it refunded the backers instead.
 
-**Neither the maker nor Knos can move the money alone.**
+**Neither the maker nor Knos could move the money alone.**
 
 Today one person can still change that program, after a public wait ([who holds the keys](../TRUST.md)).
 
-Today Knos earns its fee only when work is accepted. When you get a refund, the fee goes back to you. So Knos gains when work passes, and it is not yet fully neutral ([what is enforced and what is a promise](CHARTER.md)).
+In that entry Knos earned its fee only when work was accepted. When a backer got a refund, the fee went back too. So Knos gained when work passed, and it was not yet fully neutral ([what is enforced and what is a promise](CHARTER.md)).
 
 ## Is it real?
 
@@ -93,7 +93,7 @@ knos idea release <commitment> <stage> --sig <verdict>    # pay a met stage on t
 knos idea refund <commitment> <stage> --wallet <keypair>  # refund a missed stage; anyone may send it
 ```
 
-Install with `pip install knos`. The app answers the same steps over HTTP: `POST /api/check` (the demand check), `POST /api/ready` (the Ready brief) and `POST /api/preorder` (a pre-order on devnet). Run `knos idea --help` for every option.
+Install with `pip install knos`. In the entry the app answered the same steps over HTTP: `POST /api/check` (the demand check), `POST /api/ready` (the Ready brief) and `POST /api/preorder` (a pre-order on devnet). Run `knos idea --help` for every option.
 
 ## Check every claim yourself
 

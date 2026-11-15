@@ -198,9 +198,9 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
 <p class="k-goal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p>
 <p class="k-a k-today">Today: one paper's claim, proved by agents on NEAR testnet. Next: any paper.</p>
 <!-- /k-first -->
-    <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> about a minute on NEAR (up to 2 min while a job is readied), for the test USDC you put behind the claim (test USDC: play dollars on NEAR's test network).</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
+    <p class="cost"><span><b>Today:</b> checking one paper by hand costs $330 to $763.</span> <span><b>Knos:</b> 15 to 80 s on NEAR when a job is ready, 1 to 2 min when one is not (checks on 14 Nov). Reading is free; a new check holds test USDC with the job (play dollars on NEAR's test network, no real money).</span> <a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon">Colliard and others, 2023</a></p>
     <form class="ask" id="ask">
-      <label for="paper"><span>Enter a paper's DOI or arXiv link. Knos proves the claims on its <a href="../claims/">Claims</a> page and hands you code that works; the sample is HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory.</span></label>
+      <label for="paper"><span>Ask about research: paste a paper's link. Knos proves the claims on its <a href="../claims/">Claims</a> page and hands you code that works; the sample is HyperLogLog (2007), a way to count over a billion different items in 1.5 kilobytes of memory.</span></label>
       <span class="row"><input id="paper" name="paper" value="https://doi.org/10.46298/dmtcs.3545" autocomplete="off" spellcheck="false">
       <button type="submit" class="go big" id="go" data-buy>Will it work?</button></span>
     </form>
@@ -222,14 +222,14 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
   </section>
 
-  <details class="buyers"><summary>For buyers: why Knos</summary>
+  <details class="buyers"><summary>Why Knos, for anyone who needs a result checked</summary>
   <section class="facts why" aria-labelledby="t-why">
     <h2 id="t-why">Why Knos</h2>
     <table class="log">
       <tr><th>Today</th><td>You find someone to re-run the paper, send them the paper and its code, agree a price, wait weeks and pay their invoice: $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard and others, 2023</a>).</td></tr>
-      <tr><th>With Knos</th><td>One screen: enter the paper and get the verdict with its receipt in about a minute.</td></tr>
+      <tr><th>With Knos</th><td>One screen: enter the paper and get the verdict with its receipt: 15 to 80 s when a job is ready, 1 to 2 min when one is not (checks on 14 Nov).</td></tr>
       <tr><th>The middleman it removes</th><td>The replication service paid to re-run a paper by hand.</td></tr>
-      <tr><th>Why a frontier lab could not</th><td>A lab can write the code, but a buyer cannot trust it to grade its own work: NEAR holds the locked test and the rule that pays only on a pass, and neither Knos nor the lab can change them.</td></tr>
+      <tr><th>Why a frontier lab could not</th><td>A lab can write the code, but nobody can trust it to grade its own work: NEAR holds the locked test and the rule that pays only on a pass, and neither Knos nor the lab can change them.</td></tr>
       <tr><th>A firm's work, by agents</th><td>Two agents write the code and a checker runs the locked test, the work of a replication firm. Agent A is paid into <a href="https://testnet.nearblocks.io/address/agent-a2.knos-swarm-1105.testnet?tab=tokentxns">its own NEAR account</a>; agent B's spending comes out of its own budget on NEAR, under a cap.</td></tr>
       <tr><th>A receipt per task</th><td>Every check ends in a receipt that lists each step's network fee, every line linked on NEAR.</td></tr>
       <tr><th>The path to scale</th><td>Each new claim is one locked test. Every verified result is kept on NEAR and reused for free. The 2 Nov 2026 census found 38 of 12,010 companies to approach first.</td></tr>
@@ -487,7 +487,7 @@ async function hostedRun() {
       const job = s.job || {};
       $("receipt").replaceChildren(...[`Paid at ${clock(job.paid_at)}, ${s.seconds} s after your tap. `,
         s.release_url ? el("a", { href: String(s.release_url).replace(/^https:\/\/testnet\.nearblocks\.io\/txns\//, TX), target: "_blank", rel: "noopener", textContent: "See the payment" }) : null,
-        el("br"), "Fee: 10% of what the buyer puts behind a claim. Test money for now."].filter(Boolean));
+        el("br"), "Fee: 1 part in 10 of the test USDC held with the job, to Knos's test account. Test money for now."].filter(Boolean));
       payout(+(job.bid ?? 1000000), a, b);
     }
     if (s.job) showJob(s.job);
@@ -661,7 +661,7 @@ load();
         r.title ? el("p", {}, [el("b", { textContent: "The paper: " }), r.title]) : null,
         el("p", {}, [el("b", { textContent: "What can check it: " }), q.checker + "."]),
         el("p", {}, [el("b", { textContent: "Price: " }), q.price + ". ", el("b", { textContent: "Time: " }), q.time + ". ", out(q.source, "Source")]),
-        el("p", { className: "fine", textContent: "Try the sample link to see a full check run in about a minute." })]));
+        el("p", { className: "fine", textContent: "Try the sample link to see a full check run: 15 to 80 s when a job is ready (checks on 14 Nov)." })]));
       look.scrollIntoView({ block: "start" });
       return;
     }
@@ -704,7 +704,7 @@ load();
       out(look.check || "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py", "Read the test")])]);
     await wait(600);
     const two = add("", "2. Two agents ran the paper\u2019s result against the locked test", [el("p", { textContent: "Agent A: code from a private model on NEAR AI Cloud, or its fixed program when the model's code for this claim failed (named below). Agent B: a fixed shortcut that must fail. Each has its own NEAR account. Once the test passes, a second model call reviews the code and may only reject it." }),
-      ...(sample ? [] : [el("p", { className: "fine", textContent: "No job was ready for this claim, so both agents run now: about a minute, two if the model's code fails and agent A's fixed program runs." })])]);
+      ...(sample ? [] : [el("p", { className: "fine", textContent: "No job was ready for this claim, so both agents run now: 1 to 2 min (checks on 14 Nov), the longer when the model's code fails and agent A's fixed program runs." })])]);
     for (const li of [...$("steps").children].slice(0, 2)) { const at = li.querySelector(".at"); if (at) at.textContent = sample ? "done for this order" : "running now"; }   // the sample's job was readied for this order; any other claim's runs now
     const agentsRan = proving.then((r) => {
       if (!r.ok) return;
@@ -757,7 +757,7 @@ load();
     });
     add("ok", "5. You got", [el("p", {}, [out(`${HOSTED}/api/near/claim/code?claim=${encodeURIComponent(look.name || "hyperloglog")}`, `Download the verified code (${look.code_name || "visitor_counter.py"})`), ", the version that passed the locked test."]),
       ...(sample ? [el("p", {}, ["Try it now: visitors ", tryN, " ", tryBtn]), tryOut] : [])]);
-    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated: about 10 to 45 s, up to 2 min with three orders at once, on the test network.` })]);
+    const paying = add("", "6. Paying and recording on NEAR\u2026", [el("p", { className: "fine", textContent: `Your ${amount} test USDC goes to agent A and Knos, and the claim\u2019s record on NEAR is updated. The whole check: 15 to 80 s when a job is ready, 1 to 2 min when one is not (checks on 14 Nov).` })]);
     const tPay = performance.now();
     const payClock = el("p", { className: "fine", textContent: "0.0 s" });
     paying.append(payClock);
@@ -779,7 +779,7 @@ load();
     const box = el("section", { className: "card receipt-card" }, [
       el("h2", { textContent: !ok ? "Payment failed: nothing moved" : settle && settle.ok && settle.settled != null ? `Receipt for proof ${rc.job || ""}: paid and recorded on NEAR testnet ${when} after you pressed` : `Receipt: paid on NEAR testnet ${when} after you pressed` }),
       el("table", { className: "vs" }, [
-        el("tr", {}, [el("th", { textContent: "You put behind the claim" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)} behind this proof: ${tu(rc.agent_usd)} to the agent, ${tu(rc.knos_usd)} to Knos. From a test account Knos holds for you, so you need no wallet. ${rc.contract ? "The jobs contract held it with the job and, after the checker's signed pass, paid both parts itself in one transaction: " : rc.agent_pay_url && rc.agent_pay_url === rc.fee_url ? "One transaction splits it between agent A and Knos: " : "Its two transfers: "}`, ...(rc.agent_pay_url && rc.agent_pay_url === rc.fee_url ? [out(rc.agent_pay_url, "the split")] : [rc.agent_pay_url ? out(rc.agent_pay_url, "to agent A") : "", rc.agent_pay_url && rc.fee_url ? ", " : "", rc.fee_url ? out(rc.fee_url, "to Knos") : ""])] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
+        el("tr", {}, [el("th", { textContent: "Test money moved" }), el("td", {}, ok ? [`${tu(rc.buyer_usd)} moved on NEAR testnet: ${(+rc.agent_usd || 0).toFixed(2)} to the agent whose code passed, ${(+rc.knos_usd || 0).toFixed(2)} to Knos's test account. From a test account Knos holds for you, so you need no wallet. ${rc.contract ? "The jobs contract held it with the job and, after the checker's signed pass, sent both parts itself in one transaction: " : rc.agent_pay_url && rc.agent_pay_url === rc.fee_url ? "One transaction splits it between agent A and Knos: " : "Its two transfers: "}`, ...(rc.agent_pay_url && rc.agent_pay_url === rc.fee_url ? [out(rc.agent_pay_url, "the split")] : [rc.agent_pay_url ? out(rc.agent_pay_url, "to agent A") : "", rc.agent_pay_url && rc.fee_url ? ", " : "", rc.fee_url ? out(rc.fee_url, "to Knos") : ""])] : [`Nothing moved: ${(pay && pay.why) || "no answer"}.`])]),
         el("tr", {}, [el("th", { textContent: "Agent A got, in all" }), el("td", {}, ok ? (rc.contract ? [`${tu(rc.agent_usd)}, 90%, sent by the jobs contract${rc.model_verified ? " after it checked the model's signature (model_verified)" : ""}: `, rc.agent_pay_url ? out(rc.agent_pay_url, "the release") : "the release", "."] : rc.job_pay_url ? [`${tu((+rc.agent_usd || 0) + 1)} in all: ${tu(rc.agent_usd)} from your test USDC (90%, `, rc.agent_pay_url ? out(rc.agent_pay_url, "the transfer") : "the transfer", ") plus the 1.00 the job itself paid for passing its locked test (", out(rc.job_pay_url, "that payment"), ")."]
           : [`${tu(rc.agent_usd)}, 90%. `, rc.agent_pay_url ? out(rc.agent_pay_url, "The transfer") : ""]) : ["Nothing."])]),
         ...(ok && rc.log && rc.log.total_usd != null ? [el("tr", {}, [el("th", { textContent: "Knos kept, less costs" }), el("td", { textContent:

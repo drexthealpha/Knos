@@ -37,7 +37,7 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 .fine { color: var(--ink-2); }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test USDC behind: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Behind it: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -67,11 +67,11 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <table id="bal"><tbody><tr><td>reading</td></tr></tbody></table>
 <p class="fine">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>
 </main>
-<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="https://knos.onrender.com/app/">Demand check</a><a href="../privacy.html">Privacy</a></footer>
+<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="../privacy.html">Privacy</a></footer>
 <script>
 const HOSTED = "https://knos.onrender.com";
 const $ = (id) => document.getElementById(id);
-const usd = (n) => (+n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
+const usd = (n) => (+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test USDC";   // test money: never a dollar sign
 // the board and the counters are also files of this site, written by every Pages build (data/): a live answer within
 // 1.2 s is used, else the file is shown at once, with its own read time, so a press never waits on a sleeping server
 const SITE_ROOT = (document.querySelector("#kh .logo") || location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };
@@ -82,7 +82,7 @@ async function getJSON(path) {
   const quick = await Promise.race([live, new Promise((res) => setTimeout(res, 1200, "slow"))]);
   if (quick && quick !== "slow") return quick;
   const f = await file;
-  return f && Object.keys(f).length ? f : await live;
+  return f && Object.keys(f).length && !f.pending ? f : await live;   // a file the build wrote before it read NEAR says pending
 }
 // NEAR testnet, read from this browser: no answer of Knos's server is trusted for these
 const RPCS = ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"];   // two public NEAR testnet RPCs
@@ -133,7 +133,7 @@ function demandText(m) {
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
   $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many from Knos's own test account; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
-  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade, ${usd(j.usd)} in test USDC paid out by it` : "not read"; });
+  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade (its get_agent_record passes); ${usd(j.usd)} released by it for jobs opened since then, the agent's 9 parts and Knos's 1 part together (its get_totals)` : "not read"; });
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {
@@ -146,7 +146,7 @@ function demandText(m) {
   const tb = document.querySelector("#bal tbody");
   if (!b || !b.rows) { tb.innerHTML = "<tr><td>not read</td></tr>"; return; }
   tb.replaceChildren(...b.rows.map((x) => { const tr = document.createElement("tr");
-    const a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + x.account, textContent: x.what });
+    const a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + x.account, textContent: String(x.what).replace(/^Buyer, fees$/, "Knos's own test account, NEAR for fees").replace(/^Buyer, /, "Knos's own test account, ") });
     const th = document.createElement("th"); th.append(a);
     const td = Object.assign(document.createElement("td"), { textContent: `${x.value == null ? "not read" : x.value} ${unit[x.kind]}, floor ${x.floor}${x.ok ? "" : ": LOW"}` });
     if (!x.ok) { td.style.color = "#c62828"; td.style.fontWeight = "600"; tr.style.borderBottom = "2px solid #c62828"; }

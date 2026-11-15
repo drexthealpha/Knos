@@ -5,7 +5,7 @@ Back to the [README](../../README.md#from-near-hackathon).
 <!-- entry:near -->
 ## NEAR HACKATHON: the diff
 
-The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `near/`; the tag `hackathon-submission` is the submitted commit. Everything built in the window, file by file: https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. Only that NEAR work is the entry ([Disclosure](#disclosure)); the steps to try it are under [Do this, see that](#do-this-see-that).
+The tag `pre-hackathon` (31 Oct 2026) is a commit from before the first line of `near/`; the tag `hackathon-submission` is the submitted commit. Everything built in the window, file by file: https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. Only that NEAR work is the entry ([Disclosure](#disclosure)); the steps to try it are under [Do this, see that](#do-this-see-that).
 
 ## Every claim and how to check it
 
@@ -34,8 +34,7 @@ years for research evidence to reach clinical practice" ([Morris, Wooding and Gr
 Knos's answer: checking that a result really works is slow and costly, so nobody builds on it until it has been checked.
 
 **What checking costs.** Today, checking one paper by hand costs $330 to $763
-([Colliard and others, 2023](https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon)). Knos: under a
-minute, with test USDC held with the job on NEAR testnet.
+([Colliard and others, 2023](https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon)). Knos: 15 to 80 s when a job is ready and 1 to 2 min when one is not (checks on 14 Nov, the README's measure), with test USDC held with the job on NEAR testnet.
 
 Each check opens its own proof job on NEAR, with test money held with the job. The jobs contract sends it to the agent whose code passes, less Knos's 1 part in 10. Proving the same claim again is free and public.
 
@@ -65,24 +64,25 @@ visitor and fails on memory.
 
 On the public pages (no install, no sign-in, no wallet, test money only):
 
-1. Open https://drexthealpha.github.io/Knos/ - see "Why does research take 17 years to reach people? Checking it
-   is costly", "Ask anything about research", the box, the button "Ask", "Try: HyperLogLog" and "By hand:
-   $330 to $763 (Colliard, 2023). Knos: a minute."
+1. Open https://drexthealpha.github.io/Knos/ - see "Research takes 17 years to reach people (Morris, 2011).", "Ask
+   anything about research", "Every answer names the test that proved it.", the box, the button "Ask", "Try:
+   HyperLogLog" and "Checking one paper by hand: $330 to $763 (Perignon, citing Colliard)."
 2. Click "Try: HyperLogLog" (or ask a question of your own) - see on the same screen "Yes, the claim holds", the claim,
-   its locked test and sha256, its last proof on NEAR and "Prove it yourself". Click that - the Prove page opens and reads the paper: "Check this claim now", "Test money: the test USDC you
+   "Proved by its locked test test_hll.py, job-..." (its last proof on NEAR), "Prove it yourself" and "The claim", whose
+   page shows the test file's sha256. Click that - the Prove page opens and reads the paper: "Check this claim now", "Test money: the test USDC you
    choose (1 to 100) is held with the job", the box "Test USDC held with the job:" holding 10 and the button "Run the
    check with 10 test USDC".
-3. Type an amount (1 to 100) or keep 10, and click "Run the check with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper's result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
+3. Type an amount (1 to 100) or keep 10, and click "Run the check with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper’s result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
    529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
-4. About 5 s to 2 min after pressing (about 5 s when a job is ready for the claim; 1 to 2 min when its agents run then) - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
+4. Then - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
-5. Then "6. Paying and recording on NEAR", about 10 to 45 s on the test network (up to 2 min measured with three checks at once), and "Receipt for proof job-...: paid and
-   recorded on NEAR testnet N s after you pressed": "You put behind the claim 10.00 test USDC behind this proof: 9.00 test USDC to the agent, 1.00 test USDC to Knos", "Agent A got, in all:
+5. Then "6. Paying and recording on NEAR" and "Receipt for proof job-...: paid and
+   recorded on NEAR testnet N s after you pressed" (the whole check: 15 to 80 s when a job is ready and 1 to 2 min when one is not (checks on 14 Nov, the README's measure)): "Test money moved", "10.00 test USDC moved on NEAR testnet: 9.00 to the agent whose code passed, 1.00 to Knos's test account", "Agent A got, in all:
    9.00", sent by the jobs contract and "Knos's fee 1.00 test USDC, 10%", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
    cost", every step's network fee with its record.
-6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result, with
+6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result,
    against the first proof's seconds from your press to its receipt and its test USDC, "no test USDC moved" and a link to the first proof.
 7. Below the run - see "Live from NEAR testnet, in test dollars:" transfers into Knos's fee account, the dollars moved with them and lost, read from NEAR's public record
    (in full by a GitHub Action scheduled every 10 minutes, which GitHub may run later, plus the server's own confirmed payments since; the page says how old the full read is): each transfer is one fee, Knos's 1 part, that reached Knos's fee account from another account of Knos's own (until 11 Nov a reused result also sent one), so many of them moved money between Knos's own accounts, and the dollars are those fees plus agent A's shares. They are not jobs paid to agents: the jobs contract counts those itself (`get_agent_record`, since its 14 Nov upgrade), and the front door and the status page show that count.
@@ -219,7 +219,7 @@ AI Security & Defense (`security`): keys limited to named methods, and contracts
 
 The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
 
-Spending limits cap what an agent may spend. The contract releases test tokens only for work that is proven done.
+Spending limits cap what an agent may spend. The jobs contract sends a job's test USDC to an agent only after Knos's checker signs that the agent's code passed the locked test.
 
 | What | How |
 |---|---|
@@ -235,8 +235,7 @@ Open [the Prove page](https://drexthealpha.github.io/Knos/prove/), keep the samp
 **Will it work?**, then **Run the check with 10 test USDC**.
 
 You see the answer beside the paper's own number, the
-verified code to download, the receipt and the claim's record updated: about 25 s for the sample, up to 2 min for a
-claim whose agents run then, with three checks at once.
+verified code to download, the receipt and the claim's record updated: 15 to 80 s when a job is ready and 1 to 2 min when one is not (checks on 14 Nov, the README's measure).
 
 Agent A's code is written by a private model on NEAR AI Cloud; when that code fails the locked test, the check says so
 and shows the last verified proof, and a job readied in the background then uses agent A's fixed program, which the
@@ -252,7 +251,7 @@ It runs on Knos's own capped test account (`live.knos-swarm-1105.testnet`, test 
 ### Work in the window
 
 Every change since the work began: [pre-hackathon...main](https://github.com/drexthealpha/Knos/compare/pre-hackathon...main)
-(the tag `pre-hackathon` is the commit before the first line of `near/`).
+(the tag `pre-hackathon` is a commit from before the first line of `near/`).
 
 No Rust is needed to check or deploy the contract: `near/wasm/` holds the built files and `near/wasm/SHA256SUMS` their
 hashes. `cd near/wasm && sha256sum -c SHA256SUMS` prints `knos_near.wasm: OK`, `knos_mock_usdc.wasm: OK`, `knos_market.wasm: OK` and `knos_market_usdc.wasm: OK`

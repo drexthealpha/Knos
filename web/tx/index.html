@@ -16,6 +16,8 @@ dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margi
 dt { color: var(--ink-2); } dd { margin: 0; overflow-wrap: break-word; }
 code { font: 400 16px/1.5 var(--code); overflow-wrap: anywhere; }
 ul { padding-left: 20px; } li { margin: 6px 0; overflow-wrap: break-word; }
+summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
+pre { font: 400 14px/1.5 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--paper-2); padding: 12px; border-radius: 8px; }
 a { color: inherit; display: inline-flex; align-items: center; min-height: 44px; }
 @media (max-width: 460px) { dl { grid-template-columns: 1fr; gap: 0 0; } dd { margin-bottom: 8px; } }
 </style>
@@ -27,8 +29,9 @@ a { color: inherit; display: inline-flex; align-items: center; min-height: 44px;
   <dl id="facts"></dl>
   <h2 id="moved-h" hidden>Test USDC moved</h2>
   <ul id="moved"></ul>
-  <h2 id="said-h" hidden>What the contract wrote</h2>
+  <h2 id="said-h" hidden>What the contract decided</h2>
   <ul id="said"></ul>
+  <details id="raw-d" hidden><summary>The raw record</summary><pre id="raw"></pre></details>
   <p id="more"></p>
 </main>
 <script>
@@ -40,6 +43,20 @@ const SENDERS = ["live.knos-swarm-1105.testnet", "agent-a.knos-swarm-1105.testne
 const $ = (id) => document.getElementById(id);
 const el = (tag, text) => { const e = document.createElement(tag); e.textContent = text; return e; };
 const h = new URLSearchParams(location.search).get("h") || "";
+// each method of Knos's contracts in plain words (near/contract/src/jobs.rs, near/market/src/lib.rs); any other keeps its name
+const DID = { release_job: "pay a job after the checker's signed pass", release_job_verified: "pay a job after the checker's signed pass, with the model's signature",
+  refund_job: "send a job's test USDC back after its deadline", take: "an agent takes a job", submit: "an agent sends its code", spend: "an agent spends from its budget",
+  approve_spend: "the approver releases a held spend", record_rejection: "record the AI reviewer's rejection", pause: "pause or resume the contract",
+  ft_transfer: "send test USDC", ft_transfer_call: "send test USDC to a contract, which opens a job or backs a claim", resolve: "settle a claim's market by its locked test",
+  redeem: "pay out a settled market's shares", vote: "settle a market by vote", set_test: "change a claim's locked test" };
+const tu = (n) => Number(n) < 1e4 ? n + " units (millionths of a test USDC)" : (Number(n) / 1e6).toFixed(2) + " test USDC";   // a spend of 1 or 3 units would round to 0.00
+// what each event of the jobs contract says, in one line (its own names: near/contract/src/jobs.rs, fn event)
+const SAYS = { release: (d) => `The jobs contract released ${d.job} to ${d.agent}; agent A's code: ${d.model}.`,
+  model_verified: (d) => `The jobs contract checked the model's signature (signer ${d.signer}) and released ${d.job} to ${d.agent}.`,
+  spend_held: (d) => `${d.agent} asked to spend ${tu(d.amount)} to ${d.to}: held until the approver ${d.approver} releases it.`,
+  spend_approved: (d) => `The approver released ${d.agent}'s held spend of ${tu(d.amount)} to ${d.to}.`,
+  paused: (d) => `${d.by} ${d.paused ? "paused" : "resumed"} the jobs contract.`,
+  review_rejected: (d) => `The AI reviewer rejected ${d.agent}'s code for ${d.job}: ${d.reason}` };
 async function rpc(url, params) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params }) });
   return (await r.json()).result;
@@ -68,16 +85,21 @@ function refusal(st) {
   // a job opened with a locked test carries the test's sha256 in its arguments (ft_transfer_call's msg)
   let locked = "";
   try { const args = JSON.parse(atob(fc.args || "")); const msg = typeof args.msg === "string" ? JSON.parse(args.msg) : args.msg || {}; locked = (msg.open_job || msg).criteria_hash || args.criteria_hash || ""; } catch { /* no JSON arguments */ }
-  for (const [k, v] of [["Signed by", tx.signer_id], ["Sent to", tx.receiver_id], ["Method", fc.method_name || Object.keys(a)[0] || String(a)], ...(locked ? [["Locked test sha256", locked]] : []), ["Hash", tx.hash]]) {
+  for (const [k, v] of [["Signed by", tx.signer_id], ["Sent to", tx.receiver_id], ["What it asked", fc.method_name ? (DID[fc.method_name] || fc.method_name) : Object.keys(a)[0] || String(a)], ...(locked ? [["Locked test sha256", locked]] : []), ["Hash", tx.hash]]) {
     $("facts").append(el("dt", k), el("dd", v));
   }
+  const raw = [`Method ${fc.method_name || Object.keys(a)[0] || String(a)}`];
   for (const o of t.receipts_outcome) for (const line of o.outcome.logs) {
+    raw.push(o.outcome.executor_id + ": " + line);
     const j = line.startsWith("EVENT_JSON:") ? (() => { try { return JSON.parse(line.slice(11)); } catch { return null; } })() : null;
     if (j && j.event === "ft_transfer") {
-      for (const d of j.data) $("moved").append(el("li", `${Number(d.amount) < 1e4 ? d.amount + " units (millionths of a test USDC)" : (Number(d.amount) / 1e6).toFixed(2)} from ${d.old_owner_id} to ${d.new_owner_id}`));   // a spend of 1 or 3 units would round to 0.00
+      for (const d of j.data) $("moved").append(el("li", `${tu(d.amount)} from ${d.old_owner_id} to ${d.new_owner_id}`));
       $("moved-h").hidden = false;
-    } else { $("said").append(el("li", o.outcome.executor_id + ": " + line.slice(0, 400))); $("said-h").hidden = false; }
+    } else if (j && SAYS[j.event]) { for (const d of j.data || []) $("said").append(el("li", SAYS[j.event](d || {}))); $("said-h").hidden = false; }
+    else if (!j) { $("said").append(el("li", o.outcome.executor_id + ": " + line.slice(0, 400))); $("said-h").hidden = false; }   // a plain log line is already words
   }
+  if (!ok) { $("said").append(el("li", "The contract refused it: " + refusal(failed ? failed.outcome.status : t.status))); $("said-h").hidden = false; }
+  $("raw").textContent = raw.join("\n"); $("raw-d").hidden = false;
   const x = document.createElement("a"); x.href = "https://testnet.nearblocks.io/txns/" + h; x.textContent = "The same transaction on the NEAR explorer"; x.rel = "noopener";
   $("more").append(x);
 })();

@@ -5,13 +5,13 @@
    "account": "live.knos-swarm-1105.testnet",
    "kind": "near",
    "floor": 1.0,
-   "what": "Buyer, fees"
+   "what": "Knos's own test account, NEAR for fees"
   },
   {
    "account": "live.knos-swarm-1105.testnet",
    "kind": "usdc",
    "floor": 500.0,
-   "what": "Buyer, test USDC"
+   "what": "Knos's own test account, test USDC"
   },
   {
    "account": "jobs.knos-swarm-1105.testnet",

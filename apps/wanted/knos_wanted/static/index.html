@@ -68,7 +68,7 @@
 @media (prefers-reduced-motion:no-preference){.k-mission .k-line>span{animation:k-headrise .8s cubic-bezier(.625,.05,0,1) both}.k-mission .k-line+.k-line>span{animation-delay:.08s}}
 @media (prefers-reduced-motion:reduce){.k-mission .k-line>span{animation:k-fade .4s ease both}}
 @keyframes k-headrise{from{translate:0 110%}to{translate:0 0}}@keyframes k-fade{from{opacity:0}}
-.k-sub{margin:var(--sp-3) 0 0;max-width:56ch;font:500 17px/1.5 var(--text);color:var(--ink-2);text-wrap:pretty}
+.k-sub,.k-vision,.k-askbox .k-a{margin:var(--sp-3) 0 0;max-width:56ch;font:500 17px/1.5 var(--text);color:var(--ink-2);text-wrap:pretty}
 .k-ask{position:relative;display:flex;gap:var(--sp-2);padding:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;box-shadow:var(--depth-2)}
 .k-ask:focus-within{border-color:var(--accent)}
 .k-ask input{flex:1;min-width:0;margin:0;padding:12px 14px;border:0;outline:0;background:transparent;color:var(--fg);font:400 var(--s1)/1.4 var(--text)}
@@ -141,7 +141,7 @@ html.k-revealing
 .k-try .k-chip{min-height:44px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--paper-2);color:var(--ink);font:500 15px/1.2 var(--text);cursor:pointer}
 @container (min-width:900px){.k-hero-grid:has(#k-card:empty) .k-try{justify-content:center}}
 @container (max-width:560px){.k-ask{border-radius:24px}}
-@container (min-width:900px){.k-hero-grid:has(#k-card:empty){grid-template-columns:minmax(0,760px);grid-template-areas:"head" "ask" "card" "rest" "strip";justify-content:center}.k-hero-grid:has(#k-card:empty) .k-head,.k-hero-grid:has(#k-card:empty) .k-sub{text-align:center}.k-hero-grid:has(#k-card:empty) .k-mission,.k-hero-grid:has(#k-card:empty) .k-sub{margin-inline:auto}}
+@container (min-width:900px){.k-hero-grid:has(#k-card:empty){grid-template-columns:minmax(0,760px);grid-template-areas:"head" "ask" "card" "rest" "strip";justify-content:center}.k-hero-grid:has(#k-card:empty) .k-head,.k-hero-grid:has(#k-card:empty) .k-sub,.k-hero-grid:has(#k-card:empty) .k-vision,.k-hero-grid:has(#k-card:empty) .k-askbox .k-a{text-align:center}.k-hero-grid:has(#k-card:empty) .k-mission,.k-hero-grid:has(#k-card:empty) .k-sub,.k-hero-grid:has(#k-card:empty) .k-vision,.k-hero-grid:has(#k-card:empty) .k-askbox .k-a{margin-inline:auto}}
 .k-pay-fee{margin:var(--sp-2) 0 0;font:500 14px/1.4 var(--text);color:var(--ink-2)}
 </style>
 <div class="k-hero" id="k-hero" data-api="" data-app="/app/">
@@ -157,6 +157,8 @@ html.k-revealing
 <i class="k-load" aria-hidden="true"></i>
 </form>
 <p class="k-sub" id="k-sub">The demand check of <a href="https://drexthealpha.github.io/Knos/">Knos</a>. Type an idea or a paper's DOI. Qloo taste data shows who would buy it.</p>
+<p class="k-vision">The goal: Knos turns any research into a product billions of people use, in days, not years.</p>
+<p class="k-a">Knos itself checks research claims on NEAR testnet: <a href="https://drexthealpha.github.io/Knos/">ask it about a paper</a>.</p>
 <script src="/static/brand/pointer.js" defer></script>
 <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-count></span> <span data-t aria-hidden="true"></span></p>
 <ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
