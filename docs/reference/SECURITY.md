@@ -1004,7 +1004,7 @@ The rule: a pull request's code and its tests never run in a job that can ask Gi
 job that signs takes from the job that ran such code is data it checks again, never an instruction.
 
 This section is the author's own review, not an outside audit, of the workflows a repository installs (`fund.yml`, `prove.yml`, `check.yml` and `attest.yml`, published to the `workflows-<sha12>` tags of
-`drexthealpha/Knos` (`drexthealpha/knos-workflows` before the 0.3.34 branch, whose files and history are in [`repos/knos-workflows`](../../repos/knos-workflows/)) by [`scripts/pinned_workflows.py`](../../scripts/pinned_workflows.py)), of the two files that call them (`knos.yml`,
+`drexthealpha/Knos` (before the 0.3.34 branch: [`repos/knos-workflows`](../../repos/knos-workflows/)) by [`scripts/pinned_workflows.py`](../../scripts/pinned_workflows.py)), of the two files that call them (`knos.yml`,
 `knos-check.yml`) and of `hermetic.yml`, job by job, and what this release changed.
 
 [`tests/test_workflows2.py`](../../tests/test_workflows2.py) holds the shape and [`tests/test_verdict_gate.py`](../../tests/test_verdict_gate.py) the hostile cases.
