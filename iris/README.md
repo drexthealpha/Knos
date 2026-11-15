@@ -169,7 +169,7 @@ run 2 $0.0086. The online demo ran at the run 2 cap until it went offline.
 
 ## Why I built this
 
-A solo founder in Lagos, building Knos since 1 Sep 2026. IRIS, Docker and the build would not fit on an 8 GB laptop,
+A solo founder, building Knos since 1 Sep 2026. IRIS, Docker and the build would not fit on an 8 GB laptop,
 so every IRIS build and test moved to one GitHub Codespace
 ([the problems I hit](https://github.com/drexthealpha/Knos/blob/main/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
 Claude Code wrote most of the code; the design choices above, and every decision about what the agent may do, are mine.
