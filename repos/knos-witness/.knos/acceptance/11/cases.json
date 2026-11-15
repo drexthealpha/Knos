@@ -1,0 +1,32 @@
+{
+ "v": 1,
+ "issue": 11,
+ "run": [
+  "python3",
+  "words.py"
+ ],
+ "input": "text",
+ "seed": null,
+ "cases": [
+  {
+   "input": "one two three",
+   "output": "three two one"
+  },
+  {
+   "input": "a b",
+   "output": "b a"
+  },
+  {
+   "input": "solo",
+   "output": "solo"
+  },
+  {
+   "input": "x  y   z",
+   "output": "z y x"
+  },
+  {
+   "input": "left right",
+   "output": "right left"
+  }
+ ]
+}
