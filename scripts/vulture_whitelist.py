@@ -10,9 +10,6 @@ from knos.settle import pay as settle_pay
 
 _ = object()
 
-# html.parser.HTMLParser calls this for each tag it reads (scripts/test_one_product.py Links).
-_.handle_starttag
-
 # Typer registers these with decorators and calls them when a person types the command.
 cli._main, cli.bounty, cli.due, cli.mainnet_check_cmd, cli.status_cmd
 cli.balance_show, cli.balance_open, cli.balance_deposit, cli.balance_set, cli.balance_withdraw      # knos balance show | open | deposit | set | withdraw
@@ -260,6 +257,7 @@ cctp_.MESSAGE_TRANSMITTER_V2, cctp_.TOKEN_MESSENGER_MINTER_V2      # Circle's CC
 x402_upto_.OPEN_SLOT_WINDOW                         # constants.rs of the upto program
 outcome_spec_.ORDER_MIN_WHOLE                       # knos_pay ORDER_MIN_AMOUNT, in whole units
 blockhash_.MAX_AGE_BLOCKS                           # the blockhash age limit of Solana; tests/test_platform_nonce_v34.py
+blockhash_.expired                                  # tests/test_platform_nonce_v34.py
 # Public functions and constants with no caller inside src/knos or scripts, each held by the tests (or the program) that name it.
 from knos import graduation as graduation_, ideas as ideas_, init as init_, playground as playground_
 from knos.claude import managed as managed_
@@ -303,7 +301,7 @@ receipt2_ed25519_.b58encode                         # tests/test_receipt2_sign.p
 anchoring_.parse_memo                               # tests/test_record_verify.py, tests/test_record_devnet.py
 repro_publish_.verify_signed                        # docs/reference/REPRODUCED.md; tests/test_repro_privacy.py
 atropos_.referee_spec                               # docs/reference/REFEREE.md; tests/test_taskpack_export.py
-sealed_.load_tasks, sealed_.public_prompt           # tests/test_hermes_gepa.py
+sealed_.load_tasks, sealed_.public_prompt           # the sealed scorer's entry points (src/knos/verify/sealed.py, docs/reference/AGENTS.md)
 bn254_.pairing, bn254_.G1_GEN, bn254_.G2_GEN        # src/knos/zk; tests/test_zk_groth16.py
 zk_client_.DEVNET_PROGRAM_ID                        # the reserved devnet program id (src/knos/zk); tests/test_zk_client.py
 

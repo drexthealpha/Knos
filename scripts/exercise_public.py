@@ -1,5 +1,5 @@
 """Run each new program feature once at the PUBLIC program ids on devnet, and record the transactions as evidence.
-(knos_pay 2.1 and 2.2 and knos_oidc 1.1 and 2.2 are program versions; "staging" means a test copy at addresses of its own.)
+(knos_pay 2.1 and 2.2 and knos_oidc 2.1 and 2.2 are program versions; "staging" means a test copy at addresses of its own.)
 
     python scripts/exercise_public.py status --rpc URL [--json] [--want 2.2]
     python scripts/exercise_public.py run --phase before|after --rpc URL --keys DIR [--resume] [--neutral OWNER/REPO] [--only STEP]
@@ -7,7 +7,8 @@
     python scripts/exercise_public.py note ROUND --keys DIR key=value ...     what a step done outside this script printed
     python scripts/exercise_public.py record --keys DIR --rpc URL
     python scripts/exercise_public.py rehearse --rc --rpc URL --keys DIR --live-so-dir DIR --so-dir DIR [--resume]
-    python scripts/exercise_public.py propose --rpc URL --keys DIR --so-dir DIR
+    python scripts/exercise_public.py propose --rpc URL --keys DIR --so-dir DIR      (propose-oidc: the old name, the same command)
+    python scripts/exercise_public.py list                                   every capability below exercised, its round, and each registered round
     python scripts/exercise_public.py run --simulate --out FILE          the same rounds on a local simulator
     python scripts/exercise_public.py rehearse --rc --simulate           the same rehearsal on a local simulator
     python scripts/exercise_public.py record --simulate --evidence FILE --root COPY
@@ -19,9 +20,11 @@ status   hashes the executable of each of the four public programs the way docs/
          nothing here waits. Exit 1: anything else (a hash nobody recorded, a cluster that does not answer). `--json`
          prints the same as one object, with the exit code in `exit`.
 
-         `--want 2.2` asks one more thing: do knos_oidc and knos_pay run the builds of proposals 7 and 8? Exit 0 only
-         then; exit 3 while either has not executed (said per program, with the multisig's own word for its proposal);
-         exit 1 for anything unexpected. `--json` names each live build by its hash either way.
+         `--want 2.2` asks one more thing: do knos_oidc and knos_pay run the builds of proposals 7 and 8 (or a later
+         build of LATER_PROPOSALS)? Exit 0 only then; exit 3 while either has not executed (said per program, with the
+         multisig's own word for its proposal); exit 1 for anything unexpected. `--want later` asks the same of the later
+         set: proposal 13 (knos_pay) and proposal 14 or 15 (knos_oidc), approved and waiting on the multisig
+         (web/upgrades.json). `--json` names each live build by its hash either way.
 
 run --phase after   the rounds of knos_oidc 2.2 and knos_pay 2.2 at the PUBLIC ids, and only when `status --want 2.2`
          is satisfied (else exit 3 with nothing sent): the one-rate fee (5.00 -> 0.05, 100.00 -> 0.30, 1,500.00 ->
@@ -69,8 +72,8 @@ rehearse --rc   the staging rehearsal of knos_pay's new build, as one command: t
          open order goes back; staging is closed. `--simulate` runs all of it on the local simulator, starting on the
          test build of the live source (tests/fixtures/live) and upgrading in place to the tree's.
 
-propose  REFUSES in this release: this release changes no program, and the upgrades of knos_oidc and knos_pay were
-         already proposed (upgrade proposals 7 and 8 of the multisig, listed in web/upgrades.json). What follows describes the command as the release before ran it.
+propose  REFUSES: the later upgrades of knos_oidc and knos_pay are proposals 13, 14 and 15 of the multisig, made outside
+         this command and listed in web/upgrades.json. What follows describes the command as the 0.3.18 release ran it.
          After proposals 3 to 6 have executed: the plan is every program whose verified build in --so-dir is not the
          build its public id runs, and it must be exactly this release's set, [knos_oidc, knos_pay] (RELEASE_CHANGES in
          scripts/provenance.py); any other plan stops it with nothing sent. Each build is held to the record the
@@ -115,16 +118,21 @@ OLD = {"knos_oidc": "2.0", "knos_pay": "2.0", "knos_meter": "1.0", "knos_passkey
 # The set proposed after 0.3.18's push (approved 2026-10-07, executable two days later): the verified builds of that tree.
 NEXT_PROPOSALS = {"knos_oidc": 7, "knos_pay": 8}
 NEXT_VERSION = {"knos_oidc": "2.2", "knos_pay": "2.2", "knos_meter": "1.2", "knos_passkey": "1.2"}
-# How each of those builds' executable hash begins, as the run that proposed them printed it. The whole hash is in the
-# upgrade gate's record on chain and in the feed's entry; this is only what a build must also match when neither file
-# of this tree names it yet and the multisig says its proposal executed.
-NEXT_BUILD = {"knos_oidc": "7cad6dea", "knos_pay": "2743098f"}
-WANT = {"2.2": ("knos_oidc", "knos_pay")}
+# How each of those builds' executable hash begins, as web/upgrades.json and docs/provenance.json record the executed
+# proposals 7 and 8. This is only what a build must also match when neither file of this tree names it and the multisig
+# says its proposal executed.
+NEXT_BUILD = {"knos_oidc": "a2df952d", "knos_pay": "8b3c0440"}
+# The later set, proposed on 3 Nov 2026 and approved, executable from 11 Nov 2026 (web/upgrades.json): proposal 13
+# upgrades knos_pay; 14 and 15 upgrade knos_oidc. A build of one of these is "next" too, by the feed's entry for that
+# proposal and the hash read at the public id; its version is not named in this tree.
+LATER_PROPOSALS = {"knos_pay": (13,), "knos_oidc": (14, 15)}
+WANT = {"2.2": ("knos_oidc", "knos_pay"), "later": ("knos_oidc", "knos_pay")}
 EVIDENCE = "exercise_public.json"
 OUTSIDE = "outside.json"                # <keys>/outside.json: what a step done outside this script left (`note` writes it)
 REHEARSAL = "rehearse_rc.json"          # <keys>/rehearse_rc.json: what the staging rehearsal kept
 LIVE_BUILDS = ROOT / "tests" / "fixtures" / "live_builds.json"     # the test builds made from the source that is live at the public ids
-SITE = "https://drexthealpha.github.io/Knos/"
+# The Buy page of the 0.3.x site: web/index.html (filled by web/buyer.js) is no longer published, so it is served locally
+BUY_PAGE = "http://localhost:8000/index.html#buy"
 PLAYGROUND = "drexthealpha/Knos"
 USDC = 1_000_000
 AMOUNT = pay.ORDER_MIN_AMOUNT           # 5.00: the least an order takes
@@ -238,6 +246,9 @@ def read_programs(account: Callable, root: Path = ROOT) -> dict[str, dict]:
             row.update(build=str(nxt.get("version") or "?"), proposal=nxt.get("proposal") or NEXT_PROPOSALS.get(name), **{"is": "next"})
         elif mine and int(mine[0]["index"]) == NEXT_PROPOSALS.get(name):            # the feed's entry for proposal 7 or 8 names this build
             row.update(build=NEXT_VERSION[name], proposal=NEXT_PROPOSALS[name], **{"is": "next"})
+        elif mine and int(mine[0]["index"]) in LATER_PROPOSALS.get(name, ()):     # the feed's entry for proposal 13, 14 or 15 names this build
+            idx = int(mine[0]["index"])
+            row.update(build=f"the build of proposal {idx}", proposal=idx, **{"is": "next"})
         elif name in NEXT_BUILD and row["hash"].startswith(NEXT_BUILD[name]) and (asked := asked or next_proposals(account, root)).get(name, {}).get("status") == "Executed":
             row.update(build=NEXT_VERSION[name], proposal=NEXT_PROPOSALS[name], **{"is": "next"})       # no file names it yet: the multisig says it ran
         elif before.get("on_chain_hash") == row["hash"] and before.get("proposal_status") != "Executed":
@@ -274,21 +285,36 @@ def next_proposals(account: Callable, root: Path = ROOT) -> dict[str, dict]:
     return out
 
 
+def reached(name: str, row: dict, want: str) -> bool:
+    """Whether one program runs the build `want` asks for: "2.2" is proposal 7's or 8's build, or a later one;
+    "later" is the build of one of LATER_PROPOSALS."""
+    if row["is"] != "next":
+        return False
+    later = row.get("proposal") in LATER_PROPOSALS.get(name, ())
+    return later if want == "later" else (later or str(row["build"]) == want)
+
+
 def status_code(rows: dict[str, dict], want: str | None = None) -> int:
-    """0, 3 or 1. With `want` ("2.2"): 0 only when every program of that set runs that version's build."""
+    """0, 3 or 1. With `want` ("2.2" or "later"): 0 only when every program of that set runs that build."""
     kinds = {r["is"] for r in rows.values()}
     if "unknown" in kinds:
         return 1
     if want:
-        return 0 if all(rows[n]["is"] == "next" and str(rows[n]["build"]) == want for n in WANT[want]) else 3
+        return 0 if all(reached(n, rows[n], want) for n in WANT[want]) else 3
     return 3 if "old" in kinds else 0
 
 
 def want_says(rows: dict[str, dict], asked: dict[str, dict], want: str) -> str:
     """One line for `--want`: which proposals executed and which did not, in the multisig's own words."""
-    behind = [n for n in WANT[want] if not (rows[n]["is"] == "next" and str(rows[n]["build"]) == want)]
+    behind = [n for n in WANT[want] if not reached(n, rows[n], want)]
+    if want == "later":
+        if not behind:
+            return " and ".join(f"{n} (proposal {rows[n]['proposal']})" for n in WANT[want]) + " run the builds of the later proposals at the public ids"
+        return ("; ".join(f"{n} runs {rows[n]['build'] or 'a build no file names'}, not the build of proposal "
+                          + " or ".join(str(i) for i in LATER_PROPOSALS[n]) for n in behind)
+                + " (web/upgrades.json says whether they wait on the multisig). Nothing waits (exit 3)")
     if not behind:
-        return (" and ".join(f"{n} {want} (proposal {asked[n]['proposal']})" for n in WANT[want])
+        return (" and ".join(f"{n} {want} (proposal {rows[n]['proposal'] or asked[n]['proposal']})" for n in WANT[want])
                 + " are live at the public ids: run the after rounds (`run --phase after`)")
     return ("; ".join(f"proposal {asked[n]['proposal']} ({n} {want}) has not executed"
                       + (f": the multisig says {asked[n]['status']}" if asked[n].get("status") else ": its proposal could not be read")
@@ -324,7 +350,8 @@ def status(url: str, say: Callable[[str], None] = print, account: Callable | Non
         return code
     for name, r in rows.items():
         what = {"new": f"{name} {r['build']}, the build of proposal {r['proposal']}",
-                "next": f"{name} {r['build']}, the later build" + (f" of proposal {r['proposal']}" if r["proposal"] else " docs/provenance.json names"),
+                "next": (f"{name} {r['build']}, approved after 2.2" if r["proposal"] in LATER_PROPOSALS.get(name, ()) else
+                         f"{name} {r['build']}, the later build" + (f" of proposal {r['proposal']}" if r["proposal"] else " docs/provenance.json names")),
                 "old": f"{name} {r['build']}: proposal {PROPOSALS[name]} has not executed",
                 "unknown": "a build no file of this repository records" if r["hash"] else "nothing: no program data at this id"}[r["is"]]
         say(f"{name} {r['id']}: runs {what}; hash {r['hash']}; last deployed in slot {r['slot']}")
@@ -1481,12 +1508,12 @@ def round_x402(book: Book, st: dict) -> None:
 
 
 def round_passkey(book: Book, st: dict) -> None:
-    """A passkey funds an order from the site's Buy page: a person does it in a browser, and the transaction the page
-    shows is held to the chain."""
+    """A passkey funds an order from the Buy page of the 0.3.x site (web/index.html with web/buyer.js, no longer
+    published: served locally): a person does it in a browser, and the transaction the page shows is held to the chain."""
     w = book.w
     if "fund" in st:
         return
-    how = (f"in a browser with a passkey, open {SITE}#buy and press, in this order: `Create a passkey wallet`; send the address it shows "
+    how = (f"serve the 0.3.x site locally (`python -m http.server 8000 -d web`); in a browser with a passkey, open {BUY_PAGE} and press, in this order: `Create a passkey wallet`; send the address it shows "
            f"{money(AMOUNT + USDC)} test USDC and press `Check the balance`; `Sign the order with the passkey`; `Copy the comment`, then `Open the issue` and "
            "post the comment there. The relay carries it. Press `Read the order from devnet`: the page shows the funding transaction. Then `python "
            "scripts/exercise_public.py note passkey --keys <keys> fund=<that transaction>`, and this again")
@@ -1986,8 +2013,8 @@ def record(ev: dict, root: Path = ROOT, say: Callable[[str], None] = print, refr
 # ---- propose -----------------------------------------------------------------------------------------------------------
 from provenance import RELEASE_CHANGES  # noqa: E402  the ONE proposal set of this release, in the order the upgrades execute: ("knos_oidc", "knos_pay")
 
-# What THIS release proposes: nothing. Its tree changes no program (programs-v2/ is byte for byte 0.3.18's), and the
-# builds RELEASE_CHANGES names were proposed as 7 and 8 on 2026-10-07.
+# What THIS release proposes: nothing. Proposals 13 (knos_pay) and 14 and 15 (knos_oidc) were made outside this command
+# and wait on the multisig (web/upgrades.json); the builds RELEASE_CHANGES names were proposed as 7 and 8 on 2026-10-07.
 RELEASE_PROPOSES: tuple[str, ...] = ()
 
 
@@ -1999,9 +2026,10 @@ def propose(url: str, keys: Path, so_dir: Path, say: Callable[[str], None] = pri
     before anything is read."""
     import upgrade_feed as feed
     if not changes:
-        say("refused: this release proposes nothing. Its tree changes no program, and " + " and ".join(
-            f"{n} {NEXT_VERSION[n]} is proposal {i}" for n, i in NEXT_PROPOSALS.items())
-            + " already: `status --want 2.2` says whether they executed. Nothing was read, written or proposed.")
+        say("refused: this release proposes nothing. " + " and ".join(
+            f"{n} {NEXT_VERSION[n]} was proposal {i}" for n, i in NEXT_PROPOSALS.items())
+            + "; the later builds are proposals 13 (knos_pay) and 14 and 15 (knos_oidc), made outside this command (web/upgrades.json): "
+            "`status --want later` says whether they executed. Nothing was read, written or proposed.")
         return 1
     account = account or mc._rpc(url)
     rows = read_programs(account, root)
@@ -2621,7 +2649,7 @@ def after_grace(book: Book, st: dict) -> None:
             book.tx(st, "the grace is over: the order goes back to the wallet with its fee", sig, "knos_pay")
             return
     # RefundOrder is anyone's once the grace is over, and the public relay sends every refund that is due (0.3.24: it sent
-    # this one 41 s after the grace ended, before this step did): the refund is read from knos_pay's own line, never assumed.
+    # this one shortly after the grace ended, before this step did): the refund is read from knos_pay's own line, never assumed.
     sig = w.refunded(order, back)
     _check(sig is not None, "the order is not there, and no transaction of knos_pay refunded it with its amount and its fee "
                             f"({money(back)})")
@@ -2873,10 +2901,11 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
     ap.add_argument("--rc", action="store_true", help="rehearse: on staging ids (the only kind there is)")
     ap.add_argument("--phase", choices=("before", "after"), help="run: the checks of the knos_oidc and knos_pay 2.2 upgrades (multisig proposals 7 and 8), before or after they execute, at the PUBLIC ids. "
                                                                  "rehearse: one phase alone, on the ids of KNOS_PROGRAM_IDS (what `rehearse --rc` calls)")
-    ap.add_argument("--want", choices=tuple(WANT), help="status: exit 0 only when the builds of this version are live (2.2: upgrade proposals 7 and 8 have executed)")
+    ap.add_argument("--want", choices=tuple(WANT), help="status: exit 0 only when these builds are live (2.2: upgrade proposals 7 and 8, or later, have executed; "
+                                                        "later: proposal 13 and proposal 14 or 15 have executed)")
     ap.add_argument("--neutral", help="run --phase after: owner/repo of ANOTHER owner whose attest.yml run is the second judge; it is read, never written to")
     ap.add_argument("--live-so-dir", type=Path, default=Path(os.environ["KNOS_LIVE_SO_DIR"]) if os.environ.get("KNOS_LIVE_SO_DIR") else None,
-                    help="rehearse: the verified builds that are live (program.yml's run on the v0.3.14 tag)")
+                    help="rehearse: the verified builds that are live (the program.yml runs docs/provenance.json names as on_chain_run)")
     ap.add_argument("--rpc", help="the cluster (devnet)")
     ap.add_argument("--keys", type=Path, help="the key folder: relayer.json, funder.json, and where the evidence is kept")
     ap.add_argument("--only", help="one capability (or one round) alone; with --phase: one step (or one round) of that phase alone")
@@ -2928,7 +2957,11 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print) -> i
             if not os.environ.get("KNOS_PROGRAM_IDS"):
                 ap.error("--phase runs on staging ids only: KNOS_PROGRAM_IDS is not set (run `rehearse --rc`, which sets it)")
             w = Public(a.rpc, a.keys, say, a.since)
-            w.repository = w.cfg.get("staging_repository", "drexthealpha/knos-rc")
+            # the staging repository (its workflows read the staging ids) is named in <keys>/exercise.json. There is no
+            # default: the old staging copy is being archived, and Knos's own workflows read the public ids
+            if not w.cfg.get("staging_repository"):
+                ap.error(f'rehearse --rc --phase needs "staging_repository": "OWNER/REPO" in {a.keys / "exercise.json"}: a repository whose workflows read the staging ids')
+            w.repository = w.cfg["staging_repository"]
             ev = _json(a.keys / REHEARSAL) or {}
             ev.update({"v": 1, "mode": "staging", "kind": "rehearsal", "cluster": "devnet", "ids": dict(oidc.IDS)})
             ev.setdefault("rounds", {})

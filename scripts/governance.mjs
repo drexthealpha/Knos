@@ -839,7 +839,7 @@ export function planLines(name, plan) {
   const carried = actions.map((a) => a.__kind === "AddMember" ? `add ${a.newMember.key} (${perms(a.newMember.permissions.mask)})`
     : a.__kind === "RemoveMember" ? `remove ${a.oldMember}` : a.__kind === "SetTimeLock" ? `time lock ${span(a.newTimeLock)}` : `threshold ${a.newThreshold}`).join("; ");
   const what = name === "upgrade" ? "approve an upgrade" : "approve a signing key, revoke one or pause new funding";
-  const wait = timeLock ? timeLock.before : WHICH[name].timeLock;      // the time lock on chain when the proposal is made
+  const wait = timeLock ? timeLock.before : lockNow(name);            // the time lock on chain when the proposal is made
   const lines = [
     `${name} multisig ${WHICH[name].multisig}`,
     `  today              ${before.threshold} of ${before.voters} voting keys; held by the founder: ${before.founder}; outside key holders: ${before.holders}`,

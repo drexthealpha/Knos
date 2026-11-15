@@ -4,7 +4,8 @@
 
 Every task of bench/idt/tasks.json is run twice through Claude Code in print mode on the operator's own subscription
 (`claude -p --output-format json`, never --bare, which skips that login): once with the vague brief, once with the
-Ready brief, same model, same effort, no tools. From each run's JSON: output tokens (thinking is billed as output),
+Ready brief, same model, same effort, built-in tools off (the operator's MCP servers were still loaded in the runs of
+20 and 28 Oct 2026, and some vague and control runs called them). From each run's JSON: output tokens (thinking is billed as output),
 thinking tokens, input and cache tokens, and the client's cost estimate (total_cost_usd). Each run is cross-checked
 against its own session transcript (~/.claude/projects/<cwd>/<session_id>.jsonl, the per-message usage). The answer
 is the reply's last fenced code block; the check is the task's: asserts run on the Python, or knos.ready.check on the

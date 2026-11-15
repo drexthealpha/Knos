@@ -253,9 +253,11 @@ def _live_send():
     import urllib.error
     import urllib.parse
     import urllib.request
-    import winreg
-    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
-        rk = winreg.QueryValueEx(k, "RENDER_API_KEY")[0]
+    rk = os.environ.get("RENDER_API_KEY")
+    if not rk:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+            rk = winreg.QueryValueEx(k, "RENDER_API_KEY")[0]
     req = urllib.request.Request(f"https://api.render.com/v1/services/{RENDER_SERVICE}/env-vars?limit=100",
                                  headers={"Authorization": "Bearer " + rk, "Accept": "application/json"})
     r = json.load(urllib.request.urlopen(req, timeout=60))

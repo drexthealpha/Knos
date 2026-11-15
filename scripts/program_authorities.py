@@ -1,8 +1,8 @@
-"""Every program the app or the site uses, with who can upgrade it, read from devnet: README.md's second table of
-programs (between <!-- authorities:start --> and <!-- authorities:end -->) and docs/program_authorities.json.
+"""Every program the app or the site uses, with who can upgrade it, read from devnet: the table of programs in
+docs/reference/COLOSSEUM.md (between <!-- authorities:start --> and <!-- authorities:end -->) and docs/program_authorities.json.
 
-    python scripts/program_authorities.py           read devnet, write the JSON and the README table
-    python scripts/program_authorities.py --check   exit 1 when the README or the JSON differs from devnet today
+    python scripts/program_authorities.py           read devnet, write the JSON and the COLOSSEUM.md table
+    python scripts/program_authorities.py --check   exit 1 when COLOSSEUM.md or the JSON differs from devnet today
 
 An upgradeable program's authority is the one in its ProgramData account (none: nobody can change it). A program
 owned by another loader cannot be upgraded at all.
@@ -40,7 +40,7 @@ PROGRAMS = [
     ("recr1L3PCGKLbckBqMNcJhuuyU1zgo8nBhfLVsJNwr5", "SPL Record (Solana)", "the app's chain-state records"),
     ("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr", "SPL Memo (Solana)", "the app's fee estimate and its notes on chain"),
     ("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb", "Token-2022 (Solana)", "the app's project credits"),
-    ("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf", "Squads multisig", "the upgrade and guardia vaults"),
+    ("SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf", "Squads multisig", "the upgrade and guardian vaults"),
 ]
 
 

@@ -65,7 +65,7 @@
  "public": {
   "label": "from public pull requests, not from Knos orders",
   "source": "docs/index.json",
-  "source_sha256": "26a8900313f222d886535435de984b0129e5c703bcfd012f6a33b2b236732092",
+  "source_sha256": "8c73e547396df9ab607ffc53fda4d1df2cc9d7c0ddab0b99f0dd6a91a03a0f7d",
   "category": "merged pull requests whose description claimed passing tests",
   "week": "2026-09-28",
   "read": "2026-10-07",
@@ -104,5 +104,5 @@
   "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+record%3A+claude-bot&agent=claude-bot&week=2026-09-28",
   "specification": "https://github.com/drexthealpha/Knos/blob/main/docs/reference/SUPPLIER.md"
  },
- "sha256": "f7e43f3818744cbd1058c150a2e510efc4bd1716ad39276d54ea8c5fc9b43ae1"
+ "sha256": "7708b76d9bcc39345681646a2ce4bfd85d1a58dd0d9b594d3b40d4be43da3e0d"
 }

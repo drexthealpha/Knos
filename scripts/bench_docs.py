@@ -22,10 +22,11 @@ Agent PR Index scan the docs quote, the programs' compute units, what was measur
                                                      "by_hand" in docs/facts.json)
     python scripts/bench_docs.py --slots            list the slots that have no number yet; exit 1 if there is one
 
-A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in README.md or docs/reference/BENCH.md:
+A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in docs/reference/BENCH.md, docs/NUMBERS.md or
+docs/reference/COLOSSEUM.md:
 
-    headline      the index's two named figures, and the merged pull requests
-    today         README: how many capabilities are at each stage, and which ones reached the public program ids (all
+    headline      the index's two named figures, and the merged pull requests (no document carries this block today)
+    today         docs/reference/COLOSSEUM.md: how many capabilities are at each stage, and which ones reached the public program ids (all
                   read from docs/capabilities.json, so the table cannot disagree with it), and the outside-use numbers of
                   NUMBERS.md, zeros included, from the same sources
     outside-use   docs/NUMBERS.md: nine numbers about use by anyone who is not Knos, each from where it is kept
@@ -69,7 +70,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ["README.md", "docs/reference/BENCH.md", "docs/NUMBERS.md", "docs/reference/COLOSSEUM.md"]   # COLOSSEUM.md: refpage.PAGE
 # The front-facing text (scripts/claims_check.py reads the same list): every number in it needs a fact.
-PITCH = ["README.md", "web/index.html", "docs/WHY.md"]   # Round 10, V5: the goal and the record moved to docs/WHY.md
+PITCH = ["README.md", "web/door.html", "docs/WHY.md"]   # Round 10, V5: the goal and the record moved to docs/WHY.md
 # The other files that may carry slots. Everything a reader opens first states a release-measured fact through one, so that the
 # release fills them all in one run and no document is left with an older number.
 SLOTTED = ["README.md", "CHANGELOG.md", "docs/reference/DISCLOSURE.md", "docs/reference/WHY.md", "docs/PRICING.md",
@@ -267,7 +268,7 @@ def outside_use(src: dict, repo: dict) -> str:
     return "\n".join(lines)
 
 
-# README.md's one table, "What is real today": the stage rows (stage_rows), the nine
+# The one table of docs/reference/COLOSSEUM.md (once README.md's), "What is real today": the stage rows (stage_rows), the nine
 # numbers of NUMBERS.md and the rows no number decides (TODAY_LAST), so the front page prints every zero that page prints and can print no other value.
 NUMBERS_DOC = "[docs/NUMBERS.md](docs/NUMBERS.md)"
 CAPS_DOC = "[docs/reference/CAPABILITIES.md](docs/reference/CAPABILITIES.md)"
@@ -303,7 +304,7 @@ def capabilities(root: Path = ROOT) -> list[dict]:
 
 
 def stage_rows(caps: list[dict]) -> list[tuple[str, str, str]]:
-    """The rows of README's table that say how far each capability has got, one row a stage, every one from
+    """The rows of the table in docs/reference/COLOSSEUM.md (block `today`) that say how far each capability has got, one row a stage, every one from
     docs/capabilities.json: the count of the stage, then the names of what reached the public ids."""
     rows = []
     for stage, name, tail, label in STAGE_ROWS:
@@ -340,7 +341,7 @@ def release_row(root: Path = ROOT) -> tuple[str, str, str]:
 
 
 def today(src: dict, repo: dict, caps: list[dict] | None = None, root: Path = ROOT) -> str:
-    """README.md's table (the block `today`): which release this is (release_row), how far each capability has got
+    """The table of docs/reference/COLOSSEUM.md (the block `today`): which release this is (release_row), how far each capability has got
     (stage_rows, from docs/capabilities.json), and what nobody outside has used, the last from the same sources as
     outside_use()."""
     rows = [release_row(root), *stage_rows(capabilities() if caps is None else caps),

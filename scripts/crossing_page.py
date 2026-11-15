@@ -1,4 +1,5 @@
-"""The page of one crossing, for the front door (web/crossing/<id>/index.html): the demand behind it, the hashed Ready
+"""Kept for its record: a page of the earlier demand-check flow (its output is now swept to a redirect).
+The page of one crossing, for the front door (web/crossing/<id>/index.html): the demand behind it, the hashed Ready
 brief (the hash recomputed here from the brief the project holds), each pre-order held on devnet, the check that
 counted them, and each release with what released it, read from its own transaction. Static: it asks nothing when read.
 
@@ -98,7 +99,7 @@ def page(f: dict) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Knos. One crossing: {e(d["idea"])}</title>
-<meta name="description" content="One idea carried from a demand check to a hashed brief, pre-orders held on Solana devnet and their release on proof.">
+<meta name="description" content="One idea carried from a demand check to a hashed brief, pre-orders held on Solana devnet and their release after the check.">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/crossing/{e(f["project"])}/">
 <meta name="color-scheme" content="light dark">
 <link rel="stylesheet" href="../../brand/tokens.css">
@@ -118,7 +119,7 @@ Target = max(10, round({d["population"]:,} / 100,000 × mean interest score)) = 
 <li><h2>The goal</h2><p>{e(m["name"])}: {e(m["target"])}. Checked by <span class="mono">{e(m["verifier"]["check"])}</span>.</p>
 <p>Terms ID <span class="mono">{e(f["criteria_hash"])}</span>. {"Recomputed here from the brief: the same." if same else "Recomputed here from the brief: different."}</p></li>
 <li><h2>Money held</h2><p>{len(f["orders"])} pre-orders of 5 test dollars each, from {len(f["wallets"])} test wallets of Knos, held on Solana devnet.</p></li>
-<li><h2>Paid on proof</h2><p>The check counted them on devnet{f' at <span class="mono">{e(f["ci_commit"])}</span>' if f["ci_commit"] else ""}{f' (<a href="{e(run)}">the signing run</a>)' if run else ""}. Milestone: {e(f["status"])}.</p></li>
+<li><h2>Released after the check</h2><p>The check counted them on devnet{f' at <span class="mono">{e(f["ci_commit"])}</span>' if f["ci_commit"] else ""}{f' (<a href="{e(run)}">the signing run</a>)' if run else ""}. Milestone: {e(f["status"])}.</p></li>
 </ol>
 <section id="targets"><h2>Targets in Qloo's launch cities</h2>{targets_table(LAUNCH.get(f["project"], []))}
 <p class="fine">The run kept the top launch city for each idea. A larger city raises the target: the same formula in the next example.</p>

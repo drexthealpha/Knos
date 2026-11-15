@@ -1,4 +1,4 @@
-"""Write the IDT benchmark's measured numbers into the home page (web/index.html, between <!-- home:idt --> marks).
+"""Write the IDT benchmark's measured numbers into src/knos/idt_benchmark.json (the home page no longer shows them).
 
     python scripts/idt_page.py          write the block from docs/idt/summary.json
     python scripts/idt_page.py --check  exit 1 when the page and the data disagree (tests/test_idt.py runs it)

@@ -10,7 +10,7 @@ fee payer of its own, and a payment always goes to the relay of its part (`knos.
 token's lane, the same partition the relay's workers use): two relays never carry one order, and no two relays pay
 from one fee payer. A pay token now travels in its ORDER's lane (the queue a relay works through, `knos.settle.v2.relay.lane`), so the
 orders of ONE owner spread over the relays. In the run of 8 Oct 2026, before this change, one owner's 40 tokens shared
-one lane and so one relay: 0.097 payments a second. And and `--fee-accounts K` has each order's fee go to one of K token accounts of FEE_OWNER
+one lane and so one relay: 0.097 payments a second. And `--fee-accounts K` has each order's fee go to one of K token accounts of FEE_OWNER
 (`knos.settle.v2.pay.fee_account_for`), so the payments do not all write one account.
 
 What is recorded, for every run: payments ATTEMPTED (the denominator), paid, refused (with the program's words),

@@ -5,6 +5,8 @@
 1. Admin paths. Each program's upgrade authority, the GUARDIAN and FEE_OWNER the programs pin, and the mint authority of
    every Knos-owned mint is a vault of a Squads v4 multisig with threshold >= 2, a time lock >= 172,800 s (48 h) and no
    config authority; or none (immutable), or a program PDA. A spending limit on such a multisig is a path around its vote.
+   The GUARDIAN, which only pauses knos_pay once knos_oidc key step 4 is deployed, needs threshold >= 2 and no config
+   authority, but no time lock.
 2. No durable-nonce admin signing: the code that builds admin and upgrade transactions never advances a nonce, and the
    newest transactions of each multisig do not start with AdvanceNonceAccount.
 3. A cap per vault in knos_pay: the constant in the source and the checks that hold an amount to it.

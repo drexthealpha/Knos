@@ -7,7 +7,7 @@
 #
 # It takes hours on a laptop (one build and test run per mutant), so it is not part of the default suite. It writes
 # mutants/<crate>/outcomes.json (cargo-mutants' own report) and prints one line per crate:
-#     knos_pay: caught 211, missed 9, unviable 34, timeout 0
+#     <crate>: caught N, missed N, unviable N, timeout N
 # Needs: cargo install cargo-mutants --locked (27.x). The unit tests it runs are the crates' own (`cargo test`), with
 # the testkeys feature. After knos_pay's mutants it runs the chain invariants once: the state machine and the gap
 # tests (CHAIN_TESTS below) on the compiled test build, tests/fixtures/knos_pay_v2_test.so, and prints

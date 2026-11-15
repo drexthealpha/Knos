@@ -38,8 +38,8 @@ GitHub's search answers 30 requests a minute to a signed-in caller and at most 1
 350 requests, about 12 minutes), and a day that holds more than 1,000 is cut in halves down to an hour. That reaches
 7,000 pull requests an agent a week before any cut. Reading the checks costs about three requests a pull request
 against the Actions token's 1,000 an hour (docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api):
-the scan waits for the budget, keeps every answer on disk, and the next run continues. Nothing but GET requests to
-GitHub's API is made, and no file of a sampled repository is fetched or run.
+the scan waits for the budget, keeps every answer on disk, and the next run continues. Only read requests are made to
+GitHub's API (GET, and GraphQL queries), and no file of a sampled repository is fetched or run.
 
 index.yml uploads index.json as the asset of a GitHub Release tagged index-<date> (a release, not a data commit);
 network.yml downloads the newest one into the Pages site.
@@ -301,7 +301,7 @@ WEEKLY_DEFINITIONS = {
 MIN_CLAIMS_TO_RANK = 30
 NAME = "Agent PR Index"
 NOT_JOINED = ("no list of Knos payments was joined to this sample, so the count is 0 for every agent: every Knos payment "
-              "so far is test USDC on Solana devnet. It takes a sampled pull request that was also paid through Knos under "
+              "so far is test USDC, on Solana devnet and NEAR testnet. It takes a sampled pull request that was also paid through Knos under "
               "terms with a black-box check, and that list passed with --paid")
 WEEKLY_LIMITS = [
     "An agent is told by its author account or by a line its tool writes in the description (`agents`). A person "

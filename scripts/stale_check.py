@@ -2,7 +2,8 @@
 
 Usage: python scripts/stale_check.py [--root PATH] [--json]
 
-A public file is the README, every Markdown file under docs/, and the site's HTML and scripts under web/. The
+A public file is the README, every Markdown file under docs/, the site's HTML, scripts and text files (llms.txt)
+under web/, the NEAR pages under near/web/, and scripts/site_product.py (it writes the product pages). The
 changelog is history and is not read. Each rule names a retired figure and the words that mark a mention of it as
 history or as a dated reading (a date, "was", "the scan", "version 1"...). A paragraph (in Markdown: the lines
 between blank lines, or one table row; elsewhere: one line) that states the figure without such a word is stale.
@@ -46,7 +47,7 @@ RULES = (
         "disclosure-0.3.11",
         r"\b209 commits\b|\b39,778\b|\b423 of\b|\b98\.9%",
         r"\bAt Knos 0\.3\.11, commit `f3dfd3d`, the same count was\b",
-        "docs/reference/DISCLOSURE.md counts at Knos 0.3.25: 229 commits, 412 of 428,405 lines (0.1%)",
+        "the disclosure count was retired from docs/reference/DISCLOSURE.md (commit 44c65448); do not state 209 commits or 98.9% as current",
     ),
     Rule(
         "fee-upgrade-pending",
@@ -60,6 +61,12 @@ RULES = (
         r"\b0\.05\b|\b10,000\b|propos|upgrade|\bknos_meter\b|\bknos-meter\b",
         "the deployed knos_meter charges 0.05 after 10,000 free; say so beside the price book's 0.002 after 100,000",
     ),
+    Rule(
+        "paste-a-paper",
+        r"[Pp]aste a paper",
+        DATED + r"|was|earlier|used to|no longer",
+        "the front door no longer takes a pasted paper: a check runs on a claim whose test is locked first",
+    ),
 )
 
 SKIP = ("CHANGELOG.md",)
@@ -68,9 +75,14 @@ SKIP = ("CHANGELOG.md",)
 def public_files(root: Path) -> list[Path]:
     out = [root / "README.md"] if (root / "README.md").exists() else []
     out += sorted((root / "docs").rglob("*.md"))
+    near = root / "near" / "web"
+    if near.is_dir():
+        out += sorted(near.rglob("*.html"))
+    if (root / "scripts" / "site_product.py").exists():
+        out.append(root / "scripts" / "site_product.py")
     web = root / "web"
     if web.is_dir():
-        out += sorted(p for p in web.rglob("*") if p.suffix in (".html", ".js") and "vendor" not in p.parts)
+        out += sorted(p for p in web.rglob("*") if p.suffix in (".html", ".js", ".txt") and "vendor" not in p.parts)
     return [p for p in out if p.name not in SKIP]
 
 

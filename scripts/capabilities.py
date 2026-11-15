@@ -4,7 +4,7 @@
                                                   verified without a network is verified; exit 1 and say what is wrong
     python scripts/capabilities.py check --rpc    also ask devnet: the program is there and runs the version named,
                                                   and every exercised signature exists and succeeded (the release runs this)
-    python scripts/capabilities.py render         write the summary between the markers in README.md and the table
+    python scripts/capabilities.py render         write the summary between the markers in docs/reference/COLOSSEUM.md and the table
                                                   between the markers in docs/*.md (docs/reference/CAPABILITIES.md)
     python scripts/capabilities.py render --check exit 1 when a table is not what the manifest says
     python scripts/capabilities.py reproduction [--live] FILE... [--own FILE...]

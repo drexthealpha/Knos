@@ -1,22 +1,19 @@
 // Knos's interface, live, in headless Chromium:
 //
 //   node scripts/test_ui_sota.mjs design    test_one_design_system: one logo, type, colour, spacing and bar everywhere
-//   node scripts/test_ui_sota.mjs mission   test_mission_line: one plain line above the fold, the valley of death, every field
-//   node scripts/test_ui_sota.mjs hero      test_hero_paper: one box on both front doors, a paper or idea to Qloo's verdict
-//   node scripts/test_ui_sota.mjs card      test_decision_card: open or refuse, who, cities on a map, price tier, each sourced
 //   node scripts/test_ui_sota.mjs layout    test_layout_audit: no word broken mid-word, no floating button over the page,
 //                                           no sideways scroll, at 320, 375, 768 and 1280 on every public page
 //   node scripts/test_ui_sota.mjs legibility  test_legibility: body text >= 16 px, <= 75 characters a line, line height
 //                                           >= 1.5, paragraphs <= 60 words, <= 120 words of prose above the fold, <= 3 secondary
 //                                           text lines a screen, one title and meta pattern (contrast: axe, quality.yml)
 //
-// The pages are scripts/public_pages.json; SITE_URL and APP_URL point the two front doors elsewhere (a local build).
+// The pages are scripts/public_pages.json (the product pages on GitHub Pages); SITE_URL and APP_URL point the site and
+// the app (whose brand files the design check compares) elsewhere (a local build).
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 
 const SITE = process.env.SITE_URL || "https://drexthealpha.github.io/Knos/", APP = (process.env.APP_URL || "https://knos.onrender.com/app/").replace(/\/?$/, "/");
-const DOORS = { "front door": SITE, app: APP };
 const PAGES = JSON.parse(readFileSync(new URL("./public_pages.json", import.meta.url), "utf8")).pages
   .map((u) => u.replace("https://drexthealpha.github.io/Knos/", SITE).replace("https://knos.onrender.com/app/", APP));
 const what = process.argv[2];
@@ -63,7 +60,7 @@ async function design() {
         };
       });
       got.logo = /wordmark\.svg/.test(got.logo) ? "wordmark.svg" : got.logo;
-      ok(got.square === 0 && got.logo === "wordmark.svg", `${scheme} ${url}: the logo is the crow wordmark, no green square`, { logo: got.logo, square: got.square });
+      ok(got.square === 0 && got.logo === "wordmark.svg", `${scheme} ${url}: the logo is the raven wordmark, no green square`, { logo: got.logo, square: got.square });
       ok(got.tokensFirst, `${scheme} ${url}: the token file is the first stylesheet`);
       for (const k of ["tokens", "body", "bg", "heading", "nav", "barStyle"]) (seen[`${scheme}:${k}`] ||= new Map()).set(url, got[k]);
       await ctx.close();
@@ -77,76 +74,6 @@ async function design() {
       : values.map((x) => [x, [...m.entries()].filter(([, y]) => y === x).map(([u]) => u)]));
   }
   console.log(`differences: ${diffs}`);
-}
-
-async function mission() {
-  for (const [door, url] of Object.entries(DOORS)) {
-    for (const [w, h] of [[375, 812], [1280, 800]]) {
-      const { ctx, page } = await open(url, w, h);
-      const m = await page.evaluate(() => {
-        const e = document.getElementById("k-mission"), r = e?.getBoundingClientRect();
-        return e && { text: e.textContent.trim(), top: r.top, bottom: r.bottom, shown: r.height > 0 && getComputedStyle(e).visibility !== "hidden", lines: document.querySelectorAll("#k-mission").length };
-      });
-      ok(!!m && m.lines === 1 && m.shown && m.bottom <= h && /valley of death/i.test(m.text) && /every field of science/i.test(m.text),
-        `${door} ${w}x${h}: the mission line is above the fold: "${m?.text}"`, m && { bottom: Math.round(m.bottom) });
-      await ctx.close();
-    }
-  }
-}
-
-// five live runs on each front door, each a different paper or idea; the time is from the press to the drawn verdict
-const RUNS = (process.env.HERO_INPUTS || ["10.1038/nature16521", "10.1126/science.aam8743", "10.1080/15402002.2017.1300587",
-  "a smart water bottle that glows to remind you to drink", "a running shoe with a carbon plate"].join("\n")).split("\n");
-async function hero() {
-  for (const [door, url] of Object.entries(DOORS)) {
-    const times = [];
-    for (const [i, q] of RUNS.entries()) {
-      const [w, h] = i % 2 ? [375, 812] : [1280, 800];
-      const { ctx, page } = await open(url, w, h);
-      const boxes = await page.evaluate(() => document.querySelectorAll("#k-hero form").length + ":" + document.querySelectorAll("#k-hero input").length);
-      if (i === 0) ok(boxes === "1:1", `${door}: the hero is one box`, boxes);
-      await page.fill("#k-q", q);
-      const t0 = Date.now();
-      await page.click("#k-go");
-      await page.waitForSelector("#k-card .k-card, #k-card .k-err", { timeout: 120000 }).catch(() => {});
-      const s = (Date.now() - t0) / 1000, v = await page.getAttribute("#k-card .k-card", "data-verdict").catch(() => null);
-      ok(v === "OPEN" || v === "REFUSE", `${door} ${w}px "${q}": Qloo's verdict ${v} in ${s.toFixed(1)} s`);
-      times.push(s);
-      await ctx.close();
-    }
-    const med = [...times].sort((a, b) => a - b)[Math.floor(times.length / 2)];
-    ok(med <= 10, `${door}: median ${med.toFixed(1)} s over ${times.length} live runs (at most 10 s)`, times.map((t) => +t.toFixed(1)));
-  }
-}
-
-async function card() {
-  for (const [door, url] of Object.entries(DOORS)) {
-    for (const [w, h] of [[375, 812], [1280, 800]]) {
-      const { ctx, page } = await open(url, w, h);
-      await page.fill("#k-q", "a smart water bottle that glows to remind you to drink");
-      await page.click("#k-go");
-      await page.waitForSelector("#k-card .k-card", { timeout: 120000 }).catch(() => {});
-      const c = await page.evaluate(() => {
-        const part = (p) => document.querySelector(`#k-card [data-part="${p}"]`);
-        const src = (e) => e && [...e.querySelectorAll("a.k-src")].map((a) => a.href).filter((x) => /\/trace\.html\?hash=[0-9a-f]{64}/.test(x));
-        const v = part("verdict"), a = part("audience"), m = part("cities"), p = part("price");
-        return {
-          verdict: v && v.textContent.replace("source", "").trim(), verdictSrc: src(v)?.length,
-          audience: a && a.querySelector(".k-big")?.textContent.trim(), audienceSrc: src(a)?.length,
-          dots: m ? m.querySelectorAll("svg.k-map circle").length : 0, cities: m ? m.querySelectorAll(".k-cities li").length : 0, mapSrc: src(m)?.length,
-          tier: p && p.querySelector(".k-tiers li[aria-current]")?.textContent.trim(), priceSrc: src(p)?.length,
-          first: src(v)?.[0], inside: (() => { const r = document.querySelector("#k-card .k-card")?.getBoundingClientRect(); return r && r.left >= 0 && r.right <= innerWidth; })(),
-        };
-      });
-      ok(!!c.verdict && c.verdictSrc > 0, `${door} ${w}x${h}: open or refuse, with its trace link`, c.verdict);
-      ok(!!c.audience && c.audienceSrc > 0, `${door} ${w}x${h}: the audience, with its trace link`, c.audience);
-      ok(c.dots > 0 && c.dots <= c.cities && c.mapSrc > 0, `${door} ${w}x${h}: the cities on a map (${c.dots} of ${c.cities}), with its trace link`);
-      ok(!!c.tier && c.priceSrc > 0, `${door} ${w}x${h}: the price tier drawn, with its trace link`, c.tier);
-      ok(c.inside, `${door} ${w}x${h}: the card fits the window`);
-      if (c.first) { const r = await fetch(c.first); ok(r.status === 200, `${door} ${w}x${h}: its trace link answers 200`, c.first.split("?")[0]); }
-      await ctx.close();
-    }
-  }
 }
 
 async function layout() {
@@ -234,14 +161,14 @@ async function legibility() {
       await ctx.close();
     }
   }
-  const pattern = titles.filter(([, t, m]) => !/^Knos\. [A-Z]/.test(t) || m < 50 || m > 160);
-  ok(!pattern.length, `titles and meta: one pattern ("Knos. Page", a 50-160 character description) on ${titles.length / 2} pages`, pattern.length ? [...new Set(pattern.map((x) => `${x[1]} (${x[2]})`))] : undefined);
+  const pattern = titles.filter(([, t, m]) => !/^Knos[: ]/.test(t) || m < 50 || m > 160);
+  ok(!pattern.length, `titles and meta: one pattern ("Knos: page", a 50-160 character description) on ${titles.length / 2} pages`, pattern.length ? [...new Set(pattern.map((x) => `${x[1]} (${x[2]})`))] : undefined);
 }
 
-const TESTS = { design, mission, hero, card, layout, legibility };
-if (!TESTS[what]) { console.error("usage: node scripts/test_ui_sota.mjs design|mission|hero|card|layout|legibility"); process.exit(2); }
+const TESTS = { design, layout, legibility };
+if (!TESTS[what]) { console.error("usage: node scripts/test_ui_sota.mjs design|layout|legibility"); process.exit(2); }
 await TESTS[what]();
 await browser.close();
-const NAME = { design: "test_one_design_system", mission: "test_mission_line", hero: "test_hero_paper", card: "test_decision_card", layout: "test_layout_audit", legibility: "test_legibility" }[what];
+const NAME = { design: "test_one_design_system", layout: "test_layout_audit", legibility: "test_legibility" }[what];
 console.log(fails ? `FAIL ${NAME} (${fails})` : `PASS ${NAME}`);
 process.exit(fails ? 1 : 0);

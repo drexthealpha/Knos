@@ -1,4 +1,5 @@
-"""test_outside_truth, live: 200 past DoD SBIR/STTR Phase I awards (2005-2014) whose outcome is known, 100 commercialized
+"""Kept for its record: a tool of the earlier demand-check work, not of Knos's locked-test flow.
+test_outside_truth, live: 200 past DoD SBIR/STTR Phase I awards (2005-2014) whose outcome is known, 100 commercialized
 (a granted US patent linked to the award in the Zenodo SBIR patent web data, 10.5281/zenodo.17018422) and 100 not (no
 linked patent, no Phase II from the same firm on that topic or title, per sbir.gov award data). The hosted app reads one
 short phrase from each (the title, or the abstract's first sentence) through POST /api/open-signals; prediction =

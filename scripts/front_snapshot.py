@@ -1,4 +1,6 @@
-"""The front door's snapshot: the research products open for backing now, written into web/index.html.
+"""Kept for its record: the 0.3.x front door's snapshot of the research products open for backing, written into
+web/index.html. That page is no longer published (the front door is web/door.html); tests/test_site_home.py still
+holds the two together.
 
     python scripts/front_snapshot.py [https://knos.onrender.com/api/front | a saved JSON file]   (write)
     python scripts/front_snapshot.py --check                                                    (held by tests)

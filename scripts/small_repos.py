@@ -30,7 +30,8 @@ writes its files into this repository (playground_in_knos). drexthealpha/knos-pl
                     the starter task's black-box acceptance checks under every issue number from 1 to
                     playground.SLOTS: a stranger's issue gets whatever number is next and cannot add files, and a
                     task with no checks could only be paid by a merge. docs/reference/PLAYGROUND.md is what a stranger reads.
-                    It also holds the starting file and the public examples of every task of tasks/ here, and
+                    It also holds the starting file and the public examples of every task of Knos's tasks/ folder
+                    (removed from Knos, so there are none today), and
                     `check.py`, which tries a solution on them. scripts/task_board.py opens those tasks as funded
                     issues and commits each one's checks under its issue's number, with the line in `board.json`:
                     `build DIR` and `check DIR` read DIR/board.json, so a rebuild keeps what the board wrote (a task
@@ -77,9 +78,8 @@ def _pub():
 
 TASK_README = """# knos-task
 
-The files of a repository for one piece of paid work: the "task with no repository" form on the
-[Knos](https://github.com/drexthealpha/Knos) site has you create an empty public repository of your own and add
-these files to it, one link each. They are kept in Knos itself, as `templates/knos-task/`.
+The files of a repository for one piece of paid work. Create an empty public repository of your own and add these
+files to it. They are kept in [Knos](https://github.com/drexthealpha/Knos) itself, as `templates/knos-task/`.
 
 What happens here:
 
@@ -89,9 +89,9 @@ To reproduce what Knos says it does, with nothing installed: create an empty pub
 
 For a task:
 
-1. You open an issue that says what you want built, and add the acceptance files the form made
+1. You open an issue that says what you want built, and add the acceptance files `knos accept init` makes
    (`.knos/acceptance/<issue>/`): pairs of an input and the answer it must get.
-2. You fund the issue with a comment, `/knos fund <amount> checks: none auto`. The money is held on Solana until the proof passes, and
+2. You fund the issue with a comment, `/knos fund <amount> checks: none auto`. The test USDC is locked on Solana with the terms, and
    the terms are fixed at that moment.
 3. Anyone opens a pull request that solves it. Knos runs the solution on every recorded input in a sandbox. When every
    answer matches, GitHub signs that it did, and the payment program pays the author. No merge and no decision of yours is
@@ -102,7 +102,7 @@ The files in `.github/workflows/` are copied from
 `knos-reproduce.yml`, which runs only when you start it by hand. Their comments say what each trigger does and what the
 file can and cannot do in this repository. They need no secret.
 
-On Solana devnet today, in test USDC.
+Part of Knos: the Solana side, from the Colosseum entry (v0.3.28), on Solana devnet in test USDC.
 """
 
 PLAYGROUND_README = """# knos-playground
@@ -133,7 +133,7 @@ from an account that is new to GitHub waits until a maintainer lets its check ru
 It is test money: the faucet mints it, nobody can withdraw it from the faucet's balance, and it is worth nothing.
 What is counted, and how: [docs/reference/PLAYGROUND.md](https://github.com/drexthealpha/Knos/blob/main/docs/reference/PLAYGROUND.md).
 
-On Solana devnet today, in test USDC.
+Part of Knos: the Solana side, from the Colosseum entry (v0.3.28), on Solana devnet in test USDC.
 """
 
 ISSUE_TEMPLATE = """---
@@ -223,10 +223,11 @@ who did the work can ask for the payment himself. These files are kept in Knos i
    GitHub signs a statement that names the order, the pull request and the commit, and a relayer carries it to
    Solana, where the payment program pays.
 
-It needs no secret, checks out no code and changes nothing anywhere. What it can do is written at the top of
+It needs no secret. It posts the signed statement as a comment on an issue here, and for an order paid by acceptance
+checks it runs that suite again in a sandbox. What it can do is written at the top of
 [the file](.github/workflows/knos-attest.yml), and why a run started by hand in your own repository is trusted.
 
-On Solana devnet today, in test USDC.
+Part of Knos: the Solana side, from the Colosseum entry (v0.3.28), on Solana devnet in test USDC.
 """
 
 CLAIM_README = """# knos-claim
@@ -242,13 +243,13 @@ are kept in Knos itself, as `templates/knos-claim/`.
    an issue. A relayer carries it to Solana. From then on what your merged pull requests earn through Knos is paid to
    that address.
 
-Run the workflow again with another address to change it. Nothing else starts a claim: no push, no link, no
-repository description. An address that arrives in a link could be someone else's, so the address must be one you typed.
+Run the workflow again with another address to change it. Nothing else starts a claim: not a push, and not
+an address found in a link or in the repository's description. An address that arrives in a link could be someone else's, so the address must be one you typed.
 
 The workflow needs no secret and cannot read or change code. What it can do is written at the top of
 [the file](.github/workflows/knos-claim.yml).
 
-On Solana devnet today, in test USDC.
+Part of Knos: the Solana side, from the Colosseum entry (v0.3.28), on Solana devnet in test USDC.
 """
 
 CLAIM_ORG_README = """# knos-claim (for an organisation)
@@ -266,13 +267,13 @@ A personal account uses `templates/knos-claim/` instead. These files are kept in
    that address, and posts it on an issue. A relayer carries it to Solana. From then on what is owed to the
    organisation through Knos is paid to that address.
 
-Run the workflow again with another address to change it. Nothing else starts a claim: no push, no link, no
-repository description.
+Run the workflow again with another address to change it. Nothing else starts a claim: not a push, and not
+an address found in a link or in the repository's description.
 
 The workflow needs no secret and cannot read or change code. What it can do is written at the top of
 [the file](.github/workflows/knos-claim.yml).
 
-On Solana devnet today, in test USDC.
+Part of Knos: the Solana side, from the Colosseum entry (v0.3.28), on Solana devnet in test USDC.
 """
 
 # name -> (what it is for, {path in the repository: a source file here, or the text itself})

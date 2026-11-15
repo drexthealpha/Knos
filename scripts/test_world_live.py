@@ -41,7 +41,7 @@ def main(argv: list[str]) -> int:
     pub = get(APP + "/api/refuse")
     cats = sorted(pub.get("categories") or pub.get("refuse") or {})
     print(f"/api/refuse: {len(cats)} categories {cats}, as of {pub.get('as_of')}, source {pub.get('sanctions_source')}")
-    passed = [b["title"] for b in bad_briefs() if card(b).get("ready")]
+    passed = [b["title"] for _cat, b in bad_briefs() if card(b).get("ready")]
     ok &= not passed and len(cats) == 4
     good = card({"title": "Low-carbon cement blocks for homes", "milestones": [{"name": "Lab test", "target": "6 cubes reach 33 MPa",
                  "key": "lab", "verifier": {"kind": "ci", "check": "test_cubes"}, "deadline_days": 30}]})

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the four programs of programs-v2 for one sBPF version, the same way every time, and record what was built.
 #
-#   bash scripts/build_sbf.sh [v3|v2|v0] [deploy|test|both]        # default: v3 deploy
+#   bash scripts/build_sbf.sh [v3|v2|v1|v0] [deploy|test|both]        # default: v3 deploy
 #
 #   deploy  the builds a cluster runs (no test features): knos_oidc, knos_pay (devnet default features), knos_meter,
 #           knos_passkey  -> programs-v2/target/arch-<v>/deploy/<name>.so
@@ -18,15 +18,15 @@
 # `solana-verify get-program-hash` prints for a deployed program). The verified (docker) build is the same command
 # inside solana-verify's image, which needs docker (docs/reference/PLATFORM.md says which command and image):
 #   solana-verify build "$PWD" --workspace-path "$PWD/programs-v2" --library-name <name> --arch v3 \
-#       --base-image solanafoundation/solana-verifiable-build:2.3.13
+#       --base-image <a 4.4 toolchain image; program.yml does not use one yet (docs/reference/PLATFORM.md, section 8)>
 #
 # CARGO_TARGET_DIR is set per version, so the builds of two versions never overwrite each other. Heavy: run it under
 # flock ~/knos/HEAVY.lock on a shared machine.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 arch="${1:-v3}"; what="${2:-deploy}"
-case "$arch" in v0|v1|v2|v3) ;; *) echo "usage: bash scripts/build_sbf.sh [v3|v2|v0] [deploy|test|both]" >&2; exit 2 ;; esac
-case "$what" in deploy|test|both) ;; *) echo "usage: bash scripts/build_sbf.sh [v3|v2|v0] [deploy|test|both]" >&2; exit 2 ;; esac
+case "$arch" in v0|v1|v2|v3) ;; *) echo "usage: bash scripts/build_sbf.sh [v3|v2|v1|v0] [deploy|test|both]" >&2; exit 2 ;; esac
+case "$what" in deploy|test|both) ;; *) echo "usage: bash scripts/build_sbf.sh [v3|v2|v1|v0] [deploy|test|both]" >&2; exit 2 ;; esac
 sbf="${CARGO_BUILD_SBF:-cargo-build-sbf}"
 want_sbf="4.4.0"; want_tools="v1.57"
 have="$("$sbf" --version 2>/dev/null | head -1)"

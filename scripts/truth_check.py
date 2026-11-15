@@ -525,11 +525,11 @@ def live_problems(stmts: list[Statement], data: dict) -> list[Problem]:
 # ---- published
 
 
-# what Knos has published, where, and the line that installs it (checked on the registries on 8 Oct 2026)
+# what Knos has published, where, and the line that installs it (checked on the registries on 15 Nov 2026)
 PUBLISHED: dict[str, tuple[str, str, str]] = {
     "knos-oidc-interface": ("crates.io", "0.3.14", "https://crates.io/crates/knos-oidc-interface"),
     "knos-pay-interface": ("crates.io", "0.3.14", "https://crates.io/crates/knos-pay-interface"),
-    "knos-settle": ("npm", "0.3.20", "https://www.npmjs.com/package/knos-settle"),
+    "knos-settle": ("npm", "0.4.0", "https://www.npmjs.com/package/knos-settle"),
 }
 UNPUBLISHED = re.compile(r"\b(neither\b[^.]{0,60}\b(?:is|are) on (?:crates\.io|npm)|neither (?:\w+ )?(?:has|have) been published|none (?:of them )?(?:is |are )?published|not (?:yet )?published|unpublished|not (?:yet )?(?:on|in) (?:crates\.io|npm)|is not on (?:crates\.io|npm)|no (?:crate|package) on (?:crates\.io|npm))\b", re.I)
 PACKAGE = re.compile(r"\b(knos-(?:oidc|pay)-interface|knos-settle|interface crates?|crates?|crates\.io|npm|JS (?:SDK|client)|JavaScript client)\b", re.I)

@@ -32,9 +32,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORDS = {
     "escrow": r"(?<![\w.])escrow(?:s|ed)?\b", "em dash": "—", "marketplace": r"market ?places?", "Kickstarter": r"kickstarter",
-    "Upwork": r"upwork", "Algora": r"algora", "hackathon": r"hackathons?", "contest": r"\bcontests?\b",
-    "Devpost": r"devpost", "Colosseum": r"colosseum", "prize": r"\bprizes?\b", "judge": r"\bjudg(?:e|es|ed|ing)\b",
-    "demo": r"\bdemos?\b",
+    "Upwork": r"upwork", "Algora": r"algora", "Devpost": r"devpost", "pay on proof": r"pa(?:y|id) on proof",
+    "knos-mind": r"knos-mind",
 }
 QLOO_RAW = {
     "Qloo affinity number": r'"affinity"\s*:\s*-?\d|affinity[^<\n]{0,12}\b0\.\d{3,}',
@@ -46,7 +45,8 @@ IDEA = "DPI-I-689"
 PROSE = {".md", ".html", ".txt"}
 # never shown to a reader: code, tests, build and machine files, the program interfaces and the record of releases
 SKIP_DIRS = ("tests/", "scripts/", "programs/", "programs-v2/", "programs-hook/", "crates/", "zk/", "idl/", "schemas/",
-             ".github/", ".knos/", "deploy/upgrades/", "bench/", "sdk/settle/test/", "apps/wanted/tests/", "src/knos/")
+             ".github/", ".knos/", "deploy/upgrades/", "bench/", "sdk/settle/test/", "apps/wanted/tests/", "src/knos/",
+             "near/agents/job/data/")      # saved third-party pages a check reads, never Knos's words
 JS_DIRS = ("web/", "apps/wanted/knos_wanted/static/")
 MACHINE = "docs/MACHINE_FILES.txt"
 CHANGELOG, EXEMPT_BEFORE = "CHANGELOG.md", datetime.date(2026, 10, 29)
@@ -137,7 +137,8 @@ def machine_files() -> tuple[set[str], list[str]]:
         f = ROOT / rel
         if not f.is_file():
             wrong.append(f"FAIL {MACHINE}:{n}: {rel} is missing")
-        elif hashlib.sha256(f.read_bytes()).hexdigest() != want:
+        # the committed bytes (LF); a Windows checkout may hold the same file with CRLF line ends
+        elif want not in {hashlib.sha256(b).hexdigest() for b in (f.read_bytes(), f.read_bytes().replace(b"\r\n", b"\n"))}:
             wrong.append(f"FAIL {MACHINE}:{n}: {rel} sha256 differs from the list")
     return listed, wrong
 

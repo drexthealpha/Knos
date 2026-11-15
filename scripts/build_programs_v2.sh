@@ -16,6 +16,7 @@
 #   examples/cpi_fund       a treasury funds a work order by CPI               -> tests/fixtures/cpi_fund_v2_real.so
 #   examples/workflow_vault a vault only one workflow at one commit can spend  -> tests/fixtures/workflow_vault_v2_real.so
 #   examples/upgrade_gate   records which commit GitHub built an executable from -> tests/fixtures/upgrade_gate_v2_real.so
+#   examples/reader_template  a reader that builds against the tagged interface crate -> tests/fixtures/reader_template_v2_real.so
 #                           (the examples have no test feature, so each is the one build, named real: they read the real
 #                           program ids, and their tests run them beside the test builds of knos-oidc and knos_pay)
 #
@@ -60,7 +61,7 @@ pin() {
   mv "$fix/SHA256SUMS.new" "$fix/SHA256SUMS"
 }
 
-# example <name> <fixture name>: an example program (examples/<name>). The three share one target directory
+# example <name> <fixture name>: an example program (examples/<name>). The four share one target directory
 # (CARGO_TARGET_DIR, else examples/target), so their dependencies compile once and programs-v2/target/deploy holds
 # the programs and nothing else.
 example() {

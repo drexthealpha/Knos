@@ -3,17 +3,17 @@
     python scripts/pages_data.py --out _site --events _events.json --index _site/index.json [--docs FILE]
     python scripts/pages_data.py --out _site --empty        # the same files with nothing measured (a local build)
 
+These are the records of the Solana devnet programs of the Colosseum entry (v0.3.28), part of Knos; the NEAR testnet
+contracts keep their own record. Open funded tasks (the old bounty feed) are no longer written.
+
 It counts from what scripts/network_stats.py counts from (the payment programs' own log lines of both deployments, the relay
-log, GitHub when it answers) and from the Agent PR Index's published index.json. Nothing here is self-reported, and a
+log, GitHub when it answers); the Agent PR Index's index.json is named in each file's source. Nothing here is self-reported, and a
 number that could not be measured is null with a note, never a guess. Written under the output folder:
 
-    bounties.json, bounties.rss      every open funded task, for aggregators and agent platforms: bounties (jobs) and
-                                     open work orders, an order with its terms, what it holds back and for how long (its
-                                     warranty), who it is reserved for and until when, and whether it is a standing offer
     u/<login>.json, .html            one account's record, as earner and as funder
     r/<owner>/<repo>.json, .html     the same, per repository
     badge/u/<login>.json, badge/r/<owner>/<repo>.json     shields.io endpoint files
-    rank/earners, rank/funders, rank/agents (.json and .html)
+    rank/earners, rank/funders (.json and .html)
     statements/<login>.json          every payment to an account and every payment it funded, one row each, for the site's statements
     audit/<owner id>.json            each owner's work orders, a month at a time: the lines `knos audit export` chains, for the
                                      site's order statement (scripts/audit_statements.py writes them; web/statements.js reads them)
@@ -60,7 +60,6 @@ import sys
 import time
 import urllib.parse
 from pathlib import Path
-from xml.sax.saxutils import escape as xml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -85,8 +84,6 @@ _REPO = re.compile(r"[A-Za-z0-9._-]{1,100}")
 _FAIL = re.compile(r"^knos-relay (\w+) (\S+?)#(\d+) (\S+) fail (.*)$")
 _OK = re.compile(r"^knos-relay (\w+) (\S+?)#(\d+) ([0-9a-f]{16}) ok (.*)$")
 _PARTS = ("queue", "workflow", "wait", "chain")      # the relay's optional per-stage seconds on an `ok` line
-AGENT_NAMES = {"copilot": "GitHub Copilot coding agent", "devin": "Devin", "claude-bot": "Claude GitHub app",
-               "claude-code": "Claude Code", "codex": "OpenAI Codex"}
 
 
 def _ns():
@@ -495,24 +492,6 @@ def rank_funders(jobs: list[dict], names: Names) -> dict:
             "left_out": {k: sum(1 for j in left if j["bucket"] == k) for k in ("test", "self", "own")}}
 
 
-def rank_agents(index: dict | None) -> dict:
-    """The Agent PR Index's false-claim rate by agent: of the repositories where the agent's first pull request said
-    tests or CI pass, in how many a check had failed at the head commit. Lowest first. Null without an index."""
-    if not index:
-        return {"month": None, "window": None, "entries": [], "note": "not measured: this build has no Agent PR Index (index.json)"}
-    rows = []
-    for name, t in (index.get("agents") or {}).items():
-        first = t["first_pr_per_repo"]
-        rows.append({"agent": name, "name": AGENT_NAMES.get(name, name), "repositories": first["repos"], "false_claim_rate": first["any_check_failed"]["share"],
-                     "ci95": first["any_check_failed"]["ci95"], "test_or_build_rate": first["test_or_build_check_failed"]["share"],
-                     "test_or_build_ci95": first["test_or_build_check_failed"]["ci95"], "pull_requests": t["prs"],
-                     "pull_requests_any_check_failed": t["any_check_failed"]["prs"]})
-    rows.sort(key=lambda r: (r["false_claim_rate"] is None, r["false_claim_rate"] or 0, r["agent"]))
-    return {"month": str(index["date"])[:7], "date": index["date"], "window": index["window"], "root": index["root"],
-            "definition": (index.get("definitions") or {}).get("any_check_failed"),
-            "entries": [{"rank": n, **r} for n, r in enumerate(rows, 1)]}
-
-
 # ---- latency ---------------------------------------------------------------------------------------------------------
 def latency_samples(lines: list[dict], events: list[dict], get, extras: dict, most: int | None = None) -> dict:
     """{merge_to_paid, comment_to_funded: network_stats.measure()'s output}: the one measurement of each wait, whose
@@ -694,120 +673,9 @@ def render_operations_md(ops: dict) -> str:
     return "\n".join(lines)
 
 
-# ---- bounties --------------------------------------------------------------------------------------------------------
-def terms_of(job: dict) -> dict:
-    """The terms of a job in words and as JSON; both null for a job whose terms the log does not carry (the first
-    deployment keeps them in the repository's own files) or that this version cannot read."""
-    raw = job.get("terms")
-    if not raw:
-        return {"words": None, "json": None}
-    try:
-        from knos import terms
-        return {"words": terms.describe(terms.parse(raw), "funder"), "json": json.loads(raw)}
-    except Exception:  # noqa: BLE001 - not the terms format of this version: published as it was logged
-        try:
-            return {"words": None, "json": json.loads(raw)}
-        except ValueError:
-            return {"words": None, "json": None}
-
-
-def open_bounties(jobs: list[dict], accounts: dict | None, names: Names, now: float) -> tuple[list[dict], int]:
-    """(every open funded task, how many open jobs are past their deadline and so left out). `accounts` maps a job's
-    or a work order's address to its account as the program holds it (the deadline, the mint, a reservation, what an
-    order promises); one whose account is gone is not open. A work order has `order` (see `order_part`); a job has
-    None there. A private order names no repository and is not listed."""
-    out, expired = [], 0
-    for j in jobs:
-        if j["state"] != "open" or j.get("private"):
-            continue
-        acct = (accounts or {}).get(j.get("address")) if accounts is not None else None
-        if accounts is not None and (acct is None or ("payments" in j and acct.state != "open")):
-            continue
-        deadline = getattr(acct, "deadline", None) or (j.get("deadline") if "payments" in j else None) or None
-        if deadline and deadline < now:
-            expired += 1
-            continue
-        mint = str(acct.mint) if acct is not None and getattr(acct, "mint", None) else None
-        kind = "test" if j["mint_kind"] == "test" or getattr(acct, "faucet", False) or (mint is not None and mint not in USDC) else "real"
-        name = names.repo(j["repo"])
-        order = order_part(j, acct, now) if "payments" in j else None
-        reserved = order["reserved_until"] if order else iso(getattr(acct, "reserved_until", None) or None)
-        out.append({"repository": name, "repository_id": j["repo"], "issue": j["issue"], "url": f"https://github.com/{name}/issues/{j['issue']}" if name else None,
-                    "deployment": "first" if j["v"] == 1 else "second", "amount": order["on_offer"] if order else j["amount"], "decimals": 6,
-                    "currency": "USDC" if kind == "real" else "test USDC",
-                    "mint_kind": kind, "mint": mint, "terms": terms_of(j), "funded_at": iso(j["at"]), "funded_tx": j["tx"],
-                    "deadline": iso(deadline), "reserved_until": reserved, "order": order, "own": j["kind"] == "own", "_funder": j["funder"]})
-    return sorted(out, key=lambda b: (b["funded_at"] or "", b["funded_tx"] or ""), reverse=True), expired
-
-
-def order_part(j: dict, acct, now: float) -> dict:
-    """What an open work order promises beyond its amount and terms, from its account when it was read (else from the
-    log, which knows less: null where it does not say):
-
-        address, seq            the order's account, and its funder's number for it on this issue
-        on_offer                what its payees can still receive (a standing order: what is left of it)
-        fee                     what its funder put in on top (the payees receive the amount whole)
-        standing, rate          a standing offer pays `rate` for each accepted pull request while enough is left
-        holdback_bps, warranty_days   that share of a payment is held back for that long, and goes back on a revert
-        reserved_by, reserved_until   the GitHub id it is reserved for now, and until when (null: free to take)
-        reserve_days, kill_bps  how long one may reserve it, and the taker's share if it is cancelled meanwhile
-        cancelled_at            the funder gave notice then: it pays what is accepted until `deadline`
-        neutral                 the seller may have it paid from a repository of his own (`knos settle --neutral`)
-        arbiter_id              the GitHub id whose ruling ends a dispute (null: none was named)"""
-    get = lambda name, default=None: getattr(acct, name, default) if acct is not None else default  # noqa: E731
-    until = get("reserved_until", j.get("reserved_until")) or None
-    taken = bool(until and until >= now)
-    cancelled = get("cancel_at", j.get("cancelled_at")) or None
-    return {"address": j["order"], "seq": j["seq"], "on_offer": (acct.amount - acct.paid) if acct is not None else j["amount"] - j["net"],
-            "fee": get("fee", j["fee_escrowed"]), "standing": j["standing"], "rate": get("rate") or None,
-            "holdback_bps": get("holdback_bps"), "warranty_days": get("warranty_s") // DAY if acct is not None else None,
-            "reserved_by": (get("reserved_by", j.get("reserved_by")) or None) if taken else None, "reserved_until": iso(until) if taken else None,
-            "reserve_days": get("reserve_days"), "kill_bps": get("kill_bps"), "cancelled_at": iso(cancelled), "neutral": j["neutral"],
-            "arbiter_id": get("arbiter_id") or None}
-
-
-def with_funders(bounties: list[dict], jobs: list[dict], names: Names) -> list[dict]:
-    """Each bounty with its funder's record: what that funder has funded, paid and refunded in the same kind of money."""
-    for b in bounties:
-        f = b.pop("_funder")
-        mine = [j for j in jobs if j["funder"] == f and j["mint_kind"] == b["mint_kind"]]
-        s = funder_stats(mine)
-        gh = int(f[3:]) if f.startswith("gh:") and f[3:].isdigit() else None
-        login = names.login(gh) if gh else None
-        b["funder"] = {"id": f, "login": login, "funded": sum(v["count"] for v in s["funded"].values()), "paid": sum(v["count"] for v in s["paid"].values()),
-                       "refunded": sum(v["count"] for v in s["refunded"].values()),
-                       "reliability": s["reliability"] if b["mint_kind"] == "real" else s["reliability_test"], "record": f"u/{login}.json" if login else None}
-    return bounties
-
-
-def bounties_rss(bounties: list[dict], meta: dict) -> str:
-    items = []
-    for b in bounties:
-        where = f"{b['repository']}#{b['issue']}" if b["repository"] else f"repository {b['repository_id']} issue #{b['issue']}"
-        words = " ".join(b["terms"]["words"] or []) or "The terms are in the repository's own files."
-        when = datetime.datetime.fromtimestamp(_unix(b["funded_at"]), datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000") if b["funded_at"] else ""
-        o = b.get("order")
-        if o:       # what a work order promises, in a sentence each
-            words += (f" A standing offer: {o['rate'] / 1_000_000:,.2f} for each accepted pull request." if o["standing"] and o["rate"] else "") \
-                + (f" {o['holdback_bps'] / 100:g}% is held back for a warranty of {o['warranty_days']} days." if o["holdback_bps"] else "") \
-                + (f" Reserved until {o['reserved_until']}." if o["reserved_until"] else "")
-        items.append("<item><title>" + xml(f"{b['amount'] / 1_000_000:,.2f} {b['currency']} for {where}") + "</title>"
-                     + (f"<link>{xml(b['url'])}</link>" if b["url"] else f"<link>{SITE}/bounties.json</link>")
-                     + f"<guid isPermaLink=\"false\">{xml(str(b['funded_tx']))}</guid>" + (f"<pubDate>{when}</pubDate>" if when else "")
-                     + "<description>" + xml(f"{words} Funder: {b['funder']['login'] or b['funder']['id']}. Deadline: {b['deadline'] or 'not read'}.") + "</description></item>")
-    return ('<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>Knos: open funded tasks</title>'
-            f"<link>{SITE}/bounties.json</link><description>Every open funded task on Knos. Source: {xml(meta['source']['summary'])}</description>"
-            f"<lastBuildDate>{datetime.datetime.fromtimestamp(meta['_now'], datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S +0000')}</lastBuildDate>"
-            + "".join(items) + "</channel></rss>\n")
-
-
 # ---- html ------------------------------------------------------------------------------------------------------------
-# the one sentence, as scripts/claims_check.py SENTENCE has it; every page of the record starts with the name and the
-# short line of the site's title ("Knos: research to products people want, paid on proof"), so the line has one colon
-SENTENCE = "Knos carries research across the valley of death."
-# the two vision lines every page opens with (docs/facts.json l1 and l2)
-VISION = ("Knos turns any research into a product billions of people use, in days, not years.",
-          "Knos carries research across the valley of death, toward Kardashev II and III.")
+# the vision line every page opens with (docs/facts.json l1), labelled as the goal it is: no customers yet
+VISION = "The goal: Knos turns any research into a product billions of people use, in days, not years."
 CSS = ("body{font:16px/1.55 system-ui,sans-serif;margin:0;background:#fbfbf9;color:#16181d}main{max-width:860px;margin:0 auto;padding:24px 16px 48px}"
        "table{border-collapse:collapse;width:100%;margin:12px 0}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e3e4e8}"
        "code,pre{background:#eef;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}a{color:#3b46c4}.muted{color:#5b616e;font-size:14px}"
@@ -826,9 +694,9 @@ def table(head: list[str], rows: list[list]) -> str:
 
 def page(title: str, body: str, meta: dict, json_path: str | None = None) -> str:
     src = f"Source: {esc(meta['source']['summary'])}. Generated {esc(meta['generated'])}." + (f" The same numbers as <a href=\"{esc(SITE)}/{esc(json_path)}\">{esc(json_path)}</a>." if json_path else "")
-    return (f"<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>{esc(VISION[0] + ' ' + VISION[1])}</title>"
+    return (f"<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>{esc('Knos: ' + title)}</title>"
             f"<style>{CSS}</style><main><p class=muted><a href=\"{SITE}/\">Knos</a></p><h1>{esc(title)}</h1>"
-            f"<p>{esc(VISION[0])}</p><p>{esc(VISION[1])}</p>{body}<p class=muted>{src}</p></main></html>\n")
+            f"<p>{esc(VISION)}</p>{body}<p class=muted>{src}</p></main></html>\n")
 
 
 def kinds_rows(amounts: dict) -> list[list]:
@@ -858,20 +726,20 @@ def record_page(rec: dict, kind: str, path: str, meta: dict) -> str:
               f"Median time from a pull request passing its checks to the merge or rejection: {esc(_dur(f['review']['seconds']['p50']) if f['review']['seconds']['n'] else (f['review']['note'] or 'not measured'))}"
               f" over {esc(f['review']['seconds']['n'])} pull requests.</p>"
             + "<h2>Merged but unpaid</h2><p class=muted>A pull request that closes a funded issue was merged, and the bounty was refunded instead. This says both happened, not whose fault it was.</p>" + unpaid_html(f["merged_unpaid"])
-            + (paid_on_proof(rec, meta) if kind == "r" else "")
+            + (badge_part(rec, meta) if kind == "r" else "")
             + f"<h2>README</h2><pre>{esc(paste)}</pre>")
     return page(title, body, meta, f"{kind}/{path}.json")
 
 
-def paid_on_proof(rec: dict, meta: dict) -> str:
-    """The "paid on proof" badge (src/knos/badge.py) on a repository's page, which is the page the badge links to:
+def badge_part(rec: dict, meta: dict) -> str:
+    """The payments badge (src/knos/badge.py) on a repository's page, which is the page the badge links to:
     payments by someone else in the faucet's test money, the ones in another token named apart, as of the day the
     page was made. As web/records.js `badgeData` counts it for the same repository."""
     from knos import badge
     amounts = rec["as_earner"]["amounts"]
     data = {"repo": rec["repository"], "pr": None, "count": amounts["test"]["count"], "other": amounts["real"]["count"], "money": badge.TEST,
             "as_of": str(meta["generated"])[:10]}
-    return (f"<h2>Paid on proof</h2><p>{badge.svg(data).strip()}</p><p class=muted>{esc(badge.title(data))} "
+    return (f"<h2>Payments</h2><p>{badge.svg(data).strip()}</p><p class=muted>{esc(badge.title(data))} "
             "A payment to the funder's own account, or to one of Knos's own accounts, is not in the badge.</p>")
 
 
@@ -979,13 +847,14 @@ def playground_task_counts(get, own: frozenset, own_wallets: frozenset, repo: st
     return counted
 
 
-def build(events: list[dict], comments: list[dict] | None, get, index: dict | None, accounts: dict | None, names: Names, now: float,
+def build(events: list[dict], comments: list[dict] | None, get, index: dict | None, stats: dict | None, names: Names, now: float,
           own: frozenset | None = None, own_wallets: frozenset | None = None, canary: str = CANARY, source: dict | None = None,
           partial: bool = False, canary_repo: str = CANARY_REPO) -> dict[str, str]:
     """{path under the output folder: text} for every file this module writes. `events` are network_stats's, `comments`
     the relay log's comments (None: not read), `get` reads GitHub (None: not asked), `index` is the Agent PR Index,
-    `accounts` maps job addresses to accounts (None: not read), `partial` says the history was not read whole (the
-    order statements then say so)."""
+    `stats` is the stats.json scripts/network_stats.py wrote in the same build (None: none): its `outsiders` are
+    published as they are, so the site states one count of outside funders, `partial` says the history was not read
+    whole (the order statements then say so)."""
     if own is None or own_wallets is None:
         own, own_wallets = own_ids()
     jobs = jobs_of(events, own, own_wallets)
@@ -1014,20 +883,16 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
 
     # outside funders, outside repositories, outside payees: three numbers with their definitions, never added
     import outsiders as outside_rules
-    counted = ns.outsiders(jobs, own, own_wallets, owner_of=None if get is None else ns.repo_owner(get)) if ns else outside_rules.count([], own, own_wallets, measured=False)
-    # and, apart from those three: outside pull requests on the playground's funded tasks (the task board, tasks/README.md)
+    if isinstance((stats or {}).get("outsiders"), dict):       # the same build's count: one number, one reading of GitHub
+        counted = dict(stats["outsiders"])
+    else:
+        counted = ns.outsiders(jobs, own, own_wallets, owner_of=None if get is None else ns.repo_owner(get)) if ns else outside_rules.count([], own, own_wallets, measured=False)
+    # and, apart from those three: outside pull requests on the playground's funded tasks (scripts/outsiders.py `pulls`)
     counted["pulls"] = playground_pulls(get, jobs if ns else None, own)
-    # and the counters the outside task kinds can move (tasks/outside/, src/knos/tasks.py KINDS), from the evidence files merged
+    # and the counters the outside task kinds can move (src/knos/tasks.py KINDS), from the evidence files merged
     # into the playground (outside/<kind>/<login>.json): GitHub not asked is "not read" (None), never 0
     counted["task_counts"] = playground_task_counts(get, own, own_wallets)
     dump("outsiders.json", stamp(counted))
-
-    # bounties
-    bounties, expired = open_bounties(jobs, accounts, names, now)
-    bounties = with_funders(bounties, jobs, names)
-    dump("bounties.json", stamp({"count": len(bounties), "expired_not_listed": expired, "bounties": bounties,
-                                  "note": None if accounts is not None else "not measured against the programs' accounts: deadlines are null"}))
-    files["bounties.rss"] = bounties_rss(bounties, meta)
 
     # accounts and repositories
     measured = get is not None
@@ -1064,10 +929,9 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
                                  "note": "an id GitHub did not name gets no file"}))
 
     # ranks
-    earners, funders, agents = rank_earners(jobs, names), rank_funders(jobs, names), rank_agents(index)
+    earners, funders = rank_earners(jobs, names), rank_funders(jobs, names)
     dump("rank/earners.json", stamp(earners))
     dump("rank/funders.json", stamp(funders))
-    dump("rank/agents.json", stamp(agents))
     who = lambda login, gid: f'<a href="{SITE}/u/{esc(login)}.html">{esc(login)}</a>' if login else esc(f"id {gid}")  # noqa: E731
     note = "Real USDC only. Test money, a payment to the funder's own account and Knos's own accounts are not counted: " + ", ".join(f"{v} {k}" for k, v in earners["left_out"].items()) + " payments left out."
     files["rank/earners.html"] = rank_page("Earners", ["rank", "account", "USDC received", "paid merges", "distinct funders", "first", "last"],
@@ -1077,15 +941,6 @@ def build(events: list[dict], comments: list[dict] | None, get, index: dict | No
                                            [[esc(r["rank"]), who(r["login"], r["github_id"]) if r["github_id"] else esc(r["funder"]), esc(_usd(r["paid_amount"])), esc(r["paid_jobs"]), esc(r["refunded_jobs"]), esc(r["open_jobs"]),
                                              esc(_pct(r["reliability"])), esc("not measured" if r["merged_unpaid"] is None else r["merged_unpaid"])] for r in funders["entries"]],
                                            note.replace("not counted", "not counted in a rank"), meta, "rank/funders.json")
-    files["rank/agents.html"] = rank_page(f"Agents by false-claim rate{', ' + agents['month'] if agents['month'] else ''}", ["rank", "agent", "repositories", "a check had failed", "95% interval", "a test, build, lint or type check failed", "95% interval"],
-                                          [[esc(r["rank"]), esc(r["name"]), esc(r["repositories"]), esc("n/a" if r["false_claim_rate"] is None else f"{r['false_claim_rate'] * 100:.1f}%"),
-                                            esc("n/a" if not r["ci95"] else f"{r['ci95'][0] * 100:.1f}%-{r['ci95'][1] * 100:.1f}%"),
-                                            esc("n/a" if r["test_or_build_rate"] is None else f"{r['test_or_build_rate'] * 100:.1f}%"),
-                                            esc("n/a" if not r["test_or_build_ci95"] else f"{r['test_or_build_ci95'][0] * 100:.1f}%-{r['test_or_build_ci95'][1] * 100:.1f}%")] for r in agents["entries"]],
-                                          agents.get("note") or ("Of the repositories where the agent's first pull request said tests or CI pass, the share where a check had failed at the head commit "
-                                                                 f"(Agent PR Index of {agents['date']}, pull requests created {agents['window'][0]} to {agents['window'][1]}). A failed check is GitHub's record, not a judgment of why."),
-                                          meta, "rank/agents.json")
-
     # the order statements: each owner's work orders by month, as `knos audit export` writes them
     files.update(audit_files(events, partial))
 
@@ -1153,15 +1008,11 @@ def main(argv=None) -> int:
                 index = agent_pr_index.check(a.index)
             except SystemExit as e:      # the list was edited after the count: shown as absent, never used
                 print(f"pages_data: {e}", file=sys.stderr)
-        accounts = None
+        stats_in = None
         try:
-            ledger = chain.Ledger(url)
-            accounts = {str(k): ns.pay2.read_job(d) for k, d in ledger.program_accounts(ns.pay2.PAY_ID, ns.pay2.JOB_LEN)}
-            accounts.update({str(k): ns.pay2.read_order(d) for k, d in ledger.program_accounts(ns.pay2.PAY_ID, ns.pay2.ORDER_LEN)})
-            accounts.update({str(k): ns.pay.read_job(d) for k, d in ledger.program_accounts(ns.pay.PAY_ID, 256)})
-            accounts = {k: v for k, v in accounts.items() if v}
-        except Exception as e:  # noqa: BLE001 - deadlines are then null, and the file says so
-            print(f"pages_data: the programs' accounts were not read ({type(e).__name__})", file=sys.stderr)
+            stats_in = json.loads((Path(a.out) / "stats.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):       # no stats.json in this build: outsiders.json is counted here
+            stats_in = None
         comments = None
         if get:
             try:
@@ -1170,7 +1021,7 @@ def main(argv=None) -> int:
                 print(f"pages_data: the relay log was not read ({type(e).__name__})", file=sys.stderr)
         if not re.fullmatch(r"[\w.-]+/[\w.-]+", a.canary_repo) or not re.fullmatch(r"[\w.-]+\.ya?ml", a.canary):
             ap.error("--canary is a workflow file's name (knos-canary.yml) and --canary-repo is OWNER/NAME")
-        files = build(events, comments, get, index, accounts, Names(), now, canary=a.canary, partial=partial, canary_repo=a.canary_repo)
+        files = build(events, comments, get, index, stats_in, Names(), now, canary=a.canary, partial=partial, canary_repo=a.canary_repo)
     write(files, Path(a.out))
     stats = Path(a.out) / "stats.json"
     if not a.empty and comments is not None and stats.exists():      # the relay log was read here: the page's table takes this build's one measurement

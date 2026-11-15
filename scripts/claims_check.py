@@ -3,8 +3,9 @@
     python scripts/claims_check.py --offline   # file-backed facts (the test suite runs this)
     python scripts/claims_check.py             # also the live facts: devnet and GitHub
 
-Front-facing text is README.md and the home page's first view (web/index.html). Every number in
-it must be one a fact in docs/facts.json says ("say"), and every fact must hold:
+Front-facing text is README.md, the published front door (web/door.html, which scripts/site_pages.py writes as the
+site's index.html; its body, without scripts and styles) and docs/WHY.md. Every number in it must be one a fact in
+docs/facts.json says ("say"), and every fact must hold:
 
     {"say": ["17.8%"], "what": "...", "json": "docs/bench.json", "path": "market.index.overall.first_pr_per_repo.any_check_failed.share", "equals": 0.178}
     {"say": ["21"], "what": "...", "file": "docs/reference/TAMPER.md", "has": "fooled 17/21"}
@@ -21,8 +22,8 @@ A fact with "claim" names a fact of scripts/doc_claims.py's registry, which comp
 capability manifest, the upgrade record, the program ids): "say" must be that value as the registry prints it. No fact is
 a time: when an upgrade can execute is on chain and in the site's upgrades.json, never in a committed sentence.
 
-The one sentence (SENTENCE) must be in README.md and the home page, word for word; what a work order is
-(LONG) on the home page, whatever the line breaks.
+The one sentence (SENTENCE), or the vision line that carries it (L2), must be in docs/WHY.md, word for word. The front
+door does not carry it: which one sentence Knos says is the founder's choice (scripts/public_face.py prints the split).
 
 Numbers that are not claims are ignored: versions, dates, clock times in the scripts, list numbering, names such as
 RS256, an image tag's attributes, and anything inside code or a link's address. The generated benchmark table is checked by bench_docs.py.
@@ -42,7 +43,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-PITCH = ["README.md", "web/index.html", "docs/WHY.md"]
+PITCH = ["README.md", "web/door.html", "docs/WHY.md"]
 for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page cannot encode every fact ("\u2212")
     try:
         _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
@@ -50,7 +51,8 @@ for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page canno
         pass
 SENTENCE = "Knos carries research across the valley of death."
 L2 = "Knos carries research across the valley of death, toward Kardashev II and III."   # the vision line that now carries it
-# what a work order is, in five sentences: on the home page, folded under "What is here"
+# what a work order was, in five sentences, on the old home page (web/index.html, no longer published; nothing here
+# checks it now: tests/test_bench_docs.py still reads that file)
 LONG = ("A work order is a task, its budget and the terms that decide when it is done. All three are fixed before work "
         "starts. A bounty on an issue is the smallest work order. When the work is merged, GitHub signs which checks ran. "
         "A Solana program checks that signature before it pays. No person holds the money in between.")
@@ -84,8 +86,8 @@ def read(path: str) -> str:
 def pitch_text(path: str) -> str:
     text = read(path)
     if path.endswith(".html"):
-        m = re.search(r'<section id="view-check".*?</section>', text, re.S)
-        text = m.group(0) if m else ""
+        # the page's body as a visitor reads it: what the head, the scripts and the styles hold is not shown
+        text = re.sub(r"<script\b.*?</script>|<style\b.*?</style>", " ", text.split("</head>", 1)[-1], flags=re.S)
     for pat in NOT_CLAIMS:
         text = re.sub(pat, " ", text, flags=re.S)
     if path.endswith(".html"):
@@ -231,14 +233,10 @@ def main(argv: list[str] | None = None) -> int:
             if tok not in allowed:
                 fails += 1
                 print(f"FAIL  {path}: {tok!r} has no fact in docs/facts.json: {line}")
-    for path in ("docs/WHY.md", "web/index.html"):   # Round 10, V5: the README carries no marketing line; docs/WHY.md does
+    for path in ("docs/WHY.md",):   # Round 10, V5: the README carries no marketing line; docs/WHY.md does
         if SENTENCE not in words(path) and L2 not in words(path):
             fails += 1
             print(f"FAIL  {path}: the one sentence is missing")
-    for path in ("web/index.html",):
-        if LONG not in words(path):
-            fails += 1
-            print(f"FAIL  {path}: what a work order is (LONG) is missing")
     said = {path: {tok for tok, _line in numbers(path)} for path in docs_of(facts)}
     for f in facts:
         if "doc" in f:

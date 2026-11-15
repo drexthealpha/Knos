@@ -1,4 +1,4 @@
-"""Every description of Knos that leaves the repository says one sentence, from one source.
+"""Every description of Knos that leaves the repository comes from one source and names no older product.
 
     python scripts/public_face.py --check     # exit 1 when a file describes the product in any other words
     python scripts/public_face.py --write     # rewrite each description this script can write from the source
@@ -7,18 +7,22 @@
 The source is `sentence` in docs/facts.json, and for the MCP registry's listings (100 characters at most there)
 `registry_sentence`. The places (`FACES`):
 
-    pyproject.toml                          `description`: what PyPI shows as the summary        exactly the sentence
     server.json, gemini-extension.json      what the MCP registry and Gemini CLI list            exactly the registry sentence
-    plugin manifests, the market file  what Claude Code and Codex list                      begins with the sentence
-    web/index.html                          <title>, meta description, og:title, og:description  the title; begins with it
-    README.md                               the first line of text                               the sentence, in bold
+    plugin manifests, the market file       what Claude Code and Codex list                      begins with the sentence
+    web/door.html (the published front      <title>, og:title: "Knos: " and the description's    names no older product
+      door, written as index.html)          first sentence; meta and og descriptions the same
+    README.md                               the first line of text                               begins with K1, then the 17 years
+    pyproject.toml                          `description`: what PyPI shows                       names no older product
     action.yml, the SDK, the crates         a description of a PART (the check, a client)        names no older product
     sdk/*/README.md                         what npm shows on the client's page                  names no older product
+
+The front door does not yet begin with the sentence of docs/facts.json: which one sentence Knos says is the founder's
+choice, so `--check` prints that split as a note on every run and does not fail on it.
 
 A place that describes a part of Knos keeps its own words, and may not carry a sentence of an older product (`STALE`),
 nor a word no Knos document uses (scripts/truth_check.py `ALWAYS`, `MONEY_WORDS`, `MONEY_ABBR`). Every `version` a
 manifest gives a registry (server.json twice, gemini-extension.json, the plugin manifests, sdk/*/package.json) is
-pyproject.toml's, and an SDK README that names a release to install names that one (`v0.3.21`, `knos-settle-0.3.21`):
+pyproject.toml's, and an SDK README that names a release to install names that one (`vX.Y.Z`, `knos-settle-X.Y.Z`):
 a registry or a cached page that shows an older number is an old copy. The crates are left out: they stay at 0.3.14.
 `--remote` reads the repository's About (description, homepage, topics), PyPI's summary of `knos` and of the old
 package `knos-hermes`, the MCP registry and glama.ai, and prints the command or the step that corrects each one. It
@@ -47,8 +51,9 @@ LINES = [json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))[
 REPO = "drexthealpha/Knos"
 SITE = "https://drexthealpha.github.io/Knos/"
 SERVER = "io.github.drexthealpha/knos"
-# the repository's topics as GitHub lists them: what Knos is and what it serves (docs/reference/X402.md, server.json)
-TOPICS = ("research", "valley-of-death", "demand-validation", "qloo", "escrow", "milestones", "solana", "devnet", "ai-agents",
+# the repository's topics as GitHub lists them: what Knos is and where it runs (NEAR testnet and Solana devnet), what it
+# serves (docs/reference/X402.md, server.json)
+TOPICS = ("research", "valley-of-death", "near", "near-protocol", "testnet", "solana", "devnet", "ai-agents",
           "github-actions", "mcp-server", "x402")
 STALE = ("Bounties that pay", "Paid GitHub bounties", "Hire any AI agent", "shared memory", "local memory", "memory every coding agent",
          "memory for every coding agent", "memory for coding agents",
@@ -132,15 +137,27 @@ def sentence(root: Path = ROOT) -> str:
     return got.strip()
 
 
-# The sentence in a few words: what a person searching reads first, so it is the title (60 characters at most:
-# tests/test_seo.py).
-OUTCOME = "See who wants it, then test each step."
+DOOR = "web/door.html"   # the published front door: scripts/site_pages.py writes it as the site's index.html
 
 
-def title(said: str) -> str:
-    """The site's title: the name, then the sentence in a few words (tests/web/site.mjs holds the page to the same
-    words). The descriptions begin with the sentence `said` itself."""
-    return "Knos. " + OUTCOME
+def door_title(description: str | None) -> str | None:
+    """The front door's title from its own description: "Knos: " and the description's first sentence, its first letter
+    small and its full stop dropped (60 characters at most: what a person searching reads first)."""
+    if not description:
+        return None
+    first = re.split(r"(?<=[.!?])\s", description.strip(), maxsplit=1)[0].rstrip(".!?")
+    return "Knos: " + first[:1].lower() + first[1:]
+
+
+def door_split(root: Path = ROOT) -> str | None:
+    """The note --check prints while the front door does not begin with the sentence (the founder picks one)."""
+    page = root / DOOR
+    if not page.is_file():
+        return None
+    desc, said = _meta(page.read_text(encoding="utf-8"), "name", "description"), sentence(root)
+    if desc is None or desc.startswith(said):
+        return None
+    return f'note: {DOOR} begins "{desc[:60]}", not the sentence of {SOURCE} "{said}": the founder picks one sentence for both'
 
 
 def _judge(where: str, got: str | None, rule: str, said: str) -> list[str]:
@@ -178,17 +195,22 @@ def problems(root: Path = ROOT) -> list[str]:
     if (root / "action.yml").is_file():
         m = _YAML.search((root / "action.yml").read_text(encoding="utf-8"))
         out += _judge("action.yml", m.group(1) if m else None, PART, said)
-    page = root / "web" / "index.html"
+    page = root / DOOR
     if page.is_file():
         html = page.read_text(encoding="utf-8")
+        desc = _meta(html, "name", "description")
         t = re.search(r"<title>([^<]*)</title>", html)
-        for where, got, want in (("<title>", t.group(1) if t else None, title(said)), ("og:title", _meta(html, "property", "og:title"), title(said))):
-            if got != want:
-                out.append(f'web/index.html {where}: is "{got}", and the source gives "{want}"')
+        want = door_title(desc)
+        for where, got in (("<title>", t.group(1) if t else None), ("og:title", _meta(html, "property", "og:title"))):
+            if got != want or (got and len(got) > 60):
+                out.append(f'{DOOR} {where}: is "{got}", and its description gives "{want}" (60 characters at most)')
         for attr, name in (("name", "description"), ("property", "og:description"), ("name", "twitter:description")):
             got = _meta(html, attr, name)
-            if got is not None or name != "twitter:description":
-                out += _judge(f"web/index.html {name}", got, BEGINS, said)
+            if got is None and name == "twitter:description":
+                continue
+            out += _judge(f"{DOOR} {name}", got, PART, said)
+            if got is not None and got != desc:
+                out.append(f"{DOOR} {name}: is not the page's meta description: {got[:90]}")
     for rel in _readmes(root):
         out += _judge(rel, (root / rel).read_text(encoding="utf-8"), PART, said)
     out += version_problems(root)
@@ -358,7 +380,9 @@ def main(argv: list[str] | None = None, say: Callable[[str], None] = print, root
     found = problems(root)
     for p in found:
         say(p)
-    say(f"{len(found)} description(s) are not the one sentence" if found else f"every description says: {said}")
+    if note := door_split(root):
+        say(note)
+    say(f"{len(found)} description(s) are not the one sentence" if found else f"no description names an older product; the registry and plugin lists say: {said}")
     return 1 if found else 0
 
 

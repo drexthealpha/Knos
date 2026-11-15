@@ -16,13 +16,13 @@
 #                                           named knos_gate-keypair.json), with the same resumable buffers, and hand
 #                                           their upgrade authority to the upgrade vault. Needs the multisigs (the
 #                                           plain run made them).
-#   bash scripts/deploy_v2.sh --rc          a STAGING copy of the 2.1 builds of knos_oidc and knos_pay under fresh ids
+#   bash scripts/deploy_v2.sh --rc          a STAGING copy of the live builds of knos_oidc and knos_pay under fresh ids
 #                                           (keypairs made in <key folder>/rc; upgrade authority: the fee payer), with
 #                                           the faucet, GitHub's genesis keys and the fee account set up on it, and
 #                                           <key folder>/rc/program_ids.json written: a client run with
 #                                           KNOS_PROGRAM_IDS=<that file> talks to the staging programs, so every new
 #                                           instruction can be tried on devnet before the real upgrade executes. The
-#                                           staging escrow reads tokens of the verifier its build names (OIDC_ID in
+#                                           staging knos_pay reads tokens of the verifier its build names (OIDC_ID in
 #                                           knos_pay's source): the script says which one that is.
 #   bash scripts/deploy_v2.sh --rc-close    close the staging programs and their buffers; the SOL returns to the fee
 #                                           payer. Closed ids can never be used again: the next --rc makes new ones.
@@ -67,7 +67,7 @@
 #   3 deploy     solana program deploy, each program under its own keypair, with a buffer keypair kept in the key
 #                folder (the same command continues a deploy that failed half way), --max-sign-attempts 60 and a
 #                compute unit price. Skipped for a program whose on-chain bytes are already this build.
-#   4 faucet     InitFaucet: the escrow's test-USDC mint
+#   4 faucet     InitFaucet: knos_pay's test-USDC mint
 #   5 keys       RegisterKey and KeyParams for GitHub's four genesis keys. They verify for 30 days from now; the
 #                rotate workflow's Refresh keeps them alive after that
 #   6 fee        the fee owner's token account for the faucet's mint
@@ -84,7 +84,7 @@
 #                      adds the buffer keypairs (--propose: one per program
 #                      and build, <name>-upgrade-buffer-<the build's hash, 16 characters>.json)
 #   KNOS_FEE_PAYER     the fee payer's keypair (default: payer.json in the key folder). It pays, and it is the
-#                      programs' upgrade authority until step 8
+#                      programs' upgrade authority until step 7
 #   KNOS_MEMBERS       the multisig members' keypair files or addresses, separated by spaces (default: member-N.json)
 #   KNOS_RPC           the cluster (default https://api.devnet.solana.com)
 #   KNOS_SO_DIR        a folder with knos_oidc.so and knos_pay.so to deploy instead of building: the verified-build
@@ -96,8 +96,8 @@
 #   KNOS_GATE_TOKENS   --propose: a folder with <program>.jwt for each of the four, the tokens program.yml asked GitHub
 #                      for (audience gate:<program>:<executable hash>). With them a missing record is written
 #   KNOS_CHANGES       --propose: the programs this release changes, separated by spaces (default: "knos_oidc knos_pay",
-#                      0.3.18's one proposal set). Only these are proposed; see --propose above. 0.3.19 changes no
-#                      program: without KNOS_CHANGES set, --propose refuses in this tree before it reads anything
+#                      0.3.18's one proposal set). Only these are proposed; see --propose above. This tree proposes
+#                      nothing by itself: without KNOS_CHANGES set, --propose refuses before it reads anything
 #   KNOS_GATE_WAIT     --propose: how many seconds to wait for a build's record at the upgrade gate before refusing
 #                      (default 1800: program.yml's verified builds and the relay take about that long after a push)
 #   KNOS_PRIORITY_FEE  micro-lamports per compute unit for the deploy (default 1000)
@@ -131,13 +131,13 @@ done
 if [ "$UNGATED" = 1 ] && [ "$MODE" != --propose ]; then echo "--ungated goes with --propose" >&2; exit 2; fi
 if [ "$REPLACE" = 1 ] && [ "$MODE" != --propose ]; then echo "--replace goes with --propose" >&2; exit 2; fi
 
-# WHAT THIS TREE PROPOSES: NOTHING. 0.3.19 changes no program: programs-v2/ is byte for byte 0.3.18's, and the builds
-# 0.3.18 changed (knos_oidc, knos_pay) are proposals 7 and 8 of the upgrade multisig already. So --propose refuses here,
-# before a key or the cluster is read. A release that changes a program names it in RELEASE_PROPOSES again. KNOS_CHANGES,
-# set by hand, still says which programs a run may propose (an emergency fix; scripts/exercise_public.py sets it too).
+# WHAT THIS TREE PROPOSES: NOTHING BY ITSELF. The later builds of knos_pay and knos_oidc are proposals 13, 14 and 15 of
+# the upgrade multisig (web/upgrades.json), made outside this command. So --propose refuses here, before a key or the
+# cluster is read. A release that changes a program names it in RELEASE_PROPOSES again. KNOS_CHANGES, set by hand, still
+# says which programs a run may propose (an emergency fix; scripts/exercise_public.py sets it too).
 RELEASE_PROPOSES=""
 if [ "$MODE" = --propose ] && [ -z "$RELEASE_PROPOSES" ] && [ -z "${KNOS_CHANGES:-}" ]; then
-  echo "refused: this release proposes nothing. Its tree changes no program, and knos_oidc and knos_pay 2.2 are proposals 7 and 8 already (python scripts/exercise_public.py status --want 2.2 says whether they executed). Nothing was read, written or proposed. To propose a build all the same, name its programs: KNOS_CHANGES=\"knos_pay\" bash scripts/deploy_v2.sh --propose" >&2
+  echo "refused: this release proposes nothing by itself. The later builds of knos_pay and knos_oidc are proposals 13, 14 and 15 of the upgrade multisig already (web/upgrades.json; knos status says whether they executed). Nothing was read, written or proposed. To propose a build all the same, name its programs: KNOS_CHANGES=\"knos_pay\" bash scripts/deploy_v2.sh --propose" >&2
   exit 1
 fi
 
@@ -200,10 +200,12 @@ start_localnet() {
   WORK="$(mktemp -d "${TMPDIR:-/tmp}/knos-localnet.XXXXXX")"
   RPC="http://127.0.0.1:$port"
   # the one program this deployment meets on a cluster that it does not deploy: Squads v4, with its config account.
-  # Epochs four times the default length: scripts/drill_upgrade.sh moves this validator's clock 48 hours with --warp-slot,
-  # and one epoch of the default length carries the clock 36 hours at most
+  # Long epochs: scripts/drill_upgrade.sh moves this validator's clock past the multisig's time lock with --warp-slot, and
+  # the clock runs as little as 0.3 s a slot (see drill_upgrade.sh). The drill moves it twice past the 8-day lock (691,200 s,
+  # web/upgrades.json), up to 2,304,000 slots each, inside one epoch of 5,000,000 slots; one epoch of the default length
+  # (432,000 slots) carries 36 hours
   solana-test-validator --reset --quiet --ledger "$WORK/ledger" --bind-address 127.0.0.1 --rpc-port "$port" --faucet-port "$((port + 2))" \
-    --gossip-port "$((port + 3))" --dynamic-port-range "$((port + 4))-$((port + 40))" --slots-per-epoch 1728000 --url "$from" \
+    --gossip-port "$((port + 3))" --dynamic-port-range "$((port + 4))-$((port + 40))" --slots-per-epoch 5000000 --url "$from" \
     --clone-upgradeable-program "$(pinned squads_program)" --clone BSTq9w3kZwNwpBXJEvTZz2G9ZTNyKBvoSeXMvwb4cNZr > "$WORK/validator.log" 2>&1 &
   VALIDATOR=$!
   for _ in $(seq 90); do
@@ -366,7 +368,7 @@ handover() {
   done
 }
 
-# ---- --rc: a staging copy of the 2.1 builds --------------------------------------------------------------------------
+# ---- --rc: a staging copy of the live builds ------------------------------------------------------------------------
 rc_deploy() {
   local name from="${KNOS_RC_SO_DIR:-$SO_DIR}" trusts
   mkdir -p "$RC"; chmod 700 "$RC"

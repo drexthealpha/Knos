@@ -19,8 +19,8 @@ would accept. The drills are therefore of two kinds.
                     a key is refreshed; a bounty is funded and paid; the same tokens again are refused; a token under
                     a revoked key is refused. The clock is set to each token's issue time.
   --upgrade-log FILE  the lines scripts/drill_upgrade.sh wrote (KNOS_DRILL_LOG) when it ran the upgrade drill against
-                    a local validator with the real Squads program: an upgrade proposed, refused before 48 hours,
-                    executed after them, and a cancelled one that never runs. This script does not run that drill; it
+                    a local validator with the real Squads program: an upgrade proposed, refused before the multisig's
+                    time lock ends, executed after it, and a cancelled one that never runs. This script does not run that drill; it
                     puts its rows in the table.
 
 What is simulated, and how. The guardian is the vault of a Squads multisig: it has no private key and signs only by a
@@ -96,7 +96,9 @@ TERMS = pay.terms_json({"accept": "", "checks": [{"app": 15368, "name": "test"}]
 KEYS, SIMULATED, WRITTEN, REAL = "keys made here", "authority simulated", "held state written", "real GitHub tokens"
 VOTED = "the multisig's vote, local validator"
 PERSON = "a second person, their own machine"
-UPGRADE = ("an upgrade is proposed", "no upgrade before 48 hours", "an upgrade after 48 hours", "a cancelled upgrade never runs")   # scripts/drill_upgrade.sh's rows
+UPGRADE = ("an upgrade is proposed", "no upgrade before the time lock", "an upgrade after the time lock", "a cancelled upgrade never runs")   # scripts/drill_upgrade.sh's rows
+# the names a log written while the time lock was 48 hours (before 11 Oct 2026) gives two of those rows
+UPGRADE_BEFORE = {"no upgrade before 48 hours": UPGRADE[1], "an upgrade after 48 hours": UPGRADE[2]}
 
 
 class Failed(Exception):
@@ -772,6 +774,8 @@ def upgrade_rows(log: Path | None, say: Callable[[str], None] = print) -> list[R
     seen: dict[str, tuple[str, str]] = {}
     for i, line in enumerate(log.read_text(encoding="utf-8").splitlines() if log else [], 1):
         parts = line.split("\t")
+        if len(parts) == 3:
+            parts[0] = UPGRADE_BEFORE.get(parts[0], parts[0])
         if len(parts) != 3 or parts[0] not in UPGRADE:
             raise SystemExit(f"stopped: line {i} of {log} is not a line scripts/drill_upgrade.sh writes (a step's name, what was checked, pass; tab separated).")
         seen[parts[0]] = (parts[1], parts[2] if parts[2] == "pass" else f"FAIL: {parts[2]}")
@@ -1011,12 +1015,13 @@ def relay_killed_mid_token() -> Outage:
         _extra, again = _passes(c, net, 15)
         if again or _got(c, job[3]) != _net_of(c, net):
             raise Failed(f"the token was carried again: {again}")
+        holds = usdc(_got(c, job[3]))
     return Outage("the relay is killed between a send and its confirmation",
                   "the relay's process ended after the paying transaction landed and before it noted or logged anything (its notes said the token was being sent)",
                   "the money arrives; the payment comment is late by one pass of the relay",
                   "nothing to do. The token was written to the relay's notes before it was sent, so the next pass (or the next run) sends it "
                   "again; the chain's single-use marker answers that it is done, nothing moves twice, and the log gets its line",
-                  f"answered {c.now() - 15 - died} s after the kill ({took} s of passes); the payee holds 4.875 once, after two sends of the same token")
+                  f"answered {c.now() - 15 - died} s after the kill ({took} s of passes); the payee holds {holds} once, after two sends of the same token")
 
 
 def rpc_errors_and_stale_blockhashes() -> Outage:
@@ -1378,7 +1383,7 @@ def document(programs: list[Program], rows: list[Row], rpc: str, cluster: str, n
                  "but GitHub can sign a token it accepts."), "",
               f"- **{VOTED}**: `scripts/drill_upgrade.sh`, on a validator on the machine it is run on, which holds the real Squads program and "
               "both multisigs. The upgrade is proposed, approved, executed and cancelled by member keys through the Squads program, with "
-              "`scripts/governance.mjs`; the validator's clock is moved 48 hours. The first of these rows says what that validator held: "
+              "`scripts/governance.mjs`; the validator's clock is moved past the multisig's time lock. The first of these rows says what that validator held: "
               "with `--from-devnet`, devnet's bytes of both programs and both multisig accounts, each member's key replaced by a key made "
               "for the drill (the members' real keys are not used). "
               + (f"This run read those rows from `{upgrade_log}`." if upgrade_log else "This run was given no log of it, so these rows were not run."), "",

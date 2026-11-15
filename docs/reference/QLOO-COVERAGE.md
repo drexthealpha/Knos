@@ -6,7 +6,8 @@ names every interface reads). CI runs `--check`, so this file cannot drift from 
 
 537 rows: 537 USED, 0 N/A (with Qloo's own reason).
 
-Qloo answers the demand wall before money moves. The IDT result is Knos's own (clear briefs), not Qloo's.
+Qloo answers the demand check (the hosted app and the opt-in MCP tool knos_demand_check), the one Knos feature that calls
+Qloo. The IDT result is Knos's own (clear briefs), not Qloo's.
 
 ## The families
 

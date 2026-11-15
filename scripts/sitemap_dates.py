@@ -1,4 +1,4 @@
-"""The sitemap's lastmod for each page, from git: web/sitemap.xml names each page's source file (<lastmod>git:web/...</lastmod>),
+"""The sitemap's lastmod for each page, from git: the sitemap.xml written by scripts/site_product.py names each page's source file (<lastmod>git:<path></lastmod>),
 and the build writes the date of the last commit that changed that file, at or before the commit it builds; a file this
 clone has no history for gets the build's date.
 

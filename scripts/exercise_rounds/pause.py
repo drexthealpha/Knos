@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 # "alone": it stops new funding for everyone while it runs, so `run` and `run --phase after` pass it by: only `--only pause`
-# starts it, when no round at the public ids is mid-flight (CONTRIBUTING.md).
+# starts it, when no round at the public ids is mid-flight (the registry's notes in scripts/exercise_public.py).
 ROUND = {"name": "pause", "needs": ("knos_pay", "public"), "caps": ("pause",), "phase": "any", "alone": True}
 PAUSE = 120                 # seconds
 E_PAUSED = 96               # programs-v2/knos_pay/src/lib.rs

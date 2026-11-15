@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The upgrade drill: a program of the second deployment is upgraded through the upgrade multisig, on a validator on this
-# machine that runs the real Squads program, and the 48 hours are shown to hold. Nothing here reaches a public cluster:
+# machine that runs the real Squads program, and the multisig's time lock is shown to hold. Nothing here reaches a public cluster:
 # any endpoint that is not on this machine is refused.
 #
 #   bash scripts/drill_upgrade.sh --from-devnet [knos_pay|knos_oidc]      (default knos_pay)
@@ -20,20 +20,22 @@
 #                   governance.mjs upgrade propose, approved by the member keys given
 #   3 too early     governance.mjs upgrade execute is refused by its own reading of the proposal; sent anyway
 #                   (--unchecked), the Squads program refuses it (TimeLockNotReleased). The program is unchanged
-#   4 48 hours      the clock is moved past the time lock (see "The clock" below)
+#   4 time lock     the clock is moved past the time lock (see "The clock" below)
 #   5 execute       governance.mjs upgrade execute: the program was deployed again in a later slot, with the same
 #                   executable hash, and its upgrade authority is still the vault
 #   6 cancel        a second buffer and proposal, approved; governance.mjs cancel upgrade, by the member keys; execute is
 #                   refused by the script and, sent anyway, by the Squads program (InvalidProposalStatus), before its
-#                   48 hours and after them. The program is unchanged
+#                   time lock ends and after. The program is unchanged
 #
 # The clock. A Surfpool fork moves its clock when asked (surfnet_timeTravel), and that is tried first. A
 # solana-test-validator has no such call: it is stopped and started again on the same ledger with --warp-slot. Measured
 # with agave 3.0.0: after a warp the Clock sysvar reads the time the epoch began plus 0.3 s for each slot of the epoch
 # (the runtime lets the clock run at most 25% behind 0.4 s a slot; from a snapshot it read 0.4 s a slot), and never
-# less than before. So 48 hours take up to 576,000 slots inside one epoch, and an epoch of the default length (432,000 slots) can carry the clock 36 hours at
-# most: scripts/deploy_v2.sh --localnet starts its validator with epochs of 1,728,000 slots, and a validator started
-# any other way needs --slots-per-epoch 1728000. A warp starts from the newest snapshot, not from the ledger's last
+# less than before. The time lock is read from the upgrade multisig on the validator (bytes 74-78 of its account; on
+# devnet 691,200 s, 8 days, since 11 Oct 2026, web/upgrades.json). 8 days take up to 2,304,000 slots inside one epoch,
+# the drill moves the clock twice, and an epoch of the default length (432,000 slots) can carry the clock 36 hours at
+# most: scripts/deploy_v2.sh --localnet starts its validator with epochs of 5,000,000 slots, and a validator started
+# any other way needs --slots-per-epoch 5000000. A warp starts from the newest snapshot, not from the ledger's last
 # block, so the script waits for a snapshot newer than its own transactions before it restarts (up to a minute or two
 # each time). The restart needs KNOS_LEDGER (and finds the validator's process by it, or takes KNOS_VALIDATOR_PID).
 # The validator is left running afterwards.
@@ -73,7 +75,7 @@ PYTHON="${PYTHON:-python3}"
 RPC="${KNOS_RPC:-http://127.0.0.1:8899}"
 LEDGER="${KNOS_LEDGER:-}"
 LOG="${KNOS_DRILL_LOG:-}"
-LOCK=172800
+LOCK=""    # the upgrade multisig's time lock in seconds, read from the validator in step 1
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/knos-drill.XXXXXX")"
 OUT="$WORK/out.txt"
 OWN=0       # 1: the validator is this script's own (--from-devnet)
@@ -190,7 +192,7 @@ PY
     # 0.3 s a slot, and 15 minutes over: a validator that has run for a while is a little ahead of 0.3 s a slot already
     jump=$(( (target - $(now) + 900) * 10 / 3 ))
     room="$(sol epoch-info --output json | "$PYTHON" -c 'import json, sys; e = json.load(sys.stdin); print(e["slotsInEpoch"] - e["slotIndex"])')"
-    [ "$jump" -lt "$((room - 64))" ] || die "the clock has to move $jump slots and this epoch has $room left; a warp into the next epoch starts the count again. Start the validator with --slots-per-epoch 1728000 or more (scripts/deploy_v2.sh --localnet does)."
+    [ "$jump" -lt "$((room - 64))" ] || die "the clock has to move $jump slots and this epoch has $room left; a warp into the next epoch starts the count again. Start the validator with --slots-per-epoch 5000000 or more (scripts/deploy_v2.sh --localnet does)."
     slot="$(sol slot)"
     echo "  the validator is restarted on its ledger with --warp-slot $((slot + jump)) (slot $slot now)"
     restart_at_slot "$((slot + jump))"
@@ -236,7 +238,7 @@ for f in files[most:]:
     os.remove(f)
 PY
   solana-test-validator --reset --quiet --ledger "$LEDGER" --bind-address 127.0.0.1 --rpc-port "$port" --faucet-port "$((port + 2))" \
-    --gossip-port "$((port + 3))" --dynamic-port-range "$((port + 4))-$((port + 40))" --slots-per-epoch 1728000 --url "$from" \
+    --gossip-port "$((port + 3))" --dynamic-port-range "$((port + 4))-$((port + 40))" --slots-per-epoch 5000000 --url "$from" \
     --clone-upgradeable-program "$(pinned squads_program)" --clone BSTq9w3kZwNwpBXJEvTZz2G9ZTNyKBvoSeXMvwb4cNZr \
     --clone-upgradeable-program "$(pinned knos_oidc)" --clone-upgradeable-program "$(pinned knos_pay)" \
     --account "$(pinned upgrade_multisig)" "$WORK/upgrade_multisig.json" --account "$(pinned guardian_multisig)" "$WORK/guardian_multisig.json" \
@@ -315,6 +317,8 @@ governance show --check >/dev/null 2>&1 || die "the multisigs are not right on $
 program_state
 [ "$AUTHORITY" = "$VAULT" ] || die "$NAME's upgrade authority is $AUTHORITY, not the upgrade vault $VAULT: there is nothing to drill."
 HASH0="$HAVE" SLOT0="$SLOT"
+LOCK="$(PYTHONPATH="$ROOT/src" "$PYTHON" -c 'import base64, sys; from knos import chain; v = chain.call(sys.argv[1], "getAccountInfo", [sys.argv[2], {"encoding": "base64"}], timeout=60)["value"]; d = base64.b64decode(v["data"][0]); print(int.from_bytes(d[74:78], "little"))' "$RPC" "$(pinned upgrade_multisig)")" || die "the upgrade multisig's time lock could not be read from $RPC."
+echo "  ok  the upgrade multisig's time lock on $RPC is $LOCK s"
 echo "  ok  $RPC; both multisigs are as the design fixes them; $NAME $ID runs the build $HASH0 (deployed in slot $SLOT0), upgrade authority the vault $VAULT"
 sol airdrop 10 "$PAYER_ADDRESS" >/dev/null 2>&1 || true      # a test validator gives SOL; a fork's fee payer was funded by its own cheatcode
 
@@ -322,15 +326,15 @@ step 2 "a no-op upgrade is proposed and approved"
 noop_buffer 1
 propose
 FIRST="$INDEX"
-[ "$((FROM - $(now)))" -gt "$((LOCK - 3600))" ] || die "proposal $FIRST can be executed $(day "$FROM"), which is not 48 hours after its approval."
-passed "an upgrade is proposed" "on $SETUP: the bytes $NAME already runs, in buffer $BUFFER owned by the vault; proposal $FIRST of the upgrade multisig is approved and can be executed from $(day "$FROM"), 48 hours after the vote; $GATE"
+[ "$((FROM - $(now)))" -gt "$((LOCK - 3600))" ] || die "proposal $FIRST can be executed $(day "$FROM"), which is not $LOCK s after its approval."
+passed "an upgrade is proposed" "on $SETUP: the bytes $NAME already runs, in buffer $BUFFER owned by the vault; proposal $FIRST of the upgrade multisig is approved and can be executed from $(day "$FROM"), the time lock ($LOCK s) after the vote; $GATE"
 
-step 3 "it cannot be executed before the 48 hours"
+step 3 "it cannot be executed before the time lock ends"
 refused "It cannot be executed before that" upgrade execute "$FIRST"
 refused "TimeLockNotReleased" upgrade execute "$FIRST" --unchecked
 program_state
 [ "$HAVE $SLOT $AUTHORITY" = "$HASH0 $SLOT0 $VAULT" ] || die "$NAME changed (build $HAVE, slot $SLOT, authority $AUTHORITY) although nothing was executed."
-passed "no upgrade before 48 hours" "at $(day "$(now)") governance.mjs refuses to execute proposal $FIRST; sent anyway, the Squads program refuses it (TimeLockNotReleased); $NAME is unchanged (slot $SLOT0)"
+passed "no upgrade before the time lock" "at $(day "$(now)") governance.mjs refuses to execute proposal $FIRST; sent anyway, the Squads program refuses it (TimeLockNotReleased); $NAME is unchanged (slot $SLOT0)"
 
 step 4 "the clock moves past the time lock"
 BEFORE="$(now)"
@@ -344,7 +348,7 @@ program_state
 [ "$SLOT" -gt "$SLOT0" ] || die "$NAME's last deployment is still slot $SLOT0: the upgrade did not run."
 [ "$AUTHORITY" = "$VAULT" ] || die "after the upgrade $NAME's upgrade authority is $AUTHORITY, not the vault."
 SLOT1="$SLOT"
-passed "an upgrade after 48 hours" "at $(day "$(now)") proposal $FIRST is executed by the Squads program: $NAME was deployed again in slot $SLOT1 (before: $SLOT0) with the same executable hash $HASH0, and its upgrade authority is still the vault"
+passed "an upgrade after the time lock" "at $(day "$(now)") proposal $FIRST is executed by the Squads program: $NAME was deployed again in slot $SLOT1 (before: $SLOT0) with the same executable hash $HASH0, and its upgrade authority is still the vault"
 
 step 6 "a second upgrade is proposed, approved and cancelled"
 noop_buffer 2
@@ -358,8 +362,8 @@ warp_to "$((FROM + 1))"
 refused "InvalidProposalStatus" upgrade execute "$SECOND" --unchecked
 program_state
 [ "$HAVE $SLOT $AUTHORITY" = "$HASH0 $SLOT1 $VAULT" ] || die "$NAME changed (build $HAVE, slot $SLOT, authority $AUTHORITY) although the proposal was cancelled."
-passed "a cancelled upgrade never runs" "proposal $SECOND was approved, then cancelled by the members' votes; governance.mjs refuses to execute it and, sent anyway, the Squads program refuses it (InvalidProposalStatus) before its 48 hours and after them; $NAME is unchanged (slot $SLOT1). Its buffer $BUFFER stays with the vault"
+passed "a cancelled upgrade never runs" "proposal $SECOND was approved, then cancelled by the members' votes; governance.mjs refuses to execute it and, sent anyway, the Squads program refuses it (InvalidProposalStatus) before its time lock ends and after; $NAME is unchanged (slot $SLOT1). Its buffer $BUFFER stays with the vault"
 
 echo
-echo "the upgrade drill passed on $RPC: proposals $FIRST (executed after 48 hours) and $SECOND (cancelled) of the upgrade multisig $(pinned upgrade_multisig)."
+echo "the upgrade drill passed on $RPC: proposals $FIRST (executed after the time lock) and $SECOND (cancelled) of the upgrade multisig $(pinned upgrade_multisig)."
 if [ -n "$LEDGER" ] && { [ "$OWN" = 0 ] || [ "$KEEP" = 1 ]; }; then pid="$(validator_pid || true)"; [ -z "$pid" ] || echo "the validator is still running (pid $pid, ledger $LEDGER): stop it with kill $pid"; fi

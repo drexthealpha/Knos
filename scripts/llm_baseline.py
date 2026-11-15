@@ -1,4 +1,5 @@
-"""test_llm_baseline, the first arm: Claude alone (no tools, no data) answers each idea of the comparison
+"""Kept for its record: a tool of the earlier demand-check work, not of Knos's locked-test flow.
+test_llm_baseline, the first arm: Claude alone (no tools, no data) answers each idea of the comparison
 with the same four fields Knos answers (verdict, audience, cities, price tier). Run on the founder's PC with the Claude
 Code CLI on its subscription (`claude -p --output-format json`): no server key. Each answer is kept with the model's
 own words, then scripts/qloo_vs_open_signals.py --claude <file> publishes the three arms side by side.

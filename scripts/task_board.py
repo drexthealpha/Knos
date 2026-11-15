@@ -7,8 +7,10 @@
     python scripts/task_board.py status --json --empty the same document with nothing read: what a build with no network writes
     python scripts/task_board.py why OWNER/REPO#N [--pull M]   one sentence: why a merged pull request was not paid, and what fixes it
 
-The tasks are tasks/<slug>/ in this repository (tasks/README.md has the schema). Every one pays test USDC on Solana
-devnet, which has no monetary value, and says so in its first line.
+The tasks were tasks/<slug>/ in this repository. That folder has been removed, so `catalogue()` is empty by design:
+`plan` and `open` find no task to open, and the status document lists none. The code stays for the record of the
+earlier board (the Colosseum part of Knos, tag v0.3.28). Every task it opened paid test USDC on Solana devnet, which
+has no monetary value, and said so in its first line.
 
 What `open` does for one task, in this order, and what makes a second run do nothing twice:
 
@@ -32,11 +34,11 @@ What bounds it, all printed by `plan`:
 
 ONLY THROUGH THE PUBLIC PINNED WORKFLOWS. An order names, when it is funded, the commit of the workflows whose signed
 run may pay it. `open` reads the playground's own workflow files first (`unpinned`) and funds nothing unless every
-reusable workflow they call is the published workflows' home (drexthealpha/Knos, branch workflows) at the commit this checkout's examples name: an order funded
+reusable workflow they call is the published workflows' home (drexthealpha/Knos, a workflows-<sha12> tag) at the commit this checkout's examples name: an order funded
 through a staging copy is one the public worker cannot pay (that is why one merged pull request went unpaid in
 October 2026). `plan` and `status` say the same check's result; `why` reads one order back from the chain (knos.tasks.why).
 
-THE TASKS THAT ARE NOT CODE (`--kinds`; tasks/outside/<kind>.json, knos.tasks.KINDS). Each opens as a board issue
+THE TASKS THAT ARE NOT CODE (`--kinds`; knos.tasks.KINDS). Each opens as a board issue
 `outside-<kind>` that pays 5 test USDC on a maintainer's MERGE of the pull request filing its evidence, one file
 outside/<kind>/<login>.json; the maintainer checks it with knos.tasks.accepts first. No acceptance bundle is theirs: the
 starter task's checks under the issue's number are removed in the same commit as its line in board.json, so the funding
@@ -177,7 +179,7 @@ def catalogue() -> list[dict]:
 
 
 def kinds() -> list[dict]:
-    """The tasks that are not code puzzles (knos.tasks.KINDS: tasks/outside/<kind>.json holds the same text), each
+    """The tasks that are not code puzzles (knos.tasks.KINDS), each
     as a board task `outside-<kind>`: no acceptance bundle, paid on the merge of the pull request that files its evidence
     under outside/<kind>/. Raises Stop when one breaks a rule every task of the board keeps."""
     out = []

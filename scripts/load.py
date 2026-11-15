@@ -813,7 +813,7 @@ def _paras(text: str) -> list[str]:
 def _kept(m: dict, key: str):
     """A figure of a recorded run, or "not recorded" where the run's report did not keep it (never a zero it did not
     measure)."""
-    v = m.get(key, 0)
+    v = m.get(key)
     return "not recorded" if v is None else v
 
 
@@ -965,8 +965,8 @@ def render(doc: dict) -> str:
                 f"{L['tx_cu']:,}. And the most one weighed, signatures included; a cluster takes {L['tx_bytes']:,} bytes.",
                 "- **Bytes per order.** The sum of the signed transactions' sizes.", "",
                 "## 3. What that allows on a cluster (derived)", "",
-                f"Solana's limits: a block holds {L['block_cu'] // 10 ** 6}M compute units ({L['block_cu_before'] // 10 ** 6}M until SIMD-0286; "
-                f"mainnet has had the larger blocks since 29 July 2026, devnet since earlier), the transactions that write any one account may "
+                f"Solana's limits: a block holds {L['block_cu'] // 10 ** 6}M compute units ({L['block_cu_before'] // 10 ** 6}M until SIMD-0286, "
+                "the first source below), the transactions that write any one account may "
                 f"use {L['account_cu'] // 10 ** 6}M of a block, and a block is produced every {int(L['slot_s'] * 1000)} ms.", "", "Sources:", "",
                 *(f"- [{t}]({u})" for t, u in doc["sources"].items()), "",
                 "The two sources disagree on one figure: Solana's page says the "

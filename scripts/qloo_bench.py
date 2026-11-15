@@ -1,4 +1,5 @@
-"""Qloo's own measured contribution: the 10 research tasks of the IDT benchmark (r01-r10), each Ready
+"""Kept for its record: a tool of the earlier demand-check work, not of Knos's locked-test flow.
+Qloo's own measured contribution: the 10 research tasks of the IDT benchmark (r01-r10), each Ready
 brief run twice through the same model and effort, once as it is and once with a "Grounding (Qloo)" line made from a live
 demand check of that brief's own product (Qloo's audience, cities, price tier and comparables).
 

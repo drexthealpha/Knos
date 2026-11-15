@@ -1,4 +1,4 @@
-"""web/demo_data.json: the round the first screen replays (web/demo.js), read out of what this repository records.
+"""web/demo_data.json: the round the old first screen replayed (web/demo.js, now swept to a redirect), read out of what this repository records.
 
     python scripts/demo_data.py            write web/demo_data.json
     python scripts/demo_data.py --check    exit 1 when the file is not what this would write

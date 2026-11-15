@@ -1,14 +1,14 @@
 """Measure, on devnet, how long Knos's own transactions take from the send to `confirmed` and to `finalized`, and
-write docs/finality.json (what the stats page shows as "paid and final in N ms").
+write docs/finality.json (what the stats page shows as "final in N ms": anchors, fundings and refunds, no payout).
 
-    python scripts/alpenglow_latency.py --keypair W.json --anchors 30 `--escrow` 15 [--jsonl rows.jsonl] [--write]
+    python scripts/alpenglow_latency.py --keypair W.json --anchors 30 --vault 15 [--jsonl rows.jsonl] [--write]
 
 Every transaction is OUR OWN TEST TRAFFIC, labelled so in the rows, in the Record entries and in docs/finality.json:
 
   record_anchor   a real Knos Record anchor (knos.record.anchoring.anchor over one labelled "experiment" entry each)
-  `escrow_fund`     knos_pay FundWallet (4) of 1.00 of our own synthetic test mint on a synthetic issue number, with the
+  vault_fund      knos_pay FundWallet (4) of 1.00 of our own synthetic test mint on a synthetic issue number, with the
                   shortest deadline the program takes (MIN_WORK = 60 s)
-  `escrow_refund`   knos_pay Refund (7) of that job once the cluster's clock is past its deadline
+  vault_refund    knos_pay Refund (7) of that job once the cluster's clock is past its deadline
 
 A full knos_pay payout needs a GitHub OIDC token of a signed workflow run, which this script cannot make: funding and
 refunding are the vault transactions anyone can send.
@@ -114,7 +114,7 @@ def _mint_ixs(payer: Pubkey, mint: Pubkey, lamports: int, to_ata: Pubkey, units:
             init, pay.create_ata_ix(payer, payer, mint), mint_to]
 
 
-def escrow(ledger: chain.Ledger, me: Keypair, wallets: Path, n: int, rows: list) -> None:
+def vault(ledger: chain.Ledger, me: Keypair, wallets: Path, n: int, rows: list) -> None:
     from knos.settle.v2 import pay
     mint_file = wallets / "mint.json"
     if mint_file.exists():
@@ -131,7 +131,7 @@ def escrow(ledger: chain.Ledger, me: Keypair, wallets: Path, n: int, rows: list)
     issues = [ISSUE_BASE + start % 1_000_000 * 100 + i for i in range(n)]
     for issue in issues:
         ix = pay.fund_wallet_ix(me.pubkey(), src, mint, REPO_ID, issue, 10**6, WF_REPO, WF_SHA, terms, pay.MERGE, 60)
-        rows.append(_measure(ledger, [ix], me, "escrow_fund"))
+        rows.append(_measure(ledger, [ix], me, "vault_fund"))
         time.sleep(0.5)
     last = pay.read_job(ledger.account(pay.job_pda(REPO_ID, issues[-1], me.pubkey())))
     while last is not None and ledger.now() <= last.deadline:
@@ -141,7 +141,7 @@ def escrow(ledger: chain.Ledger, me: Keypair, wallets: Path, n: int, rows: list)
         j = pay.read_job(ledger.account(job))
         if j is None:
             continue
-        rows.append(_measure(ledger, [pay.refund_ix(me.pubkey(), job, j)], me, "escrow_refund"))
+        rows.append(_measure(ledger, [pay.refund_ix(me.pubkey(), job, j)], me, "vault_refund"))
         time.sleep(0.5)
 
 
@@ -166,7 +166,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--keypair", required=True)
     ap.add_argument("--anchors", type=int, default=30)
-    ap.add_argument("--escrow", type=int, default=15, help="jobs funded then refunded: two transactions each")
+    ap.add_argument("--vault", type=int, default=15, help="jobs funded then refunded: two transactions each")
     ap.add_argument("--record-root", default=None)
     ap.add_argument("--jsonl", default=None, help="append each row here")
     ap.add_argument("--write", action="store_true", help="write docs/finality.json from --jsonl")
@@ -181,8 +181,8 @@ def main() -> int:
     try:
         if a.anchors:
             anchors(ledger, me, Path(a.record_root or Path(a.keypair).parent / "record"), a.anchors, rows)
-        if a.escrow:
-            escrow(ledger, me, Path(a.keypair).parent, a.escrow, rows)
+        if a.vault:
+            vault(ledger, me, Path(a.keypair).parent, a.vault, rows)
     finally:
         if a.jsonl:
             with open(a.jsonl, "a", encoding="utf-8") as f:
@@ -192,8 +192,11 @@ def main() -> int:
         lines = Path(a.jsonl).read_text(encoding="utf-8").splitlines()
         out = {"label": LABEL, "cluster": "devnet", "measured_at": time.strftime("%Y-%m-%d", time.gmtime()),
                "consensus": consensus.to_dict(),
-               "what": "send -> finalized (signatureSubscribe notification at finalized, from the sendTransaction call), Knos's own "
-                       "labelled test transactions: record_anchor, escrow_fund, escrow_refund (no payout: that needs a GitHub OIDC token)",
+               "what": "send -> finalized: from the sendTransaction call to the signatureSubscribe notification at finalized (public devnet RPC "
+                       f"{url}, from one machine), Knos's own labelled test transactions: record_anchor (a Knos Record anchor), vault_fund "
+                       "(knos_pay FundWallet, 60 s deadline, synthetic test mint), vault_refund (knos_pay Refund after the deadline). "
+                       "No payout: that needs a GitHub OIDC token.",
+               "source": "scripts/alpenglow_latency.py; every row below is a devnet transaction anyone can look up",
                **finality.parse(lines, "finalized_ms"),
                "confirmed": finality.parse(lines, "confirmed_ms")["all"], "knos_wait": finality.parse(lines, "knos_wait_ms")["all"]}
         (ROOT / "docs" / "finality.json").write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")

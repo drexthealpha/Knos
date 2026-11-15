@@ -1,19 +1,16 @@
 {
- "about": "Every public page of Knos: the front door (GitHub Pages) and the app (Render). scripts/test_ui_sota.mjs (layout) and .github/workflows/quality.yml (axe and Lighthouse) read this list.",
+ "about": "The product pages of Knos on GitHub Pages. scripts/test_ui_sota.mjs (layout), scripts/test_quality_bar.mjs and .github/workflows/quality.yml (axe and Lighthouse) read this list.",
  "pages": [
   "https://drexthealpha.github.io/Knos/",
-  "https://drexthealpha.github.io/Knos/faq.html",
+  "https://drexthealpha.github.io/Knos/claims/",
+  "https://drexthealpha.github.io/Knos/claim/hyperloglog/",
+  "https://drexthealpha.github.io/Knos/prove/",
+  "https://drexthealpha.github.io/Knos/agents/",
+  "https://drexthealpha.github.io/Knos/labs/",
+  "https://drexthealpha.github.io/Knos/check/",
+  "https://drexthealpha.github.io/Knos/pricing/",
+  "https://drexthealpha.github.io/Knos/status/",
   "https://drexthealpha.github.io/Knos/privacy.html",
-  "https://drexthealpha.github.io/Knos/404.html",
-  "https://drexthealpha.github.io/Knos/wanted.html",
-  "https://knos.onrender.com/app/",
-  "https://knos.onrender.com/with-without",
-  "https://knos.onrender.com/qloo-safe-use",
-  "https://knos.onrender.com/invite",
-  "https://knos.onrender.com/verify",
-  "https://knos.onrender.com/trace.html",
-  "https://knos.onrender.com/fields",
-  "https://knos.onrender.com/money",
-  "https://knos.onrender.com/companies"
+  "https://drexthealpha.github.io/Knos/404.html"
  ]
 }

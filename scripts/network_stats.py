@@ -1,4 +1,5 @@
-"""The public Knos numbers, counted from Solana devnet and written to the site's stats.json.
+"""Counts of the Colosseum entry's Solana programs on devnet (part of Knos, built before the NEAR testnet flow),
+written to the site's stats.json. The NEAR testnet contracts are not counted here.
 
     python scripts/network_stats.py --out _site/stats.json [--cache history.json] [--pages 50] [--budget 300]
 
@@ -23,14 +24,15 @@ one job, whatever it promises, and is `completed` once it has paid anyone: a sta
 and open):
 
     own      the Balance's owner, the commenter who funded, a payee, the funding wallet or a wallet that was paid
-             is Knos's own (scripts/own_github_ids.json: GitHub ids, and wallets, which have no GitHub id)
+             is Knos's own (scripts/own_github_ids.json: GitHub ids, and wallets, which have no GitHub id), or the
+             repository is Knos's (listed there, or owned by one of Knos's ids as GitHub says: own_repositories)
     self     not own, paid, and the funder is a payee (the second payment program's own rule: the Balance's owner or the
              commenter is a payee, or it is paid to the wallet whose money it was). A split that pays its funder a
              share is self as a whole: none of it counts as outside use
     test     not own, not self, and the money came from the devnet faucet (free test USDC)
     outside  everything else: someone who is not Knos put their own tokens in, and did not pay themselves
 
-Each job is in exactly one of the four. `outside` is the headline; the other three are shown apart and never added
+Each job is in exactly one of the four. `outside` is counted first; the other three are shown apart and never added
 to it. A funder is the GitHub owner of the Balance a comment spent, or the wallet that funded. `repeat_funders` are
 outside funders who funded another outside job after one of theirs was paid.
 
@@ -80,7 +82,7 @@ from knos.settle import oidc, pay  # noqa: E402
 from knos.settle.v2 import oidc as oidc2  # noqa: E402
 from knos.settle.v2 import pay as pay2  # noqa: E402
 from knos.settle.v2 import meter  # noqa: E402
-from knos.records import PROGRAMS, events_of, history, jobs_of, meter_months, orders_of, work_of  # noqa: E402,F401 - the readers live in knos.records
+from knos.records import events_of, history, jobs_of, meter_months, work_of  # noqa: E402,F401 - the readers live in knos.records; tests read history and jobs_of from here
 
 # What is Knos's own: GitHub account ids (ids, not logins: a login can be renamed) and wallets. Activity that touches
 # any of these is "own", never "outside".
@@ -99,14 +101,15 @@ INSTALLED_QUERIES = ('"drexthealpha/knos-workflows/.github/workflows" path:.gith
 
 
 # ---- jobs: what was funded and what became of each (the readers are in knos.records) -----------------------------------
-def kind_of(job: dict, own: frozenset = OWN, own_wallets: frozenset = OWN_WALLETS) -> str:
+def kind_of(job: dict, own: frozenset = OWN, own_wallets: frozenset = OWN_WALLETS, own_repos: frozenset = OWN_REPOS) -> str:
     """own, self, test or outside: which of the four a job is counted under (the module's docstring has the rules).
     The wallet behind a job is the one that funded it, or the one that opened the Balance a comment spent. A GitHub id
-    of 0 means "a wallet, no account": two zeros are not the same person."""
+    of 0 means "a wallet, no account": two zeros are not the same person. A job in a repository of `own_repos` is
+    Knos's own, as outsiders() counts it (summarize() passes both the same set)."""
     wallet = job.get("wallet") or (job["source"] if job["v"] == 1 and not job["by"] else None)
     payees = set(job.get("payees") or [job["payee"]])      # a work order may pay several: any of them counts
     tos = set(job.get("tos") or [job.get("to")])
-    if ({job["by"], job["owner"]} | payees) & own or ({wallet} | tos) & own_wallets:
+    if ({job["by"], job["owner"]} | payees) & own or ({wallet} | tos) & own_wallets or (job.get("repo") and job.get("repo") in own_repos):
         return "own"
     back = bool(wallet) and wallet in tos      # paid to the wallet whose money it was (a Balance's or a wallet's own)
     if paid(job) and (back or (payees - {0}) & {job["owner"], job["by"]}):
@@ -184,8 +187,14 @@ def summarize(events: list[dict], own: frozenset = OWN, own_wallets: frozenset =
     orders' own part of the totals; and `meter`, the evaluations knos_meter counted, per month."""
     jobs, other = work_of(events)
     apart = {k: other.pop(k) for k in ("reverted", "released", "cancelled", "reserved", "assigned", "topped_up", "kill_fees")}   # what only an order has
+    # one set of Knos's repositories for kind_of, outsiders() and loop(): GitHub is asked once, and `outside` and
+    # `outsiders` count by the same rule
+    own_repos = OWN_REPOS
+    if owner_of is not None:
+        balances = frozenset(str(pay2.faucet_balance_pda(i)) for i in own)
+        own_repos = own_repos | own_repositories(jobs, own, own_wallets, own_repos, balances, owner_of)
     for j in jobs:
-        j["kind"] = kind_of(j, own, own_wallets)
+        j["kind"] = kind_of(j, own, own_wallets, own_repos)
 
     def side(kind: str) -> dict:
         mine = [j for j in jobs if j["kind"] == kind]
@@ -208,9 +217,9 @@ def summarize(events: list[dict], own: frozenset = OWN, own_wallets: frozenset =
         "outside": sides["outside"],
         "apart": {"own": sides["own"], "self": sides["self"], "test": sides["test"]},
         # who outside Knos took part, whichever kind the job is: three numbers that are never added to each other
-        "outsiders": outsiders(jobs, own, own_wallets, owner_of=owner_of),
+        "outsiders": outsiders(jobs, own, own_wallets, own_repos),
         # the network loop, link by link: three counters over the same records (scripts/network_loop.py)
-        "loop": loop(jobs, own, own_wallets, owner_of=owner_of),
+        "loop": loop(jobs, own, own_wallets, own_repos),
         "totals": {"funded": len(jobs), "completed": len(done) + other["unmatched_paid"], "open": state("open") + state("proven"),
                    "held": state("held"), "funded_amount": sum(j["amount"] for j in jobs), "paid_amount": sum(j["net"] for j in done), **other},
         "by_deployment": {name: {"funded": sum(1 for j in jobs if j["v"] == v), "completed": sum(1 for j in done if j["v"] == v)}

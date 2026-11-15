@@ -8,7 +8,9 @@
 //     after the Retry-After it names (5 s when none, 30 s at most), before it counts; a timeout is tried once more
 //     with 30 s. A redirect to an app's own scheme (vscode:) is alive: a browser hands it to the app.
 // (c) --site <dir> also checks every .html and .md file of a built Pages site the same way, its relative links
-//     resolved inside <dir>.
+//     resolved inside <dir>. The source pages scripts/build_site.sh copies into the site (web/ and
+//     near/web/) are then checked as built, not as sources: their links name paths that exist only in the site.
+// Saved copies of other people's pages (near/agents/job/data/) are data, not public text, and are never read.
 // Prints `DEAD <file>:<line> <url> <status>` for each dead link and a last line `PASS check_links: 0 dead of N` or
 // `FAIL check_links: D dead of N`. Exit 1 on any dead link.
 import { execFileSync } from "node:child_process";
@@ -182,8 +184,12 @@ async function pool(items, n, fn) {
   return out;
 }
 
+// saved third-party pages, never public text; and (with --site) the sources build_site.sh relocates, checked as built
+const SAVED = /^near\/agents\/job\/data\//;
+const RELOCATED = /^(?:web\/|near\/web\/)/;
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 28 })
-  .split("\0").filter((f) => /\.(md|html)$/i.test(f)).map((f) => join(ROOT, f)).filter((f) => existsSync(f));
+  .split("\0").filter((f) => /\.(md|html)$/i.test(f) && !SAVED.test(f) && !(SITE && RELOCATED.test(f)))
+  .map((f) => join(ROOT, f)).filter((f) => existsSync(f));
 const WEB = join(ROOT, "web");
 const repo = collect(tracked, ROOT, (abs) => relative(ROOT, abs).split(sep).join("/"),
   (abs) => (abs.startsWith(WEB + sep) ? WEB : null));

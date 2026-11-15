@@ -16,11 +16,11 @@ const ok = (c, what) => { lines.push(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) 
 if (!CI) {
   const dep = JSON.parse(execFileSync("gh", ["api", "repos/drexthealpha/Knos/deployments?environment=github-pages&per_page=1"], { encoding: "utf8" }))[0];
   ok(dep && dep.sha === ARG, `Pages deployed at ${dep && dep.sha.slice(0, 7)} (commit under test ${ARG.slice(0, 7)})`);
-  const py = process.env.KNOS_PY || fileURLToPath(new URL("../.venv/Scripts/python.exe", import.meta.url));
+  const py = process.env.KNOS_PY || fileURLToPath(new URL(process.platform === "win32" ? "../.venv/Scripts/python.exe" : "../.venv/bin/python", import.meta.url));
   const render = execFileSync(py, ["-I", process.env.KNOS_RENDER_LATEST], { encoding: "utf8" }).trim().split(/\s+/);
   ok(render[1] === "live" && ARG.startsWith(render[2]), `Render live at ${render[2]} (${render[1]})`);
 }
-const PAGES = [SITE, SITE + "claims/", SITE + "claim/hyperloglog/", SITE + "prove/", SITE + "agents/", SITE + "labs/", SITE + "pricing/", SITE + "status/"];
+const PAGES = [SITE, SITE + "claims/", SITE + "claim/hyperloglog/", SITE + "prove/", SITE + "agents/", SITE + "labs/", SITE + "pricing/", SITE + "status/", SITE + "check/"];
 const browser = await chromium.launch();
 
 try {

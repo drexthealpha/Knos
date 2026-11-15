@@ -3,7 +3,7 @@ document says otherwise.
 
     python scripts/doc_claims.py            exit 1 and say, one line each, where a document contradicts a source or
                                             another document (the test suite runs this)
-    python scripts/doc_claims.py --write    first write what is generated: the README's table of programs and every
+    python scripts/doc_claims.py --write    first write what is generated: the table of programs in docs/reference/COLOSSEUM.md and every
                                             "stage" cell of a table of capabilities
     python scripts/doc_claims.py --facts    print every registered fact with its value and its source
 
@@ -194,7 +194,7 @@ def stage_words(ids: list[str], root: Path = ROOT) -> str:
 
 
 def programs_table(root: Path = ROOT) -> str:
-    """README.md's table of programs, from the manifest: the version each runs at its public id, and how far the next
+    """The table of programs in docs/reference/COLOSSEUM.md, from the manifest: the version each runs at its public id, and how far the next
     one has got. Worded to be true before and after an upgrade executes; the manifest's `on_chain` moves with it
     (`python scripts/capabilities.py check --rpc` holds it to devnet)."""
     cap = _script("capabilities")
@@ -316,9 +316,9 @@ def units(root: Path, doc: str) -> list[tuple[str, str]]:
     return out
 
 
-_TIME = re.compile(r"\b(20\d\d-\d\d-\d\d)(?:[ T]| at )(\d\d:\d\d)|\b(\d{1,2}) (Oct)(?:ober)?(?: (20\d\d))?,?(?: at)? (\d\d:\d\d)")
+_TIME = re.compile(r"\b(20\d\d-\d\d-\d\d)(?:[ T]| at )(\d\d:\d\d)|\b(\d{1,2}) (Sep|Oct|Nov|Dec)[a-z]*(?: (20\d\d))?,?(?: at)? (\d\d:\d\d)")
 _DAY = re.compile(r"(?:execut\w*|can run|could run|runs?|goes? live|is live|eligible|pending)\b[^.;|]{0,60}?\b(?:on|from|until|after|before|by) "
-                  r"(?:(20\d\d-\d\d-\d\d)|(\d{1,2}) (Oct)(?:ober)?)\b(?![ T,]? ?(?:at )?\d\d:\d\d)")
+                  r"(?:(20\d\d-\d\d-\d\d)|(\d{1,2}) (Sep|Oct|Nov|Dec)[a-z]*)\b(?![ T,]? ?(?:at )?\d\d:\d\d)")
 _UPGRADE = re.compile(r"upgrade|proposal|proposed|approved|time lock|multisig|timer|execut", re.I)
 _FEE_MAX = re.compile(r"(?:at most|max(?:imum)?(?: of)?|capped at|up to) 25(?:\.00)?\b(?! ?%|,\d)|\(capped\)|fee (?:is )?capped|fee cap\b", re.I)
 _OLD_LIMIT = re.compile(r"\b500(?:\.00)? (?:test )?USDC\b|\b(?:and|to|most|than|of) 500\b(?!,| USD\b| an? (?:hour|minute|second|day)\b| requests?\b)|\bcap\w*\b[^.;|]{0,30}?\b500\b(?!,)", re.I)
@@ -334,7 +334,8 @@ _PAYMENTS = re.compile(r"(?<!over )\b(\d+) payments on devnet\b|\bmade (\d+) pay
 _DATED = re.compile(r"\b\d{1,2} (?:Sep|Oct|Nov)\w* 20\d\d\b|\b20\d\d-\d\d-\d\d\b")
 # a word one of the patterns above needs: a sentence without any is not read further
 _ANY = re.compile(r"capabilit|nothing|none|tested locally|programs|proposal|payments|\b25\b|\b500\b|capped|fee cap|\d\d:\d\d|"
-                  r"\bOct|20\d\d-\d\d-\d\d", re.I)
+                  r"\b(?:Sep|Oct|Nov|Dec)|20\d\d-\d\d-\d\d", re.I)
+MONTHS = {"Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12}     # the months a day-month time above can name
 _INLINE = re.compile(r"\(((?:`[a-z][a-z0-9_]*`(?:, | and )?)+); ([^()]+)\)")
 
 
@@ -350,7 +351,7 @@ def _stating(root: Path, doc: str) -> list[tuple[str, str]]:
 def _stamp(m: re.Match) -> str:
     if m.group(1):
         return f"{m.group(1)} {m.group(2)}"
-    return f"{m.group(5) or '2026'}-10-{int(m.group(3)):02d} {m.group(6)}"
+    return f"{m.group(5) or '2026'}-{MONTHS[m.group(4)[:3].title()]:02d}-{int(m.group(3)):02d} {m.group(6)}"
 
 
 _SAID: dict[tuple, tuple[list[str], list[str]]] = {}     # (document, its bytes' hash, the facts it is held to) -> what its sentences say against them
@@ -398,7 +399,7 @@ def _sentences(root: Path, doc: str, counts: dict, now: set[str], past: set[str]
                     said.append(f"names {t} UTC for an upgrade, and {UPGRADES} " + ("gives that time to a proposal that is not pending: it may stand only in "
                         f"{' or '.join(sorted(HISTORY))}, in a sentence that says it was withdrawn" if t in past else "has no such time") + f": {short}")
             for m in _DAY.finditer(s):
-                day = m.group(1) or f"2026-10-{int(m.group(2)):02d}"
+                day = m.group(1) or f"2026-{MONTHS[m.group(3)[:3].title()]:02d}-{int(m.group(2)):02d}"
                 if day not in {t[:10] for t in now} and not (history and day in {t[:10] for t in past}):
                     said.append(f"names {day} as a day an upgrade runs, and {UPGRADES} has no pending proposal for that day: {short}")
         # the fee and the order's limit

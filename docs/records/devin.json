@@ -65,7 +65,7 @@
  "public": {
   "label": "from public pull requests, not from Knos orders",
   "source": "docs/index.json",
-  "source_sha256": "26a8900313f222d886535435de984b0129e5c703bcfd012f6a33b2b236732092",
+  "source_sha256": "8c73e547396df9ab607ffc53fda4d1df2cc9d7c0ddab0b99f0dd6a91a03a0f7d",
   "category": "merged pull requests whose description claimed passing tests",
   "week": "2026-09-28",
   "read": "2026-10-07",
@@ -104,5 +104,5 @@
   "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+record%3A+devin&agent=devin&week=2026-09-28",
   "specification": "https://github.com/drexthealpha/Knos/blob/main/docs/reference/SUPPLIER.md"
  },
- "sha256": "07dea5ceaa6597bd58197b128418e8a4c6e315fb1379556fb93689405ac9bff9"
+ "sha256": "e1ddda39225af791f250f91643de25bd406ccd3586e83fc73fe7121113295290"
 }

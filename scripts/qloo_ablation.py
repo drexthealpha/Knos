@@ -1,4 +1,5 @@
-"""What each Qloo signal changes: for each recorded sample chip and each Qloo call family its card used, the verdict,
+"""Kept for its record, for the hosted app's demand check (its page, web/how-we-test.html, is now a redirect).
+What each Qloo signal changes: for each recorded sample chip and each Qloo call family its card used, the verdict,
 the launch city and the pre-order target recomputed with that family's answer removed, by check.py's own rules
 (decide, and metros.terms for the city and the target). Offline, from the private recordings; what it writes holds
 derived values only (labels, Census metro names, numbers), never a Qloo answer.

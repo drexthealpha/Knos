@@ -1,6 +1,7 @@
 """Q7 test_baseline_prereg: Knos's Qloo launch-city ranking against two baselines with no model, Qloo popularity alone
 and population, on the held-out Census key of the where-demand test. The plan is docs/reference/baseline_prereg_plan.md,
-committed with its sha256 in the commit message before any Qloo call. Run once.
+committed with its sha256 in the commit message before any Qloo call. Run once: kept as the record of that run, and
+no workflow runs it.
 
     python scripts/test_baseline_prereg.py --run <world>/where-truth.json <world>/baseline-cards.json
     python scripts/test_baseline_prereg.py --score <world>/where-truth.json <world>/baseline-cards.json <world result file>

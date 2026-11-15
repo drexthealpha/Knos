@@ -7,7 +7,8 @@ point that fails, the visible examples, and `.knos/acceptance/1/`, the bundle), 
 cheats/<name>/ (each a submission that tries to be paid without doing the work) and near_misses/<name>/ (honest
 attempts that miss one rule). A submission is a folder of files laid over base/ to make the pull request's tree.
 
-Every submission goes through `knos proof judge --base <base> --pr <tree> --issue 1`, the command prove.yml runs.
+Every submission goes through `knos proof judge --base <base> --pr <tree> --issue 1`, the command prove.yml runs, without
+its --changed list and --sandbox hermetic (the sandbox is used here when it is available: NEEDS_SANDBOX).
 Text in a submission may carry @BASE@ (the judge's base checkout), @MARK@ (a path a cheat may try to write) and @PORT@
 (a local service that does the task, for the cheat that tries to hand the work to one).
 """

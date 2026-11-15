@@ -11,11 +11,13 @@ import json
 import sys
 from pathlib import Path
 
-from solders.instruction import Instruction
-from solders.keypair import Keypair
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from knos.settle.v2 import passkey
-from knos.settle.v2.pay import ata, create_ata_ix
+from solders.instruction import Instruction  # noqa: E402
+from solders.keypair import Keypair  # noqa: E402
+
+from knos.settle.v2 import passkey  # noqa: E402
+from knos.settle.v2.pay import ata, create_ata_ix  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[1] / "sdk" / "settle" / "passkey.fixtures.json"
 

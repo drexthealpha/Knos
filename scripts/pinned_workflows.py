@@ -1,5 +1,5 @@
-"""The workflows a repository calls, as drexthealpha/knos-workflows publishes them, and the one commit of that
-repository that everything here names.
+"""The workflows a repository calls, as drexthealpha/Knos publishes them on its `workflows-<sha12>` tags
+(drexthealpha/knos-workflows until 0.3.34), and the one commit of them that everything here names.
 
     python scripts/pinned_workflows.py lock WHEEL [--write | --out FILE]   requirements/sign.txt plus this wheel's hash: the lock
     python scripts/pinned_workflows.py build DIR [--lock FILE]      write the published set into DIR (default lock: requirements/sign.txt)
@@ -10,8 +10,9 @@ repository that everything here names.
     python scripts/pinned_workflows.py check [DIR [--lock FILE | --source REQ]]   exit 1 unless all of it is consistent
 
 The source of truth is this repository: .github/workflows/fund.yml, prove.yml, check.yml and attest.yml, where they are
-tested. A repository names them by a commit of drexthealpha/knos-workflows, and a bounty records that commit on chain.
-That repository holds copies and nothing else: the four files, requirements/sign.txt, a short README and the LICENSE.
+tested. A repository names them by a commit of the published set (HOME below; REPO before 0.3.34), and an order on
+Solana devnet records that commit on chain. A published commit holds copies and nothing else: the four files,
+requirements/sign.txt, a short README and the LICENSE.
 
 What crosses between jobs. In prove.yml and attest.yml the job that runs a pull request's code cannot sign, and the job
 that signs runs none of it. One line of data crosses, and a step of the signing job reads it with a module of the very
@@ -57,14 +58,15 @@ regenerates the site's templates (scripts/front_workflow.py writes web/front.js 
 place that disagrees.
 
 Where the published set lives. Until the cutover it was drexthealpha/knos-workflows (REPO).
-Since the 0.3.34 branch the examples name the monorepo's branch `workflows` (HOME,
-BRANCH): the same commits, with the same shas and trees. A caller says
+Since 0.3.34 the examples name the monorepo (HOME), whose `workflows-<sha12>` tags hold the published commits (no
+branch: scripts/release.py `on_published_tag`): the same commits, with the same shas and trees. A caller says
 `drexthealpha/Knos/.github/workflows/prove.yml@<sha>`, an order funded through it pins sha256("drexthealpha/Knos") and
-that sha on chain, and `scripts/release.py workflows` commits a new set into a worktree of BRANCH (and tags it
-`workflows-<sha12>`) instead of a checkout of REPO. Orders funded earlier stay pinned to REPO. knos_pay compares the order's pin with the token's
+that sha on chain, and `scripts/release.py workflows` commits a new set into a detached worktree of the newest
+`workflows-<sha12>` tag (and tags the new commit the same way) instead of a checkout of REPO. Orders funded earlier stay pinned to REPO. knos_pay compares the order's pin with the token's
 job_workflow_ref, whatever the repository is called, so both homes pay the orders pinned to them and neither pays the
 other's. `home` says which home the examples name; `move HOME` names the other one everywhere `stamp` writes;
-`branch` prints the git commands that put the published commits into the monorepo's branch (it runs nothing).
+`branch` prints the git commands of the cutover, which first put the published commits into the monorepo (it runs
+nothing).
 
 The jobs that sign nothing (review and judge in prove.yml, and check.yml) install knos as the exact PyPI release they
 name, with dependencies no newer than UV_EXCLUDE_NEWER (step 2). Before that release exists nothing can install it, so a staging
@@ -90,8 +92,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "drexthealpha/knos-workflows"                # the published set's home until the cutover
-HOME = "drexthealpha/Knos"                          # its home after the cutover: the monorepo's branch BRANCH, the same commits
-BRANCH = "workflows"
+HOME = "drexthealpha/Knos"                          # its home after the cutover: the monorepo's workflows-<sha12> tags, the same commits
+BRANCH = "workflows"                                # the prefix of those tags (the cutover's branch of that name is gone)
 HOMES = (REPO, HOME)
 PACKAGE = ROOT / "src"                              # what the wheel is built from: where a module a published job runs must be
 WORKFLOWS = ("fund.yml", "prove.yml", "check.yml", "attest.yml")
@@ -287,12 +289,11 @@ def readme(version: str, spec: str | None) -> str:
         "> instead of the PyPI release. For a staging repository only: a bounty funded through these files is pinned\n"
         "> to this repository's commit, not to the published one.\n\n")
     installs = f"knos {version} from PyPI, as exactly that release" if spec is None else "knos from the rehearsal source named above"
-    return f"""# knos-workflows
+    return f"""# Knos workflows
 
-{note}The workflows that [Knos](https://github.com/drexthealpha/Knos) bounties pin by commit. A comment funds an issue,
-and the pull request that closes it is paid from money held on Solana when GitHub itself signs the facts. A bounty on
-chain names this repository and one commit of it: the commit its `fund.yml` ran at. Only `prove.yml` of this
-repository at that same commit can pay it.
+{note}The workflows [Knos](https://github.com/drexthealpha/Knos) runs by commit: each Solana devnet order of the
+Colosseum part of Knos (tag v0.3.28) names one commit of them, the commit its `fund.yml` ran at, and only `prove.yml`
+at that same commit can settle it.
 
 | File | Called for | Runs |
 |---|---|---|
@@ -375,7 +376,7 @@ def written_in(text: str, locked: str) -> str:
 
 
 def published(lock_text: str | None = None, spec: str | None = None) -> dict[str, bytes]:
-    """Every file of the published set, by its path in drexthealpha/knos-workflows: with the lock a release wrote, or
+    """Every file of the published set, by its path in a published commit: with the lock a release wrote, or
     (a rehearsal) with knos installed from `spec`."""
     texts = sources()
     version = release(texts)
@@ -537,7 +538,7 @@ def branch_commands(sha: str) -> list[str]:
 def stamp(sha: str) -> list[str]:
     """Put the published commit wherever the placeholder, or the commit named before, stands. Returns what changed."""
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
-        raise SystemExit("stamp takes the full sha of a commit of drexthealpha/knos-workflows: 40 hex digits")
+        raise SystemExit(f"stamp takes the full sha of a published commit ({HOME}, a workflows-<sha12> tag): 40 hex digits")
     front, old, changed = _front(), pin(), []
     for path in naming():
         text = _text(path)
@@ -601,7 +602,7 @@ def inconsistencies() -> list[str]:
     elif held and not wrong:                    # a locked release is published only once its cutoff lets it through
         said += [line for line in [cutoff_pending(sources())] if line]
     if named != PLACEHOLDER and not re.fullmatch(r"[0-9a-f]{40}", named):
-        said.append(f"the examples name {REPO} at {named}: a full commit sha, or {PLACEHOLDER} until the release")
+        said.append(f"the examples name the published workflows at {named}: a full commit sha, or {PLACEHOLDER} until the release")
     try:
         where = home()
     except SystemExit as why:
@@ -633,14 +634,14 @@ def inconsistencies() -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=f"Write, stamp and check the workflows {REPO} publishes.")
+    ap = argparse.ArgumentParser(description=f"Write, stamp and check the workflows {HOME} publishes on its workflows-<sha12> tags.")
     sub = ap.add_subparsers(dest="command", required=True)
     make = sub.add_parser("lock", help=f"write {SIGN} followed by one line for this wheel and its hash: what release.yml publishes as sign.txt")
     make.add_argument("wheel", help="the knos wheel the release built, as PyPI gets it")
     make.add_argument("--out", metavar="FILE", help="write it here (default: print it)")
     make.add_argument("--write", action="store_true", help=f"write it to {SIGN} of this repository: the release is locked to this wheel")
     build = sub.add_parser("build", help="write the published set into a directory")
-    build.add_argument("dir", help=f"a checkout of {REPO}, or any directory")
+    build.add_argument("dir", help="a detached worktree at a workflows-<sha12> tag, or any directory")
     build.add_argument("--lock", metavar="FILE", help=f"the list the signing jobs install from (default: {SIGN}, once `lock --write` wrote the wheel's line)")
     build.add_argument("--source", metavar="REQ", help="rehearsal variant: install knos from REQ instead of the PyPI release")
     sub.add_parser("tree", help="print the git tree id of the published set: a commit of it has this tree"
@@ -648,14 +649,14 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("cutoff", help="after the wheel is on PyPI: write UV_EXCLUDE_NEWER, MARGIN after PyPI took the locked wheel, into the workflows"
                    ).add_argument("--pypi", metavar="FILE", help="PyPI's JSON page of the release, saved (default: ask PyPI)")
     sub.add_parser("stamp", help="name the published commit in the examples, Knos's own files, the site and the documents"
-                   ).add_argument("sha", help=f"the commit of {REPO} that holds the published set")
+                   ).add_argument("sha", help="the published commit (a workflows-<sha12> tag) that holds the published set")
     sub.add_parser("home", help=f"print the home the examples name the published set in ({' or '.join(HOMES)})")
     sub.add_parser("move", help="name the published set in the other home everywhere stamp writes, at the same commit"
                    ).add_argument("to", choices=HOMES)
-    sub.add_parser("branch", help=f"print the git commands that put the published commits into {HOME} as its branch {BRANCH} (runs nothing)"
+    sub.add_parser("branch", help=f"print the cutover's git commands that put the published commits of {REPO} into {HOME} (runs nothing)"
                    ).add_argument("sha", nargs="?", help="the published commit (default: the one the examples name)")
     check = sub.add_parser("check", help="exit 1 unless every file names one commit and the copies are their sources")
-    check.add_argument("dir", nargs="?", help=f"also compare this checkout of {REPO} with the published set")
+    check.add_argument("dir", nargs="?", help="also compare this checkout of a published commit with the published set")
     check.add_argument("--lock", metavar="FILE", help=f"the checkout holds the published set made with this lock (default: {SIGN})")
     check.add_argument("--source", metavar="REQ", help="the checkout holds the rehearsal variant made with this REQ")
     a = ap.parse_args(argv)
@@ -677,7 +678,7 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(f"cannot read PyPI's page from {a.pypi}: {why}. Nothing was written.") from None
         line, changed = write_cutoff(answer)
         print(f"UV_EXCLUDE_NEWER: {line}" + (f", written into {', '.join(changed)}." if changed else ", as the workflows say already."))
-        print("Next: python scripts/release.py workflows <a worktree of the branch workflows>")
+        print("Next: python scripts/release.py workflows <a detached worktree at the newest workflows-<sha12> tag>")
         return 0
     if a.command == "stamp":
         changed = stamp(a.sha)

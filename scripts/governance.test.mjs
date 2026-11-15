@@ -1,5 +1,8 @@
 // Offline tests of scripts/governance.mjs: no cluster, no key of ours. What it must agree with is written by the Python
 // client (scripts/governance_fixture.py -> tests/fixtures/governance_v2.json) and by programs-v2/program_ids.json.
+// The fixture's Squads accounts are the two multisigs as they were BEFORE proposal 9 (11 Oct 2026): the upgrade
+// multisig's time lock there is 172800 s (48 hours), the one it was made with. On devnet it is 691200 s (8 days) since
+// proposal 9 executed, so a plan printed from the fixture (--state) says 48 hours where one read from the chain says 8 days.
 //
 //   node --test scripts/governance.test.mjs        (npm ci --prefix scripts first; tests/test_governance.py runs this too)
 import assert from "node:assert/strict";
@@ -42,7 +45,7 @@ test("the fixture was written for the ids this repository pins", () => {
 
 test("the script's table says what each multisig must be", () => {
   assert.deepEqual(Object.keys(gov.WHICH), ["upgrade", "guardian"]);
-  assert.equal(gov.WHICH.upgrade.timeLock, 172_800);       // 48 hours
+  assert.equal(gov.WHICH.upgrade.timeLock, 172_800);       // 48 hours: the time lock it was made with (8 days on chain since proposal 9)
   assert.equal(gov.WHICH.guardian.timeLock, 0);
   for (const name of ["upgrade", "guardian"]) {
     assert.equal(gov.WHICH[name].timeLock, FIXTURE.multisigs[name].time_lock);
@@ -300,7 +303,7 @@ test("upgrade propose --out writes the proposal as data, and names no time until
   assert.deepEqual(approved, { program: "knos_pay", address: gov.IDS.knos_pay, buffer: buffer.toBase58(), hash: "ab".repeat(32), index: 7, status: "Approved",
                                approved_at: 1_790_000_000, executable_from: 1_790_172_800 });
   const active = gov.proposalRecord("knos_pay", program, buffer, "ab".repeat(32), 7n, 172_800, { status: { __kind: "Active", timestamp: 1_790_000_000n } });
-  assert.equal(active.executable_from, null);          // the 48 hours start with the last approval, not with the proposal
+  assert.equal(active.executable_from, null);          // the time lock starts with the last approval, not with the proposal
   assert.equal(active.approved_at, null);
 });
 
@@ -326,7 +329,7 @@ test("a proposal is withdrawn by the votes the Squads program takes for its stat
   const [a, b, c] = [key(), key(), key()];
   const ms = { threshold: 2, members: [a, b, c].map((k) => ({ key: k, permissions: { mask: 7 } })) };
   const p = (kind, more = {}) => ({ status: { __kind: kind, timestamp: 1_791_098_249n }, approved: [a, b], rejected: [], cancelled: [], ...more });
-  // approved, inside its 48 hours or after them: `threshold` cancel votes (proposalCancel asks only for the status Approved)
+  // approved, inside its time lock or after it: `threshold` cancel votes (proposalCancel asks only for the status Approved)
   assert.deepEqual(gov.withdrawal(ms, p("Approved")), { how: "cancel", need: 2, done: [] });
   assert.deepEqual(gov.withdrawal(ms, p("Approved", { cancelled: [c] })), { how: "cancel", need: 2, done: [c.toBase58()] });
   // one vote short of approved: two of three reject it, and then two can no longer approve
@@ -400,7 +403,7 @@ test("replace-member: one founder key out, an outside key in, and the plan says 
   assert.match(lines, /after it executes {2}2 of 3 voting keys; held by the founder: 2; outside key holders: 1/);
   assert.match(lines, /the founder alone can STILL approve an upgrade/);
   assert.match(lines, new RegExp(`${OUTSIDER.toBase58()}  vote  \\(outside\\)`));
-  assert.match(lines, /172800 s \(48 hours\) after the vote that approves it/);
+  assert.match(lines, /172800 s \(48 hours\) after the vote that approves it/);     // the fixture's time lock, from before proposal 9
 });
 
 test("the founder stops being able to approve alone only when the threshold is above the founder's keys", () => {

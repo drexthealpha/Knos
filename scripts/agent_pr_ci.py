@@ -4,7 +4,7 @@
 Question: of the pull requests (PRs) that AI coding agents wrote and that claim the tests or CI pass, what share
 had a FAILED check at the PR's last commit (its head SHA)?
 
-Read-only: only `gh api -X GET` calls. Every answer GitHub would give again is cached under
+Read-only: `gh api -X GET` calls and read-only GraphQL queries (`gh api graphql`, a POST that changes nothing). Every answer GitHub would give again is cached under
 ~/.cache/knos-agent-pr-ci/ so reruns are cheap (a server error or a rate limit is not an answer and
 is asked again); each invocation stops after --max-seconds and can be re-run to resume.
 

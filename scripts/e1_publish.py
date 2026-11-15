@@ -1,6 +1,5 @@
 """E1 (docs/reference/evidence_plan.md): every published number recomputed from the committed raw files, wins and
-losses alike, and written to docs/reference/e1_results.json, which the front door's proof line and How we test Knos
-read. --check recomputes and exits 1 on any difference with the file.
+losses alike, and written to docs/reference/e1_results.json. --check recomputes and exits 1 on any difference with the file.
 
     python scripts/e1_publish.py [--check] [--preorders]      --preorders reads the pre-order counts from the live app
 """
