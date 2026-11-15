@@ -1,0 +1,53 @@
+# The project's OWN load test of Knos (test tokens of a mint made for the run, devnet, no monetary value).
+# By hand only: asks GitHub to sign one pay audience per order the inputs name, for orders the project's own wallet
+# funded naming this repository and this file's commit, and keeps the tokens ENCRYPTED to the operator's key in an
+# artifact of one day. Nothing is posted, so no relay finds them; the operator's scripts/load.py measure --pay relays them.
+name: prove
+on:
+  workflow_dispatch:
+    inputs:
+      orders: {description: "order addresses, comma-separated", required: true}
+      head: {description: "40-hex head the audiences name", required: true}
+      terms: {description: "the orders' terms hash, hex", required: true}
+      payees: {description: "id.bps.address", required: true}
+      pubkey: {description: "the operator's RSA public key, PEM, base64", required: true}
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: ask GitHub for one pay token per order, encrypted to the operator
+        env:
+          ORDERS: ${{ inputs.orders }}
+          HEAD_SHA: ${{ inputs.head }}
+          TERMS: ${{ inputs.terms }}
+          PAYEES: ${{ inputs.payees }}
+          PUBKEY: ${{ inputs.pubkey }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p out
+          python3 - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          url, bearer = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"], os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
+          out = []
+          for pr, order in enumerate(os.environ["ORDERS"].split(","), 1):
+              aud = f"knos3:pay:{order}:{os.environ['HEAD_SHA']}:{os.environ['TERMS']}:0:{pr}:{os.environ['PAYEES']}"
+              req = urllib.request.Request(url + "&audience=" + urllib.parse.quote(aud, safe=""), headers={"Authorization": "bearer " + bearer})
+              out.append({"kind": "pay", "jwt": json.load(urllib.request.urlopen(req, timeout=30))["value"]})
+          open("tokens.json", "w").write(json.dumps(out))
+          print(f"{len(out)} tokens signed")
+          PY
+          echo "$PUBKEY" | base64 -d > op.pem
+          openssl rand -out k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in tokens.json -out out/tokens.enc -pass file:k.bin
+          openssl pkeyutl -encrypt -pubin -inkey op.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out out/key.enc
+          shred -u tokens.json k.bin
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: pay-tokens
+          path: out/
+          retention-days: 1
