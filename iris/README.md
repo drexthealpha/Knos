@@ -1,5 +1,25 @@
 # Knos on InterSystems IRIS
 
+## Try it in 5 minutes, no key
+
+```sh
+git clone https://github.com/drexthealpha/Knos && cd Knos/iris
+docker compose -f docker-compose.public.yml up -d --build && bash scripts/ready.sh
+```
+
+It builds on the public InterSystems IRIS for Health Community 2026.2 image
+(`containers.intersystems.com/intersystems/irishealth-community:2026.2`), which needs no login. The first build takes
+about 4 minutes and needs about 4 GB free. It replays the AI Hub agent's answers recorded on 14 Nov, so no key is
+needed.
+
+1. Wait for `READY: open http://localhost:52773/knos/ and press a sample button`, then open
+   http://localhost:52773/knos/ (no sign-in).
+2. Under **Try it: send a sample test result**, press **A passing test, $20** - see "Paid in play money: see the newest
+   decision below." and, under **Latest decisions**, "Paid in play money. No real money moved."
+3. Press **A failing test, $20** - see "Not paid: see the newest decision below."
+4. Press **A passing test, $120: a person must say yes** - see it under **Waiting for a person**, press **Approve**, and
+   see "Approved. Paid in play money; no real money moved." **How it decided (for developers)** shows its trace.
+
 An IRIS Interoperability production where an AI Hub agent decides if a lab's locked test criteria are met, and only then a payout step runs.
 
 - **The online demo is offline during voting.** It ran in a GitHub codespace, whose free hours ran out on 14 Nov at
