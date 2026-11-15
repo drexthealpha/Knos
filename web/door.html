@@ -86,7 +86,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 </header>
 <main>
   <section class="door" aria-label="Ask about research">
-    <p class="q">Why does research take 17 years to reach people? Checking it is costly (<a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, 2011</a>).</p>
+    <p class="q">Research takes 17 years to reach people (<a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, 2011</a>).</p>
     <h1>Ask anything about research</h1>
     <p class="near">Answers come with NEAR receipts.</p>
     <form id="ask">
@@ -97,7 +97,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     <button class="sample" id="sample" type="button">Try: HyperLogLog</button>
     <div class="chips" id="mine" hidden></div>
     <div class="out" id="out" aria-live="polite"></div>
-    <p class="cost">By hand: $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/">Colliard, 2023</a>). Knos: a minute.</p>
+    <p class="cost">Checking one paper by hand: $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/">Perignon, citing Colliard</a>).</p>
   </section>
   <p id="count" class="fine">Reading NEAR testnet...</p>
 </main>
@@ -201,7 +201,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   $("sample").addEventListener("click", () => ask("Does HyperLogLog count 30,000 visitors in 1.5 KB?", true));
   // a second visit starts where the first ended: the visitor's last questions, from this browser
   if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.length > 40 ? x.q.slice(0, 40).replace(/\s+\S*$/, "") + "..." : x.q, title: x.q, onclick: () => ask(x.q) }))); }
-  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs paid.`; };
+  const counts = (c) => { if (c && c.proofs) $("count").textContent = `${c.proofs.toLocaleString("en-US")} proofs run on NEAR testnet.`; };
   json("data/counters.json").then(counts);
   json(HOSTED + "/api/near/claim/counters").then((c) => c ? counts(c) : $("count").textContent.startsWith("Reading") && ($("count").textContent = "NEAR testnet's record could not be read just now."));
 })();

@@ -1,10 +1,12 @@
 """The published site's product pages, after scripts/build_site.sh has copied web/ and near/web/ into the site:
 
-- index.html: the front door (web/door.html): one line, the paste box, one button, the sample answered on that screen.
+- index.html: the front door (web/door.html): one line, the ask box (a question, a claim, a link or a paper), one button, the sample answered on that screen.
 - prove/: the whole proof on NEAR (near/web/index.html), its files read from near/.
 - labs/: the same check inside a lab's InterSystems IRIS (web/iris/index.html), its video and poster read from iris/.
 - check/: the pull request checker exactly as entered at Colosseum (tag v0.3.28), from web/check-v0328/: the tag's own
-  check.js and check_rules.js beside it, and its paying step on Knos's programs on Solana devnet.
+  check.js and check_rules.js beside it, and its paying step on Knos's programs on Solana devnet. Its command palette
+  (palette.js) is left out: it opens pages of the earlier one-page app, which the site no longer has.
+- 404.html: the page for any missing address, under the same one header.
 - near/ and iris/: old addresses, sent on to prove/ and labs/ at once, with the front door's title and preview.
 
 Every page carries one header: the logo (the front door) and the product's pages. The source pages stay as they are
@@ -22,7 +24,7 @@ import site_product
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = [("claims/", "Claims"), ("prove/", "Prove"), ("agents/", "For agents"), ("labs/", "For labs (IRIS)"), ("check/", "Check a PR")]
 # the product's pages; every other page of the build leaves the published site, each old address sent to the front door
-KEEP = {"index.html", "404.html", "privacy.html", "near/embed.html", "prove/receipt/index.html", "tx/index.html"}   # Round 10, V6: one finished order, saved
+KEEP = {"index.html", "404.html", "privacy.html", "prove/receipt/index.html", "tx/index.html"}   # Round 10, V6: one finished order, saved
 CSS = ("#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }\n"   # the Prove page's Claims link sits in its sentence
        ".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
        ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
@@ -157,11 +159,13 @@ def main(site: str) -> int:
     (out / "index.html").write_text(with_header(door, "", ""), encoding="utf-8")
     (out / "door.html").unlink(missing_ok=True)
     near = (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")
-    near = near.replace('fetch("latest.json"', 'fetch("../near/latest.json"').replace('href="embed.html"', 'href="../near/embed.html"')
+    near = near.replace('fetch("latest.json"', 'fetch("../near/latest.json"')
+    # the wallet button's blank page (near/web/embed.html) needs the local NEAR server, so it is not published (S17-006)
+    near = re.sub(r'<a href="embed\.html">[^<]*</a>', "", near)
     # the proof page opens on the proof: its heading says what the page does, the front door asks the question
     near, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">Prove a paper\'s claim on NEAR</h1>', near, count=1, flags=re.S)
     assert n == 1, "the NEAR page has no first block"
-    near = retitle(near, "Knos: prove a paper's claim on NEAR", "Order a proof of a paper's claim on NEAR testnet: the verdict, the verified code and its receipt.")
+    near = retitle(near, "Knos: prove a paper's claim on NEAR", "Run the check of a paper's claim on NEAR testnet: the verdict, the verified code and its receipt.")
     near = re.sub(r'\s*<p class="vision"[^>]*>.*?</p>', "", near, flags=re.S)
     (out / "prove").mkdir(exist_ok=True)
     (out / "prove" / "index.html").write_text(with_header(near, "../", "prove/"), encoding="utf-8")
@@ -182,9 +186,22 @@ def main(site: str) -> int:
     chk = chk.replace("</head>", f'<style id="kh-css">\n{CSS}.kh nav {{ display: flex !important; }}\n</style>\n</head>', 1)   # the tag's app.css hides a header nav on phones
     (out / "check" / "index.html").write_text(chk, encoding="utf-8")
     for f in (ROOT / "web" / "check-v0328").rglob("*.js"):   # the tag's check.js and every module it loads (share, badge, motion)
+        if f.name == "palette.js":   # opens the earlier one-page app's pages (front.js): motion.js catches the missing file
+            continue
         to = out / "check" / f.relative_to(ROOT / "web" / "check-v0328")
         to.parent.mkdir(parents=True, exist_ok=True)
         to.write_bytes(f.read_bytes())
+    # the badge preview on check/ loads brand/checked.svg next to the page (the tag's share.js)
+    (out / "check" / "brand").mkdir(parents=True, exist_ok=True)
+    (out / "check" / "brand" / "checked.svg").write_bytes((ROOT / "web" / "brand" / "checked.svg").read_bytes())
+    # the missing-address page under the one header (its <base> is the site root, so the links need no "../")
+    (out / "404.html").write_text(with_header((ROOT / "web" / "404.html").read_text(encoding="utf-8"), "", ""), encoding="utf-8")
+    # the saved receipt and the transaction viewer have no bar of their own: the one header goes above their content
+    for rel, up in (("prove/receipt/index.html", "../../"), ("tx/index.html", "../")):
+        p = out / rel
+        if p.is_file() and 'id="kh"' not in (t := p.read_text(encoding="utf-8")):
+            t = t.replace("<body>\n", f"<body>\n{header(up, '')}\n", 1).replace("</head>", f'<style id="kh-css">\n{CSS}</style>\n</head>', 1)
+            p.write_text(t, encoding="utf-8")
     head = head_of(door)
     (out / "near" / "index.html").write_text(redirect("../prove/", head), encoding="utf-8")
     (out / "iris" / "index.html").write_text(redirect("../labs/", head), encoding="utf-8")

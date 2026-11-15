@@ -124,7 +124,7 @@ export function initRecords(ctx) {
       <p class="fine">A pull request that closes a funded issue was merged, and the bounty was refunded instead. This says both happened, not whose fault it was.</p>
       ${unpaid(f.merged_unpaid, "None: no pull request that closed a funded issue was merged and then refunded.")}
       ${kind === "u" && rec.merged_but_unpaid_to_me ? `<h4>Merged but unpaid, as the author</h4>${unpaid(rec.merged_but_unpaid_to_me, "None.")}` : ""}
-      ${kind === "r" ? `<h4>Paid on proof</h4><div id="rec-paid"></div>` : `<h4>The record on Solana</h4><div id="rec-chain"><p class="fine">Reading Solana devnet…</p></div>`}
+      ${kind === "r" ? `<h4>Paid after checks passed</h4><div id="rec-paid"></div>` : `<h4>The record on Solana</h4><div id="rec-chain"><p class="fine">Reading Solana devnet…</p></div>`}
       <h4>README badge</h4>
       <p>${badgeView(badge) || `<span class="fine">The badge file for this record is not there.</span>`}</p>
       <p class="fine">Paste this line into a README. The badge is drawn by shields.io from <a href="${esc(`badge/${path}`)}">${esc(`badge/${path}`)}</a>; the picture above is drawn by this page from the same file, so nothing is asked of shields.io here.</p>

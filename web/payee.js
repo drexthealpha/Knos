@@ -6,7 +6,7 @@
 // from the pinned claim workflow, in the person's own repository named knos-claim, in a run they started by hand
 // (`workflow_dispatch`, first attempt). A push does not count, not even the commit that adds the workflow file: a link
 // can fill GitHub's forms, so a push could carry an address someone else chose. So the address reaches GitHub as the
-// run's input, pasted by its owner. Since 0.3.31 no template repository is involved (docs/reference/MONOREPO.md): the
+// run's input, pasted by its owner. Since 0.3.31 no template repository is involved: the
 // person creates an EMPTY public repository named knos-claim, and a second link opens GitHub's new-file page in it with
 // the claim workflow filled in (CLAIM_WORKFLOW, examples/knos-claim.yml byte for byte; templates/knos-claim/ of
 // drexthealpha/Knos holds the same file). Clicks, counted in CLICKS below:

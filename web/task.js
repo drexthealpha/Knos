@@ -1,8 +1,7 @@
 // A task with no repository: a title, a description, an amount and five or more pairs of an input and the answer it must
 // get. This page makes the files and the text; it sends nothing. Every result is a link to a GitHub page that is already
 // filled in (a new empty repository, its two workflow files, a new issue, three new files) and the comment that funds the
-// issue, and a person presses the last button on GitHub. No GitHub template repository is involved (0.3.31,
-// docs/reference/MONOREPO.md): the two workflow files are Knos's callers as the install page hands them out (web/install.js,
+// issue, and a person presses the last button on GitHub. No GitHub template repository is involved (0.3.31): the two workflow files are Knos's callers as the install page hands them out (web/install.js,
 // written from examples/ by scripts/front_workflow.py); templates/knos-task/ of drexthealpha/Knos holds the same callers.
 // What is made here:
 //

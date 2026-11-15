@@ -22,14 +22,15 @@ case "$sha" in *[!0-9a-f]*|"") echo "the commit must be a full sha"; exit 1;; es
 mkdir -p "$out"
 cp -r web/. "$out/"
 # The NEAR app (near/web/, its story and their vendored libraries) at /near/: the pages only, never the local server
-# (serve.py), its milestone list or its browser test
+# (serve.py), its milestone list or its browser test. Not near/web/embed.html either: its button loads pay.js from the
+# local server (127.0.0.1:8790), so a published copy could only fail.
 mkdir -p "$out/near"
-cp -r near/web/index.html near/web/latest.json near/web/embed.html near/web/pay.js near/web/story near/web/vendor "$out/near/"
-# THE FRONT DOOR is the demand check alone (web/home.html, written as index.html); the rest of the site, the older
-# pages, is app.html (web/index.html). An old address of the root (#records, #check...) is sent on from the
-# front door's head. KNOS_SPA_AT_ROOT=1 (the tests that drive the app's pages, tests/_posix.py and the web job) keeps the
-# app at index.html, where those tests open it; tests/web/one_front_door.mjs holds the split itself.
-# One app: the published site carries no copy of it. app.html sends an old link on to the app on Render (web/app-moved.html).
+cp -r near/web/index.html near/web/latest.json near/web/pay.js near/web/story near/web/vendor "$out/near/"
+# THE FRONT DOOR is web/door.html, "Ask anything about research": scripts/site_pages.py writes it as index.html.
+# web/home.html (an earlier front door, the demand check) is moved to index.html first and then overwritten, so it is
+# not published. KNOS_SPA_AT_ROOT=1 (the tests that drive the earlier one-page app, tests/_posix.py and the web job)
+# keeps that app (web/index.html, the earlier Solana part of Knos) at index.html, where those tests open it.
+# The published site carries no copy of it: app.html sends an old link on to the app on Render (web/app-moved.html).
 if [ "${KNOS_SPA_AT_ROOT:-}" != 1 ]; then
   rm "$out/index.html"
   mv "$out/app-moved.html" "$out/app.html"

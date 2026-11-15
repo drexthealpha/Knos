@@ -2,7 +2,7 @@
 // knos_oidc, and an approved one waits out a time lock before it can run, so what is pending is on chain for anyone to
 // read. These are the minimal reads of it: the multisig's newest proposals, and what each one would run. Same layouts and
 // the same answers as pending_proposals in src/knos/mainnet_check.py (and the proposal reads of scripts/governance.mjs);
-// tests/web/site.mjs holds this file to the answers recorded in tests/web/recorded/squads_upgrades.json.
+// tests/web/recorded/squads_upgrades.json holds the answers it was checked against.
 //
 // Squads v4 accounts are borsh behind an 8-byte Anchor discriminator, every Vec has a u32 count:
 //   Proposal           multisig 32 | transaction index u64 | status: a u8 tag (0 Draft, 1 Active, 2 Rejected, 3 Approved,

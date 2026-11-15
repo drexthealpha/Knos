@@ -22,7 +22,7 @@ export const FIELDS = [
 const GITHUB = "https://token.actions.githubusercontent.com";
 const ISSUERS = { [GITHUB]: "GitHub Actions", "https://gitlab.com": "GitLab CI" };
 const WORKFLOWS = "drexthealpha/Knos/.github/workflows/", PROVE = `${WORKFLOWS}prove.yml`, ATTEST = `${WORKFLOWS}attest.yml`;
-const DENY = [".github/**", ".knos/**"], ACTIONS = 15368, ANY = -1, STATUS = 0, MAX_BYTES = 600;
+const DENY = [".github/**", ".knos/**"], ANY = -1, STATUS = 0, MAX_BYTES = 600;
 const TEST_DIRS = ["__tests__", "e2e", "spec", "specs", "test", "testing", "tests"];
 const CODEOWNERS = [".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"];
 const KNOS_JOBS = /^(?:prove|fund)(?:-relay|-refused)? \/ |^knos| \/ claims$/;

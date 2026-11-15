@@ -83,7 +83,7 @@ async function send(msg, what) {
 }
 document.querySelectorAll("#usdc [data-act]").forEach((b) => b.addEventListener("click", () => {
   const act = b.dataset.act;
-  if (act === "back") return send({ back: { claim: CFG.claim, to: [[CFG.agent, "900000"], [CFG.fee, "100000"]] } }, "1 test USDC behind proving this claim (0.90 to agent A, 0.10 to Knos)");
+  if (act === "back") return send({ back: { claim: CFG.claim, to: [[CFG.agent, "900000"], [CFG.fee, "100000"]] } }, "1 test USDC behind this claim");
   const [kind, side] = act.split("-");
   const id = box.dataset[kind];
   if (!id) { $("u-said").textContent = "That market is not open yet."; return; }

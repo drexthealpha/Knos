@@ -13,7 +13,7 @@ export function parseTx(s) {
   return SIG.test(sig) ? sig : null;
 }
 
-// The `knos:paid` and `knos2:paid` lines the holding program itself printed in a transaction (a line another program prints in
+// The `knos:paid`, `knos2:paid` and `knos3:paid` (a work order's) lines the holding program itself printed in a transaction (a line another program prints in
 // the same transaction is not one), as { deployment, repo, issue, payee, amount, fee, to, pr }. `programs`: the
 // holding program's address -> 1 or 2 for the deployment it belongs to. The same rule as src/knos/records.py events_of.
 export function paidLines(tx, programs) {
@@ -21,7 +21,7 @@ export function paidLines(tx, programs) {
   for (const line of tx?.meta?.logMessages || []) {
     if (/^Program \w+ invoke \[\d+\]$/.test(line)) { stack.push(line.split(" ")[1]); continue; }
     if (/^Program \w+ (success|failed)/.test(line)) { stack.pop(); continue; }
-    const m = /^Program log: (knos2?):paid(?: (.*))?$/.exec(line);
+    const m = /^Program log: (knos[23]?):paid(?: (.*))?$/.exec(line);
     if (!m || programs[stack.at(-1)] !== (m[1] === "knos" ? 1 : 2)) continue;
     const f = Object.fromEntries((m[2] || "").split(" ").filter((kv) => kv.includes("=")).map((kv) => kv.split(/=(.*)/s).slice(0, 2)));
     out.push({ deployment: programs[stack.at(-1)], repo: f.repo, issue: f.issue, payee: f.author ?? f.payee, amount: Number(f.amount), fee: Number(f.fee), to: f.to, pr: f.pr });

@@ -1,58 +1,18 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
+<!-- An earlier page of the site (the Solana and demand-check era). It sends a visitor to the front door. -->
+<script>location.replace("../" + location.hash);</script>
+<meta http-equiv="refresh" content="0; url=../">
+<title>Knos: ask anything about research</title>
+<meta name="description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Knos">
+<meta property="og:title" content="Knos: ask anything about research">
+<meta property="og:description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/">
+<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</title>
-<meta name="description" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
-<link rel="canonical" href="https://drexthealpha.github.io/Knos/quality/">
-<meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#07080c">
-<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
-<link rel="stylesheet" href="../brand/tokens.css">
-<link rel="icon" href="../icon.svg" type="image/svg+xml">
-<!-- THE QUALITY PAGE: quality.json beside it, written by the pages workflow before this build was published
-     (scripts/quality_run.mjs): Lighthouse's four categories on phone and desktop, axe-core in light and dark. -->
-<style>body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--s0)/1.5 var(--text)}
-main{max-width:1080px;margin:0 auto;padding:12px 16px 40px}h1{font:600 var(--s3)/1.15 var(--head);margin:8px 0 4px}
-h2{font:600 var(--s1)/1.25 var(--head);margin:28px 0 8px}a{color:var(--accent)}
-table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
-td.n{text-align:right}.bad{color:var(--bad)}.fine{color:var(--muted);font-size:var(--s-1)}
-@media (max-width:479.98px){thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}table,tbody,tr,td{display:block}
-tr{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:0 0 8px}td{border:0;padding:2px 0;text-align:left}td[data-h]::before{content:attr(data-h) ": ";color:var(--muted)}}</style>
-<style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
-</head>
-<body>
-<main>
-<p class="fine"><a href="../">Knos</a></p>
-<h1>Quality</h1>
-<p class="k-vision" data-not-prose>Knos turns any research into a product billions of people use, in days, not years.</p>
-<p class="k-vision" data-not-prose>Knos carries research across the valley of death, toward Kardashev II and III.</p>
-
-<p class="fine" id="q-for">Reading this build's numbers.</p>
-<h2>Google page scores</h2>
-<table id="q-lh"><thead><tr><th scope="col">Page</th><th scope="col">Device</th><th scope="col">Performance</th><th scope="col">Accessibility</th><th scope="col">Best practices</th><th scope="col">SEO</th></tr></thead><tbody></tbody></table>
-<h2>axe</h2>
-<table id="q-axe"><thead><tr><th scope="col">Page</th><th scope="col">Theme</th><th scope="col">Violations</th><th scope="col">Rules</th></tr></thead><tbody></tbody></table>
-<p class="fine" id="q-how"></p>
-</main>
-<script>
-(async () => {
-  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  const NAME = { landing: "Front door", demo: "Demo", check: "Check a code change", how: "How we test Knos", r: "A result page" };
-  const cell = (h, v, cls = "") => `<td data-h="${esc(h)}"${cls ? ` class="${cls}"` : ""}>${v}</td>`;
-  const pct = (x) => (typeof x === "number" ? Math.round(x * 100) : "none");
-  let q = null;
-  try { q = await (await fetch("quality.json", { cache: "no-store" })).json(); } catch { q = null; }
-  if (!q) { document.getElementById("q-for").textContent = "No numbers were written for this build."; return; }
-  document.getElementById("q-for").innerHTML = `Version <a href="https://github.com/drexthealpha/Knos/commit/${esc(q.commit)}" rel="noopener"><code>${esc(String(q.commit).slice(0, 7))}</code></a>, measured ${esc(q.at)}.`;
-  document.querySelector("#q-lh tbody").innerHTML = q.lighthouse.map((r) => `<tr>${cell("Page", esc(NAME[r.page] || r.page))}${cell("Device", r.form === "mobile" ? "Phone" : "Desktop")}${
-    r.error ? `<td colspan="4" class="bad">not measured: ${esc(r.error)}</td>` : ["performance", "accessibility", "best-practices", "seo"].map((c, i) =>
-      cell(["Performance", "Accessibility", "Best practices", "SEO"][i], pct(r.scores[c]), `n${r.scores[c] < 0.9 ? " bad" : ""}`)).join("")}</tr>`).join("");
-  document.querySelector("#q-axe tbody").innerHTML = q.axe.map((r) => `<tr>${cell("Page", esc(NAME[r.page] || r.page))}${cell("Theme", r.scheme === "dark" ? "Dark" : "Light")}${
-    r.error ? `<td colspan="2" class="bad">not measured: ${esc(r.error)}</td>` : cell("Violations", r.violations, `n${r.violations ? " bad" : ""}`) + cell("Rules", esc(r.ids.map((x) => x.id).join(", ") || "none"))}</tr>`).join("");
-  document.getElementById("q-how").textContent = q.how || "";
-})();
-</script>
-</body>
-</html>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/">
+</head><body><p><a href="../">Knos</a></p></body></html>

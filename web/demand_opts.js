@@ -1,5 +1,6 @@
 // The Qloo demand families' controls (knos.qloo_families): ONE plain control per family, the rest under "Advanced".
-// The same file runs in the app (static/) and on the front door (web/); tests keep the two copies identical.
+// The same file runs in the app (apps/wanted static/); web/ keeps a copy for the old one-page app, not published.
+// apps/wanted/tests/test_families.py keeps the two identical.
 //   KnosDemand.mount(el, base)   draws the controls into el; Advanced is filled from base + /api/demand/fields when opened
 //   KnosDemand.values(el)        the options as the API, /mcp and `knos demand` name them (only what is set)
 //   KnosDemand.answers(rep, base) the families' answers of a report, as short HTML, each with its Qloo source

@@ -6,7 +6,7 @@ set -euo pipefail
 tree="${1:-.}"
 shift || true
 if ! command -v knos >/dev/null 2>&1; then
-  echo "knos is not on PATH: install the knos package (version 0.3.29) and run this again" >&2
+  echo "knos is not on PATH: install the knos package (version 0.4.1) and run this again" >&2
   exit 2
 fi
 exec knos verify --tree "$tree" --agent "Hermes Agent" --json "$@"

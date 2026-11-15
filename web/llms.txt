@@ -1,44 +1,32 @@
 # Knos
 
-> Knos carries research across the valley of death.
+> Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.
 
-A demand check on Qloo names who wants a product and where. A Ready brief fixes the terms, and the money is held on Solana until the proof passes. Devnet, test money, no customers yet.
+Knos locks a test before any work starts; an agent does the work; test money moves only if the test passes. Here the work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a second check is free. Test money only and no customers yet.
 
-Step 4, paid on proof: a referee checks the proof the brief named before the work started (a check run on GitHub, a lab result inside a lab's own IRIS). A program on Solana holds the money and releases it when that proof passes, or refunds it at the deadline. Knos is open source under the MIT licence.
+## Pages
 
-## Start here
+- [Front door](https://drexthealpha.github.io/Knos/): ask about research, see what is proved and by which locked test
+- [Claims](https://drexthealpha.github.io/Knos/claims/): every claim, sorted by the test USDC behind it
+- [Prove](https://drexthealpha.github.io/Knos/prove/): run the check of a claim and get the verdict, the verified code and the receipt
+- [For agents](https://drexthealpha.github.io/Knos/agents/): the one-call API and the terminal tool
+- [For labs](https://drexthealpha.github.io/Knos/labs/): the same check inside InterSystems IRIS
+- [Check a PR](https://drexthealpha.github.io/Knos/check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)
 
-- [Check an idea](https://drexthealpha.github.io/Knos/): type an idea or a paper's DOI; see who wants it and where, then a Ready brief
-- [The app](https://knos.onrender.com/app/): back a milestone with devnet test money, prove it, get paid on proof
-- [Questions](https://drexthealpha.github.io/Knos/faq.html): eight short answers, from what Knos is to who holds the money
-- [README](https://raw.githubusercontent.com/drexthealpha/Knos/main/README.md): how it works, in plain words, with diagrams
-- [Words](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/WORDS.md): every technical word in one line
+## Claims
 
-## Evidence
+- [HyperLogLog counts 30,000 different visitors within 10% using at most 1.5 kilobytes of memory.](https://drexthealpha.github.io/Knos/claim/hyperloglog/): from Flajolet, Fusy, Gandouet and Meunier, 2007; locked test sha256 55ef830ef15276e6b6bb75c249fb54eb09788f2fcee240bde2a293c066a29df3
+- [Jump consistent hash moves only about 1 key in 11 when 10 buckets become 11, with nothing stored.](https://drexthealpha.github.io/Knos/claim/jump-hash/): from Lamping and Veach, 2014; locked test sha256 ffa9d064744e7ea0cc326039f55a979a588e2c1cdb3f59368ff4a99c986057cb
+- [An xor filter answers set membership with under 0.5% false positives in at most 10 bits per key, where a Bloom filter of that size cannot.](https://drexthealpha.github.io/Knos/claim/xor-filter/): from Graf and Lemire, 2020; locked test sha256 ffd0f5571c8a0a3d415080949a10734a6743e9bf520786f58f94aa75077f6cf0
+- [A Morris counter counts 100,000 events within 10% in a 12-bit register, where an exact count needs 17 bits.](https://drexthealpha.github.io/Knos/claim/morris-counter/): from Nelson and Yu, 2020; locked test sha256 b91647f1caef8c6e09486ad022da7200724a806b1a2a0fe7ab9ee31ad20d7dab
+- [The planet Kepler-10b goes around its star once every 0.837495 days, found again in NASA's public Kepler light curve.](https://drexthealpha.github.io/Knos/claim/kepler-10b/): from Batalha and others, 2011; locked test sha256 ce84ea41cf052a82a12d092b17dedf56f91be6271839bdc599221536849464e6
+- [Landsat 8's published orbit, 705 km up and tilted 98.2 degrees, is sun-synchronous: simulated with Earth's equatorial bulge, its orbit plane turns 0.98565 degrees a day.](https://drexthealpha.github.io/Knos/claim/landsat-8-orbit/): from NASA Goddard Space Flight Center, page read 13 Nov 2026; locked test sha256 07f531b478698a5ce3997452cb94d31d96154a1f78260d32b611b7b971a69523
+- [A plain Ridge regression predicts how many cycles NASA's simulated FD001 jet engines have left, off by 16.634 cycles RMS.](https://drexthealpha.github.io/Knos/claim/cmapss-engine-life/): from Galchar, Goel and Kanu, 2026; locked test sha256 6b5933e65e3ad982a8a1790c264526b0f69b58741384c5b1e66b7cb2fd4f1bb7
 
-- [Proof](https://drexthealpha.github.io/Knos/proof/): every published number against its baseline, each linked to its source
-- [Forecasts](https://drexthealpha.github.io/Knos/forecasts/): three forecasts for each recorded idea, fixed before the Census counts the businesses
-- [Status](https://drexthealpha.github.io/Knos/status/): each part Knos runs on, read live, and what happens when one fails
-- [Proof checked inside IRIS for Health](https://github.com/drexthealpha/Knos/tree/main/iris): a lab result or a referee verdict as the proof, decided inside InterSystems IRIS
-- [Hosted MCP server](https://knos.onrender.com/mcp): `claude mcp add --transport http knos https://knos.onrender.com/mcp`
+## For agents
 
-## Sample results
-
-- [An AI recipe planner for families](https://drexthealpha.github.io/Knos/results/ebb83ba34dc00095/): the recorded card's verdict and reasons
-- [A crypto podcast for beginners](https://drexthealpha.github.io/Knos/results/3a10ddd6cfccb78e/): the recorded card's verdict and reasons
-- [A quantum physics book for kids](https://drexthealpha.github.io/Knos/results/f756f4e373a1a144/): the recorded card's verdict and reasons
-- [A solar powered music festival](https://drexthealpha.github.io/Knos/results/14d68eb782caff05/): the recorded card's verdict and reasons
-- [A probiotic kombucha brand](https://drexthealpha.github.io/Knos/results/630583f679a5530f/): the recorded card's verdict and reasons
-- [A recycled ocean plastic swimwear brand](https://drexthealpha.github.io/Knos/results/8b9b9e8d4f46b0fe/): the recorded card's verdict and reasons
-
-## Docs
-
-- [Story](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/STORY.md): one task in six steps, each with its evidence
-- [Release manifest](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/reference/MANIFEST.md): the code, what runs on devnet, the limits
-- [What is not real yet](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/reference/DISCLOSURE.md): no customers, no revenue, test money only
-- [Map of the documents](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/README.md): the seven pages to start with; everything else in docs/reference/
+`POST https://knos.onrender.com/api/near/claim/flow` with `{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}`: the verdict, the code and the receipt.
 
 ## Optional
 
-- [Source](https://github.com/drexthealpha/Knos): the repository
-- [Package](https://pypi.org/project/knos/): `pip install knos`
+- [Source](https://github.com/drexthealpha/Knos): the repository, MIT licence

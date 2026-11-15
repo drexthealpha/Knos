@@ -46,10 +46,10 @@ export function drawLive(dl, live, esc = (t) => String(t)) {
 }
 
 // ---- the calculator ---------------------------------------------------------------------------------------------------
-export const BILLING_DOC = "https://github.com/drexthealpha/Knos/blob/main/docs/PRICING.md";
+export const BILLING_DOC = "https://github.com/drexthealpha/Knos/blob/main/src/knos/billing.py";
 // where each slider stops: [least, most, step]
 export const RANGES = Object.freeze({ evaluations: [0, 2_000_000, 10_000], accepted: [0, 30_000_000, 50_000], onchain: [0, 100, 5], lookups: [0, 5_000, 10] });
-// the worked customer of docs/PRICING.md: Business, 110,000 evaluations a month, 10 million accepted a year
+// the worked customer of the retired price book: Business, 110,000 evaluations a month, 10 million accepted a year
 export const START = Object.freeze({ plan: "business", evaluations: "110,000", accepted: "833,333.33", onchain: "0", lookups: "0" });
 const STYLE = `
 .bill form { display: grid; gap: 12px 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); margin: 0 0 16px; }
@@ -181,7 +181,7 @@ export function initPricing(ctx) {
   const view = $("view-pricing");
   if (!bill && view) { bill = document.createElement("div"); bill.id = "bill"; bill.className = "k-card"; view.insertBefore(bill, view.querySelector(".card, .k-card")); }
   renderPricing(bill, { ...ctx, live });
-  // the price book: its rows are written here from price.js, in the book's own words (docs/PRICING.md, "The price book"),
+  // the price book: its rows are written here from price.js, in the book's own words (src/knos/billing.py, BOOK),
   // as many columns as the page's table has, and the rule it is published with (id "price-rule")
   const set = (id, words) => { const el = $(id); if (el) el.textContent = words; };
   const table = $("price-book"), book = table?.querySelector("tbody"), columns = table?.querySelectorAll("thead th").length || 3;

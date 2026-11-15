@@ -82,7 +82,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
 <script type="module" src="retry.js"></script>
 <!-- The first screen's control comes before the mark on a phone, and its answer before the mark too (web/front_door.js). -->
 <link rel="alternate" type="application/atom+xml" title="Knos: upgrade proposals of the programs" href="upgrades.xml">
-<!-- The first screen: the outcome as the h1, then who it is for, then the sentence, then the number. Styled here because app.css is at its size limit (tests/web/motion.mjs). From 900 px the top margin is 36 px, so the upgrade line sits 4 px down and 24 px tall, clear of the sentence. -->
+<!-- The first screen: the outcome as the h1, then who it is for, then the sentence, then the number. Styled here because app.css is at its size limit. From 900 px the top margin is 36 px, so the upgrade line sits 4 px down and 24 px tall, clear of the sentence. -->
 <style>.hero .hero-fact { text-wrap: pretty; } .hero .hero-outcome { font-size: var(--s2); line-height: 1.35; font-weight: 500; color: var(--ink); max-width: 26em; margin: 0 0 8px; text-wrap: balance; } .hero .hero-who { color: var(--ink); max-width: 34em; margin: 0 0 6px; text-wrap: pretty; } .hero .hero-fact { margin-bottom: 12px; } .hero .hero-board { margin-top: 12px; } .hero h1, .hero #check { margin-top: 0; margin-bottom: 12px; } .hero .hero-fact .k-num { color: var(--ink); font-weight: 600; } #how-it-works { margin-top: 64px; scroll-margin-top: 80px; } @media (max-width: 360px) { .hero h1, .hero #check { margin-bottom: 6px; } .hero .hero-fact { margin-bottom: 8px; } .hero .hero-outcome { margin-bottom: 6px; } .hero .hero-board { margin-top: 6px; } } @media (min-width: 900px) { .hero { padding-top: 36px; } .hero-upgrades { top: 4px; } .hero-upgrades > summary { padding-block: 2px; } }</style>
 <link rel="preconnect" href="https://drexthealpha.github.io" crossorigin>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -147,7 +147,7 @@ html.js #view-network:not([data-stats]) > .card { visibility: hidden; animation:
     </div>
     <!-- HOW IT WORKS, under the first screen: three steps, the same three everywhere. What the advanced terms mean
          (versioned terms, the receipt's five parts, holdbacks, reserves, netting, exits) waits behind one fold each, under the
-         step it belongs to. tests/web/site.mjs holds the three, the promise and the six folds. -->
+         step it belongs to. -->
     <h2 id="how-it-works">How it works</h2>
     <p class="devnet">This runs on Solana devnet, a test network: the money is test USDC and worth nothing.</p>
     <details class="k-more" id="why-solana"><summary>Why Solana?</summary>

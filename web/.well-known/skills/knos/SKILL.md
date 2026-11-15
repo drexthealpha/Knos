@@ -1,7 +1,7 @@
 ---
 name: knos
-description: "Knos carries research across the valley of death. Before a pull request is paid, run Knos's checks and attach a signed receipt."
-version: 0.3.29
+description: "Knos carries research across the valley of death. The pull request check, the part of Knos built for Colosseum (tag v0.3.28): before a pull request is paid, run Knos's checks and attach a signed receipt."
+version: 0.4.1
 author: drexthealpha
 license: MIT
 platforms: [linux, macos, windows]
@@ -26,7 +26,7 @@ signed receipt to attach to it. Use it every time you are about to open a pull r
 ## When to Use
 
 - You committed a change and are about to open a pull request (or push to one).
-- You are claiming a Knos bounty (a GitHub issue with test USDC held on Solana devnet).
+- You are claiming a Knos bounty (a GitHub issue with test USDC held on Solana devnet, by the Colosseum part of Knos).
 - A person asks whether a change is ready to submit.
 
 ## Procedure

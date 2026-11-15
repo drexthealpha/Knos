@@ -1,8 +1,8 @@
 // node tests/web/launch.mjs <site dir>
 // What a stranger meets on launch day when something is missing, on a build of web/ served as GitHub Pages serves it
 // (under /Knos/, and any address the site does not have answered with 404.html and the status 404):
-//   404        a missing address, however deep, gets the site's own page: styled by app.css, a link home, the prices and
-//              the docs; an address that names a page (/Knos/pricing) is offered as that page first
+//   404        a missing address, however deep, gets the site's own page: the product's one header, the front door as its
+//              one button, the vision line labelled as the goal, the claims and the prices
 //   privacy    the privacy and terms page draws, and no page sets a cookie
 //   data       when stats.json does not load, the pages that read it say so in one line with a Reload button; when no
 //              data file loads, every page that reads one says so, and no page is blank or shows a stack; once the
@@ -33,6 +33,9 @@ const server = createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const origin = `http://127.0.0.1:${server.address().port}`, base = origin + PREFIX;
+// and what the product pages read by design: the hosted server's NEAR answers and the visit events, NEAR testnet's public
+// RPCs, the uptime log on the gh-pages branch
+const PRODUCT = /^https:\/\/knos\.onrender\.com\/api\/(near\/[\w/]+|visits?)$|^https:\/\/(rpc\.testnet\.fastnear\.com|rpc\.testnet\.near\.org)\/?$|^https:\/\/raw\.githubusercontent\.com\/drexthealpha\/Knos\/gh-pages\/uptime\.jsonl$/;
 const outside = [];
 const ASKED = /^https:\/\/(api\.github\.com|api\.devnet\.solana\.com|devnet\.rpcpool\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors|counter|qloo\/status)$/;     // what the pages read by design, refused here: GitHub, devnet (and its second free RPC, web/netfacts.js, once the first is refused), and the app's list of research products (web/home.js, on a reader's first move at the bare address)
 // block: a test of the request's path inside the site; a request it matches fails as a dropped connection would
@@ -40,7 +43,7 @@ const world = async (block = () => false, o = {}) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...o });
   await ctx.route("**/*", (route) => {
     const url = route.request().url();
-    if (!url.startsWith(origin)) { if (!ASKED.test(url)) outside.push(url); return route.abort(); }
+    if (!url.startsWith(origin)) { if (!ASKED.test(url) && !PRODUCT.test(url.split("?")[0])) outside.push(url); return route.abort(); }
     return block(url.slice(base.length).split("?")[0]) ? route.abort("connectionfailed") : route.continue();
   });
   return ctx;
@@ -49,46 +52,53 @@ const world = async (block = () => false, o = {}) => {
 // ---- 404 -----------------------------------------------------------------------------------------------------------------------
 {
   const ctx = await world();
-  for (const [width, height] of [[320, 640], [1280, 800]]) {
+  for (const [width, height] of [[320, 640], [390, 844], [1280, 800]]) {
     const page = await ctx.newPage();
     await page.setViewportSize({ width, height });
     const answer = await page.goto(base + "no/such/page/at/all", { waitUntil: "load" });
     check(`404: a missing address answers 404 at ${width}`, answer.status() === 404, answer.status());
     const seen = await page.evaluate(() => ({
       h1: document.querySelector("h1")?.textContent.trim(),
+      nav: [...document.querySelectorAll("#kh nav a")].map((a) => a.textContent.trim()),
+      logo: document.querySelector("#kh .logo")?.href,
+      go: document.querySelector("main a.go")?.href, goal: document.querySelector("main .goal")?.textContent.trim(),
       links: [...document.querySelectorAll("#lost-links a")].map((a) => [a.textContent.trim(), a.href]),
-      font: getComputedStyle(document.body).fontFamily, styled: [...document.styleSheets].some((s) => (s.href || "").endsWith("/Knos/app.css") && s.cssRules.length > 50),
-      words: [...document.querySelectorAll("h1, li, .foot span")].map((e) => e.textContent.trim()),
+      words: [...document.querySelectorAll("h1, li, footer span")].map((e) => e.textContent.trim()),
+      goTop: document.querySelector("main a.go")?.getBoundingClientRect().bottom,
     }));
-    check(`404: the site's own page, styled by app.css, at ${width}`, seen.styled && /Geist/.test(seen.font) && /^Check the address/.test(seen.h1 || ""), seen);
-    check(`404: a link home, the prices and the docs at ${width}`, seen.links.length === 3 && seen.links[0][1] === base && seen.links[1][1] === base + "#pricing"
-      && seen.links[2][1] === "https://github.com/drexthealpha/Knos/tree/main/docs", seen.links);
-    const long = seen.words.filter((t) => t.split("·").some((part) => (part.match(WORD) || []).length > 12));
+    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Prove|For agents|For labs (IRIS)|Check a PR", seen);
+    check(`404: says the page is missing and offers the front door first at ${width}`, seen.h1 === "No page lives here" && seen.go === base && seen.goTop <= height, seen);
+    check(`404: the vision line is labelled as the goal at ${width}`, /^The goal: /.test(seen.goal || ""), seen.goal);
+    check(`404: the claims and the prices at ${width}`, seen.links.length === 2 && seen.links[0][1] === base + "claims/" && seen.links[1][1] === base + "pricing/", seen.links);
+    const long = seen.words.filter((t) => (t.match(WORD) || []).length > 12);
     check(`404: no statement over 12 words at ${width}`, long.length === 0, long);
     const over = await measure(page);
     check(`404: no sideways scroll at ${width}`, over.over <= 0, over);
     await page.close();
   }
-  const page = await ctx.newPage();
-  await page.goto(base + "pricing");
-  const guess = await page.evaluate(() => document.querySelector("#lost-links a")?.href);
-  check("404: /Knos/pricing offers the pricing page first", guess === base + "#pricing", guess);
-  await page.goto(base + "nothing-like-a-page");
-  check("404: an address that names no page offers no guess", (await page.$("#lost-guess")) === null);
   await ctx.close();
 }
 
 // ---- privacy and terms; no cookie anywhere ------------------------------------------------------------------------------------
+// the published build (scripts/site_pages.py: the front door at the root, the privacy page written by site_product.py) or
+// the earlier one-page app at the root (KNOS_SPA_AT_ROOT=1, its own privacy page of short <li> lines and its # pages)
+const SPA = /src="front\.js"/.test(readFileSync(join(root, "index.html"), "utf-8"));
 {
   const ctx = await world(), page = await ctx.newPage();
   const answer = await page.goto(base + "privacy.html", { waitUntil: "load" });
-  const lines = await page.evaluate(() => [...document.querySelectorAll("main li")].map((li) => li.textContent.trim()));
-  check("privacy: the page draws, every line a short statement", answer.status() === 200 && lines.length >= 10 && lines.every((t) => (t.match(WORD) || []).length <= 12), lines);
-  for (const where of ["", "#pricing", "#fund", "#records"]) { await page.goto(base + where, { waitUntil: "load" }); await page.waitForTimeout(300); }
+  if (SPA) {
+    const lines = await page.evaluate(() => [...document.querySelectorAll("main li")].map((li) => li.textContent.trim()));
+    check("privacy: the page draws, every line a short statement", answer.status() === 200 && lines.length >= 10 && lines.every((t) => (t.match(WORD) || []).length <= 12), lines);
+  } else {
+    const seen = await page.evaluate(() => ({ h1: document.querySelector("h1")?.textContent.trim(), h2: [...document.querySelectorAll("main h2")].map((h) => h.textContent.trim()) }));
+    check("privacy: the page draws, with its three parts", answer.status() === 200 && seen.h1 === "Privacy and terms" && seen.h2.join("|") === "This site|The server|Terms", seen);
+  }
+  for (const where of SPA ? ["", "#pricing", "#fund", "#records"] : ["", "claims/", "pricing/", "status/"]) { await page.goto(base + where, { waitUntil: "load" }); await page.waitForTimeout(300); }
   check("privacy: no page sets a cookie", (await ctx.cookies()).length === 0 && (await page.evaluate(() => document.cookie)) === "", await ctx.cookies());
   await ctx.close();
 }
 
+if (SPA) {
 // ---- a data file that does not load ---------------------------------------------------------------------------------------------
 const pages = [...PAGES, ...addedPages(root).map((n) => `#${n}`)];
 const look = async (ctx, hash) => {
@@ -148,6 +158,8 @@ const look = async (ctx, hash) => {
   check("data: Reload, once the file loads, brings the page back without the line", (await v.page.$("#k-retry")) === null && v.page.url().endsWith("#network"));
   await ctx.close();
 }
+
+} else console.log("note: the data-file checks drive the one-page app's # pages; this build has the product pages at the root");
 
 check("nothing outside the site was asked", outside.length === 0, [...new Set(outside)].slice(0, 5));
 await browser.close(); server.close();

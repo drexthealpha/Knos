@@ -1,5 +1,5 @@
 {
- "what": "the Knos lab's money, held on Solana devnet until the proof passes: real transactions, TEST money (the sample's own mint), lab replies from FIXTURES; the LAB verdict pays the lab even though the science failed, the OUTCOME verdict does not pay the researcher",
+ "what": "the Knos lab demo on Solana devnet: the LAB verdict releases the lab's test money, real transactions, TEST money (the demo's own mint), lab replies from FIXTURES; the LAB verdict pays the lab even though the science failed, the OUTCOME verdict does not pay the researcher",
  "synthetic": true,
  "cluster": "devnet",
  "mint": "5XJJTDxBF1LqbQ9MAURyYUnHCPcd4JHxjdy9or2gWjsX",

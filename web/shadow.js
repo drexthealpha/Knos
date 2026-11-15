@@ -23,7 +23,7 @@ export const LABELS = { clean: "verified clean", failed: "failed check at merge"
 const ALIASES = { pr: ["pr", "pull_request", "url", "change"], amount: ["amount", "price", "total"], supplier: ["supplier", "vendor"] };
 const API = "https://api.github.com";
 export const ANONYMOUS_AN_HOUR = 60;      // what GitHub answers without a login
-export const LINE_COSTS = 4;              // requests one line can need: the pull request, its check runs, its statuses, its commits
+export const LINE_COSTS = 4;              // requests a merged line needs at least: the pull request, one page each of its check runs, statuses and commits (more pages ask more)
 
 // examples/shadow/sample.csv, word for word (tests/test_shadow.py holds the two together)
 export const SAMPLE = `# A sample assembled by Knos from public pull requests listed in docs/agent_pr_ci.json. Not anyone's invoice.

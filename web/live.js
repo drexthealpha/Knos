@@ -36,7 +36,7 @@ export const took = (s) => (s === null || s === undefined ? "" : s < 120 ? `${Ma
 // when the timer is next due: the next half hour of the clock, UTC. GitHub may start it late.
 export const nextDue = (now) => (Math.floor(now / (EVERY * 1000)) + 1) * EVERY * 1000;
 // the funding comment as an older Knos worded it (today's says "is held for issue"): both are read
-const OLDER_FUNDED = /is in \u0065scrow/;          // the wording of Knos's older funding comments, read as they were posted
+const OLDER_FUNDED = /is in \u0065scrow/;          // the word the founder retired, spelled by its escape: only older funding comments, read as they were posted, carry it
 const knosSays = (comments, ...marks) => (comments || []).find((c) => String(c.body || "").startsWith("Knos") && marks.some((m) => (m instanceof RegExp ? m.test(c.body) : c.body.includes(m)))) || null;
 // the links to devnet's explorer a comment of Knos's carries: [{ kind: "tx" | "address", id, text }]
 export const explorerLinks = (body) => [...String(body || "").matchAll(/\[([^\]]{1,80})\]\(https:\/\/explorer\.solana\.com\/(tx|address)\/([1-9A-HJ-NP-Za-km-z]{32,90})(?:\?cluster=devnet)?\)/g)]
@@ -233,7 +233,7 @@ export function renderLive(el, env = {}) {
   el.innerHTML = `<div class="card" id="live">
     <p class="devnet">Devnet: test USDC, worth nothing.</p>
     <h3>A test payment you can watch</h3>
-    <p>A test robot (a workflow in <a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>, runs every 30 minutes. A round funds an issue with 5 test USDC, opens a pull request
+    <p>A test robot, a workflow in <a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>, runs every 30 minutes. A round funds an issue with 5 test USDC, opens a pull request
       that closes it, merges it and waits to be paid. You need no account, wallet or repository to follow one: this page reads GitHub and Solana devnet, as you could.</p>
     <p id="live-head" class="status" role="status" aria-live="polite">Reading the canary's latest round…</p>
     <div id="live-round"></div>

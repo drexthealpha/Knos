@@ -1,8 +1,8 @@
 // Which fee the program on devnet charges NOW, for every page that shows a fee before anything is funded.
 //
 // knos_pay has two fee rules (web/price.js): the 0.3.18 one (0.30%, at least 0.05) from knos_pay 2.2 on, and the
-// 0.3.14 one (three tiers, at least 0.40) before. The public programs charge the 0.3.14 fee until the upgrade to 2.2
-// executes, so a page asks before it shows a number:
+// 0.3.14 one (three tiers, at least 0.40) before. The public programs have charged the 0.3.18 fee since knos_pay 2.2
+// executed on 9 October 2026; a page still asks before it shows a number:
 //   1. the program itself (web/version.js: Version, simulated, nothing sent): 2 is knos_pay 2.2;
 //   2. when devnet did not answer, upgrades.json, the file of this site written from the upgrade multisig's accounts:
 //      2 once a proposal of knos_pay after the 2.1 one has executed. The file is as old as its `generated`.

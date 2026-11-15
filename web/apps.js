@@ -6,7 +6,7 @@ const APP = "https://knos.onrender.com/app/";
 
 export function renderApps(el) {
   el.innerHTML = `<h2>Back proven research products</h2>
-    <p>Paste a paper; see who wants its product; pre-order, paid only on proof.</p>
+    <p>The earlier demand check, on the Knos app.</p>
     <p class="actions"><a class="k-btn" id="apps-go" href="wanted.html">Open the app →</a></p>
     <p class="devnet">Solana devnet test money: worth nothing.</p>`;
   const go = el.querySelector("#apps-go");

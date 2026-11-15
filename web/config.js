@@ -3,8 +3,8 @@
 // video: the recording at the top of the first screen, a release asset of this repository. `null` until a release
 //   has one: the page then shows no video at all. The Pages build (scripts/build_site.sh) writes it from
 //   KNOS_VIDEO_URL and, optionally, KNOS_VIDEO_POSTER; a file that cannot be loaded hides the video again.
-// examples: what the three buttons under the first form put in it. Each input is a real one, and the checks in
-//   tests/web/site.mjs say where it comes from: the two pull requests are in docs/agent_pr_ci.json, the transaction
+// examples: what the three buttons under the first form put in it. Each input is a real one, and here is where
+//   each comes from: the two pull requests are in docs/agent_pr_ci.json, the transaction
 //   is in tests/web/recorded/devnet_first_deployment.json.
 export const CONFIG = {
   video: null,

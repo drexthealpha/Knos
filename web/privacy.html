@@ -3,83 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</title>
-<meta name="description" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
-<link rel="canonical" href="https://drexthealpha.github.io/Knos/privacy.html">
+<title>Knos privacy and terms</title>
+<meta name="description" content="No cookies; an anonymous daily visit id and no IP stored; test money on NEAR testnet.">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#07080c">
-<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
-<link rel="stylesheet" href="brand/tokens.css">
-<link rel="stylesheet" href="app.css">
-<!-- Each line is checked against the code by tests/test_site_launch.py: cookies (none), hosts (GitHub, devnet),
-     sessionStorage (web/cache.js), localStorage (the theme in web/front.js, a passkey in web/claim.js, buyer.js, payee.js). -->
-<style>.legal h2 { margin-top: 40px; } .legal ul { padding-left: 1.2em; } .legal li { margin: 6px 0; }</style>
-<script>document.documentElement.classList.add("js");try { const t = localStorage.getItem("knos-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Knos", "item": "https://drexthealpha.github.io/Knos/"}, {"@type": "ListItem", "position": 2, "name": "Privacy and terms", "item": "https://drexthealpha.github.io/Knos/privacy.html"}]}</script><!-- ld:end -->
-<style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
-<link rel="preconnect" href="https://drexthealpha.github.io" crossorigin>
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/privacy.html">
+<meta property="og:title" content="Knos privacy and terms">
+<meta property="og:description" content="No cookies; an anonymous daily visit id and no IP stored; test money on NEAR testnet.">
+<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
-<link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
+<link rel="stylesheet" href="brand/tokens.css">
+<style>
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--text); }
+a { color: var(--accent); }
+main { max-width: 760px; margin: 0 auto; padding: 8px 16px 32px; }
+h1 { font: 600 clamp(28px, 5vw, 40px)/1.15 var(--head); letter-spacing: -.02em; margin: 16px 0 12px; }
+h2 { font: 600 22px/1.25 var(--head); margin: 28px 0 8px; }
+p { margin: 0 0 12px; }
+.lead { color: var(--ink-2); }
+table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 16px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+code, pre { font: 15px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace; }
+code { overflow-wrap: anywhere; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
+.row a, td a { display: inline-flex; align-items: center; min-height: 44px; }
+.fine { color: var(--ink-2); }
+footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
+footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test USDC behind: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+/* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
+@media (max-width: 460px) {
+  main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
+  main button, main .btn, main label, main summary, main code, main pre, main small, main th, main .fine, main input, main select { font-size: 16px; }
+  main summary { display: flex; align-items: center; min-height: 44px; }
+  nav a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }
+.kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
+.kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
+.kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.kh nav { display: flex; flex-wrap: wrap; }
+.kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
+.kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
+</style>
 </head>
 <body>
-<!-- k-bar -->
-<header class="bar k-bar" id="k-bar">
-  <a class="brand" href="./#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
-  <nav id="nav" aria-label="Knos">
-    <a href="./" data-nav="home">Home</a>
-    <a href="./near/" data-nav="near">NEAR app</a>
-    <a href="./iris/" data-nav="iris">IRIS</a>
-    <a href="./proof/" data-nav="proof" data-proof>Proof</a>
-  </nav>
-  <div class="tools">
-    <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
-    <button id="theme" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
-  </div>
-</header><script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/Knos/*"},{"not":{"href_matches":"/Knos/wanted.html*"}}]},"eagerness":"moderate"}]}</script>
-<script>addEventListener("load", () => { const s = document.createElement("script"); s.src = "brand/bar.js"; document.head.append(s); }, { once: true });</script>
-<!-- /k-bar -->
+<header class="kh" id="kh">
+  <a class="logo" href="./"><span class="mark" aria-hidden="true" style="--m: url(brand/mark.svg)"></span>Knos</a>
+  <nav aria-label="Pages"><a href="claims/">Claims</a><a href="prove/">Prove</a><a href="agents/">For agents</a><a href="labs/">For labs (IRIS)</a><a href="check/">Check a PR</a></nav>
+</header>
 <main>
-  <section class="view legal" id="privacy">
-    <h1>Privacy and terms</h1>
-<p class="k-vision" data-not-prose>Knos turns any research into a product billions of people use, in days, not years.</p>
-<p class="k-vision" data-not-prose>Knos carries research across the valley of death, toward Kardashev II and III.</p>
-
-    <h2>This site</h2>
-    <ul id="privacy-site">
-      <li>No cookies, analytics or trackers.</li>
-      <li>Serves its own fonts, scripts and images.</li>
-      <li>Sends what you type to the Knos app on Check.</li>
-      <li>Reads public code pages and Solana devnet from your browser.</li>
-      <li>Keeps answers in this tab, and your theme and passkey here.</li>
-    </ul>
-    <h2>The Knos app and its link for AI assistants</h2>
-    <ul id="privacy-app">
-      <li>Sends an idea's words to Qloo, never a person's.</li>
-      <li>Keeps each report; its link shows it.</li>
-      <li>Puts reports on devnet for projects and examples only.</li>
-      <li>Shows visitors only the site's own examples.</li>
-      <li>Counts requests per address, only to limit them.</li>
-      <li>Same rules for AI assistants that connect to Knos.</li>
-    </ul>
-    <h2>The command line</h2>
-    <ul id="privacy-cli">
-      <li>Keeps its files on your own machine.</li>
-      <li>Asks GitHub and Solana devnet when a command needs them.</li>
-    </ul>
-    <h2>Terms</h2>
-    <ul id="terms-of-use">
-      <li>Runs on Solana devnet: the money is test USDC.</li>
-      <li>Uses the MIT licence: <a href="https://github.com/drexthealpha/Knos/blob/main/LICENSE">read it</a>.</li>
-      <li>Comes with no warranty, as the licence says.</li>
-      <li>Report a problem in <a href="https://github.com/drexthealpha/Knos/issues">GitHub issues</a>.</li>
-      <li>Read <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/PRIVACY.md">what a payment makes public</a>.</li>
-    </ul>
-  </section>
+<h1>Privacy and terms</h1>
+<h2>This site</h2>
+<p>No cookies. One outside script host: the Prove page loads the GSAP animation library from cdnjs, pinned by its hash; it sends nothing of yours. To learn why people stay or leave, each page sends Knos small events of an anonymous visit: a random id your browser makes and resets every day, the page, each press and how long its answer took, whether you got an answer, ran a proof, backed a claim or downloaded code, three quick presses on one spot, an error shown, a tap on "Not what I need" and the word you add to it, and the last page and its seconds before you leave. No IP address, account or cookie is stored with them. If your browser sends Do Not Track, nothing is sent. /status shows the totals. The question or paper link you type goes to the Knos server, which reads the paper's title from its public record (Crossref) and answers. Your browser also reads NEAR testnet's public record.</p>
+<h2>The server</h2>
+<p>No account and no sign-in. It counts requests per address only to limit them. Every proof and payment is public on NEAR testnet.</p>
+<h2>Terms</h2>
+<p>Test money on NEAR testnet, worth nothing. The code is MIT licensed, with no warranty: <a href="https://github.com/drexthealpha/Knos/blob/main/LICENSE">the licence</a>. Report a problem in <a href="https://github.com/drexthealpha/Knos/issues">GitHub issues</a>.</p>
 </main>
-<footer class="foot">
-  <span>Devnet is test mode: the money is test USDC.</span>
-  <span><a href="./">Knos home</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
-</footer>
+<footer><span>NEAR testnet, test money, no customers yet.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a><a href="privacy.html">Privacy</a></footer>
 </body>
 </html>

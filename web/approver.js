@@ -1,5 +1,5 @@
 // The approver's screen: one invoice, one row per line, read left to right:
-//   Supplier -> Purchase order -> Agreed deliverable -> Acceptance evidence -> Authorised amount -> Exception -> Payment status
+//   Supplier -> Authorisation -> Agreed deliverable -> Acceptance evidence -> Amount to approve -> Exception -> Payment status
 // and under it ONE queue of every line that is not agreed, each with its reason in one sentence and the two things an
 // approver can do: approve the agreed lines, or send the exception to the supplier as a message that is already written.
 //
@@ -22,7 +22,8 @@
 // (web/front_door_sample.js), made into a statement here by web/statement_make.js. This module asks nobody anything:
 // no GitHub, no Solana, no host but the site it came from (approver_time.json; rails.js and recall.js when they exist).
 //
-// THE FIVE EXCEPTIONS. disputed, duplicate and insufficient evidence are the statement's own line states
+// THE SIX EXCEPTIONS (over your approval limit is also worked out HERE, from the limit the approver types: rowsFrom,
+// cap_). disputed, duplicate and insufficient evidence are the statement's own line states
 // (src/knos/ids.py LINE_STATES). replayed is the statement's duplicate whose earlier billing is on ANOTHER statement
 // (`duplicate_of` starts "statement "). over the purchase order is worked out HERE, not in the statement: agreed lines
 // are added up per purchase order in line order, and a line that takes the sum past the limit the invoice file states is

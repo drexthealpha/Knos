@@ -74,7 +74,7 @@ function refusal(st) {
   for (const o of t.receipts_outcome) for (const line of o.outcome.logs) {
     const j = line.startsWith("EVENT_JSON:") ? (() => { try { return JSON.parse(line.slice(11)); } catch { return null; } })() : null;
     if (j && j.event === "ft_transfer") {
-      for (const d of j.data) $("moved").append(el("li", `${(Number(d.amount) / 1e6).toFixed(2)} from ${d.old_owner_id} to ${d.new_owner_id}`));
+      for (const d of j.data) $("moved").append(el("li", `${Number(d.amount) < 1e4 ? d.amount + " units (millionths of a test USDC)" : (Number(d.amount) / 1e6).toFixed(2)} from ${d.old_owner_id} to ${d.new_owner_id}`));   // a spend of 1 or 3 units would round to 0.00
       $("moved-h").hidden = false;
     } else { $("said").append(el("li", o.outcome.executor_id + ": " + line.slice(0, 400))); $("said-h").hidden = false; }
   }

@@ -1,7 +1,9 @@
-// Price book 3.1 and the arithmetic of the calculators. Pure functions: nothing here reads the page or the network.
+// The retired price book 3.1 (the earlier Solana part of Knos, not published) and the arithmetic of the calculators.
+// Today nobody pays for a proof; the fees in use are config/fees.yaml (Solana devnet) and FEE_PARTS in
+// near/contract/src/jobs.rs (NEAR testnet). Pure functions: nothing here reads the page or the network.
 //
 // WHERE THE NUMBERS COME FROM, in one place.
-//   BILL      the price book's own numbers (docs/PRICING.md, "The price book"; src/knos/billing.py holds the same):
+//   BILL      the retired price book's own numbers (src/knos/billing.py, BOOK):
 //             Meter, Acceptance and its volume rates, Record, Control, Pilot. Contract prices, typed once, here.
 //   on chain  what knos_pay takes at release, in millionths of a whole unit of the mint (USDC has six decimals), as
 //             the program holds it. priceConstants() takes each constant from what sdk/settle exports (settle.js in
@@ -13,7 +15,7 @@
 // THE FEE FOLLOWS THE BUILD THAT IS LIVE. knos_pay has two fee rules (settle.js v2.FEE_RULES):
 //   0.3.18 (knos_pay 2.2)  0.30% of the amount, at least 0.05; one rate, no tiers; a Plan no lower than 0.10%
 //   0.3.14 (knos_pay 2.1)  three tiers: 2.5% up to 1,000, 1% to 50,000, 0.5% above, at least 0.40
-// The public programs charge the 0.3.14 fee until the upgrade to 2.2 executes. priceConstants(lib, version) gives the
+// knos_pay 2.2 (the 0.3.18 fee) is live on devnet since 9 October 2026; the 0.3.14 rule stays for orders funded before it. priceConstants(lib, version) gives the
 // constants of the rule the program of `version` applies (web/version.js asks the program; web/fee_live.js asks it
 // and, when devnet does not answer, reads upgrades.json); with no version it gives this tree's own, the 0.3.18 one.
 // An order's funder pays the fee on top of the amount; a job's (a tip's) fee comes out of its amount. Orders funded before the upgrade keep the rate fixed at their funding.
@@ -138,7 +140,7 @@ const thousands = (n) => n.toLocaleString("en-US");
 function rate(bps) { return `${(bps / 100).toFixed(2)}%`; }
 const short = (n) => (n >= 1_000_000 ? `${n / 1_000_000}M` : thousands(n));
 export const COLUMNS = Object.freeze(["Line", "Unit", "Price", "Who pays", "Where it is enforced"]);
-// The price book, row by row, in the words of docs/PRICING.md and of src/knos/billing.py (BOOK): the five COLUMNS.
+// The retired price book, row by row, in the words of src/knos/billing.py (BOOK): the five COLUMNS.
 export function priceBook() {
   const k = BILL.control, [r0, r1] = BILL.acceptBps, [, a1] = BILL.acceptAbove, floor = (BILL.acceptFloorCents / 100).toFixed(2), record = (BILL.recordCents / 100).toFixed(2);
   return [
@@ -152,7 +154,7 @@ export function priceBook() {
     ["Pilot", "one buyer, two suppliers, 30 days, one reconciled invoice", `${thousands(BILL.pilot)} USD, credited against year one`, "buyer", "contract"],
   ];
 }
-// The rule the book is published with (docs/PRICING.md, section 3), and the same in five words.
+// The rule the book was published with, and the same in five words.
 export const RULE = "Knos never charges the party being rated.";
 export const PAYS = "The rated party never pays.";
 export const CONNECT = "Connecting a supplier costs nothing.";

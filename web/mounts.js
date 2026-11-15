@@ -183,13 +183,13 @@ export function renderIndex(el, weekly, esc = escHtml, feed = null) {
   const has = weekly && weekly.agents && Object.keys(weekly.agents).length > 0;
   el.innerHTML = `<h2>Agent PR Index</h2>
     <p class="lede">How often GitHub's checks agree with “tests pass”, per agent, per week.</p>
-    <div class="card" id="index-card">${has ? "" : `<p class="status" id="index-none">This copy of the site has no weekly agent data, so no table is shown. The table of the repository is in <a href="${DOCS}/INDEX.md" target="_blank" rel="noopener">docs/reference/INDEX.md</a>.</p>`}</div>
+    <div class="card" id="index-card">${has ? "" : `<p class="status" id="index-none">This copy of the site has no weekly agent data, so no table is shown. The table of the repository is in <a href="${DOCS}/reference/INDEX.md" target="_blank" rel="noopener">docs/reference/INDEX.md</a>.</p>`}</div>
     ${has ? `<div class="card" id="index-limits"><h3>What this is, and what it is not</h3>
       <p class="fine" id="index-source">Read ${esc(weekly.read || "on a day the file does not name")}. ${esc(String(weekly.source || "").replace(/([^.])$/, "$1."))}</p>
       ${Array.isArray(weekly.limits) && weekly.limits.length ? `<ul class="fine">${weekly.limits.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : ""}
       <p class="fine">The numbers are the file <a href="agent_weekly.json">agent_weekly.json</a>, written by
         <a href="https://github.com/drexthealpha/Knos/blob/main/scripts/agent_pr_index.py" target="_blank" rel="noopener">scripts/agent_pr_index.py</a>; how a pull request is told to be an agent's, what counts as a claim and what the script cannot see are in
-        <a href="${DOCS}/INDEX.md" target="_blank" rel="noopener">docs/reference/INDEX.md</a>. To check one pull request yourself: <a href="#check">Check</a>.</p></div>` : ""}`;
+        <a href="${DOCS}/reference/INDEX.md" target="_blank" rel="noopener">docs/reference/INDEX.md</a>. To check one pull request yourself: <a href="#check">Check</a>.</p></div>` : ""}`;
   if (has) renderIndexBoard(el.querySelector("#index-card"), weekly, { feed });
   return el;
 }
@@ -259,7 +259,7 @@ export function renderReproduce(el, listed, esc = escHtml) {
         <li><strong>Send the result.</strong> Download the run's artifact <code>knos-reproduction</code> and open a pull request to drexthealpha/Knos that adds the file in it as
           <code>reproductions/&lt;owner&gt;-&lt;repo&gt;-&lt;run id&gt;.json</code> and nothing else. A check that failed is a bug, not a reproduction: open an issue and attach <code>report.json</code>.</li>
       </ol></details>
-      <p class="fine"><a href="${DOCS}/REPRODUCE.md" target="_blank" rel="noopener">What each check proves, and what it does not</a></p>
+      <p class="fine"><a href="${DOCS}/reference/REPRODUCE.md" target="_blank" rel="noopener">What each check proves, and what it does not</a></p>
     </div>`;
   return el;
 }

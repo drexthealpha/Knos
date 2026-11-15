@@ -124,10 +124,10 @@ async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.dig
 const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
 function truthText(m, last) {
   if (last) return `Holds: proved by its locked test (${last})`;
-  if (!m) return "opens with the first order";
+  if (!m) return "opens with the first check";
   if (m.outcome === true) return "Holds: settled by the locked test";
   if (m.outcome === false) return "Fails: settled by the locked test";
-  return `not proved yet: its first order runs the locked test (${thin(m)})`;
+  return `not proved yet: its first check runs the locked test (${thin(m)})`;
 }
 function demandText(m) {
   if (!m) return "opens soon";
@@ -144,10 +144,10 @@ def claims_page(header: str, cs: list[dict]) -> str:
                    f'<td class="n" data-behind>reading</td><td data-truth>reading</td><td data-demand>reading</td></tr>' for c in cs)
     body = (f"<h1>Claims</h1>\n<p>Knos locks a test before any work starts, an agent does the work, and money moves only if the "
             f"test passes. Here the work is code that proves a paper's claim.</p>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
-            f"Sorted by the test USDC paid for its proofs.</p>\n"
-            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC paid for proofs</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
+            f"Sorted by the test USDC behind each claim.</p>\n"
+            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind it</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
             f'<p class="fine">Each claim has two markets on NEAR testnet, priced by an automatic market maker (LMSR): whether it holds, '
-            f'settled by its locked test, and whether 100 test USDC are put behind proving it within 7 days, settled by the '
+            f'settled by its locked test, and whether 100 test USDC are put behind it within 7 days, settled by the '
             f'record on NEAR.</p>\n'
             f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>\n'
             f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>What NEAR did</th><th>Record</th></tr></thead><tbody>'
@@ -294,7 +294,7 @@ def claim_page(header: str, c: dict) -> str:
     const vt = setInterval(() => { $("verdict").textContent = `Fetching the test and reading NEAR... ${((performance.now() - v0) / 1000).toFixed(1)} s`; }, 100);
     try {
       const b = await board, id = b && b.claims && b.claims[name] && b.claims[name].truth && b.claims[name].truth.id;
-      if (!id) { clearInterval(vt); $("verdict").textContent = b && b.claims && b.claims[name] && b.claims[name].read_at !== undefined || (b && b.read_at) ? "No job of this claim on NEAR yet: order the first proof." : "Knos is still reading this claim's jobs from NEAR: press again in a few seconds."; $("verify").disabled = false; return; }
+      if (!id) { clearInterval(vt); $("verdict").textContent = b && b.claims && b.claims[name] && b.claims[name].read_at !== undefined || (b && b.read_at) ? "No job of this claim on NEAR yet: run the first check on the Prove page." : "Knos is still reading this claim's jobs from NEAR: press again in a few seconds."; $("verify").disabled = false; return; }
       const [file, j] = await Promise.all([fetch(%s).then((r) => r.arrayBuffer()), nearView(%s, "get_job", { id: id.slice(4) })]);
       clearInterval(vt);
       text = new Uint8Array(file); job = { ...j, id: id.slice(4) };
@@ -315,7 +315,7 @@ def claim_page(header: str, c: dict) -> str:
   const c = await getJSON("/api/near/claim/counters");
   if (!c) { $("proofs").textContent = "NEAR testnet's record could not be read just now."; return; }
   const x = (c.by_claim && c.by_claim[name]) || (name === "hyperloglog" && !c.by_claim ? { proofs: c.proofs, usd: c.usd } : { proofs: 0, usd: 0 });
-  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "proof" : "proofs"} paid, ${usd(x.usd)} in test USDC behind this claim.`;
+  $("proofs").textContent = `${x.proofs.toLocaleString("en-US")} ${x.proofs === 1 ? "proof" : "proofs"}, ${usd(x.usd)} in test USDC behind this claim.`;
   const rows = (c.receipts || []).filter((r) => (r[3] || "hyperloglog") === name).slice(0, 25);
   if (rows.length) { const tb = document.querySelector("#receipts tbody");
     for (const [tx, amount, at] of rows) { const tr = document.createElement("tr");
@@ -343,7 +343,7 @@ def agents_page(header: str) -> str:
             "<h2>From a terminal</h2>\n"
             f"<pre>git clone {REPO} &amp;&amp; cd Knos\npython3 near/scripts/knos_prove.py https://doi.org/10.46298/dmtcs.3545 10</pre>\n"
             "<p>It makes the same call and prints the verdict, each payment and its link on the NEAR explorer.</p>\n"
-            "<h2>Read without paying</h2>\n"
+            "<h2>Read a claim</h2>\n"
             f"<pre>curl -X POST {HOSTED}/api/near/claim/look -H \"Content-Type: application/json\" -d '{{\"url\": \"https://doi.org/10.46298/dmtcs.3545\"}}'\n"
             f"curl {HOSTED}/api/near/claim/counters</pre>\n"
             f'<p>Every route: <a href="{HOSTED}/openapi.json">the OpenAPI document</a>.</p>')
@@ -351,14 +351,16 @@ def agents_page(header: str) -> str:
 
 
 def pricing_page(header: str) -> str:
-    body = ("<h1>Pricing</h1>\n<p>You choose the test USDC you put behind a claim, from 1 to 100. It is paid only after the answer: "
-            "90% to the agent whose code passed the locked test, 10% to Knos. For example, 3.00 behind a proof: 2.70 to the agent, "
-            "0.30 to Knos. NEAR's market contract refuses any other split. The job itself also pays that agent 1.00. A failed "
-            "proof pays nobody. Proving the same order again is free.</p>\n"
-            "<p>A person checking one paper by hand costs $330 to $763 "
-            "(<a href=\"https://labordynamicsinstitute.github.io/crress-book/\">Colliard and others, 2023</a>).</p>\n"
+    body = ("<h1>Pricing</h1>\n<p>Reading a claim and its proof is free. Nobody pays for a proof.</p>\n"
+            "<h2>A check</h2>\n<p>Each check runs with test money held with the job on NEAR testnet. When the agent's code "
+            "passes the locked test, the jobs contract sends 9 parts to that agent and keeps 1 part in 10 for Knos's account. "
+            "A failed check pays nobody. Checking the same claim again is free.</p>\n"
+            "<h2>Backing a claim</h2>\n<p>You can put 1 to 100 test USDC behind a claim. NEAR's market contract sends 90% to the "
+            "agent whose code passed and 10% to Knos, and refuses any other split.</p>\n"
+            "<p>A reproducibility service spends $330 to $763 to check one paper "
+            "(<a href=\"https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/\">Perignon, citing Colliard and others</a>).</p>\n"
             "<p>Today this is test money on NEAR testnet: nobody has paid real money and Knos has no customers yet. Knos has no token and no points.</p>")
-    return page(header, "../", "Knos pricing", "The test USDC you choose, paid only after the answer.", body, "", "pricing/")
+    return page(header, "../", "Knos pricing", "Reading a claim and its proof is free; checks run with test money on NEAR testnet.", body, "", "pricing/")
 
 
 def status_page(header: str) -> str:
@@ -375,7 +377,7 @@ def status_page(header: str) -> str:
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
-  $("rec").textContent = c && c.read_at ? `${c.proofs} proofs paid, ${usd(c.lost_usd)} lost, read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  $("rec").textContent = c && c.read_at ? `${c.proofs} proofs, ${usd(c.lost_usd)} lost, read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {
@@ -403,7 +405,7 @@ def privacy_page(header: str) -> str:
             "resets every day, the page, each press and how long its answer took, whether you got an answer, ran a proof, backed a claim or "
             "downloaded code, three quick presses on one spot, an error shown, a tap on \"Not what I need\" and the word you add to it, and the last page and its seconds before you leave. No IP "
             "address, account or cookie is stored with them. If your browser sends Do Not Track, nothing is sent. /status shows the totals. "
-            "The paper link you paste goes to the "
+            "The question or paper link you type goes to the "
             "Knos server, which reads the paper's title from its public record (Crossref) and answers. Your browser also reads "
             "NEAR testnet's public record."
             + (" On a claim page, the wallet connector (NEAR Wallet Selector) loads from esm.sh; your NEAR testnet wallet signs each trade, and Knos never sees your key." if usdc_market().get("live") else "")
@@ -411,7 +413,7 @@ def privacy_page(header: str) -> str:
             "limit them. Every proof and payment is public on NEAR testnet.</p>\n<h2>Terms</h2>\n<p>Test money on NEAR testnet, worth "
             f'nothing. The code is MIT licensed, with no warranty: <a href="{REPO}/blob/main/LICENSE">the licence</a>. Report a problem in '
             f'<a href="{REPO}/issues">GitHub issues</a>.</p>')
-    return page(header, "", "Knos privacy and terms", "No cookies or trackers; test money on NEAR testnet.", body, "", "privacy.html")
+    return page(header, "", "Knos privacy and terms", "No cookies; an anonymous daily visit id and no IP stored; test money on NEAR testnet.", body, "", "privacy.html")
 
 
 def write(out: Path, header) -> list[str]:
@@ -430,25 +432,51 @@ def write(out: Path, header) -> list[str]:
     put("pricing/index.html", pricing_page(header("../", "")))
     put("status/index.html", status_page(header("../", "")))
     put("privacy.html", privacy_page(header("", "")))
+    (out / "sitemap.xml").write_text(sitemap_xml(cs), encoding="utf-8")
+    (out / "llms.txt").write_text(llms_txt(cs), encoding="utf-8")
+    return done
+
+
+def sitemap_xml(cs: list[dict]) -> str:
+    """The published sitemap. web/sitemap.xml is this same text (python3 scripts/site_product.py --sources)."""
     base = "https://drexthealpha.github.io/Knos/"
     # each page with the source file it is made from: scripts/sitemap_dates.py writes that file's last commit date
     pages = [("", "web/door.html"), ("claims/", "near/claims/claims.json"), *[(f"claim/{c['name']}/", "near/claims/claims.json") for c in cs],
              ("prove/", "near/web/index.html"), ("agents/", "scripts/site_product.py"), ("labs/", "web/iris/index.html"),
              ("pricing/", "scripts/site_product.py"), ("status/", "scripts/site_product.py"), ("privacy.html", "scripts/site_product.py"),
              ("check/", "web/check-v0328/index.html")]
-    (out / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-                                     + "".join(f"  <url><loc>{base}{p}</loc><lastmod>git:{src}</lastmod></url>\n" for p, src in pages) + "</urlset>\n", encoding="utf-8")
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                                     + "".join(f"  <url><loc>{base}{p}</loc><lastmod>git:{src}</lastmod></url>\n" for p, src in pages) + "</urlset>\n")
+
+
+def llms_txt(cs: list[dict]) -> str:
+    """The site's llms.txt (https://llmstxt.org/). web/llms.txt is this same text (python3 scripts/site_product.py --sources)."""
+    base = "https://drexthealpha.github.io/Knos/"
     claims_md = "".join(f"- [{c['plain']}]({base}claim/{c['name']}/): from {c['authors']}, {c['year']}; locked test sha256 {c['sha256']}\n" for c in cs)
     call = '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'
-    (out / "llms.txt").write_text(
-        "# Knos\n\n> Paste a paper. Knos checks if its claim works, on NEAR testnet.\n\n"
-        "Two agents write code against a test locked on NEAR testnet before they start. The one whose code passes is paid; the "
-        "result is kept on NEAR, so a second check is free. Test money only, no customers yet, no token.\n\n"
-        f"## Pages\n\n- [Front door]({base}): paste a paper, see if Knos can prove its claim\n"
+    return (
+        "# Knos\n\n> Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.\n\n"
+        "Knos locks a test before any work starts; an agent does the work; test money moves only if the test passes. Here the "
+        "work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a "
+        "second check is free. Test money only and no customers yet.\n\n"
+        f"## Pages\n\n- [Front door]({base}): ask about research, see what is proved and by which locked test\n"
         f"- [Claims]({base}claims/): every claim, sorted by the test USDC behind it\n"
-        f"- [Prove]({base}prove/): order a proof and get the verdict, the verified code and the receipt\n"
+        f"- [Prove]({base}prove/): run the check of a claim and get the verdict, the verified code and the receipt\n"
         f"- [For agents]({base}agents/): the one-call API and the terminal tool\n"
-        f"- [For labs]({base}labs/): the same check inside InterSystems IRIS\n\n## Claims\n\n{claims_md}\n"
-        f"## For agents\n\n`POST {HOSTED}/api/near/claim/flow` with `{call}`: the verdict, the code and the receipt.\n\nSource: {REPO}\n",
-        encoding="utf-8")
-    return done
+        f"- [For labs]({base}labs/): the same check inside InterSystems IRIS\n"
+        f"- [Check a PR]({base}check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)\n\n"
+        f"## Claims\n\n{claims_md}\n"
+        f"## For agents\n\n`POST {HOSTED}/api/near/claim/flow` with `{call}`: the verdict, the code and the receipt.\n\n"
+        f"## Optional\n\n- [Source]({REPO}): the repository, MIT licence\n")
+
+
+if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["--sources"]:
+        # the sources of web/ that the build overwrites with these pages: kept the same text as the published files
+        import site_pages
+        HEADER_CSS = site_pages.CSS
+        (ROOT / "web" / "llms.txt").write_text(llms_txt(claims()), encoding="utf-8", newline="")
+        (ROOT / "web" / "sitemap.xml").write_text(sitemap_xml(claims()), encoding="utf-8", newline="")
+        (ROOT / "web" / "privacy.html").write_text(privacy_page(site_pages.header("", "")), encoding="utf-8", newline="")
+        (ROOT / "web" / "status" / "index.html").write_text(status_page(site_pages.header("../", "")), encoding="utf-8", newline="")

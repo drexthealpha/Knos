@@ -6,7 +6,8 @@
 //                          shown as the ten questions it answers, with a version switcher (an answer that changed
 //                          moves once), and a box proposes terms for a repository (web/propose_terms.js).
 //
-// It reads one file of this site, terms/index.json (scripts/build_site.sh copies terms/ there), and asks nobody else.
+// It reads terms/index.json and the Terms 3 files of this site (scripts/build_site.sh copies terms/ there); the Propose box asks
+// GitHub's public API, only when pressed.
 // The hash of pasted terms is computed here, from the same canonical bytes knos.terms.canonical writes: keys sorted,
 // "," and ":" with no space, ASCII with \uXXXX for everything else, every list sorted with no repeat, 600 bytes at
 // most. `env`: { index } the registry already read, { fetchJson(path) } another reader, { copy(text) } another clipboard.

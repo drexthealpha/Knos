@@ -29,7 +29,7 @@ const TEST_DIRS = ["tests", "test"];     // knos.judge.TEST_DIRS, python
 // terms/bugfix/1.json and terms/feature-blackbox/1.json, their `terms`: shown when the site's terms/ cannot be read
 export const SAMPLES = [
   { name: "bugfix", terms: { accept: "", checks: [{ app: 15368, name: "lint" }, { app: 15368, name: "unit" }], deny: [".github/**", ".knos/**"], mode: "merge", paths: ["src/**", "tests/**"], reserve: 7, v: 1 } },
-  { name: "feature-blackbox", terms: { accept: "0".repeat(64), checks: [{ app: 15368, name: "unit" }], deny: [".github/**", ".knos/**"], mode: "tests", paths: [], reserve: 7, v: 1 } },
+  { name: "feature-blackbox", terms: { accept: "5d".repeat(32), checks: [{ app: 15368, name: "unit" }], deny: [".github/**", ".knos/**"], mode: "tests", paths: [], reserve: 7, v: 1 } },
 ];
 
 // The four protections, in knos.preflight's order and words: id, title, how it is enforced when the terms hold it, one line.

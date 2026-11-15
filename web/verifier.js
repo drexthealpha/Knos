@@ -206,7 +206,7 @@ function assuranceOf(r) {
 }
 const SHAPE = ["evaluator_observed", "policy", "amounts", "payees", "evidence_source", "ids", "limitations", "order", "cluster"];
 
-/** A pasted receipt of version 4 or 5 in five parts: { ok: false, error } or { ok: true, version, verdict, authorises_payment, weak,
+/** A pasted receipt of version 4, 5 or 6 in five parts: { ok: false, error } or { ok: true, version, verdict, authorises_payment, weak,
  *  parts: [{ id, title, asks, line, facts, more }] }, the shape of knos.receipt.parts (its `receipt` digest apart). */
 export function receiptParts(r) {
   if (!r || typeof r !== "object" || Array.isArray(r) || r.type !== "knos.acceptance-receipt") return { ok: false, error: "Paste an acceptance receipt: this is another file." };
@@ -365,7 +365,7 @@ export function renderVerifier(el, env = {}) {
   // THE BADGE (web/badge.js renderVerified, which the page hands in as env.badge: this module imports nothing): drawn only for a receipt whose verdict is accepted and, when the receipt
   // itself is pasted with it, only if it hashes to the digest the badge names. What is pasted: { verified, receipt },
   // where `verified` is what knos.badge.verified(receipt) returned; or that object alone.
-  // THE FIVE PARTS of a pasted receipt (version 4 or 5): what `knos receipt explain FILE` prints. A file that holds the receipt beside
+  // THE FIVE PARTS of a pasted receipt (version 4, 5 or 6): what `knos receipt explain FILE` prints. A file that holds the receipt beside
   // something else ({ receipt }) is read too. An acceptance that stands on a weak test reads as weak, however valid its signature.
   const fiveIn = el.querySelector("#vf-five-in"), fiveOut = el.querySelector("#vf-five-out");
   fiveIn.addEventListener("input", () => {

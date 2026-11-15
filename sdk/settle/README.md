@@ -1,8 +1,10 @@
 # knos-settle
 
-Knos turns any research into a product billions of people use, in days, not years.
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+Knos locks a test before any work starts; an agent does the work; test money moves only if the test passes. The
+Solana programs this client speaks to are the part of Knos built for the Colosseum entry (tag v0.3.28); they stay on
+devnet, with test money. The current flow, a paper's claim proved on NEAR testnet, does not need this package.
 
 The JavaScript client for the Knos Solana programs. It derives the addresses, builds the audiences,
 instructions and transactions, and reads the accounts of three Solana programs: `knos-pay`, the payment program that holds a
@@ -21,8 +23,9 @@ The first deployment stays readable: `knos.client(ids)` is its client.
 npm install knos-settle
 ```
 
-From [npm](https://www.npmjs.com/package/knos-settle). Each version since 0.3.21 is published there by this
-repository's release workflow, through npm's trusted publishing. Each comes with a provenance statement naming the
+From [npm](https://www.npmjs.com/package/knos-settle). Versions 0.3.21 to 0.4.0 were published there by this
+repository's release workflow, through npm's trusted publishing; 0.4.1 is attached to its GitHub release until that
+workflow publishes it. Each comes with a provenance statement naming the
 workflow run that built it (`npm audit signatures` checks it after an install).
 
 If the registry cannot be reached, the same file is attached to the GitHub release:

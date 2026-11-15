@@ -3,102 +3,136 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</title>
-<meta name="description" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
-<meta name="author" content="drexthealpha">
-<link rel="canonical" href="https://drexthealpha.github.io/Knos/status/">
+<title>Knos status</title>
+<meta name="description" content="The proof service, today&#x27;s live proofs and the latest test run, read live.">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#07080c">
-<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
-<meta property="og:url" content="https://drexthealpha.github.io/Knos/status/">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/status/">
+<meta property="og:title" content="Knos status">
+<meta property="og:description" content="The proof service, today&#x27;s live proofs and the latest test run, read live.">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="../brand/tokens.css">
-<link rel="stylesheet" href="../app.css">
-<!-- THE STATUS PAGE: each part read live from this page (Qloo through the app's /api/qloo/status, the app's /healthz with
-     its time, devnet's latest slot, the Sibyl record's latest sequence number through /api/record/head, GitHub's newest
-     check run on main), each with what Knos does while it is down. The parts and their failure lines are in the page. -->
-<style>
-:where(a[href]){padding-block:max(0px,calc((24px - 1em) / 2))}
-.st-list{list-style:none;margin:24px 0 0;padding:0;display:grid;gap:12px;max-width:760px}
-.st-row{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:var(--card);display:grid;grid-template-columns:9em minmax(0,1fr);gap:4px 16px;min-height:96px}
-.st-row h3{grid-row:span 2;margin:0;font-size:var(--s1)}
-.st-now{margin:0;font-weight:600;min-height:1.5em}
-.st-now::before{content:"";display:inline-block;width:.6em;height:.6em;border-radius:50%;margin-right:.5em;background:var(--muted);vertical-align:.05em}
-.st-row[data-state=up] .st-now::before{background:var(--ok)}
-.st-row[data-state=down] .st-now::before{background:var(--bad)}
-.st-row[data-state=unknown] .st-now::before{background:var(--warn)}
-.st-fail{margin:0;color:var(--muted);font-size:var(--s0)}
-@media (max-width:479.98px){.st-row{grid-template-columns:1fr}.st-row h3{grid-row:auto}}
-</style>
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
-<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
-<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
-<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Knos", "item": "https://drexthealpha.github.io/Knos/"}, {"@type": "ListItem", "position": 2, "name": "Status", "item": "https://drexthealpha.github.io/Knos/status/"}]}</script><!-- ld:end -->
-<style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
+<link rel="stylesheet" href="../brand/tokens.css">
+<style>
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--text); }
+a { color: var(--accent); }
+main { max-width: 760px; margin: 0 auto; padding: 8px 16px 32px; }
+h1 { font: 600 clamp(28px, 5vw, 40px)/1.15 var(--head); letter-spacing: -.02em; margin: 16px 0 12px; }
+h2 { font: 600 22px/1.25 var(--head); margin: 28px 0 8px; }
+p { margin: 0 0 12px; }
+.lead { color: var(--ink-2); }
+table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 16px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+code, pre { font: 15px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace; }
+code { overflow-wrap: anywhere; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
+.row a, td a { display: inline-flex; align-items: center; min-height: 44px; }
+.fine { color: var(--ink-2); }
+footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
+footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test USDC behind: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+/* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
+@media (max-width: 460px) {
+  main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
+  main button, main .btn, main label, main summary, main code, main pre, main small, main th, main .fine, main input, main select { font-size: 16px; }
+  main summary { display: flex; align-items: center; min-height: 44px; }
+  nav a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }
+.kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
+.kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
+.kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.kh nav { display: flex; flex-wrap: wrap; }
+.kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
+.kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
+</style>
 </head>
 <body>
-<header class="bar">
-  <a class="brand" href="../" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
+<header class="kh" id="kh">
+  <a class="logo" href="../"><span class="mark" aria-hidden="true" style="--m: url(../brand/mark.svg)"></span>Knos</a>
+  <nav aria-label="Pages"><a href="../claims/">Claims</a><a href="../prove/">Prove</a><a href="../agents/">For agents</a><a href="../labs/">For labs (IRIS)</a><a href="../check/">Check a PR</a></nav>
 </header>
 <main>
-  <section class="view">
-    <h1>Status</h1>
-<p class="k-vision" data-not-prose>Knos turns any research into a product billions of people use, in days, not years.</p>
-<p class="k-vision" data-not-prose>Knos carries research across the valley of death, toward Kardashev II and III.</p>
-
-    <h2>Is each part answering?</h2>
-    <p>Each row below is read now by this page, with what Knos does while that part is down.</p>
-    <ul class="st-list">
-      <li class="st-row" data-part="qloo"><h3>Qloo</h3><p class="st-now" data-now>Reading…</p>
-        <p class="st-fail">When it is down: cards show Qloo's last real answers with their date, and new ideas wait for its reset.</p></li>
-      <li class="st-row" data-part="app"><h3>The app</h3><p class="st-now" data-now>Reading…</p>
-        <p class="st-fail">When it is down: the front door keeps its recorded sample, and checks wait until the app wakes.</p></li>
-      <li class="st-row" data-part="devnet"><h3>Solana devnet</h3><p class="st-now" data-now>Reading…</p>
-        <p class="st-fail">When it is down: no money is held or paid, and nothing is signed until devnet answers.</p></li>
-      <li class="st-row" data-part="sibyl"><h3>Sibyl record</h3><p class="st-now" data-now>Reading…</p>
-        <p class="st-fail">When it is down: checks still run, and each receipt says its line is not recorded yet.</p></li>
-      <li class="st-row" data-part="github"><h3>GitHub</h3><p class="st-now" data-now>Reading…</p>
-        <p class="st-fail">When it is down: pull request checks wait, and nothing is paid on proof until GitHub answers.</p></li>
-    </ul>
-    <p class="fine">Read now by this page. <a href="../calls/">Every Qloo call</a> · <a href="../proof/">Proof</a></p>
-  </section>
+<h1>Status</h1>
+<p>Is Knos up right now? Each line is read live.</p>
+<table id="st"><tbody><tr><th>The proof service</th><td id="svc">reading</td></tr><tr><th>Live proofs today</th><td id="today">reading</td></tr><tr><th>NEAR testnet's record</th><td id="rec">reading</td></tr><tr><th>Latest full test run</th><td id="ci">reading</td></tr><tr><th>Uptime</th><td id="up">reading</td></tr><tr><th>Visits, 7 days</th><td id="funnel">reading</td></tr></tbody></table>
+<h2>Accounts that keep the demo up</h2>
+<table id="bal"><tbody><tr><td>reading</td></tr></tbody></table>
+<p class="fine">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>
 </main>
-<footer class="foot">
-  <span>Devnet is test mode: the money is test USDC.</span>
-  <span><a href="../">Knos home</a> · <a href="../proof/">Proof</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
-</footer>
+<footer><span>NEAR testnet, test money, no customers yet.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="../privacy.html">Privacy</a></footer>
 <script>
-(() => {
-  const API = "https://knos.onrender.com";
-  const row = (p) => document.querySelector(`.st-row[data-part="${p}"]`);
-  const set = (p, up, text) => { const r = row(p); r.dataset.state = up === null ? "unknown" : up ? "up" : "down"; r.querySelector("[data-now]").textContent = text; };
-  const timed = async (url, opts) => { const t = performance.now(); const r = await fetch(url, opts); const j = await r.json().catch(() => ({})); return [r, j, Math.round(performance.now() - t)]; };
-  const n = (x) => Number(x).toLocaleString("en-US");
-  timed(`${API}/api/qloo/status`).then(([r, j]) => {
-    if (!r.ok) return set("qloo", false, `The app did not say (${r.status}).`);
-    const left = j.month_left, reset = j.month_reset ? String(j.month_reset).slice(0, 10) : "", last = j.live_at ? String(j.live_at).slice(0, 10) : "";
-    if (j.limited) return set("qloo", false, `Limited: ${left != null ? n(left) : "no"} calls left this month${reset ? `, back on ${reset}` : ""}.`);
-    if (left == null) return set("qloo", null, `Not asked since the app started${last ? `; its last live answer came on ${last}` : ""}.`);
-    set("qloo", true, `Answering: ${n(left)} calls left this month.`);
-  }).catch(() => set("qloo", false, "No answer from the app."));
-  timed(`${API}/healthz`).then(([r, , ms]) => set("app", r.ok, r.ok ? `Up: answered in ${n(ms)} ms.` : `Answered ${r.status} in ${n(ms)} ms.`))
-    .catch(() => set("app", false, "No answer."));
-  timed("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSlot" }) })
-    .then(([r, j, ms]) => set("devnet", Number.isFinite(j.result), Number.isFinite(j.result) ? `Up: slot ${n(j.result)}, read in ${n(ms)} ms.` : "No slot came back."))
-    .catch(() => set("devnet", false, "No answer."));
-  timed(`${API}/api/record/head`).then(([r, j]) => !r.ok ? set("sibyl", false, j.why || `The record answered ${r.status}.`)
-    : j.seq == null ? set("sibyl", null, "Up, with no line written since the app started.")
-    : set("sibyl", true, `Up: line ${n(j.seq)} is the newest${j.at ? `, ${String(j.at).slice(0, 16).replace("T", " ")} UTC` : ""}.`))
-    .catch(() => set("sibyl", false, "No answer from the app."));
-  timed("https://api.github.com/repos/drexthealpha/Knos/commits/main/check-runs?per_page=1").then(([r, j]) => {
-    const c = (j.check_runs || [])[0];
-    set("github", r.ok, r.ok ? (c ? `Up: newest check on main, ${c.name}, ${c.conclusion || c.status}.` : "Up: no check on main yet.")
-      : r.status === 403 ? "Limited: GitHub's 60 reads an hour for this address are used." : `Answered ${r.status}.`);
-  }).catch(() => set("github", false, "No answer."));
+const HOSTED = "https://knos.onrender.com";
+const $ = (id) => document.getElementById(id);
+const usd = (n) => (+n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
+// the board and the counters are also files of this site, written by every Pages build (data/): a live answer within
+// 1.2 s is used, else the file is shown at once, with its own read time, so a press never waits on a sleeping server
+const SITE_ROOT = (document.querySelector("#kh .logo") || location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };
+async function getJSON(path) {
+  const live = (async () => { try { const r = await fetch(HOSTED + path); return r.ok ? await r.json() : null; } catch (e) { return null; } })();
+  if (!CACHED[path]) return live;
+  const file = fetch(new URL("data/" + CACHED[path], SITE_ROOT)).then((r) => r.ok ? r.json() : null).catch(() => null);
+  const quick = await Promise.race([live, new Promise((res) => setTimeout(res, 1200, "slow"))]);
+  if (quick && quick !== "slow") return quick;
+  const f = await file;
+  return f && Object.keys(f).length ? f : await live;
+}
+// NEAR testnet, read from this browser: no answer of Knos's server is trusted for these
+const RPCS = ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"];   // two public NEAR testnet RPCs
+async function nearView(contract, method, args) {
+  const body = JSON.stringify({ jsonrpc: "2.0", id: "k", method: "query", params: { request_type: "call_function", finality: "final", account_id: contract, method_name: method, args_base64: btoa(JSON.stringify(args)) } });
+  let last = "no answer";
+  for (const rpc of RPCS) {
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body, signal: ctl.signal }).then((x) => x.json()).finally(() => clearTimeout(t));
+      if (r.result && r.result.result) return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result.result)));
+      last = (r.error && (r.error.cause && r.error.cause.name || r.error.message)) || "no answer";
+      if (/MethodNotFound|does not exist|CodeDoesNotExist/.test(JSON.stringify(r.error || {}))) break;
+    } catch (e) { last = "NEAR's public RPCs are busy"; }
+  }
+  throw new Error(last);
+}
+async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
+const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", thin" : ""}`;
+function truthText(m, last) {
+  if (last) return `Holds: proved by its locked test (${last})`;
+  if (!m) return "opens with the first check";
+  if (m.outcome === true) return "Holds: settled by the locked test";
+  if (m.outcome === false) return "Fails: settled by the locked test";
+  return `not proved yet: its first check runs the locked test (${thin(m)})`;
+}
+function demandText(m) {
+  if (!m) return "opens soon";
+  if (m.outcome === true) return +m.behind_usd >= 100 ? "Yes: 100 test USDC from outside backers within 7 days" : "Yes, settled on Knos's own test money before this rule";
+  if (m.outcome === false) return "No: under 100 test USDC from outside backers within 7 days";
+  return `${(+m.behind_usd).toFixed(2)} of 100 test USDC from outside backers this week, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)} (${thin(m)})`;
+}
+(async () => {
+  const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
+  $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
+  $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
+  $("rec").textContent = c && c.read_at ? `${c.proofs} proofs, ${usd(c.lost_usd)} lost, read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
+  // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
+  fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {
+    const since = Date.now() - 7 * 864e5, rows = txt.split(/\r?\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && Date.parse(x.at) >= since);
+    $("up").textContent = rows.length ? `up ${rows.filter((x) => x.up).length} of ${rows.length} checks in the last 7 days, from ${rows[0].at.slice(0, 16).replace("T", " ")} UTC` : "no checks yet";
+  }).catch(() => { $("up").textContent = "not read"; });
+  getJSON("/api/visits").then((v) => { const f = v && v.funnel;
+    $("funnel").textContent = f ? `${f.visits} visits, ${f.first_press} pressed, ${f.first_result} got an answer, ${f.proof_finished} ran a proof, ${f.backed} backed, ${f.came_back} came back` + (v.results_counted_from ? ` (answers, proofs and backings counted from ${v.results_counted_from})` : "") + (v.leave_most ? `; most leave from ${v.leave_most}` : "") : "not read"; });
+  const b = await getJSON("/api/near/balances"), unit = { near: "NEAR", allowance: "NEAR allowance", usdc: "test USDC" };
+  const tb = document.querySelector("#bal tbody");
+  if (!b || !b.rows) { tb.innerHTML = "<tr><td>not read</td></tr>"; return; }
+  tb.replaceChildren(...b.rows.map((x) => { const tr = document.createElement("tr");
+    const a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + x.account, textContent: x.what });
+    const th = document.createElement("th"); th.append(a);
+    const td = Object.assign(document.createElement("td"), { textContent: `${x.value == null ? "not read" : x.value} ${unit[x.kind]}, floor ${x.floor}${x.ok ? "" : ": LOW"}` });
+    if (!x.ok) { td.style.color = "#c62828"; td.style.fontWeight = "600"; tr.style.borderBottom = "2px solid #c62828"; }
+    tr.append(th, td); return tr; }));
 })();
 </script>
 </body>

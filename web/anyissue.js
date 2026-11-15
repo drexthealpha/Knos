@@ -6,8 +6,7 @@
 // camelCase). That call is made in ONE place, `orderFunding`, which looks for it where sdk/settle puts it (a method of the client of
 // `knos.v2.client(ids)`) and in the two other places a library could export it, and says "not there" when it finds none: the page
 // then shows what the order would be and says why nothing can be sent. The terms are worked out here, in the form
-// src/knos/terms.py `canonical` writes (tests/test_fund_any_issue.py records Python's answers, and tests/web/site.mjs holds this file
-// to them), with a check named in the box counting from any source, as `describe` words it.
+// src/knos/terms.py `canonical` writes (tests/test_fund_any_issue.py records Python's answers), with a check named in the box counting from any source, as `describe` words it.
 import { priceConstants, quote, unitsOf, show, plain, feeRate, feeNote } from "./price.js";
 import { programVersion } from "./version.js";
 import { pinsOf, WORKFLOW } from "./front.js";

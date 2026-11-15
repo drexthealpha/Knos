@@ -1,82 +1,18 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</title>
-<meta name="description" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
-<meta name="author" content="drexthealpha">
-<link rel="canonical" href="https://drexthealpha.github.io/Knos/calls/">
-<meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#07080c">
-<meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
+<html lang="en"><head><meta charset="utf-8">
+<!-- An earlier page of the site (the Solana and demand-check era). It sends a visitor to the front door. -->
+<script>location.replace("../" + location.hash);</script>
+<meta http-equiv="refresh" content="0; url=../">
+<title>Knos: ask anything about research</title>
+<meta name="description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
-<meta property="og:url" content="https://drexthealpha.github.io/Knos/calls/">
+<meta property="og:title" content="Knos: ask anything about research">
+<meta property="og:description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
+<meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="../brand/tokens.css">
-<link rel="stylesheet" href="../app.css">
-<!-- THE CALLS PAGE: the server's request log (GET https://knos.onrender.com/api/calls, apps/wanted qloo_rest.RECENT): the last
-     200 Qloo requests, the recorded cards' first, then every live one; parameters without any key, never a body. -->
-<style>
-:where(a[href]){padding-block:max(0px,calc((24px - 1em) / 2))}
-.calls .k-table{overflow-x:auto;min-height:60vh}
-.calls td{font-size:var(--s0);vertical-align:top}
-.calls td code{font-size:var(--s-1);overflow-wrap:anywhere}
-@media (max-width: 479.98px) {
-  .calls .k-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .calls .k-table table, .calls .k-table tbody, .calls .k-table tr, .calls .k-table td { display: block; min-width: 0; width: auto; }
-  .calls .k-table tr { border: 1px solid var(--line); border-radius: var(--radius, 8px); padding: 8px 12px; margin: 0 0 8px; }
-  .calls .k-table td { border: 0; padding: 2px 0; overflow-wrap: anywhere; }
-  .calls .k-table td[data-h]::before { content: attr(data-h) ": "; color: var(--muted); }
-}
-</style>
-<link rel="icon" href="../icon.svg" type="image/svg+xml">
-<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
-<link rel="apple-touch-icon" href="../brand/apple-touch-icon.png">
-<!-- ld:start --><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Knos", "item": "https://drexthealpha.github.io/Knos/"}, {"@type": "ListItem", "position": 2, "name": "Qloo calls", "item": "https://drexthealpha.github.io/Knos/calls/"}]}</script><!-- ld:end -->
-<style id="k-vision-css">.k-vision{margin:6px 0;font-size:1.05rem;line-height:1.45}</style>
-</head>
-<body>
-<header class="bar">
-  <a class="brand" href="../" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
-</header>
-<main>
-  <section class="view calls">
-    <h1>Qloo calls</h1>
-<p class="k-vision" data-not-prose>Knos turns any research into a product billions of people use, in days, not years.</p>
-<p class="k-vision" data-not-prose>Knos carries research across the valley of death, toward Kardashev II and III.</p>
-
-    <p id="c-sum">The last 200 requests the server sent to Qloo or kept from its recordings, newest first. No answer is shown.</p>
-    <div class="k-table"><table>
-      <thead><tr><th scope="col">Time (UTC)</th><th scope="col">Question</th><th scope="col">Parameters</th><th scope="col">Status</th><th scope="col">ms</th><th scope="col">Cached</th></tr></thead>
-      <tbody id="c-rows"><tr><td colspan="6">Reading the server's log…</td></tr></tbody>
-    </table></div>
-  </section>
-</main>
-<footer class="foot">
-  <span>Devnet is test mode: the money is test USDC.</span>
-  <span><a href="../">Knos home</a> · <a href="../proof/">Proof</a> · <a href="https://github.com/drexthealpha/Knos">Source (MIT)</a></span>
-</footer>
-<script>
-(() => {
-  const out = document.getElementById("c-rows"), sum = document.getElementById("c-sum");
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const H = ["Time (UTC)", "Endpoint", "Parameters", "Status", "ms", "Cached"];
-  fetch("https://knos.onrender.com/api/calls").then((r) => r.json()).then((j) => {
-    const rows = j.calls || [];
-    const live = rows.filter((x) => x.origin === "live").length, rec = rows.filter((x) => x.origin === "recorded" || x.origin === "cached").length;
-    sum.textContent = `${rows.length} requests, newest first: ${live} live (Qloo answered), ${rec} recorded, ${rows.length - live - rec} refused or not sent. No answer is shown.`;
-    out.innerHTML = rows.map((x) => `<tr data-origin="${esc(x.origin)}">` + [
-      esc(String(x.at || "").replace("T", " ").replace("Z", "")),
-      `<code>${esc(x.call)}</code>`,
-      `<code>${esc(Object.entries(x.params || {}).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(",") : v}`).join(" "))}</code>`,
-      esc(x.status), x.ms == null ? "" : esc(x.ms), x.cached ? "yes" : "no"].map((c, i) => `<td data-h="${H[i]}">${c}</td>`).join("") + "</tr>").join("")
-      || `<tr><td colspan="6">No request yet.</td></tr>`;
-  }).catch(() => { out.innerHTML = `<tr><td colspan="6">The server did not answer.</td></tr>`; });
-})();
-</script>
-</body>
-</html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://drexthealpha.github.io/Knos/">
+</head><body><p><a href="../">Knos</a></p></body></html>

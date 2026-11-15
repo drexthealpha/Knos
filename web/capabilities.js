@@ -1,6 +1,6 @@
 // The capability manifest as a table, with a filter by stage.
 // The data is docs/capabilities.json (scripts/capabilities.py checks its evidence and renders the same rows into
-// README.md). A stage is the highest of five that has evidence: a source file, a test, the on-chain version that
+// docs/reference/CAPABILITIES.md). A stage is the highest of five that has evidence: a source file, a test, the on-chain version that
 // carries it, a devnet transaction, someone else's run. Nothing here asks the chain: the page says what the manifest
 // says, and the manifest is held to devnet when a release runs `python scripts/capabilities.py check --rpc`.
 export const STAGES = ["implemented", "tested", "deployed", "exercised", "reproduced"];
