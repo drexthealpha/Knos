@@ -1,0 +1,16 @@
+name: style
+# A pull request's style, checked on pull requests only (it never runs on the default branch).
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: no line over 100 characters, and no print() left in slug.py
+        run: |
+          if grep -nE '.{101,}' slug.py tests/*.py; then echo "lines over 100 characters"; exit 1; fi
+          if grep -n 'print(' slug.py; then echo "a print() is left in slug.py"; exit 1; fi
+          echo "style ok"
