@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "caesar",
+ "title": "Shift the letters of a line",
+ "statement": "Test USDC, no monetary value.\n\nRead one line: a whole number, a space, then a text. Shift every letter of the text forward by that many places in the alphabet, wrapping from z to a. Keep the case. Leave every other character as it is. The number may be negative or larger than 26.",
+ "file": "tasks/caesar.py",
+ "run": [
+  "python3",
+  "tasks/caesar.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "3 Hello, World!",
+   "output": "Khoor, Zruog!"
+  },
+  {
+   "input": "-1 abc",
+   "output": "zab"
+  },
+  {
+   "input": "27 Zebra 9",
+   "output": "Afcsb 9"
+  }
+ ],
+ "seed": 103,
+ "starting_files": {
+  "tasks/caesar.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

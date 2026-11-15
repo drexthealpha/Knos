@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "gcd-lcm",
+ "title": "Print the greatest common divisor and the least common multiple",
+ "statement": "Test USDC, no monetary value.\n\nRead one line with two whole numbers from 1 to 1,000,000,000,000, separated by a space. Print their greatest common divisor and their least common multiple, separated by a space, as whole numbers.",
+ "file": "tasks/gcd_lcm.py",
+ "run": [
+  "python3",
+  "tasks/gcd_lcm.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "4 6",
+   "output": "2 12"
+  },
+  {
+   "input": "7 13",
+   "output": "1 91"
+  },
+  {
+   "input": "12 12",
+   "output": "12 12"
+  }
+ ],
+ "seed": 123,
+ "starting_files": {
+  "tasks/gcd_lcm.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

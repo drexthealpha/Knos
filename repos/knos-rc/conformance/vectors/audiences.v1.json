@@ -1,0 +1,555 @@
+{
+ "format": "audiences",
+ "version": 1,
+ "about": "The audience a signed token must carry for each instruction that takes one: the exact text, built from the instruction's facts (src/knos/settle/v2, src/knos/ledger.py; docs/CONFORMANCE.md, Audiences). audience.parse_knosm_batch reads a batch audience back and refuses what knos_meter refuses. Addresses are base58 text, hashes lower-case hex, numbers decimal with no leading zero.",
+ "cases": [
+  {
+   "id": "audiences/1",
+   "op": "audience.knos2_fund",
+   "name": "knos_pay FundBalance: fund a job from a Balance",
+   "input": {
+    "issue": 12,
+    "amount": 25000000,
+    "mode": 0,
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "balance": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+    "work_s": 1209600
+   },
+   "expect": {
+    "output": "knos2:fund:12:25000000:0:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:1209600:FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+   }
+  },
+  {
+   "id": "audiences/2",
+   "op": "audience.knos2_fund",
+   "name": "knos_pay FundBalance: tests mode, a short work window",
+   "input": {
+    "issue": 1,
+    "amount": 1000000,
+    "mode": 1,
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "balance": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+    "work_s": 60
+   },
+   "expect": {
+    "output": "knos2:fund:1:1000000:1:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:60:FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+   }
+  },
+  {
+   "id": "audiences/3",
+   "op": "audience.knos2_pay",
+   "name": "knos_pay Pay: the payee named a wallet",
+   "input": {
+    "repo_id": 1353152983,
+    "issue": 12,
+    "payee_id": 4242,
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "mode": 0,
+    "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   },
+   "expect": {
+    "output": "knos2:pay:1353152983:12:4242:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:0:5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   }
+  },
+  {
+   "id": "audiences/4",
+   "op": "audience.knos2_pay",
+   "name": "knos_pay Pay: no wallet named: a hyphen",
+   "input": {
+    "repo_id": 1353152983,
+    "issue": 12,
+    "payee_id": 4242,
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "mode": 1,
+    "address": null
+   },
+   "expect": {
+    "output": "knos2:pay:1353152983:12:4242:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:1:-"
+   }
+  },
+  {
+   "id": "audiences/5",
+   "op": "audience.knos2_bind",
+   "name": "knos_pay Bind: a person's wallet",
+   "input": {
+    "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   },
+   "expect": {
+    "output": "knos2:bind:5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   }
+  },
+  {
+   "id": "audiences/6",
+   "op": "audience.knos3_fund",
+   "name": "knos_pay FundOrderBalance: the options all zero",
+   "input": {
+    "issue": 12,
+    "amount": 25000000,
+    "mode": 0,
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "balance": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+    "work_s": 1209600,
+    "seq": 0,
+    "options": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+   },
+   "expect": {
+    "output": "knos3:fund:12:25000000:0:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:1209600:FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX:0:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+   }
+  },
+  {
+   "id": "audiences/7",
+   "op": "audience.knos3_fund",
+   "name": "knos_pay FundOrderBalance: a second order of the issue, with options",
+   "input": {
+    "issue": 12,
+    "amount": 5000000000,
+    "mode": 1,
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "balance": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+    "work_s": 86400,
+    "seq": 1,
+    "options": "04e8030e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+   },
+   "expect": {
+    "output": "knos3:fund:12:5000000000:1:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:86400:FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX:1:04e8030e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+   }
+  },
+  {
+   "id": "audiences/8",
+   "op": "audience.knos3_pay",
+   "name": "knos_pay PayOrder: one payee, held for him",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "mode": 0,
+    "pr": 34,
+    "payees": [
+     [
+      4242,
+      10000,
+      null
+     ]
+    ]
+   },
+   "expect": {
+    "output": "knos3:pay:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:0:34:4242.10000.-"
+   }
+  },
+  {
+   "id": "audiences/9",
+   "op": "audience.knos3_pay",
+   "name": "knos_pay PayOrder: three payees, shares in basis points",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "mode": 1,
+    "pr": 34,
+    "payees": [
+     [
+      4242,
+      5000,
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ],
+     [
+      77,
+      3000,
+      null
+     ],
+     [
+      9,
+      2000,
+      "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+     ]
+    ]
+   },
+   "expect": {
+    "output": "knos3:pay:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:1:34:4242.5000.5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k,77.3000.-,9.2000.FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+   }
+  },
+  {
+   "id": "audiences/10",
+   "op": "audience.knos3_rule",
+   "name": "knos_pay PayOrder by the arbiter's ruling",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "payees": [
+     [
+      4242,
+      5000,
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ],
+     [
+      77,
+      3000,
+      null
+     ],
+     [
+      9,
+      2000,
+      "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+     ]
+    ]
+   },
+   "expect": {
+    "output": "knos3:rule:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp:4242.5000.5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k,77.3000.-,9.2000.FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+   }
+  },
+  {
+   "id": "audiences/11",
+   "op": "audience.knos3_bind",
+   "name": "knos_pay Bind: an organisation's wallet",
+   "input": {
+    "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   },
+   "expect": {
+    "output": "knos3:bind:5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   }
+  },
+  {
+   "id": "audiences/12",
+   "op": "audience.knos3_take",
+   "name": "knos_pay Reserve",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "taker_id": 4242,
+    "days": 3
+   },
+   "expect": {
+    "output": "knos3:take:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp:4242:3"
+   }
+  },
+  {
+   "id": "audiences/13",
+   "op": "audience.knos3_cancel",
+   "name": "knos_pay Cancel",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp"
+   },
+   "expect": {
+    "output": "knos3:cancel:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp"
+   }
+  },
+  {
+   "id": "audiences/14",
+   "op": "audience.knos3_revert",
+   "name": "knos_pay Revert",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "output": "knos3:revert:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  },
+  {
+   "id": "audiences/15",
+   "op": "audience.knos3_auto",
+   "name": "knos_pay PayOrder without a merge (an auto order)",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "pr": 34,
+    "payee_id": 4242,
+    "address": null
+   },
+   "expect": {
+    "output": "knos3:auto:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:1:34:4242.10000.-"
+   }
+  },
+  {
+   "id": "audiences/16",
+   "op": "audience.knos3_auto",
+   "name": "knos_pay PayOrder without a merge, a wallet named",
+   "input": {
+    "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "terms": "51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616",
+    "pr": 34,
+    "payee_id": 4242,
+    "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   },
+   "expect": {
+    "output": "knos3:auto:J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:51d2361f4faea3bc8f9facdbc7d99abb555596a2e51f7b25fd3b41c93587e616:1:34:4242.10000.5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   }
+  },
+  {
+   "id": "audiences/17",
+   "op": "audience.knosm_eval",
+   "name": "knos_meter Record: one evaluation, accepted",
+   "input": {
+    "buyer_id": 424242,
+    "seller_id": 555000,
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "artifact": "0f98b1f7eda33a4e9cfaab09506aa8094044085f",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "milestone": 0,
+    "accepted": true,
+    "rate": 2000000
+   },
+   "expect": {
+    "output": "knosm:eval:424242:555000:955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386:0f98b1f7eda33a4e9cfaab09506aa8094044085f:90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee:0:1:2000000"
+   }
+  },
+  {
+   "id": "audiences/18",
+   "op": "audience.knosm_eval",
+   "name": "knos_meter Record: one evaluation, rejected",
+   "input": {
+    "buyer_id": 424242,
+    "seller_id": 555000,
+    "order": "955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386",
+    "artifact": "78b3ba12002f9cab5cbb57fac87d8c703702a196",
+    "policy": "90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee",
+    "milestone": 3,
+    "accepted": false,
+    "rate": 0
+   },
+   "expect": {
+    "output": "knosm:eval:424242:555000:955a3624ee51a2ff55343ca8f0fa1cae4d5fba7cd383f53f2c342be6b00fa386:78b3ba12002f9cab5cbb57fac87d8c703702a196:90c9f6480dd7ebdd5551241a8df07dc7e945e5f625a7c3dac7607f7023d134ee:3:0:0"
+   }
+  },
+  {
+   "id": "audiences/19",
+   "op": "audience.knosm_batch",
+   "name": "knos_meter RecordBatch: the buyer's count",
+   "input": {
+    "kind": "batch",
+    "buyer_id": 424242,
+    "seller_id": 555000,
+    "month": 202610,
+    "seq": 0,
+    "count": 5,
+    "accepted": 3,
+    "value": 6000000,
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "output": "knosm:batch:424242:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   }
+  },
+  {
+   "id": "audiences/20",
+   "op": "audience.knosm_batch",
+   "name": "knos_meter ClaimBatch: the seller's count",
+   "input": {
+    "kind": "claim",
+    "buyer_id": 424242,
+    "seller_id": 555000,
+    "month": 202701,
+    "seq": 12,
+    "count": 5,
+    "accepted": 5,
+    "value": 10000000,
+    "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "output": "knosm:claim:424242:555000:202701:12:5:5:10000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   }
+  },
+  {
+   "id": "audiences/21",
+   "op": "audience.knos_oidc_key",
+   "name": "knos_oidc: admit a key of GitHub (issuer 0)",
+   "input": {
+    "issuer": 0,
+    "modulus": "ee340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459adbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879"
+   },
+   "expect": {
+    "output": "knos-oidc:key:0:9731b536d6ae59e6823722470fc3718b4514e25dac929a0ea222d63d9337ce03"
+   }
+  },
+  {
+   "id": "audiences/22",
+   "op": "audience.knos_oidc_key",
+   "name": "knos_oidc: admit a key of GitLab (issuer 1)",
+   "input": {
+    "issuer": 1,
+    "modulus": "ee340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459adbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879"
+   },
+   "expect": {
+    "output": "knos-oidc:key:1:9731b536d6ae59e6823722470fc3718b4514e25dac929a0ea222d63d9337ce03"
+   }
+  },
+  {
+   "id": "audiences/23",
+   "op": "audience.knos_oidc_key",
+   "name": "knos_oidc: admit a key of any other RS256 issuer, by its URL",
+   "input": {
+    "issuer": "https://issuer.example/realms/a",
+    "modulus": "ee340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459adbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879"
+   },
+   "expect": {
+    "output": "knos-oidc:ikey:3754b8909a3a1a8933a7cea53fca19ba29263ee328f8e9cd1de7effd1a68427a:9731b536d6ae59e6823722470fc3718b4514e25dac929a0ea222d63d9337ce03"
+   }
+  },
+  {
+   "id": "audiences/24",
+   "op": "audience.gate",
+   "name": "upgrade_gate: record a build",
+   "input": {
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "executable": "a29c2123a01df1d0febb9d308a20d8a2fe3d40a91ca8b1294f59f08f9773ebea"
+   },
+   "expect": {
+    "output": "gate:5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k:a29c2123a01df1d0febb9d308a20d8a2fe3d40a91ca8b1294f59f08f9773ebea"
+   }
+  },
+  {
+   "id": "audiences/25",
+   "op": "audience.parse_knosm_batch",
+   "name": "a batch audience, read back",
+   "input": {
+    "audience": "knosm:batch:424242:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "output": {
+     "kind": "batch",
+     "buyer_id": 424242,
+     "seller_id": 555000,
+     "month": 202610,
+     "seq": 0,
+     "count": 5,
+     "accepted": 3,
+     "value": 6000000,
+     "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+    }
+   }
+  },
+  {
+   "id": "audiences/26",
+   "op": "audience.parse_knosm_batch",
+   "name": "a claim audience, read back",
+   "input": {
+    "audience": "knosm:claim:424242:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "output": {
+     "kind": "claim",
+     "buyer_id": 424242,
+     "seller_id": 555000,
+     "month": 202610,
+     "seq": 0,
+     "count": 5,
+     "accepted": 3,
+     "value": 6000000,
+     "root": "bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+    }
+   }
+  },
+  {
+   "id": "audiences/27",
+   "op": "audience.parse_knosm_batch",
+   "name": "a number with a leading zero",
+   "input": {
+    "audience": "knosm:batch:424242:555000:202610:00:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/28",
+   "op": "audience.parse_knosm_batch",
+   "name": "a root in capitals",
+   "input": {
+    "audience": "knosm:batch:424242:555000:202610:0:5:3:6000000:BCB433ECBC3D6495218940BACADCA5301FCFEFFF31E684CB47AAFB8424B5CF7C"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/29",
+   "op": "audience.parse_knosm_batch",
+   "name": "a root one character short",
+   "input": {
+    "audience": "knosm:batch:424242:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/30",
+   "op": "audience.parse_knosm_batch",
+   "name": "a month of five digits",
+   "input": {
+    "audience": "knosm:batch:424242:555000:20261:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/31",
+   "op": "audience.parse_knosm_batch",
+   "name": "a buyer of zero",
+   "input": {
+    "audience": "knosm:batch:0:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/32",
+   "op": "audience.parse_knosm_batch",
+   "name": "a number of 2^64",
+   "input": {
+    "audience": "knosm:batch:424242:555000:202610:0:5:3:18446744073709551616:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/33",
+   "op": "audience.parse_knosm_batch",
+   "name": "a number with a sign",
+   "input": {
+    "audience": "knosm:batch:424242:555000:202610:0:+5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/34",
+   "op": "audience.parse_knosm_batch",
+   "name": "another word where batch or claim goes",
+   "input": {
+    "audience": "knosm:eval:424242:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/35",
+   "op": "audience.parse_knosm_batch",
+   "name": "a part too many",
+   "input": {
+    "audience": "knosm:batch:424242:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c:1"
+   },
+   "expect": {
+    "refused": true
+   }
+  },
+  {
+   "id": "audiences/36",
+   "op": "audience.parse_knosm_batch",
+   "name": "another program's prefix",
+   "input": {
+    "audience": "knos3:batch:424242:555000:202610:0:5:3:6000000:bcb433ecbc3d6495218940bacadca5301fcfefff31e684cb47aafb8424b5cf7c"
+   },
+   "expect": {
+    "refused": true
+   }
+  }
+ ]
+}

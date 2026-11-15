@@ -1,0 +1,491 @@
+name: always-on worker
+
+# Knos's relay, in public. Repositories that installed Knos (examples/knos-workflow.yml) post GitHub-signed tokens as
+# comments; this job finds them (src/knos/proof/ghrelay.py), carries each to Solana devnet, where knos-oidc verifies
+# GitHub's signature and knos-pay does what the token says, and pays the transaction fees. It also releases tests-mode
+# payments whose review window has passed and refunds bounties past their deadline. It decides nothing: the money goes
+# where the token says, and anyone can run the same command (`knos relay`).
+#
+# A run relays for about 4.5 minutes, a pass every 3 seconds (`knos relay --serve`: a pass that finds nothing new
+# costs GitHub one conditional request per repository it knows). Thirty seconds before it stops it pauses for the 2 to
+# 5 s it takes to save its notes, then starts the next run and relays on, so the next one installs while this one still
+# relays, restores the notes this run just saved, and takes over with no gap of its own: the one pause at a handover is
+# that save, before the next run is started. (The next run used to wait for this one to end and only then install:
+# the relay was down 12 to 22 s between two runs, and a token posted then waited that long.)
+# For those few seconds two runs relay with the same key, which pays nobody twice: the chain takes a token once, the
+# loser of a race tries again on its next pass and finds it done, and a run logs nothing for a token whose verdict the
+# log has already (ghrelay.logged). GitHub's cron only starts the watchdog (below): the run it starts, or one started by hand,
+# relays only when no run of a chain is going.
+# A run that cannot relay is red, and starts nothing. The first step after the install asks the relay for its help text,
+# so an install that lacks something the relay imports fails there, before a key is read. The relay's exit status is the
+# step's (nothing after it hides a failure), and the next run is started only by a run whose relay step succeeded
+# after relaying its full time. After a failure the chain stops; the watchdog starts it again (below).
+# The one secret is the fee-paying key; it holds devnet SOL for fees and nobody's money.
+# This job sees that secret, so nothing it installs comes from an Actions cache (`enable-cache: false`): a cache can be
+# written by other runs of this repository. And everything it installs is named by hash (requirements/sign.txt,
+# `uv pip install --require-hashes`): a package released after the list was written cannot reach this key. The one
+# cache step below keeps the relay's own notes (the repositories it found tokens in), which are read as data and
+# never run.
+#
+# BESIDE THE TIMER, THE EVENT (job `event`). The chain of runs above finds a token by reading comments, a pass every 3 s.
+# Two things it cannot bound: a token posted while no run relays (the chain stopped; the watchdog restarts it within 5
+# minutes, later when GitHub is busy), and a repository it has not seen yet (found by GitHub's comment search). So the
+# event that posts a token may also start a run of this workflow that carries exactly that token and ends:
+#   repository_dispatch, type knos-token   client_payload {"repo": "owner/name", "number": 12}: whoever holds a token
+#                                          that may write this repository's contents says where a token was posted.
+#   workflow_run, completed                a run of this repository's own `knos` workflow ended: its pull requests'
+#                                          comments are read (GitHub sends this event only for workflows of the
+#                                          repository the file is in, and only from the default branch's copy).
+# An event run reads the comments the event names, queues what it finds and carries it with 4 workers
+# (knos.settle.v2.relayq). It keeps no notes, saves no cache and starts no run: it is not part of the chain, and the
+# chain's first step does not count it. The chain is the sweep: it carries what no event announced, and what an event
+# run did not finish. Both may send the same token; the chain takes it once (docs/reference/RELAY.md, "Events, a queue, workers").
+# What the event does NOT shorten: a run takes GitHub's time to start plus this job's install (10 to 21 s were seen),
+# so while the chain relays, its 3 s pass is there first. The event is for the two cases above.
+#
+# NOTES THAT MERGE. Each run appends what it does to a file of its own (`ghrelay-notes/<run>.jsonl` in its
+# home: one line a change, keyed by token) and keeps a journal of its own; a reader merges every file by key,
+# confirmed > refused > sending > waiting. So a run never replaces, drains or closes what another run holds. The
+# chain of runs hands the folder on with its notes (the cache below). The event job is on another runner and has
+# no cache (this job sees the fee key, and tests/test_workflows2.py lists every cache such a job may have), so the
+# two do not see each other's FILES while both are alive.
+# NOTES BOTH RUNNERS SEE. Both jobs may write the relay log (the open issue labelled knos-relay). A lease and
+# an answer are each one comment there, `knos-note 1 <run> <json>` (relayq.LogStore); the sweep reads the other's
+# lines in the comments its pass fetches anyway, and of two leases the earlier comment holds. When GitHub does not
+# take a line the run says so and keeps its notes local: there the chain still takes a token once (docs/reference/RELAY.md).
+# THE CLAIM GUARD (job `claims`). Each run of the chain also runs claims.yml's sweep for this repository, once,
+# so about every 4.5 minutes while the chain relays: once, in October 2026, GitHub's timer for claims.yml did not fire
+# for 38 minutes. A claim is usually a pull request, and GitHub lets a workflow's token comment on one and
+# label it only with `pull-requests: write`. That permission is the `claims` job's alone: the job holds NO key (no
+# secret at all, only the run's own forge token), and the two jobs that hold the fee key keep the permissions they
+# had. A relay of one's own may still sweep in its pass (KNOS_CLAIM_REPOS; knos.claim_guard.sweep_served). A listing
+# the sweep cannot read is an error on the run's page.
+# THE FAUCET (job `faucet`). `/knos faucet <address | passkey>` on the playground's faucet issue gives a
+# fixed amount of test USDC, which has no monetary value (src/knos/faucet.py, docs/reference/FAUCET.md). GitHub sends a comment's
+# event only to the repository it was written in, so this job runs where this file is installed AND that repository is
+# the one the variable KNOS_FAUCET_REPO names (default: drexthealpha/knos-playground); in Knos's own repository it is
+# skipped. It is a job of its own with a key of its own: KNOS_FAUCET_KEY holds test USDC and no SOL and signs the
+# transfer, KNOS_RELAY_KEY pays the fee. One run at a time (concurrency group `knos-faucet`); and should two overlap
+# all the same, the signature each posts before it sends is the lock (knos.faucet.grant). Without both secrets it says
+# so and ends green. It has not run on GitHub yet.
+# FEE PAYERS. One today: KNOS_RELAY_KEY. KNOS_RELAY_KEYS (a secret that is not set) may name more; each owner's
+# tokens then always pay from the same one of them, and a key signs for one token at a time (docs/reference/RELAY.md).
+#
+# A START THAT IS ASKED AGAIN, AND A WATCHDOG. Once, GitHub answered HTTP 500 when a run started its successor, and the chain was down until a person started it. Two changes (src/knos/proof/chain.py):
+#   - the start is asked again after a 5xx, a 429 or no answer, waiting 2, 4, 8, ... s (or what Retry-After says). GitHub
+#     may take a start it answered with an error, so the runs are listed before each new try, and a run that took over
+#     ends the asking; of two runs that take over from one run the first step lets only the older go on.
+#   - the job `watchdog` is not part of the chain. It runs on the timer AND on every event that starts this workflow
+#     (a token announced, a `knos` run ended), holds no secret, installs nothing, and starts a chain when no run of one
+#     is queued or in progress. The relay job no longer runs on the timer itself: the timer's run only watches.
+#     Watchdogs run one at a time (their concurrency group). Should two starts be taken all the same (GitHub lists a new
+#     run a moment late, or a person starts one too), the first step of each lets the OLDER one go on and ends the
+#     other: never two chains, and never none because each saw the other.
+# ALIVE MEANS A HEARTBEAT. Once, in October 2026, GitHub's 5-minute timer fired only twice in four hours, and a
+# run stuck in its install wait counted as alive. So:
+#   - the watchdog also runs when a run of this workflow ends, whatever its conclusion (watchdog.yml: a file of its own,
+#     so that its own runs ending start nothing), on a `knos-watch` dispatch or by hand (the release step), and on
+#     every event this file already takes (a token announced, a `knos` run ended);
+#   - GitHub sends watchdog.yml no `workflow_run` for a run of the chain: each is started by the run before it with the
+#     workflow's own token, and an event that token causes starts no workflow (seen in a test repository, 8 Oct 2026: a run a person
+#     started woke watchdog.yml when it ended; the two chain runs after it, one handed over, one cancelled, did not). So
+#     a chain run whose relay job did not succeed (it failed, was cancelled or timed out) runs the watchdog itself, in
+#     the job `rewatch`, as its last job: it starts a chain at once when none is alive, the run itself not counted;
+#   - "alive" is a run with a HEARTBEAT (the relay job's step of that name) less than 9 minutes old, or one still
+#     installing less than 8 minutes after it started, or one queued less than 15 minutes: a run with no heartbeat in
+#     time is cancelled and one is started in its place (src/knos/proof/chain.py);
+#   - the install waits 195 s for PyPI's index (it waited 10 minutes), uv retries each request and times out a read, and
+#     the step ends at 6 minutes.
+#
+# Each run's title names the run it takes over from, so that the first step of the next one can tell the chain's runs apart.
+# An event run is titled "relay for ...", which no step of the chain counts.
+run-name: ${{ inputs.after && format('relay after {0}', inputs.after) || github.event_name == 'repository_dispatch' && 'relay for a dispatch' || github.event_name == 'workflow_run' && 'relay for a run' || github.event_name == 'issue_comment' && 'relay for a comment' || github.event_name == 'schedule' && 'relay for the timer' || 'relay' }}
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  repository_dispatch:
+    types: [knos-token]
+  workflow_run:
+    workflows: [knos]
+    types: [completed]
+  issue_comment:        # the faucet (job `faucet`), and only where that job runs: in every other repository this starts a run with every job skipped
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      after:
+        description: The run this one takes over from (each run sets it for the next; leave it empty to start the chain)
+        required: false
+        default: ""
+
+# No concurrency group: one would hold the next run until this one ends, which is the 12 to 22 s gap this file closes. The first
+# step keeps it to one chain of runs, and ends a second chain at its next handover.
+permissions:
+  contents: read
+  actions: write      # each run starts the next, and the first step lists the runs that are going
+  issues: write       # the relay log: one line per token relayed, in the open issue labelled knos-relay
+
+jobs:
+  relay:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15     # 5 to relay; up to 6 more only in the first run after a release (the install step)
+    env:
+      KNOS_HOME: ${{ github.workspace }}/.knos-home
+    steps:
+      # A run that the run before it started takes over, unless a run older than this one took over from that run
+      # already (GitHub started the next run but answered the start with an error, so it was asked again), or a run of
+      # another chain relays and has not handed over (a second chain: it ends here, at its next handover). A re-run
+      # relays nothing and starts nothing: its first attempt started the next run. One that the watchdog or a person
+      # started goes on only when no run of a chain is going or waiting (that run starts the next one) and no OLDER
+      # run started the same way is: of two started at once the older goes on and the other ends, so there is one
+      # chain and not none. When GitHub does not list them, the next watchdog asks again, and a run taken over relays
+      # all the same (the next handover asks again).
+      - name: one chain of runs at a time
+        id: chain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AFTER: ${{ inputs.after }}
+        run: |
+          if [ "${GITHUB_RUN_ATTEMPT:-1}" != "1" ]; then
+            echo "A re-run: the first attempt of this run started the next one already, so this one relays nothing and starts nothing."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$AFTER" in *[!0-9]*) AFTER="" ;; esac
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow worker.yml --limit 50 --json databaseId,status,displayTitle) || runs=""
+          if [ -n "$AFTER" ]; then
+            stop=$(printf '%s' "$runs" | jq -r --argjson me "$GITHUB_RUN_ID" --argjson after "$AFTER" '
+              map(select(.databaseId != $me)) as $o | ($o | map(.displayTitle)) as $titles
+              | [$o[] | select(.databaseId < $me) | select(.displayTitle == "relay after \($after)" or
+                  (.databaseId != $after and .status != "completed" and (.displayTitle | startswith("relay after "))
+                   and (.databaseId as $id | any($titles[]; . == "relay after \($id)") | not)))]
+              | map(.databaseId | tostring) | join(" ")') || stop=""
+            if [ -n "$stop" ]; then
+              echo "Run $stop is already relaying, so this run stops here and starts nothing."
+              echo "go=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "go=true" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+          others=$(printf '%s' "$runs" | jq --argjson me "$GITHUB_RUN_ID" '[.[] | select(.databaseId != $me and .status != "completed" and ((.displayTitle // "") | startswith("relay for ") | not))
+            | select(((.displayTitle // "") | startswith("relay after ")) or .databaseId < $me)] | length') || others=""
+          if [ "$others" = "0" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Another run already relays, or GitHub did not list the runs. This run has nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: steps.chain.outputs.go == 'true'
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        if: steps.chain.outputs.go == 'true'
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      # Each package by its hash, from this repository's own list, and nothing else: no `-e .`, which would build the
+      # package with a build tool fetched unpinned. Knos itself runs from the checkout (PYTHONPATH below).
+      # PyPI's index is a cached page and can show a release minutes after its upload: once, the first run after a
+      # release was pushed found "no version of" that release, failed, and the chain stopped. So ONE error is waited for, and no
+      # other: the index not listing the release the list's last line names. It is asked again after 15, 30, 60 and
+      # 90 s (195 s in all), then the step fails as before. A hash that does not match, a package of another name: red
+      # at once, as before.
+      # A TIMEOUT AND A RETRY. Once, a run sat in this wait (then 10 minutes) and the chain
+      # was down until a person restarted it. Now: uv asks each request again up to 5 times and gives up on a read after
+      # 30 s (UV_HTTP_RETRIES, UV_HTTP_TIMEOUT: https://docs.astral.sh/uv/reference/environment/), the wait is 195 s, and
+      # the step ends at 6 minutes whatever happens (red: this run starts nothing). Until this run's heartbeat (two steps
+      # on) the watchdog counts it as installing for 8 minutes at most, then cancels it and starts one in its place.
+      - name: install what the relay needs, each by its hash, and nothing else
+        if: steps.chain.outputs.go == 'true'
+        timeout-minutes: 6
+        env:
+          UV_HTTP_TIMEOUT: "30"
+          UV_HTTP_RETRIES: "5"
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          release=$(sed -n '$s/^knos==\([0-9][0-9.]*\) --hash=sha256:[0-9a-f]*$/\1/p' requirements/sign.txt)
+          refresh=""
+          for nap in 15 30 60 90 end; do
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
+            cat "$RUNNER_TEMP/install.err" >&2
+            [ "$nap" != end ] && [ -n "$release" ] && grep -Fq "no version of knos==$release " "$RUNNER_TEMP/install.err" || exit 1
+            echo "PyPI's index does not list knos $release yet: asking again (--refresh) in $nap s."
+            refresh="--refresh"
+            sleep "$nap"
+          done
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      # With exactly what was installed above. A relay that cannot even say its options ends the run here, red, before
+      # the key is read and before any run is started.
+      - name: the relay starts with what was installed
+        if: steps.chain.outputs.go == 'true'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m knos relay --help
+      # THE HEARTBEAT. The watchdog counts a run alive by this step, not by the run's existence: GitHub lists
+      # each step of a job with the time it completed (`GET .../actions/runs/{id}/jobs`), which the watchdog reads with
+      # no secret (src/knos/proof/chain.py, HEARTBEAT: the name below, letter for letter). The time is also this step's
+      # output and a line on the run's page.
+      - name: "heartbeat: the relay starts with what was installed"
+        id: heartbeat
+        if: steps.chain.outputs.go == 'true'
+        run: |
+          at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "at=$at" >> "$GITHUB_OUTPUT"
+          echo "relay heartbeat $at, run $GITHUB_RUN_ID: installed, and the relay starts" | tee -a "$GITHUB_STEP_SUMMARY"
+      # The notes of the run before (the newest saved). That run saved them just before it started this one.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        if: steps.chain.outputs.go == 'true'
+        with:
+          path: .knos-home
+          key: knos-relay-home-${{ github.run_id }}
+          restore-keys: knos-relay-home-
+      # Its exit status is the step's. `relayed` is set only after the relay ended well and had relayed its time: a
+      # relay that ends early, whatever its status, starts no next run either.
+      - name: relay for about 4 minutes, a pass every 3 s
+        id: relay
+        if: steps.chain.outputs.go == 'true'
+        env:
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          KNOS_RELAY_KEYS: ${{ secrets.KNOS_RELAY_KEYS }}
+          GH_TOKEN: ${{ github.token }}
+          KNOS_RELAY_LOG_REPO: ${{ github.repository }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
+          began=$(date +%s)
+          python -m knos relay --serve 250
+          [ $(( $(date +%s) - began )) -ge 200 ] || { echo "The relay ended before its time was up: this run starts no next run."; exit 1; }
+          echo "relayed=true" >> "$GITHUB_OUTPUT"
+      # Saved before the next run is started, so the next run restores these notes and not the ones of the run before
+      # this one (the relay's notes would split in two lines of runs, each with its own day's counts and unposted lines).
+      # What this run does in its last 30 s is not saved: the next run relays it too, and the log answers what it did.
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        if: steps.chain.outputs.go == 'true'
+        with:
+          path: .knos-home
+          key: knos-relay-home-${{ github.run_id }}
+      # The next run takes 10 to 21 s to start relaying, so the two overlap for a few seconds and no token waits for a
+      # run to install. The start is asked up to 3 times here (6 s of waiting at most, so the relay goes on), and up
+      # to 6 times in the last step (62 s at most).
+      - name: start the next run, and relay 30 s more while it installs
+        if: steps.chain.outputs.go == 'true'
+        env:
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          KNOS_RELAY_KEYS: ${{ secrets.KNOS_RELAY_KEYS }}
+          GH_TOKEN: ${{ github.token }}
+          KNOS_RELAY_LOG_REPO: ${{ github.repository }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
+          python -m knos.proof.chain start --after "$GITHUB_RUN_ID" --tries 3 \
+            && touch "$RUNNER_TEMP/knos-next" || echo "GitHub did not take the start: the last step asks again."
+          python -m knos relay --serve 30
+      # Only after a relay step that succeeded: a run whose relay failed (or relayed nothing, having no key) starts
+      # nothing, so a build that cannot relay never starts run after run. The watchdog restarts the chain.
+      - name: start the next run (always on), when the step before did not
+        if: always() && steps.chain.outputs.go == 'true' && steps.relay.outcome == 'success' && steps.relay.outputs.relayed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: '[ -f "$RUNNER_TEMP/knos-next" ] || python -m knos.proof.chain start --after "$GITHUB_RUN_ID" --tries 6'
+
+  # The watchdog: not a run of the chain, and it needs none to be alive. No secret, no install, no cache: it reads one
+  # file of this repository with the runner's own Python (`-I`: nothing but the standard library is on its path) and
+  # asks GitHub which runs of this workflow are alive. None of a chain: it starts one. One at a time.
+  watchdog:
+    if: github.event_name == 'schedule' || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write        # it lists the runs and starts one
+    concurrency:
+      group: knos-relay-watchdog
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: start a chain of runs when none is queued or in progress
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I src/knos/proof/chain.py watch
+
+  # The same watchdog at the end of a chain run whose relay job did not succeed: that run starts no next one, and the end
+  # of a run this workflow's own token started wakes no other workflow (watchdog.yml's `workflow_run` is not sent for
+  # it). `always()`: it runs after a cancel and a timeout too (a force-cancel skips it; the watchdog that asks one has
+  # started a run already). The run it is part of is not counted (chain.py watch leaves out GITHUB_RUN_ID), so with no
+  # other run of a chain alive it starts one, as this run's successor (`--successor`: "relay after <this run>", which
+  # the first step lets go on while this run is still ending); with one alive (this run handed over before it was
+  # cancelled, or a watchdog replaced it) it does nothing. A re-run, or a run that ended at its first step, has a relay
+  # job that succeeded: nothing runs here.
+  rewatch:
+    needs: relay
+    if: always() && github.event_name == 'workflow_dispatch' && (needs.relay.result == 'failure' || needs.relay.result == 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write        # it lists the runs and starts one
+    concurrency:
+      group: knos-relay-watchdog
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: start a chain of runs when none is alive but this one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I src/knos/proof/chain.py watch --successor
+
+  # One event, one run: the tokens the event names, and nothing else. The same install as the chain's, by hash; no
+  # cache of any kind (this job sees the fee key); nothing of the event is ever run, and none of it reaches a shell:
+  # the relay reads the event's file as data, and takes a repository's name and a number from it.
+  event:
+    if: github.event_name == 'repository_dispatch' || github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10     # a minute to carry; up to 6 more only in the first run after a release (the install step)
+    env:
+      KNOS_HOME: ${{ github.workspace }}/.knos-event-home
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      # the chain's install, letter for letter, with its timeout and retries. Each retry adds --refresh (as the claims
+      # job): once, this job asked five times without it and uv kept its first answer, "no version of knos", until a
+      # person re-ran the job.
+      - name: install what the relay needs, each by its hash, and nothing else
+        timeout-minutes: 6
+        env:
+          UV_HTTP_TIMEOUT: "30"
+          UV_HTTP_RETRIES: "5"
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          release=$(sed -n '$s/^knos==\([0-9][0-9.]*\) --hash=sha256:[0-9a-f]*$/\1/p' requirements/sign.txt)
+          refresh=""
+          for nap in 15 30 60 90 end; do
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt 2> "$RUNNER_TEMP/install.err" && break
+            cat "$RUNNER_TEMP/install.err" >&2
+            [ "$nap" != end ] && [ -n "$release" ] && grep -Fq "no version of knos==$release " "$RUNNER_TEMP/install.err" || exit 1
+            echo "PyPI's index does not list knos $release yet: asking again (--refresh) in $nap s."
+            refresh="--refresh"
+            sleep "$nap"
+          done
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: the queue starts with what was installed
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m knos.settle.v2.relayq --help
+      - name: carry what this event names, 4 at a time
+        env:
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          KNOS_RELAY_KEYS: ${{ secrets.KNOS_RELAY_KEYS }}
+          GH_TOKEN: ${{ github.token }}
+          KNOS_RELAY_LOG_REPO: ${{ github.repository }}
+          KNOS_RELAY_WORKERS: "4"
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: skipped"; exit 0; }
+          python -m knos.settle.v2.relayq --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
+
+  # The claim guard's sweep, beside the chain: one comment and one label on an issue or pull request that claims a
+  # payment nobody funded (src/knos/claim_guard.py; claims.yml answers the event and keeps its own timer). It runs once
+  # in every run of the chain (each run is started by the one before it, `workflow_dispatch`), in a job of its own:
+  # NO secret is named here, so the fee key is never in the job that may write to pull requests, and this job's
+  # permissions are its own and not the workflow's.
+  claims:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read          # this repository's own code
+      issues: write           # one comment, one label
+      pull-requests: write    # the same on a pull request
+    concurrency:
+      group: knos-claims
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      # A release commit reaches main before PyPI lists the knos it pins: wait for that exact file (standard library
+      # only, growing pauses, at most 10 minutes) instead of failing the install.
+      - name: wait until PyPI lists the knos file requirements/sign.txt pins
+        run: python3 -I scripts/pypi_wait.py requirements/sign.txt --package knos --most 600
+      # PyPI's index can lag a release's upload, and uv may answer from what it read a moment before (once, the wait
+      # for the file passed and uv still said "no version of knos"). So the install itself is tried 3 times, the
+      # second and third with --refresh (uv asks the index again), 10 then 30 s apart; the third failure ends the job.
+      - name: install what the check needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          refresh=""
+          for nap in 10 30 end; do
+            uv pip install --no-config $refresh --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/sign.txt && break
+            [ "$nap" != end ] || exit 1
+            echo "The install failed: asking PyPI's index again (--refresh) in $nap s."
+            refresh="--refresh"
+            sleep "$nap"
+          done
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: answer every open claim of payment that no funded order stands behind
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m knos.claim_guard --sweep
+
+  # The faucet: one comment, one answer. Nothing of the comment reaches a shell: knos.faucet reads the event's file as
+  # data, and nothing the requester wrote but a base58 address reaches its reply. The code is Knos's, wherever this file
+  # runs: the checkout names the repository, at the ref the variable KNOS_FAUCET_REF names (default: main, the code the
+  # relay job of this file runs). The install is by hash (requirements/faucet.txt: what the relay installs, and the
+  # memory engine the journal is kept in); no cache of any kind.
+  faucet:
+    if: >-
+      github.event_name == 'issue_comment' && github.repository == (vars.KNOS_FAUCET_REPO || 'drexthealpha/knos-playground')
+      && !github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'faucet')
+      && github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write         # the faucet's one reply, and its edit
+    concurrency:
+      group: knos-faucet
+      cancel-in-progress: false
+    env:
+      KNOS_HOME: ${{ github.workspace }}/.knos-faucet-home
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: drexthealpha/Knos
+          ref: ${{ vars.KNOS_FAUCET_REF || 'main' }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.20"
+          python-version: "3.12"
+          enable-cache: false
+      - name: install what the faucet needs, each by its hash, and nothing else
+        run: |
+          uv venv --no-config --python 3.12 "$RUNNER_TEMP/knos"
+          uv pip install --no-config --python "$RUNNER_TEMP/knos/bin/python" --require-hashes --no-deps --no-build -r requirements/faucet.txt
+          echo "$RUNNER_TEMP/knos/bin" >> "$GITHUB_PATH"
+      - name: answer the request, once
+        env:
+          KNOS_FAUCET_KEY: ${{ secrets.KNOS_FAUCET_KEY }}
+          KNOS_RELAY_KEY: ${{ secrets.KNOS_RELAY_KEY || secrets.KNOS_WORKER_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          [ -n "$KNOS_FAUCET_KEY" ] || { echo "no KNOS_FAUCET_KEY secret: the faucet answers nobody here. Skipped."; exit 0; }
+          [ -n "$KNOS_RELAY_KEY" ] || { echo "no KNOS_RELAY_KEY secret: nothing would pay the transfer's fee. Skipped."; exit 0; }
+          python -m knos.faucet --event "$GITHUB_EVENT_PATH"

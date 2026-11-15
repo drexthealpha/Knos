@@ -1,0 +1,162 @@
+{
+  "version": "0.3.14",
+  "name": "knos_oidc",
+  "docs": [
+    "First deployment (programs/; nothing new is funded there). OIDC on Solana: verifies an RS256 token from GitHub Actions or GitLab CI on chain. No admin. It has no upgrade authority, so nobody can change it.",
+    "A native program: this file is written by hand from programs/knos_oidc/src/lib.rs and checked by tests/test_idl.py.",
+    "Instruction data is the discriminant byte, then the arguments in order, little-endian, with no padding.",
+    "An argument or field of type bytes is raw and runs to the end: it has no length prefix."
+  ],
+  "instructions": [
+    {
+      "name": "Write",
+      "docs": [
+        "Writes the token (the compact JWT) into the token account, created on first use and sized for `total` bytes (at most 8192).",
+        "Chunks may be sent in any order, several per transaction."
+      ],
+      "accounts": [
+        {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the rent; only this account can write, step or close the token"},
+        {"name": "token", "isMut": true, "isSigner": false, "desc": "PDA [\"tok\", payer, id]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [
+        {"name": "id", "type": {"array": ["u8", 32]}},
+        {"name": "total", "type": "u16"},
+        {"name": "offset", "type": "u16"},
+        {"name": "chunk", "type": "bytes"}
+      ],
+      "discriminant": {"type": "u8", "value": 0}
+    },
+    {
+      "name": "Step",
+      "docs": [
+        "Computes s^65537 mod n a few squarings at a time. The call that finishes the 16 squarings checks the PKCS#1 v1.5 SHA-256 encoding,",
+        "that alg is RS256 and that iss is the key's issuer, decodes the payload in place and marks the account VERIFIED.",
+        "2048-bit keys: Step(8), Step(8). 4096-bit keys: Step(2), Step(3) three times, Step(4), Step(1): the finishing call also hashes and",
+        "decodes the whole token, and with two squarings it runs out of compute units once the token is long."
+      ],
+      "accounts": [
+        {"name": "payer", "isMut": false, "isSigner": true, "desc": "The payer that wrote the token"},
+        {"name": "token", "isMut": true, "isSigner": false, "desc": "PDA [\"tok\", payer, id]"},
+        {"name": "key", "isMut": false, "isSigner": false, "desc": "A ready key account of this program: PDA [\"key\", [issuer], sha256(n)]"}
+      ],
+      "args": [
+        {"name": "id", "type": {"array": ["u8", 32]}},
+        {"name": "squarings", "type": "u8"}
+      ],
+      "discriminant": {"type": "u8", "value": 1}
+    },
+    {
+      "name": "Close",
+      "docs": ["Closes the token account; the rent goes back to the payer."],
+      "accounts": [
+        {"name": "payer", "isMut": true, "isSigner": true, "desc": "The payer that wrote the token"},
+        {"name": "token", "isMut": true, "isSigner": false, "desc": "PDA [\"tok\", payer, id]"}
+      ],
+      "args": [
+        {"name": "id", "type": {"array": ["u8", 32]}}
+      ],
+      "discriminant": {"type": "u8", "value": 2}
+    },
+    {
+      "name": "RegisterKey",
+      "docs": [
+        "Creates the key account of an issuer's RSA modulus. Allowed when sha256(n) is a genesis constant of the binary, or when `attest`",
+        "is a VERIFIED GitHub token of the pinned rotate workflow whose audience is knos-oidc:key:<issuer>:<sha256(n) hex>. Anyone may send it."
+      ],
+      "accounts": [
+        {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the rent"},
+        {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"key\", [issuer], sha256(n)]"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "attest", "isMut": false, "isSigner": false, "optional": true, "desc": "A VERIFIED token account naming this key; left out for a genesis key"}
+      ],
+      "args": [
+        {"name": "issuer", "type": "u8"},
+        {"name": "n", "type": "bytes"}
+      ],
+      "discriminant": {"type": "u8", "value": 3}
+    },
+    {
+      "name": "KeyParams",
+      "docs": ["The key's Montgomery constants, checked on chain; the key is usable after this. Anyone may send it."],
+      "accounts": [
+        {"name": "payer", "isMut": false, "isSigner": true, "desc": "Any signer"},
+        {"name": "key", "isMut": true, "isSigner": false, "desc": "PDA [\"key\", [issuer], sha256(n)]"}
+      ],
+      "args": [
+        {"name": "n0inv", "type": "u32"},
+        {"name": "r2", "type": "bytes"}
+      ],
+      "discriminant": {"type": "u8", "value": 4}
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Token",
+      "docs": [
+        "PDA [\"tok\", payer, id], id = sha256 of the compact JWT. 626 bytes, then the token.",
+        "stage: 0 writing, 1 stepping, 2 VERIFIED. issuer: 0 GitHub Actions, 1 GitLab CI. Once VERIFIED, the decoded claims (JSON) are the",
+        "payloadLen bytes at payloadOff, counted from the start of the account, and exp is the token's exp claim.",
+        "A consumer checks that the account's owner is this program, that stage is 2 and that the clock is under exp + 3600."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "stage", "type": "u8"},
+          {"name": "issuer", "type": "u8"},
+          {"name": "squaringsDone", "type": "u8"},
+          {"name": "limbs", "type": "u8"},
+          {"name": "jwtLen", "type": "u16"},
+          {"name": "payloadOff", "type": "u16"},
+          {"name": "payloadLen", "type": "u16"},
+          {"name": "exp", "type": "i64"},
+          {"name": "key", "type": "publicKey"},
+          {"name": "payer", "type": "publicKey"},
+          {"name": "id", "type": {"array": ["u8", 32]}},
+          {"name": "x", "type": {"array": ["u8", 512]}},
+          {"name": "jwt", "type": "bytes"}
+        ]
+      }
+    },
+    {
+      "name": "Key",
+      "docs": [
+        "PDA [\"key\", [issuer], sha256(n)], n = the RSA modulus, big-endian. 8 bytes, then n and R^2 mod n as little-endian u32 limbs",
+        "(limbs is 64 for a 2048-bit key, 128 for a 4096-bit key; 4 * limbs bytes each). ready is 1 after KeyParams."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "ready", "type": "u8"},
+          {"name": "issuer", "type": "u8"},
+          {"name": "limbs", "type": "u8"},
+          {"name": "bump", "type": "u8"},
+          {"name": "n0inv", "type": "u32"},
+          {"name": "nAndR2", "type": "bytes"}
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {"code": 60, "name": "Base64Url", "msg": "Not unpadded base64url"},
+    {"code": 61, "name": "Json", "msg": "The token is not three parts, or a part is not a JSON object"},
+    {"code": 62, "name": "DuplicateClaim", "msg": "A claim appears twice"},
+    {"code": 63, "name": "Claim", "msg": "A claim is missing or of the wrong type"},
+    {"code": 64, "name": "Length", "msg": "Token too long or chunk out of range"},
+    {"code": 65, "name": "SignatureLength", "msg": "The signature is not as long as the modulus, or not below it"},
+    {"code": 66, "name": "KeyParams", "msg": "The key or its Montgomery constants are wrong"},
+    {"code": 67, "name": "Accounts", "msg": "A wrong account, or a missing signature"},
+    {"code": 68, "name": "Key", "msg": "Not a ready key of this program, or not the key the token started with"},
+    {"code": 69, "name": "Stage", "msg": "The account is in the wrong stage for this instruction"},
+    {"code": 70, "name": "BadSignature", "msg": "The signature does not verify"},
+    {"code": 71, "name": "Algorithm", "msg": "alg is not RS256"},
+    {"code": 72, "name": "Issuer", "msg": "Unknown issuer, or iss is not the key's issuer"},
+    {"code": 73, "name": "Untrusted", "msg": "The key is not in genesis and there is no valid attestation"},
+    {"code": 74, "name": "Attestation", "msg": "The attestation's claims do not name this key from the pinned rotate workflow"},
+    {"code": 75, "name": "AttestationExpired", "msg": "The attestation is more than an hour past its expiry"}
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE"
+  }
+}

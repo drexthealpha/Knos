@@ -1,0 +1,153 @@
+{
+ "differential": {
+  "what": "the built verifier in LiteSVM against a reference (OpenSSL and RFC 8017 section 8.2.2 on Python integers for the signature, Python's json for the header and the claims) on tokens made from a fixed seed: tests/test_oidc_differential.py",
+  "command": "python tests/test_oidc_differential.py --cases 8855 --record",
+  "date": "2026-10-06",
+  "seed": 20261005,
+  "kinds": 102,
+  "corpus_sha256": "95bceb45540b619bd79a74dc82036419ba8bee3dabdbd86b7fb3bb307372b37b",
+  "program": "tests/fixtures/knos_oidc_v2_test.so",
+  "program_sha256": "cd9d7d681aea80839d618c057a8fb0e249cc3d3665beaf8e5588b335ec8eabf5",
+  "cases": 8855,
+  "accepted_by_both": 1301,
+  "refused_by_both": 7554,
+  "disagreements": 0,
+  "accepted_with_an_invalid_signature": 0,
+  "refused_by_program_error": {
+   "60": 504,
+   "61": 2083,
+   "62": 434,
+   "63": 757,
+   "65": 985,
+   "70": 2243,
+   "71": 417,
+   "72": 131
+  },
+  "refused_by_clause_of_the_rule": {
+   "alg": 783,
+   "base64url": 774,
+   "claims": 2170,
+   "exp": 348,
+   "iss": 348,
+   "parts": 173,
+   "signature": 2958
+  },
+  "key_bits": {
+   "2048": 8003,
+   "4096": 852
+  },
+  "seconds": 153.3,
+  "not_json_in_an_unread_value": {
+   "what": "payloads the test key signed that are not JSON, or are JSON two readers take differently, in a value the verifier does not read (the thirteen shapes knos-oidc 2.1 accepted, and more): counted in `cases`; each kind's cases and how many of them the program accepted",
+   "by_kind": {
+    "unread_name_twice": {
+     "cases": 86,
+     "accepted": 0
+    },
+    "unread_name_twice_below_the_top_level": {
+     "cases": 86,
+     "accepted": 86
+    },
+    "unread_value_a_bare_word": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_comment_as_a_value": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_control_character_in_a_string": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_form_feed_after_a_number": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_literal_cut_short": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_number_with_a_leading_zero": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_number_with_two_points": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_single_quoted_value": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_a_unicode_escape_cut_short": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_an_escape_json_does_not_have": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_brackets_that_do_not_match": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_bytes_that_are_not_utf8": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_half_a_surrogate_pair": {
+     "cases": 86,
+     "accepted": 0
+    },
+    "unread_value_nan": {
+     "cases": 87,
+     "accepted": 0
+    },
+    "unread_value_other_ways_not_to_be_json": {
+     "cases": 86,
+     "accepted": 0
+    },
+    "unread_values_of_every_json_form": {
+     "cases": 86,
+     "accepted": 86
+    }
+   }
+  },
+  "failures": []
+ },
+ "coverage_guided": {
+  "what": "the cargo-fuzz targets of programs-v2/knos_oidc/fuzz, run with libFuzzer by scripts/fuzz_nightly.sh",
+  "targets": {
+   "claims": "any bytes, read by both copies of the claim reader and by serde_json; since knos_oidc 2.2 the program's reader must accept exactly what serde_json reads as one object (less a name twice, 64 levels, 128 members)",
+   "rsa_verify": "any bytes as a modulus, a digest and a signature (or an encoded message a test key signs), put to the program's rsa.rs, to big integers and to the rsa crate"
+  },
+  "seeds": "programs-v2/knos_oidc/fuzz/seeds, written by `python tests/test_oidc_differential.py --seeds`",
+  "nightly": "the fuzz-claims job of .github/workflows/program.yml, 300 seconds a target; its results are artifacts of each run (fuzz-claims: fuzz.json and fuzz_targets.jsonl; fuzz-claims-corpus; fuzz-claims-crash), not commits. No nightly run has included rsa_verify yet.",
+  "by_hand": {
+   "what": "one run here before the release, on the 0.3.15 source (the programs are 6eb81dd's, unchanged), 120 seconds a target",
+   "command": "FUZZ_TOOLCHAIN=nightly bash scripts/fuzz_nightly.sh 120",
+   "toolchain": "rustc 1.101.0-nightly (c36f14571 2026-10-01)",
+   "cargo_fuzz": "0.13.2",
+   "runs": [
+    {
+     "target": "claims",
+     "executions": 4413242,
+     "corpus": 2240,
+     "crashes": 0,
+     "seconds": 120,
+     "date": "2026-10-05T01:28:04Z"
+    },
+    {
+     "target": "rsa_verify",
+     "executions": 8406,
+     "corpus": 128,
+     "crashes": 0,
+     "seconds": 120,
+     "date": "2026-10-05T01:30:06Z"
+    }
+   ],
+   "of": "knos_oidc 2.1's claim reader. The 2.2 reader (0.3.16) has had no coverage-guided run yet; the target's check has run on it under `cargo test` on stable (programs-v2/knos_oidc/fuzz/tests: 1,260,000 random documents, 200,000 strings of noise, the 575 seeds; no disagreement)"
+  }
+ }
+}

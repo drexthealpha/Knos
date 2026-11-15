@@ -1,0 +1,31 @@
+{
+ "note": "Answers of GET /repos/{owner}/{repo}/rules/branches/main, /rulesets/{id} and /branches/main, in the shapes of docs.github.com/en/rest/repos/rules (read 2026-10-09), written for the test.",
+ "closed": {
+  "rules": [
+   {"type": "workflows", "ruleset_source_type": "Organization", "ruleset_source": "acme", "ruleset_id": 42,
+    "parameters": {"do_not_enforce_on_create": false, "workflows": [{"path": ".github/workflows/knos.yml", "repository_id": 123456, "sha": "0123456789abcdef0123456789abcdef01234567"}]}},
+   {"type": "pull_request", "ruleset_source_type": "Repository", "ruleset_source": "acme/app", "ruleset_id": 7, "parameters": {"required_approving_review_count": 1}}
+  ],
+  "ruleset": {"id": 42, "name": "require knos", "enforcement": "active", "bypass_actors": [{"actor_id": null, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}]},
+  "branch": {"name": "main", "protected": true, "protection": {}}
+ },
+ "partly": {
+  "rules": [
+   {"type": "required_status_checks", "ruleset_source_type": "Repository", "ruleset_source": "acme/app", "ruleset_id": 9,
+    "parameters": {"strict_required_status_checks_policy": false, "required_status_checks": [{"context": "prove / prove", "integration_id": 15368}, {"context": "lint"}]}}
+  ],
+  "branch": {"name": "main", "protected": true, "protection": {}}
+ },
+ "classic": {
+  "rules": [],
+  "branch": {"name": "main", "protected": true, "protection": {"enabled": true, "required_status_checks": {"enforcement_level": "non_admins", "contexts": ["knos"], "checks": [{"context": "knos", "app_id": null}]}}}
+ },
+ "open": {
+  "rules": [
+   {"type": "workflows", "ruleset_source_type": "Repository", "ruleset_source": "acme/app", "ruleset_id": 3,
+    "parameters": {"workflows": [{"path": ".github/workflows/ci.yml", "repository_id": 123456, "ref": "refs/heads/main"}]}},
+   {"type": "required_status_checks", "ruleset_id": 4, "parameters": {"strict_required_status_checks_policy": true, "required_status_checks": [{"context": "test"}]}}
+  ],
+  "branch": {"name": "main", "protected": false, "protection": {"enabled": false, "required_status_checks": {"enforcement_level": "off", "contexts": []}}}
+ }
+}

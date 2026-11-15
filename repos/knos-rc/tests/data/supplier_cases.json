@@ -1,0 +1,329 @@
+{
+ "about": "paths and what `knos preflight` says of each (tests/test_site_supplier.py writes this)",
+ "cases": [
+  {
+   "name": "paid on a merge",
+   "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\",\"tests/**\"],\"reserve\":7,\"v\":1}",
+   "paths": [
+    {
+     "path": "src/app.py",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "src/new.py",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "README.md",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": ".github/workflows/ci.yml",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.denied-path"
+    },
+    {
+     "path": ".knos/policy.yml",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.denied-path"
+    },
+    {
+     "path": "tests/test_app.py",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "tests/test_mine.py",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "tests/test_app.py",
+     "status": "D",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "tests/conftest.py",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "conftest.py",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "pytest.ini",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tox.ini",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tests/data/case.json",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "tests/data/case.json",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "test/test_x.py",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "docs/tests/readme.md",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "src/test_inline.py",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    }
+   ]
+  },
+  {
+   "name": "paid on its checks",
+   "terms": "{\"accept\":\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"tests\",\"paths\":[],\"reserve\":7,\"v\":1}",
+   "paths": [
+    {
+     "path": "src/app.py",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "src/new.py",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "README.md",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": ".github/workflows/ci.yml",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.denied-path"
+    },
+    {
+     "path": ".knos/policy.yml",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.denied-path"
+    },
+    {
+     "path": "tests/test_app.py",
+     "status": "M",
+     "class": "refused",
+     "code": "judge.protected-test-edited"
+    },
+    {
+     "path": "tests/test_mine.py",
+     "status": "A",
+     "class": "allowed_not_counted",
+     "code": ""
+    },
+    {
+     "path": "tests/test_app.py",
+     "status": "D",
+     "class": "refused",
+     "code": "judge.protected-test-deleted"
+    },
+    {
+     "path": "tests/conftest.py",
+     "status": "M",
+     "class": "refused",
+     "code": "judge.protected-test-edited"
+    },
+    {
+     "path": "conftest.py",
+     "status": "A",
+     "class": "allowed_not_counted",
+     "code": ""
+    },
+    {
+     "path": "pytest.ini",
+     "status": "M",
+     "class": "allowed_not_counted",
+     "code": ""
+    },
+    {
+     "path": "tox.ini",
+     "status": "M",
+     "class": "allowed_not_counted",
+     "code": ""
+    },
+    {
+     "path": "tests/data/case.json",
+     "status": "A",
+     "class": "allowed_not_counted",
+     "code": ""
+    },
+    {
+     "path": "tests/data/case.json",
+     "status": "M",
+     "class": "refused",
+     "code": "judge.protected-test-edited"
+    },
+    {
+     "path": "test/test_x.py",
+     "status": "A",
+     "class": "allowed_not_counted",
+     "code": ""
+    },
+    {
+     "path": "docs/tests/readme.md",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "src/test_inline.py",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    }
+   ]
+  },
+  {
+   "name": "paid on its checks, inside src/",
+   "terms": "{\"accept\":\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"tests\",\"paths\":[\"src/**\"],\"reserve\":7,\"v\":1}",
+   "paths": [
+    {
+     "path": "src/app.py",
+     "status": "M",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "src/new.py",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    },
+    {
+     "path": "README.md",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": ".github/workflows/ci.yml",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.denied-path"
+    },
+    {
+     "path": ".knos/policy.yml",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.denied-path"
+    },
+    {
+     "path": "tests/test_app.py",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tests/test_mine.py",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tests/test_app.py",
+     "status": "D",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tests/conftest.py",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "conftest.py",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "pytest.ini",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tox.ini",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tests/data/case.json",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "tests/data/case.json",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "test/test_x.py",
+     "status": "A",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "docs/tests/readme.md",
+     "status": "M",
+     "class": "refused",
+     "code": "terms.out-of-scope"
+    },
+    {
+     "path": "src/test_inline.py",
+     "status": "A",
+     "class": "allowed",
+     "code": ""
+    }
+   ]
+  }
+ ]
+}

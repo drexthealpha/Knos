@@ -1,0 +1,703 @@
+/* Knos: one stylesheet, no framework, no build step.
+   Type: Bricolage Grotesque for headings, Geist for text, JetBrains Mono for addresses, hashes and code; all three are
+   files of this site (fonts/, with their licence), so the page asks no font host for anything.
+   Colour: paper and ink, one accent; dark follows the reader's system unless the button in the bar says otherwise.
+   Width: nothing may make the page scroll sideways (tests/web/overflow.mjs): long words break, tables and blocks of
+   code scroll inside their own box. */
+@font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/jetbrains-mono.woff2") format("woff2"); font-weight: 100 800; font-style: normal; font-display: swap; }
+
+/* THE DESIGN CONTRACT (0.3.16). Every module uses these names and nothing else:
+   --ink --ink-2 --paper --paper-2 --line --accent --ok --bad --radius --depth-1 --depth-2 --depth-3 --ease --dur-1 --dur-2 --dur-3
+   .k-card (data-tilt) .k-btn (.quiet) .k-kicker .k-num .k-step[data-state] .k-stage .k-reveal .k-table
+   and, from 0.3.17 (the block further down says what each is): .k-skeleton .k-toast .k-enter .k-out .k-sr .k-pal .k-cq
+   Dark is the first palette: the paper is the black of a raven's back, the one accent is the blue of its sheen. The
+   light one follows the reader's system (or the button in the bar). The names of 0.3.15 (--bg --fg --muted --card
+   --soft) stay as other names for the same colours, so a module written before the contract has the new look. */
+:root {
+  --paper: #07080c; --paper-2: #0f1118; --ink: #e9ebef; --ink-2: #a0a7b8; --line: #222634; --soft: #151822;
+  --accent: #93a5ff; --accent-fg: #07080c; --ok: #5fd28f; --bad: #ff8a80; --warn: #e0b354;
+  --light: rgb(255 255 255 / .06);
+  --depth-1: inset 0 1px 0 var(--light), 0 1px 2px rgb(0 0 0 / .5);
+  --depth-2: inset 0 1px 0 var(--light), 0 2px 4px rgb(0 0 0 / .4), 0 12px 28px -8px rgb(0 0 0 / .6);
+  --depth-3: inset 0 1px 0 var(--light), 0 4px 8px rgb(0 0 0 / .4), 0 32px 64px -16px rgb(0 0 0 / .8);
+  --radius: 14px; --ease: cubic-bezier(.2, .8, .2, 1); --dur-1: 120ms; --dur-2: 240ms; --dur-3: 480ms;
+  --bg: var(--paper); --fg: var(--ink); --muted: var(--ink-2); --card: var(--paper-2);
+  --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* the scale: 13 14 16 20 28 40, and a first-screen heading that grows with the window */
+  --s-1: 13px; --s0: 14px; --s1: 16px; --s2: 20px; --s3: 28px; --s4: 40px;
+  --gap: 24px;
+  /* the spacing scale: 4 8 12 16 24 40. A new rule takes its gaps and paddings from it */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 40px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --paper: #f4f4f0; --paper-2: #ffffff; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4; --soft: #eaeae4;
+    --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; --light: rgb(255 255 255 / .9);
+    --depth-1: 0 1px 2px rgb(17 19 26 / .06);
+    --depth-2: 0 1px 2px rgb(17 19 26 / .06), 0 12px 28px -10px rgb(17 19 26 / .16);
+    --depth-3: 0 2px 4px rgb(17 19 26 / .06), 0 32px 64px -20px rgb(17 19 26 / .28);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --paper: #f4f4f0; --paper-2: #ffffff; --ink: #15171c; --ink-2: #555b68; --line: #dcdcd4; --soft: #eaeae4;
+  --accent: #2b3bb5; --accent-fg: #ffffff; --ok: #17703f; --bad: #b3261e; --warn: #8a6100; --light: rgb(255 255 255 / .9);
+  --depth-1: 0 1px 2px rgb(17 19 26 / .06);
+  --depth-2: 0 1px 2px rgb(17 19 26 / .06), 0 12px 28px -10px rgb(17 19 26 / .16);
+  --depth-3: 0 2px 4px rgb(17 19 26 / .06), 0 32px 64px -20px rgb(17 19 26 / .28);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--fg);
+  font: 400 var(--s1)/1.6 var(--text); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+  overflow-wrap: break-word; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+img, video, svg { max-width: 100%; }
+strong, b { font-weight: 600; }
+
+/* ---- the bar ---------------------------------------------------------------------------------------------------- */
+.bar { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 12px max(16px, calc((100% - 1080px) / 2)); border-bottom: 1px solid var(--line); }
+.brand { display: flex; gap: 10px; align-items: center; font: 650 20px/1 var(--head); letter-spacing: -.01em; text-decoration: none; color: var(--fg); }
+/* The wordmark (brand/wordmark.svg, a raven whose body and tail are the K) is drawn as a mask over the text colour, so
+   one file serves light and dark and the button in the bar. Where a browser has no masks, the name stays as text.
+   A window too narrow for the wordmark beside the buttons gets the mark alone (brand/mark.svg). */
+.brand .wordmark { display: none; }
+@supports ((mask-image: url("brand/mark.svg")) or (-webkit-mask-image: url("brand/mark.svg"))) {
+  .brand .wordmark { display: block; height: 38px; aspect-ratio: 3440 / 1268; margin: -4px 0 -4px -3px; background: currentColor;
+    -webkit-mask: url("brand/wordmark.svg") center / contain no-repeat; mask: url("brand/wordmark.svg") center / contain no-repeat;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .brand .name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (max-width: 339px) {
+    .brand .wordmark { aspect-ratio: 1856 / 1756; margin-left: 0; -webkit-mask-image: url("brand/mark.svg"); mask-image: url("brand/mark.svg"); }
+  }
+}
+nav { display: flex; gap: 2px; flex-wrap: wrap; flex: 1; min-width: 0; }
+nav a { padding: 6px 10px; border-radius: 8px; text-decoration: none; color: var(--muted); font-size: var(--s0); font-weight: 500; white-space: nowrap; }
+nav a:hover { color: var(--fg); background: var(--soft); }
+nav a[aria-current="page"] { color: var(--fg); background: var(--soft); }
+nav a[hidden] { display: none; }
+/* "More": the links a first visitor does not need, one press away. Without scripts, and on a phone (where the whole
+   menu is behind one button), its links are plain links of the menu and the button is not shown. */
+.more, .more-list { display: contents; }
+.more-button { display: none; }
+.js .more { display: block; position: relative; }
+.js .more-button { display: block; font: 500 var(--s0)/1.6 var(--text); min-height: 0; padding: 6px 10px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+.js .more-button::after { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 0 3px 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.js .more-button:hover, .js .more.open .more-button, .js .more.current .more-button { color: var(--fg); background: var(--soft); filter: none; }
+.js .more-list { display: none; position: absolute; z-index: 5; top: calc(100% + 6px); right: 0; min-width: 11.5em; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.js .more.open .more-list { display: grid; gap: 2px; }
+.js .more-list a { padding: 8px 10px; }
+.tools { display: flex; gap: 8px; margin-left: auto; }
+#menu { display: none; }
+@media (max-width: 860px) {
+  .bar { gap: 8px 12px; }
+  .brand { margin-right: auto; }
+  .tools { order: 2; margin-left: 0; }
+  nav { order: 3; flex: 0 0 100%; }
+  /* with scripts, a phone folds the menu behind one button; without them it stays open and wraps */
+  .js #menu { display: inline-block; }
+  .js nav { display: none; }
+  .js .bar.open nav { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; padding-top: 4px; }
+  .js .bar.open nav a { padding: 10px; white-space: normal; }
+  .js .more, .js .more-list, .js .more.open .more-list { display: contents; }
+  .js .more-button { display: none; }
+}
+
+/* ---- the page ---------------------------------------------------------------------------------------------------- */
+main { flex: 1; width: 100%; max-width: 1112px; margin: 0 auto; padding: 32px 16px 72px; min-width: 0; }
+.view { max-width: 800px; }
+#view-check { max-width: none; }
+.view[hidden] { display: none; }
+h1, h2, h3, h4 { font-family: var(--head); letter-spacing: -.015em; line-height: 1.2; text-wrap: balance; }
+h1 { font-size: clamp(26px, 3.6vw, 44px); line-height: 1.12; font-weight: 600; letter-spacing: -.025em; margin: 12px 0 20px; max-width: 24em; }
+h2 { font-size: var(--s4); font-weight: 600; margin: 0 0 12px; }
+h3 { font-size: var(--s2); font-weight: 600; margin: 20px 0 6px; }
+h4 { font-size: var(--s1); font-weight: 600; margin: 16px 0 4px; }
+.card > h3:first-child, .card > h2:first-child { margin-top: 0; }
+p { margin: 0 0 12px; }
+.lede { color: var(--muted); font-size: var(--s2); line-height: 1.55; max-width: 62ch; }
+.fine { color: var(--muted); font-size: var(--s0); line-height: 1.55; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin: var(--gap) 0; min-width: 0; }
+@media (min-width: 700px) { .card { padding: 24px 28px; } }
+ul, ol { padding-left: 22px; margin: 8px 0 12px; } li { margin: 6px 0; }
+
+/* ---- forms and buttons --------------------------------------------------------------------------------------------- */
+label { display: block; font-weight: 600; font-size: var(--s0); margin: 14px 0 6px; }
+textarea, input, select { width: 100%; max-width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; }
+textarea:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); border-radius: 10px; }
+input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
+::placeholder { color: var(--muted); opacity: .75; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+button, a.button { font: 600 15px/1.3 var(--text); border: 1px solid var(--accent); border-radius: 10px; padding: 11px 18px; background: var(--accent); color: var(--accent-fg); cursor: pointer; min-height: 44px; text-decoration: none; }
+button:hover, a.button:hover { filter: brightness(1.08); }
+button:focus-visible, a.button:focus-visible { outline-offset: 3px; border-radius: 10px; }
+button.ghost { background: transparent; color: var(--fg); border-color: var(--line); }
+button.ghost:hover { background: var(--soft); filter: none; }
+button.small { padding: 6px 12px; min-height: 36px; font-size: var(--s0); margin: 2px 4px 2px 0; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+form button[type="submit"] { margin-top: 16px; min-width: 9em; }
+button.wide { margin-top: 10px; width: 100%; }
+a.button { display: inline-flex; align-items: center; margin: 8px 8px 0 0; overflow-wrap: anywhere; }
+a.button.quiet { background: transparent; color: var(--fg); border-color: var(--line); }
+a.button.quiet:hover { background: var(--soft); filter: none; }
+#money-form button, #owner-form button { margin-top: 12px; }
+
+/* ---- words that say how something went ------------------------------------------------------------------------------- */
+.status { min-height: 1.5em; font-weight: 600; }
+.status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+.verdict { font: 650 clamp(22px, 5vw, 30px)/1.2 var(--head); letter-spacing: -.02em; margin: 20px 0 8px; overflow-wrap: anywhere; }
+.verdict.bad { color: var(--bad); } .verdict.ok { color: var(--ok); }
+.pill, .devnet { display: inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: var(--s-1); font-weight: 500; color: var(--muted); }
+.devnet { margin: 0 0 8px; max-width: 100%; }
+.devnet::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-right: 7px; vertical-align: 1px; }
+.banner { width: calc(100% - 32px); max-width: 1080px; margin: 12px auto 0; padding: 8px 14px; border: 1px solid var(--warn); border-radius: 10px; background: color-mix(in srgb, var(--warn) 10%, var(--bg)); font-size: var(--s0); }
+.banner p { margin: 4px 0; } .banner a { overflow-wrap: anywhere; }
+.banner details { margin: 4px 0; } .banner summary { font-weight: 400; } .banner details[open] summary { margin-bottom: 6px; }
+
+/* ---- numbers, tables, addresses -------------------------------------------------------------------------------------- */
+.table-wrap, .scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: var(--s-1); }
+td[data-key] { min-width: 12ch; }
+code, kbd, samp, pre, .mono { font-family: var(--code); font-size: .875em; font-variant-ligatures: none; }
+code { background: var(--soft); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.mono { font-size: var(--s-1); word-break: break-all; }
+pre { white-space: pre-wrap; word-break: break-word; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: var(--s-1); line-height: 1.6; max-width: 100%; overflow-x: auto; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: var(--gap) 0; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.stat b { display: block; font: 600 var(--s4)/1.2 var(--head); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.stat span { color: var(--muted); font-size: var(--s0); }
+.stats .split { grid-column: 1 / -1; } .split h2 { margin-top: 10px; }
+.facts, .parts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 10px 0; }
+.facts dt { font-weight: 500; color: var(--muted); } .parts dt { font-weight: 600; }
+.facts dd, .parts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+blockquote { margin: 12px 0; padding: 4px 16px; border-left: 2px solid var(--line); color: var(--muted); }
+details { margin: 8px 0; } summary { cursor: pointer; font-weight: 500; }
+.foot { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; padding: 24px max(16px, calc((100% - 1080px) / 2)); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--s0); }
+.foot span { max-width: 70ch; }
+@media (max-width: 560px) { .row, .parts, .facts { grid-template-columns: minmax(0, 1fr); } .facts dt, .parts dt { margin-top: 6px; } }
+
+/* ---- the first screen -------------------------------------------------------------------------------------------------- */
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 40px; }
+.actions a.button, .actions [type=submit] { margin: 0; }
+.how, .lead-with { list-style: none; padding: 0; margin: 0; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; counter-reset: how; margin: 16px 0 12px; }
+.how > li { counter-increment: how; margin: 0; padding: 20px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.how > li::before { content: counter(how, decimal-leading-zero); font: 500 var(--s-1) var(--code); color: var(--accent); }
+.how h3 { margin: 0; font-size: var(--s2); }
+.how p { margin: 0; color: var(--muted); font-size: 15px; }
+.how .show { font-size: var(--s-1); } .how .adv { margin-top: auto; }
+.how .adv > .k-more { margin: 0; }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 720px; margin: 24px 0; } .sides p { margin: 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); }
+.sides .k-kicker { display: block; } .sides .promise { grid-column: 1/-1; font-weight: 500; }
+.how > li > p { margin-bottom: 8px; }
+.how pre { margin: 0; }
+.receipt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); min-width: 0; }
+.receipt a { min-width: 0; } .receipt code { background: none; padding: 0; }
+/* an order that waits for a person (web/console.js): the facts take the row under its name */
+.receipt.exception { margin: 10px 0; } .receipt.exception .parts { flex-basis: 100%; }
+@media (max-width: 860px) { .how { grid-template-columns: minmax(0, 1fr); } }
+.kicker { font: 500 var(--s-1) var(--code); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 48px 0 8px; }
+.lead-with { counter-reset: lead; border-top: 1px solid var(--line); margin-bottom: 40px; }
+.lead-with > li { counter-increment: lead; margin: 0; display: grid; grid-template-columns: 2.5em minmax(0, 1fr); padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 17px; }
+.lead-with > li::before { content: counter(lead, decimal-leading-zero); font: 500 var(--s-1)/26px var(--code); color: var(--muted); }
+#view-check .lede, #view-check > .fine, #view-check > form { max-width: 800px; }
+.demo { margin: 16px 0; max-width: 800px; } .demo video { width: 100%; max-height: 60vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.demo figcaption { margin-top: 6px; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; } .examples button { margin: 0; }
+.examples-row { margin: 14px 0 6px; } #example-says { min-height: 1.4em; margin: 6px 0 0; }
+
+/* ---- lists of steps in the views ------------------------------------------------------------------------------------- */
+.flow, .routes, .steps { padding-left: 22px; }
+.flow > li, .routes > li { margin: 14px 0; }
+
+/* the passkey wallet in Get paid */
+#passkey textarea { font-family: var(--code); font-size: var(--s-1); word-break: break-all; }
+#pk-form { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 4px; }
+#pk-address-comment { white-space: pre-wrap; word-break: break-all; }
+
+/* records and ranks */
+ul.plain { list-style: none; padding: 0; margin: 6px 0; } ul.plain li { margin: 8px 0; }
+ul.inline { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.badge { display: inline-flex; font: 600 12px/20px Verdana, system-ui, sans-serif; border-radius: 3px; overflow: hidden; color: #fff; }
+.badge span { padding: 0 8px; } .badge-label { background: #555; }
+.badge-message { background: #9f9f9f; } .badge[data-color=brightgreen] .badge-message { background: #3a3; } .badge[data-color=green] .badge-message { background: #4c8a2c; }
+.badge[data-color=yellow] .badge-message, .badge[data-color=orange] .badge-message { background: #b8860b; } .badge[data-color=red] .badge-message { background: #c33; } .badge[data-color=blue] .badge-message { background: #2a6fc0; }
+#rec-readme { white-space: pre-wrap; word-break: break-all; }
+#stm-statement td { vertical-align: top; }
+
+/* a task with no repository */
+#task .pair { border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px 12px; margin: 8px 0; }
+#task-steps > li { margin: 14px 0; } #task-steps pre { margin: 6px 0; }
+#task details textarea { font-family: var(--code); font-size: var(--s-1); }
+#task a.button, #pk-request a.button, #rec-card a { overflow-wrap: anywhere; }
+
+/* fund any issue */
+#any-terms { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
+#anyissue dd, #anyissue li, #any-hash, #any-available { overflow-wrap: anywhere; }
+#any-sentences { margin: 0; padding-left: 18px; }
+
+/* ---- an address or a hash: whole, breaking anywhere, with a button that copies it (web/front.js, initCopy) -------------- */
+[data-copy]:not(button) { overflow-wrap: anywhere; word-break: break-all; }
+button.copy { font: 500 12px/1 var(--text); padding: 4px 8px; min-height: 24px; margin: 0 0 0 6px; vertical-align: 1px; border-radius: 6px; background: transparent; color: var(--muted); border-color: var(--line); }
+button.copy::before { content: "Copy"; }
+button.copy[data-state="done"]::before { content: "Copied"; } button.copy[data-state="failed"]::before { content: "Select it and copy by hand"; }
+button.copy:hover { background: var(--soft); color: var(--fg); filter: none; }
+.banner .upgrade { overflow-wrap: anywhere; }
+
+/* ---- the badge and a payee's record (web/badge.js), in Records --------------------------------------------------------- */
+.paid-badge { display: inline-block; max-width: 100%; line-height: 0; border-radius: 4px; overflow: hidden; }
+.paid-badge svg { display: block; max-width: 100%; height: auto; }
+.paid-badge + .fine { margin-top: 8px; }
+.card .paid-record { background: var(--soft); border-radius: 10px; padding: 16px 18px; margin: 8px 0 16px; }
+.paid-record h3 { font-size: var(--s1); }
+.record-headline { font-size: var(--s2); line-height: 1.4; margin: 10px 0; }
+.record-apart { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 6px 0; }
+.record-apart dt { color: var(--muted); } .record-apart dd { margin: 0; min-width: 0; }
+.record-caveats { color: var(--muted); font-size: var(--s0); margin-bottom: 0; }
+@media (max-width: 560px) { .record-apart { grid-template-columns: minmax(0, 1fr); } .record-apart dt { margin-top: 6px; } }
+
+/* ---- Capabilities (web/capabilities.js) and Install (web/install.js) ------------------------------------------------------ */
+body[data-page="capabilities"] .mount { max-width: 1080px; }
+#capabilities label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 0; }
+#capabilities select { width: auto; min-width: min(100%, 16em); }
+table.capabilities { table-layout: fixed; }
+table.capabilities th:nth-child(1) { width: 46%; } table.capabilities th:nth-child(2) { width: 16%; }
+table.capabilities td:nth-child(2) { font-weight: 500; white-space: nowrap; }
+table.capabilities td:nth-child(3) { font-size: var(--s0); color: var(--muted); overflow-wrap: anywhere; }
+table.capabilities tr[data-stage="implemented"] td:nth-child(2), table.capabilities tr[data-stage="none"] td:nth-child(2) { color: var(--muted); }
+table.capabilities tr[data-stage="tested"] td:nth-child(2) { color: var(--warn); }
+table.capabilities tr[data-stage="deployed"] td:nth-child(2), table.capabilities tr[data-stage="exercised"] td:nth-child(2), table.capabilities tr[data-stage="reproduced"] td:nth-child(2) { color: var(--ok); }
+/* a phone: one capability per block, its stage and evidence under it */
+@media (max-width: 700px) {
+  table.capabilities, table.capabilities tbody, table.capabilities tr, table.capabilities td { display: block; width: auto; }
+  table.capabilities tr:first-child { display: none; }
+  table.capabilities tr { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  table.capabilities td { border: 0; padding: 2px 0; white-space: normal; }
+}
+#install-pr > label { margin-top: 0; }
+#install-result { margin-top: 12px; }
+#install-terms .card { margin: 12px 0; padding: 16px 18px; background: var(--bg); }
+#install-terms pre, #install-file { margin: 8px 0; }
+#install-pr details pre { max-height: 60vh; overflow: auto; }
+
+/* ---- Pricing: the book and the fee worked through its tiers ------------------------------------------------------------ */
+#price-tip { margin-top: 12px; }
+#price-book th[scope="row"] { color: var(--fg); font-size: 15px; font-weight: 600; }
+#price-book td:nth-child(2) { color: var(--muted); }
+/* a phone: one line of the book per block (its name, its unit, its price), so the price is never off the side */
+@media (max-width: 560px) {
+  #price-book thead { display: none; }
+  #price-book, #price-book tbody, #price-book tr, #price-book th, #price-book td { display: block; }
+  #price-book tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #price-book th, #price-book td { border: 0; padding: 1px 0; }
+  #price-book td:nth-child(2) { font-size: var(--s0); }
+}
+#fee-worked td:last-child, #fee-worked th:last-child { text-align: right; padding-right: 0; white-space: nowrap; }
+#fee-worked th[scope="row"], #fee-effective th[scope="row"] { color: var(--fg); font-size: 15px; white-space: nowrap; }
+
+/* ---- pages that other modules fill (Buy, Install, Capabilities, Status, Index, Pilot, Reproduce): shown only once they hold something ----------------- */
+.mount { display: none; max-width: 800px; }
+body[data-page="index"] .mount { max-width: 1080px; }
+body[data-page="index"] .mount > .lede, #index-limits { max-width: 800px; }
+#relay-facts dd ul.plain { margin: 4px 0 0; } #relay-facts .status { min-height: 0; }
+#pilot-honest { border-left: 3px solid var(--warn); padding: 2px 0 2px 12px; max-width: 62ch; }
+#pilot-deliverables > li, #repro-lines > li { margin: 12px 0; }
+#repro-command { margin: 8px 0 0; }
+#index-card h3 { margin-top: 0; } #ib-table td:first-child { white-space: nowrap; }
+body[data-page] .view { display: none; }
+body[data-page="buy"] #buy, body[data-page="install"] #install, body[data-page="capabilities"] #capabilities,
+body[data-page="status"] #status, body[data-page="index"] #index, body[data-page="pilot"] #pilot, body[data-page="reproduce"] #reproduce { display: block; }
+
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+@media print { .bar nav, .tools, .actions { display: none; } body { background: #fff; } }
+
+/* ==== 0.3.16: the contract's classes, and the classes of 0.3.15 given the same look =================================== */
+@supports (transition-timing-function: linear(0, 1)) { :root { --ease: linear(0, .22 6%, .6 16%, .86 26%, .98 36%, 1.03 46%, 1.03 58%, 1.01 74%, 1); } }
+body { background: var(--paper); line-height: 1.55; }
+::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4 { font-weight: 600; letter-spacing: -.02em; }
+h2 { font-size: clamp(var(--s3), 4vw, var(--s4)); line-height: 1.1; letter-spacing: -.03em; margin: 0 0 16px; }
+h3 { font-size: var(--s2); line-height: 1.25; }
+.lede { font-size: var(--s2); line-height: 1.45; max-width: 46ch; }
+html { scroll-padding-top: 112px; }
+main { padding: 0 16px 96px; }
+.view > details + h2, .view > .card + h2 { margin-top: 64px; }
+.view, .mount { padding-top: 48px; }
+.view > h2 + .lede { margin-bottom: 32px; }
+
+/* the bar: stays at the top, the page passes under it */
+.bar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 92%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); view-transition-name: bar; }
+.brand .wordmark { height: 32px; margin: -2px 0 -2px -3px; }
+nav { gap: 4px; }
+nav a, .js .more-button { transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease); }
+nav a[aria-current="page"] { background: var(--soft); box-shadow: var(--depth-1); }
+.js .more-list { background: var(--paper-2); border-radius: var(--radius); box-shadow: var(--depth-3); }
+.js .more.open .more-list { grid-template-columns: 1fr 1fr; min-width: 20em; }
+@supports (transition-behavior: allow-discrete) {
+  .js .more-list { transition: opacity var(--dur-1) var(--ease), translate var(--dur-1) var(--ease), display var(--dur-1) allow-discrete; opacity: 0; translate: 0 -4px; }
+  .js .more.open .more-list { opacity: 1; translate: 0 0; }
+  @starting-style { .js .more.open .more-list { opacity: 0; translate: 0 -4px; } }
+}
+@media (max-width: 860px) {
+  /* a phone: Menu opens the five; More, inside it, opens the rest */
+  .js .bar.open nav { grid-template-columns: 1fr; }
+  .js .more { display: block; position: static; }
+  .js .more-button { display: block; width: 100%; text-align: left; padding: 10px; }
+  .js .more-list, .js .more.open .more-list { position: static; min-width: 0; border: 0; box-shadow: none; background: none; padding: 0 0 0 10px; }
+  .js .more-list { display: none; } .js .more.open .more-list { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
+/* .k-card: a raised surface. [data-tilt]: it leans to the pointer (web/motion.js) and a light follows */
+.k-card, .card, .stat, .how > li { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--depth-1); }
+.k-card { padding: 20px; margin: var(--gap) 0; min-width: 0; position: relative; }
+@media (min-width: 700px) { .k-card { padding: 24px 28px; } }
+.k-card > :first-child { margin-top: 0; } .k-card > :last-child { margin-bottom: 0; }
+[data-tilt] { position: relative; transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)); transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease); }
+[data-tilt]::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity var(--dur-2) var(--ease);
+  background: radial-gradient(22em circle at var(--light-x, 50%) var(--light-y, 0%), color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%); }
+@media (hover: hover) { [data-tilt]:hover { box-shadow: var(--depth-2); } [data-tilt]:hover::after { opacity: 1; } }
+
+/* .k-btn: the one action; .quiet: the second */
+.k-btn, button, a.button { font: 600 15px/1.3 var(--text); border: 1px solid var(--accent); border-radius: 10px; padding: 11px 18px; min-height: 44px; background: var(--accent); color: var(--accent-fg); cursor: pointer; text-decoration: none;
+  box-shadow: var(--depth-1); transition: translate var(--dur-1) var(--ease), filter var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease); }
+.k-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.k-btn:hover { filter: brightness(1.08); box-shadow: var(--depth-2); }
+.k-btn:active, button:active, a.button:active { translate: 0 1px; }
+.k-btn:focus-visible { outline-offset: 3px; border-radius: 10px; }
+.k-btn.quiet, button.ghost, a.button.quiet { background: color-mix(in srgb, var(--paper-2) 70%, transparent); color: var(--ink); border-color: var(--line); }
+.k-btn.quiet:hover { background: var(--soft); filter: none; }
+.more-button, button.copy { box-shadow: none; }
+
+.k-kicker, .kicker { font: 500 var(--s0)/1.4 var(--text); letter-spacing: 0; text-transform: none; color: var(--accent); margin: 0 0 8px; }
+.k-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; white-space: nowrap; }
+.k-table { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+.k-table table { min-width: 100%; }
+th, td { border-bottom-color: var(--line); }
+pre, code, .receipt { background: var(--soft); }
+textarea, input, select { background: var(--paper); transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease); }
+textarea:focus-visible, input:focus-visible, select:focus-visible { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.stat b { font-size: var(--s3); } .verdict { font-weight: 600; }
+
+/* .k-step: a step of a timeline. data-state: idle (not yet), live (now), done, bad (refused: shakes once) */
+.k-step { position: relative; margin: 0; padding: 0 0 20px 32px; list-style: none; color: var(--ink-2); transition: color var(--dur-2) var(--ease); }
+.k-step::before { content: ""; position: absolute; left: 4px; top: 5px; width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--line); background: var(--paper);
+  transition: background-color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease); }
+.k-step::after { content: ""; position: absolute; left: 10px; top: 22px; bottom: 0; width: 1px; background: var(--line); }
+.k-step:last-child::after { display: none; } .k-step:last-child { padding-bottom: 0; }
+.k-step[data-state="live"] { color: var(--ink); } .k-step[data-state="live"]::before { border-color: var(--accent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 22%, transparent); }
+.k-step[data-state="done"] { color: var(--ink); } .k-step[data-state="done"]::before { border-color: var(--ok); background: var(--ok); }
+.k-step[data-state="done"]::after { background: var(--ok); }
+.k-step[data-state="bad"] { color: var(--bad); } .k-step[data-state="bad"]::before { border-color: var(--bad); background: var(--bad); }
+.k-step[data-state="bad"], .k-shake { animation: k-shake var(--dur-2) linear 1; }
+@keyframes k-shake { 20% { translate: -5px 0; } 40% { translate: 5px 0; } 60% { translate: -3px 0; } 80% { translate: 3px 0; } }
+
+/* .k-stage: where depth happens. Its children keep their own z */
+.k-stage { perspective: 1100px; perspective-origin: 50% 40%; }
+.k-stage > * { transform-style: preserve-3d; }
+
+/* .k-reveal: enters once (web/motion.js adds .in). Held back only once motion.js says it will let it go (html.k-motion) */
+.k-motion .k-reveal { opacity: 0; translate: 0 14px; transition: opacity var(--dur-3) var(--ease), translate var(--dur-3) var(--ease); }
+.k-motion .k-reveal.in { opacity: 1; translate: 0 0; }
+
+/* the mark in flight (motion.js raven) and with depth (brand/mark3d.js) */
+.k-raven { display: block; width: 30px; aspect-ratio: 1856 / 1756; background: var(--accent); -webkit-mask: url("brand/mark.svg") center / contain no-repeat; mask: url("brand/mark.svg") center / contain no-repeat; }
+.k-mark3d { display: block; position: relative; width: 100%; aspect-ratio: 1856 / 1756; perspective: 900px; --face: var(--ink); --glint: #ffffff; --edge-near: color-mix(in srgb, var(--accent) 70%, var(--paper)); --edge-far: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
+.k-mark3d .body { position: absolute; inset: 9%; transform-style: preserve-3d; transform: rotateX(var(--turn-x, 6deg)) rotateY(var(--turn-y, -20deg)); transition: transform var(--dur-3) var(--ease), opacity var(--dur-3) var(--ease); }
+@starting-style { .k-mark3d .body { transform: rotateX(18deg) rotateY(-58deg); opacity: 0; } }
+.k-mark3d i { position: absolute; inset: 0; transform: translateZ(var(--z, 0px)); -webkit-mask: url("brand/mark.svg") center / contain no-repeat; mask: url("brand/mark.svg") center / contain no-repeat; }
+.k-mark3d .edge { background: color-mix(in srgb, var(--edge-near) calc(var(--k, 1) * 100%), var(--edge-far)); }
+.k-mark3d .face { background: radial-gradient(circle at var(--light-x, 34%) var(--light-y, 18%), var(--glint), var(--face) 34%, color-mix(in srgb, var(--accent) 55%, var(--face)) 100%); }
+.k-mark3d .shade { -webkit-mask: none; mask: none; opacity: .55; filter: blur(18px); translate: 5% 9%; }
+.k-mark3d .shade::before { content: ""; position: absolute; inset: 0; background: #000; -webkit-mask: url("brand/mark.svg") center / contain no-repeat; mask: url("brand/mark.svg") center / contain no-repeat; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .k-mark3d { --glint: #7d8df0; --edge-near: #8a97ee; --edge-far: #c9cef5; } :root:not([data-theme="dark"]) .k-mark3d .shade { opacity: .22; } }
+:root[data-theme="light"] .k-mark3d { --glint: #7d8df0; --edge-near: #8a97ee; --edge-far: #c9cef5; } :root[data-theme="light"] .k-mark3d .shade { opacity: .22; }
+
+/* ---- the first screen: the sentence, the figure, two buttons, the mark; the demo under them --------------------------- */
+#view-check { padding-top: 0; }
+/* the hero is as tall as the window under the bar, so the first screen is the hero and nothing else: what follows
+   (the demo first) starts at the fold */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; align-items: center; gap: 8px 48px; padding: 24px 0 32px; position: relative; min-height: min(calc(100svh - 65px), 1200px); }
+.hero::before { content: ""; position: absolute; z-index: -1; inset: -64px -16px 0; pointer-events: none;
+  background: radial-gradient(closest-side at 50% 36%, color-mix(in srgb, var(--accent) 20%, transparent), transparent); }
+h1 { font-size: clamp(36px, 5.6vw, 72px); line-height: 1.02; font-weight: 600; letter-spacing: -.04em; margin: 0 0 24px; max-width: 12.5em; }
+.hero-fact { font-size: var(--s2); line-height: 1.4; color: var(--ink-2); max-width: 30em; margin: 0 0 32px; }
+.hero-fact a { color: var(--ink); font-weight: 600; text-decoration-color: var(--accent); }
+.actions { margin: 0; }
+/* the cue at the foot of the hero: more follows, and a press goes to it. It nudges once when the page opens and
+   then is still; for a reader who asked for no movement it never moves */
+.hero-cue { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 12px; line-height: 1; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; padding: 4px 8px; border-radius: var(--radius); }
+.hero-cue::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
+.hero-cue:hover { color: var(--ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-cue::after { animation: k-cue var(--dur-3) var(--ease); }
+  @keyframes k-cue { 50% { transform: translateY(4px) rotate(45deg); } }
+}
+.hero-mark { width: min(64vw, 300px); margin: 72px auto 8px; order: -1; }
+@media (min-width: 900px) {
+  .hero { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); padding: 48px 0; }
+  .hero-mark { width: 100%; max-width: 440px; margin: 0 0 0 auto; order: 0; }
+  .hero::before { background: radial-gradient(closest-side at 79% 50%, color-mix(in srgb, var(--accent) 22%, transparent), transparent); }
+}
+#demo.mount { display: block; max-width: none; padding-top: 22px; margin: 0 0 72px; scroll-margin-top: 80px; }
+#demo.mount[hidden] { display: none; }
+.film { margin: 16px 0; max-width: 800px; } .film video { width: 100%; max-height: 60vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); box-shadow: var(--depth-2); }
+#check-a-pull-request { margin-top: 24px; scroll-margin-top: 80px; }
+.lead-with { margin-bottom: 16px; } .lead-with > li { font-size: var(--s1); }
+
+/* "More": a longer explanation, one press away. The page shows the thing; the words wait here */
+details.k-more { margin: 12px 0; border-top: 1px solid var(--line); }
+details.k-more > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; padding: 10px 0 6px; font-size: var(--s0); font-weight: 500; color: var(--ink-2); border-radius: 6px; }
+details.k-more > summary::-webkit-details-marker { display: none; }
+details.k-more > summary::before { content: ""; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; rotate: -45deg; transition: rotate var(--dur-1) var(--ease); }
+details.k-more[open] > summary::before { rotate: 45deg; }
+details.k-more > summary:hover { color: var(--ink); }
+details.k-more > :not(summary) { max-width: 68ch; }
+details.k-more > .table-wrap, details.k-more > pre { max-width: 100%; }
+@supports (interpolate-size: allow-keywords) {
+  details.k-more { interpolate-size: allow-keywords; }
+  details.k-more::details-content { block-size: 0; overflow: clip; transition: block-size var(--dur-2) var(--ease), content-visibility var(--dur-2) allow-discrete; }
+  details.k-more[open]::details-content { block-size: auto; }
+}
+.foot { border-top-color: var(--line); padding-top: 32px; padding-bottom: 40px; }
+
+/* the pages other modules fill, 0.3.16: the demo is in the first screen; these three are pages */
+body[data-page="shadow"] #shadow, body[data-page="verifier"] #verifier, body[data-page="playground"] #playground { display: block; }
+body[data-page="shadow"] .mount, body[data-page="playground"] .mount { max-width: 1080px; }
+body[data-page="terms"] #terms { display: block; }
+/* the Terms page: a hash is shown whole and wraps inside its card; what was copied and what was found wrap too */
+#terms code, #terms output { overflow-wrap: anywhere; }
+#terms .terms-hash code { white-space: normal; }
+#terms output { display: block; }
+/* .k-objects: the console's four linked objects of one deliverable, a grid that falls to one column on a phone */
+.k-objects { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; margin: 12px 0; }
+.k-objects > .k-card { margin: 0; }
+.k-objects .k-card > * + .k-kicker { margin-top: 12px; }
+/* .k-states: the five named states of a payment, as one timeline of .k-step */
+.k-states { margin: 12px 0; padding: 0; list-style: none; }
+
+/* a change of page morphs (web/front.js, where the browser has view transitions): the bar stays, the page crosses */
+/* A change of page pictures only the bar, the heading and the mark (motion.js morph()): the page itself is drawn live, so
+   the new one is there as soon as it is shown and never waits for a picture of the old one. */
+:root { view-transition-name: none; }
+::view-transition-group(bar) { animation: none; } ::view-transition-old(bar) { display: none; } ::view-transition-new(bar) { animation: none; }
+@keyframes k-out { to { opacity: 0; translate: 0 -8px; } }
+@keyframes k-in { from { opacity: 0; translate: 0 12px; } }
+
+/* ==== 0.3.17: motion that says what changed, and depth from one light ==================================================
+   Added names (the 0.3.16 ones stand): .k-skeleton .k-toast .k-enter .k-out .k-sr .k-pal .k-cq, and from web/motion.js
+   countTo sort toast skeleton leave palette. Every effect below sits behind @supports or a media query and has a
+   still fallback: the state is drawn first, the movement only shows how it got there.
+   The light is above and a little to the left, everywhere: highlights on top edges, shadows fall down. */
+@property --sweep { syntax: "<percentage>"; inherits: false; initial-value: -40%; }
+.k-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.k-num, .k-table td, .k-table th { font-variant-numeric: tabular-nums; }
+
+/* a card lifts under the pointer or the keyboard: translate and a second shadow's opacity, so nothing is laid out again */
+.k-card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--depth-2); opacity: 0; pointer-events: none; transition: opacity var(--dur-2) var(--ease); }
+.k-card { transition: translate var(--dur-2) var(--ease); }
+[data-tilt].k-card { transition: translate var(--dur-2) var(--ease), transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease); }
+@media (hover: hover) { .k-card:hover { translate: 0 -2px; } .k-card:hover::before { opacity: 1; } }
+.k-card:has(:is(a, button, summary):focus-visible) { translate: 0 -2px; } .k-card:has(:is(a, button, summary):focus-visible)::before { opacity: 1; }
+.k-stage > .k-card { transform-origin: 50% 100%; }
+
+/* entry and exit: a thing that appears comes up into place once; .k-out is how it leaves (motion.js leave()) */
+.k-enter, .k-toast { transition: opacity var(--dur-2) var(--ease), translate var(--dur-2) var(--ease); }
+@starting-style { .k-enter, .k-toast { opacity: 0; translate: 0 8px; } }
+.k-enter.k-out, .k-toast.k-out { opacity: 0; translate: 0 -4px; transition-duration: var(--dur-1); }
+
+/* .k-skeleton: the pending state a view shows at once (motion.js skeleton(el)). One sweep of light, then still */
+.k-skeleton { display: grid; gap: 10px; padding: 4px 0; max-width: 520px; }
+.k-skeleton > i { display: block; height: 14px; border-radius: 7px; background: linear-gradient(100deg, var(--soft) calc(var(--sweep) - 20%), var(--line) var(--sweep), var(--soft) calc(var(--sweep) + 20%)); }
+.k-skeleton > i:nth-of-type(1) { width: 62%; height: 20px; } .k-skeleton > i:nth-of-type(3n) { width: 78%; } .k-skeleton > i:last-of-type { width: 44%; }
+@media (prefers-reduced-motion: no-preference) { .k-skeleton > i { animation: k-sweep calc(var(--dur-3) * 2) var(--ease) 1 both; } }
+@keyframes k-sweep { to { --sweep: 140%; } }
+
+/* .k-toast: one line that says what just happened (copied, downloaded, approved), then leaves */
+.k-toasts { position: fixed; z-index: 70; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: grid; justify-items: center; gap: 8px; pointer-events: none; }
+.k-toast { margin: 0; max-width: min(100%, 420px); padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--paper); font: 500 var(--s0)/1.4 var(--text); box-shadow: var(--depth-3); }
+.k-toast::before { content: "✓"; margin-right: 8px; font-weight: 700; } .k-toast[data-kind="bad"]::before { content: "!"; }
+
+/* a line that changed group (motion.js sort()) is marked for a moment by its edge, not by a colour alone */
+.k-moved { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* a section enters with the scroll where the browser can tie an animation to it; elsewhere motion.js lets it in (.in) */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .k-motion.k-scroll .k-reveal:not(.in) { opacity: 1; translate: none; transition: none; animation: k-enter linear both; animation-timeline: view(); animation-range: cover 0 cover 120px; }
+  }
+}
+@keyframes k-enter { from { opacity: 0; translate: 0 14px; } }
+.k-motion.k-scroll .k-reveal.in { transition: none; }
+
+/* a fold opens to its own height where the browser can go to `auto`; its words come in with it */
+@supports (interpolate-size: allow-keywords) {
+  details.k-more::details-content { opacity: 0; transition: block-size var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease), content-visibility var(--dur-2) allow-discrete; }
+  details.k-more[open]::details-content { opacity: 1; }
+}
+
+/* a change of page: the heading and the mark each cross by themselves (motion.js morph() names them for the crossing) */
+@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }
+/* the press is answered in the same frame: the page that is leaving dims while the browser takes its picture of it */
+:root[data-morph] main { opacity: .62; }
+.view.k-enter, .mount.k-enter { transition-duration: var(--dur-2); }
+::view-transition-group(title), ::view-transition-group(mark) { animation-duration: var(--dur-2); animation-timing-function: var(--ease); }
+::view-transition-old(title), ::view-transition-new(title) { height: 100%; width: auto; }
+::view-transition-old(mark), ::view-transition-new(mark) { height: 100%; object-fit: contain; }
+
+/* .k-pal: the command palette (web/palette.js): a dialog in the top layer, a field, a list */
+dialog.k-pal { width: min(560px, calc(100vw - 24px)); max-height: min(520px, calc(100dvh - 96px)); margin: 72px auto auto; padding: 0; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--paper-2); color: var(--ink); box-shadow: var(--depth-3); overflow: hidden; }
+dialog.k-pal[open] { display: flex; flex-direction: column; }
+dialog.k-pal::backdrop { background: rgb(0 0 0 / .5); }
+.k-pal input { flex: none; width: 100%; margin: 0; padding: 16px 18px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: 400 var(--s2)/1.3 var(--text); box-shadow: none; }
+.k-pal input:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius) var(--radius) 0 0; }
+.k-pal ul { flex: 1; min-height: 0; margin: 0; padding: 6px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.k-pal li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding: 10px 12px; min-height: 44px; border-radius: 10px; cursor: pointer; }
+.k-pal li > span { min-width: 0; overflow-wrap: anywhere; } .k-pal li > small { flex: none; color: var(--ink-2); font-size: var(--s-1); }
+.k-pal li[aria-selected="true"] { background: var(--soft); box-shadow: inset 3px 0 0 var(--accent); }
+.k-pal p { flex: none; margin: 0; padding: 8px 18px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: var(--s-1); }
+/* it comes down into place once; it closes at once, so the page behind takes the focus back without a wait */
+dialog.k-pal[open] { transition: opacity var(--dur-1) var(--ease), translate var(--dur-1) var(--ease); }
+@starting-style { dialog.k-pal[open] { opacity: 0; translate: 0 -8px; } }
+@media (max-width: 600px) { dialog.k-pal { margin-top: 12px; max-height: calc(100dvh - 24px); } }
+
+/* .k-cq: a box whose children arrange by its own width, not the window's */
+.k-cq { container-type: inline-size; }
+@container (max-width: 420px) { .k-cq > .k-row { grid-template-columns: minmax(0, 1fr); } }
+.k-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+/* Before web/front.js has run, a browser with scripts on draws the bar and the mark's place as they will be, so nothing
+   moves when it does (layout shift: tests/web/perf.mjs). With scripts off the menu stays open and wraps, as before. */
+@media (scripting: enabled) {
+  :root:not(.js) .more { display: block; } :root:not(.js) .more-list { display: none; }
+  :root:not(.js) .more-button { display: block; font: 500 var(--s0)/1.6 var(--text); min-height: 0; padding: 6px 10px; border: 0; background: none; color: var(--muted); }
+  @media (max-width: 860px) { :root:not(.js) nav { display: none; } :root:not(.js) #menu { display: inline-block; } }
+}
+.hero-mark:empty { aspect-ratio: 1856 / 1756; }
+
+/* a reader who asked for more contrast: full ink for the quiet text, firmer lines, a solid bar */
+@media (prefers-contrast: more) {
+  :root { --ink-2: var(--ink); --line: color-mix(in srgb, var(--ink) 55%, var(--paper)); }
+  .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :focus-visible { outline-width: 3px; }
+}
+@media (forced-colors: active) { .k-pal li[aria-selected="true"] { outline: 2px solid Highlight; } .k-toast { border: 1px solid CanvasText; } }
+
+/* a reader who asked for no movement gets none: states still change, at once */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop, ::details-content { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .k-card, .k-card:hover { translate: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  [data-tilt] { transform: none; }
+}
+@media print { .bar { position: static; } .hero-mark, .hero-cue, .hero::before { display: none; } }
+
+/* ---- one invoice's statement (web/statements.js) and the 0.3.17 pages ---- */
+body[data-page="supplier"] #supplier, body[data-page="invoice-statement"] #invoice-statement, body[data-page="story"] #story { display: block; }
+body[data-page="invoice-statement"] .mount { max-width: 1080px; }
+.k-statement-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.k-statement-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px;margin:16px 0}
+.k-statement .mono{overflow-wrap:anywhere}
+.k-state{font-weight:600;white-space:nowrap}
+.k-state[data-state="agreed"]{color:var(--ok)}
+.k-state[data-state="disputed"],.k-state[data-state="duplicate"]{color:var(--bad)}
+.k-state[data-state="insufficient_evidence"]{color:var(--ink-2)}
+@media print{
+html.k-printing body *{visibility:hidden}
+html.k-printing .k-statement,html.k-printing .k-statement *{visibility:visible}
+html.k-printing .k-statement{position:absolute;inset:0 auto auto 0;width:100%;background:#fff;color:#000}
+html.k-printing .k-statement .no-print{display:none}
+html.k-printing .k-statement .k-table{overflow:visible}
+html.k-printing .k-statement table{font-size:8pt;width:100%}
+html.k-printing .k-statement tr,html.k-printing .k-statement .k-card{break-inside:avoid}
+html.k-printing .k-statement td{overflow-wrap:anywhere}
+}
+
+/* The first screen with the front door on it: the result sits under the control, and on a narrow screen the mark goes
+   below both (moved here from the page's head). */
+.fd-result { order: 2; }
+@media (max-width: 899px) { .hero { align-content: start; } .hero .hero-mark { order: 3; } }
+/* The glow belongs to the sentence and the mark. Once an answer is drawn under them (#front-result, the hero's second
+   row), the glow is held to the first row: an absolutely placed box with a grid row takes that row as its area (the row
+   is made explicit, as an implicit one would not count), so a long list of lines never has the glow running through it. */
+.hero:has(> #front-result:not([hidden])) { grid-template-rows: auto; }
+.hero:has(> #front-result:not([hidden]))::before { grid-row: 1 / 2; grid-column: 1 / -1; }
+/* The first screen's line about a pending upgrade (web/front.js, from upgrades.json): it sits in the hero's own top
+   margin, out of the flow, so it moves nothing when it appears. The margin is wide enough for it at every width. */
+.hero-upgrades { position: absolute; top: 10px; left: 0; z-index: 3; max-width: min(100%, 640px); margin: 0; }
+.hero-upgrades[hidden] { display: none; }
+.hero-upgrades > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 3px 12px; border: 1px solid var(--warn);
+  border-radius: 999px; background: color-mix(in srgb, var(--warn) 10%, var(--paper)); color: var(--ink); font: 500 var(--s-1)/1.4 var(--text); white-space: nowrap; }
+.hero-upgrades > summary::-webkit-details-marker { display: none; }
+.hero-upgrades > summary::before { content: attr(data-count); flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--warn); color: var(--paper);
+  font: 700 11px/18px var(--text); text-align: center; font-variant-numeric: tabular-nums; }
+.hero-upgrades > summary::after { content: ""; flex: none; width: 6px; height: 6px; margin: 0 0 3px 2px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; rotate: 45deg; }
+.hero-upgrades[open] > summary::after { rotate: -135deg; margin: 3px 0 0 2px; }
+.hero-upgrades > summary:hover { background: color-mix(in srgb, var(--warn) 18%, var(--paper)); }
+.hero-upgrades-body { margin-top: 8px; padding: 10px 14px; border: 1px solid var(--warn); border-radius: 10px; background: color-mix(in srgb, var(--warn) 8%, var(--paper-2));
+  box-shadow: var(--depth-3); font-size: var(--s0); max-height: min(60vh, 520px); overflow-y: auto; overscroll-behavior: contain; }
+.hero-upgrades-body p { margin: 6px 0; overflow-wrap: anywhere; }
+@media (max-width: 899px) { .hero { padding-top: 48px; } }
+/* The bar's search button (#search, [data-palette]) opens the command palette (web/motion.js); its keys, Ctrl K, are in
+   its title: the first screen has 40 words and no more. */
+
+/* ---- the first stop of the Tab key: past the bar, to the page's one control. Shown only while it has the focus ---- */
+.k-skip { position: fixed; left: 12px; top: -64px; z-index: 80; padding: 10px 14px; border-radius: var(--radius); background: var(--ink); color: var(--paper); font: 600 var(--s0)/1.2 var(--text); text-decoration: none; transition: top var(--dur-1) var(--ease); }
+.k-skip:focus-visible { top: 12px; }
+
+/* ---- one product: what the pages share (0.3.17, the last pass) ---- */
+/* a fold whose handle is a heading: the heading reads as the handle, at the handle's size */
+details.k-fold > summary > :is(h3, h4) { display: inline; margin: 0; font: inherit; color: inherit; letter-spacing: 0; }
+details.k-fold > summary:has(> :is(h3, h4)) { font-size: var(--s1); font-weight: 600; color: var(--ink); }
+/* a card that holds only folds is a list of handles, not an empty box */
+.card > details.k-more:first-child { border-top: 0; margin-top: 0; } .card > details.k-more:last-child { margin-bottom: 0; }
+/* the Console's first row: where the money is, and the one shortcut */
+.buy-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin: 0 0 var(--sp-5); } .buy-top .devnet { margin: 0; }
+/* a wide table on a phone scrolls in its own box at a width it can be read at */
+@media (max-width: 720px) { #verifier .k-table table { min-width: 640px; } }
+/* the statement's tools sit on one line, whatever element each is */
+.k-statement-tools > * { margin: 0; }
+/* a page's section while its code is on its way */
+.mount > .k-skeleton, .view > .k-skeleton { margin: var(--sp-6) 0; }
+/* the cue is an arrow alone: a target a thumb can hit */
+.hero-cue { padding: 10px 16px; } .hero-cue::after { width: 9px; height: 9px; }
+
+/* 0.3.18: the first screen: a smaller headline, and the week's leaderboard under the box (#hero-board keeps its height from the first paint). */
+.hero h1 { font-size: clamp(30px, 4.3vw, 56px); line-height: 1.04; margin: 0 0 16px; max-width: 13em; }
+.hero .hero-fact { font-size: var(--s1); margin: 0 0 20px; }
+@media (min-width: 900px) { .hero .hero-fact { font-size: var(--s2); } .hero { padding: 40px 0 44px; } }
+.fd .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+.fd .actions .k-btn, form.fd button[type="submit"] { flex: 0 0 auto; width: auto; min-width: 9em; margin-top: 0; }
+.hero-board { margin: 24px 0 0; padding: 14px 16px; min-height: 152px; max-width: 620px; border: 1px solid var(--line); border-radius: var(--radius); background: color-mix(in srgb, var(--paper-2) 78%, transparent); }
+.hero-board[hidden] { display: none; }
+.hero-board .board-strip, .hero-board ol { display: grid; gap: 8px; min-width: 0; list-style: none; margin: 0; padding: 0; } .hero-board .bs-head { margin: 0; min-height: 1.5em; }
+.hero-board li { display: grid; grid-template-columns: 6.5em minmax(60px, 1fr) 5.5em; gap: 10px; align-items: center; min-height: 22px; }
+.bs-sk { display: block; height: 10px; border-radius: 5px; background: var(--line); }
+
+.cap-links { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin: 0 0 20px; } .cap-links .k-btn { margin: 0; }
+
+/* 0.3.18: one look for every fold, button, caption; one primary action a step. */
+main details:not(.k-more, .hero-upgrades) > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; padding: 8px 0 6px; font-size: var(--s0); font-weight: 500; color: var(--ink-2); border-radius: 6px; cursor: pointer; }
+main details:not(.k-more, .hero-upgrades) > summary::-webkit-details-marker { display: none; }
+main details:not(.k-more, .hero-upgrades) > summary::before { content: ""; flex: none; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; rotate: -45deg; transition: rotate var(--dur-1) var(--ease); }
+main details:not(.k-more, .hero-upgrades)[open] > summary::before { rotate: 45deg; }
+main table caption { text-align: left; caption-side: top; padding: 0 0 8px; color: var(--ink-2); font-size: var(--s0); }
+#keyholder .k-step:not([data-state="live"]) .k-btn:not(.quiet), #keyholder .k-step:not([data-state="live"]) button:not(.quiet):not(.ghost):not(.copy) { background: color-mix(in srgb, var(--paper-2) 70%, transparent); color: var(--ink); border-color: var(--line); }
+label.k-btn { margin: 0; vertical-align: middle; }
+.terms-act { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; } .terms-act .k-btn { margin: 0; }
+@media (prefers-reduced-motion: reduce) { main details > summary::before { transition: none; } }

@@ -1,0 +1,3 @@
+# .knos/proof.toml on the default branch: the black-box check of every bounty here runs the pull request's code in this image.
+[judge]
+image = "docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71"

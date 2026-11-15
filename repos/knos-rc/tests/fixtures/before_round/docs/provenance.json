@@ -1,0 +1,35 @@
+{
+ "read": "2026-10-05T17:37:34Z",
+ "cluster": "devnet",
+ "rpc": "https://api.devnet.solana.com",
+ "programs": {
+  "knos_oidc": {
+   "address": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+   "on_chain_hash": "71f8fe068c94ce69262e7fa250f65fc149334d60f6742ad66ac6b91624c0d1df",
+   "proposal": 3,
+   "proposal_status": "Approved"
+  },
+  "knos_pay": {
+   "address": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+   "on_chain_hash": "75d7eb959f75575f6816942ad18a97c93a01690782e2b82ce01d7823c94e0a69",
+   "proposal": 4,
+   "proposal_status": "Approved"
+  },
+  "knos_meter": {
+   "address": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX",
+   "on_chain_hash": "0253391fe7558df98e3f11d66f5902d2e4d7d0ae6606a3156ccadb61e93eacde",
+   "on_chain_commit": "567fd12ca41af083f422b0e3f19e5c26cb8a3144",
+   "on_chain_run": 37190964532,
+   "proposal": 5,
+   "proposal_status": "Approved"
+  },
+  "knos_passkey": {
+   "address": "FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85",
+   "on_chain_hash": "888d3b68d3f80d4e512f58cf566c0e0123f4e92eaccd59c507be8486b59c84d5",
+   "on_chain_commit": "567fd12ca41af083f422b0e3f19e5c26cb8a3144",
+   "on_chain_run": 37190964532,
+   "proposal": 6,
+   "proposal_status": "Approved"
+  }
+ }
+}

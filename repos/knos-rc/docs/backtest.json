@@ -1,0 +1,1037 @@
+{
+ "about": "Of merged pull requests by AI coding agents whose description said tests or CI pass, how many had a failed check at the head commit. A Knos bounty whose terms required that check would not have paid the merge. Written by scripts/backtest.py.",
+ "definitions": {
+  "prs": "pull requests by the listed AI coding agents whose description says tests or CI pass, whose CI had finished at the head commit when it was read, and whose merge state is known",
+  "merged": "of those, the ones that had been merged when they were read; the counts under it are over these",
+  "any_check_failed": "of those, the ones with at least one failed check of any kind at the head commit: a check run that concluded failure, timed_out or startup_failure, or a commit status of failure or error. This includes checks that test nothing (a deploy preview, a title or label gate, a review bot, a coverage threshold, a security scanner). The agent's own session run is not a check. A Knos bounty whose terms require a check that failed does not pay such a merge",
+  "test_or_build_check_failed": "of those, the ones where a failed check is, by its name, a test, build, lint or type-check job and not a deploy preview, a policy gate, a review bot or a scanner (TESTISH_RE and ANCILLARY_RE in scripts/agent_pr_ci.py, on the failed check names each record lists, at most 10). Names decide it: a test job named `check` or `validate` is not counted, a lint or format job is",
+  "cancelled_no_failure": "no failed check, but one that was cancelled, waits for a maintainer's approval or went stale (the index's class `other`). A Knos bounty that requires such a check counts it as failed; they are not in any_check_failed",
+  "fate": "what had become of the pull requests when they were read, with a failed check and without one: merged, closed without a merge, or still open",
+  "time_open": "hours from a pull request's creation to its merge or close, for those that were closed, with a failed check and without one; those still open are counted, not timed",
+  "share, ci95": "the count over its total, and the 95% Wilson interval of that share",
+  "reviewed": "the same counts after a second reading of each merged pull request with a failed check (docs/index_review.json, rules in docs/INDEX_METHOD.md); the denominator stays, since the others were not read again"
+ },
+ "method": {
+  "version": 1,
+  "file": "docs/INDEX_METHOD.md",
+  "sha256": "8502cc17977108607d404737696a62cb6e69fa9c535beedce1abd3a61fa5dbfb"
+ },
+ "sample": {
+  "source": "docs/agent_pr_ci.json",
+  "read": "2026-10-01",
+  "created": [
+   "2026-07-03",
+   "2026-09-30"
+  ],
+  "claimed_prs": 349,
+  "with_finished_ci": 303,
+  "prs": 303,
+  "merged": {
+   "overall": {
+    "prs": 241,
+    "any_check_failed": {
+     "prs": 30,
+     "share": 0.1245,
+     "ci95": [
+      0.0886,
+      0.1721
+     ]
+    },
+    "test_or_build_check_failed": {
+     "prs": 16,
+     "share": 0.0664,
+     "ci95": [
+      0.0413,
+      0.1051
+     ]
+    },
+    "cancelled_no_failure": {
+     "prs": 6,
+     "share": 0.0249,
+     "ci95": [
+      0.0115,
+      0.0532
+     ]
+    }
+   },
+   "agents": {
+    "copilot": {
+     "prs": 44,
+     "any_check_failed": {
+      "prs": 15,
+      "share": 0.3409,
+      "ci95": [
+       0.2188,
+       0.4886
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 7,
+      "share": 0.1591,
+      "ci95": [
+       0.0793,
+       0.2937
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 1,
+      "share": 0.0227,
+      "ci95": [
+       0.004,
+       0.1181
+      ]
+     }
+    },
+    "devin": {
+     "prs": 43,
+     "any_check_failed": {
+      "prs": 5,
+      "share": 0.1163,
+      "ci95": [
+       0.0507,
+       0.2448
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 3,
+      "share": 0.0698,
+      "ci95": [
+       0.024,
+       0.1861
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 1,
+      "share": 0.0233,
+      "ci95": [
+       0.0041,
+       0.1206
+      ]
+     }
+    },
+    "claude-bot": {
+     "prs": 85,
+     "any_check_failed": {
+      "prs": 5,
+      "share": 0.0588,
+      "ci95": [
+       0.0254,
+       0.1304
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 3,
+      "share": 0.0353,
+      "ci95": [
+       0.0121,
+       0.0987
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 1,
+      "share": 0.0118,
+      "ci95": [
+       0.0021,
+       0.0637
+      ]
+     }
+    },
+    "claude-code": {
+     "prs": 22,
+     "any_check_failed": {
+      "prs": 2,
+      "share": 0.0909,
+      "ci95": [
+       0.0253,
+       0.2782
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.1487
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.1487
+      ]
+     }
+    },
+    "codex": {
+     "prs": 47,
+     "any_check_failed": {
+      "prs": 3,
+      "share": 0.0638,
+      "ci95": [
+       0.0219,
+       0.1716
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 3,
+      "share": 0.0638,
+      "ci95": [
+       0.0219,
+       0.1716
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 3,
+      "share": 0.0638,
+      "ci95": [
+       0.0219,
+       0.1716
+      ]
+     }
+    }
+   }
+  },
+  "fate": {
+   "any_check_failed": {
+    "prs": 55,
+    "merged": 30,
+    "closed_unmerged": 13,
+    "open": 12,
+    "merged_share": 0.5455,
+    "merged_ci95": [
+     0.4152,
+     0.6697
+    ]
+   },
+   "no_check_failed": {
+    "prs": 248,
+    "merged": 211,
+    "closed_unmerged": 16,
+    "open": 21,
+    "merged_share": 0.8508,
+    "merged_ci95": [
+     0.8011,
+     0.8898
+    ]
+   }
+  },
+  "time_open": null,
+  "without_author_owned_repos": {
+   "prs": 258,
+   "merged": {
+    "overall": {
+     "prs": 199,
+     "any_check_failed": {
+      "prs": 29,
+      "share": 0.1457,
+      "ci95": [
+       0.1034,
+       0.2015
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 16,
+      "share": 0.0804,
+      "ci95": [
+       0.0501,
+       0.1266
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 6,
+      "share": 0.0302,
+      "ci95": [
+       0.0139,
+       0.0642
+      ]
+     }
+    },
+    "agents": {
+     "copilot": {
+      "prs": 44,
+      "any_check_failed": {
+       "prs": 15,
+       "share": 0.3409,
+       "ci95": [
+        0.2188,
+        0.4886
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 7,
+       "share": 0.1591,
+       "ci95": [
+        0.0793,
+        0.2937
+       ]
+      },
+      "cancelled_no_failure": {
+       "prs": 1,
+       "share": 0.0227,
+       "ci95": [
+        0.004,
+        0.1181
+       ]
+      }
+     },
+     "devin": {
+      "prs": 43,
+      "any_check_failed": {
+       "prs": 5,
+       "share": 0.1163,
+       "ci95": [
+        0.0507,
+        0.2448
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 3,
+       "share": 0.0698,
+       "ci95": [
+        0.024,
+        0.1861
+       ]
+      },
+      "cancelled_no_failure": {
+       "prs": 1,
+       "share": 0.0233,
+       "ci95": [
+        0.0041,
+        0.1206
+       ]
+      }
+     },
+     "claude-bot": {
+      "prs": 85,
+      "any_check_failed": {
+       "prs": 5,
+       "share": 0.0588,
+       "ci95": [
+        0.0254,
+        0.1304
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 3,
+       "share": 0.0353,
+       "ci95": [
+        0.0121,
+        0.0987
+       ]
+      },
+      "cancelled_no_failure": {
+       "prs": 1,
+       "share": 0.0118,
+       "ci95": [
+        0.0021,
+        0.0637
+       ]
+      }
+     },
+     "claude-code": {
+      "prs": 7,
+      "any_check_failed": {
+       "prs": 1,
+       "share": 0.1429,
+       "ci95": [
+        0.0257,
+        0.5131
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 0,
+       "share": 0.0,
+       "ci95": [
+        0.0,
+        0.3543
+       ]
+      },
+      "cancelled_no_failure": {
+       "prs": 0,
+       "share": 0.0,
+       "ci95": [
+        0.0,
+        0.3543
+       ]
+      }
+     },
+     "codex": {
+      "prs": 20,
+      "any_check_failed": {
+       "prs": 3,
+       "share": 0.15,
+       "ci95": [
+        0.0524,
+        0.3604
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 3,
+       "share": 0.15,
+       "ci95": [
+        0.0524,
+        0.3604
+       ]
+      },
+      "cancelled_no_failure": {
+       "prs": 3,
+       "share": 0.15,
+       "ci95": [
+        0.0524,
+        0.3604
+       ]
+      }
+     }
+    }
+   },
+   "fate": {
+    "any_check_failed": {
+     "prs": 53,
+     "merged": 29,
+     "closed_unmerged": 12,
+     "open": 12,
+     "merged_share": 0.5472,
+     "merged_ci95": [
+      0.4145,
+      0.6734
+     ]
+    },
+    "no_check_failed": {
+     "prs": 205,
+     "merged": 170,
+     "closed_unmerged": 16,
+     "open": 19,
+     "merged_share": 0.8293,
+     "merged_ci95": [
+      0.7718,
+      0.8746
+     ]
+    }
+   },
+   "time_open": null
+  }
+ },
+ "reviewed": {
+  "source": "docs/index_review.json",
+  "read": "2026-10-09",
+  "method_version": 1,
+  "reread": 30,
+  "kept": 19,
+  "excluded": 11,
+  "excluded_by_rule": {
+   "R1": 1,
+   "R2": 4,
+   "R3": 4,
+   "R4": 3,
+   "R5": 1
+  },
+  "overall": {
+   "prs": 241,
+   "test_or_build_check_failed": {
+    "prs": 9,
+    "share": 0.0373,
+    "ci95": [
+     0.0198,
+     0.0694
+    ]
+   },
+   "any_check_failed": {
+    "prs": 19,
+    "share": 0.0788,
+    "ci95": [
+     0.051,
+     0.1198
+    ]
+   },
+   "without_template_boxes": {
+    "test_or_build_check_failed": {
+     "prs": 7,
+     "share": 0.029,
+     "ci95": [
+      0.0141,
+      0.0587
+     ]
+    },
+    "any_check_failed": {
+     "prs": 16,
+     "share": 0.0664,
+     "ci95": [
+      0.0413,
+      0.1051
+     ]
+    }
+   }
+  },
+  "agents": {
+   "copilot": {
+    "prs": 44,
+    "test_or_build_check_failed": {
+     "prs": 4,
+     "share": 0.0909,
+     "ci95": [
+      0.0359,
+      0.2116
+     ]
+    },
+    "any_check_failed": {
+     "prs": 12,
+     "share": 0.2727,
+     "ci95": [
+      0.1635,
+      0.4185
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 2,
+      "share": 0.0455,
+      "ci95": [
+       0.0126,
+       0.1514
+      ]
+     },
+     "any_check_failed": {
+      "prs": 9,
+      "share": 0.2045,
+      "ci95": [
+       0.1115,
+       0.345
+      ]
+     }
+    }
+   },
+   "devin": {
+    "prs": 43,
+    "test_or_build_check_failed": {
+     "prs": 2,
+     "share": 0.0465,
+     "ci95": [
+      0.0128,
+      0.1546
+     ]
+    },
+    "any_check_failed": {
+     "prs": 3,
+     "share": 0.0698,
+     "ci95": [
+      0.024,
+      0.1861
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 2,
+      "share": 0.0465,
+      "ci95": [
+       0.0128,
+       0.1546
+      ]
+     },
+     "any_check_failed": {
+      "prs": 3,
+      "share": 0.0698,
+      "ci95": [
+       0.024,
+       0.1861
+      ]
+     }
+    }
+   },
+   "claude-bot": {
+    "prs": 85,
+    "test_or_build_check_failed": {
+     "prs": 2,
+     "share": 0.0235,
+     "ci95": [
+      0.0065,
+      0.0818
+     ]
+    },
+    "any_check_failed": {
+     "prs": 2,
+     "share": 0.0235,
+     "ci95": [
+      0.0065,
+      0.0818
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 2,
+      "share": 0.0235,
+      "ci95": [
+       0.0065,
+       0.0818
+      ]
+     },
+     "any_check_failed": {
+      "prs": 2,
+      "share": 0.0235,
+      "ci95": [
+       0.0065,
+       0.0818
+      ]
+     }
+    }
+   },
+   "claude-code": {
+    "prs": 22,
+    "test_or_build_check_failed": {
+     "prs": 0,
+     "share": 0.0,
+     "ci95": [
+      0.0,
+      0.1487
+     ]
+    },
+    "any_check_failed": {
+     "prs": 1,
+     "share": 0.0455,
+     "ci95": [
+      0.0081,
+      0.218
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.1487
+      ]
+     },
+     "any_check_failed": {
+      "prs": 1,
+      "share": 0.0455,
+      "ci95": [
+       0.0081,
+       0.218
+      ]
+     }
+    }
+   },
+   "codex": {
+    "prs": 47,
+    "test_or_build_check_failed": {
+     "prs": 1,
+     "share": 0.0213,
+     "ci95": [
+      0.0038,
+      0.1111
+     ]
+    },
+    "any_check_failed": {
+     "prs": 1,
+     "share": 0.0213,
+     "ci95": [
+      0.0038,
+      0.1111
+     ]
+    },
+    "without_template_boxes": {
+     "test_or_build_check_failed": {
+      "prs": 1,
+      "share": 0.0213,
+      "ci95": [
+       0.0038,
+       0.1111
+      ]
+     },
+     "any_check_failed": {
+      "prs": 1,
+      "share": 0.0213,
+      "ci95": [
+       0.0038,
+       0.1111
+      ]
+     }
+    }
+   }
+  }
+ },
+ "index": {
+  "source": "index.json",
+  "date": "2026-10-02",
+  "window": [
+   "2026-06-04",
+   "2026-10-01"
+  ],
+  "root": "9876fdad603525385201166bc4bf2e98294608af0ca8b09d36793fa257825110",
+  "listed_prs": 2431,
+  "merge_state_known": 72,
+  "merge_state_from": "docs/agent_pr_ci.json, for the pull requests in both",
+  "prs": 72,
+  "merged": {
+   "overall": {
+    "prs": 50,
+    "any_check_failed": {
+     "prs": 9,
+     "share": 0.18,
+     "ci95": [
+      0.0977,
+      0.308
+     ]
+    },
+    "test_or_build_check_failed": {
+     "prs": 7,
+     "share": 0.14,
+     "ci95": [
+      0.0695,
+      0.2619
+     ]
+    },
+    "cancelled_no_failure": {
+     "prs": 5,
+     "share": 0.1,
+     "ci95": [
+      0.0435,
+      0.2136
+     ]
+    }
+   },
+   "agents": {
+    "copilot": {
+     "prs": 19,
+     "any_check_failed": {
+      "prs": 6,
+      "share": 0.3158,
+      "ci95": [
+       0.1536,
+       0.5399
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 4,
+      "share": 0.2105,
+      "ci95": [
+       0.0851,
+       0.4333
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.1682
+      ]
+     }
+    },
+    "devin": {
+     "prs": 3,
+     "any_check_failed": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 1,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ]
+     }
+    },
+    "claude-bot": {
+     "prs": 8,
+     "any_check_failed": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3244
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 0,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3244
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 1,
+      "share": 0.125,
+      "ci95": [
+       0.0224,
+       0.4709
+      ]
+     }
+    },
+    "claude-code": {
+     "prs": 0,
+     "any_check_failed": {
+      "prs": 0,
+      "share": null,
+      "ci95": null
+     },
+     "test_or_build_check_failed": {
+      "prs": 0,
+      "share": null,
+      "ci95": null
+     },
+     "cancelled_no_failure": {
+      "prs": 0,
+      "share": null,
+      "ci95": null
+     }
+    },
+    "codex": {
+     "prs": 20,
+     "any_check_failed": {
+      "prs": 3,
+      "share": 0.15,
+      "ci95": [
+       0.0524,
+       0.3604
+      ]
+     },
+     "test_or_build_check_failed": {
+      "prs": 3,
+      "share": 0.15,
+      "ci95": [
+       0.0524,
+       0.3604
+      ]
+     },
+     "cancelled_no_failure": {
+      "prs": 3,
+      "share": 0.15,
+      "ci95": [
+       0.0524,
+       0.3604
+      ]
+     }
+    }
+   }
+  },
+  "fate": {
+   "any_check_failed": {
+    "prs": 19,
+    "merged": 9,
+    "closed_unmerged": 5,
+    "open": 5,
+    "merged_share": 0.4737,
+    "merged_ci95": [
+     0.2733,
+     0.6829
+    ]
+   },
+   "no_check_failed": {
+    "prs": 53,
+    "merged": 41,
+    "closed_unmerged": 5,
+    "open": 7,
+    "merged_share": 0.7736,
+    "merged_ci95": [
+     0.6447,
+     0.8655
+    ]
+   }
+  },
+  "time_open": null
+ },
+ "cannot_show": [
+  "How long pull requests stayed open: docs/agent_pr_ci.json records when each was created and whether it was open, closed or merged when it was read, not when it was closed or merged, and index.json records neither. `backtest.py fetch` reads those times from GitHub",
+  "The merges of the whole index: index.json lists no merge state. It is known for 72 of its 2,431 pull requests (docs/agent_pr_ci.json, for the pull requests in both)",
+  "Whether the check was failing at the moment of the merge: CI was read at the head commit on the day of the scan. A check re-run later shows its last result, and a check can fail after a merge",
+  "Why a check failed, or whether the maintainer saw it: a failed check is GitHub's record, not a judgment. any_check_failed counts deploy previews and label gates; test_or_build_check_failed is decided from check names",
+  "Agent pull requests in general: these are pull requests whose description claims tests or CI pass, the newest per agent and date window that GitHub's search returned, not a random sample",
+  "What a bounty would have changed: none of these pull requests had one, so which checks its terms would have required is not known. This counts merges with a failed check, not payments refused"
+ ],
+ "version2_draft": {
+  "status": "draft: version 1 stays the method of record; nothing here changes its counts",
+  "funnel": [
+   {
+    "step": "searched",
+    "prs": 833,
+    "of_previous": null,
+    "means": "search hits GitHub returned for the five agents and the claim words"
+   },
+   {
+    "step": "claimed",
+    "prs": 349,
+    "of_previous": 0.419,
+    "means": "a line of the description says tests or CI pass (the claim)"
+   },
+   {
+    "step": "finished_ci",
+    "prs": 303,
+    "of_previous": 0.8682,
+    "means": "CI had finished at the head commit when read"
+   },
+   {
+    "step": "merged",
+    "prs": 241,
+    "of_previous": 0.7954,
+    "means": "merged when read: the denominator"
+   },
+   {
+    "step": "any_check_failed",
+    "prs": 30,
+    "of_previous": 0.1245,
+    "means": "merged with a failed check of any kind (recorded scan)"
+   },
+   {
+    "step": "reread_kept",
+    "prs": 19,
+    "of_previous": 0.6333,
+    "means": "still counted after the second reading of those (rules R1-R5)"
+   },
+   {
+    "step": "strict",
+    "prs": 9,
+    "of_previous": 0.4737,
+    "means": "of those, a test, build, lint or type check failed: the lead number"
+   }
+  ],
+  "clustered": {
+   "reviewed_strict": {
+    "prs": 9,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 9,
+    "most_from_one_repository": 1,
+    "wilson_ci95": [
+     0.0198,
+     0.0694
+    ],
+    "design_effect": 1.079,
+    "effective_n": 223.3,
+    "clustered_wilson_ci95": [
+     0.0193,
+     0.071
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0152,
+     0.0644
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   },
+   "reviewed_any": {
+    "prs": 19,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 15,
+    "most_from_one_repository": 4,
+    "wilson_ci95": [
+     0.051,
+     0.1198
+    ],
+    "design_effect": 1.876,
+    "effective_n": 128.5,
+    "clustered_wilson_ci95": [
+     0.0435,
+     0.1386
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0388,
+     0.1336
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   },
+   "recorded_strict": {
+    "prs": 16,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 13,
+    "most_from_one_repository": 2,
+    "wilson_ci95": [
+     0.0413,
+     0.1051
+    ],
+    "design_effect": 1.476,
+    "effective_n": 163.3,
+    "clustered_wilson_ci95": [
+     0.0373,
+     0.1154
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0317,
+     0.1065
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   },
+   "recorded_any": {
+    "prs": 30,
+    "of": 241,
+    "repositories": 146,
+    "repositories_with_one": 21,
+    "most_from_one_repository": 4,
+    "wilson_ci95": [
+     0.0886,
+     0.1721
+    ],
+    "design_effect": 1.973,
+    "effective_n": 122.1,
+    "clustered_wilson_ci95": [
+     0.0772,
+     0.1947
+    ],
+    "cluster_bootstrap_ci95": [
+     0.0717,
+     0.1886
+    ],
+    "bootstrap": {
+     "seed": 20261010,
+     "resamples": 2000
+    }
+   }
+  },
+  "reread_negatives": {
+   "protocol": "docs/INDEX_METHOD.md, version 2 draft, 'Reading the negatives again'",
+   "population": 232,
+   "run": {
+    "read": "2026-10-10",
+    "seed": 20261010,
+    "negatives": {
+     "prs": 20,
+     "consistent": 16,
+     "inconclusive": 2,
+     "unreadable": 2,
+     "flipped": 0
+    },
+    "controls": {
+     "prs": 5,
+     "consistent": 0,
+     "inconclusive": 4,
+     "unreadable": 1,
+     "flipped": 0
+    },
+    "flipped_share_ci95": [
+     0.0,
+     0.1936
+    ],
+    "says": "0 of 20 negatives flipped; 16 read as before, 2 could not be decided without logging in, and 2 pages did not show the merge or the checks"
+   }
+  },
+  "comparison_group": {
+   "status": "planned, not run",
+   "plan": "docs/INDEX_METHOD.md, version 2 draft, 'A comparison group of pull requests by people'"
+  }
+ }
+}

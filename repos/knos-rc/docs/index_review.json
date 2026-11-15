@@ -1,0 +1,848 @@
+{
+ "about": "A second reading of the 30 merged pull requests that docs/backtest.json counts as having a failed check. The recorded scan (docs/agent_pr_ci.json, read 2026-10-01) is not changed: this file is a layer over it, and scripts/backtest.py computes the reviewed counts from both. The rules are in docs/INDEX_METHOD.md.",
+ "read": "2026-10-09",
+ "how": "each pull request page on github.com, and its commits page where the main page did not load whole; default branches from each repository's main page",
+ "method_version": 1,
+ "rules": {
+  "R1": "not merged when read again: excluded",
+  "R2": "merged into a branch other than the repository's default branch: excluded",
+  "R3": "the claim does not cover the check that failed (a template box limited to required checks when the failed check is not required; a box about manual tests; a description that itself reports the failing job): excluded",
+  "R4": "the page read again shows every check passed and no failed one, so the recorded failure cannot be confirmed: excluded",
+  "R5": "the page cannot be read: excluded",
+  "kept": "a box the agent ticked counts as the agent's claim, template or not; the claim kind is recorded so a reader can drop template boxes too (`template_box`; backtest.json `reviewed.without_template_boxes`)"
+ },
+ "not_reread": "The 211 merged pull requests with no failed check were not read again. The denominator stays 241: these exclusions only lower the counts.",
+ "prs": [
+  {
+   "pr": "EchoCog/azurechodatastudio#63",
+   "url": "https://github.com/EchoCog/azurechodatastudio/pull/63",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] All existing tests pass (`npm run test`)",
+    "failed_checks": [
+     "Check metadata"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-07-22",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked template box",
+    "template_box": true,
+    "checks": "11 of 12 checks passed; the failed one not named"
+   },
+   "finding": "Merged into the default branch by the owner. The claim is a box of the repository's pull request template that the agent ticked.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "spaja86/AI-IQ-SUPER-PLATFORMA#877",
+   "url": "https://github.com/spaja86/AI-IQ-SUPER-PLATFORMA/pull/877",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `npm run test:smoke` passes",
+    "failed_checks": [
+     "Workers Builds: digitalnaindustrija86",
+     "Vercel – ai-iq-super-platforma-cd31",
+     "Vercel – ai-iq-super-platforma"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-01",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked box, others left unticked",
+    "template_box": false,
+    "checks": "1 of 4 checks passed; Cloudflare Workers deployment failed"
+   },
+   "finding": "Merged into the default branch. The agent ticked this box and left others unticked. The failed checks are deployments, so it is not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "EchoCog/azurechodatastudio#99",
+   "url": "https://github.com/EchoCog/azurechodatastudio/pull/99",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] All existing tests pass (`npm run test`)",
+    "failed_checks": [
+     "Check metadata",
+     "Linux",
+     "Compilation, Unit and Integration Tests",
+     "Hygiene and Layering",
+     "Windows",
+     "Hygiene and Layering",
+     "macOS"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-14",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked template box",
+    "template_box": true,
+    "checks": "5 of 12 checks passed"
+   },
+   "finding": "Merged into the default branch. The agent ticked the template box \"All existing tests pass\" while compilation and unit test jobs had failed.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "spaja86/AI-IQ-SUPER-PLATFORMA#902",
+   "url": "https://github.com/spaja86/AI-IQ-SUPER-PLATFORMA/pull/902",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `npm test` passes",
+    "failed_checks": [
+     "Workers Builds: digitalnaindustrija86",
+     "Vercel – ai-iq-super-platforma-cd31",
+     "Vercel – ai-iq-super-platforma"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-12",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked box; the body also says 72 new tests pass",
+    "template_box": false,
+    "checks": "1 of 4 checks passed; Cloudflare Workers deployment failed"
+   },
+   "finding": "Merged into the default branch. Deployment checks only: not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "percona/pmm-extensions#1335",
+   "url": "https://github.com/percona/pmm-extensions/pull/1335",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- `pytest tests/sidecar/` passes (docstring-only edits, assertions unchanged).",
+    "failed_checks": [
+     "ci-success",
+     "ci-success",
+     "label-gate"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-12",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "38 of 47 checks passed"
+   },
+   "finding": "Merged into the default branch. The failed checks are a CI roll-up and a label gate: not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "spaja86/AI-IQ-SUPER-PLATFORMA#947",
+   "url": "https://github.com/spaja86/AI-IQ-SUPER-PLATFORMA/pull/947",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `npm test` passes",
+    "failed_checks": [
+     "Workers Builds: digitalnaindustrija86",
+     "Vercel – ai-iq-super-platforma-cd31",
+     "Vercel – ai-iq-super-platforma"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-21",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked box; the body gives its own count",
+    "template_box": false,
+    "checks": "1 of 4 checks passed; Cloudflare Workers deployment failed"
+   },
+   "finding": "Merged into the default branch. Deployment checks only: not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "stardustsuperwizard/mikeys_game_bones-rules-moba#99",
+   "url": "https://github.com/stardustsuperwizard/mikeys_game_bones-rules-moba/pull/99",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] Existing tests pass — **PASSED** (all prior combatant tests still pass with new MobaDamage API)",
+    "failed_checks": [
+     "Review Task"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-22",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words (\"PASSED\")",
+    "template_box": false,
+    "checks": "3 of 5 checks passed"
+   },
+   "finding": "Merged into the default branch. The failed check is a review task: not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "InflowFInance/inflow-stellar#11",
+   "url": "https://github.com/InflowFInance/inflow-stellar/pull/11",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] All new and existing tests passed locally",
+    "failed_checks": [
+     "Analyze & Verify Flutter Code"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-21",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked template box",
+    "template_box": true,
+    "checks": "4 of 5 checks passed"
+   },
+   "finding": "Merged into the default branch. The agent ticked the template box \"All new and existing tests passed locally\"; the Flutter analyse-and-verify job had failed.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "rakshas-oss/YuKKi-OS#21",
+   "url": "https://github.com/rakshas-oss/YuKKi-OS/pull/21",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `cargo test --lib` passes",
+    "failed_checks": [
+     "Linux (armv7-unknown-linux-gnueabihf)",
+     "WebAssembly",
+     "Linux (armv7-unknown-linux-gnueabihf)",
+     "WebAssembly",
+     "Security Audit",
+     "Rustfmt",
+     "Clippy",
+     "License Compliance",
+     "Dependency Vulnerability Audit",
+     "Clippy"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-31",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked box in a checklist the agent wrote",
+    "template_box": false,
+    "checks": "39 of 51 checks passed"
+   },
+   "finding": "Merged into the default branch. Rustfmt, Clippy and two build targets had failed.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "rakshas-oss/YuKKi-OS#18",
+   "url": "https://github.com/rakshas-oss/YuKKi-OS/pull/18",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `cargo test --lib` passes",
+    "failed_checks": [
+     "Linux (armv7-unknown-linux-gnueabihf)",
+     "WebAssembly",
+     "Clippy",
+     "Rustfmt",
+     "Security Audit"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-31",
+    "base": "v6.6.6",
+    "default_branch": "main",
+    "claim": "ticked box in a checklist the agent wrote",
+    "template_box": false,
+    "checks": "12 of 17 checks passed"
+   },
+   "finding": "Merged into the branch v6.6.6, not the default branch main.",
+   "decision": "excluded",
+   "rules": [
+    "R2"
+   ]
+  },
+  {
+   "pr": "AnjanaKavinda/crypto-trading-ai-agent-platform#254",
+   "url": "https://github.com/AnjanaKavinda/crypto-trading-ai-agent-platform/pull/254",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `python -m pytest tests/backend` — **167 passed, 1 non-blocking third-party deprecation warning**",
+    "failed_checks": [
+     "lifecycle",
+     "track-review",
+     "governance-gate"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-25",
+    "base": "dev",
+    "default_branch": "dev",
+    "claim": "ticked box with the agent's own count (167 passed)",
+    "template_box": false,
+    "checks": "3 of 5 checks passed"
+   },
+   "finding": "Merged into the default branch dev. The failed checks are governance gates: not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "zcaudate-xyz/foundation-base#454",
+   "url": "https://github.com/zcaudate-xyz/foundation-base/pull/454",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] Bench files regenerated when a seed changed (`lein seedgen benchadd ...`), and both canonical and generated target tests pass",
+    "failed_checks": [
+     "Run affected Clojure tests"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-20",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "box shown unticked today",
+    "template_box": false,
+    "checks": "13 checks passed; none failing"
+   },
+   "finding": "The page today shows the box unticked, says the targeted tests are still pending, and shows every check passed. Neither the claim nor the failure can be confirmed today.",
+   "decision": "excluded",
+   "rules": [
+    "R4"
+   ]
+  },
+  {
+   "pr": "zcaudate-xyz/foundation-base#453",
+   "url": "https://github.com/zcaudate-xyz/foundation-base/pull/453",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] Bench files regenerated when a seed changed (`lein seedgen benchadd ...`), and both canonical and generated target tests pass",
+    "failed_checks": [
+     "Run affected Clojure tests"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-20",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "box shown unticked today",
+    "template_box": false,
+    "checks": "12 checks passed; none failing"
+   },
+   "finding": "The page today shows the box unticked, says the tests were blocked, and shows every check passed. Neither the claim nor the failure can be confirmed today.",
+   "decision": "excluded",
+   "rules": [
+    "R4"
+   ]
+  },
+  {
+   "pr": "spaja86/AI-IQ-SUPER-PLATFORMA#1065",
+   "url": "https://github.com/spaja86/AI-IQ-SUPER-PLATFORMA/pull/1065",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- KPI status: Targeted conformance and contract tests green",
+    "failed_checks": [
+     "validate / duet — Audit Summary",
+     "validate / extrimli — Audit Summary",
+     "validate / ai-iq-programski-jezik — Audit Summary",
+     "validate / extrimli — Security Scan",
+     "validate / duet — Security Scan",
+     "validate / ai-iq-programski-jezik — Security Scan",
+     "validate / duet — TypeScript",
+     "validate / extrimli — TypeScript",
+     "validate / ai-iq-programski-jezik — TypeScript",
+     "governance"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-20",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "11 of 24 checks passed; Cloudflare Workers deployment failed"
+   },
+   "finding": "Merged into the default branch. The failed checks recorded are audit, security-scan, TypeScript and governance jobs; the method's check names leave them out of the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "ggranby/router-software#9",
+   "url": "https://github.com/ggranby/router-software/pull/9",
+   "agent": "copilot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] Unit tests added/updated and passing (`ctest`)",
+    "failed_checks": [
+     "Build (Windows / MSVC)",
+     "Compile check (Linux / MinGW-w64)",
+     "Verify Arduino sketches (arduino-cli)"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-10-01",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked box; the agent's later comment says the suite passes",
+    "template_box": false,
+    "checks": "8 of 11 checks passed"
+   },
+   "finding": "Merged into the default branch. Build and compile-check jobs had failed.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "afonsoft/EAF#229",
+   "url": "https://github.com/afonsoft/EAF/pull/229",
+   "agent": "devin",
+   "recorded": {
+    "merged": true,
+    "claim_line": "* `dotnet test Templates/Api/Eaf.ProjectName.sln --configuration Release --no-build` passed: 211 passed, 1 skipped.",
+    "failed_checks": [
+     "🚀 Publish API"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-07-23",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "18 checks passed; a production deployment failed"
+   },
+   "finding": "Merged into the default branch. The failed check is a publish job: not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "heisck/KEV#37",
+   "url": "https://github.com/heisck/KEV/pull/37",
+   "agent": "devin",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- Backend `spotless:apply` (no changes) + `GoogleTokenVerifierTest`/`AuthServiceTest`/`JwtServiceTest` green on JDK 21.",
+    "failed_checks": [
+     "scan",
+     "changes",
+     "review",
+     "Analyze (python)",
+     "Analyze (javascript-typescript)",
+     "Analyze (java-kotlin)"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-07-22",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "5 of 11 checks passed"
+   },
+   "finding": "Merged into the default branch. Code-analysis and test-selection jobs had failed.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "BerriAI/litellm#36575",
+   "url": "https://github.com/BerriAI/litellm/pull/36575",
+   "agent": "devin",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)",
+    "failed_checks": [
+     "proxy-infra / Run tests (Python 3.10)"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-05",
+    "base": "litellm_internal_staging",
+    "default_branch": "main",
+    "claim": "ticked template box limited to required checks",
+    "template_box": true,
+    "checks": "233 of 237 checks passed; the failed test job is marked not required"
+   },
+   "finding": "Merged into a staging branch, not the default branch. The claim is the template box \"passes all required CI/CD checks\", and the failed test job was not required, so the box may have been true.",
+   "decision": "excluded",
+   "rules": [
+    "R2",
+    "R3"
+   ]
+  },
+  {
+   "pr": "JPL-Devin/atlas#24",
+   "url": "https://github.com/JPL-Devin/atlas/pull/24",
+   "agent": "devin",
+   "recorded": {
+    "merged": true,
+    "claim_line": "`npx playwright test tests/e2e/search/sort.spec.js` → 5 passed. `npm run build` succeeds.",
+    "failed_checks": [
+     "test"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-01",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "3 of 4 checks passed"
+   },
+   "finding": "Merged into the default branch. The job named `test` had failed.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "BerriAI/litellm#40627",
+   "url": "https://github.com/BerriAI/litellm/pull/40627",
+   "agent": "devin",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)",
+    "failed_checks": [
+     "proxy-behavior"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": false,
+    "merged_on": null,
+    "base": "main",
+    "default_branch": "main",
+    "claim": "ticked template box limited to required checks",
+    "template_box": true,
+    "checks": "red checks listed by the agent; the failed one is marked not required"
+   },
+   "finding": "Open today: closed and reopened on 13 Sep 2026, its base changed to main, no merge. The scan recorded it merged.",
+   "decision": "excluded",
+   "rules": [
+    "R1",
+    "R3"
+   ]
+  },
+  {
+   "pr": "cake-tech/cake_wallet#3474",
+   "url": "https://github.com/cake-tech/cake_wallet/pull/3474",
+   "agent": "claude-bot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] Initial Manual Tests Passed",
+    "failed_checks": [
+     "PR_test_build"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-02",
+    "base": "dev",
+    "default_branch": "dev",
+    "claim": "ticked template box about manual tests",
+    "template_box": true,
+    "checks": "5 of 6 checks passed"
+   },
+   "finding": "Merged into the default branch dev. The claim is the template box \"Initial Manual Tests Passed\", about manual testing, not the build job that failed.",
+   "decision": "excluded",
+   "rules": [
+    "R3"
+   ]
+  },
+  {
+   "pr": "cfischa/elt_data4transformation#85",
+   "url": "https://github.com/cfischa/elt_data4transformation/pull/85",
+   "agent": "claude-bot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "→ 338 passed, 196 skipped (integration tests needing a live Postgres",
+    "failed_checks": [
+     "security",
+     "test",
+     "tests"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-01",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "2 of 5 checks passed"
+   },
+   "finding": "Merged into the default branch. Jobs named `test` and `tests` had failed.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "big-emotion/EthniAfrica#612",
+   "url": "https://github.com/big-emotion/EthniAfrica/pull/612",
+   "agent": "claude-bot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `make check` — lint + typecheck + format:check + full test suite green (5968 passed, 21 pre-existing skipped)",
+    "failed_checks": [
+     "Lighthouse Mobile Audit",
+     "Vercel"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-01",
+    "base": "recette",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "12 of 14 checks passed; Lighthouse failed"
+   },
+   "finding": "Merged into the branch recette, not the default branch main.",
+   "decision": "excluded",
+   "rules": [
+    "R2"
+   ]
+  },
+  {
+   "pr": "AlexanderMattTurner/agent-glovebox#5398",
+   "url": "https://github.com/AlexanderMattTurner/agent-glovebox/pull/5398",
+   "agent": "claude-bot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "$ uv run pytest tests/test_forensic_registry_kcov.py -q     # 5 passed",
+    "failed_checks": [
+     "Python tests (pytest)",
+     "Decide gate succeeded (Python tests)",
+     "Review findings resolved"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-31",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "154 of 168 checks passed"
+   },
+   "finding": "Merged into the default branch. The job `Python tests (pytest)` had failed at the head commit.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "big-emotion/EthniAfrica#609",
+   "url": "https://github.com/big-emotion/EthniAfrica/pull/609",
+   "agent": "claude-bot",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `npx tsx scripts/validateAfrikData.ts` — 36/36 checks pass, including the new check against the illustrative template fiche",
+    "failed_checks": [
+     "Lighthouse Mobile Audit",
+     "Vercel"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-08-31",
+    "base": "recette",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "12 of 14 checks passed; Lighthouse failed"
+   },
+   "finding": "Merged into the branch recette, not the default branch main.",
+   "decision": "excluded",
+   "rules": [
+    "R2"
+   ]
+  },
+  {
+   "pr": "two-inc/magento-plugin#402",
+   "url": "https://github.com/two-inc/magento-plugin/pull/402",
+   "agent": "claude-code",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- [x] `npm run test:js` — 49/49 suites, 827/827 tests green",
+    "failed_checks": [
+     "code-review"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-09-01",
+    "base": "staging",
+    "default_branch": "staging",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "28 of 30 checks passed; `code-review` failed and a comment says it is not required"
+   },
+   "finding": "Merged into the default branch staging by its author, who used Claude Code. The failed check is a review bot: not in the strict count.",
+   "decision": "counted",
+   "rules": []
+  },
+  {
+   "pr": "wildcard/caro#1488",
+   "url": "https://github.com/wildcard/caro/pull/1488",
+   "agent": "claude-code",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- `cargo test --features remote-backends --lib`: 636 passed ✅",
+    "failed_checks": [
+     "add-contributor"
+    ],
+    "test_or_build_check_failed": false
+   },
+   "read": {
+    "merged": true,
+    "merged_on": "2026-10-01",
+    "base": "main",
+    "default_branch": "main",
+    "claim": "agent's own words",
+    "template_box": false,
+    "checks": "55 checks passed; none failing"
+   },
+   "finding": "Merged into the default branch. The page today shows every check passed at the merge; the recorded failure (`add-contributor`) cannot be confirmed. Authored by the owner with Claude Code, which is how the method defines this agent.",
+   "decision": "excluded",
+   "rules": [
+    "R4"
+   ]
+  },
+  {
+   "pr": "CurLexAI/swarms#434",
+   "url": "https://github.com/CurLexAI/swarms/pull/434",
+   "agent": "codex",
+   "recorded": {
+    "merged": true,
+    "claim_line": "- Ran `python3 -m pytest tests/test_qala_audit_sink.py tests/test_qala_audit_integrity_gate.py` — 33 tests passed.",
+    "failed_checks": [
+     "compliance",
+     "aegis-verify",
+     "Python and Node gates",
+     "test",
+     "aegis-verify"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": null,
+    "merged_on": null,
+    "base": null,
+    "default_branch": null,
+    "claim": null,
+    "template_box": false,
+    "checks": null
+   },
+   "finding": "The page could not be read on 9 Oct 2026 (the repository did not load). A reader who clicks finds nothing to check.",
+   "decision": "excluded",
+   "rules": [
+    "R5"
+   ]
+  },
+  {
+   "pr": "SciML/SciMLBase.jl#1574",
+   "url": "https://github.com/SciML/SciMLBase.jl/pull/1574",
+   "agent": "codex",
+   "recorded": {
+    "merged": true,
+    "claim_line": "Testing SciMLBase tests passed",
+    "failed_checks": [
+     "tests / DownstreamAD (julia 1, ubuntu-latest) / Tests - DownstreamAD (Julia 1)",
+     "tests / DownstreamAD (julia lts, ubuntu-latest) / Tests - DownstreamAD (Julia lts)"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": null,
+    "base": "master",
+    "default_branch": "master",
+    "claim": "quoted local test output",
+    "template_box": false,
+    "checks": "the description lists the DownstreamAD failures itself"
+   },
+   "finding": "Merged into the default branch master by the maintainer (the commits page shows it; the main page did not). The description reports the failing DownstreamAD job as failing and asks reviewers to ignore the pull request until reviewed: it does not claim that job passed. It holds both a Codex task link and the Claude Code line.",
+   "decision": "excluded",
+   "rules": [
+    "R3"
+   ]
+  },
+  {
+   "pr": "SciML/SciMLBase.jl#1572",
+   "url": "https://github.com/SciML/SciMLBase.jl/pull/1572",
+   "agent": "codex",
+   "recorded": {
+    "merged": true,
+    "claim_line": "Testing SciMLBase tests passed",
+    "failed_checks": [
+     "tests / DownstreamAD (julia 1, ubuntu-latest) / Tests - DownstreamAD (Julia 1)",
+     "tests / DownstreamAD (julia lts, ubuntu-latest) / Tests - DownstreamAD (Julia lts)"
+    ],
+    "test_or_build_check_failed": true
+   },
+   "read": {
+    "merged": true,
+    "merged_on": null,
+    "base": "master",
+    "default_branch": "master",
+    "claim": "quoted local test output",
+    "template_box": false,
+    "checks": "the description says hosted CI had not finished"
+   },
+   "finding": "Merged into the default branch master by the maintainer. The quoted \"tests passed\" is the agent's local run; the DownstreamAD test jobs failed at the head commit. It holds both a Codex task link and the Claude Code line, so `codex` is one of two possible names.",
+   "decision": "counted",
+   "rules": []
+  }
+ ]
+}

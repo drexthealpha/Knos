@@ -1,0 +1,92 @@
+{
+  "standard": "Knos Terms 3",
+  "v": 3,
+  "name": "dataset-batch",
+  "version": 1,
+  "deliverable": {
+    "kind": "batch",
+    "one_per": "batch number",
+    "says": "One deliverable is one batch file, named by its sha256. The same bytes sent again are a duplicate and counted once; changed bytes are a new attempt at the same batch number. There is one for each batch number."
+  },
+  "evidence": {
+    "sources": [
+      {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "workflow": "drexthealpha/knos-workflows/.github/workflows/attest.yml"
+      },
+      {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "workflow": "drexthealpha/knos-workflows/.github/workflows/prove.yml"
+      }
+    ],
+    "says": "Evidence counts only when signed by GitHub Actions for a run of drexthealpha/knos-workflows/.github/workflows/attest.yml; or by GitHub Actions for a run of drexthealpha/knos-workflows/.github/workflows/prove.yml."
+  },
+  "checks": {
+    "mode": "tests",
+    "deciding": [],
+    "accept": "8445799b6b70bde0dcf4a73465d9a34b0e180a9c88daa305acf4926c5d62acc5",
+    "authority": ".knos/acceptance/ of acme/widgets at the commit the order was funded on; its hash is in these terms",
+    "says": "The acceptance suite decides (its files hash to 8445799b6b70), and no named check has to pass. The authoritative copy: .knos/acceptance/ of acme/widgets at the commit the order was funded on; its hash is in these terms."
+  },
+  "window": {
+    "warranty_days": 0,
+    "holdback_percent": 0,
+    "says": "Payment is final when it is made: nothing is held back, and accepted work cannot be reopened."
+  },
+  "changes": {
+    "paths": [
+      "batches/**"
+    ],
+    "protected": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "may_add": [],
+    "says": "Only files matching `batches/**` may change. No change may touch `.github/**`, `.knos/**`. A contributor may add nothing outside that without the buyer's say."
+  },
+  "dispute": {
+    "who": "supplier",
+    "evaluator": "neutral",
+    "within_days": 7,
+    "money": "order",
+    "no_answer": "refund-at-deadline",
+    "says": "The supplier may appeal a rejection within 7 days of it, with `/knos appeal <reason>`. The evaluator `neutral` runs the work again itself, and its verdict ends the appeal. Meanwhile the money stays in the order. With no verdict by the deadline, the money goes back to its funder."
+  },
+  "evaluators": {
+    "quorum": 1,
+    "list": [
+      {
+        "name": "neutral",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "repository": "*",
+        "workflow": "drexthealpha/knos-workflows/.github/workflows/attest.yml",
+        "owner": "*"
+      },
+      {
+        "name": "own",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "repository": "acme/widgets",
+        "workflow": "drexthealpha/knos-workflows/.github/workflows/prove.yml",
+        "owner": "acme"
+      }
+    ],
+    "says": "These may judge: `neutral` (GitHub Actions, workflow drexthealpha/knos-workflows/.github/workflows/attest.yml, in any repository that neither party owns); `own` (GitHub Actions, workflow drexthealpha/knos-workflows/.github/workflows/prove.yml, in acme/widgets, owned by acme). One of them is enough."
+  },
+  "price": {
+    "amount": "40.00",
+    "currency": "test USDC",
+    "says": "Pays 40.00 test USDC, once, for an accepted deliverable. The funder pays the fee on top."
+  },
+  "deadline": {
+    "days": 14,
+    "late": "refused",
+    "says": "The order is open for 14 days from funding, or less if the funder cancels, which takes 7 days' notice. A token presented after that is refused, and the money goes back to its funder."
+  },
+  "policy": {
+    "may_change": [
+      "@acme"
+    ],
+    "how": "new-version",
+    "says": "@acme may publish a new version. A version never changes: a change is the next version, with its own hash, and an order keeps the version it was funded on."
+  }
+}

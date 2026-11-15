@@ -1,0 +1,11 @@
+# One workspace, one lockfile, for the programs. `solana-verify build programs --library-name <name>` mounts this
+# directory, so knos-pay's path dependency on knos-oidc is inside the mount.
+[workspace]
+members = ["knos_oidc", "knos_pay", "knos_meter", "knos_passkey"]
+resolver = "2"
+
+# Every program is built with arithmetic overflow checked: an addition, subtraction or multiplication that does not
+# fit its type stops the instruction (and so the whole transaction) instead of wrapping. cargo build-sbf builds the
+# release profile; profiles are read from the workspace root, so this holds for all four crates.
+[profile.release]
+overflow-checks = true

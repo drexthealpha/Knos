@@ -1,0 +1,17 @@
+{
+ "events": [
+  {
+   "deliverable": "dlv_c632c47f3a8efddacd1f0c87",
+   "line": "inv_58da9a9524408c0878923cb4",
+   "method": "chain",
+   "on": "2026-10-03",
+   "reference": "dJogXZiBA2wAuP63hcma8rs1BvpGjXif78H5X4P7U4WKErjax4XECrt6k25eMsGeBhw2tuoEqsbWMpFBkGYszaR",
+   "settlement": "stl_63bb4e96e5e08aeb9d6236c0",
+   "state": "devnet_demonstration",
+   "type": "settlement"
+  }
+ ],
+ "kind": "knos-statement-status",
+ "statement": "0000000000000000000000000000000000000000000000000000000000000000",
+ "version": 1
+}

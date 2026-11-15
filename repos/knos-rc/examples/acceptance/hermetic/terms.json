@@ -1,0 +1,1 @@
+{"accept":"0000000000000000000000000000000000000000000000000000000000000000","checks":[],"deny":[".github/**",".knos/**"],"image":"docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71","mode":"tests","paths":[],"reserve":7,"v":1}

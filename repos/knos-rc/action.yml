@@ -1,0 +1,125 @@
+name: Knos check
+description: Fails a pull request that says its tests pass or CI is green when GitHub's record of the head commit says otherwise.
+author: drexthealpha
+branding:
+  icon: check-circle
+  color: green
+
+# The free Knos check, for a repository's own `pull_request` workflow. No bounty, no money, no chain.
+#
+#     # .github/workflows/knos.yml: a workflow file of its own
+#     on:
+#       pull_request:
+#         types: [opened, synchronize, reopened, edited]
+#     permissions: {}
+#     jobs:
+#       knos:
+#         runs-on: ubuntu-latest
+#         permissions:
+#           contents: read
+#           checks: read
+#         steps:
+#           - uses: drexthealpha/Knos@<a release tag, or its full commit sha>
+#
+# It runs `knos proof gate` and none of the pull request's code:
+#   - the description's own claims: a "tests pass" or "CI is green" is compared with GitHub's record of the head
+#     commit's finished checks, and refused when one failed;
+#   - the repository's own rules (CONTRIBUTING.md), read from the base commit, so a pull request cannot edit them.
+#
+# Two things the workflow above gets right, and why. Name the job `knos`. When Knos reads a commit's checks, it skips
+# every job whose name starts with "knos", so it never counts its own earlier runs. And it is a workflow file of its
+# own: Knos never counts the jobs of its own workflow run as evidence, so tests in the same file would not be read.
+#
+# It needs no `pull_request_target`, no secret and no id-token. A `pull_request` run's read-only token is enough, also
+# for a pull request from a fork. Such a run can save nothing, so this check keeps no memory between runs. Its result
+# is the job's own conclusion and summary. Knos is installed from this action's own commit (the one the caller
+# pinned), with exactly the dependencies uv.lock names. Nothing is written to the workspace. The base commit, the diff
+# and the evidence are kept under the runner's temp directory.
+outputs:
+  passed:
+    description: "true when the pull request's claims and the repository's rules hold"
+    value: ${{ steps.gate.outputs.passed }}
+  evidence:
+    description: the JSON file the judge's evidence was written to
+    value: ${{ steps.gate.outputs.evidence }}
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: false          # a pull_request run cannot save a cache another run could read
+        ignore-empty-workdir: true   # the calling job has no need to check anything out
+    - name: install knos at this action's own commit
+      shell: bash
+      env:
+        KNOS: ${{ github.action_path }}
+      run: uv sync --quiet --frozen --python 3.12 --project "$KNOS"
+    - name: the base commit, and the pull request's diff and description (nothing in it is run)
+      shell: bash
+      env:
+        HEAD: ${{ github.event.pull_request.head.sha }}
+        BASE: ${{ github.event.pull_request.base.sha }}
+        NUM: ${{ github.event.pull_request.number }}
+        BODY: ${{ github.event.pull_request.body }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        case "$HEAD" in *[!0-9a-f]*|"")
+          echo "Knos check reads a pull request, and this run is a $GITHUB_EVENT_NAME. Use it in a workflow that runs on pull_request."
+          exit 1;;
+        esac
+        work="$RUNNER_TEMP/knos-check"
+        rm -rf "$work"; mkdir -p "$work"
+        git init -q "$work/base"
+        git -C "$work/base" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+        # The job's token goes with the fetch (a private repository needs it) through git's environment, added after
+        # whatever git settings the runner already passes that way. It is never written to the clone.
+        basic=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+        echo "::add-mask::$basic"
+        n=${GIT_CONFIG_COUNT:-0}
+        export GIT_CONFIG_COUNT=$((n + 1)) "GIT_CONFIG_KEY_$n=http.$GITHUB_SERVER_URL/.extraheader" \
+               "GIT_CONFIG_VALUE_$n=AUTHORIZATION: basic $basic"
+        git -C "$work/base" fetch -q --no-tags origin "$BASE" "+refs/pull/$NUM/head:refs/knos/head"
+        if [ "$(git -C "$work/base" rev-parse refs/knos/head)" != "$HEAD" ]; then
+          echo "The pull request has a newer head commit than the one this run was started for. The run for the newer commit checks it."
+          exit 1
+        fi
+        GIT_LFS_SKIP_SMUDGE=1 git -C "$work/base" checkout -q --detach "$BASE"   # rules and a diff need no large files
+        git -C "$work/base" diff "$BASE...$HEAD" > "$work/pr.diff"
+        printf '%s' "$BODY" > "$work/body.md"
+    - name: knos proof gate
+      id: gate
+      shell: bash
+      env:
+        KNOS: ${{ github.action_path }}
+        HEAD: ${{ github.event.pull_request.head.sha }}
+        AUTHOR: ${{ github.event.pull_request.user.login }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        work="$RUNNER_TEMP/knos-check"
+        echo "evidence=$work/evidence.json" >> "$GITHUB_OUTPUT"
+        if uv run --quiet --frozen --no-sync --project "$KNOS" knos proof gate --base "$work/base" --diff "$work/pr.diff" \
+             --evidence "$work/evidence.json" --repo "$GITHUB_REPOSITORY" --agent "$AUTHOR" --body-file "$work/body.md" \
+             --head "$HEAD" --wait 600; then
+          passed=true
+        elif [ -s "$work/evidence.json" ]; then
+          passed=false
+        else
+          echo "Knos stopped before it reached a verdict on this pull request. The lines above say why; run the job again."
+          exit 1
+        fi
+        echo "passed=$passed" >> "$GITHUB_OUTPUT"
+        # A claim is held against GitHub's record of the head commit. A job that may not read that record would pass
+        # every claim without a word, so it says so.
+        if jq -e '.evidence.checks_seen == null' "$work/evidence.json" > /dev/null; then
+          why="Knos could not read GitHub's record of this commit's checks, so what the description claims was not checked."
+          echo "::warning title=Knos check::$why Give the job the permission checks: read, then run it again."
+        fi
+        if [ "$passed" = false ]; then
+          {
+            echo "### Knos: this pull request's claims do not hold"
+            jq -r '.reasons[]? | "- " + .' "$work/evidence.json"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+        fi

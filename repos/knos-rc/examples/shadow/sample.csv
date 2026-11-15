@@ -1,0 +1,9 @@
+# A sample assembled by Knos from public pull requests listed in docs/agent_pr_ci.json. Not anyone's invoice.
+# The amounts are illustrative: nobody billed them. The lines were chosen to show both outcomes: this is not a rate.
+pr,amount,supplier
+https://github.com/stackql/stackql/pull/783,90.00,Sample assembled by Knos
+zcaudate-xyz/foundation-base#454,120.00,Sample assembled by Knos
+https://github.com/usestrix/strix/pull/753,60.00,Sample assembled by Knos
+brainy-bots/arcane#260,100.00,Sample assembled by Knos
+JPL-Devin/atlas#24,80.00,Sample assembled by Knos
+finos-labs/dtcch-2026-compliledger#45,75.00,Sample assembled by Knos

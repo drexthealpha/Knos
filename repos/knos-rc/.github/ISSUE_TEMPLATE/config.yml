@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/drexthealpha/Knos/security/advisories/new
+    about: Anything that could move money wrongly or make the escrow accept a token it should not.

@@ -1,0 +1,28 @@
+{
+ "scripted": true,
+ "by": "tests/web/approver.mjs page --write",
+ "what": "headless Chromium at 1280 px on the build machine: a script's time, not a person's; nobody was observed",
+ "steps": [
+  {
+   "step": "open the page",
+   "ms": 577
+  },
+  {
+   "step": "drop the invoice and the statement",
+   "ms": 50
+  },
+  {
+   "step": "read the result",
+   "ms": 16
+  },
+  {
+   "step": "open one exception",
+   "ms": 85
+  },
+  {
+   "step": "approve the ordinary lines",
+   "ms": 392
+  }
+ ],
+ "total_ms": 1120
+}

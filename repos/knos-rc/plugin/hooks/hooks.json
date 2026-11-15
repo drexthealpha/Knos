@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uvx knos hook proof --client claude",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
+}

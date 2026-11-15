@@ -1,0 +1,52 @@
+# .github/workflows/knos-claim.yml: name the Solana address that Knos pays your ORGANISATION at.
+#
+# Put this file in a repository named knos-claim that the ORGANISATION owns (a person's own account uses
+# examples/knos-claim.yml instead: `knos claim <address>`). It needs no secret.
+#
+# What it is for: a payee that is an organisation. A bot's pull request, or a vendor's, is paid to the organisation
+# that runs it: the proof names the organisation's GitHub id, and the organisation's wallet is the one bound here.
+#
+# Binding a wallet is by hand only. There is one way to start it:
+#
+#   A run started by hand (`workflow_dispatch`) by a member of the organisation.
+#       Actions > knos claim > Run workflow, and paste the address into the box yourself (or run
+#       `knos claim --org <organisation> <address>`, which puts this file in <organisation>/knos-claim and does this).
+#       The job asks GitHub for a signed statement that says "a member started this in the organisation's repository
+#       knos-claim, and it names <address>", posts it on an issue here and waits for a relayer to carry it to Solana
+#       (Knos's public relay does; anyone can). From then on what is earned under the organisation's id is paid to
+#       that address, and payments held for it can be sent there. Run it again with another address to change it.
+#
+# Who may do this is the organisation's own rule: everyone with write access to this repository can start a workflow
+# in it, not only owners. Keep that to the people who may say where the organisation is paid.
+#
+# Nothing else starts it: no push, and no address read from the repository's description or from a link.
+#
+# What it can do in this repository: open an issue and comment on it, and ask GitHub for that one signed statement
+# (id-token). What it cannot do: read or change code, or change settings. It has no access to the repository's
+# contents.
+#
+# Why nobody outside can name an address for the organisation: the escrow on Solana takes the statement only when
+# GitHub's signature says it came from the workflow named below, at exactly that commit, in a run someone started by
+# hand in a repository named knos-claim that the organisation owns. It never replaces a wallet a person bound for
+# his own account. The address reaches that workflow as an input, never a shell.
+name: knos claim
+
+on:
+  workflow_dispatch:
+    inputs:
+      address:
+        description: Solana address that receives this organisation's Knos payments
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  claim:
+    permissions:
+      id-token: write
+      issues: write
+    uses: drexthealpha/knos-oidc-rotate/.github/workflows/claim.yml@212f9eb5f584eb6f8cd2d6673878132fc0011e27
+    with:
+      address: ${{ inputs.address }}
+      kind: org

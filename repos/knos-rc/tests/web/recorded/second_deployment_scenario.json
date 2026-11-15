@@ -1,0 +1,1502 @@
+{
+ "note": "Twelve jobs run through the second deployment's test build in LiteSVM by tests/test_network_stats.py (scenario): the escrow's transactions with the log the program printed, the job accounts left at the end, the relay log lines a relay would have written for seven of them, and GitHub's answers about those. The signatures are numbered stand-ins: a LiteSVM run has no cluster. Recorded for the tests; do not edit.",
+ "transactions": [
+  {
+   "signature": "4zWTccraEeMXZc3CY1QDtTVfoA8df2ogNpKd13RMK6kamfxEXXjwkPhtnCJaihV7xRGRtDEspiTu88SYcEFXuWNf",
+   "blockTime": 1790000000,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 201 of 1382122 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 18136 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "Hvf6ay7Mp8xpvizcX41kCwdubvDUckR1P2p92wuSP246",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "3Ytjx9EsMKMPQyiAzBdvkp8M14Vayg7f2AwyqRExif7jSA1jZR2aUb473PmbEuuJidburXjTNmapuz2spG4tT4rZ",
+   "blockTime": 1790000000,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1372363 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:balance owner=5001 authority=ECzsiwYJGmN34SBB9Eq3ZeLUgMDRt9TXXniJvNGcwjvN mint=4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 32617 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1367233 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "ECzsiwYJGmN34SBB9Eq3ZeLUgMDRt9TXXniJvNGcwjvN",
+      "BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr",
+      "7tw6hGXn6VJG3XQeuR3ziyxaPhApAQM748PzA5aXLZ3X",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "DN2Y9rRhcc6iurnskeUA5aGJ9VWEnkHvHwjxuynnNZ1o",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "3D2acdUsxosPxe1Vqy85n9ZfGnEqHHFNWXRWrLk8nZdNduHy2JWK3SoPXsBTd8sM2vTQqbFfqn96tMJJQC4jfrV4",
+   "blockTime": 1790000001,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1331486 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1328776 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7001 issue=1 amount=20000000 mode=0 by=6001 source=BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 76224 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "4KAtWBrsB7rKXbCBHMma9E4t891ExaKiCcFhkEgR4rhj",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr",
+      "7tw6hGXn6VJG3XQeuR3ziyxaPhApAQM748PzA5aXLZ3X",
+      "2yRJ1ASXbtp4VfQTUERRdH1nZtfPALag1XUfdRoxasWH",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "59VhbvdQZC6vjR7uSXYiv8BSQ39Zn2sL8UzjsizRm5QaZ7dQ2UiEuP5UdTJCe6TaFZWoFc1cXDd8UezYnvMG9JgQ",
+   "blockTime": 1790003001,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1346470 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1344125 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7001 issue=1 payee=8001 amount=19500000 fee=500000 to=5peSS7w49SKcpbHCEhpzajWqi7gbgRVKAXWej2WjL9yw",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 76959 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "D5qM6bqYTEyrCvnr8F3ki2bi8YxuF1HbShvYvezuyycZ",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "2yRJ1ASXbtp4VfQTUERRdH1nZtfPALag1XUfdRoxasWH",
+      "6VDJezGzcSeNfpX43tmqBA5CYss2j34FjY7eK9aDgCAF",
+      "7og5BHWWJkXS8DKSfzCXVcKVMjzBhTfrUGZMg4ZKPHym",
+      "J3kt5aUurkwFA3geVdtEk5U9UwE27GAstNNB1gHRvMUn",
+      "C86ka2WppY9xHJggCYwafj9G4AP7CBw2MWztfNgk5vPg",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "5k3akuHjpaSXVWydDpf2RvYfeaepjKexbycdtGKMjZ3FUM2HjkhCdLnM6FVMre9hGpepyftfaXtzTt7Lrt6VBmkL",
+   "blockTime": 1790003602,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1335204 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7001 issue=2 amount=30000000 mode=0 by=6001 source=BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 69796 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "3KW75iVfwxCukPkWuTELuKU9ScZyChFuUd179Vej4BzX",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr",
+      "7tw6hGXn6VJG3XQeuR3ziyxaPhApAQM748PzA5aXLZ3X",
+      "CKAxqEfQxfdGEsYNh4MUFPDmEh91pyfrjuvPNHH8gMR5",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "nYqgXA5jiBNVvka9XR4zRK5xQAYXUZxMsFBhdTrDL9gF3UUuG52V8MU4jJxpCNT383ichRRQkNympN83SQmErQM",
+   "blockTime": 1790003603,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1335204 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7002 issue=5 amount=10000000 mode=0 by=6001 source=BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 69796 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "2ZHsLBcCJ8sXinrEoo6JcuULZYbfmoEE5kqXDtLojUm9",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr",
+      "7tw6hGXn6VJG3XQeuR3ziyxaPhApAQM748PzA5aXLZ3X",
+      "4i777ztrZvArw9x8zhP4mH4djJDX6kqsvNmitBpPauoD",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "4iBwbxDTuqoXBVwuLx5mmdjAGRX7KBz7q6QorR5gQBaa1FRHiPRNTu6WgbfGsvrYZv1z77rCYHqcTz5iZrLYbdhN",
+   "blockTime": 1790003604,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1339704 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7001 issue=3 amount=12000000 mode=0 by=6001 source=BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 65296 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "BgAukD5fEHDRy8mgy53CFRfUofYqQmeDBqEuDh8V6y1e",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr",
+      "7tw6hGXn6VJG3XQeuR3ziyxaPhApAQM748PzA5aXLZ3X",
+      "4zRc8AsTiJGYjDaxaT1iom6rM7hAwxg9gFs6C4KySiX3",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "mSNQXmZQHRY5FDh6KpXU7kUuq5qBxNzFCYymoPXzXxzHSWZYS1pdjJagg91DpZkp5DXuoUcVtECCBynQ9uUX4hb",
+   "blockTime": 1790003605,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1340004 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7001 issue=4 amount=5000000 mode=0 by=6001 source=BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 64991 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "6zj15xgaSxMxDVs85wFGCpTCcKz5CyTEeq56K1tw4Nva",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "BxzzHHv3SP57kasFy7JCKsPX6oRsvWRNDnFWWzQ4fuRr",
+      "7tw6hGXn6VJG3XQeuR3ziyxaPhApAQM748PzA5aXLZ3X",
+      "5zEeNAATxHyvKhpWhott7jYYMqGhtMcTt15czBNUGn5K",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "2GoU8tWf3M4haLtU2kYbk1oQu3WMrJTyUUw2JuTPiUGjSv42HPJRShkXeJt6CRGBgVVqT6EwFosFNqdtDkmVViMY",
+   "blockTime": 1790003605,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1370815 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7003 issue=3 amount=15000000 mode=0 by=0 source=GLWd4aCKpeCHFwFtz3zRrxbJd1MUMc9jCT9f7ssqqGyb faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 34028 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "GLWd4aCKpeCHFwFtz3zRrxbJd1MUMc9jCT9f7ssqqGyb",
+      "AZcVsvyqGDUPQnckzQE1b4v5yujsfuh22d5HWPiRYnEy",
+      "Ap1mia3XxE1qLRu8v6gv43e5h5Mf34MbRR5va8uFTn8N",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "2yhiUJC2KWXkxZNg8oLFqsbX1SW9v6AoP5WisiGFs4ZhjG1EGMKiXkgSvSgpGgGB2M9e4JKAf4ws4fvELuRHp5xa",
+   "blockTime": 1790003606,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:bound user=8002 wallet=Cg7zPt5V2SeEzvJ4iPor6diDyaLBHdJQum68tTP6XEzP",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 43467 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "BL2DGwa2CC87foN7CPZfbUzyuuX5odm5uMqfL84uySLg",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "47pkf5sxL1bSQnzdfvYwmNbyxDpSehqN143dh22NQmA5",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "5MqE91VXLCKHqGZejS1dFVscvud1RX9EYY73kBupRPTaF44zjDDin5E4sbabH9vDRV6JoKa61Y7WAVpacvhBpqTe",
+   "blockTime": 1790010806,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1357675 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1355330 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7001 issue=2 payee=8002 amount=29250000 fee=750000 to=Cg7zPt5V2SeEzvJ4iPor6diDyaLBHdJQum68tTP6XEzP",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 67254 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "FTTd2sPuGnsdvaTHiHWAm4umgMQPsnPbrUWEM2xtPvCi",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "CKAxqEfQxfdGEsYNh4MUFPDmEh91pyfrjuvPNHH8gMR5",
+      "47pkf5sxL1bSQnzdfvYwmNbyxDpSehqN143dh22NQmA5",
+      "7KrtMsf8BbYjkZ6NDDMbru5GmRHhCbGaEXngLLoiGZaK",
+      "59cJP3Hsa6xb8qSBqv1QsWg25eEiJnoxdR2SxFcRDr4o",
+      "DPHV7UDKLXZerWBwjW7Tvnti7nvzqVLv7V6cbskscq7T",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "287pcwK5DacS3JHay1PftdmXuqKbYYP3HkfgbRA94pSUzvQsyGYhKz33iR6gk1fJ5B3d5ATz2VDhoNi5vDiX8m12",
+   "blockTime": 1790010806,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program log: knos2:held repo=7001 issue=3 payee=8005 until=1805562806",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 34689 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "3bL2skaEAMs6hTnENBWZTbPdsioHgU4G1RNAcbyAdHec",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "4zRc8AsTiJGYjDaxaT1iom6rM7hAwxg9gFs6C4KySiX3",
+      "9TpancPWMB3ef953WBY4MQT2rL9fW3hkiafQ18VU47Cp",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "3BPmX3SNeMvQK5CpoXz6MeUgXS2ei79gckFoqE8weGAX",
+      "43jiQQrcNDRxBmaUg9ZyRvXQnFV9tgkfgKS15gPD7uyG",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "4tiwE8a9w54TZyzeUHeBYN83DzyN9SeBkBg3qfHfNGJ24Zj7MXc324gKpiiYaPGCpnCFipJDRnfteZkPMABaTwz3",
+   "blockTime": 1790010806,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1346390 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1344045 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7003 issue=3 payee=8001 amount=14625000 fee=375000 to=5peSS7w49SKcpbHCEhpzajWqi7gbgRVKAXWej2WjL9yw",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 69313 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "FFz7FJ3q9QUy1VVn67kbkt367sxT3u6qNae1xXWyygKS",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "AZcVsvyqGDUPQnckzQE1b4v5yujsfuh22d5HWPiRYnEy",
+      "6VDJezGzcSeNfpX43tmqBA5CYss2j34FjY7eK9aDgCAF",
+      "7og5BHWWJkXS8DKSfzCXVcKVMjzBhTfrUGZMg4ZKPHym",
+      "J3kt5aUurkwFA3geVdtEk5U9UwE27GAstNNB1gHRvMUn",
+      "4m9imUj8G9XyYNrhq5Kw7hnR7K5sw37XxAL9RG3VMnQZ",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "GLWd4aCKpeCHFwFtz3zRrxbJd1MUMc9jCT9f7ssqqGyb",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "58Mawmv46fbdBiDaTUmE4Jcs757WWz65pGEDSDE74LY1gn3guXi68YhRgvJ82hctR8S9yYMUQ8caTo2vjKnt5kED",
+   "blockTime": 1790010806,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1386633 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:refunded repo=7001 issue=4 amount=5000000",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 14510 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "5zEeNAATxHyvKhpWhott7jYYMqGhtMcTt15czBNUGn5K",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "7tw6hGXn6VJG3XQeuR3ziyxaPhApAQM748PzA5aXLZ3X",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "5xiRHnXF6ygWuLvEvdKcpDFGEg7jcL53oVKqtcfkrXovRWFA7NkFELiPqDe49A158ejjopQDXS14HaxAQcUwM6EN",
+   "blockTime": 1790010806,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1376863 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:balance owner=5003 authority=BCq4Kn6rLesFQFyzR8JMCthtY7DMJ3A6exQdTcKXGrvU mint=4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 28117 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1371733 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "BCq4Kn6rLesFQFyzR8JMCthtY7DMJ3A6exQdTcKXGrvU",
+      "6qB1uSBR6JTzffshskU9ogXZFTsURADXkrDAWASNRwr9",
+      "3hbrqZEbSQm9bjGJeuHSx6FgXE7qtAWozKAwhRB97Fcj",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "Frxq8vMfKiQAoufk2JdZKKjcLvZ3BXCGNtZh9JKozthQ",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "ysPpoMScUw2hQqEek597ttNpHjpRsdqS8zAFh29L22cg9ndcscLTKT3RHYWPY1Px6zeuV41oxTLkgGFxceUFaLC",
+   "blockTime": 1790010807,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1338271 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7004 issue=1 amount=8000000 mode=0 by=5003 source=6qB1uSBR6JTzffshskU9ogXZFTsURADXkrDAWASNRwr9 faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 66724 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "8qYvYACfwq2SaUgDxroBKw2CjGK8RdWDyVkqLRXurSfR",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "6qB1uSBR6JTzffshskU9ogXZFTsURADXkrDAWASNRwr9",
+      "3hbrqZEbSQm9bjGJeuHSx6FgXE7qtAWozKAwhRB97Fcj",
+      "FtYrb939FcTZjwLQdnCkT83dufMiAHMsesnRc2U9Mszy",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "7YQnZuGSTrRgbMs5dKvpQ4Fabah38vzsXtkVJcW3Yq1HUFvB4a3KCuMenxbKNq4SR6gcpCQEg4AuRaWW3ZQEp8d",
+   "blockTime": 1790010807,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1344963 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1342618 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7004 issue=1 payee=5003 amount=7800000 fee=200000 to=9zyXEwbfjJfm3HbURsDUursesZUbumG6x9xHLmTQD5oK",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 70520 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "5GDKJowQwqJkAHwnx2q8AdXKtgSLybyYQebdvBtgg58E",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "FtYrb939FcTZjwLQdnCkT83dufMiAHMsesnRc2U9Mszy",
+      "Hak7qarBTUukoewE2n7EzocoYfv5StMExyQ3FsbD9Jtq",
+      "9yBzQZqGe6JdZkuS4Xdx8RNTfo6gRi58FYjzuhgwZXgs",
+      "F5mLUocAXmoKYADbqSoXAQ3wRrjQ7wyCoQwy4tPSUusB",
+      "DksrTcAgyLDouqrHmkiUxDdgtn66KaQaUdLAAXL1NAAo",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "3jtcDmXfvgdTiCVGcMoFh16obqM3HoGH86Usk3CRy5dBjzsviLbo197tFJ4aJZB34Bes1RUNRgFzcmEuZ6oRpoYS",
+   "blockTime": 1790010807,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1370863 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:balance owner=142920951 authority=5PXNXLhLSNeBeQNNBNwWSUk3whgErQ93WVpVA6iaiNuz mint=4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 34161 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1365689 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "5PXNXLhLSNeBeQNNBNwWSUk3whgErQ93WVpVA6iaiNuz",
+      "CK2PUQEhfZzFPtNSReoJoyBwQmmGd2fv4wyiHQ7gb7oJ",
+      "AYKdrmPLcyxgk9mQaWSxiuMpsSu7ytFcyWA1osiMWo1z",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "2VkqzHm1gNpsu19ZEY7F721LvoZ4cYLL8rQxXSeux513",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "5cFd9rj8Jfhaq3BpPu6ceMm3qUR34atAvDpc3LFXrzK7Jn37993wjm9NYVZ1iPGKtTCChaCNYFhN8gn7ocKoxRvF",
+   "blockTime": 1790010808,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1334966 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7100 issue=1 amount=25000000 mode=0 by=142920951 source=CK2PUQEhfZzFPtNSReoJoyBwQmmGd2fv4wyiHQ7gb7oJ faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 70078 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "5YxwHfyPh2Sbjss9ACyoVi5cpVYrtimrHqT1fnKnFY42",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "CK2PUQEhfZzFPtNSReoJoyBwQmmGd2fv4wyiHQ7gb7oJ",
+      "AYKdrmPLcyxgk9mQaWSxiuMpsSu7ytFcyWA1osiMWo1z",
+      "Dqo52mqJjskvizosHn2LgwMqUb3B2CyGCVBe3JffGpsA",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "DhPJ1MdFsYfPbifpzFsTgohrPqRQsNX1pD8Bhs8nkGe5mWUvKGxstz82bTUY6Y7jFd6HGC8gzuSJpMLzhBtUgPV",
+   "blockTime": 1790010808,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1346468 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1344123 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7100 issue=1 payee=8003 amount=24375000 fee=625000 to=FacpSW6dQUn4wstDGdd9u9JnwsC8tJUVarD2wETZaz4E",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 79961 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "54vcbcgwaqmwjdNwr6qpLBeeYMLQx6VEXCd1rLnhL6mv",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "Dqo52mqJjskvizosHn2LgwMqUb3B2CyGCVBe3JffGpsA",
+      "HmRPKsxtNfmcZi2gMKFc2uXLu9hup2uFbBYRJZz6T3vc",
+      "GtoQXY11yx7P9rbiVMSyQsxZX7PwZc9xCvuZDU9PaQUA",
+      "AzSxvTzZBF8RFJEq7nqq8F6HuptzUNaH7KYoyFhe9izt",
+      "4Un1hpqPUHXNUy2GyBNA3pNWKuaYaT8nFetD3LRpocVP",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "4Cbib9uFyxLn7Zf2KD8EUDbUtZb4oVPT3ydPadeykS3UUnm4nqtcyFV4WgqWB67nEnNQqWe9SRTYicBgGKjGaCpc",
+   "blockTime": 1790010808,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1375363 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:balance owner=5004 authority=A4y2Gq14CoHcku4Y4HGghk24gicmEwcsY8xWomAgWBbe mint=4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 29617 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1370233 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "A4y2Gq14CoHcku4Y4HGghk24gicmEwcsY8xWomAgWBbe",
+      "GgMcMPuxvFJdHsViGpR6k5kgLGWPfRFrzNCf3iW2BXho",
+      "9iwjCo4FxLizy8xpUsHtcibaTZtuhExGqtDukanSF6D",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "ExZbaDeEMLKGwwUbBQExRLwScBkNVn9NuTQY2xpkz9aq",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "5sKwq2wpS4ZcjxoYoXojuScwo61H8RnRBss66SJwVKk1KQxpfDQFtu4oDuuC2iJHroiY8U6sfsdzBt8iJTkoSboC",
+   "blockTime": 1790010809,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1338271 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7005 issue=2 amount=9000000 mode=0 by=5004 source=GgMcMPuxvFJdHsViGpR6k5kgLGWPfRFrzNCf3iW2BXho faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 66724 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "AdcRth1ebA9cxEcaLaJ9RYZWoxmDboURYyEfFJBtCTgD",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "GgMcMPuxvFJdHsViGpR6k5kgLGWPfRFrzNCf3iW2BXho",
+      "9iwjCo4FxLizy8xpUsHtcibaTZtuhExGqtDukanSF6D",
+      "5Y9wuj341wYYwy3Yiy6xKNp3jTUW1PtcsWGyKFdnJuvG",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "4PuTbPuSMtFpGuW4yqAfEsQ2eevavxZStgLdLwfxcg5cvqhhoNKWz4YFzRrXBfqizSijk9Z7KnDRLUmJtufsDaPV",
+   "blockTime": 1790010809,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1346198 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1343853 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7005 issue=2 payee=142920951 amount=8775000 fee=225000 to=GZSiPFbNpwFVuWdWrcKnvWo9N4KUYdMUT89mL4thWMd7",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 77270 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "EZg9qxkjkWasSaEv1GTxALh6sMmCn8i8smvczz3iXsPS",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "5Y9wuj341wYYwy3Yiy6xKNp3jTUW1PtcsWGyKFdnJuvG",
+      "AmJfzrpvpYuyJCm5ec6PngHYaxSLCepJRShkaQ7Ryr7c",
+      "HpnVDj83zcTkEk17uKcAwayxYYd4UTh11M3rvbzsvaHH",
+      "8hvq4UKx8kG8VzzcboSgnoyc3GWS3R4DXggTrQYaqXML",
+      "91EYt1poXYMNDsNBYpLaMSpoqhGvkpoa6Z162HU5rhJt",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "Y5S1TzCELTTJtjmtntQCVEavsw1wNhUhsswCBdukYJLZZcwcF9LFHiqzDnBBwA5maiBV3NHoRnhUyxRxzzn1LsM",
+   "blockTime": 1790010870,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1336413 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:balance owner=5005 authority=9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx mint=Hvf6ay7Mp8xpvizcX41kCwdubvDUckR1P2p92wuSP246",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 119 of 1329678 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 70674 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 235 of 1265367 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1262657 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7006 issue=1 amount=25000000 mode=0 by=6005 source=6Z7pSSTxxXjE9gKN4zL2re3zbgTfp1ih1VVePqNT9UAJ faucet=1",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 71669 of 1329176 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "7UV6qK5wEJQUzVp98bM3cY7cDJpMNFax1RtuM7HJoMP",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "6Z7pSSTxxXjE9gKN4zL2re3zbgTfp1ih1VVePqNT9UAJ",
+      "BCP6QY1YBP4YvM6zCx2YA5q74y4J5KkKDQysdeUR7WLc",
+      "Hvf6ay7Mp8xpvizcX41kCwdubvDUckR1P2p92wuSP246",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "ECSRamEP2gbaJWqkaQqfef5ffFP4ycm27dAmkJNrQUhL",
+      "3hWSmpp4CrCSju4GRF7Pe58qzM4sArzQ6mYtaXErQEJz",
+      "DJU2LQvFvLi72Pibub9mtinViQwRTJj2vZF1gd21CJW5",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "ZhpfoT1WCAbDdTp5pDH2NTg3ZX7dFFWXGY5FDBuQajunGc5ttC3By4B7z6yT5g57GTGX4JeeL298BFqGTy2Rb77",
+   "blockTime": 1790011770,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1343466 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1341121 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7006 issue=1 payee=8004 amount=24375000 fee=625000 to=84DzsktN8L5mzzXnTDaJ7hdwdSXnvnRxQLiA92u3sPPm",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 78040 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "DrqtGBvfACqcDeXi8j3ysBC5iDkgT4JK2UgXCQbFJK5u",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "3hWSmpp4CrCSju4GRF7Pe58qzM4sArzQ6mYtaXErQEJz",
+      "C8TrBQBE4yiKh9ov7CJG3MjhRTdoTYdmVRAnzWc8BNdX",
+      "DZKHuQrUytmKYw3nsiSbAWghsoZRM2HXceCmhEHT2sjk",
+      "BdF2h7DVwESixpo5CKE4wayNZhD7J8Ww8STzzW8wuwWR",
+      "GrPcpKhNC2bgoYJc3SdA8YKjduRJoSCNRvGewYx48Gzp",
+      "DJU2LQvFvLi72Pibub9mtinViQwRTJj2vZF1gd21CJW5",
+      "HGAzJ3fzkBSuFwWR88HjALd86vnAt1oJVu9d59UCqAvX",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "Hvf6ay7Mp8xpvizcX41kCwdubvDUckR1P2p92wuSP246",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "4nu6okfafTnykWRmmwisPq8pcAR26fgMjq7JQZpbpSuauAVFC7ihnyzo4WRKJH4WG7WPkdyAwMVkFNmutPKt9aTK",
+   "blockTime": 1790011831,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 119 of 1354557 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 45795 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1293964 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7006 issue=2 amount=10000000 mode=0 by=6005 source=6Z7pSSTxxXjE9gKN4zL2re3zbgTfp1ih1VVePqNT9UAJ faucet=1",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 65241 of 1354055 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "ed3s4S7wCf3o6M8csDKCqJKJk8R6Y5P58JU3WJBnFDD",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "6Z7pSSTxxXjE9gKN4zL2re3zbgTfp1ih1VVePqNT9UAJ",
+      "BCP6QY1YBP4YvM6zCx2YA5q74y4J5KkKDQysdeUR7WLc",
+      "Hvf6ay7Mp8xpvizcX41kCwdubvDUckR1P2p92wuSP246",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "ECSRamEP2gbaJWqkaQqfef5ffFP4ycm27dAmkJNrQUhL",
+      "FAqCb2LrudvhQMd141uZkWJZebkZ42mtWm4pyGNZWiJH",
+      "DJU2LQvFvLi72Pibub9mtinViQwRTJj2vZF1gd21CJW5",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "BSmhLZ5dUeowT6qxc2QRuU1YuLsyCUJGCM914q7TsXkQRX2mXiMD1vYNQL6JuwmaY2ocVNvXtoEQ4xUKsudufmW",
+   "blockTime": 1790011831,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1370815 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program log: knos2:funded repo=7007 issue=1 amount=6000000 mode=0 by=0 source=3SvqkGHLC5LM6NfuxTH329PU1Nkdps1mkzqk3rALJdm8 faucet=0",
+     "Program log: knos2:terms {\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 33814 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3SvqkGHLC5LM6NfuxTH329PU1Nkdps1mkzqk3rALJdm8",
+      "J1rTWxrVKW6N8SqYzJpMcmjdCAdbvTjixWXqkwLNyv6g",
+      "J7Wvdn1swxeMZXyXE8VzS5VRyP2aYyA7F9dp1r6GQxqN",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  },
+  {
+   "signature": "4yXA4hmSqEV2qfPP5ziJRc9Ajofq5u6TNQKxir2yzW3mvirTTFafdyW1Sm1R2zSVYV5kSF1YidfBKTwjwqPHfoJs",
+   "blockTime": 1790011831,
+   "meta": {
+    "err": null,
+    "logMessages": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program ComputeBudget111111111111111111111111111111 success",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k invoke [1]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1343403 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1341058 compute units",
+     "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program 11111111111111111111111111111111 invoke [2]",
+     "Program 11111111111111111111111111111111 success",
+     "Program log: knos2:paid repo=7007 issue=1 payee=8006 amount=5850000 fee=150000 to=3SvqkGHLC5LM6NfuxTH329PU1Nkdps1mkzqk3rALJdm8",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k consumed 70619 of 1399850 compute units",
+     "Program 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k success"
+    ]
+   },
+   "transaction": {
+    "message": {
+     "accountKeys": [
+      "3tPJU1bG95cPZpFoPVBbPHtzP2XsXegXXwvzyoWhF4Ja",
+      "HAGwyNLmz5pQd27fZrX68dTSx8d8yCpMWD88zwNtHCJD",
+      "9wM8BpR8bDJu1nEHM4Qh5dUwgVRRE3T9VkgwrxJjTXmz",
+      "J1rTWxrVKW6N8SqYzJpMcmjdCAdbvTjixWXqkwLNyv6g",
+      "Chns3NJgdTvyMLmKd3gSybRPuCoXCEGtX3Ff1tYVscUU",
+      "J7Wvdn1swxeMZXyXE8VzS5VRyP2aYyA7F9dp1r6GQxqN",
+      "85KLAQAMqJ85JdwkK27zMinhf6f23wyLLtqgGRmkrFmK",
+      "DNUBzQnQKWfxkAbMJu4gUWak3hKVL92VJSJAQm7SpfWj",
+      "6fgp1G7qo7z3VvP7ZKtkT9P2NjoDPc821ovfGH3fEttQ",
+      "B7ktkrHGc64xBDCK7KJoQLGYqWBgzcE5joykEuQdPqsp",
+      "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "3SvqkGHLC5LM6NfuxTH329PU1Nkdps1mkzqk3rALJdm8",
+      "4EkNA27ikiQXU4v7TKeLfpeaRZbwZTse9R8xaPstZZZN",
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "11111111111111111111111111111111",
+      "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+     ]
+    }
+   }
+  }
+ ],
+ "accounts": [
+  {
+   "pubkey": "4i777ztrZvArw9x8zhP4mH4djJDX6kqsvNmitBpPauoD",
+   "account": {
+    "data": [
+     "AQAB/AAAAABaGwAAAAAAAAUAAAAAAAAAgJaYAAAAAACTvsNqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHEXAAAAAAAAk0mxagAAAACJEwAAAAAAAKLtYWvn1toJbq1qLK1RSLkK7ulXC8kjWGC1M977GS0xZnPpbVmgFiAKQtNiW1AS7w1RLLmXU/rBhJg89xMoaAoq4TYJxVo6RdgLTsgrIbipllzZ4v6G/7TOO6J080wFtzAYpNugwgUVC+UMUZRYA+13p7TnUXGAzizGdsZZbMVFT2UbTjG8TlKoLQf1to3wp3eKx3r0dVCClodoxfjqVc8BaSdbQ1EphVU1hok8AT8YhLKu3D6K6uvvP7pzwu/602NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M=",
+     "base64"
+    ]
+   }
+  },
+  {
+   "pubkey": "4zRc8AsTiJGYjDaxaT1iom6rM7hAwxg9gFs6C4KySiX3",
+   "account": {
+    "data": [
+     "AwAB/wAAAABZGwAAAAAAAAMAAAAAAAAAABu3AAAAAACUvsNqAAAAAAAAAAAAAAAAtrOeawAAAABFHwAAAAAAAHEXAAAAAAAAlEmxagAAAACJEwAAAAAAAKLtYWvn1toJbq1qLK1RSLkK7ulXC8kjWGC1M977GS0xZnPpbVmgFiAKQtNiW1AS7w1RLLmXU/rBhJg89xMoaAoq4TYJxVo6RdgLTsgrIbipllzZ4v6G/7TOO6J080wFtzAYpNugwgUVC+UMUZRYA+13p7TnUXGAzizGdsZZbMVFT2UbTjG8TlKoLQf1to3wp3eKx3r0dVCClodoxfjqVc8BaSdbQ1EphVU1hok8AT8YhLKu3D6K6uvvP7pzwu/602NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M=",
+     "base64"
+    ]
+   }
+  },
+  {
+   "pubkey": "FAqCb2LrudvhQMd141uZkWJZebkZ42mtWm4pyGNZWiJH",
+   "account": {
+    "data": [
+     "AQAB/gAAAAFeGwAAAAAAAAIAAAAAAAAAgJaYAAAAAAC33sNqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHUXAAAAAAAAt2mxagAAAACNEwAAAAAAAFKEusQPl4Y/CE2mQtFYs704z1t6SsoUeNnief5t6S/nl389MOihjUqGATNABM/PZ5CYM1NNZdo6Dn87ZsU7/xUq4TYJxVo6RdgLTsgrIbipllzZ4v6G/7TOO6J080wFt/t52W3Dye/kimPkh6NArbm+EAyCk/oS05f1/cK5ZNZXT2UbTjG8TlKoLQf1to3wp3eKx3r0dVCClodoxfjqVc8BaSdbQ1EphVU1hok8AT8YhLKu3D6K6uvvP7pzwu/602NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M=",
+     "base64"
+    ]
+   }
+  }
+ ],
+ "github": {
+  "repos/octo/widgets/issues/1": {
+   "body": "What should be done.",
+   "created_at": "2026-09-21T13:09:35Z"
+  },
+  "repos/octo/widgets/issues/1/comments?per_page=100": [
+   {
+    "body": "/knos fund 20 checks: test",
+    "created_at": "2026-09-21T14:09:35Z"
+   }
+  ],
+  "repos/octo/widgets/pulls/12": {
+   "merged_at": "2026-09-21T15:02:33Z"
+  },
+  "repos/octo/widgets/issues/2": {
+   "body": "What should be done.",
+   "created_at": "2026-09-21T14:10:22Z"
+  },
+  "repos/octo/widgets/issues/2/comments?per_page=100": [
+   {
+    "body": "/knos fund 20 checks: test",
+    "created_at": "2026-09-21T15:10:22Z"
+   }
+  ],
+  "repos/octo/widgets/pulls/15": {
+   "merged_at": "2026-09-21T17:12:11Z"
+  },
+  "repos/free/test/issues/1": {
+   "body": "What should be done.",
+   "created_at": "2026-09-21T16:09:20Z"
+  },
+  "repos/free/test/issues/1/comments?per_page=100": [
+   {
+    "body": "/knos fund 20 checks: test",
+    "created_at": "2026-09-21T17:09:20Z"
+   }
+  ],
+  "repos/free/test/pulls/2": {
+   "merged_at": "2026-09-21T17:19:10Z"
+  },
+  "repos/drexthealpha/Knos/issues?labels=knos-relay&state=all&per_page=100": [
+   {
+    "number": 28
+   }
+  ],
+  "repos/drexthealpha/Knos/issues/28/comments?per_page=100&page=1": [
+   {
+    "created_at": "2026-09-21T14:13:25Z",
+    "body": "knos-relay fund octo/widgets#1 0000000000000000 ok sig=3D2acdUsxosPxe1Vqy85n9ZfGnEqHHFNWXRWrLk8nZdNduHy2JWK3SoPXsBTd8sM2vTQqbFfqn96tMJJQC4jfrV4 note=recorded for the tests t=9"
+   },
+   {
+    "created_at": "2026-09-21T15:03:25Z",
+    "body": "knos-relay proof octo/widgets#12 0000000000000001 ok sig=59VhbvdQZC6vjR7uSXYiv8BSQ39Zn2sL8UzjsizRm5QaZ7dQ2UiEuP5UdTJCe6TaFZWoFc1cXDd8UezYnvMG9JgQ note=recorded for the tests t=6"
+   },
+   {
+    "created_at": "2026-09-21T15:13:26Z",
+    "body": "knos-relay fund octo/widgets#2 0000000000000002 ok sig=5k3akuHjpaSXVWydDpf2RvYfeaepjKexbycdtGKMjZ3FUM2HjkhCdLnM6FVMre9hGpepyftfaXtzTt7Lrt6VBmkL note=recorded for the tests t=12"
+   },
+   {
+    "created_at": "2026-09-21T17:13:30Z",
+    "body": "knos-relay proof octo/widgets#15 0000000000000003 ok sig=5MqE91VXLCKHqGZejS1dFVscvud1RX9EYY73kBupRPTaF44zjDDin5E4sbabH9vDRV6JoKa61Y7WAVpacvhBpqTe note=recorded for the tests t=5"
+   },
+   {
+    "created_at": "2026-09-21T17:13:30Z",
+    "body": "knos-relay proof acme/gadgets#4 0000000000000004 ok asked=1790010776 sig=4tiwE8a9w54TZyzeUHeBYN83DzyN9SeBkBg3qfHfNGJ24Zj7MXc324gKpiiYaPGCpnCFipJDRnfteZkPMABaTwz3 note=recorded for the tests t=7"
+   },
+   {
+    "created_at": "2026-09-21T17:14:34Z",
+    "body": "knos-relay fund free/test#1 0000000000000005 ok sig=Y5S1TzCELTTJtjmtntQCVEavsw1wNhUhsswCBdukYJLZZcwcF9LFHiqzDnBBwA5maiBV3NHoRnhUyxRxzzn1LsM note=recorded for the tests t=8"
+   },
+   {
+    "created_at": "2026-09-21T17:29:34Z",
+    "body": "knos-relay proof free/test#2 0000000000000006 ok sig=ZhpfoT1WCAbDdTp5pDH2NTg3ZX7dFFWXGY5FDBuQajunGc5ttC3By4B7z6yT5g57GTGX4JeeL298BFqGTy2Rb77 note=recorded for the tests t=14"
+   }
+  ]
+ },
+ "code_search": {
+  "\"drexthealpha/knos-workflows/.github/workflows\" path:.github/workflows": {
+   "total_count": 3,
+   "incomplete_results": false,
+   "items": [
+    {
+     "path": ".github/workflows/knos.yml",
+     "repository": {
+      "id": 7001,
+      "full_name": "octo/widgets",
+      "owner": {
+       "id": 5001
+      },
+      "private": false,
+      "fork": false
+     }
+    },
+    {
+     "path": ".github/workflows/knos.yml",
+     "repository": {
+      "id": 7003,
+      "full_name": "acme/gadgets",
+      "owner": {
+       "id": 5002
+      },
+      "private": false,
+      "fork": false
+     }
+    },
+    {
+     "path": ".github/workflows/knos.yml",
+     "repository": {
+      "id": 7900,
+      "full_name": "quiet/installed",
+      "owner": {
+       "id": 5900
+      },
+      "private": false,
+      "fork": false
+     }
+    }
+   ]
+  },
+  "\"drexthealpha/Knos/.github/workflows\" path:.github/workflows": {
+   "total_count": 2,
+   "incomplete_results": false,
+   "items": [
+    {
+     "path": ".github/workflows/knos.yml",
+     "repository": {
+      "id": 1353152983,
+      "full_name": "drexthealpha/Knos",
+      "owner": {
+       "id": 142920951
+      },
+      "private": false,
+      "fork": false
+     }
+    },
+    {
+     "path": ".github/workflows/knos.yml",
+     "repository": {
+      "id": 7001,
+      "full_name": "octo/widgets",
+      "owner": {
+       "id": 5001
+      },
+      "private": false,
+      "fork": false
+     }
+    }
+   ]
+  },
+  "\"uses: drexthealpha/Knos@\" path:.github/workflows": {
+   "total_count": 0,
+   "incomplete_results": false,
+   "items": []
+  }
+ }
+}

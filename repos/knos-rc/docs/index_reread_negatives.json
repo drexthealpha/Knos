@@ -1,0 +1,42 @@
+{
+ "about": "A blind second reading of a random sample of the merged pull requests the strict count does not count (version 2 draft of docs/INDEX_METHOD.md). The recorded scan and docs/index_review.json are not changed. scripts/backtest.py draws the sample again from the seed and refuses this file if its list differs.",
+ "read": "2026-10-10",
+ "method_version": "2 (draft)",
+ "seed": 20261010,
+ "negatives": 20,
+ "controls": 5,
+ "how": "each pull request page on github.com, read without logging in, in a shuffled list of 25 links that did not say which were the 5 controls (pull requests the strict count does count). The reader wrote down the merge, the target branch and the page's checks line before the list was matched to the recorded scan. The checks tab, read without logging in, names the checks but shows no result, so a page that says 'N of M checks passed' cannot show which check did not pass.",
+ "outcomes": {
+  "consistent": "merged, and the page says every check passed (or the merge went to a branch other than the default one, so it is not counted anyway)",
+  "inconclusive": "merged, but the page says some checks did not pass, or shows no checks line: whether a test, build, lint or type check failed cannot be read without logging in",
+  "unreadable": "the page did not show the merge or the checks",
+  "flipped": "the page shows a failed test, build, lint or type check on a merge into the default branch: the strict count missed it"
+ },
+ "prs": [
+  {"pr": "kitamura-tetsuo/auto-coder#2004", "role": "negative", "merged_into": "main", "checks_line": "7 checks passed", "outcome": "consistent"},
+  {"pr": "FloorLamp/allos#1223", "role": "negative", "merged_into": "main", "checks_line": "8 checks passed", "outcome": "consistent"},
+  {"pr": "SciML/SciMLBenchmarks.jl#1852", "role": "negative", "merged_into": null, "checks_line": null, "outcome": "unreadable"},
+  {"pr": "VibeBB/simulation-agent#13", "role": "negative", "merged_into": "main", "checks_line": "8 checks passed", "outcome": "consistent"},
+  {"pr": "bckirkup/Crusher_to_the_Bridge#642", "role": "negative", "merged_into": "main", "checks_line": "28 checks passed", "outcome": "consistent"},
+  {"pr": "swampratnz/community-agent#441", "role": "negative", "merged_into": "main", "checks_line": "4 checks passed", "outcome": "consistent"},
+  {"pr": "workforceap/workforceap-beta#2425", "role": "negative", "merged_into": "master", "checks_line": null, "outcome": "inconclusive"},
+  {"pr": "FloorLamp/allos#2508", "role": "negative", "merged_into": "main", "checks_line": "14 checks passed", "outcome": "consistent"},
+  {"pr": "JPL-Devin/OpenSysML#730", "role": "negative", "merged_into": "main", "checks_line": "13 checks passed", "outcome": "consistent"},
+  {"pr": "kitamura-tetsuo/auto-coder#2369", "role": "negative", "merged_into": "main", "checks_line": "9 checks passed", "outcome": "consistent"},
+  {"pr": "JPL-Devin/OpenSysML#431", "role": "negative", "merged_into": "main", "checks_line": "5 checks passed", "outcome": "consistent"},
+  {"pr": "kitamura-tetsuo/auto-coder#2011", "role": "negative", "merged_into": "main", "checks_line": "7 checks passed", "outcome": "consistent"},
+  {"pr": "FloorLamp/allos#1871", "role": "negative", "merged_into": "main", "checks_line": "8 checks passed", "outcome": "consistent"},
+  {"pr": "SciML/SciMLBase.jl#1574", "role": "negative", "merged_into": null, "checks_line": null, "outcome": "unreadable"},
+  {"pr": "DanielESolbakk/budget#195", "role": "negative", "merged_into": "main", "checks_line": "9 checks passed", "outcome": "consistent"},
+  {"pr": "DanielESolbakk/budget#193", "role": "negative", "merged_into": "main", "checks_line": "9 checks passed", "outcome": "consistent"},
+  {"pr": "kitamura-tetsuo/auto-coder#2367", "role": "negative", "merged_into": "main", "checks_line": "13 of 15 checks passed", "outcome": "inconclusive"},
+  {"pr": "tcecure/drcc-lab-companion#6", "role": "negative", "merged_into": "devin/1788016890-labops-phase2-app", "checks_line": "2 checks passed", "outcome": "consistent"},
+  {"pr": "moredatarequired/toko#26", "role": "negative", "merged_into": "main", "checks_line": "2 checks passed", "outcome": "consistent"},
+  {"pr": "10026782/My-bot#515", "role": "negative", "merged_into": "main", "checks_line": "5 checks passed", "outcome": "consistent"},
+  {"pr": "SciML/SciMLBase.jl#1572", "role": "control", "merged_into": null, "checks_line": null, "outcome": "unreadable"},
+  {"pr": "heisck/KEV#37", "role": "control", "merged_into": "main", "checks_line": "5 of 11 checks passed", "outcome": "inconclusive"},
+  {"pr": "EchoCog/azurechodatastudio#99", "role": "control", "merged_into": "main", "checks_line": "5 of 12 checks passed", "outcome": "inconclusive"},
+  {"pr": "ggranby/router-software#9", "role": "control", "merged_into": "main", "checks_line": "8 of 11 checks passed", "outcome": "inconclusive"},
+  {"pr": "rakshas-oss/YuKKi-OS#21", "role": "control", "merged_into": "main", "checks_line": "39 of 51 checks passed", "outcome": "inconclusive"}
+ ]
+}

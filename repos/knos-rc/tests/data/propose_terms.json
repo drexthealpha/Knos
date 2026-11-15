@@ -1,0 +1,971 @@
+{
+ "about": "An invented public repository, in the shape GitHub's REST API answers for one, and the proposal both knos.propose_terms and web/propose_terms.js must make from it. Written by hand once; tests/test_propose_terms.py holds `expected` to the code.",
+ "repo": "acme/widgets",
+ "now": "2026-10-06T12:00:00Z",
+ "api": {
+  "repos/acme/widgets": {
+   "full_name": "acme/widgets",
+   "default_branch": "main",
+   "owner": {
+    "login": "acme"
+   },
+   "private": false
+  },
+  "repos/acme/widgets/commits/000000000000000000000000000000000000008c/check-runs?per_page=100": {
+   "total_count": 6,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "docs",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/000000000000000000000000000000000000008b/check-runs?per_page=100": {
+   "total_count": 5,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/000000000000000000000000000000000000008a/check-runs?per_page=100": {
+   "total_count": 6,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "failure",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "docs",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000089/check-runs?per_page=100": {
+   "total_count": 5,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000088/check-runs?per_page=100": {
+   "total_count": 6,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "docs",
+     "status": "completed",
+     "conclusion": "failure",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000087/check-runs?per_page=100": {
+   "total_count": 4,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000086/check-runs?per_page=100": {
+   "total_count": 6,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "docs",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000085/check-runs?per_page=100": {
+   "total_count": 5,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000084/check-runs?per_page=100": {
+   "total_count": 6,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "docs",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000083/check-runs?per_page=100": {
+   "total_count": 5,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000082/check-runs?per_page=100": {
+   "total_count": 6,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "docs",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/commits/0000000000000000000000000000000000000081/check-runs?per_page=100": {
+   "total_count": 5,
+   "check_runs": [
+    {
+     "name": "unit",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "lint",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "build (ubuntu-latest)",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "knos / check",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 15368
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    },
+    {
+     "name": "license/cla",
+     "status": "completed",
+     "conclusion": "success",
+     "app": {
+      "id": 41898
+     },
+     "details_url": "https://github.com/acme/widgets/actions/runs/1/job/1"
+    }
+   ]
+  },
+  "repos/acme/widgets/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100": [
+   {
+    "number": 140,
+    "merged_at": "2026-09-28T10:00:00Z",
+    "head": {
+     "sha": "000000000000000000000000000000000000008c"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 139,
+    "merged_at": "2026-09-26T10:00:00Z",
+    "head": {
+     "sha": "000000000000000000000000000000000000008b"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 138,
+    "merged_at": "2026-09-24T10:00:00Z",
+    "head": {
+     "sha": "000000000000000000000000000000000000008a"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 137,
+    "merged_at": null,
+    "head": {
+     "sha": "0000000000000000000000000000000000000089"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 136,
+    "merged_at": "2026-09-20T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000088"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 135,
+    "merged_at": "2026-09-18T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000087"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 134,
+    "merged_at": "2026-09-16T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000086"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 133,
+    "merged_at": "2026-09-14T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000085"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 132,
+    "merged_at": "2026-09-12T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000084"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 131,
+    "merged_at": "2026-09-10T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000083"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 130,
+    "merged_at": "2026-09-08T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000082"
+    },
+    "user": {
+     "login": "dev"
+    }
+   },
+   {
+    "number": 129,
+    "merged_at": "2026-09-06T10:00:00Z",
+    "head": {
+     "sha": "0000000000000000000000000000000000000081"
+    },
+    "user": {
+     "login": "dev"
+    }
+   }
+  ],
+  "repos/acme/widgets/contents/?ref=main": [
+   {
+    "name": "src",
+    "type": "dir"
+   },
+   {
+    "name": "tests",
+    "type": "dir"
+   },
+   {
+    "name": "e2e",
+    "type": "dir"
+   },
+   {
+    "name": "docs",
+    "type": "dir"
+   },
+   {
+    "name": ".github",
+    "type": "dir"
+   },
+   {
+    "name": "README.md",
+    "type": "file"
+   }
+  ],
+  "repos/acme/widgets/contents/.github/workflows?ref=main": [
+   {
+    "name": "ci.yml",
+    "type": "file"
+   },
+   {
+    "name": "lint.yml",
+    "type": "file"
+   },
+   {
+    "name": "README.md",
+    "type": "file"
+   }
+  ],
+  "repos/acme/widgets/contents/.github/CODEOWNERS?ref=main": {
+   "encoding": "base64",
+   "content": "IyBvd25lcnMKKi5tZCBAYWNtZS9kb2NzCiogQGFsaWNlIEBhY21lL3BsYXRmb3JtICAjIGV2ZXJ5dGhpbmcKL3NyYy8gQGJvYgo="
+  }
+ },
+ "expected": {
+  "repo": "acme/widgets",
+  "terms": {
+   "standard": "Knos Terms 3",
+   "v": 3,
+   "name": "acme/widgets",
+   "version": 1,
+   "deliverable": {
+    "kind": "pull-request",
+    "one_per": "issue",
+    "says": "One deliverable is the accepted pull request for one issue. A new commit, or another pull request for the same issue, is a retry: the same deliverable, judged again and counted once. There is one for each issue."
+   },
+   "evidence": {
+    "sources": [
+     {
+      "issuer": "https://token.actions.githubusercontent.com",
+      "workflow": "drexthealpha/knos-workflows/.github/workflows/attest.yml"
+     },
+     {
+      "issuer": "https://token.actions.githubusercontent.com",
+      "workflow": "drexthealpha/knos-workflows/.github/workflows/prove.yml"
+     }
+    ],
+    "says": "Evidence counts only when signed by GitHub Actions for a run of drexthealpha/knos-workflows/.github/workflows/attest.yml; or by GitHub Actions for a run of drexthealpha/knos-workflows/.github/workflows/prove.yml."
+   },
+   "checks": {
+    "mode": "merge",
+    "deciding": [
+     {
+      "name": "license/cla",
+      "app": 41898
+     },
+     {
+      "name": "unit",
+      "app": 15368
+     }
+    ],
+    "accept": "",
+    "authority": "the 2 workflow files in .github/workflows of acme/widgets at the commit the order is funded on",
+    "says": "A maintainer's merge decides, after `license/cla` (GitHub App 41898) and `unit` (GitHub App 15368) pass at the last commit. The authoritative copy: the 2 workflow files in .github/workflows of acme/widgets at the commit the order is funded on."
+   },
+   "window": {
+    "warranty_days": 0,
+    "holdback_percent": 0,
+    "says": "Payment is final when it is made: nothing is held back, and accepted work cannot be reopened."
+   },
+   "changes": {
+    "paths": [
+     "src/**"
+    ],
+    "protected": [
+     ".github/**",
+     ".knos/**",
+     "e2e/**",
+     "tests/**"
+    ],
+    "may_add": [],
+    "says": "Only files matching `src/**` may change. No change may touch `.github/**`, `.knos/**`, `e2e/**`, `tests/**`. A contributor may add nothing outside that without the buyer's say."
+   },
+   "dispute": {
+    "who": "supplier",
+    "evaluator": "arbiter",
+    "within_days": 7,
+    "money": "order",
+    "no_answer": "refund-at-deadline",
+    "says": "The supplier may appeal a rejection within 7 days of it, with `/knos appeal <reason>`. There is no suite to run again. No arbiter is named, so a rejection stands unless both sides agree on one. Meanwhile the money stays in the order. With no verdict by the deadline, the money goes back to its funder."
+   },
+   "evaluators": {
+    "quorum": 1,
+    "list": [
+     {
+      "name": "own",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "repository": "acme/widgets",
+      "workflow": "drexthealpha/knos-workflows/.github/workflows/prove.yml",
+      "owner": "acme"
+     }
+    ],
+    "says": "These may judge: `own` (GitHub Actions, workflow drexthealpha/knos-workflows/.github/workflows/prove.yml, in acme/widgets, owned by acme). One of them is enough."
+   },
+   "price": {
+    "amount": "50.00",
+    "currency": "test USDC",
+    "says": "Pays 50.00 test USDC, once, for an accepted deliverable. The funder pays the fee on top."
+   },
+   "deadline": {
+    "days": 14,
+    "late": "refused",
+    "says": "The order is open for 14 days from funding, or less if the funder cancels, which takes 7 days' notice. A token presented after that is refused, and the money goes back to its funder."
+   },
+   "policy": {
+    "may_change": [
+     "@acme/platform",
+     "@alice"
+    ],
+    "how": "new-version",
+    "says": "@acme/platform, @alice may publish a new version. A version never changes: a change is the next version, with its own hash, and an order keeps the version it was funded on."
+   }
+  },
+  "hash": "dea9f0582e9002683159b0602b26bdc2c1068b569772f407cc5f73e7caa90f51",
+  "from": {
+   "deliverable": [
+    "Template default (`bug-fix`): one deliverable for each issue of acme/widgets."
+   ],
+   "evidence": [
+    "Template default: GitHub signs for a run of the pinned Knos workflows, and nothing else counts."
+   ],
+   "checks": [
+    "`license/cla` passed on every one of the last 10 merged pull requests (#130 to #140).",
+    "`unit` passed on every one of the last 10 merged pull requests (#130 to #140).",
+    "Left out: `build (ubuntu-latest)` ran on 9 of 10 merges.",
+    "Left out: `docs` did not pass on #136.",
+    "Left out: `lint` did not pass on #138.",
+    "Workflows read: ci.yml, lint.yml."
+   ],
+   "window": [
+    "Template default (`bug-fix`)."
+   ],
+   "changes": [
+    "`e2e/` is a test directory of acme/widgets: protected, so the work cannot pass by changing its own tests. Remove the line to let a contributor add tests.",
+    "`tests/` is a test directory of acme/widgets: protected, so the work cannot pass by changing its own tests. Remove the line to let a contributor add tests.",
+    "`.github/**` and `.knos/**` are protected in every order: they hold the checks and the terms.",
+    "Template default, kept where acme/widgets has the directory: src/**."
+   ],
+   "dispute": [
+    "Template default: no arbiter is named. Name one neither side controls, or a rejection can only be undone by agreement."
+   ],
+   "evaluators": [
+    "Template default: the order's own repository, acme/widgets, judges. Add a second owner and `quorum 2` if the supplier does not trust it."
+   ],
+   "price": [
+    "Template default (`bug-fix`)."
+   ],
+   "deadline": [
+    "Template default (`bug-fix`)."
+   ],
+   "policy": [
+    "`.github/CODEOWNERS` names @acme/platform, @alice for every file."
+   ]
+  },
+  "last_merge": "2026-09-28T10:00:00Z",
+  "merges": 10,
+  "comment": "/knos fund 50 checks: license/cla, unit paths: src/** days 14",
+  "file": ".knos/terms.json"
+ }
+}

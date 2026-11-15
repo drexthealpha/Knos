@@ -1,0 +1,23 @@
+{
+ "note": "What counts as Knos's own. `ids`: GitHub account ids of the maintainer and of the accounts its live tests run as. `wallets`: every devnet wallet Knos itself uses, since a wallet has no GitHub id. They are the test buyer, the command line and deploy payers, the relay key, the wallets the maintainer linked, the passkey test wallet, the supplier and advancer test wallets, the faucet key, and the relay fee payers that `scripts/load.py measure` derives from its wallet. A repository owned by one of these ids is Knos's too (GitHub is asked who owns it). scripts/network_stats.py never counts any of their activity as outside use.",
+ "ids": [
+  142920951
+ ],
+ "wallets": [
+  "EZi57B4aT661Nwf9oZyPN5ronZMMgtgGUfe68aGff4Gf",
+  "3AwCofxMiRBChGA4BWdEqGKxgREErrrRYf3fqjhP7HzM",
+  "9ig9AXfoNrd5uPhdSFGujPoVsrxze5CGVFM6uusgQydG",
+  "PrHq3RscVtGwYsEinAy6buMFwytn8xZGPgj8ZuNwS6h",
+  "EwSxyJFNQkNN9qtss4Qd7DTvrNYb62vgvhdwqgfErXDz",
+  "9a6RmArU8cfKGqWRfXU2i8xGXsvVFiNs97ZMVuYyozcW",
+  "5zGQCyrtK4gv61EYpUvoKApWAxvbPucpHABA1vdhAJ9V",
+  "HACtdcABcZnBHFpeLq4D6KYR2UkQaHpHt1GAe2uU6roM",
+  "3Y7hmSXc9BGBeBqYGhZUrekhJUbmzR23cDSTs3YnK6HT",
+  "BxEjZT4BnNbr1hHg8ntL8nSBrLVdfRs8jhjG9sR1kqze",
+  "2trvjLFhTqK6ej5RgmPTf5oLQCK1TJbnhCqyp86GronR",
+  "8yDmQNFynGvC6vnxBKn2jBTHXvQ2229nditAQayWFcve",
+  "CaA4rWEF77JT8XCYSB3U8jcj3dGETDNBk5eyXgurNJAp",
+  "DEzBx5xkBbuEfzoRgJGTDdrfhnodXX8djdgBknYW5Jd",
+  "56QGy4NsYspMUVfqfVbC2JcjLgFprbu1RZS7GcbGywvK"
+ ]
+}

@@ -1,0 +1,18 @@
+# What a pull request to Knos must pass before Knos's workflow asks GitHub to sign for it (prove.yml reads this from the base).
+# A `run` that starts with `python` (or `python3`) is run with the interpreter Knos itself is running under, so these
+# work the same on Linux, macOS and Windows, where a bare `python` is the Microsoft Store alias and exits 9009.
+[[check]]
+name = "manifests parse"
+run = "python -c \"import json; [json.load(open(p)) for p in ('docs/bench.json', 'docs/facts.json', 'programs/program_ids.json', 'src/knos/settle/program_ids.json', 'server.json', 'idl/knos_oidc.json', 'idl/knos_pay.json', 'sdk/settle/package.json')]\""
+
+[[check]]
+name = "benchmark docs match their source"
+run = "python scripts/bench_docs.py --check"
+
+[[check]]
+name = "every number on the front pages has a source"
+run = "python scripts/claims_check.py --offline"
+
+[[check]]
+name = "the site hands out the example workflows"
+run = "python scripts/front_workflow.py --check"

@@ -1,0 +1,10 @@
+{
+  "name": "slug",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The sample project: issue 1 is that slugify keeps punctuation.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test test/*.test.js .knos/acceptance/1/*.test.js"
+  }
+}

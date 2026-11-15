@@ -1,0 +1,215 @@
+name: agent-pr-index
+
+# Two publications.
+#
+# 1. The Agent PR Index, by week: "Agent PR Index, week of <Monday>" (docs/reference/INDEX.md has the table and the method).
+#    Mondays, and once more two hours later for a week the first run could not finish.
+#
+#   week     samples the week that just ended inside a fixed budget: --max-requests 500 and --max-minutes 50. The
+#            sample has a fixed design (docs/reference/INDEX.md, "The sampling design"): each agent on each day of the week is
+#            a stratum, the same number is drawn in each, in an order seeded by the ISO week, and when the budget ends
+#            every stratum holds a prefix of its own order. Whatever was read is kept in a checkpoint (week.json,
+#            with a `cursor` that says how far it got) after every request; the next run starts from it and asks
+#            only for what is missing. Its token can only read (permissions: contents: read). It sends GET requests
+#            to GitHub's search and one read-only GraphQL query for each 20 pull requests (their checks and merge
+#            state; REST GET requests when GraphQL is refused), and it never fetches, checks out or runs a file of a
+#            sampled repository.
+#   weekly   reads nothing from GitHub's API. It adds the week to docs/agent_weekly.json, writes the tables into
+#            docs/reference/INDEX.md and the feeds docs/index.json and docs/index.atom, and opens ONE pull request (the branch
+#            index-weekly, replaced each time). A person merges it: nothing here pushes to the default branch. A week
+#            is never refused for being incomplete: it is published as what it is.
+#
+#            How the run stays inside GitHub's limits (guidance read again on 2026-10-06:
+#            docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api,
+#            docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api,
+#            docs.github.com/en/rest/search/search). On 5 October 2026 the bounded run was refused by the secondary
+#            rate limit after a few searches and stopped at once, as it was written to: 95 of 930 planned pull
+#            requests drawn, no agent with enough to rank. Now:
+#              - one request at a time, never two at once;
+#              - the run's requests are spread over its minutes (500 over 40 of its 50: one every 4.8 seconds, about
+#                12 a minute against the 30 a minute search allows and the token's 1,000 an hour);
+#              - a refusal is waited out for as long as GitHub says: `retry-after` seconds; until
+#                `x-ratelimit-reset` when nothing remains; otherwise one minute, doubled each time, four times;
+#              - a wait that does not fit in the run's minutes ends the run, and the checkpoint keeps the time
+#                GitHub named, so the next run does not ask before it;
+#              - an answer already held and grown old is asked for with `if-none-match`: a 304 costs nothing.
+#            It starts after the index job of 06:17 has ended, so the two do not spend the same hour's budget.
+#
+# 2. index.json, every 6 hours: the asset of a GitHub Release tagged index-<date> (a release is not a data commit); the
+#    Pages build (network.yml) downloads the newest one and re-checks its Merkle root.
+#
+#   scan     incremental: what GitHub already answered is in the Actions cache (search pages and CI verdicts), and
+#            the last published index fills in what a lost cache no longer holds, so a run asks only about pull
+#            requests that are new since the last one (and young ones whose CI had not finished): the search windows
+#            are cut at fixed dates and do not move from day to day. Checks are read 20 pull requests to one GraphQL
+#            request; REST answers kept are asked for again with their ETag (a 304 costs nothing). It fits the
+#            default GITHUB_TOKEN: 1,000 REST requests and 1,000 GraphQL points an hour for the repository
+#            (docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api, docs.github.com/en/graphql/
+#            overview/rate-limits-and-query-limits-for-the-graphql-api; read 2026-10-10). It reads rate_limit first
+#            (free), spends each budget down to 200 (kept for the rest of the job and the other workflows), reads
+#            for 20 minutes at most, and stops cleanly at whichever comes first.
+#   gate     a scan that stopped early (out of minutes or out of this hour's budget) is not published and the job
+#            stays green with a note: the last release stays live and the cache is saved, so the next run continues
+#            where this one stopped. The job fails only on a real error: GitHub refused a search query itself, a
+#            finished scan found nothing or shrank to under half of the last index, or every run for 2 days stopped
+#            early (the scan is not catching up).
+#   release  a finished scan is published.
+#
+# KNOS_INDEX_TOKEN (a read-only PAT: 5,000 an hour) is optional, and only the index job sees it.
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # the index job
+    - cron: "43 7,9 * * 1"   # Mondays, twice: the week and weekly jobs; the second run continues a week the first left cut
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "week: sample last week and open its pull request. index: scan and release index.json."
+        type: choice
+        options: [week, index]
+        default: week
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-pr-index
+  cancel-in-progress: false
+
+jobs:
+  index:
+    if: ${{ github.event.schedule == '17 */6 * * *' || (github.event_name == 'workflow_dispatch' && inputs.job == 'index') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    permissions:
+      contents: write  # create the index-<date> release; nothing is committed
+      actions: write   # start network.yml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: what GitHub already answered (search pages and CI verdicts)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/knos-agent-pr-ci
+          key: agent-pr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: agent-pr-ci-
+      - name: the last published index (the scan takes from it the verdicts a lost cache no longer holds)
+        run: |
+          last=$(gh release list -R "$GITHUB_REPOSITORY" --limit 100 --json tagName,createdAt \
+                 --jq '[.[] | select(.tagName | startswith("index-"))] | sort_by(.createdAt) | last | .tagName // empty')
+          if [ -n "$last" ]; then gh release download "$last" -R "$GITHUB_REPOSITORY" -p index.json -O previous.json; fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: scan
+        # up to 800 pull requests an agent; 1,200 s leaves the job's 28 minutes room to build, publish and save; it
+        # stops when this hour's REST or GraphQL budget is down to 200
+        run: python scripts/agent_pr_index.py scan --rows rows.json --per-agent 800 --max-seconds 1200 --reserve 200 --previous previous.json
+        env:
+          GH_TOKEN: ${{ secrets.KNOS_INDEX_TOKEN || github.token }}
+      - name: keep the answers, whether or not the scan finished (the next run continues from them)
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/knos-agent-pr-ci
+          key: agent-pr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: build index.json
+        run: python scripts/agent_pr_index.py build --rows rows.json --out index.json
+      - name: the same scan by agent and by week (reads whether each pull request with finished CI was merged)
+        run: python scripts/agent_pr_index.py weekly --rows rows.json --out agent_weekly.json --max-seconds 180 --reserve 200
+        env:
+          GH_TOKEN: ${{ secrets.KNOS_INDEX_TOKEN || github.token }}
+      - name: gate (a scan that stopped early publishes nothing and says so in a note; a real error fails here)
+        id: gate
+        run: python scripts/agent_pr_index.py gate --rows rows.json --out index.json --previous previous.json
+      - name: release index-<date>
+        if: steps.gate.outputs.publish == 'true'
+        run: |
+          n=$(python -c "import json; print(json.load(open('index.json'))['n_prs'])")
+          root=$(python -c "import json; print(json.load(open('index.json'))['root'])")
+          tag="index-$(date -u +%Y-%m-%d-%H%M)"
+          gh release create "$tag" index.json agent_weekly.json -R "$GITHUB_REPOSITORY" --title "Agent PR Index $tag" --latest=false \
+            --notes "Agent PR Index: $n PRs, Merkle root $root. Recompute it: python scripts/agent_pr_index.py check --out index.json"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Pages build (a release made with GITHUB_TOKEN triggers no workflow, so start it explicitly)
+        if: steps.gate.outputs.publish == 'true'
+        run: gh workflow run network.yml --ref main -R "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  week:
+    # Last week's sample, inside its budget. Read-only: this job's token cannot write anywhere, and the script only
+    # asks GitHub's API. The checkpoint is saved whether or not the run finished, and handed to the next job.
+    if: ${{ github.event.schedule == '43 7,9 * * 1' || (github.event_name == 'workflow_dispatch' && inputs.job != 'index') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 58
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: the checkpoint of this week's sample, when an earlier run was cut
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: week.json
+          key: agent-pr-week-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: agent-pr-week-
+      - name: sample the week (35 strata, 30 draws each, seeded by the ISO week; then checks and merge state), one request at a time, spread over the run
+        run: python scripts/agent_pr_index.py sample --week last --rows week.json --max-requests 500 --max-minutes 50
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: keep the checkpoint, whether or not the run finished
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: week.json
+          key: agent-pr-week-${{ github.run_id }}-${{ github.run_attempt }}
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: week
+          path: week.json
+          if-no-files-found: error
+
+  weekly:
+    # Adds the week to docs/agent_weekly.json and writes the table into docs/reference/INDEX.md, from the checkpoint alone: it
+    # asks GitHub's API nothing and runs nothing but this repository's script on the counts. Whatever the sample
+    # holds is published, marked capped when the budget cut it. It opens one pull request and merges nothing.
+    needs: week
+    if: ${{ always() && needs.week.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write        # push the branch index-weekly
+      pull-requests: write   # open the pull request
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: week
+      - name: add the week to docs/agent_weekly.json and write its table into docs/reference/INDEX.md
+        run: python scripts/agent_pr_index.py weekly --rows week.json --into docs/agent_weekly.json --doc docs/reference/INDEX.md
+      - name: the leaderboard of the new week (docs/reference/INDEX.md) and its feeds (docs/index.json, docs/index.atom), with the disputes of docs/index_disputes.json
+        run: python scripts/agent_pr_index.py board
+      - name: open one pull request when the numbers changed
+        run: |
+          if git diff --quiet -- docs/agent_weekly.json docs/reference/INDEX.md docs/index.json docs/index.atom; then echo "This week is already in docs/agent_weekly.json with the same numbers."; exit 0; fi
+          week=$(python -c "import json; print(json.load(open('docs/agent_weekly.json', encoding='utf-8'))['latest_week'])")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B index-weekly
+          git commit -m "Agent PR Index, week of $week" -- docs/agent_weekly.json docs/reference/INDEX.md docs/index.json docs/index.atom
+          git push --force origin index-weekly
+          gh pr create -R "$GITHUB_REPOSITORY" --head index-weekly --title "Agent PR Index, week of $week" \
+            --body "Adds one more week of the Agent PR Index: docs/agent_weekly.json, the tables in docs/reference/INDEX.md and the feeds docs/index.json and docs/index.atom. It says how the pull requests were picked, how many in each group, and whether the run stopped early. Method, limits and how to dispute a row: docs/reference/INDEX.md." \
+            || gh pr edit index-weekly -R "$GITHUB_REPOSITORY" --title "Agent PR Index, week of $week"
+        env:
+          GH_TOKEN: ${{ github.token }}

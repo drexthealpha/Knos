@@ -1,0 +1,22 @@
+{
+ "kind": "witness",
+ "v": 1,
+ "title": "Witness one transaction from start to end",
+ "statement": "Test USDC, no monetary value.\n\nIn a repository of your own, run examples/witnessed/witness.py: fix terms and a budget with faucet test USDC, submit failing work, then passing work, make the buyer's and the supplier's statements, try a replay, get paid, and check the archive with the stand-alone verifier.",
+ "evidence": "the public record witness.py writes (witness.json): each step's link, the payment's transaction, the replay refused, both statements with one hash, and the verifier's result",
+ "counter": "witnessed",
+ "needs": [
+  "actor_id",
+  "repository_owner_id",
+  "funded_tx",
+  "failed_run",
+  "paid_tx",
+  "replay_refused",
+  "statements_agree",
+  "verified"
+ ],
+ "counted_when": "the account that did it is not one of Knos's own (scripts/own_github_ids.json); shown as \"on tasks Knos funded itself\"",
+ "amount": 5000000,
+ "currency": "test USDC",
+ "doc": "examples/witnessed"
+}

@@ -1,0 +1,7 @@
+{
+  "type": "knos.retention-policy",
+  "version": 1,
+  "keep_years": 7,
+  "then": "hashes",
+  "note": "Seven years of 365 days from the day a bundle was sealed, then the sealed file is removed and its hash stays in the checkpoint."
+}

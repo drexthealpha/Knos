@@ -1,0 +1,18 @@
+{
+ "url": "https://seller.example/work/1",
+ "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+ "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+ "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+ "amount": 5000000,
+ "workSeconds": 900,
+ "marginSeconds": 300,
+ "repoId": "",
+ "issue": "",
+ "seq": 0,
+ "mode": 0,
+ "terms": "{\"accept\":\"\",\"checks\":[{\"app\":15368,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":0,\"v\":1}",
+ "wfRepo": "drexthealpha/knos-workflows",
+ "wfSha": "",
+ "seller": { "githubId": "" },
+ "task": { "id": "sort-1", "title": "Sort these words and drop the duplicates", "input": ["pear", "apple", "fig", "apple", "kiwi", "fig"] }
+}

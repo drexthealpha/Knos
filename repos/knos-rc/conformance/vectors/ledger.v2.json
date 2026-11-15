@@ -1,0 +1,1925 @@
+{
+ "format": "ledger2",
+ "version": 2,
+ "about": "The meter's batch commitment, format 2 (src/knos/ledger.py; docs/CONFORMANCE.md, Ledger, format 2). An event is eighteen texts: deliverable_id, evaluation_id, invoice_line_id, settlement_id, verdict, amount, currency, buyer, seller, order, milestone, policy, artifact, evidence, evaluator, run, month, seq. Its bytes: 'knos.event' 0x00, 0x02, 0x12, then each text in that order as its length in bytes (u32 big-endian) and its UTF-8 bytes. leaf = sha256('knos.leaf.2' 0x00 || bytes); node = sha256('knos.node.2' 0x00 || left || right); a correction's leaf = sha256('knos.fix.2' 0x00 || key); root = sha256('knos.root.2' 0x00 || number of leaves, u32 big-endian || top). Leaves: the events in ascending order of sha256(order, 32 bytes || artifact, 40 characters || policy, 32 bytes || milestone, u32 little-endian), each once, then the corrections' keys ascending, each once. The tree splits at the largest power of two below the number of leaves. Every hash is lower-case hex.",
+ "cases": [
+  {
+   "id": "ledger2/1",
+   "op": "ledger2.event_bytes",
+   "name": "every field stated",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "output": "6b6e6f732e6576656e740002120000001c646c765f6139656334373935643235666634383764313631343662620000001c65766c5f6333653533663063613562386137643161663665663564630000001c696e765f3465316362393537306633366635343666353730303930630000000000000008616363657074656400000007323030303030300000000455534443000000063432343234320000000635353530303000000040663364366630643535623035336664656230313136633265616666643734653931313362326664313964376430363735666438633837613433303939336238640000000131000000403832333431326431656163623637393536323230653533323935396630313034363033303537633838373034383633636133386537636431383866646138313200000028653630306330636234613665663764326232613433653639313539636564356236343131383833390000004030303930336233356233336463383064393035386535336265613664393361636361353965326462643831653464643437613334363432326335313732396632000000076a7564676540310000000431303031000000063230323631300000000130"
+   }
+  },
+  {
+   "id": "ledger2/2",
+   "op": "ledger2.leaf",
+   "name": "every field stated",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "output": "b407fa49a9e8ffc9e634de64870b2c5006557518cfe7c4d161ccda3fdcca30cd"
+   }
+  },
+  {
+   "id": "ledger2/3",
+   "op": "ledger2.event_bytes",
+   "name": "a settled, accepted evaluation",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_e7ccf362717f01bd4590b03a",
+     "evaluation_id": "evl_cdf49b8eea3579e36710dfb6",
+     "invoice_line_id": "",
+     "settlement_id": "stl_9570124679b3f6cefde6adb0",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "ace060e67b31ec53be9dbbd016a9e5b686031b21a50b01c7b79ed10a6b56d6b2",
+     "milestone": "2",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "8b3e2f24dd2c5277c1b66b121be850cfe45232ae",
+     "evidence": "17b9639c99eebb8bf27dc599a4ae762accf05843cd8d926270098df9403f6c83",
+     "evaluator": "judge@1",
+     "run": "1002",
+     "month": "202610",
+     "seq": "3"
+    }
+   },
+   "expect": {
+    "output": "6b6e6f732e6576656e740002120000001c646c765f6537636366333632373137663031626434353930623033610000001c65766c5f636466343962386565613335373965333637313064666236000000000000001c73746c5f39353730313234363739623366366365666465366164623000000008616363657074656400000007323030303030300000000455534443000000063432343234320000000635353530303000000040616365303630653637623331656335336265396462626430313661396535623638363033316232316135306230316337623739656431306136623536643662320000000132000000403832333431326431656163623637393536323230653533323935396630313034363033303537633838373034383633636133386537636431383866646138313200000028386233653266323464643263353237376331623636623132316265383530636665343532333261650000004031376239363339633939656562623862663237646335393961346165373632616363663035383433636438643932363237303039386466393430336636633833000000076a7564676540310000000431303032000000063230323631300000000133"
+   }
+  },
+  {
+   "id": "ledger2/4",
+   "op": "ledger2.leaf",
+   "name": "a settled, accepted evaluation",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_e7ccf362717f01bd4590b03a",
+     "evaluation_id": "evl_cdf49b8eea3579e36710dfb6",
+     "invoice_line_id": "",
+     "settlement_id": "stl_9570124679b3f6cefde6adb0",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "ace060e67b31ec53be9dbbd016a9e5b686031b21a50b01c7b79ed10a6b56d6b2",
+     "milestone": "2",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "8b3e2f24dd2c5277c1b66b121be850cfe45232ae",
+     "evidence": "17b9639c99eebb8bf27dc599a4ae762accf05843cd8d926270098df9403f6c83",
+     "evaluator": "judge@1",
+     "run": "1002",
+     "month": "202610",
+     "seq": "3"
+    }
+   },
+   "expect": {
+    "output": "62743b8dfe60d7e0bc9fbdc757b971e9dddd47e90cae82f0bd440b1ace23343b"
+   }
+  },
+  {
+   "id": "ledger2/5",
+   "op": "ledger2.event_bytes",
+   "name": "a line that states no verdict in words, currency, evidence, evaluator or run: the empty texts are hashed",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_b2ee4ef2f01cb44cc2737862",
+     "evaluation_id": "evl_61548b3f7aa27ebac2eb690b",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "rejected",
+     "amount": "0",
+     "currency": "",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "32e97901b695e7848439dc762ad455ff6f8e1cdeaec589aa2afa1ed888be494e",
+     "milestone": "0",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "60d4c8be6577327bf7d8ce5b05266abda2804edd",
+     "evidence": "",
+     "evaluator": "",
+     "run": "",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "output": "6b6e6f732e6576656e740002120000001c646c765f6232656534656632663031636234346363323733373836320000001c65766c5f36313534386233663761613237656261633265623639306200000000000000000000000872656a656374656400000001300000000000000006343234323432000000063535353030300000004033326539373930316236393565373834383433396463373632616434353566663666386531636465616563353839616132616661316564383838626534393465000000013000000040383233343132643165616362363739353632323065353332393539663031303436303330353763383837303438363363613338653763643138386664613831320000002836306434633862653635373733323762663764386365356230353236366162646132383034656464000000000000000000000000000000063230323631300000000130"
+   }
+  },
+  {
+   "id": "ledger2/6",
+   "op": "ledger2.leaf",
+   "name": "a line that states no verdict in words, currency, evidence, evaluator or run: the empty texts are hashed",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_b2ee4ef2f01cb44cc2737862",
+     "evaluation_id": "evl_61548b3f7aa27ebac2eb690b",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "rejected",
+     "amount": "0",
+     "currency": "",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "32e97901b695e7848439dc762ad455ff6f8e1cdeaec589aa2afa1ed888be494e",
+     "milestone": "0",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "60d4c8be6577327bf7d8ce5b05266abda2804edd",
+     "evidence": "",
+     "evaluator": "",
+     "run": "",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "output": "4f5e8402156001a61373d50f65d90d934eb28699d6da0e7049caf319dc90c432"
+   }
+  },
+  {
+   "id": "ledger2/7",
+   "op": "ledger2.event_bytes",
+   "name": "a verdict that is neither accepted nor rejected, and text outside ASCII",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_ce6b267833e3c9386bcf48f5",
+     "evaluation_id": "evl_91c6a9cec4953cf52910198f",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "insufficient_evidence",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "ee4859b5edff811d9821cbf19c1284ea597e75f4ac71ed6ea050360b6c1d12b3",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "fb7334afe2e9445cb9dc31f707241f87cc36c8e1",
+     "evidence": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "evaluator": "juge-é@2",
+     "run": "run/9",
+     "month": "202610",
+     "seq": "18446744073709551615"
+    }
+   },
+   "expect": {
+    "output": "6b6e6f732e6576656e740002120000001c646c765f6365366232363738333365336339333836626366343866350000001c65766c5f393163366139636563343935336366353239313031393866000000000000000000000015696e73756666696369656e745f65766964656e636500000007323030303030300000000455534443000000063432343234320000000635353530303000000040656534383539623565646666383131643938323163626631396331323834656135393765373566346163373165643665613035303336306236633164313262330000000131000000403832333431326431656163623637393536323230653533323935396630313034363033303537633838373034383633636133386537636431383866646138313200000028666237333334616665326539343435636239646333316637303732343166383763633336633865310000004031353765356362363066633738373835363766646665313362343430646134656235666632633763343034373630323535316465383064643665323133386233000000096a7567652dc3a940320000000572756e2f3900000006323032363130000000143138343436373434303733373039353531363135"
+   }
+  },
+  {
+   "id": "ledger2/8",
+   "op": "ledger2.leaf",
+   "name": "a verdict that is neither accepted nor rejected, and text outside ASCII",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_ce6b267833e3c9386bcf48f5",
+     "evaluation_id": "evl_91c6a9cec4953cf52910198f",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "insufficient_evidence",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "ee4859b5edff811d9821cbf19c1284ea597e75f4ac71ed6ea050360b6c1d12b3",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "fb7334afe2e9445cb9dc31f707241f87cc36c8e1",
+     "evidence": "157e5cb60fc7878567fdfe13b440da4eb5ff2c7c4047602551de80dd6e2138b3",
+     "evaluator": "juge-é@2",
+     "run": "run/9",
+     "month": "202610",
+     "seq": "18446744073709551615"
+    }
+   },
+   "expect": {
+    "output": "82342936abcb7c897fb54ac361ac8fdb12f1c12713b48793e1c0dbf4801bbea8"
+   }
+  },
+  {
+   "id": "ledger2/9",
+   "op": "ledger2.event_bytes",
+   "name": "a verdict that is not one of the four words",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "passed",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "verdict"
+   }
+  },
+  {
+   "id": "ledger2/10",
+   "op": "ledger2.event_bytes",
+   "name": "an amount with a leading zero",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "02000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "one way to write a number"
+   }
+  },
+  {
+   "id": "ledger2/11",
+   "op": "ledger2.event_bytes",
+   "name": "a deliverable id that is not the id of the order and milestone",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_000000000000000000000000",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "ids are recomputed"
+   }
+  },
+  {
+   "id": "ledger2/12",
+   "op": "ledger2.event_bytes",
+   "name": "an evaluation id that is not the id of the run stated",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1002",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "ids are recomputed"
+   }
+  },
+  {
+   "id": "ledger2/13",
+   "op": "ledger2.event_bytes",
+   "name": "an order in upper case",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "F3D6F0D55B053FDEB0116C2EAFFD74E9113B2FD19D7D0675FD8C87A430993B8D",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "lowercase hex"
+   }
+  },
+  {
+   "id": "ledger2/14",
+   "op": "ledger2.event_bytes",
+   "name": "an evidence digest that is not 64 hex characters",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "abc",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "32 bytes or empty"
+   }
+  },
+  {
+   "id": "ledger2/15",
+   "op": "ledger2.event_bytes",
+   "name": "a month of five digits",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "20261",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "six digits"
+   }
+  },
+  {
+   "id": "ledger2/16",
+   "op": "ledger2.event_bytes",
+   "name": "a field left out",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_a9ec4795d25ff487d16146bb",
+     "evaluation_id": "evl_c3e53f0ca5b8a7d1af6ef5dc",
+     "invoice_line_id": "inv_4e1cb9570f36f546f570090c",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "f3d6f0d55b053fdeb0116c2eaffd74e9113b2fd19d7d0675fd8c87a430993b8d",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e600c0cb4a6ef7d2b2a43e69159ced5b64118839",
+     "evidence": "00903b35b33dc80d9058e53bea6d93acca59e2dbd81e4dd47a346422c51729f2",
+     "evaluator": "judge@1",
+     "run": "1001",
+     "month": "202610",
+     "seq": "0"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "eighteen fields, all present"
+   }
+  },
+  {
+   "id": "ledger2/17",
+   "op": "ledger2.root",
+   "name": "one event",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "06d710625af2fdb47c97aacc8993365964d1c58a4ea9a60453c8ab2b29850531"
+   }
+  },
+  {
+   "id": "ledger2/18",
+   "op": "ledger2.root",
+   "name": "two events",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+      "evaluation_id": "evl_5592152438cb78f8098d1f06",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+      "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+      "evaluator": "judge@1",
+      "run": "1011",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "b000ce2b9cadeb5bd3b9cf8b6b5b6a7a248f9bf0c6a6e7928f2aa5a856dee101"
+   }
+  },
+  {
+   "id": "ledger2/19",
+   "op": "ledger2.root",
+   "name": "three events: the last has no sibling and is carried up",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+      "evaluation_id": "evl_5592152438cb78f8098d1f06",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+      "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+      "evaluator": "judge@1",
+      "run": "1011",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_73c64cc467afa49e37ea6ac3",
+      "evaluation_id": "evl_c478fabd67b5a1c67c9e1b81",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "insufficient_evidence",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "c83cd73b3d66a454162099fb997c7cdc9a136afd0525ec0c808a25fc6019aa97",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "e5a5df08ba0ec41f60385b514435deac2bdb6f58",
+      "evidence": "f9c342682037e9c3db51c40522d3a2d6b7e111524131de69f8cd378489f091a0",
+      "evaluator": "judge@1",
+      "run": "1012",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "ced7fa032fa0fbe5992e9caad87fa779bcc5ad6c430365cf2b8fed64451a07a0"
+   }
+  },
+  {
+   "id": "ledger2/20",
+   "op": "ledger2.root",
+   "name": "five events",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+      "evaluation_id": "evl_5592152438cb78f8098d1f06",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+      "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+      "evaluator": "judge@1",
+      "run": "1011",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_73c64cc467afa49e37ea6ac3",
+      "evaluation_id": "evl_c478fabd67b5a1c67c9e1b81",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "insufficient_evidence",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "c83cd73b3d66a454162099fb997c7cdc9a136afd0525ec0c808a25fc6019aa97",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "e5a5df08ba0ec41f60385b514435deac2bdb6f58",
+      "evidence": "f9c342682037e9c3db51c40522d3a2d6b7e111524131de69f8cd378489f091a0",
+      "evaluator": "judge@1",
+      "run": "1012",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+      "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "disputed",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+      "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+      "evaluator": "judge@1",
+      "run": "1013",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_e76fc29956c157b43e943766",
+      "evaluation_id": "evl_b0e3e63a3660462c745aede6",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "46dbe82500e02fb9d0883088f749c81d6007277bac71c2461dc9a2892d1fa931",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "ad9c39fe502628a1bf2d64ea7fd1951794e53e69",
+      "evidence": "5ca936fb2fe0e411cc7f05273881332ba23076d54a3a0d7d640554d916b1e449",
+      "evaluator": "judge@1",
+      "run": "1014",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   }
+  },
+  {
+   "id": "ledger2/21",
+   "op": "ledger2.root",
+   "name": "five events given in another order: the same root",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_e76fc29956c157b43e943766",
+      "evaluation_id": "evl_b0e3e63a3660462c745aede6",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "46dbe82500e02fb9d0883088f749c81d6007277bac71c2461dc9a2892d1fa931",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "ad9c39fe502628a1bf2d64ea7fd1951794e53e69",
+      "evidence": "5ca936fb2fe0e411cc7f05273881332ba23076d54a3a0d7d640554d916b1e449",
+      "evaluator": "judge@1",
+      "run": "1014",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+      "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "disputed",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+      "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+      "evaluator": "judge@1",
+      "run": "1013",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_73c64cc467afa49e37ea6ac3",
+      "evaluation_id": "evl_c478fabd67b5a1c67c9e1b81",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "insufficient_evidence",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "c83cd73b3d66a454162099fb997c7cdc9a136afd0525ec0c808a25fc6019aa97",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "e5a5df08ba0ec41f60385b514435deac2bdb6f58",
+      "evidence": "f9c342682037e9c3db51c40522d3a2d6b7e111524131de69f8cd378489f091a0",
+      "evaluator": "judge@1",
+      "run": "1012",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+      "evaluation_id": "evl_5592152438cb78f8098d1f06",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+      "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+      "evaluator": "judge@1",
+      "run": "1011",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   }
+  },
+  {
+   "id": "ledger2/22",
+   "op": "ledger2.root",
+   "name": "five events and two corrections",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+      "evaluation_id": "evl_5592152438cb78f8098d1f06",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+      "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+      "evaluator": "judge@1",
+      "run": "1011",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_73c64cc467afa49e37ea6ac3",
+      "evaluation_id": "evl_c478fabd67b5a1c67c9e1b81",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "insufficient_evidence",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "c83cd73b3d66a454162099fb997c7cdc9a136afd0525ec0c808a25fc6019aa97",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "e5a5df08ba0ec41f60385b514435deac2bdb6f58",
+      "evidence": "f9c342682037e9c3db51c40522d3a2d6b7e111524131de69f8cd378489f091a0",
+      "evaluator": "judge@1",
+      "run": "1012",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+      "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "disputed",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+      "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+      "evaluator": "judge@1",
+      "run": "1013",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_e76fc29956c157b43e943766",
+      "evaluation_id": "evl_b0e3e63a3660462c745aede6",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "46dbe82500e02fb9d0883088f749c81d6007277bac71c2461dc9a2892d1fa931",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "ad9c39fe502628a1bf2d64ea7fd1951794e53e69",
+      "evidence": "5ca936fb2fe0e411cc7f05273881332ba23076d54a3a0d7d640554d916b1e449",
+      "evaluator": "judge@1",
+      "run": "1014",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": [
+     "abcbfe33d593625e4e6b591396a0d7240391d90ddc376c4b697f1123b6f29c2c",
+     "48f1dce3f531ba8bb2ad74886c86e3b1f3eef43efd757e29c0d56ed3157e7724"
+    ]
+   },
+   "expect": {
+    "output": "3b713e1218bd4269a8ee67a43eef2e88ec14d327318c18abafa4d40584c09dad"
+   }
+  },
+  {
+   "id": "ledger2/23",
+   "op": "ledger2.root",
+   "name": "the corrections given in another order and one twice",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+      "evaluation_id": "evl_5592152438cb78f8098d1f06",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+      "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+      "evaluator": "judge@1",
+      "run": "1011",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_73c64cc467afa49e37ea6ac3",
+      "evaluation_id": "evl_c478fabd67b5a1c67c9e1b81",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "insufficient_evidence",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "c83cd73b3d66a454162099fb997c7cdc9a136afd0525ec0c808a25fc6019aa97",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "e5a5df08ba0ec41f60385b514435deac2bdb6f58",
+      "evidence": "f9c342682037e9c3db51c40522d3a2d6b7e111524131de69f8cd378489f091a0",
+      "evaluator": "judge@1",
+      "run": "1012",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+      "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "disputed",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+      "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+      "evaluator": "judge@1",
+      "run": "1013",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_e76fc29956c157b43e943766",
+      "evaluation_id": "evl_b0e3e63a3660462c745aede6",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "46dbe82500e02fb9d0883088f749c81d6007277bac71c2461dc9a2892d1fa931",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "ad9c39fe502628a1bf2d64ea7fd1951794e53e69",
+      "evidence": "5ca936fb2fe0e411cc7f05273881332ba23076d54a3a0d7d640554d916b1e449",
+      "evaluator": "judge@1",
+      "run": "1014",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": [
+     "48f1dce3f531ba8bb2ad74886c86e3b1f3eef43efd757e29c0d56ed3157e7724",
+     "abcbfe33d593625e4e6b591396a0d7240391d90ddc376c4b697f1123b6f29c2c",
+     "48f1dce3f531ba8bb2ad74886c86e3b1f3eef43efd757e29c0d56ed3157e7724"
+    ]
+   },
+   "expect": {
+    "output": "3b713e1218bd4269a8ee67a43eef2e88ec14d327318c18abafa4d40584c09dad"
+   }
+  },
+  {
+   "id": "ledger2/24",
+   "op": "ledger2.root",
+   "name": "three events in batch 1: another root, the sequence is hashed",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "1"
+     },
+     {
+      "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+      "evaluation_id": "evl_5592152438cb78f8098d1f06",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+      "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+      "evaluator": "judge@1",
+      "run": "1011",
+      "month": "202610",
+      "seq": "1"
+     },
+     {
+      "deliverable_id": "dlv_73c64cc467afa49e37ea6ac3",
+      "evaluation_id": "evl_c478fabd67b5a1c67c9e1b81",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "insufficient_evidence",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "c83cd73b3d66a454162099fb997c7cdc9a136afd0525ec0c808a25fc6019aa97",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "e5a5df08ba0ec41f60385b514435deac2bdb6f58",
+      "evidence": "f9c342682037e9c3db51c40522d3a2d6b7e111524131de69f8cd378489f091a0",
+      "evaluator": "judge@1",
+      "run": "1012",
+      "month": "202610",
+      "seq": "1"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "fd957bcbc04c6bb1844b74aaf3b7d25da92c5bfbb8df182681211002ce996d8f"
+   }
+  },
+  {
+   "id": "ledger2/25",
+   "op": "ledger2.root",
+   "name": "the swap pair, the first accepted",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_58cc251f9ada2a078202c0e5",
+      "evaluation_id": "evl_8bf2bfb068aeaee5a38d1087",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "e594092b34b87b6b3d0b47345184083b4693c974eabf97fd63122ea083f90809",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "63acb19164118f0cc3719612eab17d03f4f08298",
+      "evidence": "95003168fd11de691b5e4241fa036146710bccecdf393a96f514f2173d648521",
+      "evaluator": "judge@1",
+      "run": "1020",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_2b44db38837a38cde0cfdd07",
+      "evaluation_id": "evl_0d59984fb95d8425a269fb11",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "e7559f5861fec16e51a1320f29bb061de9e14bd7e8571a8dc4fd72eaa83b97be",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "aab31625975f8ec3f0f82f3d2e946b1dc8528113",
+      "evidence": "812bfd8015894f9340a8671c8d51c9d0ad2890405c1c1e19f271d0dd0984f4f2",
+      "evaluator": "judge@1",
+      "run": "1021",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "4b2c0f7357809a83bcc14fee8cbb99ceeac711dff5552ea04729b2ae019e03cd"
+   }
+  },
+  {
+   "id": "ledger2/26",
+   "op": "ledger2.root",
+   "name": "the swap pair, the second accepted: another root (in format 1 the two are one root, 4bbf3e4b49b0bbc5ac79785e0d6499d0c2efbb8532e28f0881c7cb4969bb8ce1)",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_58cc251f9ada2a078202c0e5",
+      "evaluation_id": "evl_8bf2bfb068aeaee5a38d1087",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "e594092b34b87b6b3d0b47345184083b4693c974eabf97fd63122ea083f90809",
+      "milestone": "2",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "63acb19164118f0cc3719612eab17d03f4f08298",
+      "evidence": "95003168fd11de691b5e4241fa036146710bccecdf393a96f514f2173d648521",
+      "evaluator": "judge@1",
+      "run": "1020",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_2b44db38837a38cde0cfdd07",
+      "evaluation_id": "evl_0d59984fb95d8425a269fb11",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "e7559f5861fec16e51a1320f29bb061de9e14bd7e8571a8dc4fd72eaa83b97be",
+      "milestone": "0",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "aab31625975f8ec3f0f82f3d2e946b1dc8528113",
+      "evidence": "812bfd8015894f9340a8671c8d51c9d0ad2890405c1c1e19f271d0dd0984f4f2",
+      "evaluator": "judge@1",
+      "run": "1021",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "output": "302e878e9b54149acbb8f005b5c4449909b7095e7cb4b89fbdfa24f9010905a8"
+   }
+  },
+  {
+   "id": "ledger2/27",
+   "op": "ledger2.root",
+   "name": "one event twice",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "refused": true,
+    "why": "each evaluation once"
+   }
+  },
+  {
+   "id": "ledger2/28",
+   "op": "ledger2.root",
+   "name": "one evaluation with two verdicts",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "accepted",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     },
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "rejected",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "refused": true,
+    "why": "a batch says one thing about each evaluation"
+   }
+  },
+  {
+   "id": "ledger2/29",
+   "op": "ledger2.root",
+   "name": "an event with a verdict that is not one of the four",
+   "input": {
+    "events": [
+     {
+      "deliverable_id": "dlv_4659696271c8290125347ca8",
+      "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+      "invoice_line_id": "",
+      "settlement_id": "",
+      "verdict": "ok",
+      "amount": "2000000",
+      "currency": "USDC",
+      "buyer": "424242",
+      "seller": "555000",
+      "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+      "milestone": "1",
+      "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+      "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+      "evaluator": "judge@1",
+      "run": "1010",
+      "month": "202610",
+      "seq": "0"
+     }
+    ],
+    "corrections": []
+   },
+   "expect": {
+    "refused": true,
+    "why": "verdict"
+   }
+  },
+  {
+   "id": "ledger2/30",
+   "op": "ledger2.check_proof",
+   "name": "leaf 0 of five",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "disputed",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 5,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": true
+   }
+  },
+  {
+   "id": "ledger2/31",
+   "op": "ledger2.check_proof",
+   "name": "the same path with another verdict",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 5,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/32",
+   "op": "ledger2.check_proof",
+   "name": "the same path with another amount",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "disputed",
+     "amount": "2000001",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 5,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/33",
+   "op": "ledger2.check_proof",
+   "name": "the same path with another currency",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "disputed",
+     "amount": "2000000",
+     "currency": "EURC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 5,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/34",
+   "op": "ledger2.check_proof",
+   "name": "another size",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "disputed",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 6,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/35",
+   "op": "ledger2.check_proof",
+   "name": "another index",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "disputed",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 1,
+    "size": 5,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/36",
+   "op": "ledger2.check_proof",
+   "name": "against the format 1 root of the same five",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "disputed",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 5,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "26f9647fa3d9aa4b06ca38a333398aef20542a173b2d78466153dda22a1ac109"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/37",
+   "op": "ledger2.check_proof",
+   "name": "a format 1 path and root for the same evaluation",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "disputed",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 5,
+    "path": [
+     "9cd0e950c28ae21c4d81918e4fe52c2aa0cdb62524d41c3c7b1932fda4085325",
+     "8a760f2d181a7883294b89a6d2009ef5eca51e7e38cf51f8bf437547a15cb893",
+     "2905b11e2eed5d871085f7f36244815eddc22559ac17ccffc6dc1aef95ff7aae"
+    ],
+    "root": "26f9647fa3d9aa4b06ca38a333398aef20542a173b2d78466153dda22a1ac109"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/38",
+   "op": "ledger2.check_proof",
+   "name": "an event that is not well formed",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_f8c298b7755e2729033ecdab",
+     "evaluation_id": "evl_baa48c805f8c840b38b05cba",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "ok",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "fe71bacb1959dc07991c11276112909584b7548d32b45d1465924b66f230b531",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "7a0871526cc10545acb03803dd668fedfe4ea441",
+     "evidence": "56ffeb13d8f1aca63e8245d887cdc8d8249d3300b85d342c90fbfc309e16008a",
+     "evaluator": "judge@1",
+     "run": "1013",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 0,
+    "size": 5,
+    "path": [
+     "10b01532f259341bbef16b184ddc0954fc12bd9574a55f0d365294fde85567ff",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": false
+   }
+  },
+  {
+   "id": "ledger2/39",
+   "op": "ledger2.check_proof",
+   "name": "leaf 1 of five",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_4659696271c8290125347ca8",
+     "evaluation_id": "evl_ebae246d68e375e21d23f2d2",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "7fb1a9d25cf0ba22433d9fb626a9a3544a05e21d90cf2915fcadb52e124d152c",
+     "milestone": "1",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "c295ea9b42dd66a24f4e614aa8c580344c2e675b",
+     "evidence": "5349cfcadd4107c82ddda2223014bf8703b2cff73aa30f804fdd510b4d794b34",
+     "evaluator": "judge@1",
+     "run": "1010",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 1,
+    "size": 5,
+    "path": [
+     "8b2feb16fcc1f84058d2dd98699234ef5fbb59473d5251b360d9c07d882a1eb0",
+     "9990e3625b3e34f3ea1b6047de8c553cbdae3704ad4bf2adc0e2b518fa4cbc35",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": true
+   }
+  },
+  {
+   "id": "ledger2/40",
+   "op": "ledger2.check_proof",
+   "name": "leaf 2 of five",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_73c64cc467afa49e37ea6ac3",
+     "evaluation_id": "evl_c478fabd67b5a1c67c9e1b81",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "insufficient_evidence",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "c83cd73b3d66a454162099fb997c7cdc9a136afd0525ec0c808a25fc6019aa97",
+     "milestone": "0",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "e5a5df08ba0ec41f60385b514435deac2bdb6f58",
+     "evidence": "f9c342682037e9c3db51c40522d3a2d6b7e111524131de69f8cd378489f091a0",
+     "evaluator": "judge@1",
+     "run": "1012",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 2,
+    "size": 5,
+    "path": [
+     "880f06a71bd3dbd4aa70f3dd71a68baadc5ad4729427bdb786f9feff688dbde9",
+     "95018727d7bfc6046290707b8cae830c0beb3e730e3d534058afb92f79d460e9",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": true
+   }
+  },
+  {
+   "id": "ledger2/41",
+   "op": "ledger2.check_proof",
+   "name": "leaf 3 of five",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_e76fc29956c157b43e943766",
+     "evaluation_id": "evl_b0e3e63a3660462c745aede6",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "accepted",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "46dbe82500e02fb9d0883088f749c81d6007277bac71c2461dc9a2892d1fa931",
+     "milestone": "2",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "ad9c39fe502628a1bf2d64ea7fd1951794e53e69",
+     "evidence": "5ca936fb2fe0e411cc7f05273881332ba23076d54a3a0d7d640554d916b1e449",
+     "evaluator": "judge@1",
+     "run": "1014",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 3,
+    "size": 5,
+    "path": [
+     "7db439b4fedfb072cffe6d56989867ed61f6a5a61c954ce66fbd15aa228da355",
+     "95018727d7bfc6046290707b8cae830c0beb3e730e3d534058afb92f79d460e9",
+     "2c434300a049b4b728f0b6332e1d37e4904a45aaadfa27f53a412045dd617d1a"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": true
+   }
+  },
+  {
+   "id": "ledger2/42",
+   "op": "ledger2.check_proof",
+   "name": "leaf 4 of five",
+   "input": {
+    "event": {
+     "deliverable_id": "dlv_3fcfca8e199b393a8bbaf1e3",
+     "evaluation_id": "evl_5592152438cb78f8098d1f06",
+     "invoice_line_id": "",
+     "settlement_id": "",
+     "verdict": "rejected",
+     "amount": "2000000",
+     "currency": "USDC",
+     "buyer": "424242",
+     "seller": "555000",
+     "order": "1e9a3674deca702ff94f1eca925d95c547ebfa571e1814e85ae6d6bdb4e83ce9",
+     "milestone": "2",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "artifact": "96a89be1910d5ba0e8e23889f8ae233b3d6e8ce9",
+     "evidence": "ef2a114b334960f12cccbd08ce0d738f14c8d3e43714db20801dc9bc437c270f",
+     "evaluator": "judge@1",
+     "run": "1011",
+     "month": "202610",
+     "seq": "0"
+    },
+    "index": 4,
+    "size": 5,
+    "path": [
+     "2f3474f0166fad0424f3a49cc6d609e81c20e4929cc3a3164d5209b6b29ae4b7"
+    ],
+    "root": "7ce9b62f66ef2957357ba8c9336fa113d64ddcdbcddc4b256e22d15052cb483f"
+   },
+   "expect": {
+    "output": true
+   }
+  }
+ ]
+}

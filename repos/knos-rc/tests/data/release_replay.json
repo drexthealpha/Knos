@@ -1,0 +1,13 @@
+{
+ "note": "Knos's own releases, with the evidence GitHub recorded (gh run list --workflow tests, read 1 Oct 2026). Local pytest passed before every one of these releases was announced.",
+ "history": [
+  {"version": "0.2.0", "sha": "54ce98ad", "ci": "failure", "local_pytest": "passed"},
+  {"version": "0.2.1", "sha": "b5e02064", "ci": "success", "local_pytest": "passed"}
+ ],
+ "replay": [
+  {"version": "0.3.0", "sha": "20170d44", "ci": "success", "local_pytest": "passed"},
+  {"version": "0.3.1", "sha": "ab7e0b34", "ci": "failure", "local_pytest": "passed"},
+  {"version": "0.3.2", "sha": "ed0b2ea7", "ci": "failure", "local_pytest": "passed"},
+  {"version": "0.3.3", "sha": "9630bf1f", "ci": "success", "local_pytest": "passed"}
+ ]
+}

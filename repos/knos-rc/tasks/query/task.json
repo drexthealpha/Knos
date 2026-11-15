@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "query",
+ "title": "Group the values of a query string",
+ "statement": "Test USDC, no monetary value.\n\nRead one query string like `b=2&a=1&a=3`: pairs joined by `&`, each `key=value`; a pair with no `=` is a key with an empty value. Print the keys in alphabetical order, separated by spaces, each as `key=` followed by its values in the order they appeared, joined by commas: `a=1,3 b=2`.",
+ "file": "tasks/query.py",
+ "run": [
+  "python3",
+  "tasks/query.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "b=2&a=1&a=3",
+   "output": "a=1,3 b=2"
+  },
+  {
+   "input": "x",
+   "output": "x="
+  },
+  {
+   "input": "k=v=w&k=",
+   "output": "k=v=w,"
+  }
+ ],
+ "seed": 121,
+ "starting_files": {
+  "tasks/query.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

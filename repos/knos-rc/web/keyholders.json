@@ -1,0 +1,4 @@
+{
+  "note": "Who holds a member key of the two multisigs and is not the founder. scripts/governance.mjs and the site's Hold a key page read this file. An entry is added only after the proposal that adds the key has executed on chain. Entry: {\"address\": \"<member key>\", \"handle\": \"<name or handle>\", \"since\": \"YYYY-MM-DD\", \"multisigs\": [\"upgrade\", \"guardian\"]}.",
+  "outside": []
+}

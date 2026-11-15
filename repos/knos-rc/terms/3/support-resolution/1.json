@@ -1,0 +1,65 @@
+{
+  "standard": "Knos Terms 3",
+  "v": 3,
+  "name": "support-resolution",
+  "version": 1,
+  "built": false,
+  "needs": "a signing system of record",
+  "deliverable": {
+    "kind": "resolution",
+    "one_per": "ticket",
+    "says": "One deliverable is one ticket resolved. A ticket reopened inside the window is the same deliverable, not a new one. There is one for each ticket."
+  },
+  "evidence": {
+    "sources": [],
+    "says": "No evidence source exists for this kind of work yet: nothing a third party signs says it was done."
+  },
+  "checks": {
+    "mode": "merge",
+    "deciding": [],
+    "accept": "",
+    "authority": "none yet: the help desk's own record, which the seller keeps",
+    "says": "Nothing can decide yet: no third party signs that this work was done. The authoritative copy: none yet: the help desk's own record, which the seller keeps."
+  },
+  "window": {
+    "warranty_days": 0,
+    "holdback_percent": 0,
+    "says": "Nothing can be paid, so nothing can be reopened."
+  },
+  "changes": {
+    "paths": [],
+    "protected": [],
+    "may_add": [],
+    "says": "Any file may change. No path is protected. A contributor may add nothing outside that without the buyer's say."
+  },
+  "dispute": {
+    "who": "supplier",
+    "evaluator": "arbiter",
+    "within_days": 7,
+    "money": "order",
+    "no_answer": "refund-at-deadline",
+    "says": "No appeal can be heard yet: there is no evaluator to hear it."
+  },
+  "evaluators": {
+    "quorum": 1,
+    "list": [],
+    "says": "No evaluator can be named yet: nobody signs for this kind of work."
+  },
+  "price": {
+    "amount": "1.00",
+    "currency": "test USDC",
+    "says": "Would pay 1.00 test USDC for each accepted deliverable. Nothing can be funded on these terms yet."
+  },
+  "deadline": {
+    "days": 14,
+    "late": "refused",
+    "says": "The order is open for 14 days from funding, or less if the funder cancels, which takes 7 days' notice. A token presented after that is refused, and the money goes back to its funder."
+  },
+  "policy": {
+    "may_change": [
+      "@acme"
+    ],
+    "how": "new-version",
+    "says": "@acme may publish a new version. A version never changes: a change is the next version, with its own hash, and an order keeps the version it was funded on."
+  }
+}

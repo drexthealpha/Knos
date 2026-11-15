@@ -1,0 +1,62 @@
+# .github/workflows/knos-claim-v1.yml - claim what the first deployment of Knos (0.3.11 and earlier) holds for your
+# GitHub account. `knos claim --v1 <address>` installs and runs it. (The second deployment pays straight to the wallet
+# you name with `knos claim <address>`, and needs no claim afterwards.)
+#
+# Put this file in any repository YOU own (a personal repository, not an organisation's). Then: Actions > knos claim >
+# Run workflow, and enter the Solana address that should receive everything waiting under your GitHub account.
+#
+# How it works: this run asks GitHub for a token that says "GitHub user <you> ran this by hand in their own repository
+# and names <address>". Nobody else can get GitHub to sign that. The token is posted on an issue here; anyone (Knos's
+# always-on worker does) carries it to Solana, where knos-oidc checks GitHub's signature and knos-pay sends your
+# balance to the address. You need no SOL: the relayer pays the fee. The token can only ever pay that address.
+name: knos claim (first deployment)
+
+on:
+  workflow_dispatch:
+    inputs:
+      address:
+        description: Solana address to receive your Knos payments
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  claim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      id-token: write
+      issues: write
+    steps:
+      - name: ask GitHub for the claim token and post it
+        env:
+          ADDRESS: ${{ inputs.address }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ADDRESS" | grep -qE '^[1-9A-HJ-NP-Za-km-z]{32,44}$' || { echo "not a Solana address"; exit 1; }
+          tok=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=knos:claim:$ADDRESS" | jq -r .value)
+          id=$(printf '%s' "$tok" | sha256sum | cut -c1-16)
+          n=$(gh api "repos/$GITHUB_REPOSITORY/issues" -f title="knos claim" \
+                -f body="Claiming Knos payments to $ADDRESS." --jq .number)
+          printf 'knos-claim: %s\n\n<sub>knosrelay: a GitHub-signed token that can only pay %s.</sub>\n' "$tok" "$ADDRESS" | gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments" -F body=@- --jq .html_url
+          echo "posted claim token $id on issue #$n; waiting for a relayer"
+          end=$(( $(date +%s) + 900 ))
+          line=""
+          while [ "$(date +%s)" -lt "$end" ]; do
+            log=$(gh api "repos/drexthealpha/Knos/issues?labels=knos-relay&state=open&per_page=1" --jq '.[0].number' 2>/dev/null || true)
+            if [ -n "$log" ]; then
+              line=$(gh api "repos/drexthealpha/Knos/issues/$log/comments?per_page=100&since=$(date -u -d '-30 min' +%FT%TZ)" \
+                       --jq '.[].body' 2>/dev/null | grep -F " $id " | tail -1 || true)
+              [ -n "$line" ] && break
+            fi
+            sleep 15
+          done
+          if [ -z "$line" ]; then body="Knos: no relayer picked this claim up within 15 minutes. Run the workflow again.";
+          elif printf '%s' "$line" | grep -q " ok "; then body="Knos: $(printf '%s' "$line" | sed -n 's/.* note=\(.*\)$/\1/p')";
+          else body="Knos: the claim was refused: ${line#* fail }"; fi
+          printf '%s\n' "$body" | gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments" -F body=@- --jq .html_url
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/$n" -f state=closed --jq .state
+          printf '%s' "$line" | grep -q " ok "

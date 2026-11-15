@@ -1,0 +1,155 @@
+{
+ "about": "Written by scripts/diagrams.py render: a picture of every Mermaid diagram in README.md and docs/, for pages that cannot draw Mermaid (PyPI). Do not edit.",
+ "diagrams": [
+  {
+   "source": "README.md",
+   "block": 1,
+   "sha256": "eea5920395e5568672686f04c0e37d8d9d2181c1236c8ff529e4ce9530ca9576",
+   "svg": "docs/diagrams/readme-1.svg"
+  },
+  {
+   "source": "README.md",
+   "block": 2,
+   "sha256": "98dc315acb458579add6edb176e846c8de407d43610b1e4d9702c0f9b2839bad",
+   "svg": "docs/diagrams/readme-2.svg"
+  },
+  {
+   "source": "docs/INDEX_METHOD.md",
+   "block": 1,
+   "sha256": "66d0379e576b4da16c5286079d08f0bccf9ebcb1da88e59cca3c759900ac6317",
+   "svg": "docs/diagrams/docs-index-method-1.svg"
+  },
+  {
+   "source": "docs/JUDGES.md",
+   "block": 1,
+   "sha256": "844b5d47a0cf0bc55a5d50b89b969ce4a207461ce611946f0950703b0a1d90ee",
+   "svg": "docs/diagrams/docs-judges-1.svg"
+  },
+  {
+   "source": "docs/NUMBERS.md",
+   "block": 1,
+   "sha256": "7a5a20ac1472960a199bef7e5514e59388fb0ea4606d393fc22dd0210d15bd62",
+   "svg": "docs/diagrams/docs-numbers-1.svg"
+  },
+  {
+   "source": "docs/PRICING.md",
+   "block": 1,
+   "sha256": "56e41555f1f798624196f8be2256962761c19ac8d451f80034b11d1403923b93",
+   "svg": "docs/diagrams/docs-pricing-1.svg"
+  },
+  {
+   "source": "docs/README.md",
+   "block": 1,
+   "sha256": "6304b09454388c2af23e5e3599ca6f5da75aba9c59c1878bac65a822e05cf31b",
+   "svg": "docs/diagrams/docs-readme-1.svg"
+  },
+  {
+   "source": "docs/START.md",
+   "block": 1,
+   "sha256": "b53fd4b495da4fa2f6e734b7dffcebe82223e2fc9b4a33720589b1f9dd4243c5",
+   "svg": "docs/diagrams/docs-start-1.svg"
+  },
+  {
+   "source": "docs/STORY.md",
+   "block": 1,
+   "sha256": "38ab04c73b0026490c59fa16070d9a718a665e90f4868075bc824e47313794ec",
+   "svg": "docs/diagrams/docs-story-1.svg"
+  },
+  {
+   "source": "docs/TRANSACTION.md",
+   "block": 1,
+   "sha256": "4cff7d16865cd6ec2fe84e557df5558f8ca84bd754013be1a94707b03614200f",
+   "svg": "docs/diagrams/docs-transaction-1.svg"
+  },
+  {
+   "source": "docs/TRUST.md",
+   "block": 1,
+   "sha256": "23859c41963b380d9a568aba46b7d06ef60f648172fbd5363b36425ebb8545b0",
+   "svg": "docs/diagrams/docs-trust-1.svg"
+  },
+  {
+   "source": "docs/WORDS.md",
+   "block": 1,
+   "sha256": "7f86127188298bac691f90b4256d2d6aa263aa25650b2bdf7a875314c4c907e4",
+   "svg": "docs/diagrams/docs-words-1.svg"
+  },
+  {
+   "source": "docs/reference/CHARTER.md",
+   "block": 1,
+   "sha256": "45d62a2656c8024c7754e819ff61cfac9b88c4f4f68eae6fdca20fa731acd616",
+   "svg": "docs/diagrams/docs-reference-charter-1.svg"
+  },
+  {
+   "source": "docs/reference/FLOWS.md",
+   "block": 1,
+   "sha256": "887b77ca85d2b3f4a819ddf732a89320183a7ff4c35f66614067e9b2a0e7052d",
+   "svg": "docs/diagrams/docs-reference-flows-1.svg"
+  },
+  {
+   "source": "docs/reference/GOVERNANCE.md",
+   "block": 1,
+   "sha256": "1374ba1a3373cdfffb504e8ce4eaac96e14144be1764498d7a107e9a88c6e433",
+   "svg": "docs/diagrams/docs-reference-governance-1.svg"
+  },
+  {
+   "source": "docs/reference/KEYS.md",
+   "block": 1,
+   "sha256": "0ffb8f1c877558eeaa026c70ea4e334e5074487cb17282557edd62bad3e96ded",
+   "svg": "docs/diagrams/docs-reference-keys-1.svg"
+  },
+  {
+   "source": "docs/reference/MARKET_SIZE.md",
+   "block": 1,
+   "sha256": "c7c4aaacbf632e8fe30ab8145c24e9a750662fc48d6a3025d4a4f58123da72bf",
+   "svg": "docs/diagrams/docs-reference-market-size-1.svg"
+  },
+  {
+   "source": "docs/reference/METER.md",
+   "block": 1,
+   "sha256": "0ae69021955a14687721538f90aef0b666c618f36325b946de5e8cd6f4bfe99e",
+   "svg": "docs/diagrams/docs-reference-meter-1.svg"
+  },
+  {
+   "source": "docs/reference/PILOT.md",
+   "block": 1,
+   "sha256": "6e39a659a0446ea1a317b3543cd1ffaaf8678dbfa3c2bc4d83178557dfb74f2a",
+   "svg": "docs/diagrams/docs-reference-pilot-1.svg"
+  },
+  {
+   "source": "docs/reference/PROPOSAL-2.3.md",
+   "block": 1,
+   "sha256": "b80b3ea2f1f95d4d1ab81d8db1fea5c63c4ebe0474fe6e2b18e0b471a537efd4",
+   "svg": "docs/diagrams/docs-reference-proposal-2-3-1.svg"
+  },
+  {
+   "source": "docs/reference/PROPOSAL-2.3.md",
+   "block": 2,
+   "sha256": "34d02c3521d6091a304cb6766a0702488241976db4cd76ef49fae3993948caf8",
+   "svg": "docs/diagrams/docs-reference-proposal-2-3-2.svg"
+  },
+  {
+   "source": "docs/reference/README.md",
+   "block": 1,
+   "sha256": "b28b07e7f58b4fb2c916b2f2ae622a5bb4a55ef0807e6ed55ac119e0acbb23c8",
+   "svg": "docs/diagrams/docs-reference-readme-1.svg"
+  },
+  {
+   "source": "docs/reference/SELFHOST.md",
+   "block": 1,
+   "sha256": "501bd0ed68601ec9df3b671047ef10465dfe28134d8ac861b085b679575b97ba",
+   "svg": "docs/diagrams/docs-reference-selfhost-1.svg"
+  },
+  {
+   "source": "docs/reference/SOURCES.md",
+   "block": 1,
+   "sha256": "6e83a3e80fda34104413fea903224cd990711c44d170290046c0b6c49478d9f9",
+   "svg": "docs/diagrams/docs-reference-sources-1.svg"
+  },
+  {
+   "source": "docs/reference/STANDARD.md",
+   "block": 1,
+   "sha256": "8a1a64b856e67fb4716dd06e3c5e984b9005d3e4ff79fbbab08dc243e07cc593",
+   "svg": "docs/diagrams/docs-reference-standard-1.svg"
+  }
+ ]
+}

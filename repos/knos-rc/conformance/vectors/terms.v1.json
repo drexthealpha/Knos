@@ -1,0 +1,979 @@
+{
+ "format": "terms",
+ "version": 1,
+ "about": "The terms of a job or an order (src/knos/terms.py; docs/CONFORMANCE.md, Terms). terms.hash: the terms are already in canonical form; answer the canonical JSON text and its sha256. terms.canonical: any object; answer the same two for the canonical form, or refuse.",
+ "cases": [
+  {
+   "id": "terms/1",
+   "op": "terms.hash",
+   "name": "merge mode, nothing else: the smallest terms",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "sha256": "390acda335ab61089221361dbf3647cf65074a73bc623b87202e39bb1e940196"
+    }
+   }
+  },
+  {
+   "id": "terms/2",
+   "op": "terms.hash",
+   "name": "tests mode with a bundle hash, two checks, deny and paths",
+   "input": {
+    "terms": {
+     "accept": "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
+     "checks": [
+      {
+       "app": 15368,
+       "name": "ci / test"
+      },
+      {
+       "app": 0,
+       "name": "lint"
+      }
+     ],
+     "deny": [
+      ".github/**",
+      "docs/*.md"
+     ],
+     "mode": "tests",
+     "paths": [
+      "src/**"
+     ],
+     "reserve": 0,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc\",\"checks\":[{\"app\":15368,\"name\":\"ci / test\"},{\"app\":0,\"name\":\"lint\"}],\"deny\":[\".github/**\",\"docs/*.md\"],\"mode\":\"tests\",\"paths\":[\"src/**\"],\"reserve\":0,\"v\":1}",
+     "sha256": "6cd1f5a3f0bd5412e2818f0fcd1ca075d4635a9b42e4f496030c102c1c13c5f6"
+    }
+   }
+  },
+  {
+   "id": "terms/3",
+   "op": "terms.hash",
+   "name": "a check from any source (app -1) and the longest reserve",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": -1,
+       "name": "build"
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 90,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"build\"}],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":90,\"v\":1}",
+     "sha256": "91209f17c2d3eded997a30ab754c1ad008400c0d1c9bfc23707f45356b1d0f69"
+    }
+   }
+  },
+  {
+   "id": "terms/4",
+   "op": "terms.hash",
+   "name": "characters outside ASCII are written as \\u escapes, lower-case hex",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": 1,
+       "name": "vérifié ✓"
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[{\"app\":1,\"name\":\"v\\u00e9rifi\\u00e9 \\u2713\"}],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "sha256": "be99f56d2f1f1ecbd3e64f3205f9400e1c8b433b93cda0410f3c0a9db95db4f2"
+    }
+   }
+  },
+  {
+   "id": "terms/5",
+   "op": "terms.hash",
+   "name": "a character outside the basic plane is written as its two surrogates",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": 1,
+       "name": "ship 🚀 it"
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[{\"app\":1,\"name\":\"ship \\ud83d\\ude80 it\"}],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "sha256": "62e057cda8171a8e599744ed4d58c5cd26f4b0b1df0dda09b2c12b1e647505ba"
+    }
+   }
+  },
+  {
+   "id": "terms/6",
+   "op": "terms.hash",
+   "name": "a quote and a backslash are escaped; a slash, <, > and & are not",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": 1,
+       "name": "say \"ok\" \\ a/b <c> & d"
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[{\"app\":1,\"name\":\"say \\\"ok\\\" \\\\ a/b <c> & d\"}],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "sha256": "82d7213258fb9b54e4d8657f66aa7e87a68895fbd6c0e505b9ad15bf9309e52b"
+    }
+   }
+  },
+  {
+   "id": "terms/7",
+   "op": "terms.hash",
+   "name": "the optional policy hash",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1,
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812"
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"policy\":\"823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\",\"reserve\":7,\"v\":1}",
+     "sha256": "222c1c4b4576eb81be98f1f2b393dafc27869ca3004483d3e9fc325341c28786"
+    }
+   }
+  },
+  {
+   "id": "terms/8",
+   "op": "terms.hash",
+   "name": "the optional vendor (a standing offer)",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1,
+     "vendor": 424242
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1,\"vendor\":424242}",
+     "sha256": "55b92fa18f9106e06caf60a6145ad8e0aa938a430ef620dc13351e76c86124d5"
+    }
+   }
+  },
+  {
+   "id": "terms/9",
+   "op": "terms.hash",
+   "name": "the optional image, tests mode",
+   "input": {
+    "terms": {
+     "accept": "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
+     "checks": [
+      {
+       "app": 15368,
+       "name": "ci / test"
+      },
+      {
+       "app": 0,
+       "name": "lint"
+      }
+     ],
+     "deny": [
+      ".github/**",
+      "docs/*.md"
+     ],
+     "mode": "tests",
+     "paths": [
+      "src/**"
+     ],
+     "reserve": 0,
+     "v": 1,
+     "image": "docker.io/library/python@sha256:6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d"
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc\",\"checks\":[{\"app\":15368,\"name\":\"ci / test\"},{\"app\":0,\"name\":\"lint\"}],\"deny\":[\".github/**\",\"docs/*.md\"],\"image\":\"docker.io/library/python@sha256:6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d\",\"mode\":\"tests\",\"paths\":[\"src/**\"],\"reserve\":0,\"v\":1}",
+     "sha256": "ffdbb6632c8d5439b53cffec08299665dc2f020ecb19650b9a9453269f24884f"
+    }
+   }
+  },
+  {
+   "id": "terms/10",
+   "op": "terms.hash",
+   "name": "all three optional fields",
+   "input": {
+    "terms": {
+     "accept": "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
+     "checks": [
+      {
+       "app": 15368,
+       "name": "ci / test"
+      },
+      {
+       "app": 0,
+       "name": "lint"
+      }
+     ],
+     "deny": [
+      ".github/**",
+      "docs/*.md"
+     ],
+     "mode": "tests",
+     "paths": [
+      "src/**"
+     ],
+     "reserve": 0,
+     "v": 1,
+     "image": "docker.io/library/python@sha256:6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d",
+     "policy": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+     "vendor": 424242
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc\",\"checks\":[{\"app\":15368,\"name\":\"ci / test\"},{\"app\":0,\"name\":\"lint\"}],\"deny\":[\".github/**\",\"docs/*.md\"],\"image\":\"docker.io/library/python@sha256:6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d\",\"mode\":\"tests\",\"paths\":[\"src/**\"],\"policy\":\"823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\",\"reserve\":0,\"v\":1,\"vendor\":424242}",
+     "sha256": "5a710c005a02bcbf77f5ebab8c4a527cc84887dcd3a00ba0e9a0051810a76b9b"
+    }
+   }
+  },
+  {
+   "id": "terms/11",
+   "op": "terms.canonical",
+   "name": "a vendor above 2^53, which a double cannot hold, keeps every digit",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1,
+     "vendor": 9007199254740993
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1,\"vendor\":9007199254740993}",
+     "sha256": "8bbd7e5a0d7947287fe5b19ffb1cab1b54ae0962ec2e1671f520adb8756ea8e5"
+    }
+   }
+  },
+  {
+   "id": "terms/12",
+   "op": "terms.canonical",
+   "name": "lists out of order and a glob twice: put in order, each once",
+   "input": {
+    "terms": {
+     "accept": "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
+     "checks": [
+      {
+       "app": 15368,
+       "name": "ci / test"
+      },
+      {
+       "app": 0,
+       "name": "lint"
+      }
+     ],
+     "deny": [
+      "docs/*.md",
+      ".github/**",
+      "docs/*.md"
+     ],
+     "mode": "tests",
+     "paths": [
+      "src/**",
+      "lib/**"
+     ],
+     "reserve": 0,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc\",\"checks\":[{\"app\":15368,\"name\":\"ci / test\"},{\"app\":0,\"name\":\"lint\"}],\"deny\":[\".github/**\",\"docs/*.md\"],\"mode\":\"tests\",\"paths\":[\"lib/**\",\"src/**\"],\"reserve\":0,\"v\":1}",
+     "sha256": "f6c176f598dfeadc38474bc881cce4ee80bfae93c5a58f959a7d046954ac940e"
+    }
+   }
+  },
+  {
+   "id": "terms/13",
+   "op": "terms.canonical",
+   "name": "checks are ordered by name, then by app; a repeated check counts once",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": 5,
+       "name": "b"
+      },
+      {
+       "app": 0,
+       "name": "b"
+      },
+      {
+       "app": 9,
+       "name": "a"
+      },
+      {
+       "app": 5,
+       "name": "b"
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[{\"app\":9,\"name\":\"a\"},{\"app\":0,\"name\":\"b\"},{\"app\":5,\"name\":\"b\"}],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "sha256": "fda1b7a93417b3a092892231dfd8dc98d20a2a46683b58fb145b81559b2e2fb2"
+    }
+   }
+  },
+  {
+   "id": "terms/14",
+   "op": "terms.canonical",
+   "name": "the order of the keys in what was given does not matter",
+   "input": {
+    "terms": {
+     "v": 1,
+     "reserve": 0,
+     "paths": [
+      "src/**"
+     ],
+     "mode": "tests",
+     "deny": [
+      ".github/**",
+      "docs/*.md"
+     ],
+     "checks": [
+      {
+       "app": 15368,
+       "name": "ci / test"
+      },
+      {
+       "app": 0,
+       "name": "lint"
+      }
+     ],
+     "accept": "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc"
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc\",\"checks\":[{\"app\":15368,\"name\":\"ci / test\"},{\"app\":0,\"name\":\"lint\"}],\"deny\":[\".github/**\",\"docs/*.md\"],\"mode\":\"tests\",\"paths\":[\"src/**\"],\"reserve\":0,\"v\":1}",
+     "sha256": "6cd1f5a3f0bd5412e2818f0fcd1ca075d4635a9b42e4f496030c102c1c13c5f6"
+    }
+   }
+  },
+  {
+   "id": "terms/15",
+   "op": "terms.canonical",
+   "name": "already canonical: unchanged",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[],\"deny\":[],\"mode\":\"merge\",\"paths\":[],\"reserve\":7,\"v\":1}",
+     "sha256": "390acda335ab61089221361dbf3647cf65074a73bc623b87202e39bb1e940196"
+    }
+   }
+  },
+  {
+   "id": "terms/16",
+   "op": "terms.canonical",
+   "name": "a field missing",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "exactly the seven fields, and optionally image, policy, vendor"
+   }
+  },
+  {
+   "id": "terms/17",
+   "op": "terms.canonical",
+   "name": "a field nobody defined",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1,
+     "bonus": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "exactly the seven fields, and optionally image, policy, vendor"
+   }
+  },
+  {
+   "id": "terms/18",
+   "op": "terms.canonical",
+   "name": "version 2",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 2
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "v is 1"
+   }
+  },
+  {
+   "id": "terms/19",
+   "op": "terms.canonical",
+   "name": "version true",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": true
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "v is the integer 1"
+   }
+  },
+  {
+   "id": "terms/20",
+   "op": "terms.canonical",
+   "name": "an unknown mode",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "review",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "mode is merge or tests"
+   }
+  },
+  {
+   "id": "terms/21",
+   "op": "terms.canonical",
+   "name": "a bundle hash in merge mode",
+   "input": {
+    "terms": {
+     "accept": "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "accept is empty in merge mode"
+   }
+  },
+  {
+   "id": "terms/22",
+   "op": "terms.canonical",
+   "name": "no bundle hash in tests mode",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "tests",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "accept is 64 hex characters in tests mode"
+   }
+  },
+  {
+   "id": "terms/23",
+   "op": "terms.canonical",
+   "name": "a bundle hash in capitals",
+   "input": {
+    "terms": {
+     "accept": "1E6ED65D77D6364EEAED5A745BA5C4985AE2B700DD85D7CF7F027BDF294A33FC",
+     "checks": [],
+     "deny": [],
+     "mode": "tests",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "lower-case hex"
+   }
+  },
+  {
+   "id": "terms/24",
+   "op": "terms.canonical",
+   "name": "a glob from the file system's root",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [
+      "/etc/**"
+     ],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "a glob is a path from the repository's root"
+   }
+  },
+  {
+   "id": "terms/25",
+   "op": "terms.canonical",
+   "name": "a glob that climbs out",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [
+      "src/../secrets"
+     ],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "no .. segment"
+   }
+  },
+  {
+   "id": "terms/26",
+   "op": "terms.canonical",
+   "name": "a glob with a space at its end",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [
+      "src/** "
+     ],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "no leading or trailing space"
+   }
+  },
+  {
+   "id": "terms/27",
+   "op": "terms.canonical",
+   "name": "a reserve below zero",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": -1,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "reserve is 0 to 90"
+   }
+  },
+  {
+   "id": "terms/28",
+   "op": "terms.canonical",
+   "name": "a reserve above 90",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 91,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "reserve is 0 to 90"
+   }
+  },
+  {
+   "id": "terms/29",
+   "op": "terms.canonical",
+   "name": "a reserve written as text",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": "7",
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "reserve is a whole number"
+   }
+  },
+  {
+   "id": "terms/30",
+   "op": "terms.canonical",
+   "name": "a check with a field too many",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": 1,
+       "name": "x",
+       "id": 3
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "a check is app and name"
+   }
+  },
+  {
+   "id": "terms/31",
+   "op": "terms.canonical",
+   "name": "a line break in a check's name",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": 1,
+       "name": "a\nb"
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "one line"
+   }
+  },
+  {
+   "id": "terms/32",
+   "op": "terms.canonical",
+   "name": "an empty check name",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [
+      {
+       "app": 1,
+       "name": ""
+      }
+     ],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "1 to 200 characters"
+   }
+  },
+  {
+   "id": "terms/33",
+   "op": "terms.canonical",
+   "name": "an image named by a tag",
+   "input": {
+    "terms": {
+     "accept": "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
+     "checks": [
+      {
+       "app": 15368,
+       "name": "ci / test"
+      },
+      {
+       "app": 0,
+       "name": "lint"
+      }
+     ],
+     "deny": [
+      ".github/**",
+      "docs/*.md"
+     ],
+     "mode": "tests",
+     "paths": [
+      "src/**"
+     ],
+     "reserve": 0,
+     "v": 1,
+     "image": "docker.io/library/python:3.12"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "an image is named by digest"
+   }
+  },
+  {
+   "id": "terms/34",
+   "op": "terms.canonical",
+   "name": "an image in merge mode",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1,
+     "image": "docker.io/library/python@sha256:6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d"
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "image goes with tests mode"
+   }
+  },
+  {
+   "id": "terms/35",
+   "op": "terms.canonical",
+   "name": "a vendor of zero",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [],
+     "reserve": 7,
+     "v": 1,
+     "vendor": 0
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "vendor is 1 or more"
+   }
+  },
+  {
+   "id": "terms/36",
+   "op": "terms.canonical",
+   "name": "more than 600 bytes",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [
+      "src/module_000/**",
+      "src/module_001/**",
+      "src/module_002/**",
+      "src/module_003/**",
+      "src/module_004/**",
+      "src/module_005/**",
+      "src/module_006/**",
+      "src/module_007/**",
+      "src/module_008/**",
+      "src/module_009/**",
+      "src/module_010/**",
+      "src/module_011/**",
+      "src/module_012/**",
+      "src/module_013/**",
+      "src/module_014/**",
+      "src/module_015/**",
+      "src/module_016/**",
+      "src/module_017/**",
+      "src/module_018/**",
+      "src/module_019/**",
+      "src/module_020/**",
+      "src/module_021/**",
+      "src/module_022/**",
+      "src/module_023/**",
+      "src/module_024/**",
+      "src/module_025/**",
+      "src/module_026/**",
+      "src/module_027/**",
+      "src/module_028/**",
+      "src/module_029/**",
+      "src/module_030/**",
+      "src/module_031/**",
+      "src/module_032/**",
+      "src/module_033/**",
+      "src/module_034/**",
+      "src/module_035/**",
+      "src/module_036/**",
+      "src/module_037/**",
+      "src/module_038/**",
+      "src/module_039/**"
+     ],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "refused": true,
+    "why": "at most 600 bytes"
+   }
+  },
+  {
+   "id": "terms/37",
+   "op": "terms.canonical",
+   "name": "exactly 600 bytes still fit",
+   "input": {
+    "terms": {
+     "accept": "",
+     "checks": [],
+     "deny": [],
+     "mode": "merge",
+     "paths": [
+      "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+      "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+     ],
+     "reserve": 7,
+     "v": 1
+    }
+   },
+   "expect": {
+    "output": {
+     "json": "{\"accept\":\"\",\"checks\":[],\"deny\":[],\"mode\":\"merge\",\"paths\":[\"pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp\",\"qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\",\"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\"],\"reserve\":7,\"v\":1}",
+     "sha256": "4eec9e4152d2e6fdd6e90c9ed84da3f255779598515ee74f5c216b13c1ca978c"
+    }
+   }
+  }
+ ]
+}

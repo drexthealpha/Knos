@@ -1,0 +1,1 @@
+search-api was down for 70 minutes because of a full disk. The team cleared the disk.

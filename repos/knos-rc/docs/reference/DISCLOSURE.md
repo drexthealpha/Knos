@@ -1,0 +1,223 @@
+# Disclosure
+
+The hackathon's contest period began at 06:00 Pacific time on 14 Sep 2026 (13:00 UTC) and ends on 12 Oct 2026
+([official rules](https://colosseum.com/legal/Crypto%20World's%20Fair%20Hackathon%20Rules.pdf), section 5). This
+page says what existed before that moment, what of it is still in the repository, what was built after it, and
+what came from elsewhere. The repository's git history shows all of it, and the commands at the end reproduce
+every count.
+
+## Development completed before the hackathon period
+
+Completed before 13:00 UTC on 14 Sep 2026: Knos 0.1.0 to 0.1.8 and unreleased work on it, a shared local memory for
+coding agents (83 commits, 1 to 14 Sep 2026). That is a different product from the one submitted. Of the lines at
+Knos 0.3.25, 0.1% (412 of 428,405) date from it; the table further down lists them. The verifier, the escrow, the meter, the ledger,
+the judge and the site were written after that moment.
+
+## What existed before the competition and what was built during it
+
+The short form, by date. Times are UTC and are the commits' own (`git log`); a release's date is its release
+commit's. The sections after this one give the detail and the line counts.
+
+| when (UTC) | what | before or during |
+|---|---|---|
+| 1 Sep 2026 | the public repository's first commit | before |
+| 1 to 7 Sep 2026 | Knos 0.1.0 to 0.1.8: shared local memory for coding agents, a different product | before |
+| 7 to 12 Sep 2026 | more work on that product, never released | before |
+| 13 Sep 2026 | two experiments begun outside this repository; none of their code is here | before |
+| **14 Sep 2026, 13:00** | **the contest period begins** | |
+| 14 to 29 Sep 2026 | automatic evidence commits, and 3 by hand for Knos 0.1; the two experiments ran until 28 Sep | during |
+| 30 Sep 2026, 03:07 | Knos 0.2.0 (commit `54ce98a`), then 0.2.1 at 03:43 and 0.3.0 at 19:19 | during |
+| 1 Oct 2026 | Knos 0.3.1 (08:57), 0.3.2 (09:55), 0.3.3 (12:06), 0.3.4 (15:12), then 0.3.5 to 0.3.7 | during |
+| 2 Oct 2026 | Knos 0.3.9 (04:56), 0.3.10 (09:51: the first deployment on devnet), 0.3.11 (14:10, commit `f3dfd3d`) | during |
+| 3 Oct 2026 | three pull requests by another account merged; Knos 0.3.12 (16:13: the second deployment) | during |
+| 4 Oct 2026 | Knos 0.3.13 (09:02), Knos 0.3.14 (21:46, commit `6eb81dd`) | during |
+| 5 Oct 2026 | Knos 0.3.15 (10:49, commit `72511b3`) and 0.3.16 (23:47, commit `50ecb05`) | during |
+| 6 Oct 2026 | Knos 0.3.17 (20:00, commit `f03ec51`) | during |
+| 7 Oct 2026 | Knos 0.3.18 (07:40, commit `f8bcd9d`) and 0.3.19 (15:47, commit `155b570`) | during |
+| 8 Oct 2026 | Knos 0.3.20 (01:04, commit `fb77f4f`); the interface crates published on crates.io and the JavaScript client on npm (`npm install knos-settle`, [knos-settle](https://www.npmjs.com/package/knos-settle) 0.3.20) | during |
+| 8 Oct 2026 | Knos 0.3.21 (09:59, commit `042b7dea`) and 0.3.22 (19:28, commit `c4350c97`) | during |
+| 9 Oct 2026 | Knos 0.3.23 (04:59, commit `852e6135`) and 0.3.24 (13:20, commit `fb4217c1`) | during |
+| 10 Oct 2026 | Knos 0.3.25 (02:43, commit `095f52ae`) | during |
+
+**Everything the product is today was built during the contest period.** What predates it is a different product,
+of which 0.1% of the lines at Knos 0.3.25 remain (the table below says which).
+
+To list the releases with their times from a full clone:
+
+```
+TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep ' Knos 0\.'
+```
+
+## What existed before the hackathon
+
+The public repository's history starts on 1 Sep 2026. Of its 229 commits up to Knos 0.3.25 (commit `095f52ae`,
+10 Oct 2026), 83 were made before the contest period began.
+
+- **Knos 0.1.0 to 0.1.8**, 1–7 Sep 2026: a shared local memory for coding agents, with claims on topics and a guard
+  on edits, built on Sibyl. It won the Sibyl Labs hackathon.
+- **More work on that product, not released**, 7–12 Sep 2026. Its notes are the "0.1.x" section of
+  [CHANGELOG.md](../../CHANGELOG.md). With the releases, that is 74 commits written by hand.
+- **Automatic commits.** From 8 Sep 2026 a GitHub Actions workflow committed regenerated evidence files, three
+  times that day and then once a day. Nine of those commits predate the hackathon. The last of the nine ran at
+  10:44 UTC on 14 Sep 2026, about two hours before it began.
+- **13 Sep 2026**, the day before the hackathon. Work on two experiments that were never shipped (`knos-residual`
+  and an on-chain control plane) began on this day. That day's work is prior work. No code from either experiment
+  was ever committed to this repository; its only commit on 13 Sep is an automatic one.
+
+## What of that is still in the repository
+
+Almost none of Knos 0.1 is in the tree. Its memory server, claims, edit guard, payment gate and integrations were
+removed in 0.2.0 and 0.3.10. They remain in the git history.
+
+At commit `095f52ae` (Knos 0.3.25), `git blame` attributes 412 of the 428,405 lines in the 1,564 text files to
+commits made before the hackathon: 0.1% of all lines. The other 427,993 lines were last changed during it.
+`python scripts/disclosure_counts.py --repo <full clone> --commit 095f52ae` prints these counts and the table.
+(At Knos 0.3.11, commit `f3dfd3d`, the same count was 423 of 39,778 lines in 158 files.)
+
+| lines | file | what they are |
+|---|---|---|
+| 150 | `CHANGELOG.md` | the entries for 0.1 |
+| 41 | `pyproject.toml` | package metadata |
+| 38 | `CODE_OF_CONDUCT.md` | |
+| 29 | `tests/conftest.py` | test fixtures |
+| 28 | `src/knos/cli.py` | the imports and the output-encoding guard of the command line |
+| 21 | `LICENSE` | |
+| 21 | `.gitignore` | |
+| 21 | `tests/test_sibyl_is_load_bearing.py` | imports, blank lines and one line of a test |
+| 13 | `src/knos/__init__.py` | `version()` |
+| 15 | `CONTRIBUTING.md` | |
+| 12 | `src/knos/paths.py` | `home()` |
+| 12 | `.github/ISSUE_TEMPLATE/` | two templates |
+| 9 | `.github/workflows/tests.yml` | the workflow's header |
+| 2 | `README.md` | blank lines |
+
+One dependency also carries over: Sibyl's memory client, which the judge and the local hook still use.
+
+## What was built during the hackathon
+
+- **14–29 Sep 2026.** In this repository: 15 automatic evidence commits and 3 written by hand, all for Knos 0.1 (a
+  line in the README on 16 Sep, a demonstration page on 19 Sep and its share image on 20 Sep). Outside this
+  repository, the two experiments named above ran until 28 Sep. They were never shipped and none of their code is
+  here.
+- **29 Sep – 2 Oct 2026, Knos 0.2.0 to 0.3.9** (first commit 30 Sep). 0.2.0 was built on top of 0.1.8. These
+  versions tried claims enforced at edit time across agent vendors, agent budgets, a jobs market with an escrow,
+  the Stop hook, the Agent PR Index, and a first escrow that verified GitHub's signature on chain but whose keys
+  and workflows were registered by an admin. They are kept as they stood at 0.3.9 in
+  [drexthealpha/knos-labs](https://github.com/drexthealpha/knos-labs), unmaintained. The Stop hook, the index and
+  the judge are here.
+- **Knos 0.3.10** (2 Oct 2026): the first deployment. Its two programs have no admin (`knos-oidc`, `knos-pay`), were deployed
+  on devnet with no upgrade authority, and nobody can change them; payment to a GitHub account; the claim; the merge and tests modes with a veto
+  window; the gate on every bounty pull request; the sandboxed judge for Python, Node, Go and Rust and its
+  black-box mode; the relay; the JavaScript client; the site.
+- **Knos 0.3.11** (2 Oct 2026): no change to the programs. A merge pays only when the pull request's claims hold
+  at the merged commit; an agent's pull request pays the person who ran it; the check alone, with no money;
+  `knos claim`; `knos mcp`; the interface crate, the IDLs and the npm tarball; every action pinned to a commit.
+- **Knos 0.3.12**: the second deployment (`programs-v2`). Terms fixed at funding; no veto; payment straight to a
+  wallet, in the transaction that verifies the pay token; balances funded from a wallet and spent by comment; classic
+  and Token-2022 mints; signing keys that wait a day and expire; a guardian that can revoke a key or pause new
+  funding for at most 7 days. It is upgradeable only through a multisig with a public 8-day delay, until an
+  outside review. The first deployment keeps working for jobs funded on it.
+- **Knos 0.3.13**: an upgrade of the second deployment through that multisig, and two new programs. Work orders in
+  place of single bounties: each with a token account of its own, the fee paid by the funder on top of the amount,
+  funding of any public issue from a wallet, standing orders, splits between payees, holdbacks and warranties,
+  cancellation with notice, organisations as payees, and a payment that can be assigned. Attestation after a merge
+  from a repository of the seller's own. `knos-meter`, which counts evaluations GitHub signed and holds no customer
+  money. `knos-passkey`, a wallet made from a passkey. Signing keys of any RS256 issuer in the verifier. A policy
+  file, statements and exports, and screening of payout addresses. Drills of the recovery paths on the deployed
+  bytes.
+- **Knos 0.3.14**: a correction and what follows from it. The escrow build that 0.3.13 proposed let one pay token
+  pay a second order funded later for the same issue; it was found during the proposal's 48-hour delay, before the
+  build ran, and that release withdrew that proposal and proposed a corrected one, in which every signed token is
+  accepted once by one marker rule ([SECURITY.md](SECURITY.md), section 15). Also: overflow checks in release
+  builds of every program; fee tiers in place of one rate, and a devnet cap of 100,000 per order; a batch mode of
+  the meter with a seller's own count; funding from a passkey wallet; orders of GitLab projects; a hermetic judge
+  by image digest; a feed of upgrade proposals; and the documents [INVARIANTS.md](INVARIANTS.md) and
+  [GOVERNANCE.md](GOVERNANCE.md).
+
+- **Knos 0.3.15**: no program changed. Clients, workflows, the site, documents and tests only;
+  [CHANGELOG.md](../../CHANGELOG.md) has the list. The offer of a paid [Pilot](PILOT.md) and the page on who builds
+  Knos ([TEAM.md](TEAM.md)) were written for it.
+- **Knos 0.3.16 to 0.3.26** (5 to 10 Oct 2026): [CHANGELOG.md](../../CHANGELOG.md) has each list.
+
+In commits: 18 between the start of the hackathon and 29 Sep, and 128 from 30 Sep to Knos 0.3.25.
+
+The story in one line: we measured how often an agent's pull request said "tests pass" while a check had failed
+(17.8% of repositories, on the first such pull request; 9 of 241 merged ones had a failed test, build, lint or type
+check), tried several products around that fact between 29 Sep and 2 Oct 2026, and kept the one
+that fixes it. The commit history shows those turns.
+
+`git log` and [CHANGELOG.md](../../CHANGELOG.md) are the dated record.
+
+## Ideas and code from elsewhere
+
+- **MergePay** ([github.com/codeswithroh/mergepay](https://github.com/codeswithroh/mergepay), first commit 23 Sep
+  2026, on Arc mainnet since 24 Sep 2026) verifies GitHub's OIDC signature on an EVM chain, pays a GitHub user id,
+  and links a wallet with a `workflow_dispatch` token from a repository the user owns. It did this before Knos.
+  Knos first verified GitHub's signature on Solana in commit `cb3a1ac` (1 Oct 2026, Knos 0.3.7). We read MergePay
+  on 2 Oct 2026. What we built after that follows or matches its design in these places: paying a GitHub id;
+  binding a wallet with a token from a run in the user's own repository; holding an unbound payee's money for 180
+  days and then returning it to the funder; reserving an issue by comment for 7 days; paying a person when a bot
+  account opened the pull request; and a waiting time before a new signing key is active. No code was copied; the
+  programs here are written for Solana from scratch.
+- **Three pull requests by another GitHub account.** `jaystay-bot` wrote pull requests #32, #33 and #34 for
+  bounties Knos funded on this repository on 2 Oct 2026: what `knos_bounties` says about each bounty, a
+  repository's own record on the site, and a Ruby runner for the judge. That code is in the tree from 0.3.12, in
+  commits under that account's name. The three were merged on 3 Oct 2026 and paid 48.75 test USDC in all.
+- **Squads v4** is the multisig program that holds the second deployment's upgrade authority and its guardian
+  role.
+- **Shank** (Metaplex) is the format of the IDL files in `idl/`; they were written by hand from the programs'
+  source, not generated.
+- **Wycheproof** test vectors (Google, Apache-2.0) are in `programs/knos_oidc/tests/vectors/`, unmodified.
+- **Sibyl** (`sibyl-memory-client`, by Sibyl Labs) is the memory engine, used as a dependency.
+- Dependencies: `solana-program`, `solana-security-txt` (Rust); `typer`, `rich`, `solders` (Python). The web app
+  loads `@wallet-standard/app` from a CDN only when a sponsor connects a wallet.
+- The history and economics in [WHY.md](WHY.md) (the UCP 600, Akerlof, Spence, Holmström and Milgrom, and the
+  studies cited there) are an argument, not a claim of endorsement.
+
+## How the code is written
+
+Commits in this repository were written with coding agents. Every commit is authored and reviewed by drexthealpha,
+who is responsible for it. Commits carry no co-author trailers, because the author of record is the person who
+reviewed and committed the change.
+
+## Outstanding limits
+
+Each limit is said once, on one line. No code can fix the first fourteen limits below: they need people, agreements or time. `python scripts/release_manifest.py`
+copies these lines into [MANIFEST.md](MANIFEST.md).
+
+- **No buyer has been interviewed.** Every statement here about what a buyer wants is the founder's reasoning from public sources ([MARKET.md](MARKET.md)).
+- **No letter of intent.** Nobody has written that they would use or buy Knos.
+- **No paying customer.** No price in the price book has been charged to anyone.
+- **No pilot.** The [Pilot](PILOT.md) is an offer; nobody has bought it or been offered it.
+- **No outside funder.** Knos's own account funded every task, in test money. Since 0.3.11, 3 payments have gone to another GitHub account, for three pull requests it wrote.
+- **Outside key holders today: 0.** Both multisigs are 2-of-3 and one person holds all three keys ([KEYHOLDER.md](KEYHOLDER.md) says what changes it).
+- **One founder, pseudonymous:** the GitHub account drexthealpha; no legal name is published.
+- **No co-founder,** employee or adviser ([TEAM.md](TEAM.md)).
+- **No legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos, and there are no terms of service.
+- **No legal advice taken.** [REGULATION.md](REGULATION.md) is what the founder read.
+- **No outside review,** of the programs, the workflows, the relay, the clients, the site or the documents ([ASSURANCE.md](ASSURANCE.md)).
+- **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples.
+- **No outside program is known to read the verifier.** The interface and the examples are Knos's own ([COMPOSE.md](COMPOSE.md)).
+- **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash, rerunning the benchmarks or running the drills.
+- **No mainnet deployment.** Solana devnet and test USDC only; no real money has moved.
+- **No second operator.** If the founder is unavailable, nobody answers a report, approves a key or cancels a proposal ([OPERATOR.md](OPERATOR.md)).
+- **No organisation account.** The pinned workflows and the relay live in one personal GitHub account ([GOVERNANCE.md](GOVERNANCE.md), section 9).
+- **The first deployment cannot be changed,** so its known limits stay ([SECURITY.md](SECURITY.md)); the second changes only through a multisig with a public 8-day delay.
+
+## Reproduce the counts
+
+```
+git clone https://github.com/drexthealpha/Knos && cd Knos
+C=095f52ae
+T=$(date -u -d '2026-09-14T13:00:00Z' +%s)                      # 06:00 Pacific time on 14 Sep 2026
+git rev-list --count $C                                         # 229 commits
+git log $C --format=%at | awk -v t=$T '$1 < t' | wc -l          # 83 of them before the hackathon
+TZ=UTC git log $C --reverse --date=format-local:%Y-%m-%d --format=%ad | head -1     # the first: 2026-09-01
+git ls-tree -r --name-only $C | while read -r f; do             # every text file at that commit
+  git diff --numstat 4b825dc642cb6eb9a060e54bf8d69288fbee4904 $C -- "$f" | grep -q '^-' && continue
+  git blame --line-porcelain $C -- "$f" | awk -v t=$T '/^author-time /{n++; if ($2 < t) o++} END {print n+0, o+0}'
+done | awk '{n += $1; o += $2} END {print o, "of", n}'           # 412 of 428405
+```
+
+Counted by commit time before 00:00 UTC on 14 Sep 2026 instead, 82 commits predate the hackathon; the line count
+is the same.

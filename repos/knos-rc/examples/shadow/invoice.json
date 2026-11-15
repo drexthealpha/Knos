@@ -1,0 +1,40 @@
+{
+ "about": "A made-up invoice from a made-up supplier. Not anyone's invoice.",
+ "lines": [
+  {
+   "pr": "example-co/storefront#101",
+   "amount": "400.00",
+   "vendor": "Example Agents Ltd (made up)"
+  },
+  {
+   "pr": "example-co/storefront#102",
+   "amount": "650.00",
+   "vendor": "Example Agents Ltd (made up)"
+  },
+  {
+   "pr": "example-co/storefront#103",
+   "amount": "300.00",
+   "vendor": "Example Agents Ltd (made up)"
+  },
+  {
+   "pr": "example-co/storefront#104",
+   "amount": "400.00",
+   "vendor": "Example Agents Ltd (made up)"
+  },
+  {
+   "pr": "example-co/storefront#105",
+   "amount": "250.00",
+   "vendor": "Example Agents Ltd (made up)"
+  },
+  {
+   "pr": "example-co/storefront#101",
+   "amount": "400.00",
+   "vendor": "Example Agents Ltd (made up)"
+  },
+  {
+   "pr": "example-co/billing-internal#7",
+   "amount": "500.00",
+   "vendor": "Example Agents Ltd (made up)"
+  }
+ ]
+}

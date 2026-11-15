@@ -1,0 +1,358 @@
+name: release
+
+# Everything a release publishes, behind one gate. docs/reference/RELEASE.md has the whole order; this is its last part.
+#
+# A release starts by pushing its tag, and only that way:  git tag v0.3.28 && git push origin v0.3.28
+# By then the tagged commit holds the lock (the last line of requirements/sign.txt: the knos wheel by its sha256) and
+# PyPI holds that very wheel: it was built once, before the commit, and uploaded before the push (scripts/release.py).
+#
+#   tests           THE GATE: the whole test workflow (tests.yml, called as a reusable workflow) on the tagged commit,
+#                   in this very run. Every job below needs it, so nothing leaves the repository unless the full
+#                   suite passed on that exact commit. Tagging early cannot skip it: the tag only starts the tests.
+#   build           builds the wheel again from the tagged commit, reproducibly, and FAILS unless it is the locked
+#                   one: the commit holds the sources of the wheel it names. Also the sdist, the npm tarball of the
+#                   JavaScript client (sdk/settle) and sign.txt (requirements/sign.txt as it is); the tag must be the
+#                   version each of them carries.
+#   pypi            uploads NOTHING. It asks PyPI for the wheel of this version and fails loudly unless PyPI serves a
+#                   file with exactly the locked sha256. A wheel built here is never uploaded: if it differed from the
+#                   locked one by a byte, every signing job (they install by hash) would refuse it. It also asks
+#                   PyPI's index, the cached page an installer resolves from, which can show a release minutes later.
+#   github-release  creates the GitHub release for the tag, with the wheel, the sdist, sign.txt and the npm tarball attached
+#                   (`npm i https://github.com/drexthealpha/Knos/releases/download/vX.Y.Z/knos-settle-X.Y.Z.tgz`).
+#   registry        lists `knos mcp` in the official MCP registry (registry.modelcontextprotocol.io). It proves it owns
+#                   the io.github.drexthealpha namespace with this run's GitHub OIDC token; the registry checks the
+#                   PyPI package names the same server (the `mcp-name:` line at the end of README.md), so it runs
+#                   after pypi. A version the registry already has is left alone.
+#   gemini          attaches the Gemini CLI extension to the release, once for each platform, under the names Gemini
+#                   CLI looks for (<platform>.<extension name>.tar.gz). `gemini extensions install <repository>` reads
+#                   the latest release and takes a release's only asset for the extension: with these beside the
+#                   knos-settle tarball the install is one step.
+#   crates, npmjs   publish the two Rust interface crates to crates.io and the JavaScript client to npm WITH A TOKEN,
+#                   each only when its registry token is a secret of this repository (CARGO_REGISTRY_TOKEN,
+#                   NPM_TOKEN). Without the secret the job says so in one line and passes. A version the registry
+#                   already has is left alone. These are the fallback: the normal path is the two jobs below, and
+#                   with them the secrets stay unset.
+#                   A package is published at ITS OWN version, which is the tag's, or, for a crate that
+#                   scripts/bump_version.py holds (PROGRAMS_FROZEN: a version is in a build's bytes, so the interface
+#                   crates stay at FROZEN_AT while no program changes), the version it is held at. Any other version
+#                   is red. The rule and the
+#                   look at the registry are `scripts/release.py registry-plan`, tested in tests/test_release_gate.py.
+#   crates-trusted, npm-trusted
+#                   publish the same packages with NO stored secret (trusted publishing): the registry exchanges this
+#                   run's GitHub OIDC token for a credential that lives minutes. crates.io:
+#                   rust-lang/crates-io-auth-action; npm: the CLI itself (11.5.1 or later), which also records
+#                   provenance. Each registry lets a trusted publisher be configured only for a package that exists,
+#                   so the FIRST version of each is published by hand by its owner (docs/reference/RELEASE.md, "Publishing the
+#                   crates and the npm package"). Until then these jobs say so in one line and pass. Each runs after
+#                   its token job, so a version is never published twice.
+#   site            starts the Pages build (a release made with GITHUB_TOKEN triggers no workflow).
+#
+# The secrets here are the two registry tokens, each read by one step of one job. No PyPI token and no PyPI trusted
+# publisher is used by any workflow: the upload happens once, from the machine that built the wheel, with a token in
+# that shell's environment.
+# Publishing a release by hand starts nothing: a job that waits for a release event, or reads one, would never run.
+#
+# A run that failed half way is run again from the Actions page ("Re-run failed jobs"), or with "Run workflow" on the
+# tag: each job skips what is already published.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false      # what is built here is what gets published: nothing is restored into it
+      - name: the tag is the version of everything this publishes
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          test "$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)" = "$version"
+          test "$(jq -r .version server.json)" = "$version"
+          test "$(jq -r '.packages[0].version' server.json)" = "$version"
+          test "$(jq -r .version sdk/settle/package.json)" = "$version"
+      # The wheel was built once, before this commit was made, and its hash is the last line of requirements/sign.txt.
+      # The same build here (SOURCE_DATE_EPOCH fixed, the build backend installed by hash) must give that very file.
+      - name: the wheel this commit builds is the locked one
+        run: |
+          set -euo pipefail
+          python3 scripts/release.py wheel --check
+      - name: npm tarball, and sign.txt as the commit holds it
+        run: |
+          set -euo pipefail
+          (cd sdk/settle && npm pack --pack-destination ../../dist)
+          cp requirements/sign.txt dist/sign.txt
+          ls -l dist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release
+          path: dist/
+          if-no-files-found: error
+
+  pypi:
+    needs: [tests, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release
+          path: dist
+      # Nothing is uploaded from here, with any token: PyPI must already serve the wheel, and exactly the locked one.
+      - name: PyPI serves the wheel with exactly the locked hash
+        run: |
+          set -euo pipefail
+          python3 scripts/release.py pypi-check --dist dist --wait 300
+
+  github-release:
+    needs: [tests, build, pypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release
+          path: dist
+      - name: the release, with this version's part of the changelog as its notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          awk -v head="## $version" 'index($0, head) == 1 { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" dist/* --verify-tag --title "Knos $version" --notes-file notes.md --repo "$GITHUB_REPOSITORY"
+          fi
+
+  registry:
+    needs: [tests, pypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: publish server.json unless the registry already has this version
+        run: |
+          set -euo pipefail
+          name=$(jq -r .name server.json); version=$(jq -r .version server.json)
+          test "$(jq -r '.packages[0].version' server.json)" = "$version"
+          # the registry reads the PyPI page of this exact version for the mcp-name line: wait for PyPI to have it
+          for _ in $(seq 30); do
+            if curl -fsS "https://pypi.org/pypi/knos/$version/json" | jq -e --arg n "mcp-name: $name" '.info.description | contains($n)' > /dev/null; then break; fi
+            echo "PyPI does not show knos $version with the mcp-name line yet"; sleep 20
+          done
+          curl -fsS "https://pypi.org/pypi/knos/$version/json" | jq -e --arg n "mcp-name: $name" '.info.description | contains($n)' > /dev/null
+          if curl -fsS "https://registry.modelcontextprotocol.io/v0.1/servers?search=$name" \
+               | jq -e --arg n "$name" --arg v "$version" '[.servers[]? | (.server // .) | select(.name == $n and .version == $v)] | length > 0' > /dev/null; then
+            echo "$name $version is already in the registry"; exit 0
+          fi
+          url=$(curl -fsS https://api.github.com/repos/modelcontextprotocol/registry/releases/latest \
+                  | jq -r '.assets[].browser_download_url | select(test("linux") and test("amd64|x86_64") and test("tar.gz$"))' | head -1)
+          test -n "$url"
+          curl -fsSL "$url" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+
+  gemini:
+    needs: [tests, github-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: pack the extension, attach it once for each platform
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          name=$(jq -r .name gemini-extension.json)
+          test "v$(jq -r .version gemini-extension.json)" = "$TAG"   # Gemini CLI shows this version beside the release's tag
+          tar -czf "linux.$name.tar.gz" gemini-extension.json
+          cp "linux.$name.tar.gz" "darwin.$name.tar.gz"
+          cp "linux.$name.tar.gz" "win32.$name.tar.gz"
+          gh release upload "$TAG" "linux.$name.tar.gz" "darwin.$name.tar.gz" "win32.$name.tar.gz" --clobber --repo "$GITHUB_REPOSITORY"
+
+  crates:
+    needs: [tests, pypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: publish knos-oidc-interface and knos-pay-interface to crates.io, when CARGO_REGISTRY_TOKEN exists
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "::notice title=crates.io::Skipped: this repository has no CARGO_REGISTRY_TOKEN secret, so knos-oidc-interface $TAG was not published to crates.io."
+            exit 0
+          fi
+          # knos-pay-interface first, in a shell of its own: the same three checks, then the publish
+          (
+            cd crates/knos-pay-interface
+            version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+            # its own version: the one scripts/bump_version.py holds it at, or else the tag's
+            [ "$version" = "$(python3 ../../scripts/release.py held knos-pay-interface)" ] || test "v$version" = "$TAG"
+            if curl -fs https://index.crates.io/kn/os/knos-pay-interface | jq -e --arg v "$version" 'select(.vers == $v)' > /dev/null; then
+              echo "crates.io already has knos-pay-interface $version"; exit 0
+            fi
+            cargo publish --locked
+          )
+          cd crates/knos-oidc-interface
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          [ "$version" = "$(python3 ../../scripts/release.py held knos-oidc-interface)" ] || test "v$version" = "$TAG"
+          # crates.io's index lists every published version of a crate, one JSON line each (no such file: none yet)
+          if curl -fs https://index.crates.io/kn/os/knos-oidc-interface | jq -e --arg v "$version" 'select(.vers == $v)' > /dev/null; then
+            echo "crates.io already has knos-oidc-interface $version"; exit 0
+          fi
+          cargo publish --locked
+
+  npmjs:
+    needs: [tests, pypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write   # the provenance npm records with the package: this run packed it from this commit
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: publish knos-settle to npm, when NPM_TOKEN exists
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::notice title=npm::Skipped: this repository has no NPM_TOKEN secret, so knos-settle $TAG was not published to npm."
+            exit 0
+          fi
+          cd sdk/settle
+          version=$(node -p "require('./package.json').version")
+          test "v$version" = "$TAG"
+          if [ "$(npm view "knos-settle@$version" version 2>/dev/null)" = "$version" ]; then
+            echo "npm already has knos-settle $version"; exit 0
+          fi
+          node test.mjs
+          # npm reads the token from the environment when it runs: the file holds only the variable's name
+          # shellcheck disable=SC2016  # so the shell must not expand it
+          printf '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n' > "$RUNNER_TEMP/npmrc"
+          NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/npmrc" npm publish --provenance --access public
+
+  crates-trusted:
+    needs: [tests, pypi, crates]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write   # crates.io exchanges this run's OIDC token for a publish token that lives 30 minutes
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [knos-oidc-interface, knos-pay-interface]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: is there something to publish, and may this run publish it
+        id: plan
+        env:
+          CRATE: ${{ matrix.crate }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Red only when the crate's version is neither the tag's nor the one scripts/bump_version.py holds it at.
+          # Green with a notice when the crate is not on crates.io yet (its first version is published by hand:
+          # docs/reference/RELEASE.md) or crates.io already has this version; publish=true only for a version it lacks.
+          python3 scripts/release.py registry-plan crates "$CRATE" --tag "$TAG"
+      - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+        id: auth
+        if: steps.plan.outputs.publish == 'true'
+      - name: publish with the short-lived token
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CRATE: ${{ matrix.crate }}
+        run: |
+          set -euo pipefail
+          cd "crates/$CRATE"
+          cargo publish --locked
+
+  npm-trusted:
+    needs: [tests, pypi, npmjs]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write   # npm exchanges this run's OIDC token for the right to publish, and records the provenance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24                # trusted publishing needs Node 22.14 and npm 11.5.1, or later
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false    # what is published is packed from the commit: nothing is restored into it
+      - name: is there something to publish, and may this run publish it
+        id: plan
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) { console.error(`npm ${process.argv[1]} cannot do trusted publishing: 11.5.1 or later is needed`); process.exit(1); }' "$(npm --version)"
+          # The same rule as the crates: its own version, which for this package is always the tag's (it moves with
+          # every release). Green with a notice when knos-settle is not on npm yet (its first version is
+          # published by hand: docs/reference/RELEASE.md) or npm already has this version.
+          python3 scripts/release.py registry-plan npm knos-settle --tag "$TAG"
+      - name: test, then publish with this run's identity
+        if: steps.plan.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          cd sdk/settle
+          node test.mjs
+          npm publish --provenance --access public
+
+  site:
+    needs: [tests, github-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Pages build (a release made with GITHUB_TOKEN triggers no workflow, so start it explicitly)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run network.yml --ref main --repo "$GITHUB_REPOSITORY"

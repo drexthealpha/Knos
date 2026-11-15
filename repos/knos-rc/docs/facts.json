@@ -1,0 +1,1179 @@
+{
+ "sentence": "The neutral meter for AI agent work: neither side keeps the count.",
+ "by_hand": {
+  "note": "Counts only a person can supply. Each is changed here, by hand, when the other party agrees to be counted; python scripts/bench_docs.py then writes it into the table of docs/NUMBERS.md.",
+  "buyer_interviews_held": 0,
+  "letters_of_intent": 0,
+  "outside_programs_reading_the_verifier": 0,
+  "shadow_counts_published": 0,
+  "receipt_implementations": 0,
+  "decisions_from_record": 0
+ },
+ "facts": [
+  {
+   "say": [
+    "826"
+   ],
+   "what": "repositories in the index with an agent pull request that claims tests or CI pass",
+   "json": "docs/bench.json",
+   "path": "market.index.overall.first_pr_per_repo.repos",
+   "equals": 826
+  },
+  {
+   "say": [
+    "147"
+   ],
+   "what": "of those, the ones whose first such pull request had a failed check of any kind at its head commit (any_check_failed)",
+   "json": "docs/bench.json",
+   "path": "market.index.overall.first_pr_per_repo.any_check_failed.repos",
+   "equals": 147
+  },
+  {
+   "say": [
+    "17.8%"
+   ],
+   "what": "147 of 826",
+   "json": "docs/bench.json",
+   "path": "market.index.overall.first_pr_per_repo.any_check_failed.share",
+   "equals": 0.178
+  },
+  {
+   "say": [
+    "80"
+   ],
+   "doc": "docs/reference/INDEX.md",
+   "what": "of the 826, the ones where a failed check was, by its name, a test, build, lint or type-check job (test_or_build_check_failed)",
+   "json": "docs/bench.json",
+   "path": "market.index.overall.first_pr_per_repo.test_or_build_check_failed.repos",
+   "equals": 80
+  },
+  {
+   "say": [
+    "9.7%"
+   ],
+   "doc": "docs/reference/INDEX.md",
+   "what": "80 of 826 (0.0969)",
+   "json": "docs/bench.json",
+   "path": "market.index.overall.first_pr_per_repo.test_or_build_check_failed.share",
+   "equals": 0.0969
+  },
+  {
+   "say": [
+    "241"
+   ],
+   "what": "merged agent pull requests whose description said tests or CI pass, in the sample that records merges",
+   "json": "docs/backtest.json",
+   "path": "sample.merged.overall.prs",
+   "equals": 241
+  },
+  {
+   "say": [
+    "30"
+   ],
+   "what": "of those 241, the ones the scan recorded with a failed check of any kind at the head commit, before the second reading (docs/index_review.json)",
+   "json": "docs/backtest.json",
+   "path": "sample.merged.overall.any_check_failed.prs",
+   "equals": 30
+  },
+  {
+   "say": [
+    "9"
+   ],
+   "what": "THE LEAD NUMBER: of the 241, the ones with a failed test, build, lint or type-check job at the head commit, after the second reading of docs/index_review.json (method version 1, docs/INDEX_METHOD.md)",
+   "json": "docs/backtest.json",
+   "path": "reviewed.overall.test_or_build_check_failed.prs",
+   "equals": 9
+  },
+  {
+   "say": [
+    "3.7%"
+   ],
+   "what": "9 of 241 (0.0373)",
+   "json": "docs/backtest.json",
+   "path": "reviewed.overall.test_or_build_check_failed.share",
+   "equals": 0.0373
+  },
+  {
+   "say": [
+    "95%",
+    "2.0%",
+    "6.9%"
+   ],
+   "what": "the 95% Wilson interval of 9 of 241",
+   "json": "docs/backtest.json",
+   "path": "reviewed.overall.test_or_build_check_failed.ci95",
+   "equals": [
+    0.0198,
+    0.0694
+   ]
+  },
+  {
+   "say": [
+    "19"
+   ],
+   "what": "stated second: of the 241, the ones with a failed check of any kind at the head commit, after the second reading",
+   "json": "docs/backtest.json",
+   "path": "reviewed.overall.any_check_failed.prs",
+   "equals": 19
+  },
+  {
+   "say": [
+    "7.9%"
+   ],
+   "what": "19 of 241 (0.0788)",
+   "json": "docs/backtest.json",
+   "path": "reviewed.overall.any_check_failed.share",
+   "equals": 0.0788
+  },
+  {
+   "say": [
+    "16"
+   ],
+   "what": "of the 241, the ones the scan recorded with a failed test, build, lint or type-check job, before the second reading",
+   "json": "docs/backtest.json",
+   "path": "sample.merged.overall.test_or_build_check_failed.prs",
+   "equals": 16
+  },
+  {
+   "say": [
+    "63",
+    "56"
+   ],
+   "doc": "docs/reference/TAMPER.md",
+   "what": "cheating pull requests in the tamper benchmark (21 ideas in each of three sample repositories), and how many passed plain CI",
+   "file": "docs/reference/TAMPER.md",
+   "has": "| **all** | **63** | **56** | **7** | **0** |"
+  },
+  {
+   "say": [
+    "0.05"
+   ],
+   "what": "the minimum fee, in a token with 6 decimals such as USDC",
+   "file": "programs-v2/knos_pay/src/lib.rs",
+   "has": "pub const FEE_MIN: u64 = 50_000;"
+  },
+  {
+   "say": [
+    "30"
+   ],
+   "what": "days after which a signing key expires unless it is attested again",
+   "file": "programs-v2/knos_oidc/src/pins.rs",
+   "has": "pub const KEY_TTL: i64 = 30 * 86_400;"
+  },
+  {
+   "say": [
+    "64,291"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "the USD value of open bounties on GitHub issues across all boards: 64,291 USD over 59 verified bounties (the page's own update time: 2026-10-02 10:33 UTC)",
+   "source": "https://bountyos.rovidev.com/en/github-bounty-board/",
+   "read": "2026-10-02"
+  },
+  {
+   "say": [
+    "229",
+    "83"
+   ],
+   "doc": "docs/reference/DISCLOSURE.md",
+   "what": "commits in the public repository up to Knos 0.3.25 (commit 095f52ae), and how many were made before the contest period began (06:00 Pacific time, 14 Sep 2026); counted from the cloned history with the commands in docs/reference/DISCLOSURE.md (scripts/disclosure_counts.py)",
+   "source": "https://github.com/drexthealpha/Knos/commits/095f52ae",
+   "read": "2026-10-10"
+  },
+  {
+   "say": [
+    "0.1%",
+    "412",
+    "428,405"
+   ],
+   "doc": "docs/reference/DISCLOSURE.md",
+   "what": "lines at commit 095f52ae (Knos 0.3.25) by git blame: 412 of 428,405 last changed before the contest period (0.1%); the other 427,993 during it; scripts/disclosure_counts.py and the commands in docs/reference/DISCLOSURE.md",
+   "source": "https://github.com/drexthealpha/Knos/commits/095f52ae",
+   "read": "2026-10-10"
+  },
+  {
+   "say": [
+    "8"
+   ],
+   "what": "days of public delay before an upgrade of the second deployment can execute: the time lock (691,200 seconds, in force since 11 Oct 2026) of the Squads multisig `upgrade_multisig` in programs-v2/program_ids.json, whose vault is the programs' upgrade authority",
+   "live": "upgrade_delay"
+  },
+  {
+   "say": [],
+   "what": "both programs of the first deployment are on devnet with no upgrade authority",
+   "live": "immutable"
+  },
+  {
+   "say": [],
+   "what": "a whole bounty has been paid on the first deployment",
+   "live": "run"
+  },
+  {
+   "say": [
+    "3"
+   ],
+   "doc": "docs/reference/DISCLOSURE.md",
+   "what": "of the pull requests #32, #33 and #34 by jaystay-bot, the ones that were merged and paid on devnet when the release ran. Measured: Knos #32, #33 and #34 by jaystay-bot, merged 2026-10-03 14:53 UTC and paid by the first deployment's knos_pay after its one-hour hold: knos due jaystay-bot read 'Paid for 3 pull request(s) in 1 repository: 48.75 in all' at 15:56 UTC; the payments are the knos:paid lines of issues #29, #30 and #31 in knos_pay's log on devnet",
+   "json": "docs/bench.json",
+   "path": "release.outside_prs_merged_and_paid.value",
+   "equals": 3
+  },
+  {
+   "say": [
+    "3"
+   ],
+   "doc": "docs/JUDGES.md",
+   "what": "payments on devnet, both deployments, whose payee is another GitHub account than the one that funded the task: the `knos:paid` and `knos2:paid` lines of the escrows' logs whose payee is not the task's funder. Measured: the paid lines of both escrows' logs on devnet (scripts/network_stats.py jobs_of over every transaction of both knos_pay programs, 2026-10-03 16:04 UTC): 15 payments, 3 of them to another GitHub account (254283079) than the funder (142920951)",
+   "json": "docs/bench.json",
+   "path": "release.payments_between_unrelated_accounts.value",
+   "equals": 3
+  },
+  {
+   "say": [
+    "0.30%",
+    "0.20%",
+    "0.05"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the price book, Acceptance: 0.30% of a dollar released or reconciled against a signed acceptance, paid by the funder on top; by contract 0.20% of a month's value above 1M, marginal, and never lower; outcomes under 20 USD netted into one release per payee per period with the 0.05 floor once; no cap. It replaces the Settle and Verify lines of the last price book; the row every document and the pricing page repeat (src/knos/billing.py BOOK, tests/data/billing_vectors.json)",
+   "file": "docs/reference/MARKET.md",
+   "has": "| Acceptance | dollar released or reconciled against a signed acceptance | 0.30%; by contract 0.20% on monthly value above 1M (the rate never goes below 0.20%); small tickets are netted: outcomes under 20 USD accumulate and settle as one release per payee per period, charged 0.30% of the netted amount with the 0.05 floor once per release; no cap | funder, on top of the amount | knos_pay at release (on chain: 0.30% and the floor; volume rates are a rebate by contract, off chain) |"
+  },
+  {
+   "say": [
+    "0.002",
+    "100,000"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the proposed price book, Meter: an organisation's first 100,000 evaluations in a month free, then 0.002 USD each, from prepaid credits. It is proposed: nobody pays it. The deployed knos_meter on devnet charges 0.05 per evaluation after the first 10,000 of a month, in test USDC",
+   "file": "docs/reference/MARKET.md",
+   "has": "| Meter | evaluation | 100,000 a month free per organisation, then 0.002 USD | buyer | prepaid credits |"
+  },
+  {
+   "say": [
+    "0.05",
+    "10,000"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the Meter as deployed: knos_meter on devnet charges 0.05 per evaluation after an owner's first 10,000 of a month, in test USDC (FEE and FREE_PER_MONTH)",
+   "file": "programs-v2/knos_meter/src/lib.rs",
+   "has": "pub const FREE_PER_MONTH: u64 = 10_000;"
+  },
+  {
+   "say": [
+    "25,000",
+    "100,000",
+    "400,000"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the price book, Control, per organisation per year: Team 25,000 USD, Business 100,000, Enterprise from 400,000 (not deliverable yet); a contract price, enforced by nothing on chain; nobody has bought it",
+   "file": "docs/reference/MARKET.md",
+   "has": "| Control | organisation, per year | Team 25,000; Business 100,000; Enterprise from 400,000 (not deliverable yet: it needs single sign-on, private deployment and support that do not exist) | buyer | contract |"
+  },
+  {
+   "say": [
+    "110,000",
+    "240",
+    "30,000",
+    "130,240",
+    "390,720"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "one customer worked at the proposed price book's prices, an example and not a customer: Control on the Business tier at 100,000 USD a year; 110,000 evaluations a month less 100,000 free = 10,000 billable x 0.002 x 12 = 240 of Meter; Acceptance 0.30% of 10,000,000 USD of accepted invoices reconciled off chain = 30,000 (833,333 a month is under the first million); together 130,240 USD a year. Three times that, 390,720, is the benefit a buyer should hold Knos to; nobody has measured it",
+   "file": "docs/reference/MARKET.md",
+   "matches": "\\| Meter \\| \\(110,000 − 100,000\\) × 0\\.002 × 12 \\| 240 \\|[\\s\\S]*\\*\\*130,240\\*\\*[\\s\\S]*390,720 USD a year against 130,240"
+  },
+  {
+   "say": [
+    "12.4%"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "30 of 241 merged agent pull requests whose description said tests or CI pass had a failed check at the head commit (0.1245); the same count is `summary.one_pr_per_repo` of docs/agent_pr_ci.json (30 of 241)",
+   "json": "docs/backtest.json",
+   "path": "sample.merged.overall.any_check_failed.share",
+   "equals": 0.1245
+  },
+  {
+   "say": [
+    "4.03",
+    "787.8"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Upwork, 2025: 4,028.4 million USD of gross services volume and 787.8 million USD of revenue",
+   "source": "https://investors.upwork.com/news-releases/news-release-details/upwork-reports-fourth-quarter-and-full-year-2025-financial",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "3.00",
+    "15.00",
+    "300.00"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the fee the program takes at release, one rate and a floor, worked by hand in tests/data/billing_vectors.json and by tests/web/price.mjs: 1,000 pays 3.00; 5,000 pays 15.00; 100,000, the most an order holds on devnet, pays 300.00",
+   "file": "tests/data/billing_vectors.json",
+   "has": "[\"1000.00\", \"3.00\"], [\"5000.00\", \"15.00\"], [\"100000.00\", \"300.00\"]"
+  },
+  {
+   "say": [
+    "15.9"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Superteam Earn's own statistics endpoint returned totalInUSD 15,948,030 (company-reported, not audited)",
+   "source": "https://superteam.fun/api/homepage/stats",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "492"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Cognition reports 492 million USD of annual recurring revenue for Devin (company-reported, not audited; read in TechJack, 28 May 2026)",
+   "source": "https://techjacksolutions.com/ai-brief/cognition-ai-raises-1b-at-26b-valuation-as-devins-arr-report/",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "$2.5"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Anthropic, 12 Feb 2026: \"Claude Code's run-rate revenue has grown to over $2.5 billion\" (company-reported, not audited)",
+   "source": "https://www.anthropic.com/news/anthropic-raises-30-billion-series-g-funding-380-billion-post-money-valuation",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "2,500",
+    "30"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the price book, Pilot: one buyer and two suppliers for 30 days and one reconciled invoice, 2,500 USD, credited against year one; nobody has bought it and there is no legal entity to invoice from",
+   "file": "docs/reference/MARKET.md",
+   "has": "| Pilot | one buyer, two suppliers, 30 days, one reconciled invoice | 2,500 USD, credited against year one | buyer | contract |"
+  },
+  {
+   "say": [
+    "5,080"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Solana rent as the clusters answer it: on 4 Oct 2026 getMinimumBalanceForRentExemption returned 1,097,280 lamports for 88 bytes, 1,137,920 for 96 and 1,488,440 for 165, which is (128 + bytes) x 5,080; docs/reference/METER.md records which cluster answered which",
+   "file": "docs/reference/METER.md",
+   "has": "`getMinimumBalanceForRentExemption(88)` returned 1,097,280"
+  },
+  {
+   "say": [
+    "121.50"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "the price of SOL the documents' arithmetic takes, 121.50 USD: CoinGecko quoted 121.49 and Coinbase 121.46 on 4 Oct 2026 (docs/reference/METER.md records both)",
+   "source": "https://www.coingecko.com/en/coins/solana",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "1.57"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Gartner, 27 Jul 2026: worldwide IT services spending forecast for 2026, 1.57 trillion USD",
+   "source": "https://www.gartner.com/en/newsroom/press-releases/2026-07-27-gartner-forecasts-worldwide-it-spending-to-grow-14-point-2-percent-in-2026-totaling-6-point-37-trillion",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "37",
+    "4.0"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Menlo Ventures, 9 Dec 2025: enterprises spent 37 billion USD on generative AI in 2025, 4.0 billion of it on coding tools",
+   "source": "https://menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise/",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "71"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "GitHub, 11 Dec 2025: GitHub Actions handles 71 million jobs per day",
+   "source": "https://github.blog/news-insights/product-news/lets-talk-about-github-actions/",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "650"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Immunefi: \"$140M+ paid\" across \"650+ protocols\"",
+   "source": "https://immunefi.com",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "0.99"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Intercom's Fin: \"From $0.99 per Fin outcome\" (Intercom's pricing page)",
+   "source": "https://www.intercom.com/pricing",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "1.50",
+    "2.00"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Zendesk: an automated resolution costs 1.50 USD committed and 2.00 USD pay-as-you-go; and, separately, Amazon Bedrock AgentCore lists a custom evaluation at 1.50 USD per 1,000 (https://aws.amazon.com/bedrock/agentcore/pricing/, read 2026-10-05)",
+   "source": "https://www.zendesk.com/pricing/",
+   "read": "2026-10-04"
+  },
+  {
+   "say": [
+    "9%"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/reference/COMPARE.md"
+   ],
+   "what": "Algora's service fee",
+   "source": "https://algora.io/pricing",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "75.41",
+    "24.24"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "x402.org on 3 Oct 2026, rolling 30 days: 75.41 million transactions, 24.24 million USD",
+   "source": "https://x402.org",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "21,702.10"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/reference/WHY.md"
+   ],
+   "what": "completed work Bountysource left unpaid, at least (boehs.org, 3 May 2024)",
+   "source": "https://boehs.org/node/bountysource",
+   "read": "2026-10-03"
+  },
+  {
+   "say": [
+    "2,000",
+    "$2,000"
+   ],
+   "doc": "docs/reference/REGULATION.md",
+   "what": "Form 1099-NEC is filed for each person paid at least 2,000 USD in the course of business during the year, for tax years beginning after 2025 (IRS instructions for Forms 1099-MISC and 1099-NEC, the IRS's own edition label (12/2026), read 10 Oct 2026)",
+   "source": "https://www.irs.gov/instructions/i1099mec",
+   "read": "2026-10-10"
+  },
+  {
+   "say": [
+    "63",
+    "56"
+   ],
+   "doc": "docs/reference/WHY.md",
+   "what": "cheating pull requests in the tamper benchmark (21 ideas in each of three sample repositories), and how many passed plain CI",
+   "file": "docs/reference/TAMPER.md",
+   "has": "| **all** | **63** | **56** | **7** | **0** |"
+  },
+  {
+   "say": [
+    "3"
+   ],
+   "doc": "docs/reference/COMPARE.md",
+   "what": "payments on devnet, of 15 on both deployments, whose payee is another GitHub account than the one that funded the task; Knos funded all 15",
+   "json": "docs/bench.json",
+   "path": "release.payments_between_unrelated_accounts.value",
+   "equals": 3
+  },
+  {
+   "say": [
+    "0.10%"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "the price book, Acceptance under a contract: a Plan can lower the program's rate for one owner, to 0.10% at the least (10 basis points; tests/data/billing_vectors.json on_chain.plan_bps_min). No such contract exists",
+   "file": "tests/data/billing_vectors.json",
+   "has": "\"plan_bps_min\": 10"
+  },
+  {
+   "say": [
+    "1.00%",
+    "16.67"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "what the program takes at release, shown before funding: fee = max(0.05, floor(amount x 30 / 10,000)); 5 pays 0.05 (1.00%), 20 pays 0.06, 100 pays 0.30, 1,000 pays 3, 5,000 pays 15, 100,000 pays 300 (0.30% each); a release under 16.67 pays the floor. The relayer's tip comes out of the fee",
+   "file": "tests/web/price.mjs",
+   "has": "[[5, \"0.05\", \"1.00%\"], [20, \"0.06\", \"0.30%\"]"
+  },
+  {
+   "say": [
+    "15"
+   ],
+   "what": "payments on devnet by both deployments when the escrows' logs were read on 3 Oct 2026, 16:04 UTC; Knos funded every one of those tasks, and 3 went to another GitHub account",
+   "file": "docs/reference/COMPARE.md",
+   "has": "Knos's two deployments had made 15 payments on devnet when their logs were read on 3 Oct 2026",
+   "doc": "docs/reference/COMPARE.md"
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "doc": "docs/JUDGES.md",
+   "what": "tasks, on both deployments, that someone other than Knos funded with their own tokens and that were paid to someone other than the funder (the site's stats.json of 2026-10-10 12:54 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.outside.completed",
+   "equals": 0
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "doc": "docs/JUDGES.md",
+   "what": "of those funders, the ones who funded another task after one of theirs was paid (the site's stats.json of 2026-10-10 12:54 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.outside.repeat_funders",
+   "equals": 0
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "doc": "docs/JUDGES.md",
+   "what": "the funders of those tasks (the site's stats.json of 2026-10-10 12:54 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.outside.funders",
+   "equals": 0
+  },
+  {
+   "say": [
+    "28"
+   ],
+   "doc": "docs/JUDGES.md",
+   "what": "seconds from the merge to the payment, the median over the public relay's log, measured 10 Oct 2026 (the site's stats.json of 2026-10-10 12:54 UTC, https://drexthealpha.github.io/Knos/stats.json)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.latency.merge_to_paid.median",
+   "equals": 28
+  },
+  {
+   "say": [
+    "16,024,654"
+   ],
+   "what": "inputs the fuzzer ran against the claim parser in the latest nightly run of program.yml: `executions` and `source` in the fuzz.json of its `fuzz-claims` artifact. Measured: libFuzzer through cargo-fuzz on the claim parser (target claims), 300 seconds, commit 519dffc, https://github.com/drexthealpha/knos-rc/actions/runs/37185319408",
+   "json": "docs/bench.json",
+   "path": "release.claim_parser_executions.value",
+   "equals": 16024654,
+   "doc": "docs/reference/ASSURANCE.md"
+  },
+  {
+   "say": [
+    "1,000,000",
+    "10,000,000"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "the billing rule's volume rates, by contract and marginal: the first 1,000,000 USD of a month's accepted value pays 0.30% and what lies above it pays 0.20%, never less, value released on chain lying first; a proposal nobody has bought (src/knos/billing.py computes it)",
+   "file": "src/knos/billing.py",
+   "has": "ACCEPT_TIERS = ((Decimal(0), ACCEPT_RATE), (Decimal(1_000_000), Decimal(\"0.0020\")))"
+  },
+  {
+   "say": [
+    "0.10"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the price book, Record: 0.10 USD a lookup of a supplier's delivery record through the machine-priced API, paid per call by the caller; the public record page and its file stay free; the lookup is `knos record serve`, which anyone runs and Knos hosts none of, budgeted at zero revenue. (The last price book's fee for connecting a supplier is gone: connecting a supplier costs nothing.)",
+   "file": "docs/reference/MARKET.md",
+   "has": "| Record | lookup of a supplier's delivery record through the machine-priced API | 0.10 USD a lookup, paid per call by the caller (an agent, a marketplace, an underwriter) through the knos-order/x402 flow; the public record page and its file stay free | the buyer, marketplace or insurer reading it | `knos record serve` (anyone runs it; Knos hosts none); budgeted at ZERO revenue until someone buys it |"
+  },
+  {
+   "say": [
+    "748.3",
+    "172.7"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "DoubleVerify, results for 2025 (26 Feb 2026): revenue of 748.3 million USD (company-reported, a public company's results); and free cash flow of 172,654 thousand USD for 2025 (211,183 of cash from operations less 38,529 of property and equipment), read in the same release on 6 Oct 2026",
+   "source": "https://s206.q4cdn.com/961864615/files/doc_financials/2025/q4/DoubleVerify-Q4-FY25-Earnings-Release.pdf",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "530.1"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Integral Ad Science, results for 2024 (28 Feb 2025): \"Total revenue was $530.1 million\"; the last full year it reported as a listed company",
+   "source": "https://www.stocktitan.net/news/IAS/ias-reports-fourth-quarter-and-full-year-2024-financial-1k4428b0o95b.html",
+   "read": "2026-10-05"
+  },
+  {
+   "say": [
+    "0.7%"
+   ],
+   "doc": [
+    "docs/reference/MARKET.md",
+    "docs/reference/COMPARE.md"
+   ],
+   "what": "Stripe Billing's pay-as-you-go price: \"0.7% of Billing volume\" (Stripe's pricing page)",
+   "source": "https://stripe.com/billing/pricing",
+   "read": "2026-10-05"
+  },
+  {
+   "say": [
+    "41"
+   ],
+   "what": "payments in which this stage is measured: the merge to the payment, the whole wait, as scripts/latency_stages.py timed it over the public relay's log. Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_whole_payments.value",
+   "equals": 41,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "25"
+   ],
+   "what": "the median seconds: the merge to the payment, the whole wait, as scripts/latency_stages.py timed it over the public relay's log. Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_whole_median.value",
+   "equals": 25,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "58"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: the merge to the payment, the whole wait, as scripts/latency_stages.py timed it over the public relay's log. Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_whole_ninety_fifth.value",
+   "equals": 58,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "1,220"
+   ],
+   "what": "the longest, in seconds: the merge to the payment, the whole wait, as scripts/latency_stages.py timed it over the public relay's log. Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_whole_slowest.value",
+   "equals": 1220,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "payments in which this stage is measured: the merge to the start of the workflow run (runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_runner_queue_payments.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "2"
+   ],
+   "what": "the median seconds: the merge to the start of the workflow run (runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_runner_queue_median.value",
+   "equals": 2,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "1,184"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: the merge to the start of the workflow run (runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_runner_queue_ninety_fifth.value",
+   "equals": 1184,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "1,184"
+   ],
+   "what": "the longest, in seconds: the merge to the start of the workflow run (runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_runner_queue_slowest.value",
+   "equals": 1184,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "payments in which this stage is measured: the run waiting for a runner, as GitHub records it (inside the runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_queued_payments.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "what": "the median seconds: the run waiting for a runner, as GitHub records it (inside the runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_queued_median.value",
+   "equals": 0,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: the run waiting for a runner, as GitHub records it (inside the runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_queued_ninety_fifth.value",
+   "equals": 0,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "what": "the longest, in seconds: the run waiting for a runner, as GitHub records it (inside the runner queue), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_queued_slowest.value",
+   "equals": 0,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "payments in which this stage is measured: the start of the workflow run to the token's comment (workflow), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_workflow_payments.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "16"
+   ],
+   "what": "the median seconds: the start of the workflow run to the token's comment (workflow), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_workflow_median.value",
+   "equals": 16,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "24"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: the start of the workflow run to the token's comment (workflow), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_workflow_ninety_fifth.value",
+   "equals": 24,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "24"
+   ],
+   "what": "the longest, in seconds: the start of the workflow run to the token's comment (workflow), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_workflow_slowest.value",
+   "equals": 24,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "payments in which this stage is measured: the token's comment to the relay picking it up (relay wait), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_relay_wait_payments.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "2"
+   ],
+   "what": "the median seconds: the token's comment to the relay picking it up (relay wait), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_relay_wait_median.value",
+   "equals": 2,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: the token's comment to the relay picking it up (relay wait), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_relay_wait_ninety_fifth.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "the longest, in seconds: the token's comment to the relay picking it up (relay wait), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_relay_wait_slowest.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "payments in which this stage is measured: the relay's pickup to the block of the token's first transaction (first send), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_first_send_payments.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "2"
+   ],
+   "what": "the median seconds: the relay's pickup to the block of the token's first transaction (first send), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_first_send_median.value",
+   "equals": 2,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: the relay's pickup to the block of the token's first transaction (first send), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_first_send_ninety_fifth.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "the longest, in seconds: the relay's pickup to the block of the token's first transaction (first send), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_first_send_slowest.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "payments in which this stage is measured: that block to the block of the transaction that paid (confirm), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_confirm_payments.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "3"
+   ],
+   "what": "the median seconds: that block to the block of the transaction that paid (confirm), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_confirm_median.value",
+   "equals": 3,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "8"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: that block to the block of the transaction that paid (confirm), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_confirm_ninety_fifth.value",
+   "equals": 8,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "8"
+   ],
+   "what": "the longest, in seconds: that block to the block of the transaction that paid (confirm), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_confirm_slowest.value",
+   "equals": 8,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "payments in which this stage is measured: the relay's pickup to its last confirmation (first send and confirm together), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_chain_payments.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "the median seconds: the relay's pickup to its last confirmation (first send and confirm together), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_chain_median.value",
+   "equals": 5,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "11"
+   ],
+   "what": "the 95th percentile, by nearest rank, in seconds: the relay's pickup to its last confirmation (first send and confirm together), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_chain_ninety_fifth.value",
+   "equals": 11,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "11"
+   ],
+   "what": "the longest, in seconds: the relay's pickup to its last confirmation (first send and confirm together), over the public relay's log (scripts/latency_stages.py). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.stage_chain_slowest.value",
+   "equals": 11,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "44"
+   ],
+   "what": "of those, the ones with a line that says ok (scripts/latency_stages.py, network_stats.attempts). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.pay_attempts_completed.value",
+   "equals": 44,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "53"
+   ],
+   "what": "pull requests whose payment the public relay log has a line for (scripts/latency_stages.py, network_stats.attempts). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.pay_attempts_asked.value",
+   "equals": 53,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "57"
+   ],
+   "what": "log lines with a token's id, one per token a relay answered for (scripts/latency_stages.py, network_stats.attempts). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.pay_attempts_lines.value",
+   "equals": 57,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "13"
+   ],
+   "what": "of those lines, the ones that say fail (scripts/latency_stages.py, network_stats.attempts). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.pay_attempts_failed.value",
+   "equals": 13,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "0"
+   ],
+   "what": "ok lines that took more than one try (scripts/latency_stages.py, network_stats.attempts). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.pay_attempts_retried.value",
+   "equals": 0,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "1"
+   ],
+   "what": "payments completed only after a failed line (scripts/latency_stages.py, network_stats.attempts). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.pay_attempts_after_failure.value",
+   "equals": 1,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "9"
+   ],
+   "what": "payments asked for that no line says ok (scripts/latency_stages.py, network_stats.attempts). Measured: scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC",
+   "json": "docs/bench.json",
+   "path": "release.pay_attempts_never.value",
+   "equals": 9,
+   "doc": "docs/reference/RELAY.md"
+  },
+  {
+   "say": [
+    "120.82"
+   ],
+   "doc": "docs/reference/UNIT_COSTS.md",
+   "what": "the price of SOL docs/reference/UNIT_COSTS.md converts lamports at: CoinGecko showed 120.82 USD and Coinbase 120.81 on 6 Oct 2026",
+   "source": "https://www.coingecko.com/en/coins/solana",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "0.006"
+   ],
+   "doc": "docs/reference/UNIT_COSTS.md",
+   "what": "GitHub Actions, a standard hosted Linux runner with 2 cores: 0.006 USD a minute",
+   "source": "https://docs.github.com/en/billing/reference/actions-runner-pricing",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "0.015"
+   ],
+   "doc": "docs/reference/UNIT_COSTS.md",
+   "what": "Cloudflare R2, standard storage: 0.015 USD a GB a month; Class A operations 4.50 USD a million; egress free",
+   "source": "https://developers.cloudflare.com/r2/pricing/",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "0.0015",
+    "0.0024",
+    "0.012"
+   ],
+   "doc": "docs/reference/UNIT_COSTS.md",
+   "what": "AWS Bedrock AgentCore evaluations: a custom evaluator 1.50 USD per 1,000 evaluations (model usage billed separately); built-in evaluators 0.0024 USD per 1,000 input tokens and 0.012 per 1,000 output tokens",
+   "source": "https://aws.amazon.com/bedrock/agentcore/pricing/",
+   "read": "2026-10-06"
+  },
+  {
+   "say": [
+    "0.000025"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "AWS Bedrock AgentCore Policy: an authorization request 0.000025 USD; writing a policy from natural language 0.13 USD per 1,000 input tokens",
+   "source": "https://aws.amazon.com/bedrock/agentcore/pricing/",
+   "read": "2026-10-07"
+  },
+  {
+   "say": [
+    "0.7%"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "Stripe Billing, pay as you go: 0.7% of billing volume; basic usage-based billing through its Meters API is part of that price, with up to 100M events a month included",
+   "source": "https://stripe.com/billing/pricing",
+   "read": "2026-10-07"
+  },
+  {
+   "say": [
+    "0.03",
+    "0.016"
+   ],
+   "doc": "docs/reference/MARKET.md",
+   "what": "MergePay: no platform fee; a relayer fee the funder sets, 0.03 USD an award by default, against about 0.016 USD of gas an award",
+   "source": "https://mergepay.fun",
+   "read": "2026-10-07"
+  },
+  {
+   "say": [
+    "16,362"
+   ],
+   "doc": "docs/reference/UNIT_COSTS.md",
+   "what": "the bytes of one recorded acceptance bundle, which docs/reference/UNIT_COSTS.md prices for seven years of storage (tests/test_business_docs.py measures the file)",
+   "file": "docs/reference/UNIT_COSTS.md",
+   "has": "| One acceptance bundle | 16,362 (2,951 compressed) | 0.0000206 |"
+  },
+  {
+   "say": [
+    "2.2",
+    "0.40"
+   ],
+   "doc": [
+    "docs/TRANSACTION.md",
+    "docs/PRICING.md"
+   ],
+   "what": "the fee on chain follows the build that is live: knos_pay 2.2 charges 0.30% with a minimum of 0.05; knos_pay 2.1, the public program until the upgrade to 2.2 executed on 9 Oct 2026, charged the 0.3.14 fee with a minimum of 0.40, and orders funded under it keep that fee (src/knos/fees.py NEW and OLD)",
+   "file": "src/knos/fees.py",
+   "has": "OLD = Rule(\"0.3.14\", \"2.1\", 250, 400_000, 50, 250, 50_000, ((1_000_000_000, 100), (50_000_000_000, 50)))"
+  },
+  {
+   "say": [
+    "56"
+   ],
+   "doc": "docs/JUDGES.md",
+   "what": "the payments that median is over, measured 10 Oct 2026 (the site's stats.json of 2026-10-10 12:54 UTC)",
+   "json": "docs/bench.json",
+   "path": "devnet.stats.latency.merge_to_paid.count",
+   "equals": 56
+  },
+  {
+   "say": [
+    "92",
+    "126.9"
+   ],
+   "doc": "docs/reference/TEAM.md",
+   "what": "Sibyl Labs hackathon: first of 92 teams, 126.9 points",
+   "source": "https://hack.sibyllabs.org/leaderboard",
+   "read": "2026-10-08"
+  },
+  {
+   "say": [
+    "8",
+    "691,200"
+   ],
+   "doc": [
+    "docs/TRUST.md",
+    "docs/reference/GOVERNANCE.md"
+   ],
+   "what": "days of the time lock of the upgrade multisig: 691,200 seconds (192 hours), set by proposal 9, one action SetTimeLock { new_time_lock: 691200 } (docs/reference/GOVERNANCE.md). It executed on 11 Oct 2026, so the lock in force is 8 days; it was 48 hours before",
+   "file": "src/knos/mainnet_check.py",
+   "has": "TIME_LOCK = 691_200"
+  },
+  {
+   "say": [
+    "180"
+   ],
+   "doc": [
+    "docs/START.md"
+   ],
+   "what": "days at most that a proven job's money waits for its payee to bind a wallet (HOLD in knos_pay)",
+   "file": "programs-v2/knos_pay/src/lib.rs",
+   "has": "pub const HOLD: i64 = 180 * 86_400;"
+  },
+  {
+   "say": [
+    "1,000",
+    "5,000"
+   ],
+   "doc": [
+    "docs/PRICING.md",
+    "docs/reference/MARKET.md"
+   ],
+   "what": "the amounts of the fee's worked examples: 1,000 pays 3.00 and 5,000 pays 15.00, both 0.30% (tests/data/billing_vectors.json, on_chain.fees)",
+   "file": "tests/data/billing_vectors.json",
+   "has": "[\"1000.00\", \"3.00\"], [\"5000.00\", \"15.00\"]"
+  }
+ ]
+}

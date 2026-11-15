@@ -1,0 +1,1057 @@
+{
+ "_about": "The measurements the docs quote; scripts/bench_docs.py writes them into README.md and docs/reference/BENCH.md. market: the Agent PR Index scan (scripts/agent_pr_index.py). chain: compute units of the two deployments' committed test builds in LiteSVM, as tests/test_oidc2_chain.py, tests/test_pay2_chain.py, tests/test_oidc_chain.py, tests/test_pay_chain.py and tests/test_oidc_gate.py print them with `pytest -q -s`, and the escrows' last random walks. devnet: what was read from devnet; `stats` holds what the release takes from the site's stats.json. release: numbers the release run measured itself (scripts/bench_docs.py --set). stages: the six stages of a payment as scripts/latency_stages.py measured them on the relay log and devnet (`--separate --write` keeps them). decision: `knos decide` timed on one machine (`local`, scripts/decide_bench.py --write) and the last release run's sample on devnet (`devnet`, entered from that run's report).",
+ "market": {
+  "index": {
+   "date": "2026-10-02",
+   "window": [
+    "2026-06-04",
+    "2026-10-01"
+   ],
+   "n_prs": 2431,
+   "excluded_self_repo": 9207,
+   "overall": {
+    "prs": 2431,
+    "any_check_failed": {
+     "prs": 660,
+     "share": 0.2715,
+     "ci95": [
+      0.2542,
+      0.2895
+     ]
+    },
+    "test_or_build_check_failed": {
+     "prs": 440,
+     "share": 0.181,
+     "ci95": [
+      0.1662,
+      0.1968
+     ]
+    },
+    "first_pr_per_repo": {
+     "repos": 826,
+     "any_check_failed": {
+      "repos": 147,
+      "share": 0.178,
+      "ci95": [
+       0.1534,
+       0.2055
+      ]
+     },
+     "test_or_build_check_failed": {
+      "repos": 80,
+      "share": 0.0969,
+      "ci95": [
+       0.0785,
+       0.1189
+      ]
+     }
+    }
+   },
+   "agents": [
+    [
+     "GitHub Copilot coding agent",
+     {
+      "prs": 787,
+      "any_check_failed": {
+       "prs": 194,
+       "share": 0.2465,
+       "ci95": [
+        0.2177,
+        0.2778
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 98,
+       "share": 0.1245,
+       "ci95": [
+        0.1033,
+        0.1494
+       ]
+      },
+      "first_pr_per_repo": {
+       "repos": 341,
+       "any_check_failed": {
+        "repos": 85,
+        "share": 0.2493,
+        "ci95": [
+         0.2063,
+         0.2978
+        ]
+       },
+       "test_or_build_check_failed": {
+        "repos": 46,
+        "share": 0.1349,
+        "ci95": [
+         0.1027,
+         0.1752
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "Devin",
+     {
+      "prs": 520,
+      "any_check_failed": {
+       "prs": 270,
+       "share": 0.5192,
+       "ci95": [
+        0.4763,
+        0.5619
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 229,
+       "share": 0.4404,
+       "ci95": [
+        0.3983,
+        0.4833
+       ]
+      },
+      "first_pr_per_repo": {
+       "repos": 78,
+       "any_check_failed": {
+        "repos": 13,
+        "share": 0.1667,
+        "ci95": [
+         0.1001,
+         0.2646
+        ]
+       },
+       "test_or_build_check_failed": {
+        "repos": 8,
+        "share": 0.1026,
+        "ci95": [
+         0.0529,
+         0.1895
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "Claude GitHub app",
+     {
+      "prs": 716,
+      "any_check_failed": {
+       "prs": 68,
+       "share": 0.095,
+       "ci95": [
+        0.0756,
+        0.1187
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 19,
+       "share": 0.0265,
+       "ci95": [
+        0.0171,
+        0.0411
+       ]
+      },
+      "first_pr_per_repo": {
+       "repos": 182,
+       "any_check_failed": {
+        "repos": 17,
+        "share": 0.0934,
+        "ci95": [
+         0.0591,
+         0.1445
+        ]
+       },
+       "test_or_build_check_failed": {
+        "repos": 6,
+        "share": 0.033,
+        "ci95": [
+         0.0152,
+         0.07
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "Claude Code",
+     {
+      "prs": 206,
+      "any_check_failed": {
+       "prs": 17,
+       "share": 0.0825,
+       "ci95": [
+        0.0522,
+        0.1282
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 6,
+       "share": 0.0291,
+       "ci95": [
+        0.0134,
+        0.0621
+       ]
+      },
+      "first_pr_per_repo": {
+       "repos": 191,
+       "any_check_failed": {
+        "repos": 17,
+        "share": 0.089,
+        "ci95": [
+         0.0563,
+         0.1379
+        ]
+       },
+       "test_or_build_check_failed": {
+        "repos": 6,
+        "share": 0.0314,
+        "ci95": [
+         0.0145,
+         0.0668
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "OpenAI Codex",
+     {
+      "prs": 202,
+      "any_check_failed": {
+       "prs": 111,
+       "share": 0.5495,
+       "ci95": [
+        0.4806,
+        0.6166
+       ]
+      },
+      "test_or_build_check_failed": {
+       "prs": 88,
+       "share": 0.4356,
+       "ci95": [
+        0.3691,
+        0.5046
+       ]
+      },
+      "first_pr_per_repo": {
+       "repos": 40,
+       "any_check_failed": {
+        "repos": 17,
+        "share": 0.425,
+        "ci95": [
+         0.2851,
+         0.5781
+        ]
+       },
+       "test_or_build_check_failed": {
+        "repos": 15,
+        "share": 0.375,
+        "ci95": [
+         0.2422,
+         0.5297
+        ]
+       }
+      }
+     }
+    ]
+   ],
+   "root": "9876fdad603525385201166bc4bf2e98294608af0ca8b09d36793fa257825110"
+  }
+ },
+ "chain": {
+  "limit": 1400000,
+  "per_try": 1500,
+  "second": {
+   "measured": "3 Oct 2026",
+   "build": "the committed test builds in `tests/fixtures` (`knos_oidc_v2_test.so`, `knos_pay_v2_test.so`), made by cargo build-sbf 3.0.0 (platform-tools v1.51)",
+   "plans": {
+    "2048": [
+     8,
+     8
+    ],
+    "4096": [
+     2,
+     3,
+     3,
+     3,
+     4,
+     1
+    ]
+   },
+   "verify": [
+    {
+     "what": "a GitHub token as the tests make it, with a payment's audience",
+     "bits": 2048,
+     "bytes": 1893,
+     "steps": [
+      763497,
+      839351
+     ]
+    },
+    {
+     "bits": 2048,
+     "bytes": 3500,
+     "steps": [
+      773798,
+      919995
+     ]
+    },
+    {
+     "what": "the longest the program takes",
+     "bits": 2048,
+     "bytes": 8192,
+     "steps": [
+      802003,
+      1153122
+     ]
+    },
+    {
+     "what": "a GitLab token as the tests make it",
+     "bits": 4096,
+     "bytes": 2237,
+     "steps": [
+      1121059,
+      915657,
+      917082,
+      915671,
+      1200547,
+      913936
+     ]
+    },
+    {
+     "bits": 4096,
+     "bytes": 3499,
+     "steps": [
+      1128291,
+      922903,
+      921492,
+      921492,
+      1209190,
+      977525
+     ]
+    },
+    {
+     "what": "the longest under RSA-4096",
+     "bits": 4096,
+     "bytes": 8191,
+     "steps": [
+      1155027,
+      951036,
+      951050,
+      951050,
+      1235926,
+      1209146
+     ]
+    },
+    {
+     "what": "the costliest claims we could build",
+     "bits": 4096,
+     "bytes": 8189,
+     "steps": [
+      1155231,
+      949843,
+      951254,
+      949843,
+      1236130,
+      1285266
+     ]
+    }
+   ],
+   "keys": {
+    "refresh": 21022,
+    "approve": 773,
+    "revoke": 767
+   },
+   "pay": {
+    "runs": 20,
+    "payments": 320,
+    "cases": [
+     {
+      "what": "Pay, a later payment from the same funder",
+      "pays": true,
+      "min": 62138,
+      "median": 66912,
+      "max": 80406
+     },
+     {
+      "what": "Pay, the payee's first payment (creates their record and the funder's marker)",
+      "pays": true,
+      "min": 74389,
+      "median": 79163,
+      "max": 92657
+     },
+     {
+      "what": "Pay, a Token-2022 mint with the stablecoins' extensions, first payment from this funder",
+      "pays": true,
+      "min": 75098,
+      "median": 79855,
+      "max": 94858
+     },
+     {
+      "what": "Pay with no wallet known (the bounty is held)",
+      "pays": false,
+      "min": 34010,
+      "median": 34010,
+      "max": 41510
+     }
+    ]
+   },
+   "other": [
+    [
+     "FundBalance",
+     93329
+    ],
+    [
+     "FaucetOpen",
+     50545
+    ],
+    [
+     "FaucetOpen and FundBalance in one transaction",
+     141002
+    ],
+    [
+     "FundWallet",
+     61568
+    ],
+    [
+     "Settle",
+     42490
+    ],
+    [
+     "Settle with a Token-2022 mint",
+     61270
+    ],
+    [
+     "Refund",
+     22288
+    ],
+    [
+     "Bind",
+     49737
+    ],
+    [
+     "Withdraw",
+     22792
+    ],
+    [
+     "Withdraw with a Token-2022 mint",
+     27722
+    ],
+    [
+     "OpenBalance",
+     32646
+    ],
+    [
+     "OpenBalance with a Token-2022 mint",
+     45524
+    ],
+    [
+     "SetBalance",
+     2495
+    ],
+    [
+     "Pause",
+     10748
+    ],
+    [
+     "InitFaucet",
+     18136
+    ]
+   ],
+   "runs": 9,
+   "walks": {
+    "measured": "3 Oct 2026",
+    "runs": [
+     {
+      "seed": 1,
+      "steps": 2500,
+      "funded": 64876.0,
+      "paid": 52319.975,
+      "fees": 1344.025,
+      "refunded": 11212.0,
+      "refunded_at_end": 5
+     },
+     {
+      "seed": 2,
+      "steps": 2500,
+      "funded": 65718.0,
+      "paid": 54720.35,
+      "fees": 1405.65,
+      "refunded": 9592.0,
+      "refunded_at_end": 11
+     },
+     {
+      "seed": 3,
+      "steps": 2500,
+      "funded": 52841.0,
+      "paid": 45335.125,
+      "fees": 1164.875,
+      "refunded": 6341.0,
+      "refunded_at_end": 2
+     },
+     {
+      "seed": 4,
+      "steps": 2500,
+      "funded": 65482.0,
+      "paid": 50742.4,
+      "fees": 1303.6,
+      "refunded": 13436.0,
+      "refunded_at_end": 1
+     }
+    ]
+   }
+  },
+  "first": {
+   "measured": "3 Oct 2026",
+   "build": "the committed test build in `tests/fixtures` (`knos_oidc_test.so`)",
+   "plans": {
+    "2048": [
+     8,
+     8
+    ],
+    "4096": [
+     2,
+     3,
+     3,
+     3,
+     4,
+     1
+    ]
+   },
+   "verify": [
+    {
+     "what": "a GitHub token as the tests make it",
+     "bits": 2048,
+     "bytes": 1734,
+     "steps": [
+      778986,
+      848363
+     ]
+    },
+    {
+     "what": "with the longest names GitHub allows",
+     "bits": 2048,
+     "bytes": 4092,
+     "steps": [
+      794939,
+      970506
+     ]
+    },
+    {
+     "what": "the longest the program takes",
+     "bits": 2048,
+     "bytes": 8192,
+     "steps": [
+      824403,
+      1209372
+     ]
+    },
+    {
+     "what": "a GitLab token as the tests make it",
+     "bits": 4096,
+     "bytes": 1421,
+     "steps": [
+      1168283,
+      914266,
+      912854,
+      914266,
+      1199524,
+      926070
+     ]
+    },
+    {
+     "what": "the longest under RSA-4096",
+     "bits": 4096,
+     "bytes": 8191,
+     "steps": [
+      1215389,
+      961372,
+      959960,
+      961372,
+      1246630,
+      1278017
+     ]
+    },
+    {
+     "what": "the costliest claims we could build",
+     "bits": 4096,
+     "bytes": 8189,
+     "steps": [
+      1214239,
+      960222,
+      961634,
+      960222,
+      1246892,
+      1350931
+     ]
+    }
+   ],
+   "read": 21632,
+   "old_plan": {
+    "plan": [
+     2,
+     3,
+     3,
+     3,
+     3,
+     2
+    ],
+    "fits_bytes": 4499,
+    "fits_last_step": 1374044,
+    "fails_bytes": 5499
+   },
+   "pay": {
+    "runs": 11,
+    "pay": [
+     55332,
+     61332
+    ],
+    "claim": [
+     37990,
+     44247
+    ]
+   },
+   "runs": 8,
+   "walk": {
+    "seed": 1,
+    "steps": 10000,
+    "measured": "3 Oct 2026",
+    "funded": "129,783.00",
+    "claimed": "31,808.83",
+    "fees": "817.30",
+    "refunded": "91,244.00"
+   }
+  }
+ },
+ "devnet": {
+  "first": {
+   "read": "3 Oct 2026",
+   "transactions": 23,
+   "last": "14:19 UTC on 2 Oct 2026",
+   "funded": 11,
+   "paid": 6,
+   "outside_paid": 0,
+   "vetoed": 1,
+   "claimed": 2,
+   "refunded": 0,
+   "open": 5,
+   "median_seconds_fund_to_paid": 159,
+   "open_for_outside": 3,
+   "outside_prs": "issues #29, #30 and #31 of this repository, 25, 10 and 15 test USDC; pull requests #32, #33 and #34"
+  },
+  "second": "neither program id of the second deployment held an account on devnet when the cluster was read on 3 Oct 2026.",
+  "stats": {
+   "updated": "2026-10-10 12:54 UTC",
+   "by_deployment": {
+    "second": {
+     "funded": 684,
+     "completed": 435
+    }
+   },
+   "outside": {
+    "funded": 0,
+    "completed": 0,
+    "funders": 0,
+    "repeat_funders": 0
+   },
+   "outsiders": {
+    "repositories": 0,
+    "payees": 1
+   },
+   "latency": {
+    "merge_to_paid": {
+     "count": 56,
+     "median": 28,
+     "p95": 164,
+     "window": {
+      "from": "2026-10-02",
+      "to": "2026-10-10"
+     },
+     "deployment": {
+      "first": 2,
+      "second": 54
+     },
+     "definition": "seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, one sample per successful pay line of the public relay log, over its newest 500 such lines, both deployments, all time. A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; `not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank"
+    },
+    "comment_to_funded": {
+     "median": 36
+    }
+   }
+  }
+ },
+ "release": {
+  "tests_passing": {
+   "value": 4270,
+   "source": "pytest (ubuntu-latest, 3.12) of tests.yml run 38139191532 on drexthealpha/knos-rc b8e4be72eb28c9c39a028bc25c61f154194c7369, the staging tree of this release: 4270 passed, 61 skipped, https://github.com/drexthealpha/knos-rc/actions/runs/38139191532"
+  },
+  "outside_prs_merged_and_paid": {
+   "value": 3,
+   "source": "Knos #32, #33 and #34 by jaystay-bot, merged 2026-10-03 14:53 UTC and paid by the first deployment's knos_pay after its one-hour hold: knos due jaystay-bot read 'Paid for 3 pull request(s) in 1 repository: 48.75 in all' at 15:56 UTC; the payments are the knos:paid lines of issues #29, #30 and #31 in knos_pay's log on devnet"
+  },
+  "payments_between_unrelated_accounts": {
+   "value": 3,
+   "source": "the paid lines of both escrows' logs on devnet (scripts/network_stats.py jobs_of over every transaction of both knos_pay programs, 2026-10-03 16:04 UTC): 15 payments, 3 of them to another GitHub account (254283079) than the funder (142920951)"
+  },
+  "days_of_shipping": {
+   "value": 32,
+   "source": "git log --author=drexthealpha --format=%ad --date=short | sort -u | wc -l on drexthealpha/Knos from 2026-09-01 to the release commit of 2026-10-03"
+  },
+  "claim_parser_executions": {
+   "value": 16024654,
+   "source": "libFuzzer through cargo-fuzz on the claim parser (target claims), 300 seconds, commit 519dffc, https://github.com/drexthealpha/knos-rc/actions/runs/37185319408"
+  },
+  "stage_runner_queue_payments": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_runner_queue_median": {
+   "value": 2,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_runner_queue_ninety_fifth": {
+   "value": 1184,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_runner_queue_slowest": {
+   "value": 1184,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_workflow_payments": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_workflow_median": {
+   "value": 16,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_workflow_ninety_fifth": {
+   "value": 24,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_workflow_slowest": {
+   "value": 24,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_relay_wait_payments": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_relay_wait_median": {
+   "value": 2,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_relay_wait_ninety_fifth": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_relay_wait_slowest": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_first_send_payments": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_first_send_median": {
+   "value": 2,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_first_send_ninety_fifth": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_first_send_slowest": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_confirm_payments": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_confirm_median": {
+   "value": 3,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_confirm_ninety_fifth": {
+   "value": 8,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_confirm_slowest": {
+   "value": 8,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_queued_payments": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_queued_median": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_queued_ninety_fifth": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_queued_slowest": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_chain_payments": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_chain_median": {
+   "value": 5,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_chain_ninety_fifth": {
+   "value": 11,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_chain_slowest": {
+   "value": 11,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_whole_payments": {
+   "value": 41,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_whole_median": {
+   "value": 25,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_whole_ninety_fifth": {
+   "value": 58,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "stage_whole_slowest": {
+   "value": 1220,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "pay_attempts_asked": {
+   "value": 53,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "pay_attempts_completed": {
+   "value": 44,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "pay_attempts_lines": {
+   "value": 57,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "pay_attempts_failed": {
+   "value": 13,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "pay_attempts_retried": {
+   "value": 0,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "pay_attempts_after_failure": {
+   "value": 1,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "pay_attempts_never": {
+   "value": 9,
+   "source": "scripts/latency_stages.py --rpc https://api.devnet.solana.com --json on the public relay log of drexthealpha/Knos, 6 October 2026, 14:58 to 15:06 UTC"
+  },
+  "reproductions_signed": {
+   "value": 0,
+   "source": "the count of reproductions/*.json in this repository"
+  },
+  "buyer_interviews_held": {
+   "value": 0,
+   "source": "docs/facts.json, by_hand.buyer_interviews_held: a constant a person changes"
+  },
+  "letters_of_intent": {
+   "value": 0,
+   "source": "docs/facts.json, by_hand.letters_of_intent: a constant a person changes"
+  },
+  "outside_programs_reading_the_verifier": {
+   "value": 0,
+   "source": "docs/facts.json, by_hand.outside_programs_reading_the_verifier: a constant a person changes"
+  },
+  "shadow_counts_published": {
+   "value": 0,
+   "source": "docs/facts.json, by_hand.shadow_counts_published: a constant a person changes"
+  }
+ },
+ "stages": {
+  "source": "`python scripts/latency_stages.py --separate --rpc https://api.devnet.solana.com --write`, run on 2026-10-07 22:42 UTC against the relay log of drexthealpha/Knos: 47 payments of 2026-10-02 to 2026-10-07",
+  "whole": {
+   "n": 47,
+   "p50": 25,
+   "p95": 65
+  },
+  "six": [
+   {
+    "stage": "workflow scheduling",
+    "n": 11,
+    "p50": 2,
+    "p95": 1184,
+    "what": "the merge to the start of the workflow run"
+   },
+   {
+    "stage": "evaluation",
+    "n": 11,
+    "p50": 18,
+    "p95": 33,
+    "what": "the start of the run to the token's comment"
+   },
+   {
+    "stage": "relay pickup",
+    "n": 11,
+    "p50": 3,
+    "p95": 28,
+    "what": "the token's comment to a relay taking it up"
+   },
+   {
+    "stage": "submission",
+    "n": 11,
+    "p50": 2,
+    "p95": 6,
+    "what": "pickup to the block of the first transaction"
+   },
+   {
+    "stage": "confirmation",
+    "n": 11,
+    "p50": 2,
+    "p95": 8,
+    "what": "that block to the block of the paying transaction"
+   },
+   {
+    "stage": "finality",
+    "n": 0,
+    "p50": null,
+    "p95": null,
+    "what": "the last confirmation to the cluster finalizing it"
+   }
+  ]
+ },
+ "decision": {
+  "devnet": {
+   "when": "2026-10-07",
+   "source": "`KNOS_CLUSTER=devnet python -m knos.decide --token-file token.txt --out provisional.json` of 0.3.19, once on each of 24 real GitHub-signed tokens, a new process for each, on the operator's machine (WSL, 2 CPUs) over api.devnet.solana.com on 2026-10-07 between 13:19 and 14:07 UTC; the figures are the command's own, and in 0.3.19 its offline figure held the loading of the rules (the table of 24 below)",
+   "offline": {
+    "n": 24,
+    "fastest": 170,
+    "median": 356,
+    "slowest": 863,
+    "p95": null
+   },
+   "chain_check": {
+    "n": 23,
+    "not_answered": 1,
+    "fastest": 687,
+    "median": 854,
+    "slowest": 1801,
+    "p95": null
+   },
+   "full": {
+    "n": 24,
+    "fastest": 6020,
+    "median": 9100,
+    "slowest": 15626,
+    "p95": null
+   }
+  },
+  "local": {
+   "source": "`python scripts/decide_bench.py --write`, run on 2026-10-07: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network)",
+   "machine": "Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz, 4 CPUs, Linux x86_64, Python 3.12.3; load average 2.4 when it began (other work shared the machine when that is near or above its CPUs, and every figure is then slower than on an idle one)",
+   "target_ms_p95_warm": 100.0,
+   "rows": {
+    "fresh, accepted": {
+     "n": 40,
+     "p50": 3.05,
+     "p95": 5.056,
+     "max": 67.376
+    },
+    "fresh, rejected": {
+     "n": 40,
+     "p50": 1.684,
+     "p95": 3.921,
+     "max": 5.844
+    },
+    "cached, accepted": {
+     "n": 40,
+     "p50": 2.464,
+     "p95": 3.97,
+     "max": 5.342
+    },
+    "no chain": {
+     "n": 40,
+     "p50": 1.106,
+     "p95": 1.839,
+     "max": 2.602
+    },
+    "free check": {
+     "n": 40,
+     "p50": 0.108,
+     "p95": 0.157,
+     "max": 0.238
+    },
+    "offline, accepted": {
+     "n": 40,
+     "p50": 1.603,
+     "p95": 2.47,
+     "max": 2.625
+    },
+    "chain check": {
+     "n": 40,
+     "p50": 1.212,
+     "p95": 2.026,
+     "max": 2.642
+    },
+    "offline, warm": {
+     "n": 40,
+     "p50": 1.563,
+     "p95": 2.274,
+     "max": 2.721
+    }
+   },
+   "cold": {
+    "whole": {
+     "n": 10,
+     "p50": 472.846,
+     "p95": 586.355,
+     "max": 586.355
+    },
+    "inside": {
+     "n": 10,
+     "p50": 310.5,
+     "p95": 336.0,
+     "max": 336.0
+    },
+    "rules_loaded": {
+     "n": 10,
+     "p50": 281.5,
+     "p95": 317.0,
+     "max": 317.0
+    },
+    "decision": {
+     "n": 10,
+     "p50": 2.4,
+     "p95": 4.3,
+     "max": 4.3
+    }
+   },
+   "stream": {
+    "n": 40,
+    "p50": 1.627,
+    "p95": 2.234,
+    "max": 2.273,
+    "loaded": 310.0
+   },
+   "real_tokens": {
+    "n": 44,
+    "p50": 2.07,
+    "p95": 3.522,
+    "max": 10.378,
+    "skipped": 0,
+    "decisions": {
+     "accepted": 44
+    }
+   }
+  }
+ }
+}

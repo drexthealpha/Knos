@@ -1,0 +1,14 @@
+{
+  "name": "knos",
+  "description": "The neutral meter for AI agent work: neither side keeps the count. One plugin for coding agents: a check that runs when the agent says it is done (a Stop hook), and the knos MCP server.",
+  "owner": {
+    "name": "drexthealpha",
+    "url": "https://github.com/drexthealpha"
+  },
+  "plugins": [
+    {
+      "name": "knos",
+      "source": "./plugin"
+    }
+  ]
+}

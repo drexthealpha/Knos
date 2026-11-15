@@ -1,0 +1,21 @@
+name: issuer keys
+
+# Calls the pinned key-rotation workflow (drexthealpha/knos-oidc-rotate) once a day from this repository, so that a
+# key GitHub or GitLab adds reaches knos-oidc even if that repository's own schedule is ever switched off (GitHub
+# disables schedules in repositories with no activity for 60 days). The token GitHub signs names the rotate workflow
+# at the commit fixed in knos-oidc's binary, whoever calls it; anyone can do the same from their own repository.
+# The tokens are posted on a new issue here and the always-on worker relays them; a key the chain already has costs
+# nothing. ROTATE_COMMIT_SHA is the same commit as ROTATE_SHA in programs/knos_oidc/src/pins.rs.
+on:
+  schedule:
+    - cron: "11 5 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  keys:
+    permissions:
+      id-token: write
+      issues: write
+    uses: drexthealpha/knos-oidc-rotate/.github/workflows/rotate.yml@6ddf031b64febecfcd510763ecee37637a8047fa

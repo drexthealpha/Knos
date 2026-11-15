@@ -1,0 +1,39 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Knos's own data lives in ~/.knos, never in a repo. What a repository does keep under .knos/ is its configuration:
+# .knos/proof.toml and the acceptance checks of its bounties.
+.knos/*
+!.knos/proof.toml
+!.knos/acceptance/
+
+# Secrets and keys, in case one ever lands here
+.knos-keys/
+.knos-admin/
+*.keypair.json
+*.keystore
+keystore/
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+.npmrc
+.pypirc
+
+node_modules/
+programs/target
+programs-v2/target
+examples/*/target
+
+# agent tooling scratch
+.claude/
+
+examples/target
+mutants/

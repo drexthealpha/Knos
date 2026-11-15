@@ -1,0 +1,197 @@
+{
+ "about": "MADE-UP DATA for the support-resolution example. No help desk, no customer and no ticket here is real.",
+ "desk": "example-desk",
+ "exported_at": 1791036800,
+ "tickets": [
+  {
+   "id": "T-1001",
+   "note": "solved, the customer said so",
+   "events": [
+    {
+     "at": 1790000060,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790000120,
+     "type": "solved"
+    },
+    {
+     "at": 1790000300,
+     "type": "customer_confirmed"
+    }
+   ]
+  },
+  {
+   "id": "T-1002",
+   "note": "solved, the customer left without asking for more",
+   "events": [
+    {
+     "at": 1790003660,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790003690,
+     "type": "solved"
+    }
+   ]
+  },
+  {
+   "id": "T-1003",
+   "note": "reopened 20 hours after solved",
+   "events": [
+    {
+     "at": 1790007260,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790007290,
+     "type": "solved"
+    },
+    {
+     "at": 1790079290,
+     "type": "reopened"
+    }
+   ]
+  },
+  {
+   "id": "T-1004",
+   "note": "the customer asked for a person",
+   "events": [
+    {
+     "at": 1790010860,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790011000,
+     "type": "customer_message"
+    },
+    {
+     "at": 1790011060,
+     "type": "escalated"
+    },
+    {
+     "at": 1790011700,
+     "type": "human_reply"
+    },
+    {
+     "at": 1790011800,
+     "type": "solved"
+    }
+   ]
+  },
+  {
+   "id": "T-1005",
+   "note": "solved 30 hours before the export: the window is open",
+   "events": [
+    {
+     "at": 1790928860,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790928890,
+     "type": "solved"
+    },
+    {
+     "at": 1790929200,
+     "type": "customer_confirmed"
+    }
+   ]
+  },
+  {
+   "id": "T-1006",
+   "note": "the customer wrote again 50 hours after solved",
+   "events": [
+    {
+     "at": 1790018060,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790018090,
+     "type": "solved"
+    },
+    {
+     "at": 1790198090,
+     "type": "customer_message"
+    }
+   ]
+  },
+  {
+   "id": "T-1007",
+   "note": "reopened 200 hours after solved: after the window",
+   "events": [
+    {
+     "at": 1790021660,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790021690,
+     "type": "solved"
+    },
+    {
+     "at": 1790741690,
+     "type": "reopened"
+    }
+   ]
+  },
+  {
+   "id": "T-1008",
+   "note": "a human agent answered before it was solved",
+   "events": [
+    {
+     "at": 1790025260,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790025800,
+     "type": "human_reply"
+    },
+    {
+     "at": 1790025900,
+     "type": "solved"
+    }
+   ]
+  },
+  {
+   "id": "T-1009",
+   "note": "the agent asked a question and the customer never replied",
+   "events": [
+    {
+     "at": 1790028860,
+     "type": "agent_answer"
+    }
+   ]
+  },
+  {
+   "id": "T-1010",
+   "note": "solved, the customer said so",
+   "events": [
+    {
+     "at": 1790032460,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790032490,
+     "type": "solved"
+    },
+    {
+     "at": 1790039600,
+     "type": "customer_confirmed"
+    }
+   ]
+  },
+  {
+   "id": "T-1002",
+   "note": "solved, the customer left without asking for more",
+   "events": [
+    {
+     "at": 1790003660,
+     "type": "agent_answer"
+    },
+    {
+     "at": 1790003690,
+     "type": "solved"
+    }
+   ]
+  }
+ ]
+}

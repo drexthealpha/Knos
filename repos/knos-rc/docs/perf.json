@@ -1,0 +1,165 @@
+{
+ "what": "tests/web/perf.mjs on a build of web/ in headless Chromium. Input to next paint (the new state, or its pending state), in milliseconds, 20 runs, each the best of three presses; bytes as served, unminified and uncompressed.",
+ "machine": "4 CPUs (Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz), shared",
+ "limit_ms": 300,
+ "interactions": {
+  "open a view": {
+   "runs": 20,
+   "p50_ms": 45,
+   "p95_ms": 85.6,
+   "max_ms": 151.7
+  },
+  "open a view: the new page drawn": {
+   "runs": 20,
+   "p50_ms": 33.1,
+   "p95_ms": 53.7,
+   "max_ms": 58.3
+  },
+  "open a page for the first time": {
+   "runs": 20,
+   "p50_ms": 40.5,
+   "p95_ms": 80.1,
+   "max_ms": 83.6,
+   "limit_ms": 200
+  },
+  "run the sample invoice": {
+   "runs": 20,
+   "p50_ms": 64.2,
+   "p95_ms": 96.7,
+   "max_ms": 128
+  },
+  "open the palette": {
+   "runs": 20,
+   "p50_ms": 49,
+   "p95_ms": 128.6,
+   "max_ms": 152.3
+  },
+  "switch light and dark": {
+   "runs": 20,
+   "p50_ms": 59.8,
+   "p95_ms": 94,
+   "max_ms": 95.9
+  }
+ },
+ "first_screen_bytes": {
+  "js": 170220,
+  "css": 59987,
+  "budget": {
+   "js": 183000,
+   "css": 60000
+  },
+  "files": 13
+ },
+ "layout_shift": {
+  "limit": 0.05,
+  "at_1280": 0.004,
+  "at_390": 0.0055
+ },
+ "widths_without_sideways_scroll": [
+  320,
+  360,
+  390,
+  480,
+  768,
+  1024,
+  1280
+ ],
+ "first_verdict": {
+  "what": "tests/web/front_door.mjs: from the landing page's first contentful paint to the verdict of one pasted pull request drawn at #check, the link pasted as soon as web/front_door.js listens to the box; 360 x 740, processor 4 times slower, slow 4G for the site's files, GitHub's answers recorded (tests/data/front_verdict.json)",
+  "runs": 3,
+  "p50_ms": 2695,
+  "max_ms": 2702,
+  "limit_ms": 10000
+ },
+ "android": {
+  "what": "tests/web/android.mjs: a build of web/ at 360 x 740, CPU slowed 4x, 1.6 Mbps down, 750 kbps up, 150 ms round trip, cache empty; milliseconds from the navigation's start (first paint, usable) or from the tap (#buy).",
+  "machine": "2 CPUs (Intel(R) Xeon(R) Processor @ 2.30GHz), shared",
+  "limit_ms": 3000,
+  "cpu_slowdown": 4,
+  "network": {
+   "down_kbps": 1600,
+   "up_kbps": 750,
+   "rtt_ms": 150
+  },
+  "viewport": {
+   "width": 360,
+   "height": 740
+  },
+  "runs": 3,
+  "first_contentful_paint_ms": {
+   "median": 1392,
+   "max": 1428
+  },
+  "usable_ms": {
+   "median": 1829,
+   "max": 1881
+  },
+  "first_other_page_ms": {
+   "page": "#buy",
+   "median": 2549,
+   "max": 2564
+  },
+  "first_screen_kb": 273
+ },
+ "close": {
+  "what": "tests/web/close30.mjs: a build of web/ opened at #approve; the sample statement; mouse: Try the sample, name and role typed, Approve, Download accounting file (QuickBooks); keyboard: the same by Tab and Enter, with Go to approval; milliseconds from the navigation's start to the file saved. android: 360 x 740, CPU slowed 4x, 1.6 Mbps down, 750 kbps up, 150 ms round trip, cache empty. desktop: 1280 x 800, no slowing. A script's time; with a person's pace adds 300 ms a key and 1 s a click. No person was timed.",
+  "machine": "2 CPUs (Intel(R) Xeon(R) Processor @ 2.80GHz), shared",
+  "limit_ms": 30000,
+  "most_clicks": 4,
+  "runs": 3,
+  "key_ms": 300,
+  "click_ms": 1000,
+  "android_mouse": {
+   "clicks": 4,
+   "key_presses": 1,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 5762,
+    "max": 6002
+   },
+   "with_person_pace_ms": {
+    "median": 16062,
+    "max": 16302
+   }
+  },
+  "android_keyboard": {
+   "clicks": 0,
+   "key_presses": 12,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 5455,
+    "max": 6078
+   },
+   "with_person_pace_ms": {
+    "median": 15055,
+    "max": 15678
+   }
+  },
+  "desktop_mouse": {
+   "clicks": 4,
+   "key_presses": 1,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 1127,
+    "max": 1174
+   },
+   "with_person_pace_ms": {
+    "median": 11427,
+    "max": 11474
+   }
+  },
+  "desktop_keyboard": {
+   "clicks": 0,
+   "key_presses": 12,
+   "letters_typed": 20,
+   "script_ms": {
+    "median": 990,
+    "max": 1089
+   },
+   "with_person_pace_ms": {
+    "median": 10590,
+    "max": 10689
+   }
+  }
+ }
+}

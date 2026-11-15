@@ -1,0 +1,391 @@
+"""One version everywhere a version lives.
+
+    python scripts/bump_version.py 0.3.13        write it everywhere (safe to run again: a second run changes nothing)
+    python scripts/bump_version.py --check       exit 1 unless every place names the version of pyproject.toml
+    python scripts/bump_version.py --check 0.3.13    ... unless every place names exactly this version
+    python scripts/bump_version.py --list        every place and what it names now
+
+A place is a manifest (PLACES: the package, its lock, the registries' manifests, the plugin manifests, the JavaScript
+client, the Rust crates and their lock files, the IDLs) or a PIN: a line somewhere in the tree that installs or names
+one release (`knos==X`, `tag = "vX"`, `drexthealpha/Knos@vX`, `drexthealpha/Knos/.github/actions/knos-verify@vX`, `releases/download/vX/knos-settle-X.tgz`,
+`drexthealpha/Knos/.github/workflows/supplier.yml@vX`, `git tag vX && git push origin vX`, the README's logo at
+`raw.githubusercontent.com/drexthealpha/Knos/vX/`: PyPI shows only an absolute image). A bump also writes README.pypi.md,
+the package's description: README.md with every relative link pinned to the tag (PyPI shows the page alone), and each
+Mermaid diagram replaced by its picture at the tag (PyPI does not draw Mermaid; scripts/diagrams.py draws the pictures,
+and --check fails when one is missing). Pins are found by pattern in every file git tracks, so a new document that
+installs a release is covered the day it is written.
+
+The lock is not a pin: requirements/sign.txt ends with `knos==X --hash=sha256:<the wheel>` once a release is locked,
+and a wheel of another version has another hash, so a bump removes an earlier release's line instead of renaming it.
+
+What it does not write: CHANGELOG.md (its top entry is written by hand; --check says when it is not this version),
+programs/ (the first deployment, which never changes), examples/reader_template (it builds against a tag that
+exists: see NOT_PINNED), a sentence that mentions an earlier release as history, and
+the fixtures: after a version change the programs' bytes change, so run `bash scripts/build_programs_v2.sh all`
+once before the release tree is frozen (the deployed bytes are the verified build's, never a fixture's).
+
+A release that changes no program must not change a program's bytes either, and a crate's version is in its bytes
+(the compiler mixes it into every symbol's hash: when release 0.3.14 changed only the version, the example programs'
+binaries changed with no line of their source changed). So the crates named in PROGRAMS_FROZEN stay at FROZEN_AT, with their entries in every lock
+file and the IDLs that describe them, whatever version is written elsewhere: a bump writes FROZEN_AT there, and
+--check fails when one of them names anything else. Empty PROGRAMS_FROZEN in the release that next changes a program.
+"""
+from __future__ import annotations
+
+import argparse
+import functools
+import importlib.util
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+V = r"(\d+\.\d+\.\d+)"
+OURS = ("knos", "knos-oidc-interface", "knos-pay-interface", "knos_oidc", "knos_pay", "knos_meter", "knos_passkey", "knos-handler-tests")
+JSON_VERSION = r'"version": "' + V + '"'
+# (files, pattern): every match's groups are the version. Each file must match at least once. A line ends in \n or in
+# \r\n: a file written on Windows (by an editor, or Python's text mode) names its version as any other file does, and
+# a bump still rewrites the version's bytes and nothing else.
+PLACES: list[tuple[str, str]] = [
+    ("pyproject.toml", r'(?m)\A(?:.*\n)*?\[project\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
+    ("uv.lock", r'\[\[package\]\]\r?\nname = "knos"\r?\nversion = "' + V + '"'),
+    ("server.json", JSON_VERSION),                              # twice: the server, and the PyPI package it runs
+    ("gemini-extension.json", JSON_VERSION),
+    ("plugin/.claude-plugin/plugin.json", JSON_VERSION),
+    ("plugin/.codex-plugin/plugin.json", JSON_VERSION),
+    ("sdk/settle/package.json", r'\A\{\r?\n(?:  .*\n)*?  ' + JSON_VERSION),
+    ("programs-v2/handlers/Cargo.toml", r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),    # the handler tests: in no program's build
+]
+# The programs, the two interface crates their builds read (knos_meter and the example programs depend on them by
+# path), and the IDLs, which carry the version of the program they describe.
+PROGRAM_PLACES: list[tuple[str, str]] = [
+    ("idl/*.json", r'\A\{\r?\n(?:  .*\n)*?  ' + JSON_VERSION),
+    ("crates/*/Cargo.toml", r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
+    ("programs-v2/knos_*/Cargo.toml", r'(?m)^\[package\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
+]
+# 0.3.16 changes one program, knos_oidc (2.2: every byte of a token is checked as JSON, in strict.rs), and knos_oidc
+# stays in this list all the same. knos_pay compiles the knos_oidc crate in, and a crate's version goes into the
+# compiler's hash of the crate, which reaches a dependent's bytes: measured for 0.3.16, a knos_pay test build
+# with knos_oidc at 0.3.16 and not one other change was 405,240 bytes like the 0.3.14 one and differed from it in
+# 905 of them. knos_pay, knos_meter and knos_passkey are the builds upgrade proposals 4 to 6 name, at 0.3.14, and
+# whatever anyone builds from this tree to compare with the chain must stay byte-identical to them. So the program's
+# own number, 2.2, is knos_oidc::VERSION and `source_release` in its security.txt, not the crate's version.
+PROGRAMS_FROZEN: tuple[str, ...] = ("knos_oidc", "knos_pay", "knos_meter", "knos_passkey", "knos-oidc-interface", "knos-pay-interface")
+FROZEN_AT = "0.3.14"
+LOCKS = ("crates/*/Cargo.lock", "examples/*/Cargo.lock", "programs-v2/Cargo.lock", "programs-v2/knos_oidc/fuzz/Cargo.lock",
+         "programs-v2/handlers/Cargo.lock")     # program.yml runs the handler tests with --locked: a lock one release behind fails the job
+
+
+
+def _locked(names) -> str | None:
+    """The pattern of these crates' entries in a lock file; None for no crate (an empty alternation matches every package)."""
+    return r'name = "(?:' + "|".join(names) + r')"\r?\nversion = "' + V + '"' if names else None
+
+
+LOCKED = _locked([n for n in OURS[1:] if n not in PROGRAMS_FROZEN])
+LOCKED_FROZEN = _locked(PROGRAMS_FROZEN)
+PINS = (r"\bknos==" + V, r'tag = "v' + V + '"', r"drexthealpha/Knos@v" + V, r"drexthealpha/Knos/\.github/actions/knos-verify@v" + V,
+        r"drexthealpha/Knos/\.github/workflows/supplier\.yml@v" + V, r"releases/download/v" + V + r"/knos-settle-" + V + r"\.tgz",
+        r"git tag v" + V + r" && git push origin v" + V, r"raw\.githubusercontent\.com/drexthealpha/Knos/v" + V + "/")
+PIN = re.compile("|".join(PINS))
+# Pins that move only in some files: (folder, suffix, pattern). None now: the folder that had them is no longer in this
+# repository. Elsewhere a tag link may be history.
+SCOPED_PINS: tuple[tuple[str, str, re.Pattern], ...] = ()
+# history, the first deployment, the patterns themselves, and the lock (its line names a wheel by hash: see unlock).
+# examples/reader_template is the one example that really builds against a tag (the others name theirs in a comment and
+# build by path): its Cargo.lock holds that tag's commit, and a tag exists only after its release is pushed, so a bump
+# that moved it would name a tag nobody can fetch. It stays at the tag that holds the frozen interface crate.
+NOT_PINNED = ("CHANGELOG.md", "programs/", "scripts/bump_version.py", "requirements/sign.txt", "examples/reader_template/", "scripts/action_pins.json")
+# scripts/action_pins.json lists the commit of each Knos tag a workflow or a document names. A commit cannot name
+# itself, so the tag of the release being made has no commit yet: a bump adds its key with SELF_PIN as the value and
+# leaves every earlier key alone (an earlier tag's commit never changes, and .github/workflows/supplier.yml runs the
+# action at one). The first commit after the tag writes the tag's commit there (docs/reference/RELEASE.md, "After the tag").
+SELF_PINS = "scripts/action_pins.json"
+SELF_PIN = "KNOS_RELEASE_SHA"
+SELF_KEY = re.compile(r'^(\s*)"drexthealpha/Knos@v' + V + r'": "([^"]*)",?\r?\n', re.M)
+LOCK = re.compile(r"\r?\nknos==" + V + r" --hash=sha256:[0-9a-f]{64}\r?\n\Z")
+# PyPI shows README.md alone, so a link relative to the repository leads nowhere there. README.md stays relative (it is
+# read on GitHub); PYPI_README is README.md with every relative link made whole and pinned to the release's tag, and it
+# is the package's description (pyproject.toml `readme`). A bump writes it; --check fails when it is not README.md's.
+PYPI_README = "README.pypi.md"
+GITHUB = "https://github.com/drexthealpha/Knos"
+RAW = "https://raw.githubusercontent.com/drexthealpha/Knos"
+_IMAGE = re.compile(r"\.(?:png|svg|jpe?g|gif|webp|avif)$", re.I)
+_LINK = re.compile(r"(?P<img>!?)\[(?P<text>[^\]]*)\]\((?P<target>[^)\s]+)(?P<title>\s+\"[^\"]*\")?\)"
+                   r"|^(?P<ref>\s{0,3}\[[^\]]+\]:\s+)(?P<reftarget>\S+)"
+                   r"|(?P<attr>\b(?:href|src|srcset)=\")(?P<attrtarget>[^\"]+)\"", re.M)
+
+
+def whole(target: str, version: str, image: bool = False, root: Path = ROOT) -> str:
+    """A link target as PyPI can follow it: a whole URL stays; an anchor of the README becomes the README's at the tag; a
+    path becomes the file at the tag (an image: its raw bytes, which PyPI shows; a folder: its tree)."""
+    if re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:|//", target):
+        return target
+    if target.startswith("#"):
+        return f"{GITHUB}/blob/v{version}/README.md{target}"
+    path, _, anchor = target.partition("#")
+    while path.startswith("./"):
+        path = path[2:]
+    path = path.lstrip("/")
+    if image or _IMAGE.search(path):
+        return f"{RAW}/v{version}/{path}"
+    kind = "tree" if path.endswith("/") or (root / path).is_dir() else "blob"
+    return f"{GITHUB}/{kind}/v{version}/{path.rstrip('/')}" + (f"#{anchor}" if anchor else "")
+
+
+@functools.lru_cache(maxsize=None)
+def _diagrams():
+    """scripts/diagrams.py, by its path (a package named `diagrams` may be installed)."""
+    spec = importlib.util.spec_from_file_location("knos_scripts_diagrams", Path(__file__).with_name("diagrams.py"))
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _alt(caption: str | None) -> str:
+    """A diagram's caption as an image's text: its words, without the marks of a link or of emphasis."""
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", caption or "")
+    return re.sub(r"\s+", " ", re.sub(r"[\[\]*_`]", "", text)).strip() or "Diagram"
+
+
+def pictures(text: str, version: str) -> str:
+    """README.md's text with each ```mermaid block replaced by its picture at tag v<version>: PyPI does not draw
+    Mermaid. The italic caption under the block stays, under the picture."""
+    return _diagrams().swap(text, "README.md", lambda b: f"![{_alt(b.caption)}]({RAW}/v{version}/{b.svg})")
+
+
+def missing_pictures(root: Path = ROOT) -> list[str]:
+    """README.md's diagrams with no picture in docs/diagrams/: PyPI's page would show a broken image."""
+    readme = root / "README.md"
+    found = _diagrams().parse(_text(readme) or "", "README.md") if readme.is_file() else []
+    return [f"README.md, diagram {b.n}: no {b.svg} (python scripts/diagrams.py render)" for b in found if not (root / b.svg).is_file()]
+
+
+def pypi_readme(text: str, version: str, root: Path = ROOT) -> str:
+    """README.md's text with every relative link made whole at tag v<version> and every diagram a picture, under a line
+    saying where it comes from."""
+    def one(m: re.Match) -> str:
+        if m.group("target") is not None:
+            return f"{m.group('img')}[{m.group('text')}]({whole(m.group('target'), version, bool(m.group('img')), root)}{m.group('title') or ''})"
+        if m.group("reftarget") is not None:
+            return m.group("ref") + whole(m.group("reftarget"), version, root=root)
+        return m.group("attr") + whole(m.group("attrtarget"), version, "src" in m.group("attr"), root) + '"'
+    head = "<!-- Written by scripts/bump_version.py from README.md, with links pinned to the tag: edit README.md. -->\n"
+    return head + _LINK.sub(one, pictures(text, version))
+
+
+def relative_left(text: str) -> list[str]:
+    """The link targets of a page that still lean on the repository: none may remain on PyPI's page."""
+    return [t for m in _LINK.finditer(text) for t in [m.group("target") or m.group("reftarget") or m.group("attrtarget")]
+            if not re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:|//", t)]
+
+
+def pypi_stale(version: str, root: Path = ROOT, write: bool = False) -> bool:
+    """True when PYPI_README is not README.md's at `version` (with `write`, it is then written)."""
+    readme, out = root / "README.md", root / PYPI_README
+    if not readme.is_file():
+        return False
+    want = pypi_readme(_text(readme) or "", version, root)
+    if (_text(out) if out.is_file() else None) == want:
+        return False
+    if write:
+        out.write_bytes(want.encode("utf-8", errors="surrogateescape"))
+    return True
+CHANGELOG = re.compile(r"^## " + V + r"\b", re.M)
+
+
+def tracked(root: Path) -> list[str]:
+    """Every file git tracks or would add, by its path from the root (a plain folder: every file in it)."""
+    done = subprocess.run(["git", "ls-files", "-co", "--exclude-standard", "-z"], cwd=root, capture_output=True, text=True)
+    if done.returncode == 0 and done.stdout:
+        return sorted(p for p in done.stdout.split("\0") if p and (root / p).is_file())
+    return sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and ".git" not in p.parts)
+
+
+def _text(path: Path) -> str | None:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    return None if b"\0" in data[:8192] else data.decode("utf-8", errors="surrogateescape")
+
+
+def _spans(text: str, pattern: str | re.Pattern) -> list[tuple[int, int]]:
+    return [m.span(k) for m in re.finditer(pattern, text) for k in range(1, (m.re.groups or 0) + 1) if m.group(k) is not None]
+
+
+def _manifests(root: Path) -> tuple[dict[str, list[tuple[int, int]]], dict[str, list[tuple[int, int]]], list[str]]:
+    """({file: spans that move with a release}, {file: spans held at FROZEN_AT}, the places that name no version though
+    they must). A lock file can hold both kinds: the handler tests' lock names the programs and itself."""
+    moving: dict[str, list[tuple[int, int]]] = {}
+    frozen: dict[str, list[tuple[int, int]]] = {}
+    missing = []
+    held = frozen if PROGRAMS_FROZEN else moving
+    plan = [*((f, p, None) for f, p in PLACES), *((f, None, p) for f, p in PROGRAM_PLACES)] if PROGRAMS_FROZEN else \
+        [*((f, p, None) for f, p in (*PLACES, *PROGRAM_PLACES))]
+    for files, moves, stays in [*plan, *((lock, LOCKED, LOCKED_FROZEN) for lock in LOCKS)]:
+        paths = sorted(root.glob(files))
+        if not paths:
+            missing.append(f"{files}: no such file")
+        for path in paths:
+            text, rel = _text(path) or "", path.relative_to(root).as_posix()
+            a = _spans(text, moves) if moves else []
+            b = _spans(text, stays) if stays else []
+            if not a and not b:
+                missing.append(f"{rel}: carries no version")
+            if a:
+                moving.setdefault(rel, []).extend(a)
+            if b:
+                held.setdefault(rel, []).extend(b)
+    return moving, frozen, missing
+
+
+def found(root: Path = ROOT) -> tuple[dict[str, list[tuple[int, int]]], list[str]]:
+    """({file: the spans of every version it names that a release moves}, the places that name none though they must)."""
+    spans, _frozen, missing = _manifests(root)
+    for rel in tracked(root):
+        if rel.startswith(NOT_PINNED) or rel.endswith("package-lock.json"):
+            continue
+        text = _text(root / rel)
+        if text is not None and (got := _spans(text, PIN)):
+            spans.setdefault(rel, []).extend(got)
+        for folder, suffix, scoped in SCOPED_PINS:
+            if text is not None and rel.startswith(folder) and "/" not in rel[len(folder):] and rel.endswith(suffix) and (got := _spans(text, scoped)):
+                spans.setdefault(rel, []).extend(got)
+    return {rel: sorted(set(s)) for rel, s in spans.items()}, missing
+
+
+def _lines(root: Path, spans: dict[str, list[tuple[int, int]]]) -> list[tuple[str, int, str]]:
+    out = []
+    for rel, at in sorted(spans.items()):
+        text = _text(root / rel) or ""
+        out += [(rel, text.count("\n", 0, a) + 1, text[a:b]) for a, b in sorted(set(at))]
+    return out
+
+
+def places(root: Path = ROOT) -> list[tuple[str, int, str]]:
+    """(file, line, version) of every place a release moves, in the order of the files' names."""
+    return _lines(root, found(root)[0])
+
+
+def frozen_places(root: Path = ROOT) -> list[tuple[str, int, str]]:
+    """(file, line, version) of every place held at FROZEN_AT: the frozen crates, their lock entries and the IDLs."""
+    return _lines(root, _manifests(root)[1])
+
+
+def project(root: Path = ROOT) -> str:
+    m = re.search(PLACES[0][1], _text(root / "pyproject.toml") or "")
+    if not m:
+        raise SystemExit("pyproject.toml carries no version in its [project] table")
+    return m.group(1)
+
+
+def disagreements(version: str | None = None, root: Path = ROOT, changelog: bool = True) -> list[str]:
+    """Every place that does not name `version` (default: pyproject.toml's), one line each."""
+    want = version or project(root)
+    said = [f"{rel}:{line}: {got}, not {want}" for rel, line, got in places(root) if got != want]
+    said += [f"{rel}:{line}: {got}, not {FROZEN_AT} (a program crate, frozen: its builds must stay byte-identical until the proposed upgrades execute)"
+             for rel, line, got in frozen_places(root) if got != FROZEN_AT]
+    said += found(root)[1]
+    if pypi_stale(want, root):
+        said.append(f"{PYPI_README}: not README.md with its links pinned to v{want} (python scripts/bump_version.py {want} writes it)")
+    said += missing_pictures(root)
+    if self_pin(want, root, write=False):
+        said.append(f"{SELF_PINS}: no key drexthealpha/Knos@v{want} (a bump adds it with {SELF_PIN}; the commit is written after the tag)")
+    if changelog:
+        top = CHANGELOG.search(_text(root / "CHANGELOG.md") or "")
+        if not top or top.group(1) != want:
+            said.append(f"CHANGELOG.md: its top entry is {top.group(1) if top else 'missing'}, not {want} (written by hand)")
+    return said
+
+
+def unlock(version: str, root: Path = ROOT) -> bool:
+    """requirements/sign.txt ends with the hash of one release's wheel once that release is locked. A wheel of another
+    version has another hash, so the line of an earlier release is removed, never renamed: the next release locks its
+    own wheel (docs/reference/RELEASE.md). True when a line was removed."""
+    path = root / "requirements" / "sign.txt"
+    text = _text(path) or ""
+    m = LOCK.search(text)
+    if not m or m.group(1) == version:
+        return False
+    end = "\r\n" if text[m.start()] == "\r" else "\n"         # the line before keeps the end it had
+    path.write_bytes((text[:m.start()] + end).encode("utf-8"))
+    return True
+
+
+def self_pin(version: str, root: Path = ROOT, write: bool = True) -> bool:
+    """scripts/action_pins.json names this version's tag: its key is added, after the earlier tags' keys, with SELF_PIN
+    for the commit nobody can know yet. True when the key was missing (and, with `write`, was added)."""
+    path = root / SELF_PINS
+    text = _text(path) or ""
+    keys = list(SELF_KEY.finditer(text))
+    if not keys or any(m.group(2) == version for m in keys):
+        return False
+    if write:
+        last = keys[-1]
+        end = "\r\n" if last.group(0).endswith("\r\n") else "\n"
+        line = f'{last.group(1)}"drexthealpha/Knos@v{version}": "{SELF_PIN}",{end}'
+        path.write_bytes((text[:last.end()] + line + text[last.end():]).encode("utf-8"))
+    return True
+
+
+def bump(version: str, root: Path = ROOT) -> list[str]:
+    """Write `version` in every place. Returns the files that changed."""
+    if not re.fullmatch(V, version):
+        raise SystemExit(f"{version} is not a version: three numbers, as in 0.3.13")
+    changed = ["requirements/sign.txt"] if unlock(version, root) else []
+    if self_pin(version, root):
+        changed.append(SELF_PINS)
+    _moving, frozen, _missing = _manifests(root)
+    spans = {rel: [(a, b, version) for a, b in at] for rel, at in found(root)[0].items()}
+    for rel, at in frozen.items():                        # held where they are: a crate an earlier run moved is put back
+        spans.setdefault(rel, []).extend((a, b, FROZEN_AT) for a, b in at)
+    for rel, at in sorted(spans.items()):
+        text = new = _text(root / rel) or ""
+        for a, b, v in sorted(set(at), reverse=True):     # from the end, so the earlier spans stay where they are
+            new = new[:a] + v + new[b:]
+        if new != text:
+            (root / rel).write_bytes(new.encode("utf-8", errors="surrogateescape"))
+            changed.append(rel)
+    if pypi_stale(version, root, write=True):                 # after the pins: it is README.md's text at this version
+        changed.append(PYPI_README)
+    return sorted(set(changed))
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="One version everywhere a version lives.")
+    ap.add_argument("version", nargs="?", help="the version to write, or with --check the version every place must name")
+    ap.add_argument("--check", action="store_true", help="change nothing; exit 1 unless every place agrees")
+    ap.add_argument("--list", action="store_true", help="change nothing; print every place and what it names")
+    a = ap.parse_args(argv)
+    if a.list:
+        for rel, line, got in places():
+            print(f"{got}  {rel}:{line}")
+        for rel, line, got in frozen_places():
+            print(f"{got}  {rel}:{line}  (frozen at {FROZEN_AT})")
+        return 0
+    if a.check:
+        said = disagreements(a.version)
+        for line in said:
+            print(line)
+        print(f"{len(places())} places name {a.version or project()}" + (f"; {len(frozen_places())} of the program crates stay at {FROZEN_AT}." if PROGRAMS_FROZEN else ".") if not said else
+              f"{len(said)} place(s) disagree. Write the version everywhere: python scripts/bump_version.py {a.version or project()}")
+        return 1 if said else 0
+    if not a.version:
+        ap.error("name the version to write, or --check, or --list")
+    changed = bump(a.version)
+    print(f"Wrote {a.version} in {len(changed)} file(s)" + (": " + ", ".join(changed) if changed else " (every place named it already)") + ".")
+    left = disagreements(a.version)
+    for line in left:
+        print(f"still to do: {line}")
+    if PROGRAMS_FROZEN:
+        print(f"The program crates stay at {FROZEN_AT} (PROGRAMS_FROZEN): no program is rebuilt, and the fixtures are not touched.")
+    elif changed and any(rel.startswith("programs-v2/") for rel in changed):
+        print("The program crates changed: run `bash scripts/build_programs_v2.sh all` once, so the fixtures are builds of this version.")
+    return 1 if [line for line in left if not line.startswith("CHANGELOG.md")] else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

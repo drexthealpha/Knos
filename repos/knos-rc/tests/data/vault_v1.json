@@ -1,0 +1,23 @@
+{
+ "about": "Knos vault, sealed file version 1. Every key and nonce here is derived as SHA-256(\"knos vault test vector 1 \" + label): test values, never used for anything real.",
+ "checkpoint_root": "c330ddd000ea9483afabe1ed1499414c4e5ec37e339fdaa9ceb4e3ea9dd355ff",
+ "content_key": "ddb80779b9c0ed20cf0a204284457475e43cdd9856a7174832610ebb48367e6d",
+ "ephemeral_private": "d635f6bd3a0cdbe3a9432cfa792917498580685d9f62167b8ec9ed220509249d",
+ "name": "vector.bundle.tar",
+ "nonce": "f4a53454db5008443ed98ec2",
+ "plain": "knos vault test vector 1: these bytes stand for an evidence bundle\n",
+ "plain_sha256": "d1dc5cedfce749fffcf06e1d72f6f2769f37eac4fcd5450a2795b4ef325237c8",
+ "private_keys": {
+  "auditor": "0bdccb5bb76be36e1eb914b481187b4ff80ad17d3bb0a3f51db5c2c3ffb1a2f5",
+  "buyer": "ea3773f0a7fb70e772b318db595c773e25d68d89d7f1be433c3c19aeced73973",
+  "supplier": "b76e1c2f9b5dc267f6f88ab39fdf2bc9cd43732b42b743fe6c50ef84d2de0316"
+ },
+ "public_keys": {
+  "auditor": "76c221b92ebf763a7f2053c5eaa803201e1f5a0673256d30b7209148e2fc6a39",
+  "buyer": "c9c5eae126656badb1f35d72cbaeb1f93baf1dc30c90d356eb25d803111ebc67",
+  "supplier": "5babf402fd54a2068c75b76c30c4a2ce7779d45a24d8eefc269d8f021a565008"
+ },
+ "sealed": "{\"aead\":\"chacha20-poly1305\",\"ciphertext\":\"Ch3eSIrVoXdLjgsmt7H71hSJ4SlcnTC6xL9tEZGlYsvgyHwVuAuRXT1dDqnzGv1BUEKhVYlSFa6HOdy4GzwgzFvgti5/b5HG2cDiHrE5AicDt9A=\",\"ephemeral\":\"U+ih61CEh9kSbu9I4CfvxdbEmSrbYn4KAdLJs2m+sA0=\",\"kem\":\"x25519-hkdf-sha256\",\"name\":\"vector.bundle.tar\",\"nonce\":\"9KU0VNtQCEQ+2Y7C\",\"plain_sha256\":\"d1dc5cedfce749fffcf06e1d72f6f2769f37eac4fcd5450a2795b4ef325237c8\",\"recipients\":[{\"id\":\"3d303cbeeb2f060b\",\"label\":\"auditor\",\"public\":\"dsIhuS6/djp/IFPF6qgDIB4fWgZzJW0wtyCRSOL8ajk=\",\"wrapped\":\"VcV+PfWr9A9qhUhBINqtcmp0yWvWf6G6WbGm+9szattLNIc3Wh7Ex8589ZRbT4FY\"},{\"id\":\"576c6a42661f5c30\",\"label\":\"buyer\",\"public\":\"ycXq4SZla62x811yy66x+TuvHcMMkNNW6yXYAxEevGc=\",\"wrapped\":\"orib5wOes6CmblUazGKYXTEOZGt9TYExlGAIPTrLn4rlmgA+XpIP6tYl1Nb+wTl5\"},{\"id\":\"8a9457d9aba7c3d6\",\"label\":\"supplier\",\"public\":\"W6v0Av1UogaMdbdsMMSiznd51Fok2O78Jp2PAhpWUAg=\",\"wrapped\":\"EvBG7S0lwGVUgcwCpDICYgcTXJgnJO/CZZfRU+hNbQtRmxEhfNJDJQ9Mq4ktWmOd\"}],\"sealed_at\":1790000000,\"size\":67,\"type\":\"knos.vault\",\"version\":1}\n",
+ "sealed_at": 1790000000,
+ "sealed_sha256": "a5dffe21caac592812621178bae1e611504e7ac220aa8d4797630ac87086962a"
+}

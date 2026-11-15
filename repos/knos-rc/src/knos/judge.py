@@ -1,0 +1,2047 @@
+"""The judge: the check on a pull request. It decides whether a pull request may be paid, and the pull request cannot
+weaken what it is judged by.
+
+Two verdicts:
+
+    gate(...)    every pull request, running NO pull request code. The free check: the repository's own rules
+                 (CONTRIBUTING.md, read from the base and kept in Sibyl), what this repository's history made required
+                 (tampering caught before, also Sibyl), and the pull request's own words: a description saying "tests
+                 pass" or "CI is green" is checked against GitHub's record of the commit. For a bounty's pull request
+                 also what money moves on: the bounty's terms (knos.terms.accepted: every funded check passed at
+                 that commit and nothing out of scope changed) and who is paid (knos.who). A description's words can
+                 be found false; they never stand in for a check.
+    judge(...)   tests mode (.knos/acceptance/<issue>/ exists on the base): the funder's acceptance checks, run in a
+                 sandbox, must fail on the base and pass on the pull request.
+
+What judge() enforces:
+
+    authority     the suite that decides is the one fixed at funding: the base's acceptance bundle, tests and test
+                  configuration. A change to a protected path (.knos/**, .github/**, the test directories, the files
+                  that decide how tests run; proof.toml `protected = [...]` replaces the list) is one of three kinds
+                  (`classify`), and the verdict says which:
+                    a new file in a test directory            allowed, not counted ("contributor tests: N files,
+                                                              not counted"): it is not in the tree the suite runs in
+                    an existing protected test edited/deleted refused
+                    test discovery or execution configuration allowed and not counted where the run takes the file
+                    (conftest.py, pytest.ini, tox.ini, the    from the base (`restored`); refused everywhere else,
+                    pytest section of setup.cfg/pyproject,    and always for .knos/** (the funder's terms and bundle)
+                    .npmrc, Rakefile, .rspec, helpers)        and .github/** (GitHub runs the pull request's copy)
+    overlay       the run happens on the pull request's source with the base's tests and test configuration copied
+                  over it: every protected path of the work tree is the base's, so nothing the pull request put
+                  beside the tests (a test, a conftest.py, a plugin, a fixture) is there when the suite runs.
+    verdict       one of knos.ids.VERDICTS in `verdict`: accepted, rejected, or insufficient_evidence when the run
+                  could not decide (the suite did not start, timed out, or the machine could not run it). A run that
+                  could not decide is never accepted and never rejected; `passed` is true only for accepted.
+    sandbox       every command that runs pull request code (its dependency install, its tests) runs as another user
+                  (uid 65534), with an empty environment, and the tests run with no network. So that code cannot
+                  write the judge's files, its memory, the job's outputs, or call out. `--sandbox require` (what
+                  prove.yml passes) refuses to judge without it.
+    sentinel      a random-named passing test and a random-named failing canary are added; the report must show the
+                  sentinel passed and the canary failed, or the runner was faked or patched to pass everything.
+    fail-to-pass  every acceptance check passes on the pull request and at least one fails on the base; every other
+                  test that passed on the base still passes; the pull request collects no fewer tests than the base.
+
+Languages (picked from the acceptance bundle's files, or `runner = "..."` in .knos/proof.toml):
+
+    python   pytest, JUnit report                      acceptance: .knos/acceptance/<issue>/test_*.py
+    node     `node --test`, JUnit report               acceptance: *.test.js / .mjs / .cjs / .ts
+    go       `go test -json`                           acceptance: *_test.go (one package)
+    rust     `cargo test`                              acceptance: *.rs, built as integration tests
+    command  any language or framework                 acceptance: a `check` script (or `[judge] run = "..."`);
+                                                       exit 0 means done. No sentinel in this mode.
+    blackbox any language, and forgery-proof           acceptance: a `blackbox` script that runs as the judge and
+                                                       reaches the pull request's code only through "$KNOS_RUN ..."
+
+What is and is not stopped (docs/reference/SECURITY.md says the same): in the first five runners the code under test shares a
+process with the test runner, so a pull request written to forge the runner's report from inside is not stopped by
+the report alone. The blackbox runner closes that: the check never loads the pull request's code, so nothing that
+code does can change the verdict except producing the right output. An implementation that special-cases fixed
+example inputs passes any check made of fixed examples; a blackbox check with generated inputs does not have that
+weakness either. For everything else there is the default mode, which pays on a maintainer's merge instead (and, for
+a bounty funded on the first deployment, the review window in which its funder can veto a tests-mode payment).
+
+Assurance, said in every verdict (`assurance`, and one sentence, `assurance_means`): in-process (the first five
+runners), black-box (the blackbox runner on this machine, behind the sandbox above when the machine has one), hermetic
+(the blackbox runner with an `image`: "$KNOS_RUN" runs the pull request's code in a container of that image, pinned by
+digest, with no network, a read-only root, a tmpfs work directory, another user, no capabilities, the tree mounted
+read-only and memory, CPU, process and time limits; the check, its reference and the judge stay outside). The digest
+that ran and the hash of both trees are in the verdict, so `knos judge rerun` gives either party the same judgment.
+
+So on the second deployment, which has no veto, a bounty is paid by its acceptance checks alone only when the bundle
+is black-box by a mechanical test, `black_box`: an entry file blackbox / blackbox.sh / blackbox.py at its top that
+names KNOS_RUN, no file that names KNOS_TREE, and no other runner set in .knos/proof.toml. knos.flow funds any other
+bundle on the merge and says why, and refuses to sign a tests-mode proof for one.
+"""
+
+from __future__ import annotations
+
+import configparser
+import fnmatch
+import hashlib
+import json
+import os
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Mapping
+from xml.etree import ElementTree
+
+try:
+    import tomllib
+except ImportError:  # Python 3.10
+    import tomli as tomllib  # type: ignore[no-redef]
+
+from . import ids
+from .terms import ASSURANCE, valid_image
+from .terms import Refused as _TermsRefused
+from .terms import ours as _ours   # a check run that is Knos's own: never evidence about the pull request
+from .terms import state_of, status_state, together
+from .who import excluded, payee  # noqa: F401 - payee is this module's too: `knos proof payee` and callers use judge.payee
+
+SANDBOX_UID = 65534
+_SKIP = {".git", "__pycache__", ".pytest_cache", "node_modules", "target"}
+_LEAK = ("GITHUB_", "ACTIONS_", "RUNNER_", "PYTEST_", "INPUT_", "KNOS_", "GH_")
+
+
+def checks_hash(folder: Path) -> str:
+    """sha256 over the acceptance bundle: sorted relative paths, each "path\\0sha256(content)\\n". knos-pay fixes it
+    when the bounty is funded; fund.yml computes the same."""
+    folder = Path(folder)
+    files = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()) if folder.is_dir() else []
+    if not files:
+        raise ValueError(f"no acceptance checks in {folder}")
+    lines = "".join(f"{f}\0{hashlib.sha256((folder / f).read_bytes()).hexdigest()}\n" for f in files)
+    return hashlib.sha256(lines.encode()).hexdigest()
+
+
+# ---- the gate: rules, history and the pull request's own claims. Runs no pull request code. ------------------------
+
+def _rule_violations(base: Path, diff_text: str | None, store, repo, agent):
+    from .proof import history
+    required = sorted(history.tamper_checks_required(store, repo, agent))
+    contributing = [r for r in history.repo_rules(store, base) if r.get("origin") == "contributing"]
+    violations = history.lint_pr(store, base, diff_text, (), {r["id"] for r in contributing}) \
+        if diff_text is not None and contributing else []
+    if not violations and diff_text is not None:   # what history made required, in CONTRIBUTING or not
+        violations = history.lint_learned(required, diff_text)
+    return required, contributing, violations
+
+
+# The two things Knos ever rewrites or removes on GitHub, and nothing else, whoever calls `github`.
+_WRITES = {"PATCH": r"repos/[^/]+/[^/]+/issues/comments/\d+",     # the text of a comment: Knos's own review comment
+           "DELETE": r"repos/[^/]+/[^/]+/issues/\d+/assignees"}   # an issue's assignee: `/knos release`, a lapsed take
+
+
+def github(path: str, data: dict | None = None, method: str | None = None, *, token: str | None = None):
+    """GET api.github.com/<path>; with `data`, POST it there as JSON (GH_TOKEN or GITHUB_TOKEN is sent when set, and
+    the API version these calls were written against; `token`, when given, is sent in their place: an attestor reads
+    another repository with a token of its own). `method` PATCH edits a comment and DELETE takes an assignee
+    off an issue, with `data` as the body: any other path is refused before anything is sent, and so is any other
+    method. Raises OSError when GitHub says no or does not answer in JSON. An empty answer is None."""
+    import urllib.request
+    if method not in (None, "GET", "POST") and not re.fullmatch(_WRITES.get(method or "", r"(?!)"), path):
+        raise ValueError(f"Knos does not send {method} to {path}")
+    req = urllib.request.Request(f"https://api.github.com/{path}", data=None if data is None else json.dumps(data).encode(),
+                                 method=method,
+                                 headers={"Accept": "application/vnd.github+json", "User-Agent": "knos",
+                                          "X-GitHub-Api-Version": "2022-11-28",
+                                          **({} if data is None else {"Content-Type": "application/json"})})
+    tok = token or os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if tok:
+        req.add_header("Authorization", f"Bearer {tok}")
+    with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310 - api.github.com
+        raw = resp.read()
+    try:
+        return json.loads(raw) if raw.strip() else None
+    except ValueError:
+        raise OSError(f"GitHub's answer for {path} was not JSON") from None
+
+
+def assignment_check(issue: dict | None, pull: dict, paid: dict, events: list | None = None,
+                     terms: dict | None = None, now: float | None = None) -> list[str]:
+    """An issue someone is assigned to is theirs: a bounty on it is paid only for a pull request by an assignee (or by
+    the agent an assignee ran). An unassigned issue is open to anyone, and so is one whose `/knos take` has lapsed
+    (knos.who.reservation tells that from the issue's `events`, the bounty's `terms` and `now`). `payee` given the
+    issue has already applied this; it is here for a payee that was worked out from the pull request alone."""
+    why = excluded(issue, pull, paid, events, terms, now)
+    return [f"assigned: {why}"] if why else []
+
+
+def claim_report(body: str, check_runs: list[dict] | None, strict: bool = False, statuses: list[dict] | None = None) -> dict:
+    """What the description claims against GitHub's record of its head commit, in full:
+
+        said         what it claims ("tests pass", "CI is green"); empty when it claims neither
+        state        none (no claim), true (a check passed and none failed), false (a check failed), unverified
+        violations   what the gate refuses: a claim a failed check contradicts; and with `strict` (the merged commit)
+                     also a claim that cannot be borne out: checks not finished, no check run at all, none that
+                     passed, or GitHub unreadable
+        unverified   the same sentences when not strict: reported, not held against the pull request
+        facts        what is plainly so whatever was claimed, e.g. "checks failing: lint, test"
+        checks       {name: passed | failed | skipped | pending}, the states knos.terms uses; None when unreadable
+
+    `check_runs` is the commit's check runs (None: GitHub could not be read), `statuses` its commit statuses when the
+    caller read them. Knos's own jobs are not evidence. A description that claims nothing is never a false claim,
+    whatever failed: whether funded work is paid is decided by the bounty's terms, not by what was or was not said."""
+    from .proof import claims
+    kinds = claims.read(body or "").kinds & {"tests", "ci"}
+    said = " and ".join(sorted({"tests": "tests pass", "ci": "CI is green"}[k] for k in kinds))
+    out: dict = {"said": said, "state": "none", "violations": [], "unverified": [], "facts": [], "checks": None}
+
+    def unproven(why: str, again: str = "") -> None:
+        out["state"] = "unverified"
+        out["violations" if strict else "unverified"].append(f"claim: {why}{again}" if strict else why)
+
+    if check_runs is None:
+        if kinds:
+            unproven(f"the description says {said}, and GitHub's record of the head commit could not be read", "; run this job again")
+        return out
+    found: dict[str, list[str]] = {}
+    for r in check_runs:
+        if not _ours(r):
+            found.setdefault(str(r.get("name", "?")), []).append(state_of(r))
+    for s in statuses or []:
+        found.setdefault(str(s.get("context", "?")), []).append(status_state(s))
+    out["checks"] = {name: together(states) for name, states in sorted(found.items())}
+    failed, running, passed = (sorted(n for n, s in out["checks"].items() if s == want) for want in ("failed", "pending", "passed"))
+    if failed:
+        out["facts"].append("checks failing: " + ", ".join(failed[:6]))
+    if not kinds:
+        return out
+    if failed:
+        out["state"] = "false"
+        out["violations"].append(f"claim: the description says {said}, but these checks failed at the head commit: {', '.join(failed[:6])}")
+    elif running:
+        unproven(f"the description says {said}, and these checks have not finished at the head commit: {', '.join(running[:6])}",
+                 "; run this job again when they have")
+    elif not out["checks"]:
+        unproven(f"the description claims {said}; GitHub has no check runs for this commit")
+    elif not passed:
+        unproven(f"the description claims {said}; no check passed at this commit (skipped: {', '.join(sorted(out['checks'])[:6])})")
+    else:
+        out["state"] = "true"
+    return out
+
+
+def claim_check(body: str, check_runs: list[dict] | None, strict: bool = False) -> list[str]:
+    """The free check's verdict on the description's claims: what `claim_report` refuses. A claim of passing tests or
+    green CI is refused when a finished check failed. Before a merge, a claim that cannot be checked yet (checks
+    unfinished, none at all, GitHub unreadable) is not held against the pull request. `strict` (the merged commit):
+    it is refused too, until it can be checked."""
+    return claim_report(body, check_runs, strict)["violations"]
+
+
+def check_runs(repo: str, sha: str, wait: float = 0, body: str = "", get=None, sleep=None) -> list[dict] | None:
+    """The head commit's check runs from GitHub (public for a public repository; GH_TOKEN or GITHUB_TOKEN is sent
+    when set). When the description makes a claim, waits up to `wait` seconds for the other checks to finish, so a
+    claim made before CI ran is still checked. None when GitHub could not be read: then nothing is held against it."""
+    import time
+    from .proof import claims
+
+    def fetch(url: str):
+        return github(url.split("api.github.com/", 1)[1])
+
+    get, sleep = get or fetch, sleep or time.sleep
+    claims_something = bool(claims.read(body or "").kinds & {"tests", "ci"})
+    end = time.monotonic() + (wait if claims_something else 0)
+    while True:
+        runs: list[dict] = []
+        try:
+            for page in range(1, 11):       # a commit can have more than 100 check runs
+                got = get(f"https://api.github.com/repos/{repo}/commits/{sha}/check-runs?per_page=100&page={page}")
+                batch = got.get("check_runs", []) if isinstance(got, dict) else []
+                runs += batch
+                if len(batch) < 100:
+                    break
+        except Exception:  # noqa: BLE001 - an unreadable API is not the pull request's fault
+            return None
+        others = [r for r in runs if not _ours(r)]
+        if all(r.get("status") == "completed" for r in others) or time.monotonic() >= end:
+            return runs
+        sleep(15)
+
+
+def gate(base_dir, diff_text: str | None, store, repo: str | None = None, agent: str | None = None,
+         body: str = "", check_runs: list[dict] | None = None, issue: str = "", pull: dict | None = None,
+         issue_data: dict | None = None, paid: dict | None = None, strict: bool = False, terms: dict | None = None,
+         statuses: list[dict] | None = None, changed: list | None = None, funded=(), events: list | None = None,
+         now: float | None = None) -> dict:
+    """The verdict that needs no pull request code. {"passed", "checks_hash" (""), "reasons", "evidence"}. A rule
+    violation is learned: that check is then required for every later pull request to this repo or by this agent.
+    With `pull` (the pull request) and `paid` (payee(...)), a bounty's pull request must also pay someone, and
+    respect the issue's assignment (`issue_data`; with the issue's `events` and `now`, a `/knos take` that has
+    lapsed holds nothing, exactly as payee decided it).
+
+    With `terms` (the bounty's, knos.terms.parse) the pull request must also meet them at this commit: every funded
+    check `passed` in `check_runs` and `statuses` (knos.terms.head_checks), and no file in `changed` out of scope.
+    `funded` (issue numbers with a bounty) adds a note when the description mentions one without closing it.
+
+    `passed` is the check's verdict: everything above. What a payment is decided on is narrower and is in the
+    evidence: "accepted" (the terms alone; None without terms) and "payable" (the terms are met and someone is
+    paid; None unless both were given). A description's words and the repository's rules are in neither."""
+    from .proof import history
+    base = Path(base_dir)
+    required, contributing, violations = _rule_violations(base, diff_text, store, repo, agent)
+    for kind in sorted({x.rule["kind"] for x in violations}):
+        first = next(x for x in violations if x.rule["kind"] == kind)
+        history.learn_tamper(store, repo, agent, f"rule:{kind}", str(first))
+    reasons = [f"repo rule: {x}" for x in violations]
+    report = claim_report(body, check_runs, strict, statuses)
+    false_claims = report["violations"]
+    if report["state"] == "false":     # a claim that could not be checked is not a lie
+        history.learn_tamper(store, repo, agent, "false-claim", false_claims[0])
+    reasons += false_claims
+    bought: dict = {}
+    if terms is not None:
+        from . import terms as bounty
+        found = bounty.evidence(terms, check_runs, statuses)
+        ok, why = bounty.accepted(terms, found, changed)
+        reasons += [f"terms: {w}" for w in why]
+        bought = {"terms_hash": bounty.terms_hash(terms), "checks": found, "accepted": ok}
+    if pull is not None and paid is not None:
+        who = [f"{paid.get('kind', 'payee')}: {paid['why']}" + (f". {paid['fix']}" if paid.get("fix") else "")] \
+            if not paid.get("id") else assignment_check(issue_data, pull, paid, events, terms, now)
+        reasons += who
+        if bought:
+            bought["payable"] = bought["accepted"] and not who
+    from . import closing
+    note = closing.mention_note(closing.mentions_without_closing(body, funded, repo)) if funded else ""
+    ev = {"issue": str(issue), "mode": "merge", **({"payee": paid} if paid is not None else {}), "repo_rules": [str(x) for x in violations],
+          "rules_known": len(contributing), "claims": false_claims, "unverified": report["unverified"], "facts": report["facts"],
+          "notes": [note] if note else [], "accepted": None, "payable": None, **bought,
+          "checks_seen": None if check_runs is None else len(check_runs), "required_by_history": required,
+          "learned": sorted(history.tamper_checks_required(store, repo, agent))}
+    return {"passed": not reasons, "checks_hash": "", "reasons": reasons, "evidence": ev}
+
+
+def _funded_bundle(base: Path, issue: str, terms: dict) -> str:
+    """Why the acceptance checks on the base are not what these terms bought; empty when they are."""
+    if terms["mode"] != "tests":
+        return "this bounty is paid on the merge: it was not funded with acceptance checks"
+    try:
+        have = checks_hash(base / ".knos" / "acceptance" / issue) if re.fullmatch(r"[A-Za-z0-9._-]+", issue) else ""
+    except ValueError:
+        have = ""
+    return "" if have == terms["accept"] else (f"the acceptance checks in .knos/acceptance/{issue} on the base are not the "
+                                               "ones this bounty was funded with")
+
+
+def judge_with_rules(base_dir, pr_dir, cfg: dict, changed: list[str] | None, diff_text: str | None, store,
+                     repo: str | None = None, agent: str | None = None, body: str = "",
+                     check_runs: list[dict] | None = None, setup: str | None = None, sandbox: str = "auto",
+                     pull: dict | None = None, issue_data: dict | None = None, paid: dict | None = None,
+                     strict: bool = False, terms: dict | None = None, statuses: list[dict] | None = None,
+                     events: list | None = None, now: float | None = None) -> dict:
+    """gate() first; only a pull request that clears it has its code run by judge(). A protected-path refusal is
+    learned the same way a rule violation is.
+
+    With `terms` (a bounty funded in tests mode) the gate holds the pull request to them, and the acceptance checks
+    on the base must be the ones that were funded (the terms' `accept`). What a payment is decided on is in the
+    evidence, as for gate(): "accepted" (the funded checks passed at this commit, nothing out of scope changed, and
+    the funded acceptance checks pass) and "payable" (accepted, and someone is paid). So that a description's words
+    and the repository's rules enter neither, the acceptance checks are run whenever the rest of the terms is met,
+    also when the gate refused the pull request for another reason; `passed` still needs both."""
+    from .proof import history
+    base = Path(base_dir)
+    issue = str(cfg.get("issue", ""))
+    scope = changed_files(base, Path(pr_dir)) if terms is not None and changed is None else changed
+    g = gate(base, diff_text, store, repo, agent, body, check_runs, issue, pull, issue_data, paid, strict, terms,
+             statuses, scope, (), events, now)
+    ev = g["evidence"]
+    someone = ev["payable"] if ev["accepted"] else None        # with the terms met, `payable` says whether someone is paid
+    if terms is not None:
+        why = _funded_bundle(base, issue, terms)
+        if why:
+            g["reasons"].append(f"terms: {why}")
+            g["passed"], ev["accepted"] = False, False
+        if not ev["accepted"] and ev["payable"] is not None:
+            ev["payable"] = False
+    if not (g["passed"] if terms is None else ev["accepted"]):
+        try:
+            g["checks_hash"] = checks_hash(base / ".knos" / "acceptance" / issue)
+        except ValueError:
+            pass
+        ev["mode"] = "tests"
+        return g
+    if terms is not None and terms.get("image"):       # the image that was funded, whatever proof.toml says today
+        cfg = {**cfg, "image": terms["image"]}
+    v = judge(base_dir, pr_dir, cfg, changed, setup=setup, sandbox=sandbox)
+    bad = [r for r in v["reasons"] if r.startswith("touches protected path")]
+    if bad:
+        history.learn_tamper(store, repo, agent, "protected-path", bad[0])
+    v["evidence"]["mode"] = "tests"
+    if paid is not None:
+        v["evidence"]["payee"] = paid
+    if ev["rules_known"]:
+        v["evidence"]["repo_rules"] = ev["repo_rules"]
+    for key in ("unverified", "facts", "notes"):
+        v["evidence"][key] = ev[key]
+    if terms is not None:
+        met = v["passed"]
+        v["evidence"].update(terms_hash=ev["terms_hash"], checks=ev["checks"], claims=ev["claims"], accepted=met,
+                             payable=None if someone is None else bool(someone and met))
+        v["reasons"] = g["reasons"] + v["reasons"]
+        v["passed"] = not v["reasons"]
+    v["evidence"]["required_by_history"] = ev["required_by_history"]
+    v["evidence"]["learned"] = sorted(history.tamper_checks_required(store, repo, agent))
+    return v
+
+
+# ---- what a pull request may not touch, and the overlay ------------------------------------------------------------
+
+RUNNERS = ("python", "node", "go", "rust", "ruby", "command", "blackbox")
+TEST_DIRS = {"python": ("tests", "test"), "node": ("test", "tests", "__tests__"), "go": (), "rust": ("tests",),
+             "ruby": ("test", "spec"), "command": ("tests", "test"), "blackbox": ("tests", "test")}
+CONFIG_FILES = ("pytest.ini", "tox.ini", "setup.cfg", "pyproject.toml")
+_NODE_TEST = re.compile(r"(\.|-|_)(test|spec)\.[cm]?[jt]s$|(^|/)test-[^/]*\.[cm]?[jt]s$|(^|/)test\.[cm]?[jt]s$")
+_NODE_SRC = re.compile(r"\.[cm]?[jt]s$")
+_RUBY_TEST = re.compile(r"(^|/)test_[^/]*\.rb$|_test\.rb$")
+
+
+def _files(root: Path) -> dict[str, str]:
+    out = {}
+    for p in Path(root).rglob("*"):
+        rel = p.relative_to(root)
+        if p.is_file() and not _SKIP.intersection(rel.parts):
+            out[rel.as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
+def changed_files(base: Path, pr: Path) -> list[str]:
+    a, b = _files(base), _files(pr)
+    return sorted(f for f in set(a) | set(b) if a.get(f) != b.get(f))
+
+
+BLACKBOX_ENTRY = ("blackbox", "blackbox.sh", "blackbox.py")
+
+
+def black_box(files: dict, cfg: dict | None = None) -> str:
+    """Why an acceptance bundle is not black-box, in words that finish "its checks ..."; "" when it is.
+
+    This is the mechanical test that decides whether a bounty may be paid by its acceptance checks alone, with no
+    merge. docs/reference/TAMPER.md measures why it matters: checks that import the submission into the judge's process were
+    fooled by pull requests that patch the test runner from inside or answer the fixed examples; black-box checks
+    (the submission runs as a separate process and only what it prints is compared) were fooled by none. knos.flow
+    asks this when a bounty is funded (a bundle that fails it is funded on the merge) and again before the proof of
+    such a bounty is signed.
+
+    `files`: the bundle, {path inside .knos/acceptance/<issue>/: content}. `cfg`: the same commit's
+    .knos/proof.toml, parsed ({} or None when there is none). A bundle is black-box when all three hold:
+
+      1. .knos/proof.toml does not send it to another runner: no `runner` (or `[judge] runner`) other than
+         "blackbox", and with none named no `[judge] run` command. Those are what `runner_of` reads first.
+      2. Its top level holds an entry file named blackbox, blackbox.sh or blackbox.py. The blackbox runner copies
+         the bundle out of the tree and runs that file as the judge, so no test runner shares a process with the
+         pull request's code.
+      3. The entry names KNOS_RUN, and no file of the bundle names KNOS_TREE. "$KNOS_RUN <command>" runs a command
+         in the pull request's tree inside the sandbox: the one way a check gets an answer from that code without
+         loading it. KNOS_TREE is the tree's path: a check that opens the tree itself can import the submission
+         into its own process, which is the weakness the runner exists to close.
+
+    The test reads names and text; it does not prove what a check computes. It keeps a funder from paying on a
+    bundle that is fooled by construction, and the funder still writes the check: generated inputs, compared with a
+    reference of its own, are what an implementation cannot special-case."""
+    cfg = cfg if isinstance(cfg, dict) else {}
+    section = named_ if isinstance(named_ := cfg.get("judge"), dict) else {}
+    if cfg.get("_error"):
+        return "cannot be checked: `.knos/proof.toml` is not valid TOML"
+    named = cfg.get("runner") or section.get("runner")
+    if named and named != "blackbox":
+        return f"share a process with the pull request's code (runner `{_word(named)}`)"
+    if not named and section.get("run"):
+        return "are a `[judge] run` command, run inside the pull request's tree"
+    entry = next((n for n in BLACKBOX_ENTRY if n in files), None)
+    if entry is None:
+        return "load the pull request's code into the process that judges it"
+    text = lambda raw: raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw)  # noqa: E731
+    if "KNOS_RUN" not in text(files[entry]):
+        return "never run the pull request's code through `$KNOS_RUN`"
+    if any("KNOS_TREE" in text(raw) for raw in files.values()):
+        return "open the pull request's tree themselves (`KNOS_TREE`)"
+    return ""
+
+
+def _word(value) -> str:
+    return re.sub(r"[`\r\n]", "'", str(value))[:40]
+
+
+def proof_config(text: str | None) -> dict:
+    """A .knos/proof.toml's text, parsed as knos.proof.engine.load parses the file: {} for none, {"_error": ...} for
+    one that is not TOML."""
+    if not text:
+        return {}
+    try:
+        got = tomllib.loads(text)
+    except Exception:  # noqa: BLE001 - said by whoever asked, not raised
+        return {"_error": "unreadable .knos/proof.toml"}
+    return got if isinstance(got, dict) else {}
+
+
+def runner_of(base: Path, cfg: dict) -> str:
+    """The language the acceptance bundle is written in."""
+    named = cfg.get("runner") or (cfg.get("judge") or {}).get("runner")
+    if named:
+        if named not in RUNNERS:
+            raise ValueError(f"runner {named!r} is not one of {', '.join(RUNNERS)}")
+        return named
+    if (cfg.get("judge") or {}).get("run"):
+        return "command"
+    bundle = Path(base) / ".knos" / "acceptance" / str(cfg.get("issue", ""))
+    names = [p.name for p in bundle.rglob("*") if p.is_file()] if bundle.is_dir() else []
+    if any(n in BLACKBOX_ENTRY for n in names):
+        return "blackbox"
+    if any(n in ("check", "check.sh") for n in names):
+        return "command"
+    for ext, runner in ((".py", "python"), ("_test.go", "go"), (".rs", "rust")):
+        if any(n.endswith(ext) for n in names):
+            return runner
+    if any(_NODE_SRC.search(n) for n in names):
+        return "node"
+    if (Path(base) / "Gemfile").is_file() or any(Path(base).glob("*.gemspec")):
+        return "ruby"
+    return "python"
+
+
+def protected_patterns(cfg: dict, runner: str = "python") -> list[str]:
+    if isinstance(cfg.get("protected"), list):
+        return [str(x) for x in cfg["protected"]]
+    dirs = cfg.get("test_dirs", TEST_DIRS[runner])
+    pats = [".knos/**", ".github/**", *(f"{d.strip('/')}/**" for d in dirs)]
+    if runner in ("python", "command", "blackbox"):
+        pats += ["conftest.py", "**/conftest.py", "pytest.ini", "tox.ini"]
+    if runner == "node":
+        pats += ["**/*.test.*", "**/*.spec.*", ".npmrc"]
+    if runner == "go":
+        pats += ["**/*_test.go"]
+    if runner == "rust":
+        pats += [".cargo/**"]
+    if runner == "ruby":
+        pats += ["Rakefile", ".rspec", "test/test_helper.rb", "spec/spec_helper.rb"]
+    return pats
+
+
+def is_protected(path: str, patterns: list[str]) -> bool:
+    for pat in patterns:
+        if pat.endswith("/**") and (path + "/").startswith(pat[:-2]):
+            return True
+        if fnmatch.fnmatchcase(path, pat) or (pat.startswith("**/") and fnmatch.fnmatchcase(path, pat[3:])):
+            return True
+    return False
+
+
+_KNOS, _GITHUB = ".knos/", ".github/"
+
+
+def restored(path: str, test_dirs, runner: str = "python") -> bool:
+    """Whether `overlay` makes this path of the work tree the base's, whatever the pull request did to it: removed
+    when the base has no such file, the base's copy when it has. Only such a path cannot reach the authoritative run."""
+    if any((path + "/").startswith(d.strip("/") + "/") for d in [*test_dirs, ".github", ".knos", *((".cargo",) if runner == "rust" else ())]):
+        return True
+    if runner in ("python", "command", "blackbox"):
+        return path.rsplit("/", 1)[-1] == "conftest.py" or path in CONFIG_FILES
+    if runner == "node":
+        return bool(re.search(r"\.(test|spec)\.[^/]+$", path)) or path == ".npmrc"
+    if runner == "go":
+        return path.endswith("_test.go")
+    if runner == "ruby":
+        return path in ("Rakefile", ".rspec")
+    return False
+
+
+def decides_how_tests_run(path: str, runner: str = "python") -> bool:
+    """Test discovery or execution configuration, as opposed to a test: a file the runner loads for every test."""
+    name = path.rsplit("/", 1)[-1]
+    if name in ("conftest.py", "pytest.ini", "tox.ini", ".npmrc", "Rakefile", ".rspec", "test_helper.rb", "spec_helper.rb",
+                "sitecustomize.py", "usercustomize.py") or name.endswith(".pth"):
+        return True
+    return path.startswith(".cargo/") or path in ("setup.cfg", "pyproject.toml")
+
+
+REFUSALS = {       # refused:<code> of classify_path, and the words the verdict gives for it
+    "terms": "the terms and the acceptance bundle are fixed at funding",
+    "workflow": "a workflow runs from the pull request's copy, which the judge cannot replace",
+    "not_from_base": "the run does not take this path from the base, so a change to it could reach the suite that decides",
+    "scripts": "the funder's own command may run a script of package.json, and the run takes that file from the pull request",
+    "protected_test_edited": "an existing protected test was edited; a new test file beside it is allowed",
+    "protected_test_deleted": "an existing protected test was deleted; a new test file beside it is allowed",
+}
+ALLOWED, NOT_COUNTED = "allowed", "allowed_not_counted"
+
+
+def _kind(f: str, pats: list[str], runner: str, test_dirs, in_base: bool, in_pr: bool) -> tuple[str, str]:
+    """(what the rule says of one changed path, which list of `classify` it belongs to)."""
+    if not is_protected(f, pats):
+        return ALLOWED, ""
+    if f.startswith(_KNOS):
+        return "refused:terms", "refused"
+    if f.startswith(_GITHUB):
+        return "refused:workflow", "refused"
+    if not restored(f, test_dirs, runner):
+        return "refused:not_from_base", "refused"
+    in_tests = any((f + "/").startswith(d.strip("/") + "/") for d in test_dirs)
+    if decides_how_tests_run(f, runner) and not (in_base and in_tests):
+        return NOT_COUNTED, "config"
+    if in_base:
+        return f"refused:protected_test_{'edited' if in_pr else 'deleted'}", "refused"
+    return NOT_COUNTED, "contributor"
+
+
+def classify_path(path: str, terms: dict | None = None, status: str = "modified") -> str:
+    """What the judge's rule says of ONE changed path, before any run: "allowed" (the pull request's own source),
+    "allowed_not_counted" (a contributor's test or test configuration: it may be there and has no authority, since
+    the suite that decides runs from the base's copy of every protected path) or "refused:<code>", a code of REFUSALS.
+
+    terms: what judge() takes as cfg, all optional: "runner" (default python), "test_dirs", "protected".
+    status: what the pull request did to the path: "added", "modified" or "removed". The rule turns on it (a NEW
+    file in a test directory is allowed, an existing one edited or removed is refused), so a caller that does not
+    know gets the strict answer, "modified".
+
+    judge() decides with the same rule (`classify`), with the two trees in hand. One thing needs them and is not said
+    here: a change to the pytest section of pyproject.toml or setup.cfg is "allowed_not_counted", not "allowed"; and
+    where the funder's own command decides (runner command or blackbox), a change to the `scripts` of package.json is
+    "refused:scripts"."""
+    terms = terms or {}
+    runner = str(terms.get("runner") or (terms.get("judge") or {}).get("runner") or "python")
+    if runner not in TEST_DIRS:
+        raise ValueError(f"runner {runner!r} is not one of {', '.join(RUNNERS)}")
+    if status not in ("added", "modified", "removed"):
+        raise ValueError(f"status {status!r} is not added, modified or removed")
+    path = path.replace("\\", "/").removeprefix("./")
+    test_dirs = list(terms.get("test_dirs", TEST_DIRS[runner]))
+    return _kind(path, protected_patterns(terms, runner), runner, test_dirs, status != "added", status != "removed")[0]
+
+
+def classify(base: Path, pr: Path, changed: list[str], cfg: dict, runner: str, test_dirs) -> dict:
+    """What the pull request did to protected paths, in three lists (the rule of `classify_path`, path by path):
+
+        refused      [(path, why)]  an existing protected test edited or deleted; anything under .knos/ or .github/;
+                                    a protected path the run does not take from the base
+        contributor  [path]         new files in a protected location: allowed, not counted
+        config       [path]         test configuration the run takes from the base: allowed, not counted
+
+    Nothing in `contributor` or `config` is in the tree the authoritative suite runs in (`overlay`)."""
+    pats = protected_patterns(cfg, runner)
+    out: dict = {"refused": [], "contributor": [], "config": []}
+    sections = [n for n in ("pyproject.toml", "setup.cfg") if runner in ("python", "command", "blackbox") and n in changed
+                and _pytest_section(base, n) != _pytest_section(pr, n)]
+    for f in changed:
+        word, where = _kind(f, pats, runner, test_dirs, (Path(base) / f).is_file(), (Path(pr) / f).is_file())
+        if where == "refused":
+            out["refused"].append((f, REFUSALS[word.split(":", 1)[1]]))
+        elif where:
+            out[where].append(f)
+    if runner in ("command", "blackbox") and "package.json" in changed and _npm_scripts(base) != _npm_scripts(pr):
+        out["refused"].append(("package.json (scripts)", REFUSALS["scripts"]))
+    for n in sections:
+        if restored(n, test_dirs, runner):
+            out["config"].append(f"{n} (pytest section)")
+        else:
+            out["refused"].append((f"{n} (pytest section)", REFUSALS["not_from_base"]))
+    return out
+
+
+def _npm_scripts(root: Path):
+    """package.json's `scripts`, or None: what `npm test` in a funder's own command would run."""
+    try:
+        got = json.loads((Path(root) / "package.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return got.get("scripts") if isinstance(got, dict) else None
+
+
+def _pytest_section(root: Path, name: str):
+    p = Path(root) / name
+    if not p.is_file():
+        return None
+    text = p.read_text(encoding="utf-8", errors="replace")
+    if name == "pyproject.toml":
+        try:
+            return tomllib.loads(text).get("tool", {}).get("pytest")
+        except ValueError:
+            return "unreadable"
+    cp = configparser.ConfigParser(interpolation=None)
+    try:
+        cp.read_string(text)
+    except configparser.Error:
+        return "unreadable"
+    return {k: dict(cp[k]) for k in cp.sections() if k in ("tool:pytest", "pytest")}
+
+
+def _copy_matching(base: Path, work: Path, match) -> None:
+    """Make `work`'s files that `match` exactly the base's: the pull request's are removed, the base's copied in."""
+    for p in list(work.rglob("*")):
+        rel = p.relative_to(work)
+        if p.is_file() and not _SKIP.intersection(rel.parts) and match(rel.as_posix()):
+            p.unlink()
+    for p in base.rglob("*"):
+        rel = p.relative_to(base)
+        if p.is_file() and not _SKIP.intersection(rel.parts) and match(rel.as_posix()):
+            (work / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(p, work / rel)
+
+
+def overlay(base: Path, pr: Path, work: Path, test_dirs, runner: str = "python") -> None:
+    """Copy the pull request's tree to `work`, then replace everything that decides how tests run with the base's."""
+    shutil.copytree(pr, work, ignore=shutil.ignore_patterns(*_SKIP), symlinks=True)
+    for d in [*test_dirs, ".github", ".knos", *((".cargo",) if runner == "rust" else ())]:
+        if (work / d).is_symlink() or (work / d).is_file():     # a directory swapped for a link or a file: still the base's
+            (work / d).unlink()
+        shutil.rmtree(work / d, ignore_errors=True)
+        if (base / d).is_dir():
+            shutil.copytree(base / d, work / d, ignore=shutil.ignore_patterns(*_SKIP), symlinks=True)
+    if runner in ("python", "command", "blackbox"):
+        _copy_matching(base, work, lambda rel: rel.rsplit("/", 1)[-1] == "conftest.py")
+        for name in CONFIG_FILES:
+            (work / name).unlink(missing_ok=True)
+            if (base / name).is_file():
+                shutil.copyfile(base / name, work / name)
+    elif runner == "node":
+        _copy_matching(base, work, lambda rel: bool(re.search(r"\.(test|spec)\.[^/]+$", rel)) or rel == ".npmrc")
+    elif runner == "go":
+        _copy_matching(base, work, lambda rel: rel.endswith("_test.go"))
+    elif runner == "ruby":
+        _copy_matching(base, work, lambda rel: rel in ("Rakefile", ".rspec"))
+
+
+# ---- the sandbox: where pull request code runs ---------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class HostLimits:
+    """What a command of the pull request may use on the judge's own machine (the host sandbox). Each is a resource
+    limit the kernel enforces on every process the command starts (prlimit; man 2 getrlimit):
+
+      nproc    processes and threads of the sandbox user at once: a fork bomb meets "Resource temporarily
+               unavailable" at this many (RLIMIT_NPROC counts every task of uid 65534 on the machine)
+      cpu      seconds of CPU per process, then SIGXCPU and SIGKILL (RLIMIT_CPU)
+      data     bytes of heap and private writable memory per process (RLIMIT_DATA, which counts mmap since Linux 4.7;
+               a container's memory limit is per container, this one is per process)
+      fsize    the largest file a process may write, then SIGXFSZ (RLIMIT_FSIZE)
+
+    The time limit is the run's own: the whole process tree is killed with it (a PID namespace whose first process
+    dies takes every other one with it)."""
+    nproc: int = 256
+    cpu: int = 600
+    data: int = 4 << 30
+    fsize: int = 1 << 30
+
+    def prlimit(self) -> list[str]:
+        return ["prlimit", f"--nproc={self.nproc}", f"--cpu={self.cpu}", f"--data={self.data}", f"--fsize={self.fsize}", "--"]
+
+
+HOST_LIMITS = HostLimits()
+
+# Run as root inside a fresh mount namespace, before the command drops to the sandbox user: the box's own folder stays
+# writable, every other mount of the machine is remounted read-only in this namespace only (nothing outside it sees a
+# change), /dev/shm becomes an empty tmpfs of its own, and the script refuses to go on when / or /tmp is still writable.
+# The working directory is entered again after the bind: the one inherited still points into the read-only mount. The
+# command runs as a child of this shell, not in its place: the shell is the namespace's first process, and when it
+# exits every process the command left behind is killed.
+_ISOLATE = r"""root=$1; shift
+here=$(pwd -P)
+ip link set lo up 2>/dev/null
+mount --bind "$root" "$root" || { echo "knos sandbox: cannot bind $root" >&2; exit 125; }
+cd "$here" || exit 125
+for mp in $(cut -d' ' -f2 /proc/self/mounts); do
+  mp=$(printf '%b' "$mp")
+  case "$mp" in "$root"|"$root"/*|/proc|/proc/*|/sys|/sys/*|/dev|/dev/*) continue;; esac
+  mount -o remount,bind,ro "$mp" 2>/dev/null
+done
+mount -t tmpfs -o size=64m,mode=1777,nosuid,nodev tmpfs /dev/shm 2>/dev/null
+for d in / /tmp /var/tmp; do
+  if [ -d "$d" ] && touch "$d/.knos-rw-$$" 2>/dev/null; then
+    rm -f "$d/.knos-rw-$$"; echo "knos sandbox: $d is still writable; not running pull request code" >&2; exit 125
+  fi
+done
+"$@"
+exit $?
+"""
+
+
+def _posix_limits(limits: HostLimits):
+    """For a machine with no sandbox (macOS, a Linux runner without root): the limits setrlimit can put on the command
+    itself in the child before it starts. Not the process count: RLIMIT_NPROC counts every process of the judge's own
+    user there, the judge's included."""
+    def apply() -> None:
+        import resource
+        for which, value in ((resource.RLIMIT_CPU, limits.cpu), (resource.RLIMIT_FSIZE, limits.fsize)):
+            try:
+                resource.setrlimit(which, (value, value))
+            except (ValueError, OSError):
+                pass
+    return apply
+
+
+def sandbox_available() -> bool:
+    if not sys.platform.startswith("linux") or not all(shutil.which(t) for t in ("setpriv", "unshare", "prlimit", "timeout")):
+        return False
+    if os.geteuid() == 0:
+        return True
+    try:
+        return subprocess.run(["sudo", "-n", "true"], capture_output=True, timeout=10).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _reachable(path: Path) -> None:
+    """Let the sandbox user traverse (not list) the directories above a tool this user owns, e.g. ~/.cargo/bin or a
+    virtualenv's interpreter: both the path as given and what it links to."""
+    path = Path(os.path.abspath(path))
+    for d in {*path.parents, *path.resolve().parents}:
+        try:
+            st = d.stat()
+            if st.st_uid == os.geteuid() and not st.st_mode & 0o001:
+                d.chmod(st.st_mode | 0o001)
+        except OSError:
+            pass
+
+
+def _sandbox_cannot_run(exe: str) -> str | None:
+    """Why the sandbox user cannot start `exe` (None when it can). An interpreter under a directory other users may
+    not enter would otherwise show up only as a test run that wrote no report."""
+    _reachable(Path(exe))
+    argv = ([] if os.geteuid() == 0 else ["sudo", "-n"]) + ["setpriv", f"--reuid={SANDBOX_UID}", f"--regid={SANDBOX_UID}",
+                                                            "--clear-groups", "--", exe, "-c", "pass"]
+    try:
+        got = subprocess.run(argv, capture_output=True, timeout=30, cwd="/")
+    except (OSError, subprocess.SubprocessError) as why:
+        return str(why)
+    return None if got.returncode == 0 else (got.stderr.decode("utf-8", "replace").strip()[-200:] or f"exit {got.returncode}")
+
+
+@dataclass
+class Box:
+    """One side's run (the base, or the pull request): its tree, a home and an output directory, and how commands
+    run in it."""
+    root: Path
+    sandboxed: bool
+    work: Path = field(init=False)
+    home: Path = field(init=False)
+    out: Path = field(init=False)
+    env: dict = field(default_factory=dict)
+    python: str | None = None       # a venv's interpreter, when the tree's dependencies were installed into one
+    limits: HostLimits = HOST_LIMITS
+
+    def __post_init__(self) -> None:
+        self.root = Path(self.root)
+        self.work, self.home, self.out = self.root / "work", self.root / "home", self.root / "out"
+        for d in (self.home, self.out, self.root / "tmp"):
+            d.mkdir(parents=True, exist_ok=True)
+
+    def open_up(self) -> None:
+        """Give the sandbox user the tree (and nothing else of ours)."""
+        if not self.sandboxed:
+            return
+        os.chmod(self.root, 0o755)
+        for d in (self.work, self.home, self.out, self.root / "tmp"):
+            for p in [d, *d.rglob("*")]:
+                try:
+                    if not p.is_symlink():
+                        p.chmod(p.stat().st_mode | (0o777 if p.is_dir() else 0o666))
+                except OSError:
+                    pass
+
+    def _env(self, extra: dict | None) -> dict:
+        if self.sandboxed:
+            env = {"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"), "LANG": "C.UTF-8"}
+        else:
+            env = {k: v for k, v in os.environ.items() if not k.startswith(_LEAK)}
+        if self.sandboxed or os.name != "nt":
+            env.update({"HOME": str(self.home), "TMPDIR": str(self.root / "tmp")})
+        env.update(self.env)
+        env.update(extra or {})
+        return env
+
+    def wrap(self, argv: list, net: bool = False, env: dict | None = None,
+             seconds: float | None = None) -> tuple[list, dict | None]:
+        """The argv (and environment) that runs `argv` in the sandbox: another user, an empty environment, no network
+        unless `net`, the machine read-only but for this box's folder (`_ISOLATE`), a /dev/shm of its own, the resource
+        limits of `self.limits`, and a PID namespace: when the run ends or is killed after `seconds`, every process it
+        started dies with it. Without a sandbox on this machine: the same argv, with CI's variables removed."""
+        full = self._env(env)
+        if not self.sandboxed:
+            return list(argv), full
+        drop = [*self.limits.prlimit(), "setpriv", f"--reuid={SANDBOX_UID}", f"--regid={SANDBOX_UID}", "--clear-groups",
+                "--", "env", "-i", *[f"{k}={v}" for k, v in full.items()], *argv]
+        ns = ["unshare", "--mount", "--pid", "--fork", "--kill-child", *([] if net else ["--net"]), "--",
+              "sh", "-c", _ISOLATE, "sh", str(self.root), *drop]
+        if seconds:
+            ns = ["timeout", "-s", "KILL", str(max(1, int(seconds))), *ns]
+        return ([] if os.geteuid() == 0 else ["sudo", "-n"]) + ns, None
+
+    def run(self, cmd, net: bool = False, env: dict | None = None, timeout: float = 600,
+            cwd: Path | None = None) -> tuple[int, str]:
+        """Run `cmd` (argv, or a shell string) in the tree. Returns (exit code, combined output); 124 on a timeout,
+        125 when the sandbox would not start it. With no sandbox, on POSIX, the command gets the CPU and file size
+        limits (`_posix_limits`) and a session of its own that is killed whole on the timeout."""
+        argv = ["sh", "-c", cmd] if isinstance(cmd, str) and os.name != "nt" else cmd
+        shell = isinstance(argv, str)
+        full: dict | None = self._env(env)
+        if not shell:
+            argv, full = self.wrap(argv, net, env, seconds=timeout)     # `timeout` kills the namespace, and all in it
+        posix = os.name == "posix" and not self.sandboxed
+        try:
+            proc = subprocess.Popen(argv, cwd=str(cwd or self.work), env=full, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, shell=shell, stdin=subprocess.DEVNULL,   # a test that reads stdin must not wait on ours
+                                    start_new_session=posix, preexec_fn=_posix_limits(self.limits) if posix else None)
+        except OSError as why:
+            return 127, str(why)
+        try:
+            out, err = proc.communicate(timeout=timeout + 10 if self.sandboxed else timeout)
+        except subprocess.TimeoutExpired:
+            if posix:
+                try:
+                    os.killpg(proc.pid, 9)
+                except OSError:
+                    pass
+            proc.kill()
+            proc.communicate()
+            return 124, "timed out"
+        if self.sandboxed and proc.returncode in (124, -9):     # `timeout -s KILL` ends by killing its own group, itself too
+            return 124, "timed out"
+        return proc.returncode, (out + err).decode("utf-8", "replace")
+
+    def clean(self) -> None:
+        if self.sandboxed:   # files the sandbox user made are not ours to delete
+            subprocess.run(([] if os.geteuid() == 0 else ["sudo", "-n"]) + ["rm", "-rf", str(self.root)],
+                           capture_output=True, timeout=120)
+        shutil.rmtree(self.root, ignore_errors=True)
+
+
+# ---- the hermetic judge: the submission in a container pinned by digest ---------------------------------------------
+#
+# What the host sandbox above leaves open, and a container closes: the sandbox user still sees the machine's files
+# that anyone may read, shares the machine's kernel-wide process count for uid 65534, and its memory limit is per
+# process. In the container the submission sees the image, its own tree (read-only) and an empty tmpfs, and nothing
+# else, under one memory limit for the whole container.
+
+RUNTIMES = ("docker", "podman")
+SUBMISSION, WORK, SUITE = "/submission", "/work", "/suite"     # where the container sees the tree, its scratch, the public suite
+
+
+@dataclass(frozen=True)
+class Limits:
+    """What one "$KNOS_RUN" call may use. Fixed numbers, recorded in the verdict: a rerun uses the ones recorded."""
+    memory: str = "512m"
+    cpus: str = "1"
+    pids: int = 128
+    seconds: int = 45           # wall clock for one call; the container is killed after it (a made bundle waits 60)
+    scratch: str = "64m"        # the tmpfs work directory
+
+    @classmethod
+    def of(cls, raw) -> "Limits":
+        """The limits a proof.toml `[judge.limits]` table or a verdict's record names. Raises ValueError."""
+        raw = raw if isinstance(raw, dict) else {}
+        size = re.compile(r"[1-9][0-9]{0,5}[kmg]")
+        got = cls(**{k: raw[k] for k in ("memory", "cpus", "pids", "seconds", "scratch") if k in raw})
+        ok = (isinstance(got.memory, str) and size.fullmatch(got.memory) and isinstance(got.scratch, str)
+              and size.fullmatch(got.scratch) and isinstance(got.cpus, str) and re.fullmatch(r"[0-9]{1,2}(\.[0-9]{1,2})?", got.cpus)
+              and float(got.cpus) > 0 and type(got.pids) is int and 1 <= got.pids <= 4096
+              and type(got.seconds) is int and 1 <= got.seconds <= 3600)
+        if not ok:
+            raise ValueError('the judge\'s limits are memory and scratch like "512m", cpus like "1" or "0.5", pids from 1 to '
+                             "4096 and seconds from 1 to 3600")
+        return got
+
+
+def container_runtime(env: Mapping[str, str] | None = None, which=shutil.which) -> str | None:
+    """The program that runs containers here: KNOS_CONTAINER when it is set (a name on PATH, or a path), else docker,
+    else podman. None when there is none. On PATH is not the same as usable: `runtime_ready` asks it."""
+    env = os.environ if env is None else env
+    named = (env.get("KNOS_CONTAINER") or "").strip()
+    if named:
+        return which(named)
+    return next((found for found in map(which, RUNTIMES) if found), None)
+
+
+def runtime_ready(runtime: str | None) -> bool:
+    """Whether `runtime` can run a container now (docker on PATH with no daemon cannot)."""
+    if not runtime:
+        return False
+    try:
+        return subprocess.run([runtime, "info"], capture_output=True, timeout=30).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def container_argv(runtime: str, image: str, tree: Path | str, limits: Limits = Limits(), name: str = "",
+                   label: str = "", suite: Path | str | None = None) -> list[str]:
+    """The command line that runs one command of the submission in `image`; the command's own argv is appended to it.
+    A pure function, so what isolates the submission can be read and tested as a list:
+
+      the image          by digest only (`valid_image`), and never pulled by this command: `pull` did that and checked it
+      no network         --network none
+      nothing to write   --read-only root; the tree at /submission read-only; a fresh tmpfs at /work (HOME, TMPDIR) that
+                         dies with the container and holds no executable or device
+      nobody             uid and gid 65534, every capability dropped, no way to gain one
+      no host            no mount but the tree and, when the bundle has a `public/` folder, that folder at /suite,
+                         read-only; no environment variable of the judge (a container starts with the image's, plus
+                         the four named here)
+      limits             memory (and no swap beyond it), CPUs, processes; the time limit is the caller's (`run_script`)
+
+    Raises ValueError for an image that is not pinned by digest and for a path a mount cannot name."""
+    try:
+        image = valid_image(image)
+    except _TermsRefused as why:
+        raise ValueError(str(why)) from None
+    mounts = [(str(tree), SUBMISSION)] + ([(str(suite), SUITE)] if suite else [])
+    for src, _ in mounts:
+        if not os.path.isabs(src) or any(ch in src for ch in ',"\n'):
+            raise ValueError(f"cannot mount {src!r}: the judge mounts absolute paths with no comma, quote or line break")
+    argv = [runtime, "run", "--rm", "--interactive", "--pull", "never", "--network", "none", "--read-only",
+            "--tmpfs", f"{WORK}:rw,noexec,nosuid,nodev,size={limits.scratch},mode=1777",
+            "--user", f"{SANDBOX_UID}:{SANDBOX_UID}", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+            "--memory", limits.memory, "--memory-swap", limits.memory, "--cpus", limits.cpus,
+            "--pids-limit", str(limits.pids), "--entrypoint", "", "--workdir", SUBMISSION,
+            "--env", f"HOME={WORK}", "--env", f"TMPDIR={WORK}", "--env", "LANG=C.UTF-8", "--env", "PYTHONDONTWRITEBYTECODE=1"]
+    for src, dst in mounts:
+        argv += ["--mount", f"type=bind,source={src},target={dst},readonly"]
+    if name:
+        argv += ["--name", name]
+    if label:
+        argv += ["--label", f"knos.judge={label}"]
+    return [*argv, image]
+
+
+def run_script(argv: list[str], runtime: str, seconds: int, label: str, has_timeout: bool = True) -> str:
+    """The text of "$KNOS_RUN" for a hermetic judge: a shell script that runs its arguments through `argv` (from
+    `container_argv`, with no --name), each call in a container of its own, killed after `seconds`. The client is
+    killed, and then the container by name: killing the client alone leaves the container running."""
+    import shlex
+    q = shlex.quote
+    run = " ".join(q(a) for a in argv[:-1]) + ' --name "$name" ' + q(argv[-1]) + ' "$@"'
+    limit = f"timeout -s KILL {int(seconds)} " if has_timeout else ""
+    return ("#!/bin/sh\n"
+            f"name=knos-{label}-$$\n"
+            f"{limit}{run}\n"
+            "code=$?\n"
+            'if [ "$code" -ge 124 ]; then\n'
+            f'  {q(runtime)} rm -f "$name" >/dev/null 2>&1\n'
+            "fi\n"
+            'exit "$code"\n')
+
+
+def digest_ran(inspected, image: str) -> str:
+    """The digest in `image` (sha256:<64 hex>), once the runtime's own record of the image it holds (`image inspect`,
+    parsed) names that digest. Raises ValueError when it names another or none: the judge runs the image in the
+    terms, or it does not run."""
+    want = valid_image(image).rsplit("@", 1)[1]
+    one = inspected[0] if isinstance(inspected, list) and inspected else inspected
+    listed = one.get("RepoDigests") if isinstance(one, dict) else None
+    have = sorted({str(d).rsplit("@", 1)[-1] for d in listed or []})
+    if want not in have:
+        raise ValueError(f"the image this machine holds for {image} has the digest {', '.join(have) or 'none it will say'}, "
+                         f"not {want}. Refusing to judge on an image other than the one in the terms; remove the local "
+                         "image and run the judge again.")
+    return want
+
+
+def pull(runtime: str, image: str, timeout: float = 900, run=subprocess.run) -> dict:
+    """Pull `image` by its digest and return what ran: {"ref", "digest", "id", "runtime", "version"}. Raises ValueError
+    with what to do when the image cannot be pulled or is not the one named. `run` is subprocess.run (injected by
+    the tests)."""
+    valid = container_argv(runtime, image, "/")[-1]
+    try:
+        got = run([runtime, "pull", valid], capture_output=True, timeout=timeout)
+        if got.returncode != 0:
+            said = " ".join(got.stderr.decode("utf-8", "replace").split())[-300:]
+            raise ValueError(f"could not pull {valid} with {Path(runtime).name}: {said or f'exit {got.returncode}'}. Check that "
+                             "the image exists at that digest and that this machine can reach its registry.")
+        seen = run([runtime, "image", "inspect", "--format", "{{json .}}", valid], capture_output=True, timeout=60)
+        version = run([runtime, "--version"], capture_output=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        raise ValueError(f"pulling {valid} took more than {int(timeout)} seconds. Run the judge again.") from None
+    except OSError as why:
+        raise ValueError(f"could not run {runtime}: {why}") from None
+    try:
+        inspected = json.loads(seen.stdout.decode("utf-8", "replace") or "null")
+    except ValueError:
+        inspected = None
+    one = inspected[0] if isinstance(inspected, list) and inspected else inspected
+    return {"ref": valid, "digest": digest_ran(inspected, valid), "id": str((one or {}).get("Id") or ""),
+            "runtime": Path(runtime).name, "version": version.stdout.decode("utf-8", "replace").strip()[:80]}
+
+
+def _sweep(runtime: str, label: str) -> None:
+    """Remove every container this judgment started that is still there (a call that outlived its time limit)."""
+    try:
+        left = subprocess.run([runtime, "ps", "-aq", "--filter", f"label=knos.judge={label}"], capture_output=True, timeout=60)
+        ids = left.stdout.decode("utf-8", "replace").split()
+        if ids:
+            subprocess.run([runtime, "rm", "-f", *ids], capture_output=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def _readable(root: Path) -> None:
+    """Let the container's user read a tree this user owns (a bind mount keeps the host's modes)."""
+    for p in [root, *root.rglob("*")]:
+        try:
+            if not p.is_symlink():
+                p.chmod(p.stat().st_mode | (0o555 if p.is_dir() else 0o444))
+        except OSError:
+            pass
+
+
+def image_of(cfg: dict | None) -> str:
+    """The image a parsed .knos/proof.toml names for its judge (`[judge] image = "..."`), or "". What funding puts in the
+    terms: knos.terms.build(..., image=image_of(cfg)) refuses a tag there, with the words for the funder."""
+    cfg = cfg if isinstance(cfg, dict) else {}
+    section = named_ if isinstance(named_ := cfg.get("judge"), dict) else {}
+    return str(cfg.get("image") or section.get("image") or "")
+
+
+# The image a black-box judgment runs in when its terms name none and the judge is asked for `--sandbox hermetic`: Python
+# 3.12 on Alpine, as Docker Hub's registry named it on 2026-10-04 (https://hub.docker.com/_/python, tag 3.12-alpine;
+# scripts/tamper_bench.py ESCAPE_IMAGE is the same). It holds Python only, so a tree of another language is judged on
+# the host sandbox instead, and the verdict says so.
+DEFAULT_IMAGE = "docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71"
+OTHER_LANGUAGES = ("package.json", "go.mod", "Cargo.toml", "Gemfile", "pom.xml", "build.gradle", "composer.json", "mix.exs")
+HOST_FALLBACK = "host sandbox"
+
+
+def default_image(runner: str, trees, platform: str | None = None, ready=None) -> tuple[str, str]:
+    """(the image, "") when a judgment whose terms name no image runs in the default container; ("", why not) when it
+    runs on the host sandbox instead. Containers run on Linux machines only (GitHub's container jobs and service
+    containers need a Linux runner: docs.github.com, "Use Docker service containers"); only a black-box check reaches
+    the submission through "$KNOS_RUN", so only it can put the submission in a container; and the default image holds
+    Python only. `ready()`: whether a container runtime answers here (default: container_runtime and runtime_ready)."""
+    platform = sys.platform if platform is None else platform
+    if not platform.startswith("linux"):
+        return "", f"containers run on Linux runners only, and this machine is {platform}"
+    if runner != "blackbox":
+        return "", f"the {runner} runner loads the pull request's code into the test runner; only a black-box check runs it in a container"
+    for tree in trees:
+        other = sorted(n for n in OTHER_LANGUAGES if (Path(tree) / n).is_file())
+        if other:
+            return "", f"the default image holds Python only, and this tree has {other[0]}; name an image in the terms to judge it in a container"
+    if not (ready() if ready else runtime_ready(container_runtime())):
+        return "", "no container runtime answers on this machine"
+    return DEFAULT_IMAGE, ""
+
+
+def assurance_of(runner: str, image) -> str:
+    """Which of the three assurances a judgment has: in-process, black-box or hermetic (ASSURANCE says what each means)."""
+    return "in-process" if runner != "blackbox" else "hermetic" if image else "black-box"
+
+
+def tree_hash(root: Path) -> str:
+    """One hash for a checkout: sha256 over its files' paths and hashes (.git and build folders left out, as `_files`)."""
+    return hashlib.sha256(json.dumps(_files(root), sort_keys=True).encode()).hexdigest()
+
+
+# ---- the runners ---------------------------------------------------------------------------------------------------
+
+@dataclass
+class Run:
+    results: dict | None            # test id -> passed | failed | skipped; None when no report came out
+    accept: set = field(default_factory=set)   # the ids that are the acceptance checks
+    sentinel: str | None = None     # ids the report must show passed / failed (None: this runner has no sentinel)
+    canary: str | None = None
+    log: str = ""
+    undecided: str = ""             # why this run could not tell (it did not start, or ran out of time): never a refusal
+    words: str = ""                 # a black-box suite's own output (the check's, not the repository's tests'): see last_words
+
+
+def last_words(text: str, most: int = 300) -> str:
+    """The end of what a suite printed, fit to stand in a reason: one line, at most `most` characters, and nothing
+    but text. A suite prints what the code it judged printed, so this is a stranger's words: terminal colour codes,
+    control characters and characters that reorder or hide text (Unicode's control, format, surrogate and private-use
+    classes) are dropped, and every run of white space is one space."""
+    import unicodedata
+    text = re.sub(r"\x1b\[[0-9;?]*[ -/]*[@-~]", "", text)
+    text = "".join(" " if c.isspace() else c for c in text if c.isspace() or unicodedata.category(c)[0] != "C")
+    return re.sub(r" +", " ", text).strip()[-most:].lstrip()
+
+
+def _junit(path: Path) -> dict | None:
+    try:
+        root = ElementTree.parse(path).getroot()
+    except (OSError, ElementTree.ParseError):
+        return None
+    out = {}
+    for tc in root.iter("testcase"):
+        tags = {c.tag for c in tc}
+        state = "failed" if tags & {"failure", "error"} else "skipped" if "skipped" in tags else "passed"
+        where = tc.get("file") or tc.get("classname", "")
+        out[f"{where}::{tc.get('name', '')}"] = state
+    return out
+
+
+def sentinel(work: Path, test_dirs) -> tuple[str, str]:
+    """Write a random-named passing sentinel and failing canary into the first tests dir; returns their names."""
+    tok = secrets.token_hex(8)
+    dirs = list(test_dirs) or ["tests"]
+    d = next((work / t for t in dirs if (work / t).is_dir()), work / dirs[0])
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"test_knos_sentinel_{tok}.py").write_text(
+        f"def test_sentinel_{tok}():\n    assert True\n\n\ndef test_canary_{tok}():\n    assert False\n", "utf-8")
+    return f"test_sentinel_{tok}", f"test_canary_{tok}"
+
+
+def _by_name(results: dict | None, name: str) -> str | None:
+    return next((k for k in results or {} if k.split("::")[-1] == name), None)
+
+
+def run_tests(work: Path, targets: list[str], timeout: float = 600, box: Box | None = None,
+              python: str | None = None) -> dict | None:
+    """Run pytest in `work`; {file-or-class::name: passed|failed|skipped} from a report written outside the tree."""
+    own = box is None
+    box = box or Box(Path(tempfile.mkdtemp(prefix="knos-run-")).resolve(), False)
+    if own:
+        box.work = Path(work).resolve()
+    rep = box.out / f"{secrets.token_hex(8)}.xml"
+    try:
+        box.run([python or sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--continue-on-collection-errors",
+                 f"--junitxml={rep}",
+                 f"--rootdir={box.work}", *targets], timeout=timeout,
+                env={"PYTHONDONTWRITEBYTECODE": "1", "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"})
+        return _junit(rep)
+    finally:
+        if own:
+            box.clean()
+
+
+def _python(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    sent, canary = sentinel(box.work, test_dirs)
+    box.open_up()
+    targets = [f".knos/acceptance/{issue}", *(t for t in test_dirs if (box.work / t).is_dir())]
+    got = run_tests(box.work, targets, timeout, box, box.python)
+    prefix = f".knos.acceptance.{issue}."
+    accept = {k for k in got or {} if prefix in k}     # (a module that failed to import is named in `name`)
+    return Run(got, accept, _by_name(got, sent), _by_name(got, canary))
+
+
+def _node_files(box: Box, issue: str, test_dirs) -> tuple[list[str], list[str]]:
+    accept, rest = [], []
+    for p in sorted(box.work.rglob("*")):
+        rel = p.relative_to(box.work)
+        if not p.is_file() or _SKIP.intersection(rel.parts) or not _NODE_SRC.search(p.name):
+            continue
+        s = rel.as_posix()
+        if rel.parts[:3] == (".knos", "acceptance", issue):
+            accept.append(s)
+        elif _NODE_TEST.search(s) or (rel.parts[0] in test_dirs and not p.name.startswith(("_", "."))):
+            rest.append(s)
+    return accept, rest
+
+
+def _node(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    """Two runs, because node's JUnit report does not say which file a test came from: the acceptance bundle (with
+    the sentinel), then the repository's own tests."""
+    tok = secrets.token_hex(8)
+    bundle = box.work / ".knos" / "acceptance" / issue
+    (bundle / f"knos_sentinel_{tok}.test.cjs").write_text(
+        "const test = require('node:test');\n"
+        f"test('sentinel_{tok}', () => {{}});\n"
+        f"test('canary_{tok}', () => {{ throw new Error('canary'); }});\n", "utf-8")
+    box.open_up()
+    accept, rest = _node_files(box, issue, test_dirs)
+    got: dict = {}
+    log = ""
+    for label, files in (("acceptance", accept), ("tests", rest)):
+        if not files:
+            continue
+        rep = box.out / f"{secrets.token_hex(8)}.xml"
+        _, out = box.run(["node", "--test", "--test-reporter=junit", f"--test-reporter-destination={rep}", *files],
+                         timeout=timeout)
+        log += out
+        part = _junit(rep)
+        if part is None:
+            return Run(None, log=log[-2000:])
+        for k, v in part.items():
+            name = k.split("::", 1)[-1]
+            if name.replace("\\", "/") in files:     # node reports a file that registered no test as one passed test
+                name, v = f"{name} (no test ran)", "failed"
+            got[f"{label}::{name}"] = v
+    sent, canary = f"acceptance::sentinel_{tok}", f"acceptance::canary_{tok}"
+    return Run(got, {k for k in got if k.startswith("acceptance::") and k not in (sent, canary)},
+               sent if sent in got else None, canary if canary in got else None, log[-2000:])
+
+
+def _go(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    tok = secrets.token_hex(8)
+    spot = box.work / ".knos" / "acceptance" / issue / f"knos_sentinel_{tok}"   # its own package: it builds and runs
+    spot.mkdir(parents=True)                                                    # even when the acceptance does not
+    (spot / "sentinel_test.go").write_text(
+        f'package sentinel\n\nimport "testing"\n\nfunc TestSentinel{tok}(t *testing.T) {{}}\n\n'
+        f'func TestCanary{tok}(t *testing.T) {{ t.Fatal("canary") }}\n', "utf-8")
+    box.open_up()
+    _, out = box.run(["go", "test", "-json", "-count=1", "-vet=off", "./...", f"./.knos/acceptance/{issue}/..."],
+                     timeout=timeout, env={"GOFLAGS": "-mod=mod", "GOPROXY": "off", "GOTOOLCHAIN": "local",
+                                           "GOPATH": str(box.home / "go"),
+                                           "GOCACHE": str(box.home / ".cache" / "go-build")})
+    got: dict = {}
+    failed_pkgs, seen = set(), False
+    for line in out.splitlines():
+        m = re.match(r"FAIL\s+(\S+) \[(build|setup) failed\]", line)
+        if m:
+            failed_pkgs.add(m.group(1))
+        if not line.startswith("{"):
+            continue
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        seen = True
+        if ev.get("Test") and ev.get("Action") in ("pass", "fail", "skip"):
+            got[f"{ev.get('Package', '')}::{ev['Test']}"] = {"pass": "passed", "fail": "failed", "skip": "skipped"}[ev["Action"]]
+        elif ev.get("Action") == "fail" and ev.get("Package") and not ev.get("Test"):
+            failed_pkgs.add(ev["Package"])
+    if not seen and not failed_pkgs:
+        return Run(None, log=out[-2000:])
+    for pkg in failed_pkgs:     # a package that did not build, or failed outside any test, counts as one failed check
+        if not any(k.startswith(pkg + "::") for k in got):
+            got[f"{pkg}::(build)"] = "failed"
+    mark = f"/.knos/acceptance/{issue}::"
+    accept = {k for k in got if mark in k}
+    return Run(got, accept, _by_name(got, f"TestSentinel{tok}"), _by_name(got, f"TestCanary{tok}"), out[-2000:])
+
+
+def _cargo_results(out: str) -> dict:
+    got: dict = {}
+    current = ""
+    for line in out.splitlines():
+        m = re.match(r"\s*Running (?:unittests )?(\S+)", line)
+        if m:
+            current = Path(m.group(1)).stem
+            continue
+        if re.match(r"\s*Doc-tests ", line):
+            current = "doc"
+            continue
+        m = re.match(r"test (.+?) \.\.\. (ok|FAILED|ignored)", line)
+        if m:
+            got[f"{current}::{m.group(1)}"] = {"ok": "passed", "FAILED": "failed", "ignored": "skipped"}[m.group(2)]
+    return got
+
+
+def _rustup_home() -> Path:
+    """Where rustup keeps its toolchains. Not from $HOME, which the judge's caller may have pointed elsewhere (and the
+    sandbox user has its own): $RUSTUP_HOME, else next to the cargo on PATH (~/.cargo/bin/cargo -> ~/.rustup), else
+    the account's own home directory."""
+    if os.environ.get("RUSTUP_HOME"):
+        return Path(os.environ["RUSTUP_HOME"])
+    cands = []
+    cargo = shutil.which("cargo")
+    if cargo:
+        cands.append(Path(cargo).resolve().parent.parent.parent / ".rustup")
+    if os.environ.get("CARGO_HOME"):
+        cands.append(Path(os.environ["CARGO_HOME"]).parent / ".rustup")
+    try:
+        import pwd
+        cands.append(Path(pwd.getpwuid(os.getuid()).pw_dir) / ".rustup")
+    except (ImportError, KeyError, AttributeError):
+        pass
+    cands.append(Path.home() / ".rustup")
+    for c in cands:
+        if (c / "toolchains").is_dir():
+            return c
+    return cands[-1]
+
+
+def _rust_toolchain() -> str | None:
+    """The default toolchain of that rustup home, pinned for the run: the sandbox has no rustup settings of its own."""
+    home = _rustup_home()
+    try:
+        m = re.search(r'^default_toolchain\s*=\s*"([^"]+)"', (home / "settings.toml").read_text("utf-8"), re.M)
+    except OSError:
+        m = None
+    if m:
+        return m.group(1)
+    try:
+        names = sorted(p.name for p in (home / "toolchains").iterdir() if p.is_dir())
+    except OSError:
+        return None
+    return next((n for n in names if n.startswith("stable")), names[0] if names else None)
+
+
+def _rust(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    tok = secrets.token_hex(8)
+    tests = box.work / "tests"
+    tests.mkdir(exist_ok=True)
+    stems = []
+    for f in sorted((box.work / ".knos" / "acceptance" / issue).glob("*.rs")):
+        stem = f"knos_acceptance_{re.sub(r'[^A-Za-z0-9_]', '_', issue)}_{f.stem}"
+        shutil.copyfile(f, tests / f"{stem}.rs")
+        stems.append(stem)
+    (tests / f"knos_sentinel_{tok}.rs").write_text(
+        f"#[test]\nfn sentinel_{tok}() {{}}\n\n#[test]\nfn canary_{tok}() {{ panic!(\"canary\"); }}\n", "utf-8")
+    box.open_up()
+    env = {"CARGO_HOME": str(box.home / ".cargo"), "CARGO_NET_OFFLINE": "true", "CARGO_TERM_COLOR": "never",
+           "RUSTUP_HOME": str(_rustup_home())}
+    toolchain = os.environ.get("RUSTUP_TOOLCHAIN") or _rust_toolchain()
+    if toolchain:
+        env["RUSTUP_TOOLCHAIN"] = toolchain
+    _, out = box.run("cargo test --no-fail-fast 2>&1", timeout=timeout, env=env)
+    got = _cargo_results(out)
+    if not got:     # nothing ran: if it is the acceptance that does not build (the usual case on the base, where the
+        for stem in stems:                                        # feature does not exist yet), run the rest without it
+            (tests / f"{stem}.rs").unlink()
+        _, again = box.run("cargo test --no-fail-fast 2>&1", timeout=timeout, env=env)
+        got = _cargo_results(again)
+        if not got:
+            return Run(None, log=out[-2000:])
+        got.update({f"{stem}::(build)": "failed" for stem in stems})
+        out += again
+    accept = {k for k in got if k.split("::")[0] in stems}
+    return Run(got, accept, _by_name(got, f"sentinel_{tok}"), _by_name(got, f"canary_{tok}"), out[-2000:])
+
+
+_RUBY_LINE = re.compile(r"^(\S+#\S+) = [\d.]+ s = ([.FESB])\r?$", re.M)   # ruby on Windows ends each line with \r\n
+
+
+def _ruby(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    """minitest, one file per process so every result knows its file: the acceptance bundle, then the repository's own
+    tests. Every process also defines a sentinel and a canary (inline, so no file holds their names), so code that
+    makes every test pass is seen where it runs.
+    A file that registered no test counts as one failed check."""
+    tok = secrets.token_hex(8)
+    box.open_up()
+    files: dict[str, list[str]] = {"acceptance": [], "tests": []}
+    for p in sorted(box.work.rglob("*.rb")):
+        rel = p.relative_to(box.work)
+        s = rel.as_posix()
+        if _SKIP.intersection(rel.parts) or p.name == "test_helper.rb" or not _RUBY_TEST.search(s):
+            continue
+        if rel.parts[:3] == (".knos", "acceptance", issue):
+            files["acceptance"].append(s)
+        elif rel.parts[0] in test_dirs:
+            files["tests"].append(s)
+    got: dict = {}
+    log = ""
+    sent, canary = f"KnosProbe{tok}#test_sentinel", f"KnosProbe{tok}#test_canary"
+    probes: dict = {sent: [], canary: []}      # what the sentinel and the canary did in every process
+    for names in files.values():
+        for f in names:
+            load = (f'require "minitest/autorun"; class KnosProbe{tok} < Minitest::Test; def test_sentinel; assert true; end; '
+                    'def test_canary; assert false, "canary"; end; end; require "./#{ARGV.shift}"')   # no file holds the token
+            _, out = box.run(["ruby", "-Ilib", "-Itest", "-e", load, f, "--verbose"], timeout=timeout)
+            log += out
+            found = [(t, m) for t, m in _RUBY_LINE.findall(out) if t not in probes]
+            for t, m in _RUBY_LINE.findall(out):
+                if t in probes:
+                    probes[t].append(m)
+            for test, mark in found:
+                got[f"{f}::{test}"] = {".": "passed", "S": "skipped"}.get(mark, "failed")
+            if not found:     # it did not load, or registered nothing: one failed check, as node reports it
+                got[f"{f}::(no test ran)"] = "failed"
+    # one sentinel and one canary for the whole run: the sentinel passed everywhere, the canary failed everywhere
+    sid, cid = f"knos_sentinel::{sent}", f"knos_sentinel::{canary}"
+    got[sid] = "passed" if probes[sent] and set(probes[sent]) == {"."} else "failed"
+    got[cid] = "failed" if probes[canary] and set(probes[canary]) <= {"F", "E"} else "passed"
+    prefix = f".knos/acceptance/{issue}/"
+    return Run(got, {k for k in got if k.startswith(prefix) and k not in (sid, cid)}, sid, cid, log[-2000:])
+
+
+def _command(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    """Any language: the acceptance check is a command; exit 0 means done. The repository's own test command
+    (`tests = "..."` in proof.toml), when set, is the pass-to-pass check."""
+    bundle = f".knos/acceptance/{issue}"
+    run = (cfg.get("judge") or {}).get("run")
+    if not run:
+        name = "check" if (box.work / bundle / "check").is_file() else "check.sh"
+        run = f"sh {bundle}/{name}"
+    box.open_up()
+    env = {"KNOS_ACCEPTANCE": bundle, "KNOS_ISSUE": issue}
+    code, log = box.run(run, timeout=timeout, env=env)
+    got = {"acceptance::check": "passed" if code == 0 else "failed"}
+    if cfg.get("tests"):
+        code, more = box.run(str(cfg["tests"]), timeout=timeout, env=env)
+        got["tests::suite"] = "passed" if code == 0 else "failed"
+        log += more
+    return Run(got, {"acceptance::check"}, log=log[-2000:])
+
+
+# $KNOS_RUN on Windows, which runs no "#!/bin/sh" file. It is a program, knos-run.exe: the venv launcher that ships with
+# Python, beside a pyvenv.cfg naming the judge's interpreter and a .pth file that runs this relay before Python reads
+# its arguments. So the command's arguments reach the relay as the check gave them: a .cmd would hand them to cmd.exe,
+# which splits them at & and |, redirects at < and >, and expands %VAR%. The relay runs the command in the tree (WORK,
+# written in by the judge) inside a job object, so the whole tree it starts ends with it: a check that stops
+# "$KNOS_RUN ..." at its time limit ends knos-run.exe, and with it the relay, whose job then ends every process the
+# command started (one left running would hold the check's pipe open past the limit, and outlive the judge).
+# When there is no launcher, or it does not start the relay, knos-run.cmd runs the same relay (LAUNCHED = False).
+_WINDOWS_RUN = '''import ctypes
+import os
+import subprocess
+import sys
+import threading
+from ctypes import wintypes
+
+kernel = ctypes.WinDLL("kernel32")
+kernel.OpenProcess.restype = wintypes.HANDLE
+kernel.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+kernel.CreateJobObjectW.restype = wintypes.HANDLE
+kernel.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
+kernel.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+kernel.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
+kernel.GetCurrentProcess.restype = wintypes.HANDLE
+
+
+class _Limits(ctypes.Structure):        # JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD), ("SchedulingClass", wintypes.DWORD),
+                ("IoInfo", ctypes.c_uint64 * 6), ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t), ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+
+def _end(code):
+    for f in (sys.stdout, sys.stderr):
+        try:
+            f.flush()
+        except (AttributeError, OSError, ValueError):
+            pass
+    os._exit(code)
+
+
+def _resolve(name):
+    """The program a bare command name runs: found on PATH only, as `exec` finds it on Linux, never in the tree (Windows
+    looks in the current directory first, so a git.exe the pull request commits would run in place of Git). python3 is
+    the judge's own interpreter: Windows ships no python3.exe, and the python3 on PATH is often the Microsoft Store's
+    stub, which runs nothing. So is python when the only one on PATH is that stub."""
+    if os.path.dirname(name) or os.path.splitdrive(name)[0]:
+        return name
+    low = name.lower()
+    stem = low[:-4] if low.endswith(".exe") else low
+    python = getattr(sys, "_base_executable", "") or sys.executable
+    if stem == "python3":
+        return python
+    exts = [e for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if e]
+    names = [name] if os.path.splitext(low)[1] in [e.lower() for e in exts] else [name + e for e in exts]
+    for d in os.environ.get("PATH", "").split(os.pathsep):
+        d = d.strip().strip('"')
+        if not d or not os.path.isabs(d):
+            continue                     # a relative entry ("." among them) names the tree
+        for n in names:
+            path = os.path.join(d, n)
+            if os.path.isfile(path):
+                if stem == "python" and os.path.basename(os.path.normpath(d)).lower() == "windowsapps":
+                    return python
+                return path
+    return python if stem == "python" else None
+
+
+def main(argv):
+    if argv == ["knos-run:probe"]:
+        print("knos-run:ready")
+        _end(0)
+    parent = kernel.OpenProcess(0x00100000, False, os.getppid())    # SYNCHRONIZE: to wait for $KNOS_RUN to end
+    if not parent:
+        _end(126)                        # $KNOS_RUN has already been ended
+    try:
+        os.chdir(WORK)
+    except OSError:
+        _end(126)
+    if not argv:
+        _end(0)
+    found = _resolve(argv[0])
+    if not found:
+        print(f"knos-run: {argv[0]}: command not found", file=sys.stderr)
+        _end(127)
+    job = kernel.CreateJobObjectW(None, None)
+    limits = _Limits(LimitFlags=0x2000)  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: the job's last handle ends the tree
+    if not job or not kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits)) \\
+            or not kernel.AssignProcessToJobObject(job, kernel.GetCurrentProcess()):
+        print("knos-run: the command could not be put in a job object", file=sys.stderr)
+        _end(126)
+    os.environ.pop("__PYVENV_LAUNCHER__", None)     # the launcher's, for this relay only: not the command's Python
+    std = []
+    for fd in (0, 1, 2):
+        try:
+            os.fstat(fd)
+            std.append(fd)
+        except OSError:
+            std.append(subprocess.DEVNULL)
+    try:
+        child = subprocess.Popen([found, *argv[1:]], stdin=std[0], stdout=std[1], stderr=std[2])
+    except OSError as why:
+        print(f"knos-run: {why}", file=sys.stderr)
+        _end(127)
+
+    def watch():
+        kernel.WaitForSingleObject(parent, 0xFFFFFFFF)
+        kernel.TerminateJobObject(job, 1)    # $KNOS_RUN was ended (the check's time limit): so is all it started
+    threading.Thread(target=watch, daemon=True).start()
+    _end(child.wait())
+
+
+try:
+    main(sys.orig_argv[1:] if LAUNCHED else sys.argv[1:])
+except BaseException as why:            # in a .pth file an error would let Python go on to run argv[1] as a script
+    print(f"knos-run: {why!r}", file=sys.stderr)
+    _end(126)
+'''
+
+
+def _venv_launcher() -> Path | None:
+    """The launcher Python's venv copies into a virtual environment on Windows: it runs the interpreter its pyvenv.cfg
+    names with its own command line, unchanged, and ends that interpreter when it is ended (a job object of its own)."""
+    import venv
+    nt = Path(venv.__file__).resolve().parent / "scripts" / "nt"
+    return next((nt / n for n in ("venvlauncher.exe", "python.exe") if (nt / n).is_file()), None)
+
+
+def _cmd_line(python: str) -> bytes:
+    """knos-run.cmd's one line, in the code page cmd.exe reads a batch file in (the console's, else the OEM one): written
+    as UTF-8, a path such as C:\\Users\\José\\... is misread and the interpreter is not found. A path that code page
+    cannot spell is given by its short (8.3) name."""
+    import ctypes
+    k = ctypes.windll.kernel32  # type: ignore[attr-defined]  # Windows only: this is called on no other system
+    cp = k.GetConsoleOutputCP() or k.GetOEMCP()
+    enc = "utf-8" if cp == 65001 else f"cp{cp}"
+    try:
+        "".encode(enc)
+    except LookupError:
+        enc = "mbcs"
+    paths = [python]
+    buf = ctypes.create_unicode_buffer(32768)
+    if k.GetShortPathNameW(python, buf, len(buf)):
+        paths.append(buf.value)
+    for path in paths:
+        line = f'@"{path.replace("%", "%%")}" -I -S "%~dp0knos-run.py" %*\r\n'
+        try:
+            return line.encode(enc)
+        except UnicodeEncodeError:
+            continue
+    return line.encode(enc, "replace")
+
+
+def _windows_runner(home: Path, work: Path) -> Path:
+    """$KNOS_RUN on Windows, made in `home` (a folder of its own): knos-run.exe when the launcher starts the relay, else
+    knos-run.cmd, which runs the relay with the interpreter itself (not a virtual environment's launcher, which would
+    stand between the .cmd and the relay and outlive the .cmd)."""
+    python = Path(getattr(sys, "_base_executable", "") or sys.executable)
+    home.mkdir(parents=True, exist_ok=True)
+    launcher = _venv_launcher()
+    if launcher:
+        site = home / "Lib" / "site-packages"
+        site.mkdir(parents=True, exist_ok=True)
+        (site / "knos_run.py").write_text(f"WORK = {str(work)!r}\nLAUNCHED = True\n" + _WINDOWS_RUN, "utf-8")
+        (site / "knos_run.pth").write_text("import knos_run\n", "utf-8")
+        (home / "pyvenv.cfg").write_text(f"home = {python.parent}\ninclude-system-site-packages = false\n", "utf-8")
+        (home / "Scripts").mkdir(exist_ok=True)
+        runner = home / "Scripts" / "knos-run.exe"
+        shutil.copyfile(launcher, runner)
+        try:
+            probe = subprocess.run([str(runner), "knos-run:probe"], capture_output=True, timeout=60,
+                                   stdin=subprocess.DEVNULL)
+            if probe.returncode == 0 and probe.stdout.strip() == b"knos-run:ready":
+                return runner
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    (home / "knos-run.py").write_text(f"WORK = {str(work)!r}\nLAUNCHED = False\n" + _WINDOWS_RUN, "utf-8")
+    runner = home / "knos-run.cmd"
+    runner.write_bytes(_cmd_line(str(python)))
+    return runner
+
+
+def _blackbox(box: Box, issue: str, test_dirs, timeout: float, cfg: dict) -> Run:
+    """The check that cannot be forged from inside: it runs as the judge, outside the tree, and never loads the pull
+    request's code. It reaches that code only through "$KNOS_RUN <command>", which runs the command in the tree,
+    inside the sandbox. The check file is the base's (the pull request cannot touch .knos/), so it is trusted the way
+    the repository's own CI is. The bundle is copied out of the tree and taken out of it: what the check holds (a
+    held-out set, a reference) is not readable by the code it judges. Exit 0 means done."""
+    import shlex
+    bundle = box.work / ".knos" / "acceptance" / issue
+    private = box.root / "check"
+    shutil.copytree(bundle, private)
+    os.chmod(private, 0o700)
+    # The bundle may hold the answers (a held-out set, a reference). The copy above is the judge's; the one in the tree
+    # would be readable by the code that is being judged, so no bundle of the repository stays there.
+    shutil.rmtree(box.work / ".knos" / "acceptance", ignore_errors=True)
+    box.open_up()
+    held = cfg.get("_container")        # set by judge() once the image was pulled and its digest checked
+    if held:
+        _readable(box.work)
+        os.chmod(box.root, 0o755)       # the path to the tree, for a runtime that is not root; the check's folder stays 0700
+        public = private / "public"     # what the buyer lets the submission read: mounted read-only, outside its tree
+        argv = container_argv(held["runtime"], held["ref"], box.work, held["limits"], label=held["label"],
+                              suite=public if public.is_dir() else None)
+        if public.is_dir():
+            _readable(public)
+            os.chmod(private, 0o711)    # reach public/ and nothing else: the folder cannot be listed
+        runner = private / "knos-run"
+        runner.write_text(run_script(argv, held["runtime"], held["limits"].seconds, held["label"],
+                                     bool(shutil.which("timeout"))), "utf-8")
+    elif os.name == "nt":
+        runner = _windows_runner(box.root / "knos-run", box.work)
+    else:
+        argv, env = box.wrap(["sh", "-c", 'exec "$@"', "sh"], net=False, seconds=timeout)
+        runner = private / "knos-run"
+        runner.write_text("#!/bin/sh\n" + f"cd {shlex.quote(str(box.work))} || exit 126\n"
+                          + "exec " + " ".join(shlex.quote(a) for a in argv) + ' "$@"\n', "utf-8")
+    runner.chmod(0o700)
+    name = next(n for n in BLACKBOX_ENTRY if (private / n).is_file())
+    cmd = [sys.executable, name] if name.endswith(".py") else ["sh", name]
+    mine = {k: v for k, v in os.environ.items() if not k.startswith(_LEAK)}
+    mine.update({"KNOS_RUN": str(runner), "KNOS_TREE": str(box.work), "KNOS_ISSUE": issue})
+    try:
+        got = subprocess.run(cmd, cwd=str(private), env=mine, capture_output=True, timeout=timeout)
+        code, log = got.returncode, (got.stdout + got.stderr).decode("utf-8", "replace")
+        late = ""
+    except subprocess.TimeoutExpired:
+        code, log = 124, "timed out"
+        late = f"the acceptance suite did not finish in {timeout:g} seconds"
+    words = log[-2000:]
+    res = {"acceptance::blackbox": "passed" if code == 0 else "failed"}
+    if cfg.get("tests"):
+        if held:                         # the repository's own suite is pull request code too: same container
+            try:
+                got = subprocess.run([str(runner), "sh", "-c", str(cfg["tests"])], capture_output=True, timeout=timeout,
+                                     stdin=subprocess.DEVNULL, env=mine)
+                code, more = got.returncode, (got.stdout + got.stderr).decode("utf-8", "replace")
+            except subprocess.TimeoutExpired:
+                code, more = 124, "timed out"
+        else:
+            code, more = box.run(str(cfg["tests"]), timeout=timeout)
+        res["tests::suite"] = "passed" if code == 0 else "failed"
+        log += more
+    return Run(res, {"acceptance::blackbox"}, log=log[-2000:], words=words, undecided=late)
+
+
+_RUN = {"blackbox": _blackbox, "python": _python, "node": _node, "go": _go, "rust": _rust, "ruby": _ruby, "command": _command}
+
+
+def _side(box: Box, runner: str, issue: str, test_dirs, timeout: float, cfg: dict, setup: str | None) -> Run:
+    """Install the tree's dependencies (network allowed), then run its tests (no network)."""
+    if runner == "rust":
+        _reachable(Path(shutil.which("cargo") or "cargo"))
+        _reachable(_rustup_home() / "x")
+    if runner == "python" and setup:
+        # The tree's dependencies go into a venv of its own (the sandbox user cannot write the judge's Python). It
+        # sees the judge's pytest through the system site-packages; `pip` in it is the judge's pip, aimed at the venv.
+        venv = box.root / "venv"
+        made = subprocess.run([sys.executable, "-m", "venv", "--without-pip", "--system-site-packages", str(venv)],
+                              capture_output=True, timeout=180)
+        if made.returncode == 0:
+            bindir = venv / ("Scripts" if os.name == "nt" else "bin")
+            py = bindir / ("python.exe" if os.name == "nt" else "python")
+            if os.name != "nt":
+                for name in ("pip", "pip3"):
+                    (bindir / name).write_text(f'#!/bin/sh\nexec "{py}" -m pip "$@"\n', "utf-8")
+                    (bindir / name).chmod(0o755)
+            if sys.prefix != sys.base_prefix:
+                # the judge itself lives in a virtualenv (pipx, uv tool): "system" site-packages is then the bare
+                # interpreter's, without pytest. A .pth file puts the judge's own packages after the tree's.
+                import site
+                import sysconfig
+                own = [d for d in site.getsitepackages() if Path(d).is_dir()]
+                lib = Path(sysconfig.get_path("purelib", vars={"base": str(venv), "platbase": str(venv)}))
+                if lib.is_dir():
+                    (lib / "knos_judge.pth").write_text("\n".join(own) + "\n", "utf-8")
+            box.python = str(py)
+            box.env.update({"VIRTUAL_ENV": str(venv), "PATH": str(bindir) + os.pathsep + os.environ.get("PATH", "")})
+            if box.sandboxed:
+                for p in [venv, *venv.rglob("*")]:
+                    if not p.is_symlink():
+                        p.chmod(p.stat().st_mode | (0o777 if p.is_dir() else 0o666))
+    if setup:
+        box.open_up()
+        env = {"CARGO_HOME": str(box.home / ".cargo"), "GOPATH": str(box.home / "go"),
+               "GOCACHE": str(box.home / ".cache" / "go-build"), "GOFLAGS": "-mod=mod",
+               "RUSTUP_HOME": str(_rustup_home())}
+        code, log = box.run(setup, net=True, timeout=timeout, env=env)
+        if code:
+            return Run(None, log=f"setup failed (exit {code}): {log[-1500:]}", undecided="the dependency install failed")
+    return _RUN[runner](box, issue, test_dirs, timeout, cfg)
+
+
+def _hold(image: str, runner: str, setup: str | None, limits) -> dict:
+    """Everything a hermetic judgment needs before any pull request code runs: the runtime, the image pulled and its
+    digest checked, the limits. Raises ValueError with one sentence saying what is wrong and what to do."""
+    try:
+        valid_image(image)
+    except _TermsRefused as why:
+        raise ValueError(str(why)) from None
+    if runner != "blackbox":
+        raise ValueError(f"an image goes with a black-box bundle, and this one is run by `{runner}`, which loads the pull "
+                         "request's code into the judge's process. Write the check as `blackbox.py` (`knos accept init`), "
+                         "or take `image` out.")
+    if setup:
+        raise ValueError("a hermetic judge installs nothing: the container has no network. Put the dependencies in the "
+                         "image and run the judge without --setup.")
+    if os.name == "nt":
+        raise ValueError("the hermetic judge needs a POSIX shell on the judge's machine; run it on Linux or macOS.")
+    runtime = container_runtime()
+    if not runtime or not runtime_ready(runtime):
+        raise ValueError(("no container runtime on this machine" if not runtime else f"{runtime} is installed and does not "
+                          "answer (is its daemon running?)") + ": these terms name an image, so the judge runs only in "
+                         "it. Install docker or podman, or set KNOS_CONTAINER to the one to use.")
+    return {"runtime": runtime, "ref": image, "limits": Limits.of(limits), "label": secrets.token_hex(6),
+            "pulled": pull(runtime, image)}
+
+
+def judge(base_dir, pr_dir, cfg: dict, changed: list[str] | None = None, cache: dict | None = None,
+          setup: str | None = None, sandbox: str = "auto") -> dict:
+    """The verdict on a pull request in tests mode: {"passed", "verdict", "checks_hash", "reasons", "notes", "reason",
+    "evidence"}. `verdict` is one of knos.ids.VERDICTS; `passed` is true only when it is "accepted". `notes` say what
+    was allowed and not counted (contributor tests, test configuration); `reason` is reasons and notes in one line.
+
+    cfg: the base's .knos/proof.toml plus "issue". `changed`: the pull request's changed paths (default: the tree
+    diff). `cache` (a dict) reuses the base side's run across pull requests against the same base tree, as the
+    benchmark does. `setup`: a shell command that installs a tree's dependencies. `sandbox`: auto (use it when this
+    machine can), require (refuse to judge without it), off, or hermetic: a black-box check whose terms name no image
+    runs in DEFAULT_IMAGE where this machine runs containers (`default_image`), and otherwise as `require`, with the
+    reason in the verdict's `judged_in`."""
+    base, pr = Path(base_dir), Path(pr_dir)
+    issue = str(cfg.get("issue", "")).strip()
+    timeout = float(cfg.get("timeout", 600))
+    ev: dict = {"issue": issue}
+
+    notes: list[str] = []
+
+    def verdict(h: str, reasons: list[str], undecided: bool = False) -> dict:
+        word = "accepted" if not reasons else "insufficient_evidence" if undecided else "rejected"
+        assert word in ids.VERDICTS
+        out = {"passed": not reasons, "verdict": word, "checks_hash": h, "reasons": reasons, "notes": list(notes),
+               "reason": "; ".join([*reasons, *notes]) or "every acceptance check passed", "evidence": ev}
+        if ev.get("runner"):             # how much this verdict can carry, said with it wherever it goes
+            level = assurance_of(ev["runner"], "image" in ev)      # hermetic only when a container of the image ran
+            out.update({"assurance": level, "assurance_means": ASSURANCE[level]})
+        if ev.get("judged_in"):          # where the pull request's code ran, and why not in a container when it was not
+            out["judged_in"] = ev["judged_in"] + (f" (fallback: {ev['fallback']})" if ev.get("fallback") else "")
+        return out
+
+    section = named_ if isinstance(named_ := cfg.get("judge"), dict) else {}
+    image = image_of(cfg)                # the terms' image when the caller has them (cfg["image"]), else proof.toml's
+
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", issue):
+        return verdict("", [f"bad issue id {issue!r}"], True)
+    try:
+        h = checks_hash(base / ".knos" / "acceptance" / issue)
+        runner = runner_of(base, cfg)
+    except ValueError as why:
+        return verdict("", [str(why)], True)
+    ev["runner"] = runner
+    test_dirs = list(cfg.get("test_dirs", TEST_DIRS[runner]))
+    changed = changed_files(base, pr) if changed is None else sorted(changed)
+    ev["changed"] = changed
+    kinds = classify(base, pr, changed, cfg, runner, test_dirs)
+    if kinds["refused"]:
+        return verdict(h, [f"touches protected path {f}: {why}" for f, why in kinds["refused"]])
+    # What follows is allowed and has no authority: `overlay` builds the tree the suite runs in from the base's copy
+    # of every protected path, so none of these files is there. The verdict says so; it does not count them.
+    ev["contributor_tests"] = {"files": kinds["contributor"], "counted": False}
+    ev["test_configuration"] = {"files": kinds["config"], "counted": False, "run_from": "base"}
+    if kinds["contributor"]:
+        n = len(kinds["contributor"])
+        notes.append(f"contributor tests: {n} file{'' if n == 1 else 's'}, not counted")
+    if kinds["config"]:
+        n = len(kinds["config"])
+        notes.append(f"test configuration: {n} file{'' if n == 1 else 's'} changed, not counted (the suite ran from the base's copy)")
+    ev["artifact"] = {"base": tree_hash(base), "pr": tree_hash(pr)}     # what was judged: `knos judge rerun` checks it has the same
+    held = None
+    fallback = ""
+    if sandbox == "hermetic":
+        # The container is the default where the machine has one; the host sandbox, required, is the fallback, and
+        # the verdict says which ran and why (`judged_in`, `fallback`).
+        if not image:
+            image, fallback = default_image(runner, (base, pr))
+            if image:
+                try:
+                    held = _hold(image, runner, setup, cfg.get("limits") or section.get("limits"))
+                except ValueError as why:
+                    image, fallback = "", f"the default image could not be used: {why}"
+        sandbox = "require"
+    if image:
+        try:
+            held = held or _hold(image, runner, setup, cfg.get("limits") or section.get("limits"))
+        except ValueError as why:
+            return verdict(h, [str(why)], True)
+        cfg = {**cfg, "_container": held}
+        ev["image"] = {k: v for k, v in held["pulled"].items()} | {"limits": vars(held["limits"])}
+    boxed = sandbox != "off" and not held and sandbox_available()
+    if held:                             # the container is the sandbox: the host one is neither needed nor asked for
+        sandbox = "off"
+    if boxed and runner in ("python", "command", "blackbox"):
+        cannot = _sandbox_cannot_run(sys.executable)
+        if cannot and sandbox == "require":
+            return verdict(h, [f"the sandbox user cannot run this Python ({sys.executable}): {cannot}. Install knos where "
+                               "other users can reach it; refusing to run pull request code without the sandbox"], True)
+        boxed = not cannot
+    if sandbox == "require" and not boxed:
+        return verdict(h, ["no sandbox on this machine (needs Linux, setpriv, unshare and root or passwordless sudo); "
+                           "refusing to run pull request code without it"], True)
+    ev["sandbox"] = {"user": SANDBOX_UID, "network": "setup only" if setup else "none"} if boxed else None
+    if held:
+        ev["sandbox"] = {"user": SANDBOX_UID, "network": "none", "container": held["pulled"]["digest"]}
+    elif boxed:
+        ev["sandbox"].update(limits=vars(HOST_LIMITS), outside_work="read-only", shm="private", processes="killed with the run")
+    ev["judged_in"] = "container" if held else HOST_FALLBACK if boxed else "host"
+    if fallback:
+        ev["fallback"] = fallback
+    reasons: list[str] = []
+    key = (json.dumps(_files(base), sort_keys=True), issue, tuple(test_dirs), runner, setup or "", image)
+    boxes = []
+    try:
+        if cache is None or key not in cache:
+            bb = Box(Path(tempfile.mkdtemp(prefix="knos-judge-")).resolve(), boxed)
+            boxes.append(bb)
+            overlay(base, base, bb.work, test_dirs, runner)
+            got = _side(bb, runner, issue, test_dirs, timeout, cfg, setup)
+            if cache is not None:
+                cache[key] = got
+        pb = Box(Path(tempfile.mkdtemp(prefix="knos-judge-")).resolve(), boxed)
+        boxes.append(pb)
+        overlay(base, pr, pb.work, test_dirs, runner)
+        sides = {"base": got if cache is None else cache[key],
+                 "pr": _side(pb, runner, issue, test_dirs, timeout, cfg, setup)}
+    finally:
+        if held:
+            _sweep(held["runtime"], held["label"])
+        for b in boxes:
+            b.clean()
+    res = {}
+    undecided = False
+    for side, run in sides.items():
+        if run.undecided and run.results is not None:
+            undecided = True
+            reasons.append(f"{side}: {run.undecided}")
+        if run.results is None:
+            undecided = True
+            reasons.append(f"{side}: the test run wrote no report (killed, exited early or timed out)"
+                           + (f": {run.log.strip()[-300:]}" if run.log.strip() else ""))
+            continue
+        if runner not in ("command", "blackbox"):
+            if run.sentinel is None or run.results.get(run.sentinel) != "passed":
+                reasons.append(f"{side}: the sentinel test was not collected and passed (the runner was faked)")
+            if run.canary is None or run.results.get(run.canary) != "failed":
+                reasons.append(f"{side}: the canary test did not fail (something makes every test pass)")
+        mine = {k: v for k, v in run.results.items() if k not in (run.sentinel, run.canary)}
+        accept = {k: v for k, v in mine.items() if k in run.accept}
+        res[side] = (mine, accept)
+        ev[side] = {"collected": len(mine), "passed": sum(v == "passed" for v in mine.values()), "acceptance": accept}
+    if len(res) == 2:
+        (bm, ba), (pm, pa) = res["base"], res["pr"]
+        gone = [k for k in ba if k not in pa and not k.startswith("::") and "(" not in k]
+        if not pa:
+            reasons.append("pr: no acceptance check ran")
+        if gone and pa:
+            reasons.append("pr: acceptance checks that ran on the base did not run: " + ", ".join(gone))
+        if any(v != "passed" for v in pa.values()):
+            # A black-box suite is one check with one exit status: without what it printed last, the seller is told
+            # "blackbox" and nothing else. Its author decides what it prints (a held-out set should say how many
+            # cases failed, not which); what is quoted is bounded and made plain text here.
+            said = last_words(sides["pr"].words) if runner == "blackbox" and pa.get("acceptance::blackbox") != "passed" else ""
+            reasons.append("pr: acceptance checks not passed: " + ", ".join(k for k, v in pa.items() if v != "passed")
+                           + (f" (the suite's last words: {said})" if said else ""))
+        if ba and all(v == "passed" for v in ba.values()):
+            reasons.append("base: the acceptance checks already pass on the base (not fail-to-pass)")
+        if len(pm) < len(bm):
+            reasons.append(f"pr collected {len(pm)} tests, fewer than the base's {len(bm)}")
+        broke = [k for k, v in bm.items() if v == "passed" and k not in ba and pm.get(k) != "passed"]
+        if broke:
+            reasons.append("pass-to-pass broken: " + ", ".join(broke))
+    ev["undecided"] = undecided
+    return verdict(h, reasons, undecided)
+
+
+# ---- the same judge again: `knos judge rerun` ------------------------------------------------------------------------
+
+def load_verdict(path: Path) -> tuple[dict, Path | None]:
+    """(the verdict, the folder that holds its trees or None) from a verdict file (`knos proof judge --evidence`), from a
+    JSON file that holds one under "verdict", from an evidence bundle (the .tar of `knos bundle make --verdict`, which
+    holds verdict.json and never the trees), or from a folder: verdict.json, and base/ and pr/ beside it when it
+    carries the trees. Raises ValueError."""
+    import tarfile
+    path = Path(path)
+    folder = path if path.is_dir() else None
+    try:
+        if path.is_file() and tarfile.is_tarfile(path):          # an evidence bundle (knos bundle make --verdict): the same verdict.json, in the tar
+            from . import bundle
+            held = bundle.read(path.read_bytes()).get("verdict.json")
+            if held is None:
+                raise ValueError("this bundle holds no verdict.json (a merge-mode payment has none; `knos bundle make --verdict FILE` adds a judge's)")
+            data = json.loads(held)
+        else:
+            data = json.loads((path / "verdict.json" if folder else path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as why:
+        raise ValueError(f"cannot read a verdict from {path}: {why}") from None
+    v = data.get("verdict") if isinstance(data, dict) and isinstance(data.get("verdict"), dict) else data
+    ev = v.get("evidence") if isinstance(v, dict) else None
+    if not isinstance(v, dict) or not isinstance(ev, dict) or not isinstance(v.get("passed"), bool) or not isinstance(ev.get("artifact"), dict):
+        raise ValueError(f"{path} holds no verdict this version can run again: it needs `passed` and `evidence.artifact` "
+                         "(the hashes of the two trees), which `knos proof judge --evidence FILE` writes since 0.3.14.")
+    return v, folder
+
+
+def rerun(first: dict, base: Path, pr: Path, cfg: dict | None = None, sandbox: str = "auto", judge_fn=None) -> dict:
+    """Judge the same artifact again as `first` records it was judged, and compare: {"agree", "differences", "again"}.
+    `cfg`: the base's .knos/proof.toml, parsed. The image and limits are the ones the verdict recorded, not today's.
+    Raises ValueError when the trees are not the ones the verdict was given on: that is no rerun."""
+    ev = first["evidence"]
+    for side, root in (("base", base), ("pr", pr)):
+        have = tree_hash(root) if Path(root).is_dir() else "no such folder"
+        if have != ev["artifact"].get(side):
+            raise ValueError(f"{root} is not the {side} tree this verdict was given on (its hash is {have[:16]}, the verdict "
+                             f"records {str(ev['artifact'].get(side))[:16]}). Check out the same commit and run this again.")
+    cfg = {**(cfg or {}), "issue": ev.get("issue", "")}
+    was = ev.get("image") or {}
+    if was:
+        cfg.update(image=was.get("ref", ""), limits=was.get("limits"))
+    else:                                # judged without a container: not in one now either, whatever proof.toml says today
+        cfg.pop("image", None)
+        cfg["judge"] = {k: v for k, v in (cfg.get("judge") or {}).items() if k != "image"} if isinstance(cfg.get("judge"), dict) else {}
+    again = (judge_fn or judge)(base, pr, cfg, sandbox=sandbox)
+    now = (again.get("evidence") or {}).get("image") or {}
+    pairs = [("verdict", "passed" if first["passed"] else "refused", "passed" if again["passed"] else "refused"),
+             ("acceptance checks", first.get("checks_hash", ""), again.get("checks_hash", "")),
+             ("image digest", was.get("digest", ""), now.get("digest", ""))]
+    return {"agree": all(a == b for _, a, b in pairs), "again": again,
+            "differences": [f"{what}: the verdict says {a or 'none'}, this run says {b or 'none'}" for what, a, b in pairs if a != b]}
+
+
+def _which(source: Path) -> str:
+    """For a bundle: which commit to check out, in words. "" for anything else (a verdict file names no commit)."""
+    try:
+        from . import bundle
+        art = json.loads(bundle.read(Path(source).read_bytes())["receipt.json"])["evaluator_observed"]["artifact"]
+        return (f" The bundle holds no source: check out commit {art['commit']} (pull request #{art['pull_request']}) for --pr and the "
+                "commit it was judged against for --base. Both are compared with the hashes the verdict records before anything runs.")
+    except Exception:  # noqa: BLE001 - not a bundle: the plain sentence stands
+        return ""
+
+
+def register(app, out, Stop) -> None:
+    """`knos judge rerun`: one line in knos.cli."""
+    import importlib
+    typer = importlib.import_module("typer")       # the command line's package, named here and not imported: the relay reaches this module on an install without it
+    group = typer.Typer(add_completion=False, no_args_is_help=True, help="The judge of a bounty's acceptance checks, run again by either party.")
+    app.add_typer(group, name="judge")
+
+    @group.command("rerun")
+    def rerun_cmd(source: Path = typer.Argument(..., help="a verdict file (knos proof judge --evidence), an evidence bundle (.tar), or a folder holding verdict.json"),
+                  base: Path = typer.Option(None, "--base", help="the base checkout the verdict was given on (default: base/ in the bundle)"),
+                  pr: Path = typer.Option(None, "--pr", help="the pull request's tree (default: pr/ in the bundle)"),
+                  sandbox: str = typer.Option("auto", "--sandbox", help="auto, require or off (a verdict with an image runs in the container)"),
+                  to: Path = typer.Option(None, "--out", help="write this run's verdict here as JSON")) -> None:
+        """Run the same judge on the same artifact and say whether it agrees with the verdict. With an image in the
+        verdict, the pull request's code runs in that image, by its digest. Exit 0 on agree, 1 on disagree."""
+        from .proof import engine
+        try:
+            first, folder = load_verdict(source)
+            base_at: Path | None = base or (folder / "base" if folder else None)
+            pr_at: Path | None = pr or (folder / "pr" if folder else None)
+            if base_at is None or pr_at is None:
+                raise ValueError("pass --base and --pr: the two checkouts the verdict was given on." + _which(source))
+            got = rerun(first, base_at, pr_at, dict(engine.config(base_at)), sandbox)
+        except ValueError as why:
+            raise Stop(str(why)) from None
+        if to:
+            to.write_text(json.dumps(got["again"], indent=1, default=str), encoding="utf-8")
+        level = got["again"].get("assurance") or first.get("assurance") or "not run"
+        was = (first["evidence"].get("image") or {}).get("ref")
+        out.print(f"judged again: {level}" + (f", in {was}" if was else "") + ". " + ASSURANCE.get(level, ""), markup=False, emoji=False)
+        for r in got["again"]["reasons"]:
+            out.print(f"NO  {r}", markup=False, emoji=False)
+        if not got["agree"]:
+            for d in got["differences"]:
+                out.print(f"DIFFERENT {d}", markup=False, emoji=False)
+            out.print("disagree", markup=False)
+            raise typer.Exit(1)
+        out.print("agree: " + ("passed" if first["passed"] else "refused") + " both times", markup=False)

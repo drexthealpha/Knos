@@ -1,0 +1,26 @@
+[
+ {
+  "report": "The on-call engineer was paged at 19:24. Support answered 91 tickets about it. Between 19:24 and the fix, auth-service was unavailable (12 minutes in total). The team will add an alert for full disk. image-resizer was not affected. The root cause was a database failover. A review meeting is set for Thursday. No customer data was lost. The fix: the team promoted the replica.",
+  "reference": "auth-service was down for 12 minutes because of a database failover. The team promoted the replica."
+ },
+ {
+  "report": "No customer data was lost. The billing-api outage lasted 238 minutes. The failure was traced to a database failover. Last quarter search-api had a similar outage caused by a bad configuration push, lasting 160 minutes. Support answered 176 tickets about it. Service returned after the team promoted the replica. search-api was not affected. 60% of requests failed during the incident.",
+  "reference": "billing-api was down for 238 minutes because of a database failover. The team promoted the replica."
+ },
+ {
+  "report": "Between 05:58 and the fix, auth-service was unavailable (161 minutes in total). A review meeting is set for Thursday. The on-call engineer was paged at 05:58. The team will add an alert for memory leak. Support answered 250 tickets about it. The root cause was a bad configuration push. Engineers rolled back the configuration and traffic recovered. 65% of requests failed during the incident. checkout-web was not affected.",
+  "reference": "auth-service was down for 161 minutes because of a bad configuration push. The team rolled back the configuration."
+ },
+ {
+  "report": "Customers could not reach search-api for 237 minutes. Support answered 296 tickets about it. Last quarter gateway had a similar outage caused by an expired certificate, lasting 7 minutes. The root cause was a database failover. The team will add an alert for memory leak. Engineers promoted the replica and traffic recovered. No customer data was lost. 13% of requests failed during the incident. The on-call engineer was paged at 09:57.",
+  "reference": "search-api was down for 237 minutes because of a database failover. The team promoted the replica."
+ },
+ {
+  "report": "The report-batch outage lasted 168 minutes. The team will add an alert for  overloaded cache. A review meeting is set for Wednesday. Support answered 367 tickets about it. Investigation showed that an expired certificate had triggered the failure. Service returned after the team renewed the certificate. The on-call engineer was paged at 03:55.",
+  "reference": "report-batch was down for 168 minutes because of an expired certificate. The team renewed the certificate."
+ },
+ {
+  "report": "Support answered 138 tickets about it. The team will add an alert for bad configuration push. billing-api was not affected. Between 04:20 and the fix, notify-worker was unavailable (212 minutes in total). A review meeting is set for Monday. No customer data was lost. Investigation showed that a bad configuration push had triggered the failure. The fix: the team rolled back the configuration.",
+  "reference": "notify-worker was down for 212 minutes because of a bad configuration push. The team rolled back the configuration."
+ }
+]

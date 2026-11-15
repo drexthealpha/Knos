@@ -1,0 +1,2 @@
+# the messy files keep the byte-order marks and line ends they were made with: the task is to cope with them
+*.csv -text

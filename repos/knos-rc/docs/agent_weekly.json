@@ -1,0 +1,3193 @@
+{
+ "name": "Agent PR Index",
+ "read": "2026-10-07",
+ "window": [
+  "2026-07-03",
+  "2026-10-04"
+ ],
+ "source": "each week says how it was read (`design`, `capped`, `strata`). The newest: week of 2026-09-28, read 2026-10-07, stratified-seeded-v1; read on 2026-10-07 and not whole weeks: the weeks of 2026-09-28 (`full_week` false)",
+ "agents_told_by": {
+  "copilot": "author:app/copilot-swe-agent",
+  "devin": "author:app/devin-ai-integration",
+  "claude-bot": "author:app/claude",
+  "claude-code": "\"Generated with Claude Code\" in:body -author:app/claude",
+  "codex": "\"chatgpt.com/codex/tasks\" in:body"
+ },
+ "heuristics": {
+  "copilot": {
+   "told_by": "the pull request's author is the GitHub App `copilot-swe-agent` (GitHub Copilot's cloud agent)",
+   "misses": "Copilot used in an editor or a terminal, which opens pull requests under the person's own account"
+  },
+  "devin": {
+   "told_by": "the author is the GitHub App `devin-ai-integration` (Devin's default: it opens pull requests as itself)",
+   "misses": "an organisation that set Devin to open pull requests as the user"
+  },
+  "claude-bot": {
+   "told_by": "the author is the GitHub App `claude` (Claude Code run from GitHub: the Action, or an @claude mention)",
+   "misses": "an installation that runs the Action under its own app or a person's token"
+  },
+  "claude-code": {
+   "told_by": "the description holds the line \"Generated with Claude Code\" and the author is not the app `claude` (Claude Code run on a person's machine, under their account)",
+   "misses": "anyone who turned the line off in settings; a person who pastes the line is counted"
+  },
+  "codex": {
+   "told_by": "the description holds a `chatgpt.com/codex/tasks` link (the task link Codex's cloud agent writes)",
+   "misses": "Codex run locally, which writes no link; a person who pastes a task link is counted"
+  }
+ },
+ "claim_search": "(\"tests pass\" OR \"all tests pass\" OR \"tests passing\" OR \"CI passes\" OR \"CI is green\" OR \"CI passing\") in:body",
+ "definitions": {
+  "week": "the Monday (UTC) of the week the pull request was created in; a week at either end of `window` is cut short by it",
+  "sampled": "pull requests GitHub's search returned for the agent's query and the claim phrases (`agents`, `claim_search`), created in that week, not on a repository owned by the pull request's author or by the person who assigned the agent. null where the source did not keep the creation date of the hits it then set aside",
+  "claimed_passing": "of those, the ones whose description, read line by line, says tests or CI pass (CLAIM_RE and NONCLAIM_RE in scripts/agent_pr_ci.py): an unticked box, a wish or a negation is not a claim",
+  "ci_finished": "of the claimed, the ones whose CI had finished at the head commit when it was read (classes failed, passed, other). The two rates below are over these",
+  "failed_a_check": "at least one failed check of any kind at the head commit (`any_check_failed` of the index); `test_or_build` counts the ones where a failed check is, by its name, a test, build, lint or type-check job",
+  "merged_despite_failed_check": "merged when read, with a failed check at the head commit, over the merged pull requests with finished CI. null where the merge state was not read",
+  "share, ci95": "k over n, and the 95% Wilson score interval of that share (z = 1.96); null when n is 0",
+  "checks": "the claimed pull requests by what their checks said when read: passed (at least one check, none failed, none pending, every one succeeded, was neutral or was skipped), failed, other (finished with a cancelled or stale check and no failure), pending, no_checks (the head commit has no check at all, or its checks wait for a maintainer's approval), not_read (the run's budget ended first). null: see `not_derived`",
+  "verified_acceptance_rate": "the headline: of the claimed pull requests whose checks were read (every `checks` count but not_read), the share where they all passed (`checks.passed`). A claim with no check to back it, or with checks still running when read, is not verified. null: see `not_derived`",
+  "rank": "among the agents with at least `min_claims_to_rank` claimed pull requests whose checks were read that week: 1 is the largest verified acceptance rate; equal rates share a rank. null: too few to rank. A rank orders what was said against what was recorded that week. It is not a ranking of the agents' code. `ranked_by` names the count a row's rank was worked from: rows published before the rate was recorded were ranked by the smallest share that failed a check and keep that place",
+  "design, capped, strata": "how the week was read (`designs` describes each name). capped: true when the run's budget ended before the design was complete, or when the design itself is a cap. strata, for a stratified week: for each day, how many pull requests the search reported, how many of those a query can reach, how many the design planned to draw, how many were drawn, how many of the drawn claimed passing tests, and how many of those had their checks read",
+  "not_derived": "for each field of the row that is null, why it could not be worked out",
+  "verified": "of the week's claimed pull requests, the ones that were also paid through Knos under terms with a black-box check, by the list of payments the script was given (`verified_against`). The only count here that rests on an acceptance check the pull request could not edit",
+  "read, full_week": "the day GitHub was read for that week; full_week is true when every hit of the week's searches was read, false for a week cut from a capped sample"
+ },
+ "limits": [
+  "An agent is told by its author account or by a line its tool writes in the description (`agents`). A person who pastes that line is counted as the agent; an agent run under a person's own account without it is missed.",
+  "Public repositories only: GitHub's search does not return private ones.",
+  "One snapshot of the checks: what GitHub showed at the head commit when it was read. A check that was run again later, or a commit pushed after, is not seen. The agent's own session run is not a check.",
+  "The search asks for a few claim phrases, so `sampled` is not every pull request the agent opened.",
+  "A week holds few pull requests for some agents: read the interval, not the share.",
+  "A failed check is not proof that the claim was false. It says a check GitHub recorded at the head commit failed when it was read: the check may be a deploy preview or a label gate, may be flaky, or may have been failing before the pull request. What is concluded: the description said tests or CI pass, and the record shows a failed check. What is not: that the tests failed, that the code is wrong, or that one agent is better."
+ ],
+ "min_claims_to_rank": 30,
+ "verified_against": "no list of Knos payments was joined to this sample, so the count is 0 for every agent: every Knos payment so far is test USDC on Solana devnet. It takes a sampled pull request that was also paid through Knos under terms with a black-box check, and that list given to the script (--paid)",
+ "agents": {
+  "copilot": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 4,
+     "checks": {
+      "passed": 4,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 7,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 4,
+      "n": 11,
+      "share": 0.3636,
+      "ci95": [
+       0.1517,
+       0.6462
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 4,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4899
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 6,
+     "ci_finished": 4,
+     "checks": {
+      "passed": 3,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 2,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 3,
+      "n": 6,
+      "share": 0.5,
+      "ci95": [
+       0.1876,
+       0.8124
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 4,
+      "share": 0.25,
+      "ci95": [
+       0.0456,
+       0.6994
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 4,
+      "share": 0.25,
+      "ci95": [
+       0.0456,
+       0.6994
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 4,
+     "checks": {
+      "passed": 3,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 3,
+      "n": 4,
+      "share": 0.75,
+      "ci95": [
+       0.3006,
+       0.9544
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 4,
+      "share": 0.25,
+      "ci95": [
+       0.0456,
+       0.6994
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 10,
+     "checks": {
+      "passed": 7,
+      "failed": 3,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 2,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 7,
+      "n": 12,
+      "share": 0.5833,
+      "ci95": [
+       0.3195,
+       0.8067
+      ]
+     },
+     "failed_a_check": {
+      "k": 3,
+      "n": 10,
+      "share": 0.3,
+      "ci95": [
+       0.1078,
+       0.6032
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 5,
+      "share": 0.6,
+      "ci95": [
+       0.2307,
+       0.8824
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 13,
+     "ci_finished": 12,
+     "checks": {
+      "passed": 7,
+      "failed": 4,
+      "other": 1,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 7,
+      "n": 13,
+      "share": 0.5385,
+      "ci95": [
+       0.2914,
+       0.7679
+      ]
+     },
+     "failed_a_check": {
+      "k": 4,
+      "n": 12,
+      "share": 0.3333,
+      "ci95": [
+       0.1381,
+       0.6094
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 10,
+      "share": 0.3,
+      "ci95": [
+       0.1078,
+       0.6032
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 5,
+     "checks": {
+      "passed": 0,
+      "failed": 5,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ]
+     },
+     "failed_a_check": {
+      "k": 5,
+      "n": 5,
+      "share": 1.0,
+      "ci95": [
+       0.5655,
+       1.0
+      ],
+      "test_or_build": 4
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 2,
+      "share": 1.0,
+      "ci95": [
+       0.3424,
+       1.0
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 11,
+     "checks": {
+      "passed": 8,
+      "failed": 3,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 8,
+      "n": 12,
+      "share": 0.6667,
+      "ci95": [
+       0.3906,
+       0.8619
+      ]
+     },
+     "failed_a_check": {
+      "k": 3,
+      "n": 11,
+      "share": 0.2727,
+      "ci95": [
+       0.0975,
+       0.5657
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 7,
+      "share": 0.1429,
+      "ci95": [
+       0.0257,
+       0.5131
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "checks": {
+      "passed": 4,
+      "failed": 3,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 4,
+      "n": 7,
+      "share": 0.5714,
+      "ci95": [
+       0.2505,
+       0.8418
+      ]
+     },
+     "failed_a_check": {
+      "k": 3,
+      "n": 7,
+      "share": 0.4286,
+      "ci95": [
+       0.1582,
+       0.7495
+      ],
+      "test_or_build": 2
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 7,
+      "share": 0.4286,
+      "ci95": [
+       0.1582,
+       0.7495
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-21",
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 121,
+     "claimed_passing": 39,
+     "ci_finished": 35,
+     "failed_a_check": {
+      "k": 7,
+      "n": 35,
+      "share": 0.2,
+      "ci95": [
+       0.1004,
+       0.3589
+      ],
+      "test_or_build": 4
+     },
+     "merged_despite_failed_check": {
+      "k": 4,
+      "n": 22,
+      "share": 0.1818,
+      "ci95": [
+       0.0731,
+       0.3852
+      ]
+     },
+     "verified": 0,
+     "rank": 1,
+     "design": "newest-first-capped-v0",
+     "capped": true,
+     "strata": null,
+     "checks": null,
+     "verified_acceptance_rate": null,
+     "ranked_by": "failed_a_check",
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`",
+      "checks": "the reading of 2026-10-05 published, for each agent and week, how many claimed pull requests had finished CI and how many of those failed a check. It did not publish how many passed every check, and its rows were not kept, so the share that passed cannot be worked out from what was published",
+      "verified_acceptance_rate": "the reading of 2026-10-05 published, for each agent and week, how many claimed pull requests had finished CI and how many of those failed a check. It did not publish how many passed every check, and its rows were not kept, so the share that passed cannot be worked out from what was published"
+     }
+    },
+    {
+     "week": "2026-09-28",
+     "read": "2026-10-07",
+     "full_week": false,
+     "design": "stratified-seeded-v1",
+     "capped": false,
+     "strata": {
+      "Mon": {
+       "date": "2026-09-28",
+       "reported": 87,
+       "reachable": 87,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 0,
+       "checks_read": 0
+      },
+      "Tue": {
+       "date": "2026-09-29",
+       "reported": 69,
+       "reachable": 69,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 6,
+       "checks_read": 6
+      },
+      "Wed": {
+       "date": "2026-09-30",
+       "reported": 78,
+       "reachable": 78,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 4,
+       "checks_read": 4
+      },
+      "Thu": {
+       "date": "2026-10-01",
+       "reported": 113,
+       "reachable": 113,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 2,
+       "checks_read": 2
+      },
+      "Fri": {
+       "date": "2026-10-02",
+       "reported": 103,
+       "reachable": 103,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 4,
+       "checks_read": 4
+      },
+      "Sat": {
+       "date": "2026-10-03",
+       "reported": 124,
+       "reachable": 124,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 5,
+       "checks_read": 5
+      },
+      "Sun": {
+       "date": "2026-10-04",
+       "reported": 102,
+       "reachable": 102,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 2,
+       "checks_read": 2
+      }
+     },
+     "not_derived": {},
+     "sampled": 54,
+     "claimed_passing": 23,
+     "ci_finished": 19,
+     "checks": {
+      "passed": 15,
+      "failed": 4,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 4,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 15,
+      "n": 23,
+      "share": 0.6522,
+      "ci95": [
+       0.4489,
+       0.8119
+      ]
+     },
+     "failed_a_check": {
+      "k": 4,
+      "n": 19,
+      "share": 0.2105,
+      "ci95": [
+       0.0851,
+       0.4333
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 4,
+      "n": 17,
+      "share": 0.2353,
+      "ci95": [
+       0.0955,
+       0.4726
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate",
+     "seed": "2026-W40",
+     "per_stratum": 30
+    }
+   ],
+   "all_weeks": {
+    "sampled": null,
+    "claimed_passing": 132,
+    "ci_finished": 111,
+    "checks": null,
+    "verified_acceptance_rate": null,
+    "failed_a_check": {
+     "k": 31,
+     "n": 111,
+     "share": 0.2793,
+     "ci95": [
+      0.2043,
+      0.369
+     ],
+     "test_or_build": 14
+    },
+    "merged_despite_failed_check": {
+     "k": 22,
+     "n": 80,
+     "share": 0.275,
+     "ci95": [
+      0.1892,
+      0.3814
+     ]
+    },
+    "verified": 0
+   }
+  },
+  "devin": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 3,
+     "checks": {
+      "passed": 3,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 3,
+      "n": 4,
+      "share": 0.75,
+      "ci95": [
+       0.3006,
+       0.9544
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 14,
+     "ci_finished": 14,
+     "checks": {
+      "passed": 4,
+      "failed": 10,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 4,
+      "n": 14,
+      "share": 0.2857,
+      "ci95": [
+       0.1172,
+       0.5465
+      ]
+     },
+     "failed_a_check": {
+      "k": 10,
+      "n": 14,
+      "share": 0.7143,
+      "ci95": [
+       0.4535,
+       0.8828
+      ],
+      "test_or_build": 8
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 4,
+      "share": 0.5,
+      "ci95": [
+       0.15,
+       0.85
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 9,
+     "ci_finished": 6,
+     "checks": {
+      "passed": 6,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 3,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 6,
+      "n": 9,
+      "share": 0.6667,
+      "ci95": [
+       0.3542,
+       0.8794
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 6,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3903
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 6,
+     "checks": {
+      "passed": 4,
+      "failed": 1,
+      "other": 1,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 4,
+      "n": 7,
+      "share": 0.5714,
+      "ci95": [
+       0.2505,
+       0.8418
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 6,
+      "share": 0.1667,
+      "ci95": [
+       0.0301,
+       0.5635
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 5,
+      "share": 0.2,
+      "ci95": [
+       0.0362,
+       0.6245
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 11,
+     "checks": {
+      "passed": 10,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 10,
+      "n": 12,
+      "share": 0.8333,
+      "ci95": [
+       0.552,
+       0.953
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 11,
+      "share": 0.0909,
+      "ci95": [
+       0.0162,
+       0.3774
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 6,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3903
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 10,
+     "checks": {
+      "passed": 9,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 9,
+      "n": 11,
+      "share": 0.8182,
+      "ci95": [
+       0.523,
+       0.9486
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 10,
+      "share": 0.1,
+      "ci95": [
+       0.0179,
+       0.4042
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 10,
+      "share": 0.1,
+      "ci95": [
+       0.0179,
+       0.4042
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 9,
+     "checks": {
+      "passed": 8,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 2,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 8,
+      "n": 11,
+      "share": 0.7273,
+      "ci95": [
+       0.4343,
+       0.9025
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 9,
+      "share": 0.1111,
+      "ci95": [
+       0.0199,
+       0.435
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 8,
+      "share": 0.125,
+      "ci95": [
+       0.0224,
+       0.4709
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 3,
+     "checks": {
+      "passed": 2,
+      "failed": 0,
+      "other": 1,
+      "pending": 0,
+      "no_checks": 2,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 2,
+      "n": 5,
+      "share": 0.4,
+      "ci95": [
+       0.1176,
+       0.7693
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-28",
+     "read": "2026-10-07",
+     "full_week": false,
+     "design": "stratified-seeded-v1",
+     "capped": false,
+     "strata": {
+      "Mon": {
+       "date": "2026-09-28",
+       "reported": 608,
+       "reachable": 608,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 7,
+       "checks_read": 7
+      },
+      "Tue": {
+       "date": "2026-09-29",
+       "reported": 636,
+       "reachable": 636,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 5,
+       "checks_read": 5
+      },
+      "Wed": {
+       "date": "2026-09-30",
+       "reported": 554,
+       "reachable": 554,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 9,
+       "checks_read": 9
+      },
+      "Thu": {
+       "date": "2026-10-01",
+       "reported": 615,
+       "reachable": 615,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 10,
+       "checks_read": 10
+      },
+      "Fri": {
+       "date": "2026-10-02",
+       "reported": 710,
+       "reachable": 710,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 15,
+       "checks_read": 15
+      },
+      "Sat": {
+       "date": "2026-10-03",
+       "reported": 1245,
+       "reachable": 1245,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 7,
+       "checks_read": 7
+      },
+      "Sun": {
+       "date": "2026-10-04",
+       "reported": 1515,
+       "reachable": 1515,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 22,
+       "checks_read": 22
+      }
+     },
+     "not_derived": {},
+     "sampled": 121,
+     "claimed_passing": 75,
+     "ci_finished": 73,
+     "checks": {
+      "passed": 15,
+      "failed": 54,
+      "other": 4,
+      "pending": 0,
+      "no_checks": 2,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 15,
+      "n": 75,
+      "share": 0.2,
+      "ci95": [
+       0.1251,
+       0.3041
+      ]
+     },
+     "failed_a_check": {
+      "k": 54,
+      "n": 73,
+      "share": 0.7397,
+      "ci95": [
+       0.6289,
+       0.8266
+      ],
+      "test_or_build": 52
+     },
+     "merged_despite_failed_check": {
+      "k": 51,
+      "n": 68,
+      "share": 0.75,
+      "ci95": [
+       0.6356,
+       0.8377
+      ]
+     },
+     "verified": 0,
+     "rank": 2,
+     "ranked_by": "verified_acceptance_rate",
+     "seed": "2026-W40",
+     "per_stratum": 30
+    }
+   ],
+   "all_weeks": {
+    "sampled": null,
+    "claimed_passing": 148,
+    "ci_finished": 135,
+    "checks": {
+     "passed": 61,
+     "failed": 68,
+     "other": 6,
+     "pending": 0,
+     "no_checks": 13,
+     "not_read": 0
+    },
+    "verified_acceptance_rate": {
+     "k": 61,
+     "n": 148,
+     "share": 0.4122,
+     "ci95": [
+      0.3361,
+      0.4927
+     ]
+    },
+    "failed_a_check": {
+     "k": 68,
+     "n": 135,
+     "share": 0.5037,
+     "ci95": [
+      0.4204,
+      0.5868
+     ],
+     "test_or_build": 63
+    },
+    "merged_despite_failed_check": {
+     "k": 56,
+     "n": 107,
+     "share": 0.5234,
+     "ci95": [
+      0.4296,
+      0.6155
+     ]
+    },
+    "verified": 0
+   }
+  },
+  "claude-bot": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 15,
+     "ci_finished": 15,
+     "checks": {
+      "passed": 15,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 15,
+      "n": 15,
+      "share": 1.0,
+      "ci95": [
+       0.7961,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 15,
+     "ci_finished": 15,
+     "checks": {
+      "passed": 15,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 15,
+      "n": 15,
+      "share": 1.0,
+      "ci95": [
+       0.7961,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 15,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2039
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 13,
+     "ci_finished": 11,
+     "checks": {
+      "passed": 7,
+      "failed": 4,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 2,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 7,
+      "n": 13,
+      "share": 0.5385,
+      "ci95": [
+       0.2914,
+       0.7679
+      ]
+     },
+     "failed_a_check": {
+      "k": 4,
+      "n": 11,
+      "share": 0.3636,
+      "ci95": [
+       0.1517,
+       0.6462
+      ],
+      "test_or_build": 4
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 7,
+      "share": 0.2857,
+      "ci95": [
+       0.0822,
+       0.6411
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "checks": {
+      "passed": 7,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 7,
+      "n": 7,
+      "share": 1.0,
+      "ci95": [
+       0.6457,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 6,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3903
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 12,
+     "ci_finished": 12,
+     "checks": {
+      "passed": 11,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 11,
+      "n": 12,
+      "share": 0.9167,
+      "ci95": [
+       0.6461,
+       0.9851
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 12,
+      "share": 0.0833,
+      "ci95": [
+       0.0149,
+       0.3539
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 10,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2775
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 11,
+     "ci_finished": 11,
+     "checks": {
+      "passed": 8,
+      "failed": 3,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 8,
+      "n": 11,
+      "share": 0.7273,
+      "ci95": [
+       0.4343,
+       0.9025
+      ]
+     },
+     "failed_a_check": {
+      "k": 3,
+      "n": 11,
+      "share": 0.2727,
+      "ci95": [
+       0.0975,
+       0.5657
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 3,
+      "n": 11,
+      "share": 0.2727,
+      "ci95": [
+       0.0975,
+       0.5657
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 5,
+     "ci_finished": 5,
+     "checks": {
+      "passed": 5,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 5,
+      "n": 5,
+      "share": 1.0,
+      "ci95": [
+       0.5655,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 14,
+     "ci_finished": 14,
+     "checks": {
+      "passed": 13,
+      "failed": 0,
+      "other": 1,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 13,
+      "n": 14,
+      "share": 0.9286,
+      "ci95": [
+       0.6853,
+       0.9873
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 14,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2153
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 13,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2281
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-28",
+     "read": "2026-10-07",
+     "full_week": false,
+     "design": "stratified-seeded-v1",
+     "capped": false,
+     "strata": {
+      "Mon": {
+       "date": "2026-09-28",
+       "reported": 75,
+       "reachable": 75,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 13,
+       "checks_read": 13
+      },
+      "Tue": {
+       "date": "2026-09-29",
+       "reported": 54,
+       "reachable": 54,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 16,
+       "checks_read": 16
+      },
+      "Wed": {
+       "date": "2026-09-30",
+       "reported": 78,
+       "reachable": 78,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 17,
+       "checks_read": 17
+      },
+      "Thu": {
+       "date": "2026-10-01",
+       "reported": 58,
+       "reachable": 58,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 11,
+       "checks_read": 11
+      },
+      "Fri": {
+       "date": "2026-10-02",
+       "reported": 54,
+       "reachable": 54,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 22,
+       "checks_read": 22
+      },
+      "Sat": {
+       "date": "2026-10-03",
+       "reported": 57,
+       "reachable": 57,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 12,
+       "checks_read": 12
+      },
+      "Sun": {
+       "date": "2026-10-04",
+       "reported": 48,
+       "reachable": 48,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 12,
+       "checks_read": 12
+      }
+     },
+     "not_derived": {},
+     "sampled": 207,
+     "claimed_passing": 103,
+     "ci_finished": 99,
+     "checks": {
+      "passed": 90,
+      "failed": 6,
+      "other": 3,
+      "pending": 0,
+      "no_checks": 4,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 90,
+      "n": 103,
+      "share": 0.8738,
+      "ci95": [
+       0.796,
+       0.9247
+      ]
+     },
+     "failed_a_check": {
+      "k": 6,
+      "n": 99,
+      "share": 0.0606,
+      "ci95": [
+       0.0281,
+       0.126
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 5,
+      "n": 83,
+      "share": 0.0602,
+      "ci95": [
+       0.026,
+       0.1334
+      ]
+     },
+     "verified": 0,
+     "rank": 1,
+     "ranked_by": "verified_acceptance_rate",
+     "seed": "2026-W40",
+     "per_stratum": 30
+    }
+   ],
+   "all_weeks": {
+    "sampled": null,
+    "claimed_passing": 195,
+    "ci_finished": 189,
+    "checks": {
+     "passed": 171,
+     "failed": 14,
+     "other": 4,
+     "pending": 0,
+     "no_checks": 6,
+     "not_read": 0
+    },
+    "verified_acceptance_rate": {
+     "k": 171,
+     "n": 195,
+     "share": 0.8769,
+     "ci95": [
+      0.8234,
+      0.9159
+     ]
+    },
+    "failed_a_check": {
+     "k": 14,
+     "n": 189,
+     "share": 0.0741,
+     "ci95": [
+      0.0446,
+      0.1205
+     ],
+     "test_or_build": 5
+    },
+    "merged_despite_failed_check": {
+     "k": 10,
+     "n": 165,
+     "share": 0.0606,
+     "ci95": [
+      0.0332,
+      0.108
+     ]
+    },
+    "verified": 0
+   }
+  },
+  "claude-code": {
+   "weeks": [
+    {
+     "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 0,
+     "checks": {
+      "passed": 0,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 0,
+      "share": null,
+      "ci95": null,
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": null,
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 3,
+     "checks": {
+      "passed": 3,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 3,
+      "n": 4,
+      "share": 0.75,
+      "ci95": [
+       0.3006,
+       0.9544
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "checks": {
+      "passed": 1,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 1,
+      "n": 1,
+      "share": 1.0,
+      "ci95": [
+       0.2065,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 4,
+     "ci_finished": 3,
+     "checks": {
+      "passed": 3,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 3,
+      "n": 4,
+      "share": 0.75,
+      "ci95": [
+       0.3006,
+       0.9544
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 3,
+     "ci_finished": 3,
+     "checks": {
+      "passed": 3,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 3,
+      "n": 3,
+      "share": 1.0,
+      "ci95": [
+       0.4385,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 3,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.5615
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 6,
+     "ci_finished": 5,
+     "checks": {
+      "passed": 4,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 4,
+      "n": 6,
+      "share": 0.6667,
+      "ci95": [
+       0.3,
+       0.9032
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 5,
+      "share": 0.2,
+      "ci95": [
+       0.0362,
+       0.6245
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 5,
+      "share": 0.2,
+      "ci95": [
+       0.0362,
+       0.6245
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 2,
+     "ci_finished": 1,
+     "checks": {
+      "passed": 1,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 1,
+      "n": 2,
+      "share": 0.5,
+      "ci95": [
+       0.0945,
+       0.9055
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 6,
+     "ci_finished": 5,
+     "checks": {
+      "passed": 5,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 1,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 5,
+      "n": 6,
+      "share": 0.8333,
+      "ci95": [
+       0.4365,
+       0.9699
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 5,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.4345
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-28",
+     "read": "2026-10-07",
+     "full_week": false,
+     "design": "stratified-seeded-v1",
+     "capped": false,
+     "strata": {
+      "Mon": {
+       "date": "2026-09-28",
+       "reported": 222269,
+       "reachable": 2000,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 3,
+       "checks_read": 3
+      },
+      "Tue": {
+       "date": "2026-09-29",
+       "reported": 235025,
+       "reachable": 2000,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 2,
+       "checks_read": 2
+      },
+      "Wed": {
+       "date": "2026-09-30",
+       "reported": 237720,
+       "reachable": 2000,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 1,
+       "checks_read": 1
+      },
+      "Thu": {
+       "date": "2026-10-01",
+       "reported": 238886,
+       "reachable": 2000,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 2,
+       "checks_read": 2
+      },
+      "Fri": {
+       "date": "2026-10-02",
+       "reported": 233441,
+       "reachable": 2000,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 1,
+       "checks_read": 1
+      },
+      "Sat": {
+       "date": "2026-10-03",
+       "reported": 215520,
+       "reachable": 2000,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 4,
+       "checks_read": 4
+      },
+      "Sun": {
+       "date": "2026-10-04",
+       "reported": 225301,
+       "reachable": 2000,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 1,
+       "checks_read": 1
+      }
+     },
+     "not_derived": {},
+     "sampled": 59,
+     "claimed_passing": 14,
+     "ci_finished": 12,
+     "checks": {
+      "passed": 9,
+      "failed": 3,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 2,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 9,
+      "n": 14,
+      "share": 0.6429,
+      "ci95": [
+       0.3876,
+       0.8366
+      ]
+     },
+     "failed_a_check": {
+      "k": 3,
+      "n": 12,
+      "share": 0.25,
+      "ci95": [
+       0.0889,
+       0.5323
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 10,
+      "share": 0.2,
+      "ci95": [
+       0.0567,
+       0.5098
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate",
+     "seed": "2026-W40",
+     "per_stratum": 30
+    }
+   ],
+   "all_weeks": {
+    "sampled": null,
+    "claimed_passing": 41,
+    "ci_finished": 33,
+    "checks": {
+     "passed": 29,
+     "failed": 4,
+     "other": 0,
+     "pending": 0,
+     "no_checks": 8,
+     "not_read": 0
+    },
+    "verified_acceptance_rate": {
+     "k": 29,
+     "n": 41,
+     "share": 0.7073,
+     "ci95": [
+      0.5552,
+      0.8239
+     ]
+    },
+    "failed_a_check": {
+     "k": 4,
+     "n": 33,
+     "share": 0.1212,
+     "ci95": [
+      0.0482,
+      0.2733
+     ],
+     "test_or_build": 1
+    },
+    "merged_despite_failed_check": {
+     "k": 3,
+     "n": 31,
+     "share": 0.0968,
+     "ci95": [
+      0.0335,
+      0.249
+     ]
+    },
+    "verified": 0
+   }
+  },
+  "codex": {
+   "weeks": [
+    {
+     "week": "2026-06-29",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "checks": {
+      "passed": 1,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 1,
+      "n": 1,
+      "share": 1.0,
+      "ci95": [
+       0.2065,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 0,
+      "share": null,
+      "ci95": null
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-06",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 2,
+     "ci_finished": 2,
+     "checks": {
+      "passed": 2,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 2,
+      "n": 2,
+      "share": 1.0,
+      "ci95": [
+       0.3424,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-13",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 3,
+     "ci_finished": 3,
+     "checks": {
+      "passed": 2,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 2,
+      "n": 3,
+      "share": 0.6667,
+      "ci95": [
+       0.2077,
+       0.9385
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-20",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "checks": {
+      "passed": 7,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 7,
+      "n": 7,
+      "share": 1.0,
+      "ci95": [
+       0.6457,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-07-27",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 3,
+     "ci_finished": 3,
+     "checks": {
+      "passed": 2,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 2,
+      "n": 3,
+      "share": 0.6667,
+      "ci95": [
+       0.2077,
+       0.9385
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 3,
+      "share": 0.3333,
+      "ci95": [
+       0.0615,
+       0.7923
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-03",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "checks": {
+      "passed": 1,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 1,
+      "n": 1,
+      "share": 1.0,
+      "ci95": [
+       0.2065,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-10",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 1,
+     "ci_finished": 1,
+     "checks": {
+      "passed": 1,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 1,
+      "n": 1,
+      "share": 1.0,
+      "ci95": [
+       0.2065,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 1,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.7935
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-17",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 2,
+     "ci_finished": 2,
+     "checks": {
+      "passed": 2,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 2,
+      "n": 2,
+      "share": 1.0,
+      "ci95": [
+       0.3424,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-08-31",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 13,
+     "ci_finished": 13,
+     "checks": {
+      "passed": 3,
+      "failed": 6,
+      "other": 4,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 3,
+      "n": 13,
+      "share": 0.2308,
+      "ci95": [
+       0.0818,
+       0.5026
+      ]
+     },
+     "failed_a_check": {
+      "k": 6,
+      "n": 13,
+      "share": 0.4615,
+      "ci95": [
+       0.2321,
+       0.7086
+      ],
+      "test_or_build": 6
+     },
+     "merged_despite_failed_check": {
+      "k": 2,
+      "n": 8,
+      "share": 0.25,
+      "ci95": [
+       0.0715,
+       0.5907
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-07",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 10,
+     "ci_finished": 10,
+     "checks": {
+      "passed": 9,
+      "failed": 1,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 9,
+      "n": 10,
+      "share": 0.9,
+      "ci95": [
+       0.5958,
+       0.9821
+      ]
+     },
+     "failed_a_check": {
+      "k": 1,
+      "n": 10,
+      "share": 0.1,
+      "ci95": [
+       0.0179,
+       0.4042
+      ],
+      "test_or_build": 1
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 9,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.2992
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-14",
+     "read": "2026-10-01",
+     "full_week": false,
+     "design": "search-window-sample-v0",
+     "capped": true,
+     "strata": null,
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`"
+     },
+     "sampled": null,
+     "claimed_passing": 7,
+     "ci_finished": 7,
+     "checks": {
+      "passed": 7,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 7,
+      "n": 7,
+      "share": 1.0,
+      "ci95": [
+       0.6457,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 7,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.3543
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate"
+    },
+    {
+     "week": "2026-09-21",
+     "read": "2026-10-05",
+     "full_week": false,
+     "sampled": 3,
+     "claimed_passing": 0,
+     "ci_finished": 0,
+     "failed_a_check": {
+      "k": 0,
+      "n": 0,
+      "share": null,
+      "ci95": null,
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": null,
+     "verified": 0,
+     "rank": null,
+     "design": "newest-first-capped-v0",
+     "capped": true,
+     "strata": null,
+     "checks": null,
+     "verified_acceptance_rate": null,
+     "ranked_by": "failed_a_check",
+     "not_derived": {
+      "strata": "this design has no strata: see `designs`",
+      "checks": "the reading of 2026-10-05 published, for each agent and week, how many claimed pull requests had finished CI and how many of those failed a check. It did not publish how many passed every check, and its rows were not kept, so the share that passed cannot be worked out from what was published",
+      "verified_acceptance_rate": "the reading of 2026-10-05 published, for each agent and week, how many claimed pull requests had finished CI and how many of those failed a check. It did not publish how many passed every check, and its rows were not kept, so the share that passed cannot be worked out from what was published"
+     }
+    },
+    {
+     "week": "2026-09-28",
+     "read": "2026-10-07",
+     "full_week": false,
+     "design": "stratified-seeded-v1",
+     "capped": false,
+     "strata": {
+      "Mon": {
+       "date": "2026-09-28",
+       "reported": 64,
+       "reachable": 64,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 0,
+       "checks_read": 0
+      },
+      "Tue": {
+       "date": "2026-09-29",
+       "reported": 44,
+       "reachable": 44,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 1,
+       "checks_read": 1
+      },
+      "Wed": {
+       "date": "2026-09-30",
+       "reported": 2,
+       "reachable": 2,
+       "planned": 2,
+       "drawn": 2,
+       "claimed": 0,
+       "checks_read": 0
+      },
+      "Thu": {
+       "date": "2026-10-01",
+       "reported": 87,
+       "reachable": 87,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 0,
+       "checks_read": 0
+      },
+      "Fri": {
+       "date": "2026-10-02",
+       "reported": 35,
+       "reachable": 35,
+       "planned": 30,
+       "drawn": 30,
+       "claimed": 0,
+       "checks_read": 0
+      },
+      "Sat": {
+       "date": "2026-10-03",
+       "reported": 12,
+       "reachable": 12,
+       "planned": 12,
+       "drawn": 12,
+       "claimed": 1,
+       "checks_read": 1
+      },
+      "Sun": {
+       "date": "2026-10-04",
+       "reported": 2,
+       "reachable": 2,
+       "planned": 2,
+       "drawn": 2,
+       "claimed": 0,
+       "checks_read": 0
+      }
+     },
+     "not_derived": {},
+     "sampled": 98,
+     "claimed_passing": 2,
+     "ci_finished": 2,
+     "checks": {
+      "passed": 2,
+      "failed": 0,
+      "other": 0,
+      "pending": 0,
+      "no_checks": 0,
+      "not_read": 0
+     },
+     "verified_acceptance_rate": {
+      "k": 2,
+      "n": 2,
+      "share": 1.0,
+      "ci95": [
+       0.3424,
+       1.0
+      ]
+     },
+     "failed_a_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ],
+      "test_or_build": 0
+     },
+     "merged_despite_failed_check": {
+      "k": 0,
+      "n": 2,
+      "share": 0.0,
+      "ci95": [
+       0.0,
+       0.6576
+      ]
+     },
+     "verified": 0,
+     "rank": null,
+     "ranked_by": "verified_acceptance_rate",
+     "seed": "2026-W40",
+     "per_stratum": 30
+    }
+   ],
+   "all_weeks": {
+    "sampled": null,
+    "claimed_passing": 52,
+    "ci_finished": 52,
+    "checks": null,
+    "verified_acceptance_rate": null,
+    "failed_a_check": {
+     "k": 9,
+     "n": 52,
+     "share": 0.1731,
+     "ci95": [
+      0.0938,
+      0.2973
+     ],
+     "test_or_build": 8
+    },
+    "merged_despite_failed_check": {
+     "k": 3,
+     "n": 44,
+     "share": 0.0682,
+     "ci95": [
+      0.0235,
+      0.1823
+     ]
+    },
+    "verified": 0
+   }
+  }
+ },
+ "latest_week": "2026-09-28",
+ "designs": {
+  "stratified-seeded-v1": "35 strata: each agent on each day of the week (UTC, by the day the pull request was opened). In each stratum the search's results, newest first, are numbered from 0; the numbers a query can reach (the newest 1,000 and, on a day with more, the oldest 1,000) are put in the order of sha256(\"<ISO week>|<agent>|<date>|<number>\"), and the first `per_stratum` in that order are drawn: the same number in every stratum, fewer only where the stratum holds fewer. Strata are served in turns, one draw each, and the checks are read in the same turns, so when the budget ends every stratum holds a prefix of its own seeded order, which is a simple random sample of what could be reached. The budget is a number of requests and of minutes; a week cut by it is `capped`. The rates are shares of the sample: every day weighs the same, whatever it held (`strata` has what is needed to weigh them again)",
+  "whole-week-v0": "every pull request the week's searches returned, each agent asked day by day with no cap",
+  "newest-first-capped-v0": "each agent's newest claimed pull requests of a window of days, up to a cap, cut by week. Not a designed sample: what is kept depends on how fast the agent filled its cap",
+  "search-window-sample-v0": "the sample of 2026-10-01 (docs/agent_pr_ci.json): at most 20 search hits for each agent in each of nine ten-day windows, cut by week"
+ }
+}

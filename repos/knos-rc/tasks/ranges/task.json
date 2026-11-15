@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "ranges",
+ "title": "Compress a list of numbers into ranges",
+ "statement": "Test USDC, no monetary value.\n\nRead one line of whole numbers from 0 up, separated by spaces, in any order, perhaps with repeats. Print the distinct numbers in rising order, separated by commas, writing every run of two or more consecutive numbers as `first-last`: `1 2 3 5 7 8` gives `1-3,5,7-8`.",
+ "file": "tasks/ranges.py",
+ "run": [
+  "python3",
+  "tasks/ranges.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "1 2 3 5 7 8",
+   "output": "1-3,5,7-8"
+  },
+  {
+   "input": "9 4",
+   "output": "4,9"
+  },
+  {
+   "input": "5 3 4 4",
+   "output": "3-5"
+  }
+ ],
+ "seed": 118,
+ "starting_files": {
+  "tasks/ranges.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

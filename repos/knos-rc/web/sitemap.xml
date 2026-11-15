@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The pages a search engine can index (https://www.sitemaps.org/protocol.html). The app's other pages are # routes of
+     the first one. A sitemap at /Knos/ may list only addresses under /Knos/. lastmod is the build's date
+     (scripts/build_site.sh stamps it); tests/test_seo.py holds every address to a page the build has. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://drexthealpha.github.io/Knos/</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/check/</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/faq.html</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
+  <url><loc>https://drexthealpha.github.io/Knos/privacy.html</loc><lastmod>KNOS_BUILD_DATE</lastmod></url>
+</urlset>

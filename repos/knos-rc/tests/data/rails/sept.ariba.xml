@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cXML.org/schemas/cXML/1.2.020/InvoiceDetail.dtd">
+<cXML payloadID="78d11a83d31086d6f44103f5bf99a473@knos.statement" timestamp="2026-09-30T00:00:00+00:00" version="1.2.020">
+  <Header>
+    <From><Credential domain="NetworkID"><Identity>AN01000000001</Identity></Credential></From>
+    <To><Credential domain="NetworkID"><Identity>AN02000000002</Identity></Credential></To>
+    <Sender><Credential domain="NetworkID"><Identity>AN01000000001</Identity></Credential><UserAgent>Knos statement export</UserAgent></Sender>
+  </Header>
+  <Request deploymentMode="test">
+    <InvoiceDetailRequest>
+      <InvoiceDetailRequestHeader invoiceID="INV-2026-09" purpose="standard" operation="new" invoiceDate="2026-09-30T00:00:00+00:00">
+        <InvoiceDetailHeaderIndicator/>
+        <InvoiceDetailLineIndicator/>
+        <Extrinsic name="knosStatementSha256">78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690</Extrinsic>
+      </InvoiceDetailRequestHeader>
+      <InvoiceDetailOrder>
+        <InvoiceDetailOrderInfo><MasterAgreementReference><DocumentReference payloadID=""/></MasterAgreementReference></InvoiceDetailOrderInfo>
+        <InvoiceDetailItem invoiceLineNumber="1" quantity="1">
+          <UnitOfMeasure>EA</UnitOfMeasure>
+          <UnitPrice><Money currency="USD">100.00</Money></UnitPrice>
+          <InvoiceDetailItemReference lineNumber="1"><Description xml:lang="en">Invoice INV-2026-09 line 1: acme/app#1</Description></InvoiceDetailItemReference>
+          <SubtotalAmount><Money currency="USD">100.00</Money></SubtotalAmount>
+          <Extrinsic name="knosInvoiceLine">inv_b4add9cf5f7842919a292b6f</Extrinsic>
+          <Extrinsic name="knosDeliverable">dlv_7d18ee5930ce4f8945ee626f</Extrinsic>
+          <Extrinsic name="knosGoodsReceivedNote">grn_d6f7851bb59a7591d7cd7726</Extrinsic>
+          <Extrinsic name="knosMatch">2-way</Extrinsic>
+          <Extrinsic name="knosAssurance">reported</Extrinsic>
+          <Extrinsic name="knosSettlement">stl_af382ff4f9349cb50eed8b34</Extrinsic>
+        </InvoiceDetailItem>
+      </InvoiceDetailOrder>
+      <InvoiceDetailOrder>
+        <InvoiceDetailOrderInfo><OrderReference orderID="PO-2026-0932"><DocumentReference payloadID="PO-2026-0932"/></OrderReference></InvoiceDetailOrderInfo>
+        <InvoiceDetailItem invoiceLineNumber="5" quantity="1">
+          <UnitOfMeasure>EA</UnitOfMeasure>
+          <UnitPrice><Money currency="USD">60.00</Money></UnitPrice>
+          <InvoiceDetailItemReference lineNumber="5"><Description xml:lang="en">Invoice INV-2026-09 line 5: acme/app#4</Description></InvoiceDetailItemReference>
+          <SubtotalAmount><Money currency="USD">60.00</Money></SubtotalAmount>
+          <Extrinsic name="knosInvoiceLine">inv_5633b01f50068344b40b1b61</Extrinsic>
+          <Extrinsic name="knosDeliverable">dlv_3ff7922d689c11ef9b04a660</Extrinsic>
+          <Extrinsic name="knosGoodsReceivedNote">grn_5e98a492487590e945e006ea</Extrinsic>
+          <Extrinsic name="knosMatch">3-way</Extrinsic>
+          <Extrinsic name="knosAssurance">agreed</Extrinsic>
+          <Extrinsic name="knosSettlement">stl_41ab1792c3b901c7bc0adb53</Extrinsic>
+        </InvoiceDetailItem>
+      </InvoiceDetailOrder>
+      <InvoiceDetailSummary>
+        <SubtotalAmount><Money currency="USD">160.00</Money></SubtotalAmount>
+        <Tax><Money currency="USD">0.00</Money><Description xml:lang="en">The statement states no tax</Description></Tax>
+        <NetAmount><Money currency="USD">160.00</Money></NetAmount>
+      </InvoiceDetailSummary>
+    </InvoiceDetailRequest>
+  </Request>
+</cXML>

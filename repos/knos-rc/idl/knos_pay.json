@@ -1,0 +1,254 @@
+{
+  "version": "0.3.14",
+  "name": "knos_pay",
+  "docs": [
+    "First deployment (programs/; nothing new is funded there). Pay on proof: an escrow that pays a GitHub account only on a GitHub-signed token verified on chain by knos-oidc. No admin. It has no upgrade authority, so nobody can change it.",
+    "A native program: this file is written by hand from programs/knos_pay/src/lib.rs and checked by tests/test_idl.py.",
+    "Instruction data is the discriminant byte, then the arguments in order, little-endian, with no padding.",
+    "Every token account below is a VERIFIED GitHub Actions token account owned by knos-oidc (idl/knos_oidc.json), from a GitHub-hosted",
+    "runner, at most an hour past its expiry. What each token must say is in its audience (the aud claim):",
+    "fund knos:fund:<issue>:<amount>:<mode>:<checks hash hex>:<work secs>:<review secs>, from fund.yml;",
+    "pay knos:pay:<repository id>:<issue>:<author id>:<head sha>:<checks hash hex>:<mode>, from prove.yml;",
+    "veto knos:veto:<repository id>:<issue>, from fund.yml;",
+    "claim knos:claim:<solana address>, from a workflow_dispatch run in a repository the actor owns.",
+    "Anyone may relay Pay, Settle, Refund and Claim and pay their gas."
+  ],
+  "instructions": [
+    {
+      "name": "Fund",
+      "docs": ["A wallet escrows a bounty for one issue of one repository, pinning the repository and commit of the workflows that can prove it."],
+      "accounts": [
+        {"name": "funder", "isMut": true, "isSigner": true, "desc": "The funding wallet; pays the job's rent"},
+        {"name": "job", "isMut": true, "isSigner": false, "desc": "PDA [\"job\", repoId u64 LE, issue u64 LE, funder]"},
+        {"name": "funderToken", "isMut": true, "isSigner": false, "desc": "The funder's token account of the mint"},
+        {"name": "vaultToken", "isMut": true, "isSigner": false, "desc": "PDA [\"vault\", mint]: the vault's token account, created on first use"},
+        {"name": "mint", "isMut": false, "isSigner": false, "desc": "The SPL token mint"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]: owner of every vault"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "SPL Token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [
+        {"name": "repoId", "type": "u64"},
+        {"name": "issue", "type": "u64"},
+        {"name": "amount", "type": "u64"},
+        {"name": "work", "type": "i64"},
+        {"name": "review", "type": "i64"},
+        {"name": "mode", "type": "u8"},
+        {"name": "checks", "type": {"array": ["u8", 32]}},
+        {"name": "wfRepoHash", "type": {"array": ["u8", 32]}},
+        {"name": "wfSha", "type": {"array": ["u8", 40]}}
+      ],
+      "discriminant": {"type": "u8", "value": 0}
+    },
+    {
+      "name": "FundWithToken",
+      "docs": ["Devnet only. Mints test USDC into the vault for the job a fund token describes. One per repository per minute."],
+      "accounts": [
+        {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the rent of the job and the rate account"},
+        {"name": "fundToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED fund token from the repository's fund.yml"},
+        {"name": "job", "isMut": true, "isSigner": false, "desc": "PDA [\"job\", repoId u64 LE, issue u64 LE, 32 zero bytes]"},
+        {"name": "vaultToken", "isMut": true, "isSigner": false, "desc": "PDA [\"vault\", mint]"},
+        {"name": "mint", "isMut": true, "isSigner": false, "desc": "PDA [\"mint\"]: the devnet test-USDC mint"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "SPL Token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"},
+        {"name": "rate", "isMut": true, "isSigner": false, "desc": "PDA [\"rate\", repoId u64 LE]"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 1}
+    },
+    {
+      "name": "Pay",
+      "docs": [
+        "A pay token from the job's pinned prove.yml proves the work. With no review window the job is paid at once: the amount less the fee",
+        "to the author's due account, the fee to the fee account. Otherwise the job becomes proven and Settle pays it after the window."
+      ],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the rent of the due and rep accounts"},
+        {"name": "payToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED pay token"},
+        {"name": "job", "isMut": true, "isSigner": false, "desc": "The job"},
+        {"name": "due", "isMut": true, "isSigner": false, "desc": "PDA [\"due\", author id u64 LE, mint]"},
+        {"name": "rep", "isMut": true, "isSigner": false, "desc": "PDA [\"rep\", author id u64 LE]"},
+        {"name": "vaultToken", "isMut": true, "isSigner": false, "desc": "PDA [\"vault\", mint]"},
+        {"name": "feeToken", "isMut": true, "isSigner": false, "desc": "A token account of the mint owned by the fee owner"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The job's funder field: gets the job's rent back"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "SPL Token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 2}
+    },
+    {
+      "name": "Settle",
+      "docs": ["Pays a proven job after its review window."],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; pays the rent of the due and rep accounts"},
+        {"name": "job", "isMut": true, "isSigner": false, "desc": "The job"},
+        {"name": "due", "isMut": true, "isSigner": false, "desc": "PDA [\"due\", author id u64 LE, mint]"},
+        {"name": "rep", "isMut": true, "isSigner": false, "desc": "PDA [\"rep\", author id u64 LE]"},
+        {"name": "vaultToken", "isMut": true, "isSigner": false, "desc": "PDA [\"vault\", mint]"},
+        {"name": "feeToken", "isMut": true, "isSigner": false, "desc": "A token account of the mint owned by the fee owner"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The job's funder field: gets the job's rent back"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "SPL Token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 3}
+    },
+    {
+      "name": "Veto",
+      "docs": ["During the review window of a proven job, the funder takes the payment back: the funding wallet signs, or a veto token is given."],
+      "accounts": [
+        {"name": "signer", "isMut": false, "isSigner": true, "desc": "The funding wallet, or anyone when a veto token is given"},
+        {"name": "job", "isMut": true, "isSigner": false, "desc": "The job"},
+        {"name": "vetoToken", "isMut": false, "isSigner": false, "optional": true, "desc": "A VERIFIED veto token from the job's pinned fund.yml; left out when the funding wallet signs"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 4}
+    },
+    {
+      "name": "Refund",
+      "docs": ["After the deadline with no proof: the money goes back to the funder's token account (wallet-funded) or to the funder's due account (token-funded)."],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone"},
+        {"name": "job", "isMut": true, "isSigner": false, "desc": "The job"},
+        {"name": "vaultToken", "isMut": true, "isSigner": false, "desc": "PDA [\"vault\", mint]"},
+        {"name": "dest", "isMut": true, "isSigner": false, "desc": "The funder's token account, or PDA [\"due\", funder id u64 LE, mint] for a token-funded job"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "rentTo", "isMut": true, "isSigner": false, "desc": "The job's funder field: gets the job's rent back"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "SPL Token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 5}
+    },
+    {
+      "name": "Claim",
+      "docs": ["Pays everything due to a GitHub user in one mint to the address their claim token names."],
+      "accounts": [
+        {"name": "relayer", "isMut": true, "isSigner": true, "desc": "Anyone; gets the due account's rent"},
+        {"name": "claimToken", "isMut": false, "isSigner": false, "desc": "A VERIFIED claim token"},
+        {"name": "due", "isMut": true, "isSigner": false, "desc": "PDA [\"due\", user id u64 LE, mint]"},
+        {"name": "vaultToken", "isMut": true, "isSigner": false, "desc": "PDA [\"vault\", mint]"},
+        {"name": "destToken", "isMut": true, "isSigner": false, "desc": "A token account of the mint owned by the address in the token's audience"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "SPL Token program"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 6}
+    },
+    {
+      "name": "InitFaucet",
+      "docs": ["Devnet only. Creates the test-USDC mint (6 decimals); its mint authority is the program."],
+      "accounts": [
+        {"name": "payer", "isMut": true, "isSigner": true, "desc": "Pays the rent"},
+        {"name": "mint", "isMut": true, "isSigner": false, "desc": "PDA [\"mint\"]"},
+        {"name": "auth", "isMut": false, "isSigner": false, "desc": "PDA [\"auth\"]"},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false, "desc": "SPL Token program"},
+        {"name": "systemProgram", "isMut": false, "isSigner": false, "desc": "System program"}
+      ],
+      "args": [],
+      "discriminant": {"type": "u8", "value": 7}
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Job",
+      "docs": [
+        "PDA [\"job\", repoId u64 LE, issue u64 LE, by]: by is the funding wallet, or 32 zero bytes for the repository's own token-funded bounty. 256 bytes.",
+        "state: 1 open, 2 proven. mode: 0 merge, 1 tests. kind: 0 funded by a wallet, 1 by a GitHub account (a fund token).",
+        "funder: the wallet that funded the job or paid its rent. wfSha: 40 lowercase hex characters."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "state", "type": "u8"},
+          {"name": "mode", "type": "u8"},
+          {"name": "kind", "type": "u8"},
+          {"name": "padding0", "type": {"array": ["u8", 5]}},
+          {"name": "repoId", "type": "u64"},
+          {"name": "issue", "type": "u64"},
+          {"name": "amount", "type": "u64"},
+          {"name": "deadline", "type": "i64"},
+          {"name": "review", "type": "i64"},
+          {"name": "payAfter", "type": "i64"},
+          {"name": "authorId", "type": "u64"},
+          {"name": "funderId", "type": "u64"},
+          {"name": "notBefore", "type": "i64"},
+          {"name": "vetoes", "type": "u32"},
+          {"name": "padding1", "type": {"array": ["u8", 4]}},
+          {"name": "funder", "type": "publicKey"},
+          {"name": "mint", "type": "publicKey"},
+          {"name": "checks", "type": {"array": ["u8", 32]}},
+          {"name": "wfRepoHash", "type": {"array": ["u8", 32]}},
+          {"name": "wfSha", "type": {"array": ["u8", 40]}}
+        ]
+      }
+    },
+    {
+      "name": "Due",
+      "docs": ["PDA [\"due\", userId u64 LE, mint]: what waits for a GitHub user in one mint. 48 bytes."],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "amount", "type": "u64"},
+          {"name": "userId", "type": "u64"},
+          {"name": "mint", "type": "publicKey"}
+        ]
+      }
+    },
+    {
+      "name": "Rep",
+      "docs": [
+        "PDA [\"rep\", userId u64 LE]: a GitHub user's public record. 32 bytes.",
+        "repositories counts a repository each time it differs from lastRepo. vetoed is in the layout but no instruction writes it: it is 0."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "paidJobs", "type": "u32"},
+          {"name": "vetoed", "type": "u32"},
+          {"name": "totalPaid", "type": "u64"},
+          {"name": "repositories", "type": "u32"},
+          {"name": "padding0", "type": {"array": ["u8", 4]}},
+          {"name": "lastRepo", "type": "u64"}
+        ]
+      }
+    },
+    {
+      "name": "Rate",
+      "docs": ["PDA [\"rate\", repoId u64 LE]: the last token funding of a repository (devnet). 16 bytes."],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "lastFunding", "type": "i64"},
+          {"name": "lastIat", "type": "i64"}
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {"code": 60, "name": "Base64Url", "msg": "knos-oidc's claims reader: not unpadded base64url"},
+    {"code": 61, "name": "Json", "msg": "knos-oidc's claims reader: the claims are not a JSON object"},
+    {"code": 62, "name": "DuplicateClaim", "msg": "knos-oidc's claims reader: a claim appears twice"},
+    {"code": 63, "name": "Claim", "msg": "knos-oidc's claims reader: a claim is missing or of the wrong type"},
+    {"code": 80, "name": "Accounts", "msg": "A wrong account, or a missing signature"},
+    {"code": 81, "name": "Terms", "msg": "The amount, times, mode or workflow commit are out of range"},
+    {"code": 82, "name": "Job", "msg": "The job exists or is not this job"},
+    {"code": 83, "name": "State", "msg": "Wrong state or time for this instruction"},
+    {"code": 84, "name": "Token", "msg": "The token is not verified by knos-oidc, not GitHub's, or expired"},
+    {"code": 85, "name": "Claims", "msg": "The token's claims do not allow this"},
+    {"code": 86, "name": "Workflow", "msg": "The workflow is not the job's pinned one"},
+    {"code": 87, "name": "Audience", "msg": "The audience does not match"},
+    {"code": 88, "name": "Payee", "msg": "Wrong payee or fee account"},
+    {"code": 89, "name": "DevnetOnly", "msg": "Devnet only"},
+    {"code": 90, "name": "RateLimit", "msg": "One funding per repository per minute, in the order GitHub issued the tokens"},
+    {"code": 91, "name": "NothingDue", "msg": "Nothing due"}
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi"
+  }
+}

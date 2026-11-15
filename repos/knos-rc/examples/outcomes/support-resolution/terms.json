@@ -1,0 +1,8 @@
+{
+ "confirmation": "or_silence",
+ "kind": "support-resolution",
+ "new_after_window": false,
+ "rate": 990000,
+ "v": 1,
+ "window_hours": 72
+}

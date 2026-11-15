@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "brackets",
+ "title": "Say whether the brackets of a line are balanced",
+ "statement": "Test USDC, no monetary value.\n\nRead one line. Print `yes` when its round, square and curly brackets are balanced and properly nested, else `no`. Ignore every other character.",
+ "file": "tasks/brackets.py",
+ "run": [
+  "python3",
+  "tasks/brackets.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "(a[b]{c})",
+   "output": "yes"
+  },
+  {
+   "input": "(]",
+   "output": "no"
+  },
+  {
+   "input": "(()",
+   "output": "no"
+  }
+ ],
+ "seed": 105,
+ "starting_files": {
+  "tasks/brackets.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

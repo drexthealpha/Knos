@@ -1,0 +1,2 @@
+# No runner is named: bundle 1 holds blackbox.py and is judged black-box, bundle 2 holds a pytest file and is judged in-process.
+timeout = 120

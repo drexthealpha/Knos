@@ -1,0 +1,27 @@
+[package]
+name = "knos_oidc"
+version = "0.3.10"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+description = "OIDC on Solana: verifies RS256 tokens from GitHub Actions and GitLab CI on chain, with no admin."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "=2.2.1"
+solana-security-txt = "1.1.1"
+
+[dev-dependencies]
+serde_json = "1"
+hex = "0.4"
+
+[features]
+# testkeys: a TEST build. It also trusts two seed-derived test keys (tests/_settle.py) and a test rotate workflow
+# pin. Never deploy a testkeys build: the deployed program is built with no features.
+testkeys = []
+no-entrypoint = []
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

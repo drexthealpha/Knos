@@ -1,0 +1,11 @@
+{
+  "name": "knos",
+  "version": "0.3.28",
+  "description": "The neutral meter for AI agent work: neither side keeps the count.",
+  "mcpServers": {
+    "knos": {
+      "command": "uvx",
+      "args": ["knos", "mcp"]
+    }
+  }
+}

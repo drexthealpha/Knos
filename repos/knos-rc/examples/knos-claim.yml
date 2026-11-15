@@ -1,0 +1,46 @@
+# .github/workflows/knos-claim.yml: name the Solana address that Knos pays your GitHub account at.
+#
+# Put this file in a repository named knos-claim that YOU own: your personal account's, not an organisation's.
+# It needs no secret.
+#
+# Binding a wallet is by hand only. There is one way to start it:
+#
+#   A run started by hand (`workflow_dispatch`).
+#       Actions > knos claim > Run workflow, and paste your address into the box yourself (or run
+#       `knos claim <address>`, which makes the repository from the template drexthealpha/knos-claim and does this).
+#       The job asks GitHub for a signed statement that says "the owner of this repository names <address>", posts
+#       it on an issue here and waits for a relayer to carry it to Solana (Knos's public relay does; anyone can).
+#       From then on what your merged pull requests earn is paid to that address, and payments held for you can be
+#       sent there. Run it again with another address to change it.
+#
+# Nothing else starts it: no push, and no address read from the repository's description or from a link. An address
+# that arrives in a link could be someone else's, so the address must be one you typed here.
+#
+# What it can do in this repository: open an issue and comment on it, and ask GitHub for that one signed statement
+# (id-token). What it cannot do: read or change code, or change settings. It has no access to the repository's
+# contents.
+#
+# Why nobody else can name an address for your account: the escrow on Solana takes the statement only when GitHub's
+# signature says it came from the workflow named below, at exactly that commit, in a run that the owner of the
+# repository started by hand, in a repository named knos-claim. The address reaches that workflow as an input, never
+# a shell.
+name: knos claim
+
+on:
+  workflow_dispatch:
+    inputs:
+      address:
+        description: Solana address that receives this GitHub account's Knos payments
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  claim:
+    permissions:
+      id-token: write
+      issues: write
+    uses: drexthealpha/knos-oidc-rotate/.github/workflows/claim.yml@80e796d341f65060767939c4e65a38ede5fa1ac8
+    with:
+      address: ${{ inputs.address }}

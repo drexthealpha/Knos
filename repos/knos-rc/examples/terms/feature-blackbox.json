@@ -1,0 +1,29 @@
+{
+  "name": "feature-blackbox",
+  "sentence": "Pays 80 test USDC when check `unit` passes on a pull request that also passes the issue's black-box acceptance suite; refund after 14 days",
+  "comment": "/knos fund 80 checks: unit",
+  "where": "an issue that has .knos/acceptance/<issue>/ on the default branch",
+  "terms": {
+    "accept": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+    "checks": [
+      {
+        "app": 15368,
+        "name": "unit"
+      }
+    ],
+    "deny": [
+      ".github/**",
+      ".knos/**"
+    ],
+    "mode": "tests",
+    "paths": [],
+    "reserve": 7,
+    "v": 1
+  },
+  "terms_json": "{\"accept\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"checks\":[{\"app\":15368,\"name\":\"unit\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"tests\",\"paths\":[],\"reserve\":7,\"v\":1}",
+  "terms_hash": "59bd9e078eaa2b7d2d92d489d6f1bdd72f7f01e800dd9dd484b210bb82e4aab6",
+  "assumes": {
+    "checks": "each named check is a GitHub Actions job (GitHub App 15368) that ran on the default branch's latest commit",
+    "accept": "a sample hash: yours is the hash of your own acceptance bundle"
+  }
+}

@@ -1,0 +1,233 @@
+{
+ "note": "Made by tests/test_fund_any_issue.py: the terms from src/knos/terms.py for the boxes as a funder types them, and the funding instruction from src/knos/settle/v2/pay.py fund_order_wallet_ix, for the wallet and the issue tests/web/site.mjs uses (unique(1), octo/widgets#7). tests/web/site.mjs holds web/anyissue.js to these answers. Written by `python tests/test_fund_any_issue.py`.",
+ "terms": [
+  {
+   "name": "no check, no path",
+   "checks_text": "",
+   "paths_text": "",
+   "checks": [],
+   "paths": [],
+   "text": "{\"accept\":\"\",\"checks\":[],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":0,\"v\":1}",
+   "sha256": "98370ba5c5f0341ec40c8e2cd8ada4e7a292f52988321ef2702d5af325db8bb8",
+   "describe": [
+    "You asked for no checks; your merge alone is the acceptance.",
+    "The pull request may not change `.github/**` or `.knos/**`.",
+    "Nobody can reserve it: the first accepted pull request is paid."
+   ]
+  },
+  {
+   "name": "two named checks, two paths",
+   "checks_text": "test, lint",
+   "paths_text": "src/**, docs/*.md",
+   "checks": [
+    "test",
+    "lint"
+   ],
+   "paths": [
+    "src/**",
+    "docs/*.md"
+   ],
+   "text": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"lint\"},{\"app\":-1,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"docs/*.md\",\"src/**\"],\"reserve\":0,\"v\":1}",
+   "sha256": "eab184cd8dfd6edb6dad0aefba9b31fa122bd2adadb15142ef3074782c1fcdf6",
+   "describe": [
+    "It is paid when a maintainer merges a pull request that closes this issue, if these checks passed at that pull request's last commit: `lint` (any source), `test` (any source) (the checks you named).",
+    "The pull request may not change `.github/**` or `.knos/**`, and may only change files matching `docs/*.md` or `src/**`.",
+    "Nobody can reserve it: the first accepted pull request is paid."
+   ]
+  },
+  {
+   "name": "a comma inside brackets belongs to the name; a quoted name is taken whole",
+   "checks_text": "test (ubuntu, 3.12), `quoted, name`, lint",
+   "paths_text": "./src/**, /docs/",
+   "checks": [
+    "test (ubuntu, 3.12)",
+    "quoted, name",
+    "lint"
+   ],
+   "paths": [
+    "src/**",
+    "docs/"
+   ],
+   "text": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"lint\"},{\"app\":-1,\"name\":\"quoted, name\"},{\"app\":-1,\"name\":\"test (ubuntu, 3.12)\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"docs/\",\"src/**\"],\"reserve\":0,\"v\":1}",
+   "sha256": "603fa34f14a769a254bcb18b2eeae8b8875b8907390b1a23fa660600b3f30069",
+   "describe": [
+    "It is paid when a maintainer merges a pull request that closes this issue, if these checks passed at that pull request's last commit: `lint` (any source), `quoted, name` (any source), `test (ubuntu, 3.12)` (any source) (the checks you named).",
+    "The pull request may not change `.github/**` or `.knos/**`, and may only change files matching `docs/` or `src/**`.",
+    "Nobody can reserve it: the first accepted pull request is paid."
+   ]
+  },
+  {
+   "name": "a name with letters outside ASCII, and one outside the BMP, and a repeat",
+   "checks_text": "t\u00e9st, build \ud83d\ude00, t\u00e9st",
+   "paths_text": "src/\u00fcn\u00ef/**",
+   "checks": [
+    "t\u00e9st",
+    "build \ud83d\ude00"
+   ],
+   "paths": [
+    "src/\u00fcn\u00ef/**"
+   ],
+   "text": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"build \\ud83d\\ude00\"},{\"app\":-1,\"name\":\"t\\u00e9st\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/\\u00fcn\\u00ef/**\"],\"reserve\":0,\"v\":1}",
+   "sha256": "edda238fe19ad43a0dffc8709b2053ab5b454c5d0c485fea6f19b694c46cab7f",
+   "describe": [
+    "It is paid when a maintainer merges a pull request that closes this issue, if these checks passed at that pull request's last commit: `build \ud83d\ude00` (any source), `t\u00e9st` (any source) (the checks you named).",
+    "The pull request may not change `.github/**` or `.knos/**`, and may only change files matching `src/\u00fcn\u00ef/**`.",
+    "Nobody can reserve it: the first accepted pull request is paid."
+   ]
+  },
+  {
+   "name": "a check that is not Knos's own but starts like it",
+   "checks_text": "knowledge base",
+   "paths_text": "",
+   "checks": [
+    "knowledge base"
+   ],
+   "paths": [],
+   "text": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"knowledge base\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[],\"reserve\":0,\"v\":1}",
+   "sha256": "484e75060f788ed48471a9960f1df2ae51e0eeaf32bc0e60af52e03084c0d72b",
+   "describe": [
+    "It is paid when a maintainer merges a pull request that closes this issue, if these checks passed at that pull request's last commit: `knowledge base` (any source) (the checks you named).",
+    "The pull request may not change `.github/**` or `.knos/**`.",
+    "Nobody can reserve it: the first accepted pull request is paid."
+   ]
+  }
+ ],
+ "order": {
+  "args": {
+   "funder": "36Zcvvu19Yc78bM8qxFpG7eU4deJX8TJJ1bYvfzsuFq3",
+   "funderToken": "5ZTN8JivpwbupW2F8JMmpkjSqkWt2a38dLDG3KBbR259",
+   "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+   "repoId": 5550001,
+   "issue": 7,
+   "amount": 20000000,
+   "wfRepo": "drexthealpha/knos-workflows",
+   "wfSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "terms": "{\"accept\":\"\",\"checks\":[{\"app\":-1,\"name\":\"test\"}],\"deny\":[\".github/**\",\".knos/**\"],\"mode\":\"merge\",\"paths\":[\"src/**\"],\"reserve\":0,\"v\":1}",
+   "mode": 0,
+   "workS": 1209600,
+   "options": "040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "scope": "51105478175eb25ffa7ff9ed405d5426ea1ded009efd90059290e4b55944ed12",
+  "orders": {
+   "0": "AxQgACujsoKB3tr2ondr2aRHTEqzQrV8RaSudQs1dMsD",
+   "1": "5De2s5VRtmFKwhEWykemQBb1NEyeHNPKVmCXtLHcP4Jm"
+  },
+  "ix": {
+   "0": {
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "data": "0f0700000000000000b1af540000000000002d31010000000000007512000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fef672c7b7a1bc46f39c916bd3b366944c55d1a36181c45a78c7e8186549f2fc616161616161616161616161616161616161616161616161616161616161616161616161616161617b22616363657074223a22222c22636865636b73223a5b7b22617070223a2d312c226e616d65223a2274657374227d5d2c2264656e79223a5b222e6769746875622f2a2a222c222e6b6e6f732f2a2a225d2c226d6f6465223a226d65726765222c227061746873223a5b227372632f2a2a225d2c2272657365727665223a302c2276223a317d",
+    "accounts": [
+     {
+      "pubkey": "36Zcvvu19Yc78bM8qxFpG7eU4deJX8TJJ1bYvfzsuFq3",
+      "signer": true,
+      "writable": true
+     },
+     {
+      "pubkey": "AxQgACujsoKB3tr2ondr2aRHTEqzQrV8RaSudQs1dMsD",
+      "signer": false,
+      "writable": true
+     },
+     {
+      "pubkey": "EkttKzicNNBeapTy37XqvPgH25q5RbLDAn4VzCPuKr4f",
+      "signer": false,
+      "writable": true
+     },
+     {
+      "pubkey": "5ZTN8JivpwbupW2F8JMmpkjSqkWt2a38dLDG3KBbR259",
+      "signer": false,
+      "writable": true
+     },
+     {
+      "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "11111111111111111111111111111111",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "signer": false,
+      "writable": false
+     }
+    ]
+   },
+   "1": {
+    "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "data": "0f0700000000000000b1af540000000000002d31010000000000007512000000000001000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fef672c7b7a1bc46f39c916bd3b366944c55d1a36181c45a78c7e8186549f2fc616161616161616161616161616161616161616161616161616161616161616161616161616161617b22616363657074223a22222c22636865636b73223a5b7b22617070223a2d312c226e616d65223a2274657374227d5d2c2264656e79223a5b222e6769746875622f2a2a222c222e6b6e6f732f2a2a225d2c226d6f6465223a226d65726765222c227061746873223a5b227372632f2a2a225d2c2272657365727665223a302c2276223a317d",
+    "accounts": [
+     {
+      "pubkey": "36Zcvvu19Yc78bM8qxFpG7eU4deJX8TJJ1bYvfzsuFq3",
+      "signer": true,
+      "writable": true
+     },
+     {
+      "pubkey": "5De2s5VRtmFKwhEWykemQBb1NEyeHNPKVmCXtLHcP4Jm",
+      "signer": false,
+      "writable": true
+     },
+     {
+      "pubkey": "63ry4g3J5rUTDeaiAnCQLvEU96qC8vQsfJz4ESoFJD5G",
+      "signer": false,
+      "writable": true
+     },
+     {
+      "pubkey": "5ZTN8JivpwbupW2F8JMmpkjSqkWt2a38dLDG3KBbR259",
+      "signer": false,
+      "writable": true
+     },
+     {
+      "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "9aTHTruVqF9Zxyai5TLL2cWh52RtHUtwm8k9sJFvnahx",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "11111111111111111111111111111111",
+      "signer": false,
+      "writable": false
+     },
+     {
+      "pubkey": "8MoG9xaJ4arGE8u7mzq4RPTZXvwmbyet8soaoYeG8wzx",
+      "signer": false,
+      "writable": false
+     }
+    ]
+   }
+  },
+  "fee": 500000,
+  "terms_checks": [
+   "test"
+  ],
+  "terms_paths": [
+   "src/**"
+  ],
+  "terms_sha256": "e318ad26d826cbe71a181b2808474ec8a0a87e09fa32f185f4aafadc8c578169",
+  "describe": [
+   "It is paid when a maintainer merges a pull request that closes this issue, if these checks passed at that pull request's last commit: `test` (any source) (the checks you named).",
+   "The pull request may not change `.github/**` or `.knos/**`, and may only change files matching `src/**`.",
+   "Nobody can reserve it: the first accepted pull request is paid."
+  ]
+ }
+}

@@ -1,0 +1,453 @@
+{
+ "updated": "2026-10-03 04:00 UTC",
+ "cluster": "devnet",
+ "programs": {
+  "first": {
+   "knos_oidc": "vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE",
+   "knos_pay": "9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi"
+  },
+  "second": {
+   "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+   "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+   "knos_meter": "FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX"
+  }
+ },
+ "outside": {
+  "funded": 6,
+  "completed": 3,
+  "funders": 2,
+  "payees": 2,
+  "repeat_funders": 1,
+  "repositories": 3,
+  "funded_amount": 92000000,
+  "paid_amount": 63375000,
+  "fees": 1625000
+ },
+ "apart": {
+  "own": {
+   "funded": 13,
+   "completed": 8,
+   "funders": 2,
+   "payees": 2,
+   "repeat_funders": 1,
+   "repositories": 4,
+   "funded_amount": 158000000,
+   "paid_amount": 95550000,
+   "fees": 2450000
+  },
+  "self": {
+   "funded": 2,
+   "completed": 2,
+   "funders": 2,
+   "payees": 2,
+   "repeat_funders": 0,
+   "repositories": 2,
+   "funded_amount": 14000000,
+   "paid_amount": 13650000,
+   "fees": 350000
+  },
+  "test": {
+   "funded": 2,
+   "completed": 1,
+   "funders": 1,
+   "payees": 1,
+   "repeat_funders": 1,
+   "repositories": 1,
+   "funded_amount": 35000000,
+   "paid_amount": 24375000,
+   "fees": 625000
+  }
+ },
+ "outsiders": {
+  "measured": true,
+  "funders": 6,
+  "funders_in_outside_repositories": 6,
+  "funders_in_knos_repositories_faucet": 0,
+  "repositories": 7,
+  "payees": 5,
+  "summed": false,
+  "definitions": {
+   "funders": "accounts and wallets that are not Knos's and funded a job: the commenter, or the wallet that funded it",
+   "funders_in_outside_repositories": "of those, the ones that funded in a repository that is not Knos's",
+   "funders_in_knos_repositories_faucet": "outside funder, Knos repository, faucet money: an outside account's comment in a repository of Knos's, paid by the devnet faucet's test USDC",
+   "repositories": "repositories that are not Knos's in which an outside funder funded a job",
+   "payees": "accounts and wallets that are not Knos's and were paid by a job somebody else funded"
+  }
+ },
+ "loop": {
+  "measured": true,
+  "suppliers_two_buyers": 1,
+  "buyers_through_supplier": 1,
+  "repeat_buyers": 0
+ },
+ "totals": {
+  "funded": 23,
+  "completed": 14,
+  "open": 7,
+  "held": 1,
+  "funded_amount": 299000000,
+  "paid_amount": 196950000,
+  "refunded": 1,
+  "unmatched_paid": 0,
+  "claimed": 2,
+  "claimed_amount": 52650000,
+  "vetoed": 1,
+  "bound": 1,
+  "balances": 4,
+  "withdrawn": 0,
+  "paused": 0
+ },
+ "by_deployment": {
+  "first": {
+   "funded": 11,
+   "completed": 6
+  },
+  "second": {
+   "funded": 12,
+   "completed": 8
+  }
+ },
+ "orders": {
+  "funded": 0,
+  "completed": 0,
+  "open": 0,
+  "held": 0,
+  "in_warranty": 0,
+  "refunded": 0,
+  "standing": 0,
+  "private": 0,
+  "payments": 0,
+  "funded_amount": 0,
+  "paid_amount": 0,
+  "held_back": 0,
+  "outside": 0,
+  "reverted": 0,
+  "released": 0,
+  "cancelled": 0,
+  "reserved": 0,
+  "assigned": 0,
+  "topped_up": 0,
+  "kill_fees": 0
+ },
+ "meter": {
+  "evaluations": 0,
+  "accepted": 0,
+  "rejected": 0,
+  "fees": 0,
+  "by_month": {}
+ },
+ "funnel": {
+  "installed": 3,
+  "installed_note": "GitHub code search: public repositories whose workflow files call Knos's",
+  "funded": 6,
+  "completed": 3,
+  "funded_again": 1,
+  "funded_of_installed": 2
+ },
+ "latency": {
+  "funded_to_paid": {
+   "count": 14,
+   "median": 159,
+   "p90": 7201,
+   "slowest": 7204
+  },
+  "attempts": {
+   "fund": {
+    "asked": 3,
+    "completed": 3,
+    "completion": 1.0,
+    "lines": 3,
+    "failed": 0,
+    "retried": 0,
+    "tries": 3,
+    "misposted": 0,
+    "after_failure": 0,
+    "never": 0,
+    "user_errors": 0,
+    "failures": 0,
+    "completion_possible": 1.0,
+    "reasons": {},
+    "user_reasons": {}
+   },
+   "pay": {
+    "asked": 4,
+    "completed": 4,
+    "completion": 1.0,
+    "lines": 4,
+    "failed": 0,
+    "retried": 0,
+    "tries": 4,
+    "misposted": 0,
+    "after_failure": 0,
+    "never": 0,
+    "user_errors": 0,
+    "failures": 0,
+    "completion_possible": 1.0,
+    "reasons": {},
+    "user_reasons": {}
+   }
+  },
+  "comment_to_funded": {
+   "n": 3,
+   "p50": 226,
+   "p95": 310,
+   "slowest": 310,
+   "count": 3,
+   "median": 226,
+   "p90": 310,
+   "window": {
+    "from": "2026-09-21",
+    "to": "2026-09-21"
+   },
+   "deployment": {
+    "first": 0,
+    "second": 3
+   },
+   "lines": 3,
+   "not_timed": 0,
+   "definition": "seconds from the funding comment (GitHub's created_at) to the block time of the funding transaction, one sample per successful fund line of the public relay log, over its newest 500 such lines, both deployments, all time"
+  },
+  "merge_to_paid": {
+   "n": 4,
+   "p50": 61,
+   "p95": 620,
+   "slowest": 620,
+   "count": 4,
+   "median": 61,
+   "p90": 620,
+   "window": {
+    "from": "2026-09-21",
+    "to": "2026-09-21"
+   },
+   "deployment": {
+    "first": 0,
+    "second": 4
+   },
+   "lines": 4,
+   "not_timed": 0,
+   "definition": "seconds from the merge (GitHub's merged_at of the pull request) to the block time of the Solana transaction that paid, one sample per successful pay line of the public relay log, over its newest 500 such lines, both deployments, all time. A line is left out when the chain's history that was read does not show its transaction or GitHub does not give the merge time; `not_timed` counts those. p50 is the median, p95 and p90 are by nearest rank"
+  },
+  "relay": {
+   "fund": {
+    "count": 3,
+    "median": 9,
+    "p90": 12,
+    "slowest": 12
+   },
+   "pay": {
+    "count": 4,
+    "median": 6,
+    "p90": 14,
+    "slowest": 14
+   }
+  },
+  "note": "over the lines of the public relay log"
+ },
+ "recent": [
+  {
+   "deployment": 1,
+   "repo": 1401439243,
+   "issue": 17,
+   "payee": 142920951,
+   "funder": "gh:142920951",
+   "amount": 9750000,
+   "fee": 250000,
+   "kind": "own",
+   "tx": "4PovnMjDMYj3DinBmX7S1vqN4KHVLxDd1tmoK5nrBNquiAidDxcrM78kMwezdziTxh4RroLp28ZVRFPoBh2zcDxt",
+   "at": 1790950720,
+   "seconds": 95
+  },
+  {
+   "deployment": 1,
+   "repo": 1401439243,
+   "issue": 12,
+   "payee": 142920951,
+   "funder": "gh:142920951",
+   "amount": 9750000,
+   "fee": 250000,
+   "kind": "own",
+   "tx": "2SzffCvUbFXUcXxqVeJKAJ6bzGGzoNsbuq6rzaCkqhXEYbGz6Xh4qgyEgskJ8QSWbCZo1iX3GmhheWd5bp2sGeuy",
+   "at": 1790949033,
+   "seconds": 197
+  },
+  {
+   "deployment": 1,
+   "repo": 1401439243,
+   "issue": 11,
+   "payee": 142920951,
+   "funder": "gh:142920951",
+   "amount": 6825000,
+   "fee": 175000,
+   "kind": "own",
+   "tx": "3AdLu7tJhCiPc1D56rkkVxeH2xEGjMd4Lg9YmBJDXBG92qGp4D59BHz2rVUsZMks5nFPr1Qa269rjfs2jxVgWUJm",
+   "at": 1790948788,
+   "seconds": 50
+  },
+  {
+   "deployment": 1,
+   "repo": 1401439243,
+   "issue": 9,
+   "payee": 142920951,
+   "funder": "gh:142920951",
+   "amount": 9750000,
+   "fee": 250000,
+   "kind": "own",
+   "tx": "5XbgjuByZFQisfdnZ58VNqGMirsZkZ99XmL6RNcyZHnDDiKQfYuLnbNAFXT7rZbfCA1ZhTGSPYAwFLdCL8ya8RQ6",
+   "at": 1790935313,
+   "seconds": 386
+  },
+  {
+   "deployment": 1,
+   "repo": 1401439243,
+   "issue": 1,
+   "payee": 142920951,
+   "funder": "gh:142920951",
+   "amount": 19500000,
+   "fee": 500000,
+   "kind": "own",
+   "tx": "2eB8mB2bWndnBmYjBY5YbdnNEPVAjgutqSCcPzBvZButxiNXq6pWJVATCK67BB42Dt2XgUpNDA4zQmRiHJMTbZNU",
+   "at": 1790934196,
+   "seconds": 360
+  },
+  {
+   "deployment": 1,
+   "repo": 1401439243,
+   "issue": 3,
+   "payee": 142920951,
+   "funder": "gh:142920951",
+   "amount": 6825000,
+   "fee": 175000,
+   "kind": "own",
+   "tx": "uZcBb6yQV1xJF4p3JiUHySgcVmAiXyHtuPJtA2oFJ8QtLB6mk3itzt9b4ADkw5m9xXXCHVAkEmCrProLPnCDhtn",
+   "at": 1790934143,
+   "seconds": 121
+  },
+  {
+   "deployment": 2,
+   "repo": 7007,
+   "issue": 1,
+   "payee": 8006,
+   "funder": "wallet:3SvqkGHLC5LM6NfuxTH329PU1Nkdps1mkzqk3rALJdm8",
+   "amount": 5850000,
+   "fee": 150000,
+   "kind": "self",
+   "tx": "4yXA4hmSqEV2qfPP5ziJRc9Ajofq5u6TNQKxir2yzW3mvirTTFafdyW1Sm1R2zSVYV5kSF1YidfBKTwjwqPHfoJs",
+   "at": 1790011831,
+   "seconds": 0
+  },
+  {
+   "deployment": 2,
+   "repo": 7006,
+   "issue": 1,
+   "payee": 8004,
+   "funder": "gh:5005",
+   "amount": 24375000,
+   "fee": 625000,
+   "kind": "test",
+   "tx": "ZhpfoT1WCAbDdTp5pDH2NTg3ZX7dFFWXGY5FDBuQajunGc5ttC3By4B7z6yT5g57GTGX4JeeL298BFqGTy2Rb77",
+   "at": 1790011770,
+   "seconds": 900
+  },
+  {
+   "deployment": 2,
+   "repo": 7005,
+   "issue": 2,
+   "payee": 142920951,
+   "funder": "gh:5004",
+   "amount": 8775000,
+   "fee": 225000,
+   "kind": "own",
+   "tx": "4PuTbPuSMtFpGuW4yqAfEsQ2eevavxZStgLdLwfxcg5cvqhhoNKWz4YFzRrXBfqizSijk9Z7KnDRLUmJtufsDaPV",
+   "at": 1790010809,
+   "seconds": 0
+  },
+  {
+   "deployment": 2,
+   "repo": 7100,
+   "issue": 1,
+   "payee": 8003,
+   "funder": "gh:142920951",
+   "amount": 24375000,
+   "fee": 625000,
+   "kind": "own",
+   "tx": "DhPJ1MdFsYfPbifpzFsTgohrPqRQsNX1pD8Bhs8nkGe5mWUvKGxstz82bTUY6Y7jFd6HGC8gzuSJpMLzhBtUgPV",
+   "at": 1790010808,
+   "seconds": 0
+  },
+  {
+   "deployment": 2,
+   "repo": 7004,
+   "issue": 1,
+   "payee": 5003,
+   "funder": "gh:5003",
+   "amount": 7800000,
+   "fee": 200000,
+   "kind": "self",
+   "tx": "7YQnZuGSTrRgbMs5dKvpQ4Fabah38vzsXtkVJcW3Yq1HUFvB4a3KCuMenxbKNq4SR6gcpCQEg4AuRaWW3ZQEp8d",
+   "at": 1790010807,
+   "seconds": 0
+  },
+  {
+   "deployment": 2,
+   "repo": 7003,
+   "issue": 3,
+   "payee": 8001,
+   "funder": "wallet:GLWd4aCKpeCHFwFtz3zRrxbJd1MUMc9jCT9f7ssqqGyb",
+   "amount": 14625000,
+   "fee": 375000,
+   "kind": "outside",
+   "tx": "4tiwE8a9w54TZyzeUHeBYN83DzyN9SeBkBg3qfHfNGJ24Zj7MXc324gKpiiYaPGCpnCFipJDRnfteZkPMABaTwz3",
+   "at": 1790010806,
+   "seconds": 7201
+  },
+  {
+   "deployment": 2,
+   "repo": 7001,
+   "issue": 2,
+   "payee": 8002,
+   "funder": "gh:5001",
+   "amount": 29250000,
+   "fee": 750000,
+   "kind": "outside",
+   "tx": "5MqE91VXLCKHqGZejS1dFVscvud1RX9EYY73kBupRPTaF44zjDDin5E4sbabH9vDRV6JoKa61Y7WAVpacvhBpqTe",
+   "at": 1790010806,
+   "seconds": 7204
+  },
+  {
+   "deployment": 2,
+   "repo": 7001,
+   "issue": 1,
+   "payee": 8001,
+   "funder": "gh:5001",
+   "amount": 19500000,
+   "fee": 500000,
+   "kind": "outside",
+   "tx": "59VhbvdQZC6vjR7uSXYiv8BSQ39Zn2sL8UzjsizRm5QaZ7dQ2UiEuP5UdTJCe6TaFZWoFc1cXDd8UezYnvMG9JgQ",
+   "at": 1790003001,
+   "seconds": 3000
+  }
+ ],
+ "live": {
+  "first": {
+   "open": 0,
+   "open_amount": 0,
+   "proven_waiting": 0,
+   "unclaimed_accounts": 0,
+   "unclaimed_amount": 0
+  },
+  "second": {
+   "open": 2,
+   "open_amount": 20000000,
+   "held": 1,
+   "held_amount": 12000000,
+   "orders": {
+    "open": 0,
+    "open_amount": 0,
+    "held": 0,
+    "held_amount": 0,
+    "in_warranty": 0,
+    "held_back": 0
+   }
+  }
+ }
+}

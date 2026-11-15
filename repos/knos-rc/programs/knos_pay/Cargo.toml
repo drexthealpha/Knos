@@ -1,0 +1,25 @@
+[package]
+name = "knos_pay"
+version = "0.3.10"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+description = "Pay on proof: an escrow that pays a GitHub user only on a GitHub-signed token verified by knos-oidc."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "=2.2.1"
+solana-security-txt = "1.1.1"
+knos_oidc = { path = "../knos_oidc", features = ["no-entrypoint"] }
+
+[features]
+# devnet (default): this build is the devnet build; it enables the test-USDC mint (FundWithToken, InitFaucet).
+# Build with --no-default-features for a cluster with real money: both refuse.
+default = ["devnet"]
+devnet = []
+no-entrypoint = []
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

@@ -1,0 +1,1002 @@
+#!/usr/bin/env node
+// The two Squads v4 multisigs of the second deployment, and everything they are ever asked to sign.
+//
+//   upgrade multisig   its vault is the upgrade authority of knos_oidc, knos_pay, knos_meter and knos_passkey. Time lock 691200 s: an upgrade
+//                      can be executed 8 days after the vote that approved it, and not before (172800 s, 48 hours,
+//                      until 11 Oct 2026, when proposal 9 set it). In that time a
+//                      vote of the members can cancel it, and anyone can read the proposal on chain.
+//   guardian multisig  its vault is the GUARDIAN both programs name. Time lock 0, so that a revocation is not
+//                      delayed. It can approve a signing key GitHub's signature admitted, revoke a key, and pause
+//                      new funding for at most seven days. It has no instruction that moves money.
+//
+// Both are autonomous (no config authority): members, threshold and time lock change only by a vote of the members,
+// and the upgrade multisig's own time lock applies to that vote too. Their addresses come from two "create keys" and
+// are pinned in programs-v2/program_ids.json and in the programs; `create` refuses any key that gives another address.
+//
+//   node scripts/governance.mjs create                          both multisigs, each with the members and threshold given
+//   node scripts/governance.mjs show [--check]                  each one as the chain has it; --check: exit 1 unless both are right
+//   node scripts/governance.mjs guardian approve <issuer> <key hash>    let a key GitHub's signature admitted be used
+//   node scripts/governance.mjs guardian revoke <issuer> <key hash>     end a key for ever: nothing undoes it
+//   node scripts/governance.mjs guardian pause <seconds>        refuse new funding for that long (at most 604800; 0 lifts it)
+//   node scripts/governance.mjs upgrade propose <knos_oidc|knos_pay|knos_meter|knos_passkey> <buffer address> [--spill ADDRESS] [--ungated]
+//   node scripts/governance.mjs upgrade execute <index> [--expect-hash HASH]   once the proposal is approved and its time lock (691200 s) has passed
+//   node scripts/governance.mjs approve <upgrade|guardian> <index>   another member's vote for a proposal
+//   node scripts/governance.mjs cancel <upgrade|guardian> <index>    the members' votes that withdraw a proposal that has not run: an
+//                               approved one is cancelled (inside its time lock too: the Squads program asks only that it is
+//                               approved), one still collecting approvals is rejected. Neither can be executed afterwards.
+//   node scripts/governance.mjs execute <upgrade|guardian> <index>   run an approved proposal (upgrade execute is this for upgrade)
+//   node scripts/governance.mjs add-member <address>            the proposal that adds a key holder to a multisig, and what will be true after it
+//   node scripts/governance.mjs replace-member <old> <new>      the proposal that puts one member key in place of another, in one vote
+//   node scripts/governance.mjs set-threshold <N>               the proposal that changes how many members must approve
+//   node scripts/governance.mjs set-time-lock [seconds]         the proposal that sets the UPGRADE multisig's time lock (default 691200,
+//                               8 days: above an order's 7 days of notice and 2 hours of grace; scripts/timelock_plan.py says why).
+//                               With --send it refuses while another proposal of that multisig is open, because the change would make that proposal stale.
+//                               Each of the four PRINTS the proposal and what the multisig will be once it has executed (members,
+//                               threshold, how many voting keys the founder holds, whether the founder alone can still approve), and
+//                               sends nothing. With --send it creates that proposal and approves it with the member keys given; then
+//                               `execute <upgrade|guardian> <index>` runs it, after the time lock (691200 s) on the upgrade multisig. A new key
+//                               is an outside holder's unless --founder is passed; it gets the permission to vote and no other
+//                               unless --permissions says so. docs/reference/KEYHOLDER.md is the page for whoever holds the new key.
+//   node scripts/governance.mjs derive                          the addresses the create keys give (no network)
+//   node scripts/governance.mjs inner guardian approve|revoke <issuer> <key hash>, inner guardian pause <seconds>,
+//                               inner upgrade <program> <buffer>   the instruction a proposal would carry, as JSON (no network)
+//
+// <issuer> is 0 or github, 1 or gitlab; <key hash> is the sha256 of the key's modulus, 64 lowercase hex characters
+// (`knos status` prints it for every key GitHub publishes).
+//
+// A guardian command builds the program's instruction (the guardian's vault is its signer), wraps it in a vault
+// transaction, creates the proposal, approves it with the member keys given until the threshold is met and, then,
+// executes it. `upgrade propose` stops after the approvals and prints when the proposal can be executed. Before it:
+// write the new build to a buffer and hand the buffer to the vault (the command prints the hash the members compare
+// with the verified build):
+//   solana program write-buffer programs-v2/target/deploy/knos_pay.so --buffer BUFFER.json
+//   solana program set-buffer-authority <BUFFER> --new-buffer-authority <the upgrade vault>
+//
+// Options (every command that reads the chain):
+//   --rpc URL            the cluster (default: $KNOS_RPC, else https://api.devnet.solana.com)
+//   --keys DIR           the key folder (default: $KNOS_KEYS, else .knos-keys in the repository). It holds
+//                        upgrade-create-key.json, guardian-create-key.json, payer.json, member-1.json, member-2.json, ...
+//   --fee-payer FILE     pays fees and rent (default: $KNOS_FEE_PAYER, else payer.json in the key folder)
+//   --member FILE        a member's keypair; repeat it (default: every member-N.json in the key folder).
+//                        `create` needs only the addresses, and takes an address in place of a file.
+//   --threshold N        create: how many members must approve (default 2)
+//   --upgrade-create-key FILE, --guardian-create-key FILE     create, derive (default: in the key folder)
+//   --priority-fee N     micro-lamports per compute unit, on every transaction (default 0)
+//   --out FILE           upgrade propose: also write the proposal as JSON (program, address, buffer, hash, index, status,
+//                        approved_at, executable_from: unix seconds, null until it is approved), for scripts/deploy_v2.sh
+//                        --propose and the scheduler
+//   --ungated            upgrade propose: FOR AN EMERGENCY ONLY. Propose a buffer whose build has no record of the upgrade gate
+//                        (examples/upgrade_gate: GitHub's signed statement that its runner built these bytes from a commit of
+//                        this repository; program.yml's gate job asks for it and a relayer records it, so a release needs no
+//                        flag). Without it such a buffer is refused. The members then have only their own rebuild to go by.
+//   --expect-hash HASH   upgrade execute: refuse unless the proposal carries the loader's Upgrade and its buffer holds, now, the
+//                        build with this executable hash. scripts/schedule_upgrade.sh passes the hash that was proposed, so a
+//                        run arranged for one build never executes another.
+//   --on NAME            add-member, replace-member, set-threshold: upgrade or guardian (default: both, one proposal each)
+//   --permissions LIST   add-member, replace-member: what the new key may do, of initiate, vote, execute (default: vote)
+//   --founder            add-member, replace-member: the new key is the founder's own, and is counted as the founder's
+//   --send               add-member, replace-member, set-threshold: create the proposal and approve it. Without it nothing is sent
+//   --state FILE         add-member, replace-member, set-threshold: read the multisig accounts from a file and not from the cluster
+//                        ({"upgrade": {"data": hex}, "guardian": {"data": hex}}, as tests/fixtures/governance_v2.json holds them
+//                        under squads_accounts). For a plan with no network; it cannot be combined with --send
+//   --unchecked          execute: send it without this script's own look at the proposal's state and time lock, so that
+//                        the Squads program itself answers. For scripts/drill_upgrade.sh, which shows the chain's refusal.
+//
+// Every command can be run again after a failure: it reads the chain first and does only what is missing. The last
+// line it prints says what is true on chain now. Install the packages first: npm ci --prefix scripts
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+
+import * as web3 from "@solana/web3.js";
+import * as squads from "@sqds/multisig";
+
+const { ComputeBudgetProgram, Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction, TransactionMessage, VersionedTransaction } = web3;
+const { ConfigTransaction, Multisig, ProgramConfig, Proposal, VaultTransaction } = squads.accounts;
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const IDS = JSON.parse(fs.readFileSync(path.join(ROOT, "programs-v2", "program_ids.json"), "utf8"));
+export const LOADER = new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
+// examples/upgrade_gate: it writes ["build", program, executable hash] only on a token GitHub signed for this repository's
+// program.yml at a commit of main or of a release tag, verified on chain by knos-oidc.
+export const UPGRADE_GATE = new PublicKey("2DfVEuBMWvvh3kXZaQwk2SoszJsoV1PTiK1VGCkB55HW");
+// What each multisig must be. The addresses are the pinned ones: the programs name these vaults. `timeLock` is the time lock
+// each was made with; the upgrade multisig's is PLANNED_TIME_LOCK since proposal 9 executed.
+export const WHICH = {
+  upgrade: { timeLock: 172_800, multisig: IDS.upgrade_multisig, vault: IDS.upgrade_authority, createKey: "upgrade-create-key.json" },
+  guardian: { timeLock: 0, multisig: IDS.guardian_multisig, vault: IDS.guardian, createKey: "guardian-create-key.json" },
+};
+// The upgrade multisig's time lock: 8 days, scripts/timelock_plan.py PLANNED, in force since 11 Oct 2026 (proposal 9,
+// `set-time-lock`). It is what the design fixes; Squads v4 takes no time lock above MAX_TIME_LOCK (3 x 30 days).
+export const PLANNED_TIME_LOCK = 691_200;
+const MAX_TIME_LOCK = 3 * 30 * 86_400;
+// every program whose upgrade authority is the upgrade vault: what `upgrade propose` takes, in the order a release proposes them
+export const PROGRAMS = ["knos_oidc", "knos_pay", "knos_meter", "knos_passkey"];
+const PAUSE_MAX = 7 * 86_400;
+const CLUSTERS = { EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG: "devnet", "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY": "testnet",
+                   "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d": "mainnet-beta" };
+
+/** A refusal in plain words: what is wrong and what to do. Printed as one line, exit 1. */
+export class Refused extends Error {}
+
+const say = (line) => console.log(line);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const when = (t) => new Date(t * 1000).toISOString().replace(".000Z", "Z");
+const span = (s) => (s % 3600 === 0 && s > 0 ? `${s} s (${s / 3600} hours)` : `${s} s`);
+const big = (v) => BigInt(v.toString());
+
+// ---- keys -----------------------------------------------------------------------------------------------------------
+function keypair(file) {
+  let raw;
+  try { raw = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { throw new Refused(`cannot read the keypair file ${file} (${e.code ?? e.message}).`); }
+  if (!Array.isArray(raw) || raw.length !== 64) throw new Refused(`${file} is not a Solana keypair file (a JSON list of 64 numbers).`);
+  return Keypair.fromSecretKey(Uint8Array.from(raw));
+}
+
+/** The address a key reference stands for: a keypair file, or an address as Solana prints it. */
+function address(ref) {
+  if (fs.existsSync(ref)) return keypair(ref).publicKey;
+  try { return new PublicKey(ref); } catch { throw new Refused(`${ref} is neither a keypair file that exists nor an address.`); }
+}
+
+function keysDir(o) { return path.resolve(o.keys ?? process.env.KNOS_KEYS ?? path.join(ROOT, ".knos-keys")); }
+
+function feePayerRef(o) { return o["fee-payer"] ?? process.env.KNOS_FEE_PAYER ?? path.join(keysDir(o), "payer.json"); }
+
+/** The member key references given: --member, else $KNOS_MEMBERS, else member-N.json in the key folder. */
+function memberRefs(o) {
+  if (o.member?.length) return o.member;
+  if (process.env.KNOS_MEMBERS) return process.env.KNOS_MEMBERS.split(/\s+/).filter(Boolean);
+  const dir = keysDir(o);
+  const found = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => /^member-\d+\.json$/.test(f)).sort((a, b) => parseInt(a.slice(7)) - parseInt(b.slice(7))) : [];
+  if (!found.length) throw new Refused(`no member keys: pass --member FILE for each, or put member-1.json, member-2.json, ... in ${dir} ` +
+                                       "(a new one: solana-keygen new --no-bip39-passphrase -o member-1.json).");
+  return found.map((f) => path.join(dir, f));
+}
+
+// ---- addresses ------------------------------------------------------------------------------------------------------
+/** The multisig and its vault 0 that a create key gives. */
+export function derive(createKey) {
+  const [multisigPda] = squads.getMultisigPda({ createKey });
+  const [vault] = squads.getVaultPda({ multisigPda, index: 0 });
+  return { multisigPda, vault };
+}
+
+function pinned(name) { return { multisigPda: new PublicKey(WHICH[name].multisig), vault: new PublicKey(WHICH[name].vault) }; }
+
+function createKeyRef(o, name) { return o[`${name}-create-key`] ?? path.join(keysDir(o), WHICH[name].createKey); }
+
+/** Refuses a create key whose multisig or vault is not the pinned one, before anything is sent. */
+function checkedDerivation(name, createKey) {
+  const got = derive(createKey), want = pinned(name);
+  if (!got.multisigPda.equals(want.multisigPda) || !got.vault.equals(want.vault)) {
+    throw new Refused(`the ${name} create key ${createKey} gives multisig ${got.multisigPda} and vault ${got.vault}, but the programs pin multisig ` +
+                      `${want.multisigPda} and vault ${want.vault} (programs-v2/program_ids.json). This is not the ${name} create key: nothing was sent.`);
+  }
+  return got;
+}
+
+export function keyAccount(issuer, hashHex) {
+  if (!/^[0-9a-f]{64}$/.test(hashHex)) throw new Refused("the key hash is 64 lowercase hex characters: the sha256 of the key's modulus.");
+  if (issuer !== 0 && issuer !== 1) throw new Refused("--issuer is 0 (GitHub) or 1 (GitLab).");
+  return PublicKey.findProgramAddressSync([Buffer.from("key"), Buffer.from([issuer]), Buffer.from(hashHex, "hex")], new PublicKey(IDS.knos_oidc))[0];
+}
+
+export const pauseAccount = () => PublicKey.findProgramAddressSync([Buffer.from("pause")], new PublicKey(IDS.knos_pay))[0];
+export const programData = (program) => PublicKey.findProgramAddressSync([program.toBuffer()], LOADER)[0];
+
+// ---- the instructions a vault signs ---------------------------------------------------------------------------------
+const meta = (pubkey, isSigner, isWritable) => ({ pubkey, isSigner, isWritable });
+
+/** knos_oidc Approve (tag 6) or Revoke (tag 7): guardian(s) key(w). */
+export function keyIx(tag, guardian, key) {
+  return new TransactionInstruction({ programId: new PublicKey(IDS.knos_oidc), data: Buffer.from([tag]), keys: [meta(guardian, true, false), meta(key, false, true)] });
+}
+
+/** knos_pay Pause (tag 9): guardian(s) payer(s,w) pause(w) system; data: seconds u32. */
+export function pauseIx(guardian, payer, seconds) {
+  if (!Number.isInteger(seconds) || seconds < 0 || seconds > PAUSE_MAX) throw new Refused(`a pause lasts 0 to ${PAUSE_MAX} seconds (seven days); 0 lifts it.`);
+  const data = Buffer.alloc(5);
+  data[0] = 9;
+  data.writeUInt32LE(seconds, 1);
+  return new TransactionInstruction({ programId: new PublicKey(IDS.knos_pay), data,
+    keys: [meta(guardian, true, false), meta(payer, true, true), meta(pauseAccount(), false, true), meta(SystemProgram.programId, false, false)] });
+}
+
+/** The upgradeable loader's Upgrade (variant 3): programdata(w) program(w) buffer(w) spill(w) rent clock authority(s). */
+export function upgradeIx(program, buffer, authority, spill) {
+  return new TransactionInstruction({ programId: LOADER, data: Buffer.from([3, 0, 0, 0]),
+    keys: [meta(programData(program), false, true), meta(program, false, true), meta(buffer, false, true), meta(spill, false, true),
+           meta(web3.SYSVAR_RENT_PUBKEY, false, false), meta(web3.SYSVAR_CLOCK_PUBKEY, false, false), meta(authority, true, false)] });
+}
+
+/** What solana-verify calls the executable hash: sha256 of the program bytes without their trailing zeros. */
+export function executableHash(bytes) {
+  let end = bytes.length;
+  while (end > 0 && bytes[end - 1] === 0) end--;
+  return createHash("sha256").update(bytes.subarray(0, end)).digest("hex");
+}
+
+/** Where the upgrade gate records that GitHub built the executable with this hash (64 hex characters) for this program. */
+export function buildRecord(program, hashHex) {
+  return PublicKey.findProgramAddressSync([Buffer.from("build"), program.toBuffer(), Buffer.from(hashHex, "hex")], UPGRADE_GATE)[0];
+}
+
+/** A build record (136 bytes, version 1): the run, when it was recorded, the program, the executable hash, the commit. */
+export function readBuildRecord(data) {
+  if (data.length !== 136 || data[0] !== 1) return null;
+  return { runId: data.readBigUInt64LE(8), time: Number(data.readBigInt64LE(16)), program: new PublicKey(data.subarray(32, 64)),
+           hash: data.subarray(64, 96).toString("hex"), commit: data.subarray(96, 136).toString("latin1") };
+}
+
+/**
+ * The gate on `upgrade propose`: what the record account (as getAccountInfo gives it, or null) says about this build
+ * of this program. Returns the line to print; throws a refusal when there is no record and --ungated was not passed.
+ */
+export function gated(info, programRef, program, hashHex, ungated) {
+  const rec = info && info.owner.equals(UPGRADE_GATE) ? readBuildRecord(info.data) : null;
+  const at = buildRecord(program, hashHex);
+  if (rec && rec.hash === hashHex && rec.program.equals(program)) {
+    return `upgrade gate: GitHub's runner built ${hashHex} from commit ${rec.commit} (run ${rec.runId}; record ${at})`;
+  }
+  if (ungated) return `upgrade gate: NO record that GitHub built ${hashHex} (${at} does not exist). PROPOSED ANYWAY, because --ungated was passed (an emergency only): the members have only their own rebuild to compare with`;
+  throw new Refused(`the upgrade gate has no record that GitHub built ${hashHex} for ${programRef} (${at} does not exist on this cluster). ` +
+                    "Build it with this repository's program.yml on main or a release tag (its gate job has GitHub sign the hash, and a relayer " +
+                    "records it a few minutes later), and write THAT build to the buffer. " +
+                    "In an emergency only, to propose a build GitHub did not vouch for, pass --ungated. Nothing was sent.");
+}
+
+/** A buffer account of the upgradeable loader: its authority (null: none) and the program bytes it holds. */
+export function readBuffer(data) {
+  if (data.length < 37 || data.readUInt32LE(0) !== 1) return null;
+  return { authority: data[4] === 1 ? new PublicKey(data.subarray(5, 37)) : null, bytes: data.subarray(37) };
+}
+
+/** A programdata account: the slot of the last deploy, the upgrade authority (null: none) and the program bytes. */
+export function readProgramData(data) {
+  if (data.length < 45 || data.readUInt32LE(0) !== 3) return null;
+  return { slot: Number(data.readBigUInt64LE(4)), authority: data[12] === 1 ? new PublicKey(data.subarray(13, 45)) : null, bytes: data.subarray(45) };
+}
+
+// ---- the chain ------------------------------------------------------------------------------------------------------
+async function connect(o) {
+  const url = o.rpc ?? process.env.KNOS_RPC ?? "https://api.devnet.solana.com";
+  const conn = new Connection(url, { commitment: "confirmed" });
+  let genesis;
+  try { genesis = await conn.getGenesisHash(); } catch (e) { throw new Refused(`cannot reach the cluster at ${url} (${e.message}). Pass --rpc URL or set KNOS_RPC.`); }
+  // a validator on this machine is local whatever it answers: a Surfpool fork gives the genesis of the cluster it copies
+  const local = /^http:\/\/(127\.0\.0\.1|localhost|\[::1\])[:/]/.test(url);
+  say(`cluster: ${local ? "a validator on this machine" : CLUSTERS[genesis] ?? "a private cluster"} (${url})`);
+  return conn;
+}
+
+async function chainTime(conn) {
+  const t = await conn.getBlockTime(await conn.getSlot("confirmed")).catch(() => null);
+  return t ?? Math.floor(Date.now() / 1000);
+}
+
+/** Signs, sends and waits for `confirmed` by asking for the signature's status: no websocket. Signs with the keys the
+ *  message asks for and no others. A transaction whose blockhash expired unconfirmed never landed, and is sent again with
+ *  a new one; so is one the cluster could not even try (no program ran, or the cluster did not answer: a node still
+ *  loading an account, a rate limit). A program's own refusal is final. Three tries at most. */
+async function send(ctx, ixs, signers, what, lookupTables = []) {
+  const { conn, feePayer, fee } = ctx;
+  const have = new Map([feePayer, ...signers].map((k) => [k.publicKey.toBase58(), k]));
+  const budget = fee > 0 ? [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: fee })] : [];
+  let why = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (attempt > 1) await sleep(2000 * (attempt - 1));
+    try {
+      const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+      const message = new TransactionMessage({ payerKey: feePayer.publicKey, recentBlockhash: blockhash, instructions: [...budget, ...ixs] })
+        .compileToV0Message(lookupTables);
+      const wanted = message.staticAccountKeys.slice(0, message.header.numRequiredSignatures).map(String);
+      const absent = wanted.filter((k) => !have.has(k));
+      if (absent.length) throw new Refused(`${what}: ${absent.join(", ")} has to sign, and no key file for it was given.`);
+      const tx = new VersionedTransaction(message);
+      tx.sign(wanted.map((k) => have.get(k)));
+      let sig;
+      try {
+        sig = await conn.sendTransaction(tx, { preflightCommitment: "confirmed", maxRetries: 5 });
+      } catch (e) {
+        const logs = (e.logs ?? []).slice(-6);
+        why = `${e.message.split("\n")[0].trim() || e.name}${logs.length ? `. Its last log lines: ${logs.join(" | ")}` : ""}`;
+        if (!logs.length) continue;
+        throw new Refused(`${what}: the cluster refused the transaction (${why})`);
+      }
+      for (;;) {
+        const st = (await conn.getSignatureStatuses([sig])).value[0];
+        if (st?.err) throw new Refused(`${what}: transaction ${sig} failed on chain: ${JSON.stringify(st.err)}`);
+        if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized")) { say(`  ${what}: ${sig}`); return sig; }
+        if (await conn.getBlockHeight("confirmed") > lastValidBlockHeight) { why = "its blockhash expired before it was confirmed"; break; }
+        await sleep(500);
+      }
+    } catch (e) {
+      if (e instanceof Refused) throw e;
+      why = `the cluster did not answer (${e.message})`;
+    }
+  }
+  throw new Refused(`${what}: not done after three tries: ${why}. Run the same command again: it continues where this stopped.`);
+}
+
+async function readMultisig(conn, name) {
+  const { multisigPda } = pinned(name);
+  const info = await conn.getAccountInfo(multisigPda, "confirmed");
+  if (!info) return null;
+  if (!info.owner.equals(squads.PROGRAM_ID)) throw new Refused(`${multisigPda} exists but is not an account of the Squads v4 program: it is owned by ${info.owner}.`);
+  return Multisig.fromAccountInfo(info)[0];
+}
+
+async function existing(conn, name) {
+  const ms = await readMultisig(conn, name);
+  if (!ms) throw new Refused(`the ${name} multisig ${WHICH[name].multisig} is not on this cluster yet. Create it: node scripts/governance.mjs create`);
+  return ms;
+}
+
+const isAutonomous = (ms) => ms.configAuthority.equals(PublicKey.default);
+const perms = (mask) => ["initiate", "vote", "execute"].filter((_, i) => mask & (1 << i)).join(", ") || "none";
+
+function describe(name, ms) {
+  return `${name} multisig ${WHICH[name].multisig} (vault ${WHICH[name].vault}, time lock ${ms.timeLock} s, ${ms.threshold} of ${ms.members.length}, ` +
+         `${isAutonomous(ms) ? "no config authority" : `config authority ${ms.configAuthority}`})`;
+}
+
+/** The time lock each multisig must have today: the upgrade multisig's 8 days, the guardian's 0. */
+export const lockNow = (name) => (name === "upgrade" ? PLANNED_TIME_LOCK : WHICH[name].timeLock);
+
+/** What is wrong with a multisig as the chain has it, in words; empty when it is what the design fixes. The upgrade
+ *  multisig's time lock is PLANNED_TIME_LOCK (8 days), in force since `set-time-lock` executed on 11 Oct 2026. */
+export function wrong(name, ms) {
+  const out = [];
+  const want = lockNow(name);
+  if (ms.timeLock !== want) out.push(`its time lock is ${ms.timeLock} s, not ${want} s`);
+  if (!isAutonomous(ms)) out.push(`it has a config authority (${ms.configAuthority}), which could change it alone`);
+  if (ms.threshold < 1 || ms.threshold > ms.members.length) out.push(`its threshold ${ms.threshold} cannot be met by its ${ms.members.length} members`);
+  return out;
+}
+
+// ---- create, show ---------------------------------------------------------------------------------------------------
+async function create(o) {
+  const members = memberRefs(o).map(address);
+  const threshold = Number(o.threshold ?? 2);
+  if (new Set(members.map(String)).size !== members.length) throw new Refused("the same member key was given twice.");
+  if (!Number.isInteger(threshold) || threshold < 1 || threshold > members.length) {
+    throw new Refused(`a threshold of ${o.threshold ?? 2} cannot be met by ${members.length} member(s): give at least as many --member keys as the threshold.`);
+  }
+  // both derivations are checked before either multisig is created
+  const createKeys = Object.fromEntries(Object.keys(WHICH).map((name) => [name, keypair(createKeyRef(o, name))]));
+  for (const name of Object.keys(WHICH)) checkedDerivation(name, createKeys[name].publicKey);
+  const ctx = await context(o);
+  const { conn } = ctx;
+  const sorted = (keys) => keys.map(String).sort().join(",");
+  const made = [];
+  for (const name of Object.keys(WHICH)) {
+    const { multisigPda } = pinned(name);
+    let ms = await readMultisig(conn, name);
+    if (ms) {
+      const differs = wrong(name, ms);
+      if (sorted(ms.members.map((m) => m.key)) !== sorted(members) || ms.threshold !== threshold) differs.push("its members or its threshold are not the ones given");
+      if (differs.length) throw new Refused(`the ${name} multisig exists already and ${differs.join("; ")}. A multisig is created once; only a vote of its members changes it.`);
+      say(`${name}: exists already, as asked`);
+    } else {
+      const config = await ProgramConfig.fromAccountAddress(conn, squads.getProgramConfigPda({})[0]).catch(() => null);
+      if (!config) throw new Refused(`the Squads v4 program ${squads.PROGRAM_ID} is not on this cluster (no program config account).`);
+      const ix = squads.instructions.multisigCreateV2({
+        createKey: createKeys[name].publicKey, creator: ctx.feePayer.publicKey, multisigPda, configAuthority: null, timeLock: lockNow(name),
+        members: members.map((key) => ({ key, permissions: squads.types.Permissions.all() })), threshold, treasury: config.treasury, rentCollector: null });
+      await send(ctx, [ix], [createKeys[name]], `create the ${name} multisig`);
+      ms = await readMultisig(conn, name);
+      if (!ms || wrong(name, ms).length) throw new Refused(`the ${name} multisig was created but the chain does not show it as asked: ${ms ? wrong(name, ms).join("; ") : "no account"}.`);
+    }
+    made.push(describe(name, ms));
+  }
+  say(`on chain now: ${made.join(" and ")} exist.`);
+}
+
+async function show(o) {
+  const conn = await connect(o);
+  const bad = [];
+  const lines = [];
+  for (const name of Object.keys(WHICH)) {
+    const ms = await readMultisig(conn, name);
+    say(`${name} multisig    ${WHICH[name].multisig}`);
+    if (!ms) { say("  not on this cluster yet"); bad.push(`the ${name} multisig does not exist`); continue; }
+    const got = derive(ms.createKey);
+    say(`  vault            ${got.vault}${got.vault.toBase58() === WHICH[name].vault ? "" : `   NOT the pinned ${WHICH[name].vault}`}`);
+    say(`  members          ${ms.members.map((m) => `${m.key} (${perms(m.permissions.mask)})`).join("; ")}`);
+    say(`  threshold        ${ms.threshold} of ${ms.members.length}`);
+    say(`  time lock        ${span(ms.timeLock)}`);
+    say(`  config authority ${isAutonomous(ms) ? "none: only a vote of the members changes it" : ms.configAuthority}`);
+    say(`  proposals        ${big(ms.transactionIndex)} so far`);
+    const problems = wrong(name, ms);
+    if (got.vault.toBase58() !== WHICH[name].vault || got.multisigPda.toBase58() !== WHICH[name].multisig) problems.push("its vault is not the pinned one");
+    bad.push(...problems.map((p) => `the ${name} multisig: ${p}`));
+    lines.push(describe(name, ms));
+  }
+  for (const name of PROGRAMS) {
+    const info = await conn.getAccountInfo(programData(new PublicKey(IDS[name])), "confirmed");
+    const pd = info && readProgramData(info.data);
+    const who = !pd ? "not deployed here" : !pd.authority ? "no upgrade authority (made immutable)"
+      : pd.authority.toBase58() === IDS.upgrade_authority ? `upgrade authority ${pd.authority}, the upgrade vault` : `upgrade authority ${pd.authority}, NOT the upgrade vault`;
+    say(`${name.padEnd(12)} ${IDS[name]}   ${who}`);
+  }
+  if (bad.length) {
+    say(`on chain now: ${bad.join("; ")}.`);
+    if (o.check) process.exitCode = 1;
+  } else {
+    say(`on chain now: ${lines.join(" and ")} exist.`);
+  }
+}
+
+// ---- proposals ------------------------------------------------------------------------------------------------------
+/** A vault transaction's message as text, for comparing the one on chain with the one this command would create. */
+function messageText(m) {
+  return JSON.stringify([m.numSigners, m.numWritableSigners, m.numWritableNonSigners, m.accountKeys.map(String),
+                         m.instructions.map((i) => [i.programIdIndex, [...i.accountIndexes], Buffer.from(i.data).toString("hex")])]);
+}
+
+function vaultMessage(vault, inner, blockhash = PublicKey.default.toBase58()) {
+  return new TransactionMessage({ payerKey: vault, recentBlockhash: blockhash, instructions: inner });
+}
+
+async function proposal(conn, multisigPda, index) {
+  const info = await conn.getAccountInfo(squads.getProposalPda({ multisigPda, transactionIndex: index })[0], "confirmed");
+  return info ? Proposal.fromAccountInfo(info)[0] : null;
+}
+
+/** A proposal of this multisig that carries exactly `inner` and was neither executed, rejected nor cancelled: the one
+ *  a run that failed half way left behind. Only the newest ten are looked at. */
+async function unfinished(conn, ms, multisigPda, vault, inner) {
+  const want = messageText(squads.types.transactionMessageBeet.deserialize(Buffer.from(
+    squads.utils.transactionMessageToMultisigTransactionMessageBytes({ message: vaultMessage(vault, inner), vaultPda: vault })))[0]);
+  const newest = big(ms.transactionIndex), stale = big(ms.staleTransactionIndex);
+  for (let index = newest; index > stale && index > newest - 10n; index--) {
+    const info = await conn.getAccountInfo(squads.getTransactionPda({ multisigPda, index })[0], "confirmed");
+    let tx;
+    try { tx = info && VaultTransaction.fromAccountInfo(info)[0]; } catch { continue; }   // a config transaction, or a closed one
+    if (!tx || messageText(tx.message) !== want) continue;
+    const p = await proposal(conn, multisigPda, index);
+    if (!p || ["Draft", "Active", "Approved"].includes(p.status.__kind)) return { index, proposal: p };
+  }
+  return null;
+}
+
+function membersOf(ms, o, name) {
+  const keys = memberRefs(o).map(keypair);
+  const known = new Set(ms.members.map((m) => m.key.toBase58()));
+  const strangers = keys.filter((k) => !known.has(k.publicKey.toBase58()));
+  if (strangers.length) throw new Refused(`${strangers.map((k) => k.publicKey).join(", ")} is not a member of the ${name} multisig. Its members: ${[...known].join(", ")}.`);
+  return keys;
+}
+
+/** How a vote of the members withdraws a proposal that has not run, as the Squads program takes it. An approved one, inside
+ *  its time lock or after it: `threshold` votes to cancel (proposalCancel asks only that the proposal is approved). One
+ *  still collecting approvals: votes to reject, as many as leave too few members to approve it (the voters, less the
+ *  threshold, plus one). null: no vote changes it (a draft, or one executed, rejected or cancelled already). */
+export function withdrawal(ms, p) {
+  const kind = p.status.__kind;
+  if (kind === "Approved") return { how: "cancel", need: ms.threshold, done: p.cancelled.map(String) };
+  if (kind === "Active") return { how: "reject", need: ms.members.filter((m) => m.permissions.mask & 2).length - ms.threshold + 1, done: p.rejected.map(String) };
+  return null;
+}
+
+const VOTES = { approve: ["proposalApprove", "approved"], cancel: ["proposalCancel", "cancelled"], reject: ["proposalReject", "rejected"] };
+
+/** The votes of the member keys given that have not voted, no more than are still needed: the program refuses a vote on
+ *  a proposal that has its votes already. `cancel` withdraws the proposal instead (`withdrawal`). Returns the proposal as
+ *  the chain has it afterwards. */
+async function voteUpTo(ctx, name, ms, members, index, cancel, label) {
+  const { multisigPda } = pinned(name);
+  const p = await proposal(ctx.conn, multisigPda, index);
+  const w = cancel ? withdrawal(ms, p) : p.status.__kind === "Active" ? { how: "approve", need: ms.threshold, done: p.approved.map(String) } : null;
+  if (!w) return p;
+  const done = new Set(w.done), [build, word] = VOTES[w.how];
+  const voters = members.filter((m) => !done.has(m.publicKey.toBase58())).slice(0, Math.max(0, w.need - done.size));
+  if (!voters.length) return p;
+  await send(ctx, voters.map((m) => squads.instructions[build]({ multisigPda, transactionIndex: index, member: m.publicKey })), voters,
+             `${label}: ${word} by ${voters.length} member${voters.length > 1 ? "s" : ""}`);
+  return proposal(ctx.conn, multisigPda, index);
+}
+
+/** Creates the vault transaction and its proposal for `inner` (or finds the unfinished one), and approves it with the
+ *  member keys given. Returns the proposal's index and its state afterwards. */
+async function propose(ctx, name, ms, members, inner, what) {
+  const { conn } = ctx;
+  const { multisigPda, vault } = pinned(name);
+  const left = await unfinished(conn, ms, multisigPda, vault, inner);
+  const index = left ? left.index : big(ms.transactionIndex) + 1n;
+  const label = `${what}: proposal ${index} of the ${name} multisig`;
+  const creator = members[0].publicKey, rentPayer = ctx.feePayer.publicKey;
+  const make = [];
+  if (!left) make.push(squads.instructions.vaultTransactionCreate({ multisigPda, transactionIndex: index, creator, rentPayer, vaultIndex: 0, ephemeralSigners: 0,
+                                                                   transactionMessage: vaultMessage(vault, inner) }));
+  if (!left?.proposal) make.push(squads.instructions.proposalCreate({ multisigPda, creator, rentPayer, transactionIndex: index }));
+  if (left) say(`  proposal ${index} of the ${name} multisig already carries this: continuing with it`);
+  if (make.length) await send(ctx, make, [members[0]], `${label} created`);
+  return { index, proposal: await voteUpTo(ctx, name, ms, members, index, false, label) };
+}
+
+/** Executes an approved proposal whose time lock has passed. Refuses, with the time, one that is still locked;
+ *  `unchecked` leaves both refusals to the Squads program. */
+async function executeProposal(ctx, name, ms, index, member, what, unchecked = false) {
+  const { conn } = ctx;
+  const { multisigPda } = pinned(name);
+  const p = await proposal(conn, multisigPda, index);
+  if (!p) throw new Refused(`the ${name} multisig has no proposal ${index}.`);
+  const kind = p.status.__kind;
+  if (kind === "Executed") { say(`  proposal ${index} was executed already (${when(Number(big(p.status.timestamp)))})`); return false; }
+  if (kind !== "Approved" && !unchecked) {
+    throw new Refused(`proposal ${index} of the ${name} multisig is ${kind.toLowerCase()}` + (kind === "Active"
+      ? `, with ${p.approved.length} of the ${ms.threshold} approvals it needs. Another member approves it with: node scripts/governance.mjs approve ${name} ${index} --member FILE`
+      : ": it cannot be executed."));
+  }
+  const from = Number(big(p.status.timestamp)) + ms.timeLock, now = await chainTime(conn);
+  if (now < from && !unchecked) {
+    throw new Refused(`proposal ${index} of the ${name} multisig was approved ${when(from - ms.timeLock)} and its time lock of ${span(ms.timeLock)} ends ` +
+                      `${when(from)}, in ${Math.ceil((from - now) / 60)} minutes. It cannot be executed before that.`);
+  }
+  // a change to the multisig itself (members, threshold) is a config transaction: the Squads program has its own instruction
+  // for it, and the fee payer pays for the room a new member takes in the multisig's account
+  if (await configOf(conn, multisigPda, index)) {
+    const ix = squads.instructions.configTransactionExecute({ multisigPda, transactionIndex: index, member: member.publicKey, rentPayer: ctx.feePayer.publicKey });
+    await send(ctx, [ix], [member], `${what}: execute proposal ${index}, a change to the ${name} multisig itself`);
+    return true;
+  }
+  const { instruction, lookupTableAccounts } = await squads.instructions.vaultTransactionExecute({ connection: conn, multisigPda, transactionIndex: index, member: member.publicKey });
+  await send(ctx, [ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }), instruction], [member], `${what}: execute proposal ${index}`, lookupTableAccounts);
+  return true;
+}
+
+function standing(name, ms, index, p) {
+  const kind = p.status.__kind;
+  if (kind === "Approved") {
+    const at = Number(big(p.status.timestamp));
+    return `proposal ${index} of the ${name} multisig is approved by ${p.approved.length} of ${ms.members.length} members since ${when(at)}; ` +
+           (ms.timeLock ? `it can be executed from ${when(at + ms.timeLock)} (${span(ms.timeLock)} later), and until then ${ms.threshold} members can cancel it` : "it can be executed now");
+  }
+  if (kind === "Active") return `proposal ${index} of the ${name} multisig has ${p.approved.length} of the ${ms.threshold} approvals it needs` +
+                                (ms.timeLock ? `; its ${span(ms.timeLock)} start when the last of them is given` : "");
+  return `proposal ${index} of the ${name} multisig is ${kind.toLowerCase()}`;
+}
+
+/** The fee payer's key is read before the cluster is asked anything: a missing file is told at once. */
+async function context(o, feePayer = keypair(feePayerRef(o))) {
+  return { conn: await connect(o), feePayer, fee: Number(o["priority-fee"] ?? 0) };
+}
+
+// ---- guardian -------------------------------------------------------------------------------------------------------
+function keyState(data) {
+  if (!data || data.length < 40) return null;
+  return { ready: data[0] === 1, activeAt: Number(data.readBigInt64LE(8)), expiresAt: Number(data.readBigInt64LE(16)),
+           approved: !!(data[24] & 1), revoked: !!(data[24] & 2), genesis: !!(data[24] & 4) };
+}
+
+const ISSUERS = { 0: 0, github: 0, 1: 1, gitlab: 1 };
+
+/** The guardian's instruction for a command line, with a sentence for the log. `payer` signs Pause's rent. */
+function guardianInner(action, args, payer) {
+  const guardian = new PublicKey(IDS.guardian);
+  if (action === "pause") {
+    const seconds = /^\d+$/.test(args[0] ?? "") ? Number(args[0]) : NaN;
+    return { inner: pauseIx(guardian, payer, seconds), what: seconds ? `pause new funding for ${seconds} s` : "lift the pause" };
+  }
+  if (action === "approve" || action === "revoke") {
+    const issuer = ISSUERS[args[0]];
+    if (issuer === undefined || !args[1]) throw new Refused(`guardian ${action} takes the issuer (0 or github, 1 or gitlab) and the key hash: guardian ${action} 0 <64 hex characters>.`);
+    return { inner: keyIx(action === "approve" ? 6 : 7, guardian, keyAccount(issuer, args[1])), what: `${action} key ${args[1]} of issuer ${issuer}`, hash: args[1] };
+  }
+  throw new Refused("the guardian can do three things: guardian approve <issuer> <key hash>, guardian revoke <issuer> <key hash>, guardian pause <seconds>.");
+}
+
+async function guardian(o, action, args) {
+  const feePayer = keypair(feePayerRef(o));
+  const { inner, what, hash } = guardianInner(action, args, feePayer.publicKey);   // the command line is checked before the network is
+  const ctx = await context(o, feePayer);
+  const { conn } = ctx;
+  const account = action === "pause" ? pauseAccount() : inner.keys[1].pubkey;
+  const state = async () => (await conn.getAccountInfo(account, "confirmed"))?.data ?? null;
+  const told = (k) => `key ${hash} (account ${account}) is ${k.revoked ? "revoked for ever" : k.genesis ? "a genesis key" : k.approved ? "approved" : "not approved"}` +
+                      (k.revoked ? "" : `; it verifies from ${when(k.activeAt)} until ${when(k.expiresAt)}${k.ready ? "" : ", once KeyParams has been sent for it"}`);
+  if (action !== "pause") {
+    const k = keyState(await state());
+    if (!k) throw new Refused(`there is no key account for hash ${hash} on this cluster (it would be ${account}). A key is registered first, with RegisterKey.`);
+    if (k.revoked && action === "approve") throw new Refused(`key ${hash} is revoked. A revoked key cannot be approved; nothing undoes a revocation.`);
+    if ((action === "approve" && k.approved) || (action === "revoke" && k.revoked)) { say(`on chain now: ${told(k)}. Nothing to do.`); return; }
+  }
+  const ms = await existing(conn, "guardian");
+  const members = membersOf(ms, o, "guardian");
+  const { index, proposal: p } = await propose(ctx, "guardian", ms, members, [inner], what);
+  if (p.status.__kind !== "Approved") {
+    say(`on chain now: ${standing("guardian", ms, index, p)}. Nothing has changed yet: another member approves with ` +
+        `node scripts/governance.mjs approve guardian ${index} --member FILE, and the last approval is followed by: node scripts/governance.mjs execute guardian ${index}`);
+    process.exitCode = 1;
+    return;
+  }
+  await executeProposal(ctx, "guardian", ms, index, members[0], what);
+  if (action === "pause") {
+    const until = Number((await state())?.readBigInt64LE(0) ?? 0n);
+    say(`on chain now: ${until ? `new funding is refused until ${when(until)}` : "new funding is not paused"} (knos_pay ${IDS.knos_pay}, pause account ${account}). ` +
+        "Payments, refunds, withdrawals and binds are never paused.");
+  } else {
+    say(`on chain now: ${told(keyState(await state()))}.`);
+  }
+}
+
+// ---- upgrade --------------------------------------------------------------------------------------------------------
+/** What `upgrade propose --out` writes: the proposal as data. `executable_from` is null until the proposal is approved,
+ *  because the time lock starts with the last approval. */
+export function proposalRecord(programRef, program, buffer, hash, index, timeLock, p) {
+  const approved = p.status.__kind === "Approved" ? Number(big(p.status.timestamp)) : null;
+  return { program: programRef, address: program.toBase58(), buffer: buffer.toBase58(), hash, index: Number(index), status: p.status.__kind,
+           approved_at: approved, executable_from: approved === null ? null : approved + timeLock };
+}
+
+function programOf(ref) {
+  if (PROGRAMS.includes(ref)) return new PublicKey(IDS[ref]);
+  throw new Refused(`upgrade takes ${PROGRAMS.slice(0, -1).join(", ")} or ${PROGRAMS.at(-1)}, then the address of the buffer that holds the new build.`);
+}
+
+async function upgrade(o, programRef, bufferRef) {
+  const program = programOf(programRef);
+  if (!bufferRef) throw new Refused("upgrade needs the buffer's address: solana program write-buffer <the verified build> --buffer BUFFER.json");
+  const buffer = address(bufferRef);
+  const ctx = await context(o);
+  const { conn, feePayer } = ctx;
+  const { vault } = pinned("upgrade");
+  const pdInfo = await conn.getAccountInfo(programData(program), "confirmed");
+  const pd = pdInfo && readProgramData(pdInfo.data);
+  if (!pd) throw new Refused(`${programRef} ${program} is not deployed on this cluster.`);
+  if (!pd.authority?.equals(vault)) {
+    throw new Refused(`${programRef}'s upgrade authority is ${pd.authority ?? "none (it was made immutable)"}, not the upgrade vault ${vault}: ` +
+                      "the multisig could never execute this upgrade. Nothing was sent.");
+  }
+  const bufInfo = await conn.getAccountInfo(buffer, "confirmed");
+  const buf = bufInfo?.owner.equals(LOADER) ? readBuffer(bufInfo.data) : null;
+  if (!buf) throw new Refused(`${buffer} is not a program buffer on this cluster. Write the new build to one: solana program write-buffer <file.so> --buffer BUFFER.json`);
+  if (!buf.authority?.equals(vault)) {
+    throw new Refused(`the buffer's authority is ${buf.authority ?? "none"}, and the upgrade needs it to be the upgrade vault. Hand it over: ` +
+                      `solana program set-buffer-authority ${buffer} --new-buffer-authority ${vault}`);
+  }
+  if (buf.bytes.length > pd.bytes.length) {
+    throw new Refused(`the new build is ${buf.bytes.length} bytes and the program has room for ${pd.bytes.length}. Extend it first: ` +
+                      `solana program extend ${program} ${buf.bytes.length - pd.bytes.length}`);
+  }
+  say(`${programRef} ${program}: on chain ${executableHash(pd.bytes)} (deployed in slot ${pd.slot})`);
+  say(`buffer ${buffer}: ${executableHash(buf.bytes)}   <- compare with: solana-verify get-executable-hash programs-v2/target/deploy/${programRef}.so`);
+  const hash = executableHash(buf.bytes);
+  say(gated(await conn.getAccountInfo(buildRecord(program, hash), "confirmed"), programRef, program, hash, o.ungated));
+  const ms = await existing(conn, "upgrade");
+  const members = membersOf(ms, o, "upgrade");
+  const spill = o.spill ? address(o.spill) : feePayer.publicKey;
+  const { index, proposal: p } = await propose(ctx, "upgrade", ms, members, [upgradeIx(program, buffer, vault, spill)], `upgrade ${programRef}`);
+  say(`on chain now: ${standing("upgrade", ms, index, p)}. It replaces ${programRef} with the buffer's build ${executableHash(buf.bytes)}; ` +
+      `then: node scripts/governance.mjs upgrade execute ${index}`);
+  if (o.out) fs.writeFileSync(o.out, JSON.stringify(proposalRecord(programRef, program, buffer, hash, index, ms.timeLock, p), null, 2) + "\n");
+}
+
+// ---- approve, cancel, execute ---------------------------------------------------------------------------------------
+function proposalArgs(name, indexText) {
+  if (!WHICH[name] || !/^\d+$/.test(indexText ?? "")) throw new Refused("give the multisig and the proposal: upgrade or guardian, then the proposal's index (a number).");
+  return BigInt(indexText);
+}
+
+async function vote(o, name, indexText, cancel) {
+  const index = proposalArgs(name, indexText);
+  const ctx = await context(o);
+  const { multisigPda } = pinned(name);
+  const ms = await existing(ctx.conn, name);
+  const members = membersOf(ms, o, name);
+  let p = await proposal(ctx.conn, multisigPda, index);
+  if (!p) throw new Refused(`the ${name} multisig has no proposal ${index}.`);
+  const kind = p.status.__kind, w = cancel ? withdrawal(ms, p) : null;
+  if (cancel ? !w : kind !== "Active") {
+    // asked again after it worked (a run of deploy_v2.sh --propose --replace that stopped later): it is so already
+    if (cancel ? ["Cancelled", "Rejected"].includes(kind) : kind === "Approved") { say(`on chain now: ${standing(name, ms, index, p)}. Nothing to do.`); return; }
+    throw new Refused(`proposal ${index} of the ${name} multisig is ${kind.toLowerCase()}: ` +
+                      (cancel ? "only a proposal that is approved, or still collecting approvals, and was not executed can be withdrawn." : "only an active proposal takes approvals."));
+  }
+  p = await voteUpTo(ctx, name, ms, members, index, cancel, `${cancel ? "withdraw" : "approve"} proposal ${index}`);
+  const left = cancel && withdrawal(ms, p);
+  say(`on chain now: ${standing(name, ms, index, p)}` + (left ? `, with ${left.done.length} of the ${left.need} votes that ${left.how} it. It can STILL be ${left.how === "cancel" ? "executed" : "approved"}: ` +
+      `another member votes with: node scripts/governance.mjs cancel ${name} ${index} --member FILE` : cancel ? ": it can never be executed." : "."));
+  if (left) process.exitCode = 1;
+}
+
+/** The buffer that the loader's Upgrade in a vault transaction's message would deploy; null when it carries no Upgrade. */
+export function upgradeBuffer(message) {
+  for (const ix of message.instructions) {
+    if (message.accountKeys[ix.programIdIndex].equals(LOADER) && Buffer.from(ix.data).subarray(0, 4).equals(Buffer.from([3, 0, 0, 0])) && ix.accountIndexes.length >= 3) {
+      return message.accountKeys[ix.accountIndexes[2]];
+    }
+  }
+  return null;
+}
+
+/** `upgrade execute --expect-hash`: the line to print when proposal `index` would deploy exactly the build `want` (its
+ *  buffer, as getAccountInfo gives it now); a refusal for anything else. A run arranged for one build (the hash is in
+ *  the schedule scripts/schedule_upgrade.sh reads) can so never execute another, whatever the index it was given holds. */
+export function expected(index, buffer, info, want) {
+  if (!buffer) throw new Refused(`proposal ${index} of the upgrade multisig carries no upgrade of a program (or its transaction account is gone), and this run was arranged for the build ${want}. Nothing was sent.`);
+  const buf = info?.owner.equals(LOADER) ? readBuffer(info.data) : null;
+  if (!buf) throw new Refused(`the buffer ${buffer} of proposal ${index} is not a program buffer on this cluster (closed, or never written), so it does not hold the build ${want} this run was arranged for. Nothing was sent.`);
+  const have = executableHash(buf.bytes);
+  if (have !== want) {
+    throw new Refused(`proposal ${index} of the upgrade multisig would deploy the build ${have}, and this run was arranged for the build ${want}. Nothing was sent. ` +
+                      "The arrangement is for a build that was withdrawn or replaced: bash scripts/schedule_upgrade.sh --cancel, then arrange the run again after the next --propose.");
+  }
+  return `proposal ${index}: its buffer ${buffer} holds the build ${want}, the one this run was arranged for`;
+}
+
+async function execute(o, name, indexText) {
+  const index = proposalArgs(name, indexText);
+  const want = o["expect-hash"];
+  if (want !== undefined && (name !== "upgrade" || !/^[0-9a-f]{64}$/.test(want))) throw new Refused("--expect-hash goes with an upgrade proposal and takes the build's executable hash: 64 lowercase hex characters.");
+  const ctx = await context(o);
+  const ms = await existing(ctx.conn, name);
+  const members = membersOf(ms, o, name);
+  const { multisigPda } = pinned(name);
+  // one that ran already is left to executeProposal, which says so: its buffer was closed by the upgrade itself
+  if (want !== undefined && (await proposal(ctx.conn, multisigPda, index))?.status.__kind !== "Executed") {
+    const info = await ctx.conn.getAccountInfo(squads.getTransactionPda({ multisigPda, index })[0], "confirmed");
+    let buffer = null;
+    try { buffer = info && upgradeBuffer(VaultTransaction.fromAccountInfo(info)[0].message); } catch { /* not a vault transaction */ }
+    say(expected(index, buffer, buffer && await ctx.conn.getAccountInfo(buffer, "confirmed"), want));
+  }
+  await executeProposal(ctx, name, ms, index, members[0], `${name} proposal`, Boolean(o.unchecked));
+  const lines = [];
+  for (const program of PROGRAMS) {
+    const info = await ctx.conn.getAccountInfo(programData(new PublicKey(IDS[program])), "confirmed");
+    const pd = info && readProgramData(info.data);
+    if (pd) lines.push(`${program} runs the build ${executableHash(pd.bytes)} (deployed in slot ${pd.slot})`);
+  }
+  const now = await existing(ctx.conn, name);
+  say(`on chain now: proposal ${index} of the ${name} multisig is executed` + (name === "upgrade" && lines.length ? `; ${lines.join("; ")}.` : ".") +
+      ` The ${name} multisig is ${now.threshold} of ${now.members.length}: ${now.members.map((m) => m.key).join(", ")}.`);
+}
+
+// ---- members and threshold ------------------------------------------------------------------------------------------
+// A multisig with no config authority changes only by a config transaction its own members vote for (Squads v4:
+// configTransactionCreate with the actions AddMember, RemoveMember and ChangeThreshold, then configTransactionExecute;
+// https://docs.squads.so/main/development/typescript/instructions/create-config-transaction). The multisig's time lock
+// applies to it as to anything else. When it executes, every proposal of that multisig that was not yet approved becomes
+// stale and can no longer be voted on; one already approved can still be executed.
+const PERMISSION = { initiate: 1, vote: 2, execute: 4 };
+/** Where the outside key holders are written down, once a proposal that adds one has executed. */
+export const KEYHOLDERS = path.join(ROOT, "web", "keyholders.json");
+
+/** The addresses of the member keys the founder does not hold, as web/keyholders.json lists them. */
+export function outsideHolders(file = KEYHOLDERS) {
+  const listed = JSON.parse(fs.readFileSync(file, "utf8")).outside;
+  if (!Array.isArray(listed)) throw new Refused(`${file} has no list "outside".`);
+  return listed.map((h) => new PublicKey(h.address).toBase58());
+}
+
+/** "vote" or "initiate,vote,execute" as the bit mask the Squads program stores. */
+export function permissionMask(text = "vote") {
+  const words = text.split(",").map((w) => w.trim()).filter(Boolean);
+  if (!words.length || words.some((w) => !PERMISSION[w])) throw new Refused(`--permissions takes one or more of initiate, vote, execute, separated by commas; got "${text}".`);
+  return words.reduce((mask, w) => mask | PERMISSION[w], 0);
+}
+
+/** What the holders of `keys` (addresses) can do to a multisig with those keys and no others. One approval, rejection or
+ *  cancellation per voting key: `approve` and `cancel` need the threshold, `reject` needs enough that the rest cannot
+ *  reach it. `execute` is of a proposal that is approved already and whose time lock has passed. */
+export function powers(ms, keys) {
+  const held = new Set(keys.map(String)), mine = ms.members.filter((m) => held.has(m.key.toBase58()));
+  const voters = ms.members.filter((m) => m.permissions.mask & 2).length, votes = mine.filter((m) => m.permissions.mask & 2).length;
+  return { member: mine.length > 0, votes, propose: mine.some((m) => m.permissions.mask & 1), approve: votes >= ms.threshold, cancel: votes >= ms.threshold,
+           reject: votes >= voters - ms.threshold + 1, execute: mine.some((m) => m.permissions.mask & 4) };
+}
+
+/**
+ * The actions a config transaction would carry for one change, and the multisig as it will be once they have executed.
+ * `change`: { add, remove, threshold, timeLock, mask, founder }: a key to add (with the permissions `mask`; the founder's own only
+ * when `founder`), a member to remove, a new threshold, a new time lock in seconds; any of the four may be absent. `outside`: the addresses of the members
+ * the founder does not hold today. Refuses, before anything is built, what the Squads program would refuse on execution.
+ */
+export function configPlan(ms, change, outside = []) {
+  const now = ms.members.map((m) => ({ key: m.key.toBase58(), mask: m.permissions.mask }));
+  const add = change.add?.toBase58() ?? null, remove = change.remove?.toBase58() ?? null, mask = change.mask ?? PERMISSION.vote;
+  if (add && now.some((m) => m.key === add)) throw new Refused(`${add} is a member already. Nothing was sent.`);
+  if (add && !PublicKey.isOnCurve(change.add.toBytes())) throw new Refused(`${add} is not the address of a key somebody can sign with (it is a program's address). A key holder sends the public key of a keypair they made. Nothing was sent.`);
+  if (remove && !now.some((m) => m.key === remove)) throw new Refused(`${remove} is not a member, so it cannot be replaced. The members: ${now.map((m) => m.key).join(", ")}. Nothing was sent.`);
+  const members = [...now.filter((m) => m.key !== remove), ...(add ? [{ key: add, mask }] : [])];
+  const threshold = change.threshold ?? ms.threshold, voters = members.filter((m) => m.mask & 2).length;
+  if (!Number.isInteger(threshold) || threshold < 1) throw new Refused("a threshold is a whole number, 1 or more. Nothing was sent.");
+  if (threshold > voters) throw new Refused(`a threshold of ${threshold} cannot be met by the ${voters} member(s) who could vote afterwards. Nothing was sent.`);
+  for (const [word, bit] of Object.entries(PERMISSION)) {
+    if (!members.some((m) => m.mask & bit)) throw new Refused(`nobody could ${word} afterwards: the Squads program refuses a multisig with no member who may ${word}. Nothing was sent.`);
+  }
+  const lock = change.timeLock ?? ms.timeLock;
+  if (change.timeLock !== undefined) {
+    if (!Number.isInteger(lock) || lock < 0 || lock > MAX_TIME_LOCK) throw new Refused(`a time lock is a whole number of seconds from 0 to ${MAX_TIME_LOCK} (the Squads maximum, 90 days). Nothing was sent.`);
+    if (lock === ms.timeLock) throw new Refused(`the time lock is ${lock} s already. Nothing was sent.`);
+  }
+  if (!add && !remove && threshold === ms.threshold && change.timeLock === undefined) throw new Refused(`the threshold is ${threshold} already. Nothing was sent.`);
+  // the new key is added before the old one is removed, so the multisig is never short of a member inside the transaction
+  const actions = [];
+  if (add) actions.push({ __kind: "AddMember", newMember: { key: change.add, permissions: { mask } } });
+  if (remove) actions.push({ __kind: "RemoveMember", oldMember: change.remove });
+  if (threshold !== ms.threshold) actions.push({ __kind: "ChangeThreshold", newThreshold: threshold });
+  if (lock !== ms.timeLock) actions.push({ __kind: "SetTimeLock", newTimeLock: lock });
+  const notFounder = new Set([...outside, ...(add && !change.founder ? [add] : [])]);
+  const tally = (list) => {
+    const voting = list.filter((m) => m.mask & 2), founder = voting.filter((m) => !notFounder.has(m.key)).length;
+    return { voters: voting.length, founder, outside: voting.length - founder, holders: new Set(list.filter((m) => notFounder.has(m.key)).map((m) => m.key)).size };
+  };
+  const after = { members: members.map((m) => ({ ...m, outside: notFounder.has(m.key) })), threshold, ...tally(members) };
+  after.founderAlone = after.founder >= threshold;                   // the founder's keys meet the threshold with nobody else
+  after.outsideCanRefuse = after.founder < threshold;                // no approval without an outside key
+  after.everyKeyNeeded = threshold === after.voters;                 // one lost key and nothing is ever approved again
+  return { actions, before: { threshold: ms.threshold, ...tally(now) }, after, timeLock: { before: ms.timeLock, after: lock } };
+}
+
+/** The plan in words: one line for the proposal, then what will be true after it executes. */
+export function planLines(name, plan) {
+  const { actions, before, after, timeLock } = plan;
+  const carried = actions.map((a) => a.__kind === "AddMember" ? `add ${a.newMember.key} (${perms(a.newMember.permissions.mask)})`
+    : a.__kind === "RemoveMember" ? `remove ${a.oldMember}` : a.__kind === "SetTimeLock" ? `time lock ${span(a.newTimeLock)}` : `threshold ${a.newThreshold}`).join("; ");
+  const what = name === "upgrade" ? "approve an upgrade" : "approve a signing key, revoke one or pause new funding";
+  const wait = timeLock ? timeLock.before : WHICH[name].timeLock;      // the time lock on chain when the proposal is made
+  const lines = [
+    `${name} multisig ${WHICH[name].multisig}`,
+    `  today              ${before.threshold} of ${before.voters} voting keys; held by the founder: ${before.founder}; outside key holders: ${before.holders}`,
+    `  the proposal       ${carried}`,
+    `  when               ${wait ? `${span(wait)} after the vote that approves it, and not before` : "as soon as it is approved (this multisig has no time lock)"}`,
+    `  after it executes  ${after.threshold} of ${after.voters} voting keys; held by the founder: ${after.founder}; outside key holders: ${after.holders}`,
+    ...after.members.map((m) => `    ${m.key}  ${perms(m.mask)}  (${m.outside ? "outside" : "the founder's"})`),
+    after.founderAlone
+      ? `  the founder alone can STILL ${what}: ${after.founder} of the founder's keys meet the threshold of ${after.threshold}. ${after.outside ? "The outside key holder sees every proposal and can vote, and cannot refuse one alone." : "Nobody else has to agree."}`
+      : `  the founder alone can NOT ${what}: the founder holds ${after.founder} voting key(s) and ${after.threshold} are needed, so at least ${after.threshold - after.founder} outside key holder(s) must agree.`,
+  ];
+  if (after.everyKeyNeeded && after.voters > 1) lines.push(`  every voting key is needed: if one of the ${after.voters} is lost, nothing can be approved again, and the members cannot be changed either.`);
+  if (timeLock && timeLock.after !== timeLock.before) {
+    lines.push(`  the time lock      ${span(timeLock.before)} today; ${span(timeLock.after)} once it executes: a proposal approved after that waits ${span(timeLock.after)}, ` +
+               "and every proposal made before it is stale (one not yet approved can no longer be; an approved upgrade waits the new time lock from its approval)");
+  }
+  return lines;
+}
+
+/** The transaction account of proposal `index` when it is a config transaction (a change to the multisig itself); else null. */
+async function configOf(conn, multisigPda, index) {
+  const info = await conn.getAccountInfo(squads.getTransactionPda({ multisigPda, index })[0], "confirmed");
+  if (!info || !Buffer.from(info.data.subarray(0, 8)).equals(Buffer.from(squads.accounts.configTransactionDiscriminator))) return null;
+  return ConfigTransaction.fromAccountInfo(info)[0];
+}
+
+const actionsText = (actions) => JSON.stringify(actions, (_, v) => (v instanceof PublicKey ? v.toBase58() : v));
+
+/** The multisig accounts of --state FILE: {"upgrade": {"data": hex}, ...}, at the top or under "squads_accounts". */
+function stateFile(file) {
+  let raw;
+  try { raw = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { throw new Refused(`cannot read --state ${file} (${e.code ?? e.message}).`); }
+  const accounts = raw.squads_accounts ?? raw;
+  return (name) => {
+    if (typeof accounts[name]?.data !== "string") throw new Refused(`--state ${file} has no "${name}": {"data": hex}.`);
+    return Multisig.fromAccountInfo({ data: Buffer.from(accounts[name].data, "hex"), owner: squads.PROGRAM_ID, lamports: 0, executable: false })[0];
+  };
+}
+
+async function configCmd(o, command, args) {
+  // the command line is checked before the network is asked anything
+  if (command === "set-time-lock" && o.on === "guardian") throw new Refused("the guardian's time lock stays 0, so that a revocation is never delayed: set-time-lock is for the upgrade multisig.");
+  const names = command === "set-time-lock" ? ["upgrade"] : o.on === undefined ? Object.keys(WHICH) : [o.on];
+  if (names.some((n) => !WHICH[n])) throw new Refused("--on takes upgrade or guardian.");
+  if (o.send && o.state) throw new Refused("--state reads the multisig from a file to print a plan; it cannot be combined with --send.");
+  const key = (ref, what) => { try { return new PublicKey(ref ?? ""); } catch { throw new Refused(`${command} takes ${what}: an address as Solana prints it (solana-keygen pubkey FILE). Never send or paste a private key.`); } };
+  const change = { mask: permissionMask(o.permissions), founder: Boolean(o.founder) };
+  if (command === "add-member") change.add = key(args[0], "the new key holder's public key");
+  if (command === "replace-member") { change.remove = key(args[0], "the member to replace, then the new public key"); change.add = key(args[1], "the member to replace, then the new public key"); }
+  if (command === "set-threshold") {
+    if (!/^\d+$/.test(args[0] ?? "")) throw new Refused("set-threshold takes how many members must approve: a whole number.");
+    change.threshold = Number(args[0]);
+  }
+  if (command === "set-time-lock") {
+    if (args[0] !== undefined && !/^\d+$/.test(args[0])) throw new Refused(`set-time-lock takes the seconds an approved upgrade waits: a whole number (default ${PLANNED_TIME_LOCK}, 8 days).`);
+    change.timeLock = args[0] === undefined ? PLANNED_TIME_LOCK : Number(args[0]);
+  }
+  const outside = outsideHolders();
+  const ctx = o.state ? null : o.send ? await context(o) : { conn: await connect(o) };
+  const read = o.state ? stateFile(o.state) : null;
+  const done = [];
+  for (const name of names) {
+    const ms = read ? read(name) : await existing(ctx.conn, name);
+    const plan = configPlan(ms, change, outside);
+    for (const line of planLines(name, plan)) say(line);
+    if (!o.send) continue;
+    const members = membersOf(ms, o, name), { multisigPda } = pinned(name);
+    // the proposal a run that failed half way left behind: the same actions, not yet executed, rejected or cancelled
+    let index = null, made = null;
+    for (let i = big(ms.transactionIndex); i > big(ms.staleTransactionIndex) && i > big(ms.transactionIndex) - 10n; i--) {
+      const tx = await configOf(ctx.conn, multisigPda, i);
+      if (!tx || actionsText(tx.actions) !== actionsText(plan.actions)) continue;
+      const p = await proposal(ctx.conn, multisigPda, i);
+      if (!p || ["Draft", "Active", "Approved"].includes(p.status.__kind)) { index = i; made = { p }; break; }
+    }
+    if (change.timeLock !== undefined) {
+      // a time lock change makes every proposal made before it stale: none may be open but this one (scripts/timelock_plan.py refuses the same)
+      const open = [];
+      for (let i = big(ms.transactionIndex); i > big(ms.staleTransactionIndex) && i > big(ms.transactionIndex) - 10n; i--) {
+        const p = i === index ? null : await proposal(ctx.conn, multisigPda, i);
+        if (p && ["Draft", "Active", "Approved"].includes(p.status.__kind)) open.push(`proposal ${i} (${p.status.__kind.toLowerCase()})`);
+      }
+      if (open.length) throw new Refused(`${open.join(", ")} of the ${name} multisig is still open, and a time lock change would make it stale. Execute or cancel it first. Nothing was sent.`);
+    }
+    const creator = members[0].publicKey, rentPayer = ctx.feePayer.publicKey, ixs = [];
+    if (index === null) {
+      index = big(ms.transactionIndex) + 1n;
+      ixs.push(squads.instructions.configTransactionCreate({ multisigPda, transactionIndex: index, creator, rentPayer, actions: plan.actions }));
+    } else say(`  proposal ${index} of the ${name} multisig already carries this: continuing with it`);
+    if (!made?.p) ixs.push(squads.instructions.proposalCreate({ multisigPda, creator, rentPayer, transactionIndex: index }));
+    const label = `change the ${name} multisig: proposal ${index}`;
+    if (ixs.length) await send(ctx, ixs, [members[0]], `${label} created`);
+    const p = await voteUpTo(ctx, name, ms, members, index, false, label);
+    done.push(`${standing(name, ms, index, p)}; then: node scripts/governance.mjs execute ${name} ${index}`);
+  }
+  if (o.send) return say(`on chain now: ${done.join(". ")}. ${change.timeLock !== undefined ? "The time lock is" : "The members and the threshold are"} unchanged until it executes.`);
+  say(`Nothing was sent. Outside key holders today: ${outside.length}. To create the proposal${names.length > 1 ? "s" : ""}: the same command with --send and the member keys.`);
+}
+
+// ---- no network -----------------------------------------------------------------------------------------------------
+function deriveCmd(o) {
+  const out = {};
+  for (const name of Object.keys(WHICH)) {
+    const got = derive(address(createKeyRef(o, name))), want = pinned(name);
+    out[name] = { multisig: got.multisigPda.toBase58(), vault: got.vault.toBase58(), pinned: got.multisigPda.equals(want.multisigPda) && got.vault.equals(want.vault) };
+  }
+  if (!Object.values(out).every((d) => d.pinned)) process.exitCode = 1;
+  if (o.json) return say(JSON.stringify(out));
+  for (const [name, d] of Object.entries(out)) say(`${name}: multisig ${d.multisig}, vault ${d.vault}: ${d.pinned ? "the pinned addresses" : "NOT the pinned addresses"}`);
+}
+
+function innerCmd(o, [kind, ...args]) {
+  const payer = address(feePayerRef(o));
+  const ix = kind === "guardian" ? guardianInner(args[0], args.slice(1), payer).inner
+    : kind === "upgrade" ? upgradeIx(programOf(args[0]), address(args[1] ?? ""), pinned("upgrade").vault, o.spill ? address(o.spill) : payer) : null;
+  if (!ix) throw new Refused("inner takes what a proposal would carry: inner guardian pause 600, inner guardian revoke 0 <key hash>, or inner upgrade knos_pay <buffer address>.");
+  say(JSON.stringify({ program: ix.programId.toBase58(), data: ix.data.toString("hex"),
+                       accounts: ix.keys.map((k) => ({ address: k.pubkey.toBase58(), signer: k.isSigner, writable: k.isWritable })) }));
+}
+
+// ---- the command line -----------------------------------------------------------------------------------------------
+/** The help is this file's opening comment. */
+function usage() {
+  const lines = fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1);
+  return lines.slice(0, lines.findIndex((l) => !l.startsWith("//"))).map((l) => l.slice(3)).join("\n");
+}
+
+async function main(argv) {
+  const { values: o, positionals: [command, ...rest] } = parseArgs({ args: argv, allowPositionals: true, options: {
+    rpc: { type: "string" }, keys: { type: "string" }, "fee-payer": { type: "string" }, member: { type: "string", multiple: true }, threshold: { type: "string" },
+    "upgrade-create-key": { type: "string" }, "guardian-create-key": { type: "string" }, spill: { type: "string" }, out: { type: "string" },
+    "priority-fee": { type: "string" }, "expect-hash": { type: "string" }, on: { type: "string" }, permissions: { type: "string" }, state: { type: "string" },
+    founder: { type: "boolean" }, send: { type: "boolean" }, check: { type: "boolean" }, json: { type: "boolean" }, unchecked: { type: "boolean" }, ungated: { type: "boolean" }, help: { type: "boolean", short: "h" } } });
+  if (squads.PROGRAM_ID.toBase58() !== IDS.squads_program) throw new Refused(`the Squads SDK is for program ${squads.PROGRAM_ID}, and programs-v2/program_ids.json names ${IDS.squads_program}.`);
+  if (o.help || !command) return say(usage());
+  if (command === "create") return create(o);
+  if (command === "show") return show(o);
+  if (command === "guardian") return guardian(o, rest[0], rest.slice(1));
+  if (command === "upgrade") {
+    const [sub, ...args] = rest;
+    if (sub === "propose") return upgrade(o, args[0], args[1]);
+    if (sub === "execute") return execute(o, "upgrade", args[0]);
+    if (sub === "approve" || sub === "cancel") return vote(o, "upgrade", args[0], sub === "cancel");
+    throw new Refused(`upgrade takes propose <${PROGRAMS.join("|")}> <buffer address>, or execute <proposal index> once the delay has passed.`);
+  }
+  if (command === "approve" || command === "cancel") return vote(o, rest[0], rest[1], command === "cancel");
+  if (command === "execute") return execute(o, rest[0], rest[1]);
+  if (["add-member", "replace-member", "set-threshold", "set-time-lock"].includes(command)) return configCmd(o, command, rest);
+  if (command === "derive") return deriveCmd(o);
+  if (command === "inner") return innerCmd(o, rest);
+  throw new Refused(`there is no command ${command}. Run node scripts/governance.mjs --help for the list.`);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
+  process.removeAllListeners("warning");   // an SDK dependency still loads Node's old punycode module; that is not this command's news
+  main(process.argv.slice(2)).catch((e) => {
+    console.error(e instanceof Refused ? `refused: ${e.message}` : `failed: ${e.stack ?? e}`);
+    process.exitCode = 1;
+  });
+}

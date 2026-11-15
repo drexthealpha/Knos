@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "luhn",
+ "title": "Check a number with the Luhn rule",
+ "statement": "Test USDC, no monetary value.\n\nRead one line of digits. Print `valid` when it passes the Luhn check, else `invalid`. Starting from the rightmost digit and moving left, double every second digit; when a doubled digit is above 9, subtract 9; the number is valid when the sum of all digits is a multiple of 10.",
+ "file": "tasks/luhn.py",
+ "run": [
+  "python3",
+  "tasks/luhn.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "79927398713",
+   "output": "valid"
+  },
+  {
+   "input": "79927398710",
+   "output": "invalid"
+  },
+  {
+   "input": "0",
+   "output": "valid"
+  }
+ ],
+ "seed": 111,
+ "starting_files": {
+  "tasks/luhn.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

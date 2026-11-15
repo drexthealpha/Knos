@@ -1,0 +1,5 @@
+# One workspace, one lockfile, for the two programs. `solana-verify build programs --library-name <name>` mounts this
+# directory, so knos-pay's path dependency on knos-oidc is inside the mount.
+[workspace]
+members = ["knos_oidc", "knos_pay"]
+resolver = "2"

@@ -1,0 +1,97 @@
+name: pages
+
+# GitHub Pages: the Knos web app at / (it reads GitHub and Solana devnet in the browser, so it works with no Knos
+# server), /stats.json (what was funded and paid, counted from knos-pay's own logs on devnet, with Knos's own
+# activity kept apart from outside use: scripts/network_stats.py), the public record as static files (/bounties.json,
+# /bounties.rss, /u/<login>, /r/<owner>/<repo>, /badge/, /rank/, /latency.json, /operations.json: scripts/pages_data.py,
+# counted from the same log lines, the relay log and GitHub), and /index.json, the Agent PR Index (scanned every
+# 6 hours by index.yml and published as the index.json asset of the newest `index-*` GitHub Release; this build only
+# downloads it and re-checks its Merkle root). It never commits: all of it ships in the Pages artifact.
+#
+# A release does not start it by being published: release.yml starts it (workflow_dispatch) as its last job, after
+# the tests of the tagged commit passed and everything else went out.
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/demo_data.py", "terms/**", "scripts/upgrade_feed.py", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+# The build installs the package with pip (its dependencies are not pinned by hash) and runs the site's scripts, so it
+# gets the least: it reads. The deploy job alone may publish the Pages artifact and ask GitHub for its signed token.
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - run: pip install -q -e .
+      - name: site = the web app, at the commit it was built from
+        run: bash scripts/build_site.sh _site "$GITHUB_SHA"
+      - name: the history the last build read, so this one reads only what is new
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: _history
+          key: knos-history-${{ github.run_id }}
+          restore-keys: knos-history-
+      - name: /stats.json, counted from devnet
+        # --budget (seconds a program): a build with no cache to restore (the first, or one after GitHub dropped it)
+        # reads the whole history at once. A runner reads the public RPC at under one transaction a second (10 Oct 2026:
+        # 209 in 300 s, while the second escrow had 1,427); a build that restored the cache asks only for what is new.
+        run: python scripts/network_stats.py --out _site/stats.json --events-out _events.json --cache _history/history.json --budget 3600
+        env:
+          GH_TOKEN: ${{ github.token }}       # without it GitHub is read unauthenticated, and merge-to-paid has no merges to time
+      - name: keep the history read, for the next build
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: _history
+          key: knos-history-${{ github.run_id }}
+      - name: /upgrades.json and /upgrades.xml from the upgrade multisig's proposals (a cluster that does not answer keeps the committed files)
+        run: python scripts/upgrade_feed.py --out _site || [ "$?" = 2 ]
+      - name: Agent PR Index (/index.json) from the newest index-* release; its root must match its records
+        run: |
+          tag=$(gh release list -R "${{ github.repository }}" --limit 100 --json tagName,createdAt \
+                --jq '[.[] | select(.tagName | startswith("index-"))] | sort_by(.createdAt) | last | .tagName // empty')
+          if [ -n "$tag" ]; then
+            gh release download "$tag" -R "${{ github.repository }}" -p index.json -D _site --clobber
+            python scripts/agent_pr_index.py check --out _site/index.json
+          else
+            echo "no index-* release yet; /index.json is absent and the web app says so"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: the public record as static files (bounties, accounts, repositories, badges, rankings, latency, operations)
+        run: python scripts/pages_data.py --out _site --events _events.json --index _site/index.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: the board of funded test tasks, as it is now (the build's empty document when it cannot be read)
+        run: python scripts/task_board.py status --json > _site/tasks.json || python scripts/task_board.py status --json --empty > _site/tasks.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: _site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

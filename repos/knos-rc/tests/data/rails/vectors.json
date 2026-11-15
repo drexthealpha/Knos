@@ -1,0 +1,1054 @@
+[
+ {
+  "name": "one supplier, two agreed lines",
+  "statement": {
+   "kind": "knos-statement",
+   "version": 1,
+   "sha256": "78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690",
+   "date": "2026-09-30",
+   "invoice": "INV-2026-09",
+   "supplier": "Acme Agents",
+   "buyer": "Northwind",
+   "currency": "USD",
+   "scale": 2,
+   "source": "shadow",
+   "note": "A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them.",
+   "prior": [],
+   "lines": [
+    {
+     "line": 1,
+     "reference": "acme/app#1",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_7d18ee5930ce4f8945ee626f",
+     "evaluations": [
+      "evl_d6f7851bb59a7591d7cd7726"
+     ],
+     "invoice_line": "inv_b4add9cf5f7842919a292b6f",
+     "settlement": null,
+     "state": "agreed",
+     "payment": "payable",
+     "amount": "100.00",
+     "why": "",
+     "evidence": "https://github.com/acme/app/pull/1",
+     "evidence_sha256": "206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93",
+     "duplicate_of": ""
+    },
+    {
+     "line": 2,
+     "reference": "acme/app#2",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_2588c667db86d1b266ea0121",
+     "evaluations": [
+      "evl_1ca8008cccb72826ece72b62"
+     ],
+     "invoice_line": "inv_740e3c083fd82e11c55a3889",
+     "settlement": null,
+     "state": "disputed",
+     "payment": "held",
+     "amount": "250.00",
+     "why": "a check failed when this change was merged: test",
+     "evidence": "https://github.com/acme/app/actions/runs/21/job/21",
+     "evidence_sha256": "278c57dbd13ad16ac870c6f87d7a741a6c69b130e3f5ee3bf5f7af60ce63991c",
+     "duplicate_of": ""
+    },
+    {
+     "line": 3,
+     "reference": "acme/app#3",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_7eb54ea7a68764c8c2d90d28",
+     "evaluations": [
+      "evl_ec16d038d8ff8e67c75980b0"
+     ],
+     "invoice_line": "inv_7dbdc2f0b5336695951583d2",
+     "settlement": null,
+     "state": "insufficient_evidence",
+     "payment": "held",
+     "amount": "80.00",
+     "why": "the checks give no verdict: no check ran",
+     "evidence": "https://github.com/acme/app/pull/3",
+     "evidence_sha256": "e5922f5d4c1c0acce4aff442495673f35c479c227b68097d014132bed0ac51dc",
+     "duplicate_of": ""
+    },
+    {
+     "line": 4,
+     "reference": "acme/app#1",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_7d18ee5930ce4f8945ee626f",
+     "evaluations": [],
+     "invoice_line": "inv_92705e08349c79f12e7a5249",
+     "settlement": null,
+     "state": "duplicate",
+     "payment": "held",
+     "amount": "100.00",
+     "why": "billed twice on this invoice: same pull request as line 1",
+     "evidence": "https://github.com/acme/app/pull/1",
+     "evidence_sha256": "206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93",
+     "duplicate_of": "line 1"
+    },
+    {
+     "line": 5,
+     "reference": "acme/app#4",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_3ff7922d689c11ef9b04a660",
+     "evaluations": [
+      "evl_5e98a492487590e945e006ea"
+     ],
+     "invoice_line": "inv_5633b01f50068344b40b1b61",
+     "settlement": null,
+     "state": "agreed",
+     "payment": "payable",
+     "amount": "60.00",
+     "why": "",
+     "evidence": "https://github.com/acme/app/pull/4",
+     "evidence_sha256": "a0428771cc3d4b5f69d69a24de9d44cf3573d7862e40eca5c60d0302f829a8c0",
+     "duplicate_of": ""
+    }
+   ],
+   "totals": {
+    "billed": {
+     "lines": 5,
+     "amount": "590.00"
+    },
+    "agreed": {
+     "lines": 2,
+     "amount": "160.00"
+    },
+    "disputed": {
+     "lines": 1,
+     "amount": "250.00"
+    },
+    "duplicate": {
+     "lines": 1,
+     "amount": "100.00"
+    },
+    "insufficient_evidence": {
+     "lines": 1,
+     "amount": "80.00"
+    }
+   },
+   "evidence": {
+    "kind": "github-answers",
+    "signed": [],
+    "sha256": "c19d8125a899aa7647d144bfb93056b63544d9d30a708dccca3d052c933e73c2",
+    "items": {
+     "invoice": "111638983e7d030b9140888b1172373d0679094ea0742d76482c3f9e1456dafa",
+     "repos/acme/app/commits/0000000000000000000000000000000000000001/check-runs?per_page=100&page=1": "5c612a2f6c9a9531a8448bea61598d04d1faac7e7b838c4393c27d154345dcc0",
+     "repos/acme/app/commits/0000000000000000000000000000000000000001/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000002/check-runs?per_page=100&page=1": "265e296846ac0c194915f779ad34748c387c89ef189f3aaf24c66097f2f1a069",
+     "repos/acme/app/commits/0000000000000000000000000000000000000002/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000003/check-runs?per_page=100&page=1": "cb94646e60544ba682294dab7e576ef54a8866d556fc6fd651a922b3b428ebc5",
+     "repos/acme/app/commits/0000000000000000000000000000000000000003/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000004/check-runs?per_page=100&page=1": "2800c47472b1d5a1e236793aa2f78dffb25b9eebf35f5e9a7fa5ad95d0cf9cdc",
+     "repos/acme/app/commits/0000000000000000000000000000000000000004/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/pulls/1": "12a26efee56a3f603188b0bfb1df6163d75e1d2aa4b5b151128304c0eac6164d",
+     "repos/acme/app/pulls/2": "ec882a7bf04eee13d8429a46f894edf5991cb7350c1d5b77ca555f36865e113d",
+     "repos/acme/app/pulls/3": "484ce7ee66551bc7f23caf28a90b3166d5f510bfaf6d1a4630d781509c86f840",
+     "repos/acme/app/pulls/4": "25310f8782b0ff4c046690fdf1c577f65bd74a8d82632272e33d33e1ba53e13f"
+    },
+    "embedded": {
+     "answers": {
+      "repos/acme/app/commits/0000000000000000000000000000000000000001/check-runs?per_page=100&page=1": {
+       "total_count": 1,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/11/job/11"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000001/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000002/check-runs?per_page=100&page=1": {
+       "total_count": 2,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "failure",
+         "html_url": "https://github.com/acme/app/actions/runs/21/job/21"
+        },
+        {
+         "name": "lint",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/22/job/22"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000002/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000003/check-runs?per_page=100&page=1": {
+       "total_count": 0,
+       "check_runs": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000003/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000004/check-runs?per_page=100&page=1": {
+       "total_count": 1,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/41/job/41"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000004/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/pulls/1": {
+       "number": 1,
+       "body": "Adds the parser. All tests pass.\n\nFixes #10",
+       "merged_at": "2026-09-03T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003e9",
+       "head": {
+        "sha": "0000000000000000000000000000000000000001"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/2": {
+       "number": 2,
+       "body": "CI is green.\n\nCloses #11",
+       "merged_at": "2026-09-05T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003ea",
+       "head": {
+        "sha": "0000000000000000000000000000000000000002"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/3": {
+       "number": 3,
+       "body": "Tests pass.",
+       "merged_at": "2026-09-08T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003eb",
+       "head": {
+        "sha": "0000000000000000000000000000000000000003"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/4": {
+       "number": 4,
+       "body": "Tests pass.",
+       "merged_at": "2026-09-12T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003ec",
+       "head": {
+        "sha": "0000000000000000000000000000000000000004"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      }
+     },
+     "invoice": "pr,amount,supplier\nacme/app#1,100.00,Acme Agents\nacme/app#2,250.00,Acme Agents\nacme/app#3,80.00,Acme Agents\nacme/app#1,100.00,Acme Agents\nacme/app#4,60.00,Acme Agents\n"
+    }
+   }
+  },
+  "status": {
+   "kind": "knos-statement-status",
+   "version": 1,
+   "statement": "78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690",
+   "events": [
+    {
+     "type": "approval",
+     "scope": "agreed",
+     "by": "Dana Reyes",
+     "role": "finance controller",
+     "on": "2026-10-01",
+     "lines": [
+      "inv_b4add9cf5f7842919a292b6f",
+      "inv_5633b01f50068344b40b1b61"
+     ],
+     "amount": "160.00"
+    }
+   ]
+  },
+  "payer": {
+   "name": "Northwind Ltd",
+   "account": "DE89 3704 0044 0532 0130 00",
+   "bic": "DEUTDEFF",
+   "on": "2026-10-02",
+   "payees": {
+    "Acme Agents": {
+     "name": "Acme Agents",
+     "account": "GB82 WEST 1234 5698 7654 32",
+     "bic": ""
+    },
+    "Zeta Ünion & Co <Ltd>": {
+     "name": "Zeta Ünion & Co <Ltd>",
+     "account": "021000021123456789",
+     "bic": "chasus33"
+    }
+   }
+  },
+  "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">\n  <CstmrCdtTrfInitn>\n    <GrpHdr>\n      <MsgId>KNOSE4FB6FB60AAB2C44E432F11C8F73</MsgId>\n      <CreDtTm>2026-10-02T00:00:00Z</CreDtTm>\n      <NbOfTxs>1</NbOfTxs>\n      <CtrlSum>160.00</CtrlSum>\n      <InitgPty><Nm>Northwind Ltd</Nm></InitgPty>\n    </GrpHdr>\n    <PmtInf>\n      <PmtInfId>KNOSE4FB6FB60AAB2C44E432F11C8F73-1</PmtInfId>\n      <PmtMtd>TRF</PmtMtd>\n      <NbOfTxs>1</NbOfTxs>\n      <CtrlSum>160.00</CtrlSum>\n      <ReqdExctnDt><Dt>2026-10-02</Dt></ReqdExctnDt>\n      <Dbtr><Nm>Northwind Ltd</Nm></Dbtr>\n      <DbtrAcct><Id><IBAN>DE89370400440532013000</IBAN></Id></DbtrAcct>\n      <DbtrAgt><FinInstnId><BICFI>DEUTDEFF</BICFI></FinInstnId></DbtrAgt>\n      <CdtTrfTxInf>\n        <PmtId><EndToEndId>stl_2ae473ce9edee1390b9a243e</EndToEndId></PmtId>\n        <Amt><InstdAmt Ccy=\"USD\">160.00</InstdAmt></Amt>\n        <Cdtr><Nm>Acme Agents</Nm></Cdtr>\n        <CdtrAcct><Id><IBAN>GB82WEST12345698765432</IBAN></Id></CdtrAcct>\n        <RmtInf>\n          <Ustrd>KNOS 78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690 INV INV-2026-09</Ustrd>\n          <Ustrd>inv_b4add9cf5f7842919a292b6f inv_5633b01f50068344b40b1b61</Ustrd>\n        </RmtInf>\n      </CdtTrfTxInf>\n    </PmtInf>\n  </CstmrCdtTrfInitn>\n</Document>\n",
+  "transfers": [
+   {
+    "end_to_end": "stl_2ae473ce9edee1390b9a243e",
+    "supplier": "Acme Agents",
+    "amount": "160.00",
+    "units": 16000,
+    "currency": "USD",
+    "lines": [
+     "inv_b4add9cf5f7842919a292b6f",
+     "inv_5633b01f50068344b40b1b61"
+    ]
+   }
+  ],
+  "message": "KNOSE4FB6FB60AAB2C44E432F11C8F73"
+ },
+ {
+  "name": "two suppliers, an account that is no IBAN, a name a bank would not take",
+  "statement": {
+   "kind": "knos-statement",
+   "version": 1,
+   "sha256": "85aae127610f5c51c9498b42aca377ef415aa859644a37c1a096b3163864ae83",
+   "date": "2026-09-30",
+   "invoice": "INV-2026-09-B",
+   "supplier": "",
+   "buyer": "Northwind",
+   "currency": "USD",
+   "scale": 2,
+   "source": "shadow",
+   "note": "A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them.",
+   "prior": [],
+   "lines": [
+    {
+     "line": 1,
+     "reference": "acme/app#1",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_7d18ee5930ce4f8945ee626f",
+     "evaluations": [
+      "evl_d6f7851bb59a7591d7cd7726"
+     ],
+     "invoice_line": "inv_44ccaa7f46640295882cf242",
+     "settlement": null,
+     "state": "agreed",
+     "payment": "payable",
+     "amount": "100.00",
+     "why": "",
+     "evidence": "https://github.com/acme/app/pull/1",
+     "evidence_sha256": "206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93",
+     "duplicate_of": ""
+    },
+    {
+     "line": 2,
+     "reference": "acme/app#4",
+     "supplier": "Zeta Ünion & Co <Ltd>",
+     "deliverable": "dlv_3ff7922d689c11ef9b04a660",
+     "evaluations": [
+      "evl_5e98a492487590e945e006ea"
+     ],
+     "invoice_line": "inv_fe8eaee4d2ca674163522498",
+     "settlement": null,
+     "state": "agreed",
+     "payment": "payable",
+     "amount": "60.10",
+     "why": "",
+     "evidence": "https://github.com/acme/app/pull/4",
+     "evidence_sha256": "a0428771cc3d4b5f69d69a24de9d44cf3573d7862e40eca5c60d0302f829a8c0",
+     "duplicate_of": ""
+    },
+    {
+     "line": 3,
+     "reference": "acme/app#7",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_663fe2a8f880fe089c604e6c",
+     "evaluations": [
+      "evl_b14134e3582e71d4484a62ff"
+     ],
+     "invoice_line": "inv_5146d60e90bac25628809516",
+     "settlement": null,
+     "state": "agreed",
+     "payment": "payable",
+     "amount": "45.50",
+     "why": "",
+     "evidence": "https://github.com/acme/app/pull/7",
+     "evidence_sha256": "536f761913ef73016ff9884467a255f93612d19dfb1d4149bc915fbaf0ae5bf8",
+     "duplicate_of": ""
+    },
+    {
+     "line": 4,
+     "reference": "acme/app#2",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_2588c667db86d1b266ea0121",
+     "evaluations": [
+      "evl_1ca8008cccb72826ece72b62"
+     ],
+     "invoice_line": "inv_c670b3cc6585e78df1e2df4f",
+     "settlement": null,
+     "state": "disputed",
+     "payment": "held",
+     "amount": "250.00",
+     "why": "a check failed when this change was merged: test",
+     "evidence": "https://github.com/acme/app/actions/runs/21/job/21",
+     "evidence_sha256": "278c57dbd13ad16ac870c6f87d7a741a6c69b130e3f5ee3bf5f7af60ce63991c",
+     "duplicate_of": ""
+    }
+   ],
+   "totals": {
+    "billed": {
+     "lines": 4,
+     "amount": "455.60"
+    },
+    "agreed": {
+     "lines": 3,
+     "amount": "205.60"
+    },
+    "disputed": {
+     "lines": 1,
+     "amount": "250.00"
+    },
+    "duplicate": {
+     "lines": 0,
+     "amount": "0.00"
+    },
+    "insufficient_evidence": {
+     "lines": 0,
+     "amount": "0.00"
+    }
+   },
+   "evidence": {
+    "kind": "github-answers",
+    "signed": [],
+    "sha256": "f8fb28ec04685ce898f2dc5cd54b0278675ddef293d91a283b02230672207865",
+    "items": {
+     "invoice": "081de227055b4016a8d53dfbdabc56da7abfa82befc34abdf1c78cac9addb653",
+     "repos/acme/app/commits/0000000000000000000000000000000000000001/check-runs?per_page=100&page=1": "5c612a2f6c9a9531a8448bea61598d04d1faac7e7b838c4393c27d154345dcc0",
+     "repos/acme/app/commits/0000000000000000000000000000000000000001/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000002/check-runs?per_page=100&page=1": "265e296846ac0c194915f779ad34748c387c89ef189f3aaf24c66097f2f1a069",
+     "repos/acme/app/commits/0000000000000000000000000000000000000002/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000004/check-runs?per_page=100&page=1": "2800c47472b1d5a1e236793aa2f78dffb25b9eebf35f5e9a7fa5ad95d0cf9cdc",
+     "repos/acme/app/commits/0000000000000000000000000000000000000004/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000007/check-runs?per_page=100&page=1": "1274437e50383bde096c3d2162f47ff2d8874f9c7dc84fd934c195e361c71b94",
+     "repos/acme/app/commits/0000000000000000000000000000000000000007/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/pulls/1": "12a26efee56a3f603188b0bfb1df6163d75e1d2aa4b5b151128304c0eac6164d",
+     "repos/acme/app/pulls/2": "ec882a7bf04eee13d8429a46f894edf5991cb7350c1d5b77ca555f36865e113d",
+     "repos/acme/app/pulls/4": "25310f8782b0ff4c046690fdf1c577f65bd74a8d82632272e33d33e1ba53e13f",
+     "repos/acme/app/pulls/7": "c3aed7d96d0513c0e3141b19ce2928cf008a83b99b3a4c0bce640b5d7b4da7b4"
+    },
+    "embedded": {
+     "answers": {
+      "repos/acme/app/commits/0000000000000000000000000000000000000001/check-runs?per_page=100&page=1": {
+       "total_count": 1,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/11/job/11"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000001/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000002/check-runs?per_page=100&page=1": {
+       "total_count": 2,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "failure",
+         "html_url": "https://github.com/acme/app/actions/runs/21/job/21"
+        },
+        {
+         "name": "lint",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/22/job/22"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000002/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000004/check-runs?per_page=100&page=1": {
+       "total_count": 1,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/41/job/41"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000004/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000007/check-runs?per_page=100&page=1": {
+       "total_count": 1,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/71/job/71"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000007/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/pulls/1": {
+       "number": 1,
+       "body": "Adds the parser. All tests pass.\n\nFixes #10",
+       "merged_at": "2026-09-03T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003e9",
+       "head": {
+        "sha": "0000000000000000000000000000000000000001"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/2": {
+       "number": 2,
+       "body": "CI is green.\n\nCloses #11",
+       "merged_at": "2026-09-05T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003ea",
+       "head": {
+        "sha": "0000000000000000000000000000000000000002"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/4": {
+       "number": 4,
+       "body": "Tests pass.",
+       "merged_at": "2026-09-12T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003ec",
+       "head": {
+        "sha": "0000000000000000000000000000000000000004"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/7": {
+       "number": 7,
+       "body": "Tests pass.",
+       "merged_at": "2026-09-29T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003ef",
+       "head": {
+        "sha": "0000000000000000000000000000000000000007"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      }
+     },
+     "invoice": "pr,amount,supplier\nacme/app#1,100.00,Acme Agents\nacme/app#4,60.10,Zeta Ünion & Co <Ltd>\nacme/app#7,45.50,Acme Agents\nacme/app#2,250.00,Acme Agents\n"
+    }
+   }
+  },
+  "status": {
+   "kind": "knos-statement-status",
+   "version": 1,
+   "statement": "85aae127610f5c51c9498b42aca377ef415aa859644a37c1a096b3163864ae83",
+   "events": [
+    {
+     "type": "approval",
+     "scope": "agreed",
+     "by": "Dana Reyes",
+     "role": "finance controller",
+     "on": "2026-10-01",
+     "lines": [
+      "inv_44ccaa7f46640295882cf242",
+      "inv_fe8eaee4d2ca674163522498",
+      "inv_5146d60e90bac25628809516"
+     ],
+     "amount": "205.60"
+    }
+   ]
+  },
+  "payer": {
+   "name": "Northwind Ltd",
+   "account": "12345678",
+   "bic": "",
+   "on": "2026-10-02",
+   "payees": {
+    "Acme Agents": {
+     "name": "Acme Agents",
+     "account": "GB82 WEST 1234 5698 7654 32",
+     "bic": ""
+    },
+    "Zeta Ünion & Co <Ltd>": {
+     "name": "Zeta Ünion & Co <Ltd>",
+     "account": "021000021123456789",
+     "bic": "chasus33"
+    }
+   },
+   "execute": "2026-10-06",
+   "created": "2026-10-02T09:30:00+02:00"
+  },
+  "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">\n  <CstmrCdtTrfInitn>\n    <GrpHdr>\n      <MsgId>KNOS3B430C8D92D3E0A67C32BD659266</MsgId>\n      <CreDtTm>2026-10-02T09:30:00+02:00</CreDtTm>\n      <NbOfTxs>2</NbOfTxs>\n      <CtrlSum>205.60</CtrlSum>\n      <InitgPty><Nm>Northwind Ltd</Nm></InitgPty>\n    </GrpHdr>\n    <PmtInf>\n      <PmtInfId>KNOS3B430C8D92D3E0A67C32BD659266-1</PmtInfId>\n      <PmtMtd>TRF</PmtMtd>\n      <NbOfTxs>2</NbOfTxs>\n      <CtrlSum>205.60</CtrlSum>\n      <ReqdExctnDt><Dt>2026-10-06</Dt></ReqdExctnDt>\n      <Dbtr><Nm>Northwind Ltd</Nm></Dbtr>\n      <DbtrAcct><Id><Othr><Id>12345678</Id></Othr></Id></DbtrAcct>\n      <DbtrAgt><FinInstnId><Othr><Id>NOTPROVIDED</Id></Othr></FinInstnId></DbtrAgt>\n      <CdtTrfTxInf>\n        <PmtId><EndToEndId>stl_34eb1f6c95fb6ef011ad3f9a</EndToEndId></PmtId>\n        <Amt><InstdAmt Ccy=\"USD\">145.50</InstdAmt></Amt>\n        <Cdtr><Nm>Acme Agents</Nm></Cdtr>\n        <CdtrAcct><Id><IBAN>GB82WEST12345698765432</IBAN></Id></CdtrAcct>\n        <RmtInf>\n          <Ustrd>KNOS 85aae127610f5c51c9498b42aca377ef415aa859644a37c1a096b3163864ae83 INV INV-2026-09-B</Ustrd>\n          <Ustrd>inv_44ccaa7f46640295882cf242 inv_5146d60e90bac25628809516</Ustrd>\n        </RmtInf>\n      </CdtTrfTxInf>\n      <CdtTrfTxInf>\n        <PmtId><EndToEndId>stl_f8d3f5b704123bc2550ecc9e</EndToEndId></PmtId>\n        <Amt><InstdAmt Ccy=\"USD\">60.10</InstdAmt></Amt>\n        <CdtrAgt><FinInstnId><BICFI>CHASUS33</BICFI></FinInstnId></CdtrAgt>\n        <Cdtr><Nm>Zeta .nion . Co .Ltd.</Nm></Cdtr>\n        <CdtrAcct><Id><Othr><Id>021000021123456789</Id></Othr></Id></CdtrAcct>\n        <RmtInf>\n          <Ustrd>KNOS 85aae127610f5c51c9498b42aca377ef415aa859644a37c1a096b3163864ae83 INV INV-2026-09-B</Ustrd>\n          <Ustrd>inv_fe8eaee4d2ca674163522498</Ustrd>\n        </RmtInf>\n      </CdtTrfTxInf>\n    </PmtInf>\n  </CstmrCdtTrfInitn>\n</Document>\n",
+  "transfers": [
+   {
+    "end_to_end": "stl_34eb1f6c95fb6ef011ad3f9a",
+    "supplier": "Acme Agents",
+    "amount": "145.50",
+    "units": 14550,
+    "currency": "USD",
+    "lines": [
+     "inv_44ccaa7f46640295882cf242",
+     "inv_5146d60e90bac25628809516"
+    ]
+   },
+   {
+    "end_to_end": "stl_f8d3f5b704123bc2550ecc9e",
+    "supplier": "Zeta Ünion & Co <Ltd>",
+    "amount": "60.10",
+    "units": 6010,
+    "currency": "USD",
+    "lines": [
+     "inv_fe8eaee4d2ca674163522498"
+    ]
+   }
+  ],
+  "message": "KNOS3B430C8D92D3E0A67C32BD659266"
+ },
+ {
+  "name": "the second file after the bank returned the first",
+  "statement": {
+   "kind": "knos-statement",
+   "version": 1,
+   "sha256": "78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690",
+   "date": "2026-09-30",
+   "invoice": "INV-2026-09",
+   "supplier": "Acme Agents",
+   "buyer": "Northwind",
+   "currency": "USD",
+   "scale": 2,
+   "source": "shadow",
+   "note": "A failed check at merge is not proof the work is bad, and a green check is not proof it is good. Shadow mode changes nothing and holds no money. GitHub's answers are kept as they were read; GitHub does not sign them.",
+   "prior": [],
+   "lines": [
+    {
+     "line": 1,
+     "reference": "acme/app#1",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_7d18ee5930ce4f8945ee626f",
+     "evaluations": [
+      "evl_d6f7851bb59a7591d7cd7726"
+     ],
+     "invoice_line": "inv_b4add9cf5f7842919a292b6f",
+     "settlement": null,
+     "state": "agreed",
+     "payment": "payable",
+     "amount": "100.00",
+     "why": "",
+     "evidence": "https://github.com/acme/app/pull/1",
+     "evidence_sha256": "206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93",
+     "duplicate_of": ""
+    },
+    {
+     "line": 2,
+     "reference": "acme/app#2",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_2588c667db86d1b266ea0121",
+     "evaluations": [
+      "evl_1ca8008cccb72826ece72b62"
+     ],
+     "invoice_line": "inv_740e3c083fd82e11c55a3889",
+     "settlement": null,
+     "state": "disputed",
+     "payment": "held",
+     "amount": "250.00",
+     "why": "a check failed when this change was merged: test",
+     "evidence": "https://github.com/acme/app/actions/runs/21/job/21",
+     "evidence_sha256": "278c57dbd13ad16ac870c6f87d7a741a6c69b130e3f5ee3bf5f7af60ce63991c",
+     "duplicate_of": ""
+    },
+    {
+     "line": 3,
+     "reference": "acme/app#3",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_7eb54ea7a68764c8c2d90d28",
+     "evaluations": [
+      "evl_ec16d038d8ff8e67c75980b0"
+     ],
+     "invoice_line": "inv_7dbdc2f0b5336695951583d2",
+     "settlement": null,
+     "state": "insufficient_evidence",
+     "payment": "held",
+     "amount": "80.00",
+     "why": "the checks give no verdict: no check ran",
+     "evidence": "https://github.com/acme/app/pull/3",
+     "evidence_sha256": "e5922f5d4c1c0acce4aff442495673f35c479c227b68097d014132bed0ac51dc",
+     "duplicate_of": ""
+    },
+    {
+     "line": 4,
+     "reference": "acme/app#1",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_7d18ee5930ce4f8945ee626f",
+     "evaluations": [],
+     "invoice_line": "inv_92705e08349c79f12e7a5249",
+     "settlement": null,
+     "state": "duplicate",
+     "payment": "held",
+     "amount": "100.00",
+     "why": "billed twice on this invoice: same pull request as line 1",
+     "evidence": "https://github.com/acme/app/pull/1",
+     "evidence_sha256": "206ee504067266c371d222532799443853ad5330fdd0aeac56dc927fc7d31a93",
+     "duplicate_of": "line 1"
+    },
+    {
+     "line": 5,
+     "reference": "acme/app#4",
+     "supplier": "Acme Agents",
+     "deliverable": "dlv_3ff7922d689c11ef9b04a660",
+     "evaluations": [
+      "evl_5e98a492487590e945e006ea"
+     ],
+     "invoice_line": "inv_5633b01f50068344b40b1b61",
+     "settlement": null,
+     "state": "agreed",
+     "payment": "payable",
+     "amount": "60.00",
+     "why": "",
+     "evidence": "https://github.com/acme/app/pull/4",
+     "evidence_sha256": "a0428771cc3d4b5f69d69a24de9d44cf3573d7862e40eca5c60d0302f829a8c0",
+     "duplicate_of": ""
+    }
+   ],
+   "totals": {
+    "billed": {
+     "lines": 5,
+     "amount": "590.00"
+    },
+    "agreed": {
+     "lines": 2,
+     "amount": "160.00"
+    },
+    "disputed": {
+     "lines": 1,
+     "amount": "250.00"
+    },
+    "duplicate": {
+     "lines": 1,
+     "amount": "100.00"
+    },
+    "insufficient_evidence": {
+     "lines": 1,
+     "amount": "80.00"
+    }
+   },
+   "evidence": {
+    "kind": "github-answers",
+    "signed": [],
+    "sha256": "c19d8125a899aa7647d144bfb93056b63544d9d30a708dccca3d052c933e73c2",
+    "items": {
+     "invoice": "111638983e7d030b9140888b1172373d0679094ea0742d76482c3f9e1456dafa",
+     "repos/acme/app/commits/0000000000000000000000000000000000000001/check-runs?per_page=100&page=1": "5c612a2f6c9a9531a8448bea61598d04d1faac7e7b838c4393c27d154345dcc0",
+     "repos/acme/app/commits/0000000000000000000000000000000000000001/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000002/check-runs?per_page=100&page=1": "265e296846ac0c194915f779ad34748c387c89ef189f3aaf24c66097f2f1a069",
+     "repos/acme/app/commits/0000000000000000000000000000000000000002/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000003/check-runs?per_page=100&page=1": "cb94646e60544ba682294dab7e576ef54a8866d556fc6fd651a922b3b428ebc5",
+     "repos/acme/app/commits/0000000000000000000000000000000000000003/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/commits/0000000000000000000000000000000000000004/check-runs?per_page=100&page=1": "2800c47472b1d5a1e236793aa2f78dffb25b9eebf35f5e9a7fa5ad95d0cf9cdc",
+     "repos/acme/app/commits/0000000000000000000000000000000000000004/status?per_page=100&page=1": "4d27179c28bafaf4c767264c1ca1d514493ab324df0d31b6870757d69839d83b",
+     "repos/acme/app/pulls/1": "12a26efee56a3f603188b0bfb1df6163d75e1d2aa4b5b151128304c0eac6164d",
+     "repos/acme/app/pulls/2": "ec882a7bf04eee13d8429a46f894edf5991cb7350c1d5b77ca555f36865e113d",
+     "repos/acme/app/pulls/3": "484ce7ee66551bc7f23caf28a90b3166d5f510bfaf6d1a4630d781509c86f840",
+     "repos/acme/app/pulls/4": "25310f8782b0ff4c046690fdf1c577f65bd74a8d82632272e33d33e1ba53e13f"
+    },
+    "embedded": {
+     "answers": {
+      "repos/acme/app/commits/0000000000000000000000000000000000000001/check-runs?per_page=100&page=1": {
+       "total_count": 1,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/11/job/11"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000001/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000002/check-runs?per_page=100&page=1": {
+       "total_count": 2,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "failure",
+         "html_url": "https://github.com/acme/app/actions/runs/21/job/21"
+        },
+        {
+         "name": "lint",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/22/job/22"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000002/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000003/check-runs?per_page=100&page=1": {
+       "total_count": 0,
+       "check_runs": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000003/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000004/check-runs?per_page=100&page=1": {
+       "total_count": 1,
+       "check_runs": [
+        {
+         "name": "test",
+         "status": "completed",
+         "conclusion": "success",
+         "html_url": "https://github.com/acme/app/actions/runs/41/job/41"
+        }
+       ]
+      },
+      "repos/acme/app/commits/0000000000000000000000000000000000000004/status?per_page=100&page=1": {
+       "state": "x",
+       "total_count": 0,
+       "statuses": []
+      },
+      "repos/acme/app/pulls/1": {
+       "number": 1,
+       "body": "Adds the parser. All tests pass.\n\nFixes #10",
+       "merged_at": "2026-09-03T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003e9",
+       "head": {
+        "sha": "0000000000000000000000000000000000000001"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/2": {
+       "number": 2,
+       "body": "CI is green.\n\nCloses #11",
+       "merged_at": "2026-09-05T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003ea",
+       "head": {
+        "sha": "0000000000000000000000000000000000000002"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/3": {
+       "number": 3,
+       "body": "Tests pass.",
+       "merged_at": "2026-09-08T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003eb",
+       "head": {
+        "sha": "0000000000000000000000000000000000000003"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      },
+      "repos/acme/app/pulls/4": {
+       "number": 4,
+       "body": "Tests pass.",
+       "merged_at": "2026-09-12T10:00:00Z",
+       "merge_commit_sha": "00000000000000000000000000000000000003ec",
+       "head": {
+        "sha": "0000000000000000000000000000000000000004"
+       },
+       "base": {
+        "ref": "main",
+        "repo": {
+         "full_name": "acme/app",
+         "default_branch": "main"
+        }
+       }
+      }
+     },
+     "invoice": "pr,amount,supplier\nacme/app#1,100.00,Acme Agents\nacme/app#2,250.00,Acme Agents\nacme/app#3,80.00,Acme Agents\nacme/app#1,100.00,Acme Agents\nacme/app#4,60.00,Acme Agents\n"
+    }
+   }
+  },
+  "status": {
+   "kind": "knos-statement-status",
+   "version": 1,
+   "statement": "78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690",
+   "events": [
+    {
+     "type": "approval",
+     "scope": "agreed",
+     "by": "Dana Reyes",
+     "role": "finance controller",
+     "on": "2026-10-01",
+     "lines": [
+      "inv_b4add9cf5f7842919a292b6f",
+      "inv_5633b01f50068344b40b1b61"
+     ],
+     "amount": "160.00"
+    },
+    {
+     "type": "instruction",
+     "rail": "bank",
+     "format": "pain.001.001.09",
+     "message": "KNOSE4FB6FB60AAB2C44E432F11C8F73",
+     "on": "2026-10-02",
+     "execute": "2026-10-02",
+     "sha256": "e8f9e1c241debe99301b50c37521b9070973019bfab8fbfe52ddbfc40d3c2316",
+     "amount": "160.00",
+     "currency": "USD",
+     "transfers": [
+      {
+       "end_to_end": "stl_2ae473ce9edee1390b9a243e",
+       "supplier": "Acme Agents",
+       "amount": "160.00",
+       "currency": "USD",
+       "lines": [
+        "inv_b4add9cf5f7842919a292b6f",
+        "inv_5633b01f50068344b40b1b61"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "settlement",
+     "line": "inv_b4add9cf5f7842919a292b6f",
+     "deliverable": "dlv_7d18ee5930ce4f8945ee626f",
+     "settlement": "stl_2ae473ce9edee1390b9a243e",
+     "method": "bank",
+     "reference": "stl_2ae473ce9edee1390b9a243e",
+     "on": "2026-10-03",
+     "state": "payable",
+     "rail": "pain.001.001.09",
+     "returned": "RJCT AC04 closed account",
+     "note": "the bank returned this payment: RJCT AC04 closed account"
+    },
+    {
+     "type": "settlement",
+     "line": "inv_5633b01f50068344b40b1b61",
+     "deliverable": "dlv_3ff7922d689c11ef9b04a660",
+     "settlement": "stl_2ae473ce9edee1390b9a243e",
+     "method": "bank",
+     "reference": "stl_2ae473ce9edee1390b9a243e",
+     "on": "2026-10-03",
+     "state": "payable",
+     "rail": "pain.001.001.09",
+     "returned": "RJCT AC04 closed account",
+     "note": "the bank returned this payment: RJCT AC04 closed account"
+    }
+   ]
+  },
+  "payer": {
+   "name": "Northwind Ltd",
+   "account": "DE89 3704 0044 0532 0130 00",
+   "bic": "DEUTDEFF",
+   "on": "2026-10-05",
+   "payees": {
+    "Acme Agents": {
+     "name": "Acme Agents",
+     "account": "GB82 WEST 1234 5698 7654 32",
+     "bic": ""
+    },
+    "Zeta Ünion & Co <Ltd>": {
+     "name": "Zeta Ünion & Co <Ltd>",
+     "account": "021000021123456789",
+     "bic": "chasus33"
+    }
+   }
+  },
+  "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">\n  <CstmrCdtTrfInitn>\n    <GrpHdr>\n      <MsgId>KNOS7B3351C89FB19ACF8EC4B1951BD7</MsgId>\n      <CreDtTm>2026-10-05T00:00:00Z</CreDtTm>\n      <NbOfTxs>1</NbOfTxs>\n      <CtrlSum>160.00</CtrlSum>\n      <InitgPty><Nm>Northwind Ltd</Nm></InitgPty>\n    </GrpHdr>\n    <PmtInf>\n      <PmtInfId>KNOS7B3351C89FB19ACF8EC4B1951BD7-1</PmtInfId>\n      <PmtMtd>TRF</PmtMtd>\n      <NbOfTxs>1</NbOfTxs>\n      <CtrlSum>160.00</CtrlSum>\n      <ReqdExctnDt><Dt>2026-10-05</Dt></ReqdExctnDt>\n      <Dbtr><Nm>Northwind Ltd</Nm></Dbtr>\n      <DbtrAcct><Id><IBAN>DE89370400440532013000</IBAN></Id></DbtrAcct>\n      <DbtrAgt><FinInstnId><BICFI>DEUTDEFF</BICFI></FinInstnId></DbtrAgt>\n      <CdtTrfTxInf>\n        <PmtId><EndToEndId>stl_5cb462fa1784b1de08afb4c4</EndToEndId></PmtId>\n        <Amt><InstdAmt Ccy=\"USD\">160.00</InstdAmt></Amt>\n        <Cdtr><Nm>Acme Agents</Nm></Cdtr>\n        <CdtrAcct><Id><IBAN>GB82WEST12345698765432</IBAN></Id></CdtrAcct>\n        <RmtInf>\n          <Ustrd>KNOS 78d11a83d31086d6f44103f5bf99a473a87e7a42450868f2f4edd0055a6fb690 INV INV-2026-09</Ustrd>\n          <Ustrd>inv_b4add9cf5f7842919a292b6f inv_5633b01f50068344b40b1b61</Ustrd>\n        </RmtInf>\n      </CdtTrfTxInf>\n    </PmtInf>\n  </CstmrCdtTrfInitn>\n</Document>\n",
+  "transfers": [
+   {
+    "end_to_end": "stl_5cb462fa1784b1de08afb4c4",
+    "supplier": "Acme Agents",
+    "amount": "160.00",
+    "units": 16000,
+    "currency": "USD",
+    "lines": [
+     "inv_b4add9cf5f7842919a292b6f",
+     "inv_5633b01f50068344b40b1b61"
+    ]
+   }
+  ],
+  "message": "KNOS7B3351C89FB19ACF8EC4B1951BD7"
+ }
+]

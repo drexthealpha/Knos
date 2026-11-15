@@ -1,0 +1,43 @@
+{
+ "v": 1,
+ "slug": "column",
+ "title": "Name a spreadsheet column by its number",
+ "statement": "Test USDC, no monetary value.\n\nRead one whole number from 1 to 1,000,000,000. Print the name a spreadsheet gives that column: 1 is `A`, 26 is `Z`, 27 is `AA`, 703 is `AAA`.",
+ "file": "tasks/column.py",
+ "run": [
+  "python3",
+  "tasks/column.py"
+ ],
+ "amount": 5000000,
+ "deadline_days": 14,
+ "labels": [
+  "knos-funded",
+  "good first issue",
+  "help wanted"
+ ],
+ "public": [
+  {
+   "input": "1",
+   "output": "A"
+  },
+  {
+   "input": "27",
+   "output": "AA"
+  },
+  {
+   "input": "703",
+   "output": "AAA"
+  }
+ ],
+ "seed": 124,
+ "starting_files": {
+  "tasks/column.py": "start.py"
+ },
+ "reference": "reference.py",
+ "hidden": "gen.py",
+ "wrong": [
+  "wrong_1.py",
+  "wrong_2.py",
+  "wrong_3.py"
+ ]
+}

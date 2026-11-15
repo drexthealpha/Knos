@@ -1,0 +1,171 @@
+{
+ "_about": "The Knos conformance kit. `kit` is the kit's version (2 added the formats `receipt4` and `ids`, 3 added `ledger2`, 4 added `receipt5`; none changed a vector of the version before); each format has its own versions. `sha256` is of the vectors as canonical JSON (keys sorted, no white space, UTF-8; `groups`: only those keys of the file), so it does not depend on line ends. Vectors named here never change: a change to a format is a new version of that format, with vectors of its own beside the old ones (docs/reference/CONFORMANCE.md).",
+ "kit": 4,
+ "formats": [
+  {
+   "format": "receipt",
+   "versions": [
+    1,
+    2,
+    3
+   ],
+   "file": "../docs/receipt/vectors.json",
+   "sha256": "5164675d900fb75e421f29d37d58526403cd0a27b7773962be2a3db98bf94eea",
+   "ops": [
+    "receipt.digest",
+    "receipt.check"
+   ],
+   "groups": [
+    "valid",
+    "invalid",
+    "valid_v2",
+    "invalid_v2",
+    "valid_v3",
+    "invalid_v3"
+   ],
+   "cases": 59
+  },
+  {
+   "format": "terms",
+   "versions": [
+    1
+   ],
+   "file": "vectors/terms.v1.json",
+   "sha256": "b761f7cb3fc7e2c7ea8a43231c2ec917b4f331cb1b436cfba2d67c982d9bd7cb",
+   "ops": [
+    "terms.hash",
+    "terms.canonical"
+   ],
+   "cases": 37
+  },
+  {
+   "format": "ledger",
+   "versions": [
+    1
+   ],
+   "file": "vectors/ledger.v1.json",
+   "sha256": "cc98067fd67431d239d1cebafa4841da0a71bf0953d61b4438f4bbaff21e61a4",
+   "ops": [
+    "ledger.eval_id",
+    "ledger.deliverable_id",
+    "ledger.batch_root",
+    "ledger.batch_root_any",
+    "ledger.check_proof",
+    "ledger.chain_hash"
+   ],
+   "cases": 31
+  },
+  {
+   "format": "audiences",
+   "versions": [
+    1
+   ],
+   "file": "vectors/audiences.v1.json",
+   "sha256": "b5e8429b6a00ec45169940ab0f14d4ff322b784552312090d8456324b4945466",
+   "ops": [
+    "audience.knos2_fund",
+    "audience.knos2_pay",
+    "audience.knos2_bind",
+    "audience.knos3_fund",
+    "audience.knos3_pay",
+    "audience.knos3_rule",
+    "audience.knos3_bind",
+    "audience.knos3_take",
+    "audience.knos3_cancel",
+    "audience.knos3_revert",
+    "audience.knos3_auto",
+    "audience.knosm_eval",
+    "audience.knosm_batch",
+    "audience.knos_oidc_key",
+    "audience.gate",
+    "audience.parse_knosm_batch"
+   ],
+   "cases": 36
+  },
+  {
+   "format": "statement",
+   "versions": [
+    1
+   ],
+   "file": "vectors/statement.v1.json",
+   "sha256": "d0fbcb03167af48c8a3d0249bb5fa582af5d84fb744716a6cf996ffbce5b5b50",
+   "ops": [
+    "statement.text",
+    "statement.hash"
+   ],
+   "cases": 8
+  },
+  {
+   "format": "receipt4",
+   "versions": [
+    4
+   ],
+   "file": "../docs/receipt/vectors.v4.json",
+   "sha256": "8a7541ea1e249d438ae6e07572082e754087c62c275de57451fe6152975d8dc2",
+   "ops": [
+    "receipt.digest",
+    "receipt.check",
+    "receipt.verdict"
+   ],
+   "groups": [
+    "valid_v4",
+    "invalid_v4"
+   ],
+   "cases": 60
+  },
+  {
+   "format": "receipt5",
+   "versions": [
+    5
+   ],
+   "file": "../docs/receipt/vectors.v5.json",
+   "sha256": "a787bc5b98262298b299dd5a27bd9d96e728877ba8fe9a4bffd5d10e7fe3b544",
+   "ops": [
+    "receipt.digest",
+    "receipt.check",
+    "receipt.verdict",
+    "receipt.assurance"
+   ],
+   "groups": [
+    "valid_v5",
+    "invalid_v5"
+   ],
+   "cases": 40
+  },
+  {
+   "format": "ids",
+   "versions": [
+    1
+   ],
+   "file": "vectors/ids.v1.json",
+   "sha256": "987ea4102621838c283c64ca28c668aa8dc718c6835b6bf32f5c98243ffd6b07",
+   "ops": [
+    "ids.deliverable",
+    "ids.evaluation",
+    "ids.invoice_line",
+    "ids.settlement",
+    "ids.order_scope",
+    "ids.kind_of",
+    "ids.expect",
+    "ids.verdict",
+    "ids.billed_once"
+   ],
+   "cases": 57
+  },
+  {
+   "format": "ledger2",
+   "versions": [
+    2
+   ],
+   "file": "vectors/ledger.v2.json",
+   "sha256": "7b32338a6ffab2e08361e08d6b8e6bc3de73bf053d1dab2d20fd4d01ff08a5b2",
+   "ops": [
+    "ledger2.event_bytes",
+    "ledger2.leaf",
+    "ledger2.root",
+    "ledger2.check_proof"
+   ],
+   "cases": 42
+  }
+ ]
+}

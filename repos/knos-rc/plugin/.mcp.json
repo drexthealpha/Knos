@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "knos": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["knos", "mcp"]
+    }
+  }
+}

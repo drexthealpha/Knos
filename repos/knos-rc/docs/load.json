@@ -1,0 +1,1820 @@
+{
+ "_about": "Load measurements; scripts/load.py writes this file and renders docs/reference/LOAD.md from it. local: N orders through the committed test builds in LiteSVM (compute units exact, cluster time derived). runs: what an operator measured on a cluster with a test issuer, newest last.",
+ "limits": {
+  "block_cu": 100000000,
+  "block_cu_before": 60000000,
+  "account_cu": 12000000,
+  "tx_cu": 1400000,
+  "tx_bytes": 1232,
+  "slot_s": 0.4
+ },
+ "sources": {
+  "Solana: 100M CU blocks (SIMD-0286), which also states the 12M per-account limit": "https://solana.com/upgrades/100m-cu-blocks",
+  "Agave's block cost limits (development branch)": "https://github.com/anza-xyz/agave/blob/master/cost-model/src/block_cost_limits.rs",
+  "Solana: slots of 400 ms": "https://solana.com/docs/core/transactions/confirmation"
+ },
+ "runs": [
+  {
+   "cluster": "devnet",
+   "date": "2026-10-04",
+   "orders": 200,
+   "senders": 8,
+   "run": "3f0a73e72a",
+   "wallet": "Dg2KBXnEBGMME7w1JFbnhZfzjNHJN9CWJmokGmfTuHMJ",
+   "issuer": "https://issuer.invalid/knos-load",
+   "key_account": "4jtusKvDteVRsri9z3FCFUweZFRfRC9YhjeYj6YWjjN5",
+   "programs": {
+    "knos_oidc": "iosu8ARUNvvruHPCcMWQ5rqsnJewzBxcPXajSpoHqXd",
+    "knos_pay": "FJJtqcRjQ9ATx37sBTCLUBxBqLUA9aQgSTLAsZynqtnH"
+   },
+   "stages": {
+    "verify": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 600,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 51.12,
+      "p95": 112.73,
+      "p99": 158.58,
+      "max": 207.44
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 73.18,
+      "p95": 140.04,
+      "p99": 184.79,
+      "max": 207.44
+     },
+     "first_failures": [],
+     "verified_on_chain": 200
+    },
+    "fund": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 200,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 38.35,
+      "p95": 97.18,
+      "p99": 157.56,
+      "max": 254.31
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 38.35,
+      "p95": 97.18,
+      "p99": 157.56,
+      "max": 254.31
+     },
+     "first_failures": [],
+     "open_on_chain": 200
+    },
+    "refund": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 200,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 36.43,
+      "p95": 49.89,
+      "p99": 68.21,
+      "max": 113.95
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 36.43,
+      "p95": 49.89,
+      "p99": 68.21,
+      "max": 113.95
+     },
+     "first_failures": []
+    },
+    "close": {
+     "units": 200,
+     "units_finalized": 200,
+     "transactions": 200,
+     "failures": 0,
+     "retries": 0,
+     "tx_submit_to_finalized_s": {
+      "p50": 34.51,
+      "p95": 55.22,
+      "p99": 62.19,
+      "max": 74.16
+     },
+     "unit_submit_to_finalized_s": {
+      "p50": 34.51,
+      "p95": 55.22,
+      "p99": 62.19,
+      "max": 74.16
+     },
+     "first_failures": []
+    }
+   },
+   "not_exercised": {
+    "pay": "knos_pay takes a token GitHub did not sign only in PayOrder on a PRIVATE order funded from a Balance, under a key the Balance's own wallet registered; that order is funded by FundOrderBalance, which takes GitHub's tokens only, one per order. A test issuer cannot fund and pay N orders, so PayOrder was not sent on the cluster; its compute units are measured in the local simulator.",
+    "fund from a Balance": "FundOrderBalance and the faucet take GitHub's tokens only. The orders were funded by a wallet (FundOrderWallet), in a mint made for the run.",
+    "meter": "knos_meter takes GitHub's tokens only."
+   },
+   "mint": "98G8AC2j1H1RHkBitQfVbRbtdwNR453ifrfpBZezmZe1",
+   "checks": {
+    "minted": 1360000000,
+    "held_by_orders": 1080000000,
+    "held_equals_funded": true,
+    "orders_left": 0,
+    "returned": 1360000000,
+    "nothing_lost": true
+   },
+   "ok": true
+  }
+ ],
+ "local": {
+  "cluster": "local simulator (LiteSVM)",
+  "date": "2026-10-07",
+  "seed": 314,
+  "fixtures": {
+   "knos_oidc_v2_test.so": "cd9d7d681aea80839d618c057a8fb0e249cc3d3665beaf8e5588b335ec8eabf5",
+   "knos_pay_v2_test.so": "28dc056375a56bf05f3a3bde941d1003c15efcae73616200ba48a459afa83e52"
+  },
+  "simulator_seconds": 18.9,
+  "invariants": {
+   "orders": 1000,
+   "open_at_once": 1000,
+   "paid_exactly_once": 1000,
+   "paid_twice_or_short": 0,
+   "funded": 24035843000,
+   "paid": 23958000000,
+   "fees": 77843000,
+   "refunds": 0,
+   "left_in_order_accounts_and_vault": 0,
+   "orders_still_open": 0,
+   "markers": {
+    "fund": 1000,
+    "pay": 1000
+   },
+   "markers_expected": 1000,
+   "sent_twice": 200,
+   "sent_after_close": 60,
+   "replays_refused": 260,
+   "replays_accepted": 0,
+   "ok": true
+  },
+  "stages": {
+   "verify": {
+    "orders": 1000,
+    "transactions": 10000,
+    "tx_per_order": {
+     "p50": 10,
+     "max": 10
+    },
+    "cu_per_order": {
+     "p50": 3226281,
+     "p95": 3259537,
+     "max": 3335400,
+     "mean": 3229875
+    },
+    "cu_per_tx_max": 849126,
+    "bytes_per_order": {
+     "p50": 7091,
+     "max": 7167
+    },
+    "bytes_per_tx_max": 1196,
+    "written_by_every_tx": [
+     "the relayer's own account, which pays the transaction fee (one per relayer)"
+    ],
+    "tokens_per_order": 2
+   },
+   "fund": {
+    "orders": 1000,
+    "transactions": 1000,
+    "tx_per_order": {
+     "p50": 1,
+     "max": 1
+    },
+    "cu_per_order": {
+     "p50": 132555,
+     "p95": 141450,
+     "max": 152062,
+     "mean": 133885
+    },
+    "cu_per_tx_max": 152062,
+    "bytes_per_order": {
+     "p50": 748,
+     "max": 748
+    },
+    "bytes_per_tx_max": 748,
+    "written_by_every_tx": [
+     "the Balance's side account (one per funder)",
+     "the Balance's token account (one per funder)",
+     "the funder's Balance (one per funder)",
+     "the relayer's own account, which pays the transaction fee (one per relayer)"
+    ]
+   },
+   "pay": {
+    "orders": 1000,
+    "transactions": 1000,
+    "tx_per_order": {
+     "p50": 1,
+     "max": 1
+    },
+    "cu_per_order": {
+     "p50": 169923,
+     "p95": 241459,
+     "max": 260963,
+     "mean": 182301
+    },
+    "cu_per_tx_max": 260963,
+    "bytes_per_order": {
+     "p50": 808,
+     "max": 1006
+    },
+    "bytes_per_tx_max": 1006,
+    "written_by_every_tx": [
+     "the fee account (FEE_OWNER's token account of the mint) (one per mint, for every relayer and funder)",
+     "the relayer's own account, which pays the transaction fee (one per relayer)",
+     "the relayer's token account, where its tip arrives (one per relayer)"
+    ]
+   }
+  },
+  "derived": {
+   "orders": 1000,
+   "block_cu": 100000000,
+   "cu_per_order": 3546061,
+   "one_relayer_orders_per_second": 8.46,
+   "fee_account_orders_per_second": 164.6,
+   "one_balance_orders_per_second": 224.1,
+   "relayers": {
+    "1": {
+     "blocks": 296,
+     "seconds": 118.4,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 8.4,
+     "under_a_minute": false
+    },
+    "4": {
+     "blocks": 74,
+     "seconds": 29.6,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 33.8,
+     "under_a_minute": true
+    },
+    "16": {
+     "blocks": 36,
+     "seconds": 14.4,
+     "bound_by": "the block",
+     "orders_per_second": 69.4,
+     "under_a_minute": true
+    }
+   }
+  },
+  "derived_before_simd_0286": {
+   "orders": 1000,
+   "block_cu": 60000000,
+   "cu_per_order": 3546061,
+   "one_relayer_orders_per_second": 8.46,
+   "fee_account_orders_per_second": 164.6,
+   "one_balance_orders_per_second": 224.1,
+   "relayers": {
+    "1": {
+     "blocks": 296,
+     "seconds": 118.4,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 8.4,
+     "under_a_minute": false
+    },
+    "4": {
+     "blocks": 74,
+     "seconds": 29.6,
+     "bound_by": "the relayers' own accounts",
+     "orders_per_second": 33.8,
+     "under_a_minute": true
+    },
+    "16": {
+     "blocks": 60,
+     "seconds": 24.0,
+     "bound_by": "the block",
+     "orders_per_second": 41.7,
+     "under_a_minute": true
+    }
+   }
+  }
+ },
+ "workflow": {
+  "read": "2026-10-05",
+  "limits": {
+   "github_token_requests_per_hour": 1000,
+   "github_token_requests_per_hour_enterprise": 15000,
+   "rest_requests_per_hour_user": 5000,
+   "rest_requests_per_hour_unauthenticated": 60,
+   "content_per_minute": 80,
+   "content_per_hour": 500,
+   "points_per_minute": 900,
+   "search_per_minute": 30,
+   "concurrent_jobs": {
+    "Free": 20,
+    "Pro": 40,
+    "Team": 60,
+    "Enterprise": 500
+   },
+   "runs_queued_per_10s": 500,
+   "rpc_requests_per_10s": 100,
+   "rpc_one_method_per_10s": 40,
+   "account_cu_per_block": 12000000,
+   "slot_s": 0.4
+  },
+  "sources": {
+   "GitHub: rate limits for the REST API (60 an hour unauthenticated, 5,000 authenticated, 1,000 per repository for GITHUB_TOKEN, 15,000 on Enterprise Cloud; secondary limits: 900 points a minute, 80 content-generating requests a minute and 500 an hour, \"subject to change without notice\")": "https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api",
+   "GitHub: best practices for the REST API (a 304 to a conditional request sent with an Authorization header does not count against the primary limit; wait a second between writes)": "https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api",
+   "GitHub: Actions limits (concurrent jobs on standard hosted runners: Free 20, Pro 40, Team 60, Enterprise 500; 500 workflow runs queued per 10 seconds per repository)": "https://docs.github.com/en/actions/reference/limits",
+   "GitHub: Actions billing (standard hosted runners are free in public repositories; included minutes a month: Free 2,000, Pro 3,000, Team 3,000, Enterprise Cloud 50,000)": "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+   "GitHub: search endpoints (30 requests a minute when authenticated)": "https://docs.github.com/en/rest/search/search",
+   "GitHub: OpenID Connect reference (the page that describes the token request; it states no rate limit, and none was measured here)": "https://docs.github.com/en/actions/reference/security/oidc",
+   "Solana: public RPC endpoints (100 requests per 10 seconds per IP, 40 for one method; \"not intended for production applications\")": "https://solana.com/docs/references/clusters",
+   "Solana: 100M CU blocks (SIMD-0286), which also states the 12M per-account limit": "https://solana.com/upgrades/100m-cu-blocks"
+  },
+  "counted": {
+   "own": {
+    "command": {
+     "word": "command (`/knos fund`)",
+     "reads": 11,
+     "writes": 1,
+     "comments": 1,
+     "tokens_signed": 1,
+     "waits": 0,
+     "jobs": 1
+    },
+    "settle": {
+     "word": "settle (on the merge)",
+     "reads": 15,
+     "writes": 5,
+     "comments": 2,
+     "tokens_signed": 1,
+     "waits": 0,
+     "jobs": 1
+    },
+    "attest_pay": {
+     "word": "attest (pay)",
+     "reads": 13,
+     "writes": 0,
+     "comments": 0,
+     "tokens_signed": 1,
+     "waits": 0,
+     "jobs": 1
+    },
+    "attest_eval": {
+     "word": "attest (eval)",
+     "reads": 2,
+     "writes": 0,
+     "comments": 0,
+     "tokens_signed": 1,
+     "waits": 0,
+     "jobs": 1
+    }
+   },
+   "public": {
+    "command": {
+     "word": "command (`/knos fund`)",
+     "reads": 11,
+     "writes": 2,
+     "comments": 2,
+     "tokens_signed": 1,
+     "waits": 1,
+     "jobs": 1
+    },
+    "settle": {
+     "word": "settle (on the merge)",
+     "reads": 15,
+     "writes": 6,
+     "comments": 3,
+     "tokens_signed": 1,
+     "waits": 1,
+     "jobs": 1
+    }
+   }
+  },
+  "relay": {
+   "wait_every_s": 3.0,
+   "wait_at_most_s": 600,
+   "polls_at_median": 11,
+   "polls_at_p95": 56,
+   "polls_at_timeout": 202,
+   "repositories_read_per_pass_at_most": 122,
+   "search_every_s": 30,
+   "pass_every_s": 3.0,
+   "counted_reads_per_token": 1,
+   "log_comments_per_token": 1,
+   "tokens_at_a_time": 4
+  },
+  "meter": {
+   "statement_reads_at_most": 100000,
+   "rows_per_history_request": 100,
+   "evaluations_per_batch_at_most": 100000
+  },
+  "chain": {
+   "fixtures": {
+    "knos_oidc_v2_test.so": "cd9d7d681aea80839d618c057a8fb0e249cc3d3665beaf8e5588b335ec8eabf5",
+    "knos_pay_v2_test.so": "28dc056375a56bf05f3a3bde941d1003c15efcae73616200ba48a459afa83e52"
+   },
+   "transactions_per_order": 12,
+   "tokens_per_order": 2,
+   "bytes_per_order": 8647,
+   "cu_per_order": 3546061,
+   "one_relayer_orders_per_second": 8.46,
+   "one_balance_orders_per_second": 224.1,
+   "fee_account_orders_per_second": 164.6
+  },
+  "latency": {
+   "merge_to_paid_s": {
+    "count": 56,
+    "median": 28,
+    "p95": 164
+   },
+   "window": {
+    "from": "2026-10-02",
+    "to": "2026-10-10"
+   },
+   "comment_to_funded_median_s": 36,
+   "stage_split": "not apart in these samples; scripts/latency_stages.py splits the payments whose relay log line carries the stage fields: docs/reference/RELAY.md, \"Where a token waits\""
+  },
+  "budget": {
+   "own": {
+    "reads": 26,
+    "writes": 6,
+    "comments": 3,
+    "tokens_signed": 2,
+    "waits": 0,
+    "jobs": 2,
+    "poll_requests": {
+     "median": 0,
+     "p95": 0,
+     "timeout": 0
+    },
+    "token_requests": {
+     "median": 32,
+     "p95": 32,
+     "timeout": 32
+    },
+    "relay_log_comments": 0,
+    "transactions": 12,
+    "bytes": 8647,
+    "cu": 3546061
+   },
+   "public": {
+    "reads": 26,
+    "writes": 8,
+    "comments": 5,
+    "tokens_signed": 2,
+    "waits": 2,
+    "jobs": 2,
+    "poll_requests": {
+     "median": 22,
+     "p95": 112,
+     "timeout": 404
+    },
+    "token_requests": {
+     "median": 56,
+     "p95": 146,
+     "timeout": 438
+    },
+    "relay_log_comments": 2,
+    "transactions": 12,
+    "bytes": 8647,
+    "cu": 3546061
+   }
+  },
+  "statement_requests": {
+   "10": {
+    "one_by_one": 305,
+    "batched_daily": 32
+   },
+   "1000": {
+    "one_by_one": 30302,
+    "batched_daily": 32
+   },
+   "100000": {
+    "one_by_one": 3030002,
+    "batched_daily": 32
+   }
+  },
+  "customers": [
+   {
+    "repositories": 1,
+    "per_day": 10,
+    "way": "own",
+    "first": "GITHUB_TOKEN requests an hour",
+    "at": 750,
+    "fits": true,
+    "binding": [],
+    "bounds": [
+     {
+      "limit": "GITHUB_TOKEN requests an hour",
+      "scope": "each repository",
+      "at": 750,
+      "from": "32 requests a deliverable (26 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
+      "lift": "more repositories; GitHub Enterprise Cloud (15,000 an hour)",
+      "load": 0.0133,
+      "binds": false
+     },
+     {
+      "limit": "the meter's statement, recomputed from the logs",
+      "scope": "each buyer and seller, each month",
+      "retrieval": true,
+      "at": 3333,
+      "from": "`knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short",
+      "lift": "batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume",
+      "load": 0.003,
+      "binds": false
+     },
+     {
+      "limit": "comments made in one repository",
+      "scope": "each repository",
+      "at": 4000,
+      "from": "3 comments a deliverable (counted); 500 content-generating requests an hour (GitHub)",
+      "lift": "more repositories",
+      "load": 0.0025,
+      "binds": false
+     },
+     {
+      "limit": "concurrent jobs (Free plan)",
+      "scope": "the customer's account",
+      "at": 5268,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 164 s (recorded, 56 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
+      "load": 0.0019,
+      "binds": false
+     },
+     {
+      "limit": "the fee key's own account",
+      "scope": "each fee key",
+      "at": 730944,
+      "from": "8.46 orders a second for one key that pays the fees (derived by scripts/load.py)",
+      "lift": "a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret)",
+      "load": 0.0,
+      "binds": false
+     },
+     {
+      "limit": "the fee account of the mint",
+      "scope": "every customer, every relayer",
+      "at": 14221440,
+      "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
+      "load": 0.0,
+      "binds": false
+     },
+     {
+      "limit": "the Balance, one writable account",
+      "scope": "each Balance",
+      "at": 19362240,
+      "from": "224.1 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
+      "load": 0.0,
+      "binds": false
+     }
+    ]
+   },
+   {
+    "repositories": 1,
+    "per_day": 10,
+    "way": "public",
+    "first": "GITHUB_TOKEN requests an hour",
+    "at": 164,
+    "fits": true,
+    "binding": [],
+    "bounds": [
+     {
+      "limit": "GITHUB_TOKEN requests an hour",
+      "scope": "each repository",
+      "at": 164,
+      "from": "146 requests a deliverable (26 reads and 8 writes counted, 112 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
+      "load": 0.061,
+      "binds": false
+     },
+     {
+      "limit": "the public relay's pass, at the serial rate recorded",
+      "scope": "every customer of the public worker",
+      "at": 1542,
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 28 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
+      "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
+      "load": 0.0065,
+      "binds": false
+     },
+     {
+      "limit": "comments made in one repository",
+      "scope": "each repository",
+      "at": 2400,
+      "from": "5 comments a deliverable (counted); 500 content-generating requests an hour (GitHub)",
+      "lift": "more repositories; or the job's own relay, which posts no token comment",
+      "load": 0.0042,
+      "binds": false
+     },
+     {
+      "limit": "the meter's statement, recomputed from the logs",
+      "scope": "each buyer and seller, each month",
+      "retrieval": true,
+      "at": 3333,
+      "from": "`knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short",
+      "lift": "batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume",
+      "load": 0.003,
+      "binds": false
+     },
+     {
+      "limit": "concurrent jobs (Free plan)",
+      "scope": "the customer's account",
+      "at": 5268,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 164 s (recorded, 56 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
+      "load": 0.0019,
+      "binds": false
+     },
+     {
+      "limit": "the public relay's log comments",
+      "scope": "every customer of the public worker",
+      "at": 6000,
+      "from": "2 tokens a deliverable, one log comment each (src/knos/proof/ghrelay.py posts a carried token's line at once); 500 content-generating requests an hour (GitHub)",
+      "lift": "the job's own relay with the repository's fee key (KNOS_RELAY_KEY): nothing is logged by the public worker; or several workers, each logging in a repository of its own (KNOS_RELAY_LOG_REPO)",
+      "load": 0.0017,
+      "binds": false
+     },
+     {
+      "limit": "the fee account of the mint",
+      "scope": "every customer, every relayer",
+      "at": 14221440,
+      "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
+      "load": 0.0,
+      "binds": false
+     },
+     {
+      "limit": "the Balance, one writable account",
+      "scope": "each Balance",
+      "at": 19362240,
+      "from": "224.1 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
+      "load": 0.0,
+      "binds": false
+     }
+    ]
+   },
+   {
+    "repositories": 10,
+    "per_day": 1000,
+    "way": "own",
+    "first": "concurrent jobs (Free plan)",
+    "at": 5268,
+    "fits": true,
+    "binding": [],
+    "bounds": [
+     {
+      "limit": "the meter's statement, recomputed from the logs",
+      "scope": "each buyer and seller, each month",
+      "retrieval": true,
+      "at": 3333,
+      "from": "`knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short",
+      "lift": "batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume",
+      "load": 0.3,
+      "binds": false
+     },
+     {
+      "limit": "concurrent jobs (Free plan)",
+      "scope": "the customer's account",
+      "at": 5268,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 164 s (recorded, 56 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
+      "load": 0.1898,
+      "binds": false
+     },
+     {
+      "limit": "GITHUB_TOKEN requests an hour",
+      "scope": "each repository",
+      "at": 7500,
+      "from": "32 requests a deliverable (26 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
+      "lift": "more repositories; GitHub Enterprise Cloud (15,000 an hour)",
+      "load": 0.1333,
+      "binds": false
+     },
+     {
+      "limit": "comments made in one repository",
+      "scope": "each repository",
+      "at": 40000,
+      "from": "3 comments a deliverable (counted); 500 content-generating requests an hour (GitHub)",
+      "lift": "more repositories",
+      "load": 0.025,
+      "binds": false
+     },
+     {
+      "limit": "the fee key's own account",
+      "scope": "each fee key",
+      "at": 730944,
+      "from": "8.46 orders a second for one key that pays the fees (derived by scripts/load.py)",
+      "lift": "a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret)",
+      "load": 0.0014,
+      "binds": false
+     },
+     {
+      "limit": "the fee account of the mint",
+      "scope": "every customer, every relayer",
+      "at": 14221440,
+      "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
+      "load": 0.0001,
+      "binds": false
+     },
+     {
+      "limit": "the Balance, one writable account",
+      "scope": "each Balance",
+      "at": 19362240,
+      "from": "224.1 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
+      "load": 0.0001,
+      "binds": false
+     }
+    ]
+   },
+   {
+    "repositories": 10,
+    "per_day": 1000,
+    "way": "public",
+    "first": "the public relay's pass, at the serial rate recorded",
+    "at": 1542,
+    "fits": true,
+    "binding": [],
+    "bounds": [
+     {
+      "limit": "the public relay's pass, at the serial rate recorded",
+      "scope": "every customer of the public worker",
+      "at": 1542,
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 28 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
+      "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
+      "load": 0.6485,
+      "binds": false
+     },
+     {
+      "limit": "GITHUB_TOKEN requests an hour",
+      "scope": "each repository",
+      "at": 1643,
+      "from": "146 requests a deliverable (26 reads and 8 writes counted, 112 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
+      "load": 0.6086,
+      "binds": false
+     },
+     {
+      "limit": "the meter's statement, recomputed from the logs",
+      "scope": "each buyer and seller, each month",
+      "retrieval": true,
+      "at": 3333,
+      "from": "`knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short",
+      "lift": "batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume",
+      "load": 0.3,
+      "binds": false
+     },
+     {
+      "limit": "concurrent jobs (Free plan)",
+      "scope": "the customer's account",
+      "at": 5268,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 164 s (recorded, 56 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
+      "load": 0.1898,
+      "binds": false
+     },
+     {
+      "limit": "the public relay's log comments",
+      "scope": "every customer of the public worker",
+      "at": 6000,
+      "from": "2 tokens a deliverable, one log comment each (src/knos/proof/ghrelay.py posts a carried token's line at once); 500 content-generating requests an hour (GitHub)",
+      "lift": "the job's own relay with the repository's fee key (KNOS_RELAY_KEY): nothing is logged by the public worker; or several workers, each logging in a repository of its own (KNOS_RELAY_LOG_REPO)",
+      "load": 0.1667,
+      "binds": false
+     },
+     {
+      "limit": "comments made in one repository",
+      "scope": "each repository",
+      "at": 24000,
+      "from": "5 comments a deliverable (counted); 500 content-generating requests an hour (GitHub)",
+      "lift": "more repositories; or the job's own relay, which posts no token comment",
+      "load": 0.0417,
+      "binds": false
+     },
+     {
+      "limit": "the fee account of the mint",
+      "scope": "every customer, every relayer",
+      "at": 14221440,
+      "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
+      "load": 0.0001,
+      "binds": false
+     },
+     {
+      "limit": "the Balance, one writable account",
+      "scope": "each Balance",
+      "at": 19362240,
+      "from": "224.1 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
+      "load": 0.0001,
+      "binds": false
+     }
+    ]
+   },
+   {
+    "repositories": 100,
+    "per_day": 100000,
+    "way": "own",
+    "first": "concurrent jobs (Free plan)",
+    "at": 5268,
+    "fits": false,
+    "binding": [
+     "the meter's statement, recomputed from the logs",
+     "concurrent jobs (Free plan)",
+     "GITHUB_TOKEN requests an hour"
+    ],
+    "bounds": [
+     {
+      "limit": "the meter's statement, recomputed from the logs",
+      "scope": "each buyer and seller, each month",
+      "retrieval": true,
+      "at": 3333,
+      "from": "`knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short",
+      "lift": "batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume",
+      "load": 30.003,
+      "binds": true
+     },
+     {
+      "limit": "concurrent jobs (Free plan)",
+      "scope": "the customer's account",
+      "at": 5268,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 164 s (recorded, 56 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
+      "load": 18.9825,
+      "binds": true
+     },
+     {
+      "limit": "GITHUB_TOKEN requests an hour",
+      "scope": "each repository",
+      "at": 75000,
+      "from": "32 requests a deliverable (26 reads and 6 writes counted); 1,000 an hour for a repository (GitHub)",
+      "lift": "more repositories; GitHub Enterprise Cloud (15,000 an hour)",
+      "load": 1.3333,
+      "binds": true
+     },
+     {
+      "limit": "comments made in one repository",
+      "scope": "each repository",
+      "at": 400000,
+      "from": "3 comments a deliverable (counted); 500 content-generating requests an hour (GitHub)",
+      "lift": "more repositories",
+      "load": 0.25,
+      "binds": false
+     },
+     {
+      "limit": "the fee key's own account",
+      "scope": "each fee key",
+      "at": 730944,
+      "from": "8.46 orders a second for one key that pays the fees (derived by scripts/load.py)",
+      "lift": "a fee key per repository or per team (KNOS_RELAY_KEY is a repository secret)",
+      "load": 0.1368,
+      "binds": false
+     },
+     {
+      "limit": "the fee account of the mint",
+      "scope": "every customer, every relayer",
+      "at": 14221440,
+      "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
+      "load": 0.007,
+      "binds": false
+     },
+     {
+      "limit": "the Balance, one writable account",
+      "scope": "each Balance",
+      "at": 19362240,
+      "from": "224.1 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
+      "load": 0.0052,
+      "binds": false
+     }
+    ]
+   },
+   {
+    "repositories": 100,
+    "per_day": 100000,
+    "way": "public",
+    "first": "the public relay's pass, at the serial rate recorded",
+    "at": 1542,
+    "fits": false,
+    "binding": [
+     "the public relay's pass, at the serial rate recorded",
+     "the meter's statement, recomputed from the logs",
+     "concurrent jobs (Free plan)",
+     "the public relay's log comments",
+     "GITHUB_TOKEN requests an hour"
+    ],
+    "bounds": [
+     {
+      "limit": "the public relay's pass, at the serial rate recorded",
+      "scope": "every customer of the public worker",
+      "at": 1542,
+      "from": "2 tokens a deliverable, counted as carried one after another; a token taken as the median of merge-to-paid, 28 s (recorded on devnet when the sweep carried one token at a time; it includes the runner's start, so the relay's own share is smaller and one relayer carries at least this many). The sweep now carries up to 4 tokens at once, the tokens of one owner in order (section 6): what that adds is not measured on devnet yet, so it is not counted here",
+      "lift": "the job's own relay; or several relayers (anyone can run one: the chain takes each token once, whoever carries it)",
+      "load": 64.8508,
+      "binds": true
+     },
+     {
+      "limit": "the meter's statement, recomputed from the logs",
+      "scope": "each buyer and seller, each month",
+      "retrieval": true,
+      "at": 3333,
+      "from": "`knos statement --meter` reads at most 100,000 transactions of a month's account, one RPC request each (src/knos/settle/v2/meter.py); a 30-day month, one evaluation a deliverable, one transaction an evaluation. Not a limit on the work: past it the month's account is still the count, and the recomputation from logs is cut short",
+      "lift": "batching the meter: one RecordBatch token carries up to 100,000 evaluations under one Merkle root, so a month is a few transactions whatever its volume",
+      "load": 30.003,
+      "binds": true
+     },
+     {
+      "limit": "concurrent jobs (Free plan)",
+      "scope": "the customer's account",
+      "at": 5268,
+      "from": "2 jobs a deliverable (counted), each taken as busy for the p95 of merge-to-paid, 164 s (recorded, 56 samples; a job's own time on the runner was not measured apart); 20 jobs at once (GitHub)",
+      "lift": "a larger plan (Pro 40, Team 60, Enterprise 500); self-hosted runners, which this limit does not count",
+      "load": 18.9825,
+      "binds": true
+     },
+     {
+      "limit": "the public relay's log comments",
+      "scope": "every customer of the public worker",
+      "at": 6000,
+      "from": "2 tokens a deliverable, one log comment each (src/knos/proof/ghrelay.py posts a carried token's line at once); 500 content-generating requests an hour (GitHub)",
+      "lift": "the job's own relay with the repository's fee key (KNOS_RELAY_KEY): nothing is logged by the public worker; or several workers, each logging in a repository of its own (KNOS_RELAY_LOG_REPO)",
+      "load": 16.6667,
+      "binds": true
+     },
+     {
+      "limit": "GITHUB_TOKEN requests an hour",
+      "scope": "each repository",
+      "at": 16438,
+      "from": "146 requests a deliverable (26 reads and 8 writes counted, 112 polls of the relay log at the p95 wait); 1,000 an hour for a repository (GitHub)",
+      "lift": "the job's own relay (no polling); more repositories; GitHub Enterprise Cloud (15,000 an hour)",
+      "load": 6.0835,
+      "binds": true
+     },
+     {
+      "limit": "comments made in one repository",
+      "scope": "each repository",
+      "at": 240000,
+      "from": "5 comments a deliverable (counted); 500 content-generating requests an hour (GitHub)",
+      "lift": "more repositories; or the job's own relay, which posts no token comment",
+      "load": 0.4167,
+      "binds": false
+     },
+     {
+      "limit": "the fee account of the mint",
+      "scope": "every customer, every relayer",
+      "at": 14221440,
+      "from": "164.6 payments a second in one mint (derived by scripts/load.py)",
+      "lift": "K fee accounts, no program change: PayOrder, SettleOrder and Release take ANY token account of the mint that FEE_OWNER owns (order_pay.rs `is_owned(fee_tok, token, mint, FEE_OWNER)`), so `knos relay fee-accounts --k K` makes K-1 more and each order's payments use one of K, chosen by the order (KNOS_FEE_SHARDS, KNOS_FEE_BASE); shown in the simulator on the 2.1 and 2.2 builds; used on devnet with K = 4 by the 4-relay PayOrder run of 8 Oct 2026 (section 4)",
+      "load": 0.007,
+      "binds": false
+     },
+     {
+      "limit": "the Balance, one writable account",
+      "scope": "each Balance",
+      "at": 19362240,
+      "from": "224.1 fundings a second for one Balance (derived by scripts/load.py from measured compute units and 12M units an account a block)",
+      "lift": "one Balance per team in place of one per organisation: a Balance's address is the owner's id, the wallet that opened it and the mint, and a funding comment spends the Balance that lists its commenter, so each team's wallet opens its own (`knos balance open`) and lists its own people. The hot account is split by configuration; every Balance keeps its own cap, and no order can take more than its Balance holds",
+      "load": 0.0052,
+      "binds": false
+     }
+    ]
+   }
+  ]
+ },
+ "relay": {
+  "stages": {
+   "source": "`python scripts/latency_stages.py --rpc https://api.devnet.solana.com --json`, run on 6 October 2026 from 14:58 to 15:06 UTC against the public relay log (drexthealpha/Knos) and devnet: 41 payments of 2 to 5 October 2026",
+   "whole": {
+    "n": 41,
+    "p50": 25,
+    "p95": 58
+   },
+   "six": [
+    {
+     "stage": "workflow scheduling",
+     "n": 5,
+     "p50": 2,
+     "p95": 1184,
+     "what": "the merge to the start of the workflow run"
+    },
+    {
+     "stage": "evaluation",
+     "n": 5,
+     "p50": 16,
+     "p95": 24,
+     "what": "the start of the run to the token's comment"
+    },
+    {
+     "stage": "relay pickup",
+     "n": 5,
+     "p50": 2,
+     "p95": 5,
+     "what": "the token's comment to a relay taking it up"
+    },
+    {
+     "stage": "submission",
+     "n": 5,
+     "p50": 2,
+     "p95": 5,
+     "what": "pickup to the block of the first transaction"
+    },
+    {
+     "stage": "confirmation",
+     "n": 5,
+     "p50": 3,
+     "p95": 8,
+     "what": "that block to the block of the paying transaction"
+    },
+    {
+     "stage": "finality",
+     "n": 0,
+     "p50": null,
+     "p95": null,
+     "what": "the last confirmation to the cluster finalizing it"
+    }
+   ]
+  },
+  "queue": {
+   "items": 200,
+   "workers": 4,
+   "lanes": 20,
+   "seed": 314,
+   "lease_s": 180,
+   "done": 200,
+   "dead": 0,
+   "left_open": 0,
+   "sends": 200,
+   "sent_twice": 0,
+   "taken_by_chain": 200,
+   "out_of_order": 0,
+   "workers_killed": 1,
+   "taken_again": 1,
+   "taken_again_was_the_killed_one": true,
+   "others_went_on_while_the_slow_one_was_in_flight": true,
+   "slow_s": 60.0,
+   "ok": true
+  },
+  "sweep": {
+   "tokens": 12,
+   "owners": 6,
+   "workers": 4,
+   "slow_s": 60.0,
+   "done_in_the_first_pass": 12,
+   "sends_in_the_first_pass": 12,
+   "done_before_the_slow_one_confirmed": 11,
+   "slow_one_took_s": 64,
+   "slowest_other_took_s": 15,
+   "most_in_flight": 4,
+   "two_of_one_owner_in_flight": 0,
+   "out_of_order": 0,
+   "pass_killed": true,
+   "killed_token_in_the_notes_after_the_kill": [
+    "sending"
+   ],
+   "killed_token_sends": 2,
+   "killed_token_taken_by_chain": 1,
+   "killed_token_answered_already_and_logged_once": true,
+   "taken_by_chain": 14,
+   "sent_twice": 0,
+   "log_lines": 14,
+   "lines_after_everything_was_done": 0,
+   "states": [
+    "confirmed"
+   ],
+   "ok": true
+  },
+  "decision": {
+   "source": "`python scripts/decide_bench.py --write`, run on 2026-10-07: 40 decisions for each row, the chain simulated in the same process (LiteSVM, no network)",
+   "machine": "Intel(R) Core(TM) i3-10110U CPU @ 2.10GHz, 4 CPUs, Linux x86_64, Python 3.12.3; load average 2.4 when it began (other work shared the machine when that is near or above its CPUs, and every figure is then slower than on an idle one)",
+   "round_trips": {
+    "before": 4,
+    "after": 1
+   },
+   "cold": {
+    "p50": 472.8,
+    "p95": 586.4,
+    "max": 586.4
+   },
+   "cold_imports": {
+    "token": {
+     "ms": 407.3,
+     "modules": 238,
+     "typer": false,
+     "relay": true
+    },
+    "checks": {
+     "ms": 93.3,
+     "modules": 94,
+     "typer": false,
+     "relay": false
+    }
+   },
+   "rows": {
+    "fresh, accepted": {
+     "n": 40,
+     "p50": 3.05,
+     "p95": 5.056,
+     "max": 67.376
+    },
+    "fresh, rejected": {
+     "n": 40,
+     "p50": 1.684,
+     "p95": 3.921,
+     "max": 5.844
+    },
+    "cached, accepted": {
+     "n": 40,
+     "p50": 2.464,
+     "p95": 3.97,
+     "max": 5.342
+    },
+    "no chain": {
+     "n": 40,
+     "p50": 1.106,
+     "p95": 1.839,
+     "max": 2.602
+    },
+    "free check": {
+     "n": 40,
+     "p50": 0.108,
+     "p95": 0.157,
+     "max": 0.238
+    },
+    "offline, accepted": {
+     "n": 40,
+     "p50": 1.603,
+     "p95": 2.47,
+     "max": 2.625
+    },
+    "chain check": {
+     "n": 40,
+     "p50": 1.212,
+     "p95": 2.026,
+     "max": 2.642
+    },
+    "offline, warm": {
+     "n": 40,
+     "p50": 1.563,
+     "p95": 2.274,
+     "max": 2.721
+    }
+   }
+  }
+ },
+ "measured": [
+  {
+   "cluster": "devnet",
+   "date": "2026-10-07",
+   "relays": 4,
+   "orders": 40,
+   "run": "c9e16145ca",
+   "wallet": "9ig9AXfoNrd5uPhdSFGujPoVsrxze5CGVFM6uusgQydG",
+   "fee_payers": [
+    "8yDmQNFynGvC6vnxBKn2jBTHXvQ2229nditAQayWFcve",
+    "CaA4rWEF77JT8XCYSB3U8jcj3dGETDNBk5eyXgurNJAp",
+    "DEzBx5xkBbuEfzoRgJGTDdrfhnodXX8djdgBknYW5Jd",
+    "56QGy4NsYspMUVfqfVbC2JcjLgFprbu1RZS7GcbGywvK"
+   ],
+   "program": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+   "phases": {
+    "apart": {
+     "transactions": 40,
+     "confirmed": 40,
+     "failures": 0,
+     "retries": 0,
+     "seconds": 87.73,
+     "confirmed_per_s": 0.46,
+     "confirm_s": {
+      "p50": 6.21,
+      "p95": 15.11,
+      "max": 16.83
+     },
+     "slots": 31,
+     "most_in_one_slot": 3,
+     "first_failures": []
+    },
+    "shared": {
+     "transactions": 40,
+     "confirmed": 40,
+     "failures": 0,
+     "retries": 0,
+     "seconds": 76.3,
+     "confirmed_per_s": 0.52,
+     "confirm_s": {
+      "p50": 4.16,
+      "p95": 15.13,
+      "max": 15.18
+     },
+     "slots": 36,
+     "most_in_one_slot": 2,
+     "first_failures": []
+    }
+   },
+   "what": {
+    "apart": "no account written by two relays",
+    "shared": "every transaction also writes one token account, as every release writes the fee account"
+   },
+   "mint": "7SeTJW6zrauJRzkDC7Bmrb6trZRSySVNBXJJbQyFNYaA",
+   "shared_account": "ESfiEkuTtnyiHhLsrm71qphhQbnwdXdqdaTCGqsfypP",
+   "contention": {
+    "rate_shared_over_apart": 1.13,
+    "retries_more": 0,
+    "failures_more": 0,
+    "most_in_one_slot": {
+     "apart": 3,
+     "shared": 2
+    }
+   },
+   "refunded": 49,
+   "orders_left": 0,
+   "swept": 4,
+   "sol_spent": 0.009084,
+   "ok": true
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-08",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 1,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "seconds": 412.74,
+   "paid_per_s": 0.097,
+   "payment_s": {
+    "n": 40,
+    "p50": 9.44,
+    "p95": 13.58,
+    "p99": null,
+    "max": 17.35
+   },
+   "ok": true,
+   "lanes": "owner",
+   "owners": 1,
+   "fee_accounts": 1,
+   "fee_payers": [],
+   "wallet": null,
+   "source": "the operator's release run of 0.3.21 on 8 Oct 2026 with its own wallets; the 40 pay tokens were signed in GitHub Actions run 37763004447; recorded from the run's report, which kept no fee payers"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-08",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "seconds": 211.27,
+   "paid_per_s": 0.189,
+   "payment_s": {
+    "n": 40,
+    "p50": 11.45,
+    "p95": 22.61,
+    "p99": 34.9,
+    "max": 34.9
+   },
+   "ok": true,
+   "lanes": "order",
+   "owners": 1,
+   "fee_accounts": 4,
+   "per_relay": [
+    {
+     "relay": 0,
+     "attempted": 16,
+     "paid": 16
+    },
+    {
+     "relay": 1,
+     "attempted": 8,
+     "paid": 8
+    },
+    {
+     "relay": 2,
+     "attempted": 5,
+     "paid": 5
+    },
+    {
+     "relay": 3,
+     "attempted": 11,
+     "paid": 11
+    }
+   ],
+   "per_fee_account": [
+    14,
+    9,
+    9,
+    8
+   ],
+   "fee_payers": [],
+   "wallet": null,
+   "github_run": "https://github.com/drexthealpha/knos-load/actions/runs/37833126115",
+   "source": "the operator's release run of 0.3.22 on 8 Oct 2026 with its own wallets; the 40 pay tokens were signed in GitHub Actions run 37833126115 of drexthealpha/knos-load; recorded from the run's report, which lists the 40 order ids and the four fee accounts; it kept no fee payers of the relays"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.185,
+   "payment_s": {
+    "n": 40,
+    "p50": 18.4,
+    "p95": 28.3,
+    "p99": 29.0,
+    "max": 29.0
+   },
+   "retries": 0,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "hot-funder",
+   "measures": "every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every payment shares",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "fee_accounts": 1,
+   "owners": 1
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.127,
+   "payment_s": {
+    "n": 40,
+    "p50": 23.2,
+    "p95": 48.5,
+    "p99": 49.7,
+    "max": 49.7
+   },
+   "retries": 17,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "rpc-faults",
+   "measures": "15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "No payment was made twice."
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.173,
+   "payment_s": {
+    "n": 40,
+    "p50": 18.5,
+    "p95": 29.3,
+    "p99": 32.1,
+    "max": 32.1
+   },
+   "retries": 0,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "priority-fee",
+   "measures": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "No transaction of this run carried a price: the code of 0.3.23 skipped v1 transactions, so this is a plain run, not a priced one.",
+   "rerun": "done by the 0.3.24 release on 9 Oct 2026: the next priority-fee row"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 40,
+   "already": 0,
+   "refused": 0,
+   "never_completed": 0,
+   "failures": 0,
+   "seconds": null,
+   "paid_per_s": 0.201,
+   "payment_s": {
+    "n": 40,
+    "p50": 12.9,
+    "p95": 23.5,
+    "p99": 31.5,
+    "max": 31.5
+   },
+   "retries": 0,
+   "ok": true,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "priority-fee",
+   "measures": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise",
+   "source": "the operator's release run of 0.3.24 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, the duplicates refused, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "Every PayOrder carried a compute unit price this time (0.3.24 writes it into version-1 messages)."
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 13,
+   "already": 0,
+   "refused": null,
+   "never_completed": null,
+   "failures": 27,
+   "seconds": null,
+   "paid_per_s": 0.039,
+   "payment_s": {
+    "n": 13,
+    "p50": 264.5,
+    "p95": 300.3,
+    "p99": 300.3,
+    "max": 300.3
+   },
+   "retries": 0,
+   "ok": false,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "burst",
+   "measures": "every relay sends all of its payments at once instead of one after another",
+   "source": "the operator's release run of 0.3.23 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "The 27 failures were HTTP 429 (the public endpoint's rate limit) and \"Blockhash not found\"; 0.3.23 sent each payment once.",
+   "rerun": "done by the 0.3.24 release on 9 Oct 2026: the next burst row"
+  },
+  {
+   "kind": "pay",
+   "cluster": "devnet",
+   "date": "2026-10-09",
+   "programs": {
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "ids": "the public program ids"
+   },
+   "relays": 4,
+   "orders": 40,
+   "attempted": 40,
+   "paid": 22,
+   "already": 0,
+   "refused": null,
+   "never_completed": null,
+   "failures": 18,
+   "seconds": null,
+   "paid_per_s": 0.077,
+   "payment_s": {
+    "n": 22,
+    "p50": 262.5,
+    "p95": 278.3,
+    "p99": 278.3,
+    "max": 278.3
+   },
+   "retries": 4,
+   "ok": false,
+   "lanes": "order",
+   "fee_payers": [],
+   "wallet": null,
+   "scenario": "burst",
+   "measures": "every relay sends all of its payments at once instead of one after another",
+   "source": "the operator's release run of 0.3.24 on 9 Oct 2026 with its own wallets, 4 relays, 40 pay tokens a scenario; recorded from the run's report, which kept the payments paid, the retries, the duplicates refused, p50, p95 and the worst, and the rate; it kept no fee payers, no run seconds and no split of the failures into refused and never completed",
+   "note": "The 18 failures were RPC drops, timeouts and HTTP 408: answers lost on the way, which 0.3.24 did not send again.",
+   "rerun": "done by the 0.3.25 release on 10 Oct 2026: the next burst row"
+  },
+  {
+   "already": 0,
+   "attempted": 40,
+   "backoff": {
+    "first_wait_s": 1.0,
+    "jitter": "half to all of each wait",
+    "longest_wait_s": 16.0,
+    "sends_at_most": 12
+   },
+   "cluster": "devnet",
+   "confirm_s": {
+    "max": 611.85,
+    "n": 40,
+    "p50": 580.75,
+    "p95": 610.38,
+    "p99": 611.85
+   },
+   "date": "2026-10-10",
+   "duplicates_refused": 0,
+   "failures": 0,
+   "fanout": {
+    "confirm_by": "getSignatureStatuses",
+    "endpoints": 1,
+    "gives_up_after_s": 60.0,
+    "no_answer": 40,
+    "resend_every_s": 2.0,
+    "resends": 36,
+    "second_endpoints": 0,
+    "sends": 124,
+    "status_polls": 44
+   },
+   "fee_accounts": 4,
+   "fee_payers": [
+    "8yDmQNFynGvC6vnxBKn2jBTHXvQ2229nditAQayWFcve",
+    "CaA4rWEF77JT8XCYSB3U8jcj3dGETDNBk5eyXgurNJAp",
+    "DEzBx5xkBbuEfzoRgJGTDdrfhnodXX8djdgBknYW5Jd",
+    "56QGy4NsYspMUVfqfVbC2JcjLgFprbu1RZS7GcbGywvK"
+   ],
+   "first_refusals": [],
+   "kind": "pay",
+   "lanes": "order",
+   "measures": "every relay sends all of its payments at once instead of one after another; a payment the endpoint turns away (HTTP 429) or whose blockhash expired is sent again after a bounded wait with jitter, over a fresh blockhash",
+   "never_completed": 0,
+   "ok": true,
+   "orders": 40,
+   "owners": 1,
+   "paid": 40,
+   "paid_per_s": 0.065,
+   "payment_s": {
+    "max": 611.85,
+    "n": 40,
+    "p50": 580.75,
+    "p95": 610.38,
+    "p99": 611.85
+   },
+   "per_relay": [
+    {
+     "attempted": 8,
+     "paid": 8,
+     "relay": 0
+    },
+    {
+     "attempted": 13,
+     "paid": 13,
+     "relay": 1
+    },
+    {
+     "attempted": 8,
+     "paid": 8,
+     "relay": 2
+    },
+    {
+     "attempted": 11,
+     "paid": 11,
+     "relay": 3
+    }
+   ],
+   "programs": {
+    "ids": "the ids this installation names (public unless KNOS_PROGRAM_IDS says otherwise)",
+    "knos_oidc": "FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W",
+    "knos_pay": "5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k"
+   },
+   "refused": 0,
+   "relays": 4,
+   "retries": 73,
+   "scenario": "burst",
+   "seconds": 611.86,
+   "wallet": "9ig9AXfoNrd5uPhdSFGujPoVsrxze5CGVFM6uusgQydG",
+   "github_run": "https://github.com/drexthealpha/knos-load/actions/runs/38012410577",
+   "mint": "EdEeUeZxubezcCW3VHDtGKB9mScyF2Pz3MTD4xBycq1T",
+   "order_ids": [
+    "F1gmsuKrUWKpzpCFAiGvZQLTog95e7n6C8WvFhAwVVrk",
+    "DjcUe4oLRipAZMF7tvYhwgtH7orADxCUqTJKKjYusQSH",
+    "EP6pFsrhd7HZ3CFPoDLrsSobtbCjzeK63v61WHZBRDdk",
+    "FWu6g319VUJep24qhJ6vovZTXXKYf7WmC5TyqvkB2Eyo",
+    "9qZpY8Eegm3xGCke4vsAujq7Rypsf4bd2F6fjrPHVc45",
+    "2wynKZPAPFPtUV65B47iWuqyE47GvQAuofivYPSJtkw6",
+    "Fi1gfzticCoRkZEHHcW6c2f81aRN6fdikoMLeK8XJPbH",
+    "6Htbsk6eKgcQ2n8FeYiEwnBexe4o3RsvarBEs9aMv86F",
+    "FW3o8Q5GGiTMzYpvHa2fgBBjpRb1nhaWLYwJrgw5te9C",
+    "EwLoD4TzoCbG6t42DdAyVtYdLRHyuJ6RDqsLbje8mFQa",
+    "Bts5s2ocBz9WPqeZFXSeZ9RSLNziGruf85TXDkZTAZPa",
+    "6rmuoK9mNNk2fXRzjgRPUpaYY4cxG2pX8UQuvgUs5Egv",
+    "8yPGbBWMM6J8hV6eYFA1ZRnFssVa1FhsqqdvUYrRJzny",
+    "Gktx8zixiLSuDNuwJuibnafNa5b2W8nwYu2JyiEd5Yyu",
+    "C32KKGLRsTUheNDz2M5pfY8sYd1UnzfTUH3prBNsbJTu",
+    "X6NFVJfwJCcYdyRuSJbpTS22QkEfs4RZqGZhiuJvtMw",
+    "JB2rkLVkzcchmJAGE9FScwUt9S7dv3hyEe7HAzJ1CEa",
+    "6tq2bqERZB7xieSUKJmLdnMvpEyz4u57Wgx1s1Vi2ugj",
+    "B36fTWAXSoj16zkTbSKtzECnddxDohZ5TCsRhmPxCuKc",
+    "JB6fEyx4S3PJx6hH5xNaA7ZfEqF2DWEw2ZzjMMcZ9wUS",
+    "3At5sofPF7j8d48g7Zkou7uyMa2RCPGSC26DQvKFXARH",
+    "H8uL9bnydzEdHLXFVeoTJnGjSqxk48reX7U8pw8vdJcn",
+    "7ExXAL5a9WG6Y18bbYDy6w5dhjzshUwVPMNtJAh76Ymk",
+    "3ExHBnZN1ZJ4ctCT5Cy9tUUJnH5BaPdgkRZm9D36gFad",
+    "QfzgQmrGqGLF5s7Fds6gF5o1c5n2NyHsCG9YZQCKfkr",
+    "A2TBVcLQRxNFGKACvzeropGJqrMfHP7dXR5Jqj7gXpn4",
+    "MHwJvGuYeeQDGRdg2ZRGJfjNJAAHWb41aT7Nj3TvnWf",
+    "Dnb82TssvzHDrJzBVDbsGQtUbL4Y5Zkr99gCeWYBPeZo",
+    "56VzY7jTsATzBwH7hnhdRRjfCBqTRDYctaCWZRemDRXT",
+    "9XD55GJqafChiM3tN5opy99LcaTBSndtFdSruKpvbFqB",
+    "3oTuP4LZZx18tZBvZ8hvcasaUgYJxnnnEeF7sG86qrGG",
+    "9MgmWUcBy4zqtMJJPzaEcXrxkuE5iuFZ6mfhAMj5Dy5v",
+    "J4Tppq3LGoXjvcgtdaWXQ9Zym9vs3wbxxfd3xZqVEGfm",
+    "Gzae2DWNz248pcD8qsJVbob3odqXGwrWuJEQdVkPWf6h",
+    "NvroeCbczuUnH3PUERVWnsfRPQiwPPzWsbYR9RPD2sS",
+    "Er7VQsYHceU5aNLVrzVpTDiRNjaxWkNURHhHcbf2oUCB",
+    "2yuEoAM1KgPBQVsSsFJqht4ZTCEvAiTBfsk8U7je2gUt",
+    "B2QgFoSu1jyyqpWRRjJLsrwW2rjzBhBYJZTvhiR1ADJH",
+    "H77yFhoQG7ZB5DkYCA9QWxQxWikEAopjCYKwjyKbpLLX",
+    "3UUCrxqSn8Hc9bWekB7vjDy5jc3YfudXA1E21ZmNAGDv"
+   ],
+   "source": "the operator's release run of 0.3.25 on 10 Oct 2026 with its own wallets, 4 relays and 4 fee accounts; the 40 orders were funded from the run's own wallet in a mint made for the run (EdEeUeZxubezcCW3VHDtGKB9mScyF2Pz3MTD4xBycq1T), and their 40 pay tokens were signed in GitHub Actions run 38012410577 of drexthealpha/knos-load; one endpoint, https://api.devnet.solana.com: Solana lists one public devnet endpoint (https://solana.com/docs/references/clusters), so no second endpoint was given; the 40 order ids are in docs/load.json",
+   "note": "Sent through knos.settle.v2.fanout as this release fixed it before the run: one getSignatureStatuses a poll round for every transaction waiting, bytes sent again every 2 s only while no endpoint had taken them, each wait bounded in seconds as well as in polls. A first run on 10 Oct 2026 with the fan-out as it was before that fix (each transaction's status asked every 0.5 s, its bytes sent again every 2 s) was stopped after 22.8 minutes with 11 of 40 paid, every status request answered HTTP 429; it kept no record, and its 29 unpaid orders went back after their deadline."
+  }
+ ],
+ "scenarios": {
+  "simulated": {
+   "hot-funder": {
+    "scenario": "hot-funder",
+    "measures": "every payment is of one funder's orders and writes ONE fee account, all relays at once: the write locks every payment shares",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 0,
+    "written_by_every_relay": 2,
+    "fee_accounts": 1,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_fee_account_written_by_every_relay": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   },
+   "rpc-faults": {
+    "scenario": "rpc-faults",
+    "measures": "15% of submissions refused by the endpoint and 15% sent with the answer lost, each payment retried up to 3 times; a payment counts as paid only when the chain shows it, and a resend after a lost answer must be refused",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 12,
+    "faults_injected": {
+     "lost": 5,
+     "refused": 7,
+     "resent_and_refused": 5
+    },
+    "fee_accounts": 4,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "every_resend_after_a_lost_answer_refused": true,
+     "faults_were_injected": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   },
+   "priority-fee": {
+    "scenario": "priority-fee",
+    "measures": "every transaction that has room carries a compute unit price (SetComputeUnitPrice), 10,000 micro-lamports unless --cu-price says otherwise",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 0,
+    "lamports_per_payorder": {
+     "with_price": [
+      3429400
+     ],
+     "without": [
+      3415400
+     ]
+    },
+    "priority_lamports_expected": 14000,
+    "cu_price_micro_lamports": 10000,
+    "fee_accounts": 4,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true,
+     "priority_fee_charged": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   },
+   "burst": {
+    "scenario": "burst",
+    "measures": "every relay sends all of its payments at once instead of one after another",
+    "cluster": "local simulator (LiteSVM)",
+    "date": "2026-10-09",
+    "seed": 21,
+    "relays": 4,
+    "orders": 40,
+    "attempted": 40,
+    "paid": 40,
+    "refused": 0,
+    "never_completed": 0,
+    "retries": 0,
+    "tokens_open_at_once": 40,
+    "fee_accounts": 4,
+    "checks": {
+     "each_fee_in_its_orders_account": true,
+     "each_relay_paid_only_its_part": true,
+     "every_token_open_before_the_first_payment": true,
+     "fee_payers_distinct": true,
+     "no_payee_paid_twice": true,
+     "no_relay_paid_with_anothers_key": true,
+     "one_owner_spread_over_relays": true,
+     "paid_exactly_once": true
+    },
+    "ok": true,
+    "why_no_rate": "the simulator has no leader, no block limit and no other traffic: it proves the path and counts, it times nothing"
+   }
+  }
+ }
+}
