@@ -3,21 +3,21 @@
 **Knos carries research across the valley of death.**
 
 Of 241 merged agent pull requests claiming passing tests, 9 failed a test, build, lint or type check ([backtest.json](../backtest.json)). Of first agent pull
-requests that claimed passing tests, 17.8% had a failed check. That is 147 of 826 repositories in the Agent PR Index ([BENCH.md](BENCH.md)).
+requests that claimed passing tests, 17.8% had a failed check. That is 147 of 826 repositories in the Agent PR Index scan of 2 Oct 2026 ([BENCH.md](BENCH.md)).
 
 Both count failed checks, not money: a failed check is not always a failed test or a false claim, and neither figure is a share of anyone's spend.
 
-How: terms fixed before the work, a CI run that GitHub signs shows they were met, and a Solana program counts the
-outcome or pays for it. Devnet is Knos's test mode: integrate here, and keep the evidence, which verifies from
-GitHub's signatures with no chain.
+How: terms fixed before the work, a signed run shows they were met, and a program on chain counts the outcome:
+Solana devnet for pull request checks, NEAR testnet for a paper's claim. Both use test money only. Keep the evidence:
+a pull request's receipt verifies from GitHub's signatures with no chain.
 
 Who this argument is for: the person accountable for approving a supplier's invoice for software work, and the
 supplier who needs acceptance terms that cannot be changed after the work. The evidence below comes mostly from the
 smallest case, paid work for strangers on public issues, because that is where the failure is public and can be
 measured.
 
-An invoice priced per merged change has the same shape: the seller's word, and the seller's count.
-[PRICING.md](../PRICING.md) has the prices. Nobody has bought anything.
+An invoice priced per merged change has the same shape: the seller's word, and the seller's count. Nobody has
+bought anything from Knos.
 
 The promise is two-sided. Buyers can defend the bill; suppliers can defend what they are owed. Each side keeps its
 own ledger, computes the same statement from evidence neither side signed, and can prove it later without the other
@@ -33,7 +33,7 @@ agents it follows, and marks 32.5% of the pull requests it sampled as agent-made
 ([amplifying.ai](https://amplifying.ai/coding-agents/trends), data to 27 Sep 2026; the total is Knos's sum of its
 per-agent figures, and three of those are its estimates from declared attribution).
 
-Knos measured what those pull requests say against what happened. In 826 repositories, the first agent pull request whose
+Knos measured what those pull requests say against what happened. In 826 repositories (scan of 2 Oct 2026), the first agent pull request whose
 description said tests or CI pass had a failing check at its head commit in 147 (17.8%).
 
 Counting every such pull request instead of one per repository gives 660 of 2,431 (27.1%); that figure leans on a few busy
@@ -45,9 +45,6 @@ description is not evidence.
 
 Others found the same from the inside:
 
-- 63% of one model's successful SWE-bench Pro resolutions had retrieved the fix rather than derived it. With git
-  history sealed and the network restricted, scores fell sharply
-  ([Cursor, 25 Jun 2026](https://cursor.com/blog/reward-hacking-coding-benchmarks)).
 - METR had 4 maintainers of 3 repositories review agent patches that passed the tests of SWE-bench Verified, 296
   pull requests in all. Roughly half would not have been merged, and the maintainers' decisions ran about 24
   points below the benchmark's scores
@@ -67,20 +64,14 @@ happening to paid open-source work now:
 - curl ended its bug bounty on 31 Jan 2026, after 87 confirmed vulnerabilities and over 100,000 USD paid. The share
   of reports that were real fell from "north of 15%" to "below 5%" in 2025
   ([Stenberg, 26 Jan 2026](https://daniel.haxx.se/blog/2026/01/26/the-end-of-the-curl-bug-bounty/)).
-- OnlyDust closed after paying 18 million USD in grants to 4,000 contributors over four years: "Low-skill
-  contributors were flooding them with AI-generated code" ([onlydust.com](https://www.onlydust.com/)).
-- Across every board, 59 verified bounties worth 64,291 USD were open on 2 Oct 2026
-  ([BountyOS](https://bountyos.rovidev.com/en/github-bounty-board/)).
+- Paid bounty boards for open-source work have closed under floods of AI-generated code.
 
 Supply is not what is missing. Agents will answer any bounty. What is missing is a way for a buyer to pay only for
 work that held up, and for a worker to know the money is there.
 
-## 3. Paying per result already exists, where the seller keeps the meter
+## 3. A record neither side writes
 
-Intercom charges 0.99 USD per outcome for its support agent, Fin. For code, Sourcegraph began billing one product per merged changeset on 14 Sep 2026: "If it doesn't get merged, you don't pay"
-([changelog](https://sourcegraph.com/changelog/agentic-batch-changes-ga), [its note on pricing, 16 Sep 2026](https://sourcegraph.com/blog/agentic-batch-changes-pricing)).
-
-In both the seller's own system counts the results. One person who works on such contracts says where they break: "Attribution disputes are where these contracts fall apart" (a
+Some sellers already bill per merged change or per resolved ticket, and they count the results themselves. One person who works on such contracts says where they break: "Attribution disputes are where these contracts fall apart" (a
 director at Twilio, in [CIO, 16 Jun 2026](https://www.cio.com/article/4184688/it-hurtles-toward-the-great-enterprise-pricing-reset.html)).
 
 Code has something support does not: a third party that already records the result. GitHub records who opened a
@@ -166,9 +157,9 @@ deadline, without a token and without an operator. A payment held for a payee wh
 One custodian risk remains and is stated: until an outside review, Knos can change the program through a
 multisig after a public 8-day delay.
 
-### tea.xyz: a reward computed from countable things gets farmed
+### A reward computed from countable things gets farmed
 
-Over 150,000 npm packages were published to farm tea's rewards, "artificially inflating package metrics through
+Over 150,000 npm packages were published to farm one token reward scheme, "artificially inflating package metrics through
 automated replication and dependency chains"
 ([AWS Security Blog, 13 Nov 2025](https://aws.amazon.com/blogs/security/amazon-inspector-detects-over-150000-malicious-packages-linked-to-token-farming-campaign/)).
 
@@ -214,7 +205,7 @@ About half, in METR's review (section 1).
 
 The rule: the default acceptance is the merge. Checks are necessary and not sufficient.
 
-## 5. Why a chain, and why Solana
+## 5. Why a chain
 
 In one line: Money is released with no custodian, and neither buyer nor supplier can change the count. One person holds every upgrade key today; a program change waits 8 days in public.
 A receipt verifies with no chain; the chain is for the money and for the root.
@@ -224,7 +215,8 @@ A chain gives this three things a company cannot promise. The money is committed
 And the verifier is a program any other program can call ([OIDC.md](OIDC.md)). A company running the same payment program would be one more party to trust. Until an
 outside review Knos is still such a party, through its multisig (section 4).
 
-Solana, for two reasons. Verifying GitHub's RSA-2048 signature on chain takes 2 transactions, each within Solana's
+Knos runs its pull request checks on Solana devnet and a paper's claim on NEAR testnet: the same rule on both, test
+money only. Solana, for the pull request check, for two reasons. Verifying GitHub's RSA-2048 signature on chain takes 2 transactions, each within Solana's
 computing limit, and on the first deployment carrying a whole token took 7 transactions and 35,000 lamports of fees
 ([BENCH.md](BENCH.md), measured).
 

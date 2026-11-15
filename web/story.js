@@ -1,7 +1,6 @@
-// The story on one page: the number, the three-minute demonstration in seven beats that play in order, and what the
-// project needs next. docs/STORY.md says the same seven beats with the same evidence (tests/web/story.mjs holds the two
-// together), and the first screen's round (web/demo.js) plays
-// them under the same names: Agree, Fails, Passes, Statement, Replay, Pay, Verify.
+// The story on one page: the number, the three-minute demonstration in six beats that play in order, and what the
+// project needs next. docs/STORY.md says the same six beats with the same evidence (tests/web/story.mjs holds the two
+// together).
 //
 //   renderStory(el[, ctx])   draws it into el. ctx: { repo, front, merged, failed, reduced }, each optional
 //   storyHtml(ctx)           the same as text, for a test with no browser
@@ -9,8 +8,8 @@
 //
 // Each beat is a card (.k-step under .story-steps, drawn by web/app.css): numbered, dim until it plays, lifted while it
 // is live, then settled green, or red with one shake for the refusal. The first screen is the sentence, the number and
-// the seven cards: what the project needs next waits in a fold under them (the page's first screen says 40 words at most).
-// Every beat is in the page from the start, so a reader who asked for no movement sees all seven, in their last state,
+// the six cards: what the project needs next waits in a fold under them (the page's first screen says 40 words at most).
+// Every beat is in the page from the start, so a reader who asked for no movement sees all six, in their last state,
 // and nothing moves. Nothing is requested from any host: the evidence is links, and the reader follows them or not.
 // A beat whose evidence ran on staging program ids says so beside its link (`staging`), until a run on the public
 // program ids replaces it.
@@ -24,7 +23,7 @@ const TX = "https://explorer.solana.com/tx/";
 export const STEP_MS = 480;                         // --dur-3: how long a step is live before the next one starts
 
 // `ends`: the state a step rests in. `path` is a file of the repository; `url` is a transaction: the three are those of
-// web/demo_data.json, the round at the public program ids (tests/web/story.mjs compares). `staging`: a transaction that
+// docs/STORY.md (tests/web/story.mjs compares). `staging`: a transaction that
 // ran on staging program ids instead; none does today.
 export const STAGING = "Staging program ids";
 export const STEPS = [
@@ -32,7 +31,7 @@ export const STEPS = [
   {"title": "The demand check runs.", "says": "Qloo says who wants it and where.", "ends": "done", "evidence": "The demand check's rules", "path": "docs/reference/DEMAND_CHECK.md"},
   {"title": "The Ready brief is locked.", "says": "Each stage has a target, a checker and a deadline.", "ends": "done", "evidence": "The Ready check and the criteria hash", "path": "src/knos/ready.py"},
   {"title": "The money is held.", "says": "A pre-order locks test units on devnet.", "ends": "done", "evidence": "The pre-order transaction (devnet)", "url": "https://explorer.solana.com/tx/2yEjidBojssFJp1UFRoBmTtvphbzqAmhRngrDZzgZRHy3u8NfPCArNVEJDYJn4V3nB1UngrAwHLEWmDJPubbmhr9?cluster=devnet"},
-  {"title": "Paid on proof.", "says": "Two of three referees signed PASS, so the program paid 8 test units.", "ends": "done", "evidence": "The second PASS verdict, which released the stage (devnet)", "url": "https://explorer.solana.com/tx/3MJ9kGhWwKgkqGHDzeYRA7aycv8knci3oHHbWadvnARC5DVwj2pgbbndpWssuqjvjgKVVMFhELssGvAJ5VpCuuj8?cluster=devnet"},
+  {"title": "Paid after a PASS.", "says": "Two of three referees signed PASS; the program paid 8 test units.", "ends": "done", "evidence": "The second PASS verdict, which released the stage (devnet)", "url": "https://explorer.solana.com/tx/3MJ9kGhWwKgkqGHDzeYRA7aycv8knci3oHHbWadvnARC5DVwj2pgbbndpWssuqjvjgKVVMFhELssGvAJ5VpCuuj8?cluster=devnet"},
   {"title": "Refunded at the deadline.", "says": "No results were posted in time, so the backer was refunded.", "ends": "done", "evidence": "The refund transaction (devnet)", "url": "https://explorer.solana.com/tx/5FtL36bLPvQhS7z8h8gq6ZGkiSS5LDkLJWd7gPnwrYdo7GP5q8G7DuqGdCLdysvmfSjoGtERZQCmVo8uA47dFDkg?cluster=devnet"},
 ];
 export const NEXT = "Check your own idea";      // after the last beat: the reader's own idea, at the front door
@@ -48,9 +47,9 @@ export function storyHtml(ctx = {}) {
     + `<a href="${esc(linkOf(s, ctx))}" target="_blank" rel="noopener">${esc(s.evidence)}</a>`
     + `${s.staging ? ` <small class="story-staging">${esc(STAGING)}</small>` : ""}</li>`).join("");
   return `<p class="k-kicker">${esc(SENTENCE)}</p>`
-    + `<h2>One task, seven steps</h2>`
+    + `<h2>One task, six steps</h2>`
     + `<p class="story-number">Of <strong class="k-num">${esc(merged)}</strong> merged agent “tests pass” pull requests: <strong class="k-num">${esc(failed)}</strong> failed a test, build, lint or type check.</p>`
-    + `<ol class="story-steps k-stage" aria-label="The demonstration in seven steps" data-not-prose data-keep>${steps}</ol>`
+    + `<ol class="story-steps k-stage" aria-label="The demonstration in six steps" data-not-prose data-keep>${steps}</ol>`
     + `<p><a class="k-btn story-next" href="${esc(ctx.front || FRONT)}">${esc(NEXT)}</a> <button type="button" class="k-btn quiet story-play"${ctx.reduced ? " hidden" : ""}>Play again</button></p>`;
 }
 

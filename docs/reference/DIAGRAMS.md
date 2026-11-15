@@ -16,7 +16,7 @@ flowchart TB
 
 *Money moves only when a step passes its test.*
 
-## Paid on proof
+## Paid when the check passes
 
 ```mermaid
 flowchart TB

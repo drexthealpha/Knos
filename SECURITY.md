@@ -10,16 +10,19 @@ Anything else (a question, a bug that is not a vulnerability, an idea): open an 
 Who you must trust, what a payment's signed record proves and does not prove, and every known limit:
 [docs/reference/SECURITY.md](docs/reference/SECURITY.md). How a bad release is taken back: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Knos runs on Solana devnet only, and the money is test USDC. There are two deployments, and a report is handled
-differently for each:
+Knos runs on NEAR testnet and Solana devnet only, and the money is test USDC. A report is handled differently for each
+deployment:
 
-- **The second deployment** (`programs-v2/`), where every new bounty is funded, can be changed only through a
+- **The NEAR contracts** (`near/contract/`, `near/market/`) hold no access keys since 14 Nov 2026, so nobody can
+  upgrade them. A fault there is said in public and fixed in a new deployment.
+
+- **The second Solana deployment** (`programs-v2/`), where every new bounty is funded, can be changed only through a
   [multisig](docs/WORDS.md#multisig) (several keys that must agree, all held by one person today) after a public wait.
   The wait is 8 days, in force since 11 Oct 2026; before that it was 48 hours
   ([docs/reference/GOVERNANCE.md](docs/reference/GOVERNANCE.md)). A fix there is an upgrade, and it is public for the whole wait before it
   can run. In the meantime a guardian can pause new funding for at most 7 days at a time and can revoke a
   signing key. It cannot move money.
-- **The first deployment** (`programs/`) has no upgrade authority. A fault there cannot be patched. What can be done
+- **The first Solana deployment** (`programs/`) has no upgrade authority. A fault there cannot be patched. What can be done
   is to say so in public and to fix it in the second deployment.
 
 There has been no outside review, and `knos mainnet-check` fails on that line until there is one.

@@ -67,7 +67,7 @@ def _lines(patch: str | None, sign: str) -> list[str]:
 
 
 def _code(line: str) -> str:
-    """A line without a trailing comment-only part: '# assert x' is not an assertion."""
+    """The line, or '' when the whole line is a comment: '# assert x' is not an assertion."""
     s = line.strip()
     return "" if s.startswith(("#", "//", "/*", "*", "--")) else s
 

@@ -56,7 +56,7 @@ A test with a case count in brackets runs once per case. A Rust test is named by
 | Only the funder's balance is debited. A fund token spends only the balance it names, and only once. Only the owner and the spenders it lists can spend it. A comment in another owner's repository spends nothing. The cap per job holds. | `tests/test_pay2_chain.py::test_a_fund_token_spends_only_the_balance_it_names`, `::test_a_fund_token_works_once`, `::test_only_the_owner_and_the_listed_spenders_spend_a_balance`, `::test_a_comment_in_another_owners_repository_cannot_spend_a_balance`, `::test_a_cap_per_job_is_enforced` |
 | A funding that breaks a bound, names the wrong accounts or carries the wrong token moves nothing. | `tests/test_pay2_chain.py::test_a_comment_does_not_fund_with` (32 cases), `::test_a_wallet_does_not_fund_with` (15 cases) |
 | A payment goes only to the right accounts, from the right workflow at the right commit, under the job's own terms hash. A wrong fee account, a wrong destination and another terms hash are among the cases that pay nothing, and the real proof still pays afterwards. | `tests/test_pay2_chain.py::test_a_job_is_not_paid_with` (38 cases) |
-| A proof pays only jobs that pin the same workflow and terms. A stranger's job on the same issue, pinned to another workflow, is not paid. | `tests/test_pay2_chain.py::test_one_proof_pays_every_job_on_the_issue_that_pins_the_same_workflow_and_terms` |
+| A proof pays one job. Every job on the issue is paid by a proof of its own. | `tests/test_pay2_chain.py::test_one_proof_pays_one_job_and_every_job_on_the_issue_is_paid_by_a_proof_of_its_own` |
 | A held payment goes only to the wallet its GitHub user bound: not to an address inside a token, not to a wallet someone else bound, not to a relayer's choice. No other proof can take it while it is held. | `tests/test_pay2_chain.py::test_a_proof_pays_the_payees_bound_wallet_whatever_address_the_token_carries`, `::test_with_no_wallet_the_job_is_held_for_the_payee_and_paid_once_they_bind_one` |
 | A held payment goes back to the funder after 180 days, and not before. | `tests/test_pay2_chain.py::test_a_held_job_returns_to_the_funder_after_180_days_and_not_before` |
 | Only the owner of a GitHub account can bind a wallet to it, by hand, from that account's own `knos-claim` repository. Twenty other ways are refused. | `tests/test_pay2_chain.py::test_a_github_user_binds_a_wallet_from_their_own_knos_claim_repository`, `::test_a_wallet_is_not_bound_with` (20 cases), `::test_nobody_binds_a_wallet_for_someone_else` |
@@ -130,7 +130,7 @@ This is the code that decides, before anything is signed, whether a merge earns 
 | Every action is a full commit from the pin list, and every called workflow is a pinned commit. | `tests/test_workflows2.py::test_every_action_is_a_commit_listed_in_action_pins_and_every_called_workflow_is_a_pinned_one` |
 | Permissions start empty and each job gets the least. Nothing of Knos's can write to code, releases or settings. | `tests/test_workflows2.py::test_permissions_start_empty_and_each_job_gets_the_least` |
 | Text a person wrote never reaches a shell except through the event file or an environment variable. | `tests/test_workflows2.py::test_untrusted_text_reaches_a_shell_only_through_the_event_file_or_env` |
-| The only secret is the optional relay key, and only a step that can mint gets it. | `tests/test_workflows2.py::test_the_only_secret_is_the_optional_relay_key_and_only_a_step_that_can_mint_gets_it` |
+| The only secrets are the optional relay key and an attestor's read token, and only a step that can mint gets them. | `tests/test_workflows2.py::test_the_only_secrets_are_the_optional_relay_key_and_an_attestors_read_token_and_only_a_step_that_can_mint_gets_them` |
 | No job of the payment flow restores or saves a cache, and no job that signs or sees a secret uses one. | `tests/test_workflows2.py::test_no_job_of_the_payment_flow_restores_or_saves_a_cache`, `::test_no_job_that_signs_or_sees_a_secret_uses_a_cache` |
 | A wallet is bound by hand only: the claim file names the pinned commit and takes the address from the one input. | `tests/test_workflows2.py::test_the_claim_caller_names_the_pinned_commit_and_takes_the_address_from_the_right_place` |
 | The called workflows refuse, by their own conditions, an edited comment and a push that is not to the default branch. | `tests/test_workflows2.py::test_the_called_workflows_refuse_by_themselves_what_no_caller_should_send` |
@@ -447,9 +447,9 @@ Replay of a signed token - A fund token twice, or out of order: `iat` must be la
 A pay token against another repository, another issue, other terms, the other mode, another workflow repository or commit: cases
 of `test_a_job_is_not_paid_with`. - A pay token against a job funded after it was issued (a job re-created at the same address after a payment or refund included): `not_before`.
 
-Case "a token issued before the funding" of `test_a_job_is_not_paid_with`. - One pay token paying several jobs on the same issue: it does, when they pin the same workflow and terms. This is the documented design, and each job pays the payee the proof names.
+Case "a token issued before the funding" of `test_a_job_is_not_paid_with`. - One pay token paying several jobs on the same issue: it pays one job; every other job on the issue needs a proof of its own.
 
-`test_pay2_chain.py::test_one_proof_pays_every_job_on_the_issue_that_pins_the_same_workflow_and_terms`. - A first-deployment token (`knos:` audience) or one kind of audience used as another: every parser requires `knos2` and its own word, with an exact number of fields.
+`test_pay2_chain.py::test_one_proof_pays_one_job_and_every_job_on_the_issue_is_paid_by_a_proof_of_its_own`. - A first-deployment token (`knos:` audience) or one kind of audience used as another: every parser requires `knos2` and its own word, with an exact number of fields.
 
 Cases "a first-deployment audience", "a pay audience", "a bind audience", "a first-deployment claim audience" of the three refusal tests.
 
@@ -535,7 +535,7 @@ The Rust tests, with the Wycheproof vectors: `cd programs-v2 && cargo test --rel
 
 `tests/knos_<program>.rs` loads the test binaries from `tests/fixtures` into the `litesvm` crate (0.7.1; signature checking on). It sends them the signed transactions of `programs-v2/testdata/*.json` and asserts each answer (accepted, or the instruction and the custom error that refused it), token balances and account fields.
 
-16 tests; they ran in 6 to 20 seconds here once compiled, and the first compilation took 11 minutes on two shared cores. The program workflow runs them after it builds the binaries.
+57 tests in seven files (`adversarial.rs` and `knos_oidc_es256.rs` among them, counted 15 Nov 2026); the first compilation took 11 minutes on two shared cores. The program workflow runs them after it builds the binaries.
 
 The transactions are not built in Rust: `scripts/rust_test_vectors.py` writes them from the Python harnesses with wallets from a counter and tokens signed by the seed test key, so two runs write the same bytes (`--check` compares), and it must be run again when an instruction's accounts or data change.
 
@@ -576,7 +576,7 @@ It runs five builds. Four are copied into `tests/fixtures/` and are what the cha
 
 The fifth, `knos_pay` with default features (the devnet build), is left in `programs-v2/target/deploy/knos_pay.so`. The script copies and pins nothing else. It and `solana-verify` both write to `programs-v2/target/deploy/` unless `CARGO_TARGET_DIR` names another folder for the script, so the later build overwrites the earlier.
 
-`tests/fixtures/SHA256SUMS` has ten lines. Four pin those binaries. Six pin data files: one under `docs/`, one under `tests/data/`, and four fixtures of the interface crate. The script rewrites the lines of the binaries it built. `tests/test_fixtures_pinned.py` fails when a pinned file changes, and when a `*_v2_*.so` in `tests/fixtures/` is not pinned.
+`tests/fixtures/SHA256SUMS` has 23 lines (15 Nov 2026): 15 pin binaries, the four this script builds among them, and 8 pin data files. The script rewrites the lines of the binaries it built. `tests/test_fixtures_pinned.py` fails when a pinned file changes, and when a `*_v2_*.so` in `tests/fixtures/` is not pinned.
 
 A changed binary then shows up in review as a changed pin.
 

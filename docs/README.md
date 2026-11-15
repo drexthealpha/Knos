@@ -2,16 +2,12 @@
 
 # Start here: seven pages
 
-Knos turns any research into a product billions of people use, in days, not years.
-
-Knos carries research across the valley of death, toward Kardashev II and III.
-
-**In plain words.** These seven pages tell you what Knos is and how to use it. Start with [the story](STORY.md), or [try it](START.md) in five minutes. When a word is new to you, look it up in [the word list](WORDS.md).
+**In plain words.** These seven pages tell you what Knos is and how to use it. Start by [trying it](START.md) in five minutes, or read [an earlier run](STORY.md). When a word is new to you, look it up in [the word list](WORDS.md).
 
 ```mermaid
 flowchart TB
     new(["New here?"])
-    story["STORY: one task in six steps"]
+    story["STORY: an earlier run in six steps"]
     start["START: try it in five minutes"]
     cost["PRICING: what it costs"]
     trust["TRUST: who holds the keys"]
@@ -26,9 +22,9 @@ flowchart TB
 
 | page | what it answers |
 |---|---|
-| [STORY.md](STORY.md) | one task in six steps, each with its evidence |
-| [START.md](START.md) | five minutes: check demand, write a Ready brief, check a pull request, fund a task |
-| [PRICING.md](PRICING.md) | what it costs: the check is free; the fee on a paid task; the meter |
+| [STORY.md](STORY.md) | an earlier run on Solana in six steps, each with its evidence |
+| [START.md](START.md) | five minutes: a paper's claim on NEAR first, then the same Knos on Solana and IRIS |
+| [PRICING.md](PRICING.md) | what it costs: the check is free; the fee each chain takes |
 | [TRUST.md](TRUST.md) | who holds the keys today, how to ask for one, and what is tested |
 | [NUMBERS.md](NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
 | [TRANSACTION.md](TRANSACTION.md) | one order told end to end, from its terms to the payment |

@@ -9,6 +9,9 @@ its source differ.
 
 ## How often agents say "tests pass" when a check failed
 
+The numbers below are the scan of 2 Oct 2026. The site's `index.json` may hold a newer scan; these docs stay on that
+one until they are regenerated from it (`scripts/bench_docs.py --from index.json`).
+
 <!-- bench:market -->
 **Agent PR Index, 2026-10-02:** in 826 repositories, the first pull request by an AI coding agent whose description said tests or CI pass had **a failed check of any kind in 147 (17.8%)** (95% Wilson interval 15.3%–20.6%). Counting every such pull request instead of one per repository, it is 660 of 2,431 (27.1%); that figure leans on a few busy repositories, so the per-repository one is the one to quote. Pull requests created 2026-06-04 – 2026-10-01 whose CI had finished at the head commit; 9,207 on repositories owned by the pull request's author or the person who assigned the agent were left out. A failed check is GitHub's record, not a judgment of why it failed. The list is published as `index.json` on the Pages site. A new scan is scheduled every 6 hours (`.github/workflows/index.yml`) and replaces the published list only when it has finished, so the date above says which scan these numbers are from.
 
@@ -325,6 +328,9 @@ refused token only when it takes the signature check on chain to tell. The token
 
 ## Measured on devnet
 
+The block below is the read of 2026-10-10 12:54 UTC (`docs/bench.json`, `devnet.stats.updated`). The site's
+`stats.json` is rebuilt with every deploy and holds the newer counts; this page is not regenerated from it.
+
 <!-- bench:devnet -->
 | the second deployment on devnet | measured |
 |---|---|
@@ -388,8 +394,7 @@ limit it needs (`src/knos/chain.py`).
 ## The suite
 
 `pytest -q` (offline; the tests refuse every non-loopback connection). `node sdk/settle/test.mjs` checks the
-JavaScript client against the Python client byte for byte. `node tests/web/site.mjs <site>` drives the built site in
-headless Chromium against a mocked GitHub and Solana.
+JavaScript client against the Python client byte for byte. The site's own checks are the scripts under `tests/web/`.
 
 ## Decision time
 

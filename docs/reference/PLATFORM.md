@@ -1,12 +1,12 @@
-# Knos on today's Solana: sBPF v3, one-transaction verification, v1 transactions (v0.3.29)
+# Knos on today's Solana: sBPF v3, one-transaction verification, v1 transactions (work of the 0.4.0 release; not yet deployed: proposals 13 to 15)
 
 **In plain words.** Every Knos program ever built was built for the oldest program format, sBPF v0 (no commit ever
-targeted another; the AUDIT page has the history). This release builds the four programs for sBPF v3, which devnet runs
+targeted another). This release builds the four programs for sBPF v3, which devnet runs
 today and which future upgrades will require.
 
-A build for sBPF v2 also checks a GitHub token's RSA signature in ONE
-transaction instead of two (measured on devnet: 882,519 compute units); today's v3 cannot, for lack of a 128-bit
-multiply, so it keeps two.
+A build for sBPF v2 checks a GitHub token's RSA signature in ONE transaction instead of two (measured on devnet:
+882,519 compute units). The v3 build does it in one transaction too, for a token of up to 5,000 bytes, by forming
+each 64-bit product from 32-bit halves (section 3).
 
 The new builds are written to devnet and handed to the
 upgrade multisig; they replace the live programs only when a Squads proposal passes its 8-day time lock.
@@ -14,7 +14,7 @@ Nothing on this page has replaced a live program yet.
 
 ## 1. What devnet runs (13 Oct 2026)
 
-Read from devnet's feature accounts; the AUDIT table in the release notes has the slots and ids.
+Read from devnet's feature accounts on 13 Oct 2026.
 
 | feature | on devnet | what Knos does with it |
 |---|---|---|
@@ -30,7 +30,8 @@ Read from devnet's feature accounts; the AUDIT table in the release notes has th
 
 `bash scripts/build_sbf.sh v3 deploy` builds the four programs with a pinned toolchain (cargo-build-sbf 4.4.0 from the Agave 4.4.0-beta.0
 release, platform-tools v1.57, `--locked`, file paths remapped so the bytes do not depend on where the checkout is) and writes their hashes to
-`deploy/upgrade-0329/HASHES-v3.txt`.
+`programs-v2/target/arch-v3/HASHES-v3.txt` (not committed; the hashes of the builds that were proposed are in
+`deploy/upgrade-0335/HASHES-v3.txt`).
 
 The ELF header's `e_flags` is the sBPF version; the script refuses a file whose version is not the one asked for.
 
@@ -46,21 +47,12 @@ ships cannot load an sBPF v3 file ("invalid file header"), so v3 is measured in 
 
 The verified (docker) build is `solana-verify build "$PWD" --workspace-path "$PWD/programs-v2" --library-name <name>
 --arch v3 --base-image <image>`. This machine has no docker, so that build was not run here: the members compare the
-buffers with their own rebuild (STEPS.md says how).
+buffers with their own rebuild (`deploy/upgrade-0335/HASHES-v3.txt` names the source, toolchain and flags).
 
-The v3 deploy builds (cargo-build-sbf 4.4.0, platform-tools v1.57; `deploy/upgrade-0329/HASHES-v3.txt`), each smaller
-than the program data account it would replace on devnet (oidc 279,360, pay 408,280, meter 317,600, passkey 214,176
-bytes), so no ExtendProgram is needed:
-
-| program | e_flags (sBPF) | bytes | executable hash (`solana-verify get-executable-hash`) |
-|---|---|---|---|
-| knos_oidc | 3 | 172,952 | `d565487fc00c71b6b03a441915067075eb710d6509f6b8108aa31eaa9975298a` |
-| knos_pay | 3 | 362,512 | `95fa02b2b16e6336a5a9cd8cb1fe1a8246c55a2176e8a875b7099d49b86d6fb5` |
-| knos_meter | 3 | 158,368 | `0c400e6bb0f975e9a7af633a0b6e3d7e2af3528109431154799b946c7d0cc80c` |
-| knos_passkey | 3 | 108,232 | `d5a5db160eab9fbfdd70712f14898b06daeb1b068eaa1f442f82fe492e5b1c73` |
-
-These are built from this release's source with the PLATFORM changes uncommitted; the hashes change if anything in
-programs-v2 changes before the commit. Rebuild at the release commit and compare before proposing. Agave 4.4 refuses the v3 builds of the 2.3 toolchain.
+The v3 deploy builds that were proposed are listed, with their buffers, in `deploy/upgrade-0335/HASHES-v3.txt`:
+knos_oidc 173,184 bytes, executable hash `925c76f0…` (proposal 14), and knos_pay 413,544 bytes, `e0160541…`
+(proposal 13), both built from commit `eb12d1be` (web/upgrades.json). Proposal 15 is a second knos_oidc build,
+`26d208cb…`. Agave 4.4 refuses the v3 builds of the 2.3 toolchain.
 
 ## 3. One-transaction RS256 verification
 
@@ -76,15 +68,15 @@ The token account is unchanged, and the running power is the same bytes in both 
 halfway under one build finishes under the other (an upgrade between two Steps changes nothing;
 `tests/test_platform_verify.py`).
 
-**sBPF v3 (v0.3.30): one transaction too, for a token of up to 5,000 bytes.** The v3 that Agave 4.4 runs (SIMD-0178,
+**sBPF v3 (the 0.4.0 v3 build): one transaction too, for a token of up to 5,000 bytes.** The v3 that Agave 4.4 runs (SIMD-0178,
 SIMD-0189, SIMD-0377) has no high-half multiply. A v3 build of platform-tools v1.57 holds `mul64` and no `uhmul64`
 (`llvm-objdump -d`), where the v2 build holds 21 `uhmul64`.
 
 LLVM compiles a u128 product for v3 into a call to
 compiler-rt's `__multi3`.
 
-The first v3 build with 64-bit limbs (v0.3.29) did exactly that and was slower than 32-bit
-limbs (table below). v0.3.30 keeps the same 64-bit-limb Montgomery code (same rows, same reductions, same token
+The first v3 build with 64-bit limbs did exactly that and was slower than 32-bit
+limbs (table below). The 0.4.0 v3 build keeps the same 64-bit-limb Montgomery code (same rows, same reductions, same token
 bytes) and only changes how each t + a b + c is formed on v3 (`rsa64.rs`, module `h`; `build.rs` sets `knos_mulhi32`
 for an sBPF v3 target).
 
@@ -142,11 +134,11 @@ active, including SIMD-0500 and SIMD-0385), each test build at its own program i
 |---|---|---|---|
 | sBPF v0, 32-bit limbs (today) | 761,805 + 826,794 | out of compute units (1,399,850 consumed) | out of compute units |
 | sBPF v2, 64-bit limbs | 421,797 + 488,638 | **881,415** | **896,314** (2,279 bytes) |
-| sBPF v3, 32-bit limbs (the v0.3.29 v3 deploy builds) | 719,805 + 781,472 | out of compute units | out of compute units |
-| sBPF v3, 64-bit limbs via `__multi3` (v0.3.29 attempt, discarded) | 1,027,779 + 1,086,730 | out of compute units | out of compute units |
-| **sBPF v3, 64-bit limbs, products from 32-bit halves (v0.3.30)** | 631,262 + 691,200 | **1,291,845** (1,952-byte token) | **1,301,807** (2,308 bytes) |
+| sBPF v3, 32-bit limbs (the first v3 deploy builds) | 719,805 + 781,472 | out of compute units | out of compute units |
+| sBPF v3, 64-bit limbs via `__multi3` (the first v3 attempt, discarded) | 1,027,779 + 1,086,730 | out of compute units | out of compute units |
+| **sBPF v3, 64-bit limbs, products from 32-bit halves (the 0.4.0 v3 build)** | 631,262 + 691,200 | **1,291,845** (1,952-byte token) | **1,301,807** (2,308 bytes) |
 
-**sBPF v3, v0.3.30, by token size** (local `solana-test-validator` 4.4.0-beta.0 from the Agave 4.4 release, nothing
+**sBPF v3, the 0.4.0 v3 build, by token size** (local `solana-test-validator` 4.4.0-beta.0 from the Agave 4.4 release, nothing
 on devnet; the knos_oidc v3 test build at a fresh program id; synthetic tokens signed by the tests' seed keys; 14 Oct 2026):
 
 | 2048-bit key, Step(16) in one transaction | 1,952 bytes | 3,500 | 4,000 | 4,500 | 5,000 | 5,500 | 8,192 (MAX_JWT) |
@@ -168,7 +160,7 @@ old build no longer matches it.
 
 So: **before** 761,637 + 826,670 = 1,588,307 compute units in two transactions (LiteSVM, today's v0 test build,
 1,893-byte token; 761,805 + 826,794 in the validator); **after**, with the v2 build, 882,519 in ONE transaction on
-devnet (`44AdiYqa…` above), and with the v0.3.30 v3 build 1,291,845 in ONE transaction on a local Agave 4.4 validator
+devnet (`44AdiYqa…` above), and with the 0.4.0 v3 build 1,291,845 in ONE transaction on a local Agave 4.4 validator
 (not measured on devnet).
 
 The client keeps the old path: `KNOS_OIDC_VERIFY=two` (the default until the upgrade has executed) sends Step(8),
@@ -217,12 +209,13 @@ transaction does not run.
 - **Finality.** `KNOS_COMMITMENT` = processed, confirmed or finalized (`knos.platform.finality`). Unset, Knos asks
   each cluster `getAgGenesisCert` once: a certificate (Alpenglow) means `finalized`, null or "Method not found" means
   `confirmed` as before. Every wait and read in `knos.chain`, the fan-out ledger and the readers uses it. See
-  [PLATFORM.md](PLATFORM.md).
+  [Alpenglow: paid and final](#alpenglow-paid-and-final).
 
 ## 7. The upgrade
 
-The buffers are on devnet, handed to the upgrade vault `CKCrTB…` (multisig `9HcsMEo2…`, time lock 691,200 s); a v3
-or a v2 knos_oidc is still to be chosen. Nothing was proposed, approved or executed, and no key signed anything.
+The v3 buffers were proposed to the upgrade multisig `9HcsMEo2…` (vault `CKCrTB…`, time lock 691,200 s): proposal 13
+for knos_pay and proposals 14 and 15 for knos_oidc, each approved 2 of 2 and executable since 11 Nov 2026. None has
+executed: the public ids still run knos_oidc 2.2 and knos_pay 2.2 ([web/upgrades.json](../../web/upgrades.json)).
 
 SIMD-0500 (`B8JJXC…`, not active on devnet on 13 Oct 2026) will refuse v0, v1 and v2 deployments once active; programs
 already deployed keep running.
@@ -231,7 +224,7 @@ already deployed keep running.
 
 - The verified (docker) build of the v3 programs: no docker on this machine. The program.yml change (`--arch v3`, a
   4.4 toolchain image) is not made yet.
-- One-transaction RSA on sBPF v3 (v0.3.30): measured on a local validator only, not on devnet. It does not cover a
+- One-transaction RSA on sBPF v3 (the 0.4.0 v3 build): measured on a local validator only, not on devnet. It does not cover a
   2048-bit token over 5,000 bytes nor a 4096-bit key in four Steps; those keep more Steps. More room would come from
   limbs below 32 bits (e.g. 28-bit, so products are summed without carries) or a hand-scheduled row loop; not attempted.
 - `big_mod_exp`: inactive on devnet; the crate feature is written but no build of it was compiled or run here.
@@ -300,8 +293,8 @@ or texts about spreadsheet formats; they are not commitments and did not change.
   TowerBFT). A payment Knos already waited for at `finalized` is final at once: nothing is asked again.
 - The wait for a sent transaction keeps its own ceiling (`knos.chain.wait`), which is not the blockhash's life: with
   200 ms slots (SIMD-0525) a blockhash lasts about 33 s on devnet, measured on 14 Oct 2026 as lastValidBlockHeight
-  minus the `confirmed` block height over the block rate ([PLATFORM.md](PLATFORM.md),
-  `python -m knos.platform.blockhash`). A transaction that must wait for another signer uses a durable nonce instead.
+  minus the `confirmed` block height over the block rate
+  (`python -m knos.platform.blockhash`). A transaction that must wait for another signer uses a durable nonce instead.
 
 ### "Paid and final in N ms"
 
@@ -433,7 +426,7 @@ knos_pay holds a bounty in a token account of its own and pays it with one trans
 extensions that change what a transfer does, and some of them let somebody other than the funder and the referee decide
 what happens to held money.
 
-Since 0.3.31 Knos reads a mint's extensions before it holds a bounty in it (`knos fund-wallet` refuses), and anyone
+Since 0.4.0 Knos reads a mint's extensions before it holds a bounty in it (`knos fund-wallet` refuses), and anyone
 can check a mint or a payee's token account first (`src/knos/platform/token22.py`). The extensions are described at
 [solana.com/docs/tokens/extensions](https://solana.com/docs/tokens/extensions) (read 14 Oct 2026).
 

@@ -32,7 +32,8 @@ from it within its limits, and that every fee is the schedule's.
 A failure prints its seed and step.
 `test_the_machine_finds_the_double_payment_of_the_0_3_13_build_within_its_default_budget` runs the same machine on
 the faulty `knos_pay` build proposed in Knos release 0.3.13 (never deployed; [GOVERNANCE.md](GOVERNANCE.md), section
-3) and fails unless it finds a pay token that paid twice.
+3) and fails unless it finds a pay token that paid twice. It skips where the clone has no history (CI today: the
+pytest checkout of `.github/workflows/tests.yml` has no fetch-depth).
 
 The machine has no standing
 orders, no kill fee, no assigned payment, one relayer and one mint; the tests named under each invariant cover those.
@@ -462,9 +463,10 @@ obliged to run a relay:
 
 What is tested is recovery from named failures, in a simulator, with times that are simulated seconds.
 
-The six rows of [DRILLS.md](DRILLS.md), "When a dependency fails" (GitHub's API down for ten minutes, GitHub's signing
+The eight rows of [DRILLS.md](DRILLS.md), "When a dependency fails" (GitHub's API down for ten minutes, GitHub's signing
 key expired on chain, the relay killed between a send and its confirmation, the RPC endpoint erroring with stale
-blockhashes, the evidence missing, devnet reset), are held to the page by
+blockhashes, the evidence missing, devnet reset, devnet reset with the operator's copies deleted, GitHub rotating its
+signing key mid-period), are held to the page by
 `test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took` in
 `tests/test_drills.py`.
 

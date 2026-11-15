@@ -6,7 +6,7 @@
 useDefault = true
 
 [allowlist]
-description = "public keys, hashes and test fixtures (read 23 Oct 2026)"
+description = "public keys, hashes and test fixtures (read 23 Oct 2026; some paths exist only in history)"
 paths = [
   '''(^|/)tests?/''',
   '''(^|/)(fixtures|testdata|vectors)(/|\.json$)''',

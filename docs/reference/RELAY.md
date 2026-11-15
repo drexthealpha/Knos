@@ -491,8 +491,8 @@ What is not done:
   confirmation returns). The pass itself still returns when its last worker has answered; the search for
   unknown repositories and the rounds that need no token run between passes, as before.
 - **The queue's own share is not measured on devnet.** The 41 payments recorded on devnet by 6 October 2026
-  ([LOAD.md](LOAD.md), section 6: p50 25 s, p95 58 s) were made by the serial sweep; the current figure is 28 s at
-  the median over 56 payments (10 Oct 2026, [BENCH.md](BENCH.md)), and no measurement separates the queue's part. What is known of the queue is a local test
+  ([LOAD.md](LOAD.md), section 6: p50 25 s, p95 58 s) were made by the serial sweep; the figure read on 10 Oct 2026 is 28 s at
+  the median over 56 payments ([BENCH.md](BENCH.md)), and no measurement separates the queue's part. What is known of the queue is a local test
   with a stand-in chain (`python scripts/queue_drill.py`, same section): it says how the queue behaves, and
   nothing about seconds on a cluster.
 - **One event run on the public worker, and it carried no token.** On 8 October 2026 one `repository_dispatch` of
@@ -591,8 +591,8 @@ Three things follow, and one does not.
   95th percentile of 58 s and holds the slowest, 1,220 s.
 - The same file read two days later holds 42 payments: median 25 s, 95th percentile 58 s
   ([`bench.json`](../bench.json), `devnet.stats.latency.merge_to_paid`, 2 to 6 October). Nothing got faster. With 42
-  samples the nearest rank is the 40th value, and the 164 s payment is the 41st. Other documents state the current
-  figure, 28 s at the median over 56 payments (10 Oct 2026); the table above is the earliest reading, kept because the split below was made from it.
+  samples the nearest rank is the 40th value, and the 164 s payment is the 41st. Other documents state the reading
+  of 10 Oct 2026, 28 s at the median over 56 payments; the table above is the earliest reading, kept because the split below was made from it.
 - In every payment that can be split (37 of the 39 lines carry the relay's seconds), the relay's side never passed
   35 s. The slowest payment spent 1,208 of its 1,220 s before its token was posted: GitHub started, queued or re-ran
   the workflow that proves the merge. The relay cannot shorten that; it can only measure it.
@@ -622,7 +622,7 @@ those payments. The slowest of them spent its time in the runner queue (before t
 runner recorded by GitHub), not in the relay.
 
 The attempts, over every payment line of the log: 44 of 53 pull requests asked for were paid; the log has
-57 lines with a token, of which 13 say fail and 0 took more than one try; 1 were paid only after a failed
+57 lines with a token, of which 13 say fail and 0 took more than one try; 1 was paid only after a failed
 line, and 9 were never paid.
 
 A failure here is a relay's answer (a token too long, no bounty on the issue, a token for the other

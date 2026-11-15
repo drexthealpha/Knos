@@ -407,7 +407,7 @@ comment shows your repository's terms.
 
 ### What a funder with real money would additionally need
 
-Knos runs on Solana devnet only. There is no mainnet deployment, so nobody can do the following with real money
+This flow runs on Solana devnet only (the NEAR checks run on NEAR testnet). There is no mainnet deployment, so nobody can do the following with real money
 today; this is the list of what it would take, so that no step is hidden. The devnet faucet stands in for all of it.
 On top of the three steps above:
 
@@ -532,14 +532,18 @@ It installs `knos-settle`, the client for Knos's Solana programs: one file with 
 Node 20 or newer ([`sdk/settle`](../../sdk/settle)), from [npm](https://www.npmjs.com/package/knos-settle).
 
 Since version 0.3.21 this repository's release workflow publishes it there using npm's trusted publishing (no stored
-password), with a signed note (provenance statement) naming the workflow run that built it; the newest is 0.3.26, of
-10 October 2026 (`npm audit signatures` checks it after an install).
+password), with a signed note (provenance statement) naming the workflow run that built it; the newest is 0.4.0, of
+17 October 2026 (read from the registry on 15 Nov 2026; 0.4.1 was not published there). `npm audit signatures`
+checks it after an install.
 
 If the registry cannot be reached, the same file is attached to the GitHub release:
 
 ```bash
 npm install https://github.com/drexthealpha/Knos/releases/download/v0.4.1/knos-settle-0.4.1.tgz
 ```
+
+That file is missing from the 0.4.1 release (the address answered 404 on 15 Nov 2026); until it is attached, the
+newest attached file is `knos-settle-0.4.0.tgz` on the 0.4.0 release.
 
 The release workflow publishes each new version through trusted publishing, with no stored secret. A token job is the
 fallback: it publishes only when the repository holds the secret `NPM_TOKEN`, which stays unset, and says in one line

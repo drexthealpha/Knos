@@ -1,8 +1,15 @@
 # Changelog
 
-Prices and figures in older entries are superseded; the current price book is docs/reference/MARKET.md, section "The price book", and each release's notes are its entry here.
+Prices and figures in older entries are superseded; the current price book is docs/PRICING.md, and each release's notes are its entry here. Older entries name code by the names it had then.
 
 Each entry starts with what changed for you, in one or two plain lines ("In short"); the full notes follow.
+
+## Unreleased
+
+**In short:** since 0.4.1 (6 Nov 2026), not yet a release: the NEAR entry (a paper's claim checked against a test
+locked in a jobs contract on NEAR testnet, with NEAR AI Cloud's attestation checked, and the jobs and claim market
+contracts left with no access keys on 14 Nov 2026), and the IRIS entry with its video. The tag
+`hackathon-submission` is the NEAR entry as submitted. This entry is filled at the next release.
 
 ## 0.4.1 (November 2026)
 
@@ -1156,7 +1163,7 @@ the release, and neither is live at its public id until its proposal executes.
   whole event in canonical bytes, so the root binds every field of every evaluation. A new batch is format 2; a
   format 1 batch stays verifiable as format 1, and `knos meter migrate` re-commits an old month without anchoring
   it twice ([`docs/reference/METER.md`](docs/reference/METER.md), "What a root commits to").
-- **`knos_pay` 2.2: one rate, and the two quorum findings fixed.** The fee on an order is
+- **`knos_pay 2.2`: one rate, and the two quorum findings fixed.** The fee on an order is
   `max(0.05, floor(amount x 30 / 10,000))` in place of three tiers, and a Plan may lower the rate to no less than
   10 basis points. Referees of a quorum are counted by repository owner, and a neutral referee must differ from the
   order's side in owner and in the account that started the run. A referee's marker is bound to the funding of the

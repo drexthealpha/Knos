@@ -1,12 +1,12 @@
 # Contributing
 
 Contributions are welcome and unpaid, unless the issue shows a funded order.
-A funded order pays test USDC on Solana devnet, which has no monetary value.
+A funded order pays test money on NEAR testnet or Solana devnet, which has no monetary value.
 Do not post a wallet address for payment: the payment program pays only the address a payee binds to a funded order.
 
 Funded work is listed by `knos work list`. An issue with no funded order pays nothing, whatever a comment on it says. The issues labelled `knos-relay` and `knos-memory`, and the one titled "knos tokens", are logs that a workflow writes. They are not tasks.
 
-Knos is one product: a bounty that pays when its pull request is merged and the checks you named have passed. GitHub signs a record of that run, and a program on Solana checks the signature.
+Knos is one product: a test is locked before work starts, and test money moves to the agent that did the work only if the test passes. For a pull request, GitHub signs a record of the run and a program on Solana checks the signature.
 Changes that delete something are the most welcome kind.
 
 ## Run the tests
@@ -67,7 +67,7 @@ the payment is kept for you for 180 days.
 
 ## Release
 
-[CONTRIBUTING.md](CONTRIBUTING.md) is the whole order, with every command. In short: build the package once, lock its hash
+The section "How a Knos release is made" below is the whole order, with every command. In short: build the package once, lock its hash
 in `requirements/sign.txt`, publish the pinned workflows, then make one commit, upload the package to PyPI, push, and
 tag:
 
@@ -118,7 +118,7 @@ Four things depend on each other, and only one order satisfies all of them.
   upload its note names, or was set by hand.
 
 So the wheel is built first and once, from the final tree, and nothing inside the wheel names the commit of the
-workflows (`src/knos` never does, and `README.md`, which is the wheel's description, is not a file the stamp
+workflows (`src/knos` never does, and `README.pypi.md`, which is the wheel's description, is not a file the stamp
 writes).
 
 The wheel built before the stamp and the wheel built after it are the same file: `tests/test_release_order.py`
@@ -129,9 +129,9 @@ needs are installed by hash from `requirements/build.txt`.
 
 ### The commit
 
-In the tree that is going to be the release, in this order. Run `python scripts/diagrams.py render` before the
-version bump: the bump writes README.pypi.md, which shows each of README.md's diagrams as its picture in
-docs/diagrams/ at the tag (PyPI does not draw Mermaid).
+In the tree that is going to be the release, in this order. If README.md has a Mermaid diagram, run
+`python scripts/diagrams.py render` before the version bump: the bump writes README.pypi.md, which shows each such
+diagram as its picture in docs/diagrams/ at the tag (PyPI does not draw Mermaid).
 
 ```
 python scripts/diagrams.py render                # before the version bump: a picture of every Mermaid diagram
@@ -452,8 +452,8 @@ None of these runs is written into this release's commit ("Nothing after the pus
 
 ## Rollback: taking a release back
 
-What to do, surface by surface, when a release of Knos must be taken back. Everything is on Solana devnet with test
-USDC. One person holds every key, account and vote named here today: there is no other maintainer, and outside key
+What to do, surface by surface, when a release of Knos must be taken back. Everything is on NEAR testnet and Solana devnet with
+test USDC. One person holds every key, account and vote named here today: there is no other maintainer, and outside key
 holders today are 0 ([TRUST.md](docs/TRUST.md)).
 
 So "who can run it" is that one maintainer in every row, with the credential the row names.
@@ -476,6 +476,7 @@ version.
 | the relay (`worker.yml`) | disable two workflows | Knos's relay stops; anyone can still relay | admin of the repository |
 | the programs | guardian pause of new funding | refuses new funding for at most 7 days; payments, refunds and withdrawals go on | 2 of 3 guardian keys |
 | the programs, code | an upgrade back to the previous build | waits for the time lock: 8 days (in force since 11 Oct 2026) | 2 of 3 upgrade member keys |
+| the NEAR contracts | none: they hold no access keys since 14 Nov 2026 | they cannot be upgraded or paused by a key; a fault is fixed by a new deployment | none |
 
 ### 1. PyPI: yank
 

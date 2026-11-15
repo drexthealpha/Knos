@@ -4,8 +4,8 @@ A chain is public and permanent. Nothing written to it can be erased or correcte
 asking. This page says, for each way of using Knos, what a stranger can learn, so a buyer can decide before the
 first order. Everything here is on Solana devnet with test USDC.
 
-[SECURITY.md](SECURITY.md) section 12 and [SECURITY.md](SECURITY.md) hold the same facts with the tests that
-check them.
+[SECURITY.md](SECURITY.md#12-private-repositories-exactly-what-the-chain-shows), section 12, holds the same facts
+with the tests that check them.
 
 ## 1. What a payment reveals, even for a private repository
 
@@ -90,8 +90,9 @@ two numbers; which evaluations differ is in the ledgers only.
 | Batch ledgers | As long as the party who keeps them decides. Knos keeps none. | the buyer and the seller, each for its own |
 | The host | Workflow logs, check runs and comments follow GitHub's or GitLab's retention and the repository's settings. | the repository's owner |
 
-Knos runs no server that stores evaluations, receipts or ledgers. The public relay is a workflow in a public
-repository: what it relays is in that repository's public run history.
+The payment programs need no Knos server. Knos does run one, knos.onrender.com, which keeps the results and receipts
+of runs made through it (`apps/wanted`); it never receives a private order's code, logs, terms or ledger. The public
+relay is a workflow in a public repository: what it relays is in that repository's public run history.
 
 If a ledger is deleted, the root on chain stays and can no longer be opened by anyone. That is the retention you
 chose, and it is also the end of your ability to prove what the batch held.
@@ -244,7 +245,7 @@ fact, the time and the size of every transaction that does.
 A chain is the wrong place for a relationship whose existence is the secret.
 
 Confidential evidence stays in the customer's storage: code, logs, check output, the terms' text and salt of a
-private order, and a batch's ledger are never sent to the chain, and Knos runs no server that receives them
+private order, and a batch's ledger are never sent to the chain, and no Knos server receives them
 (section 4). What the chain holds of them is a hash, which proves correspondence and nothing more (section 5).
 
 Nothing on this page is a privacy guarantee. It lists what the command found in what the programs write today; a

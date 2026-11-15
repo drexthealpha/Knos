@@ -27,7 +27,7 @@ parameters](https://docs.github.com/en/pull-requests/reference/using-query-param
 Without a fork: create an empty public repository of your own (the link above) and add one file,
 [`knos-reproduce.yml`](../../examples/knos-reproduce.yml) (the same as in [`templates/knos-task`](../../templates/knos-task)),
 as `.github/workflows/knos-reproduce.yml`: **Add file**, **Create new file**, paste, **Commit changes**. Then **Actions**,
-**knos reproduce**, **Run workflow**. No template repository is involved since 0.3.31.
+**knos reproduce**, **Run workflow**. No template repository is involved since 0.4.0.
 
 A repository that is no fork cannot open a pull request here: download the run's artifact `knos-reproduction` and send the
 file in it ("How to send it").
@@ -161,7 +161,7 @@ What a stranger does, each click or command counted once (GitHub's own steps for
 | path | steps | what they are |
 |---|---|---|
 | fork, then send | 10 | open the fork link, **Create fork**, **Actions**, enable workflows, **knos reproduce**, **Run workflow**, **Run workflow** again in its menu, open the run **knos reproduction, to send**, open the link it prints, **Create pull request** |
-| template, then check | 7 | open the template link, **Create repository**, **Actions**, **knos reproduce**, **Run workflow**, **Run workflow** again, download the artifact; then `knos reproduce --verify <run URL>` is an 8th, on your own machine |
+| empty repository, then check | 11 | open the new-repository link, **Create repository**, **Add file**, **Create new file**, paste `examples/knos-reproduce.yml` as `.github/workflows/knos-reproduce.yml`, **Commit changes**, **Actions**, **knos reproduce**, **Run workflow**, **Run workflow** again, download the artifact; then `knos reproduce --verify <run URL>` is a 12th, on your own machine |
 | a terminal only | 1 | `pipx run --spec knos knos reproduce` (not signed: proves nothing to anyone else) |
 
 Time to first verified result: the time from the workflow's first step to GitHub's signature. The workflow records it:

@@ -1,5 +1,8 @@
-# THE one fee config of Knos. Everything that states, charges, quotes or charts a Knos fee reads this file through
-# knos.money.fees_config (load, validate). Nothing else types a fee.
+# THE one fee config of Knos on Solana. Everything that states, charges, quotes or charts a Knos fee on Solana reads
+# this file through knos.money.fees_config (load, validate). The NEAR contracts compile their own fee, 1 part in 10
+# (FEE_PARTS in near/contract/src/jobs.rs, the same split in near/market/src/lib.rs and near_live.py's FEE_OF); the
+# block `near` below mirrors it, and nothing reads it. One proposed price is not here yet: the price book's Record line,
+# 0.10 USD a lookup (RECORD_PRICE in src/knos/billing.py, read by src/knos/record_api.py).
 #
 # Four kinds of line, and every line says which it is in `status`:
 #   live         the deployed knos_pay program charges it on devnet today. The program's numbers are compiled into it
@@ -34,11 +37,18 @@ onchain:
   build: "2.2"
   rate_bps: 30
   floor_usd: "0.05"
-  plan_floor_bps: 20
+  plan_floor_bps: 20          # Knos's contract floor (knos.plan_floor), enforced off chain; the program itself accepts a Plan down to 10 (PLAN_BPS_MIN)
   relayer_tip_usd: "0.05"
   relayer_tip_first_usd: "0.30"
   order_min_usd: "5.00"
   max_payees: 4
+
+near:
+  status: "live"
+  what: "the NEAR testnet jobs contract keeps 1 part in 10 of the test money held with a job when it pays the agent whose code passed the locked test; the other 9 parts go to that agent"
+  network: "near testnet"
+  fee_parts: 10
+  source: "near/contract/src/jobs.rs FEE_PARTS, compiled into the contract (no access keys since 14 Nov 2026, so it cannot change)"
 
 fees:
   verification:
@@ -189,10 +199,10 @@ game_pot:
 
 cloud:
   status: "decided"
-  what: "Knos Cloud: paid credits for hosted verification (runners, sealed-test storage, receipts, Gate for private repositories). Everything stays open source (MIT) and self-hosting stays free."
+  what: "Hosted credits in Knos: paid credits for hosted verification (runners, sealed-test storage, receipts, Gate for private repositories). Everything stays open source (MIT) and self-hosting stays free."
   decided: "14 Oct 2026"
   rationale: "three monthly tiers of 20, 100 and 200 USD, each with 10% bonus credit (22, 110 and 220 USD of credit a month)"
-  source: "price set 14 Oct 2026, on the Nous Portal pattern (see shape_from); the 10% bonus is Knos's own, not a sourced Nous figure"
+  source: "price set 14 Oct 2026; the tiers and the 10% bonus are Knos's own"
   bonus_bps: 1000
   units_status: "placeholder"
   units_what: "what one credit is worth and what each use consumes are not decided: credit_usd, consumes and so each tier's credit count are placeholders"
@@ -216,13 +226,9 @@ cloud:
       credit_usd_month: "220"
       credits_month: 110000
   enterprise: "by contract (the Control line of the price book)"
-  shape_from: "Nous Research's Portal sells $20/$100/$200 monthly tiers (TechCrunch, 7 Oct 2026, citing the WSJ; unaudited). Knos's tier prices match it (price set 14 Oct 2026); the credit unit is a placeholder."
+  shape_from: "Knos's own tier prices (price set 14 Oct 2026); no outside source is named for them, and the credit unit is a placeholder."
 
 sources:
-  nous:
-    said: "Nous Research: open core (MIT) plus hosted subscriptions with credits (Portal $20/$100/$200 tiers) plus enterprise; about $36M annualized revenue by mid-September 2026; raised $90M at a $1.5B valuation"
-    source: "TechCrunch, 7 Oct 2026, citing the Wall Street Journal"
-    audited: false
   epoch_tasks:
     said: "labs pay 200 to 2,000 USD per verified task; robustness to reward hacking is the top buying criterion"
     source: "Epoch AI, 12 Jan 2026 (An FAQ on reinforcement learning environments, https://epoch.ai/gradient-updates/state-of-rl-envs, read 14 Oct 2026: an interviewed founder saw 200 to 2,000 USD per task mostly; interviewees consistently cite robustness against reward hacking)"

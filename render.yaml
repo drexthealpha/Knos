@@ -1,5 +1,6 @@
-# Render blueprint: Knos's demand check (apps/wanted) as one free web service, built from this repository's main.
-# Secrets are set on Render, never here: QLOO_API_KEY (env) and the devnet TEST keys as secret files under /etc/secrets.
+# Render blueprint: Knos's server (apps/wanted): the NEAR check flow and the demand check, as one free web service,
+# built from this repository's main. Secrets are set on Render, never here: QLOO_API_KEY and NEAR_AI_API_KEY (env), the
+# devnet TEST keys and the NEAR testnet keys as secret files under /etc/secrets.
 services:
   - type: web
     name: knos
@@ -63,4 +64,18 @@ services:
         sync: false
       # the self-hosted Keycloak TEST realm (deploy/sso/keycloak), when one runs: tenant knos-keycloak is then registered itself
       - key: KNOS_SSO_KEYCLOAK_URL
+        sync: false
+      # the NEAR check flow (knos_wanted.near_live): KNOS_NEAR_LIVE=on is its kill switch; the keys are a secret file
+      - key: KNOS_NEAR_LIVE
+        sync: false
+      - key: KNOS_NEAR_KEYS_FILE
+        sync: false
+      - key: KNOS_CHECKER_PEM_FILE
+        sync: false
+      - key: KNOS_NEAR_PAYER
+        sync: false
+      - key: KNOS_NEAR_LIVE_DAILY
+        sync: false
+      # NEAR AI Cloud (knos_wanted.near_ai): writes and reviews agent A's code; without a key agent A runs its fixed program
+      - key: NEAR_AI_API_KEY
         sync: false

@@ -7,7 +7,7 @@ It holds nothing private and nothing that is not already public, so anyone can r
 compare digests. It is what a buyer files, what a seller shows, and what a third party can check.
 
 A signature proves who signed, not that what was signed is true. So a receipt keeps five things apart, always in
-this order and under these headings, in the JSON and in what `knos receipt` prints. Versions 3 to 5 carry all five.
+this order and under these headings, in the JSON and in what `knos receipt` prints. Versions 3 to 6 carry all five.
 Version 2 lacks the fourth; `knos receipt` still prints its heading and says it is missing:
 
 1. **What the issuer authenticated** (`issuer_authenticated`). GitHub or GitLab signed: which workflow file, at which
@@ -42,9 +42,9 @@ Then `amendments`: every change of the order's terms between its funding and thi
 of the payment, a reservation, a cancellation, a change of the funder's plan), oldest first, each with its
 transaction, so an order's terms history is explicit. Then the payment itself.
 
-- Schema: [`docs/receipt/acceptance-receipt.v4.schema.json`](../receipt/acceptance-receipt.v4.schema.json) (JSON Schema
-  2020-12); version 3: [`acceptance-receipt.v3.schema.json`](../receipt/acceptance-receipt.v3.schema.json); version 2: [`acceptance-receipt.v2.schema.json`](../receipt/acceptance-receipt.v2.schema.json); version 1:
-  [`acceptance-receipt.v1.schema.json`](../receipt/acceptance-receipt.v1.schema.json). A reader accepts all four.
+- Schema: [`docs/receipt/acceptance-receipt.v6.schema.json`](../receipt/acceptance-receipt.v6.schema.json) (JSON Schema
+  2020-12); version 5: [`acceptance-receipt.v5.schema.json`](../receipt/acceptance-receipt.v5.schema.json); version 4: [`acceptance-receipt.v4.schema.json`](../receipt/acceptance-receipt.v4.schema.json); version 3: [`acceptance-receipt.v3.schema.json`](../receipt/acceptance-receipt.v3.schema.json); version 2: [`acceptance-receipt.v2.schema.json`](../receipt/acceptance-receipt.v2.schema.json); version 1:
+  [`acceptance-receipt.v1.schema.json`](../receipt/acceptance-receipt.v1.schema.json). A reader accepts all six.
 - Conformance vectors: [`docs/receipt/vectors.json`](../receipt/vectors.json): of version 1, five receipts a reader
   must accept, with their digests, and nine a reader must refuse; of version 2, the same five and eight to refuse;
   of version 3, five to accept and twelve to refuse. Version 4:
@@ -61,7 +61,7 @@ transaction, so an order's terms history is explicit. Then the payment itself.
 
 ## The five parts of a receipt
 
-Every receipt of version 4 or 5 reads in five parts. This is a view (`knos.receipt.parts`), not a version: it adds
+Every receipt of version 4, 5 or 6 reads in five parts. This is a view (`knos.receipt.parts`), not a version: it adds
 nothing to a receipt, changes no digest, and is computed from the receipt's own fields.
 
 | Part | It answers | It is read from |
@@ -187,13 +187,13 @@ version 5 one holds. A mirror's copy, made from the chain alone, does not carry 
 A disputed version 5 receipt disputes the version 5 form of the receipt it disputes; a
 dispute does not move the level, which is of the evidence.
 
-Version 5 is what is written since 0.3.19: `knos bundle make`, `knos receipt mirror`, the relay's attestation of a payment and the receipt `knos attest` leaves for a run that paid
-nothing all write it (`build5` over the version 4 receipt, so the level is computed and never typed).
+Version 5 was written from 0.3.19 until 0.4.0, which writes version 6 on top of it (`build6` over `build5`, section "Version 6"): `knos bundle make`, `knos receipt mirror`, the relay's attestation of a payment and the receipt `knos attest` leaves for a run that paid
+nothing all wrote it (`build5` over the version 4 receipt, so the level is computed and never typed).
 
 `knos bundle make --terms3 FILE` reads the declared control relationships from the Knos Terms 3 document the order cites, and refuses a document the order does not cite; a run of `knos
 attest` reads them from the repository's own copy of that document. Without one, nothing is declared.
 
-`knos bundle verify` takes versions 2 to 5, and so do the webhook verifiers (`integrations/webhook`). One version 5 receipt of a public payment has been written (0.3.19): `knos bundle
+`knos bundle verify` takes versions 2 to 6, and so do the webhook verifiers (`integrations/webhook`). One version 5 receipt of a public payment has been written (0.3.19): `knos bundle
 make` of an order a neutral attest.yml run in drexthealpha/knos-attest checked again and
 [paid](https://explorer.solana.com/tx/3i37jK6P7hWyMntNgEKT3TsiSQQcHzNh7Dku4zsZC3m1E53ynAJZvzBgKUyahH7C9eH2A6ctRHwuSdTSqFkWfGND?cluster=devnet).
 
@@ -328,9 +328,9 @@ What version 4 does not change: the digest rule, the five parts and their order,
 version 4 receipt of a signed run is held to as it stands (`as3` gives the version 3 receipt an accepted, paid one
 holds, byte for byte).
 
-What is not done yet, said plainly: `knos bundle make` and `knos receipt mirror` write version 5 (an accepted
+What is not done yet, said plainly: `knos bundle make` and `knos receipt mirror` write version 6 (an accepted
 payment), and nothing in a pinned workflow writes a rejected or an insufficient receipt yet. The Solana Attestation
-Service script takes versions 1 to 5.
+Service script takes versions 1 to 5 only, so it refuses every receipt written now (version 6).
 
 ## Version 3
 
@@ -589,7 +589,7 @@ owner's plan. A version 1 receipt still checks, and `knos.receipt.upgrade` write
 | file | what it is |
 |---|---|
 | `MANIFEST.json` | the sha256 of every other file |
-| `receipt.json` | the receipt, version 5, in canonical form (bundles with receipts of versions 2 to 4 still verify) |
+| `receipt.json` | the receipt, version 6, in canonical form (bundles with receipts of versions 2 to 5 still verify) |
 | `token.jwt` | the raw token the issuer signed, read back from the transactions that wrote it to `knos_oidc` |
 | `key.json` | the issuer's public key that verified it (`issuer`, `kid`, `n`, `e`) and its key account |
 | `terms.json` | the order's terms: the bytes hashed at funding |
@@ -864,7 +864,7 @@ the signed run reported the terms as met, not that the work is good. A version 4
 
 A receipt is written on chain as an attestation of the
 [Solana Attestation Service](https://solana.com/docs/tools/attestations), so that other programs and indexers find
-it where they look for attestations. `scripts/sas_receipt.mjs` does it, for a receipt of any version from 1 to 5:
+it where they look for attestations. `scripts/sas_receipt.mjs` does it, for a receipt of any version from 1 to 5 (not version 6, which every receipt is now):
 
 ```
 node scripts/sas_receipt.mjs receipt.json                           # dry run: prints the three instructions
@@ -873,7 +873,8 @@ node scripts/sas_receipt.mjs --init --send --keypair KEY.json        # the relea
 ```
 
 Issuing it is **on by default** wherever Knos issues a receipt: `knos.receipt.attest(receipt)` runs the script with
-`--send`, and `knos receipt mirror` calls it for every order new to the mirror. The opt-out is `--no-attest`, or
+`--send`, and `knos receipt mirror` calls it for every order new to the mirror. Because the script refuses version 6,
+that attestation does not happen today; the refusal is soft and the receipt itself is unaffected. The opt-out is `--no-attest`, or
 `KNOS_NO_SAS=1`.
 
 It fails soft: it runs after the paying transaction is confirmed and after the mirror's files are written, it never

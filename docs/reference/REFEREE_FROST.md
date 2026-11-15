@@ -111,12 +111,12 @@ claims none.
 Until 0.3.34 every Knos work order was released by a forge: a workflow at a pinned commit, run on GitHub or
 gitlab.com, whose token `knos_oidc` verified on chain. Research does not all live on a forge.
 
-This page is what knos_pay 0.3.34 adds so that the machine referee pays on proof from any source, and what it
+This page is what knos_pay 0.3.34 adds so that the machine referee releases the money from a verdict from any source, and what it
 does not do yet.
 
 **Status.** Built and tested in LiteSVM (test builds). The referee-panel path ran on devnet at a test program id this
-build's agent owns (section 8). The real knos_pay program (`5y7iWJ1V…`) is NOT changed: its upgrade buffer (written, held by the vault) waits for
-the Squads vote (section 9).
+build's agent owns (section 8). The real knos_pay program (`5y7iWJ1V…`) is not changed yet: proposal 13 (buffer `C7MrKvNU…`, build `e0160541…`,
+from commit `eb12d1be`) is approved and waits to be executed ([web/upgrades.json](../../web/upgrades.json), section 9).
 
 No real ORCID id_token has been
 verified: those paths are tested with test issuer keys registered for the issuers' real URLs. Synthetic data only.
@@ -199,7 +199,8 @@ name that payee. In 0.3.34 the payees are named by the verdict. They are not fix
 What Knos's client tools do about it:
 
 - **A published referee registry**, `config/referees.yaml`: the public keys Knos accepts as referees, each labelled.
-  Today it holds three DEVNET TEST keys (made by the build agent, test money only). Knos has published no production
+  Today it holds four DEVNET TEST keys: three single referee keys and the FROST group key (made by the build agent,
+  test money only). Knos has published no production
   referee key.
 - **The panel rule** (`knos.platform.referees.panel_rule`), applied by `knos.platform.verdict.check`, the idea panel
   tools (`knos.ideas.wanted.fund_panel_ix`, `stage_verdict_ixs`, `python -m knos.ideas.devnet_panel`) and the MCP tool
@@ -287,6 +288,8 @@ knos-oidc, and registering one is the attester's and the guardian's act on the r
 
 ### 9. The Squads steps for the real knos_pay
 
-Nothing was proposed and nothing was signed. The upgrade buffer `Dfo5pYRLY8z9yvuXDQjJQtaoqJeL7Atso8zhWy9Ehkfj` is written (with the build team's own devnet test SOL)
-and its authority is handed to the upgrade vault `CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2` (multisig
+The 0.3.34 buffer `Dfo5pYRLY8z9yvuXDQjJQtaoqJeL7Atso8zhWy9Ehkfj` was written (with the build team's own devnet test SOL)
+and was never proposed. The knos_pay build that was proposed is proposal 13 (buffer
+`C7MrKvNU2yxMG5RJqzCkCDGowe5T1R69j3LXz3Qj1VdA`, build `e0160541…`, from commit `eb12d1be`): approved 2 of 2,
+executable since 11 Nov 2026, not executed ([web/upgrades.json](../../web/upgrades.json)). Both buffers' authority is the upgrade vault `CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2` (multisig
 `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK`).

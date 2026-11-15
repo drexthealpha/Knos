@@ -6,15 +6,11 @@
 
 ```mermaid
 flowchart TB
-    idea["An idea or a paper"] --> demand["Demand check on Qloo"]
-    demand --> ready["Ready brief: milestones locked by a hash"]
-    ready --> held["Money held on Solana devnet"]
-    held --> proof["The proof for one milestone"]
-    proof -->|verified| paid["Paid on verified proof"]
-    proof -->|not verified by the deadline| back["Refunded to the backers"]
-    proof --> meter["The meter counts each GitHub-signed check, once"]
+    check["A buyer's test checks one piece of work"] --> signed["GitHub signs the verdict"]
+    signed --> count["knos_meter counts it once on Solana devnet"]
+    seller["The seller's own count"] --> count
 ```
-*The meter sits beside the crossing: it counts each signed check once.*
+*Both sides count; the chain holds both totals.*
 
 `knos_meter` counts **evaluations**. An evaluation is one judgment of one piece of work. It names a work order, an artifact (a commit), the policy
 it was checked under and a milestone. It carries a verdict (accepted or rejected) and the rate the seller bills if it is accepted.
@@ -269,8 +265,12 @@ seven evaluations. The buyer anchored six, and recorded one of those as rejected
 
     $ knos meter verify examples/meter/buyer.jsonl
     202610: 2 batch(es), 6 evaluation(s), 4 accepted, value 8000000, running hash edb2b3579305b5f2121fb4b539f991603f802c1040b56b482384f70d82ddce0c
+    2 batch(es) are in commitment format 1 (202610.0, 202610.1): such a root binds the set of evaluation ids, the count, the accepted count and the value; not which evaluation was accepted. `knos meter migrate` re-commits them in format 2.
+    The ledger holds. Compare each month's line with the chain's Ledger account (pass --rpc <url>).
     $ knos meter verify examples/meter/seller.jsonl
     202610: 2 batch(es), 7 evaluation(s), 6 accepted, value 12000000, running hash 1fa7e587e37168574bd1bded132314f0cd6a73dafd5067ba82f5a7893af496db
+    2 batch(es) are in commitment format 1 (202610.0, 202610.1): such a root binds the set of evaluation ids, the count, the accepted count and the value; not which evaluation was accepted. `knos meter migrate` re-commits them in format 2.
+    The ledger holds. Compare each month's line with the chain's Ledger account (pass --rpc <url>).
 
 Once both are anchored, the chain shows two counts for the same month, 6 and 7, and two values, 8 and 12. That is
 all the chain shows, and it is enough for the seller to know there is something to settle before it has seen the
@@ -280,6 +280,7 @@ buyer's file. The files say what:
     $ knos meter reconcile examples/meter/buyer.jsonl examples/meter/seller.jsonl
     202610 a84efce01a23db3635166e574a8bb99b1ffcc55491dd67d03f9322f35dbdbac4 only the seller has (missing from the buyer's count): accepted, rate 2000000
     202610 c9f06a898bc6dae84b02d8fabf6d608fa54706fbe1b356de72362c84019f3648 differs in verdict: buyer rejected at 2000000 in 202610, seller accepted at 2000000 in 202610
+    Compared verdict, rate and month only: a format 1 batch binds the set of evaluation ids, the count, the accepted count and the value; not which evaluation was accepted.
     buyer,424242
     seller,555000
     rate,2000
@@ -536,9 +537,10 @@ The statement and the close record carry the word.
 `by` is the GitHub owner id of the party that issues it, the ledger's buyer or its seller. `knos meter correct`
 writes the line to `<ledger>.corrections`; the next `knos meter batch` puts it in that batch.
 
-There it is a leaf of the batch's Merkle tree with its own prefix, `sha256(0x02 || sha256(line))`, after the
-evaluations' leaves (`0x00`), so no correction can be read as an evaluation and a batch without corrections has
-exactly the tree it had before.
+There it is a leaf of the batch's Merkle tree after the evaluations' leaves: in format 2,
+`sha256("knos.fix.2" 0x00 || the correction's key)`; in a format 1 batch, `sha256(0x02 || sha256(line))` after the
+`0x00` leaves. So no correction can be read as an evaluation, and a batch without corrections has exactly the tree it
+had before.
 
 The root GitHub signs for that batch therefore **anchors the correction**: `knos meter prove <ledger> <sha256 of
 the line>` gives its inclusion proof.

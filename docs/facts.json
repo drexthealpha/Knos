@@ -65,15 +65,6 @@
   },
   {
    "say": [
-    "9"
-   ],
-   "what": "THE LEAD NUMBER: of the 241, the ones with a failed test, build, lint or type-check job at the head commit, after the second reading of docs/index_review.json (method version 1, docs/INDEX_METHOD.md)",
-   "json": "docs/backtest.json",
-   "path": "reviewed.overall.test_or_build_check_failed.prs",
-   "equals": 9
-  },
-  {
-   "say": [
     "63",
     "56"
    ],
@@ -656,9 +647,9 @@
    "say": [
     "92"
    ],
-   "what": "the teams that submitted to the Sibyl Labs Hackathon, which Knos v1 won (hack.sibyllabs.org/leaderboard, read 12 Nov 2026)",
+   "what": "the teams that submitted to the hackathon an early version of Knos won (its leaderboard, read 12 Nov 2026)",
    "file": "docs/WHY.md",
-   "has": "(1st of 92)"
+   "has": "1st of 92 teams"
   },
   {
    "say": [
@@ -667,6 +658,15 @@
    "what": "Morris, Wooding and Grant (2011): it is frequently stated that it takes an average of 17 years for research evidence to reach clinical practice (J R Soc Med 104(12):510-520)",
    "source": "https://doi.org/10.1258/jrsm.2011.110180",
    "read": "2026-11-11"
+  },
+  {
+   "say": [
+    "$330",
+    "$763"
+   ],
+   "what": "Perignon, citing Colliard and others, in the CRRESS book (session 6): exploiting economies of scale could lower a reproducibility service's average cost per paper from $763 to $330 (the front door's cost of checking one paper)",
+   "source": "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/",
+   "read": "2026-11-15"
   }
  ]
 }

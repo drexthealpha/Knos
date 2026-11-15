@@ -5,9 +5,10 @@
 
 Live, the service speaks MCP to Qloo's server itself, as qloo_harness does to `qloo api mcp`: the Node bridge and the
 server it started were two Node processes of about 100 MB each on a free instance of 512 MB (24 Oct 2026). The bridge
-(the exact SDK Qloo's starter pins) still runs the MOCK server. This flow does not use `qloo api` (raw endpoints; the decision check does, qloo_harness.py): the
-nine workflows cover every question the demand check
-asks (docs/reference/DEMAND_CHECK.md, "Tools used and why").
+(the exact SDK Qloo's starter pins) still runs the MOCK server. This flow does not use `qloo api` (raw endpoints; the
+decision check does, qloo_harness.py): the nine workflows cover every question this MCP flow asks
+(docs/reference/DEMAND_CHECK.md, "How Knos reaches Qloo (MCP flow, optional)"). The demand check (check.py) asks
+through qloo_rest.py instead.
 
 Mode, decided once at start and shown on every answer:
   live  `qloo mcp` started and `qloo_capabilities` says `adapter.ready: true` (a credential is configured on the

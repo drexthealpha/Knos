@@ -2,13 +2,13 @@
 
 Research dies in the valley of death on three walls: money comes before proof, referees are slow, and single attempts
 fail. Schmidhuber's machine economy, growing toward Kardashev II ([arXiv 2212.11279](https://arxiv.org/abs/2212.11279),
-Sec 20), needs a layer that says which research is real and pays for it. Knos is that layer. Every crossing starts
-with two steps, in every field of science:
+Sec 20), needs a layer that says which research is real. Knos aims to be that layer. Every crossing started with two
+steps, in every field of science:
 
 1. **Idea in.** An idea from anyone: a person, a game player, an AI agent, or a claim found in a research source.
    It becomes one Claim record that every later step reads.
-2. **Wanted? (wall 1).** Demand evidence, then buyers' money locked before the proof exists, released stage by
-   stage as the proof arrives, and refunded where a milestone is missed.
+2. **Wanted? (wall 1).** Demand evidence, then money a buyer sets aside for each stage, released when the stage's
+   check passes, and returned where a milestone is missed.
 
 Code: `src/knos/ideas/` (`knos idea ...` on the command line; six read-only `knos mcp` tools, listed when the operator sets `KNOS_MCP_TOOLS=ideas`, so the default tool list is unchanged).
 
@@ -130,7 +130,7 @@ ACCEPTED, and no verdict can be signed or released on it.
 
 **Pre-orders** go in the claim's pre-order pool (scope 0), paid to the makers when the product is delivered.
 
-**Who releases a stage.** knos_pay pays an order on proof its referee accepts. Two referees work for a stage:
+**Who releases a stage.** knos_pay pays an order when the referee it names accepts the work. Two referees work for a stage:
 
 - **A referee panel (knos_pay 0.3.34).** The buyer locks the stage as a PANEL order pinning m of n referee keys
   (`wanted.fund_panel_ix`). Each referee reads the stage's oracle (`wanted.check`) and signs the verdict over its
@@ -165,10 +165,10 @@ These GitHub-checked stages are not released on devnet: that needs a GitHub-sign
 workflow, which this sample does not fake. Their release audiences (with the evidence hash) are in the sample's output
 file. The panel-checked stages below are released on devnet.
 
-### Released on proof: idea C's stages checked by a 2-of-3 referee panel (15 Oct 2026)
+### Released by a 2-of-3 referee panel: idea C's stages (15 Oct 2026)
 
 `python -m knos.ideas.devnet_panel --wallets DIR --claim FILE --program ID --mint MINT --out FILE` locks two stages of
-idea C as PANEL orders on the knos_pay 0.3.34 devnet test program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4`,
+idea C as PANEL orders on the app's live program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4` (the knos_pay 0.3.34 devnet test build),
 pinning three fresh devnet referee keys, two of which must agree. Then it reads both oracles live.
 
 The payee is a wallet of the sample's own; ORCID's public test iD stands in for the researcher's.
@@ -178,7 +178,7 @@ The payee is a wallet of the sample's own; ORCID's public test iD stands in for 
 | 1 | `trial_registered`: met | [tx](https://explorer.solana.com/tx/3xSno1arsASHsXMH3qvg8UkrZTLJQz6TcyuSCCpjefnk7ZxpiaPak7raDhWetZhoFYnEs1bvbgCJru4Lt1htTpav?cluster=devnet) | PASS 1 of 2 [tx](https://explorer.solana.com/tx/AqFurYcr6p5UfrLeJXELURJpjWPjK28Ycav2GPNirozX19dvPGht3D3eduMai5XcNjLHMAihhSumG8QjXLLdiPJ?cluster=devnet), PASS 2 of 2 [tx](https://explorer.solana.com/tx/3MJ9kGhWwKgkqGHDzeYRA7aycv8knci3oHHbWadvnARC5DVwj2pgbbndpWssuqjvjgKVVMFhELssGvAJ5VpCuuj8?cluster=devnet) | **released**: 8 test units to the payee `8wGdFZWAwi1N1xicR2yKPqr5K8nDcQHSarCXEEdfVLSd` |
 | 2 | `results_posted`: not met (no results posted) | [tx](https://explorer.solana.com/tx/T6BVjke1xRyG9q8B5wmJF8KfeXuMe2uUnvuvwGpCnbPcmfbDJJpvAThMJK2dvp9RdXBLQuyF1cHHGhUgMwPxbcY?cluster=devnet) | FAIL 1 of 2 [tx](https://explorer.solana.com/tx/5xhvuNBZ1p6tKs99DP3VwpUPCf5AD6AwYGeRdMiFS1BD9ybBDd34NZaNeYyPfuGhrWqAjNkTPakhM5ppGFK8BFbN?cluster=devnet), FAIL 2 of 2 [tx](https://explorer.solana.com/tx/49iYkMoQrVynhGCkuTSYvQnChrxQi1Q9W25w8aHsn6u1ntukUzr8zVifoGwsrEr9BgZJ27zouSaHtTTiDRXjCTwC?cluster=devnet) | **refunded** to the buyer, amount and fee |
 
-The test program is a separate devnet deployment of the 0.3.34 build, not the public knos_pay program: the public
+The app's live program is a separate devnet deployment of the 0.3.34 build, not the public knos_pay program: the public
 program gets the panel path through a signed upgrade.
 
 ### Every stage kind, two more fields: materials and biology (15 Oct 2026)
@@ -211,7 +211,7 @@ Biology, PubMed 42806035 (`knos-idea:377dd46c8c894f1ac4b63e62c411d88a`, Biochemi
 | stage3 | `lab_qc` | [tx](https://explorer.solana.com/tx/2r8tkYGrjrMgKshpg7W141DzjcYnxZwLmEhHFWht8PW2adxMhHNoQ7SmneQ6Pg5Q7AuFCyGFDFouSzJZ4ZyuA2HP?cluster=devnet) | PASS 1 of 2 [tx](https://explorer.solana.com/tx/4egTp51d31mf5ysd6j7n4wR6xs2XedaisU4KtYMwWuAYY7YET5srjFkGW1pUvdf2V8Fsuyj74GpHvzD6Atz4jZXY?cluster=devnet), PASS 2 of 2 [tx](https://explorer.solana.com/tx/5Q3ECQFZsh2Xhb7vGBFokdSqKmFAViLfdxuDr6yBjgEN4apW5EbR6YXqu4Xzf4AUR4s5Ks8d3MVa7wWkk7tcakyM?cluster=devnet) | **released** |
 
 The payee's account held 8 test units before these runs (idea C's stage 1). It holds 56 after them:
-8 + 20 (materials stages 1 and 2) + 8 + 12 (biology stages 1 and 3). The refunded stages paid it nothing.
+8 before, + 8 + 20 (materials stages 1 and 2) + 8 + 12 (biology stages 1 and 3). The refunded stages paid it nothing.
 
 ## Limits
 

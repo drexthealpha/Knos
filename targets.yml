@@ -51,6 +51,9 @@ core:
   - src/knos/fees.py
   - src/knos/agentkey.py
   - config/**
+  - near/contract/**
+  - near/market/**
+  - near/agents/checker.py
   - .github/**
   - actions/**
   - action.yml
@@ -72,8 +75,6 @@ product:
   - web/**
   - sdk/**
   - docs/**
-  - skills/**
-  - hermes/**
   - integrations/**
   - plugin/**
   - examples/**

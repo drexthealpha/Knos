@@ -531,10 +531,10 @@ CT_BYTES, PV_BYTES, RP_BYTES = 64, 96, 936                 # ciphertext; pubkey-
 
 
 def private_pledge(order: str, ciphertext: bytes, pubkey_proof: bytes, range_proof: bytes, led=None) -> dict:
-    """An order whose backer keeps the amount private: the backer's browser encrypts it under the backer's own ElGamal
+    """An order whose funder keeps the amount private: the funder's browser encrypts it under the funder's own ElGamal
     key (@solana/zk-sdk) and proves, without showing it, that the key is valid and that the ciphertext's commitment
     holds an amount of at most 64 bits. Devnet's ZK ElGamal program verifies both proofs (a transaction with a false
-    proof fails); a memo names the order and the ciphertext's hash. Only the backer's key decrypts the amount."""
+    proof fails); a memo names the order and the ciphertext's hash. Only the funder's key decrypts the amount."""
     if (len(ciphertext), len(pubkey_proof), len(range_proof)) != (CT_BYTES, PV_BYTES, RP_BYTES):
         raise ValueError(f"private pledge: ciphertext {CT_BYTES}, pubkey proof {PV_BYTES}, range proof {RP_BYTES} bytes")
     if range_proof[:32] != ciphertext[:32]:

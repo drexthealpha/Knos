@@ -37,7 +37,7 @@ file and keeps no copy. Nobody outside Knos has run the kit: the two implementat
 ## The formats
 
 **Receipt** (`receipt.digest`, `receipt.check`, from version 4 `receipt.verdict`: the verdict of a valid receipt and whether it
-authorises payment, and for version 5 `receipt.assurance`: the level, one word). [RECEIPT.md](RECEIPT.md) and the five JSON Schemas beside the vectors
+authorises payment, and for version 5 `receipt.assurance`: the level, one word). [RECEIPT.md](RECEIPT.md) and the six JSON Schemas beside the vectors
 say what a receipt is.
 
 The digest is sha256 of the receipt as JSON with its keys sorted, no white space, in UTF-8 with
@@ -146,7 +146,7 @@ It is narrow on purpose.
   misread gets the next number, and an audience whose meaning changes gets a new first part, as `knos3` followed
   `knos2`. The change is announced in [CHANGELOG.md](../../CHANGELOG.md) under the release that makes it and in the table
   above, with its vectors.
-- **The old verifier keeps reading old receipts.** `knos` reads receipt versions 1 to 5 today, and a release that
+- **The old verifier keeps reading old receipts.** `knos` reads receipt versions 1 to 6 today, and a release that
   adds a version keeps reading the earlier ones. A receipt someone already holds does not stop verifying because Knos
   moved on.
 
@@ -179,13 +179,13 @@ The adapter covers operations the client has no function for: `receipt.digest`, 
 `ids.billed_once`), and the four of ledger format 2 (`ledger2.event_bytes`, `ledger2.leaf`, `ledger2.root`,
 `ledger2.check_proof`).
 
-They show that the descriptions are enough to write from; they are not a claim about the client. The 126 it does not do
-are four operations. Before receipt version 5 they were three operations and 93 cases, and the client passed 237 (244
-now).
+They show that the descriptions are enough to write from; they are not a claim about the client. The 160 it does not do
+are four operations (kit version 5, run 15 Nov 2026). Before receipt version 5 they were three operations and 93
+cases, and the client passed 237 (251 now).
 
 Each is a difference between Knos's own two implementations that a user of the client should know:
 
-- `receipt.check` (99 cases): the client does not check a receipt's rules.
-- `receipt.verdict` (19 cases): so it does not say a receipt's verdict, or whether it authorises payment.
-- `receipt.assurance` (7 cases): nor the assurance level of a version 5 receipt, which is computed by the same rules.
+- `receipt.check` (119 cases): the client does not check a receipt's rules.
+- `receipt.verdict` (26 cases): so it does not say a receipt's verdict, or whether it authorises payment.
+- `receipt.assurance` (14 cases): nor the assurance level of a version 5 or 6 receipt, which is computed by the same rules.
 - `statement.text` (1 case): the client has no function that writes a statement's text.

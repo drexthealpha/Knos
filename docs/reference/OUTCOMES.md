@@ -13,7 +13,7 @@ resolutions](#support-resolutions), checked from a ticket's own record on made-u
 forge: [a Kubernetes cluster](#a-kubernetes-cluster-signs-an-outcome).
 
 A fifth kind pays for a result only data can show (more tickets solved without a person, more trial users who buy),
-measured against a control group chosen by a hash and paid in tiers under a cap: [OUTCOMES.md](OUTCOMES.md).
+measured against a control group chosen by a hash and paid in tiers under a cap: [Pay for a measured result](#pay-for-a-measured-result).
 
 ## Five kinds of work, and the evidence each needs
 
@@ -310,7 +310,7 @@ a test key.
 
 ## Pay for a measured result
 
-**In plain words.** Until now Knos paid when tests passed. This page is about paying for a result you can only see in
+**In plain words.** Until now Knos paid when tests passed. This section is about paying for a result you can only see in
 data: more support tickets solved without a person, more trial users who buy, less time to a first reply.
 
 The buyer

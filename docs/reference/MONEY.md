@@ -2,7 +2,7 @@
 
 # Money: one fee config, graduation, splits, x402 and the revenue data
 
-**In plain words.** Every Knos fee lives in one file, and the code reads it from there. When a claim passes, money for its next step and its first orders is held on devnet until the proof passes. When the work is accepted, everyone who helped is paid their share at once.
+**In plain words.** Every Knos fee on Solana lives in one file, and the code reads it from there; the NEAR contracts compile their own 1 part in 10. When a claim passes, money for its next step and its first orders is held on devnet until the milestone's checks pass. When the work is accepted, everyone who helped is paid their share at once.
 
 What is held, released and charged now: [the money page](https://knos.onrender.com/money).
 
@@ -13,7 +13,7 @@ How the money moves:
 3. The referee workflow signs acceptance: the split is paid to the researcher, agent, lab and referee, and the fee goes to the treasury.
 4. If the deadline passes first, the money and the fee go back to whoever paid.
 
-**Revenue today: 0.** Knos runs on Solana devnet only. Every fee the program takes there is test money, and nothing
+**Revenue today: 0.** Knos runs on Solana devnet and NEAR testnet only. Every fee the program takes there is test money, and nothing
 has been sold.
 
 Every price below says whether it is **live** (the deployed program charges it on devnet), **proposed**
@@ -57,7 +57,7 @@ A decided line must say when it was decided, why, and its source, and it can nev
 | demand check | 10 a month free | decided | nobody; the monthly count is not enforced yet |
 | deep demand check | 500 USD each, by card | decided | the company, from the day it exists; no company is formed yet, so nobody is charged |
 | Ready brief, proof page | free | decided | nobody |
-| release | 1% of money released on verified proof; the solver keeps 100% | decided | the company (the funder), on top, with the payment costs; on chain only after the timelocked upgrade, and the program charges 0.30% until then |
+| release | 1% of money a funder releases for a milestone (planned); the solver keeps 100% | decided | the company (the funder), on top, with the payment costs; on chain only after the timelocked upgrade, and the program charges 0.30% until then |
 
 The product's prices (demand check, deep demand check, Ready brief, proof page, release) were decided on 23 Oct
 2026. Deep checks are charged by card once the company exists; nobody is charged today. The company pays the payment
@@ -166,7 +166,7 @@ Knos hosts none), on the proposed `knos-order` scheme of [X402.md](X402.md):
 
 - `GET /fees` and `GET /pool/<claim>`: free.
 - `GET /preorder/<claim>`: `402` with a requirement to fund a pre-order in the pool; asked again with
-  `PAYMENT-SIGNATURE` naming the order, `200` with the state `escrowed` once the chain shows it held in that pool.
+  `PAYMENT-SIGNATURE` naming the order, `200` with the state `held` once the chain shows it held in that pool.
 - `GET /checks`: `402` for a pack of paid checks (the smallest order is 5.00, so a pack is 250 checks at 0.02); each call is signed by the funding
   wallet over `knos-check:<order>:<n>`, and a replay or a stranger's call is refused. The count of each order is kept
   in a state file (`--state`), written before the call is answered, so a restart does not sell a call again.
@@ -183,9 +183,9 @@ Knos hosts none), on the proposed `knos-order` scheme of [X402.md](X402.md):
   model sees only the month's total and count. Bounties and lab orders are typed twice: in the value released (their
   on-chain 0.30% is in the payout line) and on their own lines, which count only the off-chain rest of the 5% and 3%.
 
-## Knos Cloud credits
+## Hosted credits
 
-Everything stays open source (MIT) and self-hosting stays free. Knos Cloud would sell credits for hosted verification:
+Everything stays open source (MIT) and self-hosting stays free. Knos would sell hosted credits for hosted verification:
 runners, sealed-test storage, receipts, and Gate for private repositories. The tier prices and the 10% bonus credit are
 decided (14 Oct 2026); what one credit is worth (0.002 USD) and what each use consumes are still placeholders, so the
 credit counts are too:

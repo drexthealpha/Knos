@@ -1,13 +1,15 @@
 # Agent PR Index
 
 A pull request (PR) opened by a coding agent often says "tests pass". The Agent PR Index says how often GitHub's own
-record of the automatic checks agrees with that claim, for each coding agent it can recognise. It is published every week, under one name and one date:
-**"Agent PR Index, week of <Monday>"**.
+record of the automatic checks agrees with that claim, for each coding agent it can recognise. It was published weekly, under one name and one date
+(**"Agent PR Index, week of <Monday>"**), until the week of 28 September 2026: no later weekly pull request was merged,
+so the series stopped there. The site's `index.json` is built separately and may hold a newer rolling scan
+([BENCH.md](BENCH.md) quotes the 2 Oct 2026 scan).
 
 Read it as a page ([the site's Index view](https://drexthealpha.github.io/Knos/#index)), as data
 ([`index.json`](../index.json), schema `knos.agent-pr-index/1`) or as a feed to subscribe to ([`index.atom`](../index.atom)).
 [`.github/workflows/index.yml`](../../.github/workflows/index.yml) reads the new week every Monday and proposes it as one
-pull request a person merges.
+pull request a person merges; none has been merged since that week.
 
 ## The leaderboard
 

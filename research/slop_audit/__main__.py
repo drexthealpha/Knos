@@ -3,7 +3,8 @@
     PYTHONPATH=src python -m research.slop_audit rows   --data ~/knos/data/aidev/v4 --v3 ~/knos/data/aidev/v3 --work ~/knos/data/aidev/work
     PYTHONPATH=src python -m research.slop_audit ci     --work ~/knos/data/aidev/work      (read-only GitHub; resumable)
     PYTHONPATH=src python -m research.slop_audit report --work ~/knos/data/aidev/work [--out research/slop_audit/out]
-    PYTHONPATH=src python -m research.slop_audit fixture   (the committed tiny fixture through the same report)
+    PYTHONPATH=src python -m research.slop_audit fixture   (the committed tiny fixture through the same report; without
+                                                            --out it writes to a new temporary folder, never over out/)
 
 `rows` reads the dataset (needs duckdb + pyarrow); `ci` asks GitHub for the head-commit checks of the pull requests
 whose description claims tests pass or CI is green; `report` writes slop_audit.json and slop_audit.csv. The report
@@ -76,8 +77,15 @@ def main(argv=None) -> int:
     ap.add_argument("--max-seconds", type=float, default=3300)
     ap.add_argument("--ci-read-on", default="", help="the UTC date the CI record was read (written into the report)")
     a = ap.parse_args(argv)
+    if a.cmd != "fixture" and a.work is None:
+        ap.error("--work is required for rows, ci and report")
+    if a.cmd == "rows" and a.data is None:
+        ap.error("--data is required for rows")
 
     if a.cmd == "fixture":
+        if a.out == OUT:                 # the committed audit output in out/ is never overwritten by the fixture
+            import tempfile
+            a.out = Path(tempfile.mkdtemp(prefix="slop-fixture-"))
         fx = json.loads(FIXTURE.read_text(encoding="utf-8"))
         from . import rules
         rows = []

@@ -10,7 +10,7 @@
   "signers": 13,
   "at": 1791967146
  },
- "what": "send -> finalized: from the sendTransaction call to the signatureSubscribe notification at finalized (public devnet RPC api.devnet.solana.com, from one machine), Knos's own labelled test transactions: record_anchor (a Knos Record anchor), escrow_fund (knos_pay FundWallet, 60 s deadline, synthetic test mint), escrow_refund (knos_pay Refund after the deadline; the other 11 of the 15 test jobs were refunded first by another relayer). No payout: that needs a GitHub OIDC token.",
+ "what": "send -> finalized: from the sendTransaction call to the signatureSubscribe notification at finalized (public devnet RPC api.devnet.solana.com, from one machine), Knos's own labelled test transactions: record_anchor (a Knos Record anchor), vault_fund (knos_pay FundWallet, 60 s deadline, synthetic test mint), vault_refund (knos_pay Refund after the deadline; the other 11 of the 15 test jobs were refunded first by another relayer). No payout: that needs a GitHub OIDC token.",
  "source": "scripts/alpenglow_latency.py; every row below is a devnet transaction anyone can look up",
  "all": {
   "n": 49,
@@ -20,14 +20,14 @@
   "max": 3198
  },
  "by_kind": {
-  "escrow_fund": {
+  "vault_fund": {
    "n": 15,
    "p50": 1134,
    "p95": 2449,
    "min": 1081,
    "max": 2449
   },
-  "escrow_refund": {
+  "vault_refund": {
    "n": 4,
    "p50": 1249,
    "p95": 1322,
@@ -329,7 +329,7 @@
    "at": "2026-10-14T08:33:38Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "3fjb2MwCA6T8kotjn8BP3DpakNNs13cikr38HEgZpY6Y2qSH5EZnKBzG3Xytr3y3D7XwqfeT4JcJ1miQsX6Cb6Wc",
    "confirmed_ms": 2449,
    "finalized_ms": 2449,
@@ -338,7 +338,7 @@
    "at": "2026-10-14T08:33:44Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "2iQqMcbDR2R8bnqQVxUv37iL1MPoR5Z9XmFotSLJqT6LFg3N5uneD3znuc7r1frBJFrzU3aJRR5k7Tdgn5hoaNM8",
    "confirmed_ms": 1493,
    "finalized_ms": 1493,
@@ -347,7 +347,7 @@
    "at": "2026-10-14T08:33:49Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "4tnccFjQnYr4vcNYYjk7vrbpnZKUgKAzLWywfu7Fch4hEdzN9qPeHiggMmJocvZ2UHnxMfR8a12xgMnQsn8bT1Kb",
    "confirmed_ms": 1207,
    "finalized_ms": 1207,
@@ -356,7 +356,7 @@
    "at": "2026-10-14T08:33:53Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "sB9GHNUnMYyn1RwPbgMWTjspqnrQkUFQbNzGQhcUF3qMVpzD49svjqQNT6ccy94vb8se4Z1KjDasK2CJHyUMar1",
    "confirmed_ms": 1102,
    "finalized_ms": 1102,
@@ -365,7 +365,7 @@
    "at": "2026-10-14T08:33:57Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "5xNd6TRrdcneYvh7ihnFt2ERphkgSbtFZH2p35gRiVxS6r8ZrxpNhAMS7teNTq55kRZ2Zm6zTKCaei9Mg6NozVVN",
    "confirmed_ms": 1097,
    "finalized_ms": 1097,
@@ -374,7 +374,7 @@
    "at": "2026-10-14T08:34:00Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "5LCgA7rWksTuS3wYjgrid5zLBEwBZUip5QgWvr68et7wb6y95FmZGye1mx89R3ucem87RRhU2p1ehnfi3CW9ECAG",
    "confirmed_ms": 1081,
    "finalized_ms": 1081,
@@ -383,7 +383,7 @@
    "at": "2026-10-14T08:34:04Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "4fg7TnDZtbxGyDPLZtmQfZJZMi2XHhDE139M1oYxtNpjKJZs3zzdRAxmxPZ8v8zCDXUu12WN4RmrqENYkRtbJX3q",
    "confirmed_ms": 1205,
    "finalized_ms": 1205,
@@ -392,7 +392,7 @@
    "at": "2026-10-14T08:34:08Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "krkkhDqKpbNzbHPRiGszi4kXZ9W2t7QiDPMbRCEQoEURHQvoQHj2JzRNAUZf4iVMTnj1K8QxLnrG1e2oH1LfHWV",
    "confirmed_ms": 1134,
    "finalized_ms": 1134,
@@ -401,7 +401,7 @@
    "at": "2026-10-14T08:34:13Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "5xGN5D7fewVy1qmBmBtZJeQszPFGYfQDVjbygxsnwPigedYVb4Bfse575TH1vcbuSmLXcgNk67v2daNu8h7Km1pT",
    "confirmed_ms": 1127,
    "finalized_ms": 1127,
@@ -410,7 +410,7 @@
    "at": "2026-10-14T08:34:16Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "4cMHZBCrwdgdbv6KBmVjZy1bF19vaiK4Sxpyxixsb3eE7L6UkxCciv1f4sym5dvn6xYQvCc7VEqLsTKNH71Arrnt",
    "confirmed_ms": 1449,
    "finalized_ms": 1449,
@@ -419,7 +419,7 @@
    "at": "2026-10-14T08:34:20Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "4w3LsELkHYpMWtEw8qo4tLWXuNNXE6iyP8j6j2CFq9odbJ7L26UmYhx71dZmtexNQqwtKNNseSBbBn1RW1h9yvfz",
    "confirmed_ms": 1112,
    "finalized_ms": 1112,
@@ -428,7 +428,7 @@
    "at": "2026-10-14T08:34:24Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "4kT6zYSB4RJq1a3BTi159HK1xkFmN8WgZGyZCVEvAooa8HLKs4JmTPVhh9GVDxthanqrhfdXwGfDQz3myHM88Try",
    "confirmed_ms": 1091,
    "finalized_ms": 1092,
@@ -437,7 +437,7 @@
    "at": "2026-10-14T08:34:28Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "5Surpdfz4qwH4rKfL7ZhGHABowDN4nNiaqvDaeYPBhmAqQ7pvJ9zvajEpHDvqf6RdHKnApfCZ1ZFQFu9gKgnuKYf",
    "confirmed_ms": 1150,
    "finalized_ms": 1149,
@@ -446,7 +446,7 @@
    "at": "2026-10-14T08:34:32Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "4yZfRvAbUN35EaKncBrNUgW8qfKVu3JdpDXqg4d9iMDk1V2LFXp18xrbFXAgXju38n7ELHTtSfZpVmHUmjCcXs8b",
    "confirmed_ms": 1144,
    "finalized_ms": 1144,
@@ -455,7 +455,7 @@
    "at": "2026-10-14T08:34:38Z"
   },
   {
-   "kind": "escrow_fund",
+   "kind": "vault_fund",
    "sig": "2vrtoFwYkkDg3toPzuFGfdpRivQSascht98pJgXSESn3XBWayVdz3x9X6QTQvqqu89PsPcdFq53UaqvTwnZ8JT8",
    "confirmed_ms": 1118,
    "finalized_ms": 1118,
@@ -464,7 +464,7 @@
    "at": "2026-10-14T08:34:42Z"
   },
   {
-   "kind": "escrow_refund",
+   "kind": "vault_refund",
    "sig": "2bugVt4HXzaoegy3vaMx8vvHEtgBUDezQYGAxSXV1KD3t2cHNERCZbCP1oCrRJiBDpnaLNAeWBee3SVK8FZdPatX",
    "confirmed_ms": 1320,
    "finalized_ms": 1322,
@@ -473,7 +473,7 @@
    "at": "2026-10-14T08:35:51Z"
   },
   {
-   "kind": "escrow_refund",
+   "kind": "vault_refund",
    "sig": "2F6fNxfisk5hjusa6QKVLpVbSziiduG3Ea2rxNqgArpM7YuBjFhRrjQYHptpEgzzjBX3mdGTaD5p8VLdS7RhGRDU",
    "confirmed_ms": 1299,
    "finalized_ms": 1299,
@@ -482,7 +482,7 @@
    "at": "2026-10-14T08:35:56Z"
   },
   {
-   "kind": "escrow_refund",
+   "kind": "vault_refund",
    "sig": "5hfX1MzhQzSmnUu69iTLZGq2hZQc1JNFshd8ZekaC3ykRKM6bCDVS85msJgmg8r2wotHuCQRCVTH6Pdh8MwiTnHy",
    "confirmed_ms": 1106,
    "finalized_ms": 1106,
@@ -491,7 +491,7 @@
    "at": "2026-10-14T08:36:04Z"
   },
   {
-   "kind": "escrow_refund",
+   "kind": "vault_refund",
    "sig": "29ydLGhDdKC52tj1q1eTV8LUep8W4C2y6UT6xmvFvCZmEGzgKY9YXxe5CSdktX1J3QDLfKR8vYX2pqxuWSQLxWv5",
    "confirmed_ms": 1250,
    "finalized_ms": 1249,

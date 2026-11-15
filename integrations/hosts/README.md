@@ -1,12 +1,8 @@
 # Knos in each coding agent
 
-Knos turns any research into a product billions of people use, in days, not years.
-
-Knos carries research across the valley of death, toward Kardashev II and III.
-
 When a coding agent says "done, tests pass", Knos runs that check itself. Some hosts let a hook answer the end of a
 turn. There, a false "done" goes back to the agent, with the check that failed. It also carries what Knos's local
-memory (Sibyl, a memory library Knos uses) holds about claims it refused on this repository before. This page says, host by host, what `knos init --host <name>` writes,
+record holds about claims it refused on this repository before. This page says, host by host, what `knos init --host <name>` writes,
 whether that host can be made to hold a false "done", which page of the host's own documentation each field was read
 from, and how it was tested.
 
@@ -37,7 +33,7 @@ All pages were read on 5 October 2026. "Page date" is the date the page itself s
 | GitHub Copilot CLI and cloud agent (`copilot`) | Hook: `.github/hooks/knos.json` (`agentStop`). MCP for the cloud agent is a repository setting: the command prints what to paste | **yes**: `{"decision":"block","reason":...}` forces another turn. `unconfirmed`: the event names a transcript and no message, and the transcript's lines are not documented | [hooks configuration](https://docs.github.com/en/copilot/reference/hooks-configuration), [MCP for the cloud agent](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp); no page date | unit test, recorded event (`unconfirmed`) |
 | VS Code agent mode (`copilot`, or `vscode`) | MCP: `.vscode/mcp.json`. Hook: the same `.github/hooks/knos.json`, which VS Code reads in Copilot's format | **yes**: `hookSpecificOutput` with `decision: "block"`. Hooks are in preview. `unconfirmed`: the transcript's lines, as above, and that Copilot's `agentStop` is run as VS Code's `Stop` (the page says Copilot's format is read and mapped, and does not list the events) | [hooks](https://code.visualstudio.com/docs/copilot/customization/hooks) (page date 30 September 2026), [MCP servers](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) | unit test, recorded event (`unconfirmed`) |
 | opencode (`opencode`) | MCP: `opencode.json` (`mcp.knos`, and `tools` turning off the three that post). Hook: `.opencode/plugins/knos.js`, a plugin that runs Knos on `session.idle` and prompts the session with the reason | **yes**, through the plugin. `unconfirmed`: the page lists `session.idle` but not its fields, and the plugin has never run in opencode | [plugins](https://opencode.ai/docs/plugins/), [MCP servers](https://opencode.ai/docs/mcp-servers/), [SDK](https://opencode.ai/docs/sdk/); no page date | unit test of the hook's side (`unconfirmed`); the plugin's JavaScript is not run by any test |
-| Hermes Agent (`hermes`) | With `--global`, in `~/.hermes/config.yaml`: `mcp_servers.knos` with `tools.include`, and shell hooks `pre_verify` and `pre_llm_call`. Hermes reads nothing from a project: without `--global` the lines are printed | **yes**, on a turn that edited code: `pre_verify` answers `{"action":"continue","message":...}` (Hermes allows 3 in a row). `pre_llm_call` answers `{"context": ...}` with Sibyl's record before the agent speaks | [event hooks](https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks), [MCP](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp); no page date | unit test, recorded events |
+| Hermes Agent (`hermes`) | With `--global`, in `~/.hermes/config.yaml`: `mcp_servers.knos` with `tools.include`, and shell hooks `pre_verify` and `pre_llm_call`. Hermes reads nothing from a project: without `--global` the lines are printed | **yes**, on a turn that edited code: `pre_verify` answers `{"action":"continue","message":...}` (Hermes allows 3 in a row). `pre_llm_call` answers `{"context": ...}` with Knos's local record before the agent speaks | [event hooks](https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks), [MCP](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp); no page date | unit test, recorded events |
 | goose (`goose`) | Hook: `.agents/plugins/knos/` (`plugin.json`, `hooks/hooks.json` with `Stop`). MCP is in `~/.config/goose/config.yaml` only: the lines are printed | **yes** by its page ("A `Stop` hook that blocks forces the turn to keep going instead of ending"). `unconfirmed`: that the reason reaches the model, and which folder the hook is started in (the event names none) | [hooks](https://goose-docs.ai/docs/guides/context-engineering/hooks/), [extensions](https://goose-docs.ai/docs/getting-started/using-extensions); no page date | unit test, recorded event (`unconfirmed`) |
 | aider (`aider`) | `.aider.conf.yml`: `test-cmd` and `auto-test`. No MCP: aider has no MCP client | **each edit**: aider has no hooks and no "done". It runs the test command after each edit and gives the model what it printed when it fails | [linting and testing](https://aider.chat/docs/usage/lint-test.html), [YAML config](https://aider.chat/docs/config/aider_conf.html); no page date | unit test (no event to record) |
 | Windsurf, now Devin Desktop (`windsurf`) | Hook: `.windsurf/hooks.json` (`post_cascade_response`, `show_output`). MCP is in the home only: the lines are printed | **annotate only**: only its pre-hooks can block, and nothing a post hook prints goes to the agent. The person sees which check failed. `unconfirmed`: the folder the hook is started in | [Cascade hooks](https://docs.devin.ai/desktop/cascade/hooks), [MCP](https://docs.devin.ai/desktop/cascade/mcp); no page date | unit test, recorded event (`unconfirmed`) |
@@ -50,8 +46,8 @@ check, whatever the agent was running in.
 
 ## The MCP server, and which tools run unasked
 
-`knos mcp` has eleven tools that only read and three that post as the agent's account (`knos_take_work`,
-`knos_submit_work`, `knos_collect`). Every route allows only the reading ones, in the field the host has for it:
+`knos mcp` has nineteen tools that only read, three that post as the agent's account (`knos_take_work`,
+`knos_submit_work`, `knos_collect`) and `knos_verify`, which runs the checks on this machine. Every route allows only the reading ones, in the field the host has for it:
 
 | Host | Field | What it means there |
 |---|---|---|
@@ -78,7 +74,7 @@ answer. It exits 0 for every host but aider, whose only signal is the exit code.
 | `copilot` | `agentStop`: `cwd`, `sessionId`, `transcriptPath`, `stopReason` | `{"decision": "block", "reason": "..."}` |
 | `copilot` in VS Code | `Stop`: `cwd`, `sessionId`, `transcript_path`, `hookEventName` | `{"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": "..."}}` |
 | `hermes` | `pre_verify`: `cwd`, `session_id`, `extra.final_response` | `{"action": "continue", "message": "..."}` |
-| `hermes` | `pre_llm_call`: `cwd` (no check is run) | `{"context": "<what Sibyl remembers>"}`, or nothing |
+| `hermes` | `pre_llm_call`: `cwd` (no check is run) | `{"context": "<what the local record holds>"}`, or nothing |
 | `goose` | `Stop`: `session_id`, `last_assistant_message` | `{"decision": "block", "reason": "..."}` |
 | `opencode` | what the plugin sends: `cwd`, `session_id`, `last_assistant_message` | `{"decision": "block", "reason": "..."}`, which the plugin sends as a prompt |
 | `windsurf` | `post_cascade_response`: `trajectory_id`, `tool_info.response` | the text, shown to the person |
@@ -88,39 +84,11 @@ A stop a person interrupted (`status` other than `completed` in Cursor, `stopRea
 not checked. After three blocks on the same evidence Knos lets the agent stop and says what is unproven, in every
 host, so a check the agent cannot fix never traps it.
 
-## Sibyl in every route
+## The local record in every route
 
-What Knos refused on a repository is kept in Sibyl's memory engine (`sibyl-memory-client`, in `~/.sibyl-memory/`), and
-nowhere else. The hook reads it on every stop, whatever the host: a check that failed last time is run again even
-when the new message does not mention it, and the answer the host carries back says what failed last time and how
-many claims were refused here. `tests/test_sibyl_is_load_bearing.py` and `tests/test_sibyl_tamper.py` send each
-host's event through the hook and show the answer disappear when the store is deleted, when no Sibyl is there, and
-when its journal or a rule is edited by hand.
-
-Sibyl's releases were read from PyPI on 26 October 2026 (`https://pypi.org/pypi/<package>/json`):
-
-| Package | Latest | Used by Knos |
-|---|---|---|
-| `sibyl-memory-client` | 0.9.0 (14 October 2026) | yes: the dependency, pinned `>=0.8.1,<0.9`. 0.9.0 requires a Sibyl account, so Knos stays on 0.8.1 |
-| `sibyl-memory-mcp` | 0.3.0 (14 October 2026) | no: Knos calls the client directly |
-| `sibyl-memory-hermes` | 0.5.0 (14 October 2026) | no. It makes Sibyl the memory provider of Hermes Agent: `pip install sibyl-memory-hermes`, `sibyl-memory-hermes install-plugin`, then `memory.provider: sibyl` in `~/.hermes/config.yaml` |
-
-Hermes Agent with that provider and Knos keep their memories in the same Sibyl store file by default
-(`~/.sibyl-memory/memory.db`). Knos keeps each repository under a tenant of its own, so its record is not among what
-Hermes recalls by itself: the `pre_llm_call` hook is what tells Hermes's agent about it.
-
-Three facts about the engine that bound what Knos can promise, each from the packages' own pages on PyPI and
-[docs.sibyllabs.org/memory](https://docs.sibyllabs.org/memory/), read 6 October 2026:
-
-- The engine's pages say it runs on Linux, macOS and Windows through WSL2, and that "Native Windows is not supported".
-  Knos's test workflow has Windows jobs that use the store (`.github/workflows/tests.yml`); that is Knos's own
-  testing, not the engine's promise.
-- An account on the free plan has a 5 MB local cap; a write past it is refused. `MemoryClient.free_tier_status()`
-  reports how full the store is. The paid plan, Pro, removes the cap and adds self-learning and the memory linter
-  ([plans](https://docs.sibyllabs.org/memory/tiers)). Knos needs neither: `learn()` is tried and never required.
-- Search is lexical (SQLite FTS5), with no embedding model. The engine stores entities by category and name, state,
-  a journal and reference documents. It has no typed relations between entities: Knos expresses "this supplier,
-  under these terms" through the category and the name it chooses, and that stays true of the list below.
+Knos keeps a local record of the claims it refused on a repository, on the machine that runs the hook. The hook reads
+it on every stop, whatever the host: a check that failed last time is run again even when the new message does not
+mention it.
 
 ## What is not done
 

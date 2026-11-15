@@ -84,7 +84,7 @@ FIELDS = {
    "b": "capital",
    "t": "web3",
    "title": "Milestone money, held",
-   "idea": "milestone money held until a lab's proof passes, then paid to the lab",
+   "idea": "milestone money held, released to the lab when the milestone check passes",
    "status": "live",
    "feature": "/app/#projects",
    "unlock": "DeSci, tokenized IP-NFTs and DAOs crowdsource risk capital; milestone-based smart contracts bypass legacy VC and bank timelines."

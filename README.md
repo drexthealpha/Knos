@@ -6,7 +6,7 @@
   </picture>
 </h1>
 
-Knos locks a test before any work starts, an agent does the work, and money moves only if the test passes.
+Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes.
 
 The problem: research takes about 17 years to reach people ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)),
 and checking that a result really works is one slow, costly step on that road.
@@ -22,27 +22,29 @@ Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
 <!-- entry:near -->
 ## From NEAR HACKATHON
 
-A buyer pastes a paper's link and orders a proof of its claim. NEAR locks the claim's test by its sha256 in a jobs
-contract before any agent starts, refuses any agent step over its spending cap, and pays only the agent whose code
-passes. The buyer gets a Yes or No, the code and a receipt on NEAR testnet.
+A visitor pastes a paper's link and asks Knos to check its claim. NEAR locks the claim's test by its sha256 in a jobs
+contract before any agent starts, and refuses any agent step over its spending cap.
+
+The check runs with test money held with the job: the jobs contract sends 9 parts to the agent whose code passed the
+locked test and keeps 1 part in 10 for Knos's account. The visitor gets a Yes or No with the code, and a receipt on NEAR testnet.
 
 Agent A runs either its fixed program or code a private model on NEAR AI Cloud wrote, its attestation checked. Most
-orders on 14 Nov ran the fixed program; the receipt and the release transaction say which (`model_verified`, or
+checks on 14 Nov ran the fixed program; the receipt and the release transaction say which (`model_verified`, or
 "fixed rule, no model signature"). A model call reviews the code and may only reject it; a cached review says so.
 
 ### Judge it in 2 minutes
 
 1. Open https://drexthealpha.github.io/Knos/ and press **Try: HyperLogLog** - see "Yes, the claim holds", the claim,
    its locked test with its sha256 and its proof (job-...).
-2. Press **Prove it yourself**, then **Prove it with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
+2. Press **Prove it yourself**, then **Run the check with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper's result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
-   then "4. Answer: Yes, the claim holds": 15 to 80 s when a job is ready (orders on 14 Nov), 1 to 2 min when one is not. The order
-   uses test money only. To see every step and the receipt without ordering, open
-   [one finished order](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1114145004, 14 Nov), saved as the page showed it.
+   then "4. Answer: Yes, the claim holds": 15 to 80 s when a job is ready (checks on 14 Nov), 1 to 2 min when one is not. The check
+   uses test money only. To see every step and the receipt without running one, open
+   [one finished check](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1114145004, 14 Nov), saved as the page showed it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
    and why. Then see "Receipt for proof job-..." with "9.00 test USDC to the agent, 1.00 test USDC to Knos" and "The
    jobs contract held it with the job", each transaction read from NEAR's RPC in your browser, with no explorer and no
-   bot check ([the saved order's release](https://drexthealpha.github.io/Knos/tx/?h=CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH):
+   bot check ([the saved check's release](https://drexthealpha.github.io/Knos/tx/?h=CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH):
    "9.00 from jobs.knos-swarm-1105.testnet to agent-a2..." and "1.00 from jobs.knos-swarm-1105.testnet to knos-payer-1102.testnet").
    From a terminal, `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction.
@@ -61,7 +63,7 @@ orders on 14 Nov ran the fixed program; the receipt and the release transaction 
      job-1112053239), then `Passed: 9.2% of 100,000 keys moved going from 10 to 11 buckets (the ideal: 9.1%), all to
      the new one, the fullest bucket 1.5% over the mean, nothing stored.`
 
-Video, 51 s: one real order on the live site on 14 Nov (job-1114200906), where the private model on NEAR AI Cloud wrote agent A's code and the jobs contract paid 9.00 and 1.00: [near/web/knos-near.mp4](near/web/knos-near.mp4) (the 12 Nov cut: [knos-near-2026-11-12.mp4](near/web/knos-near-2026-11-12.mp4)). An agent runs the same flow in
+Video, 51 s: one real check on the live site on 14 Nov (job-1114200906), where the private model on NEAR AI Cloud wrote agent A's code and the jobs contract paid 9.00 and 1.00: [near/web/knos-near.mp4](near/web/knos-near.mp4) (the 12 Nov cut: [knos-near-2026-11-12.mp4](near/web/knos-near-2026-11-12.mp4)). An agent runs the same flow in
 one call:
 
 ```bash
@@ -72,13 +74,15 @@ It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
 
 ### What NEAR does here
 
+Each NEAR claim with its code, its test and its testnet transaction: [near/CLAIMS.md](near/CLAIMS.md).
+
 | NEAR feature | In Knos | Where |
 |---|---|---|
-| Contracts | the jobs contract locks each test's sha256, holds the buyer's price with the job and, after the checker's signed pass, pays 9 parts to the agent and 1 to Knos itself, in one transaction; after the deadline it refunds the buyer ([one refund](https://drexthealpha.github.io/Knos/tx/?h=GdtVSaPqybHgAgDj7NkjymbAtwD3pQZ5vkeCVQKVxik9), [refused before its deadline](https://drexthealpha.github.io/Knos/tx/?h=6NeMksB6nBmaUMSNmbyYMxFdWRtwXDj6TncUWwrFN67q)); `get_totals` and `get_agent_record` count it all (an order at another price than the default 10 test USDC is sent by the buyer test account through the claim market) | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](docs/reference/NEAR.md) |
-| Agent spending rules | an agent's budget in the jobs contract refuses a spend over its cap, over its daily cap, to a payee off its allow-list, or while an owner has paused the contract, and holds a spend over its hold line until the approver releases it; each is on chain with the contract's own answer, and a solution the AI reviewer rejected for a hard-coded answer is recorded there too (`record_rejection` takes the payer's or an owner's word: it records what the reviewer said, it does not check it) | [the saved order](https://drexthealpha.github.io/Knos/prove/receipt/#rules), the receipt's "spending cap" step |
-| Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified, and before it pays the jobs contract recovers NEAR AI's signer with `ecrecover` and logs `model_verified` ([one release](https://drexthealpha.github.io/Knos/tx/?h=4a6KCPier4TtoSGbezHe2wLchx1dwhKSyfGmnJmS9BRD)); an order on agent A's fixed program logs "fixed rule, no model signature". The TEE attestation is checked off chain, by Knos's server; the contract checks only that the signer is one an owner added | `near/contract/src/jobs.rs`, `apps/wanted/knos_wanted/near_attest.py` |
+| Contracts | the jobs contract locks each test's sha256, holds the test money with the job and, after the checker's signed pass, sends 9 parts to the agent and keeps 1 part in 10 for Knos's account, in one transaction; after the deadline it refunds the account that put the money in ([one refund](https://drexthealpha.github.io/Knos/tx/?h=GdtVSaPqybHgAgDj7NkjymbAtwD3pQZ5vkeCVQKVxik9), [refused before its deadline](https://drexthealpha.github.io/Knos/tx/?h=6NeMksB6nBmaUMSNmbyYMxFdWRtwXDj6TncUWwrFN67q)); `get_totals` and `get_agent_record` count it all (a check with another amount than the default 10 test USDC is sent by the buyer test account through the claim market) | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](docs/reference/NEAR.md) |
+| Agent spending rules | an agent's budget in the jobs contract refuses a spend over its cap, over its daily cap, to a payee off its allow-list, or while an owner has paused the contract, and holds a spend over its hold line until the approver releases it; each is on chain with the contract's own answer, and a solution the AI reviewer rejected for a hard-coded answer is recorded there too (`record_rejection` takes the payer's or an owner's word: it records what the reviewer said, it does not check it) | [the saved check](https://drexthealpha.github.io/Knos/prove/receipt/#rules), the receipt's "spending cap" step |
+| Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified, and before it pays the jobs contract recovers NEAR AI's signer with `ecrecover` and logs `model_verified` ([one release](https://drexthealpha.github.io/Knos/tx/?h=4a6KCPier4TtoSGbezHe2wLchx1dwhKSyfGmnJmS9BRD)); a check on agent A's fixed program logs "fixed rule, no model signature". The TEE attestation is checked off chain, by Knos's server; the contract checks only that the signer is one an owner added | `near/contract/src/jobs.rs`, `apps/wanted/knos_wanted/near_attest.py` |
 | Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set. The checker, the buyer test account and all 3 owner accounts are Knos's own | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
-| Chain Signatures | a separate payout path, not part of the order flow: `knos-pay-1103.testnet`'s `sign_payout` had NEAR's MPC signer sign a Solana devnet payout on 3 Nov ([tx 4eJPkBn5…](https://drexthealpha.github.io/Knos/tx/?h=4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR)) | [docs/reference/NEAR.md](docs/reference/NEAR.md) |
+| Chain Signatures | a separate payout path, not part of the check flow: `knos-pay-1103.testnet`'s `sign_payout` had NEAR's MPC signer sign a Solana devnet payout on 3 Nov ([tx 4eJPkBn5…](https://drexthealpha.github.io/Knos/tx/?h=4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR)) | [docs/reference/NEAR.md](docs/reference/NEAR.md) |
 
 Keys, as NEAR testnet's `view_access_key_list` shows them: the jobs and claim market contracts hold none (deleted
 14 Nov, linked in [docs/reference/NEAR.md](docs/reference/NEAR.md)).
@@ -87,22 +91,24 @@ Agent-a, agent-b and agent-b2 hold keys allowed only
 `take`, `submit` and `spend`; agent-a2's one key may call any jobs method and has no full-access key to narrow it; the
 buyer test account live.knos-swarm-1105 and the fee account knos-payer-1102 hold full-access keys, to sign as the buyer.
 
-Tokens: orders settle in `knos-usdc-1102.testnet`, Knos's own test USDC; the claim markets of the wallet test use Circle's
-testnet USDC, which the jobs contract also takes (`get_totals` counts each token); no order has settled in it yet. NEAR
+Tokens: checks settle in `knos-usdc-1102.testnet`, Knos's own test USDC; the claim markets of the wallet test use Circle's
+testnet USDC, which the jobs contract also takes (`get_totals` counts each token); no check has settled in it yet. NEAR
 Intents appears only as a dry 1Click quote, with no money moved.
 
 ### The diff, disclosure and libraries
 
-- **The diff.** The tag `pre-hackathon` (31 Oct 2026) is the commit before the first line of `near/`; the tag
+- **The diff.** The tag `pre-hackathon` (31 Oct 2026) is a commit from before the first line of `near/`; the tag
   `hackathon-submission` is the submitted commit. Everything built in the window:
   https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission. The diff also holds work for the
   other contests; the entry is only the NEAR work: `near/`, the `near_*.py` files of `apps/wanted/knos_wanted/`, the
   pages under `web/` that call them, and their tests.
-- **Tracks.** Agent Economy (`agents`), AI Security & Defense (`security`), Privacy & Private AI (`privacy`).
-- **Built before, on another chain.** Knos's pull request check and its programs on Solana devnet were built before the
-  window for Colosseum (tag v0.3.28). They are not part of this entry.
-- **AI-written code.** Claude Code wrote most of the code; the founder set each task and reviewed each change. Agent A's
-  claim code in each order is written by DeepSeek V4.1 Flash on NEAR AI Cloud.
+- **Tracks.** The entry was submitted with four: Agent Economy (`agents`), Swarms (`swarms`), AI Security & Defense
+  (`security`) and Privacy & Private AI (`privacy`).
+- **Built before, on another chain.** The pull request check and the Solana devnet programs are the same Knos, built
+  before the window for Colosseum (tag v0.3.28); they are not part of this NEAR entry.
+- **AI-written code.** Claude Code wrote most of the code; the founder set each task and reviewed each change. In a check,
+  agent A's code is written by DeepSeek V4.1 Flash on NEAR AI Cloud when the model's code passes; otherwise agent A
+  runs its fixed program, and the receipt says which.
 - **Libraries.** `near-sdk` and `near-contract-standards` 5.30.0, `base64` 0.22, `serde` 1, `serde_json` 1; tests
   only: `near-sandbox` 0.4.0, `near-api` 0.8.0, `tokio` 1, `rsa` 0.9, `sha2` 0.10, `rand` 0.8; Python: `cryptography`,
   `certifi`, `dcap-qvl` 0.7.1 and `eth-account` 0.14.0 (the attestation and signature checks), `numpy` 2.3.4 (the space,
@@ -163,7 +169,7 @@ The live run of 12 Nov, the contest task part by part, the bonuses and troublesh
 the one whose test passed. In replay mode PAY runs a devnet simulation of that payout: it proves the gate reached PAY
 and the payout path ran end to end, and no money moves.
 
-**Why I built this.** A solo founder in Lagos, building Knos since 1 Sep 2026. IRIS, Docker and the build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
+**Why I built this.** A solo founder, building Knos since 1 Sep 2026. IRIS, Docker and the build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
 Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/main/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
 <!-- /entry:iris -->
 
@@ -173,8 +179,9 @@ Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/main/d
 The Colosseum entry is tag v0.3.28 (built 14 Sep to 12 Oct 2026): it pays AI coding agents only when your own checks
 pass.
 
-You post a task, a price and your tests on a GitHub issue; the money waits in a Solana program, and when the pull
-request is merged the program checks GitHub's signature on the checks before it pays. Solana devnet, test USDC.
+In that entry you posted a task, a price and your tests on a GitHub issue; the money waited in a Solana program, and
+when the pull request was merged the program checked GitHub's signature on the checks before it paid. Solana devnet,
+test USDC.
 
 ### Judge it in 2 minutes
 

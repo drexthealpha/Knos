@@ -1450,7 +1450,7 @@
      ]
     }
    },
-   "note": "No exercising transaction is recorded yet, though docs/provenance.json names the commit and run upgrade_gate recorded for the live builds of proposals 7 and 8. The round `gate` reads those records at the public id with the transaction that wrote each one, and sends nothing."
+   "note": "The round `gate` read, at the public id, the record upgrade_gate holds for the live build of each program, with the transaction that wrote it (docs/provenance.json names the commit and run). It sends nothing."
   },
   {
    "id": "upgrade_delay",
@@ -1531,7 +1531,7 @@
   },
   {
    "id": "badge",
-   "what": "A badge says a payment was made on proof, with its scope, its money and its date.",
+   "what": "A badge says a payment was made when its checks passed, with its scope, its money and its date.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -1684,7 +1684,7 @@
      "names": "test_version_3_keeps_five_things_apart_in_order_and_versions_1_and_2_still_check"
     }
    },
-   "note": "Receipt version 3; versions 1 and 2 still check."
+   "note": "Receipt version 3 introduced them; versions 4 to 6 keep them, and versions 1 and 2 still check."
   },
   {
    "id": "evaluator_independence_record",
@@ -2255,7 +2255,7 @@
   },
   {
    "id": "terms_memory",
-   "what": "Every settlement is remembered through Sibyl, and a funding comment is offered terms from that memory and nothing from an empty one.",
+   "what": "Every settlement is kept in the repository's own memory store, and a funding comment is offered terms from that memory and nothing from an empty one.",
    "stage": "tested",
    "evidence": {
     "implemented": {
@@ -2267,7 +2267,7 @@
      "names": "test_every_settlement_is_remembered_and_a_funding_proposes_terms_from_that_memory_and_nothing_from_an_empty_one"
     }
    },
-   "note": "The memory is the repository's own Sibyl store; without Sibyl nothing is proposed."
+   "note": "The memory is the repository's own store; without one nothing is proposed."
   },
   {
    "id": "index_bounded_scan",
@@ -3121,7 +3121,7 @@
      "names": "test_open_keeps_n_tasks_funded_and_a_second_run_does_nothing"
     }
    },
-   "note": "24 tasks under tasks/, 5 test USDC each. `open --apply` funds a task stranded by a new workflow pin again in place and closes none (tests/test_task_board.py::test_after_a_rebuild_every_task_stranded_by_the_pin_is_funded_again_in_place_and_none_is_closed); tested with a stand-in forge and the simulator, not yet run on the eight open in drexthealpha/knos-playground."
+   "note": "The 24 task files that were under tasks/ (5 test USDC each) were removed from this repository on 28 Oct 2026. `open --apply` funds a task stranded by a new workflow pin again in place and closes none (tests/test_task_board.py::test_after_a_rebuild_every_task_stranded_by_the_pin_is_funded_again_in_place_and_none_is_closed); tested with a stand-in forge and the simulator, not yet run on the eight open in drexthealpha/knos-playground."
   },
   {
    "id": "claim_guard_worker",
@@ -3185,7 +3185,7 @@
      "names": "test_every_level_is_computed_from_the_evidence_and_each_names_who_stays_trusted"
     }
    },
-   "note": "Receipt version 5 (`build5`), written wherever a receipt is made since 0.3.19; none has been written on devnet. Older receipts still verify and read as reported unless their evidence shows more. `attested` is defined and no receipt reaches it: nothing proves what a referee executed (docs/reference/RECEIPT.md)."
+   "note": "Receipt version 5 (`build5`), and since 0.4.0 version 6 on top of it (`build6`), written wherever a receipt is made; one version 5 receipt of a devnet payment was written in the 0.3.19 release run, at level reported. Older receipts still verify and read as reported unless their evidence shows more. `attested` is defined and no receipt reaches it: nothing proves what a referee executed (docs/reference/RECEIPT.md)."
   },
   {
    "id": "declared_control",
@@ -3265,7 +3265,7 @@
      "names": "test_the_registry_plan_says_what_would_be_published_where_and_publishes_nothing"
     }
    },
-   "note": "`python scripts/release.py registry-plan`. The interface crates are published on crates.io (knos-oidc-interface 0.3.14, knos-pay-interface 0.3.14) and the JS client on npm (knos-settle 0.3.20, `npm install knos-settle`, https://www.npmjs.com/package/knos-settle); the plan says what a release would publish next."
+   "note": "`python scripts/release.py registry-plan`. The interface crates are published on crates.io (knos-oidc-interface 0.3.14, knos-pay-interface 0.3.14) and the JS client on npm (knos-settle 0.4.0, read from the registry on 15 Nov 2026, `npm install knos-settle`, https://www.npmjs.com/package/knos-settle); the plan says what a release would publish next."
   },
   {
    "id": "record_answer_signed",
@@ -3441,7 +3441,7 @@
      "names": "test_every_kind_states_its_evidence_and_counter_and_only_an_outside_actor_is_counted"
     }
    },
-   "note": "tasks/outside/: reproduce, shadow count, fund from the faucet, install, host a referee, compose (read the verifier through the published crate), gate (adopt the upgrade gate), keyholder (an offer, never a holder until seated), tamper (the cheat bounty) and witness (the independently witnessed transaction). Only an account that is not Knos's is counted (scripts/outsiders.py `task_counts`). Completed by an outside account: 0 of each."
+   "note": "The task files that were under tasks/outside/ were removed on 28 Oct 2026; the kinds were: reproduce, shadow count, fund from the faucet, install, host a referee, compose (read the verifier through the published crate), gate (adopt the upgrade gate), keyholder (an offer, never a holder until seated), tamper (the cheat bounty) and witness (the independently witnessed transaction). Only an account that is not Knos's is counted (scripts/outsiders.py `task_counts`). Completed by an outside account: 0 of each."
   },
   {
    "id": "enforcement_matrix",
@@ -3521,7 +3521,7 @@
      "names": "test_a_valid_signature_on_a_weak_test_reads_as_weak"
     }
    },
-   "note": "`knos receipt explain`, and the verifier and approver pages read the same view. It is a reading of receipt versions 3 to 5 and adds no field and no version. The earlier row `receipt_five_parts` is what version 3 keeps apart; this is how any receipt is read."
+   "note": "`knos receipt explain`, and the verifier and approver pages read the same view. It is a reading of receipt versions 3 to 6 and adds no field and no version. The earlier row `receipt_five_parts` is what version 3 keeps apart; this is how any receipt is read."
   },
   {
    "id": "supplier_protections",
@@ -3809,7 +3809,7 @@
      "names": "test_a_fork_bomb_meets_the_process_limit_and_nothing_it_started_outlives_the_run"
     }
    },
-   "note": "Linux. What macOS and Windows runners can and cannot enforce is in docs/reference/ATTESTOR.md. The hermetic container is the default where the runner has one; the host sandbox is the fallback and the verdict says so."
+   "note": "Linux. What macOS and Windows runners can and cannot enforce is in docs/reference/ATTESTOR.md. The hermetic container runs where an order names an image or the judge runs with `--sandbox hermetic`; otherwise the host sandbox does, and the verdict says which."
   },
   {
    "id": "period_acks",
@@ -3985,7 +3985,7 @@
      "names": "test_the_approval_is_answered_after_a_restart_from_the_store_only"
     }
    },
-   "note": "In the Sibyl memory engine (one entity per commitment, one journal event per decision). `knos recall supplier` answers what a supplier brings from other buyers, only what was granted."
+   "note": "In the memory store (one entity per commitment, one journal event per decision). `knos recall supplier` answers what a supplier brings from other buyers, only what was granted."
   },
   {
    "id": "fee_accounts_sharded",
@@ -4369,16 +4369,16 @@
   },
   {
    "id": "site_404",
-   "what": "A missing address on the site shows the site's own 404 page, with a guess at the page meant and the three main links.",
+   "what": "A missing address on the site shows the site's own 404 page: the product's one header, the front door first, and links to the claims and the prices.",
    "stage": "tested",
    "evidence": {
     "implemented": {
      "path": "web/404.html",
-     "names": "lost-guess"
+     "names": "lost-links"
     },
     "tested": {
      "test": "tests/web/launch.mjs",
-     "names": "404: an address that names no page offers no guess"
+     "names": "404: says the page is missing and offers the front door first"
     }
    },
    "note": "Run by tests/test_site_launch.py in headless Chromium on a build of web/."

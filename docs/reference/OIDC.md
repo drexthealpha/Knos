@@ -175,7 +175,10 @@ Fixed in [`programs-v2/knos_oidc/src/pins.rs`](../../programs-v2/knos_oidc/src/p
 - **Every other key**, a GitLab key or one GitHub adds later, needs a verified GitHub token of the rotate workflow
   (`drexthealpha/knos-oidc-rotate/.github/workflows/rotate.yml` at the one commit in the binary), run by its
   schedule or by hand in one of two repositories of the account drexthealpha, whose audience names the key's hash.
-  That key verifies nothing for a day, and nothing at all until the guardian approves it.
+  That key verifies nothing for a day, and nothing at all until the guardian approves it. Do not rely on that
+  repository's own schedule: GitHub turns off a public repository's scheduled workflows after 60 days with no
+  activity there, so it may stop. Knos's [`keys.yml`](../../.github/workflows/keys.yml) calls the same workflow
+  once a day from Knos, so the keys are still refreshed.
 - **Any other RS256 issuer** (2.1, `RegisterIssuerKey`): the same run fetched the issuer's
   `/.well-known/openid-configuration` and its key set over TLS and named the issuer's URL and the key. The URL is
   stored with the issuer's first key, and `Step` requires each token's `iss` to be that URL. The same day's wait,

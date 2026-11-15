@@ -1,5 +1,5 @@
 """GitHub's record of a pull request's head commit, for the agent pull requests whose description claims tests pass or
-CI is green. Read-only: one GraphQL query (`gh api graphql`) per ROLLUP_BATCH pull requests, the same query and the same
+CI is green. Read-only: one GraphQL query (`gh api graphql`) per BATCH (20) pull requests, the same query and the same
 verdict the Agent PR Index uses (scripts/agent_pr_ci.py: `rollup_query`, `verdict`), so "failed" here means what it
 means there and at the gate: a project check (not the agent's own session run) concluded failure, timed_out or
 startup_failure at the head commit.
@@ -44,7 +44,8 @@ def _graphql(query: str, tries: int = 6) -> dict | None:
 
 
 def _parse(index, pr: dict | None) -> dict:
-    """agent_pr_ci.read_rollup's reading of one answered pull request (kept identical on purpose)."""
+    """agent_pr_ci.read_rollup's reading of one answered pull request, except that one with more than 100 checks, or one
+    GitHub did not return, is class error here (the index reads those over REST)."""
     nodes = ((pr or {}).get("commits") or {}).get("nodes") or []
     if not pr or not nodes:
         return {"class": "error", "detail": "the pull request or its repository is gone"}

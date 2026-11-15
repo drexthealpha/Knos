@@ -337,8 +337,8 @@ practical way to verify data on-chain is to prove the data directly to an off-ch
 verifier." What reaches a chain in the deployed systems is an attestor's signature over a claim.
 
 Reclaim documents
-a Solana program for that (`8rYXFrtST4ePpMWcEqhazFyRG2DtCUqgtFmKT7FdjRyp`, in a starter that uses devnet,
-[Reclaim's Solana page](https://docs.reclaimprotocol.org/onchain/solana/front-end)). A secp256k1 signature is cheap
+a Solana program for that (`8rYXFrtST4ePpMWcEqhazFyRG2DtCUqgtFmKT7FdjRyp`, in a starter that uses devnet; the page that described it
+answered 404 on 15 Nov 2026). A secp256k1 signature is cheap
 for a Solana program to check. It is also the same kind of fact Knos has now: a named signer said so. The signer
 changes from "GitHub, about a workflow" to "an attestor, about a response".
 

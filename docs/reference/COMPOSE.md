@@ -1,7 +1,7 @@
 # Building on Knos
 
-Knos is three things other software can use without asking anyone: a program that verifies an OIDC token on Solana (`knos-oidc`), an
-the payment program that pays on such a token (`knos_pay`), and the public record both leave. Nothing below needs a key of Knos's, an account with
+Knos offers parts other software can use without asking anyone: a program that verifies an OIDC token on Solana
+(`knos-oidc`) and the payment program that pays on such a token (`knos_pay`); both leave a public record. Nothing below needs a key of Knos's, an account with
 Knos, or a change to the programs.
 
 Everything runs on devnet with test USDC; the programs are upgradeable only through a multisig with a public 8-day delay, until an
@@ -31,8 +31,8 @@ does not prove. [`examples/issuers`](../../examples/issuers) has one example per
 | build a client in JavaScript or Python | [`sdk/settle`](../../sdk/settle) (one file, no dependency) and `knos.settle.v2`; the instructions and layouts are in [`idl/`](../../idl) | `sdk/settle/test.mjs`, `tests/test_idl.py` |
 | count accepted outcomes without held money | `knos_meter` ([`programs-v2/knos_meter`](../../programs-v2/knos_meter)) reads tokens through the same interface crate | `tests/test_meter_chain.py` |
 | pay a person who has no wallet app | `knos_passkey` ([`programs-v2/knos_passkey`](../../programs-v2/knos_passkey)): a wallet at an address a WebAuthn passkey derives; [`sdk/settle/passkey.js`](../../sdk/settle/passkey.js) and `knos.settle.v2.passkey` | `tests/test_passkey_chain.py`, `sdk/settle/passkey.test.mjs` |
-| list funded work, or show an account's or a repository's record | the static files the site publishes, written by [`scripts/pages_data.py`](../../scripts/pages_data.py): `bounties.json`, `u/<login>.json`, `r/<owner>/<repo>.json`, `badge/...`, `rank/...` | `tests/test_pages_data.py` |
-| let a coding agent find, take, fund and settle work | `knos mcp`: eighteen tools; the ones that act return the comment or transaction to send ([INSTALL.md](INSTALL.md)) | `tests/test_mcp.py` |
+| list funded work, or show an account's or a repository's record | the static files the site publishes, written by [`scripts/pages_data.py`](../../scripts/pages_data.py): `u/<login>.json`, `r/<owner>/<repo>.json`, `badge/...`, `rank/earners` and `rank/funders` | `tests/test_pages_data.py` |
+| let a coding agent find, take, fund and settle work | `knos mcp`: twenty-three tools; the ones that act return the comment or transaction to send ([INSTALL.md](INSTALL.md)) | `tests/test_mcp.py` |
 
 Three rules hold for every consumer of the verifier, and the examples show each. First, give your program its own
 audience prefix, so a token minted for another program is useless to yours.
@@ -144,7 +144,8 @@ that upgrade deployed. No fee, no agreement, no contact first.
 
 Both interface crates are on crates.io at 0.3.14 ([knos-oidc-interface](https://crates.io/crates/knos-oidc-interface),
 [knos-pay-interface](https://crates.io/crates/knos-pay-interface)), and the JavaScript client is on npm
-([knos-settle](https://www.npmjs.com/package/knos-settle)), at the version of each Knos release. The git and tarball lines above still work.
+([knos-settle](https://www.npmjs.com/package/knos-settle)), last published there at 0.4.0; the 0.4.1 release did not
+publish it. The git and tarball lines above still work.
 
 ```toml
 knos-oidc-interface = "0.3.14"

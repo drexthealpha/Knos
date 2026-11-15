@@ -30,6 +30,9 @@
 /src/knos/fees.py               @drexthealpha
 /src/knos/agentkey.py           @drexthealpha
 /config/                        @drexthealpha
+/near/contract/                 @drexthealpha
+/near/market/                   @drexthealpha
+/near/agents/checker.py         @drexthealpha
 
 # The public record and the self-improvement loop's own code and config
 /src/knos/record/               @drexthealpha

@@ -1,11 +1,13 @@
 # Knos for contributors
 
 Knos carries research across the valley of death.
-Solana devnet only; test units, never real money.
+NEAR testnet and Solana devnet only; test units, never real money.
 
 ## Layout
 - `src/knos/`: the package (CLI `knos`, the knos_pay client, `ready.py` Ready to fund, `idt.py` intent tax).
 - `apps/wanted/`: the app on knos.onrender.com (`knos_wanted/server.py`, `valley.py` projects, `static/`).
+- `near/`: the NEAR contracts, agents and checker (the NEAR entry).
+- `iris/`: Knos on InterSystems IRIS (the IRIS entry).
 - `web/`: the Pages site (drexthealpha.github.io/Knos), built by `scripts/build_site.sh`.
 - `bench/idt/` + `scripts/idt_bench.py` + `docs/idt/`: the IDT benchmark (measured, never estimated).
 - `tests/`, `apps/wanted/tests/`, `tests/web/*.mjs`: pytest and the site's headless-Chromium tests.
@@ -15,7 +17,7 @@ Solana devnet only; test units, never real money.
 - A change that moves money stays behind the Ready check (`knos.ready.require`).
 - Every number shown to a user is measured or read from chain; nothing is estimated or invented.
 - Pin GitHub Actions to commits (`scripts/action_pins.json`); a job that signs installs by hash.
-- The home page's prose stays within its word budget (`tests/test_site_home.py`): no walls of text.
+- The old app page (web/index.html) stays within its word budget (`tests/test_site_home.py`); no test yet holds the front door (web/door.html) to a word budget. No walls of text.
 
 ## Checks
 - Quick: `pytest -q tests/test_ready.py tests/test_idt.py apps/wanted/tests/test_valley.py`.

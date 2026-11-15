@@ -2,10 +2,6 @@
 
 # Every document, under six questions
 
-Knos turns any research into a product billions of people use, in days, not years.
-
-Knos carries research across the valley of death, toward Kardashev II and III.
-
 **In plain words.** This page lists every Knos document once, under six questions. The seven pages to read first are on [the front map](../README.md). When a word is new to you, look it up in [the word list](../WORDS.md).
 
 ```mermaid
@@ -84,7 +80,7 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | document | what it answers |
 |---|---|
-| [START.md](../START.md) | get started in five minutes: check demand, a Ready brief, money held, paid on proof |
+| [START.md](../START.md) | get started in five minutes: a paper's claim on NEAR first, then the same Knos on Solana and IRIS |
 | [WORDS.md](../WORDS.md) | every technical word in one plain line |
 | [DIAGRAMS.md](DIAGRAMS.md) | the source of each picture in the README, for pages that cannot draw diagrams |
 | [INSTALL.md](INSTALL.md) | every way to install the command, the check and the workflows |
@@ -143,23 +139,25 @@ The documents in this folder are listed below, with the seven front pages too.
 | [`.github/workflows`](../../.github/workflows) | The workflows a repository calls, published at one pinned commit of the `workflows-<sha12>` tags of `drexthealpha/Knos` (`drexthealpha/knos-workflows` before the 0.3.34 branch). |
 | [`src/knos`](../../src/knos) | What the workflows run: the referee, the relay, receipts, statements, the Stop hook, the MCP server. |
 | [`crates`](../../crates), [`idl`](../../idl), [`sdk/settle`](../../sdk/settle), [`examples`](../../examples), [`conformance`](../../conformance) | What another team builds on. |
-| [`web`](../../web) | The site. It reads GitHub and Solana in the browser; there is no Knos server. |
+| [`web`](../../web) | The site. It reads GitHub, Solana and NEAR in the browser and calls the Knos server (knos.onrender.com) for live checks. |
 | [`terms`](../../terms) | The terms registry: each set of terms, by hash. |
 
-## The crossing in full
+## The crossing in full (before the NEAR entry)
 
-An idea or a paper gets a demand check, then a Ready brief, then money held on devnet, then a payment on verified proof.
+Until November 2026 an idea or a paper got a demand check, then a Ready brief, then money held on devnet, then a
+payment when its check passed. The current flow, a paper's claim checked against a test locked on NEAR testnet, is in
+[START.md](../START.md).
 
 - Each milestone of a Ready brief has a target, a checker and a deadline, locked by its criteria hash ([IDEAS.md](IDEAS.md)).
-- With no verified proof by the deadline, the amount and the fee go back, and that needs no token.
+- With no passed check by the deadline, the amount and the fee go back, and that needs no token.
 - A proof checked by code that runs the work apart from it is harder to cheat: of 63 cheating submissions, plain CI passed 56 and that check passed none ([TAMPER.md](TAMPER.md)).
 
 ## History
 
-Knos 0.1 (1–7 Sep 2026) was shared memory for coding agents, built on Sibyl Labs' memory engine. 0.2 and 0.3.0 to 0.3.9 (30 Sep to 2 Oct) tried
+Knos 0.1 (1 to 7 Sep 2026) was shared memory for coding agents, built on an outside memory engine. 0.2 and 0.3.0 to 0.3.9 (30 Sep to 2 Oct) tried
 coordination and budgets before the measurement showed where the problem was ([the tag `archive/labs` of
 drexthealpha/Knos](https://github.com/drexthealpha/Knos/tree/archive/labs)). 0.3.10 to 0.3.15 are the two deployments, work orders, the count and the
 console.
 
-Later releases moved to one product: carrying research to a product on verified proof. [DISCLOSURE.md](DISCLOSURE.md) says what was built when and what came from elsewhere; [the
+Later releases moved to one product: a test locked before any work starts, and test money that moves only if the test passes. [DISCLOSURE.md](DISCLOSURE.md) says what was built when and what came from elsewhere; [the
 changelog](../../CHANGELOG.md) has every release.

@@ -184,8 +184,8 @@ Three kinds of key are involved in an upgrade. The addresses are the ones devnet
   not on the Ed25519 curve), so no key file can sign for it; the vault and the fee payer are not members; one member key has one vote of the two
   needed; two member keys have every power. It reads the multisig account as devnet holds it.
 - [DRILLS.md](DRILLS.md), the four rows of the upgrade drill, run against the real Squads program on a local
-  validator: an approved upgrade is refused before its time lock, then 48 hours, has run (`TimeLockNotReleased`) and a cancelled one never
-  runs (`InvalidProposalStatus`).
+  validator: an approved upgrade is refused before its time lock has run (`TimeLockNotReleased`; the drill ran on 4 Oct 2026,
+  under the 48-hour lock of that time), and a cancelled one never runs (`InvalidProposalStatus`).
 - Not drilled: a key that is no member sending a proposal or a vote to the Squads program and being refused. The
   test above reads the member list; it does not send that transaction.
 

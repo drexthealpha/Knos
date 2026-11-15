@@ -27,7 +27,12 @@ commit's.
 | 8 Oct 2026 | Knos 0.3.20 (01:04, commit `fb77f4f`); the interface crates published on crates.io and the JavaScript client on npm (`npm install knos-settle`, [knos-settle](https://www.npmjs.com/package/knos-settle) 0.3.20) |
 | 8 Oct 2026 | Knos 0.3.21 (09:59, commit `042b7dea`) and 0.3.22 (19:28, commit `c4350c97`) |
 | 9 Oct 2026 | Knos 0.3.23 (04:59, commit `852e6135`) and 0.3.24 (13:20, commit `fb4217c1`) |
-| 10 Oct 2026 | Knos 0.3.25 (02:43, commit `095f52ae`) |
+| 10 Oct 2026 | Knos 0.3.25 (02:43, commit `095f52ae`) and 0.3.26 (09:56, commit `d72a7d3d`) |
+| 11 Oct 2026 | Knos 0.3.27 (05:55, commit `79f19da6`) and 0.3.28 (13:04, commit `99cc4e3e`, tag `v0.3.28`: the Colosseum entry) |
+| 17 Oct 2026 | Knos 0.4.0 (19:12, commit `aa376e36`) |
+| 31 Oct 2026 | tag `pre-hackathon` (13:37, commit `c28b5aaf`), before the first line of `near/` |
+| 6 Nov 2026 | Knos 0.4.1 (11:07, commit `4991e7a9`) |
+| 14 Nov 2026 | tag `hackathon-submission` (21:22, commit `47f4f57b`): the NEAR entry as submitted |
 
 To list the releases with their times from a full clone:
 
@@ -82,7 +87,8 @@ TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep 
 - **Knos 0.3.15**: no program changed. Clients, workflows, the site, documents and tests only;
   [CHANGELOG.md](../../CHANGELOG.md) has the list. The page on who builds Knos ([TRUST.md](../TRUST.md)) was written
   for it.
-- **Knos 0.3.16 to 0.3.26** (5 to 10 Oct 2026): [CHANGELOG.md](../../CHANGELOG.md) has each list.
+- **Knos 0.3.16 to 0.4.1** (5 Oct to 6 Nov 2026): [CHANGELOG.md](../../CHANGELOG.md) has each list. The NEAR entry
+  came after 0.4.1 and is not a release yet (CHANGELOG.md, "Unreleased").
 
 The story in short: we measured how often an agent's pull request said "tests pass" while a check had failed
 (17.8% of repositories, on the first such pull request; 9 of 241 merged ones had a failed test, build, lint or type
@@ -96,11 +102,10 @@ The commit history shows those turns.
 
 ## Ideas and code from elsewhere
 
-- **MergePay** ([github.com/codeswithroh/mergepay](https://github.com/codeswithroh/mergepay), first commit 23 Sep
-  2026, on Arc mainnet since 24 Sep 2026) verifies GitHub's OIDC signature on an EVM chain, pays a GitHub user id,
-  and links a wallet with a `workflow_dispatch` token from a repository the user owns. It did this before Knos.
-  Knos first verified GitHub's signature on Solana in commit `cb3a1ac` (1 Oct 2026, Knos 0.3.7). We read MergePay
-  on 2 Oct 2026. What we built after that follows or matches its design in these places: paying a GitHub id;
+- **An earlier open-source project** (first commit 23 Sep 2026, on an EVM mainnet since 24 Sep 2026) verifies
+  GitHub's OIDC signature on an EVM chain, pays a GitHub user id, and links a wallet with a `workflow_dispatch` token
+  from a repository the user owns. It did this before Knos. Knos first verified GitHub's signature on Solana in commit
+  `cb3a1ac` (1 Oct 2026, Knos 0.3.7). We read that project on 2 Oct 2026. What we built after that follows or matches its design in these places: paying a GitHub id;
   binding a wallet with a token from a run in the user's own repository; holding an unbound payee's money for 180
   days and then returning it to the funder; reserving an issue by comment for 7 days; paying a person when a bot
   account opened the pull request; and a waiting time before a new signing key is active. No code was copied; the
@@ -140,12 +145,12 @@ copies these lines into [MANIFEST.md](MANIFEST.md).
 - **One person, pseudonymous:** no legal name is published.
 - **No co-founder,** employee or adviser ([TRUST.md](../TRUST.md)).
 - **No legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos, and there are no terms of service.
-- **No legal advice taken.** The section "Regulation" below is what the author read.
+- **No legal advice taken.** The section "Regulation" of DISCLOSURE.md is what the author read.
 - **No outside review,** of the programs, the workflows, the relay, the clients, the site or the documents ([ASSURANCE.md](ASSURANCE.md)).
 - **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples.
 - **No outside program is known to read the verifier.** The interface and the examples are Knos's own ([COMPOSE.md](COMPOSE.md)).
 - **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash, rerunning the benchmarks or running the drills.
-- **No mainnet deployment.** Solana devnet and test USDC only; no real money has moved.
+- **No mainnet deployment.** NEAR testnet and Solana devnet, test money only; no real money has moved.
 - **No second operator.** If that one person is unavailable, nobody answers a report or cancels a proposal.
 - **No organisation account.** The pinned workflows and the relay live in one GitHub account ([GOVERNANCE.md](GOVERNANCE.md), section 6).
 - **The first deployment cannot be changed,** so its known limits stay ([SECURITY.md](SECURITY.md)); the second changes only through a multisig with a public 8-day delay.
@@ -157,7 +162,7 @@ the software does about it, and what it does not do.
 
 **Read this first.** This page describes mechanisms. It is not a contract and it is not legal advice. Today there is:
 
-- **no legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos ([DISCLOSURE.md](DISCLOSURE.md));
+- **no legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos ([Outstanding limits](#outstanding-limits));
 - **no warranty.** The software is offered as it is, under its licence. Nobody promises that a verdict is right;
 - **no service commitment.** No uptime, no response time, no support hours, for the relay, the site or anything else;
 - **no data-processing terms.** No agreement covers personal data, and none can be signed ([PRIVACY.md](PRIVACY.md));
@@ -236,7 +241,7 @@ money:
    succession, and notice of every upgrade ([GOVERNANCE.md](GOVERNANCE.md)).
 8. **An outside security review** of the programs and the referee, with its report published.
 9. **Licensed handling of real money:** legal advice on held money and money transmission, and a regulated partner
-   where the law asks for one ([DISCLOSURE.md](DISCLOSURE.md)).
+   where the law asks for one ([Regulation](#regulation-what-has-been-examined-and-what-has-not)).
 10. **Insurance** for errors and for loss of funds, or a stated reason for having none.
 11. **Support with a named owner:** who answers a supplier's finance operator about an unpaid, accepted invoice.
 
@@ -246,8 +251,8 @@ parties may choose to use between themselves, at their own risk.
 ## Regulation: what has been examined, and what has not
 
 **This is not legal advice.** It was written by the person who built Knos, from public documents. No lawyer has
-read it. Counsel is needed before any real money moves, and none has been asked. Knos runs on Solana devnet, and
-its money is test USDC.
+read it. Counsel is needed before any real money moves, and none has been asked. Knos runs on NEAR testnet and Solana
+devnet, and its money is test money.
 
 Three questions were examined, each only as far as one public source goes: whether holding money in a program is money transmission under
 United States federal rules; what a payer owes in tax reporting when it pays a contractor; and what sanctions law asks before a payout.
@@ -420,7 +425,7 @@ passed.
 1. Counsel on sections 1 to 3, for the country Knos is run from and for the first customers' countries.
 2. A decision, in writing, on who the payer of record is for a payment and who screens it.
 3. A named legal entity as the operator, and terms of service. Neither exists today: Knos is one person, known
-   publicly by a GitHub account, and no company has been formed ([DISCLOSURE.md](DISCLOSURE.md)).
+   publicly by a GitHub account, and no company has been formed ([Outstanding limits](#outstanding-limits)).
 4. A review of the programs by a security firm. No security firm has audited anything
    ([SECURITY.md](SECURITY.md)). That is a separate gate from this page, and `knos mainnet-check` fails on it on
    purpose.

@@ -1,9 +1,5 @@
 # knos-attest
 
-Knos turns any research into a product billions of people use, in days, not years.
-
-Knos carries research across the valley of death, toward Kardashev II and III.
-
 Ask GitHub to sign that a [Knos](https://github.com/drexthealpha/Knos) work order's terms were met, so that the person
 who did the work can ask for the payment himself. These files are kept in Knos itself, as `templates/knos-attest/`.
 
@@ -17,7 +13,8 @@ who did the work can ask for the payment himself. These files are kept in Knos i
    GitHub signs a statement that names the order, the pull request and the commit, and a relayer carries it to
    Solana, where the payment program pays.
 
-It needs no secret, checks out no code and changes nothing anywhere. What it can do is written at the top of
+It needs no secret. It posts the signed statement as a comment on an issue here, and for an order paid by acceptance
+checks it runs that suite again in a sandbox. What it can do is written at the top of
 [the file](.github/workflows/knos-attest.yml), and why a run started by hand in your own repository is trusted.
 
-On Solana devnet today, in test USDC.
+Part of Knos: the Solana side, from the Colosseum entry (v0.3.28), on Solana devnet in test USDC.

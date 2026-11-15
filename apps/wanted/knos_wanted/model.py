@@ -1,5 +1,5 @@
 """The model on a check's answer, only with a key the founder set on this server (ANTHROPIC_API_KEY, from the API credit
-of his plan): "Model alone" on a person's own input and "Ask about this result". Without the key the state is "off": the
+of the founder's plan): "Model alone" on a person's own input and "Ask about this result". Without the key the state is "off": the
 chips keep their recorded model-alone answers and a new idea says the model needs a key. The key is never read into an
 answer, a log line or a status field: /api/status says only "on" or "off".
 

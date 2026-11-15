@@ -84,7 +84,7 @@ digest does not check, or that names a cheat. No flag changes this.
 
 ## The badge
 
-The badge is drawn by the same code as the "paid on proof" and "Knos-verified" badges (`knos.badge`). It says how many
+The badge is drawn by the same code as the payout and "Knos-verified" badges (`knos.badge`). It says how many
 claims held, that a held-out split was used, and the day. It is issued only from a result that checks; there is no other
 way to get one. A reproduction says the stated numbers came back.
 

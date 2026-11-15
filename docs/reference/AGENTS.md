@@ -39,7 +39,7 @@ and counted in `skipped`.
 
 The acceptance command for a `tests` or `auto` order is the referee the workflow itself runs:
 
-    knos proof referee --base <a checkout of the default branch> --pr <your tree> --issue <issue>
+    knos proof judge --base <a checkout of the default branch> --pr <your tree> --issue <issue>
 
 It exits 0 when the pull request would be accepted. A `merge` order has no bundle to run: its named checks run in the
 repository's CI, and `knos_submit_work` holds only the changed files to the order's allowed paths before it submits.
@@ -139,7 +139,7 @@ HEAD of a checkout (src/knos/verify/):
 | `refused` | 3 | the AI policy forbids this pull request: do not open it |
 
 The same rule ships as a skill for Claude Code (`plugin/skills/knos-verify/`, loaded with the Knos plugin), OpenClaw
-(`integrations/skills/openclaw/knos-verify/`) and Hermes Agent (`hermes/knos/`, see [Hermes Agent](#hermes-agent) below).
+(`integrations/skills/openclaw/knos-verify/`). Hermes Agent uses the MCP server or the plugin ([Hermes Agent](#hermes-agent) below).
 
 ## Contributor rounds
 
@@ -173,15 +173,8 @@ player (`--agent human-synthetic`) is labelled as not a person. Tests: `tests/te
 
 ## Hermes Agent
 
-Hermes Agent (Nous Research) can use Knos as a skill, an MCP server or a plugin. Each runs `knos verify` before a
-pull request and attaches the signed receipt.
-
-The skill, from this repository or from the site:
-
-```bash
-hermes skills install drexthealpha/Knos/hermes/knos
-hermes skills install well-known:https://drexthealpha.github.io/Knos/.well-known/skills/knos
-```
+Hermes Agent can use Knos as an MCP server or a plugin. Each runs `knos verify` before a pull request and attaches
+the signed receipt. The skill folder `hermes/knos/` was removed on 28 Oct 2026, so there is no skill to install.
 
 The MCP server goes in `mcp_servers` in `~/.hermes/config.yaml`. `knos init --host hermes --global` writes a stdio
 block with only the reading tools.
@@ -201,6 +194,3 @@ token, `knos_verify` is not served over HTTP.
 The plugin: `pip install knos` registers the entry point `knos = knos.hermes_plugin:register` in the group
 `hermes_agent.plugins`. Enable it with `hermes plugins enable knos`. Its tools are `knos_verify`, `knos_receipt`,
 `knos_bounty_claim` and `knos_outcome_check`; none of them sends anything.
-
-The first Hermes integration, the `knos-hermes` 0.1.0 memory provider, is kept as source in `hermes/knos-hermes/`.
-Knos does not build or install it.

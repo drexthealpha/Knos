@@ -160,3 +160,16 @@ the interval spans zero, so this test cannot tell them apart.
 - **Knos with Qloo:** Knos's own Qloo client, search then insights for films; all 30 films resolved.
 
 Numbers and every film named: [taste_truth.json](taste_truth.json).
+
+## Errata in the frozen plans
+
+The plans are frozen by their hashes, so they are not edited; what they get wrong is said here.
+
+- [evidence_plan.md](evidence_plan.md) says the 20 tasks of `bench/idt/tasks.json` are 12 code tasks and 8 brief tasks;
+  the file, unchanged since 20 Oct 2026, holds 10 of each.
+- [evidence_plan.md](evidence_plan.md) says the verdict changed on 14 of 20 ideas against a free-data baseline; the raw
+  file it names says 10 of 20 ([e1_results.json](e1_results.json)), which is the figure published.
+- [evidence_plan.md](evidence_plan.md), section 4, names the store of the Knos record by the memory library it uses; it
+  is the Knos record kept in a local store.
+- [impact_prereg_plan.md](impact_prereg_plan.md) quotes rules from task files that are not in this repository; the rules
+  it needs are copied into the plan itself.

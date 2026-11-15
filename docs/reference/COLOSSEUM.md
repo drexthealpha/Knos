@@ -17,7 +17,7 @@ Add Knos to Claude Code with one command: `claude mcp add --transport http knos 
 
 **Open call:** have research waiting for a market? [Cross it on Knos](https://knos.onrender.com/invite): the page counts every crossing and pre-order by people outside Knos, live.
 
-## Paid only when the proof passes
+## Paid only when the test passes
 
 The proof is checked before any money moves. A milestone names its checker in the brief. The proof can be:
 
@@ -32,15 +32,15 @@ The proof is checked before any money moves. A milestone names its checker in th
 
 ## Try it in ten seconds
 
-Open [the front door](https://drexthealpha.github.io/Knos/), press **Try the sample**, then **Prove it yourself on
-NEAR**, and prove it with the test USDC you choose. Nothing to install and no sign-up ([Do this, see
-that](#do-this-see-that)).
+Open [the front door](https://drexthealpha.github.io/Knos/), press **Try: HyperLogLog**, then **Prove it yourself**,
+and run the check with the test USDC you choose. Nothing to install and no sign-up ([Do this, see
+that](NEAR.md#do-this-see-that)).
 
 ## Why nobody can fudge the count
 
 The terms of a brief are locked by a [hash](../WORDS.md#hash) before any money moves. A changed target or deadline gives a different hash. So a change cannot hide.
 
-The money waits in a program on [Solana](../WORDS.md#solana), not with Knos. That program pays only on a verified proof. At the deadline it refunds the backers instead.
+The money waits in a program on [Solana](../WORDS.md#solana), not with Knos. That program pays only when the checks pass. At the deadline it refunds the backers instead.
 
 **Neither the maker nor Knos can move the money alone.**
 
@@ -99,7 +99,7 @@ Install with `pip install knos`. The app answers the same steps over HTTP: `POST
 
 Start at [the release page](MANIFEST.md): the code, how it is built, what runs on devnet, the payments and the fees.
 
-One payment from start to end, on 9 Oct 2026 with Knos 0.3.23, in a repository Knos owns, with test USDC (one step fixed by hand): [funded](https://explorer.solana.com/tx/3UaY22WKexigMpkVhibfeMdNgBiyybWm2Z4LuLskKGbNUDXV34yYWyH42atxFjELbrqSgoVs6TwpFzSQwhfXqzgM?cluster=devnet) · [wrong work refused](https://github.com/drexthealpha/knos-witness/actions/runs/37890511112/job/113690226126) · [paid](https://explorer.solana.com/tx/2PtmKUrQHKPARZE4nr35Te559NGQSG7tSHUfwzcKCAjL7gzvQ76fNTVLMWvq8mcZLxd27tbyTe31mCk2PxEGfAqa?cluster=devnet) (on verified proof) · [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/10#issuecomment-6075196710) · [the record](https://github.com/drexthealpha/Knos/blob/main/evidence/knos-witness-acaa854d/witness.json).
+One payment from start to end, on 9 Oct 2026 with Knos 0.3.23, in a repository Knos owns, with test USDC (one step fixed by hand): [funded](https://explorer.solana.com/tx/3UaY22WKexigMpkVhibfeMdNgBiyybWm2Z4LuLskKGbNUDXV34yYWyH42atxFjELbrqSgoVs6TwpFzSQwhfXqzgM?cluster=devnet) · [wrong work refused](https://github.com/drexthealpha/knos-witness/actions/runs/37890511112/job/113690226126) · [paid](https://explorer.solana.com/tx/2PtmKUrQHKPARZE4nr35Te559NGQSG7tSHUfwzcKCAjL7gzvQ76fNTVLMWvq8mcZLxd27tbyTe31mCk2PxEGfAqa?cluster=devnet) (after the checks passed) · [replay paid nothing more](https://github.com/drexthealpha/knos-witness/pull/10#issuecomment-6075196710) · [the record](https://github.com/drexthealpha/Knos/blob/main/evidence/knos-witness-acaa854d/witness.json).
 
 Rebuild knos_oidc and knos_pay, the programs that check the proof and pay, and compare: the hash devnet runs equals the verified build hash recorded for each ([PROVENANCE](PROVENANCE.md)). Read on 27 Oct 2026.
 
@@ -128,7 +128,7 @@ No. Proofs run on NEAR testnet with [test dollars](../WORDS.md#test-usdc) worth 
 
 ### What does Knos cost?
 
-On NEAR: the test USDC you choose, paid after the answer. Solana devnet: 0.30%, at least 0.05 [test dollars](../WORDS.md#test-usdc); releases later 1%.
+A proof is free. Solana devnet charges 0.30%, at least 0.05 [test dollars](../WORDS.md#test-usdc).
 
 ### Who holds the money?
 
@@ -144,18 +144,18 @@ Neither side alone. A program checks a [signed record](../WORDS.md#signed) of wh
 
 ### How do I try Knos?
 
-Open [the front door](https://drexthealpha.github.io/Knos/) and press the button by the sample paper. Then prove it with the test USDC you choose.
+Open [the front door](https://drexthealpha.github.io/Knos/) and press the button by the sample paper.
 
 
 ## Read more
 
-- [Get started](../START.md): check demand, write a Ready brief, then let each step's test decide it.
+- [Get started](../START.md): check a paper's claim on NEAR first, then see the same Knos on Solana and IRIS.
 
-- [Pricing](../PRICING.md): what Knos costs. Demand checks are free, 10 a month. The maker keeps 100%; the funder pays the payment program's fee on top: 0.30% of each payout, at least 0.05. Nobody is charged today (devnet, test money).
+- [Pricing](../PRICING.md): what Knos costs. Checking a claim is free. On NEAR testnet the jobs contract keeps 1 part in 10 of what moves; on Solana devnet the maker keeps 100% and the funder pays the payment program's fee on top, 0.30% of each payout, at least 0.05. A 1% release fee is planned, not today's fee. Nobody pays real money today.
 
 - [Trust](../TRUST.md): who holds the keys, and what is tested.
 
-- [The story](../STORY.md): one crossing, step by step, each with its evidence.
+- [An earlier run](../STORY.md): one October run on Solana, step by step, each with its evidence.
 
 - [Every other document](../README.md): the map of the documents.
 
@@ -204,5 +204,5 @@ It stays as a record, and no new task is funded there.
 **Reproduced by someone else:** none recorded yet. **Exercised on devnet:** `verify_github`, `fund_by_comment`, `fund_from_wallet`, `pay_on_merge` and more, each named in the table. **Deployed on devnet:** `verify_gitlab`, `key_guardian`, `hold_and_bind`. Everything else is tested locally, implemented or not built: [the table with the evidence](CAPABILITIES.md) has one row for each capability, from [`docs/capabilities.json`](../capabilities.json). Only runs at the public program ids count here. Each capability's row also notes, with its transaction, any earlier trial run at separate test addresses (Knos 0.3.14).
 <!-- capabilities:end -->
 
-MIT licence, all of it. Built by drexthealpha. Knos v1 won the [Sibyl Labs Hackathon](https://hack.sibyllabs.org/leaderboard) (1st of 92).
+MIT licence, all of it. Built by drexthealpha. An early version of Knos won a hackathon, 1st of 92 teams ([the leaderboard](https://hack.sibyllabs.org/leaderboard)).
 <!-- mcp-name: io.github.drexthealpha/knos -->

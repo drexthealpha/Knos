@@ -30,7 +30,7 @@ is pass or fail and the rule's name; what the sealed suite printed is withheld.
 A second machine is a `judge_fn` that referees there; the re-run on this machine already uses fresh inputs, because a
 black-box bundle draws its own.
 
-The referee is never weaker than the referee: the referee's own path rule is the first rule of the library, and the referee
+The cheat library is never weaker than the referee: the referee's own path rule is the first rule of the library, and the referee
 still runs on everything the rules let through.
 
 ## The cheat library
@@ -125,7 +125,7 @@ submissions of the benchmark are checked against the rules too (none is refused)
 ## Wanted
 
 `referee.DemandBook().lock(spec_hash, buyer, amount, escrow_ref=...)` records a pre-order;
-`referee.wanted(orders, min_buyers=N, min_locked=X)` passes when N distinct buyers have X locked. Only orders with an
+`referee.wanted(orders, min_buyers=N, min_locked=X)` passes when N distinct buyers have X locked. Only orders with a
 held-money reference count (a pledge is shown and not counted), each buyer counts once, and the bar is set by whoever asks.
 Amounts are integers in the currency's smallest unit.
 
@@ -227,10 +227,10 @@ Maintainers are closing their doors because checking work now costs more than pr
 curl ended its bug bounty on 31 Jan 2026 after valid reports fell below 5%; Google stopped OSS VRP submissions on 1 Oct
 2026 ("vast majority not valid"); Sovereign Tech paused its bounty (790+ reports, about 80 accepted).
 
-Others: tldraw auto-closes external pull requests; Ghostty bans drive-by AI pull requests and
-uses Vouch; GitHub shipped settings to disable or cap outside pull requests (13 Feb and 17 Jun 2026).
+Some projects now auto-close outside pull requests or ban drive-by AI pull requests, and GitHub shipped settings to
+disable or cap outside pull requests (13 Feb and 17 Jun 2026).
 
-Every filter shipped so far referees WHO sent the work (Vouch, collaborator-only, pull request caps). None checks whether
+Every filter shipped so far checks WHO sent the work (trust lists, collaborator-only, pull request caps). None checks whether
 the work is CORRECT against tests the sender could not see. Gate does that, and works beside those filters: a passing
 Gate check can be the bypass signal a maintainer opts into (`pass_label`).
 

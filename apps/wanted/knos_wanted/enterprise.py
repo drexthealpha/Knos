@@ -16,7 +16,7 @@ Squads per company   POST /api/company/multisig builds Squads v4 multisig_create
                      company's payee and treasury: spending from it needs the company's threshold, never Knos.
 ERP export           GET /api/company/export?project=&format=xero|quickbooks|netsuite|journal: one line per released,
                      refunded or locked order. `journal` + hledger rules (export_hledger) were imported into hledger, an open
-                     source accounting system, and its balances checked (evidence in the release record).
+                     source accounting system, and its balances checked (evidence: data/proofs.record, GET /api/proofs).
 """
 from __future__ import annotations
 

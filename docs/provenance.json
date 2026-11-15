@@ -55,5 +55,20 @@
    "proposal_status": "Executed",
    "execution_signature": "4AgyQUDedwhkC8pQMQUPbiKcrLwnpM828ThbVybxZ4eRrhvZD1p2kfURBXrXUHibKxzQv68E85eMKyWf77BgG6fn"
   }
+ },
+ "next": {
+  "knos_oidc": {
+   "build_hash": "925c76f051f9c28f617dc18352fcdab6127b2d23b164eb87fcab282e02bbe968",
+   "source_commit": "eb12d1be0abfcf20df5ba03bdc0c78ce712a2ec1",
+   "gate_run": 39094558752,
+   "proposal": 14
+  },
+  "knos_pay": {
+   "build_hash": "e01605411369b40b9e6fd28595d0254f06357fbf7f5c887eef207f8d5b68ad3a",
+   "source_commit": "eb12d1be0abfcf20df5ba03bdc0c78ce712a2ec1",
+   "gate_run": 39094558752,
+   "proposal": 13
+  },
+  "_from": "web/upgrades.json, proposals 13 and 14 (one proposal set, commit eb12d1be); proposal 15 is a second knos_oidc build, 26d208cb..., from commit 0f3c47f9"
  }
 }

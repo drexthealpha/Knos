@@ -34,6 +34,12 @@ All three member keys belong to that one person. So "2 of 3" does not mean two p
 One machine holds all three member keys and the deploy key. No key here can move an order's money to itself. The
 upgrade multisig can change the code, and new code can do anything.
 
+## On NEAR
+
+The jobs and claim market contracts on NEAR testnet hold no access keys since 14 Nov 2026, so nobody can change their
+code. A release needs the checker's signature. 2 of the 3 owner accounts set the checker's key, and all of these
+accounts are Knos's own ([NEAR.md](reference/NEAR.md)).
+
 ## Ask to hold a key
 
 A first outside key holder would hold 1 key of 3. That person could vote on every upgrade and check each build in
@@ -99,7 +105,7 @@ the author's own check. It is no audit.
 
 No outside firm has audited the code. Nobody outside Knos has reviewed it, and no review is commissioned.
 
-It runs on [devnet](WORDS.md#devnet) only, with [test USDC](WORDS.md#test-usdc). Mainnet is not touched.
+It runs on NEAR testnet and Solana [devnet](WORDS.md#devnet) only, with [test USDC](WORDS.md#test-usdc). Mainnet is not touched.
 
 `knos mainnet-check` lists every gate before real money. Its last gate, an outside review, fails on purpose.
 

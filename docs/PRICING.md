@@ -2,11 +2,18 @@
 
 # What Knos costs
 
-**In plain words.** Ten demand checks a month are free, and so are Ready briefs and proof pages. A deep demand check costs 500 USD, and a company pays 1% on money it releases on proof. No company is formed yet, so nobody pays today.
+**In plain words.** A check of a claim is free, and each fee today is paid in test money. On NEAR the fee is 1 part in 10 of what moves, and on Solana it is 0.30%. No company is formed yet, so nobody pays real money today.
 
 What is held, released and charged now: [the money page](https://knos.onrender.com/money).
 
-## Knos's prices, decided 23 Oct 2026
+## What each chain takes today
+
+| Chain | The fee | Who pays | Where it is written |
+|---|---|---|---|
+| NEAR testnet | 1 part in 10 of the test money held with a job | taken out of it: 9 parts go to the agent whose code passed | `FEE_PARTS` in [`near/contract/src/jobs.rs`](../near/contract/src/jobs.rs) |
+| Solana devnet | 0.30% of the amount, at least 0.05 | the funder, on top | `FEE_BPS` and `FEE_MIN` in [`programs-v2/knos_pay/src/lib.rs`](../programs-v2/knos_pay/src/lib.rs) |
+
+## Knos's planned prices, decided 23 Oct 2026
 
 | What | Price | Who pays | Today |
 |---|---|---|---|
@@ -14,15 +21,15 @@ What is held, released and charged now: [the money page](https://knos.onrender.c
 | Deep demand check | 500 USD each, by card | the company | not charged: no company is formed yet |
 | Ready brief | free | nobody | free |
 | Proof page | free | nobody | free |
-| Release | 1% of money released on verified proof | the company (the funder), on top | the program charges 0.30% |
+| Release | 1% of held money released when its check passes (planned) | the company (the funder), on top | the program charges 0.30% |
 
 Deep checks are charged by card once the company exists. No company is formed yet, so nobody is charged today.
 
-The solver keeps 100% of what they are paid. The company pays the 1% release fee and the payment costs on top of the amount.
+On Solana the solver keeps 100% of what they are paid. The company would pay the planned 1% release fee and the payment costs on top of the amount.
 
 Cards cover milestones up to 500 USD. Larger milestones are paid by bank transfer or in USDC.
 
-The 1% is decided, not live. The `knos_pay` program on devnet charges 0.30% today, in test money.
+The 1% is a planned price, not today's fee. The `knos_pay` program on devnet charges 0.30% today, in test money.
 
 The 1% goes on chain only with a program upgrade, which waits in public first ([Trust](TRUST.md)).
 
@@ -32,13 +39,13 @@ The 1% goes on chain only with a program upgrade, which waits in public first ([
 flowchart TB
     check["Demand check: free"]
     brief["Ready brief and proof page: free"]
-    paid["Release on verified proof: 1% decided; 0.30%, at least 0.05, on devnet today"]
+    paid["Release when the check passes: 1% planned; 0.30%, at least 0.05, on devnet today"]
     check --> brief
     brief --> paid
 ```
-*The check and the brief are free. A fee is charged only when held money is released on proof.*
+*The check and the brief are free. A fee is charged only when held money is released.*
 
-This part gives the prices the programs on [devnet](WORDS.md#devnet) charge today.
+This part gives the prices the Solana programs on [devnet](WORDS.md#devnet) charge today.
 
 **Every price here is in [test USDC](WORDS.md#test-usdc), so Knos's revenue is zero.**
 
@@ -91,8 +98,8 @@ The fee is written into the program's code: `FEE_BPS` and `FEE_MIN` in
 
 To change them takes an upgrade of the program, which waits 8 days in public first ([Trust](TRUST.md)).
 
-The site's [price page](https://drexthealpha.github.io/Knos/#pricing) reads the fee from the program itself.
+`knos status` says which build of the program runs at the public id.
 
 ## Read more
 
-- [Start here](START.md): check demand, write a Ready brief, then let each step's test decide it.
+- [Start here](START.md): check a paper's claim on NEAR first, then see the same Knos on Solana and IRIS.

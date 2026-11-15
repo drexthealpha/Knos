@@ -18,9 +18,10 @@ deployed there, the transactions recorded, and the fee schedule. The rows behind
 
 - Release: Knos 0.4.1 (`pyproject.toml`). Tag: [`v0.4.1`](https://github.com/drexthealpha/Knos/tree/v0.4.1); `git rev-list -n 1 v0.4.1` prints its commit. A file
   cannot hold the hash of the commit that holds it.
-- Cluster: Solana devnet. The money is test USDC. Mainnet is not touched.
+- Clusters: NEAR testnet (the contracts jobs.knos-swarm-1105.testnet and market.knos-swarm-1105.testnet) and Solana
+  devnet (the programs below, from the Colosseum entry v0.3.28). The money is test money. Mainnet is not touched.
 - Each source folder has a README that says what it holds: [`programs/`](../../programs-v2/README.md#the-first-deployment-in-programs-nobody-can-change-it) (the first
-  deployment, which nobody can change), [`programs-v2/`](../../programs-v2/README.md) (the programs Knos runs today),
+  deployment, which nobody can change), [`programs-v2/`](../../programs-v2/README.md) (the Solana programs of the Colosseum entry),
   [`idl/`](../../idl/README.md) (how to call each program) and [`examples/`](../../examples/README.md).
 
 ## Programs: what is live at each public id
@@ -309,7 +310,7 @@ capability is in [CAPABILITIES.md](CAPABILITIES.md).
 | `statement_completeness` | tested locally | [`src/knos/completeness.py`](../../src/knos/completeness.py): `def check` | [`tests/test_completeness.py`](../../tests/test_completeness.py): `test_an_order_the_chain_paid_in_the_period_with_no_line_is_an_omitted_exception` | none | none | none |
 | `finality_booking` | tested locally | [`src/knos/completeness.py`](../../src/knos/completeness.py): `def contradictions` | [`tests/test_completeness.py`](../../tests/test_completeness.py): `test_a_payment_the_cluster_has_only_processed_or_confirmed_is_never_booked_until_it_is_finalized` | none | none | none |
 | `secret_scan_history` | tested locally | [`scripts/secret_scan.py`](../../scripts/secret_scan.py): `def history_blobs` | [`tests/test_secret_scan.py`](../../tests/test_secret_scan.py): `test_a_key_deleted_from_the_tree_is_still_found_in_history_by_kind_without_its_value` | none | none | none |
-| `site_404` | tested locally | [`web/404.html`](../../web/404.html): `lost-guess` | [`tests/web/launch.mjs`](../../tests/web/launch.mjs): `404: an address that names no page offers no guess` | none | none | none |
+| `site_404` | tested locally | [`web/404.html`](../../web/404.html): `lost-links` | [`tests/web/launch.mjs`](../../tests/web/launch.mjs): `404: says the page is missing and offers the front door first` | none | none | none |
 | `site_data_retry` | tested locally | [`web/retry.js`](../../web/retry.js): `Try again: ` | [`tests/web/launch.mjs`](../../tests/web/launch.mjs): `data: the line is there while stats.json does not load` | none | none | none |
 | `site_android_first_screen` | tested locally | [`tests/web/android.mjs`](../../tests/web/android.mjs): `setCPUThrottlingRate` | [`tests/test_site_launch.py`](../../tests/test_site_launch.py): `test_a_cheap_android_phone_paints_and_can_be_used_within_three_seconds` | none | none | none |
 | `site_privacy_terms` | tested locally | [`web/privacy.html`](../../web/privacy.html): `cookie` | [`tests/test_site_launch.py`](../../tests/test_site_launch.py): `test_each_privacy_line_agrees_with_the_code` | none | none | none |
@@ -375,12 +376,12 @@ From [DISCLOSURE.md](DISCLOSURE.md), one line each.
 - **One person, pseudonymous:** no legal name is published.
 - **No co-founder,** employee or adviser ([TRUST.md](../TRUST.md)).
 - **No legal entity.** Nothing can sign a contract, send an invoice or be sued as Knos, and there are no terms of service.
-- **No legal advice taken.** The section "Regulation" below is what the author read.
+- **No legal advice taken.** The section "Regulation" of DISCLOSURE.md is what the author read.
 - **No outside review,** of the programs, the workflows, the relay, the clients, the site or the documents ([ASSURANCE.md](ASSURANCE.md)).
 - **No shadow count.** The meter has never run beside anyone's invoices but Knos's own examples.
 - **No outside program is known to read the verifier.** The interface and the examples are Knos's own ([COMPOSE.md](COMPOSE.md)).
 - **No independent reproduction.** Nobody outside Knos has reported rebuilding the programs to the deployed hash, rerunning the benchmarks or running the drills.
-- **No mainnet deployment.** Solana devnet and test USDC only; no real money has moved.
+- **No mainnet deployment.** NEAR testnet and Solana devnet, test money only; no real money has moved.
 - **No second operator.** If that one person is unavailable, nobody answers a report or cancels a proposal.
 - **No organisation account.** The pinned workflows and the relay live in one GitHub account ([GOVERNANCE.md](GOVERNANCE.md), section 6).
 - **The first deployment cannot be changed,** so its known limits stay ([SECURITY.md](SECURITY.md)); the second changes only through a multisig with a public 8-day delay.

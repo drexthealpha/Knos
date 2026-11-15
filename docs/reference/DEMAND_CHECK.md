@@ -22,7 +22,7 @@ Code: `apps/wanted/knos_wanted/check.py`
 over `qloo_rest.py` (key in the request header only, from the server's environment; answers cached privately with
 no time limit; at most 4 calls per second; a monthly budget, `QLOO_MONTHLY_BUDGET`, default 9,000 uncached calls).
 
-It sends at most 1,500 calls on one UTC day (`DAY_CAP`), and none once Qloo's month has under 2,000 calls left (`MONTH_FLOOR`).
+It sends at most 3,000 calls on one UTC day (`DAY_CAP`), and none once Qloo's month has under 2,000 calls left (`MONTH_FLOOR`).
 
 Each call goes first to Qloo's harness: one long-lived `qloo api mcp` process (`qloo_harness.py`), a surface the kit
 supports. A call goes there only when every parameter it sends maps onto a harness tool's argument, so its answer is
@@ -103,9 +103,9 @@ Campaign sizes from a published formula, not a sales forecast.
 Qloo's error text is never shown; a refused (4xx) question is cached a
   day so repeats do not spend the budget.
 
-**Paid on proof.** On an OPEN report a signed-in user pre-orders (`POST /api/preorder`): the app's sample devnet wallet
+**Paid when the check passes.** On an OPEN report a signed-in user pre-orders (`POST /api/preorder`): the app's sample devnet wallet
 (sample buyer, test money) locks the units through `knos.ideas.commit` as one stage "milestone" (oracle `referee_pass`)
-checked by a 2-of-3 panel on the knos_pay 0.3.34 test program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4`; the
+checked by a 2-of-3 panel on the app's live program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4` (a separate devnet deployment of the knos_pay 0.3.34 build, not the public knos_pay program); the
 payee is the maker's devnet wallet.
 
 The panel's keys are held by the server (`KNOS_WANTED_REFEREE_KEYS`): one server is

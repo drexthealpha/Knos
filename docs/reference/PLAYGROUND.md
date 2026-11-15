@@ -1,20 +1,20 @@
 # The playground
 
 Knos's own [issues](https://github.com/drexthealpha/Knos/issues), where a GitHub account and nothing else tries both sides of Knos. No wallet, nothing installed, nothing spent.
-Until the 0.3.34 branch it was [drexthealpha/knos-playground](https://github.com/drexthealpha/knos-playground): frozen now, its open orders paid or refunded there by 2026-11-13, deletable from 6 Dec 2026.
+Until the 0.3.34 branch it was [drexthealpha/knos-playground](https://github.com/drexthealpha/knos-playground). It is kept, because the Colosseum judge path in the README uses its pull request 35.
 
 Test USDC, no monetary value. Who outside has used it is counted at the end of this page, never claimed.
 
 ## Take a funded task (two minutes)
 
 Issues labelled [`knos-funded`](https://github.com/drexthealpha/Knos/issues?q=is%3Aissue+is%3Aopen+label%3Aknos-funded)
-are small programming tasks: one file each, a statement, three examples, 5 test USDC. The site's
-[playground page](https://drexthealpha.github.io/Knos/#playground) lists them with the time each has left.
+are small programming tasks: one file each, a statement, three examples, 5 test USDC. `knos task list`
+lists them with the time each has left.
 
 1. **Fork.** Press the task's "Edit" link: GitHub forks the repository and opens the task's one file. Write `solve`.
 2. **`Closes #N`.** Open the pull request with `Closes #<the issue's number>` in its description.
 3. **The check.** Your file runs as a separate process on the examples and on inputs you have not seen, and what it
-   prints is compared with a reference. `python3 check.py <task>` tries the examples first. A pull request that
+   prints is compared with a reference. `python3 check.py <issue number>` tries the recorded cases of `.knos/acceptance/<number>/` first. A pull request that
    touches `.knos/` or `.github/` is refused before anything runs.
 4. **The merge pays.** A maintainer merges a pull request that passes, and the payment program pays your GitHub account: to the
    address you bound with one comment (`/knos address <address>`) or to the site's passkey wallet, or held for your

@@ -1,6 +1,6 @@
 // The pointer (UX rule I2): once per visitor, when nobody has tapped 3 s after the page opened, a 48 px pointer glides to
 // the one button in 0.85 s, presses (0.84 for 0.1 s), releases in 0.22 s while the button dips to 94%, then fades. Gone at
-// the first tap; never with reduced motion. All of it ends within 5 s.
+// the first tap; never with reduced motion. All of it ends within 6 s of the page opening (3 s wait, 0.85 + 0.1 + 0.22 s, a 1.2 s delay and a 0.4 s fade).
 (() => {
   const btn = document.getElementById("k-go");
   if (!btn || !btn.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;

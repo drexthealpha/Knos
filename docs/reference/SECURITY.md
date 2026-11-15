@@ -597,8 +597,8 @@ The host sandbox on Linux also enforces limits: a fork bomb stops at the process
 outside its work folder is read-only, CPU time, memory and file size are capped, and the time limit kills every
 process the run started (a PID namespace).
 
-The hermetic container is the default referee where the runner has one, and the host sandbox is the fallback the
-verdict names. [ATTESTOR.md](ATTESTOR.md) has the table of each limit and what macOS and Windows runners can and
+Where an order names an image, or the judge runs with `--sandbox hermetic`, the hermetic container runs the suite
+(`src/knos/judge.py`); otherwise the host sandbox does, and the verdict names which. [ATTESTOR.md](ATTESTOR.md) has the table of each limit and what macOS and Windows runners can and
 cannot enforce; `tests/test_judge_box.py` runs each attack.
 
 ## 15. Tokens: public, bound to one action, used once
@@ -852,7 +852,8 @@ PayOrder on an order with a quorum: about 120,000 for a referee who is recorded 
 and creates the payee's token account.
 
 **What is built end to end, and what has run.** Every step from the funding comment to the payment exists in code
-and is tested against stand-ins for GitHub and the chain; none of it has run on a cluster.
+and is tested against stand-ins for GitHub and the chain; auto-accept has also run at the public program ids, and
+quorum has not run on a cluster.
 
 - Funding. `/knos fund ... auto` and `quorum 2` are parsed (`src/knos/commands.py`); the workflow's fund word puts
   them into the order's options, which the fund token signs, and the reply says both in plain sentences
@@ -977,8 +978,9 @@ and the manifest keeps `neutral_reexecution` at `tested`.
 
 Otherwise it is tested against stand-ins for GitHub and
 the chain, the program's side in a simulator, and the real referee once on a sample tree
-([`tests/test_attest_rerun.py`](../../tests/test_attest_rerun.py)); the workflow file is checked by actionlint and by
-[`tests/test_workflows2.py`](../../tests/test_workflows2.py), and its fetch and sandbox steps have not been run on a
+([`tests/test_attest_rerun.py`](../../tests/test_attest_rerun.py)); the workflow file is checked by
+[`tests/test_workflows2.py`](../../tests/test_workflows2.py) (its actionlint check runs only where actionlint is
+installed; no CI job installs it), and its fetch and sandbox steps have not been run on a
 runner.
 
 Whether the work-order instructions are live on the public program ids is in `web/upgrades.json`. The

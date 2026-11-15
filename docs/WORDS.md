@@ -16,7 +16,7 @@ flowchart TB
 
 Some words are about the code: [AI agent](#ai-agent), [pull request](#pull-request), [checks](#checks-ci) and [merge](#merge).
 
-Some are about the money: [Solana](#solana), [devnet](#devnet), [test USDC](#test-usdc) and [money held until the proof passes](#money-held-until-the-proof-passes).
+Some are about the money: [Solana](#solana), [devnet](#devnet), [test USDC](#test-usdc) and [held money](#held-money).
 
 Some are about the crossing: [Qloo](#qloo), [Ready brief](#ready-brief), [milestone](#milestone) and [referee](#referee).
 
@@ -56,7 +56,7 @@ A look at Qloo's taste data: who would want a product, and where to launch it.
 
 ### Devnet
 
-Solana's practice network. Its money is not real. Knos runs only here today.
+Solana's practice network. Its money is not real. Knos also runs on NEAR testnet, NEAR's practice network.
 
 ### Evaluation
 
@@ -77,6 +77,10 @@ The part of GitHub that runs your checks on its own computers, each time code ch
 ### Hash
 
 A short fingerprint of a file. Change one letter of the file and the fingerprint changes.
+
+### Held money
+
+Money a program or contract holds for a task. It is paid when the test passes, or goes back.
 
 ### Holdback
 
@@ -105,10 +109,6 @@ What counts the work both sides agree on. Neither side keeps that count alone.
 ### Milestone
 
 One step of a project, with a target, a checker and a deadline. Each is paid alone.
-
-### Money held until the proof passes
-
-Money a program on Solana keeps for a task: held money. It pays on proof, or goes back.
 
 ### Multisig
 
@@ -196,7 +196,7 @@ The rules, fixed before the work starts, that decide whether the work is done.
 
 ### Test USDC
 
-Practice USDC on devnet. It is worth nothing. Every Knos payment so far used it.
+Practice USDC on NEAR testnet or Solana devnet. It is worth nothing. Every Knos payment so far used it.
 
 ### Time lock
 

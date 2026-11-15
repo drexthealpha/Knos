@@ -83,7 +83,8 @@ def test_a_made_up_key_in_a_test_is_a_test_key_and_passes(repo: Path):
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "three")
     out = scan.scan(scan.tree_blobs(repo), set())
-    assert out["hits"] == [{"kind": "AWS access key id", "path": "tests/test_redact.py", "blob": "", "verdict": "test key"}] and out["rotate"] == []
+    blob = git(repo, "rev-parse", "HEAD:tests/test_redact.py").strip()[:12]      # the tree scan names the blob as git does
+    assert out["hits"] == [{"kind": "AWS access key id", "path": "tests/test_redact.py", "blob": blob, "verdict": "test key"}] and out["rotate"] == []
 
 
 def test_a_keypair_of_an_operated_address_must_be_rotated_wherever_it_sits(repo: Path):

@@ -51,7 +51,7 @@ What each number is:
 
 ## 3. What that allows on a cluster (derived)
 
-Solana's limits: a block holds 100M compute units (60M until SIMD-0286; mainnet has had the larger blocks since 29 July 2026, devnet since earlier), the transactions that write any one account may use 12M of a block, and a block is produced every 400 ms.
+Solana's limits: a block holds 100M compute units (60M until SIMD-0286, the first source below), the transactions that write any one account may use 12M of a block, and a block is produced every 400 ms.
 
 Sources:
 

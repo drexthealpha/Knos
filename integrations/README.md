@@ -11,7 +11,7 @@ What a bounty platform, a work platform or any repository can take from Knos and
 | [`../.github/actions/knos-verify`](../.github/actions/knos-verify/action.yml) | the action: one step, a verdict on a pull request from GitHub's record of its checks |
 | [`workflows/knos-verify.yml`](workflows/knos-verify.yml) | a workflow that uses it, to copy into `.github/workflows/` |
 | [`webhook/`](webhook/README.md) | `verify(evidence, jwks)`: check a Knos receipt offline, in Python or TypeScript, with no dependency |
-| [`badge/`](badge/README.md) | "paid on proof" beside a bounty: the picture and the link |
+| [`badge/`](badge/README.md) | "paid" beside a bounty: the picture and the link |
 | [`skills/openclaw/knos-verify/`](skills/openclaw/knos-verify/SKILL.md) | the OpenClaw skill: run `knos verify` before a pull request, obey the repository's AI policy, attach the receipt |
 
 The action's verdict, as its `verdict` output and in the file its `json` output names:

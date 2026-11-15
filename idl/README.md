@@ -12,7 +12,7 @@ from each program's source (the programs are native Solana programs, not Anchor 
 | file | program | deployment | devnet address | runs |
 |---|---|---|---|---|
 | `knos_oidc_v2.json` | knos_oidc, the verifier | second, in use ([`programs-v2/`](../programs-v2)) | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | 2.2 |
-| `knos_pay_v2.json` | knos_pay, the [payment program](../docs/WORDS.md#money-held-until-the-proof-passes) | second, in use | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 2.2 |
+| `knos_pay_v2.json` | knos_pay, the [payment program](../docs/WORDS.md#held-money) | second, in use | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 2.2 |
 | `knos_meter.json` | knos_meter, the [meter](../docs/WORDS.md#meter) | second, in use | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | 1.1 |
 | `knos_passkey.json` | knos_passkey, the [passkey](../docs/WORDS.md#passkey) wallet | second, in use | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | 1.1 |
 | `knos_oidc.json` | knos_oidc | first ([`programs/`](../programs)); nobody can change it | `vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE` | |
