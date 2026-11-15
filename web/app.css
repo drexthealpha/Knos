@@ -1,6 +1,5 @@
 /* Knos: one stylesheet, no framework, no build step.
-   Type: Bricolage Grotesque for headings, Geist for text, Instrument Serif for the large lines, JetBrains Mono for
-   addresses, hashes and code; all four are files of this site (fonts/, with their licence), so the page asks no font host for anything.
+   Type: Bricolage Grotesque, Geist, Instrument Serif and JetBrains Mono, files of this site (fonts/): no font host.
    Colour: paper and ink, one accent; dark follows the reader's system unless the button in the bar says otherwise.
    Width: nothing may make the page scroll sideways (tests/web/overflow.mjs): long words break, tables and blocks of
    code scroll inside their own box. */

@@ -16,25 +16,25 @@
   {
    "source": "docs/PRICING.md",
    "block": 1,
-   "sha256": "b0a75749ddfd96dbf9ae3671fe20c2e1eb605971f000f3d502a470ec9fa3abee",
+   "sha256": "3d91daf9bede98e1db8a25a7ae39db65805c8597c10a1f3c0638ae3a024a0148",
    "svg": "docs/diagrams/docs-pricing-1.svg"
   },
   {
    "source": "docs/README.md",
    "block": 1,
-   "sha256": "c220e3995bf1b4fe94a1feb5414b3545f922825cfb7974fd74758dc5073fa810",
+   "sha256": "94f76cc3f138656515452677a0192131d3e048d3d947cf04558126e79577c910",
    "svg": "docs/diagrams/docs-readme-1.svg"
   },
   {
    "source": "docs/START.md",
    "block": 1,
-   "sha256": "d7a02dbff98b4343a7e9dc56e848e763ba5576adf5912c947507300e8494fa4c",
+   "sha256": "c85f12f8a18f5bd6209891d7a06faf70b92a616a859fefd0c2b4029181577889",
    "svg": "docs/diagrams/docs-start-1.svg"
   },
   {
    "source": "docs/STORY.md",
    "block": 1,
-   "sha256": "ed87245a4e9dcd39975594f4ca58f5e71751eb9e1a18bb265bfd8ae49995a958",
+   "sha256": "eb3aac2501cefd852457f32989adee5ae4bdaa0a1ceed073688cfc6635465ff0",
    "svg": "docs/diagrams/docs-story-1.svg"
   },
   {
@@ -94,7 +94,7 @@
   {
    "source": "docs/reference/METER.md",
    "block": 1,
-   "sha256": "03a988dd2cb74cc46256a8cd84a1360e79f5e2cf3b7ac01cbe929ddcaafcb049",
+   "sha256": "84dc2e35ac1971344c3db4830f5ff7b21a3ad9c85f8444a96987430e9e43dad3",
    "svg": "docs/diagrams/docs-reference-meter-1.svg"
   },
   {

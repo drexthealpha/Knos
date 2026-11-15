@@ -623,7 +623,7 @@ check("while knos_pay 2.1 is live the page shows the 0.3.14 fee, says the progra
 chain.payVersion = 2;
 const at22 = await feesOf("knos_pay 2.2 answers");
 check("once knos_pay 2.2 is live the page shows the 0.3.18 fee: 100 pays 0.30, and 5 pays the minimum of 0.05 (1.00%)", at22.rule === "0.3.18" && at22.source === "chain"
-  && /^You pay 100\.30 test USDC: 100\.00 for whoever does the work, and a fee of 0\.30 on top, which is 0\.30% of the amount\./.test(at22.cost) && at22.note === `The program on devnet charges this now (knos_pay 2.2). ${KEEPS}`
+  && /^You pay 100\.30 test USDC: 100\.00 for whoever does the work, and a fee of 0\.30 on top, which is 0\.30% of the amount\./.test(at22.cost) && at22.note === `Charged on devnet now (knos_pay 2.2).`
   && JSON.stringify(at22.rows) === JSON.stringify(NEW_ROWS) && at22.under === `Fee: 0.30% of the amount, at least 0.05 test USDC, paid by the funder on top (knos_pay 2.2 is live). ${KEEPS}`
   && at22.small[0].includes("a fee of 0.05 on top, which is 1.00% of the amount") && /never less than 0\.05 test USDC/.test(at22.small[1]) && /an order of 5\.00 costs 1\.00%/.test(at22.small[1]), at22);
 // devnet does not answer: the page reads upgrades.json, the file written from the upgrade multisig's accounts
