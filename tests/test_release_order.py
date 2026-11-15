@@ -27,7 +27,7 @@ def _load(name: str):
 def _copy(tmp_path: Path) -> Path:
     """What the wheel, the lock, the pinned workflows and the stamp read, as a tree of its own."""
     root = tmp_path / "tree"
-    for rel in ("pyproject.toml", "README.md", "README.pypi.md", "LICENSE", "src/knos", "terms", "config/fees.yaml", "config/leitner.yaml", "plugin/skills", "requirements", "examples", ".github/workflows", "docs", "web/front.js",
+    for rel in ("pyproject.toml", "README.md", "README.pypi.md", "LICENSE", "src/knos", "terms", "config/fees.yaml", "config/leitner.yaml", "config/referees.yaml", "plugin/skills", "requirements", "examples", ".github/workflows", "docs", "web/front.js",
                 "sdk/settle/README.md", "scripts/front_workflow.py"):
         src, dst = ROOT / rel, root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)

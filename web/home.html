@@ -49,9 +49,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 48px
   <a class="brand" href="./#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
   <nav id="nav" aria-label="Knos">
     <a href="./" data-nav="home">Home</a>
-    <a href="./near/" data-nav="near">NEAR app</a>
-    <a href="./iris/" data-nav="iris">IRIS</a>
-    <a href="./proof/" data-nav="proof" data-proof>Proof</a>
+    <a href="./prove/" data-nav="near">NEAR app</a>
+    <a href="./labs/" data-nav="iris">IRIS</a>
+    <a href="./claims/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
     <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
@@ -63,9 +63,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 48px
 <main>
 <!-- k-first -->
 <h1 class="k-first" id="k-first">Why does good research take 17 years to reach people?</h1>
-<p class="k-a">Checking that a result really works is slow and costly. So nobody builds on it until it has been checked. <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a></p>
-<p class="k-goal">Knos turns any research into a product billions of people use, in days, not years.</p>
-<p class="k-a k-today">Today: one paper, proved on NEAR in 5 s to 2 min. Next: any paper.</p>
+<p class="k-a">The 17 years: <a href="https://doi.org/10.1258/jrsm.2011.110180">Morris and others, 2011</a>. One reason: checking that a result really works is slow and costly, so nobody builds on it until it has been checked.</p>
+<p class="k-goal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p>
+<p class="k-a k-today">Today: one paper's claim, proved by agents on NEAR testnet. Next: any paper.</p>
 <!-- /k-first -->
 <!-- k-hero -->
 <style id="k-hero-css">
@@ -164,10 +164,10 @@ html.k-revealing
 <div class="k-askbox">
 <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
 <input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What should be built?" maxlength="500" placeholder="What should be built?" enterkeyhint="go" spellcheck="false">
-<button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#send"/></svg><span data-label>Post a job →</span></button>
+<button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#send"/></svg><span data-label>Check demand →</span></button>
 <i class="k-load" aria-hidden="true"></i>
 </form>
-<p class="k-sub" id="k-sub">$0 of test money unless a helper's work passes your check</p>
+<p class="k-sub" id="k-sub">Type an idea or a paper's DOI. Qloo taste data shows who would buy it, and where. <a href="./">What Knos is</a></p>
 <script src="brand/pointer.js" defer></script>
 <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-count></span> <span data-t aria-hidden="true"></span></p>
 <ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
@@ -218,7 +218,7 @@ const tick = () => { if (liveT && since) liveT.textContent = `· ${((performance
 const busy = (on) => {
 const label = go.querySelector("[data-label]") || go;
 clearInterval(clock);
-if (!on) { label.textContent = "Post a job →"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
+if (!on) { label.textContent = "Check demand →"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
 clearInterval(poll); const secs = since ? (performance.now() - since) / 1000 : null; counted(secs);   // the last count stays
 since = 0; if (liveSaid) liveSaid.textContent = ""; if (liveT) liveT.textContent = ""; return; }
 rid = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -584,9 +584,9 @@ ${recordedCard(r, label) ? u1(r) : ""}
 ${calls(r)}
 ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
 <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
-<footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">What many people like, from Qloo: a hint at demand, never about one person.${
+<footer class="k-card-foot">${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">What many people like, from Qloo: a hint at demand, never about one person.${
 HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
-${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">Fee: 1% of each payout. Test money for now.</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Check it in one city →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
+${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">${esc((r.fees && r.fees.text) || "Devnet release fee: 0.3%, at least 0.05 test units. Test money.")}</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Check it in one city →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
 }
 async function ask(v, extra = {}) {
@@ -694,13 +694,13 @@ places: cityList(r).map((c) => c.name), trace: h ? `${API}/trace.html?hash=${h}`
 if ("modelContext" in document && document.modelContext && document.modelContext.registerTool) {
 try {
 document.modelContext.registerTool({ name: "open_trace", description: "Opens the Qloo trace of a past demand check by its hash",
-inputSchema: { type: "object", properties: { hash: { type: "string", description: "The check's hash, 16 to 64 hex characters" } }, required: ["hash"] },
+inputSchema: { type: "object", properties: { hash: { type: "string", description: "The check's hash, 64 hex characters" } }, required: ["hash"] },
 annotations: { readOnlyHint: true },
-execute: async ({ hash }) => { if (!/^[0-9a-f]{16,64}$/.test(String(hash || ""))) return "hash: 16 to 64 hex characters"; open(`${API}/trace.html?hash=${hash}`, "_blank", "noopener"); return `opened the trace of ${hash}`; } });
+execute: async ({ hash }) => { if (!/^[0-9a-f]{64}$/.test(String(hash || ""))) return "hash: 64 hex characters"; open(`${API}/trace.html?hash=${hash}`, "_blank", "noopener"); return `opened the trace of ${hash}`; } });
 document.modelContext.registerTool({ name: "open_preorders", description: "Opens the pre-order page of an Open check in the app; the person confirms any money there",
 inputSchema: { type: "object", properties: { hash: { type: "string", description: "The Open check's hash" } }, required: ["hash"] },
 annotations: { consequentialHint: true },
-execute: async ({ hash }) => { if (!/^[0-9a-f]{16,64}$/.test(String(hash || ""))) return "hash: 16 to 64 hex characters"; location.href = `${APP}#buy=${hash}`; return "opened the pre-order page"; } });
+execute: async ({ hash }) => { if (!/^[0-9a-f]{64}$/.test(String(hash || ""))) return "hash: 64 hex characters"; location.href = `${APP}#buy=${hash}`; return "opened the pre-order page"; } });
 } catch { /* a browser whose tools differ: the form still works */ }
 }
 const pressed = (b) => root.querySelectorAll(".k-try .k-chip").forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
@@ -731,9 +731,9 @@ if (Number.isFinite(n)) { b.dataset.n = String(n); count(b, n); } else b.closest
 let moved = false;
 const later = (f) => { const go = () => { if (moved) return; moved = true; f(); };
 for (const t of ["pointermove", "pointerdown", "touchstart", "keydown", "scroll", "focusin"]) addEventListener(t, go, { once: true, passive: true, capture: true }); };
-later(() => seen(document.getElementById("paid-on-proof") || root, () => {
-const paid = document.getElementById("k-paid"), use = document.getElementById("k-usage"), oidc = document.getElementById("k-oidc");
-if (oidc) fetch("program_ids.json").then((r) => r.json()).then((ids) => fetch("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" },
+later(() => seen(document.getElementById("step-released") || root, () => {
+const use = document.getElementById("k-usage"), oidc = document.getElementById("k-oidc");
+if (oidc) fetch("https://drexthealpha.github.io/Knos/program_ids.json").then((r) => r.json()).then((ids) => fetch("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" },
 body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSignaturesForAddress", params: [ids.knos_oidc, { limit: 20, commitment: "confirmed" }] }) }))
 .then((r) => r.json()).then((j) => {
 const x = (j.result || []).find((t) => t.err === null);
@@ -741,13 +741,6 @@ if (!x) return;
 const day = x.blockTime ? new Date(x.blockTime * 1000).toISOString().slice(0, 10) : "";
 oidc.innerHTML = `Latest signature check on devnet${day ? `, ${esc(day)}` : ""} · <a href="https://explorer.solana.com/tx/${esc(x.signature)}?cluster=devnet" target="_blank" rel="noopener">the transaction</a>`;
 oidc.dataset.live = "1";
-}).catch(() => {});
-if (paid) get("/api/agent/payout/latest").then((x) => {
-if (!x || !x.found || !(x.units > 0)) return;
-const day = String(x.at || "").slice(0, 10);
-paid.innerHTML = `Agent paid <b>${esc(x.units)} test units</b>${day ? `, ${esc(day)}` : ""} · <a href="${esc(x.explorer)}" target="_blank" rel="noopener">${esc(x.released || "the transaction")}</a>`;
-paid.hidden = false;
-paid.dataset.live = "1";
 }).catch(() => {});
 if (use) get("/api/usage").then((u) => {
 const t = (u && u.trend) || {}, from = Date.parse(String((u && u.since) || "") + "T00:00:00Z");
@@ -804,7 +797,7 @@ const list = mine();
 if (!list.length) { if (box) box.hidden = true; return; }
 if (!box) {
 slot.insertAdjacentHTML("afterend", `<section class="k-mine" data-past-checks aria-labelledby="k-mine-h"><h3 id="k-mine-h">Your past checks</h3>
-<p class="k-fine">Each read from its line in the Knos record in Sibyl.</p><ul data-mine></ul>
+<p class="k-fine">Each read from its line in the Knos record.</p><ul data-mine></ul>
 <p><button type="button" class="k-chip" data-forget>Forget mine</button> <span class="k-fine" data-forgot role="status"></span></p></section>`);
 box = root.querySelector("[data-past-checks]");
 }
@@ -915,7 +908,7 @@ if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.op
 <div class="k-rest">
 <details class="k-samples" id="k-samples" open><summary class="k-add">Try a sample</summary>
 <p class="k-fine">Tap a sample to check who would buy it:</p>
-<div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
+<div class="k-try" role="group" aria-label="Sample ideas">
 <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
 <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
 <button type="button" class="k-chip" data-tech="web3" data-q="a crypto podcast for beginners">Crypto podcast</button>
@@ -924,11 +917,11 @@ if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.op
 <button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
 <span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
 </details>
-<figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
+<figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From a demand check to a release: Demand checked, Money held, Check passes, Released">
 <svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
 <circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
 <circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
-<ol class="k-stops"><li>Test set</li><li>Money held</li><li>Check runs</li><li data-on>Paid</li></ol>
+<ol class="k-stops"><li>Demand checked</li><li>Money held</li><li>Check passes</li><li data-on>Released</li></ol>
 </figure>
 <script src="brand/shape.js" defer></script>
 </div>
@@ -940,42 +933,23 @@ if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.op
   <style>#k-steps ol,#k-steps ul{display:flex;flex-wrap:wrap;gap:12px 24px;margin:12px 0;padding:0;list-style:none}#k-steps li{display:flex;align-items:center;gap:8px;font:600 var(--s0)/1.3 var(--text);color:var(--ink)}#k-steps .k-i{stroke:var(--accent)}@media (min-width:900px){#k-steps ol li + li::before{content:"\2192";color:var(--muted);margin-right:16px;font-weight:400}}@media (max-width:899px){#k-steps ol{display:grid;grid-template-columns:1fr 1fr}#k-steps ul{flex-direction:column}}#k-steps ul{border-top:1px solid var(--line);padding-top:12px}#k-steps ul li{font-weight:500}#k-steps a{color:inherit}#k-steps h2{font:600 var(--s1)/1.2 var(--head);margin:0}</style>
   <h2 id="k-steps-h">How it works</h2>
   <ol class="k-step-list">
-    <li><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#send"/></svg>Job posted</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#lock"/></svg>Money held</li>
-    <li><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#users"/></svg>Helpers try</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#send"/></svg>Idea or paper</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#users"/></svg>Qloo demand</li>
+    <li><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#lock"/></svg>Test money held</li>
     <li><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#circle-check"/></svg><a href="./check/#sample" id="steps-check">Check passed</a></li>
-    <li id="paid-on-proof"><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#coins"/></svg>Helper paid</li>
+    <li id="step-released"><svg class="k-i" aria-hidden="true"><use href="brand/icons.svg#coins"/></svg>Released</li>
   </ol>
   <p class="fine" id="k-usage" data-not-prose hidden></p>
-</section>
-<section id="k-film" class="k-film" aria-labelledby="k-film-h">
-  <style>#k-film { position: relative; height: 320vh; margin: 32px 0; }
-  #k-film .pin { position: sticky; top: var(--bar-h, 72px); height: calc(100vh - var(--bar-h, 72px)); overflow: hidden; border-radius: 18px; background: var(--paper); }
-  #k-film canvas { width: 100%; height: 100%; display: block; }
-  #k-film .k-film-cap { position: absolute; left: 24px; bottom: 24px; max-width: min(560px, calc(100% - 48px)); padding: 12px 16px; border-radius: 14px; background: color-mix(in srgb, var(--paper) 86%, transparent); }
-  #k-film .k-film-cap b { display: block; font: 600 var(--s3)/1.1 var(--head); }
-  #k-film .k-film-tag { position: absolute; left: 0; top: 0; padding: 2px 8px; border-radius: 8px; font: 600 var(--s0)/1.3 var(--text); color: var(--ink); background: color-mix(in srgb, var(--paper) 84%, transparent); pointer-events: none; white-space: nowrap; will-change: transform; }
-  #k-film .k-film-still { display: none; }
-  @media (max-width: 760px), (prefers-reduced-motion: reduce) { #k-film { height: auto; } #k-film .pin { display: none; } #k-film .k-film-still { display: block; } }
-  #k-film.k-film-still { height: auto; } #k-film.k-film-still .pin { display: none; } #k-film.k-film-still .k-film-still { display: block; }
-  #k-film .k-film-still ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; list-style: none; padding: 0; margin: 0; }
-  #k-film .k-film-still li { background: var(--paper-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
-  @media (max-width: 760px) { #k-film .k-film-still ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }</style>
-  <h2 class="k-sr" id="k-film-h">One job, as you scroll</h2>
-  <div class="pin"><canvas aria-hidden="true"></canvas><p class="k-film-cap" aria-live="polite"><b data-stage>Resolve</b><span data-line>The test is locked before money moves.</span></p></div>
-  <div class="k-film-still"><ol aria-label="One job"><li><b>Resolve</b><br>The test is locked.</li><li><b>Price</b><br>The bid waits.</li><li><b>Settle</b><br>The check runs.</li><li><b>Work</b><br>The passing agent is paid.</li></ol></div>
-  <script type="module" src="./brand/film.js"></script>
-  <p class="fine">After the 3D template of <a href="https://prompt-motion.com/templates/realtime">Prompt Motion</a>, curated by <a href="https://x.com/p4nthera_">@p4nthera_</a>.</p>
 </section>
 <!-- /k-steps -->
 <!-- k-caps -->
 <section id="k-built" class="k-built" aria-labelledby="k-built-h">
   <style>#k-built { margin: 32px 0 0; } #k-built pre, #k-built pre code { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; } #k-built h2 { font: 600 var(--s1)/1.3 var(--head); margin: 0 0 8px; } #k-built .k-caps { margin: 0; padding-left: 1.1em; font-size: var(--s-1); } #k-built .k-caps li { margin: 0 0 4px; } #k-built .k-lead { margin: 0 0 12px; padding-left: 1.1em; font-size: var(--s0); } #k-built .k-lead li { margin: 0 0 6px; overflow-wrap: anywhere; }</style>
   <h2 id="k-built-h">How is it built?</h2>
-  <p class="k-sr">On Solana devnet, with GitHub's signature checked in a program and a hosted MCP server.</p>
+  <p class="k-sr">On NEAR testnet, with the earlier Solana devnet programs and a hosted MCP server.</p>
   <ul class="k-lead" id="k-lead" data-not-prose>
-    <li data-lead="held">Money held and paid on devnet only on proof: <a href="https://explorer.solana.com/tx/zCxgsXmAYzDJTwGtg9hvEWZEikRzT15LUbGht7VA8vnpSKt3jLyiWycS8UzRT8k29UmBgvHnmWckjCtqpdsKW4F?cluster=devnet" rel="noopener">a release</a> of <a href="./crossing/7b4ed16b8c2903dc/">the crossing</a></li>
-    <li data-lead="oidc">GitHub's signature checked inside a Solana program: <a href="https://explorer.solana.com/tx/pCpGcxBNpazogpF1qio85u4wC7ygeNGaJ6TcXDgat84jEPcJQz9bne4giqHXM4Ym8YSKjU7AQQxtb21eYeG8qq8?cluster=devnet" rel="noopener">a check on devnet</a></li>
+    <li data-lead="near">The jobs contract on NEAR testnet, jobs.knos-swarm-1105.testnet, holds no access key; test money moves only when the locked test passes: <a href="./prove/">the proof</a></li>
+    <li data-lead="oidc">Built earlier, the same Knos on Solana devnet (the Colosseum entry, tag v0.3.28): GitHub's signature checked inside a program, <a href="https://explorer.solana.com/tx/pCpGcxBNpazogpF1qio85u4wC7ygeNGaJ6TcXDgat84jEPcJQz9bne4giqHXM4Ym8YSKjU7AQQxtb21eYeG8qq8?cluster=devnet" rel="noopener">a check on devnet</a></li>
     <li data-lead="mcp">The hosted MCP: <code>claude mcp add --transport http knos https://knos.onrender.com/mcp</code> · <a href="https://knos.onrender.com/mcp" rel="noopener">the server</a></li>
   </ul>
   <ul class="k-caps" id="k-caps">
@@ -986,10 +960,10 @@ if (!asked && samples) samples.addEventListener("toggle", () => { if (samples.op
     <li>Anyone can <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/PROVENANCE.md">rebuild the live program</a> and get the same hash</li>
     <li>Upgrades need 2 of 3 Squads keys and wait 8 days in public; one person <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/GOVERNANCE.md">holds all 3 today</a></li>
     <li>Receipts are <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/TERMS.md">Solana Attestation Service</a> attestations</li>
-    <li>Every decision is a line of a <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/KNOS_RECORD.md">hash-chained record</a> kept in Sibyl, its root on devnet</li>
+    <li>Every decision is a line of a <a href="https://github.com/drexthealpha/Knos/blob/main/docs/reference/KNOS_RECORD.md">hash-chained record</a>, its root on devnet</li>
   </ul>
   <details class="k-more" id="agent-key" data-not-prose><summary>Agents with a key</summary><p class="fine">Put this in .mcp.json and the key in KNOS_AGENT_KEY:</p><pre><code>{"mcpServers":{"knos":{"type":"http","url":"https://knos.onrender.com/mcp","headers":{"Authorization":"Bearer ${KNOS_AGENT_KEY}"}}}}</code></pre></details>
-  <p class="fine"><a href="./pricing.html">Pricing</a> · <a href="./how-we-test.html">How we test Knos</a></p>
+  <p class="fine"><a href="./pricing/">Pricing</a></p>
 </section>
 <!-- /k-caps -->
 <section class="k-clicks" id="k-clicks" aria-labelledby="k-clicks-h">

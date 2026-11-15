@@ -114,7 +114,7 @@ def test_page_renders_and_verifies_from_the_page():
     env, _ = envelope()
     html = page.render(env)
     assert "Knos Receipt" in html and "signature" in html.lower() and "valid" in html
-    assert "Turn on Knos Gate for your repo" in html and "<script src" not in html
+    assert "Turn on the Knos check for your repo" in html and "<script src" not in html
     assert core.verify(page.from_page(html))["valid"]
     assert not core.secrets_in(html)
 

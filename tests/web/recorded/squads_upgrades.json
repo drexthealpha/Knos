@@ -1,5 +1,5 @@
 {
- "note": "The upgrade multisig's account is the real one of devnet (tests/fixtures/governance_v2.json) with transaction_index set to 5, because the real one has made no proposal; the five proposals and their transactions are built by tests/test_site_recorded.py in the layouts src/knos/mainnet_check.py reads, at the addresses it derives. `pending` is what mainnet_check.pending_proposals reads from them at `now`. tests/web/site.mjs holds web/upgrade.js to that answer. Written by `python tests/test_site_recorded.py`.",
+ "note": "The upgrade multisig's account is a snapshot of the devnet one from before 11 Oct 2026 (tests/fixtures/governance_v2.json) with transaction_index set to 5, so the banner has known cases; the five proposals and their transactions are built by tests/test_site_recorded.py in the layouts src/knos/mainnet_check.py reads, at the addresses it derives. `pending` is what mainnet_check.pending_proposals reads from them at `now`. Written by `python tests/test_site_recorded.py`.",
  "now": 1790000000,
  "multisig": "9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK",
  "time_lock": 172800,

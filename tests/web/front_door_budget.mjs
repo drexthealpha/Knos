@@ -1,6 +1,6 @@
 // node tests/web/front_door_budget.mjs <site dir>
 // The front door's numbers (Round 7, S1), on a 390 x 844 phone with the CPU slowed 4 times, in light and dark:
-// the first screen holds one plain line, the paste box in the middle of the screen, one primary button and the sample,
+// the first screen holds one plain line, the question box in the middle of the screen, one primary button and the sample,
 // whose answer appears on that same screen; the page is at most 3 screens tall and at most 60 words, the box within its first 40 (Nielsen 2008: half leave within 10 s); body text is at
 // least 16 px; every touch target is at least 44 px (a link inside a sentence is exempt, as WCAG 2.2 2.5.8 exempts it);
 // text contrast meets WCAG 2.2 AA (4.5:1, or 3:1 for large text); every press shows a visible change within 100 ms
@@ -33,7 +33,7 @@ const ANSWERS = {
     ? { ok: true, known: true, paper: "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm", authors: "Flajolet, Fusy, Gandouet and Meunier, 2007",
         doi: SAMPLE, paper_number: "2% typical error, 1.5 kilobytes of memory", last: { holds: true, job: "job-1", record: "https://example.org/record" } }
     : { ok: true, known: false, title: "Another paper", quote: { checker: "a person who reruns it", price: "$330 to $763", time: "weeks", source: "https://example.org/" } }),
-  "/api/near/claim/counters": () => ({ proofs: 231, usd: 4278, lost_usd: 0 }),
+  "/api/near/claim/counters": () => ({ proofs: 231 }),
 };
 const browser = await chromiumOrSkip();
 const server = createServer((req, res) => {

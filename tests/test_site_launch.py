@@ -2,8 +2,8 @@
 
 The tags of a shared link to the root (web/door.html <head>, the front door Pages serves) and the card they name; the
 fuller tag set of web/index.html, which Pages no longer serves (the app's build, KNOS_SPA_AT_ROOT=1, still opens it); the 404 page GitHub Pages answers a missing
-address with (web/404.html); the privacy and terms page as web/privacy.html says it, each of its lines held to the code it
-describes (Pages publishes the privacy.html scripts/site_product.py writes instead, with NEAR testnet lines); the line every page shows when a data file does not load (web/retry.js). In a browser, on a build of web/:
+address with (web/404.html); the privacy and terms page (web/privacy.html, the same text scripts/site_product.py publishes: one short line each),
+its lines held to the code of web/ where they can be; the line every page shows when a data file does not load (web/retry.js). In a browser, on a build of web/:
 tests/web/launch.mjs (404, privacy, data files refused) and tests/web/android.mjs (360 x 740, CPU 4x slower, slow 4G).
 No node, no `playwright` package or no browser: those two are skipped, with the reason."""
 
@@ -132,34 +132,42 @@ def _statements(name: str, selector: str) -> list[str]:
 
 def test_the_404_page_is_the_sites_own_from_any_depth() -> None:
     html = (WEB / "404.html").read_text(encoding="utf-8")
-    assert '<base href="/Knos/">' in html and html.index("<base") < html.index('href="app.css"')
+    # every link and file is read from the site's root through <base>, before the page names any of them
+    assert '<base href="/Knos/">' in html and html.index("<base") < html.index('href="brand/tokens.css"') and "app.css" not in html
     assert '<meta name="robots" content="noindex">' in html and _external("404.html") == []
+    assert 'id="kh"' in html and '<a class="go" href="./">' in html                       # the product's one header, one button to the front door
     links = re.findall(r'<li><a href="([^"]+)"', html)
-    assert links == ["./", "./#pricing", "https://github.com/drexthealpha/Knos/tree/main/docs"]
+    assert links == ["claims/", "pricing/"]
     assert 'href="privacy.html"' in html
     for line in _statements("404.html", "h1") + _statements("404.html", "li"):
         assert len(WORD.findall(line)) <= 12, line
 
 
-PRIVACY_LINES = {
-    "No cookies, analytics or trackers.",
-    "Serves its own fonts, scripts and images.",
-    "Sends what you type to the Knos app on Check.",
-    "Reads public code pages and Solana devnet from your browser.",
-    "Keeps answers in this tab, and your theme and passkey here.",
-    "Sends an idea's words to Qloo, never a person's.",
-    "Keeps each report; its link shows it.",
-    "Puts reports on devnet for projects and examples only.",
-    "Shows visitors only the site's own examples.",
-    "Counts requests per address, only to limit them.",
-    "Same rules for AI assistants that connect to Knos.",
-    "Keeps its files on your own machine.",
-    "Asks GitHub and Solana devnet when a command needs them.",
-    "Runs on Solana devnet: the money is test USDC.",
-    "Uses the MIT licence: read it.",
-    "Comes with no warranty, as the licence says.",
-    "Report a problem in GitHub issues.",
-    "Read what a payment makes public.",
+PRIVACY_LINES = {   # web/privacy.html, the page scripts/site_product.py publishes (--sources writes the same text)
+    'No cookies, and no outside tracker.',
+    'The Prove page loads one script library, GSAP, from cdnjs.',
+    "Your browser checks that file's integrity; it sends nothing of yours.",
+    'Each page sends Knos small events of an anonymous visit.',
+    'The visit id is random, made by your browser, reset daily.',
+    'Events name the page, each press and how long it took.',
+    'They say whether you got an answer or ran a proof.',
+    'They say whether you backed a claim or downloaded code.',
+    'Also three quick presses on one spot, and any error shown.',
+    'A tap on "Not what I need", and any word you add.',
+    'Also the last page, and its seconds before you leave.',
+    'No IP address, account or cookie is stored with them.',
+    'Do Not Track in your browser stops every event.',
+    'The status page shows the totals.',
+    'What you type goes to the Knos server, which answers.',
+    "The server reads a paper's title from its public record, Crossref.",
+    "Your browser also reads NEAR testnet's public record.",
+    'No account and no sign-in.',
+    'It counts requests per address, only to limit them.',
+    'Every proof and payment is public on NEAR testnet.',
+    'Test money on NEAR testnet, worth nothing.',
+    'The code is MIT licensed: read the licence.',
+    'It comes with no warranty, as the licence says.',
+    'Report a problem in GitHub issues.',
 }
 
 
@@ -183,7 +191,8 @@ def test_each_privacy_line_agrees_with_the_code() -> None:
     hosts = set(re.findall(r'fetch\(\s*[`"](https://[A-Za-z0-9.-]+)', code))                # whom the pages fetch from
     # (every host a page asks is also refused and counted in the browser: tests/web/launch.mjs "nothing outside the site")
     # and the Knos app ("Sends what you type to the Knos app on Check"): /check/ also reads its newest payout, sending nothing
-    assert hosts <= {"https://api.github.com", "https://api.devnet.solana.com", "https://knos.onrender.com"}, hosts
+    # and the site's own host: web/brand/hero.js reads the program_ids.json each Pages build ships (the app on Render has no copy)
+    assert hosts <= {"https://api.github.com", "https://api.devnet.solana.com", "https://knos.onrender.com", "https://drexthealpha.github.io"}, hosts
     for tracker in ("google-analytics", "googletagmanager", "plausible", "segment.com", "posthog", "mixpanel", "sentry"):
         assert tracker not in code.lower(), tracker
     assert "sessionStorage" in (WEB / "cache.js").read_text(encoding="utf-8")               # this tab, until it closes
@@ -222,8 +231,10 @@ def _node(tmp_path: Path, script: str, says: str) -> str:
 
 def test_the_404_page_privacy_and_a_data_file_that_does_not_load_in_a_browser(tmp_path: Path) -> None:
     said = _node(tmp_path, "launch.mjs", "launch: all passed")
-    for line in ("404: a missing address answers 404 at 320", "/Knos/pricing offers the pricing page first", "no page sets a cookie",
-                 "#network reads stats.json and, when it does not load, says so", "none blank, none with a stack", "Reload, once the file loads"):
+    # this build keeps the earlier one-page app at the root (tests/_posix.py sets KNOS_SPA_AT_ROOT=1), so its data-file
+    # checks run; the 404 and the privacy page are the product's, the ones Pages publishes
+    for line in ("404: a missing address answers 404 at 320", "404: the product's one header at 390", "privacy: the page draws, every line a short statement",
+                 "no page sets a cookie", "reads stats.json and, when it does not load, says so", "none blank, none with a stack", "Reload, once the file loads"):
         assert line in said, line
 
 

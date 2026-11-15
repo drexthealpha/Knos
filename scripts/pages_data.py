@@ -70,8 +70,8 @@ import agent_pr_index  # noqa: E402 - the standard library only
 SITE = "https://drexthealpha.github.io/Knos"
 HOME_REPO = "drexthealpha/Knos"
 # The canary's runs: of the workflow examples/knos-canary.yml, under the name a repository installs it by, in the
-# repository kept for it (that file's header: "Knos runs one in drexthealpha/knos-e2e"; web/live.js reads the same
-# one). Never the home repository: the canary opens and merges pull requests all day where it runs. Both can be
+# repository kept for it (Knos ran canary rounds in drexthealpha/knos-e2e from 4 to 15 Oct 2026; none runs now;
+# web/live.js reads the same one). Never the home repository: the canary opens and merges pull requests all day where it runs. Both can be
 # named on the command line (--canary, --canary-repo) by whoever runs a canary of their own.
 CANARY = "knos-canary.yml"
 CANARY_REPO = "drexthealpha/knos-e2e"

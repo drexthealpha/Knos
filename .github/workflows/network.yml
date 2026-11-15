@@ -1,10 +1,11 @@
 name: pages
 
-# GitHub Pages: the Knos web app at / (it reads GitHub and Solana devnet in the browser, so it works with no Knos
-# server), /stats.json (what was funded and paid, counted from knos-pay's own logs on devnet, with Knos's own
-# activity kept apart from outside use: scripts/network_stats.py), the public record as static files (/bounties.json,
-# /bounties.rss, /u/<login>, /r/<owner>/<repo>, /badge/, /rank/, /latency.json, /operations.json: scripts/pages_data.py,
-# counted from the same log lines, the relay log and GitHub), and /index.json, the Agent PR Index (scanned every
+# GitHub Pages: the Knos product pages (the front door web/door.html at /, claims/, claim/<name>/, prove/ for NEAR
+# testnet, agents/, labs/, pricing/, status/: scripts/site_pages.py and scripts/site_product.py; every older page sends
+# to the front door), /stats.json (what was funded and paid on Solana devnet, counted from knos-pay's own logs, with
+# Knos's own activity kept apart from outside use: scripts/network_stats.py), the data files older pages read
+# (/u/<login>, /r/<owner>/<repo>, /latency.json, /operations.json: scripts/pages_data.py, counted from the same log
+# lines, the relay log and GitHub), and /index.json, the Agent PR Index (scanned every
 # 6 hours by index.yml and published as the index.json asset of the newest `index-*` GitHub Release; this build only
 # downloads it and re-checks its Merkle root). It never commits: all of it ships in the Pages artifact.
 #
@@ -43,7 +44,7 @@ jobs:
       - name: The newest agent payout and the usage counter, from the app (the committed line stays when it does not answer)
         run: python scripts/live_snapshot.py _site/index.html && python scripts/live_snapshot.py _site/app.html
       - name: The public pages' stylesheets in the page (no render-blocking request before the first paint)
-        run: python scripts/inline_css.py _site/index.html _site/app.html _site/wanted.html _site/faq.html _site/privacy.html _site/404.html
+        run: python scripts/inline_css.py _site/index.html _site/privacy.html _site/404.html
       - name: the history the last build read, so this one reads only what is new
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -126,7 +127,7 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
 
-  # after a deploy from a push: the changed pages of web/ go to IndexNow (scripts/indexnow.py, keyLocation web/indexnow.txt)
+  # after a deploy from a push: the pages whose source changed go to IndexNow (scripts/indexnow.py, keyLocation web/indexnow.txt)
   indexnow:
     needs: deploy
     if: github.event_name == 'push'
@@ -142,7 +143,7 @@ jobs:
       - name: Send the changed pages to IndexNow
         env:
           BEFORE: ${{ github.event.before }}
-        run: python scripts/indexnow.py $(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- web 2>/dev/null)
+        run: python scripts/indexnow.py $(git diff --name-only "$BEFORE" "$GITHUB_SHA" 2>/dev/null)
 
   # after a deploy from a push: the live front door in Chromium; every page beside it raises no page error
   # (scripts/test_front_door_live.mjs).

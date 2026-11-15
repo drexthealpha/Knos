@@ -83,7 +83,7 @@ def test_the_document_says_the_limits_the_code_holds_and_claims_nobody():
     assert "an outside payee, never an outside funder" in doc
     # the stranger's path, in the order he walks it, and the board's limits as the code holds them
     path = [doc.index(w) for w in ("**Fork.**", "**`Closes #N`.**", "**The check.**", "**The merge pays.**")]
-    assert path == sorted(path) and "`/knos address <address>`" in doc and "passkey wallet" in doc and "python3 check.py <task>" in doc
+    assert path == sorted(path) and "`/knos address <address>`" in doc and "passkey wallet" in doc and "python3 check.py <issue number>" in doc
     spec = importlib.util.spec_from_file_location("task_board_playground", ROOT / "scripts" / "task_board.py")
     board = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(board)

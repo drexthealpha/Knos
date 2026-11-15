@@ -3,7 +3,9 @@ here), its arithmetic is the program's, every placeholder is listed, and a bad f
 from __future__ import annotations
 
 import copy
+import json
 import random
+import re
 from decimal import Decimal
 from pathlib import Path
 
@@ -127,7 +129,9 @@ def test_the_bounty_fee_is_five_percent_of_which_the_program_takes_its_compiled_
     with pytest.raises(ValueError):
         cfg.platform("payout", 5)
     text = CONFIG.read_text(encoding="utf-8")
-    assert "TechCrunch, 7 Oct 2026" in text and "WSJ" in text and "unaudited" in text and "Epoch AI, 12 Jan 2026" in text
+    assert "Epoch AI, 12 Jan 2026" in text                                                       # an outside figure with its source
+    public = json.dumps(cfg.public()).lower()
+    assert not re.search(r"\b(nous|hermes)\b", public)                              # no rival is named in what the site reads
 
 
 def test_the_small_reader_reads_the_file_as_pyyaml_does():
@@ -162,8 +166,8 @@ def _broken(cfg, change) -> list[str]:
     (lambda d: d["treasury"].__setitem__("fee_owner", "11111111111111111111111111111111"), "treasury.fee_owner"),
     (lambda d: d.__setitem__("revenue_today", "1000"), "revenue_today"),
     (lambda d: d.__setitem__("network", "solana mainnet"), "network"),
-    (lambda d: d["sources"]["nous"].__setitem__("source", ""), "sources.nous"),
-    (lambda d: d["sources"]["nous"].__setitem__("audited", True), "sources.nous"),
+    (lambda d: d["sources"]["epoch_tasks"].__setitem__("source", ""), "sources.epoch_tasks"),
+    (lambda d: d["sources"]["epoch_tasks"].__setitem__("audited", True), "sources.epoch_tasks"),
     (lambda d: d["cloud"]["tiers"].append({"name": "Pro", "usd_month": "5", "credits_month": 1}), "cloud.tiers"),
     (lambda d: d["cloud"]["tiers"][0].__setitem__("usd_month", "-20"), "cloud.tiers.Starter.usd_month"),
     (lambda d: d["fees"]["bounty_platform"].__setitem__("status", "live"), "fees.bounty_platform.status: not live"),

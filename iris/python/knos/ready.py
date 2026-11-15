@@ -197,7 +197,7 @@ def terms(brief: dict) -> dict:
 
 
 def launch(brief) -> dict | None:
-    """The launch terms Qloo set (apps/wanted metros.py): city, metro code, mean affinity, the heatmap cells and
+    """The launch terms Qloo set (apps/wanted/knos_wanted/metros.py): city, metro code, mean affinity, the heatmap cells and
     population behind it, the pre-order target and the refund rule, with the ranking's lift and the taste persona's tags. Hashed with the milestones when a brief carries them; a brief without them hashes as before."""
     raw = brief.get("launch") if isinstance(brief, dict) else None
     if not isinstance(raw, dict):

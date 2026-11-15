@@ -1,9 +1,9 @@
-"""knos.flow with knos_pay 2.1 behind it: a funding comment opens a WORK ORDER, settle pays orders and jobs alike, and the
+"""knos.flow with work orders (knos_pay 2.1 and later) behind it: a funding comment opens a WORK ORDER, settle pays orders and jobs alike, and the
 order's own commands (offer, raise, cancel, split, take). The fakes are tests/_flow.py's; `w.version = 1` is a chain
 whose vault is 2.1. While it is 0 every comment does what it did before (tests/test_flow.py).
 
-The public program runs 2.1 until the upgrade to 2.2 executes, and every comment states the fee of the build that is
-LIVE. So each test here runs twice: on a chain that answers Version 2 (2.2: 0.30%, at least 0.05) and on one that
+The public program has run 2.2 since proposal 8 executed (9 Oct 2026); orders funded under 2.1 keep its fee. Every
+comment states the fee of the build that is LIVE, so each test here runs twice: on a chain that answers Version 2 (2.2: 0.30%, at least 0.05) and on one that
 answers 1 (2.1: the tiers of 0.3.14, at least 0.40). P(old, new) is what a test pins for each; `old` is what 0.3.17 pinned."""
 from __future__ import annotations
 

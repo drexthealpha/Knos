@@ -2,6 +2,8 @@
 
 Written by `scripts/drills.py` on 2026-10-04 05:17 UTC. Do not edit: run the command at the end.
 
+These rows ran on the bytes deployed on 4 Oct 2026, before the 2.1 and 2.2 upgrades, when the time lock was 48 hours.
+
 Each row is a safety path of the second deployment, run on the bytes the cluster runs. The script reads both programs from devnet with `getAccountInfo`, loads exactly those bytes into LiteSVM (a simulator inside the script's process) at their real ids, and moves the simulator's clock.
 
 No transaction is sent to a cluster, so a row is a log of the deployed code, not a transaction a block explorer can show. The last four rows are the upgrade drill, which this script does not run: `scripts/drill_upgrade.sh` runs it against a validator on the machine it is run on, with the real Squads program.

@@ -17,7 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: the Knos modules in iris/python/knos/ are byte for byte src/knos (iris/python/VENDORED.txt)
-        run: python3 iris/tests/test_iris_vendored.py
+        # solders as iris/Dockerfile installs it: knos.settle.v2.pay builds its instructions with it inside IRIS too
+        run: |
+          sudo python3 -m pip install --quiet --break-system-packages "solders>=0.21,<0.30" "base58>=2"   # system site: the test runs python3 -I
+          python3 iris/tests/test_iris_vendored.py
       - name: docker compose -f docker-compose.public.yml up -d --build
         working-directory: iris
         run: docker compose -f docker-compose.public.yml up -d --build

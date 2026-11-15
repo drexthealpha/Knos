@@ -37,7 +37,7 @@
     "solana",
     "oidc",
     "github-actions",
-    "pay-on-proof",
+    "proof",
     "knos",
     "x402",
     "payments"

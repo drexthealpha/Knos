@@ -939,7 +939,7 @@ def register(app, help_lines: list | None = None) -> None:
                 typer.echo(json.dumps({"name": env["name"], **got}, sort_keys=True))
             else:
                 cli.out.print(f"Envelope {env['name']}: one task of {money(amount)}, fee {money(fee)} on top"
-                              + ("." if fee == was else f" ({money(was)} until knos_pay {fees.NEW.build} is live: `knos status` says which build runs)."), markup=False)
+                              + ("." if fee == was else f" (orders funded under knos_pay {fees.OLD.build} keep {money(was)})."), markup=False)
                 bars(cli, got["before"], "before")
                 bars(cli, got["after"], "after")
                 cli.out.print(got["sentence"], markup=False)

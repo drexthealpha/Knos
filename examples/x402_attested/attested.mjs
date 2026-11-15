@@ -131,15 +131,15 @@ export async function verify(chain, req, payload, margin = 3600) {
 }
 
 /** The SettlementResponse the server returns with the resource (base64 in PAYMENT-RESPONSE): the money is held, not yet the seller's. */
-export const escrowed = (req, payload, v) => ({
+export const settledHeld = (req, payload, v) => ({
   success: true, payer: v.payer, transaction: payload.transaction ?? "", network: req.network, amount: String(v.order.amount),
-  extensions: { [SCHEME]: { info: { order: payload.order, state: "escrowed", deadline: v.order.deadline } } },
+  extensions: { [SCHEME]: { info: { order: payload.order, state: "held", deadline: v.order.deadline } } },
 });
 
-/** Where an order stands, from the chain alone: `escrowed` (held) while its account exists; afterwards its last log line says how it ended. */
+/** Where an order stands, from the chain alone: `held` while its account exists; afterwards its last log line says how it ended. */
 export async function status(chain, program, order) {
   const got = await chain.account(order);
-  if (got && got.owner === program && readOrder(got.data)) return { order, state: "escrowed", deadline: readOrder(got.data).deadline };
+  if (got && got.owner === program && readOrder(got.data)) return { order, state: "held", deadline: readOrder(got.data).deadline };
   const field = (line, name) => (new RegExp(`(?:^| )${name}=(\\S+)`).exec(line) || [])[1];
   const lines = (await chain.logs(order)).filter((l) => field(l, "order") === order);
   const paid = lines.filter((l) => l.startsWith("knos3:paid "));

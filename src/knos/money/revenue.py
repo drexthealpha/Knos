@@ -65,7 +65,7 @@ def model(inputs: dict | None = None, cfg: fees_config.FeeConfig | None = None) 
     subs = x.get("cloud_subscribers") or {}
     unknown = set(subs) - set(tiers)
     if unknown:
-        raise ValueError(f"no Knos Cloud tier {sorted(unknown)}")
+        raise ValueError(f"no hosted credit tier {sorted(unknown)}")
     lines["cloud"] = sum((tiers[n] * _d(c) for n, c in subs.items()), Decimal(0))
     cents = {k: str(v.quantize(Decimal("0.01"), ROUND_HALF_UP)) for k, v in lines.items()}
     total = sum(lines.values(), Decimal(0)).quantize(Decimal("0.01"), ROUND_HALF_UP)

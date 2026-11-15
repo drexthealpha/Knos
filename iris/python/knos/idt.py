@@ -99,7 +99,7 @@ READINGS = {   # the usual meanings of a vague word, each with the measurable ta
 
 def interpretations(text: str, patterns: dict | None = None) -> list[dict]:
     """2-3 readings of a vague milestone, each a target the buyer can tap; resolved patterns stored by the server
-    (Sibyl REFERENCE tier) come first (I7)."""
+    (the memory's REFERENCE tier) come first (I7)."""
     words = ready.vague_words(text or "")
     out: list[dict] = []
     for w in words:
@@ -182,7 +182,7 @@ def sketch_paradigm(brief: dict) -> str:
 
 def skills_for(brief: dict, patterns: dict | None = None) -> list[str]:
     """Reasoning skills retrieved for a task (R6, R17): the stored resolutions of the vague words this kind of brief
-    used before (the server's resolved patterns, also kept in its Sibyl record), one line each."""
+    used before (the server's resolved patterns, also kept in its memory record), one line each."""
     words = ready.vague_words(json.dumps(brief or {}))
     out = []
     for w, rows in (patterns or {}).items():

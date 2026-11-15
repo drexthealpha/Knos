@@ -37,9 +37,6 @@ MARK = "<!-- knos-no-order 1 -->"       # the first line of the answer: an item 
 LABEL = "no-order"
 LABEL_ABOUT = "No funded Knos order is attached, so no payment is due."    # GitHub keeps 100 characters of it
 BOT = "github-actions[bot]"
-PLAYGROUND = "https://github.com/drexthealpha/Knos"
-FUNDED_LABEL = "knos-funded"            # the label every funded task of the playground carries
-FUNDED = f"{PLAYGROUND}/issues?q=is%3Aissue+is%3Aopen+label%3A{FUNDED_LABEL}"       # the funded tasks, open to anyone
 SWEEP_EVERY = 300                       # seconds between two sweeps of one repository by the always-on worker
 SWEEP_AGAIN = 60                        # and after a sweep that could not read the listing
 LOG_LINE = "a log written by a workflow. It is not a task and carries no payment."
@@ -112,8 +109,7 @@ def answer(pull: bool, logs: list[int], plain: list[int]) -> str:
     lines += [
         "- On GitHub, Knos pays only orders funded with `/knos fund`, on Solana devnet, in test USDC that has no monetary value.",
         "- A GitHub payment goes to the Solana address or passkey its payee binds.",
-        f"- Funded work is listed by `knos work list`. The playground shows a funded order from start to finish: {PLAYGROUND}",
-        f"- Funded tasks anyone may take carry the label `{FUNDED_LABEL}` there: {FUNDED}",
+        "- Funded work is listed by `knos work list`.",
         "",
         ("This pull request is welcome as an ordinary, unpaid contribution if it is useful, and will be read as one."
          if pull else "A pull request is welcome as an ordinary, unpaid contribution if it is useful."),

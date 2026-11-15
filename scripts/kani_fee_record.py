@@ -85,7 +85,7 @@ TRIALS = (
 WHY = ("Why the SAT solvers do not answer: `bps_of` divides the amount by 10,000 and takes its remainder by 10,000, and CBMC gives each its own "
        "quotient and remainder, so the bound at exactly 0.30% needs the two divisions to agree (a quotient and a remainder are unique), which a "
        "solver working on bits did not find in the time; even the division's identity alone was not answered. With one basis point to spare "
-       "that agreement is not needed and CaDiCaL answers in under a second. As integers the division by a constant is linear arithmetic.")
+       "that agreement is not needed and CaDiCaL answers it (5.5 s in the recorded run). As integers the division by a constant is linear arithmetic.")
 
 
 def words(result: str, seconds: int, solver: str) -> str:
@@ -182,9 +182,14 @@ def program_lines() -> str:
     return "\n".join(out) + "\n"
 
 
+def code_lines(text: str) -> str:
+    """lib.rs without its comment lines: what Kani runs. A comment can change no proof, so rewording one needs no new run."""
+    return "\n".join(line for line in text.replace("\r\n", "\n").split("\n") if not line.lstrip().startswith("//"))
+
+
 def sources() -> dict[str, str]:
     return {"path": "programs-v2/fee_proofs/src/lib.rs",
-            "sha256": hashlib.sha256((CRATE / "src" / "lib.rs").read_bytes()).hexdigest(),
+            "code_sha256": hashlib.sha256(code_lines((CRATE / "src" / "lib.rs").read_text(encoding="utf-8")).encode()).hexdigest(),
             "program_lines_sha256": hashlib.sha256(program_lines().encode()).hexdigest()}
 
 

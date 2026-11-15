@@ -284,7 +284,7 @@ def test_funding_one_task_shows_the_envelope_before_and_after_and_refuses_over_t
     root, knos = repo
     env = root / "envelopes" / "eng-2026q4.yaml"
     rc, said = knos("budget", "envelope", env, "--fund", "500")
-    assert rc == 0 and "one task of 500.00, fee 1.50 on top (12.50 until knos_pay 2.2 is live: `knos status` says which build runs)." in said
+    assert rc == 0 and "one task of 500.00, fee 1.50 on top (orders funded under knos_pay 2.1 keep 12.50)." in said
     assert "before limit 5,000.00: committed 1,200.00, spent 850.00, held 150.00, left 2,800.00" in said
     assert "after limit 5,000.00: committed 1,701.50, spent 850.00, held 150.00, left 2,298.50" in said and "Fits: 501.50 is committed" in said
     rc, said = knos("budget", "envelope", env, "--fund", "3000")

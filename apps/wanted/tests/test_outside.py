@@ -1,4 +1,4 @@
-"""test_outside_counter (unit half): outside crossings and commitments are counted from the store and nothing else;
+"""The outside counter: outside crossings and commitments are counted from the store and nothing else;
 the operator's key, automated clients and Knos or test guest sessions are left out; the counter equals its rows."""
 import urllib.request
 

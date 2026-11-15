@@ -921,7 +921,7 @@ def _fund(book: Book, st: dict, key: str, tok: Tok, what: str) -> tuple[dict, Pu
 
 # ---- the rounds --------------------------------------------------------------------------------------------------------
 def round_order(book: Book, st: dict) -> None:
-    """One order funded by a comment, paid on its proof; every second use refused; a second funding of the same
+    """One order funded by a comment, paid when its signed check passes; every second use refused; a second funding of the same
     address is not paid by the first proof; what nobody proves goes back at the deadline."""
     w = book.w
     replay, words = single_use()
@@ -1367,7 +1367,7 @@ def round_fees(book: Book, st: dict) -> None:
 
 
 def round_holdback(book: Book, st: dict) -> None:
-    """An order that holds a fifth back for a day's warranty: its proof pays four fifths, and once the warranty is
+    """An order that holds a fifth back for a day's warranty: its passing check pays four fifths, and once the warranty is
     over the holdback is released to the payee."""
     w = book.w
     sim = w if isinstance(w, Simulated) else None
@@ -2466,7 +2466,7 @@ def after_stored_fund(book: Book, st: dict) -> None:
 
 
 def after_stored_fee(book: Book, st: dict) -> None:
-    """After the upgrade: the two orders funded under 2.1 read as they were written; a proof pays one and the other
+    """After the upgrade: the two orders funded under 2.1 read as they were written; a passing check pays one and the other
     goes back at its deadline, each with the fee it was funded with (0.40), not the new rule's (0.05)."""
     w = book.w
     before = book.ev["rounds"].get("stored_fund", {})

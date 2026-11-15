@@ -81,7 +81,7 @@ def test_caller_workflow_needs_no_secret_and_names_one_published_commit():
     wf = (ROOT / "examples" / "knos-workflow.yml").read_text(encoding="utf-8")
     # no secret is needed; the one a repository may set is handed on by name, never all of them
     assert set(re.findall(r"secrets\.(\w+)", wf)) == {"KNOS_RELAY_KEY"} and "inherit" not in wf and "No secret is needed" in wf
-    # the workflows are pinned by one commit of the published set (drexthealpha/Knos, branch workflows, since the 0.3.34
+    # the workflows are pinned by one commit of the published set (drexthealpha/Knos, the workflows-<sha12> tags, since the 0.3.34
     # cutover; drexthealpha/knos-workflows before); until a release names it the template
     # carries a placeholder, and the release puts the commit into the examples and the site together
     pins = set(re.findall(r"drexthealpha/Knos/\.github/workflows/(?:fund|prove)\.yml@(\S+)", wf))

@@ -39,7 +39,7 @@ No outsider has submitted a cheat yet: the outside row is 0 of 0, not a rate.
 <!-- authors:end -->
 
 <!-- measured:begin -->
-Measured with the referee as it is in this tree (`src/knos/judge.py`, SHA-256 2062d17a6b69...): nothing. Carried over from a run with an earlier referee, and to be measured again before a release: the 63 attacks on slugify, the attacks on the six real tasks, the tasks that are not code, the cheats aimed at what a pull request may add, the honest submissions and the escapes. The whole page in one run: `python scripts/tamper_bench.py` (longer than three minutes on a shared machine); part by part: `--slug`, `--real`, `--accept`, `--allowed`, `--honest`, `--escape`.
+Measured with the referee as it is in this tree (`src/knos/judge.py`, SHA-256 81da6a01bffe...): nothing. Carried over from a run with an earlier referee, and to be measured again before a release: the 63 attacks on slugify, the attacks on the six real tasks, the tasks that are not code, the cheats aimed at what a pull request may add, the honest submissions and the escapes. The whole page in one run: `python scripts/tamper_bench.py` (longer than three minutes on a shared machine); part by part: `--slug`, `--real`, `--accept`, `--allowed`, `--honest`, `--escape`.
 <!-- measured:end -->
 
 <!-- honest:begin -->

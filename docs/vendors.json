@@ -27,7 +27,7 @@
    "agent": "claude-bot",
    "slug": "claude-bot",
    "page": "https://drexthealpha.github.io/Knos/#vendor=claude-bot",
-   "record": "https://drexthealpha.github.io/Knos/#record=claude-bot",
+   "record": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/claude-bot.json",
    "row": {
     "weeks": 9,
     "claimed_passing": 195,
@@ -110,7 +110,7 @@
    "agent": "codex",
    "slug": "codex",
    "page": "https://drexthealpha.github.io/Knos/#vendor=codex",
-   "record": "https://drexthealpha.github.io/Knos/#record=codex",
+   "record": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/codex.json",
    "row": {
     "weeks": 13,
     "claimed_passing": 52,
@@ -217,7 +217,7 @@
    "agent": "claude-code",
    "slug": "claude-code",
    "page": "https://drexthealpha.github.io/Knos/#vendor=claude-code",
-   "record": "https://drexthealpha.github.io/Knos/#record=claude-code",
+   "record": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/claude-code.json",
    "row": {
     "weeks": 9,
     "claimed_passing": 41,
@@ -300,7 +300,7 @@
    "agent": "copilot",
    "slug": "copilot",
    "page": "https://drexthealpha.github.io/Knos/#vendor=copilot",
-   "record": "https://drexthealpha.github.io/Knos/#record=copilot",
+   "record": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/copilot.json",
    "row": {
     "weeks": 10,
     "claimed_passing": 132,
@@ -389,7 +389,7 @@
    "agent": "devin",
    "slug": "devin",
    "page": "https://drexthealpha.github.io/Knos/#vendor=devin",
-   "record": "https://drexthealpha.github.io/Knos/#record=devin",
+   "record": "https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/devin.json",
    "row": {
     "weeks": 9,
     "claimed_passing": 148,

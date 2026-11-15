@@ -20,7 +20,7 @@ anyone can rebuild either one and compare it with the chain. Build on this folde
 | folder | what it does | devnet address | runs | build hash | built from commit | live since |
 |---|---|---|---|---|---|---|
 | `knos_oidc` | the verifier: checks on chain that a CI login token ([OIDC](../docs/WORDS.md#token-oidc)) was signed by its issuer, RS256 or ES256 | `FkwZdsYCmzicJMtHLTkPK76bYNVG4WNwkWJBiVWNtF3W` | 2.2 | `a2df952d…f34e632` | `f03ec515d866` | 9 Oct 2026 (proposal 7) |
-| `knos_pay` | the [payment program](../docs/WORDS.md#money-held-until-the-proof-passes): holds money for a task and pays when a GitHub-signed token proves the work | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 2.2 | `8b3c0440…f99867c` | `f8bcd9d51eda` | 9 Oct 2026 (proposal 8) |
+| `knos_pay` | the [payment program](../docs/WORDS.md#held-money): holds money for a task and pays when a GitHub-signed token proves the work | `5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQSEnS8k` | 2.2 | `8b3c0440…f99867c` | `f8bcd9d51eda` | 9 Oct 2026 (proposal 8) |
 | `knos_meter` | the [meter](../docs/WORDS.md#meter): keeps an on-chain count of GitHub-signed checks, drawn from prepaid test credits (a devnet program) | `FUMKkcE95x2kZUj1zZTCbgcYBmJ3WXPHL8pyA8J6anX` | 1.1 | `10f2b6cb…1a5e995e4` | `6eb81dd152bd` | 7 Oct 2026 (proposal 5) |
 | `knos_passkey` | a [wallet](../docs/WORDS.md#wallet) that only a [passkey](../docs/WORDS.md#passkey) can spend from | `FQPX9i5kQxLYKZyyPgM2fVK9am3w1LSk1Cuoer1sSY85` | 1.1 | `a9ce7a06…cac7cf81` | `6eb81dd152bd` | 7 Oct 2026 (proposal 6) |
 

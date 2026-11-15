@@ -137,7 +137,7 @@ def test_a_workflow_cell_names_a_job_of_a_workflow_and_every_function_named_anyw
         for mod, name in re.findall(r"`(flow|approvals)\.(\w+)`", c.by):
             assert callable(getattr({"flow": flow, "approvals": approvals}[mod], name)), (route, x, name)
     # the pinned funding workflow is the one the repository's own workflow file calls, and it runs `knos command`
-    # (its home since the 0.3.34 cutover: the monorepo's branch workflows)
+    # (its home since the 0.3.34 cutover: the monorepo's workflows-<sha12> tags)
     assert re.search(r"uses: [\w-]+/Knos/\.github/workflows/fund\.yml@[0-9a-f]{40}", (ROOT / ".github/workflows/knos.yml").read_text(encoding="utf-8"))
     assert "knos command --event" in (ROOT / ".github/workflows/fund.yml").read_text(encoding="utf-8")
 

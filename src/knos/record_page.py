@@ -95,7 +95,7 @@ def public_part(index: dict | None, who: str) -> dict | None:
     row = next((r for r in top["rows"] if slug(r["agent"]) == who), None)
     if row is None:
         return None
-    return {"label": PUBLIC_LABEL, "source": "docs/index.json", "source_sha256": (index.get("source") or {}).get("sha256_of_canonical_json"),
+    return {"label": PUBLIC_LABEL, "source": "docs/index.json", "source_data_sha256": (index.get("source") or {}).get("sha256_of_canonical_json"),
             "category": PUBLIC_CATEGORY, "week": top["week"], "read": top.get("read"), "weeks": row["weeks"],
             "period": {"from": index["weeks"][-1]["week"], "to": top["week"], "unit": "week starting"},
             "claimed_passing": row["claimed_passing"], "sample": row["merged"], "failed_at_merge": row["failed_at_merge"],

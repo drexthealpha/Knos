@@ -88,7 +88,7 @@ def test_the_seller_is_paid_only_when_the_evaluator_signs_the_acceptance(tmp_pat
         order, fee = Pubkey.from_string(got["order"]), s.pay.order_fee(AMOUNT)
         # the buyer found the task, opened the order and was served; its money is in the order, not with the seller
         assert (got["status"], got["task"]["id"], got["payer"], got["payee"]) == (200, "sort-1", str(s.buyer.pubkey()), str(s.seller.pubkey()))
-        assert got["state"]["state"] == "escrowed" and s.c.held(order) == AMOUNT + fee and s.c.balance(s.tok) == HAVE - AMOUNT - fee
+        assert got["state"]["state"] == "held" and s.c.held(order) == AMOUNT + fee and s.c.balance(s.tok) == HAVE - AMOUNT - fee
         assert got["delivery"]["result"] == ["apple", "fig", "kiwi", "pear"] and s.seller_has() == 0
         # delivery alone releases nothing: the order is as it was
         assert s.c.order(order).state == "open"

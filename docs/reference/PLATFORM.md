@@ -76,7 +76,9 @@ LLVM compiles a u128 product for v3 into a call to
 compiler-rt's `__multi3`.
 
 The first v3 build with 64-bit limbs did exactly that and was slower than 32-bit
-limbs (table below). The 0.4.0 v3 build keeps the same 64-bit-limb Montgomery code (same rows, same reductions, same token
+limbs (table below).
+
+The 0.4.0 v3 build keeps the same 64-bit-limb Montgomery code (same rows, same reductions, same token
 bytes) and only changes how each t + a b + c is formed on v3 (`rsa64.rs`, module `h`; `build.rs` sets `knos_mulhi32`
 for an sBPF v3 target).
 

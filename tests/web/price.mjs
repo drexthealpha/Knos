@@ -41,7 +41,7 @@ same("the fee as a share: 5 pays 1.00%, 20 and above pay 0.30%", eff, [[5, "0.05
 same("a job's fee is the same rate and floor, out of the amount", [jobFee(u(20), c), jobFee(u(1000), c)], [u(0.06), u(3)]);
 same("the rule in words", feeRate(c), "0.30% of the amount, at least 0.05");
 same("one part, rounded down, with the constants named too", feeParts(1_000_000_099, 30, c).map((p) => p.fee), [3_000_000]);
-// ... and while knos_pay 2.1 is live (the program answers version 1, or 0 for 2.0) it is the 0.3.14 fee, which the public program charges until the upgrade executes
+// ... and while knos_pay 2.1 is live (the program answers version 1, or 0 for 2.0) it is the 0.3.14 fee, which the public program charged until 9 Oct 2026, kept for orders funded before
 const old = priceConstants(undefined, 1), was = (amount, bps = old.feeBps) => show(orderFee(u(amount), bps, old));
 same("version 1 and version 0 are the 0.3.14 rule; 2 and later the 0.3.18 rule; a version given is a live answer", [0, 1, 2, 3].map((v) => [priceConstants(undefined, v).fee.release, priceConstants(undefined, v).fee.live]),
   [["0.3.14", true], ["0.3.14", true], ["0.3.18", true], ["0.3.18", true]]);

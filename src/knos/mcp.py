@@ -705,7 +705,7 @@ class Server:
 
     def _fee(self, amount: int) -> int:
         """The fee of a job of the second deployment, by the rule of the build the cluster runs now (knos.fees): the
-        0.3.14 fee until knos_pay 2.2 is live, the 0.3.18 fee after. Asked once for each server."""
+        0.3.14 fee where the cluster still runs 2.1 (orders funded under 2.1 keep it), the 0.3.18 fee on 2.2. Asked once for each server."""
         if self._rule is None:
             from . import fees
             self._rule = self._chain(fees.live)

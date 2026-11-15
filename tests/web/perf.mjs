@@ -97,7 +97,7 @@ const table = {};
 {
   const ctx = await world();
   const page = await ctx.newPage();
-  await page.goto(base + "#check", { waitUntil: "load" }); await ready(page);          // the check of agent work: the bare address is the research products (tests/web/home.mjs)
+  await page.goto(base + "#check", { waitUntil: "load" }); await ready(page);          // the check of agent work
   const errors = []; page.on("pageerror", (e) => errors.push(e.message));
   const time = async (name, arm, act, reset, told = false, presses = 3, limit = LIMIT_MS) => {
     const took = [];

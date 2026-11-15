@@ -173,9 +173,9 @@ mod tests {
 
     #[test]
     fn type_and_challenge_are_found_at_the_top_level_once_in_any_order() {
-        let chrome = br#"{"type":"webauthn.get","challenge":"abc-_","origin":"https://example.org","crossOrigin":false}"#;
+        let chrome = br#"{"type":"webauthn.get","challenge":"abc-_","origin":"https://knos.dev","crossOrigin":false}"#;
         assert_eq!(client_data(chrome), Some((&b"webauthn.get"[..], &b"abc-_"[..])));
-        let other = br#" { "origin" : "https://example.org" , "challenge" : "abc" , "crossOrigin" : false , "tokenBinding" : { "status" : "supported", "x": [1, {"type": "no"}] } , "type" : "webauthn.get" } "#;
+        let other = br#" { "origin" : "https://knos.dev" , "challenge" : "abc" , "crossOrigin" : false , "tokenBinding" : { "status" : "supported", "x": [1, {"type": "no"}] } , "type" : "webauthn.get" } "#;
         assert_eq!(client_data(other), Some((&b"webauthn.get"[..], &b"abc"[..])));
         // a value is returned as written: an escape is not decoded, so it cannot equal what is expected
         assert_eq!(client_data(br#"{"type":"webauthn.get","challenge":"a\"b"}"#), Some((&br"webauthn.get"[..], &br#"a\"b"#[..])));

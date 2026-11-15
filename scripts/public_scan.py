@@ -42,6 +42,9 @@ QLOO_RAW = {
     "k-proof snapshot": r"id=.k-proof['\"]",
 }
 IDEA = "DPI-I-689"
+# the IRIS entry names the community idea it implements on purpose (the B11 bonus): its link, text and address, in the
+# entry's own pages; anywhere else the idea code is a leak of the entry into another page
+IDEA_ALLOWED = {"README.md": 2, "README.pypi.md": 2, "docs/reference/IRIS.md": 3, "iris/README.md": 4, "iris/docs/article-2.md": 2}
 PROSE = {".md", ".html", ".txt"}
 # never shown to a reader: code, tests, build and machine files, the program interfaces and the record of releases
 SKIP_DIRS = ("tests/", "scripts/", "programs/", "programs-v2/", "programs-hook/", "crates/", "zk/", "idl/", "schemas/",
@@ -185,7 +188,7 @@ def count(text: str, raw: str, path: str, pages: bool) -> dict[str, int]:
     hits = {k: sum(1 for m in re.finditer(rx, text, re.I) if not (m.group(0).isupper() and len(m.group(0)) > 1)) for k, rx in WORDS.items()}
     if pages:
         hits.update({k: len(re.findall(rx, raw)) for k, rx in QLOO_RAW.items()})
-    allowed = 2 if path.replace("\\", "/") == "README.md" else 0
+    allowed = IDEA_ALLOWED.get(path.replace("\\", "/"), 0)
     hits[IDEA] = max(0, text.count(IDEA) - allowed)
     return {k: v for k, v in hits.items() if v}
 

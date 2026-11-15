@@ -978,7 +978,9 @@ and the manifest keeps `neutral_reexecution` at `tested`.
 
 Otherwise it is tested against stand-ins for GitHub and
 the chain, the program's side in a simulator, and the real referee once on a sample tree
-([`tests/test_attest_rerun.py`](../../tests/test_attest_rerun.py)); the workflow file is checked by
+([`tests/test_attest_rerun.py`](../../tests/test_attest_rerun.py)).
+
+The workflow file is checked by
 [`tests/test_workflows2.py`](../../tests/test_workflows2.py) (its actionlint check runs only where actionlint is
 installed; no CI job installs it), and its fetch and sandbox steps have not been run on a
 runner.

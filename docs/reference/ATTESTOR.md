@@ -339,7 +339,9 @@ verifier." What reaches a chain in the deployed systems is an attestor's signatu
 Reclaim documents
 a Solana program for that (`8rYXFrtST4ePpMWcEqhazFyRG2DtCUqgtFmKT7FdjRyp`, in a starter that uses devnet; the page that described it
 answered 404 on 15 Nov 2026). A secp256k1 signature is cheap
-for a Solana program to check. It is also the same kind of fact Knos has now: a named signer said so. The signer
+for a Solana program to check.
+
+It is also the same kind of fact Knos has now: a named signer said so. The signer
 changes from "GitHub, about a workflow" to "an attestor, about a response".
 
 **Proof sizes and verification cost.** We found no published size for a TLSNotary presentation or a Reclaim proof

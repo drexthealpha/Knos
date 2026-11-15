@@ -1070,7 +1070,8 @@ def render_relay(rel: dict) -> list[str]:
         dec = rel.get("decision")
         most = max(n)
         out += ["### The five clocks", "",
-                "\"How fast\" is five clocks, and they are not added up here. Each row has its own sample and says where it was measured; "
+                "\"How fast\" is five clocks, and they are not added up here. Chain inclusion is one clock, read at two commitments "
+                "(`confirmed` and `finalized`). Each row has its own sample and says where it was measured; "
                 "percentiles of different samples do not add. A target is a target, not a measurement.", "",
                 *latency_stages.clock_table(latency_stages.clocks(st["six"], dec, st["whole"])), "",
                 f"What was measured on devnet: {st['whole']['n']} payments have a whole wait (first table). Only {most} of those {st['whole']['n']} carry stage "

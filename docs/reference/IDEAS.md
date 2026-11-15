@@ -1,9 +1,7 @@
 # Idea in, then wanted? (steps 1 and 2 of the one flow)
 
 Research dies in the valley of death on three walls: money comes before proof, referees are slow, and single attempts
-fail. Schmidhuber's machine economy, growing toward Kardashev II ([arXiv 2212.11279](https://arxiv.org/abs/2212.11279),
-Sec 20), needs a layer that says which research is real. Knos aims to be that layer. Every crossing started with two
-steps, in every field of science:
+fail. Every crossing started with two steps, in every field of science:
 
 1. **Idea in.** An idea from anyone: a person, a game player, an AI agent, or a claim found in a research source.
    It becomes one Claim record that every later step reads.

@@ -46,7 +46,7 @@ def test_every_action_is_pinned_to_a_commit():
         for name, ref in re.findall(r"uses:\s*([\w./-]+)@(\S+)", f.read_text(encoding="utf-8")):
             if name.startswith("./"):
                 continue
-            # the published set: in the monorepo (branch workflows) since the 0.3.34 cutover, in drexthealpha/knos-workflows before
+            # the published set: in the monorepo (workflows-<sha12> tags) since the 0.3.34 cutover, in drexthealpha/knos-workflows before
             if name.startswith("drexthealpha/knos-workflows/") or re.fullmatch(r"drexthealpha/Knos/\.github/workflows/(?:fund|prove|check|attest)\.yml", name):
                 assert ref == "KNOS_WORKFLOWS_SHA" or re.fullmatch(r"[0-9a-f]{40}", ref), (f.name, name, ref)
                 continue

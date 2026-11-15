@@ -11,7 +11,7 @@ import pytest
 pytest.importorskip("solders.litesvm")
 
 from _pay2 import Chain  # noqa: E402
-from _pay21 import each_build, pay21_build  # noqa: E402, F401 - the fixtures `build` and `pay21`: every command here runs against knos_pay 2.2 and the live 2.1
+from _pay21 import each_build, pay21_build  # noqa: E402, F401 - the fixtures `build` and `pay21`: every command here runs against knos_pay 2.2 (live since 9 Oct 2026) and the older 2.1
 from _settle import FIX, b64, modulus, signing_key  # noqa: E402
 from solders.keypair import Keypair  # noqa: E402
 from solders.pubkey import Pubkey  # noqa: E402
@@ -34,7 +34,7 @@ GITLAB_KEY = {"keys": [{"kty": "RSA", "alg": "RS256", "e": "AQAB", "kid": "gl", 
 def world(monkeypatch, tmp_path, capsys, build):
     """A chain behind `chain.ledger()`, GitHub's key set as the relays fetch it, a wallet's keypair file, and
     `knos(...)`: run the command line, return (exit code, what it printed). The chain runs the knos_pay build under
-    test (`build`): the commands state and fund the fee of the build that answers, 2.2's or the live 2.1's."""
+    test (`build`): the commands state and fund the fee of the build that answers, 2.2's (live since 9 Oct 2026) or the older 2.1's."""
     c = Chain(pay_build=build.build)
     net = Net(c)
     assert c.send([pay.init_faucet_ix(c.payer.pubkey())]), c.err

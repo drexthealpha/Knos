@@ -58,8 +58,8 @@ PAGES = {
     WEB / "faq.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "how-we-test.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "pricing.html": ("./", "./", WAKE, "brand/tokens.css", True),
-    WEB / "privacy.html": ("./", "./", WAKE, "brand/tokens.css", True),
-    # web/404.html carries the product header of scripts/site_pages.py (the published pages' one), not this bar
+    # web/404.html and web/privacy.html carry the product header of scripts/site_pages.py (the published pages' one), not
+    # this bar: privacy.html is the text scripts/site_product.py --sources writes, the page Pages publishes
     WEB / "wanted.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "start" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),
     WEB / "iris" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),   # the IRIS face, at /iris/

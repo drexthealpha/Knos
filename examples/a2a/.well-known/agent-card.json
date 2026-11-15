@@ -1,6 +1,6 @@
 {
  "name": "Knos",
- "description": "The referee and the payment program for machine and human research work: Knos re-runs the work against sealed checks, refuses known cheats, and releases held money on Solana only on verified proof.",
+ "description": "Knos checks research work: it re-runs the work against sealed checks and refuses known cheats, on Solana devnet and NEAR testnet, in test money.",
  "supportedInterfaces": [
   {
    "url": "http://127.0.0.1:8765/a2a/v1",
@@ -77,7 +77,7 @@
    "tags": [
     "work",
     "bounty",
-    "held-until-proof"
+    "funded"
    ],
    "examples": [
     "{\"skill\": \"find-work\"}"

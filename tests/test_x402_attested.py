@@ -110,8 +110,8 @@ def test_live_the_client_funds_a_real_order_over_rpc_is_served_and_the_seller_is
         assert (got["status"], o.state, o.amount, o.fee, o.source, o.terms) == (200, "open", offer["amount"], fee, buyer.pubkey(), pay.terms_hash(offer["terms"].encode()))
         assert c.held(order) == offer["amount"] + fee and c.balance(tok) == 100 * 10 ** 6 - offer["amount"] - fee
         assert got["transaction"] in shim.txs and "sendTransaction" in shim.calls        # a transaction this process signed, verified by the chain
-        assert got["delivery"]["delivered"] == offer["delivery"] and got["state"] == {"order": got["order"], "state": "escrowed", "deadline": o.deadline}
-        assert got["settlement"]["extensions"]["knos-order"]["info"]["state"] == "escrowed" and got["settlement"]["payer"] == str(buyer.pubkey())
+        assert got["delivery"]["delivered"] == offer["delivery"] and got["state"] == {"order": got["order"], "state": "held", "deadline": o.deadline}
+        assert got["settlement"]["extensions"]["knos-order"]["info"]["state"] == "held" and got["settlement"]["payer"] == str(buyer.pubkey())
         # the acceptance: a token GitHub would sign from the order's pinned workflow pays the seller the amount whole
         c.warp(3600)
         shim.harness_version = 1            # a relay carries PayOrder in a version 1 transaction: the status reads it as one

@@ -433,7 +433,7 @@ With 5 samples the 95th percentile by nearest rank is the slowest of them, so a 
 
 ### The five clocks
 
-"How fast" is five clocks, and they are not added up here. Each row has its own sample and says where it was measured; percentiles of different samples do not add. A target is a target, not a measurement.
+"How fast" is five clocks, and they are not added up here. Chain inclusion is one clock, read at two commitments (`confirmed` and `finalized`). Each row has its own sample and says where it was measured; percentiles of different samples do not add. A target is a target, not a measurement.
 
 | clock | what is timed | measured | n | p50 | p95 | whose wait | target |
 | --- | --- | --- | --- | --- | --- | --- | --- |

@@ -105,7 +105,7 @@ export function feeNote(units, c, lib = settle) {
   const other = priceConstants(lib, c.fee.release === "0.3.18" ? FEE_VERSION - 1 : FEE_VERSION), their = orderFee(units, other.feeBps, other);
   if (c.fee.release === "0.3.18") {
     return c.fee.live ? `The program on devnet charges this now (knos_pay ${c.fee.build}). ${KEEPS}`
-      : `This is the fee from knos_pay ${c.fee.build}. Until that upgrade is live the public program charges ${show(their)} on this order. ${KEEPS}`;
+      : `The fee of knos_pay ${c.fee.build}, live since 9 October 2026. An order funded before it pays ${show(their)} here. ${KEEPS}`;
   }
   return `The program on devnet charges this now (the fee it charges before the upgrade). From knos_pay ${other.fee.build} this order pays ${show(their)}. ${KEEPS}`;
 }

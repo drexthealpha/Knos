@@ -2,7 +2,7 @@
 // web/live.js (a round anyone can watch) and web/cache.js (what a tab keeps of what it read), in headless Chromium against
 // a mocked GitHub API and a mocked Solana devnet, with the page's clock held by the test: nothing here waits on real time.
 // The rounds are the three a visitor can meet: one just paid, one long ago (never shown as live), one in progress and
-// watched to its end. Needs the `playwright` package, as tests/web/site.mjs does; without it or a browser it says SKIP.
+// watched to its end. Needs the `playwright` package; without it or a browser it says SKIP.
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";

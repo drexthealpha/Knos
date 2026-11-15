@@ -183,12 +183,12 @@ with the input on standard input, and compares what it prints with the recorded 
 the end are ignored). Exit 0 means every case agrees.
 
 It is black-box: the pull request's code runs as a separate process, and the referee never loads it, so nothing that code
-does can change the verdict except printing the right answer. That is what lets Knos pay on this check alone, without a
-merge, when this folder is on the default branch before the bounty is funded: `/knos fund <amount>` on issue {issue}.
+does can change the verdict except printing the right answer. That is what lets the referee decide on this check alone,
+without a merge, when this folder is on the default branch before the issue is funded: `/knos fund <amount>` on issue {issue}.
 
 What it does not do: the cases are in this repository, so an implementation can answer exactly them from a table. More
 cases make that more work, not impossible. A check that generates its inputs when it runs and compares them with a
-reference at that time cannot be answered from a table: write that as `blackbox.py` yourself if the bounty is worth it
+reference at that time cannot be answered from a table: write that as `blackbox.py` yourself if the work is worth it
 (Knos's docs/reference/TAMPER.md measures the difference).
 """
 

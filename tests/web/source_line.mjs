@@ -14,7 +14,7 @@ const { sourceHtml } = await import(pathToFileURL(join(root, "records.js")).href
 let failed = 0;
 const ok = (what, cond, detail) => { if (!cond) failed++; console.log(`${cond ? "ok  " : "FAIL"} ${what}${cond || detail === undefined ? "" : `: ${JSON.stringify(detail)}`}`); };
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const summary = "206 log lines of the escrows' history on devnet, 149 lines of the relay log, GitHub, the Agent PR Index of 2026-10-04 (root c55374454d04)";
+const summary = "206 log lines of the orders' history on devnet, 149 lines of the relay log, GitHub, the Agent PR Index of 2026-10-04 (root c55374454d04)";
 const html = sourceHtml(esc, { generated: "2026-10-07T03:24:00Z", source: { summary } }, "records.json");
 const open = html.replace(/<details[\s\S]*?<\/details>/g, " ").replace(/<a [^>]*>|<\/a>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 const words = (s) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Assemble the Pages site:  bash scripts/build_site.sh <out dir> <commit sha>
-# The web app, the JavaScript client it imports, the passkey wallet's helper, the claim workflow, the capability manifest
-# (docs/capabilities.json, which the Capabilities page reads) and the second deployment's program ids (the
-# first deployment's addresses are in the page, as history). A template that still names its workflows by
-# KNOS_COMMIT_SHA is given the commit the site was built from; the page hands out a file only when every workflow it
-# calls is named by a full commit, so a placeholder left in one is said on the page and never handed out.
-# The public record as static files (bounties.json, u/, r/, badge/, rank/, latency.json, operations.json) is written
-# here with nothing measured, so a build with no network has every file and each says it is empty; the Pages build
-# (.github/workflows/network.yml) writes them again from the chain and GitHub.
+# The product pages come from scripts/site_pages.py (the front door web/door.html at the root, claims/, prove/, labs/
+# and the rest); beside them the data files older pages read: the JavaScript client, the passkey wallet's helper, the
+# claim workflow, the capability manifest (docs/capabilities.json) and the second deployment's program ids. A template
+# that still names its workflows by KNOS_COMMIT_SHA is given the commit the site was built from. At the end every older
+# page becomes a redirect to the front door (site_pages.py --sweep).
+# The public record as static files (u/, r/, badge/, rank/earners and rank/funders, latency.json, operations.json) is
+# written here with nothing measured, so a build with no network has every file and each says it is empty; the Pages
+# build (.github/workflows/network.yml) writes them again from the chain and GitHub.
 # The Index page reads the repository's weekly table (docs/agent_weekly.json). The Reproduce page counts the reproductions
 # people outside have sent: the build carries the JSON files of reproductions/ and reproductions.json, their names
 # ({"files": []} while the folder holds none).
@@ -54,9 +54,9 @@ done
 for f in 404.html privacy.html retry.js; do [ -s "$out/$f" ] || { echo "web/$f is missing"; exit 1; }; done
 # The demand check's wake page (apps/wanted on a free Render instance): it pings /healthz until the app answers.
 [ -s "$out/wanted.html" ] || { echo "web/wanted.html is missing"; exit 1; }
-# The pages a search engine can index besides the first screen (the app's other pages are # routes): faq.html and
-# check/index.html, listed with it in sitemap.xml, and llms.txt (https://llmstxt.org/), all files of web/ carried by the
-# copy above. Each "Last updated" and every lastmod is the date of the commit this site is built from (for a release,
+# Pages older links still reach (faq.html, how-we-test.html, pricing.html, check/index.html, proof/index.html) and the
+# files a search engine reads (sitemap.xml and llms.txt, https://llmstxt.org/, as scripts/site_product.py writes them),
+# all files of web/ carried by the copy above. Each "Last updated" and every lastmod is the date of the commit this site is built from (for a release,
 # the release commit); a commit this clone does not have (a test's) gives HEAD's date, and a tree with no git today's.
 for f in faq.html how-we-test.html pricing.html check/index.html proof/index.html sitemap.xml llms.txt; do [ -s "$out/$f" ] || { echo "web/$f is missing"; exit 1; }; done
 stamp=$(git show -s --format=%cs "$sha" 2>/dev/null || git log -1 --format=%cs 2>/dev/null || date -u +%Y-%m-%d)

@@ -265,7 +265,9 @@ holds every part.
 
 Run by hand, with no container: `python -m pytest -q iris/tests/test_embed_quality.py` (needs `pip install fastembed`)
 scores the vector search's embedding on 40 labelled proof-to-criterion pairs. `iris/scripts/vm-setup.sh` takes a fresh
-Ubuntu 24.04 VM to the running referee in replay mode. Two IRIS sessions to pipe into `iris session` in the container:
+Ubuntu 24.04 VM to the running referee in replay mode.
+
+Two IRIS sessions to pipe into `iris session` in the container:
 `iris/scripts/install-fhir.script` runs the install with FHIR on, and `iris/scripts/load-classes.script` reloads the
 classes from `iris/src`.
 

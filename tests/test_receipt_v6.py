@@ -100,6 +100,27 @@ def test_the_schema_is_the_one_the_code_writes():
     assert json.loads(SCHEMA.read_text(encoding="utf-8")) == schema(), "python tests/test_receipt_v6.py --write"
 
 
+def test_the_attestation_script_takes_a_version_6_receipt_and_attests_its_own_digest(tmp_path):
+    """scripts/sas_receipt.mjs fields() reads a paid version 6 vector (its fields are version 5's) and attests the
+    version 6 receipt's own digest. Needs Node, no package of the script's."""
+    import shutil
+    import subprocess
+    import pytest
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("needs Node")
+    six = [v for v in json.loads(FILE.read_text(encoding="utf-8"))["valid_v6"] if v["receipt"]["transaction"] is not None]
+    assert six, "no paid version 6 receipt among the vectors"
+    code = ("import fs from 'node:fs';\n"
+            f"import {{ fields }} from {json.dumps((ROOT / 'scripts' / 'sas_receipt.mjs').as_uri())};\n"
+            f"const v = JSON.parse(fs.readFileSync({json.dumps(str(FILE))}, 'utf8'));\n"
+            "console.log(JSON.stringify(v.valid_v6.filter((x) => x.receipt.transaction !== null)"
+            ".map((x) => Buffer.from(fields(x.receipt).receipt_sha256).toString('hex'))));\n")
+    (tmp_path / "fields6.mjs").write_text(code, encoding="utf-8")
+    done = subprocess.run([node, str(tmp_path / "fields6.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout) == [v["sha256"] for v in six] == [rc.digest(v["receipt"]) for v in six]
+
 if __name__ == "__main__" and "--write" in sys.argv:
     SCHEMA.write_text(json.dumps(schema(), indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     print("wrote", SCHEMA.name)

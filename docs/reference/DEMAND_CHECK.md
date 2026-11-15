@@ -105,8 +105,9 @@ Qloo's error text is never shown; a refused (4xx) question is cached a
 
 **Paid when the check passes.** On an OPEN report a signed-in user pre-orders (`POST /api/preorder`): the app's sample devnet wallet
 (sample buyer, test money) locks the units through `knos.ideas.commit` as one stage "milestone" (oracle `referee_pass`)
-checked by a 2-of-3 panel on the app's live program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4` (a separate devnet deployment of the knos_pay 0.3.34 build, not the public knos_pay program); the
-payee is the maker's devnet wallet.
+checked by a 2-of-3 panel on the app's live program `FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4`. The payee is the maker's devnet wallet.
+
+That program is a separate devnet deployment of the knos_pay 0.3.34 build, not the public knos_pay program.
 
 The panel's keys are held by the server (`KNOS_WANTED_REFEREE_KEYS`): one server is
 not an independent panel, and the commitment says UNLISTED PANEL.

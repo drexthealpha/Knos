@@ -159,7 +159,7 @@ async function page() {
 
   // 1. the first screen of the site itself: 56 words at most (the outcome, who it is for, the sentence, the number and the bar), one control, the round below it
   for (const [width, height] of [[1280, 800], [390, 844], [320, 640], [768, 1024], [1920, 1080]]) {
-    const { ctx, p, strangers } = await visit("#check", width, { height });       // the check of agent work: the bare address is the research products (tests/web/home.mjs)
+    const { ctx, p, strangers } = await visit("#check", width, { height });       // the check of agent work
     await p.evaluate(() => document.fonts.ready); await p.waitForFunction(() => !document.getElementById("hero-board").hasAttribute("aria-busy")); await p.waitForTimeout(700);
     // prose, as tests/web/words.mjs counts it, and here with the bar: headings, sentences and links. Not counted, because
     // it is the thing itself: a control (the box, a button, the handle of a fold), a figure (.k-num), and the rows of
@@ -258,8 +258,8 @@ async function page() {
     }
     await ctx.close();
   }
-  const figures = JSON.parse(readFileSync(join(here, "../../docs/backtest.json"), "utf8")).sample.merged.overall;
-  same("the number is docs/backtest.json's", [figures.any_check_failed.prs, figures.prs], [30, 241]);
+  const figures = JSON.parse(readFileSync(join(here, "../../docs/backtest.json"), "utf8")).reviewed.overall;   // the hero: 9 of 241, after the second reading
+  same("the number is docs/backtest.json's", [figures.test_or_build_check_failed.prs, figures.prs], [9, 241]);
 
   // 2. the sample, with no network at all (GitHub refused), with and without motion
   for (const motion of [false, true]) {

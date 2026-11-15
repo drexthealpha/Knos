@@ -23,8 +23,7 @@ const MULTISIG_LEN: usize = 355; // Token-2022 never gives a mint or an account 
 /// 20 GroupPointer, 21 TokenGroup, 22 GroupMemberPointer, 23 TokenGroupMember, 24 ConfidentialMintBurn,
 /// 25 ScaledUiAmount. Not on it, among others: 1 TransferFeeConfig, 6 DefaultAccountState, 9 NonTransferable,
 /// 12 PermanentDelegate, 14 TransferHook (also one that only names an authority), 16 ConfidentialTransferFeeConfig,
-/// 26 Pausable. knos_pay and knos_meter do not take 24: a passkey wallet may hold such a mint, but Fund cannot fund
-/// an order in it.
+/// 26 Pausable.
 pub const ALLOWED: [u16; 11] = [3, 4, 10, 18, 19, 20, 21, 22, 23, 24, 25];
 
 /// The mint's decimals, once checked: `token` is SPL Token or Token-2022 and owns it, it is an initialised mint, and

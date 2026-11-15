@@ -158,11 +158,11 @@ fees:
     source: "price set 14 Oct 2026"
   verified_merge:
     status: "decided"
-    what: "one pull request the Knos referee verified (sealed tests passed, no cheat rule fired, the re-run agreed) for a team running coding agents, billed to the team per verified merge"
+    what: "one pull request the Knos referee verified (sealed tests passed, no cheat rule fired, the re-run agreed) for a team running coding agents: a price set, never billed (nobody pays for a check)"
     usd_each: "1.00"
     free_first: 1
     label: "starting price"
-    collected: "invoiced from the team's usage record checked against the chain (knos.money.teams); paid in USDC on Solana (x402 exact through the x402.org facilitator, or a knos_pay order that holds the money until the proof passes); card and bank through Airwallex later (not built)"
+    collected: "not collected: knos.money.teams counts a verification as usage and puts none on an invoice"
     decided: "14 Oct 2026"
     rationale: "1.00 USD per verified merge is a STARTING PRICE for teams, to revisit once the cost per verification is measured; the first verification of every team is free, so a team sees a verdict before it pays"
     source: "price set 14 Oct 2026"

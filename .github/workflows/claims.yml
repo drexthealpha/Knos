@@ -13,7 +13,8 @@ name: claims
 #     read 2026-10-06): give the token the least privileges and no secret it does not need, and make sure checked-out
 #     code "is only ever inspected as data and never executed". The same page says that the default policy blocks
 #     `pull_request_target` in public repositories and that "On November 2, 2026, GitHub will enforce the default
-#     policy": a workflow started by it would stop running here a few weeks after it was written.
+#     policy" (GitHub later moved this to 2 December 2026: github.blog changelog of 2 Nov 2026): a workflow started
+#     by it would stop running here a few weeks after it was written.
 #   - actions/checkout v7 refuses to check out a fork's head under that trigger
 #     (https://www.socket.dev/blog/github-actions-checkout-blocks-pull-request-target-checkouts): the pattern to avoid
 #     is a privileged token beside a stranger's code.

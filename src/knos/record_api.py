@@ -416,7 +416,7 @@ class Server:
                                            "price": str(self.offer["price"])}, "answer": ans}
         settle = {"success": True, "payer": payer, "transaction": str(payload.get("transaction") or ""), "network": self.offer["network"],
                   "amount": str(self.offer["price"]),
-                  "extensions": {SCHEME: {"info": {"order": order, "state": "escrowed", "deadline": o.deadline}}}}
+                  "extensions": {SCHEME: {"info": {"order": order, "state": "held", "deadline": o.deadline}}}}
         return 200, {"PAYMENT-RESPONSE": encode(settle)}, body
 
 

@@ -1,12 +1,12 @@
 // node tests/web/fee_live.mjs <site dir>
 // The truth about the fee, on a build of the site (scripts/build_site.sh), under BOTH builds of knos_pay:
-//   2.1  the 0.3.14 fee (three tiers, at least 0.40): what the public program charges until the next upgrade executes
+//   2.1  the 0.3.14 fee (three tiers, at least 0.40): what the public program charged until 9 Oct 2026, kept for orders funded before
 //   2.2  the 0.3.18 fee (0.30%, at least 0.05)
 // First with no browser: the one line "After the next upgrade" (web/price.js feeNext) is there exactly when the fee
 // shown is not this tree's, and an order's refund time is its deadline, or the end of its presentation grace when it
 // was funded with one (web/buyer.js orderState, web/console.js exceptionsOf). Then in headless Chromium, with devnet
 // unreachable so the page reads the upgrade feed (upgrades.json, a file of the site, here as each build would leave
-// it): the pricing calculator and the Console's escrow step show the fee of the build that is live, the next-upgrade
+// it): the pricing calculator and the Console's Pay step show the fee of the build that is live, the next-upgrade
 // line only under 2.1, and nobody is asked but this site and devnet. No browser: a failure in CI, a skip elsewhere.
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
@@ -81,7 +81,7 @@ for (const build of ["2.1", "2.2"]) {
   check(`${build}: the pricing page does not scroll sideways at 390 px`, (await measure(page)).over <= 0, await measure(page));
   await page.goto(`${base}#buy`, { waitUntil: "load" });
   await page.waitForFunction((r) => document.getElementById("buy")?.dataset.fee === r && !document.getElementById("buy-fee-now").hidden && document.getElementById("buy-fee-now").dataset.fee === r, want.release);
-  check(`${build}: the Console's escrow step shows the live fee on 50: ${want.buy} on top, ${want.pays} in all`, (await page.textContent("#buy-fee-is")) === want.buy && (await page.textContent("#buy-pays-is")) === want.pays && await page.isVisible("#buy-fee-now"));
+  check(`${build}: the Console's Pay step shows the live fee on 50: ${want.buy} on top, ${want.pays} in all`, (await page.textContent("#buy-fee-is")) === want.buy && (await page.textContent("#buy-pays-is")) === want.pays && await page.isVisible("#buy-fee-now"));
   check(`${build}: ${want.buyNext ? "and one line for the next upgrade" : "and no line about an upgrade"}`, want.buyNext ? (await page.textContent("#buy-fee-next")) === want.buyNext && await page.isVisible("#buy-fee-next") : await page.isHidden("#buy-fee-next"));
   check(`${build}: nobody but this site, devnet and GitHub is asked`, strangers.length === 0, strangers);
   await ctx.close(); server.close();

@@ -216,7 +216,9 @@ And the verifier is a program any other program can call ([OIDC.md](OIDC.md)). A
 outside review Knos is still such a party, through its multisig (section 4).
 
 Knos runs its pull request checks on Solana devnet and a paper's claim on NEAR testnet: the same rule on both, test
-money only. Solana, for the pull request check, for two reasons. Verifying GitHub's RSA-2048 signature on chain takes 2 transactions, each within Solana's
+money only. Solana, for the pull request check, for two reasons.
+
+Verifying GitHub's RSA-2048 signature on chain takes 2 transactions, each within Solana's
 computing limit, and on the first deployment carrying a whole token took 7 transactions and 35,000 lamports of fees
 ([BENCH.md](BENCH.md), measured).
 

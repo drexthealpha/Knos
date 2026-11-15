@@ -1,7 +1,8 @@
-# test_quality_bar, against the LIVE pages (scripts/public_pages.json: the front door on GitHub Pages and the app on
-# Render), on a hosted runner: axe-core on each page at 375 and 1280 px in light and dark (0 violations), then three cold
-# Lighthouse runs of each page with the mobile preset of lighthouse.yml (accessibility 100 and performance at least 95
-# in every run; and the vitals: LCP <= 1.5 s, CLS <= 0.05, TBT <= 100 ms). The wake page (wanted.html) is measured as itself: its forward to the app is blocked, as lighthouse.yml does.
+# test_quality_bar, against the LIVE product pages of scripts/public_pages.json (the front door and the other product
+# pages on GitHub Pages; no page of the app on Render is in the list now), on a hosted runner: axe-core on each page at
+# 375 and 1280 px in light and dark (0 violations), then three cold Lighthouse runs of each page with the mobile preset
+# of lighthouse.yml (accessibility 100 and performance at least 95 in every run; and the vitals: LCP <= 1.5 s,
+# CLS <= 0.05, TBT <= 100 ms), the bar scripts/test_quality_bar.mjs holds.
 name: quality
 on:
   workflow_dispatch:

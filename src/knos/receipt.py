@@ -41,7 +41,7 @@ import re
 
 from . import ids as _ids
 
-TYPE, VERSION = "knos.acceptance-receipt", 4          # `check` still reads versions 1, 2 and 3, and versions 5 and 6 (`build5`, `build6`)
+TYPE, VERSION = "knos.acceptance-receipt", 6          # the version every receipt is written in now (`build6`); `check` reads versions 1 to 6
 JUDGES = ("repository", "neutral", "attestor", "arbiter")     # the program's judge a, b, c, d (its log says 0, 1, 2, 3)
 MODES = ("merge", "tests")
 CLAIMS = ("actor_id", "event_name", "exp", "iat", "job_workflow_ref", "job_workflow_sha", "repository_id", "repository_owner_id", "run_attempt",
@@ -65,14 +65,14 @@ def build(*, cluster: str, program: str, order: str, scope: str, repository: dic
     """A receipt from its facts. `payees`: {github_id, bps, amount, to}; amounts are integers here and decimal strings in
     the document (a u64 does not fit a JSON number). `claims`: the judge's token's claims; only the ones a receipt keeps
     are copied."""
-    r = {"type": TYPE, "version": VERSION, "cluster": cluster, "program": program, "order": order, "scope": scope, "repository": repository,
+    r = {"type": TYPE, "version": 1, "cluster": cluster, "program": program, "order": order, "scope": scope, "repository": repository,
          "artifact": {"commit": commit, "pull_request": pull_request}, "terms": {"hash": terms_hash, "mode": mode},
          "judge": {"kind": judge_kind, "issuer": issuer, "claims": {k: str(claims[k]) if k not in ("iat", "exp") else int(claims[k]) for k in CLAIMS},
                    "token_sha256": token_sha256, "key": key},
          "payees": [{"github_id": p["github_id"], "bps": p["bps"], "amount": str(p["amount"]), "to": p["to"]} for p in payees],
          "amounts": {"mint": mint, "decimals": decimals, "paid": str(paid), "of": str(of), "fee": str(fee), "tip": str(tip)},
          "transaction": {"signature": signature, "slot": slot, "time": time}}
-    r["version"] = 1            # this is the version 1 shape; `build2` and `upgrade` write version 2
+    # this is the version 1 shape; `build2` and `upgrade` write version 2
     why = check(r)
     if why:
         raise ValueError(why)

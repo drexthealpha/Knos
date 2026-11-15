@@ -9,7 +9,7 @@ repository = "https://github.com/drexthealpha/Knos"
 readme = "README.md"
 documentation = "https://docs.rs/knos-pay-interface"
 homepage = "https://github.com/drexthealpha/Knos/blob/main/docs/reference/COMPOSE.md"
-keywords = ["solana", "pay-on-proof", "cpi", "github-actions", "payments"]
+keywords = ["solana", "proof", "cpi", "github-actions", "payments"]
 categories = ["cryptography::cryptocurrencies"]
 
 # solana-program and nothing else: the instructions are built by hand and the Order is read from bytes, so a program

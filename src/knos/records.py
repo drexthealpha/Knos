@@ -539,8 +539,11 @@ def _stamp(t: int) -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t))
 
 
+TEST_MINTS: set[str] = set()   # mints a caller knows are test USDC beyond the three devnet ones (a LiteSVM run makes its own)
+
+
 def _currency(job: dict) -> str:
-    known = {str(pay2.USDC_DEVNET), str(pay2.faucet_mint()), str(pay.faucet_mint())}
+    known = {str(pay2.USDC_DEVNET), str(pay2.faucet_mint()), str(pay.faucet_mint())} | TEST_MINTS
     mint = job.get("mint") or ""
     return TEST if job.get("faucet") or not mint or mint in known else f"mint {mint}"
 

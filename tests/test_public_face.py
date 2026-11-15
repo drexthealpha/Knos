@@ -11,8 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SENTENCE = "Knos carries research across the valley of death."
-# what the MCP registry and Gemini CLI list (docs/facts.json registry_sentence): the one line itself. It is 106
-# characters, over the 100 the MCP registry takes, so a new registry listing needs that limit settled first.
+# what the MCP registry and Gemini CLI list (docs/facts.json registry_sentence): the one line itself, 49 characters,
+# inside the registry limit of 100.
 REGISTRY = SENTENCE
 FACES = ("docs/facts.json", "pyproject.toml", "server.json", "gemini-extension.json", "plugin/.claude-plugin/plugin.json",
          "plugin/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json", "sdk/settle/package.json", "sdk/settle/README.md", "action.yml", "web/door.html", "README.md")
@@ -67,7 +67,7 @@ def test_any_other_description_of_the_product_fails_the_check_place_by_place(tmp
     title = re.search(r"<title>([^<]*)</title>", door).group(1)
     _sub(root / "web" / "door.html", f"<title>{title}</title>", "<title>Knos: bounties</title>")
     _sub(root / "web" / "door.html", '<meta property="og:description" content="', '<meta property="og:description" content="Escrow for agents. ')
-    _sub(root / "README.md", pf.K1, "Pay agents on merge.")   # the README opens with the 17-year question, no marketing
+    _sub(root / "README.md", pf.K1, "Pay agents on merge.")   # the README opens with what Knos does (pf.K1), no marketing
     found = pf.problems(root)
     assert [f.split(":")[0] for f in found] == ["server.json", "plugin/.claude-plugin/plugin.json", "pyproject.toml", "action.yml", "web/door.html <title>",
                                                 "web/door.html og", "README.md"]

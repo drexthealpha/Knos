@@ -9,7 +9,7 @@
  "at": "a cited commit",
  "commits_to_here": 11,
  "copied": "2026-10-15",
- "note": "The commit of knos-witness whose witness.json is the record docs/JUDGES.md, docs/TRANSACTION.md, docs/judges.json, README.md and docs/reference/FLOWS.md cite (the 0.3.23 run, issue #9 and pull request #10).",
+ "note": "The commit of knos-witness whose witness.json is the record docs/TRANSACTION.md, docs/START.md and docs/reference/COLOSSEUM.md cite (the 0.3.23 run, issue #9 and pull request #10).",
  "files": [
   {
    "path": ".github/workflows/knos-check.yml",

@@ -21,7 +21,7 @@ def cfg():
 def test_the_verified_merge_is_a_decided_starting_price_with_the_first_verification_free(cfg):
     vm = cfg.doc["fees"]["verified_merge"]
     assert (vm["status"], vm["usd_each"], vm["free_first"], vm["label"]) == ("decided", "1.00", 1, "starting price")
-    assert vm["decided"] == "14 Oct 2026" and "price set 14 Oct 2026" in vm["source"] and "Airwallex" in vm["collected"]
+    assert vm["decided"] == "14 Oct 2026" and "price set 14 Oct 2026" in vm["source"] and vm["collected"].startswith("not collected")   # nobody pays for a check: no invoice carries it
     assert cfg.price("verified_merge", 3) == 3 * 1_000_000
     assert any(x.startswith("fees.verified_merge.usd_each = 1.00") for x in cfg.decided())
     # the other decided prices this page shows are the ones decided before

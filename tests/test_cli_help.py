@@ -1,4 +1,4 @@
-"""`knos` and `knos --help`: the four commands a person starts with, then the repository's workflows, then money.
+"""`knos` and `knos --help`: four panels in order, Check demand, Hold money, Checks and receipts, Run Knos.
 And `knos check`, which is one command for two callers: a person naming a pull request, and a workflow's job."""
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def test_an_organisations_claim_and_the_meters_statement_are_in_the_help(capsys)
     assert "knos claim --org <organisation> <address>" in cli.__doc__ and "knos statement --meter --buyer X --seller Y --month YYYY-MM" in cli.__doc__
 
 
-def test_every_command_in_the_help_has_a_line_and_only_accept_is_still_to_come():
+def test_every_command_in_the_help_has_a_line():
     from typer.main import get_command
     group = get_command(cli.app)
     shown = {name for name, _panel, _short in cli._HELP}
@@ -128,7 +128,7 @@ def test_the_old_products_stay_callable_and_are_never_listed(capsys):
     rc, bare = _help(capsys, "--help")
     assert rc == 0 and cli.OLD_PRODUCTS
     for name in cli.OLD_PRODUCTS:
-        assert f"â”‚ {name} " not in bare, name
+        assert f"│ {name} " not in bare, name
         try:                                                               # still there for a script that calls it
             code = cli.main([name, "--help"])
         except SystemExit as done:

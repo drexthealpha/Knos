@@ -18,7 +18,7 @@ versions of one. "v2" means "second deployment", not "version 2".
 | program | what it does | devnet address | can it change? |
 |---|---|---|---|
 | `knos_oidc` | checks that a login token from GitHub Actions or GitLab CI ([OIDC](../docs/WORDS.md#token-oidc)) is really signed by them | `vpWym9azbPU5f2PH2a6n8c4RfmsyUeW2dMuWr1DSHcE` | no: it has no upgrade authority |
-| `knos_pay` | a [payment program](../docs/WORDS.md#money-held-until-the-proof-passes): holds money for a GitHub issue and pays when a token signed by GitHub proves the work | `9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi` | no: it has no upgrade authority |
+| `knos_pay` | a [payment program](../docs/WORDS.md#held-money): holds money for a GitHub issue and pays when a token signed by GitHub proves the work | `9UzPFbh2A4e4sEPgngKG523FfYLnQ3qPfFVfFTTAdfDi` | no: it has no upgrade authority |
 
 These two have no version number of their own. The addresses are in [`program_ids.json`](program_ids.json).
 

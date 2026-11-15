@@ -81,7 +81,7 @@ same("a receipt's five parts, in order, from sentences or objects", partsOf(RECE
   [["identity", "GitHub signed run 21 of acme/app.", 2], ["execution", "The agreed evaluator ran on the merged commit.", 0], ["acceptance", "The agreed check, test, passed.", 1],
     ["consequence", "100.00 became payable to Acme Agents.", 0], ["assurance", "Reported: the workflow file decides what it reads.", 1]]);
 same("the five parts as a list", partsOf({ parts: PARTS.map((name) => ({ name, said: `${name}.` })) }).map((p) => p.said), PARTS.map((n) => `${n}.`));
-{ // the shape the command line writes (src/knos/receipt.py `parts`; tests/data/receipt_parts.json holds 21 of them)
+{ // the shape the command line writes (src/knos/receipt.py `parts`; tests/data/receipt_parts.json holds 28 of them)
   const cases = JSON.parse(readFileSync(join(here, "../data/receipt_parts.json"), "utf8")).cases, first = cases[0].parts, got = partsOf(first);
   same("the parts `knos receipt explain --json` writes: every case reads in five parts, each its own line", cases.map((c) => (partsOf(c.parts) || []).map((p) => p.said).join("|")), cases.map((c) => c.parts.parts.map((p) => p.line).join("|")));
   same("  its facts are the part's own facts, and its line is named by them", [got.map((p) => p.key), got[0].facts.some(([n, v]) => n === "issuer" && v === first.parts[0].facts.issuer), got[0].facts.some(([n]) => ["asks", "more", "title", "id"].includes(n)),

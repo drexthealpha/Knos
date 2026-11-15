@@ -123,7 +123,7 @@
    "knos-order": {
     "info": {
      "order": "J222WNWuZwhfgRBMc4jDu9MjGG6eCc2Up8P4FFADWVYp",
-     "state": "escrowed",
+     "state": "held",
      "deadline": 1790604800
     }
    }

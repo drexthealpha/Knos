@@ -637,7 +637,7 @@ check("devnet silent and the 2.2 proposal executed in upgrades.json: the 0.3.18 
 chain.feed = { not: "a feed" };
 const nobody = await feesOf("nobody answers");
 check("nobody answers: the 0.3.18 number with both rules said, never a rule claimed as live", nobody.rule === "0.3.18" && nobody.source === "none"
-  && nobody.note === `This is the fee from knos_pay 2.2. Until that upgrade is live the public program charges 2.50 on this order. ${KEEPS}`
+  && nobody.note === `The fee of knos_pay 2.2, live since 9 October 2026. An order funded before it pays 2.50 here. ${KEEPS}`
   && /\(knos_pay 2\.2, live on devnet since 9 October 2026; `knos status` says which build runs\)/.test(nobody.under) && nobody.under.endsWith(KEEPS), nobody);
 chain.payVersion = 1; chain.feed = null;
 

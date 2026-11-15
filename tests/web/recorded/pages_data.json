@@ -1,5 +1,5 @@
 {
- "note": "The JSON files pages_data.build writes for the scenario of tests/test_pages_data.py (build(get=github(), index=agent_index())), as the static site would publish them: tests/web/site.mjs serves them as the same-origin files the Records, Ranks and Statements views read. Written by `python tests/test_pages_data.py`; test_the_recorded_files_are_what_pages_data_writes fails when they are not what the code writes now.",
+ "note": "The JSON files pages_data.build writes for the scenario of tests/test_pages_data.py (build(get=github(), index=agent_index())), as the static site would publish them, the same-origin files the Records, Ranks and Statements views read. Written by `python tests/test_pages_data.py`; test_the_recorded_files_are_what_pages_data_writes fails when they are not what the code writes now.",
  "files": {
   "badge/r/acme/gadgets.json": {
    "schemaVersion": 1,

@@ -46,7 +46,7 @@ for (let i = 0; i < RUNS; i++) {
   await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
   await cdp.send("Network.emulateNetworkConditions", NET);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU });
-  await page.goto(base + "#check", { waitUntil: "commit" });          // the check of agent work: its box (the bare address is the research products, tests/web/home.mjs)
+  await page.goto(base + "#check", { waitUntil: "commit" });          // the check of agent work: its box
   // the time the first screen first answers, read in the page from the navigation's start
   const usable = await (await page.waitForFunction(() => {
     const box = document.getElementById("fd-in");

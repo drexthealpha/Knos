@@ -3,8 +3,7 @@
 // the widths of a small phone, two common phones, a tablet and a laptop, in light and in dark. A page that runs off the
 // side fails, and the elements that stick out are named. Everything outside the site's own files is refused, so this
 // is the page as it stands before any answer arrives. Nor is a table squeezed: no row of any table, its folds shut, is
-// taller than ROW_MAX px (three columns on a phone once made a sentence a word a line, a refusal 500 px and a page 30,000); tests/web/site.mjs holds the same line for the answers (a
-// result, a wallet, a transaction's accounts) at the same widths. With a screenshot dir, the first screen is saved at
+// taller than ROW_MAX px (three columns on a phone once made a sentence a word a line, a refusal 500 px and a page 30,000). With a screenshot dir, the first screen is saved at
 // 1280 and 390 in both schemes. No `playwright` package or no browser: a failure in CI, a skip elsewhere (see `owed`).
 import { createServer } from "node:http";
 import { createRequire } from "node:module";

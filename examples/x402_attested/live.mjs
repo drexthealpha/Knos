@@ -5,7 +5,7 @@
 //   (the orders a server has served are kept in <offer>.delivered.txt, or --delivered FILE, so a restart never serves one twice)
 //   node examples/x402_attested/live.mjs serve  --rpc URL --offer offer.json [--port 4020]      # the seller's side alone
 //   node examples/x402_attested/live.mjs buy    --rpc URL --key buyer.json --url http://host/work/N [--max 50000000] [--mint M]
-//   node examples/x402_attested/live.mjs status --rpc URL --order ADDRESS [--program ID]        # escrowed, paid or refunded
+//   node examples/x402_attested/live.mjs status --rpc URL --order ADDRESS [--program ID]        # held, paid or refunded
 //   node examples/x402_attested/live.mjs refund --rpc URL --key any.json --order ADDRESS        # after the deadline: back to the funder
 //
 // `run`, `buy`, `status` and `refund` print one JSON object. The offer file is offer.devnet.json's shape; docs/reference/X402.md

@@ -63,7 +63,7 @@ def summary(rows: list[dict], model: str, effort: str) -> dict:
     ok = [r for r in rows if not r["without"].get("error") and not r["with"].get("error")]
     tot = lambda side, k: sum((r[side].get(k) or 0) for r in ok)  # noqa: E731
     out_wo, out_w = tot("without", "output_tokens"), tot("with", "output_tokens")
-    return {"v": 1, "tasks": len(ok), "model": model, "effort": effort,
+    return {"v": 1, "tasks": len(ok), "grounded_tasks": sum(bool(r["grounding"].get("fields")) for r in ok), "model": model, "effort": effort,
             "measured_with": "claude -p --output-format json (Claude Code print mode, the operator's subscription); usage as the API returned it",
             "without_output_tokens": out_wo, "with_output_tokens": out_w, "delta_output_tokens": out_w - out_wo,
             "delta_share": round((out_w - out_wo) / out_wo, 3) if out_wo else None,
@@ -76,6 +76,7 @@ def summary(rows: list[dict], model: str, effort: str) -> dict:
                       "with_cost_usd": r["with"].get("cost_usd"), "grounded_on": r["grounding"]} for r in ok],
             "qloo_data": "not kept here: Qloo's answers stay server side; each line is named by its fields and sha256",
             "honest": "the Qloo line's effect on reasoning tokens and on Ready briefs for these 10 tasks, whatever it is; "
+                      "a task whose Qloo line came back empty (grounded_tasks counts the others) differs only by run-to-run noise; "
                       "the IDT ratio is Knos's own and is not credited to Qloo"}
 
 

@@ -6,7 +6,7 @@
 // in one press and its address is the knos_passkey address of its key; the one link is GitHub's filled-in
 // new-repository form while <login>/knos-claim does not exist, and the claim workflow's page once it does; Check reads
 // the Bind account; by keyboard, a login that does not exist brings the box back with the login in it and the cursor
-// there, and the right one moves the focus to the answer, which is said aloud; the clicks table says 13 before and 8 now; no statement is longer than twelve words; no sideways
+// there, and the right one moves the focus to the answer, which is said aloud; the clicks table says 13 before and 10 now; no statement is longer than twelve words; no sideways
 // scroll from 320 to 1280 px; nobody is asked but the page's host, api.github.com and devnet. No `playwright` package
 // or no browser: says SKIP and exits 0.
 import { createServer } from "node:http";
@@ -16,7 +16,8 @@ import { join, dirname, extname, normalize } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)), repo = join(here, "../.."), web = join(repo, "web");
-const shots = process.argv[2];
+// a screenshot folder, never a built site: a folder that holds index.html (tests.yml passes the site) gets no pictures
+const shots = process.argv[2] && !existsSync(join(process.argv[2], "index.html")) ? process.argv[2] : null;
 const skip = (why) => { console.log(`SKIP ${why}`); process.exit(0); };
 let failed = 0;
 const ok = (what, cond, detail) => { if (!cond) failed++; console.log(`${cond ? "ok  " : "FAIL"} ${what}${cond || detail === undefined ? "" : `: ${JSON.stringify(detail)}`}`); };

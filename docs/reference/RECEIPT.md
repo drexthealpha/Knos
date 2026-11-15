@@ -187,7 +187,9 @@ version 5 one holds. A mirror's copy, made from the chain alone, does not carry 
 A disputed version 5 receipt disputes the version 5 form of the receipt it disputes; a
 dispute does not move the level, which is of the evidence.
 
-Version 5 was written from 0.3.19 until 0.4.0, which writes version 6 on top of it (`build6` over `build5`, section "Version 6"): `knos bundle make`, `knos receipt mirror`, the relay's attestation of a payment and the receipt `knos attest` leaves for a run that paid
+Version 5 was written from 0.3.19 until 0.4.0, which writes version 6 on top of it (`build6` over `build5`, section "Version 6").
+
+`knos bundle make`, `knos receipt mirror`, the relay's attestation of a payment and the receipt `knos attest` leaves for a run that paid
 nothing all wrote it (`build5` over the version 4 receipt, so the level is computed and never typed).
 
 `knos bundle make --terms3 FILE` reads the declared control relationships from the Knos Terms 3 document the order cites, and refuses a document the order does not cite; a run of `knos
@@ -330,7 +332,7 @@ holds, byte for byte).
 
 What is not done yet, said plainly: `knos bundle make` and `knos receipt mirror` write version 6 (an accepted
 payment), and nothing in a pinned workflow writes a rejected or an insufficient receipt yet. The Solana Attestation
-Service script takes versions 1 to 5 only, so it refuses every receipt written now (version 6).
+Service script takes versions 1 to 6, with the same fields for each.
 
 ## Version 3
 
@@ -864,7 +866,7 @@ the signed run reported the terms as met, not that the work is good. A version 4
 
 A receipt is written on chain as an attestation of the
 [Solana Attestation Service](https://solana.com/docs/tools/attestations), so that other programs and indexers find
-it where they look for attestations. `scripts/sas_receipt.mjs` does it, for a receipt of any version from 1 to 5 (not version 6, which every receipt is now):
+it where they look for attestations. `scripts/sas_receipt.mjs` does it, for a receipt of any version from 1 to 6:
 
 ```
 node scripts/sas_receipt.mjs receipt.json                           # dry run: prints the three instructions
@@ -873,8 +875,7 @@ node scripts/sas_receipt.mjs --init --send --keypair KEY.json        # the relea
 ```
 
 Issuing it is **on by default** wherever Knos issues a receipt: `knos.receipt.attest(receipt)` runs the script with
-`--send`, and `knos receipt mirror` calls it for every order new to the mirror. Because the script refuses version 6,
-that attestation does not happen today; the refusal is soft and the receipt itself is unaffected. The opt-out is `--no-attest`, or
+`--send`, and `knos receipt mirror` calls it for every order new to the mirror. The opt-out is `--no-attest`, or
 `KNOS_NO_SAS=1`.
 
 It fails soft: it runs after the paying transaction is confirmed and after the mirror's files are written, it never

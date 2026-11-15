@@ -103,7 +103,7 @@
   "machine": "x86_64 Linux, 2 CPUs shared with other work",
   "source": {
    "path": "programs-v2/fee_proofs/src/lib.rs",
-   "sha256": "48054ea8ca1efcc47db2a7c091ffc918a94390fb9d0a02c7d7ee7b35bd0242ce",
+   "code_sha256": "3c67509381dbd9b099e7a8351f0c36f94f94cba075f2171fcc9063a14ca1c61f",
    "program_lines_sha256": "abab17805feb90b33e2f50927efa26d4608c8ebb2b40f4713b38de7ac1588d14"
   },
   "summary": {
@@ -235,7 +235,7 @@
   ],
   "not_answered": {
    "date": "2026-10-07",
-   "why": "Why the SAT solvers do not answer: `bps_of` divides the amount by 10,000 and takes its remainder by 10,000, and CBMC gives each its own quotient and remainder, so the bound at exactly 0.30% needs the two divisions to agree (a quotient and a remainder are unique), which a solver working on bits did not find in the time; even the division's identity alone was not answered. With one basis point to spare that agreement is not needed and CaDiCaL answers in under a second. As integers the division by a constant is linear arithmetic.",
+   "why": "Why the SAT solvers do not answer: `bps_of` divides the amount by 10,000 and takes its remainder by 10,000, and CBMC gives each its own quotient and remainder, so the bound at exactly 0.30% needs the two divisions to agree (a quotient and a remainder are unique), which a solver working on bits did not find in the time; even the division's identity alone was not answered. With one basis point to spare that agreement is not needed and CaDiCaL answers it (5.5 s in the recorded run). As integers the division by a constant is linear arithmetic.",
    "trials": [
     {
      "form": "the bound itself on `order_fee`: the fee is the floor, or ten thousand fees are at most thirty amounts",

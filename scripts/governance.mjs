@@ -190,7 +190,7 @@ export const programData = (program) => PublicKey.findProgramAddressSync([progra
 // ---- the instructions a vault signs ---------------------------------------------------------------------------------
 const meta = (pubkey, isSigner, isWritable) => ({ pubkey, isSigner, isWritable });
 
-/** knos_oidc Approve (tag 6) or Revoke (tag 7): guardian(s) key(w). */
+/** knos_oidc Approve (tag 6) or Revoke (tag 7): key_admin(s) key(w) (pins::KEY_ADMIN, not the guardian). */
 export function keyIx(tag, guardian, key) {
   return new TransactionInstruction({ programId: new PublicKey(IDS.knos_oidc), data: Buffer.from([tag]), keys: [meta(guardian, true, false), meta(key, false, true)] });
 }

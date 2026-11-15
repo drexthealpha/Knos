@@ -185,7 +185,7 @@ Three kinds of key are involved in an upgrade. The addresses are the ones devnet
   needed; two member keys have every power. It reads the multisig account as devnet holds it.
 - [DRILLS.md](DRILLS.md), the four rows of the upgrade drill, run against the real Squads program on a local
   validator: an approved upgrade is refused before its time lock has run (`TimeLockNotReleased`; the drill ran on 4 Oct 2026,
-  under the 48-hour lock of that time), and a cancelled one never runs (`InvalidProposalStatus`).
+  under the time lock of that time, 172,800 s), and a cancelled one never runs (`InvalidProposalStatus`).
 - Not drilled: a key that is no member sending a proposal or a vote to the Squads program and being refused. The
   test above reads the member list; it does not send that transaction.
 

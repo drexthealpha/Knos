@@ -907,5 +907,18 @@ def test_the_plan_comes_before_anything_is_withdrawn_and_the_unchanged_programs_
         linked = sorted({m for name in unchanged for m in re.findall(r'path = "\.\./\.\./(crates/[\w-]+)"', (ROOT / "programs-v2" / name / "Cargo.toml").read_text(encoding="utf-8"))})
         assert linked == ["crates/knos-oidc-interface"]
         shared = [p for crate in linked for p in (f"{crate}/src", f"{crate}/Cargo.toml")]
-        moved = subprocess.run([git, "diff", "--name-only", f"v{at}", "--", *own, *shared], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True).stdout.split()
+        changed = subprocess.run([git, "diff", "--name-only", f"v{at}", "--", *own, *shared], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True).stdout.split()
+        # a file whose built part is the tag's, line for line, moves no byte: a comment reworded on its own line (the
+        # line count kept, so no panic location moves), the tests below #[cfg(test)], or a Cargo.toml description or
+        # homepage (package metadata no build reads). Anything else is a line of the build.
+        def built(rel: str, text: str) -> list[str]:
+            lines = text.replace("\r\n", "\n").split("\n")
+            if rel.endswith(".rs"):
+                lines = lines[:next((i for i, x in enumerate(lines) if x.strip() == "#[cfg(test)]"), len(lines))]
+                return ["" if x.lstrip().startswith("//") else x for x in lines]
+            return ["" if re.match(r"(description|homepage) = ", x) else x for x in lines]
+        def then(rel: str) -> str:
+            got = subprocess.run([git, "show", f"v{at}:{rel}"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
+            return got.stdout if got.returncode == 0 else ""
+        moved = [rel for rel in changed if built(rel, then(rel)) != built(rel, (ROOT / rel).read_text(encoding="utf-8") if (ROOT / rel).is_file() else "")]
         assert moved == [], f"this release changes knos_oidc and knos_pay alone, and these moved since v{at}: {moved}"

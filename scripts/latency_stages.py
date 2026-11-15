@@ -140,7 +140,8 @@ def six(r: dict) -> list[dict]:
 
 COMMITMENT = "confirmed"        # the level the relay waits for and `block_times` asks at; `finalized` is the finality row
 NO_BANK = "not applicable: no bank route"
-# the five clocks: (clock, the six-stage rows that measure it, whose wait it is, the target)
+# the five clocks: (clock, the six-stage rows that measure it, whose wait it is, the target). Chain inclusion is one
+# clock read at two commitments (confirmed and finalized), so the five clocks are six entries here
 CLOCKS = (("work execution", ("workflow scheduling", "evaluation"),
            "GitHub's: starting a runner, and the job. Knos's share is the job's install and its reads",
            "none set: the forge must run a job and sign, so this clock cannot reach zero"),

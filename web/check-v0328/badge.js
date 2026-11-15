@@ -1,4 +1,4 @@
-// The "paid on proof" badge and a payee's record, drawn for the site. Nothing here asks the network for anything: the
+// The "checked by Knos" badge and a payee's record, drawn for the site. Nothing here asks the network for anything: the
 // caller hands in what it read (a badge's data, or the record `knos record <login> --json` prints), and gets HTML back.
 //
 //   badgeSvg(data)          the badge as an SVG string: the same bytes src/knos/badge.py `svg` writes (tests/test_badge.py)
@@ -18,7 +18,7 @@
 import { BADGE_MARK as MARK } from "./brand/mark.js";      // the Knos mark at the left of a badge (written by scripts/brand.py)
 
 export const SITE = "https://drexthealpha.github.io/Knos";
-export const LABEL = "paid on proof";
+export const LABEL = "checked by Knos";
 const TEST = "test USDC";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" }[c]));
@@ -33,10 +33,10 @@ export function badgeMessage(d) {
 
 export function badgeTitle(d) {
   if (d.pr) {
-    return `Paid on proof: pull request #${d.pr} of ${d.repo} was paid ${d.amount} ${d.money} on ${d.date} (UTC), after the checks its funder named passed at the merge. This is a payment, not a score of the work.`;
+    return `Checked by Knos: pull request #${d.pr} of ${d.repo} was paid ${d.amount} ${d.money} on ${d.date} (UTC), after the checks its funder named passed at the merge. This is a payment, not a score of the work.`;
   }
   const n = Number(d.count);
-  return `Paid on proof: ${n} payment${s(n)} in ${d.money} for pull requests to ${d.repo}, as of ${d.as_of} (UTC). Each was made after the checks its funder named passed at the merge. This is a count of payments, not a score of the work.`;
+  return `Checked by Knos: ${n} payment${s(n)} in ${d.money} for pull requests to ${d.repo}, as of ${d.as_of} (UTC). Each was made after the checks its funder named passed at the merge. This is a count of payments, not a score of the work.`;
 }
 
 function draw(label, msg, tip, colour) {
@@ -116,8 +116,8 @@ export async function renderVerified(el, v, receipt = null) {
   return el;
 }
 
-// The repository's record on the site: every payment for it, each with its transaction.
-export const receiptUrl = (repo) => `${SITE}/r/${String(repo).split("/").map(encodeURIComponent).join("/")}.html`;
+// The repository's record file on the site: every payment for it, each with its transaction.
+export const receiptUrl = (repo) => `${SITE}/r/${String(repo).split("/").map(encodeURIComponent).join("/")}.json`;
 
 export function badgeHtml(d) {
   const scope = d.pr ? `One pull request: #${esc(d.pr)} of ${esc(d.repo)}, paid on ${esc(d.date)} (UTC).`

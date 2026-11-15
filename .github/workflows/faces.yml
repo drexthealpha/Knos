@@ -1,6 +1,6 @@
 # The browser checks of the product pages as Pages serves them, after each deploy: Lighthouse (mobile preset, the median
 # of three cold runs per page), linkinator (every link) and Hallmark's sloplint and Impeccable's detector, into the artifact "faces".
-# The front door's S1 numbers and every page's header are gated before deploy, in network.yml (tests/web/front_door_budget.mjs);
+# The front door's S1 numbers and every page's header are gated in tests.yml (tests/web/front_door_budget.mjs);
 # the older face gates (the film, the four-item nav, #menu) went with the pages they checked.
 name: faces
 on:

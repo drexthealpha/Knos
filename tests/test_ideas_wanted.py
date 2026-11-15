@@ -83,7 +83,7 @@ def test_fund_instructions_go_to_the_stage_and_pool_orders():
     with pytest.raises(IdeaError):
         W.fund_ix(p, K.pool, buyer, pay.ata(buyer, mint), mint, 1)
     rel = W.release_audience(p, K.stage1, W.address(p, K.stage1, buyer), "ab" * 32)
-    assert rel[K.audience].startswith("knos3:pay:") and "issuer-agnostic release" in rel[K.next_route]
+    assert rel[K.audience].startswith("knos3:pay:") and "m-of-n referee panel" in rel[K.next_route]
 
 
 def test_the_oracles_read_the_public_sources():

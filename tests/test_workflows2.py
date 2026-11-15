@@ -1,5 +1,5 @@
 """The second deployment's workflows: what a repository installs (examples/), what those files call (fund.yml,
-prove.yml and check.yml, published from drexthealpha/Knos, branch workflows) and what Knos runs on itself. Every rule the
+prove.yml and check.yml, published from drexthealpha/Knos, workflows-<sha12> tags) and what Knos runs on itself. Every rule the
 design rests on is checked on the parsed files. Nothing here talks to GitHub: a job's `if:` is run against sample
 events by tests/_ghexpr.py, which follows GitHub's own rules for expressions."""
 from __future__ import annotations

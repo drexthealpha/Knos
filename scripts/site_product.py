@@ -7,6 +7,7 @@ criteria hash every job for that claim is opened with on NEAR testnet."""
 import hashlib
 import html
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,13 +77,22 @@ def e(s) -> str:
     return html.escape(str(s), quote=True)
 
 
+def theme_colors() -> str:
+    """The browser bar takes the page colour: the dark and the light paper of web/brand/tokens.css, the one palette."""
+    css = (ROOT / "web" / "brand" / "tokens.css").read_text(encoding="utf-8")
+    dark = re.search(r":root \{\s*--paper: (#[0-9a-f]{6})", css)[1]
+    light = re.search(r':root\[data-theme="light"\] \{\s*--paper: (#[0-9a-f]{6})', css)[1]
+    return f'<meta name="theme-color" content="{dark}">\n<meta name="theme-color" content="{light}" media="(prefers-color-scheme: light)">\n'
+
+
 def page(header: str, up: str, title: str, desc: str, body: str, script: str = "", canonical: str = "") -> str:
     return (f'<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f"<title>{e(title)}</title>\n<meta name=\"description\" content=\"{e(desc)}\">\n<meta name=\"color-scheme\" content=\"light dark\">\n"
             f'<link rel="canonical" href="https://drexthealpha.github.io/Knos/{canonical}">\n'
             f'<meta property="og:title" content="{e(title)}">\n<meta property="og:description" content="{e(desc)}">\n'
             f'<meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">\n'
-            f'<link rel="icon" href="{up}icon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
+            f'{theme_colors()}<link rel="icon" href="{up}icon.svg" type="image/svg+xml">\n<link rel="icon" href="{up}favicon.ico" sizes="16x16 32x32 48x48">\n'
+            f'<link rel="apple-touch-icon" href="{up}brand/apple-touch-icon.png">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
             f"<style>\n{CSS}{HEADER_CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
             f'<footer><span>NEAR testnet, test money, no customers yet.</span><br>'
             f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{up}privacy.html">Privacy</a></footer>\n'
@@ -400,19 +410,36 @@ def status_page(header: str) -> str:
 
 
 def privacy_page(header: str) -> str:
-    body = ("<h1>Privacy and terms</h1>\n<h2>This site</h2>\n<p>No cookies. One outside script host: the Prove page loads the GSAP animation library from cdnjs, pinned by its hash; it sends nothing of yours. "
-            "To learn why people stay or leave, each page sends Knos small events of an anonymous visit: a random id your browser makes and "
-            "resets every day, the page, each press and how long its answer took, whether you got an answer, ran a proof, backed a claim or "
-            "downloaded code, three quick presses on one spot, an error shown, a tap on \"Not what I need\" and the word you add to it, and the last page and its seconds before you leave. No IP "
-            "address, account or cookie is stored with them. If your browser sends Do Not Track, nothing is sent. /status shows the totals. "
-            "The question or paper link you type goes to the "
-            "Knos server, which reads the paper's title from its public record (Crossref) and answers. Your browser also reads "
-            "NEAR testnet's public record."
-            + (" On a claim page, the wallet connector (NEAR Wallet Selector) loads from esm.sh; your NEAR testnet wallet signs each trade, and Knos never sees your key." if usdc_market().get("live") else "")
-            + "</p>\n<h2>The server</h2>\n<p>No account and no sign-in. It counts requests per address only to "
-            "limit them. Every proof and payment is public on NEAR testnet.</p>\n<h2>Terms</h2>\n<p>Test money on NEAR testnet, worth "
-            f'nothing. The code is MIT licensed, with no warranty: <a href="{REPO}/blob/main/LICENSE">the licence</a>. Report a problem in '
-            f'<a href="{REPO}/issues">GitHub issues</a>.</p>')
+    """Each thing the site and the server do with what a visitor sends, one short line each (12 words at most)."""
+    site = ["No cookies, and no outside tracker.",
+            "The Prove page loads one script library, GSAP, from cdnjs.",
+            "Your browser checks that file's integrity; it sends nothing of yours.",
+            "Each page sends Knos small events of an anonymous visit.",
+            "The visit id is random, made by your browser, reset daily.",
+            "Events name the page, each press and how long it took.",
+            "They say whether you got an answer or ran a proof.",
+            "They say whether you backed a claim or downloaded code.",
+            "Also three quick presses on one spot, and any error shown.",
+            'A tap on "Not what I need", and any word you add.',
+            "Also the last page, and its seconds before you leave.",
+            "No IP address, account or cookie is stored with them.",
+            "Do Not Track in your browser stops every event.",
+            "The status page shows the totals.",
+            "What you type goes to the Knos server, which answers.",
+            "The server reads a paper's title from its public record, Crossref.",
+            "Your browser also reads NEAR testnet's public record."]
+    if usdc_market().get("live"):
+        site += ["On a claim page, a NEAR sign-in library loads from esm.sh.",
+                 "Your NEAR testnet account signs each trade; Knos never sees your key."]
+    server = ["No account and no sign-in.", "It counts requests per address, only to limit them.",
+              "Every proof and payment is public on NEAR testnet."]
+    terms = ["Test money on NEAR testnet, worth nothing.", f'The code is MIT licensed: <a href="{REPO}/blob/main/LICENSE">read the licence</a>.',
+             "It comes with no warranty, as the licence says.", f'Report a problem in <a href="{REPO}/issues">GitHub issues</a>.']
+
+    def ul(lines: list[str]) -> str:
+        return "<ul>\n" + "".join(f"<li>{t}</li>\n" for t in lines) + "</ul>"
+    body = (f"<h1>Privacy and terms</h1>\n<h2>This site</h2>\n{ul(site)}\n<h2>The server</h2>\n{ul(server)}\n"
+            f"<h2>Terms</h2>\n{ul(terms)}")
     return page(header, "", "Knos privacy and terms", "No cookies; an anonymous daily visit id and no IP stored; test money on NEAR testnet.", body, "", "privacy.html")
 
 

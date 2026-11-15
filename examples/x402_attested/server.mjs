@@ -3,7 +3,7 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import http from "node:http";
 
-import { decode, encode, escrowed, payerSigned, paymentRequired, requirement, status, verify } from "./attested.mjs";
+import { decode, encode, settledHeld, payerSigned, paymentRequired, requirement, status, verify } from "./attested.mjs";
 
 /**
  * `offer`: what is sold and under which order. `chain`: { account, now, logs }. `deliver(order)`: the resource's body.
@@ -41,7 +41,7 @@ export function server(offer, chain, deliver, { deliveredFile } = {}) {
       if (delivered.has(p.payload.order)) return refuse("this order already paid for one delivery: fund another (a new seq)");
       delivered.add(p.payload.order);
       appendFileSync(deliveredFile, p.payload.order + "\n");
-      return send(200, await deliver(p.payload.order), { "PAYMENT-RESPONSE": encode(escrowed(want, p.payload, v)) });
+      return send(200, await deliver(p.payload.order), { "PAYMENT-RESPONSE": encode(settledHeld(want, p.payload, v)) });
     } catch (e) {
       return send(500, { error: String(e.message ?? e) });
     }

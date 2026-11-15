@@ -1,5 +1,5 @@
 {
- "note": "Made by tests/test_fund_any_issue.py: the terms from src/knos/terms.py for the boxes as a funder types them, and the funding instruction from src/knos/settle/v2/pay.py fund_order_wallet_ix, for the wallet and the issue tests/web/site.mjs uses (unique(1), octo/widgets#7). tests/web/site.mjs holds web/anyissue.js to these answers. Written by `python tests/test_fund_any_issue.py`.",
+ "note": "Made by tests/test_fund_any_issue.py: the terms from src/knos/terms.py for the boxes as a funder types them, and the funding instruction from src/knos/settle/v2/pay.py fund_order_wallet_ix, for the wallet unique(1) and the issue octo/widgets#7. Written by `python tests/test_fund_any_issue.py`.",
  "terms": [
   {
    "name": "no check, no path",

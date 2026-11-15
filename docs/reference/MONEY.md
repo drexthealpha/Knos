@@ -2,7 +2,9 @@
 
 # Money: one fee config, graduation, splits, x402 and the revenue data
 
-**In plain words.** Every Knos fee on Solana lives in one file, and the code reads it from there; the NEAR contracts compile their own 1 part in 10. When a claim passes, money for its next step and its first orders is held on devnet until the milestone's checks pass. When the work is accepted, everyone who helped is paid their share at once.
+**In plain words.** Every Knos fee on Solana lives in one file, and the code reads it from there; the NEAR contracts compile their own 1 part in 10. When a claim passes, money for its next step and its first orders is held on devnet until the milestone's checks pass.
+
+When the work is accepted, everyone who helped is paid their share at once.
 
 What is held, released and charged now: [the money page](https://knos.onrender.com/money).
 

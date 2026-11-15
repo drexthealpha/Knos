@@ -105,7 +105,7 @@ def build(series: dict[str, Any], disputes: Any = (), replies: Any = ()) -> dict
         name = r["agent"]
         mine = [d for d in disputes if d["agent"] == name]
         vendors.append({
-            "agent": name, "slug": slug(name), "page": f"{SITE}/#vendor={slug(name)}", "record": f"{SITE}/#record={slug(name)}",
+            "agent": name, "slug": slug(name), "page": f"{SITE}/#vendor={slug(name)}", "record": f"https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/records/{slug(name)}.json",
             "row": {k: r[k] for k in ("weeks", "claimed_passing", "merged", "failed_at_merge", "share", "ci95", "rank", "status", "overlaps_above")},
             "weekly": weekly_counts(series, name),
             "reply": reply_url(name), "replies": [x for x in replies if x["agent"] == name],

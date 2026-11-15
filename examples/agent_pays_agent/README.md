@@ -31,6 +31,6 @@ other than the funder, and `buyer.mjs` refuses a board whose payee is its own ad
     node examples/x402_attested/live.mjs refund --rpc https://api.devnet.solana.com --key buyer.json --order ORDER
 
 `buyer.json` needs a little SOL and 5.05 test USDC (5 for the order, a 0.05 fee) ([faucet.circle.com](https://faucet.circle.com)). `status` says
-`paid` once the seller's pull request is merged with `test` green; in the `--wrong` run it stays held (live.mjs prints the state name `escrowed`) and `refund`
+`paid` once the seller's pull request is merged with `test` green; in the `--wrong` run it stays held (live.mjs prints the state name `held`) and `refund`
 returns everything after the offer's 15 minutes. Node 20 or later, no package to
 install. Not built: an evaluator that is itself an agent holding a key the program trusts.

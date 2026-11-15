@@ -2,7 +2,7 @@
   "version": "0.3.14",
   "name": "knos_pay_v2",
   "docs": [
-    "Pay on proof, second deployment: an escrow that pays the author of a pull request on a GitHub-signed token verified on chain by knos-oidc.",
+    "Second deployment. The payment program that holds money until the proof passes and pays the author of a pull request on a GitHub-signed token verified on chain by knos-oidc.",
     "Upgradeable only through a multisig with a public 8-day time lock, until an outside review.",
     "The multisig is 2 of 3, and today one person holds all three keys.",
     "A native program: this file is written by hand from programs-v2/knos_pay/src (lib.rs and order_terms.rs list every instruction, state.rs and order_terms.rs every account) and checked by tests/test_idl.py and tests/test_pay2_idl.py.",
@@ -315,7 +315,7 @@
       "docs": [
         "A wallet funds a work order for an issue of any public repository: the amount its payees will receive plus the fee on top (0.30% of the amount, one rate and no tiers;",
         "at least 0.05 of a whole unit of the mint; no maximum), into the order's own token account. opts (48 bytes): flags u8 (PRIVATE 2, NEUTRAL 4, STANDING 8), holdbackBps u16,",
-        "warrantyDays u16, killBps u16, reserveDays u8, rate u64, arbiterId u64, judgeRepoId u64, salted u8, grace u8 (1: a pay token issued by the deadline still pays for 7200 seconds after it, and RefundOrder waits as long), 14 zero bytes. A PRIVATE order: repoId and issue are 0",
+        "warrantyDays u16, killBps u16, reserveDays u8, rate u64, arbiterId u64, judgeRepoId u64, salted u8, grace u8 (1: a pay token issued by the deadline still pays for 7200 seconds after it, and RefundOrder waits as long), a zero byte, judge u8 @35 (0 a forge, 1 ATTESTED, 2 PANEL), 12 zero bytes. A PRIVATE order: repoId and issue are 0",
         "and terms is its scope (32 bytes) then the sha256 of its terms (32 bytes); otherwise terms is the terms JSON, which is logged. Refused while new funding is paused."
       ],
       "accounts": [

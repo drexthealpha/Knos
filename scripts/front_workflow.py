@@ -30,7 +30,7 @@ TEMPLATES = {"WORKFLOW": "knos-workflow.yml", "CHECK_WORKFLOW": "knos-check.yml"
 INSTALL = ROOT / "web" / "install.js"
 PAYEE = ROOT / "web" / "payee.js"
 # the published workflows in either home (scripts/pinned_workflows.py HOMES): drexthealpha/knos-workflows until the
-# cutover, the monorepo's branch `workflows` after it
+# cutover, the monorepo's workflows-<sha12> tags after it
 PIN = re.compile(r"drexthealpha/(?:knos-workflows/\.github/workflows/[\w.-]+|Knos/\.github/workflows/(?:fund|prove|check|attest)\.yml)@(\S+)")
 
 

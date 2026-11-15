@@ -65,7 +65,7 @@
  "public": {
   "label": "from public pull requests, not from Knos orders",
   "source": "docs/index.json",
-  "source_sha256": "8c73e547396df9ab607ffc53fda4d1df2cc9d7c0ddab0b99f0dd6a91a03a0f7d",
+  "source_data_sha256": "8c73e547396df9ab607ffc53fda4d1df2cc9d7c0ddab0b99f0dd6a91a03a0f7d",
   "category": "merged pull requests whose description claimed passing tests",
   "week": "2026-09-28",
   "read": "2026-10-07",
@@ -104,5 +104,5 @@
   "dispute": "https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+record%3A+copilot&agent=copilot&week=2026-09-28",
   "specification": "https://github.com/drexthealpha/Knos/blob/main/docs/reference/SUPPLIER.md"
  },
- "sha256": "c4a369d61527df313e6da00bde8dbbe49f001bc09dae140e7c29e3fb143be889"
+ "sha256": "3643d58464a19e20838405d31dc5b9488218e430fa80aed964ee38bc054285f5"
 }

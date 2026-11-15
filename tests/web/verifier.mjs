@@ -3,7 +3,7 @@
 // page's issuer table is the one of examples/issuers/issuers.json. Then in headless Chromium, on a page that holds nothing but the
 // site's stylesheet and this module: the sentence, the three calls and their Copy buttons, the table, the tool. It asks no host but
 // the one that served it, sends a pasted token nowhere, keeps nothing, says "Decoded, not verified", holds every statement to twelve
-// words and never scrolls sideways. Needs the `playwright` package, as tests/web/site.mjs does; without it or a browser it says SKIP.
+// words and never scrolls sideways. Needs the `playwright` package; without it or a browser it says SKIP.
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";

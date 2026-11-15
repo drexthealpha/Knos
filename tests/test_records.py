@@ -40,7 +40,10 @@ def history(name: str) -> list[dict]:
 
 @pytest.fixture(scope="module")
 def scenario() -> list[dict]:
-    return history("second_deployment_scenario.json")
+    events = history("second_deployment_scenario.json")
+    # the LiteSVM run made its own mint for the test build's test USDC: the records read it as test USDC, as on devnet
+    records.TEST_MINTS.update(str(ev["mint"]) for ev in events if ev["event"] == "balance" and ev.get("mint"))
+    return events
 
 
 @pytest.fixture(scope="module")

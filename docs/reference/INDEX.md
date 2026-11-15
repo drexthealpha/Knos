@@ -1,7 +1,9 @@
 # Agent PR Index
 
 A pull request (PR) opened by a coding agent often says "tests pass". The Agent PR Index says how often GitHub's own
-record of the automatic checks agrees with that claim, for each coding agent it can recognise. It was published weekly, under one name and one date
+record of the automatic checks agrees with that claim, for each coding agent it can recognise.
+
+It was published weekly, under one name and one date
 (**"Agent PR Index, week of <Monday>"**), until the week of 28 September 2026: no later weekly pull request was merged,
 so the series stopped there. The site's `index.json` is built separately and may hold a newer rolling scan
 ([BENCH.md](BENCH.md) quotes the 2 Oct 2026 scan).
@@ -98,7 +100,9 @@ The numbers are in [`agent_weekly.json`](../agent_weekly.json); the script that 
 | too few to rank | claude-code | 9 of 14 (64.3%; 38.8% to 83.7%) | 59 | 14 | 3 of 12 (25.0%; 8.9% to 53.2%) | 2 of 10 (20.0%; 5.7% to 51.0%) | 0 | not capped: drew 210 of 210 planned, of 1,608,162 the search reported |
 | too few to rank | codex | 2 of 2 (100.0%; 34.2% to 100.0%) | 98 | 2 | 0 of 2 (0.0%; 0.0% to 65.8%) | 0 of 2 (0.0%; 0.0% to 65.8%) | 0 | not capped: drew 136 of 136 planned, of 246 the search reported |
 
-Also paid through Knos, checked against: no list of Knos payments was joined to this sample, so the count is 0 for every agent: every Knos payment so far is test USDC, on Solana devnet and NEAR testnet. It takes a sampled pull request that was also paid through Knos under terms with a black-box check, and that list passed with --paid.
+Also paid through Knos, checked against: no list of Knos payments was joined to this sample, so the count is 0 for every agent: every Knos payment so far is test USDC, on Solana devnet and NEAR testnet.
+
+It takes a sampled pull request that was also paid through Knos under terms with a black-box check, and that list passed with --paid.
 
 Every week in the file added up (2026-07-03 to 2026-10-04; never ranked: the weeks were not all read the same way). Source: each week says how it was read (`design`, `capped`, `strata`). The newest: week of 2026-09-28, read 2026-10-07, stratified-seeded-v1; read on 2026-10-07 and not whole weeks: the weeks of 2026-09-28 (`full_week` false).
 

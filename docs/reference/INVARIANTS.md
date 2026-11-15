@@ -463,12 +463,13 @@ obliged to run a relay:
 
 What is tested is recovery from named failures, in a simulator, with times that are simulated seconds.
 
-The eight rows of [DRILLS.md](DRILLS.md), "When a dependency fails" (GitHub's API down for ten minutes, GitHub's signing
-key expired on chain, the relay killed between a send and its confirmation, the RPC endpoint erroring with stale
-blockhashes, the evidence missing, devnet reset, devnet reset with the operator's copies deleted, GitHub rotating its
-signing key mid-period), are held to the page by
+The eight rows of [DRILLS.md](DRILLS.md), "When a dependency fails", are held to the page by
 `test_each_dependency_failure_is_drilled_and_says_what_broke_what_is_seen_how_it_recovers_and_how_long_it_took` in
 `tests/test_drills.py`.
+
+The eight are: GitHub's API down for ten minutes, GitHub's signing key expired on chain, the relay killed between a
+send and its confirmation, the RPC endpoint erroring with stale blockhashes, the evidence missing, devnet reset, devnet
+reset with the operator's copies deleted, and GitHub rotating its signing key mid-period.
 
 The relay's own behaviour when its dependencies fail is tested in `tests/test_relay_failures.py`:
 `test_a_send_that_fails_for_the_clusters_reasons_is_tried_again_on_fixed_times_and_never_given_up_while_the_token_is_good`,

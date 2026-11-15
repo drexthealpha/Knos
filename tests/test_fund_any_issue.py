@@ -4,7 +4,7 @@ bare address no longer serves): the terms it fixes and the instruction it asks t
 Python is the reference. The terms are made by src/knos/terms.py (`canonical`, `terms_hash`, `describe`) from the names and globs as a
 funder types them (src/knos/commands.py reads a list the same way), and the funding instruction by src/knos/settle/v2/pay.py
 (`fund_order_wallet_ix`). Only this Python half is checked: tests/web/site.mjs, which held web/anyissue.js to these answers in
-a browser, was deleted on 6 Nov 2026, and the NOTE inside the recorded file still names it.
+a browser, was deleted on 6 Nov 2026.
 Written by `python tests/test_fund_any_issue.py`; the test below fails when the file is not what this makes."""
 
 from __future__ import annotations
@@ -30,8 +30,8 @@ WF_REPO, WF_SHA = "drexthealpha/Knos", "a" * 40            # the pin tests/web/s
 REPO_ID, ISSUE, AMOUNT, WORK_S = 5550001, 7, 20_000_000, 14 * 86_400
 
 NOTE = ("Made by tests/test_fund_any_issue.py: the terms from src/knos/terms.py for the boxes as a funder types them, and the funding instruction "
-        "from src/knos/settle/v2/pay.py fund_order_wallet_ix, for the wallet and the issue tests/web/site.mjs uses (unique(1), octo/widgets#7). "
-        "tests/web/site.mjs holds web/anyissue.js to these answers. Written by `python tests/test_fund_any_issue.py`.")
+        "from src/knos/settle/v2/pay.py fund_order_wallet_ix, for the wallet unique(1) and the issue octo/widgets#7. "
+        "Written by `python tests/test_fund_any_issue.py`.")
 
 # what a funder types in the two boxes, and what the page must make of each
 CASES = [

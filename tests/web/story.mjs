@@ -1,5 +1,5 @@
 // The story page (web/story.js): node tests/web/story.mjs
-// No browser: the seven beats and their evidence against docs/STORY.md, the number against docs/backtest.json, the
+// No browser: the six beats and their evidence against docs/STORY.md, the number against docs/backtest.json, the
 // 12-word budget, the order the steps play in on a made-up clock, and the page as a reader who asked for no movement gets it.
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";

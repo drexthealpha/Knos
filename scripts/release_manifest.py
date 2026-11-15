@@ -17,7 +17,7 @@ Nothing on it is typed and nothing is assumed. Each part is read from the file t
     web/upgrades.json             the proposals: build hash, source commit, verified-build run, status
     docs/reference/DISCLOSURE.md            the limits, one line each ("## Outstanding limits")
     docs/load.json                the orders the load runs sent to the public ids (`measured`), with their dates
-    docs/fee_slots.json           the slot of each recorded transaction, read from the cluster by `--read-slots`
+    docs/fee_slots.json           the slot of each recorded transaction, read from the cluster by `--read-slots` (written on demand, not committed)
 
 For every recorded order at the public ids the page names the fee schedule that applied (knos_pay 2.1's tiers or 2.2's
 0.30% with its 0.05 floor), decided in this order: the fee the order stored, when its record states it (a fee is taken
@@ -399,7 +399,7 @@ def render(root: Path = ROOT) -> str:
         "  cannot hold the hash of the commit that holds it.",
         "- Clusters: NEAR testnet (the contracts jobs.knos-swarm-1105.testnet and market.knos-swarm-1105.testnet) and Solana",
         "  devnet (the programs below, from the Colosseum entry v0.3.28). The money is test money. Mainnet is not touched.",
-        "- Each source folder has a README that says what it holds: [`programs/`](../../programs-v2/README.md#the-first-deployment-in-programs-nobody-can-change-it) (the first",
+        "- Each source folder has a README that says what it holds: [`programs/`](../../programs/README.md) (the first",
         "  deployment, which nobody can change), [`programs-v2/`](../../programs-v2/README.md) (the Solana programs of the Colosseum entry),",
         "  [`idl/`](../../idl/README.md) (how to call each program) and [`examples/`](../../examples/README.md).", "",
         "## Programs: what is live at each public id", "",
@@ -424,7 +424,7 @@ def render(root: Path = ROOT) -> str:
         "## Fee schedule of each recorded order", "",
         "Every order or job a record of this tree says ran at the public knos_pay, and the fee schedule that applied: the",
         "fee the order stored when the record states it, else the build live at its slot (`docs/fee_slots.json`, written by",
-        "`python scripts/release_manifest.py --read-slots`), else what its date rules out.", "",
+        "`python scripts/release_manifest.py --read-slots` on demand; not committed), else what its date rules out.", "",
         *fee_rows(data, root), "",
         "## Outstanding limits", "",
         "From [DISCLOSURE.md](DISCLOSURE.md), one line each.", "",

@@ -33,7 +33,7 @@ copy another holder kept, or with the issuer's own document); that nothing was l
 made; what the chain holds (the report prints each running hash to compare with the chain's account). A receipt is
 checked by hash; its judge's token is checked when the token itself is in the archive.
 
-Exit code 0 when every check holds, 1 otherwise.
+Exit code 0 when every check holds, 1 when one does not, 2 when the archive cannot be read or the arguments are wrong.
 """
 import base64
 import datetime
@@ -1061,7 +1061,7 @@ def main(argv):
         print("FAILED: " + line)
     weak = [x for x in notes if x.startswith(("INCOMPLETE", "UNSIGNED", "OPEN"))] if "--strict" in argv else []
     failed = bool(problems) or bool(weak)
-    print(("NOT VERIFIED: %d problems" % len(problems) + (", %d notes marked INCOMPLETE or UNSIGNED (--strict)" % len(weak) if "--strict" in argv else "")) if failed
+    print(("NOT VERIFIED: %d problems" % len(problems) + (", %d notes marked INCOMPLETE, UNSIGNED or OPEN (--strict)" % len(weak) if "--strict" in argv else "")) if failed
           else "VERIFIED: %d checks hold, %d notes. No network, no Knos." % (len(done), len(notes)))
     return 1 if failed else 0
 

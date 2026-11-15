@@ -36,4 +36,4 @@ def test_both_builds_show_their_own_fee(tmp_path: Path) -> None:
         pytest.skip(said[-1][5:])
     assert run.returncode == 0, "\n".join(line for line in (run.stdout + run.stderr).splitlines() if not line.startswith("ok"))
     assert "all passed" in run.stdout and "2.1: the pricing calculator says the fee the program charges today" in run.stdout
-    assert "2.2: the Console's escrow step shows the live fee on 50: 0.15 on top, 50.15 in all" in run.stdout
+    assert "2.2: the Console's Pay step shows the live fee on 50: 0.15 on top, 50.15 in all" in run.stdout

@@ -20,7 +20,7 @@ deployed there, the transactions recorded, and the fee schedule. The rows behind
   cannot hold the hash of the commit that holds it.
 - Clusters: NEAR testnet (the contracts jobs.knos-swarm-1105.testnet and market.knos-swarm-1105.testnet) and Solana
   devnet (the programs below, from the Colosseum entry v0.3.28). The money is test money. Mainnet is not touched.
-- Each source folder has a README that says what it holds: [`programs/`](../../programs-v2/README.md#the-first-deployment-in-programs-nobody-can-change-it) (the first
+- Each source folder has a README that says what it holds: [`programs/`](../../programs/README.md) (the first
   deployment, which nobody can change), [`programs-v2/`](../../programs-v2/README.md) (the Solana programs of the Colosseum entry),
   [`idl/`](../../idl/README.md) (how to call each program) and [`examples/`](../../examples/README.md).
 
@@ -336,7 +336,7 @@ capability is in [CAPABILITIES.md](CAPABILITIES.md).
 
 Every order or job a record of this tree says ran at the public knos_pay, and the fee schedule that applied: the
 fee the order stored when the record states it, else the build live at its slot (`docs/fee_slots.json`, written by
-`python scripts/release_manifest.py --read-slots`), else what its date rules out.
+`python scripts/release_manifest.py --read-slots` on demand; not committed), else what its date rules out.
 
 | order | transaction | fee schedule that applied | how it is known | from |
 |---|---|---|---|---|

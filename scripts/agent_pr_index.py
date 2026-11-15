@@ -886,7 +886,9 @@ def weekly_table(series):
              + f" An agent with fewer than {least} such pull requests that week is \"{TOO_FEW}\" and has no place.",
              "", *head]
     lines += [_row(name, _place(w), w) for name, w in rows]
-    lines += ["", f"Also paid through Knos, checked against: {series.get('verified_against', NOT_JOINED)}.", "",
+    against = f"Also paid through Knos, checked against: {series.get('verified_against', NOT_JOINED)}."
+    # a paragraph of 60 words at most (scripts/split_paragraphs.py): the sentence that says how a row is counted goes on its own
+    lines += ["", *against.replace(". It takes ", ".\n\nIt takes ", 1).split("\n"), "",
               f"Every week in the file added up ({series['window'][0]} to {series['window'][1]}; never ranked: the weeks were not all read the same way). "
               f"Source: {series['source']}.", "", *head]
     lines += [_row(name, "not ranked", a["all_weeks"]) for name, a in series["agents"].items()]

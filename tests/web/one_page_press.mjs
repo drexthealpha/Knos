@@ -5,7 +5,7 @@
 // 400 ms until the answer is drawn. The network is mocked: the hosted app answers each call after 900 ms with a fixed
 // answer, so the waits are real and the same on every machine. Pressed: every button and summary the page shows when it
 // loads, then the proof flow's own controls in order (the sample paper, another paper and "Prove the sample paper
-// instead", the order, "Count them with your code", "Prove the same claim again").
+// instead", "Run the check with 10 test USDC", "Count them with your code", "Prove the same claim again").
 // The site the web job builds keeps the app at index.html (KNOS_SPA_AT_ROOT=1); the one page is then composed here from
 // that build, as scripts/build_site.sh composes it for the published site.
 import { createServer } from "node:http";
@@ -39,7 +39,7 @@ const ANSWERS = {
     verdict: { holds: true, paper: "2% typical error", measured: "1.2% error" } }),
   "/api/near/claim/cap": () => ({ ok: true, refused: true, tried_units: 2, cap_units: 1, url: "https://example.org/tx" }),
   "/api/near/claim/finish": () => ({ pay: { ok: true }, settle: { ok: true, settled: true, url: "https://example.org/tx" },
-    receipt: { job: "job-1", buyer_usd: 10, agent_usd: 0.2, knos_usd: 9.8, agent_pay_url: "https://example.org/a", fee_url: "https://example.org/f", log: { rows: [] } } }),
+    receipt: { job: "job-1", buyer_usd: 10, agent_usd: 9, knos_usd: 1, agent_pay_url: "https://example.org/a", fee_url: "https://example.org/f", log: { rows: [] } } }),
   "/api/near/claim/reuse": () => ({ ok: true, reused: "job-1", saved: { first_answer_seconds: 9 }, first_url: "https://example.org/tx" }),
   "/api/near/claim/try": () => ({ ok: true, counted: 98935, visitors: 100000, off_pct: 1.1, bytes: 1364, seconds: 2.4 }),
 };
@@ -145,7 +145,7 @@ for (const opened of [false, true]) {
 {
   const { ctx, page } = await open();
   await press(page, page.locator("#go"), 'the sample paper, "Will it work?"');
-  await press(page, page.locator("#look .offer button"), '"Prove it with 10 test USDC"');
+  await press(page, page.locator("#look .offer button"), '"Run the check with 10 test USDC"');
   await press(page, page.getByRole("button", { name: "Count them with your code" }), '"Count them with your code"');
   await press(page, page.getByRole("button", { name: "Prove the same claim again" }), '"Prove the same claim again"');
   await ctx.close();

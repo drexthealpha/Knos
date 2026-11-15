@@ -370,7 +370,7 @@
     "credited": "0",
     "owed": "0",
     "disputed": false,
-    "evidence": "audit/drexthealpha.json"
+    "evidence": "audit/<owner id>.json (a sample path)"
    }
   }
  }

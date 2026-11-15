@@ -325,7 +325,7 @@ def _changed(v: dict) -> dict:
 
 
 def test_every_version_4_vector_checks_and_only_an_accepted_receipt_authorises_payment():
-    assert receipt.VERSION == 4 and len(VECTORS4["valid_v4"]) == 12 and len(VECTORS4["invalid_v4"]) == 24
+    assert receipt.VERSION == 6 and len(VECTORS4["valid_v4"]) == 12 and len(VECTORS4["invalid_v4"]) == 24
     seen = set()
     for v in VECTORS4["valid_v4"]:
         r = v["receipt"]

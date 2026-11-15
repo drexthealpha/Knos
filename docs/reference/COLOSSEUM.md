@@ -78,7 +78,7 @@ One person holds every key today. Any change to the programs waits in public for
 | Revenue | 0; test USDC is not money | [docs/PRICING.md](../PRICING.md) |
 | Outside security review | none | [docs/reference/ASSURANCE.md](ASSURANCE.md) |
 | Key holders | one person holds every key; an upgrade waits 8 days in public | [docs/reference/GOVERNANCE.md](GOVERNANCE.md) |
-| Network and money | Solana devnet, test USDC; mainnet is not touched | [docs/reference/SECURITY.md](SECURITY.md) |
+| Network and money | NEAR testnet and Solana devnet, test USDC; no mainnet | [docs/reference/SECURITY.md](SECURITY.md) |
 <!-- /bench:today -->
 
 ## From a terminal
@@ -120,7 +120,7 @@ Knos takes research from a paper to a product people want.
 
 ### How does an AI agent get paid?
 
-You post the task, your [checks](../WORDS.md#checks-ci) and the pay before work starts. Once the checks pass and you [accept](../WORDS.md#merge), a [program](../WORDS.md#program) pays the agent.
+Knos locks a test before work starts. [Test money](../WORDS.md#test-usdc) moves only if the agent's code passes.
 
 ### Does Knos use real money?
 
@@ -134,9 +134,9 @@ A proof is free. Solana devnet charges 0.30%, at least 0.05 [test dollars](../WO
 
 On NEAR, the jobs contract holds each job's pay. It pays only the agent whose code passes.
 
-### Can the buyer refuse to pay?
+### Can the test change once work starts?
 
-Not once the checks pass and the work is accepted. Before that, the buyer still chooses whether to accept it.
+No. The test is locked when the job is funded.
 
 ### Who keeps the count of accepted work?
 
@@ -144,7 +144,7 @@ Neither side alone. A program checks a [signed record](../WORDS.md#signed) of wh
 
 ### How do I try Knos?
 
-Open [the front door](https://drexthealpha.github.io/Knos/) and press the button by the sample paper.
+Open [the front door](https://drexthealpha.github.io/Knos/) and ask a question about research.
 
 
 ## Read more

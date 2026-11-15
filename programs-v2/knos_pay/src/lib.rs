@@ -347,7 +347,7 @@
 //!   knos2:version 2                                knos2:balancex balance= day= total=                  knos2:plan owner= bps= expires=
 //!   knos3:funded order= repo= issue= seq= amount= fee= mode= by= source= flags= deadline=      then knos3:terms <json> (a public order)
 //!   knos3:paid order= pr= payee= amount= to=       one per payee, then
-//!   knos3:settled order= paid= of= fee= tip= judge=                  fee: what FEE_OWNER got; judge: 0 a, 1 b, 2 c, 3 d, 9 none (SettleOrder)
+//!   knos3:settled order= paid= of= fee= tip= judge=                  fee: what FEE_OWNER got; judge: 0 to 6 (order_pay.rs Judge), 9 none (SettleOrder)
 //!   knos3:held order= pr= payee= until=            knos3:refunded order= amount=            knos3:topup order= add= amount= fee=
 //!   knos3:warranty order= held= until=             knos3:released order= payee= amount= to=             knos3:reverted order= amount= head=
 //!   knos3:reserved order= taker= until=            knos3:cancelled order= at= deadline=                 knos3:kill order= taker= amount= held=

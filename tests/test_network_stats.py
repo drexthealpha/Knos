@@ -10,7 +10,7 @@ Recorded inputs (tests/web/recorded):
                                      written for them and GitHub's answers about the comments and merges behind them
     stats_empty.json, stats_first_deployment.json, stats_with_data.json
                                      what the script writes for no history, for the first input alone and for both:
-                                     the samples tests/web/site.mjs renders
+                                     the samples the site's stats views are tested against
 
     PYTHONPATH=src python tests/test_network_stats.py --record     runs the scenario again and rewrites the last four
     PYTHONPATH=src python tests/test_network_stats.py              rewrites the three samples from the recorded inputs
@@ -286,8 +286,6 @@ def test_the_relay_log_gives_the_latency_a_person_saw():
 
 def test_the_relay_writes_its_log_in_the_form_this_reads():
     ghrelay = pytest.importorskip("knos.proof.ghrelay")
-    if not hasattr(ghrelay, "log_line"):
-        pytest.skip("the relay no longer has log_line: point this test at what writes the relay log now")
     jwt = "eyJhbGciOiJSUzI1NiJ9.e30.c2ln"
     line = ghrelay.log_line("fund", "octo/widgets", 7, jwt, {"ok": True, "sigs": ["a", "b", "c", "FUND"], "note": "20.00 test USDC is in escrow."})
     [got] = network_stats.relay_lines([{"created_at": "2026-10-02T09:37:20Z", "body": line}])
@@ -798,7 +796,7 @@ if __name__ == "__main__":
     if "--record" in sys.argv:
         txs, accounts, named = scenario()
         scene = {"note": "Twelve jobs run through the second deployment's test build in LiteSVM by tests/test_network_stats.py (scenario): the "
-                         "escrow's transactions with the log the program printed, the job accounts left at the end, the relay log lines a relay "
+                         "vault's transactions with the log the program printed, the job accounts left at the end, the relay log lines a relay "
                          "would have written for seven of them, and GitHub's answers about those. The signatures are numbered stand-ins: a "
                          "LiteSVM run has no cluster. Recorded for the tests; do not edit.",
                  "transactions": txs, "accounts": accounts, **around(txs, named)}

@@ -7,7 +7,7 @@ name: program
 #   build-test      one job per deployment, at the same time. cargo test (the Wycheproof RSA vectors against the
 #                   verifier's own arithmetic, and the programs' unit tests), then cargo build-sbf (pinned, cached
 #                   agave) for knos-oidc, knos-pay and, with the first deployment, the example consumer; with the
-#                   second, knos-meter and knos-passkey too, and the three example programs that build against it
+#                   second, knos-meter and knos-passkey too, and the four example programs that build against it
 #                   (examples/cpi_fund, workflow_vault, upgrade_gate, reader_template). The deployment's committed test binaries are
 #                   removed before the build, so the LiteSVM tests can only load what THIS commit's source built: the
 #                   differential test against OpenSSL, the attack tests, the work orders' tests (the order itself,
@@ -101,7 +101,7 @@ jobs:
           # as pytest takes them. suffix: of its artifacts (the first deployment's keep the names they had). The
           # second deployment has two programs more, knos-meter and knos-passkey: its script builds them and their
           # tests are named here. So are the work orders' tests (tests/test_order_*.py: the order, its judges, its
-          # terms) and the tests of the three example programs its script builds; those three share one target
+          # terms) and the tests of the four example programs its script builds; those four share one target
           # directory (examples/target), which `also` names so that their dependencies come from the cache too.
           - deployment: first
             workspace: programs

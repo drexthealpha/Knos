@@ -78,16 +78,20 @@ def test_the_apps_home_holds_no_money_or_company_tools_and_paid_holds_them():
     assert ids and all(f'id="{i}"' in home for i in ids)                                   # every id the scripts bind to
 
 
+README_FIRST = "Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes."
+
+
 def test_every_description_is_a_sentence_of_facts_json():
     facts = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))
     said = {facts["sentence"], facts["registry_sentence"], facts["l1"], facts["l1"] + " " + facts["l2"]}
+    said |= {README_FIRST + " The goal: " + facts["l1"]}                                  # pyproject: what Knos does, then the goal
     pyproject = re.search(r'(?m)^description = "(.*)"$', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
     npm = json.loads((ROOT / "sdk" / "settle" / "package.json").read_text(encoding="utf-8"))["description"]
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["description"]
     assert {pyproject, npm, server} <= said, {pyproject, npm, server} - said
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     first = readme.split("</h1>", 1)[1].strip()
-    assert first.startswith("Knos locks a test before any work starts, an agent does the work, and money moves only if the test passes.") and "17 years" in first.split("\n## ", 1)[0]   # U1: what it is, then the problem
+    assert first.startswith(README_FIRST) and "17 years" in first.split("\n## ", 1)[0]   # U1: what it is, then the problem
     why = (ROOT / "docs" / "WHY.md").read_text(encoding="utf-8")
     assert facts["l2"] not in readme and facts["l1"] not in readme and why.count(facts["l1"]) == 1 and "](docs/WHY.md)" in readme   # V5: the GOAL once, in docs/WHY.md
     tens = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8").split("## Try it in ten seconds", 1)[1].split("\n## ", 1)[0]

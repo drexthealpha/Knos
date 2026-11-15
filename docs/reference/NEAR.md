@@ -152,7 +152,9 @@ visitor, 200 a day, and at $8 spent the fixed program and the locked test alone 
 job saves the ledger on the gh-pages branch (`near-ai-ledger.json`), so a deploy cannot reset it. If agent A's
 model-written code fails the locked test, the order says so and shows the last verified proof, marked reused.
 
-**Test money.** Of what moves, the agent whose work passed gets 90% and Knos 10%, both sent by the jobs contract from the test USDC it holds with the job, after the checker's signed pass (an order at the default 10 test USDC; another amount is sent by the buyer test account through the claim market, which refuses any other split of the amounts).
+**Test money.** Of what moves, the agent whose work passed gets 90% and Knos 10%, both sent by the jobs contract from the test USDC it holds with the job, after the checker's signed pass.
+
+That is an order at the default 10 test USDC; another amount is sent by the buyer test account through the claim market, which refuses any other split of the amounts.
 
 A failed proof pays nobody, and after the deadline the jobs contract refunds the buyer. Nobody has paid real money for one yet.
 
@@ -211,7 +213,9 @@ with no keys at all. Private AI (`privacy`): the model runs in NEAR AI's atteste
 
 **The test is locked before money is held and checked before money moves: nobody is paid on a claim.** (Demand is checked first, by Qloo, on the [site](https://drexthealpha.github.io/Knos/).)
 
-**The earlier milestone flow, still on testnet (`knos-pay-1103.testnet`): a company's test money went to a lab or a developer only when GitHub's signed run proved the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back. The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
+**The earlier milestone flow, still on testnet (`knos-pay-1103.testnet`): a company's test money went to a lab or a developer only when GitHub's signed run proved the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back.
+
+The payout is paid on NEAR, or on Solana through NEAR Chain Signatures: the contract checks the transfer and has the MPC network sign it.
 
 Spending limits cap what an agent may spend. The contract releases test tokens only for work that is proven done.
 
@@ -263,12 +267,18 @@ Your own copy of the contract, then a release and a refund. About 4 minutes afte
 4. It sends the same token again. You see it refused.
 5. It funds `m2` with a 1-minute deadline, waits, and refunds it. You see "m1: Released" and "m2: Refunded".
 
-The page in `web/` runs the same flow from a browser (`python near/web/serve.py`, checked by `web/test-flow.mjs`; `web/test-live.mjs` runs the sample job once on the live Prove page, `web/test-tc.mjs` walks one milestone's fund, release and refund as a stranger would, and `web/record-live.mjs` recorded the 12 Nov cut), but on the maintainer's test accounts (`knos-*-1102.testnet`, `knos-pay2-1102`), whose keys only that machine holds; it does not use your account yet. `web/story/` takes a milestone apart as you scroll.
+The page in `web/` runs the same flow from a browser (`python near/web/serve.py`, checked by `web/test-flow.mjs`; `web/test-live.mjs` runs the sample job once on the live Prove page, `web/test-tc.mjs` walks one milestone's fund, release and refund as a stranger would, and `web/record-live.mjs` recorded the 12 Nov cut).
+
+It runs on the maintainer's test accounts (`knos-*-1102.testnet`, `knos-pay2-1102`), whose keys only that machine holds; it does not use your account yet.
+
+`web/story/` takes a milestone apart as you scroll.
 
 ### A job two agents try
 
 Open a job with a locked test and a bid; two agents take it; the checker runs the locked test on each output, and only
-the agent whose output passes is paid (9 parts of the bid; Knos keeps 1 part in 10). You need Python 3.10+ with `cryptography` and near-cli-rs 0.30.1; it runs on the
+the agent whose output passes is paid (9 parts of the bid; Knos keeps 1 part in 10).
+
+You need Python 3.10+ with `cryptography` and near-cli-rs 0.30.1; it runs on the
 maintainer's test accounts, whose keys only that machine holds (as the page in `web/` does).
 
 1. Run `NEAR_CLI=<near> python near/web/serve.py` and open `http://127.0.0.1:8790/`. Open "For developers". You see "$0 of test money unless an agent's work passes the locked test" and a **Run the sample job** button.
@@ -310,7 +320,9 @@ walks these four steps in a fresh browser. One run, 5 Nov 2026:
 | The embedded button pays a bid on testnet after its 1Click quote | [`32suEFMY…`](https://testnet.nearblocks.io/txns/32suEFMYv7JEzfGLH9vNdpHs81BmVfHzbW7oMPMShxKX) |
 
 Agent A was paid 1000 (before 14 Nov the whole bid went to the agent); agent B was paid 0. NEAR Intents has no testnet, so the 1Click call is a dry quote only, with 0
-spent on mainnet. The checker runs an agent's output in a subprocess with a 20 s limit and no environment; it is a
+spent on mainnet.
+
+The checker runs an agent's output in a subprocess with a 20 s limit and no environment; it is a
 test-money demo, not a sandbox for hostile code.
 
 ### The claim market

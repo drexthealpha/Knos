@@ -1,4 +1,4 @@
-// NOT PUBLISHED: the six results/<id>/ pages that load this file are the earlier demand check's (scripts/results_pages.py);
+// NOT PUBLISHED: the six results/<id>/ pages that load this file are the earlier demand check's (written by scripts/results_pages.py, since deleted);
 // the Pages build sends each to the front door.
 // A result page's Qloo part: on load, only what the app's server recorded for this idea (GET /api/recorded), labelled
 // recorded with its day. A page that opens never asks Qloo: a crawler, a preview or a sitemap bot cost no call. A live

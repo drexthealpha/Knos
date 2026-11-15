@@ -4,10 +4,8 @@ getSignaturesForAddress. GET /api/usage answers all three; the app shows the wee
 from __future__ import annotations
 
 import datetime as dt
-import json
 import threading
 import time
-from pathlib import Path
 
 KEY = "usage-counter"
 _lock = threading.Lock()

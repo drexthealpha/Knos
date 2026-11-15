@@ -55,6 +55,7 @@ PLACES: list[tuple[str, str]] = [
     ("server.json", JSON_VERSION),                              # twice: the server, and the PyPI package it runs
     ("server.hosted.json", JSON_VERSION),                       # the hosted server at knos.onrender.com/mcp
     ("gemini-extension.json", JSON_VERSION),
+    ("examples/a2a/.well-known/agent-card.json", JSON_VERSION),     # the A2A card the server serves (knos.a2a.card at the package version)
     ("plugin/.claude-plugin/plugin.json", JSON_VERSION),
     ("plugin/.codex-plugin/plugin.json", JSON_VERSION),
     ("sdk/settle/package.json", r'\A\{\r?\n(?:  .*\n)*?  ' + JSON_VERSION),

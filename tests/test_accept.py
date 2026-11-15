@@ -236,7 +236,7 @@ def test_knos_accept_init_writes_the_bundle_and_says_what_to_do_next(tmp_path, c
     assert say(capsys, "accept", "init", "--from", ref)[0] == 2                                                      # --issue is required
 
 
-def test_knos_accept_is_listed_under_the_repositorys_workflows_and_has_its_own_help(capsys):
+def test_knos_accept_is_listed_under_its_flow_and_has_its_own_help(capsys):
     rc, text = say(capsys, "--help")
     assert rc == 0 and "│ accept " in text[text.index("Checks and receipts"):text.index("Run Knos")]
     rc, text = say(capsys, "accept")
@@ -248,7 +248,7 @@ def test_knos_accept_is_listed_under_the_repositorys_workflows_and_has_its_own_h
 # ---- what the site's task form is tested against ----------------------------------------------------------------------
 RECORDED = Path(__file__).resolve().parent / "web" / "recorded" / "acceptance_bundle.json"
 RECORDED_NOTE = ("What the site's form for a task with no repository (web/task.js) must write: the command line split as shlex.split(posix=True) does, and the three files accept.bundle "
-                 "makes from the pairs given (answers normalised by accept.norm), for the inputs below. tests/web/site.mjs runs web/task.js on the same inputs and compares byte for byte. "
+                 "makes from the pairs given (answers normalised by accept.norm), for the inputs below. "
                  "Written by `python tests/test_accept.py`; test_the_sites_recorded_bundles_are_what_accept_bundle_writes fails when they differ from what the code writes now.")
 COMMANDS = ["python3 slugify.py", "a 'b c' \"d e\"", "a\\ b", '"a\\"b"', '"a\\\\b"', '"a\\nb"', "''", 'a "" b', "it's", "a\\", '"unterminated', "a\tb\nc  d", '--x="a b"', "'a'\"b\"c", "node \"my solution.js\" --flag 'a b' it\\'s", "  lead and trail  ", ""]
 PAIRS = {

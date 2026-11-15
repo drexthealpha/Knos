@@ -352,7 +352,7 @@ def test_the_canary_is_read_where_the_example_and_the_site_say_it_runs():
     example = ROOT / "examples" / pages_data.CANARY
     assert example.is_file() and pages_data.CANARY == "knos-canary.yml"
     said = example.read_text(encoding="utf-8")
-    assert f"# .github/workflows/{pages_data.CANARY}:" in said and f"Knos runs one in {pages_data.CANARY_REPO}" in said
+    assert f"# .github/workflows/{pages_data.CANARY}:" in said and f"Knos ran canary rounds in {pages_data.CANARY_REPO}" in said
     assert f'export const CANARY_REPO = "{pages_data.CANARY_REPO}";' in (ROOT / "web" / "live.js").read_text(encoding="utf-8")
     assert pages_data.CANARY_REPO != pages_data.HOME_REPO and not (ROOT / ".github" / "workflows" / "canary.yml").exists()
 
@@ -430,7 +430,7 @@ def units_text(n: int) -> str:
 # ---- what the site's browser tests are served ------------------------------------------------------------------------
 RECORDED = ROOT / "tests" / "web" / "recorded" / "pages_data.json"
 RECORDED_NOTE = ("The JSON files pages_data.build writes for the scenario of tests/test_pages_data.py (build(get=github(), index=agent_index())), "
-                 "as the static site would publish them: tests/web/site.mjs serves them as the same-origin files the Records, Ranks and Statements views read. "
+                 "as the static site would publish them, the same-origin files the Records, Ranks and Statements views read. "
                  "Written by `python tests/test_pages_data.py`; test_the_recorded_files_are_what_pages_data_writes fails when they are not what the code writes now.")
 
 

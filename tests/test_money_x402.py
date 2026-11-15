@@ -49,7 +49,7 @@ def test_free_routes_and_refusals(world):
     assert s.handle("/pool/" + "%00", {})[0] == 400
 
 
-def test_a_preorder_is_402_then_escrowed_on_chain(world):
+def test_a_preorder_is_402_then_held_on_chain(world):
     c, p, led, s, _ = world
     buyer, tok = c.wallet(c.usdc, 100 * USDC)
     st, h, body = s.handle("/preorder/x402-claim", {"Attested-Payer": str(buyer.pubkey())})
@@ -64,7 +64,7 @@ def test_a_preorder_is_402_then_escrowed_on_chain(world):
     assert st == 402 and "fund it first" in body["error"]
     assert c.send([graduation.preorder_ix(p, buyer.pubkey(), tok, c.usdc, int(req["amount"]))], buyer), c.err
     st, h, body = s.handle("/preorder/x402-claim", pay_hdr)
-    assert st == 200 and body["escrowed"] and ra.decode(h["payment-response"])["status"] == "escrowed"
+    assert st == 200 and body["held"] and ra.decode(h["payment-response"])["status"] == "held"
     assert s.handle("/pool/x402-claim", {})[2]["pool"]["buyers"] == 1
     # an order of another pool is not this pool's
     other = graduation.plan(PASSED, claim_id="another", repo_id=JUDGE, amount=10 * USDC, wf_sha=WF_SHA, contributors=[{"role": "researcher", "github_id": 9}])
@@ -97,7 +97,7 @@ def test_paid_checks_are_a_pack_each_call_signed_by_the_funder(world):
         return s.handle("/checks", {"PAYMENT-SIGNATURE": ra.encode({"x402Version": 2, "accepted": {}, "payload": {"order": order, "n": k, "signature": sig}})})
 
     st, h, body = call(0)
-    assert st == 200 and body["left"] == count - 1 and ra.decode(h["payment-response"])["status"] == "escrowed"
+    assert st == 200 and body["left"] == count - 1 and ra.decode(h["payment-response"])["status"] == "held"
     assert call(0)[0] == 409                    # a replay
     assert call(1, Keypair())[0] == 401         # a stranger names a public order
     assert call(1)[0] == 200

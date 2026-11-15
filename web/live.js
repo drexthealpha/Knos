@@ -1,6 +1,7 @@
 // A round anyone can watch: the canary's latest round on devnet, as a timeline, and the next one as it happens.
 //
-// The canary (examples/knos-canary.yml, `knos canary`) runs on a timer in a repository kept for it. Each round opens an
+// The canary (examples/knos-canary.yml, `knos canary`) ran on a timer in a repository kept for it (drexthealpha/knos-e2e,
+// 4 to 15 Oct 2026; none runs now). Each round opens an
 // issue called "knos canary <stamp>" whose description funds it with test USDC, opens a pull request of the same name
 // that closes it, merges it once its checks pass, and waits for Knos's comment that it was paid. Everything this page
 // shows of a round is read from where it happened, by whoever is looking, with no account, wallet or repository:
@@ -351,7 +352,7 @@ export function renderLive(el, env = {}) {
     const m = stats?.latency?.merge_to_paid, c = ops?.canary, parts = [];
     if (m && Number.isFinite(m.p50) && m.n) parts.push(`Over ${esc(m.n)} timed payments on devnet, the wait from merge to payment had a median of ${esc(took(Number(m.p50)))} and a 95th percentile of ${esc(took(Number(m.p95)))} (<a href="stats.json">stats.json</a>).`);
     const f = stats?.finality?.measured?.all;      // send -> finalized of Knos's own test transactions (docs/finality.json)
-    if (f && Number.isFinite(f.p50) && f.n) parts.push(`On ${esc(stats.finality.consensus === "alpenglow" ? "Alpenglow " : "")}devnet, Knos's own labelled test transactions were paid and final in a median of ${esc(f.p50)} ms (95th percentile ${esc(f.p95)} ms, ${esc(f.n)} runs; <a href="stats.json">stats.json</a>).`);
+    if (f && Number.isFinite(f.p50) && f.n) parts.push(`On ${esc(stats.finality.consensus === "alpenglow" ? "Alpenglow " : "")}devnet, Knos's own labelled test transactions were final in a median of ${esc(f.p50)} ms (95th percentile ${esc(f.p95)} ms, ${esc(f.n)} runs; <a href="stats.json">stats.json</a>).`);
     if (c && c.runs > 0 && c.all_runs_read) parts.push(`Of the canary's ${esc(c.all_runs_read.runs)} finished runs GitHub lists, ${esc(c.all_runs_read.failed)} failed (<a href="operations.json">operations.json</a>).`);
     $("live-measured").innerHTML = parts.join(" ");
   });
