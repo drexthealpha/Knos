@@ -112,7 +112,7 @@ def _now() -> str:
 
 
 def _journal(kind: str, data: dict, tenant: dict | None = None) -> dict:
-    """The decision log (Sibyl COLD, through the Knos Record): every funding, claim, release, refund and reopen, and
+    """The decision log (the Knos Record, cold tier): every funding, claim, release, refund and reopen, and
     every brief version and criteria hash. A project's lines go to its own tenant claim and to its owner's."""
     rec = company._record()
     if rec is None:
@@ -129,14 +129,14 @@ def _journal(kind: str, data: dict, tenant: dict | None = None) -> dict:
 
 
 def remembered(entry: dict) -> dict:
-    """What Sibyl keeps of a line just written: its tier, and the verdict code Sibyl's own search gives for the line's
-    hash (sibyl_memory_client verdicts: why it returned what it did), as the receipt's "Remembered by Sibyl" line."""
+    """What the record's memory keeps of a line just written: its tier, and the verdict code its own search gives for
+    the line's hash (sibyl_memory_client verdicts: why it returned what it did), kept on the order as `sibyl`."""
     code = None
     try:
         from knos.record import search as rsearch
         got = rsearch.search(entry["hash"][:16], root=company.root(), limit=1)
         code = (got.get("verdict") or {}).get("code")
-    except Exception:  # noqa: BLE001 - a search Sibyl cannot answer is said as none, never guessed
+    except Exception:  # noqa: BLE001 - a search the memory cannot answer is said as none, never guessed
         code = None
     return {"tier": entry.get("tier"), "verdict": code, "hash": entry.get("hash")}
 
@@ -270,7 +270,7 @@ def _open(user, template, template_name, title, regulatory, report, team, ms, sa
 
 
 def tenant_of(p: dict) -> dict:
-    """Sibyl tenants: one per user and one per project (each its own claim in the record)."""
+    """Record tenants: one per user and one per project (each its own claim in the record)."""
     return {"user": p.get("owner") or "", "project": p["id"]}
 
 
@@ -300,7 +300,7 @@ def patterns() -> dict:
 
 
 def resolve(word: str, reading: str, target: str, user: dict | None = None) -> dict:
-    """Keep the reading a buyer chose for a vague word (stored here and in the Sibyl record's reference line)."""
+    """Keep the reading a buyer chose for a vague word (stored here and in the Knos Record's reference line)."""
     from knos import ready
     word, reading, target = (str(x or "").strip()[:80] for x in (word, reading, target))
     if word not in ready.VAGUE or not reading or not target:
@@ -501,7 +501,7 @@ def dispute(pid: str, key: str, attempt: str, user: dict, url: str) -> dict:
 
 
 def archive(pid: str) -> dict:
-    """A closed project (every milestone released, or cancelled) is archived in its Sibyl tenant."""
+    """A closed project (every milestone released, or cancelled) is archived in its record tenant."""
     p = project(pid)
     if p.get("archived"):
         return {"archived": True}
@@ -581,7 +581,7 @@ def _one_each(ps: list[dict]) -> list[dict]:
 
 
 # kept off the public list (each still opens by its id): test rows, Knos's own plan, and the older products' rows (the
-# sealed-classifier round, a company's ledger integration), which no research idea crossed into (sweep 22, CODE.md 2.16)
+# sealed-classifier round, a company's ledger integration), which no research idea crossed into (sweep 22)
 OFF_LIST = re.compile(r"\(test\)\s*$|^Knos:|sealed classifier|autoresearch|syncs our invoices to the ledger", re.I)
 
 
@@ -700,7 +700,7 @@ def unlist(pid: str, user: dict | None = None, admin: bool = False, why: str = "
             raise Refused("only the project's buyer (or the operator) archives it")
         if any(o and o.get("status") == "locked" for m in p["milestones"] for o in (_safe_order(x) for x in m["fundings"])):
             raise Refused("money is locked on this project: cancel it first, then archive it")
-        if not p.get("unlisted"):      # apart from `archived` (a closed project's Sibyl record), which stays listed
+        if not p.get("unlisted"):      # apart from `archived` (a closed project's record line), which stays listed
             p["unlisted"] = {"at": _now(), "by": "operator" if admin else "buyer", "why": str(why or "")[:200]}
             _save("projects", pid, p)
     return {"project": pid, "archived": p["unlisted"], "listed": False, "readable_at": f"/api/project?id={pid}"}
@@ -743,7 +743,7 @@ def _order_public(o: dict) -> dict:
 
 
 def private_pledge(order: str, body: dict, led=None) -> dict:
-    """The encrypted amount of a private order and its two proofs (knos_wanted.chainx.private_pledge), from the backer's
+    """The encrypted amount of a private order and its two proofs (knos_wanted.chainx.private_pledge), from the funder's
     browser: verified on devnet by the ZK ElGamal program, kept on the order as its receipt."""
     from . import chainx
     o = _load("orders", order)
@@ -851,7 +851,7 @@ def fund_tx(pid: str, key: str, units: int, account: str, kind: str = "funder", 
         _milestone(p, key)["fundings"].append(st["order"])
         _save("projects", pid, p)
     return {"transaction": base64.b64encode(raw).decode(), "bytes": len(raw), "order": st["order"], "claim_id": claim["id"],
-            "message": f"Locks {units} test units on '{m['name']}' (devnet). Paid to the maker only on a result and an independent check; "
+            "message": f"Locks {units} test units on '{m['name']}' (devnet). Released to the maker only after a result and an independent check; "
                        "refunded to you after the deadline otherwise."}
 
 
@@ -975,7 +975,7 @@ def make_referral(user: dict, wallet: str, target: str) -> dict:
          "made": _now(), "share_bps": REFERRAL_BPS}
     _save("referrals", code, r)
     return {"code": code, "link": f"/r/{code}", "share_bps": REFERRAL_BPS, "target": target,
-            "rule": "when a sale or funding made through this link is released on proof, your share is a second knos_pay payee"}
+            "rule": "when a sale or funding made through this link is released after its milestone check passes, your share is a second knos_pay payee"}
 
 
 def load_referral(code: str) -> dict:

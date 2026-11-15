@@ -1,7 +1,7 @@
 // The crossing as one shape (the front door, under the box): one curve across the hero column with its four stops
-// labelled (Demand, Ready brief, Money held, Paid on proof). One dot rides the curve on offset-path: it rests 600 ms at
+// labelled (Demand checked, Money held, Check passes, Released). One dot rides the curve on offset-path: it rests 600 ms at
 // each stop and moves between them on a critically damped ease (no overshoot), a 4 s loop played 3 times and then held
-// at Paid on proof. It starts when the shape is first in view, pauses while the tab is hidden, and with reduced motion
+// at Released. It starts when the shape is first in view, pauses while the tab is hidden, and with reduced motion
 // or no script the last frame is shown as the page carries it. A real check moves the dot to the stop it reached
 // (hero.js sends knos:reached with the stop's index).
 (() => {

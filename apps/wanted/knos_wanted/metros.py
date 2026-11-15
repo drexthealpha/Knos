@@ -1,7 +1,7 @@
 """Qloo sets the money terms. Qloo's heatmap for an idea gives cells (a point and an affinity, 0 to 1); each cell is
 placed in a US Metropolitan Statistical Area by its 2023 Census boundary (TIGER/Line tl_2023_us_cbsa, LSAD M1,
 data/cbsa_msa_2023.json, simplified to 0.01 degree, with each metro's Vintage 2023 population). Of the metros holding
-at least 3 cells (the candidates), the highest lift is the launch city: lift = mean cell affinity / the metro's share
+at least 3 cells (the candidates), the 15 most populous are reranked by lift and the highest is the launch city: lift = mean cell affinity / the metro's share
 of the candidates' population, so a metro wins for its taste, not for its size (Qloo's raw heatmap tracks where people
 are). When none holds 3 cells, every metro with a population is a candidate. The
 pre-order target is max(10, round(population / 100,000 x mean affinity)), and the brief refunds every pre-order when

@@ -3,11 +3,12 @@
 - Passkey: the browser makes a passkey (ES256, P-256); this server keeps its public key and the identity is derived from
   it ("passkey:<16 hex>"): a passkey wallet identity. Signing in = the passkey signs a fresh challenge, checked here
   (rpIdHash, user-present flag, challenge, origin, ECDSA signature). Needs the `cryptography` package; without it the
-  passkey button says so. Knos holds no key for the user: devnet pre-orders are made by the app's demo wallet acting
-  for the signed-in user (test money).
+  passkey button says so. Knos holds no key for the user: the user's passkey signs a pre-order (a LazorKit smart wallet,
+  devnet test money).
 - Google: Google Identity Services gives the page an ID token; this server checks it with Google's tokeninfo endpoint
   (audience = GOOGLE_CLIENT_ID, issuer accounts.google.com, not expired). The button is shown only when GOOGLE_CLIENT_ID is set.
-- Email: no email provider is configured, so an email typed here is only a display label: nothing is sent or verified.
+- Email: a magic link via Resend when RESEND_API_KEY and KNOS_WANTED_EMAIL_FROM are set; otherwise an email typed here is
+  only a display label: nothing is sent or verified.
 A session is an HMAC-signed token (KNOS_WANTED_SESSION_SECRET, else a random secret per process) sent as a Bearer header.
 """
 from __future__ import annotations

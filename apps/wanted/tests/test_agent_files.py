@@ -82,12 +82,12 @@ def test_ai_catalog():
 def test_server_card():
     versions = af.supported_protocol_versions()
     assert versions and all(re.fullmatch(r"\d{4}-\d{2}-\d{2}", v) for v in versions)
-    code, card, ctype, headers = af.server_card(BASE, "0.3.33", versions)
+    code, card, ctype, headers = af.server_card(BASE, "0.4.1", versions)
     card = json.loads(json.dumps(card))
     assert code == 200 and ctype == "application/mcp-server-card+json"
-    assert card["$schema"] == af.SERVER_CARD_SCHEMA
+    assert "$schema" not in card                  # its published schema URL answered 404
     assert re.fullmatch(r"[a-zA-Z0-9.-]+/[a-zA-Z0-9._-]+", card["name"]) and card["name"].endswith("/knos")
-    assert 1 <= len(card["description"]) <= 100 and card["version"] == "0.3.33"
+    assert 1 <= len(card["description"]) <= 100 and card["version"] == "0.4.1"
     assert card["repository"] == {"url": "https://github.com/drexthealpha/Knos", "source": "github"}
     assert card["remotes"] == [{"type": "streamable-http", "url": BASE + "/mcp", "supportedProtocolVersions": versions}]
     assert "tools" not in card and card["icons"][0]["src"].startswith("https://")
@@ -100,12 +100,12 @@ def test_not_found_html():
     text = body.decode()
     assert code == 404 and ctype.startswith("text/html")
     assert "<h1>This page moved</h1>" in text and "font-size:56px" in text
-    assert 'href="https://knos.onrender.com/app/"' in text and 'href="https://drexthealpha.github.io/Knos/start/"' in text
+    assert 'href="https://knos.onrender.com/app/"' in text and 'href="https://drexthealpha.github.io/Knos/"' in text
     assert "prefers-color-scheme:dark" in text and "<script" not in text.lower() and "<link" not in text
 
 
 def test_start_redirect():
-    assert af.start_redirect() == (301, b"", "text/plain", {"Location": "https://drexthealpha.github.io/Knos/start/"})
+    assert af.start_redirect() == (301, b"", "text/plain", {"Location": "https://drexthealpha.github.io/Knos/"})
 
 
 def test_indexnow_body_and_key():

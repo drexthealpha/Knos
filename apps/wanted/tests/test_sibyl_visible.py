@@ -1,6 +1,7 @@
-"""Sibyl is seen where Knos uses it: the hosted MCP's knos_memory_search hands on Sibyl's verdict object and its code
-as Sibyl gave them; every decision line Knos writes is accepted by the Record (no kind it refuses), and the receipt
-says what Sibyl kept of it ("Remembered by Sibyl: <tier>, verdict <code>"); Sibyl's paid self-learning is never called."""
+"""The Knos record's memory store (the sibyl_memory_client package) is seen where Knos uses it: the hosted MCP's
+knos_memory_search hands on the store's verdict object and its code as the store gave them; every decision line Knos writes
+is accepted by the Record (no kind it refuses), and the receipt says what the record kept of it ("In the Knos record:
+<tier>, verdict <code>"); the store's paid self-learning is never called."""
 import re
 from pathlib import Path
 
@@ -42,9 +43,9 @@ def test_valley_writes_only_kinds_the_record_accepts():
     assert kinds and kinds <= set(journal.KINDS), kinds - set(journal.KINDS)
 
 
-def test_the_receipt_says_what_sibyl_kept():
+def test_the_receipt_says_what_the_record_kept():
     js = (ROOT / "apps" / "wanted" / "knos_wanted" / "static" / "app.js").read_text(encoding="utf-8")
-    assert "Remembered by Sibyl: ${esc(s.tier)}, verdict ${esc(s.verdict" in js and "sibylLine(p.sibyl)" in js and "sibylLine(got.sibyl)" in js
+    assert "In the Knos record: ${esc(s.tier)}, verdict ${esc(s.verdict" in js and "sibylLine(p.sibyl)" in js and "sibylLine(got.sibyl)" in js
     assert '"sibyl")} |' in (ROOT / "apps" / "wanted" / "knos_wanted" / "valley.py").read_text(encoding="utf-8")    # the order hands it on
 
 

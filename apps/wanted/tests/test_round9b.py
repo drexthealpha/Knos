@@ -1,5 +1,5 @@
-"""Round 9B: the stack, load-bearing and labelled — receipts (finality + verifier + USDC wording), the x402 paid route,
-the record anchor, Sibyl tiers (HOT plan, REFERENCE shelf, conflict refusal, FTS search), the harness proxy at /mcp,
+"""Round 9B: the stack, load-bearing and labelled: receipts (finality + verifier + USDC wording), the x402 paid route,
+the record anchor, the memory store's tiers (HOT plan, REFERENCE shelf, conflict refusal, FTS search), the harness proxy at /mcp,
 and the hosted MCP registration. SYNTHETIC fixtures; no network, no chain."""
 import base64
 import json

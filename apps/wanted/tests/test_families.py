@@ -77,10 +77,10 @@ def test_f3_where_sends_location_radius_and_exclusions_on_places():
         "Austin", 500, "Downtown Austin", "US")
 
 
-def test_f4_price_tier_maps_the_heatmap_on_geohashes():
+def test_f4_price_tier_maps_the_heatmap_without_the_refused_boundary():
     rep, fake = run({"price_level": "1", "price_from": 100, "price_to": 300})
     h = [x for x in sent(fake) if x.get("filter.type") == "urn:heatmap" and "heatmap.dimensions" in x][-1]
-    assert h["heatmap.dimensions"] == "price_level" and h["filter.dimensions.price_level"] == "1" and h["output.heatmap.boundary"] == "urn:geohash"
+    assert h["heatmap.dimensions"] == "price_level" and h["filter.dimensions.price_level"] == "1" and "output.heatmap.boundary" not in h   # Qloo refuses it (400)
     places = [x for x in sent(fake) if x.get("filter.type") == "urn:entity:place" and "filter.price_range.from" in x][-1]
     assert places["filter.price_range.to"] == 300
     assert "hot" in rep["families"]["F4"]
@@ -143,7 +143,7 @@ def test_every_interface_reads_the_one_table():
     assert {f["name"] for fam in spec["families"].values() for f in fam["fields"]} == set(Q.FIELDS)
     root = Path(__file__).resolve().parents[3]
     app_js = (root / "apps" / "wanted" / "knos_wanted" / "static" / "demand_opts.js").read_text(encoding="utf-8")
-    assert app_js == (root / "web" / "demand_opts.js").read_text(encoding="utf-8")             # the front door draws the same controls
+    assert app_js == (root / "web" / "demand_opts.js").read_text(encoding="utf-8")             # the old one-page app's copy
     for f in ("age", "gender", "hide_leader", "popularity_max", "near", "radius", "price_level", "references_brand", "product_kind", "year_min"):
         assert f'data-f="{f}"' in app_js
 

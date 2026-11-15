@@ -24,7 +24,7 @@ const out = (obj) => process.stdout.write(`${JSON.stringify(obj)}\n`);
 
 async function connect() {
   const transport = new StdioClientTransport({ command, args, env: process.env, stderr: "ignore" });
-  const c = new Client({ name: "knos-demand-check", version: "0.3.33" });
+  const c = new Client({ name: "knos-demand-check", version: "0.4.1" });
   await c.connect(transport).catch((error) => {
     throw error.code === "ENOENT" ? new Error(`cannot start ${command}: npm install --global @qloo/qloo-harness`) : error;
   });

@@ -10,7 +10,7 @@ const site = ["", "judges/", "#verify", "#check", "#protect", "#fund", "#claim",
   "#supplier", "#invoice-statement", "#story", "#keyholder", "#record",
   "#approve", "#rails", "#enforcement","#finance", "#payee", "#vendor", "#apps", "#demand",
   "faq.html", "check/", "demo/", "privacy.html", "wanted.html"];
-// the money and company views are the Paid on proof page's (/paid; the home sends #buy and #teams there): measured at it
+// the money and company views are the money page's (/paid; the home sends #buy and #teams there): measured at it
 const app = ["", "app/", "paid#buy", "#fund", "#contribute", "#make", "#research", "#projects", "paid#teams", "#agents", "verify"];
 module.exports = {
   "ci": {

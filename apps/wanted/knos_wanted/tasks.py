@@ -27,7 +27,6 @@ from pathlib import Path
 
 from . import escrow, preorder
 
-TASK_DIR = Path(__file__).resolve().parents[3] / "examples" / "autoresearch"
 TASK_README = "https://github.com/drexthealpha/Knos/blob/main/examples/autoresearch/README.md"
 TASK_DIR = Path(__file__).resolve().parents[3] / "examples" / "autoresearch"      # the image ships it beside the app
 

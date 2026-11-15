@@ -1,4 +1,4 @@
-// Knos: six roles on one phone page. No framework; every taste call happens on the server.
+// Knos: every view of the app on one phone page. No framework; every taste call happens on the server.
 "use strict";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -67,20 +67,16 @@ function show() {
   if (!VIEWS.includes(view)) view = "home";
   for (const v of VIEWS) $("v-" + v).hidden = v !== view;
   document.documentElement.dataset.view = view;
-  document.querySelectorAll("nav.roles a").forEach((a) => {
-    a.classList.toggle("on", a.dataset.view === view);
-    a.setAttribute("aria-current", a.dataset.view === view ? "page" : "false");
-  });
-  if (m) loadProduct(m[1]); else if (view === "buy") loadCrossings($("buyList"), true).then(() => released($("buyItems")));
+  if (m) loadProduct(m[1]); else if (view === "buy") loadCrossings($("buyList"), true);
   if (view === "home") loadHome();
-  if (view === "make") loadMaker().then(() => released($("makeList")));
-  if (view === "fund") loadFund(one && one[2]).then(() => released($("fundList")));
+  if (view === "make") loadMaker();
+  if (view === "fund") loadFund(one && one[2]);
   if (view === "contribute") loadTasks(one && one[2]);
   if (view === "agents") loadAgents();
   if (window.KNOS_VIEW) window.KNOS_VIEW(view);       // projects + teams (valley.js)
 }
 
-// ---- home: the research products open for backing now (GET /api/front), each with three one-tap actions
+// ---- home: the research products on the devnet board (GET /api/front), each with three one-tap actions
 let BOARD = null;
 async function board(fresh) {
   if (BOARD && !fresh) return BOARD;
@@ -221,21 +217,6 @@ async function loadCrossings(el, withTitle) {
     $("buyBox").hidden = true; $("tracker").hidden = true;
   } catch (e) { err(e); }
 }
-// the crossing Knos released on devnet (its facts, published with the front door): first in Pre-order, Back a milestone
-// and Milestones and payouts, each with its whole record one press away
-const CROSSING = "https://drexthealpha.github.io/Knos/crossing/7b4ed16b8c2903dc/";
-let crossed = null;
-async function released(list) {
-  if (!list) return;
-  crossed = crossed || fetch(CROSSING + "facts.json").then((r) => r.json()).catch(() => null);
-  const f = await crossed;
-  if (!f || list.querySelector("[data-crossing]")) return;
-  const d = f.demand || {}, n = (f.orders || []).filter((o) => o.status === "released").length;
-  list.querySelector(":scope > .empty")?.remove();
-  list.insertAdjacentHTML("afterbegin", `<li class="card" data-crossing="${esc(f.project)}"><b>${esc(d.idea || f.title)}</b>
-    <p class="small">${esc(n)} pre-orders from ${esc(d.city || "")} · ${f.status === "released" ? "Released by the referee's verdict" : esc(f.status)}</p>
-    <p class="small"><a href="${CROSSING}">The whole crossing</a></p></li>`);
-}
 async function loadProduct(h) {
   try {
     const r = await api("/api/report?hash=" + h); report = r;
@@ -248,7 +229,7 @@ async function loadProduct(h) {
         (p.unserved_audience && p.unserved_audience.length ? `<p class="small" data-qloo>${t("unserved_l")}: ${esc(p.unserved_audience.join(", "))}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>` : "")
         : `<div class="decision ${esc((d.verdict || "").toLowerCase())}">${esc((d.reasons || []).join("; "))}</div>`);
     $("buyBox").hidden = d.verdict !== "OPEN";
-    // no maker has claimed it yet: a buyer commits (an allowance, paid only when it is made) instead of pre-ordering
+    // no maker has claimed it yet: a buyer commits (an allowance, released only when it is made) instead of pre-ordering
     const fp = await api("/api/front?slug=" + h).catch(() => null);
     report.front = fp && !fp.pending ? fp : null;
     const noMaker = !!(report.front && !report.front.maker && report.front.project && report.front.first_milestone);
@@ -268,8 +249,8 @@ async function loadProduct(h) {
       ((r.preorders || []).map((o) => `<li>${esc(o.units)} · <b>${esc(o.status)}</b> · <a href="${X(o.order, "address")}" target="_blank" rel="noopener">${short(o.order)}</a></li>`).join("") || `<li class="muted">${t("empty")}</li>`);
   } catch (e) { err(e); }
 }
-// what Sibyl keeps of the receipt's record line: its tier and the verdict Sibyl's search gives for it (valley.remembered)
-const sibylLine = (s) => (s && s.tier ? `<p class="small" data-sibyl>Remembered by Sibyl: ${esc(s.tier)}, verdict ${esc(s.verdict || "none")}</p>` : "");
+// what the Knos record keeps of the receipt's record line: its tier and the verdict its search gives for it (valley.remembered)
+const sibylLine = (s) => (s && s.tier ? `<p class="small" data-sibyl>In the Knos record: ${esc(s.tier)}, verdict ${esc(s.verdict || "none")}</p>` : "");
 function receipt(p) {
   const sigs = p.signatures || {};
   $("receipt").innerHTML = `<div class="decision open"><h3>${t("receipt_t")}</h3><p class="testmoney">${t("test_money")}</p><p>${esc(p.units)} · <a href="${X(p.commitment, "address")}" target="_blank" rel="noopener">${short(p.commitment)}</a></p>` +

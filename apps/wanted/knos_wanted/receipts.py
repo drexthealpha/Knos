@@ -1,7 +1,7 @@
 """A result's receipts, GET /receipts/<id> (the page) and GET /api/receipts?id= (the same rows as JSON); id: the first 16
 hex of the report's hash. One row per source of a number on the card: each Qloo call with its time and its hash, the
 rule that turned Qloo's cells into the pre-order target (and the target population alone would set), the model's own
-answer, the Ready brief's criteria hash, the line the Knos record keeps in Sibyl with its sequence number, and any devnet
+answer, the Ready brief's criteria hash, the line the Knos record keeps with its sequence number, and any devnet
 transaction. Each hash here recomputes from what the row shows: a call's from its JSON (call_hash), the brief's from the
 brief (knos.ready.criteria_hash). Nothing here asks Qloo."""
 from __future__ import annotations
@@ -22,12 +22,12 @@ def call_hash(c: dict) -> str:
 
 
 def record_line(rep: dict) -> dict:
-    """The decision's line in the Knos record (Sibyl): its claim's events with their sequence numbers. A check the record
+    """The decision's line in the Knos record: its claim's events with their sequence numbers. A check the record
     does not hold yet is written to it now, once (company.record_check), and read back."""
     h = rep.get("hash") or ""
     rec = company._record()
     if rec is None:
-        return {"recorded": False, "why": "the Knos record (Sibyl) is not available on this server"}
+        return {"recorded": False, "why": "the Knos record is not available on this server"}
     cid = company.claim_id(h)
 
     def events():
@@ -74,7 +74,7 @@ def rows(rep: dict) -> list[dict]:
     if m and m.get("city"):
         out.append({"id": "model", "source": "model", "what": "The model alone, asked once with no Qloo data", "value": m.get("city"),
                     "who": m.get("who"), "why": m.get("why"), "model": m.get("model"), "at": m.get("at")})
-    out.append({"id": "record", "source": "record", "what": "The Knos record in Sibyl", **record_line(rep)})
+    out.append({"id": "record", "source": "record", "what": "The Knos record", **record_line(rep)})
     txs = [s for s in (rep.get("signatures") or {}).values() if isinstance(s, str)]
     out.append({"id": "chain", "source": "chain", "what": "Devnet transactions", "transactions": txs,
                 "said": "" if txs else "No devnet transaction for this result: no pre-order was held on it."})

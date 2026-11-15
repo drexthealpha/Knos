@@ -1,5 +1,5 @@
 """Rules the repository keeps: Qloo data never committed, MOCK labelled, the framing stated, the Qloo part explained,
-the key never in code, Qloo reached only through its MCP server."""
+the key never in code, Qloo reached only from the server (the REST client and the harness)."""
 import re
 from pathlib import Path
 

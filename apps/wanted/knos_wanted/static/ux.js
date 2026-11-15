@@ -82,7 +82,7 @@
     for (const [m] of MODES) s.querySelector("#mode-" + m).onclick = () => setMode(m, !root.classList.contains(m));
     s.querySelector("#ux-close").onclick = () => { s.hidden = true; };
     const fab = document.createElement("button");
-    // in the footer, never floating over the page (scripts/test_layout_audit.mjs: no button covers a card)
+    // in the footer, never floating over the page, so no button covers a card
     fab.type = "button"; fab.id = "ux-fab"; fab.className = "quiet"; fab.textContent = "Display"; fab.setAttribute("aria-label", "Display: simpler, contrast, type, motion");
     fab.onclick = () => { s.hidden = !s.hidden; };
     (document.getElementById("footTools") || document.querySelector("footer") || document.body).appendChild(fab);
@@ -91,10 +91,10 @@
   document.addEventListener("pointerdown", (e) => {
     const now = Date.now(); taps = taps.filter((t) => now - t.at < 600); taps.push({ at: now, el: e.target });
     if (taps.length >= 3 && taps.every((t) => t.el === e.target) && !e.target.closest("input, textarea, button, a, select")) { setMode("simple", !root.classList.contains("simple")); taps = []; say(root.classList.contains("simple") ? "Simpler mode on" : "Simpler mode off"); }
-    else if (taps.length >= 3 && taps.every((t) => t.el === e.target) && !offered) { offered = true; say("Stuck? The Aa button makes this simpler."); }
+    else if (taps.length >= 3 && taps.every((t) => t.el === e.target) && !offered) { offered = true; say("Stuck? The Display button, at the bottom of the page, makes this simpler."); }
   }, { passive: true });
   let offered = false, clears = 0;
-  document.addEventListener("input", (e) => { if (e.target.value === "" && ++clears >= 2 && !offered) { offered = true; say("Stuck? The Aa button makes this simpler."); } });
+  document.addEventListener("input", (e) => { if (e.target.value === "" && ++clears >= 2 && !offered) { offered = true; say("Stuck? The Display button, at the bottom of the page, makes this simpler."); } });
 
   // ---- lite mode: Data Saver, a slow link, a low battery not charging ----------------------------------------------
   const c = navigator.connection;

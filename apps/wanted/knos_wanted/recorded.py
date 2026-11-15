@@ -1,9 +1,9 @@
 """When Qloo is not answering, the card says so. A failed Qloo call (HTTP 429, a 5xx, or no answer in time) marks the
-report `qloo_down` with its code, and the card's first line says it; for the 8 sample chips the last real full card
+report `qloo_down` with its code, and the card's first line says it; for the sample chips the last real full card
 is shown instead, marked `stale` with the time it was made. Each chip's card is its first real answer to a reader's
 press (nothing is run at boot) and is kept with no expiry. They survive a redeploy in one private place: a Render secret
 file (KNOS_RECORDED_FILE, by default /etc/secrets/knos-recorded.json), read at boot. Never the repository, the Pages
-build, Sibyl, devnet or any public store. A new real card is written back to that file at most once in 10 minutes, and
+build, devnet or any public store. A new real card is written back to that file at most once in 10 minutes, and
 only when this server was given the means to (KNOS_RECORDED_UPLOAD_KEY and RENDER_SERVICE_ID); without them it stays in
 memory until the operator uploads the file from their own machine."""
 from __future__ import annotations
@@ -16,7 +16,7 @@ import threading
 import time
 import urllib.request
 
-# the front door's 8 sample chips (web/brand/hero.html): 7 ideas for the demand check and 1 paper for a crossing
+# the app's 6 sample chips (web/brand/hero.html, all ideas), then two kept for older links: one idea and one paper
 CHIPS = ("an AI recipe planner for families", "a crypto podcast for beginners", "a quantum physics book for kids",
          "a solar powered music festival", "a probiotic kombucha brand", "a recycled ocean plastic swimwear brand",
          "a tiny home kit for first-time buyers", "10.1038/nature16521")

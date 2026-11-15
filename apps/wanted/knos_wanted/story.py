@@ -4,11 +4,10 @@ own numbers and calls, never a new Qloo call.
     story.build(rep) -> {sentence, tiles, used, reruns, rejected, downloads}
 
 - sentence: the decision in one line (verdict, place, who);
-- tiles: 3 or 4 facts under it: top place, top audience with its lift, price tier, live calls and seconds;
-- used: which of the input's words the answer used (and through which Qloo tag or product), which it could not, and
-  the next step;
+- tiles: up to 3 facts under it: top place, top audience, price tier (the audience's lift kept as lift_kept, not shown);
+- used: which of the input's words the answer used (and through which Qloo tag or product), and which it could not;
 - reruns: for a refusal or a thin answer, up to 3 one-click reruns, each a Qloo tag or a launch market;
-- rejected: what was rejected and the rule that rejected it (never empty when something was refused);
+- rejected: always empty on the card; rejected_all holds what was rejected and the rule that rejected it;
 - downloads: on an Open card, the pre-order page text, a launch-city outreach draft and a calendar file for the refund
   date, each built from the card's own numbers (GET /api/card/<kind>?hash=).
 """
@@ -50,9 +49,9 @@ def sentence(rep: dict) -> str:
     v, city, who = _verdict(rep), _city(rep), _who(rep)
     reasons = [str(r) for r in d.get("reasons") or []]
     if v == "OPEN":
-        return "Before you post it: people want this" + (f", most in {city}" if city else "") + (f", among {who}" if who else "") + ". Pre-orders are open."
+        return "People want this" + (f", most in {city}" if city else "") + (f", among {who}" if who else "") + ". Pre-orders are open."
     if v == "REFUSE":
-        return "Before you post it: not enough people want this yet" + (f" (the nearest interest is in {city})" if city else "") + ". Pre-orders stay closed."
+        return "Not enough people want this yet" + (f" (the nearest interest is in {city})" if city else "") + ". Pre-orders stay closed."
     if v == "CANNOT_DECIDE":
         miss = next((r.split(":", 1)[0] for r in reasons if r and not r.startswith("cannot decide")), "")
         return "Not enough evidence to decide" + (f": {miss} did not answer" if miss else "") + "."

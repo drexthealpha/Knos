@@ -132,11 +132,12 @@ def _idt() -> dict:
 
 
 def _program(escrow=None) -> str | None:
-    """The vault program's devnet id, as the package ships it (knos/settle/v2/program_ids.json)."""
+    """The program that holds this app's pre-orders, milestones and payouts on devnet (preorder.program(): the knos_pay
+    TEST build, unless KNOS_WANTED_PROGRAM names another)."""
     try:
-        import knos.settle.v2 as v2
-        return json.loads((Path(v2.__file__).parent / "program_ids.json").read_text(encoding="utf-8"))["knos_pay"]
-    except Exception:  # noqa: BLE001 - no vault package here: the vector says so
+        from . import preorder
+        return str(preorder.program())
+    except Exception:  # noqa: BLE001 - no solders here: the vector says so
         return None
 
 
@@ -199,7 +200,7 @@ STATUS = '<li data-v="status"><b>Ready cards</b></li>'
 COST = '<li data-v="cost"><b>$0</b> per check</li>'
 
 
-TRUST = '<li data-v="trust"><b>Held</b> until proof, on devnet</li>'
+TRUST = '<li data-v="trust"><b>Held</b> until the check passes, on devnet</li>'
 
 
 def fill(html: str, v: dict, base: str = "") -> str:
@@ -210,7 +211,7 @@ def fill(html: str, v: dict, base: str = "") -> str:
     t = (v.get("trust") or {}).get("escrow_program")
     if t:
         html = html.replace(TRUST, f'<li data-v="trust"><a href="https://explorer.solana.com/address/{escape(str(t))}?cluster=devnet" '
-                                   'rel="noopener"><b>Held</b> until proof, on devnet</a></li>')
+                                   'rel="noopener"><b>Held</b> until the check passes, on devnet</a></li>')
     s = (v.get("speed") or {}).get("median_s")
     if isinstance(s, (int, float)):
         html = html.replace(SPEED, f'<li data-v="speed"><b>{s:g} s</b> median to verdict</li>')

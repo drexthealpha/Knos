@@ -1,4 +1,4 @@
-"""The research card (landmark result -> product phrase -> walls) on SYNTHETIC fixtures, and the Knos Record (Sibyl)
+"""The research card (landmark result -> product phrase -> walls) on SYNTHETIC fixtures, and the Knos Record
 read before any money moves."""
 import datetime as dt
 
@@ -73,7 +73,7 @@ def test_every_nobel_row_cites_its_press_release():
     assert top["nobel"] is False and "fda.gov" in top["url"] and research.nobel_for(top["doi"])["enables"].startswith("a fitness watch")
 
 
-# ---- the Record (Sibyl) is read before money moves ------------------------------------------------------------------
+# ---- the Record (its memory store) is read before money moves ------------------------------------------------------------------
 pytest.importorskip("sibyl_memory_client")
 
 REP = {"hash": "b" * 64, "idea": "x", "label": "LIVE Qloo data", "calls": [{"call": "GET /search"}],

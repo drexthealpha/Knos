@@ -27,16 +27,16 @@ from xml.sax.saxutils import escape as _xml_escape
 
 BASE = "https://knos.onrender.com"
 PAGES = "https://drexthealpha.github.io/Knos"
-START = PAGES + "/start/"
+START = PAGES + "/"          # /start: the old Start page left the site, so straight to the front door
 REPO = "https://github.com/drexthealpha/Knos"
 ONE_LINE = "Knos carries research across the valley of death."
 DIR = Path(__file__).resolve().parent / "agentfiles"
 KEY_FILE = Path(__file__).resolve().parents[3] / "web" / "indexnow.txt"   # the repo's web/indexnow.txt (public by design)
 INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow"
 INDEXNOW_MAX = 10_000
-SERVER_CARD_SCHEMA = "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json"
+# no $schema in the card: the server-card schema's published URL answered 404 (15 Nov 2026), so the card names none
 SERVER_CARD_NAME = "io.github.drexthealpha/knos"        # the schema's "namespace/name" form; "knos" alone fails its pattern
-FALLBACK_PROTOCOL = "2025-06-18"                         # what GET /mcp advertises (knos_wanted.agent.PROTOCOL)
+FALLBACK_PROTOCOL = "2025-11-25"                         # what GET /mcp advertises (knos_wanted.agent.PROTOCOL)
 BOTS = ("OAI-SearchBot", "Claude-SearchBot", "Claude-User", "ChatGPT-User", "Googlebot", "*")
 PRIVATE = ("/api/", "/auth/", "/oauth/")
 DISCOVERY_HEADERS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET",
@@ -122,8 +122,8 @@ def supported_protocol_versions(fallback: str = FALLBACK_PROTOCOL) -> list[str]:
 
 def server_card(base: str = BASE, version: str = "0.0.0", protocol_versions: list[str] | None = None):
     b = _base(base)
-    card = {"$schema": SERVER_CARD_SCHEMA, "name": SERVER_CARD_NAME, "title": "Knos", "version": str(version),
-            "description": "See who wants a product and where on Qloo, then get paid only on proof. Solana devnet.",
+    card = {"name": SERVER_CARD_NAME, "title": "Knos", "version": str(version),
+            "description": "Knos: see who would buy a research product first, from Qloo taste data; devnet test money.",
             "websiteUrl": b + "/app/", "repository": {"url": REPO, "source": "github"},
             "icons": [{"src": b + "/static/icon.svg", "mimeType": "image/svg+xml", "sizes": ["any"]}],
             "remotes": [{"type": "streamable-http", "url": b + "/mcp", "supportedProtocolVersions": list(protocol_versions or supported_protocol_versions())}]}

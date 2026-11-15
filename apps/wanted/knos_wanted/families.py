@@ -8,7 +8,7 @@ Ready brief's "Grounding (Qloo)" line: audience, cities, price tier, comparables
   F1 who        the comparables ranked for that age and gender (and audience segments)
   F2 gaps       the comparables without the leader / below a popularity cap: what is left for a new product
   F3 where      places near a named city or area (radius, geohash, exclusions, exact region names)
-  F4 price      the heatmap's hot areas for a price tier (heatmap.dimensions, geohash boundary)
+  F4 price      the heatmap's hot areas for a price tier (heatmap.dimensions)
   F5 serves     places tied to a brand (references_brand), by quality, rating, hours, address, Resy/Tripadvisor
   F6 media      film/TV/book/person comparables in a year range, rating, country, content rating, dates
   F7 lookup     an exact thing by name (Search Entities, incl. localities, near a point, sorted) or by id (by ID)
@@ -210,7 +210,7 @@ def answer(run, ev: dict, idea: str, place: str | None, o: dict) -> dict:
         # New York City, said in the call's params
         where = ({"filter.location": o["location"], **({"filter.location.radius": o["radius"]} if "radius" in o else {})} if o.get("location")
                  else {"filter.location.query": o.get("near") or place or "New York City"})
-        p = {"filter.type": "urn:heatmap", "take": 8, "output.heatmap.boundary": "urn:geohash", **(sig or {}), **where}
+        p = {"filter.type": "urn:heatmap", "take": 8, **(sig or {}), **where}   # Qloo refuses output.heatmap.boundary (400)
         dims = [d for d, f in (("price_level", "price_level"), ("hotel_class", "hotel_class")) if f in o]
         if dims:
             p["heatmap.dimensions"] = ",".join(dims)

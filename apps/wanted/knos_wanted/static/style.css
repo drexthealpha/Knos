@@ -154,7 +154,7 @@ button:active { transform: scale(.97); }
 .night-voice .mic { min-width: 64px; min-height: 64px; font-size: 1.5rem; }
 .ux-help { position: fixed; right: 0; top: 0; bottom: 0; width: min(320px, 90vw); padding: 16px; background: var(--surface); border-inline-start: 1px solid var(--line); overflow: auto; z-index: 40; }
 .ux-help-btn { min-width: 44px; min-height: 44px; border-radius: 50%; }
-.left-hand @media (max-width: 720px) { .step { animation-duration: calc(.25s * var(--speed, 1)); } .spin { animation-duration: calc(.8s * var(--speed, 1)); }
+@media (max-width: 720px) { .left-hand .step { animation-duration: calc(.25s * var(--speed, 1)); } .left-hand .spin { animation-duration: calc(.8s * var(--speed, 1)); } }
 .ux-done { pointer-events: none; position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); margin: 0; padding: 8px 16px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); z-index: 45; animation: rise calc(.25s * var(--speed, 1)) ease; }
 .reduce-motion .ux-done { animation: none; }
 /* the Qloo demand families (static/demand_opts.js): one row per family, Advanced folded */

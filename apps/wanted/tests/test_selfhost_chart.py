@@ -10,7 +10,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 CHART = ROOT / "deploy" / "selfhost" / "knos"
-HELM = shutil.which("helm") or (str(Path.home() / "knos" / "product-bin" / "helm") if (Path.home() / "knos" / "product-bin" / "helm").exists() else None)
+HELM = os.environ.get("KNOS_HELM") or shutil.which("helm")
 
 
 def test_values_hold_no_secret_and_compose_has_both_services():

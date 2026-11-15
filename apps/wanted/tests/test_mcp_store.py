@@ -1,5 +1,5 @@
 """The app-store MCP profile (knos_wanted.agent, POST /mcp/store): every tool annotated; the store lists only read-only
-tools (knos_ready, knos_demand_check, qloo_*); any other tool is refused there; a daily cap holds every caller."""
+tools (knos_ready, knos_demand_check; qloo_* only with an agent key); any other tool is refused there; a daily cap holds every caller."""
 import types
 
 from knos_wanted import agent

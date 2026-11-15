@@ -8,14 +8,15 @@ The terms carry the report's sha256 as the spec hash, so the money is locked aga
 
 What a pre-order is, on chain: the buyer's test units plus the knos_pay fee leave the buyer's token account into the
 knos_pay program; they are paid to the maker only through Knos's judge workflow on delivery, and are refunded to the
-buyer after the deadline otherwise (anyone may send RefundOrder). This app never pays anyone out.
+buyer after the deadline otherwise (anyone may send RefundOrder). Panel orders (knos_wanted.preorder) are released by this
+server's relayer once the referee group signs; these graduation pools are released only by Knos's judge workflow.
 
 Devnet only (knos.chain refuses mainnet). Test money: a test mint this app creates (6 decimals, no freeze authority).
 Who signs:
   wallet mode  the buyer's own browser wallet signs; the server only builds the unsigned transaction and relays it.
   passkey      the buyer's own passkey signs (knos_wanted.wallets). The app's devnet TEST wallet (KNOS_WANTED_DEVNET_KEYPAIR)
                only pays fees and mints test units (the faucet); it never buys for anyone (the demo buyer is removed).
-`knos` is an optional dependency (`pip install "./apps/wanted[escrow]"`); without it the report still works and the button
+`knos` is an optional dependency (`pip install "./apps/wanted[hold]"`); without it the report still works and the button
 says the vault is unavailable.
 """
 from __future__ import annotations
@@ -45,7 +46,7 @@ def knos():
         from knos import chain, graduation
         from knos.settle.v2 import pay
     except Exception as why:  # noqa: BLE001 - knos missing or broken: the vault is off, the report is not
-        raise EscrowUnavailable(f"the knos package is not installed ({type(why).__name__}); pip install './apps/wanted[escrow]'") from None
+        raise EscrowUnavailable(f"the knos package is not installed ({type(why).__name__}); pip install './apps/wanted[hold]'") from None
     return chain, graduation, pay
 
 

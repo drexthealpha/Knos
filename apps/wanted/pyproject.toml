@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knos-demand-check"
-version = "0.3.33"
-description = "Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III."
+version = "0.4.1"
+description = "The demand check of Knos: see who would buy a research product first, from Qloo taste data. The goal: Knos turns any research into a product billions of people use, in days, not years."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"   # the image runs python:3.12-slim; f-strings with nested quotes need 3.12
@@ -14,16 +14,15 @@ dependencies = []   # the report and the web app use the Python standard library
 
 [project.optional-dependencies]
 # the "lock pre-orders" button: Knos's graduation pre-order pool. This app is apps/wanted/ of the Knos monorepo:
-# install Knos from the same checkout beside it (`pip install . "./apps/wanted[escrow]"` at the root), so the app and
-# the escrow code are always one commit.
-escrow = ["knos", "solders>=0.29"]
-hold = ["knos", "solders>=0.29"]   # the same, under the name the README uses
+# install Knos from the same checkout beside it (`pip install . "./apps/wanted[hold]"` at the root), so the app and
+# the hold code are always one commit.
+hold = ["knos", "solders>=0.29"]
 config = ["pyyaml==6.0.3"]   # config/fees.yaml + config/referees.yaml on the money path (the uv.lock pin)
 auth = ["cryptography>=42"]   # passkey sign-in (ES256 signature check)
 evidence = ["c2pa-python==0.38.0"]   # C2PA-signed photo/video evidence (knos_wanted.provenance)
 attest = ["sigstore==4.5.0"]   # the code referee's Sigstore attestation, checked against Sigstore's public trust root (knos.threshold.codeattest)
-saml = ["signxml==5.1.0", "lxml==6.1.3"]
-nearai = ["dcap-qvl==0.7.1", "eth-account==0.14.0"]   # NEAR AI Cloud's attestation (Intel TDX quote) and each answer's signature, verified (knos_wanted.near_attest)   # Knos as the SAML service provider for the test IdPs (knos_wanted.saml_sp)
+saml = ["signxml==5.1.0", "lxml==6.1.3"]   # Knos as the SAML service provider for the test IdPs (knos_wanted.saml_sp)
+nearai = ["dcap-qvl==0.7.1", "eth-account==0.14.0"]   # NEAR AI Cloud's attestation (Intel TDX quote) and each answer's signature, verified (knos_wanted.near_attest)
 dev = ["pytest>=8"]
 
 [project.scripts]
@@ -33,7 +32,7 @@ knos-demand-check = "knos_wanted.__main__:main"
 packages = ["knos_wanted"]
 
 [tool.setuptools.package-data]
-knos_wanted = ["static/*", "static/brand/*", "static/fonts/*", "data/*", "agentfiles/*"]
+knos_wanted = ["static/*", "static/brand/*", "static/fonts/*", "static/zk/*", "data/*", "agentfiles/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,7 +1,7 @@
 """The front door's list: research products people can back now (GET /api/front), and the seeds that keep it full.
 
-The app runs on a free instance whose disk is wiped when it restarts, so a stranger could find an empty app. At start
-(serve, a background thread) this server crosses each SEED (a landmark paper and the product it enables) on live
+The app runs on a free instance whose disk is wiped when it restarts, so a stranger could find an empty app. When a reader
+first asks for the board, this server crosses each SEED (a landmark paper and the product it enables) on live
 Qloo exactly as a researcher's crossing does, and opens a PROJECT for each one that decides OPEN, so its milestones
 can be funded before any maker claims them (the payee is bound when a maker claims). Nothing is invented: a seed whose
 crossing does not decide OPEN is not listed, and every number on the list is read from this server's own files.
@@ -28,7 +28,7 @@ SEEDS = [
     {"slug": "glow-hydration-bottle", "ref": None, "idea": "A smart water bottle that glows to remind you to drink",
      "product": None, "place": "Lagos", "template": "hardware_prototype", "paper": None, "tech": None},
 ]
-# the seven technologies of the fields page (static/fields.json), as a product names them: shown on its card
+# the seven technologies of the fields page (fields_data.py), as a product names them: shown on its card
 TECH = {"ai": "AI", "web3": "Web3", "quantum": "Quantum", "energy": "Energy", "biotech": "Biotech", "materials": "Materials", "pqc": "PQC"}
 TECH_WORDS = {"ai": ("ai", "machine learning", "model", "llm"), "web3": ("crypto", "blockchain", "nft", "dao", "web3", "on chain", "token"),
               "quantum": ("quantum",), "energy": ("battery", "solar", "grid", "reactor", "energy", "power"),
@@ -165,7 +165,7 @@ def product(state, rep: dict, slug: str, project_id: str | None) -> dict:
             "tech": tech, "tech_name": TECH.get(tech or ""),
             "paper_title": r.get("title"), "where": (plan.get("where") or [])[:3], "unit_price": plan.get("unit_price"),
             "target_units": d.get("target_units"), "reserve_units": d.get("reserve_units"),
-            "backed_units": res["pre_ordered_units"], "escrow_units": escrow_units, "held_units": escrow_units, "maker": maker, "project": project_id,
+            "backed_units": res["pre_ordered_units"], "held_units": escrow_units, "maker": maker, "project": project_id,
             "first_milestone": first, "open_milestones": open_ms,
             "actions": {"back": f"#back={slug}", "fund": f"#fund={slug}", "contribute": f"#contribute={slug}"}}
 

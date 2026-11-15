@@ -1,5 +1,5 @@
-// The front door's film: one job, live as you scroll. The test is locked (Resolve), the bid waits (Price), the check
-// runs on two agents' work (Settle), and the money moves to the agent that passed, never the other (Work).
+// The film of one Knos job, live as you scroll (no published page shows it today): the test is locked, test money waits
+// with the job, the locked test runs on two agents' code, and the test money moves only to the agent whose code passed.
 // Real-time three.js, after the template of prompt-motion.com/templates/realtime (prompt by Prompt Motion, curated by
 // @p4nthera_, x.com/p4nthera_): physical materials, an environment map, soft shadows, ACES tone mapping and fog, a film
 // camera instead of orbit controls, springs instead of linear tweens, and ?t=<seconds> draws any frame from time alone.
@@ -10,8 +10,8 @@ const still = !film || matchMedia("(max-width: 760px), (prefers-reduced-motion: 
 const params = new URLSearchParams(location.search);
 const atT = params.has("t");
 const DURATION = 24;
-const STAGES = [[0.0, 0.25, "Test set", "The test is fixed before any money moves."], [0.25, 0.5, "Money held", "The test money waits for that test."],
-  [0.5, 0.75, "Check runs", "The check runs on each helper's work."], [0.75, 1.01, "Paid", "Only the helper whose work passed is paid."]];
+const STAGES = [[0.0, 0.25, "Test locked", "The test is locked before any work starts."], [0.25, 0.5, "Money held", "Test money waits with the job."],
+  [0.5, 0.75, "Check runs", "The locked test runs on each agent's code."], [0.75, 1.01, "Released", "Test money moves only to the agent whose code passed."]];
 
 async function start() {
   const THREE = await import("../near/story/vendor/three.module.min.js");
@@ -44,7 +44,7 @@ async function start() {
   const floor = new THREE.Mesh(new THREE.CircleGeometry(9, 96), mat(SOFT, { roughness: 0.9, clearcoat: 0 }));
   floor.rotation.x = -Math.PI / 2; floor.position.y = -1.1; floor.receiveShadow = true; scene.add(floor);
 
-  // the job, assembled: the check (a gate) with the locked test on top and the bid inside
+  // the job, assembled: the check (a gate) with the locked test on top and the test money inside
   const job = new THREE.Group(); scene.add(job);
   const part = (mesh, explode) => { const g = new THREE.Group(); g.add(mesh); g.userData = { explode }; job.add(g); return g; };
   const gate = part(shadowed(new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.16, 48, 128), mat(ACCENT, { metalness: 0.35 }))), [0, 0, 0]);
@@ -69,7 +69,7 @@ async function start() {
   // each part named on screen next to it, so no shape has to be guessed and pass or fail is said in words
   const layer = canvas.parentElement, v = new THREE.Vector3();
   const tag = (obj, text) => { const s = document.createElement("span"); s.className = "k-film-tag"; s.setAttribute("aria-hidden", "true"); s.textContent = text; layer.append(s); return { obj, s }; };
-  const tags = [tag(plate, "The test (cannot change)"), tag(coin, "The money (held)"), tag(gate.children[0], "The check"), tag(passing, "Helper A passes"), tag(failing, "Helper B fails")];
+  const tags = [tag(plate, "The test (cannot change)"), tag(coin, "Test money (held)"), tag(gate.children[0], "The check"), tag(passing, "Agent A passes"), tag(failing, "Agent B fails")];
   const place = () => {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     for (const { obj, s } of tags) {
@@ -81,15 +81,15 @@ async function start() {
   let last = 0, warm = false;
   function frame(p, dt) {
     if (!warm) { for (const s of [sx, sy, sd, se, sc]) { s.x = s === sd ? 9 : 0; } warm = true; }
-    // film camera: a slow push in, a crane up at Settle, a dolly to the passing agent at Work
+    // film camera: a slow push in, a crane up as the check runs, a dolly to the passing agent at Released
     const shotX = p < 0.75 ? 0 : -0.8 * clamp((p - 0.75) / 0.2), shotY = 1.2 + (p > 0.5 ? 1.3 * clamp((p - 0.5) / 0.2) : 0);
-    // Price: the camera swings round the job, about 40 degrees out and back, so the bid can be seen waiting inside
+    // Money held: the camera swings round the job, about 40 degrees out and back, so the test money can be seen waiting inside
     const orbit = 0.7 * Math.sin(Math.PI * clamp((p - 0.18) / 0.42));
     const cx = shotX + 1.2 * (1 - p), cz = 8.6 - 2.2 * p;
     camera.position.set(sx.step(cx * Math.cos(orbit) + cz * Math.sin(orbit), dt), sy.step(shotY, dt), sd.step(cz * Math.cos(orbit) - cx * Math.sin(orbit), dt));
     camera.lookAt(shotX * 0.6, 0, 0);
     ex.set(se.step(p < 0.25 ? clamp(p / 0.25) : p < 0.75 ? 1 : 1 - clamp((p - 0.75) / 0.15) * 0.6, dt));
-    // Settle: the scan; Work: the coin travels to the passing agent, the other turns red and gets nothing
+    // Check runs: the scan; Released: the coin travels to the passing agent, the other turns red and gets nothing
     const scan = clamp((p - 0.5) / 0.2), pay = sc.step(clamp((p - 0.78) / 0.18), dt);
     passing.material.color.set(scan > 0.5 ? OK : "#e9ebef");
     failing.material.color.set(scan > 0.9 ? BAD : "#e9ebef");
@@ -98,9 +98,9 @@ async function start() {
     const stage = STAGES.find(([a, b]) => p >= a && p < b) || STAGES[STAGES.length - 1];
     if (cap.textContent !== stage[2]) { cap.textContent = stage[2]; capLine.textContent = stage[3]; }
     const said = (t, text) => { if (t.s.textContent !== text) t.s.textContent = text; };
-    said(tags[3], scan > 0.5 ? (pay > 0.9 ? "Agent A: passed, paid" : "Agent A: passed") : "Agent A");
-    said(tags[4], scan > 0.9 ? "Agent B: failed, paid 0" : "Agent B");
-    said(tags[1], pay > 0.9 ? "Bid, paid to A" : "Bid, held");
+    said(tags[3], scan > 0.5 ? (pay > 0.9 ? "Agent A: passed, released" : "Agent A: passed") : "Agent A");
+    said(tags[4], scan > 0.9 ? "Agent B: failed, gets 0" : "Agent B");
+    said(tags[1], pay > 0.9 ? "Test money, to A" : "Test money, held");
     renderer.render(scene, camera);
     place();
   }

@@ -1078,19 +1078,18 @@ def _versus(run: _Run, near: list[dict], lead: dict, signal: dict, mine_near: li
     Needs at least one matched product besides the leader (else there is nothing to compare: None)."""
     if not near:
         return None
-    if near:
-        body, s8 = run.get("/v2/analysis/compare", {"a.signal.interests.entities": ",".join(e["id"] for e in near),
-                                                    "b.signal.interests.entities": lead["id"], "take": 30}, "the idea's other matches vs the leader")
-        r = (body or {}).get("results") or {}
+    body, s8 = run.get("/v2/analysis/compare", {"a.signal.interests.entities": ",".join(e["id"] for e in near),
+                                                "b.signal.interests.entities": lead["id"], "take": 30}, "the idea's other matches vs the leader")
+    r = (body or {}).get("results") or {}
 
-        def names(lst):
-            return {str(t.get("name")): t for t in (lst or []) if isinstance(t, dict) and t.get("name")}
-        a, b = names(r.get("a")), names(r.get("b"))
-        if s8 is not None and min(len(a), len(b)) >= RULES["min_compare_tags"]:
-            shared = set(a) & set(b)
-            return {"leader": lead["name"], "method": "shared taste tags (compare)", "overlap": round(len(shared) / min(len(a), len(b)), 3),
-                    "shared": sorted(shared)[:8], "whitespace": sorted(set(a) - set(b))[:8], "leader_only": sorted(set(b) - set(a))[:8],
-                    "sizes": [len(a), len(b)], "src": s8}
+    def names(lst):
+        return {str(t.get("name")): t for t in (lst or []) if isinstance(t, dict) and t.get("name")}
+    a, b = names(r.get("a")), names(r.get("b"))
+    if s8 is not None and min(len(a), len(b)) >= RULES["min_compare_tags"]:
+        shared = set(a) & set(b)
+        return {"leader": lead["name"], "method": "shared taste tags (compare)", "overlap": round(len(shared) / min(len(a), len(b)), 3),
+                "shared": sorted(shared)[:8], "whitespace": sorted(set(a) - set(b))[:8], "leader_only": sorted(set(b) - set(a))[:8],
+                "sizes": [len(a), len(b)], "src": s8}
     if len(mine_near) < RULES["min_compare_tags"]:
         return None
     body, s9 = run.get("/v2/insights", {"filter.type": kind, "signal.interests.entities": lead["id"], "take": NEAREST},
@@ -1401,7 +1400,7 @@ def _demand_check(idea: str, place: str | None = None, leader: str | None = None
                                          or [a["name"] for a in (ev.get("audiences") or [])][:3]},
                      "where": [c["name"] + (f" ({c['country']})" if c.get("country") else "") for c in ev.get("cities") or []][:4],
                      "tier": pr["tier"], "unit_price": pr["unit_price"], "target_units": d["target_units"], "reserve_units": d["reserve_units"],
-                     "escrow_target": d["target_units"] * pr["unit_price"], "escrow_reserve": d["reserve_units"] * pr["unit_price"],
+                     "held_target": d["target_units"] * pr["unit_price"], "held_reserve": d["reserve_units"] * pr["unit_price"],
                      "unserved_audience": vs.get("whitespace", [])[:5],
                      "persona": [x["name"] for x in ev.get("persona") or []][:6],
                      "ladder": [{k: r[k] for k in ("name", "affinity", "popularity")} for r in ev.get("ladder") or []][:6],

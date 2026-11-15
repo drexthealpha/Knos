@@ -1,4 +1,4 @@
-// The one box of both front doors (web/brand/hero.html): a DOI, an arXiv id or an idea in, Qloo's demand verdict out,
+// The demand check, the app's first screen (web/brand/hero.html, written into the app's home by scripts/sync_brand.py): a DOI, an arXiv id or an idea in, Qloo's demand verdict out,
 // drawn as one card: open or refuse, who, where (on a map), and the price tier, each part linked to the Qloo call it
 // came from (the app's /trace.html: the redacted request, the result excerpt and the limit). A paper goes through the
 // crossing (POST /api/cross: the paper read, its product named, then the check); an idea straight to the check
@@ -31,7 +31,7 @@
     tileIO.unobserve(e.target); for (const i of e.target.querySelectorAll("img[data-src]")) { i.src = i.dataset.src; i.removeAttribute("data-src"); } } }) : null;
   new MutationObserver(() => { for (const m of slot.querySelectorAll(".k-osm:not([data-watched])")) { m.dataset.watched = "";
     if (tileIO) tileIO.observe(m); else for (const i of m.querySelectorAll("img[data-src]")) i.src = i.dataset.src; } }).observe(slot, { childList: true, subtree: true });
-  // motion (sweep M1.md 4.3 and 4.7): one move per change, transform and opacity only; with reduced motion nothing moves
+  // motion: one move per change, transform and opacity only; with reduced motion nothing moves
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const SPRING = "linear(0,.054,.181,.339,.499,.644,.766,.862,.933,.982,1.013,1.03,1.038,1.038,1.034,1.029,1.023,1.017,1.012,1.007,1)";
   // SOTA gap 8: the busy button keeps its label and its width ("Checking…" after a 14 px spinner, no tint), the 2 px bar
@@ -48,7 +48,7 @@
   const busy = (on) => {
     const label = go.querySelector("[data-label]") || go;
     clearInterval(clock);
-    if (!on) { label.textContent = "Post a job →"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
+    if (!on) { label.textContent = "Check demand →"; go.style.minWidth = ""; go.removeAttribute("aria-busy"); form.removeAttribute("aria-busy");
       clearInterval(poll); const secs = since ? (performance.now() - since) / 1000 : null; counted(secs);   // the last count stays
       since = 0; if (liveSaid) liveSaid.textContent = ""; if (liveT) liveT.textContent = ""; return; }
     rid = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -289,7 +289,7 @@
   <h2 class="k-verdict">Is this what you mean? ${esc(ms[0])}</h2>
   <p data-confirm-row><button type="button" class="k-chip" data-sure>Yes</button> <button type="button" class="k-chip" data-other="${esc(JSON.stringify(ms.slice(1, 4)))}">No</button></p></header></article>`;
   const WORD = { OPEN:["Open for pre-orders", "open"], REFUSE: ["Not yet: pre-orders stay closed", "refuse"], CANNOT_DECIDE: ["Not enough evidence to decide", "unknown"] };
-  // CODE.md 2.12: what an undecided verdict lacks, read from the rule's own reasons ("cannot decide: no Qloo evidence")
+  // what an undecided verdict lacks, read from the rule's own reasons ("cannot decide: no Qloo evidence")
   const missing = (rs) => { const r = String((rs || [])[0] || "").replace(/^cannot decide:\s*/i, "").replace(/^no\s+/i, "").trim(); return r || "the evidence the rule needs"; };
   // Qloo's audience segments with their lift (check.py: the segment's mean change in affinity on the products nearest
   // the taste), signed to 4 decimals, highest first, up to 6; a lift is shown as Qloo's number, never weighed against a threshold
@@ -474,9 +474,9 @@ ${src(h, price.src)}</section>
   ${calls(r)}
   ${r.nearest && (r.nearest_next || []).length ? `<p class="k-terms" data-nearest-next>Other ideas Qloo has answered: ${ideaButtons(r.nearest_next)}</p>` : ""}
   <details class="k-claude" data-claude hidden><summary>Claude alone</summary><div class="k-claude-body" data-claude-body></div></details>
-  <footer class="k-card-foot"><p class="k-fine" data-proof-line><a href="https://drexthealpha.github.io/Knos/how-we-test.html" target="_blank" rel="noopener">How we test Knos</a></p>${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">What many people like, from Qloo: a hint at demand, never about one person.${
+  <footer class="k-card-foot">${rcpt ? `<p class="k-fine"><a href="${esc(API)}/receipts/${esc(rcpt)}" target="_blank" rel="noopener" data-receipts>Receipts</a></p>` : ""}<p class="k-fine">What many people like, from Qloo: a hint at demand, never about one person.${
     HEALTH.test(r.idea || "") ? " Not medical advice: Qloo has no medical demand." : ""}</p>
-    ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">Fee: 1% of each payout. Test money for now.</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Check it in one city →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
+    ${undecided ? "" : `${d.verdict === "OPEN" ? `<a class="k-cta" href="${esc(APP)}#buy=${esc(h)}">Open pre-orders for it →</a><p class="k-pay-fee">${esc((r.fees && r.fees.text) || "Devnet release fee: 0.3%, at least 0.05 test units. Test money.")}</p>` : `<a class="k-cta quiet" href="${esc(APP)}#research">Check it in one city →</a>`}${/^[0-9a-f]{16}/.test(h || "") ? ` <a class="k-cta quiet" href="${esc(API)}/r/${esc(h.slice(0, 16))}" data-share>Share this result</a>` : ""}`}</footer>
 </article>`;
   }
 
@@ -557,7 +557,7 @@ ${src(h, price.src)}</section>
   };
   // SOTA gap 2: the first screen's finished result, beside the box (under it on a phone): the real last good check,
   // read from the app at view time (GET /api/proof; the page stores no Qloo answer). Its verdict, the launch terms, the
-  // top three places as bars (Qloo's concentration index, 0 to 100) and the day Qloo answered it (`made`, CODE.md 2.18).
+  // top three places as bars (Qloo's concentration index, 0 to 100) and the day Qloo answered it (`made`).
   // "Wanted" only: an undecided check is never the first thing shown. Its room is kept from the first paint (CLS).
   const pastCard = (r, label) => {
     const d = r.decision || {}, terms = termsOf(r), open = d.verdict === "OPEN";
@@ -598,13 +598,13 @@ ${src(h, price.src)}</section>
   if ("modelContext" in document && document.modelContext && document.modelContext.registerTool) {
     try {
       document.modelContext.registerTool({ name: "open_trace", description: "Opens the Qloo trace of a past demand check by its hash",
-        inputSchema: { type: "object", properties: { hash: { type: "string", description: "The check's hash, 16 to 64 hex characters" } }, required: ["hash"] },
+        inputSchema: { type: "object", properties: { hash: { type: "string", description: "The check's hash, 64 hex characters" } }, required: ["hash"] },
         annotations: { readOnlyHint: true },
-        execute: async ({ hash }) => { if (!/^[0-9a-f]{16,64}$/.test(String(hash || ""))) return "hash: 16 to 64 hex characters"; open(`${API}/trace.html?hash=${hash}`, "_blank", "noopener"); return `opened the trace of ${hash}`; } });
+        execute: async ({ hash }) => { if (!/^[0-9a-f]{64}$/.test(String(hash || ""))) return "hash: 64 hex characters"; open(`${API}/trace.html?hash=${hash}`, "_blank", "noopener"); return `opened the trace of ${hash}`; } });
       document.modelContext.registerTool({ name: "open_preorders", description: "Opens the pre-order page of an Open check in the app; the person confirms any money there",
         inputSchema: { type: "object", properties: { hash: { type: "string", description: "The Open check's hash" } }, required: ["hash"] },
         annotations: { consequentialHint: true },
-        execute: async ({ hash }) => { if (!/^[0-9a-f]{16,64}$/.test(String(hash || ""))) return "hash: 16 to 64 hex characters"; location.href = `${APP}#buy=${hash}`; return "opened the pre-order page"; } });
+        execute: async ({ hash }) => { if (!/^[0-9a-f]{64}$/.test(String(hash || ""))) return "hash: 64 hex characters"; location.href = `${APP}#buy=${hash}`; return "opened the pre-order page"; } });
     } catch { /* a browser whose tools differ: the form still works */ }
   }
   // the chip pressed is the one shown pressed (its look morphs into the result's title by name, SOTA gap 14)
@@ -616,7 +616,7 @@ ${src(h, price.src)}</section>
     const add = document.getElementById("k-add");
     if (add) add.addEventListener("toggle", () => { if (add.open) document.getElementById("k-guess")?.focus(); });
     // Qloo's limits, read at view time: the line under the box and the two waiting examples show only while Qloo limits
-    // or refuses Knos (GET /api/qloo/status, CODE.md 2.13); while it answers, neither is drawn
+    // or refuses Knos (GET /api/qloo/status); while it answers, neither is drawn
     const lim = root.querySelector("[data-qloo-limit]"), more = root.querySelector("[data-more-chips]");
     seen(root, () => get("/api/qloo/status").then((st) => {
       const limited = !!(st && (st.limited || st.held_s > 0));
@@ -646,12 +646,12 @@ ${src(h, price.src)}</section>
   let moved = false;
   const later = (f) => { const go = () => { if (moved) return; moved = true; f(); };
     for (const t of ["pointermove", "pointerdown", "touchstart", "keydown", "scroll", "focusin"]) addEventListener(t, go, { once: true, passive: true, capture: true }); };
-  // and only once Paid on proof is in view: the first screen asks nobody
-  later(() => seen(document.getElementById("paid-on-proof") || root, () => {
-    const paid = document.getElementById("k-paid"), use = document.getElementById("k-usage"), oidc = document.getElementById("k-oidc");
+  // and only once the last step is in view: the first screen asks nobody
+  later(() => seen(document.getElementById("step-released") || root, () => {
+    const use = document.getElementById("k-usage"), oidc = document.getElementById("k-oidc");
     // the newest signature check knos_oidc ran on devnet (the program reads GitHub's signature itself), from devnet
-    // the program's address is read from the program_ids.json the build ships, never typed into the page
-    if (oidc) fetch("program_ids.json").then((r) => r.json()).then((ids) => fetch("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" },
+    // the program's address is read from the program_ids.json the site's build ships, never typed into the page
+    if (oidc) fetch("https://drexthealpha.github.io/Knos/program_ids.json").then((r) => r.json()).then((ids) => fetch("https://api.devnet.solana.com", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSignaturesForAddress", params: [ids.knos_oidc, { limit: 20, commitment: "confirmed" }] }) }))
       .then((r) => r.json()).then((j) => {
         const x = (j.result || []).find((t) => t.err === null);
@@ -660,16 +660,8 @@ ${src(h, price.src)}</section>
         oidc.innerHTML = `Latest signature check on devnet${day ? `, ${esc(day)}` : ""} · <a href="https://explorer.solana.com/tx/${esc(x.signature)}?cluster=devnet" target="_blank" rel="noopener">the transaction</a>`;
         oidc.dataset.live = "1";
       }).catch(() => {});
-    if (paid) get("/api/agent/payout/latest").then((x) => {
-      if (!x || !x.found || !(x.units > 0)) return;
-      const day = String(x.at || "").slice(0, 10);
-      // what released it is the link to its transaction: twelve words at most for the line (tests/test_site_overflow.py)
-      paid.innerHTML = `Agent paid <b>${esc(x.units)} test units</b>${day ? `, ${esc(day)}` : ""} · <a href="${esc(x.explorer)}" target="_blank" rel="noopener">${esc(x.released || "the transaction")}</a>`;
-      paid.hidden = false;
-      paid.dataset.live = "1";
-    }).catch(() => {});
     // outside use only, this week against the last: a line only for real growth from at least 10, else nothing; the
-    // comparison only once the counter has run two weeks (`since` 14 days back or more, CODE.md 2.17), before that this week alone
+    // comparison only once the counter has run two weeks (`since` 14 days back or more), before that this week alone
     if (use) get("/api/usage").then((u) => {
       const t = (u && u.trend) || {}, from = Date.parse(String((u && u.since) || "") + "T00:00:00Z");
       const twoWeeks = Number.isFinite(from) && Date.now() - from >= 14 * 864e5;
@@ -692,7 +684,7 @@ ${src(h, price.src)}</section>
         Number.isFinite(c.ms) ? `${esc(c.ms)} ms` : `recorded ${esc(String(r.made || c.at || "").slice(0, 10))}`} · ${c.live ? "live" : c.recorded ? `recorded ${esc(c.recorded)}` : c.error ? "not answered" : "recorded"}`;
     let live = 0, cached = 0, failed = 0, i = 0;
     const qc = r.qloo_calls && Number.isFinite(Number(r.qloo_calls.live)) ? r.qloo_calls : null;
-    // every row is in place from the start, unseen, so revealing one moves nothing (sweep M1.md 4.5)
+    // every row is in place from the start, unseen, so revealing one moves nothing
     rows.innerHTML = list.map((c) => `<li data-call="${esc(c.n)}" style="opacity:0">${row(c)}</li>`).join("");
     const items = [...rows.children];
     const step = () => {
@@ -713,7 +705,7 @@ ${src(h, price.src)}</section>
     if (box && slot.last && !box.closest(".k-past")) play(box, slot.last);
   }).observe(slot, { childList: true, subtree: true });
   // "Your past checks": the results this browser checked (kept in its own storage: id, idea, day), each read back from
-  // its line in the Knos record in Sibyl (GET /api/receipts?id=); "Forget mine" empties this browser's list only
+  // its line in the Knos record (GET /api/receipts?id=); "Forget mine" empties this browser's list only
   const MINE = "knos-past-checks";
   const mine = () => { try { return JSON.parse(localStorage.getItem(MINE) || "[]"); } catch { return []; } };
   const keepMine = (r, asked) => {
@@ -731,7 +723,7 @@ ${src(h, price.src)}</section>
     if (!list.length) { if (box) box.hidden = true; return; }
     if (!box) {
       slot.insertAdjacentHTML("afterend", `<section class="k-mine" data-past-checks aria-labelledby="k-mine-h"><h3 id="k-mine-h">Your past checks</h3>
-        <p class="k-fine">Each read from its line in the Knos record in Sibyl.</p><ul data-mine></ul>
+        <p class="k-fine">Each read from its line in the Knos record.</p><ul data-mine></ul>
         <p><button type="button" class="k-chip" data-forget>Forget mine</button> <span class="k-fine" data-forgot role="status"></span></p></section>`);
       box = root.querySelector("[data-past-checks]");
     }

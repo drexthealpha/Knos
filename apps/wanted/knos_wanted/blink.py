@@ -59,7 +59,7 @@ def action(report: dict, base: str) -> dict:
     return {"type": "action", "icon": base + "/static/icon.svg", "title": f"Pre-order: {report['idea'][:80]}",
             "description": (f"For {(who.get('age') or '').replace('_', ' ')} {who.get('gender') or ''}; launching in "
                             f"{', '.join(plan.get('where') or []) or 'its first cities'}. {plan.get('unit_price')} test units per unit "
-                            f"({plan.get('tier')} tier, set by Qloo). Held on Solana devnet until the proof passes, then paid to the maker. Test money."),
+                            f"({plan.get('tier')} tier, set by Qloo). Held on Solana devnet until the milestone check passes, then released to the maker. Test money."),
             "label": "Pre-order",
             "links": {"actions": [{"type": "transaction", "label": f"Pre-order 5 units ({5 * int(plan.get('unit_price') or 1)} test units)",
                                    "href": href + "&units=5"},
@@ -119,7 +119,7 @@ def preorder_tx(report: dict, account: str, units: int, label: str = "wallet") -
            "doc": doc, "made": doc["made"], "signatures": {}, "via": "Solana Action (Blink)", "via_kind": "blink"}
     preorder._save(rec)
     return {"type": "transaction", "transaction": base64.b64encode(raw).decode(), "bytes": len(raw), "commitment": st["order"],
-            "message": f"Holds {units * price} test units on devnet for {units} units; paid to the maker only on proof."}
+            "message": f"Holds {units * price} test units on devnet for {units} units; released to the maker when the milestone check passes."}
 
 
 def refresh(rec: dict, led=None) -> dict:
@@ -148,7 +148,7 @@ def pay_link(base: str, project: str, milestone: str, units: int = 5) -> str:
 
 
 def pay_get(base: str) -> dict:
-    return {"label": "Knos milestone, held until proof (devnet test units)", "icon": base + "/static/icon.svg"}
+    return {"label": "Knos milestone, held until its check passes (devnet test units)", "icon": base + "/static/icon.svg"}
 
 
 def pay_post(project: str, milestone: str, units: int, account: str) -> dict:

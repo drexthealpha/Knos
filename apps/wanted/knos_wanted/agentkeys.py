@@ -302,8 +302,8 @@ def card(base: str) -> dict:
                                     "inputModes": ["application/json"], "outputModes": ["application/json"]}
     return {
         "name": "Knos",
-        "description": ("Paid on verified proof: open milestones with test money held on Solana devnet until the proof passes, released only "
-                        "when a referee verifies the work. The interface is MCP (JSON-RPC over HTTP, MCP " + agent.PROTOCOL +
+        "description": ("Knos: open research milestones on test money; a referee checks the work before anything is released "
+                        "(Solana devnet). The interface is MCP (JSON-RPC over HTTP, MCP " + agent.PROTOCOL +
                         "), not A2A's SendMessage; write tools take an OAuth 2.0 token from an agent key a person caps and can revoke."),
         "supportedInterfaces": [{"url": f"{b}/mcp", "protocolBinding": "MCP", "protocolVersion": "1.0"}],
         "provider": {"organization": "Knos", "url": "https://github.com/drexthealpha/Knos"},
@@ -318,7 +318,7 @@ def card(base: str) -> dict:
             "oauth2MetadataUrl": f"{b}/.well-known/oauth-authorization-server"}}},
         "securityRequirements": [{"schemes": {"agent_key": {"list": [SCOPE]}}}],
         "skills": [
-            skill("find-work", "Find funded work", "Open rounds and milestones with test money held until proof (knos_tasks, knos_projects).",
+            skill("find-work", "Find funded work", "Open rounds and milestones with test money held until the check passes (knos_tasks, knos_projects).",
                   ["work", "held-money", "milestones"], ['{"tool": "knos_tasks"}']),
             skill("claim-milestone", "Claim a milestone", "Takes a milestone; an agent key is paid only at its payout wallet (knos_project_claim).",
                   ["claim", "milestone"], ['{"tool": "knos_project_claim", "project": "<id>", "milestone": "<key>"}']),

@@ -2,8 +2,8 @@
 the first claim market, which is never touched). The truth market sits on a standing job of the claim: posted with the
 claim's locked test and a 24-hour deadline, open to trade while it stands, then proved in its last 4 hours (both agents
 answer, the locked test runs, the passing one is paid) and settled from the job's own state. The demand market asks
-whether 10 test USDC are put behind proving the claim within 7 days. Knos seeds each with b ln 2 = 1.386295 test USDC
-(b = 2 USDC), sized to what Circle's faucet gives (20 USDC every 2 hours). Visitors trade and back from their own
+whether 10 test USDC are put behind proving the claim within 7 days. Knos seeds each with b ln 2 rounded up to the
+micro-USDC: 1.386295 test USDC (b = 2 USDC), sized to what Circle's faucet gives (20 USDC every 2 hours). Visitors trade and back from their own
 wallets in the browser (web/usdc-market.js); nothing here touches a visitor's funds. Testnet only."""
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from . import near_live as nl
 
 CFG = json.loads((nl.ROOT / "near" / "claims" / "usdc_market.json").read_text(encoding="utf-8"))
 UMARKET, USDC = CFG["market"], CFG["token"]
-SEED = round(CFG["seed_usdc"] * 1e6)    # 1386295: b ln 2 for b = 2 USDC
+SEED = round(CFG["seed_usdc"] * 1e6)    # 1386295: b ln 2 for b = 2 USDC, rounded up to the micro-USDC
 DAY, PROVE_IN = 1440, 4 * 3600
 _lock = threading.Lock()
 log: list = []   # what the last ticks did, newest last (also in the server log)

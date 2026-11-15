@@ -1,5 +1,5 @@
-"""Private AI on NEAR AI Cloud for each order: agent A writes its code with one model call, and the reviewer checks the
-code that passed the locked test with a second. At most two model calls an order. The reviewer can only make a verdict
+"""Private AI on NEAR AI Cloud for each order: agent A writes its code with up to three model calls (a retry gets the
+locked test's error), and the reviewer checks the passing code with one more: at most four model calls an order. The reviewer can only make a verdict
 stricter (it may reject a pass; it can never turn a fail into a pass).
 
 The model is deepseek-ai/DeepSeek-V4.1-Flash-1017, served from NEAR AI's attested TEEs; its attestation is verified as
@@ -40,7 +40,7 @@ SAVED = os.environ.get("KNOS_NEAR_AI_SAVED", "https://raw.githubusercontent.com/
 
 # the IRIS online demo (U3) asks the same NEAR AI Cloud: its health answer says its calls and its spend from their token
 # counts, which count under the same $8 stop; a restarted demo starts from 0, so only what is new since the last read is added
-IRIS_HEALTH = os.environ.get("KNOS_IRIS_DEMO_HEALTH", "https://glowing-xylophone-x5vxgjgjgv9399xq-52773.app.github.dev/api/knosdemo/health")
+IRIS_HEALTH = os.environ.get("KNOS_IRIS_DEMO_HEALTH", "")   # the online demo is offline: read only when an address is set
 
 _lock = threading.Lock()
 _visits: dict[str, deque] = {}
@@ -49,14 +49,14 @@ _state = {"spent_usd": 0.0, "calls": 0, "day": "", "today": 0, "cache": {}, "see
 
 def _iris() -> None:
     """Add the IRIS demo's new spend, read from its health answer at most every 5 minutes (only with the key)."""
-    if not _key() or time.time() - _state["iris_read"] < 300:
+    if not IRIS_HEALTH or not _key() or time.time() - _state["iris_read"] < 300:
         return
     _state["iris_read"] = time.time()
     try:
         with urllib.request.urlopen(urllib.request.Request(IRIS_HEALTH, headers={"User-Agent": "knos-ledger/1.0"}), timeout=5) as r:
             v = float(json.loads(r.read()).get("llm_usd") or 0)
     except (urllib.error.URLError, OSError, ValueError, TypeError, AttributeError):
-        return   # the demo is down outside its hours: nothing new to add
+        return   # the demo does not answer: nothing new to add
     with _lock:
         seen = float(_state.get("iris_seen") or 0)
         _state["iris_usd"] = float(_state.get("iris_usd") or 0) + (v - seen if v >= seen else v)

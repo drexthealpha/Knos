@@ -5,7 +5,7 @@
 
 Each step: {n, kind (memory | paper | qloo | decision), title, tool, input, output, effect, at}. Qloo steps stream as the
 calls return (check.demand_check(on_call=...)), so the page shows the crossing live by polling GET /api/cross?id=.
-Sibyl is the agent's WORKING MEMORY: before a crossing the agent recalls what it learned about the same paper (the
+The agent's WORKING MEMORY (the Knos record's memory store): before a crossing the agent recalls what it learned about the same paper (the
 product phrase the maker settled on, the last decision); after it, it remembers this crossing. Memory never moves or
 blocks money: vault rules live in knos_pay on chain.
 
@@ -119,7 +119,7 @@ def shelve_paper(card: dict) -> dict:
 def remember(key: str, state: dict) -> dict:
     rec = company._record()
     if rec is None:
-        return {"remembered": False, "why": "Sibyl is not installed here"}
+        return {"remembered": False, "why": "the agent's memory store is not installed here"}
     return company._safe(lambda: {"remembered": True, "seq": rec.claim(key, state, domain=company.DOMAIN, root=company.root())["seq"]})
 
 
@@ -146,7 +146,7 @@ def run(job: dict, state) -> None:
         other = held.get("running")
         if other and other != job["id"] and JOBS.get(other, {}).get("status") == "running":
             refused = True
-            _step(job, "memory", "another agent holds this crossing", tool="Sibyl HOT state (the shared working plan)",
+            _step(job, "memory", "another agent holds this crossing", tool="agent memory, HOT state (the shared working plan)",
                   inp="lock:" + key, out=f"crossing {other} is running the same paper now: this agent's conflicting "
                   "writes are REFUSED; it reads along and writes nothing",
                   effect="one plan per crossing; memory stays consistent")
@@ -154,7 +154,7 @@ def run(job: dict, state) -> None:
             hot_set("lock:" + key, {"running": job["id"], "started": job["started"],
                                     "plan": ["recall memory", "read the paper", "name the product", "ask Qloo (who, where, "
                                              "price, trend, leader)", "decide by code", "remember the crossing"]})
-            _step(job, "memory", "the agent's plan, in shared memory", tool="Sibyl HOT state (crossing plan + cursor)",
+            _step(job, "memory", "the agent's plan, in shared memory", tool="agent memory, HOT state (crossing plan + cursor)",
                   inp="lock:" + key, out="plan written: recall -> paper -> product -> Qloo evidence -> decision -> remember",
                   effect="a second agent on the same paper is refused while this one runs")
         try:
@@ -185,11 +185,11 @@ def run(job: dict, state) -> None:
         if mem:
             if not product and mem.get("product"):
                 product = mem["product"]
-            _step(job, "memory", "the agent remembers this paper", tool="Sibyl (agent memory)", inp=key,
+            _step(job, "memory", "the agent remembers this paper", tool="agent memory", inp=key,
                   out=f"last crossed {mem.get('when')}: product '{mem.get('product')}', decision {mem.get('verdict')}",
                   effect="reuses the product phrase it settled on last time" if product == mem.get("product") else "noted")
         else:
-            _step(job, "memory", "nothing remembered about this paper yet", tool="Sibyl (agent memory)", inp=key, out="first crossing",
+            _step(job, "memory", "nothing remembered about this paper yet", tool="agent memory", inp=key, out="first crossing",
                   effect="starts fresh")
         card = None
         if job.get("ref"):
@@ -207,7 +207,7 @@ def run(job: dict, state) -> None:
                   out=card["product"], effect=card["product_source"])
             if not refused:
                 shelf = shelve_paper(card)
-                _step(job, "memory", "the paper on the reference shelf", tool="Sibyl REFERENCE tier (knos.record paper line)",
+                _step(job, "memory", "the paper on the reference shelf", tool="agent memory, REFERENCE tier (knos.record paper line)",
                       inp=card["ids"].get("doi") or job.get("ref"),
                       out=f"seq {shelf.get('seq')}" if shelf.get("shelved") else shelf.get("why", "not shelved"),
                       effect="later crossings and searches find this paper without re-reading it")
@@ -239,8 +239,8 @@ def run(job: dict, state) -> None:
             _step(job, "decision", "PRICE: the tier", tool="from the lift of Qloo's spending-habit segments, else the places' price level",
                   out=f"{plan['tier']}: {plan['unit_price']} test units per unit", effect="sets the pre-order's unit price")
             _step(job, "decision", "HELD: target and reserve", tool="check.RULES units_formula", inp=d.get("formula"),
-                  out=f"target {plan['target_units']} units ({plan['escrow_target']} test units), reserve {plan['reserve_units']} "
-                      f"({plan['escrow_reserve']} test units)", effect="the maker is paid on proof once the reserve is pre-ordered")
+                  out=f"target {plan['target_units']} units ({plan['held_target']} test units), reserve {plan['reserve_units']} "
+                      f"({plan['held_reserve']} test units)", effect="released to the maker after the milestone check passes, once the reserve is pre-ordered")
             if plan.get("unserved_audience"):
                 _step(job, "decision", "the audience the leader does not serve", tool="from /v2/analysis/compare or the leader's segments",
                       out=", ".join(plan["unserved_audience"]), effect="the product page leads with it")
@@ -251,13 +251,13 @@ def run(job: dict, state) -> None:
                 _step(job, "decision", f"why it never crossed: {w['wall']}", tool="research.why_never_crossed", out=w["evidence"],
                       effect="flagged" if w["flag"] else "not flagged")
         if refused:
-            _step(job, "memory", "nothing written: the other agent holds this crossing", tool="Sibyl (agent memory)", inp=key,
+            _step(job, "memory", "nothing written: the other agent holds this crossing", tool="agent memory", inp=key,
                   out="conflicting write refused", effect="the running agent's record stays the one record")
         else:
             r = remember(key, {"when": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M"), "product": idea, "verdict": d["verdict"],
                                "report": rep["hash"], "target_units": d.get("target_units")})
             hot_set("lock:" + key, {"running": None, "last_report": rep["hash"]})
-            _step(job, "memory", "the agent remembers this crossing", tool="Sibyl (agent memory: WARM state + COLD journal)", inp=key,
+            _step(job, "memory", "the agent remembers this crossing", tool="agent memory (WARM state + COLD journal)", inp=key,
                   out="remembered" if r.get("remembered") else r.get("why", "not remembered"), effect="the next crossing of this paper starts from here")
         job["status"] = "done"
     except Exception as e:  # noqa: BLE001 - the page shows one plain line; the log has the rest
@@ -349,16 +349,21 @@ DISCOVERY = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta 
 <h1>Knos over MCP</h1>
 <p>This endpoint speaks the Model Context Protocol (Streamable HTTP, JSON-RPC): <code class="url">POST /mcp</code>.
 Add it by URL in Claude, Cursor or any MCP client. Reading needs no key; money tools take a session token from
-<span class="mono">knos_sign_in</span> and say in their descriptions to confirm with your human first. Everything is
-Solana devnet test money.</p>
-<p>Tools: knos_cross, knos_research_card, knos_demand_check, knos_crossings, knos_milestones, knos_tasks,
-knos_memory_recall, knos_sign_in, knos_preorder, knos_evidence, knos_task_submit, knos_templates, knos_projects,
-knos_project_open, knos_project_claim, knos_project_post, knos_milestone_submit, knos_openapi. The same API as OpenAPI:
+<span class="mono">knos_sign_in</span> and say in their descriptions to confirm with your human first. Everything runs
+on test money: Solana devnet and NEAR testnet.</p>
+<p>Tools: {TOOL_NAMES}. The same API as OpenAPI:
 <a href="/openapi.json">/openapi.json</a>.</p>
 <p>An agent with no person present: a person makes it a capped, revocable agent key; the key is an OAuth 2.0 client
 (<a href="/.well-known/oauth-authorization-server">client credentials</a>) and its token goes in the Authorization header.
 <a href="/.well-known/agent-card.json">Agent Card</a>.</p>
 <p><a href="/">The app</a> · <a href="/verify">How we verify</a></p></main></body></html>"""
+
+
+def discovery() -> str:
+    """GET /mcp's page, its tool line built from the tools tools/list serves (the NEAR and IRIS tools included)."""
+    from .near_jobs import TOOLS as NEAR_TOOLS
+    from .product_routes import MCP_TOOLS
+    return DISCOVERY.replace("{TOOL_NAMES}", ", ".join(t["name"] for t in TOOLS + MCP_TOOLS + NEAR_TOOLS))
 TOOLS = [
     {"name": "knos_cross", "title": "Cross a paper to a funded product",
      "description": "Paper id (DOI, arXiv, PubMed, OpenAlex) -> research card -> Qloo evidence at every decision -> who, where, price "
@@ -387,13 +392,13 @@ TOOLS = [
      "description": "Every commitment on this server: held order, units, status, claim id. A locked one needs an evidence page.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "knos_tasks", "title": "Open work for contributors",
-     "description": "Open milestones and tasks a person or agent can work on; each is checked by its referee and paid on devnet (test money).",
+     "description": "Open milestones and tasks a person or agent can work on; each is checked by its referee before its test money is released on devnet.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "knos_memory_search", "title": "Search everything this Knos remembers",
      "description": "FTS5 search (multilingual) over the agents' memory and the Knos Record: papers, crossings, decisions, events.",
      "inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"], "additionalProperties": False}},
     {"name": "knos_memory_recall", "title": "What the agent remembers about a paper",
-     "description": "Sibyl, the crossing agent's working memory: the last crossing of a paper or idea (product phrase, verdict, report).",
+     "description": "The crossing agent's working memory: the last crossing of a paper or idea (product phrase, verdict, report).",
      "inputSchema": {"type": "object", "properties": {"ref": {"type": "string"}, "idea": {"type": "string"}}, "additionalProperties": False}},
     {"name": "knos_sign_in", "title": "A session for the money tools",
      "description": "Returns a session token the money tools need. " + CONFIRM,
@@ -618,7 +623,7 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                    "serverInfo": {"name": "knos", "version": _knos_version()},
                    "instructions": "Knos carries research across the valley of death. Start with knos_demand_check (is it wanted: who, where, at what price) or "
                                                    "knos_cross with a paper id; every step names the Qloo call behind it. knos_ready says whether a brief is "
-                                                   "clear enough to lock money on. Devnet, test money, no customers yet."})
+                                                   "clear enough to lock money on. NEAR testnet and Solana devnet, test money, no customers yet."})
     if method == "ping":
         return ok({})
     if method == "tools/list":
@@ -752,11 +757,11 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                     from .server import named
                     try:
                         rows = named(state, q)
-                    except (AttributeError, TypeError):  # a server state without its reports (a test's): Sibyl's answer stands
+                    except (AttributeError, TypeError):  # a server state without its reports (a test's): the record search's answer stands
                         rows = []
-                    if rows:                         # none found either: Sibyl's own words stand
+                    if rows:                         # none found either: the record search's own words stand
                         said = f"{len(rows)} crossing{'s' if len(rows) != 1 else ''} and checks name \"{q}\"."
-                # Sibyl's verdict object and its code, as Sibyl gave them (why these rows, or why none)
+                # the record search's verdict object and its code, as it gave them (why these rows, or why none)
                 out = {"said": said, "rows": rows, "verdict": got.get("verdict"),
                        "verdict_code": (got.get("verdict") or {}).get("code")}
             elif name == "knos_memory_recall":

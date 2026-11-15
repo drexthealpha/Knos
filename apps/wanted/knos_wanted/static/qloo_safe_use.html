@@ -24,9 +24,9 @@
   <a class="brand" href="/app/#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
   <nav id="nav" aria-label="Knos">
     <a href="https://drexthealpha.github.io/Knos/" data-nav="home">Home</a>
-    <a href="https://drexthealpha.github.io/Knos/near/" data-nav="near">NEAR app</a>
-    <a href="https://drexthealpha.github.io/Knos/iris/" data-nav="iris">IRIS</a>
-    <a href="https://drexthealpha.github.io/Knos/proof/" data-nav="proof" data-proof>Proof</a>
+    <a href="https://drexthealpha.github.io/Knos/prove/" data-nav="near">NEAR app</a>
+    <a href="https://drexthealpha.github.io/Knos/labs/" data-nav="iris">IRIS</a>
+    <a href="https://drexthealpha.github.io/Knos/claims/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
     <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
@@ -51,12 +51,12 @@
     <td data-h="Checked by"><code>test_qloo_safe_use</code>, <code>test_a_wkt_launch_area_is_not_taken_for_a_phone_number</code></td></tr>
   <tr id="r-source"><td data-h="Rule">Present results with their source and limits; tell a Qloo result apart from your own interpretation; an affinity is not causal and not a probability about a person.</td>
     <td data-h="In Knos">Every Qloo-derived value on the app and the front door links to its own trace: the request (endpoint, parameters, entity and tag ids, no key), a result excerpt and the limit. The verdict is Knos's own rules (<code>check.RULES</code>), shown apart from Qloo's answers. Paper data says OpenAlex and Crossref, never Qloo.</td>
-    <td data-h="Checked by"><code>test_provenance_ui</code> (375x812 and 1280x800)</td></tr>
+    <td data-h="Checked by">Not checked automatically</td></tr>
   <tr id="r-clarify"><td data-h="Rule">Ask for clarification when an entity or tag choice would change a result.</td>
     <td data-h="In Knos">The maker flow (<code>demand.start</code>, <code>demand.search</code>, <code>demand.confirm</code>) shows Qloo's matching entities and asks the maker to pick before the report; a name Knos resolves by <code>/search</code> is shown with its id in the trace.</td>
     <td data-h="Checked by"><code>test_maker</code></td></tr>
   <tr id="r-untrusted"><td data-h="Rule">Treat project files, MCP results and model output as untrusted input.</td>
-    <td data-h="In Knos">No language model reads Qloo's answers or decides: code does (<code>check.decide</code>). Qloo text is escaped wherever it is shown; the <code>knos</code> MCP marks text written by others as <code>untrusted</code>.</td>
+    <td data-h="In Knos">No language model decides: code does (<code>check.decide</code>). With a model key set, Ask about this result reads the card's Qloo answers and must cite each one as [call N]; it decides nothing. Qloo text is escaped wherever it is shown; the <code>knos</code> MCP marks text written by others as <code>untrusted</code>.</td>
     <td data-h="Checked by"><code>test_check</code></td></tr>
   <tr id="r-explore"><td data-h="Rule">Only the read-only <code>qloo explore</code> agent is supported; not <code>integrate</code>, <code>plan</code> or <code>build</code>.</td>
     <td data-h="In Knos">Knos runs none of the <code>qloo explore</code>, <code>integrate</code>, <code>plan</code> or <code>build</code> agents.</td>
@@ -75,7 +75,7 @@
     <td data-h="In Knos"><code>qloo_rest.Client.get</code>: HTTP 401 or 403 says Qloo refused the key; 429 says the rate limit was reached. The report then says "NO QLOO EVIDENCE" and "cannot decide". There is no other key and no other endpoint to fall back to.</td>
     <td data-h="Checked by"><code>test_qloo_safe_use</code></td></tr>
   <tr id="r-small"><td data-h="Rule">The smallest request that answers the question; cache only what the project needs; respect the quota; bounded retries.</td>
-    <td data-h="In Knos">Each call asks for a bounded number of results (<code>take</code>: 5 to 12 for most calls, 300 for the audience list); answers are cached privately, with no time limit; a monthly budget stops new calls (<code>QLOO_MONTHLY_BUDGET</code>); at most 1,500 calls go to Qloo on one UTC day (<code>DAY_CAP</code>), and none once Qloo's month has under 2,000 left (<code>MONTH_FLOOR</code>); a token bucket paces calls; one retry at most. Traces keep the request and a short excerpt, only for reports something links to.</td>
+    <td data-h="In Knos">Each call asks for a bounded number of results (<code>take</code>: 1 to 12 for most calls, 30 to 50 for the trend and leader calls, 50 a page for the audience list, Qloo's maximum); answers are cached privately, with no time limit; a monthly budget stops new calls (<code>QLOO_MONTHLY_BUDGET</code>); at most 3,000 calls go to Qloo on one UTC day (<code>DAY_CAP</code>), and none once Qloo's month has under 2,000 left (<code>MONTH_FLOOR</code>); a token bucket paces calls; one retry at most. Traces keep the request and a short excerpt, only for reports something links to.</td>
     <td data-h="Checked by"><code>test_qloo_safe_use</code>, <code>test_qloo_rest</code></td></tr>
   <tr id="r-scrape"><td data-h="Rule">No bulk scraping; no recreating an unrelated database.</td>
     <td data-h="In Knos">Calls are made only for an idea someone asks about, at most a few dozen per report; nothing crawls Qloo.</td>

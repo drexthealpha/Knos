@@ -1,5 +1,5 @@
 """BUYER agent flow of Knos's demand check: taste signals the buyer CHOOSES -> what that taste also likes -> which
-not-yet-built products in Knos fit it -> a pre-order held on Knos devnet until the proof passes.
+not-yet-built products in Knos fit it -> a pre-order held on Solana devnet until the milestone check passes.
 
 What the buyer gives is things they like (a brand, a film, a cuisine: public cultural signals), never who they are
 (knos_wanted.privacy refuses identity data before any call). Knos keeps no copy of a buyer's tastes: the session

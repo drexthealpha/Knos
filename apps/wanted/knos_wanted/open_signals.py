@@ -111,14 +111,10 @@ def _gdelt(q: str) -> dict:
     """GDELT answers one request in 5 seconds per address: calls wait their turn."""
     query = f'"{q}"' if " " in q else q
     url = "https://api.gdeltproject.org/api/v2/doc/doc?" + urllib.parse.urlencode({"query": query, "mode": "timelinevolraw", "format": "json", "timespan": "3months"})
-    got = None
-    for _ in range(1):
-        with _gdelt_lock:
-            time.sleep(max(0.0, _gdelt_last[0] + 5.5 - time.time()))
-            got = _get(url, timeout=12)
-            _gdelt_last[0] = time.time()
-        if got is not None:
-            break
+    with _gdelt_lock:
+        time.sleep(max(0.0, _gdelt_last[0] + 5.5 - time.time()))
+        got = _get(url, timeout=12)
+        _gdelt_last[0] = time.time()
     if got is None:
         return {"source": "GDELT news", "answered": False}
     series = (got.get("timeline") or [{}])[0].get("data") or [] if got.get("timeline") else []
@@ -190,14 +186,15 @@ ROWS = {"Wikimedia pageviews": ("Wikipedia", "views_per_day", "views a day (last
 
 
 def held_for(idea: str) -> dict:
-    """Money already put down on this idea here: locked pre-orders and funder money, in test dollars (6 decimals)."""
+    """Money already put down on this idea here: locked pre-orders and funder money, in test units (whole units, as
+    server._sum_totals counts them)."""
     from . import preorder
     key, units, n = " ".join((idea or "").lower().split()), 0, 0
     for r in preorder.all_public(200):
         if " ".join(str(r.get("idea") or "").lower().split()) == key and r.get("status") == "locked":
             units += int(r.get("units") or 0) * int(r.get("unit_price") or 0)
             n += 1
-    return {"usd": round(units / 1_000_000, 2), "count": n}
+    return {"usd": round(units, 2), "count": n}
 
 
 def fallback(idea: str, country: str = "US") -> dict:
@@ -221,7 +218,7 @@ def fallback(idea: str, country: str = "US") -> dict:
     verdict = "OPEN" if n >= 2 else "REFUSE" if len(used) > 1 else "CANNOT_DECIDE"
     out = {"verdict": verdict, "rows": rows, "counted": n, "phrase": b["phrase"],
            "line": "Sources: " + ", ".join(used) + ".",
-           "head": {"OPEN": "Before you post it: people want this", "REFUSE": "Before you post it: little interest found yet", "CANNOT_DECIDE": "No signal yet"}[verdict],
+           "head": {"OPEN": "Open signals say people want this", "REFUSE": "Open signals find little interest yet", "CANNOT_DECIDE": "No signal yet"}[verdict],
            "rule": "People want it when 2 of these pass: Wikipedia 100 views a day, news 50 articles, "
                    "Hacker News 5 stories, 200 research papers, any money down."}
     _answers[k] = (time.time(), out)

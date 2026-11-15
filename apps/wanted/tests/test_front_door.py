@@ -8,7 +8,7 @@ import time
 import pytest
 from test_round9 import STATIC, app, call  # noqa: F401 - the fixture
 
-from knos_wanted import agent, front, valley
+from knos_wanted import agent, front, mock_mcp, valley
 
 LIVE = "LIVE Qloo data (Qloo REST API, read for this report)"
 
@@ -45,7 +45,7 @@ def test_the_list_holds_only_open_decisions_on_live_qloo_and_the_seeds_come_firs
                                             "project": front._project_for(seed["hash"], seed["idea"], "hardware_prototype")}
     _job(_report(st, "b" * 64, idea="A cozy game"))
     _job(_report(st, "c" * 64, verdict="REFUSE"))
-    _job(_report(st, "d" * 64, label="MOCK (synthetic, not a real API response)"))
+    _job(_report(st, "d" * 64, label=mock_mcp.MOCK_LABEL))
     b = front.board(st)
     assert [p["slug"] for p in b["products"]] == ["sweat-glucose-watch", "b" * 16]           # REFUSE and MOCK are never listed
     p = b["products"][0]

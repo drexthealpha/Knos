@@ -1,7 +1,7 @@
 """MOCK (synthetic, not real Qloo data): a local MCP stdio server with the SAME ten tool names and the same result
 envelope as Qloo's canonical `qloo mcp` (@qloo/qloo-harness 0.1.26), answering with synthetic bodies.
 
-Knos runs its demand check on this server when no Qloo credential is configured (`qloo_capabilities` reports
+The older MCP flow (demand.py, buyer.py) runs on this server when no Qloo credential is configured (`qloo_capabilities` reports
 `adapter.ready: false`), and the tests use it as the fake MCP server. It is never real Qloo data:
 
 - every envelope carries `"_mock": MOCK_LABEL`, every name ends in "(synthetic)", every id starts with "mock-";

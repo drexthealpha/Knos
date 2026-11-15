@@ -1,5 +1,5 @@
 """What each part Knos depends on is doing now, read live (cached 60 s so a page view asks each part at most once a minute),
-and what Knos does when that part is down. GET /api/status carries it as `deps`; /start/ and /status/ show it."""
+and what Knos does when that part is down. GET /api/status carries it as `deps`."""
 from __future__ import annotations
 
 import json
@@ -13,8 +13,8 @@ _cache: dict = {"at": 0.0, "deps": None}
 TTL_S = 60
 DOWN = {"qloo": "the card shows the last recorded answer with its date, and a new check is queued until Qloo answers",
         "solana_devnet": "nothing is held or paid; the brief and the check still work",
-        "sibyl": "checks still run; the record line is written when Sibyl is back",
-        "rules_referee": "a lab's proof waits; nothing is paid on it until the referee answers",
+        "sibyl": "checks still run; the record line is written when the memory store is back",
+        "rules_referee": "a lab's proof waits; nothing is released until the referee answers",
         "iris": "the rules referee on this server checks a lab's proof with the same code",
         "openalex": "a DOI is read from Crossref instead"}
 

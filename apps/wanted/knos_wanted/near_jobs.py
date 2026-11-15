@@ -1,5 +1,6 @@
-"""Two MCP tools that read, never write: one NEAR swarm job as the jobs contract on NEAR testnet holds it, and the
-rules referee IRIS runs (knos.referee_rules) applied to one proof against one brief. No key, no signature, no money."""
+"""Four MCP tools: three read (one NEAR swarm job as the jobs contract on NEAR testnet holds it, a job's progress, and
+the rules referee IRIS runs, knos.referee_rules, applied to one proof against one brief), and knos_near_run_job funds one
+capped testnet job with test tokens."""
 from __future__ import annotations
 
 import base64
@@ -97,9 +98,9 @@ def job_status(args: dict) -> dict:
 
 TOOLS += [
     {"name": "knos_near_run_job", "title": "Run one NEAR job (test tokens)",
-     "description": "Funds one job on NEAR testnet from Knos's capped test account (a bid of 1000 test units), lets two "
+     "description": "Funds one job on NEAR testnet from Knos's capped test account (a bid of 1.00 test token), lets two "
                     "agents take it and submit, and has the checker pay only the agent whose output passes the locked "
-                    "test. Capped: one run at a time, 20 a day; past a cap it returns the last run as a replay.",
+                    "test. Capped: one run at a time, 20 a day; past a cap it returns the last run as a replay; ask your human first.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "knos_near_job_status", "title": "One NEAR job's progress",
      "description": "The step a run of knos_near_run_job is on, and at the end who was paid and every testnet transaction.",

@@ -1,6 +1,6 @@
 """The public usage counter: demand checks run and Ready briefs made, persisted in the app's store (valley, mirrored on
 devnet so a redeploy keeps it), and the transactions of the knos_pay program on devnet, counted with
-getSignaturesForAddress. GET /api/usage answers all three; the front door shows them."""
+getSignaturesForAddress. GET /api/usage answers all three; the app shows the weekly trend line."""
 from __future__ import annotations
 
 import datetime as dt
@@ -104,9 +104,9 @@ def counter(orders: dict | None = None) -> dict:
     o = orders or {}
     return {"checks_today": int(live.get(today.isoformat()) or 0), "checks_week": sum(int(v or 0) for k, v in live.items() if k in week),
             "checks_by_others": others, "preorders_held": o.get("held_n"), "preorders_released": o.get("released_n"),
-            "released_on_proof": o.get("released_n"), **feedback_counts(),
+            **feedback_counts(),
             "day": today.isoformat(), "counted": "live: a check Qloo answered with at least one HTTP 200 during its request; others: no operator key, "
-            "no automated client, no test session; pre-orders: the app's devnet orders, held and released on proof"}
+            "no automated client, no test session; pre-orders: the app's devnet orders, held, and released after the milestone check passed"}
 
 
 def week_counts(days: dict, today: dt.date | None = None) -> tuple[int, int]:
@@ -125,8 +125,9 @@ def trend_line(n: int, m: int) -> str | None:
 
 
 def program() -> str:
-    from knos.settle import v2
-    return json.loads((Path(v2.__file__).parent / "program_ids.json").read_text(encoding="utf-8"))["knos_pay"]
+    """The program that holds this app's pre-orders and payouts (preorder.program(), the knos_pay TEST build on devnet)."""
+    from . import preorder
+    return str(preorder.program())
 
 
 def chain_count(url: str | None = None) -> int:
@@ -155,5 +156,6 @@ def counts() -> dict:
     n, m = week_counts(d.get("days") or {})
     return {"trend": {"this_week": n, "last_week": m, "line": trend_line(n, m), "counts": "outside demand checks, test sessions and automated clients left out"},
             "checks": int(d.get("checks") or 0), "briefs": int(d.get("briefs") or 0), "since": d.get("since"),
-            "payouts": _chain["n"], "program": program(), "cluster": "devnet",
+            "program_transactions": _chain["n"], "payouts": _chain["n"],   # "payouts": the old name of the same count, kept for old clients
+            "program": program(), "cluster": "devnet",
             "payouts_counted": dt.datetime.fromtimestamp(_chain["at"], dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if _chain["at"] else None}

@@ -2,11 +2,10 @@
 (knos_wanted.provenance) and the OpenAPI document. server.py hands every request here first; None = not ours.
 
 Every route is listed once in ROUTES below (method, path, who may call it, what it takes); knos_wanted.openapi builds
-/openapi.json from this table and server.ROUTES, so the document and the server cannot drift apart.
+/openapi.json from this table and server.ROUTES, server.POST_ROUTES and server.GET_ROUTES.
 """
 from __future__ import annotations
 
-import base64
 import json
 import os
 import re
@@ -27,7 +26,7 @@ ROUTES = [
     ("POST", "/api/presence", False, "Your pointer on a project page, and everyone else's there now (live cursors)",
      {"page": "string", "me": "string", "x": "number", "y": "number", "label": "string"}),
     ("GET", "/api/sns", False, "Who owns a .sol name on this cluster (Name Service), for a project that names one", {"name": "string"}),
-    ("GET", "/api/price", False, "A Pyth price (EUR/USD, GBP/USD, SOL/USD, BTC/USD, ETH/USD), for a milestone in another currency", {"pair": "string"}),
+    ("GET", "/api/price", False, "A Pyth price (EUR/USD, GBP/USD, SOL/USD, BTC/USD, ETH/USD, USDC/USD), for a milestone in another currency", {"pair": "string"}),
     ("POST", "/api/evidence/evm", False, "Verify an EVM-signed attestation with Solana's Secp256k1 precompile (a devnet transaction)",
      {"eth_address": "string", "signature": "string", "message": "string"}),
     ("GET", "/api/track", False, "A wallet's track record: its Solana Attestation Service attestations of verified milestones",
@@ -535,10 +534,6 @@ def _mcp_call(name: str, args: dict, signed) -> dict:
     except valley.Refused as why:
         raise ValueError(str(why)) from None
     raise ValueError(f"unknown tool {name}")
-
-
-def b64(data: bytes) -> str:
-    return base64.b64encode(data).decode()
 
 
 __all__ = ["ROUTES", "handle_get", "handle_post", "json"]

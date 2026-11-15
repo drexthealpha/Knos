@@ -115,7 +115,7 @@
   const haptic = Knos.haptic;
   Knos.haptic = function (kind) {
     if (haptic) haptic(kind); Knos.cue(kind);
-    Knos.notify(kind === "release" ? "Money released" : "Money locked", kind === "release" ? "A milestone was verified and paid." : "Your test units are held until the proof passes.", location.href);
+    Knos.notify(kind === "release" ? "Money released" : "Money locked", kind === "release" ? "A milestone passed its check and was released." : "Your test units are held until the milestone check passes.", location.href);
   };
 
   // ---- read aloud: the Ready answer (with the microphone, a voice conversation) ---------------------------------------
@@ -142,11 +142,11 @@
       <button type="button" class="quiet" id="ux-voice" aria-pressed="${S.get("knos.voice") === "1"}">Read answers aloud</button>
       <button type="button" class="quiet" id="ux-privacy">What Knos keeps here</button>`);
     document.body.insertAdjacentHTML("beforeend", `<svg width="0" height="0" style="position:absolute" aria-hidden="true">${Object.entries(MATRIX).map(([k, v]) => `<filter id="cv-${k}"><feColorMatrix type="matrix" values="${v}"/></filter>`).join("")}</svg>`);
-    const apply = () => { const c = S.get("knos.colour") || "", th = S.get("knos.theme") || "", d = S.get("knos.density") || "";
+    const apply = () => { const c = S.get("knos.colour") || "", th = S.get("knos-theme") || "", d = S.get("knos.density") || "";
       root.style.filter = c ? `url(#cv-${c})` : ""; if (th) root.dataset.theme = th; else delete root.dataset.theme; root.classList.toggle("compact", d === "compact");
       $("ux-colour").value = c; $("ux-theme").value = th; $("ux-density").value = d; };
     $("ux-colour").onchange = (e) => { S.set("knos.colour", e.target.value); apply(); };
-    $("ux-theme").onchange = (e) => { S.set("knos.theme", e.target.value); apply(); };
+    $("ux-theme").onchange = (e) => { S.set("knos-theme", e.target.value); apply(); };
     $("ux-density").onchange = (e) => { S.set("knos.density", e.target.value); apply(); };
     $("ux-sound").onclick = (e) => { const on = S.get("knos.sound") !== "1"; S.set("knos.sound", on ? "1" : "0"); e.target.setAttribute("aria-pressed", on); };
     $("ux-voice").onclick = (e) => { const on = S.get("knos.voice") !== "1"; S.set("knos.voice", on ? "1" : "0"); e.target.setAttribute("aria-pressed", on); readAloud(); };
@@ -154,7 +154,7 @@
     apply();
   }
   function privacy() {
-    const keys = []; try { for (let i = 0; i < localStorage.length; i++) if (localStorage.key(i).startsWith("knos.")) keys.push(localStorage.key(i)); } catch (e) { /* none */ }
+    const keys = []; try { for (let i = 0; i < localStorage.length; i++) if (localStorage.key(i).startsWith("knos.") || localStorage.key(i) === "knos-theme") keys.push(localStorage.key(i)); } catch (e) { /* none */ }
     const box = document.createElement("div"); box.className = "ux-sheet"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "What Knos keeps here");
     box.innerHTML = `<p class="small"><strong>On this device</strong>: ${keys.length ? keys.map((k) => k.replace("knos.", "")).join(", ") : "nothing"}.</p>
       <p class="small">On the server: your passkey's public key, your drafts (if signed in), and the money steps you took (devnet). No tracking, no ads.</p>
@@ -360,18 +360,18 @@
       Knos.badgeCount(n);
     } catch (e) { /* none */ }
   }
-  // each view's own buttons are its actions: nothing floats over the page (scripts/test_layout_audit.mjs)
+  // each view's own buttons are its actions: nothing floats over the page
   function fab() { const f = $("ux-act"); if (f) f.remove(); }
   addEventListener("hashchange", fab);
 
   // ---- help beside the page, and a person when help is not enough -----------------------------------------------------
   const HELP = { home: "Pick a product to back, or write a brief: money locks only when the brief is Ready.",
     projects: "Write the brief in one sentence; the check says what is missing; tap a reading; then Open and fund.",
-    buy: "Backing pre-orders a product: your test units are held until the maker proves it.",
-    fund: "Funding locks test units on one milestone; it pays only on a result plus an independent check.",
+    buy: "Backing pre-orders a product: your test units are held until the milestone check passes.",
+    fund: "Funding locks test units on one milestone; they are released only after a result and an independent check.",
     make: "Claim a milestone, post a public page with its claim id, and the referees check it.",
     teams: "Teams share a Squads multisig made by your passkey, and can sign in with SSO.",
-    research: "Paste a paper or an idea; Knos asks Qloo who wants it and where." };
+    research: "Give a paper's id or an idea; Knos asks Qloo who wants it and where." };
   function panel() {
     let p = $("ux-help");
     const v = location.hash.slice(1).split("=")[0] || "home";

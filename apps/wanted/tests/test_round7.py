@@ -1,4 +1,4 @@
-"""The agent's live crossing, its memory (Sibyl), MCP over HTTP, the Blink, sign-in providers, factoring and the price
+"""The agent's live crossing, its memory (the Knos record's store), MCP over HTTP, the Blink, sign-in providers, factoring and the price
 tier, on SYNTHETIC fixtures (no network, no chain)."""
 import io
 import json
@@ -36,7 +36,7 @@ def test_the_crossing_streams_steps_sets_the_plan_and_remembers(st):
     rep = st.report(job["report"])
     plan = rep["decision"]["plan"]
     assert plan["tier"] in ("budget", "mid", "premium") and plan["unit_price"] in (1, 2, 4) and plan["where"] and plan["who"]["age"]
-    assert plan["escrow_target"] == plan["target_units"] * plan["unit_price"]
+    assert plan["held_target"] == plan["target_units"] * plan["unit_price"]
     titles = [s["title"] for s in job["steps"]]
     assert "WHO: the target audience" in titles and "PRICE: the tier" in titles and "HELD: target and reserve" in titles
     again = agent.start(st, ref="10.0/x", place="Lagos", wait=True)                 # Sibyl: the agent's memory of this paper

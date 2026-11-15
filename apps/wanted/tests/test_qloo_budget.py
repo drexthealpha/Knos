@@ -1,5 +1,5 @@
 """The Qloo client keeps Qloo's own limit headers and refuses to send under 2,000 calls left in Qloo's month (unless
-the run is the reserved one) or past 1,500 calls on this server's UTC day; nothing is sent when it refuses.
+the run is the reserved one) or past 3,000 calls on this server's UTC day; nothing is sent when it refuses.
 SYNTHETIC answers only."""
 import io
 import json

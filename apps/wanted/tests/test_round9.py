@@ -1,4 +1,4 @@
-"""Round 9A: six roles on one page — the funder and contributor endpoints, the agent door for roles 1-5, the
+"""Round 9A: six roles on one page: the funder and contributor endpoints, the agent door for roles 1-5, the
 language file, and the first-load budget. SYNTHETIC fixtures; no network, no chain."""
 import hashlib
 import json

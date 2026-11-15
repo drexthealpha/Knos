@@ -3,7 +3,8 @@
 checker's own key (kid checker-live, set by 2 owners, removable by them) releases the bid to the agent that passed.
 
 Caps: KNOS_NEAR_LIVE=on or nothing runs (the kill switch); one run at a time; KNOS_NEAR_LIVE_DAILY runs a UTC day
-(default 20); a bid of 1000 test units; the account's token balance. Past a cap the page shows the last run, labelled
+(default 20); the job's test money (BID, 1.00 test token, for a page run; ORDER_UNITS, 10 test USDC, for a claim's readied
+job, of which the jobs contract sends 9 parts to the agent that passed); the account's token balance. Past a cap the page shows the last run, labelled
 a replay. Keys: KNOS_NEAR_KEYS_FILE and KNOS_CHECKER_PEM_FILE, secret files on the host; none is ever sent or printed.
 """
 from __future__ import annotations
@@ -21,7 +22,7 @@ ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents
 NEAR_WEB = ROOT / "near" / "web"
 NEAR_SCRIPTS = ROOT / "near" / "scripts"   # near_counters.py: the full count, which the server reads itself when GitHub is late
 BID = 1_000_000          # $1.00 of test money (the test token has 6 decimals)
-ORDER_UNITS = 10_000_000   # Round 11, W2: an order's job holds the buyer's default price (10 test USDC); the jobs contract pays 9 and 1 from it
+ORDER_UNITS = 10_000_000   # Round 11, W2: a claim's job holds 10 test USDC of test money; the jobs contract sends 9 parts to the agent that passed and keeps 1 part in 10
 SAMPLE = "hyperloglog"   # the sample claim (near/claims/claims.json), whose jobs are readied ahead
 _lock = threading.Lock()
 _runs: dict[str, dict] = {}
@@ -67,7 +68,7 @@ def status() -> dict:
     ready = bool(job)
     if on and (not ready or not _spare) and not _preparing.locked() and (used < daily_cap() or used_a < agent_cap()):   # keep two jobs ready
         threading.Thread(target=prepare, daemon=True).start()
-    return {"live": on, "used_today": used, "cap_today": daily_cap(), "agent_used_today": used_a, "agent_cap_today": agent_cap(), "busy": busy, "ready": ready, "bid": BID, "network": "testnet",
+    return {"live": on, "used_today": used, "cap_today": daily_cap(), "agent_used_today": used_a, "agent_cap_today": agent_cap(), "busy": busy, "ready": ready, "bid": int((job or {}).get("bid") or BID), "network": "testnet",
             "account": os.environ.get("KNOS_NEAR_PAYER", ""), "money": "test tokens, not real money",
             **({"prepare_error": _ready["error"]} if not ready and _ready.get("error") else {}),
             **({"next": {k: job.get(k) for k in ("id", "attempts", "txs")}} if job else {})}   # the waiting job's two tries, before the click
@@ -128,16 +129,16 @@ def _run(rid: str) -> None:
 
 
 READY_FOR = 3 * 3600      # a ready job is posted with a 4 h deadline and offered for 3 h of it
-_spare: list = []         # a second ready job, so two buyers in a row are both served
+_spare: list = []         # a second ready job, so two visitors in a row are both served
 _ready: dict = {}
 _preparing = threading.Lock()
 
 
 class ModelCodeFailed(RuntimeError):
-    """Agent A's model-written code did not pass the locked test: the order says so and reuses the last verified proof."""
+    """Agent A's model-written code did not pass the locked test: the answer says so and reuses the last verified proof."""
 
 
-_written: dict = {}   # claim -> agent A's model-written code that last passed its locked test (the code a buyer downloads)
+_written: dict = {}   # claim -> agent A's model-written code that last passed its locked test (the code a visitor downloads)
 _asked: dict = {}     # claim -> when a job readied in the background last asked the model (at most once in 6 hours: no call in a loop)
 ASK_EVERY = 6 * 3600
 
@@ -183,8 +184,8 @@ def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
     j = _jobs()
     posted_at = time.time()
     sa, sb = _solutions(claim)
-    if failed:   # the model's code failed in this very order: agent A's fixed program runs, and the receipt says why
-        writer = {"model": None, "note": f"{failed}; agent A's fixed program then ran in the same order"[:300]}
+    if failed:   # the model's code failed in this very check: agent A's fixed program runs, and the receipt says why
+        writer = {"model": None, "note": f"{failed}; agent A's fixed program then ran in the same check"[:300]}
     elif not visitor and time.time() - _asked.get(claim, 0) < ASK_EVERY and claim not in _written:
         writer = {"model": None, "note": "the model was asked for this claim less than 6 hours ago and its code did not pass"}
     else:
@@ -297,8 +298,8 @@ def get(rid: str) -> dict | None:
 
 
 # The three live totals under the page's first screen (UX rule H7), each read from the public record of the jobs
-# contract on NEAR testnet (NearBlocks v3): the money paid to helpers whose work passed, the jobs paid, and the tries
-# (each helper's submit). Kept 2 minutes; on any error the last good answer, or none, is given.
+# contract on NEAR testnet (NearBlocks v3): the test money moved to agents whose code passed, the jobs paid, and the tries
+# (each agent's submit). Kept 2 minutes; on any error the last good answer, or none, is given.
 JOBS = "jobs.knos-swarm-1105.testnet"
 NB = "https://api-testnet.nearblocks.io/v3/accounts/" + JOBS
 RECORD = "https://testnet.nearblocks.io/address/" + JOBS
@@ -388,7 +389,7 @@ def guard_last(why: str) -> dict:
 
 
 def guard() -> dict:
-    """The two guardrails on NEAR testnet, live for a visitor: helper B tries to pay 2 test units on a cap of 1, then to
+    """The two guardrails on NEAR testnet, live for a visitor: agent B tries to pay 2 test units on a cap of 1, then to
     take a job's money with a token it signed itself instead of a passing check. Both are refused by the contract; the
     answer is each try's words, the contract's refusal and its transaction. One at a time; counted in the day's cap."""
     s = status()
@@ -497,7 +498,7 @@ def buy(side: str, market_id: str = "") -> dict:
 
 
 def product_buy() -> dict:
-    """Buy the job's product: $1.00 of test money from the app's capped test account to the helper whose work passed
+    """Buy the job's product: $1.00 of test money from the app's capped test account to the agent whose code passed
     (agent A), with no wallet; the answer is the transaction. One at a time, within the day's cap."""
     s = status()
     if not s["live"]:
@@ -544,8 +545,8 @@ def claim_quote() -> dict:
 
 
 def claim_run() -> dict:
-    """One claim, start to end, on testnet: a market on the job both helpers already tried, the visitor's $1 on Yes,
-    the payment to the helper whose work passed, the market settled from the job's state, the visitor's shares paid."""
+    """One claim, start to end, on testnet: a market on the job both agents already tried, the visitor's $1 on Yes,
+    the test money moved to the agent whose code passed, the market settled from the job's state, the visitor's shares paid."""
     s = status()
     if not s["live"]:
         return {"ok": False, "why": "live runs are switched off"}
@@ -579,18 +580,19 @@ def claim_run() -> dict:
 
         if not ready.get("market"):
             send("market opened", TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SEED), "msg": json.dumps(
-                {"seed": {"id": mid, "question": "Will a helper's work pass this job's test?"}})}, "1 yoctoNEAR")
+                {"seed": {"id": mid, "question": "Will an agent's code pass this job's locked test?"}})}, "1 yoctoNEAR")
         send("you bought Yes for $1.00", TOKEN, "ft_transfer_call", {"receiver_id": MARKET, "amount": str(SHARE_BUY),
              "msg": json.dumps({"buy": {"id": mid, "side": "yes"}})}, "1 yoctoNEAR")
         held = view(MARKET, "get_holding", {"id": mid, "account": LIVE}) or {}
-        for k, label in (("take_a", "Helper A took the job"), ("submit_a", "Helper A sent its work"),
-                         ("take_b", "Helper B took the job"), ("submit_b", "Helper B sent its work")):
+        for k, label in (("take_a", "Agent A took the job"), ("submit_a", "Agent A sent its code"),
+                         ("take_b", "Agent B took the job"), ("submit_b", "Agent B sent its code")):
             tx = (ready.get("txs") or {}).get(k)
             if tx:
                 steps.append({"step": label, "ok": True, "tx": tx, "url": common.EXPLORER + tx})
         paid = _release(ready)
         rel = (paid.get("job") or {}).get("txs", {}).get("release")
-        steps.append({"step": "Helper A's work passed: paid $1.00" if paid["state"] == "done" else "the payment stopped",
+        bid = int(ready.get("bid") or BID)
+        steps.append({"step": f"Agent A's code passed: {(bid - bid // FEE_OF) / 1e6:.2f} test USDC moved to it" if paid["state"] == "done" else "the payment stopped",
                       "ok": paid["state"] == "done", "tx": rel, "url": paid.get("release_url")})
         if paid["state"] != "done":
             raise RuntimeError(paid.get("why") or "the payment stopped")
@@ -605,11 +607,11 @@ def claim_run() -> dict:
 
 
 
-# The research buyer's flow on /near/: paste a paper link, see its claim, how likely the claim holds (the price of its
-# market on NEAR testnet) and one offer; order it, and the readied job proves or refutes the claim within seconds.
+# The claim's check on /near/: a known paper's claim, how likely it holds (the price of its market on NEAR testnet),
+# and the check run with 10 test USDC held with the readied job, which proves or refutes the claim within seconds.
 CLAIM_Q = "Does HyperLogLog count 30,000 visitors within 10% using at most 1.5 kilobytes?"   # the locked test that settles it
 # the claims Knos can prove (near/claims/claims.json): each from a real paper, each with its locked test and its two
-# agents' code; HyperLogLog's jobs are readied ahead, any other claim's job runs when it is ordered
+# agents' code; HyperLogLog's jobs are readied ahead, any other claim's job runs when its check is run
 CLAIMS = {c["name"]: c for c in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]}
 
 
@@ -642,7 +644,7 @@ def _solutions(claim: str) -> tuple[str, str]:
     d = ROOT / "near" / "agents" / "solutions"
     stem = CLAIMS[claim]["test"][len("test_"):-len(".py")]
     return (d / f"{stem}_a.py").read_text(encoding="utf-8"), (d / f"{stem}_b.py").read_text(encoding="utf-8")
-# What fits a paper Knos has no check for yet: the cheapest checker a buyer can order, its price and time as published
+# What fits a paper Knos has no check for yet: the cheapest outside checker, its price and time as published
 # (research note D5, read 10 Nov 2026). Each entry: words that pick it, then what is shown.
 CHECKERS = [
     (("protein", "binder", "enzyme", "antibod", "peptide", "binding"),
@@ -733,7 +735,7 @@ _bal: dict = {}
 
 
 def _low_balance() -> str:
-    """Why no order can be paid now, when the buyer test account holds less than the largest order and a market's seed
+    """Why no check can run now, when Knos's test account holds less than the largest amount and a market's seed
     (read at most once a minute); empty when it can."""
     try:
         if not _bal.get("at") or time.time() - _bal["at"] > 60:
@@ -742,7 +744,7 @@ def _low_balance() -> str:
             _bal.update(at=time.time(), units=common.ft_balance(LIVE))
         need = AMOUNT_MAX * 1_000_000 + SEED
         if _bal["units"] < need:
-            return (f"Knos's buyer test account holds {_bal['units'] / 1e6:,.2f} test USDC, under the {need / 1e6:,.2f} an order "
+            return (f"Knos's test account holds {_bal['units'] / 1e6:,.2f} test USDC, under the {need / 1e6:,.2f} a check "
                     "and its market need; it is being topped up. Try again later.")
     except Exception:  # noqa: BLE001 - unread: the payment itself answers
         return ""
@@ -760,8 +762,8 @@ def _refresh_last() -> None:
 
 
 def claim_look(url: str) -> dict:
-    """What a pasted paper link gets: for a paper Knos has a check for, its claim word for word, the price of its market
-    and the offer; for any other paper, which checker fits, with its published price and time."""
+    """What a paper link gets: for a paper Knos has a check for, its claim word for word, the price of its market
+    and its check; for any other paper, which checker fits, with its published price and time."""
     import re
     url = (url or "").strip()[:500]
     if not re.match(r"(?i)(https?://\S+|doi:\s*10\.\S+|10\.\d{4,9}/\S+)$", url):
@@ -786,7 +788,7 @@ def claim_look(url: str) -> dict:
     low = _low_balance()
     if low:
         return {**out, "ready": False, "why": low}
-    if known["name"] != SAMPLE:   # its job runs when ordered: both agents and the locked test while the buyer watches
+    if known["name"] != SAMPLE:   # its job runs when the check is run: both agents and the locked test while the visitor watches
         mine = [p for k, p in _proofs.items() if k != "last" and p.get("claim") == known["name"]]
         last = max(mine, key=lambda p: p.get("at", 0)) if mine else None
         paid = ((_board.get("out") or {}).get("claims") or {}).get(known["name"], {}).get("last_proof")   # read from NEAR
@@ -800,14 +802,14 @@ def claim_look(url: str) -> dict:
         return {**out, "ready": False, "why": "The next proof could not be readied on NEAR testnet just now; try again in a few minutes."}
     if not job:
         threading.Thread(target=prepare, daemon=True).start()
-        return {**out, "ready": True, "readying": True}   # an order waits for the job being readied
+        return {**out, "ready": True, "readying": True}   # a check waits for the job being readied
     out.update(ready=True, job_id=job["id"])
     if mk:
         out["market"] = {"id": mk["id"], "seed_tx": mk.get("seed_tx")}
     return out
 
 
-_floors: dict = {}   # the accounts against their floors (balances), apart from _bal (the buyer account read above)
+_floors: dict = {}   # the accounts against their floors (balances), apart from _bal (Knos's test account read above)
 
 
 def balances() -> dict:
@@ -847,7 +849,7 @@ def ai_line(ai: dict | None) -> str:
 
 
 def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> dict:
-    """The ordered proof: the readied job's locked test, both agents' reruns, the payment to the one that passed, the
+    """The check: the readied job's locked test, both agents' reruns, the test money moved to the one that passed, the
     verdict beside the paper's own number, and the claim's market settled by the job."""
     import re
     s = status()
@@ -859,7 +861,7 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
         return {"ok": False, "why": f"today's {s['cap_today']} live runs are used"}
     claim = claim if claim in CLAIMS else SAMPLE
     ready = None
-    if claim != SAMPLE:   # no readied pool: the job runs now, while the buyer watches
+    if claim != SAMPLE:   # no readied pool: the job runs now, while the visitor watches
         with _lock:
             today = time.strftime("%Y-%m-%d", time.gmtime())
             if _day["day"] != today:
@@ -868,10 +870,10 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
         waited = time.time()
         try:
             ready = _make_job(claim, visitor)
-        except ModelCodeFailed as e:   # said plainly; agent A's fixed program then runs in the same order, so the buyer still gets a verdict
+        except ModelCodeFailed as e:   # said plainly; agent A's fixed program then runs in the same check, so the visitor still gets a verdict
             try:
                 ready = _make_job(claim, visitor, failed=str(e))
-            except Exception:  # noqa: BLE001 - the order then shows the last verified proof, marked reused
+            except Exception:  # noqa: BLE001 - the answer then shows the last verified proof, marked reused
                 return {"ok": False, "model_failed": True, "why": str(e), "seconds": round(time.time() - waited, 1)}
         except Exception as e:  # noqa: BLE001 - the page says which step stopped
             return {"ok": False, "why": f"the job on NEAR testnet stopped: {str(e)[:160]}", "seconds": round(time.time() - waited, 1)}
@@ -897,7 +899,7 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
         return {"ok": False, "why": f"the next proof is still being readied after {20 if agent else 90} s; try again in a minute"}
     t0 = time.time()
     ai = None
-    if any(a["passed"] for a in ready["attempts"]):   # one model call at most per order, after the test passed and before anyone is paid
+    if any(a["passed"] for a in ready["attempts"]):   # one model call at most per check, after the test passed and before anyone is paid
         from . import near_ai
         try:
             said = CLAIMS[claim]["quote"] + (f" The method, as the paper describes it: {CLAIMS[claim]['method']}" if CLAIMS[claim].get("method") else "")
@@ -918,7 +920,7 @@ def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> 
                            "measured": f"{got.group(1)} error on 30,000 visitors, {got.group(2)} of memory" if got else win.get("reason", "").removeprefix("Passed: "),
                            "holds": final_verdict(bool(win), (ai or {}).get("approve")), "checked": k["locked"], "not_checked": CLAIMS[claim]["not_checked"],
                            "ai_reviewer": ai_line(ai), "agent_a": writer_line(ready.get("writer"))}, "ai": ai, "writer": ready.get("writer")}
-        out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the order; < 0: while the buyer waited
+        out["ran_before_s"] = round(waited - ready["at"])   # > 0: the agents ran before the click; < 0: while the visitor waited
         out["market"] = ready.get("market") or _open_market(ready["id"], CLAIMS[claim]["question"])   # opened now if readying could not; settled next, by POST /api/near/claim/settle, once the job is paid
         if out["ok"]:
             rec = {"job": ready["id"], "claim": claim, "attempts": ready["attempts"], "verdict": out["verdict"], "txs": (paid.get("job") or {}).get("txs", {}),
@@ -981,20 +983,20 @@ def claim_code(claim: str = SAMPLE) -> tuple[bytes, str, str]:
     return body, hashlib.sha256(body).hexdigest(), CLAIMS[claim]["code_name"]
 
 
-# Round 3: the price, the receipt, the spending cap, the cost of each step, reuse, the counters and one call for agents
-AMOUNT_DEFAULT = 10                    # test USDC a buyer puts behind a claim unless they type another amount
+# Round 3: the split, the receipt, the spending cap, the cost of each step, reuse, the counters and one call for agents
+AMOUNT_DEFAULT = 10                    # test USDC held with a claim's check unless the visitor types another amount
 AMOUNT_MAX = 100
-FEE_OF = 10                            # the split, the market contract's rule: Knos keeps 1 part in 10 (rounded down), the agent the rest
+FEE_OF = 10                            # the split, the contracts' rule (FEE_PARTS in near/contract/src/jobs.rs, and near/market): Knos's account keeps 1 part in 10 (rounded down), the agent the rest
 
 
 def _units(amount) -> int:
-    """The buyer's amount in test USDC units (6 decimals), from 1 to AMOUNT_MAX test USDC."""
+    """The amount held with the check in test USDC units (6 decimals), from 1 to AMOUNT_MAX test USDC."""
     try:
         a = float(amount if amount not in (None, "") else AMOUNT_DEFAULT)
     except (TypeError, ValueError):
         a = AMOUNT_DEFAULT
     return int(round(max(1.0, min(float(AMOUNT_MAX), a)) * 1_000_000))
-TREASURY = "knos-payer-1102.testnet"   # Knos's own test account, where the fee is kept
+TREASURY = "knos-payer-1102.testnet"   # Knos's own test account, where its 1 part in 10 is kept
 RPC = "https://rpc.testnet.near.org"
 _proofs: dict = {}
 _price: dict = {}
@@ -1072,7 +1074,7 @@ _cap_lock = threading.Lock()
 
 
 def _transfer(to: str, units: int, memo: str) -> dict:
-    """One test USDC transfer from the buyer test account Knos holds (no wallet needed), with one retry on a stale nonce."""
+    """One test USDC transfer from Knos's capped test account (no wallet needed), with one retry on a stale nonce."""
     import common
     from common import call
     args = {"receiver_id": to, "amount": str(units), "memo": memo}
@@ -1125,8 +1127,8 @@ def _back(claim: str, units: int, to: list) -> dict:
 
 
 def claim_pay(amount=None, claim: str = SAMPLE, job: str = "") -> dict:
-    """The test USDC the buyer put behind the claim, paid for its first proof: 90% to agent A, whose work passed, and 10%
-    to Knos. Sent to the claim market, which records it on chain behind the claim (the demand market settles from that
+    """The test USDC put behind the claim, split 9 to 1 by the contract's rule: 9 parts to agent A, whose code passed, and
+    1 part to Knos's test account. Sent to the claim market, which records it on chain behind the claim (the demand market settles from that
     record), refuses any other split, and passes both parts on in the same transaction."""
     _jobs()
     import common
@@ -1137,7 +1139,7 @@ def claim_pay(amount=None, claim: str = SAMPLE, job: str = "") -> dict:
     t_pay = time.time()
     last = _proofs.get(job) if job else None
     if last and int(last.get("bid") or 0) == units and (last.get("txs") or {}).get("release"):
-        # Round 11, W2: the order's job held this price; the jobs contract paid 9 parts to agent A and 1 to Knos in the
+        # Round 11, W2: the check's job held this test money; the jobs contract paid 9 parts to agent A and 1 to Knos in the
         # release itself, after the checker's signed pass: nothing more is sent by any account
         tx = last["txs"]["release"]
         b = {"ok": True, "tx": tx, "url": last.get("release_url") or "https://testnet.nearblocks.io/txns/" + tx}
@@ -1151,14 +1153,14 @@ def claim_pay(amount=None, claim: str = SAMPLE, job: str = "") -> dict:
     except Exception:  # noqa: BLE001 - unread: the transfers themselves answer
         held = units
     if held < units:
-        return {"ok": False, "why": f"the buyer test account holds {held / 1e6:.2f} test USDC, under {units / 1e6:.2f}, so nothing was sent", "usd": units / 1e6}
+        return {"ok": False, "why": f"Knos's test account holds {held / 1e6:.2f} test USDC, under {units / 1e6:.2f}, so nothing was sent", "usd": units / 1e6}
     if _backs():
         b = _back(claim, units, [[CONFIG["agents"]["a"], str(share)], [TREASURY, str(units - share)]])
         agent = {**b, "usd": share / 1e6}
         fee = {**b, "usd": (units - share) / 1e6}
     else:
-        agent = _transfer(CONFIG["agents"]["a"], share, f"knos proof: agent A's share of the amount behind the {claim} claim")
-        fee = _transfer(TREASURY, units - share, f"knos proof: Knos's fee from the amount behind the {claim} claim") if agent["ok"] else {"ok": False, "why": "not sent: the agent's share failed"}
+        agent = _transfer(CONFIG["agents"]["a"], share, f"knos: agent A's 9 parts of the test money behind the {claim} claim")
+        fee = _transfer(TREASURY, units - share, f"knos: Knos's 1 part of the test money behind the {claim} claim") if agent["ok"] else {"ok": False, "why": "not sent: the agent's share failed"}
     ok = agent["ok"] and fee["ok"]
     if ok:
         _paid_log.append((time.time(), units / 1e6, fee.get("tx"), claim))
@@ -1168,8 +1170,8 @@ def claim_pay(amount=None, claim: str = SAMPLE, job: str = "") -> dict:
 
 
 def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "") -> dict:
-    """The receipt after the result: the amount behind the claim, agent A's share and Knos's fee, and what each step cost."""
-    last = (_proofs.get(job) if job else None) or _proofs.get("last") or {}   # this order's own proof
+    """The receipt after the result: the test money behind the claim, agent A's 9 parts and Knos's 1, and what each step cost."""
+    last = (_proofs.get(job) if job else None) or _proofs.get("last") or {}   # this check's own run
     txs = last.get("txs") or {}
     from common import CONFIG
     a, b = CONFIG["agents"]["a"], CONFIG["agents"]["b"]
@@ -1186,12 +1188,12 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
     if pay.get("contract"):
         pass
     elif at and at == ft:   # through the claim market: one transaction splits it
-        steps.append(("Your amount, split between agent A and Knos (one transaction)", at, LIVE))
+        steps.append(("The test money, split 9 to 1 between agent A and Knos's test account (one transaction)", at, LIVE))
     else:
         if at:
-            steps.append(("Agent A's share of your amount", at, LIVE))
+            steps.append(("Agent A's 9 parts (test money)", at, LIVE))
         if ft:
-            steps.append(("Knos's fee from your amount", ft, LIVE))
+            steps.append(("Knos's 1 part (test money)", ft, LIVE))
     if settle and settle.get("tx"):
         steps.append(("The claim's record on NEAR updated", settle["tx"], LIVE))
     ok = bool(pay.get("ok"))   # a failed payment's transaction is never shown as a receipt
@@ -1202,18 +1204,18 @@ def claim_receipt(cap: dict | None, pay: dict, settle: dict | None, job: str = "
 
 
 def claim_reuse(job: str = "") -> dict:
-    """A second proof of the same order: the verified result of its first proof (its job) is reused, so no agent reruns it."""
-    last = _proofs.get(job) if job else None   # this order's own first proof, never another buyer's
+    """A second look at the same check: the verified result of its first run (its job) is reused, so no agent reruns it."""
+    last = _proofs.get(job) if job else None   # this check's own first run, never another visitor's
     if not last:
-        return {"ok": False, "why": "this order has no paid first proof to reuse yet" if job else "name the order's job: order the first proof"}
+        return {"ok": False, "why": "this check has no passed first run to reuse yet" if job else "name the check's job: run the check first"}
     return {"ok": True, "free": True, "reused": last["job"], "verdict": last["verdict"], "first_url": last.get("release_url"),
-            "saved": {"agent_usd": BID / 1e6, "first_answer_seconds": last["seconds"]}}   # the first proof's run to its answer, measured on the server
+            "saved": {"agent_usd": int(last.get("bid") or BID) / 1e6, "first_answer_seconds": last["seconds"]}}   # the first proof's run to its answer, measured on the server
 
 
 _snap: dict = {}
 _snapping = threading.Lock()
 _top: dict = {}             # the highest counts this server has answered, so a page never sees them go back
-_paid_log: list = []      # this server's own paid first proofs since it started: (unix time, test USDC moved, fee tx)
+_paid_log: list = []      # this server's own passed checks whose job paid, since it started: (unix time, test USDC moved, tx, claim)
 
 
 def _late(out: dict | None) -> bool:
@@ -1276,8 +1278,8 @@ if os.environ.get("KNOS_NEAR_LIVE") == "on":   # the hosted server holds a copy 
 
 
 def counters() -> dict:
-    """Live counters: the full count of the public record (the snapshot above), plus every first proof this server has
-    paid since that count was read, each a transfer NEAR confirmed (its log). Lost is the record's own figure."""
+    """Live counters: the full count of the public record (the snapshot above), plus every passed check whose job this
+    server has paid since that count was read, each a transfer NEAR confirmed (its log). Lost is the record's own figure."""
     base = _snap.get("out")
     if not (_snap.get("at") and time.time() - _snap["at"] < 300) and not _snapping.locked():
         threading.Thread(target=_resnap, daemon=True).start()   # read again in the background; answer from the copy held
@@ -1299,7 +1301,7 @@ def counters() -> dict:
 
 
 def _by_claim(read: dict, new: list) -> dict:
-    """Each claim's paid proofs and test USDC behind it: the full read, plus this server's payments since."""
+    """Each claim's passed checks whose job paid, and the test USDC moved: the full read, plus this server's payments since."""
     out = {k: dict(v) for k, v in read.items()}
     for x in new:
         b = out.setdefault(x[3], {"proofs": 0, "usd": 0.0})
@@ -1420,7 +1422,7 @@ def _read_board() -> None:
             if d:
                 opened = int(d["id"].rsplit(":", 1)[1])
                 try:
-                    got = view(MARKET, "get_outside", {"claim": c, "from": opened, "until": opened + WEEK}) or {}   # outside backers only
+                    got = view(MARKET, "get_outside", {"claim": c, "from": opened, "until": opened + WEEK}) or {}   # outside accounts only
                 except Exception:  # noqa: BLE001 - not read this time
                     got = {}
                 d.update(opened=opened, closes=opened + WEEK, behind_usd=int(got.get("total") or 0) / 1e6, backs=got.get("count", 0), bar_usd=100)
@@ -1459,7 +1461,7 @@ if os.environ.get("KNOS_NEAR_LIVE") == "on":   # the board is read from the serv
 
 def claims_board() -> dict:
     """Every claim with its two markets and the test USDC behind it, read from NEAR testnet (kept a minute). The sample
-    claim's paid proofs before the claim market kept its record are added from the counters' full read."""
+    claim's passed checks before the claim market kept its record are added from the counters' full read."""
     if not (_board.get("at") and time.time() - _board["at"] < 60):
         threading.Thread(target=_read_board, daemon=True).start()
     out = json.loads(json.dumps(_board.get("out") or {"claims": {}}))
@@ -1509,7 +1511,7 @@ def claim_flow(url: str, amount=None, visitor: str = "") -> dict:
 
 
 def claim_finish(cap: dict | None, market: str = "", amount=None, job: str = "") -> dict:
-    """After the answer of a first proof: the amount behind the claim paid, the claim's record updated, the receipt."""
+    """After a check's first answer: the test money moved by the contract's split, the claim's record updated, the receipt."""
     t0 = time.time()
     pay = claim_pay(amount, (_proofs.get(job) or {}).get("claim", SAMPLE), job)
     settle = claim_settle(market) if market else None

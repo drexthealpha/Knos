@@ -1,8 +1,11 @@
 """Knos's one design system, written onto every public page: the front door's (web/) and the app's
 (apps/wanted/knos_wanted/static/).
 
-    python scripts/sync_brand.py            write
-    python scripts/sync_brand.py --check    exit 1 if a page or a copy differs from what this writes
+    python scripts/sync_brand.py                 write
+    python scripts/sync_brand.py --check         exit 1 if a page or a copy differs from what this writes
+    python scripts/sync_brand.py apps/wanted     write only the pages and copies under these paths (others untouched)
+
+A page listed here that is no longer in the repository is skipped, so deleting an old page needs no edit here.
 
 The token file (web/brand/tokens.css), the wordmark, the mark, the fonts and the bar's script (web/brand/bar.js) are
 copied byte for byte to the app's static/brand/ and static/fonts/. The bar (web/brand/bar.html) is written between
@@ -24,7 +27,7 @@ SITE = "https://drexthealpha.github.io/Knos/"
 WAKE = "wanted.html"
 COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js", "shape.js", "pointer.js", "icons.svg", "LUCIDE-LICENSE.txt")}
 COPIES |= {f: STATIC / "fonts" / f.name for f in sorted((WEB / "fonts").iterdir()) if f.suffix in (".woff2", ".txt")}
-# the crow icon set (scripts/make_icons.py) on every Knos page, the app's included
+# the raven icon set (scripts/make_icons.py) on every Knos page, the app's included
 COPIES |= {WEB / "icon.svg": STATIC / "icon.svg", WEB / "favicon.ico": STATIC / "favicon.ico",
            **{WEB / "brand" / n: STATIC / "brand" / n for n in ("apple-touch-icon.png", "icon-192.png", "icon-512.png")}}
 ICON_LINK = re.compile(r'[ \t]*<link rel="(?:icon|shortcut icon|apple-touch-icon|preconnect)"[^>]*>\n?')
@@ -41,7 +44,7 @@ PRECONNECT = '<link rel="preconnect" href="https://drexthealpha.github.io" cross
 
 
 def icons(s: str, root: str, preconnect: bool = False) -> str:
-    """The page's icon links, replaced by the one set: the crow as SVG, favicon.ico for older browsers, a home-screen PNG;
+    """The page's icon links, replaced by the one set: the raven as SVG, favicon.ico for older browsers, a home-screen PNG;
     on a front door page, the fonts' connection opened first."""
     block = ((PRECONNECT if preconnect else "") +
              f'<link rel="icon" href="{root}icon.svg" type="image/svg+xml">\n<link rel="icon" href="{root}favicon.ico" sizes="16x16 32x32 48x48">\n'
@@ -56,7 +59,7 @@ PAGES = {
     WEB / "how-we-test.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "pricing.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "privacy.html": ("./", "./", WAKE, "brand/tokens.css", True),
-    WEB / "404.html": (SITE, SITE, SITE + WAKE, "brand/tokens.css", True),        # its <base href="/Knos/"> holds at any depth
+    # web/404.html carries the product header of scripts/site_pages.py (the published pages' one), not this bar
     WEB / "wanted.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "start" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),
     WEB / "iris" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),   # the IRIS face, at /iris/
@@ -73,7 +76,8 @@ HERO = re.compile(r"<!-- k-hero -->.*?<!-- /k-hero -->", re.S)
 VECTORS = re.compile(r"<!-- k-vectors -->.*?<!-- /k-vectors -->", re.S)
 STEPS = re.compile(r"<!-- k-steps -->.*?<!-- /k-steps -->", re.S)
 CAPS = re.compile(r"<!-- k-caps -->.*?<!-- /k-caps -->", re.S)
-# the two front doors' first screens: (the app's address for the API, the app's address for its pages, hero.js)
+# the demand check's first screen, in the app's home and the two old one-page fronts (not published):
+# (the app's address for the API, the app's address for its pages, hero.js)
 HEROES = {WEB / "index.html": ("@app", WAKE, "brand/hero.js"), WEB / "home.html": ("@app", WAKE, "brand/hero.js"), STATIC / "index.html": ("", "/app/", "/static/brand/hero.js")}
 
 
@@ -119,7 +123,7 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
         code = lean((WEB / "brand" / "hero.js").read_text(encoding="utf-8").strip())   # inlined without its comments and indentation
         t = t.replace(PROOF_SLOT, f'{PROOF_SLOT}\n<script data-src="{js}">\n{code}\n</script>', 1)
         s = HERO.sub(lambda _: f'<!-- k-hero -->\n{t}\n<!-- /k-hero -->', s, count=1)
-        # the four steps under the first screen (web/brand/steps.html): check demand, Ready brief, money held, paid on proof
+        # the steps under the first screen (web/brand/steps.html): idea or paper, Qloo demand, test money held, check passed, released
         steps = (WEB / "brand" / "steps.html").read_text(encoding="utf-8").strip().replace("{SP}", site).replace("{ICONS}", js.replace("hero.js", "icons.svg"))
         s = STEPS.sub(lambda _: f"<!-- k-steps -->\n{steps}\n<!-- /k-steps -->", s, count=1)
         # under the first screen: one line per built capability, each with its link (web/brand/caps.html)
@@ -163,7 +167,11 @@ def lean(code: str) -> str:
 
 def main(argv: list[str]) -> int:
     check, off = "--check" in argv, []
+    only = [(ROOT / a).resolve() for a in argv if not a.startswith("--")]
+    mine = lambda p: not only or any(p.resolve().is_relative_to(o) for o in only)   # noqa: E731
     for a, b in COPIES.items():
+        if not mine(b):
+            continue
         if not b.exists() or b.read_bytes() != a.read_bytes():
             off.append(str(b.relative_to(ROOT)))
             if not check:
@@ -171,8 +179,10 @@ def main(argv: list[str]) -> int:
                 b.write_bytes(a.read_bytes())
     todo = [(p, lambda p=p, a=a: page(p, *a)) for p, a in PAGES.items()] + \
         [(p, lambda p=p, r=r: icons(p.read_text(encoding="utf-8"), r, preconnect=True)) for p, r in ICON_ONLY.items()] + \
-        [(BOARD_PAGE, board)]
+        ([(BOARD_PAGE, board)] if BOARD_FROM.exists() else [])
     for path, make in todo:
+        if not path.exists() or not mine(path):
+            continue
         new = make()
         if new != path.read_text(encoding="utf-8"):
             off.append(str(path.relative_to(ROOT)))

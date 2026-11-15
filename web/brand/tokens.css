@@ -42,7 +42,7 @@
   --s-1: 13px; --s0: 14px; --s1: 16px; --s2: 20px; --s3: 28px; --s4: 40px;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 40px;
   --gap: 24px; --radius: 14px; --radius-s: 8px;
-  --ease: cubic-bezier(.2, .8, .2, 1); --dur-1: 120ms; --dur-2: 240ms; --dur-3: 480ms;
+  --ease: cubic-bezier(.2, .8, .2, 1); --ease-exit: cubic-bezier(.4, 0, 1, 1); --ease-move: cubic-bezier(.65, 0, .35, 1); --dur-1: 120ms; --dur-2: 240ms; --dur-3: 480ms;
   --bg: var(--paper); --fg: var(--ink); --muted: var(--ink-2); --card: var(--paper-2);
   --surface: var(--paper-2); --accent-ink: var(--accent-fg); --accent-soft: var(--soft); --danger: var(--bad); --warnc: var(--warn);
   --r: var(--radius); --r-s: var(--radius-s); --shadow: var(--depth-1);

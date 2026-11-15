@@ -1,8 +1,9 @@
-"""Pre-orders on an OPEN demand report, paid to the maker only on proof: Knos's staged vault (knos.ideas.commit).
+"""Pre-orders on an OPEN demand report, released to the maker when the milestone check passes: Knos's staged vault (knos.ideas.commit).
 
-One pre-order = one commitment with ONE stage, "milestone" (oracle referee_pass), locked on the knos_pay 0.3.34 TEST
-program on devnet as a PANEL order: 2 of 3 referee keys release it to the maker's wallet; past its deadline anyone
-refunds it to the buyer. Who is who on this server (all devnet TEST keys, no real money):
+One pre-order = one commitment with ONE stage, "milestone" (oracle referee_pass), locked on the knos_pay TEST
+build (program FaMHCjzy..., built at Knos 0.3.34) on devnet as a PANEL order: the FROST referee group (its group key;
+2 of 3 referee hosts sign it) or, on a server without FROST, 2 of 3 server-held referee keys release it to the maker's
+wallet; past its deadline anyone refunds it to the buyer. Who is who on this server (all devnet TEST keys, no real money):
   buyer     the signed-in person's own passkey wallet (knos_wanted.wallets: a LazorKit smart wallet; the passkey signs)
   maker     the payee: a wallet made for this one receivable, owned by the passkey of the maker who claimed the milestone
   referees  KNOS_WANTED_REFEREE_KEYS: a JSON list of 3 secret keys (base58 strings or byte arrays) the SERVER holds.
@@ -32,7 +33,7 @@ from pathlib import Path
 
 from . import company, escrow
 
-PROGRAM_034_TEST = "FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4"   # knos_pay 0.3.34 TEST build on devnet
+PROGRAM_034_TEST = "FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4"   # the knos_pay TEST build on devnet, built at Knos 0.3.34
 FIELD = "Business, Management and Accounting"
 PRICE = 1                       # test units per pre-ordered unit
 MAX_PRICE = 4                   # the premium tier (check.TIERS)
@@ -179,7 +180,7 @@ def of_report(report_hash: str) -> list[dict]:
 
 PREORDER_VIA = "pre-order signed by the buyer's passkey (test money)"
 FUNDER_VIA = ("funder money: a funder's money, held for this milestone (its own devnet order and claim id, beside the pre-orders; "
-              "paid to the maker on proof, refunded after the deadline)")
+              "released to the maker when the milestone check passes, refunded after the deadline)")
 
 
 def fee_line(units: int | None = None, unit_price: int | None = None) -> dict:
@@ -192,7 +193,7 @@ def fee_line(units: int | None = None, unit_price: int | None = None) -> dict:
         out = {"rate_bps": bps, "percent": bps / 100, "floor": f["payout"].get("floor_usd"), "status": f["payout"]["status"],
                "funding_fee_bps": int(f["funding"]["rate_bps"]), "graduation": {"rate_bps": int(f["graduation"]["rate_bps"]),
                "status": f["graduation"]["status"], "collected": f["graduation"].get("collected")},
-               "text": f"Knos takes {bps / 100:g}% (at least {f['payout'].get('floor_usd')} test units) only on money released on proof; "
+               "text": f"Knos takes {bps / 100:g}% (at least {f['payout'].get('floor_usd')} test units) only on money released after the milestone check passes; "
                        "a refund costs the buyer nothing", "source": "config/fees.yaml (fees.payout, fees.funding)"}
         if units:
             amount = int(units) * int(unit_price or PRICE)                   # the order's amount: what the release settles
@@ -238,9 +239,19 @@ def _finality(sigs: dict) -> dict:
         return {}
 
 
-VERIFIER = ("verdicts checked on chain by knos_pay: an ed25519 pre-instruction carries the 2-of-3 referee signatures "
-            "over the evidence pin, and the program pays only when they verify; knos_oidc verifies GitHub-OIDC-judged "
+VERIFIER = ("verdicts checked on chain by knos_pay: an ed25519 pre-instruction carries the referee signatures over the "
+            "evidence pin (one FROST group signature that 2 of 3 referee hosts made, or 2 of 3 server-held referee keys), "
+            "and the program pays only when they verify; knos_oidc verifies GitHub-OIDC-judged "
             "stages (not used for this panel stage). Test units stand in for USDC on devnet (6 decimals).")
+
+
+def _panel_public(pn: dict) -> dict:
+    """The order's own panel: a FROST group key (m = 1: 2 of 3 referee hosts sign it) or the server-held keys (2 of 3)."""
+    if pn.get("m") == 1:
+        return {"m": 2, "of": 3, "keys": pn["keys"], "label": pn.get("label") or "FROST referee group",
+                "note": "a FROST group key: 2 of 3 referee hosts sign it, each after its own check"}
+    return {"m": int(pn.get("m") or 2), "of": len(pn.get("keys") or []) or 3, "keys": pn["keys"], "label": pn.get("label") or "UNLISTED PANEL",
+            "note": "the three referee keys are held by this one server: not an independent panel"}
 
 
 def public(rec: dict) -> dict:
@@ -249,8 +260,7 @@ def public(rec: dict) -> dict:
             "unit_price": rec.get("unit_price", PRICE), "via": rec.get("via", PREORDER_VIA), "via_kind": rec.get("via_kind", "preorder"), "factoring": rec.get("factoring"),
             "idea": rec.get("idea"),
             "buyer": rec["buyer"], "maker_wallet": rec["maker_wallet"], "status": rec["status"], "milestone": "stage1 (referee_pass)",
-            "panel": {"m": 2, "of": 3, "keys": rec["doc"]["panel"]["keys"], "label": rec["doc"]["panel"]["label"] or "UNLISTED PANEL",
-                      "note": "the three referee keys are held by this one server: not an independent panel"},
+            "panel": _panel_public(rec["doc"]["panel"]),
             "program": rec["doc"]["program"], "mint": rec["doc"]["mint"], "deadline_days": rec["deadline_days"],
             "signatures": sigs, "explorer": {k: escrow.explorer(v) for k, v in sigs.items() if isinstance(v, str)},
             "order_explorer": escrow.explorer(rec["order"], "address"), "evidence": rec.get("evidence"),
@@ -326,7 +336,7 @@ def reserve_status(report: dict, held: dict | None = None) -> dict:
     if held is not None:
         pre = held.get("preorders") or {}
         return {"pre_ordered_units": pre.get("units", 0), "reserve_units": held.get("reserve_units") or 0,
-                "met": pre.get("units", 0) >= (held.get("reserve_units") or 0), "source": "Knos Record (Sibyl)"}
+                "met": pre.get("units", 0) >= (held.get("reserve_units") or 0), "source": "the Knos record"}
     locked = sum(r["units"] for r in of_report(report["hash"]) if r.get("status") in ("locked", "released"))
     need = (report.get("decision") or {}).get("reserve_units") or 0
     return {"pre_ordered_units": locked, "reserve_units": need, "met": locked >= need, "source": "this server's commitment files"}

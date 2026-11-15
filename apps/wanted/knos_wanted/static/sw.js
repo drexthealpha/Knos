@@ -1,8 +1,8 @@
 // The app works offline: its shell (page, styles, scripts) is kept here and served when the network is not there.
 // API answers are never cached (money and proofs are read live); a brief edit made offline waits in IndexedDB and is
 // sent by Background Sync when the connection is back (static/ux.js queues it).
-const SHELL = "knos-shell-v1";
-const FILES = ["/", "/static/style.css", "/static/i18n.js", "/static/passkey_wallet.js", "/static/valley.js", "/static/app.js",
+const SHELL = "knos-shell-v2";
+const FILES = ["/app/", "/static/style.css", "/static/i18n.js", "/static/passkey_wallet.js", "/static/valley.js", "/static/app.js",
   "/static/ux.js", "/static/ux_more.js", "/static/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(SHELL).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
@@ -16,7 +16,7 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(fetch(e.request).then((r) => {
     if (r.ok && FILES.includes(u.pathname)) { const copy = r.clone(); caches.open(SHELL).then((c) => c.put(e.request, copy)); }
     return r;
-  }).catch(() => caches.match(e.request).then((m) => m || caches.match("/"))));
+  }).catch(() => caches.match(e.request).then((m) => m || caches.match("/app/"))));
 });
 
 function db() {

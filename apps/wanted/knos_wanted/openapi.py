@@ -1,7 +1,7 @@
 """One OpenAPI 3.1 document for this server, served at /openapi.json beside the hosted MCP endpoint (/mcp).
 
-Built from the route tables the server dispatches on (server.ROUTES + server.GET_ROUTES + product_routes.ROUTES), so a
-route cannot exist without being documented. validate() checks the structure this server relies on; the release
+Built from the route tables the server dispatches on (server.ROUTES + server.POST_ROUTES + server.GET_ROUTES +
+product_routes.ROUTES). validate() checks the structure this server relies on; the release
 evidence also runs the document through openapi-spec-validator.
 """
 from __future__ import annotations
@@ -40,11 +40,12 @@ BODIES = {"/api/research": ({"ref": "string", "product": "string"}, {"ref": "10.
           "/api/open-signals": ({"idea": "string", "place": "string"}, {"idea": "a cold brew coffee shop", "place": "Austin"}),
           "/api/ready": ({"brief": "object"}, {"brief": BRIEF})}
 READ_POSTS = {"/api/research", "/api/open-signals", "/api/ready", "/api/check"}
-HTML = {"/app/", "/paid", "/fields", "/money", "/with-without", "/companies", "/verify", "/status/qloo", "/qloo-safe-use", "/trace.html", "/r/{code}"}
+HTML = {"/app/", "/fields", "/money", "/with-without", "/companies", "/verify", "/status/qloo", "/qloo-safe-use", "/trace.html", "/r/{code}"}
 CONTENT = {"/sw.js": "application/javascript", "/manifest.webmanifest": "application/manifest+json", "/api/proofs/cosign.pub": "text/plain",
            "/api/proofs/signature": "application/json", "/api/cross/stream": "text/event-stream", "/api/company/export": "text/csv"}
-MOVED = {"/": "https://drexthealpha.github.io/Knos/", "/app": "/app/", "/quality": "https://drexthealpha.github.io/Knos/quality/",
-         "/quality/": "https://drexthealpha.github.io/Knos/quality/"}
+MOVED = {"/": "https://drexthealpha.github.io/Knos/", "/app": "/app/", "/quality": "https://drexthealpha.github.io/Knos/",
+         "/quality/": "https://drexthealpha.github.io/Knos/", "/start": "https://drexthealpha.github.io/Knos/",
+         "/start/": "https://drexthealpha.github.io/Knos/", "/paid": "/app/?all=1"}
 NOT_READ_ONLY = {"/auth/orcid", "/auth/orcid/callback", "/auth/sso", "/auth/sso/callback", "/r/{code}", "/api/agent/keys", "/mcp/store"}
 
 
@@ -66,6 +67,9 @@ def _routes():
     for p in server.ROUTES:
         if ("POST", p) not in seen:
             rows.append(("POST", p, p in server.SIGNED_IN, server.SUMMARIES.get(p, f"POST {p}"), {}))
+    for p, summary in server.POST_ROUTES.items():
+        if ("POST", p) not in seen and p not in server.ROUTES:
+            rows.append(("POST", p, False, summary, {}))
     for p, summary in server.GET_ROUTES.items():
         if ("GET", p) not in seen:
             rows.append(("GET", p, False, summary, {}))
@@ -117,7 +121,7 @@ def document(base: str = "https://knos.onrender.com") -> dict:
     return {"openapi": "3.1.0",
             "info": {"title": "Knos", "version": _version(),
                      "description": "Knos carries research across the valley of death. Demand checks on Qloo, Ready briefs, milestone "
-                                    "money held on Solana until the proof passes; devnet, test money, no customers yet. Agents: the same tools over MCP at /mcp."},
+                                    "money held on Solana devnet until the milestone check passes, and research claims proved by agents on NEAR testnet; test money, no customers yet. Agents: the same tools over MCP at /mcp."},
             "servers": [{"url": base}],
             "components": {"securitySchemes": {"session": {"type": "http", "scheme": "bearer",
                                                            "description": "the session token a sign-in returns (passkey, SSO, Google, ORCID, email, guest)"}}},
@@ -150,7 +154,8 @@ def _version() -> str:
         from importlib.metadata import version
         return version("knos")
     except Exception:  # noqa: BLE001
-        return "0.4.0"
+        from . import __version__
+        return __version__
 
 
 def validate(doc: dict) -> list[str]:

@@ -11,7 +11,7 @@ fees and is the test mint's authority for the faucet. It is never a buyer, a mak
 
 Steps (each `prepare_*` returns {intent, challenge}; `sign` relays the passkey's answer):
   buyer   faucet (devnet test units, labelled test money) -> pre-order: FundOrderWallet of a PANEL order on the knos_pay
-          0.3.34 devnet test program, the funder being the buyer's vault. Refunds go back to that vault.
+          TEST build on devnet (built at Knos 0.3.34), the funder being the buyer's vault. Refunds go back to that vault.
   maker   claim the report's milestone with a passkey: every pre-order then pays a wallet made for that one receivable,
           owned by the maker's passkey.
   lender  the receivable sale: the lender offers cash now (an advance rate, its fee, the due date; tap one); the
@@ -352,7 +352,8 @@ def claim_maker(led, user: dict, report: dict, rp_id: str) -> dict:
 
 def prepare_preorder(led, user: dict, report: dict, units, rp_id: str, funder: bool = False) -> dict:
     """The pre-order a buyer's passkey signs: test units from the buyer's own wallet into a PANEL order of knos_pay,
-    released by 2 of 3 referees to the maker's receivable wallet, refunded to the buyer's wallet after the deadline."""
+    released to the maker's receivable wallet when the milestone check passes (the panel preorder.panel pins: the FROST
+    referee group, 2 of 3 hosts, or 2 of 3 server-held referee keys), refunded to the buyer's wallet after the deadline."""
     from solders.pubkey import Pubkey
 
     from knos import ideas
@@ -411,7 +412,7 @@ def prepare_preorder(led, user: dict, report: dict, units, rp_id: str, funder: b
             "warnings": p["warnings"], "receivable": {"wallet": str(rwallet), "vault": str(rvault), "maker_sub": mk["sub"], "claim": claim["id"]},
             "buyer_label": f"{user.get('kind')}: {user.get('label')}"[:80], "tables": _tables(led, mint, h)}
     summary = {"what": "pre-order", "amount_units": amount / escrow.UNIT, "fee_units": pay.order_fee(amount) / escrow.UNIT,
-               "from": str(buyer["vault"]), "order": str(order), "paid_on_proof_to": str(rvault), "refunded_to": str(buyer["token_account"]),
+               "from": str(buyer["vault"]), "order": str(order), "released_to": str(rvault), "refunded_to": str(buyer["token_account"]),
                "program": str(prog), "deadline_days": days, "money": MONEY}
     return _intent("preorder", h, prep, meta, summary)
 
@@ -696,7 +697,7 @@ def prepare_project_fund(led, user: dict, pid: str, key: str, units, rp_id: str,
             "private": private is True}
     summary = {"what": f"fund the milestone '{m['name']}'" + (" (a grant)" if kind == "grant" else " (part of a pool)" if kind == "pool" else ""),
                "amount_units": amount / escrow.UNIT, "fee_units": pay.order_fee(amount) / escrow.UNIT, "from": str(me["vault"]),
-               "order": str(order), "paid_on": "the maker's result and an independent check", "refunded_to": str(me["token_account"]),
+               "order": str(order), "released_on": "the maker's result and an independent check", "refunded_to": str(me["token_account"]),
                "criteria_hash": crit, "kill_fee_bps": p.get("kill_fee_bps", 0), "challenge_s": p.get("challenge_s"),
                "program": str(prog), "money": MONEY}
     return _intent("project_fund", h, prep, meta, summary)
@@ -794,7 +795,7 @@ def prepare_amc(led, user: dict, pid: str, key: str, units, rp_id: str) -> dict:
     meta = {"cred_id": h["cred_id"], "amc": aid, "project": pid, "milestone": key, "units": units, "buyer": str(me["vault"]),
             "token": str(me["token_account"]), "delegate": str(rel), "tables": _tables(led, me["mint"], h)}
     return _intent("amc", h, prep, meta, {"what": f"commit to buy when '{m['name']}' is proven", "allowance_units": units,
-                                          "from": str(me["vault"]), "to_whom": "the maker, paid by the relayer from this allowance on proof",
+                                          "from": str(me["vault"]), "to_whom": "the maker, paid by the relayer from this allowance when the milestone check passes",
                                           "money": MONEY})
 
 

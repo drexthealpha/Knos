@@ -55,7 +55,7 @@ def _safe(fn, *a, **kw) -> dict:
     try:
         return fn(*a, **kw)
     except ImportError as why:
-        return {"recorded": False, "why": f"Sibyl is not installed ({why.name or why})"}
+        return {"recorded": False, "why": f"the Knos record's memory store is not installed ({why.name or why})"}
     except Exception as why:  # noqa: BLE001 - a refused or failed record never hides the report; it says so
         return {"recorded": False, "why": f"{type(why).__name__}: {str(why)[:200]}"}
 
@@ -192,13 +192,13 @@ def record_state(report_hash: str, store=None) -> dict:
     """The decision as the agent remembers it (Sibyl, WARM). Raises NotInRecord when Sibyl is absent or holds none."""
     rec = _record()
     if rec is None:
-        raise NotInRecord("the agent's memory (the Knos Record in Sibyl) is not available on this server")
+        raise NotInRecord("the agent's memory (the Knos Record) is not available on this server")
     try:
         got = rec.claim_state(claim_id(report_hash), root=root(), store=store) or {}
     except ImportError:
-        raise NotInRecord("Sibyl is not installed on this server: the agent has no memory here") from None
+        raise NotInRecord("the memory store is not installed on this server: the agent has no memory here") from None
     if got.get("report_hash") != report_hash:
-        raise NotInRecord("the agent's memory (Sibyl) holds no record of this report")
+        raise NotInRecord("the agent's memory holds no record of this report")
     return got
 
 
@@ -224,7 +224,7 @@ def record_release(report_hash: str, order: str, signatures: list, evidence_sha2
     def go():
         cid, r = claim_id(report_hash), root()
         prev = record_state(report_hash, store)
-        cold = rec.append("payout", {"report_hash": report_hash, "what": "pre-order released to the maker on proof", "order": order, "signatures": signatures, "evidence_sha256": evidence_sha256,
+        cold = rec.append("payout", {"report_hash": report_hash, "what": "pre-order released to the maker after the milestone check passed", "order": order, "signatures": signatures, "evidence_sha256": evidence_sha256,
                                       "cluster": "devnet"}, claim=cid, domain=DOMAIN, root=r, store=store)
         state = {k: v for k, v in prev.items() if not k.startswith("_")}
         state["released"] = [*state.get("released", []), order]

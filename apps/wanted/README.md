@@ -1,8 +1,9 @@
 # Knos: proven research, funded products (apps/wanted/)
 
-Knos turns any research into a product billions of people use, in days, not years.
+The demand check of Knos: see who would buy a research product first, from Qloo taste data. The same Knos proves
+research claims with agents on NEAR testnet ([the front door](https://drexthealpha.github.io/Knos/)).
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos turns any research into a product billions of people use, in days, not years. No customers yet.
 
 **Live:** https://knos.onrender.com/app/. It runs on a free instance that sleeps, so the first visit can take a minute.
 Phone or desktop, nothing to install. **License:** MIT ([LICENSE](LICENSE)).
@@ -10,8 +11,8 @@ Phone or desktop, nothing to install. **License:** MIT ([LICENSE](LICENSE)).
 Landmark research often never becomes a product: "the overall failure rate of drugs that passed into phase 1 trials to
 final approval is 90%" ([Errington, J Clin Invest 2024](https://www.jci.org/articles/view/177383)). Regulatory T cells were
 described in 1995 and earned the 2025 Nobel award in medicine, and "Several of these treatments are now undergoing
-clinical trials" (the Nobel Assembly's 2025 press release, [nobelprize.org](https://www.nobelprize.org/)). Knos takes such a result to a product
-people pre-order, with the money held by the program and paid to the maker only on proof.
+clinical trials" (the Nobel Assembly's 2025 press release, [nobelprize.org](https://www.nobelprize.org/prizes/medicine/2025/press-release/)). Knos takes such a result to a product
+people pre-order, with the test money held by the program and released to the maker when the milestone check passes.
 
 **Directional demand evidence, not a sales forecast.** Every Qloo result describes
 aggregate taste, not a prediction about one person.
@@ -42,7 +43,8 @@ One app at `/app/`, with a step for each person in the crossing.
    it, and two of three referee keys release the hold on devnet. A second release of the same order is refused by the
    chain: the order account is closed.
 
-Everything runs on Solana devnet with test units: no real money.
+Everything here runs on Solana devnet with test units: no real money. This app is one part of Knos, which also runs
+proofs of research claims on NEAR testnet (testnet tokens only).
 
 ## How Qloo is used (each call sets something)
 
@@ -51,7 +53,7 @@ Everything runs on Solana devnet with test units: no real money.
 | closest products, leader | `/search` (+ `/entities`) | the relevance gate and the market leader |
 | the idea's tastes | `/v2/tags` with `feature.semantic_search` on the product phrase | taste tags (shown) |
 | who | `/v2/insights` `urn:demographics` | WHO: the age and gender to target; checks a named audience |
-| audience and price | `/v2/insights` `urn:audience` (top 20) | the audience gate and strength; the PRICE TIER from spending-habit segments (Gourmand Fine Dining, Boutique Hotels, ... vs Discount Shoppers) |
+| audience and price | `/v2/audiences` (50 a page) + `/v2/insights` `signal.demographics.audiences` (4 segments scored) | the audience gate and strength; the PRICE TIER from spending-habit segments (Gourmand Fine Dining, Boutique Hotels, ... vs Discount Shoppers) |
 | named buyer group | `/v2/audiences` | confirms (x1.2) or refutes (x0.6) the group named after "for" |
 | where | `/v2/insights` `urn:entity:destination` (explainability on), `urn:entity:place`, `urn:heatmap` | WHERE: the launch cities, named places, map hot spots |
 | adjacent demand, brand ladder | `/v2/insights` with `filter.type` = the idea's kind (explainability on) | target x1.2 / x0.8 |
@@ -61,15 +63,15 @@ Everything runs on Solana devnet with test units: no real money.
 Rules and thresholds: [docs/reference/DEMAND_CHECK.md](../../docs/reference/DEMAND_CHECK.md). Without a Qloo key the
 answer is "cannot decide: no Qloo evidence", and pre-orders never open.
 
-Sibyl is the agent's **working memory**. Before a crossing the agent recalls what it learned about the same paper,
+The Knos record's memory store is the agent's **working memory**. Before a crossing the agent recalls what it learned about the same paper,
 such as the product phrase it settled on and the last decision. After the crossing it remembers this one. Memory never
 moves or blocks money; the hold rules live in knos_pay on chain.
 
 ## For other agents: MCP over HTTP
 
 `POST /mcp` speaks JSON-RPC (Streamable HTTP; `initialize`, `tools/list`, `tools/call`), and callers need no key. Its
-tools are `knos_cross` (paper id -> every step and the decision), `knos_research_card` and `knos_demand_check`. This is
-an optional door; the product is the web page.
+tools start with `knos_cross` (paper id -> every step and the decision) and `knos_demand_check`; `tools/list` gives the
+full set, including the NEAR job and IRIS proof tools. This is an optional door; the product is the web page.
 
 ## Run it
 
@@ -85,7 +87,8 @@ Docker: `docker build -f apps/wanted/Dockerfile -t knos .` (python:3.12-slim). `
 | Variable | What |
 |---|---|
 | `QLOO_API_KEY`, `QLOO_BASE_URL`, `QLOO_MONTHLY_BUDGET` | Qloo, server side only (4 calls/s, monthly cap; the cache rule is under "Qloo data and personal data") |
-| `KNOS_WANTED_DEVNET_KEYPAIR`, `KNOS_WANTED_REFEREE_KEYS`, `KNOS_WANTED_MAKER_WALLET`, `KNOS_WANTED_MINT` | devnet hold: relayer (fees, rents) and test-mint authority (the faucet), 3 referee keys (one server: not an independent panel), payee, test mint |
+| `KNOS_WANTED_DEVNET_KEYPAIR`, `KNOS_WANTED_REFEREE_KEYS`, `KNOS_WANTED_MAKER_WALLET`, `KNOS_WANTED_MINT` | devnet hold: relayer (fees, rents) and test-mint authority (the faucet), legacy 3 referee keys on one server, used only when `KNOS_REFEREE_FROST_SHARE` is unset, payee, test mint |
+| `KNOS_REFEREE_FROST_SHARE` | this host's share of the FROST 2-of-3 referee group across three hosts (`knos_wanted.referee`) |
 | `GOOGLE_CLIENT_ID` | Google sign-in (shown only when set) |
 | `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `ORCID_BASE` | ORCID sign-in (OAuth code flow; `ORCID_BASE=https://sandbox.orcid.org` for the sandbox) |
 | `RESEND_API_KEY`, `KNOS_WANTED_EMAIL_FROM` | email magic links; without them, an email is only a display label |
@@ -107,7 +110,8 @@ Docker: `docker build -f apps/wanted/Dockerfile -t knos .` (python:3.12-slim). `
   the server (its ten tools answer at /mcp as `qloo_*`; REST carries the decision, labelled); launch cities scoped to
   the market; taste persona, brand ladder, venue price levels, audience signals, explainability shown at their steps;
   x402 pays for a report per use on devnet; receipts show measured finality and the verifier; the record root anchors
-  on devnet; Sibyl is the agents shared working memory (plan, reference shelf, conflict refusal, FTS search).
+  on devnet; the record's memory store is the agents' shared working memory (plan, reference shelf, conflict refusal,
+  FTS search).
 
 ## The older confirm-each-match flow (MCP sidecar, optional)
 
@@ -134,7 +138,7 @@ open pre-orders.
 
 ## What is Qloo-powered
 
-Qloo is reached only from the server, only through Qloo's canonical local MCP server `qloo mcp`
+Qloo is reached only from the server. In this older flow it goes through Qloo's canonical local MCP server `qloo mcp`
 (@qloo/qloo-harness), started by `bridge/qloo_bridge.mjs` with the official MCP SDK exactly as Qloo's starter
 `starter/mcp-client/backend.mjs` does. Nine workflows, each where it answers a question of the product:
 
@@ -167,7 +171,7 @@ Two or more points: "leans wanted". 0 or 1: "mixed". Below 0: "weak". Fewer than
 ## Record and money
 
 - Every demand report: a WARM claim `demand:<report hash>` and a COLD `experiment` event in the Knos Record
-  (`knos.record`, Sibyl). Every pre-order: a COLD `funding` event and the claim's new state. After each pre-order
+  (`knos.record`). Every pre-order: a COLD `funding` event and the claim's new state. After each pre-order
   the unanchored lines are anchored on Solana devnet (`knos.record.anchor`, signed by the app's devnet test wallet);
   `python -m knos_wanted anchor` does it on demand. The record holds hashes, statuses, tool names, addresses and
   amounts: never the idea text (only its sha256), never a buyer's tastes, never a Qloo result.
@@ -214,7 +218,8 @@ PYTHONPATH=src:apps/wanted python -m pytest -q apps/wanted/tests
 
 `tests/test_bridge.py` drives the real Node bridge and SDK against the MOCK server as a separate process; it is
 skipped, with the reason, where Node or the SDK is not installed. Knos's own suite runs these too
-(`tests/test_fold_wanted.py`).
+(`tests/test_fold_wanted.py`). The Record tests need `sibyl-memory-client` (below 0.9); without it
+`tests/test_research_record.py` skips and a few Record tests fail.
 
 ## License
 

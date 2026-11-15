@@ -107,7 +107,7 @@ function agents(p) {
   return `<ul class="list small" id="agents-strip" aria-label="Who is working on this">
     <li><strong>Researcher</strong>: <a href="/api/project/prompt?project=${esc(p.id)}&milestone=${esc(m.key)}" rel="noopener">what an agent on "${esc(m.name)}" is handed</a></li>
     <li><strong>Referee</strong>: ${a ? `attempt ${esc(a.id)}, ${esc(a.status)}` : "waiting for an attempt"}</li>
-    <li><strong>Funder</strong>: ${m.locked_units} test units held; paid only on a result and an independent check</li></ul>`;
+    <li><strong>Funder</strong>: ${m.locked_units} test units held; released only after a result and an independent check</li></ul>`;
 }
 const KEPT = {};          // "project:milestone index" -> the milestone's last answer, kept across loadProject's redraw
 // every decision on the project in plain words, newest first: each brief version (Ready or not, and why), and each
@@ -126,7 +126,7 @@ async function loadProject(id) {
   const p = V.project = await api("/api/project?id=" + id);
   $("projHead").innerHTML = `<p class="small"><a href="#projects">← All projects</a></p><h2>${esc(p.title)}</h2>
     <p class="small muted">${esc(p.template_name)} · opened by ${esc(p.owner_label || "a signed-in user")}${p.team ? " for " + esc(p.team) : ""} · ${esc(p.money)}</p>
-    <p class="small">Each milestone's money is held on its own. It pays on a result plus an independent check. A missed deadline refunds and reopens it.</p>
+    <p class="small">Each milestone's money is held on its own and released after a result plus an independent check. A missed deadline refunds and reopens it.</p>
     <div class="row"><button type="button" class="quiet" id="refBtn">Get my referral link</button>
       <a class="button ghost small" href="/api/company/export?project=${p.id}&format=journal">Ledger CSV</a></div><p id="refOut" class="small"></p>
     ${readyLine(p)}${groundingLine(p)}${creditsLine(p)}${changesBlock(p)}${agents(p)}${decisions(p)}
@@ -208,7 +208,7 @@ function msCard(p, m, i) {
     ${m.game ? `<p class="small">Code-scored: attempts also run as a <a href="#contribute">knos.game round</a>.</p>` : ""}
     ${m.status === "released" ? "" : `<details><summary>Fund or commit</summary>
       <label for="u${i}">Test units</label><input id="u${i}" type="number" min="5" max="1000" value="10" inputmode="numeric">
-      <label for="k${i}">As</label><select id="k${i}" class="field"><option value="funder">a funder (held now)</option><option value="grant">a grant (held now, labelled)</option><option value="amc">a buyer commitment (pays only when it verifies)</option></select>
+      <label for="k${i}">As</label><select id="k${i}" class="field"><option value="funder">a funder (held now)</option><option value="grant">a grant (held now, labelled)</option><option value="amc">a buyer commitment (released only when it verifies)</option></select>
       <label class="small"><input type="checkbox" id="pv${i}"> Keep the amount private (encrypted, proven on devnet)</label>
       <div id="g${i}" hidden><label for="ga${i}">Grant agency</label><input id="ga${i}" maxlength="120"><label for="gi${i}">Grant id</label><input id="gi${i}" maxlength="120"></div>
       <button type="button" id="f${i}" ${p.ready && p.ready.ready && p.status !== "cancelled" ? "" : "disabled"}>Approve with my passkey</button><p class="small muted">${p.ready && p.ready.ready ? "Test units. Refunds go back to your passkey wallet." : "Locked until the brief is Ready to fund."}</p>${p.ready && p.ready.ready && p.status !== "cancelled"
@@ -238,13 +238,13 @@ function wire(p, m, i) {
     if (k.value === "amc") {
       const a = await KnosPasskey.approve(await api("/api/project/amc", { passkey: true, project: p.id, milestone: m.key, units }), api);
       const sig = (a.signatures || {}).approve;
-      out(`Committed ${esc(a.units)} test units: paid to the maker only when it verifies.${sig ? ` <a href="${X(sig)}" rel="noopener">Allowance on devnet</a>.` : ""}`);
+      out(`Committed ${esc(a.units)} test units: released to the maker only when it verifies.${sig ? ` <a href="${X(sig)}" rel="noopener">Allowance on devnet</a>.` : ""}`);
     } else {
       const grant = k.value === "grant" ? { agency: $("ga" + i).value, id: $("gi" + i).value } : undefined;
       const priv = $("pv" + i) && $("pv" + i).checked;
       const f = await KnosPasskey.approve(await api("/api/project/fund", { passkey: true, project: p.id, milestone: m.key, units, kind: k.value, grant, ref: ref(), private: priv }), api);
       const sig = (f.signatures || {}).lock;
-      out(`Held until the proof passes.${sig ? ` <a href="${X(sig)}" rel="noopener">On devnet</a>.` : ""} <span id="fin${i}">Waiting for finality…</span> <span id="pz${i}"></span>`);
+      out(`Held until the milestone check passes.${sig ? ` <a href="${X(sig)}" rel="noopener">On devnet</a>.` : ""} <span id="fin${i}">Waiting for finality…</span> <span id="pz${i}"></span>`);
       if (priv && window.Knos && Knos.privatePledge) {
         $("pz" + i).textContent = "Encrypting the amount and proving it…";
         Knos.privatePledge(f.order, units, api).then((r) => { const e = $("pz" + i), z = (r.receipt || {}).private || {};

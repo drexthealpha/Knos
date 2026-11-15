@@ -94,10 +94,10 @@ html.k-revealing
 <div class="k-askbox">
 <form class="k-ask" id="k-ask" autocomplete="off" role="search" aria-label="Check demand" toolname="check_demand" tooldescription="Checks whether people want a product idea or a paper's invention, using Qloo taste data, and returns a verdict, the top launch places and the Qloo calls behind it." toolautosubmit>
 <input id="k-q" name="q" type="text" toolparamdescription="The product idea in plain words, or a DOI/arXiv id" aria-label="What should be built?" maxlength="500" placeholder="What should be built?" enterkeyhint="go" spellcheck="false">
-<button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><svg class="k-i" aria-hidden="true"><use href="{ICONS}#send"/></svg><span data-label>Post a job →</span></button>
+<button id="k-go" type="submit"><span class="k-spin" aria-hidden="true"></span><svg class="k-i" aria-hidden="true"><use href="{ICONS}#send"/></svg><span data-label>Check demand →</span></button>
 <i class="k-load" aria-hidden="true"></i>
 </form>
-<p class="k-sub" id="k-sub">$0 of test money unless a helper's work passes your check</p>
+<p class="k-sub" id="k-sub">Type an idea or a paper's DOI. Qloo taste data shows who would buy it, and where. <a href="{SP}">What Knos is</a></p>
 <script src="{POINTER}" defer></script>
 <p class="k-live" id="k-live"><span data-said role="status" aria-live="polite"></span> <span data-count></span> <span data-t aria-hidden="true"></span></p>
 <ol class="k-flow" id="k-flow" data-not-prose aria-label="Qloo calls as they finish" hidden></ol>
@@ -114,7 +114,7 @@ html.k-revealing
 <div class="k-rest">
 <details class="k-samples" id="k-samples" open><summary class="k-add">Try a sample</summary>
 <p class="k-fine">Tap a sample to check who would buy it:</p>
-<div class="k-try" role="group" aria-label="Examples: housing, food, energy, health, across technologies">
+<div class="k-try" role="group" aria-label="Sample ideas">
 <button type="button" class="k-chip" data-tech="energy" data-need="energy" data-q="a solar powered music festival">Solar festival</button>
 <button type="button" class="k-chip" data-tech="ai" data-need="food" data-q="an AI recipe planner for families">AI recipes</button>
 <button type="button" class="k-chip" data-tech="web3" data-q="a crypto podcast for beginners">Crypto podcast</button>
@@ -123,11 +123,11 @@ html.k-revealing
 <button type="button" class="k-chip" data-tech="materials" data-q="a recycled ocean plastic swimwear brand">Ocean swimwear</button>
 <span class="k-fine" data-more-chips data-needs="housing health" hidden></span></div>
 </details>
-<figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From demand to paid on proof: Demand, Ready brief, Money held, Paid on proof">
+<figure class="k-shape" id="k-shape" tabindex="0" data-not-prose aria-label="From a demand check to a release: Demand checked, Money held, Check passes, Released">
 <svg viewBox="0 0 600 100" aria-hidden="true"><path data-shape d="M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
 <circle data-stop r="5" cx="12" cy="84"/><circle data-stop r="5" cx="200" cy="36"/><circle data-stop r="5" cx="400" cy="68"/><circle data-stop r="5" cx="588" cy="16"/>
 <circle data-dot r="7" fill="currentColor" style="offset-path:path('M12 84 C80 84 120 36 200 36 S320 68 400 68 S520 16 588 16');offset-distance:100%;offset-rotate:0deg"/></svg>
-<ol class="k-stops"><li>Test set</li><li>Money held</li><li>Check runs</li><li data-on>Paid</li></ol>
+<ol class="k-stops"><li>Demand checked</li><li>Money held</li><li>Check passes</li><li data-on>Released</li></ol>
 </figure>
 <script src="{SHAPE}" defer></script>
 </div>

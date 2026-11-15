@@ -8,7 +8,7 @@
 Rules this module keeps, all server side:
 - the key comes from the environment (QLOO_API_KEY) only; it travels in the request header, never in a URL, a log line,
   an error message, the cache or a report;
-- the base URL comes from QLOO_BASE_URL (the Dockerfile and README set Qloo's API server);
+- the base URL comes from QLOO_BASE_URL (set in the host's environment; no Qloo host is named in the repository);
 - answers are cached privately on the server's disk (KNOS_WANTED_CACHE/qloo-rest, one file per sha256 of method + path +
   sorted params, with no time limit), never in the repository (Qloo's rule: cache privately, never publish response bodies);
 - at most 4 calls per second across the whole process (a token bucket);
@@ -29,7 +29,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import qloo_guard, qloo_harness
+from . import __version__, qloo_guard, qloo_harness
 
 TTL_S = None                  # a 2xx answer: kept with no time limit (Qloo's guide: private server-side caching, no time limit)
 ERROR_TTL_S = 86_400          # a 4xx answer (Qloo refused the question) is remembered for a day
@@ -38,7 +38,7 @@ RATE_PER_S = 4.0
 DEFAULT_BUDGET = 9_000
 TIMEOUT_S = 45.0
 MAX_BYTES = 4_000_000
-HEATMAP_KEEP = 50          # a heatmap answer's points kept: the app reads at most 8, Qloo sends thousands (6,999 seen)
+HEATMAP_KEEP = 50          # a heatmap answer's points kept: the check reads 50 (check.HEAT_CELLS) for the launch city, Qloo sends thousands (6,999 seen)
 LIVE_LABEL = "LIVE Qloo data (Qloo REST API, read for this report, cached privately on the server)"
 
 
@@ -538,7 +538,7 @@ class Client:
             return {"body": hb, "source": {**src, "surface": qloo_harness.SURFACE, "cached": False,
                                            "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.clock()))}}
         src["surface"] = "REST API"
-        headers = {"x-api-key": self._key, "Accept": "application/json", "User-Agent": "knos-demand-check/0.3.34"}
+        headers = {"x-api-key": self._key, "Accept": "application/json", "User-Agent": f"knos-demand-check/{__version__}"}
         if method == "POST":
             req = urllib.request.Request(self.base + path, data=json.dumps(params).encode(), method="POST",
                                          headers={**headers, "Content-Type": "application/json"})

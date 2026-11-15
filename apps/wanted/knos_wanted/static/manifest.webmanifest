@@ -1,8 +1,8 @@
 {
  "name": "Knos",
  "short_name": "Knos",
- "description": "Back research that becomes real products: money is held until the proof passes, makers are paid only on proof (Solana devnet test units).",
- "start_url": "/",
+ "description": "Knos: see who would buy a research product first, then hold test money until each milestone check passes (Solana devnet).",
+ "start_url": "/app/",
  "scope": "/",
  "display": "standalone",
  "background_color": "#f6f4ef",
@@ -11,8 +11,8 @@
            {"src": "/static/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
            {"src": "/static/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
  "shortcuts": [
-  {"name": "Write a brief", "url": "/#projects", "description": "Ready to fund: check a brief before any money locks"},
-  {"name": "Back a product", "url": "/#buy"},
-  {"name": "My wallet", "url": "/#wallet"}
+  {"name": "Write a brief", "url": "/app/#projects", "description": "Ready to fund: check a brief before any money locks"},
+  {"name": "Back a product", "url": "/app/#buy"},
+  {"name": "My wallet", "url": "/app/#wallet"}
  ]
 }

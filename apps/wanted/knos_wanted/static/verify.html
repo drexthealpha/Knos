@@ -18,9 +18,9 @@
   <a class="brand" href="/app/#home" aria-label="Knos home"><span class="wordmark" aria-hidden="true"></span><span class="name">Knos</span></a>
   <nav id="nav" aria-label="Knos">
     <a href="https://drexthealpha.github.io/Knos/" data-nav="home">Home</a>
-    <a href="https://drexthealpha.github.io/Knos/near/" data-nav="near">NEAR app</a>
-    <a href="https://drexthealpha.github.io/Knos/iris/" data-nav="iris">IRIS</a>
-    <a href="https://drexthealpha.github.io/Knos/proof/" data-nav="proof" data-proof>Proof</a>
+    <a href="https://drexthealpha.github.io/Knos/prove/" data-nav="near">NEAR app</a>
+    <a href="https://drexthealpha.github.io/Knos/labs/" data-nav="iris">IRIS</a>
+    <a href="https://drexthealpha.github.io/Knos/claims/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
     <button id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
@@ -42,14 +42,14 @@
       Without a Qloo key the server answers "cannot decide" and nothing opens. A report is directional demand evidence, not a sales forecast;
       every Qloo figure is aggregate taste, not a prediction about one person.</p></details></div>
 
-  <div class="card"><h2>Money: held on Solana, released on proof</h2>
-    <p>Every payment is held in a knos_pay order until its milestone is proven.</p>
+  <div class="card"><h2>Money: held on Solana, released when the check passes</h2>
+    <p>Every payment is held in a knos_pay order until its milestone check passes.</p>
     <details><summary>Who can release it</summary>
       <p class="small">A release needs the referee group's signature, which the program checks on chain. The group is a FROST
       2-of-3 key: three separate hosts (this server, GitHub Actions, a third machine) each re-check the evidence; two must sign.
       A released or refunded order's account is closed, so the chain refuses a second release. Past the deadline anyone may
       send the refund. Fees: <a href="https://github.com/drexthealpha/Knos/blob/main/config/fees.yaml" rel="noopener">config/fees.yaml</a>,
-      taken only on money released on proof.</p>
+      taken only on money released after the check passes.</p>
       <p class="small muted">knos_pay test build <span class="mono">FaMHCjzyUexFncZrmNyFQNz3gBdsLbhTLke7QBFykJY4</span> (devnet). Every receipt links its transactions.</p></details></div>
 
   <div class="card"><h2>Evidence: one page, one pin</h2>
@@ -70,7 +70,7 @@
   <div class="card"><h2>Record: an append-only journal</h2>
     <p>Every decision, lock and release is written down, and its root anchored on devnet. <span id="anchor" class="small muted"></span></p>
     <details><summary>What memory can and cannot prove</summary>
-      <p class="small">The journal is hash-chained; its Merkle root is anchored in a Memo transaction. Sibyl is the agents'
+      <p class="small">The journal is hash-chained; its Merkle root is anchored in a Memo transaction. The agents' memory store is the
       working memory beside it: lexical search only, a 5 MiB free store, no tamper evidence and no sync, so the proofs stay
       on chain and in the journal.</p></details></div>
 

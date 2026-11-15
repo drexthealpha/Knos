@@ -1,6 +1,6 @@
 """Recorded infrastructure proofs: what was run for real outside this server (a kind cluster with the Helm chart, a
 self-hosted Keycloak test IdP through SAML Jackson, Odoo and ERPNext imports of the journal export, hledger), with where
-it ran, what it returned, and the commands to run it yourself. The record (data/proofs.record, JSON; not *.json: apps/wanted keeps no .json files) is signed
+it ran, what it returned, and the commands to run it yourself. The record (data/proofs.record, JSON; not *.json: apps/wanted keeps .json files only for its two data files) is signed
 with cosign (proofs.record.sigstore, a Sigstore bundle; key proofs.cosign.pub); GET /api/proofs serves it, the Teams page shows it."""
 from __future__ import annotations
 

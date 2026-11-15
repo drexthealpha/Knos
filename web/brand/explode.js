@@ -1,5 +1,5 @@
 // explode.js from Open 3D Skills (github.com/Moh4696/open-3d-skills, skills/exploded-view/assets/explode.js, commit 7b04ab4).
-// MIT License, Copyright (c) 2026 exploraX. Unchanged below this notice.
+// MIT License, Copyright (c) 2026 exploraX. Unchanged below this notice except the three.js import (line 18).
 // Exploded views for any three.js assembly: staged explode, x-ray, section cut, pinned labels
 // with leader lines, and hover/click picking.
 //
