@@ -99,7 +99,7 @@ def test_not_found_html():
     code, body, ctype, _ = af.not_found_html("/start/<script>")
     text = body.decode()
     assert code == 404 and ctype.startswith("text/html")
-    assert "<h1>This page moved</h1>" in text and "font-size:56px" in text
+    assert "<h1>There is no page here</h1>" in text and "font-size:56px" in text
     assert 'href="https://knos.onrender.com/app/"' in text and 'href="https://drexthealpha.github.io/Knos/"' in text
     assert "prefers-color-scheme:dark" in text and "<script" not in text.lower() and "<link" not in text
 

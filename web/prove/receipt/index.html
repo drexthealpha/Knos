@@ -238,17 +238,17 @@ document.getElementById("sig-check").addEventListener("click", () => {
 (async () => {
   const accounts = ["jobs.knos-swarm-1105.testnet", "market.knos-swarm-1105.testnet", "usdc-market.knos-swarm-1105.testnet",
     "agent-a2.knos-swarm-1105.testnet", "agent-b2.knos-swarm-1105.testnet", "live.knos-swarm-1105.testnet", "knos-payer-1102.testnet"];
-  const rows = [];
-  for (const a of accounts) {
+  // all seven read at once, each row in the accounts' order whatever answers first
+  const rows = await Promise.all(accounts.map(async (a) => {
     try {
       const r = await fetch("https://rpc.testnet.near.org", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_access_key_list", finality: "final", account_id: a } }) }).then((x) => x.json());
       const keys = (r.result && r.result.keys) || [];
       const say = keys.length ? keys.map((k) => k.access_key.permission === "FullAccess" ? "full access" :
         "function call on " + k.access_key.permission.FunctionCall.receiver_id + ": " + (k.access_key.permission.FunctionCall.method_names.join(", ") || "any method")).join("; ") : "no keys";
-      rows.push([a, say]);
-    } catch (e) { rows.push([a, "not read: " + e.message]); }
-  }
+      return [a, say];
+    } catch (e) { return [a, "not read: " + e.message]; }
+  }));
   const t = document.getElementById("key-table"); t.textContent = "";
   for (const [a, s] of rows) { const tr = t.insertRow(); tr.insertCell().textContent = a; tr.insertCell().textContent = s; }
 })();

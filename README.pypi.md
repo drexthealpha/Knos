@@ -23,7 +23,7 @@ Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
 <!-- entry:near -->
 ## From NEAR HACKATHON
 
-A visitor pastes a paper's link and asks Knos to check its claim. NEAR locks the claim's test by its sha256 in a jobs
+A visitor enters a paper's link and asks Knos to check its claim. NEAR locks the claim's test by its sha256 in a jobs
 contract before any agent starts, and refuses any agent step over its spending cap.
 
 The check runs with test money held with the job: the jobs contract sends 9 parts to the agent whose code passed the
@@ -43,13 +43,13 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
    uses test money only. To see every step and the receipt without running one, open
    [one finished check](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1114145004, 14 Nov), saved as the page showed it.
 3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
-   and why. Then see "Receipt for proof job-..." with "9.00 test USDC to the agent, 1.00 test USDC to Knos" and "The
+   and why. Then see "Receipt for proof job-..." with "9.00 to the agent whose code passed, 1.00 to Knos's test account" and "The
    jobs contract held it with the job", each transaction read from NEAR's RPC in your browser, with no explorer and no
    bot check ([the saved check's release](https://drexthealpha.github.io/Knos/tx/?h=CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH):
    "9.00 from jobs.knos-swarm-1105.testnet to agent-a2..." and "1.00 from jobs.knos-swarm-1105.testnet to knos-payer-1102.testnet").
    From a terminal, `curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction.
-   Press **Prove the same claim again** - see "Free: Yes".
+   After a live run (the saved page does not have it), press **Prove the same claim again** - see "Free: Yes".
 4. Optional, about 2 minutes more, from a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
    `py -3` where the commands say `python3`:
 
@@ -79,10 +79,10 @@ Each NEAR claim with its code, its test and its testnet transaction: [near/CLAIM
 
 | NEAR feature | In Knos | Where |
 |---|---|---|
-| Contracts | the jobs contract locks each test's sha256, holds the test money with the job and, after the checker's signed pass, sends 9 parts to the agent and keeps 1 part in 10 for Knos's account, in one transaction; after the deadline it refunds the account that put the money in ([one refund](https://drexthealpha.github.io/Knos/tx/?h=GdtVSaPqybHgAgDj7NkjymbAtwD3pQZ5vkeCVQKVxik9), [refused before its deadline](https://drexthealpha.github.io/Knos/tx/?h=6NeMksB6nBmaUMSNmbyYMxFdWRtwXDj6TncUWwrFN67q)); `get_totals` and `get_agent_record` count it all (a check with another amount than the default 10 test USDC is sent by the buyer test account through the claim market) | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
+| Contracts | the jobs contract locks each test's sha256, holds the test money with the job and, after the checker's signed pass, sends 9 parts to the agent and keeps 1 part in 10 for Knos's account, in one transaction; after the deadline it refunds the account that put the money in ([one refund](https://drexthealpha.github.io/Knos/tx/?h=GdtVSaPqybHgAgDj7NkjymbAtwD3pQZ5vkeCVQKVxik9), [refused before its deadline](https://drexthealpha.github.io/Knos/tx/?h=6NeMksB6nBmaUMSNmbyYMxFdWRtwXDj6TncUWwrFN67q)); `get_totals` and `get_agent_record` count it all (a check with another amount than the default 10 test USDC is sent by Knos's own test account that sends the test money, through the claim market) | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 | Agent spending rules | an agent's budget in the jobs contract refuses a spend over its cap, over its daily cap, to a payee off its allow-list, or while an owner has paused the contract, and holds a spend over its hold line until the approver releases it; each is on chain with the contract's own answer, and a solution the AI reviewer rejected for a hard-coded answer is recorded there too (`record_rejection` takes the payer's or an owner's word: it records what the reviewer said, it does not check it) | [the saved check](https://drexthealpha.github.io/Knos/prove/receipt/#rules), the receipt's "spending cap" step |
 | Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified, and before it pays the jobs contract recovers NEAR AI's signer with `ecrecover` and logs `model_verified` ([one release](https://drexthealpha.github.io/Knos/tx/?h=4a6KCPier4TtoSGbezHe2wLchx1dwhKSyfGmnJmS9BRD)); a check on agent A's fixed program logs "fixed rule, no model signature". The TEE attestation is checked off chain, by Knos's server; the contract checks only that the signer is one an owner added | `near/contract/src/jobs.rs`, `apps/wanted/knos_wanted/near_attest.py` |
-| Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set. The checker, the buyer test account and all 3 owner accounts are Knos's own | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
+| Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set. The checker, the test account that sends the test money and all 3 owner accounts are Knos's own | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
 | Chain Signatures | a separate payout path, not part of the check flow: `knos-pay-1103.testnet`'s `sign_payout` had NEAR's MPC signer sign a Solana devnet payout on 3 Nov ([tx 4eJPkBn5…](https://drexthealpha.github.io/Knos/tx/?h=4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR)) | [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md) |
 
 Keys, as NEAR testnet's `view_access_key_list` shows them: the jobs and claim market contracts hold none (deleted
@@ -90,7 +90,8 @@ Keys, as NEAR testnet's `view_access_key_list` shows them: the jobs and claim ma
 
 Agent-a, agent-b and agent-b2 hold keys allowed only
 `take`, `submit` and `spend`; agent-a2's one key may call any jobs method and has no full-access key to narrow it; the
-buyer test account live.knos-swarm-1105 and the fee account knos-payer-1102 hold full-access keys, to sign as the buyer.
+account live.knos-swarm-1105 (Knos's own test account that sends the test money) and the fee account knos-payer-1102 hold
+full-access keys, so Knos's server can sign from them.
 
 Tokens: checks settle in `knos-usdc-1102.testnet`, Knos's own test USDC; the claim markets of the wallet test use Circle's
 testnet USDC, which the jobs contract also takes (`get_totals` counts each token); no check has settled in it yet. NEAR

@@ -338,7 +338,36 @@ def totals() -> dict:
             _totals["out"] = {**json.loads((NEAR_WEB / "totals.json").read_text(encoding="utf-8")), "snapshot": True}
         except (OSError, ValueError):
             pass
-    return _totals.get("out") or {"pending": True, "record": RECORD, **({"why": _totals["error"]} if _totals.get("error") else {})}
+    out = _totals.get("out") or {"pending": True, "record": RECORD, **({"why": _totals["error"]} if _totals.get("error") else {})}
+    chain = since_upgrade()
+    return {**out, "since_upgrade": chain} if chain else out
+
+
+# The jobs contract's own count, one RPC read and never NearBlocks: get_totals (the test USDC of jobs opened since its
+# 14 Nov 2026 upgrade, paid out, refunded and still open) and get_agent_record of Knos's test agents (each pass is one
+# job paid to that agent: 9 parts to it, 1 part in 10 to Knos, in the same release). Kept a minute.
+AGENTS = ("agent-a.knos-swarm-1105.testnet", "agent-a2.knos-swarm-1105.testnet", "agent-b.knos-swarm-1105.testnet", "agent-b2.knos-swarm-1105.testnet")
+_chain: dict = {}
+
+
+def since_upgrade() -> dict | None:
+    if _chain.get("at") and time.time() - _chain["at"] < 60:
+        return _chain.get("out")
+    try:
+        if str(NEAR_SCRIPTS) not in sys.path:
+            sys.path.insert(0, str(NEAR_SCRIPTS))
+        from near_counters import view as rpc_view
+        t = (rpc_view(JOBS, "get_totals", {}) or {}).get(TOKEN) or {}
+        recs = {a: rpc_view(JOBS, "get_agent_record", {"agent": a}) or {} for a in AGENTS}
+        usd = lambda k: f"{int(t.get(k) or 0) / 1_000_000:.2f}"   # noqa: E731
+        _chain["out"] = {"from": "2026-11-14", "jobs_paid": sum(int(r.get("passes") or 0) for r in recs.values()),
+                         "paid_usd": usd("paid"), "refunded_usd": usd("refunded"), "open_usd": usd("open"), "conserved": bool(t.get("conserved")),
+                         "agents": {a: int(r.get("passes") or 0) for a, r in recs.items()}, "contract": JOBS,
+                         "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    except Exception as e:  # noqa: BLE001 - the last good read stays; none before the first
+        print("near_live since_upgrade:", str(e)[:160], file=sys.stderr, flush=True)
+    _chain["at"] = time.time()
+    return _chain.get("out")
 
 
 def _refresh() -> None:
@@ -360,7 +389,7 @@ def _totals_read() -> dict:
     try:
         rows = [t for t in _walk("/ft-txns")
                 if t.get("contract_account_id") == "knos-usdc-1102.testnet" and int(t.get("delta_amount") or 0) < 0
-                and str(t.get("involved_account_id", "")).startswith(("agent-a.", "agent-b."))]
+                and str(t.get("involved_account_id", "")).startswith(("agent-a.", "agent-a2.", "agent-b."))]   # agent A signs as agent-a2 since 12 Nov
         paid = [int(t["delta_amount"]) for t in rows]
         # one dot of the star map per paid job: its time and its transaction, nothing else
         dots = [{"t": int(int(t["block_timestamp"]) // 1_000_000_000), "tx": t.get("transaction_hash", "")} for t in rows]

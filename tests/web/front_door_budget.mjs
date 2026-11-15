@@ -34,6 +34,7 @@ const ANSWERS = {
         doi: SAMPLE, paper_number: "2% typical error, 1.5 kilobytes of memory", last: { holds: true, job: "job-1", record: "https://example.org/record" } }
     : { ok: true, known: false, title: "Another paper", quote: { checker: "a person who reruns it", price: "$330 to $763", time: "weeks", source: "https://example.org/" } }),
   "/api/near/claim/counters": () => ({ proofs: 231 }),
+  "/api/near/totals": () => ({ since_upgrade: { jobs_paid: 15, paid_usd: "140.00", from: "2026-11-14" } }),
 };
 const browser = await chromiumOrSkip();
 const server = createServer((req, res) => {
