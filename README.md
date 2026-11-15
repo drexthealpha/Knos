@@ -1,7 +1,11 @@
 # knos-workflows
 
+The old home of Knos's published workflows, frozen at Knos 0.3.28 (the Colosseum entry). Since the 0.3.34 branch Knos
+publishes them from drexthealpha/Knos tags `workflows-<sha12>`; this repository's files and history are also in Knos,
+under `repos/knos-workflows`.
+
 The workflows that [Knos](https://github.com/drexthealpha/Knos) bounties pin by commit. A comment funds an issue,
-and the pull request that closes it is paid from an escrow on Solana when GitHub itself signs the facts. A bounty on
+and the pull request that closes it is paid from money held on Solana when GitHub itself signs the facts. A bounty on
 chain names this repository and one commit of it: the commit its `fund.yml` ran at. Only `prove.yml` of this
 repository at that same commit can pay it.
 
@@ -20,11 +24,10 @@ The jobs that sign (`fund.yml`, `settle` and `attest` in `prove.yml`, and `attes
 named by its sha256, `uv pip install --require-hashes`: that list is written into the workflow and is also
 `requirements/sign.txt` here, so this commit names the hash of everything they install.
 
-The files to copy into your repository (`knos.yml`, and optionally `knos-check.yml`; for private repositories, `knos-attestor.yml` in one
-repository of the organisation) are in
-[drexthealpha/Knos/examples](https://github.com/drexthealpha/Knos/tree/main/examples). Their comments say what each
-trigger does and what the file can and cannot do in your repository.
+The caller files of Knos 0.3.28 that use this repository are in
+[drexthealpha/Knos/examples at tag v0.3.28](https://github.com/drexthealpha/Knos/tree/v0.3.28/examples). Their comments
+say what each trigger does and what the file can and cannot do in your repository.
 
-Nothing is edited here. These files are copied from `.github/workflows/` in drexthealpha/Knos at a release, where they
-are tested. In a checkout of that repository, `python scripts/pinned_workflows.py check <a checkout of this one>`
+Nothing is edited here. These files were copied from `.github/workflows/` in drexthealpha/Knos at release 0.3.28, where they
+were tested. In a checkout of that repository, `python scripts/pinned_workflows.py check <a checkout of this one>`
 shows that this copy is the same, byte for byte.
