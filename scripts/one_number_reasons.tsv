@@ -1,4 +1,5 @@
 # path regex<TAB>line regex<TAB>reason: scripts/one_number.sh lists every hit with the first reason that matches
+^repos/	.	the side repositories as they were, with their history (git subtree): dated history, never rewritten
 ^CHANGELOG\.md$	.	dated release history
 ^docs/index\.atom$	.	the dated release feed; its 2.5% is the low end of a 95% interval
 ^examples/self/journal\.jsonl$	.	an append-only hashed journal of past verdicts: a rewrite breaks its hash chain
