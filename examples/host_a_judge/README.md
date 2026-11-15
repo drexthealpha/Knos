@@ -1,6 +1,8 @@
 # Host a referee
 
-Knos turns any research into a product billions of people use, in days, not years.
+Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs on NEAR testnet.
+
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 

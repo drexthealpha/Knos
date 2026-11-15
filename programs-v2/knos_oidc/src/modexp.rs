@@ -21,7 +21,7 @@ use crate::rsa as w;
 #[cfg(not(any(knos_wide, not(target_os = "solana"))))]
 type Limb = u32;
 
-/// Which arithmetic this build runs: "u64" (sBPF v2+ and native) or "u32".
+/// The limb width of this build: 64 (sBPF v2+ and native) or 32.
 pub const LIMB_BITS: u32 = Limb::BITS;
 
 pub struct Pow { n: Vec<Limb>, n0: Limb, s: Vec<Limb>, x: Vec<Limb>, y: Vec<Limb>, t: Vec<Limb> }

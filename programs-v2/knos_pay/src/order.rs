@@ -13,7 +13,7 @@ pub const OPTS_LEN: usize = 48;
 /// in its two high bits QUORUM 2 or 3; the program sets FAUCET and TOKEN2022 itself), holdback_bps u16 @1, warranty_days u16 @3, kill_bps u16 @5,
 /// reserve_days u8 @7, rate u64 @8, arbiter_id u64 @16, judge_repo_id u64 @24, salted u8 @32 (1: a private order,
 /// whose 32-byte scope follows in the instruction data), grace u8 @33 (1: the order has the PRESENTATION GRACE, `GRACE`
-/// in lib.rs: the funder's choice, because it delays his refund by that long), 14 zero bytes.
+/// in lib.rs: the funder's choice, because it delays his refund by that long), a zero byte, judge u8 @35, 12 zero bytes.
 /// 0.3.34: byte 35 is the order's JUDGE when it is not a forge (order_proof.rs): 1 a container image (ATTESTED), 2 a
 /// referee panel (PANEL); 0 for every forge order. A judged order takes no other option but the grace.
 pub struct Opts {

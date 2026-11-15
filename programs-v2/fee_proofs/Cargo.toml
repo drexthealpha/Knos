@@ -1,4 +1,4 @@
-# The bounds of an order's fee, proved apart from the program: build.rs copies `order_fee`, `bps_of`, `units` and the
+# The bounds of an order's fee, proved apart from the program: build.rs copies `order_fee`, `fee_of`, `bps_of`, `units` and the
 # fee constants out of ../knos_pay/src (lib.rs and state.rs) as text, so what is proved here is the program's own
 # lines and this crate needs none of the program's dependencies. Nothing here is in any build of a program.
 #

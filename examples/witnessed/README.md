@@ -1,6 +1,8 @@
 # One transaction, witnessed by you
 
-Knos turns any research into a product billions of people use, in days, not years.
+Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs on NEAR testnet.
+
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
@@ -14,4 +16,4 @@ Test USDC, no monetary value. You need a GitHub account, `gh` logged in, `git`, 
 4. It makes the buyer's and the supplier's statements, each with the paid line, and checks they have one hash. The
    line's "settled" step is filled in from the transaction that paid (`knos statement settle-sync`).
 5. It checks the archive with the verifier inside it, which needs no Knos, then commits `witness.json`.
-6. A failed step says why; `--from STEP` goes on; `--timeout S` gives one command longer (default 600 s). File `witness.json` for the playground's `witness` task (tasks/outside/witness.json).
+6. A failed step says why; `--from STEP` goes on; `--timeout S` gives one command longer (default 600 s). File `witness.json` for the `witness` task (`KINDS["witness"]` in src/knos/tasks.py).

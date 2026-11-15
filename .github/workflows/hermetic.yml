@@ -12,7 +12,7 @@ name: hermetic judge
 # --escape on a copy of docs/reference/TAMPER.md).
 #
 # It runs in drexthealpha/Knos itself (since 0.3.34: one repository; before, only in the staging copy
-# drexthealpha/knos-rc, which the guard below still names until that repository is deleted), on a push to main or by
+# drexthealpha/knos-rc), on a push to main or by
 # hand (Actions > hermetic judge > Run workflow, on any branch); in a fork it is skipped. tests.yml is the release gate
 # and runs every job it has, with no condition (tests/test_release_gate.py), so this job, which pulls an image from
 # Docker Hub, is a workflow of its own.
@@ -29,7 +29,7 @@ permissions: {}
 
 jobs:
   container:
-    if: github.repository == 'drexthealpha/Knos' || github.repository == 'drexthealpha/knos-rc'
+    if: github.repository == 'drexthealpha/Knos'
     runs-on: ubuntu-24.04      # a named image, as the published workflows name it; never a label that moves
     timeout-minutes: 20
     permissions:

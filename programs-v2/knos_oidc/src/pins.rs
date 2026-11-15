@@ -15,7 +15,7 @@
 //! accepts that token, verified against a key it already has, only when GitHub also signed that the run happened in
 //! one of the attester's own repositories (ATTEST_OWNER_ID, ATTEST_REPO_IDS: the first deployment took the token
 //! from any repository that called the workflow) and was started by the schedule or by hand. A key admitted this
-//! way waits KEY_DELAY and needs the guardian's approval before it verifies anything.
+//! way waits KEY_DELAY and needs the key admin's approval (KEY_ADMIN) before it verifies anything.
 //!
 //! Refresh also takes a run of the same pinned workflow started by hand by anyone in a repository of their own
 //! (ANYONE_EVENT): the system does not depend on one account's schedule to stay alive. RegisterKey does not.
@@ -24,7 +24,7 @@
 //! issuer has retired stops being named by the rotate workflow and expires KEY_TTL later.
 //!
 //! KEY_ADMIN (the upgrade multisig's vault, behind its 8-day time lock) approves an attested key and revokes any key,
-//! and nothing else: see lib.rs. The guardian keeps only knos_pay's Pause, a brake that never waits (KEYS.md, step 4).
+//! and nothing else: see lib.rs. The guardian keeps only knos_pay's Pause, a brake that never waits (docs/reference/GOVERNANCE.md).
 use solana_program::{pubkey, pubkey::Pubkey};
 
 pub const ISSUER_GITHUB: u8 = 0;
@@ -93,7 +93,7 @@ pub const ATTEST_EVENTS: [&[u8]; 2] = [b"schedule", b"workflow_dispatch"];
 pub const ANYONE_EVENT: &[u8] = b"workflow_dispatch";
 
 /// A key admitted by an attestation verifies nothing for this long: time for anyone to see it on chain and for
-/// the guardian to look at it.
+/// the key admin (KEY_ADMIN) to look at it.
 pub const KEY_DELAY: i64 = 86_400;
 /// A key expires this long after it was last attested (RegisterKey, Refresh).
 pub const KEY_TTL: i64 = 30 * 86_400;

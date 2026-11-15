@@ -4,7 +4,7 @@ version = "0.3.14"
 edition = "2021"
 rust-version = "1.84"
 license = "MIT"
-description = "Pay on proof: money held until it pays a pull request's author on a GitHub-signed token verified by knos-oidc."
+description = "Knos payment program: money held until a GitHub-signed token verified by knos-oidc proves a pull request, then paid to its author."
 
 [lib]
 crate-type = ["cdylib", "lib"]

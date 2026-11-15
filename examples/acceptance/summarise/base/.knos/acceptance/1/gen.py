@@ -1,7 +1,7 @@
 """Incident reports for the summarise task, and the reference summary each one is made from.
 
-A report is built from three facts (the service, how long it was down, why, and what fixed it) told in one of three
-shapes each, among sentences that are not part of the summary. The reference is written from the facts, so there is
+A report is built from four facts (the service, how long it was down, why, and what fixed it) told in three
+sentences, one of three shapes each, among sentences that are not part of the summary. The reference is written from the facts, so there is
 no summariser here to copy."""
 import random
 

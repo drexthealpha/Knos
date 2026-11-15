@@ -2,7 +2,7 @@
 request's code: "$KNOS_RUN python3 summarise.py" runs it inside the sandbox, a report goes in on stdin and a summary
 comes out on stdout. The score is unigram F1 against the reference summary (below: plain counting, no network).
 
-Twenty reports: six the buyer kept back (held_out.json) and fourteen drawn fresh on every run. To be paid, a submission
+Twenty reports: six the buyer kept back (held_out.json) and fourteen drawn fresh on every run. To pass, a submission
 must reach a mean F1 of at least MEAN, and at least SHARE of the reports must reach FLOOR on their own."""
 import json
 import os

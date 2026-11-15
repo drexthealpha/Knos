@@ -31,7 +31,7 @@
 //!   header as an RSA key's (state 1, issuer, EC_MARK, bump, 4 zero bytes, active_at i64, expires_at i64, flags u8,
 //!   15 zero bytes), then the key [33], then sha256 of the issuer's URL [32], then the registrant of a private key
 //!   [32] (zero for an attested key).
-//! The delay, the guardian's approval, the expiry, Refresh and revocation are those of lib.rs and pins.rs.
+//! The delay, the key admin's approval, the expiry, Refresh and revocation are those of lib.rs and pins.rs.
 //!
 //! INSTRUCTIONS (the first byte is the tag; (s) signs, (w) is writable).
 //!   10 RegisterEs256Key         payer(s,w) key(w) iss(w) system attest attest_key
@@ -44,8 +44,8 @@
 //!        RegisterPrivateKey's rule: ["epkey", registrant, sha256(url), sha256(key)], ISSUER_PRIVATE, F_PRIVATE,
 //!        usable at once until now + KEY_TTL; sent again by the same wallet it moves the expiry.
 //!   12 RefreshEs256             payer(s) key(w) attest attest_key    Refresh's rule, for an attested P-256 key.
-//!   13 ApproveEs256             guardian(s) key(w)                   Approve's rule.
-//!   14 RevokeEs256              guardian(s) key(w)                   Revoke's rule (the registrant, for a private key).
+//!   13 ApproveEs256             key_admin(s) key(w)                   Approve's rule.
+//!   14 RevokeEs256              key_admin(s) key(w)                   Revoke's rule (the registrant, for a private key).
 //!   15 VerifyEs256              payer(s,w) token(w) key system instructions      no data
 //!        The instruction before this one is the precompile, as above. Refuses a key that is not usable now, a
 //!        header whose `alg` is not "ES256", a header or payload that is not one strict JSON object (strict.rs), an
@@ -195,7 +195,7 @@ fn register(program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) -> Progr
         d[ISS_HDR..].copy_from_slice(url);
     }
     super::create_pda(payer, key, sys, program_id, EC_ACCOUNT, &[b"eckey", &ih, &kh, &[bump]])?;
-    // it waits, and needs the guardian's approval, as every key GitHub's signature admits
+    // it waits, and needs the key admin's approval, as every key GitHub's signature admits
     new_key(&mut key.try_borrow_mut_data()?, pins::ISSUER_OTHER, bump, 0, now.saturating_add(pins::KEY_DELAY), pk, &ih);
     Ok(())
 }
@@ -255,7 +255,7 @@ fn approve(program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) -> Progra
     ec_account(program_id, key)?;
     let mut d = key.try_borrow_mut_data()?;
     if d[K_FLAGS] & F_REVOKED != 0 { return Err(err(E_REVOKED)); }
-    // a private key stays what it is: the guardian's approval is a statement about a key GitHub named
+    // a private key stays what it is: the key admin's approval is a statement about a key GitHub named
     if d[K_FLAGS] & F_PRIVATE != 0 { return Err(err(E_KEY)); }
     d[K_FLAGS] |= F_APPROVED;
     Ok(())
@@ -267,7 +267,7 @@ fn revoke(program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) -> Program
     if !guardian.is_signer { return Err(err(E_GUARDIAN)); }
     ec_account(program_id, key).map_err(|_| err(E_GUARDIAN))?;
     let mut d = key.try_borrow_mut_data()?;
-    // the guardian, for any key; or the wallet that registered a private key, for that key
+    // the key admin, for any key; or the wallet that registered a private key, for that key
     let registrant = d[K_FLAGS] & F_PRIVATE != 0 && d[K_ISSUER] == pins::ISSUER_PRIVATE && d[EC_REGISTRANT..] == guardian.key.as_ref()[..];
     if !pins::is_key_admin(guardian.key) && !registrant { return Err(err(E_GUARDIAN)); }
     d[K_FLAGS] |= F_REVOKED;

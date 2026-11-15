@@ -1,6 +1,6 @@
 # Outcomes that are not a merged pull request
 
-Knos turns any research into a product billions of people use, in days, not years.
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
@@ -27,8 +27,8 @@ Run one through the referee, from `examples/outcomes/` with Knos installed (`pip
 the pinned workflow runs:
 
     cp -r data-labelling/base work-base && cp -r data-labelling/base work-pr && cp -r data-labelling/solution/. work-pr/
-    knos proof referee --base work-base --pr work-pr --issue 1     # the black-box suite
-    knos proof referee --base work-base --pr work-pr --issue 2     # the naive check
+    knos proof judge --base work-base --pr work-pr --issue 1     # the black-box suite
+    knos proof judge --base work-base --pr work-pr --issue 2     # the naive check
 
 `tests/test_outcomes.py` does that for every submission: the honest one is accepted by both bundles, the cheating one
 is accepted by bundle 2 and refused by bundle 1. `python examples/outcomes/evaluation.py` prints each example's terms
@@ -40,3 +40,6 @@ difference can be run. [docs/reference/OUTCOMES.md](../../docs/reference/OUTCOME
 A fourth folder is of another kind: [support-resolution](support-resolution/) has no suite and no submission. Its
 outcome is a support ticket resolved, checked from the ticket's own record under terms, on made-up tickets
 (`python scripts/outcome_support.py evaluate`).
+
+[measured-support](measured-support/) is a measured result on made-up tickets, run once on devnet: every order and transaction is in
+[demo.json](measured-support/demo.json).

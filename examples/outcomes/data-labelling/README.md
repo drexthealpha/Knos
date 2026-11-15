@@ -1,6 +1,6 @@
 # Label 400 support messages
 
-Knos turns any research into a product billions of people use, in days, not years.
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 

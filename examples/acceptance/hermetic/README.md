@@ -1,6 +1,6 @@
 # A hermetic referee: the same black-box check, in an image pinned by digest
 
-Knos turns any research into a product billions of people use, in days, not years.
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
@@ -10,7 +10,7 @@ again and get the same verdict.
 
 **1. Name the image, by digest, in `.knos/proof.toml` on the default branch** ([proof.toml](proof.toml)):
 
-    [referee]
+    [judge]
     image = "docker.io/library/python@sha256:0687a6bc9716edc2a6ee0fbfb0f87e7ee358b262b67c9215de91bc9b2d38ba71"
 
 That is Docker Hub's `python:3.12-alpine` as its registry named it on 4 October 2026. To pin another image:
@@ -42,8 +42,8 @@ tree must write to `/work` instead.
 
 **4. Run it again.**
 
-    knos proof referee --base base --pr pr --issue 7 --evidence verdict.json
-    knos referee rerun verdict.json --base base --pr pr
+    knos proof judge --base base --pr pr --issue 7 --evidence verdict.json
+    knos judge rerun verdict.json --base base --pr pr
 
 The first writes the verdict: `"assurance": "hermetic"`, and under `evidence.image` the digest the runtime reported,
 the runtime and its version and the limits; under `evidence.artifact` a hash of each tree. The second checks that the

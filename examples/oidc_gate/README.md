@@ -1,6 +1,8 @@
 # oidc_gate: let an instruction run only for a verified workload
 
-Knos turns any research into a product billions of people use, in days, not years.
+Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs on NEAR testnet.
+
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
@@ -77,11 +79,10 @@ if !tok.audience().is_some_and(|aud| aud.starts_with(AUDIENCE)) || !from_ci {
 // from here on: GitHub signed that this workflow file ran in this repository, on main, and asked for this audience
 ```
 
-## Three things to build with it
+## What to build with it
 
 - Upgrade a program only from a build your CI verified.
 - Release a grant when the grantee's repository ships a tagged release.
-- Mint only when a named cloud workload asks.
 
 ## The accounts to pass
 

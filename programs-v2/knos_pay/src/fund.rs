@@ -82,7 +82,7 @@ pub fn spend_x(program_id: &Pubkey, b: &Balance, balance: &Pubkey, balx: Option<
     Ok(())
 }
 
-/// 12 Version: a client simulates it to learn whether 2.1 is live (2.0 refuses the tag).
+/// 12 Version: logs knos2:version VERSION (1 was 2.1, 2 is 2.2); 2.0 refuses the tag.
 pub fn version(data: &[u8]) -> ProgramResult {
     if !data.is_empty() { return Err(ProgramError::InvalidInstructionData); }
     msg!("knos2:version {}", VERSION);
@@ -199,7 +199,7 @@ struct NewJob<'x> {
     repo: u64, issue: u64, amount: u64, work: i64, mode: u8, kind: u8, faucet: bool, funder_id: u64, owner_id: u64, not_before: i64,
     source: &'x Pubkey, refund_to: &'x Pubkey, terms: [u8; 32], wf_repo: &'x [u8], wf_sha: &'x [u8],
 }
-/// The accounts of an vault. `auth_signs`: the money comes from a Balance's token account (["auth"] signs the
+/// The accounts of a funding. `auth_signs`: the money comes from a Balance's token account (["auth"] signs the
 /// transfer); otherwise from a token account whose authority signed the transaction.
 struct Escrow<'a, 'b> {
     payer: &'b AccountInfo<'a>, job: &'b AccountInfo<'a>, from: &'b AccountInfo<'a>, authority: &'b AccountInfo<'a>, vault: &'b AccountInfo<'a>,

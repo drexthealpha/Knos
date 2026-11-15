@@ -34,7 +34,7 @@ key). The steps:
     archive   one archive of the evidence, checked by the stand-alone verifier inside it (python verify.py)
     record    witness.json committed to your repository: each step's public link
 
-The record is what the playground's `witness` task asks for (tasks/outside/witness.json). Each step is a function of
+The record is what the `witness` task asks for (KINDS["witness"] in src/knos/tasks.py). Each step is a function of
 (state, shell): tests/test_task_witnessed.py runs the whole sequence against a simulated GitHub and chain, and runs the
 statement, archive and verifier steps for real.
 """
@@ -441,7 +441,7 @@ def record(s: dict, sh: Shell) -> dict:
 
 
 STEPS: list[tuple[str, Callable[[dict, Shell], dict], str]] = [
-    ("repo", repo, "your repository, made from the public template (run again: the same one, its callers as the template's)"),("key", key, "a key made here; its address is public from the next step"),
+    ("repo", repo, "your repository, created empty and given the files of templates/knos-task/ (run again: the same one, its callers brought to that folder's)"),("key", key, "a key made here; its address is public from the next step"),
     ("sol", sol, "devnet SOL for fees, by hand"), ("faucet", faucet, "the faucet's reply on the playground, with its transaction (or the --fund-from transfer's)"),
     ("budget", budget, "the deposit's transaction"), ("terms", terms, "the issue, its acceptance pairs, and the funding's reply with its order"),
     ("fail", fail, "the pull request and the judge job that refused it"), ("pass", pass_, "the passing judge job and the payment's reply with its transaction"),

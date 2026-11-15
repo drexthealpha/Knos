@@ -5,9 +5,10 @@
 #
 # A crate of its own (empty [workspace]) for the reason programs-v2/handlers gives: litesvm's tree cannot be in a
 # workspace cargo build-sbf reads. litesvm 0.7.1 is the release on the solana 2.x crates the program is built from.
+# Its version is 0.0.0 and stays: it is never released, and scripts/bump_version.py neither moves nor checks it.
 [package]
 name = "knos-zk-litesvm"
-version = "0.3.29"
+version = "0.0.0"
 edition = "2021"
 publish = false
 

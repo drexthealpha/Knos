@@ -368,7 +368,6 @@ mod tests {
         assert_eq!(json(br#"{"a":"x","\u0061":"y"}"#), err(E_DUP));         // and so is another spelling of the name
         assert_eq!(json(br#"{"a":"x","a":"y""#), err(E_DUP));                 // found before the damage after it
         assert_eq!(json(br#"{"b":1,"b":2}"#), err(E_DUP));                    // a name nobody asked for is checked too
-        assert_eq!(json(br#"{"b":1,"b":2}"#), err(E_DUP));
         assert_eq!(json("{\"caf\u{e9}\":1,\"caf\\u00e9\":2}".as_bytes()), err(E_DUP));          // one text, written and escaped
         assert_eq!(json("{\"\u{1f600}\":1,\"\\ud83d\\ude00\":2}".as_bytes()), err(E_DUP));      // and as a surrogate pair
         assert!(fields(br#"{"b":1,"B":2,"b ":3,"x":{"b":1,"b":2}}"#, [b"a"]).is_ok());    // other names; and only the top level is compared

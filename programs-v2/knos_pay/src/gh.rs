@@ -95,7 +95,7 @@ pub fn sig_hash(tok: &AccountInfo) -> Result<[u8; 32], ProgramError> {
 
 /// A token stops working when the key that verified it does. `key` must be the account the token account names (the
 /// verifier wrote its address there when the verification began, and never closes a key account), owned by the
-/// verifier, and usable now by the verifier's own rule: not revoked, not expired. So when the guardian revokes a key
+/// verifier, and usable now by the verifier's own rule: not revoked, not expired. So when knos-oidc's key admin revokes a key
 /// (the issuer's private key leaked, say), or nothing has attested a key for KEY_TTL, the tokens that key verified
 /// earlier are refused from that moment on, as the verifier refuses new ones. Another account in the key's place is
 /// E_ACCOUNTS; a key that is not usable is refused with the verifier's own code (76 not active, 77 expired, 78 revoked).

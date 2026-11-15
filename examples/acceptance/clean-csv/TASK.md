@@ -1,6 +1,6 @@
 # Clean our customer exports
 
-Budget: 40 test USDC (devnet, no monetary value), paid when the check passes. No review, no merge: the check below decides.
+Test units only (devnet, no monetary value). No review, no merge: the check below decides.
 
 Our shop sends customer lists to us as CSV files that people have typed and exported from three systems. We need a
 program that turns any of them into one clean file.
@@ -28,6 +28,6 @@ Windows line ends all happen.
 
 **An example** is in `examples/`: `messy.csv` and what `clean.py` must write for it, `expected.csv`.
 
-**How it is checked.** The check in `.knos/acceptance/1/` runs `clean.py` on six files we are not showing you: a real one
+**How it is checked.** The check in `.knos/acceptance/1/` runs `clean.py` on six files we are not showing you: a sample
 we kept back and five made up on the spot. Every cell of every file must match. Do not edit `.knos/`: a pull request that
 touches it is refused.

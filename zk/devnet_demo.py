@@ -3,7 +3,8 @@ the refusal has a public signature), the verdict is recorded, and a payout's che
 
   KNOS_ZK_PAYER=<devnet keypair file> PYTHONPATH=src python zk/devnet_demo.py [program id] [out.json]
 
-Writes the signatures and compute units to zk/fixtures/score64/devnet.json (public data only: signatures, ids, numbers).
+Writes the signatures and compute units to out.json (default zk/fixtures/score64/devnet.json; public data only). The
+committed devnet.json was read back from the chain by zk/devnet_read.py, in the same shape.
 SYNTHETIC data: the hidden set is the made-up sample of zk/score_circuit.
 """
 

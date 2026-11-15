@@ -23,7 +23,7 @@
 //! its own quotient and remainder; the exact bound needs the two to agree, and no solver working on bits found that
 //! within the limit: not CaDiCaL, Kissat or Z3 on the bound, on its form without a division, or on a sixteenth of the
 //! amounts, and not even on the division's identity alone (docs/kani.json, `not_answered`, lists each once, as run on
-//! 2026-10-07). With one basis point to spare the agreement is not needed, and CaDiCaL answers in under a second.
+//! 2026-10-07). With one basis point to spare the agreement is not needed, and CaDiCaL answers it (5.5 s in the recorded run, docs/kani.json).
 //! So that one harness is marked `#[kani::solver(cvc5)]` and is answered by cvc5 with bit-vectors solved as integers
 //! (`--solve-bv-as-int=sum`), where a division by a constant is linear arithmetic: seconds. Kani has no way to pass
 //! a solver its options, so solvers/cvc5 is a script that adds the option, and scripts/kani_fee_record.py puts it

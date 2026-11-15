@@ -2,8 +2,8 @@
 request's code: "$KNOS_RUN python3 classify.py" runs it inside the sandbox, payments go in on stdin (without their
 label) and one 0 or 1 per payment comes out on stdout. The score is accuracy against the labels.
 
-Two sets of 1,500 payments: the hidden set the risk team labelled by hand (hidden.csv), and a set drawn fresh on every
-run. To be paid, a submission must reach ACCURACY on each of the two."""
+Two sets of 1,500 payments: the hidden set, labelled by its rule with one label in twenty flipped (hidden.csv), and a set drawn fresh on every
+run. To pass, a submission must reach ACCURACY on each of the two."""
 import csv
 import os
 import random
@@ -39,7 +39,7 @@ def accuracy(table: list[list], what: str) -> None:
     right = sum(g == r[-1] for g, r in zip(got, table)) / len(table)
     print(f"{what}: accuracy {right:.3f} (needs {ACCURACY})")
     if right < ACCURACY:
-        sys.exit(f"{what}: accuracy {right:.3f}, below the {ACCURACY} that is paid")
+        sys.exit(f"{what}: accuracy {right:.3f}, below the {ACCURACY} that passes")
 
 
 with open(os.path.join(HERE, "hidden.csv"), encoding="utf-8", newline="") as fh:

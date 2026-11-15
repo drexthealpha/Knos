@@ -1,6 +1,8 @@
 # Agent pays agent, only when the work is accepted
 
-Knos turns any research into a product billions of people use, in days, not years.
+Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs on NEAR testnet.
+
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
@@ -22,13 +24,13 @@ by `knos-oidc`; `evaluator.mjs` is the `test` check that run reads. In the test,
 On devnet, with test USDC. Nobody has done this devnet run yet. You need two key files: the payee must be an account
 other than the funder, and `buyer.mjs` refuses a board whose payee is its own address.
 
-    cp examples/agent_pays_agent/offer.devnet.json offer.json   # fill repoId, issue, seller.githubId, wfSha (the commit of the published workflows pinned in examples/knos-workflow.yml, on the branch workflows of drexthealpha/Knos)
+    cp examples/agent_pays_agent/offer.devnet.json offer.json   # fill repoId, issue, seller.githubId, wfSha (the commit of the published workflows pinned in examples/knos-workflow.yml, at tag workflows-976b45d9f0ea of drexthealpha/Knos)
     node examples/agent_pays_agent/seller.mjs --devnet --key seller.json --offer offer.json &
     node examples/agent_pays_agent/buyer.mjs --devnet --key buyer.json --board http://127.0.0.1:4021 --max 5000000
     node examples/x402_attested/live.mjs status --rpc https://api.devnet.solana.com --order ORDER
     node examples/x402_attested/live.mjs refund --rpc https://api.devnet.solana.com --key buyer.json --order ORDER
 
 `buyer.json` needs a little SOL and 5.05 test USDC (5 for the order, a 0.05 fee) ([faucet.circle.com](https://faucet.circle.com)). `status` says
-`paid` once the seller's pull request is merged with `test` green; in the `--wrong` run it stays `escrowed` and `refund`
+`paid` once the seller's pull request is merged with `test` green; in the `--wrong` run it stays held (live.mjs prints the state name `escrowed`) and `refund`
 returns everything after the offer's 15 minutes. Node 20 or later, no package to
 install. Not built: an evaluator that is itself an agent holding a key the program trusts.

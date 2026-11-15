@@ -106,7 +106,7 @@ fn the_fee_is_thirty_basis_points_with_a_floor_of_five_cents_at_every_size() {
         assert_eq!(r.to(&format!("fund_{units}")), Answer::Accepted);
         let o = r.data(&format!("order_{units}")).unwrap();
         assert_eq!((u64_at(&o, O_AMOUNT), u64_at(&o, O_FEE), u16::from_le_bytes([o[O_FEE_BPS], o[O_FEE_BPS + 1]])), (amount, fee, 30), "the order of {units}");
-        assert_eq!(r.tokens(&format!("order_tok_{units}")), amount + fee, "escrowed for {units}");
+        assert_eq!(r.tokens(&format!("order_tok_{units}")), amount + fee, "held for {units}");
         left -= amount + fee;
         assert_eq!(r.tokens("funder_tok"), left, "the funder after {units}");
     }

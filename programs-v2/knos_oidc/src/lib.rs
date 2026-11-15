@@ -1,9 +1,9 @@
-//! knos-oidc, second deployment: OIDC on Solana. Verifies an RS256 token from GitHub Actions, GitLab CI or any other
-//! RS256 issuer on chain, so that any program can require a fact the issuer signed ("this workflow, at this commit,
+//! knos-oidc, second deployment: OIDC on Solana. Verifies an RS256 or ES256 token from GitHub Actions, GitLab CI or any
+//! other issuer on chain, so that any program can require a fact the issuer signed ("this workflow, at this commit,
 //! ran in this repository and said X") with no oracle.
 //!
 //! What it trusts is in pins.rs: GitHub's four keys of 2 Oct 2026, and after them only a key that GitHub's own
-//! signature names (RegisterKey). Such a key waits a day and the guardian's approval before it verifies anything,
+//! signature names (RegisterKey). Such a key waits a day and the key admin's approval (pins::KEY_ADMIN) before it verifies anything,
 //! and every key expires 30 days after it was registered or last named by GitHub's signature (Refresh). That
 //! signature is itself verified here under one of GitHub's keys, so one of them has to be refreshed in every 30
 //! days: once the last one has expired nothing can be attested, and nothing verifies.
@@ -35,8 +35,9 @@
 //!                  Every call refuses a key that is not usable now: not ready, revoked, neither a genesis key nor
 //!                  approved, before its active_at, or at or past its expires_at.
 //!                  The finishing call refuses a token whose `exp` is more than AHEAD (a day) ahead of the clock.
-//!                  2048-bit keys: Step(8), Step(8). 4096-bit keys: Step(2), Step(3) three times, Step(4), Step(1):
+//!                  On a 32-bit (sBPF v0/v1) build: 2048-bit keys: Step(8), Step(8). 4096-bit keys: Step(2), Step(3) three times, Step(4), Step(1):
 //!                  the finishing call also hashes and decodes the whole token, so it is given one squaring only.
+//!                  On a v2 or v3 build one Step(16) does a 2048-bit key (modexp.rs).
 //!   2 Close        payer(s,w) token(w)                   data: id[32]        (the rent goes back to the payer)
 //!   3 RegisterKey  payer(s,w) key(w) system [attest attest_key]   data: issuer u8, n (256 or 512 bytes, big-endian)
 //!                  Creates ["key", [issuer], sha256(n)]. A hash in GENESIS: usable at once (after KeyParams), until
@@ -46,7 +47,7 @@
 //!                  repositories (repository_owner_id, repository_id), whose audience is
 //!                  "knos-oidc:key:<issuer>:<sha256(n) hex>"; and `attest_key`: the key account that verified it
 //!                  (the one the token account names), which must be usable NOW, by the rule Step applies. That key
-//!                  verifies from now + KEY_DELAY, and only once the guardian has approved it; it expires KEY_TTL
+//!                  verifies from now + KEY_DELAY, and only once the key admin has approved it; it expires KEY_TTL
 //!                  after that time. Anyone may send it.
 //!   4 KeyParams    payer(s) key(w)                       data: n0inv u32, r2 (as long as n, big-endian)
 //!                  The key's Montgomery constants, checked on chain; the key is ready after this. Anyone may send it.
@@ -58,12 +59,12 @@
 //!                  owned by the person who started it (repository_owner_id == actor_id). So the keys the issuer
 //!                  still publishes stay alive without the attester's schedule. Anyone may send it. `attest_key` may be `key` itself while it is usable; a key that has expired
 //!                  is refreshed by an attestation verified under another key that has not.
-//!   6 Approve      guardian(s) key(w)
+//!   6 Approve      key_admin(s) key(w)
 //!                  Marks a key approved. Refused for a revoked key, and for a private key.
-//!   7 Revoke       guardian(s) key(w)
+//!   7 Revoke       key_admin(s) key(w)
 //!                  Marks a key revoked, for ever: no instruction clears the mark, and the account stays, so the
 //!                  same modulus can never be registered for that issuer again. The wallet that registered a
-//!                  private key may revoke that key in the guardian's place.
+//!                  private key may revoke that key in the key admin's place.
 //!   8 RegisterIssuerKey  payer(s,w) key(w) iss(w) system attest attest_key
 //!                  data: url_len u8, the issuer's URL (its `iss`, "https://...", at most MAX_ISS bytes), n
 //!                  Any RS256 issuer. Creates ["ikey", sha256(url), sha256(n)] and, with the issuer's first key,
@@ -80,13 +81,14 @@
 //!                  reach (a company's GitHub Enterprise Server). Creates ["pkey", registrant, sha256(url),
 //!                  sha256(n)], issuer ISSUER_PRIVATE, flagged F_PRIVATE, with the registrant's address after the
 //!                  issuer's hash; usable at once (after KeyParams) until now + KEY_TTL. Sent again by the same
-//!                  wallet for the same key it moves the expiry to now + KEY_TTL. The registrant or the guardian
+//!                  wallet for the same key it moves the expiry to now + KEY_TTL. The registrant or the key admin
 //!                  revokes it (Revoke). NOBODY vouches for such a key: it says what its registrant says. So Step
 //!                  under it marks the token account ISSUER_PRIVATE and writes the registrant into it
 //!                  (T_REGISTRANT), a private key is never a GitHub or GitLab key by number, its tokens attest
-//!                  nothing here (RegisterKey, RegisterIssuerKey and Refresh refuse them), the guardian cannot
+//!                  nothing here (RegisterKey, RegisterIssuerKey and Refresh refuse them), the key admin cannot
 //!                  approve one into anything else, and every consumer must ask `is_private` and accept such a
 //!                  token only from the registrant it itself trusts for that purpose.
+//!   10-15 ES256: see es256.rs.
 //!
 //! A consumer program takes the token account, checks that its owner is this program, and calls `verified(&data)`
 //! for the issuer, the expiry and the decoded payload, then reads claims with `claims::fields`. That reader passes
@@ -124,7 +126,9 @@ use solana_program::{
 
 /// The version of this program, as the documents and the upgrade proposals name it. 2.2: every byte of a token's
 /// header and payload is checked as JSON (strict.rs), where 2.1 passed over the values it did not read. The build
-/// carries it in its security.txt (`source_release`), so it can be read from the deployed bytes.
+/// carries it in its security.txt (`source_release`), so it can be read from the deployed bytes. The deployed 2.2 was
+/// built from commit f03ec515d866; the source here has changed since (git diff f03ec515d866 -- programs-v2/knos_oidc/src)
+/// and is not deployed.
 pub const VERSION: &str = "2.2";
 pub const MAX_JWT: usize = 8192;
 /// How long after its `exp` a token is still accepted, here and by consumers that call `fresh`. The issuers' tokens
@@ -136,7 +140,7 @@ pub fn fresh(exp: i64, now: i64) -> bool { now < exp.saturating_add(LATE) }
 /// How far ahead of the clock a token's `exp` may be when Step finishes. `exp` is whatever the holder of the key
 /// signed, and a key is asked about while Step runs and never again. Without this bound the holder of a leaked key
 /// could verify a token that expires in a hundred years, and the account would pass `fresh` for a hundred years after
-/// the guardian revoked the key: as an attestation it would refresh and register keys all that time. With it, a
+/// the key admin revoked the key: as an attestation it would refresh and register keys all that time. With it, a
 /// token account is of no use AHEAD + LATE after its last Step. An issuer's own token is far inside the bound.
 pub const AHEAD: i64 = 86_400;
 // token account: stage u8 (0 writing, 1 stepping, 2 VERIFIED), issuer u8, squarings done u8, limbs u8, jwt_len u16,
@@ -194,8 +198,8 @@ pub const F_PRIVATE: u8 = 8;
 // chunk out of range; 65 signature length or range; 66 key parameters; 67 accounts; 68 not a key of this program
 // (for Step: not a ready one, or not the one the token started with); 69 wrong stage; 70 bad signature; 71 alg is
 // not RS256; 72 issuer; 73 key not in genesis and no valid attestation; 74 attestation claims; 75 attestation
-// expired; 76 key not active yet (its delay has not passed, or the guardian has not approved it); 77 key expired;
-// 78 key revoked; 79 not the guardian
+// expired; 76 key not active yet (its delay has not passed, or the key admin has not approved it); 77 key expired;
+// 78 key revoked; 79 not the key admin (E_GUARDIAN: the name is kept so the error number and the IDL do not move)
 pub const E_LEN: u32 = 64;
 pub const E_SIG: u32 = 65;
 pub const E_PARAMS: u32 = 66;
@@ -591,7 +595,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Pr
             key_limbs(program_id, key)?;
             let mut d = key.try_borrow_mut_data()?;
             if d[K_FLAGS] & F_REVOKED != 0 { return Err(err(E_REVOKED)); }
-            // a private key stays what it is: the guardian's approval is a statement about a key GitHub named
+            // a private key stays what it is: the key admin's approval is a statement about a key GitHub named
             if d[K_FLAGS] & F_PRIVATE != 0 { return Err(err(E_KEY)); }
             d[K_FLAGS] |= F_APPROVED;
             Ok(())
@@ -688,7 +692,7 @@ mod tests {
             assert_eq!(key_usable(ok, active, expires, 2_000), Err(E_KEY_EXPIRED));
             assert_eq!(key_usable(ok, active, expires, i64::MAX), Err(E_KEY_EXPIRED));
         }
-        // attested and waiting for the guardian: never, however much time passes
+        // attested and waiting for the key admin: never, however much time passes
         for now in [0, 999, 1_000, 1_999, 2_000, i64::MAX] { assert_eq!(key_usable(0, active, expires, now), Err(E_INACTIVE)); }
         // revoked wins over everything
         for flags in 0..8u8 {

@@ -1,10 +1,10 @@
-//! knos-pay, the second deployment: pay after proof. A funder puts a bounty for one issue of one GitHub repository in
-//! vault. It is paid to the author of the pull request that meets the terms fixed at funding, when GitHub itself
+//! knos-pay, the second deployment: pay after proof. A funder sets money aside for one issue of one GitHub repository.
+//! It is paid to the author of the pull request that meets the terms fixed at funding, when GitHub itself
 //! signs a token saying the funder's pinned prove.yml workflow saw every funded condition met at the merged commit.
 //! The token is verified on chain by knos-oidc (OIDC_ID). This program is upgradeable only through a multisig with a
 //! public 8-day time lock, until an outside review; then made immutable. In the code below no key of Knos's moves money
 //! or chooses where it goes: the guardian (another multisig) can refuse NEW funding for at most seven days per
-//! signature (Pause), and nothing else here. In knos-oidc its guardian can revoke a signing key; this program then
+//! signature (Pause), and nothing else here. In knos-oidc its key admin (the upgrade multisig vault; the guardian in the deployed 2.2) can revoke a signing key; this program then
 //! refuses every token that key verified (TOKENS). A proof signed with it pays nothing: the job waits for a proof
 //! under a key that is good, or goes back to its funder at the deadline (Refund needs no token). A revocation can
 //! only make this program refuse: nothing makes it accept a token GitHub did not sign.
@@ -25,7 +25,7 @@
 //! into a faucet Balance only. Lamports: a job's rent goes back to whoever paid it (`rent_to`) when the job closes;
 //! the other accounts keep theirs.
 //!
-//! 2.2 (this build; no account changed its size or its address, and an order funded under 2.1 is paid, refunded and
+//! 2.2 (the deployed build, from commit f8bcd9d51eda; the source here has changed since and is not deployed; no account changed its size or its address, and an order funded under 2.1 is paid, refunded and
 //! reverted as it was): ONE FEE RATE, 0.30% with a floor of 0.05, for jobs and orders alike (`fee_of`, `order_fee`);
 //! an order is stamped with its FUNDING (state::O_INC) and every marker made for it carries that stamp, so none
 //! outlives it (order_terms.rs, "INCARNATION"); a quorum counts repository OWNERS, not repositories
@@ -213,7 +213,7 @@
 //!                  bounds as a job; repo_id not 0; the order ["ord", scope, funder, seq] does not exist; the mint
 //!                  passes the mint rules. opts (order.rs): flags u8 (PRIVATE 2, NEUTRAL 4, STANDING 8),
 //!                  holdback_bps u16, warranty_days u16, kill_bps u16, reserve_days u8, rate u64, arbiter_id u64,
-//!                  judge_repo_id u64, salted u8, grace u8 (1: GRACE), 14 zero bytes. A PRIVATE order (salted 1): repo_id and issue are 0
+//!                  judge_repo_id u64, salted u8, grace u8 (1: GRACE), a zero byte, judge u8 @35 (0 a forge, 1 ATTESTED, 2 PANEL: order_proof.rs), 12 zero bytes. A PRIVATE order (salted 1): repo_id and issue are 0
 //!                  and `terms` is its scope [32] then the hash of its terms [32]. Money: amount + order_fee(amount),
 //!                  funder_token -> ov. Logs knos3:funded and knos3:terms.
 //!   16 FundOrderBalance relayer(s,w) fund_token key balance(w) baltok(w) balx(w) plan order(w) ov(w) used(w) mint auth token_program system pause
@@ -326,7 +326,7 @@
 //! extensions are walked, and the mint is refused unless every one is on token::ALLOWED: the extensions that change
 //! nothing about who holds how much or whether a transfer goes through. A transfer hook (even one that names only an
 //! authority), a transfer fee (even of zero), a permanent delegate, a default account state, Pausable,
-//! NonTransferable and every extension this program does not know are refused. Money leaving vault is never held to
+//! NonTransferable and every extension this program does not know are refused. Money leaving a vault is never held to
 //! these rules: what entered can go out. A mint's issuer keeps the powers its mint gives it over every holder
 //! (freezing, by the freeze authority), and this program cannot take them away.
 //!
@@ -344,7 +344,7 @@
 //!   knos2:paid repo= issue= payee= amount= fee= to=                  amount: what reached the wallet `to`; fee: what FEE_OWNER got
 //!   knos2:held repo= issue= payee= until=          knos2:refunded repo= issue= amount=
 //!   knos2:bound user= wallet=                      knos2:withdrawn owner= authority= mint= amount=      knos2:paused until=
-//!   knos2:version 1                                knos2:balancex balance= day= total=                  knos2:plan owner= bps= expires=
+//!   knos2:version 2                                knos2:balancex balance= day= total=                  knos2:plan owner= bps= expires=
 //!   knos3:funded order= repo= issue= seq= amount= fee= mode= by= source= flags= deadline=      then knos3:terms <json> (a public order)
 //!   knos3:paid order= pr= payee= amount= to=       one per payee, then
 //!   knos3:settled order= paid= of= fee= tip= judge=                  fee: what FEE_OWNER got; judge: 0 a, 1 b, 2 c, 3 d, 9 none (SettleOrder)

@@ -4,7 +4,7 @@ version = "0.3.14"
 edition = "2021"
 rust-version = "1.84"
 license = "MIT"
-description = "OIDC on Solana: verifies RS256 tokens from GitHub Actions and GitLab CI on chain. Signing keys enter on GitHub's signature, wait a day, expire, and can be revoked."
+description = "OIDC on Solana: verifies RS256 and ES256 tokens from GitHub Actions and GitLab CI on chain. Signing keys enter on GitHub's signature, wait a day, expire, and can be revoked."
 
 [lib]
 crate-type = ["cdylib", "lib"]

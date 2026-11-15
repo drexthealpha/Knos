@@ -1,6 +1,8 @@
 # reader_template: do one thing only when your CI asked for it
 
-Knos turns any research into a product billions of people use, in days, not years.
+Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs on NEAR testnet.
+
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
@@ -34,7 +36,7 @@ record at `["done", sha256(claims)]` under your program, and the system program.
 `src/lib.rs` says YOUR ACTION.
 
 The test fixture was built with `cargo build-sbf` from the v0.3.14 tag (crates.io has the same version). The test
-runs it in a simulator against the verifier (`tests/test_reader_template.py`, 2 tests). It has not been deployed to devnet, and no program outside this
+runs it in a simulator against the verifier (`tests/test_reader_template.py`, 3 tests). It has not been deployed to devnet, and no program outside this
 repository is known to use it. Built something on it? [docs/reference/COMPOSE.md](../../docs/reference/COMPOSE.md) says how to be listed, and the playground's `compose` task
 pays 5 test USDC for one devnet transaction of it.
 

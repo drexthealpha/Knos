@@ -28,7 +28,7 @@ pub enum Family { GitHub, GitLab, Private, ConfidentialSpace, Orcid, Other }
 ///   https://confidentialcomputing.googleapis.com/.well-known/openid-configuration ("issuer"), RS256, fetched 14 Oct 2026
 ///   https://orcid.org/.well-known/openid-configuration ("issuer"), RS256, fetched 14 Oct 2026
 /// Their keys come into knos-oidc as any other issuer's: RegisterIssuerKey (the pinned rotate workflow names the key,
-/// a day's wait, the guardian's approval), then Refresh every 30 days.
+/// a day's wait, the key admin's approval (the upgrade multisig vault)), then Refresh every 30 days.
 pub const CS_ISSUER: &[u8] = b"https://confidentialcomputing.googleapis.com";
 pub const ORCID_ISSUER: &[u8] = b"https://orcid.org";
 

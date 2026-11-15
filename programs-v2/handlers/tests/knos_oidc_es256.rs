@@ -124,7 +124,7 @@ fn precompile(key: &[u8], sig: &[u8], msg: &[u8]) -> Instruction {
     Instruction { program_id: SECP256R1_ID, accounts: vec![], data: [d, key.to_vec(), sig.to_vec(), msg.to_vec()].concat() }
 }
 
-/// The guardian a test build also takes (pins.rs TEST_GUARDIAN under `testkeys`). This crate links knos_oidc without
+/// The key admin a test build also takes (pins.rs TEST_GUARDIAN under `testkeys`). This crate links knos_oidc without
 /// that feature, so the address is written here.
 fn test_guardian() -> Pubkey {
     Pubkey::new_from_array([0xea, 0x4a, 0x6c, 0x63, 0xe2, 0x9c, 0x52, 0x0a, 0xbe, 0xf5, 0x50, 0x7b, 0x13, 0x2e, 0xc5, 0xf9,
@@ -360,7 +360,7 @@ fn an_rsa_key_is_not_an_es256_key_and_the_reverse() {
     assert_eq!(w.carry(&ready, &w.key_a(), &sig, &input), Err((1, E_EC_KEY)));
     assert!(w.data(&w.token_account(&input)).is_none());
 
-    // the reverse: an RS256 token's Step under the P-256 key account, and the guardian's RSA instructions on it
+    // the reverse: an RS256 token's Step under the P-256 key account, and the key admin's RSA instructions on it
     let (id, jwt) = ([3u8; 32], b"aaaa.bbbb.cccc".to_vec());
     let tok = Pubkey::find_program_address(&[b"tok", w.payer.as_ref(), &id], &w.id).0;
     let write = Instruction { program_id: w.id, data: [&[0u8][..], &id, &(jwt.len() as u16).to_le_bytes(), &0u16.to_le_bytes(), &jwt].concat(),
@@ -380,8 +380,8 @@ fn an_rsa_key_is_not_an_es256_key_and_the_reverse() {
     assert_eq!(w.carry(&ec, &w.key_a(), &sig, &input).map(|_| ()), Ok(()), "and the key is as it was");
 }
 
-/// A key that GitHub's signature admits: it waits a day and for the guardian, verifies, is refreshed, and stops for
-/// ever when the guardian revokes it. The attestation (a VERIFIED GitHub token of the rotate workflow, and the RSA
+/// A key that GitHub's signature admits: it waits a day and for the key admin, verifies, is refreshed, and stops for
+/// ever when the key admin revokes it. The attestation (a VERIFIED GitHub token of the rotate workflow, and the RSA
 /// key that verified it) is put there by hand: how such an account comes to be is knos_oidc.rs's test.
 #[test]
 fn an_attested_key_waits_is_approved_verifies_and_is_revoked() {
@@ -428,7 +428,7 @@ fn an_attested_key_waits_is_approved_verifies_and_is_revoked() {
     let (wid, payer) = (w.id, w.payer); // copied: the closures below must not hold `w`
     let call = |tag: u8, who: Pubkey| Instruction { program_id: wid, data: vec![tag], accounts: vec![AccountMeta::new(who, true), AccountMeta::new(key, false)] };
     assert_eq!(w.carry(&key, &key_a, &sig, &input), Err((1, E_INACTIVE)), "not approved, and inside its delay");
-    assert_eq!(w.send(&[call(13, w.payer)]), Err((0, E_GUARDIAN)), "only the guardian approves");
+    assert_eq!(w.send(&[call(13, w.payer)]), Err((0, E_GUARDIAN)), "only the key admin approves");
     w.send(&[call(13, guardian)]).unwrap();
     assert_eq!(w.data(&key).unwrap()[K_FLAGS], F_APPROVED);
     assert_eq!(w.carry(&key, &key_a, &sig, &input), Err((1, E_INACTIVE)), "approved, and still inside its delay");
@@ -450,7 +450,7 @@ fn an_attested_key_waits_is_approved_verifies_and_is_revoked() {
     w.send(&[refresh(again)]).unwrap();
     assert_eq!(i64_at(&w.data(&key).unwrap(), K_EXPIRES), later + pins::KEY_TTL);
 
-    // Revoke: the guardian only, and for ever
+    // Revoke: the key admin only, and for ever
     assert_eq!(w.send(&[call(14, w.payer)]), Err((0, E_GUARDIAN)));
     w.send(&[call(14, guardian)]).unwrap();
     let (other, other_sig) = w.token("other");
@@ -475,7 +475,7 @@ fn a_private_key_is_its_registrants() {
     assert_eq!(w.send(&[call(14, stranger)]), Err((0, E_GUARDIAN)));
     let guardian = test_guardian();
     w.svm.airdrop(&guardian, 1_000_000_000).unwrap();
-    assert_eq!(w.send(&[call(13, guardian)]), Err((0, E_KEY)), "the guardian's approval is not for a private key");
+    assert_eq!(w.send(&[call(13, guardian)]), Err((0, E_KEY)), "the key admin's approval is not for a private key");
     // the stranger's own registration of the same key is another account, and the first is untouched
     let mut theirs = w.register_private(&url, &key_a);
     theirs.accounts[0] = AccountMeta::new(stranger, true);

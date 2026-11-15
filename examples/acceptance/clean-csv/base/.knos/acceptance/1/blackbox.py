@@ -2,7 +2,7 @@
 request's code: "$KNOS_RUN python3 clean.py" runs it inside the sandbox, a messy file goes in on stdin and the cleaned
 file comes out on stdout. The answer is compared with the clean table the messy file was made from.
 
-Six files: one real sample the buyer kept back (held_out/) and five drawn fresh on every run, from 25 to 120 rows. A
+Six files: one sample the buyer kept back (held_out/) and five drawn fresh on every run, from 25 to 120 rows. A
 file must match cell for cell, so a submission cannot pass on the sample alone, and a refused one is told which row."""
 import csv
 import io

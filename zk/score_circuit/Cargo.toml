@@ -6,9 +6,10 @@
 # and the verifying key the on-chain program embeds. `cargo test --release` checks the proof with arkworks and with
 # groth16-solana (the verifier the program runs), refuses tampered proofs, and refuses to prove a score below the bar.
 # Not a member of any workspace (the empty [workspace] below): the programs' build knows nothing of it.
+# Its version is 0.0.0 and stays: it is never released, and scripts/bump_version.py neither moves nor checks it.
 [package]
 name = "knos-zk-score"
-version = "0.3.29"
+version = "0.0.0"
 edition = "2021"
 publish = false
 license = "MIT"

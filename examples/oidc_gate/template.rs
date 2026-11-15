@@ -2,8 +2,9 @@
 //! runs only when a verified token says "repository X, branch main, workflow Y" (or "Google Cloud service account Z"):
 //! no CPI, no oracle, no key of anyone's. README.md beside this file has the steps and the cargo commands.
 //!
-//! Cargo.toml:   solana-program = "2.2"
-//!               knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.1" }
+//! Cargo.toml:   solana-program = "=2.2.1"
+//!               knos-oidc-interface = "0.3.14"   (crates.io; or the git tag:
+//!               knos-oidc-interface = { git = "https://github.com/drexthealpha/Knos", tag = "v0.4.1" })
 //!
 //! Accounts:     0  token  read-only   the token account knos-oidc wrote (the client verifies the token first)
 //!               1  key    read-only   the key account that verified it: its address is inside the token account

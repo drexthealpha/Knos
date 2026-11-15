@@ -1,6 +1,8 @@
 # x402 "knos-order": a runnable example
 
-Knos turns any research into a product billions of people use, in days, not years.
+Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs on NEAR testnet.
+
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
 Knos carries research across the valley of death, toward Kardashev II and III.
 
@@ -11,7 +13,8 @@ Knos's proposed payment scheme for x402 (paying over HTTP with status 402). It i
     python -m pytest -q tests/test_x402_attested.py -k live        # the program itself, over JSON-RPC, in LiteSVM
     node examples/x402_attested/live.mjs run --rpc https://api.devnet.solana.com --key buyer.json --offer offer.json
 
-The third line is the devnet run. It has not been run at the public program ids; [docs/reference/X402.md](../../docs/reference/X402.md), "Run it", says what it
+The third line is the devnet run. It was run once at the public program ids on devnet (the `exercised` evidence of `x402_knos_order` in
+[docs/capabilities.json](../../docs/capabilities.json)); [docs/reference/X402.md](../../docs/reference/X402.md), "Run it", says what it
 needs and where its transaction signatures are recorded once it has.
 
 | file | what it is |

@@ -1,6 +1,6 @@
 # Hold the risky payments
 
-Budget: 60 test USDC (devnet, no monetary value), paid when the check passes. No review, no merge: the check below decides.
+Test units only (devnet, no monetary value). No review, no merge: the check below decides.
 
 Our risk team holds some card payments for a person to review before they are captured. We want a classifier that makes
 the same call, so that fewer payments wait.
@@ -16,5 +16,5 @@ team's decision. About one decision in twenty was a mistake or a phone call that
 
 **How it is scored.** The check in `.knos/acceptance/1/` runs `classify.py` twice, on 1,500 payments the risk team labelled
 and we are not showing you, and on 1,500 more made up on the spot, and measures accuracy (how many of your answers equal the
-label). You are paid when accuracy is at least 0.85 on each. Always answering `0` scores about 0.65. Do not edit `.knos/`: a
+label). The check passes when accuracy is at least 0.85 on each. Always answering `0` scores about 0.65. Do not edit `.knos/`: a
 pull request that touches it is refused.

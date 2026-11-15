@@ -2,7 +2,7 @@
 # binary from tests/fixtures into LiteSVM (the litesvm crate) and replays the vectors scripts/rust_test_vectors.py
 # writes into ../testdata (see ../testdata/harness.rs).
 #
-#   cd programs-v2/handlers && cargo test --release
+#   cd programs-v2/handlers && cargo test --locked   (what CI runs, program.yml)
 #
 # Not a member of the programs-v2 workspace (the empty [workspace] below), so the programs' build and lockfile know
 # nothing of it. It cannot be a dev-dependency of the programs themselves: `cargo build-sbf` reads the manifest of every

@@ -28,8 +28,8 @@
 # QUERY to more search terms (for example `label:funded`).
 #
 # What an attestation proves: where and from what an artifact was built, not that it is correct or safe.
-# https://cli.github.com/manual/gh_attestation_verify   https://docs.github.com/en/actions/concepts/security/artifact-
-# attestations
+# https://cli.github.com/manual/gh_attestation_verify
+# https://docs.github.com/en/actions/concepts/security/artifact-attestations
 # Change `workflows: [build]` to the `name:` of the workflow that builds and attests (actions/attest-build-provenance).
 name: knos on attestation
 
