@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const SITE = "https://drexthealpha.github.io/Knos/", APP = "https://knos.onrender.com";
-const DIR = process.argv[2] || "C:/Users/zulab/knos-v1-private/v0328/world";
+const DIR = process.argv[2] || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`;
 const lines = [], fails = [];
 const ok = (c, w) => { lines.push(`${c ? "ok  " : "FAIL"} ${w}`); console.log(lines.at(-1)); if (!c) fails.push(w); };
 const status = await fetch(APP + "/api/status").then((r) => r.json());

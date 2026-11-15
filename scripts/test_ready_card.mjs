@@ -9,7 +9,7 @@ import { chromium } from "playwright";
 import { appendFileSync } from "node:fs";
 
 const SITE = "https://drexthealpha.github.io/Knos/", APP = "https://knos.onrender.com";
-const DIR = process.argv[2] || "C:/Users/zulab/knos-v1-private/v0328/world";
+const DIR = process.argv[2] || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`;
 const CHIPS = ["a solar powered music festival", "an AI recipe planner for families", "a crypto podcast for beginners", "a quantum physics book for kids",
   "a probiotic kombucha brand", "a recycled ocean plastic swimwear brand"];
 const PARTS = ["recorded", "without-count", "strength", "modeled", "rejected-signals", "cannot", "exports", "closing", "sure"];

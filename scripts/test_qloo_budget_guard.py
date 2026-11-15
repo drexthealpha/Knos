@@ -48,7 +48,7 @@ class Net:
 
 
 def client(folder: Path, net: Net) -> qloo_rest.Client:
-    return qloo_rest.Client(key="test-key-not-real", base="https://hackathon.api.qloo.com", folder=folder, opener=net,
+    return qloo_rest.Client(key="test-key-not-real", base="https://qloo.test.invalid", folder=folder, opener=net,
                             bucket=qloo_rest._Bucket(1000.0))
 
 

@@ -10,7 +10,7 @@ import { chromium } from "playwright";
 import { appendFileSync, readFileSync } from "node:fs";
 
 const SITE = "https://drexthealpha.github.io/Knos/", API = "https://knos.onrender.com";
-const SHA = process.argv[2], ITEMS = process.argv[3], DIR = process.argv[4] || "C:/Users/zulab/knos-v1-private/v0328/world";
+const SHA = process.argv[2], ITEMS = process.argv[3], DIR = process.argv[4] || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`;
 const lines = [], fails = [];
 const ok = (c, w) => { lines.push(`${c ? "ok  " : "FAIL"} ${w}`); console.log(lines.at(-1)); if (!c) fails.push(w); };
 const qj = await fetch(`${SITE}quality/quality.json?t=${Date.now()}`).then((r) => r.json()).catch(() => ({}));

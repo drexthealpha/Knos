@@ -8,7 +8,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 const SITE = "https://drexthealpha.github.io/Knos/", API = "https://knos.onrender.com";
-const DIR = process.argv[2] || "C:/Users/zulab/knos-v1-private/v0328/world";
+const DIR = process.argv[2] || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`;
 const lines = [], fails = [];
 const ok = (c, w) => { lines.push(`${c ? "ok  " : "FAIL"} ${w}`); console.log(lines.at(-1)); if (!c) fails.push(w); };
 const plan = readFileSync(new URL("../docs/reference/forecast_plan_v2.md", import.meta.url));

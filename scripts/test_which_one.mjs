@@ -10,7 +10,7 @@ import { appendFileSync } from "node:fs";
 
 const APP = "https://knos.onrender.com", FRONT = "https://drexthealpha.github.io/Knos/";
 const KNOS = (process.argv[2] || "knos").split(" ");
-const DIR = process.argv[3] || `${process.env.KNOS_PRIVATE_DIR || "C:/Users/zulab/knos-v1-private"}/v0328/world`;
+const DIR = process.argv[3] || `${process.env.KNOS_PRIVATE_DIR || "."}/v0328/world`;
 const INPUTS = ["a vegan ramen food truck", "a late night ramen spot", "10.1038/nature14539", "10.1126/science.1225829"];
 const TITLES = { "10.1038/nature14539": "Deep learning", "10.1126/science.1225829": "A Programmable Dual-RNA" };
 const NAMED = { "10.1038/nature14539": "a photo search app that finds any picture by its content", "10.1126/science.1225829": "a gene editing kit for crop breeders" };
