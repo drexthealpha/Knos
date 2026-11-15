@@ -1,6 +1,6 @@
 name: issuer keys
 
-# Calls the pinned key-rotation workflow (drexthealpha/knos-oidc-rotate) once a day from this repository, so that a
+# Calls the pinned key-rotation workflow (drexthealpha/knos-oidc-rotate; its files and history: repos/knos-oidc-rotate) once a day from this repository, so that a
 # key GitHub or GitLab adds reaches knos-oidc even if that repository's own schedule is ever switched off (GitHub
 # disables schedules in repositories with no activity for 60 days). The token GitHub signs names the rotate workflow
 # at the commit fixed in knos-oidc's binary, whoever calls it; anyone can do the same from their own repository.

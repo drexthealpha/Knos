@@ -1,7 +1,7 @@
 # The playground
 
 Knos's own [issues](https://github.com/drexthealpha/Knos/issues), where a GitHub account and nothing else tries both sides of Knos. No wallet, nothing installed, nothing spent.
-Until the 0.3.34 branch it was [drexthealpha/knos-playground](https://github.com/drexthealpha/knos-playground). It is kept, because the Colosseum judge path in the README uses its pull request 35.
+Until the 0.3.34 branch it was drexthealpha/knos-playground (its files and history: [repos/knos-playground](../../repos/knos-playground/)). It is kept on GitHub, because the Colosseum judge path in the README uses its pull request 35.
 
 Test USDC, no monetary value. Who outside has used it is counted at the end of this page, never claimed.
 

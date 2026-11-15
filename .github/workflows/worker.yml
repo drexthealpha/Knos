@@ -64,7 +64,7 @@ name: always-on worker
 # fixed amount of test USDC, which has no monetary value (src/knos/faucet.py, docs/reference/FAUCET.md). GitHub sends a comment's
 # event only to the repository it was written in, so this job runs where this file is installed AND that repository is
 # the one the variable KNOS_FAUCET_REPO names (default: drexthealpha/Knos, whose own issues are the playground since the
-# 0.3.34 branch; drexthealpha/knos-playground was its home before). It is a job of its own with a key of its own: KNOS_FAUCET_KEY holds test USDC and no SOL and signs the
+# 0.3.34 branch; drexthealpha/knos-playground was its home before, whose files and history are in repos/knos-playground). It is a job of its own with a key of its own: KNOS_FAUCET_KEY holds test USDC and no SOL and signs the
 # transfer, KNOS_RELAY_KEY pays the fee. One run at a time (concurrency group `knos-faucet`); and should two overlap
 # all the same, the signature each posts before it sends is the lock (knos.faucet.grant). Without both secrets it says
 # so and ends green. It has not run on GitHub yet.

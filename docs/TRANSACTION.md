@@ -20,7 +20,7 @@ flowchart TB
 ## The record, public
 
 One order on Solana devnet, run on 9 Oct 2026 with Knos 0.3.23 in Knos's own repository
-`drexthealpha/knos-witness` (its files and its history are kept in Knos: [evidence/knos-witness](../evidence/knos-witness/)).
+`drexthealpha/knos-witness` (its files and its history are kept in Knos: [repos/knos-witness](../repos/knos-witness/); the copy the record cites: [evidence/knos-witness](../evidence/knos-witness/)).
 There is no outside backer: both sides are Knos accounts.
 
 **Nothing here was sold. Test USDC has no monetary value.**

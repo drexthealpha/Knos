@@ -107,7 +107,7 @@ Four things depend on each other, and only one order satisfies all of them.
 - The jobs that sign install by hash. Their list is the last line of `requirements/sign.txt`: the knos wheel by
   its sha256.
 - The workflows a repository calls are published at ONE commit of the `workflows-<sha12>` tags of `drexthealpha/Knos` (the
-  same commits as the old home `drexthealpha/knos-workflows`), and that commit
+  same commits as the old home `drexthealpha/knos-workflows`, whose files and history are in [`repos/knos-workflows`](repos/knos-workflows/)), and that commit
   holds the list. So the commit exists only after the wheel does.
 - This repository names that commit in `examples/`, in its own `knos.yml`, in `docs/` and on the site.
 - The jobs that sign nothing install knos from PyPI with a cutoff, `UV_EXCLUDE_NEWER`. uv takes no file uploaded

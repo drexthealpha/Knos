@@ -8,7 +8,7 @@ more, and Knos creates no repository unless the user runs the command that does.
 knos-claim and knos-claim-org on GitHub are the old homes, frozen.
 Since the 0.3.34 branch the playground is Knos's own issues too: `fold`
 writes its files into this repository (playground_in_knos). drexthealpha/knos-playground is its old home: frozen at
-0.3.28's files, kept until its funded tasks are paid or refunded.
+0.3.28's files (its files and history: repos/knos-playground), kept until its funded tasks are paid or refunded.
 
     python scripts/small_repos.py list                 the repositories and what each is for
     python scripts/small_repos.py fold                 write templates/<name>/ for every folded one, and the playground

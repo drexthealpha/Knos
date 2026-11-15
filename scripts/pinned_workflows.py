@@ -57,7 +57,7 @@ and knos-check.yml, in templates/ (the files a new repository copies), in docs/ 
 regenerates the site's templates (scripts/front_workflow.py writes web/front.js from the examples). `check` says every
 place that disagrees.
 
-Where the published set lives. Until the cutover it was drexthealpha/knos-workflows (REPO).
+Where the published set lives. Until the cutover it was drexthealpha/knos-workflows (REPO; its files and history: repos/knos-workflows).
 Since 0.3.34 the examples name the monorepo (HOME), whose `workflows-<sha12>` tags hold the published commits (no
 branch: scripts/release.py `on_published_tag`): the same commits, with the same shas and trees. A caller says
 `drexthealpha/Knos/.github/workflows/prove.yml@<sha>`, an order funded through it pins sha256("drexthealpha/Knos") and

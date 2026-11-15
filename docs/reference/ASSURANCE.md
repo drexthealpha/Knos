@@ -696,7 +696,7 @@ The payment is final at once, with no veto. It is limited to that funder's own b
 
 **5. The key registration attestation.** `attested` in `programs-v2/knos_oidc/src/lib.rs` and the constants in `programs-v2/knos_oidc/src/pins.rs`. The program checks which file ran, at which commit, in which of the pinned account's two repositories, on which event and on which kind of runner, and that `aud` names the key's hash.
 
-The workflow it names, `drexthealpha/knos-oidc-rotate` at commit `6ddf031b64febecfcd510763ecee37637a8047fa`, is not in this repository, which holds only the calling file `.github/workflows/keys.yml`. What that workflow asks GitHub to sign is its own reading of the issuers' key sets, so a reviewer has to read it at that commit.
+The workflow it names, `drexthealpha/knos-oidc-rotate` at commit `6ddf031b64febecfcd510763ecee37637a8047fa`, runs from that repository on GitHub; this repository calls it from `.github/workflows/keys.yml` and keeps its files and history in [`repos/knos-oidc-rotate`](../../repos/knos-oidc-rotate/). What that workflow asks GitHub to sign is its own reading of the issuers' key sets, so a reviewer has to read it at that commit: `git show 6ddf031b64febecfcd510763ecee37637a8047fa:.github/workflows/rotate.yml`.
 
 The same repository holds `claim.yml`, which `Bind` trusts at the commit in `CLAIM_SHA` of `programs-v2/knos_pay/src/lib.rs`. The tests sign these claims themselves, with a seed key and a harness account. They cannot run the pinned workflow or the real account, because only GitHub can sign for those. A Rust test checks that the harness values exist only under `testkeys`.
 

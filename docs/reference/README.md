@@ -136,7 +136,7 @@ The documents in this folder are listed below, with the seven front pages too.
 |---|---|
 | [`programs-v2`](../../programs-v2) | The programs: knos_pay, knos_oidc, knos_meter, knos_passkey and knos_zk. The transfer hook is in [`programs-hook`](../../programs-hook). Each file's first lines say what it does. |
 | [`programs`](../../programs) | The first deployment, exactly as deployed. |
-| [`.github/workflows`](../../.github/workflows) | The workflows a repository calls, published at one pinned commit of the `workflows-<sha12>` tags of `drexthealpha/Knos` (`drexthealpha/knos-workflows` before the 0.3.34 branch). |
+| [`.github/workflows`](../../.github/workflows) | The workflows a repository calls, published at one pinned commit of the `workflows-<sha12>` tags of `drexthealpha/Knos` (`drexthealpha/knos-workflows` before the 0.3.34 branch, whose files and history are in [`repos/knos-workflows`](../../repos/knos-workflows/)). |
 | [`src/knos`](../../src/knos) | What the workflows run: the referee, the relay, receipts, statements, the Stop hook, the MCP server. |
 | [`crates`](../../crates), [`idl`](../../idl), [`sdk/settle`](../../sdk/settle), [`examples`](../../examples), [`conformance`](../../conformance) | What another team builds on. |
 | [`web`](../../web) | The site. It reads GitHub, Solana and NEAR in the browser and calls the Knos server (knos.onrender.com) for live checks. |
